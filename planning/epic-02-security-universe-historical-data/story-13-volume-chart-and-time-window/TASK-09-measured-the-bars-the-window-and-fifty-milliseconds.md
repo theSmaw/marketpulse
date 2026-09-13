@@ -1,6 +1,6 @@
 # Task 2.13.9 — Measured: per-bar fills, the window change, and fifty milliseconds
 
-**Status:** Not started
+**Status:** Complete — 2026-09-13
 **Story:** [2.13 Volume Chart & Time-Window Selection](STORY.md)
 **Depends on:** 2.13.8
 
@@ -540,3 +540,227 @@ already written down rather than turning into a ninth candidate.
   **fulfilled** response rather than a store read. A figure taken against it
   excludes network and server time by construction, which is useful for
   attributing render cost and misleading for anything else. Say which.
+
+---
+
+## What this task found — 2026-09-13
+
+**The subject document is [`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) Part
+eight (§§47–59)**, which carries every figure with the machine, the runner and
+the method it was taken with. This section is the summary and the decisions; do
+not cite a number from here that Part eight states.
+
+### The headline, in one line each
+
+- **Criterion 5 is met for everything this story built.** No main-thread task
+  over 50 ms is attributable to either plot or to the window control — cold at
+  the **9,750-bar cap**, under **120 continuous pointer moves**, under a
+  **40-tick resize storm**, on a single window change, or on a rapid sequence of
+  three. The pointer path holds **16.7 ms — one frame at 60 Hz** — with two plots
+  and two reading overlays on screen.
+- **The page still breaches §28, it is still the 518-row table, and this story
+  did not make it worse.** Re-taken with more on the page and with **ten** loads
+  rather than five: 5–7 tasks of 50–107 ms at 518 rows, **none** at twenty rows
+  while a cap-sized chart is still drawn. Reported separately in
+  [`SEARCH-AND-SELECTION.md`](../story-11-security-search-and-selection/SEARCH-AND-SELECTION.md)
+  §10 as a **second dating** of one defect, not folded into any figure here.
+- **The silhouette's ceiling is real, and it is measured in the DOM rather than
+  argued.** The volume mark's `d` is **12,215 / 12,239 / 12,223 characters** at
+  1,950 / 8,190 / 9,750 bars — **833 stems on an 833 px plot at every one**. The
+  price line has no ceiling: **23,803 → 100,427 → 118,086** over the same three,
+  the last corroborating 2.12.9's 118,086 on a different body.
+- **And a hundred kilobytes of path data costs 0.232 ms to parse.** The fourth
+  candidate (§10.4) is discharged with a figure. It is not close.
+- **The two fan-outs are told apart in a profile and one of them is empty.** A
+  resize tick rebuilds both frames at **0.35 / 0.65 / 1.04 ms** (5D / 1M / 1Y). A
+  pointer move touches **no chart function at all** — across 120 moves at four
+  windows, not one frame builder, `timeAxis` or `resolveRead` drew a single
+  sample at a 100 µs interval. The seventh candidate is confirmed by absence.
+- **A rapid sequence is a held frame plus _n_ superseded fetches**, exactly as
+  2.13.7's amendment predicted and the opposite of what this task's own bullet
+  expected: three presses inside one answer's flight spend **0.3 ms** in frame
+  builders. And **the keyboard path spends one request where the pointer path
+  spends three**, which is §32's manual activation arriving as a number.
+- **Chromium agrees with Node about the cold walk, to within 15%**: `timeAxis`
+  totals **9.7–10.9 ms** on a cold 1Y load against 2.13.3's 9.5 ms, and **8.0 ms
+  of it is `marketSessionOn` and 7.3 ms of that is `instantFromMarketTime`**. It
+  does **not** land in the table's task: the chart's first frame arrives on a
+  fetch and is necessarily a later task than the render the table is in, and five
+  instrumented loads confirm it.
+- **Story 2.13 costs 5,733 B gzipped**, 3.7% of the artefact — the volume plot
+  2,581, the window control 604, the rest 2,548. `PriceChart.tsx` itself got
+  **891 bytes smaller**, because the axis left it.
+- **The break was performed and it produced no long task**, which is the most
+  useful thing here. See below.
+
+### The decisions this task took, rather than deferred
+
+**1. Nothing was repaired, because nothing this story built exceeded the
+budget.** The two things over the line or near it belong to other surfaces and
+are named with conditions rather than absorbed: the 518-row table (unchanged
+disposition, unchanged trigger, second dating recorded) and
+`instantFromMarketTime`'s ~8 ms cold walk (2.13.3's trigger, unchanged).
+
+**2. The alternative's four `timeAxis` calls stay, at 1.865 ms per render of the
+pair at 1Y.** 2.13.8's amendment permitted collapsing them **after** the figure
+was recorded, and this task declined for three reasons in order: its own Notes
+fence, 2.12.9's identical decision for the identical reason (removing the call
+spends `CHARTING.md` §15.3's separation), and the figure being 27× under budget.
+**Trigger:** the first `1d` window wider than a year, or a third sentence on this
+axis. The repair is six lines and is named in Part eight §55.2 so nobody has to
+rediscover it.
+
+**3. `marketDateAt` per bar at `1d` is under budget at 1.8 ms per plot, and the
+counterfactual is what got written down.** The same call per bar on a `1m` axis
+is **15.9 ms at the default and 59.3 ms at 1M** — over the whole budget on its
+own. The rule the next per-bar placement inherits is that a per-bar call into the
+timezone layer is only safe where the answer is per session, and that is now a
+measurement rather than an intuition.
+
+**4. No wall-clock assertion was added to `pnpm verify`, anywhere.** A timing
+gate in `pnpm test` measures the runner. Both element-count shape guards already
+exist; this task confirmed them rather than writing a third.
+
+### The instrument was broken on purpose, and the break did not go red where it should have
+
+**One `<line>` per bar in the volume plot** — real geometry, real stroke width,
+which is what the plot would draw if `silhouette()` did not exist:
+
+- **`VolumeChart.test.tsx` goes red at `expected 1951 to be 31`**, the figure
+  2.13.4 recorded, with two other tests in the file failing beside it. The guard
+  is confirmed live in this task rather than cited.
+- **In a browser it puts 9,810 elements in the two plots and produces no task
+  over 50 ms** — not cold, not under a 30-tick resize storm, not under 120
+  pointer moves. `PerformanceObserver` reports a clean run against a build that
+  is **10.7× the JavaScript on the resize path at the cap** (333.5 ms against
+  31.3 over thirty ticks), 2.3× the engine's own time and six times the garbage
+  collection.
+- **That is the finding.** It is the same shape as 2.12.9's 17× pointer-path
+  result and it is now the second instance: a regression that is real, large and
+  structurally invisible to `PRODUCT_SPEC.md` §28's own criterion, because forty
+  resize ticks are forty separate tasks and eleven milliseconds each never
+  crosses fifty. `CLAUDE.md`'s gap list carries it.
+- **And the pointer column is the control that makes it readable**: 3.3 → 3.5 ms,
+  essentially unchanged, because the read position lives in a second context and
+  neither frame owner consumes it. The break lands where the design says it
+  should and nowhere else.
+
+### Two things about the method worth keeping
+
+- **The instrument was checked before anything was measured with it.** §40's
+  warning — a CDP-driven tab reports `hidden`, which pauses `requestAnimationFrame`
+  and `ResizeObserver` with it — would have zeroed every figure in this task. The
+  harness reads `visible`, 31 rAF in 500 ms and a live observer on a laid-out
+  833 × 280 element, and it is recorded beside the figures.
+- **`longtask` was not trusted alone.** It reports nothing at 49 ms and everything
+  at 51, so every cold run also records the largest gap between consecutive
+  `requestAnimationFrame` callbacks. That is what turns "under budget" into "at
+  the two-frame floor and doing nothing", and it is what let §49 say something
+  2.12.9's table could not.
+- **The bundle baseline was rebuilt, not cited.** The Story 2.12 close commit was
+  checked out in a worktree and rebuilt: it reproduced `CHARTING.md` §16.6's
+  figures **to the byte**, at 353 modules and all nine shared rows of the
+  per-module table. `CLAUDE.md`'s rule is that only rebuilding the old commit
+  tells a figure that moved from a figure that was mis-recorded; this one did
+  neither.
+
+### What was not done, and why
+
+- **No fixture was added.** The two bodies this task needed — 8,190 bars for a
+  complete `1M` and 9,750 for the cap — were recorded into a scratch directory
+  and are not checked in, as 2.12.9's two were not. The four fixture-leak greps
+  on `CLAUDE.md`'s list are unaffected.
+- **The server's half of the calendar walk was not re-taken**, because 2.13.3
+  took it and this task's own 2026-09-13 amendment replaced that item: all three
+  callers were measured there and all three paid (the cap check goes from
+  **20.62 ms to 0.906 ms** warm).
+- **Paint was not separated from parse** for the large path attribute. The
+  instrument available (`getTotalLength()`) forces geometry and not compositing;
+  what stands in for the rest is the frame-gap floor and the 60 FPS pointer
+  figures, and the limit is stated in Part eight §51.1 rather than papered over.
+
+---
+
+## For the stakeholders — what happened here, in plain terms
+
+**Nothing on the screen changed this week, and that was the expected outcome.**
+This was a measurement. MarketPulse has a published promise that nothing it does
+should freeze the screen for more than a twentieth of a second, and the work of
+the last fortnight — a second chart beneath the price chart, and a control that
+lets you switch between a day, a week, a month, three months and a year — is the
+first thing in the product that draws a mark **for every single bar of trading
+data**. Ten thousand of them, potentially. So we measured it properly, in a real
+browser, against the largest amount of data the system can serve.
+
+**Everything we built passed, at every size.** Moving the pointer across the
+charts to read individual bars holds a steady sixty frames a second with **both**
+charts responding together — the same smoothness as scrolling a well-built
+website — and switching from one time period to another takes about a tenth of a
+second of the browser's own work. Dragging the window edge to resize the page
+costs about a millisecond per frame. None of it comes close to the limit.
+
+**The second chart turned out to be almost free, and that is because of a
+decision taken three weeks ago.** The two charts share one time axis rather than
+each working out their own, so the volume chart underneath pays only for its own
+shape and nothing for the calendar arithmetic above it. Concretely: adding it
+cost the browser **one extra shape plus one small mark per trading day** — five
+extra marks on a five-day view — and nothing at all that grows with the amount of
+data. A month of minute-by-minute trading and a year of daily trading produce the
+same number of things on screen.
+
+**The most interesting finding is about the volume bars, and it is a warning as
+much as a result.** Drawing eight thousand individual bars would be the obvious
+way to build a volume chart. We deliberately did not, and instead draw a single
+shape that gives every pixel column its tallest bar — visually identical, but
+bounded by the width of the chart rather than by the amount of data. To check
+that decision was worth the trouble we deliberately broke it, drew one mark per
+bar, and measured: **ten times the work for the browser, and six times the
+garbage collection, every time the window is resized.**
+
+**And here is the warning: our own published measure could not see that.** The
+industry-standard way to detect this — watch for any single piece of work longer
+than fifty milliseconds — reported a completely clean run against the broken
+version, because the work arrives as hundreds of small pieces rather than one big
+one. This is the second time in two pieces of work that we have found a real
+performance regression the official yardstick is blind to. Both times, the thing
+that actually caught it was an ordinary automated test asserting the _shape_ of
+what gets drawn — "however much data you give this chart, it must not draw more
+things" — rather than a stopwatch. That is a genuinely useful lesson about how to
+keep a product fast, and it is now written down where the next person will find
+it.
+
+**The one thing that is over budget is still the list of 518 companies, and it is
+still not ours to fix here.** Every time you open a security's page, building
+that long table costs the browser just over the limit we set ourselves. We found
+this three weeks ago, wrote it down with three possible fixes and a specific
+condition saying when it must be done, and deliberately left it alone. This week
+we measured it again — with more on the page than last time — and it is
+unchanged: present with no chart at all, and gone entirely when we shorten the
+list, even with the biggest possible chart drawn. We also added a better
+instrument this time, which showed that the pages _without_ the long list are not
+merely scraping under the limit but doing essentially no work at all. Fixing the
+table properly means changing how it renders, which is a different piece of work
+with its own decision to make, and quietly widening a measurement task into a
+rebuild is how estimates stop meaning anything.
+
+**We also priced this fortnight's work for the visitor.** Everything Story 2.13
+added — the volume chart, its readout, the time-period control, the shared axis
+and all the arithmetic behind them — adds **5.7 KB** to what someone downloads,
+about 3.7% of the application. For comparison, the off-the-shelf charting library
+we turned down at the start of this chapter would have added 95 KB before we drew
+a single line. The whole hand-built chart layer, two charts and all, now costs
+about 12 KB — an eighth of what the library would have cost on its own, with
+complete control of how it looks and how it is read aloud to a screen-reader user.
+A pleasant detail from the same measurement: extracting the shared axis made the
+price chart's own code **smaller** than the axis code that replaced it, so that
+piece of tidying paid for itself in download size as well as in correctness.
+
+**Where this leaves the product.** The volume chart and the time-period control
+are finished, correct, accessible, walked with a keyboard and a screen reader,
+and now proven fast at the largest data set the system can produce. One task
+remains before this chapter closes: deploying it, applying the four "does this
+look like a real product" tests to what is on screen, answering three questions
+that need a person with headphones and a real screen reader, and writing the
+architecture decision record. After that, the epic's promise is met — you can
+search for a company, open it, and inspect its recent price **and volume**
+history over a period you choose — and the next chapter makes the data live.

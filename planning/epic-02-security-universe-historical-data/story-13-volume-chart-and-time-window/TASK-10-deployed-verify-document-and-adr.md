@@ -693,3 +693,204 @@ decision with reach:
 
 A reader arriving at ADR 0028 after reading Part seven will expect an eighth
 subject, which is exactly why this paragraph exists.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.9 — ADR 0028's second subject has its numbers **and a corrected premise**, test 4's latency half is answerable, four sweep targets are already swept, and ADR 0028 gains **no** eighth subject
+
+### The correction first, because an ADR written from the amendment above would state something false
+
+2.13.2's amendment gave ADR 0028 its second subject — _the volume mark is one path
+at every window, and below a pixel per bar one stem per pixel column carrying that
+column's maximum_ — and framed it as **"the second statement of ADR 0027's
+constraint"**, next to 0027's _one element per bar at the cap costs 9,790 elements
+and 137–254 ms_.
+
+**The 137–254 ms half does not transfer, and 2.13.9 performed the break to find
+out.** One `<line>` per bar in the volume plot — real geometry, real stroke width —
+puts **9,810 elements** in the two plots and produces **no main-thread task over
+50 ms at all**: not cold, not under a 30-tick resize storm, not under 120 pointer
+moves. `PerformanceObserver` reports a clean run against it.
+
+So the honest premise for the ADR is a **different and more interesting** one:
+
+> The per-pixel rule is not a repair for a long task. It is a **cost ceiling**,
+> and `PRODUCT_SPEC.md` §28's own criterion is structurally blind to what it
+> saves.
+
+Priced, both builds, same interactions
+([`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §56):
+
+| At the 9,750-bar cap | Plot elements | 30 resizes: JS self | Engine |   GC | >50 ms tasks |
+| -------------------- | ------------: | ------------------: | -----: | ---: | ------------ |
+| As shipped           |        **61** |             31.3 ms |  103.8 |  4.1 | **none**     |
+| One `<line>` per bar |     **9,810** |        **333.5 ms** |  235.3 | 24.7 | **none**     |
+
+**10.7× the JavaScript, 2.3× the engine's own time, six times the collection —
+and nothing to report.** Forty resize ticks are forty separate tasks, and eleven
+milliseconds each never crosses fifty.
+
+**Write the ADR against that**, not against 0027's task durations. It is the
+stronger argument and it generalises further: Epic 5's anomaly markers and Epic
+9's filing markers are both per-bar marks, and what this tells them is that
+`longtask` will not warn them. 0027 is still not reopened — it decided the
+renderer, this decides what to draw with it — but the sentence _"this is the
+second statement of 0027's constraint"_ should become _"this is a **second,
+different** constraint that 0027's element count and §28's criterion both miss."_
+
+The ADR should also say what does hold it, because the answer is not nothing:
+`VolumeChart.test.tsx`'s element-count shape guard, break-verified at
+`expected 1951 to be 31` by 2.13.4 and again by 2.13.9.
+
+### The path-string cost the amendment above deferred to this task
+
+2.13.2's amendment ends _"It also carries the cost §10.4 raised and 2.13.9
+measures — the path **string**, which 0027's element count does not see."_ Here it
+is, so the ADR does not have to go looking (Part eight §51 and §51.1):
+
+| Body             |  Bars | Volume `d`, stems |  Price line `d` |   Line parse |
+| ---------------- | ----: | ----------------: | --------------: | -----------: |
+| 5D — the default | 1,950 |  12,215 ch. / 833 |      23,803 ch. |     0.082 ms |
+| **1M**           | 8,190 |  12,239 ch. / 833 | **100,427 ch.** | **0.232 ms** |
+| the cap          | 9,750 |  12,223 ch. / 833 |     118,086 ch. |     0.330 ms |
+
+**The ceiling is exact: 833 stems on an 833 px plot at all three**, so the
+silhouette's string is flat across a 5× range in bars, and the price line's is
+not. **And both parse in fractions of a millisecond**, which is the half the ADR
+must state plainly rather than imply: the string is a **bounded** cost, not an
+expensive one, and the reason to bound it is the element count above rather than
+the parse. An ADR that reads as though 100 kB of path data were a problem would be
+recording a fear rather than a measurement.
+
+### ADR 0028's third subject — the shared axis — gains its measured consequence
+
+2.13.3's and 2.13.4's amendments established the shared axis as a **type**
+(`timeFrame` is the only builder; `priceFrame` and `volumeFrame` cannot make one).
+2.13.9 says what it bought, and it is worth one line in the ADR:
+
+- **A second plot on this axis costs `+1 path`, `+1 rect` and `sessions − 1`
+  lines** — +4 at five sessions, +24 at twenty-five — **and nothing that scales
+  with the bar count**, confirmed from the other side by the `1d` rows, where 59
+  bars and 248 bars produce identical counts. The cold-load delta is **0–6 ms**.
+- **`PriceChart.tsx` got 891 bytes smaller** when the axis left it, against 795
+  bytes of new module (`ChartAxis.tsx` 578 + `chart-axis-context.ts` 217). The
+  extraction was net **−96 B** before either consumer used it.
+- **A resize tick rebuilds both frames at 0.35 / 0.65 / 1.04 ms** (5D / 1M / 1Y),
+  and **a pointer move rebuilds neither** — across 120 moves at four windows not
+  one frame builder, `timeAxis` or `resolveRead` drew a single sample. The
+  two-context split (2.13.5's fourth mechanism) is visible in a trace rather than
+  only in a comment.
+
+**Epic 8's comparison chart is the reader who needs this**, and the sentence it
+needs is: _the axis is already paid for; a third plot costs one path, one rect and
+one line per session._
+
+### Test 4's latency half is answerable now, with numbers
+
+2.13.2's amendment asked for the latency half to be answered **separately** from
+the motion half, and 2.13.6 built the thing it is about. 2.13.9 measured it, on
+the built artefact with bodies fulfilled so the figures are the renderer's:
+
+| What                                       | Measured                                                       |
+| ------------------------------------------ | -------------------------------------------------------------- |
+| Press a window → the new line is on screen | **72–130 ms**, no task over 50 ms                              |
+| The crosshair, two plots, at the cap       | **16.7 ms** frame interval p50 — one frame at 60 Hz            |
+| Three presses inside one answer's flight   | Previous window drawn **throughout**; 0.3 ms in frame builders |
+| A resize tick with both plots on screen    | **0.35–1.04 ms**                                               |
+
+**None of that answers _does it feel alive_ and it is not offered as an answer.**
+It answers the narrower thing the amendment separated out: nothing here is slow,
+nothing stutters, nothing blanks, and if the deployed page reads as dead it is not
+because a frame was dropped. **Use these figures to close the latency half and
+leave the motion half to the count** — which stands at three deferrals and, on the
+evidence of this task, will be four.
+
+### What 2.13.9 already swept, so this task checks rather than repeats
+
+Four of this task's sweep targets are paid:
+
+- **`CHARTING.md`** carries **three** dated amendments — §16.2 (a second plot's
+  element cost, and the note that 2.13.9's cold column counts from navigation
+  _commit_ rather than start, so the two tables are comparable by their
+  differences and not their absolutes), §16.3 (the pointer path with two plots and
+  two overlays, and the empty profile), and §16.6 (its own baseline rebuilt from
+  `6adef2f` and reproducing **to the byte**, plus Story 2.13's +5,733 B).
+- **`SEARCH-AND-SELECTION.md` §10** carries a **second dating** of the 518-row
+  table's task rather than a rewrite: ten loads this time, 5–7 tasks of 50–107 ms
+  at 518 rows and **none** at twenty while a cap-sized chart is drawn, plus a
+  continuous instrument the first measurement did not have. Disposition, options
+  and trigger unchanged.
+- **`CLAUDE.md`** — three gap-list entries, the existing 50–66 ms entry **amended
+  rather than replaced**, the story's status line, and the current-state
+  paragraph.
+- **`VOLUME-AND-WINDOW.md`** — Part eight, §§47–59, with §59 as its hand-on list.
+
+**What is still owed here** is `EPIC.md`'s status paragraph, ADR 0028 and its
+index entry, `e2e/README.md`'s counts if the suite moves, and the deployed
+verification itself. 2.13.9 changed no source file, so nothing it did can move a
+spec count.
+
+### One gap-list entry is a candidate for the mechanical migration this task asks for
+
+The Work bullet asks that whatever can be made mechanical is, with
+`pnpm coverage:check` as the precedent. Of 2.13.9's three new entries, **the
+second is the one that can**:
+
+> _A per-bar call into the timezone layer is only safe where the answer is per
+> session._ `marketDateAt` per bar is **1.8 ms** at 1Y's 248 sessions and would be
+> **59.3 ms** at 1M's 8,190 bars — over the whole budget on its own. The `1m`
+> branch avoids it by arithmetic rather than by a check.
+
+A unit test asserting that `placeBars` over a recorded **`1m`** body makes **zero**
+calls into `marketDateAt` — a spy, in the shape `PriceChart.test.tsx`'s
+zero-recomputation guard already uses — would make it a `pnpm test` property
+rather than prose with a re-measure nobody runs. **Break-verify it** by making the
+`1m` branch resolve through the market date and confirming it goes red; that break
+is one line.
+
+The other two stay prose and the reason is the one that keeps them on the list
+rather than in a runner: the first is a cost curve only a browser can see, and the
+third is a cold-start figure that a warm runner cannot reproduce at all.
+
+### ADR 0028 gains **no** eighth subject, for 2.13.8's reason
+
+Seven subjects are named by the amendments above and the number is unchanged.
+2.13.9 produced no decision — it produced figures, two corrections to premises the
+amendments above had recorded, and three entries on the gap list. Its findings
+attach to subjects **two** (the per-bar rendering rule, whose argument is corrected
+and whose numbers arrive) and **three** (the shared axis, which gains its measured
+consequence), and they belong there rather than as an eighth heading.
+
+A reader arriving at ADR 0028 after Part eight will expect a performance section;
+what they should find instead is **two existing subjects with measurements under
+them**, and a pointer to Part eight for the figures. An ADR is where a decision
+lives, and this task took none.
+
+### Two things for the deployed verification specifically
+
+- **Every figure in Part eight was taken against fulfilled bodies on a developer's
+  machine, and the deployed store is the one place a wide window is answered for
+  real.** The developer's store is four sessions behind, so `?sessions=21` there is
+  6,630 bars and `partial`; the deployed store is backfilled nightly, so it is the
+  only place the **100,427-character** price path is produced by a real request
+  through a real server. That is not a re-measure — it is one look, to confirm the
+  window that this story's largest figures describe is a window a user actually
+  gets.
+- **`?sessions=21` cold is now the more interesting deep link than `?sessions=63`.**
+  2.13.6's amendment named `3M` because it exercises the `1m` → `1d` change;
+  `1M` exercises the largest thing this product draws, at the density where the
+  silhouette and the line diverge by 8×. Photograph both if it is cheap; if it is
+  one, make it `1M`.
+
+Add to **Done when**:
+
+- ADR 0028's second subject is written against the **measured** premise — a cost
+  ceiling invisible to §28's criterion — and not against ADR 0027's task
+  durations, and it carries the path-string figures **and** the fact that they
+  parse in fractions of a millisecond
+- ADR 0028's third subject carries the shared axis's measured consequence, in the
+  sentence Epic 8 needs
+- Test 4's **latency** half is closed with Part eight's figures, separately from
+  the motion half and its count
+- The `marketDateAt`-on-a-`1m`-axis gap entry is either made mechanical with the
+  break performed, or left with the reason it cannot be

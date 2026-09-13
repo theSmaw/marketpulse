@@ -1770,6 +1770,25 @@ also settle the prediction table for the last time — §0 predicted "~11, flat"
 the measured range is **21 to 44**, with the wider end being the `partial` states
 that carry a ground, an edge and a clip.
 
+> **Amended 2026-09-13 by Task 2.13.9 — a second plot now hangs on this axis, and
+> what it costs is one path, one rect and one line per session.**
+>
+> Measured with both plots on screen, 20-row universe, cold p50 of seven loads,
+> against the Story 2.12 close commit rebuilt from source and served beside it —
+> the figures are in
+> [`VOLUME-AND-WINDOW.md`](../story-13-volume-chart-and-time-window/VOLUME-AND-WINDOW.md)
+> §50. **The volume plot adds `+1 path`, `+1 rect` and `sessions − 1` lines** —
+> +4 at 5 sessions, +20 at 21, +24 at 25 — and **nothing that scales with the bar
+> count**, which the `1d` rows confirm from the other side: 59 bars and 248 bars
+> produce identical counts. The cold-load delta is **0 to 6 ms**, and at the cap
+> the two builds are inside each other's noise.
+>
+> Two figures here are re-taken and one moved. The series `d` at the cap is
+> **118,086 characters** in both measurements, on two different bodies a day
+> apart. The cold p50 column reads 63–69 ms rather than 152–169 because 2.13.9
+> counts from navigation _commit_ rather than from navigation start; **read the
+> difference between rows, not the absolutes, across the two tables.**
+
 ### 16.3 The pointer path — the genuinely unmeasured surface, measured
 
 120 pointer moves across the plot, three runs per body, with the crosshair and
@@ -1787,6 +1806,19 @@ the strip rather than the invitation):
 move is answered in the next frame. The keyboard path is the same picture at a
 different rate — 40 arrow presses, no long task, 24–26 ms press-to-paint p50,
 which is the announcement pacing §13.4 settled rather than work.
+
+> **Amended 2026-09-13 by Task 2.13.9 — the same figures with two plots and two
+> reading overlays, and a stronger statement than a frame time.**
+>
+> 120 moves at four windows with the pair on screen: frame interval **16.7 ms
+> p50** and move → paint **16.7–16.8 ms p50** at every one, no long task, so the
+> second plot and the second overlay cost nothing a reader can feel. What is new
+> is the profile: **across 120 moves at every window, not one of `timeFrame`,
+> `priceFrame`, `volumeFrame`, `timeAxis`, `placeBars`, `resolveRead`,
+> `silhouette` or `linePath` drew a single sample** at a 100 µs interval, and the
+> whole JS self time is 5–8 ms — about 0.05 ms a move. §16.4's repair, and Task
+> 2.13.5's second context, are visible in a trace rather than only in a comment.
+> `VOLUME-AND-WINDOW.md` §52.
 
 ### 16.4 The memoisation repair, priced — and it does **not** break the budget
 
@@ -1956,6 +1988,24 @@ Two smaller corrections to the same prediction, both of which 2.12.2 anticipated
 and the chart's own rules), and **the five arithmetic modules are a third of the
 JavaScript**, which is exactly the part §1 knowingly bought back when it declined
 `d3`.
+
+> **Amended 2026-09-13 by Task 2.13.9 — this table's own baseline was rebuilt
+> rather than cited, and it reproduced to the byte.**
+>
+> Story 2.13 needed a before column, so the Story 2.12 close commit (`6adef2f`)
+> was checked out in a worktree and rebuilt: **441,731 / 140,370 JS and
+> 45,242 / 8,982 CSS at 353 modules**, identical to the _As shipped_ row above,
+> with all nine shared rows of the per-module table identical too. `CLAUDE.md`'s
+> rule is that only rebuilding the old commit tells a figure that moved from a
+> figure that was mis-recorded; this one did neither, and the method is now known
+> to be repeatable.
+>
+> Story 2.13 adds **5,733 B gzipped** on top — the volume plot 2,581, the window
+> control 604, and 2,548 for the shared axis, the read-position context, the
+> alternative's second sentence and the calendar memo. `PriceChart.tsx` itself got
+> **891 bytes smaller**, because the axis left it for `ChartAxis.tsx`. The whole
+> chart layer is now **12,285 B gzipped against Recharts' +94,809 on its own**.
+> `VOLUME-AND-WINDOW.md` §57.
 
 ### 16.7 Two instruments were verified by breaking them, and one break did not go red
 
