@@ -372,3 +372,94 @@ Add to **Done when**:
 - A cleared reading leaves focus where `Escape` leaves it
 - The volume strip's resting peak is shown changing with the window, and is
   distinguishable on screen from a reading
+
+---
+
+## Amended 2026-09-13 by Task 2.13.6 — the control exists, one Work bullet is paid, and every state has gained a **second timeframe**
+
+Nothing in this task's scope moves and nothing is deleted. Four carries, and the
+second is the one that makes this task bigger than it was written to be.
+
+### The `1d` body bullet is paid, and the fixture set is **sixteen**
+
+The Work section says _"the fixture set is fourteen bodies today and every one of
+them is `1m` … at minimum this task needs a `1d` body"_. Both halves are done:
+`daily.json` (63 sessions, the `3M` window) and `daily-year.json` (252, `1Y`),
+recorded from the **deployed** store and named in `CLAUDE.md`'s bundle-leak list
+with their own greps. Whatever bodies the **transitions** need are still this
+task's; a `1d` one is not.
+
+### Every state now has a timeframe dimension, and the two look different
+
+This is the real widening. A window change is no longer only a change of _length_
+— `3M` and `1Y` resolve to `1d`, which draws **no session seams**, dates instead
+of times on the axis, and one column per session rather than a silhouette. So
+each of the six states has two pictures, and the crossing between them is a state
+of its own: **the transition from `1m` to `1d` replaces the axis's vocabulary, not
+just its extent.**
+
+Two consequences worth inheriting rather than finding:
+
+- **A `1d` window is `partial` by construction on any store that is not caught up
+  to the current session.** A named window always reaches to the current session's
+  close, so `3M` asks for a window ending tomorrow-midnight and the store holds
+  through the last backfilled session. On the local store that is a sliver of
+  uncovered ground at the right-hand edge; on the deployed store it is one
+  session. Neither is a defect and both are the coverage treatment working — but
+  it means **`loaded` is effectively unreachable at `1d`**, which is worth knowing
+  before a state is assumed missing.
+- **The three causes of a columnless volume plot** (2.13.4's amendment) gain a
+  fourth arrangement at `1d`: one column per session is wide enough that a single
+  missing session is visible as a gap, where at `1m` it is invisible inside a
+  silhouette.
+
+### Two refusals are now reachable from the address bar, with no stubbing at all
+
+2.13.1's amendment records that **neither refusal is reachable through the
+control**. That is unchanged and it is not the whole picture: with the address
+reading the window, three refusals are now reachable by typing a URL, which makes
+them cheap to produce in a browser and cheap to photograph.
+
+| Address          | What the server answers                                   |
+| ---------------- | --------------------------------------------------------- |
+| `?sessions=1000` | the **calendar** refusal, naming 2024-01-01 to 2028-12-31 |
+| `?sessions=0`    | _"A window of zero sessions contains nothing."_           |
+| `?sessions=abc`  | _"… is not a session count"_, naming `NaN` — see §31.1    |
+
+The last one is the state 2.13.6 shipped a second readout form for (`NOT A
+SESSION COUNT`), and it was verified on screen. **The cap refusal is still
+unreachable** through any address this product writes, because §2.1's mapping
+forecloses it — so it stays a fixture-driven rendering.
+
+### The control is already present in every state, and that is structural
+
+The Work section requires it, and the check is a **confirmation** rather than a
+build: the control is rendered from `Region`'s `control` slot, which sits on the
+panel's heading row **outside** the region's `ErrorBoundary` and outside every
+branch of the panel's state switch. So a chart that throws, a refusal and a
+failure all leave the control exactly where it was. Assert it; do not rebuild it.
+
+And §14.1's "cannot contradict the chart" is now true in code rather than in
+design: the component holds **no state at all**, so there is no pending flag to
+leave stale.
+
+### One judgement this task owns, with an observation rather than an answer
+
+§1.3's trigger — _does 1D's permanent `empty` read as a broken product or an
+honest one_ — is still this task's to answer in writing. As input and not as the
+answer: it was looked at on 2026-09-13 on the local store and read as **honest** —
+the whole frame is uncovered ground, the hourly ticks and the date are drawn from
+the window, and the sentence beneath says _"No bars stored for this window."_
+Nothing about it looks like a fault. Take that as one person's reading of one
+store and answer it from the **deployed** page, where the store is caught up and
+1D's emptiness is a fact about the free plan's fifteen-minute embargo rather than
+about a backfill.
+
+Add to **Done when**:
+
+- Every state is rendered at **both** timeframes, and the `1m` → `1d` crossing is
+  exercised as a transition rather than as two separate windows
+- The three address-reachable refusals are produced **without stubbing**, and the
+  control is shown present and operable in each
+- The control's presence in every state is asserted where it actually lives — the
+  region's heading row, outside the boundary — rather than re-argued

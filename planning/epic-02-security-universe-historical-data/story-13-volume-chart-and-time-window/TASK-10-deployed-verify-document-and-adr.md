@@ -361,3 +361,104 @@ Add to **Done when**:
   says explicitly that the second context is not the store trigger firing
 - The two new "one home" claims are checked against `CLAUDE.md`'s gap list rather
   than re-argued
+
+---
+
+## Amended 2026-09-13 by Task 2.13.6 — ADR 0028 gains a **fifth** decision and a sixth mechanism, three sweep targets are already swept, and test 4's latency half is answerable from a real screen
+
+### ADR 0028's subjects, after this task
+
+The four already named are unchanged: the window vocabulary, the timeframe
+mapping, the shared axis as four separately-undoable mechanisms, and the memoised
+calendar walk. Two more belong beside them, and both outlive this screen.
+
+**Five: the address is the window's home, and the client refuses nothing.**
+`?sessions=N` carries a **count** and not a name, because that is already the
+wire's own parameter — so the address _is_ the request, spelled once. Three
+consequences reach further than this screen and are the ADR-worthy part
+([`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §31):
+
+- **The address admits any count the server accepts, and the control shows no
+  selection rather than snapping.** This is the decision with the longest reach in
+  the story: it is what makes Epic 11's `setTimeWindow` work two epics early, and
+  it is what a later author "fixes" by rounding to the nearest offered window.
+- **The client repairs nothing.** A value that is not a count is asked for anyway
+  and the server's refusal is rendered — `use-security-symbol.ts`'s precedent
+  generalised from a ticker to a number, with one recorded imprecision (the wire
+  carries a `number`, so `abc` is refused as `NaN`).
+- **Read in one place, built in one.** The symbol's arrangement applied to the
+  view, and the reason the parser is not in the vocabulary module.
+
+**Six: on a daily axis a slot is a session.** This is a chart-layer rule rather
+than a window one, and it belongs in the ADR because Epics 5, 8, 9 and 11 all hang
+marks on this axis and every one of them will ask where an instant goes. The
+vendor stamps a daily bar at **midnight**, which is outside trading hours, so the
+`1m` rule — place an instant by where it falls inside a session — drops every bar
+in a `1d` window and draws a correct, empty, **plausible** frame. State the defect
+with the rule: it is the clearest example in this story of a branch that
+typechecked, read correctly and had never run.
+
+Note the shared axis's mechanism list stays at four. This is a rule about
+`positionOfInstant`, not a fifth structural guard.
+
+### What 2.13.6 already swept, so this task checks rather than repeats
+
+Per `CLAUDE.md`'s same-day rule, and its corollary that _"Task N is the deadline"_
+covers the product decision and not the document that was wrong:
+
+- **`CHARTING.md` §12.2** — dated amendment. The extent band was drawn at `1d`,
+  measured at 31 px of a 280 px plot, and **declined a second time**; its stated
+  reason (a hairline at `1m`) does not survive the measurement, and the new
+  reversal trigger is a condition rather than a window.
+- **`CHARTING.md` §17.5 item 5** — dated amendment. The `1d` branches are
+  discharged, and the item records that recording the body found two defects
+  reading it could not.
+- **`CHARTING.md` §14.4's token row** — `--price-unchanged-wash` is now
+  **declined** rather than deferred, and `chart-tokens.stories.tsx` says so on the
+  page where the language is reviewed. This task's token audit should read it that
+  way.
+- **`CLAUDE.md`** — the "what a user can see today" paragraphs, the story's status
+  line, the fixture bundle-leak list (two new bodies with their own greps), and
+  **three** new gap-list entries, two of them with the break performed.
+- **`e2e/README.md`** — the spec count, fifteen files and 122 tests.
+- **The canvas** — `Volume and window.dc.html` gained §§12–13 and §01's focus
+  artboard was corrected. That is the chain ADR 0026 fixes working in the
+  direction it is supposed to: the product corrected the canvas, in the canvas.
+
+What remains on the sweep bullet is unchanged: `EPIC.md`, whatever 2.13.7 to
+2.13.9 falsify, and this story's own close.
+
+### Test 4's latency half is now answerable from a screen rather than an artboard
+
+2.13.2's amendment says to answer the latency half separately from the motion
+half. It is built and it was observed on the running page: the selection moves in
+the frame the press lands (the control holds no state — it reads the address), the
+frame re-labels rather than re-lays-out, and no figure moves while it is being
+read. **Answer it from the deployed page anyway**, because the deployed store
+answers in full and a developer's does not — the transition a stranger sees is
+between two complete pictures, which is the version test 4 is actually about.
+
+The **count of deferrals stays at three** unless the motion half changes it. This
+task adds nothing to it.
+
+### Two things for the deployed verification specifically
+
+- **The deep-link case is now concrete.** `?sessions=63` cold is the path that
+  exercises the address, the server's resolution, the `1d` timeframe and the first
+  paint together — and it is the window 2.13.4's amendment asks for the
+  end-column screenshot at. One load covers both.
+- **`1D` is the window to photograph on the deployed store**, because it is the
+  one place its `empty` is a fact about the free plan's fifteen-minute embargo
+  rather than about an uncaught-up backfill. 2.13.7 answers §1.3's trigger; this
+  task is where the screenshot behind it should come from.
+
+Add to **Done when**:
+
+- ADR 0028 records the address rule and the daily-axis placement rule alongside
+  the four subjects already named, and says why the shared axis's mechanism list
+  stays at four
+- The sweep bullet's list is checked against what 2.13.6 already amended —
+  `CHARTING.md` §12.2, §17.5 item 5, the token row, `CLAUDE.md`, `e2e/README.md`
+  and the canvas — rather than re-applied
+- Test 4's latency half is answered from the **deployed** page, and the deferral
+  count is stated as three

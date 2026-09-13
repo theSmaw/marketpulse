@@ -37,7 +37,7 @@ in a .md file in the same directory.
 Do we need to amend, add, delete or re-order any tasks in
 @planning/epic-02-security-universe-historical-data/story-13-volume-chart-and-time-window
  based on our implementation of
-@planning/epic-02-security-universe-historical-data/story-13-volume-chart-and-time-window/TASK-05-one-reading-two-series.md?
+@planning/planning/epic-02-security-universe-historical-data/story-13-volume-chart-and-time-window/TASK-06-the-window-control-on-screen.md?
 
 
 

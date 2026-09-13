@@ -330,3 +330,61 @@ Add to **Done when**:
   the mock, the pair in the harness — rather than re-derived
 - The resize fan-out and the pointer fan-out are measured and attributed
   **separately**, and the profile says which one touched a frame builder
+
+---
+
+## Amended 2026-09-13 by Task 2.13.6 — a **sixth** candidate, and the windows this task measures are now real rather than hypothetical
+
+### The sixth candidate: `marketDateAt`, once per bar, on every frame build at `1d`
+
+New with the `1d` placement repair
+([`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §30.1) and none of the other five
+would find it, because it is neither an element count nor a string length.
+
+On a daily axis a slot **is** a session, so `positionOfInstant` resolves an
+instant by its **market date** — `marketDateAt(instant)`, which is two `Intl`
+operations — and `placeBars` calls it once per bar. Both plots place their own
+bars, so a `1Y` frame build is **2 × 252 = 504** calls, and a resize storm
+multiplies that by the tick count.
+
+Three things bound it and should be stated **with** the figure rather than instead
+of it: it is off the pointer path (the read position is a second context, and the
+zero-recomputation guard holds), it is bounded by the session count rather than by
+the bar count — so it is **252 at the widest window and 5 at the default**, the
+opposite shape from every other candidate here — and `1m` windows do not reach the
+branch at all. Measure it at `1Y` cold and in a resize storm; if it is under
+budget, say so with the number, because the next per-bar placement rule will want
+it.
+
+### The windows are reachable now, which changes how three existing bullets are taken
+
+- **1M is no longer a projected figure.** The path-string candidate (2.13.2's
+  amendment) says to measure at 1M because the curve's knee is inside the offered
+  set. It is now a button: `?sessions=21` on the running page is 6,630 bars on a
+  developer's store and 8,190 on a caught-up one. Take the measurement there
+  rather than by construction.
+- **The rapid sequence has a driver.** _"A rapid sequence of window changes"_ was
+  written before anything could produce one; five cells and a keyboard now can,
+  and 2.13.7 exercises it. Note the keyboard path is **manual activation** (§32),
+  so a keyboard-driven rapid sequence is `→ Space → Space` rather than four
+  arrows — which is a different request pattern from the mouse's and worth timing
+  as itself.
+- **A window change is a `1m` → `1d` change in two of its five cases**, and those
+  two replace the silhouette with per-session columns and the intraday ticks with
+  dates. That is a different amount of work from a `5D` → `1M` change, and folding
+  them into one "window change" figure would average two different things.
+
+### And one figure this task no longer has to establish
+
+The `1d` windows are **small** in points: 63 and 252 against 1M's 8,190. So the
+price line's path string — the one candidate without a ceiling — has its maximum
+at **1M and not at the widest window**, which is the opposite of the intuition and
+is worth writing beside the number. The knee is where 2.13.2 predicted it.
+
+Add to **Done when**:
+
+- `marketDateAt`'s per-bar cost at `1d` is measured cold at 1Y and under a resize
+  storm, and either shown under budget with the figure or raised with a condition
+- The window-change figure separates a same-timeframe change from a `1m` → `1d`
+  one
+- The keyboard-driven rapid sequence is timed as well as the pointer-driven one
