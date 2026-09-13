@@ -143,7 +143,28 @@ on:
   # GitHub disables a `schedule:` on a repository with no pushes for 60 days.
   # That is a real failure mode for a portfolio project between bursts of work,
   # and the thing that reports it is `pnpm bars:check` rather than this file.
+  # **Twice, and the second one is the point** (2026-09-13).
+  #
+  # 08:00 UTC is four in the morning in New York — twelve hours after a close.
+  # That is fine for a store nobody is reading and wrong for a product somebody
+  # is: `GET /market-data/bars` stitches a **live tail**, so between a close and
+  # the next morning's run the chart is current and everything read out of the
+  # store is a session behind. On 2026-09-13 that put DELL's chart, drawn
+  # through Friday, beside an identity block stating Thursday's close — 567.10
+  # and 506.62 on one screen. The off-by-one that made it permanent is fixed in
+  # `backfill.ts`; this is what stops it recurring nightly.
+  #
+  # 21:00 UTC is 17:00 ET in summer and 16:00 ET in winter — an hour after the
+  # regular close, and past the vendor's withheld recent window either way, with
+  # `SESSION_SETTLE_MS` refusing anything not yet whole. An early close at 13:00
+  # ET is settled long before it.
+  #
+  # The morning run stays, and is not redundant: it is the catch-up for an
+  # evening run that failed, and it is what fills a store after a gap of days.
+  # A run with nothing to do plans zero requests and exits, which is the same
+  # argument the daily-rather-than-weekdays cron already makes.
   schedule:
+    - cron: "0 21 * * *"
     - cron: "0 8 * * *"
 
 # ONE backfill at a time, and cancellation OFF. Two concurrent walks against one

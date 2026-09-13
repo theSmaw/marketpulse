@@ -98,6 +98,7 @@ import type { MarketDataProvider } from "./market-data-provider.js";
 import { isWholeBatchFailure } from "./market-data-provider.js";
 import { createSecuritiesRepository } from "./securities.js";
 import { withRetry } from "./retry-provider.js";
+import { lastCompletedSession } from "./store-freshness.js";
 
 /**
  * How many sessions go into one request, per timeframe — **and the two numbers
@@ -193,6 +194,28 @@ export const EARLIEST_BACKFILL_DATE = "2024-01-01";
 
 /** How many sessions a run covers when nobody says. */
 const DEFAULT_SESSIONS = 5;
+
+/**
+ * How long after a session's close this command waits before asking for it.
+ *
+ * **A policy of this command, deliberately not the vendor's constant.** The
+ * floor is whatever the provider withholds — Alpaca's free SIP plan refuses an
+ * `end` newer than a measured 15 minutes, and `alpaca-mapping.ts` clamps for it
+ * — and this sits comfortably past that for two reasons. Asking inside the
+ * withheld window does not fail: the provider clamps the range and returns a
+ * *partial* session, which the ledger then records as coverage and no later run
+ * re-fetches. A session is therefore worth asking for once it is whole.
+ *
+ * It is expressed here rather than imported from the vendor's module because
+ * `PROVIDER.md`'s seam runs between them: a second provider would withhold a
+ * different amount and this number would still be the right question to ask.
+ *
+ * **In practice it never binds.** The scheduled catch-up runs at 08:00 UTC,
+ * four in the morning in New York, sixteen hours after the close it is fetching.
+ * It exists so that a manual dispatch minutes after a close asks for the session
+ * before it rather than storing a partial one.
+ */
+const SESSION_SETTLE_MS = 30 * 60 * 1000;
 
 /** A symbol that cannot be extended any further in this run, and why. */
 export interface BlockedSymbol {
@@ -1009,8 +1032,9 @@ interface ParsedArguments {
  * refuses outside it, and a backfill that quietly started at the bound would
  * store a year and report that it had stored two.
  */
-function resolveSessions(
+export function resolveSessions(
   parsed: ParsedArguments,
+  now: number = Date.now(),
 ): { sessions: readonly MarketSession[] } | { problem: string } {
   try {
     if (parsed.from !== undefined && parsed.to !== undefined) {
@@ -1037,16 +1061,52 @@ function resolveSessions(
       return { sessions };
     }
 
-    // **The most recent COMPLETE session is the last one this does not
-    // return**, which is why one extra is asked for and the newest dropped:
-    // today's session may not have happened, may be in progress, and in any
-    // case falls inside the plan's withheld recent window (ALPACA.md §10).
+    // **The window ends at the last session the market has COMPLETED**, and
+    // that is a different rule from the one this applied until 2026-09-13.
+    //
+    // It asked for one session more than it wanted and dropped the newest,
+    // unconditionally, reasoning that today's session may not have happened, may
+    // be in progress, and may fall inside the plan's withheld recent window. The
+    // first two are real; the third is the provider's to clamp. But *always drop
+    // one* answers them by giving up a session the market finished hours ago on
+    // **every run that happens outside a trading session** — which is every
+    // scheduled run, because the cron fires at 08:00 UTC, four in the morning in
+    // New York.
+    //
+    // So the store sat permanently one session behind, by construction rather
+    // than by accident, and nothing looked wrong anywhere: `pnpm backfill`
+    // reported `10 already held` and stored nothing, correctly, every night;
+    // `/diagnostics/freshness` reported `sessionsBehind: 1`, correctly, every
+    // night; and `check-deployed.mjs`'s ceiling of two absorbed it by design.
+    // What a *reader* saw, on 2026-09-13, was DELL's chart drawn through Friday
+    // — `GET /market-data/bars` stitches a live tail, so the picture was current
+    // — beside an identity block stating Thursday's close out of the store.
+    // **567.10 and 506.62 on one screen**, a session and sixty dollars apart.
+    //
+    // {@link lastCompletedSession} is the derivation `/diagnostics/freshness`
+    // already uses, and the two sharing it is the point rather than a
+    // convenience: the job that fills the store and the job that reports on the
+    // store have to mean the same thing by *behind*, or the report is green
+    // about a shortfall the filler is never going to reach. If a third caller
+    // wants it, it moves to `packages/shared` beside `lastMarketSessions`.
+    //
+    // The instant is held back by {@link SESSION_SETTLE_MS} so that a run minutes
+    // after a close asks for the session before it, rather than for one the
+    // provider would clamp to a partial answer that the ledger then records as
+    // held.
     const wanted = parsed.sessions ?? DEFAULT_SESSIONS;
-    const sessions = lastMarketSessions(
-      wanted + 1,
-      marketDateAt(new Date()),
-    ).slice(0, wanted);
-    return { sessions };
+    const through = lastCompletedSession(new Date(now - SESSION_SETTLE_MS));
+
+    if (through === null) {
+      return {
+        problem:
+          "The trading calendar has no completed session in the last few weeks, " +
+          "which is a calendar that has run out rather than a market that has " +
+          "been shut. `packages/shared/src/market-calendar.ts` covers 2024–2028.",
+      };
+    }
+
+    return { sessions: lastMarketSessions(wanted, through) };
   } catch (error) {
     // `MarketCalendarRangeError` names the range and the file to edit.
     // Propagated rather than swallowed — see this function's doc comment.
