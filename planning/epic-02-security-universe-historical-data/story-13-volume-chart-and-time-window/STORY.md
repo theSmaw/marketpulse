@@ -463,12 +463,13 @@ Two things that are properties of the pair rather than of either plot:
 
 What it hands on:
 
-| Task    | What moved                                                                                                                                                                                |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2.13.6  | Nothing new to build in the reading; the control is the last thing between this story and its exit criterion                                                                              |
-| 2.13.7  | Owns the fence this task stopped at — **what a reading does when the window changes underneath it**, which is a state question and is unreachable until a control exists                  |
-| 2.13.8  | Inherits a page with **two** readout strips, one deliberately absent from the accessibility tree. The claim to walk is whether the volume figure is genuinely reachable without a pointer |
-| 2.13.10 | ADR 0028 gains the two-context shape and the reason it is not the store trigger firing                                                                                                    |
+| Task    | What moved                                                                                                                                                                                                                                                                  |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.13.6  | Nothing new to build in the reading, and the pair added **no** tab stop — but `1d` makes **five** call sites print a time of day for a bar that is a whole session, which the recorded `1d` body makes readable for the first time                                          |
+| 2.13.7  | Owns the fence this task stopped at, and it is now **overriding a built default rather than choosing between two options**: the read position survives a window change, is clamped, and is therefore _wrong rather than absent_ whenever the new window is at least as long |
+| 2.13.8  | Inherits a page with **two** readout strips, one deliberately absent from the accessibility tree. The claim to walk is whether a bar's traded volume is genuinely reachable with the screen off                                                                             |
+| 2.13.9  | The zero it had to confirm is now mechanical; what is left is telling the **resize** fan-out apart from the **pointer** fan-out, which is newly possible because only one of them touches a frame builder                                                                   |
+| 2.13.10 | ADR 0028 gains a **fourth** shared-axis mechanism — the second context — and the reason it is not the store trigger firing                                                                                                                                                  |
 
 **And one defect found in shipped code rather than written today**: the price
 strip's reserved height was `max(reading, whatever is live)`, so a width at which

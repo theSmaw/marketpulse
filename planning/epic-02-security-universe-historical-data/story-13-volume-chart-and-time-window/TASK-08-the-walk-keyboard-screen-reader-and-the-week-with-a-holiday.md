@@ -243,3 +243,67 @@ Add to **Done when**:
   than asserted
 - `Greyscale` and `Deuteranopia` stories exist over the **pair**, and somebody
   says which way each window went and where the heavy trading was
+
+---
+
+## Amended 2026-09-13 by Task 2.13.5 — the walk gains one claim to **test rather than confirm**, and it is a deliberate absence
+
+Most of what 2.13.5 built narrows this task. One thing widens it, and it is the
+kind of decision a walk exists to falsify.
+
+### **The volume strip is not in the accessibility tree**, and this walk is what says whether that was right
+
+`VolumeReading`'s readout is `aria-hidden`, deliberately
+([`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §23.1): every other mark in that
+region is hidden for the same reason, and `volumeAlternative` already states the
+window's peak — so an exposed strip would state the same fact in the same breath,
+which is the two-surfaces defect with the peak in it.
+
+What replaces it for a listener is **a clause in the price chart's spoken
+sentence** — `Volume 4.06 million.` — reached through the pair's one tab stop.
+That is a chain of three assumptions, and no automated instrument can see any of
+them: axe cannot tell that a hidden element's content is available elsewhere, and
+`CLAUDE.md`'s gap list carries the clause as held by a single unit test.
+
+**So walk it, with a real screen reader, and answer one question: can somebody who
+cannot see the screen get a bar's traded volume?** The path is `Tab` to the price
+plot, arrow to a bar, hear the sentence. If they cannot — if the clause is
+swallowed by the pacing, or arrives too late in a long sentence to be usable —
+the decision is wrong and the repair is to expose the strip and reconcile its
+wording with `volumeAlternative`'s peak sentence. Record the answer either way.
+
+Note also the **exact-versus-spoken split** while you are there: the strip writes
+`4,061,234` and the sentence says `4.06 million`. Both are deliberate and decided
+in one module, but a listener is the one person who gets only the rounded form.
+Say whether that is acceptable rather than assuming it.
+
+### Two things this walk no longer has to discover
+
+- **The tab order did not move.** The pair adds **no** second tab stop — the
+  volume plot answers a pointer and is not focusable — so every new stop in the
+  count is 2.13.6's control. That makes the occlusion finding attributable rather
+  than a bisection.
+- **The reservation is now measured on two strips, not one.** Both hide **every**
+  state they can be in, from one home (`chart-readout.module.css`), which is
+  §15.4's mechanism completed rather than repeated. The three-viewport rule
+  applies to both and the middle viewport is still the instrument — but there are
+  now two instruments on one page, and the volume strip's two states are both
+  figures, so its wrap points are not the price strip's.
+
+### One mark to add to the greyscale confirmation
+
+2.13.4's amendment listed what the simulation stories must cover. There is now a
+third mark on the volume plot: **the crosshair's hollow disc**, at the bar's own
+volume. It spends no hue — `--surface-raised` fill, `--chart-point` ring — and it
+is the one mark on that plot whose _position_ carries a fact the drawing
+otherwise rounds away, so it is worth looking at under both simulations rather
+than reasoning about its tokens.
+
+Add to **Done when**:
+
+- A real screen reader is used to get a **bar's traded volume**, and whether the
+  hidden strip plus the spoken clause is sufficient is recorded either way
+- The stop count names how many stops the control added, against a pair that
+  added none
+- Both strips' reservations are measured at three viewports, not one strip's
+- The simulation stories include the volume disc

@@ -336,3 +336,62 @@ than 28.9, so the half that is lost is a different proportion of a different mar
 **Look at it when 3M first draws.** If it reads badly, the repair is the inset and
 it is a price-chart change that wants saying out loud rather than slipping in
 beside a window control.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.5 — the reading is finished and does not constrain the control, but `1d` now has **five** places that print a time of day
+
+Nothing in this task's scope moves. Two carries, and the second is a real
+obligation that was invisible until the strips were built.
+
+### The control adds the story's only new tab stop, and the pair adds none
+
+2.13.5 shipped a second readout strip, a second crosshair and a second overlay,
+and **no second tab stop** — the volume plot answers a pointer and is not
+focusable, because everything it can state is reachable from the price plot's one
+stop. So this task's Done-when item about the sticky chrome is measuring a tab
+order that has not moved since Story 2.11: whatever this control adds is the
+delta, which makes attributing an occluded stop straightforward rather than a
+bisection.
+
+The reading also needs nothing from this control, and the reason is worth knowing
+before designing around it: **both input paths clear the reading on the way to the
+control.** A pointer travelling from the plot to a control above it leaves the
+plot and fires `onPointerLeave`; a keyboard user tabbing to the control blurs the
+plot. So a person cannot hold a reading while pressing a window. That is a
+property of the control being **outside** the plot, not a guarantee — see 2.13.7,
+which owns what happens when the window changes with a reading still live.
+
+### **`1d` makes five call sites print a time of day that does not exist**
+
+2.13.1's amendment already hands this task _"`chart-alternative.ts`'s two `1d`
+branches execute for the first time … unverified English"_. The strips made that
+larger, and it is arithmetic-shaped rather than prose-shaped, so it is named
+separately.
+
+**Every instant this product prints for a bar is spelled with a time of day**, and
+at `1d` a bar _is a session_. `formatBarInstant` is unconditional —
+`Sep 4 · 09:30 EDT` — and so is `formatMarketInstant`. The call sites that become
+questionable the moment this task makes a `1d` window reachable:
+
+| Where                                        | What it will print for a daily bar  |
+| -------------------------------------------- | ----------------------------------- |
+| `ChartReading` — the price strip's stamp     | `Sep 4 · 09:30 EDT`                 |
+| `VolumeReading` — the reading's stamp        | `Sep 4 · 09:30 EDT`                 |
+| `VolumeReading` — the resting peak's instant | `Sep 4 · 09:30 EDT`                 |
+| `chart-reading.ts` — the spoken sentence     | the same, read aloud                |
+| `chart-alternative.ts`'s `peakClause`        | `formatMarketInstant`, with seconds |
+
+Whether that reads as wrong depends on what the vendor puts in a `1d` bar's
+`startsAt`, which nobody in this repository has seen — which is exactly why
+2.13.1 put the **recorded `1d` body** in this task. So: record the body, look at
+what the five surfaces print, and decide. The likely answer is that a bar's
+instant needs the timeframe, the way `intervalWord` and `slotWord` already do;
+the wrong answer is five independent fixes, because these are two functions with
+five callers and the whole point of both is that there is one spelling.
+
+Add to **Done when**:
+
+- With a `1d` body recorded, somebody **read what all five surfaces print for a
+  daily bar** and either accepted it in writing or fixed it in the two functions
+  rather than at the call sites

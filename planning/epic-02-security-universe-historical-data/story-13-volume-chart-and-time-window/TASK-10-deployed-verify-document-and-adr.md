@@ -296,3 +296,68 @@ Add to **Done when**:
 - ADR 0028 states the shared axis as three separately-undoable mechanisms and one
   inherited sentence, not as a property
 - The four tests' screenshots say **which window** they are of
+
+---
+
+## Amended 2026-09-13 by Task 2.13.5 — ADR 0028's shared-axis decision gains a **fourth** mechanism, and the sweep gains two "one home" claims
+
+### The fourth mechanism, and it is the one that is easiest to undo by tidying
+
+The 2.13.4 amendment states the shared axis as three separately-undoable
+mechanisms. **There is a fourth, and it belongs in the same list rather than in a
+paragraph of its own**, because it is the same wrapper and the same throw:
+
+4. The read position lives in a **second context** on that wrapper, and
+   `useChartReading` throws outside it. Neither frame owner consumes it.
+
+The reason it earns a line in an ADR rather than a code comment is that the
+correct implementation and the catastrophic one are the same size and look
+identical on screen. One value carrying both the frame and the read position is
+handed to every `useChartAxis()` caller, and both frame owners are callers — so a
+pointer move would rebuild a 1,950-point path string and a 726-stem silhouette to
+move one vertical rule, at the **17× CPU on the pointer path with no long task at
+all** that `CLAUDE.md` records as invisible to `PRODUCT_SPEC.md` §28's own
+criterion. The "simplification" of merging two context values is a one-line
+change.
+
+The consequence sentence Epics 5, 8, 9 and 11 inherit gains a clause:
+**a second plot is handed the frame, never the window; it draws at the frame's
+width rather than at its own measurement; and anything that changes on a pointer
+move reaches it through a context neither frame owner reads.**
+
+And state, in the ADR, that this is **not** `FRONTEND-STATE.md` §1's store trigger
+firing. That trigger is _the first piece of state two features must agree about
+that neither owns_; this is two components inside one feature on one route. A
+reader meeting two context providers in one component will otherwise reasonably
+conclude the trigger fired quietly and nobody wrote it down.
+
+### Two sweep targets that are new, and are claims rather than code
+
+Both are of the class this task checks rather than re-applies:
+
+- **`chart-readout.module.css` is the one home for the readout's shape, its
+  reservation and its figure idiom**, and `chart-marks.module.css` gained the
+  reading layer, the crosshair and the disc. Two strips styled twice would be two
+  copies of one decision; a third plot restating them is the obvious next change.
+  `CLAUDE.md`'s gap list carries the re-measure.
+- **`volumePeakBar` is the one derivation of the window's busiest bar**, read by
+  the volume strip and by `chart-alternative.ts`'s `peakClause`. It was a `find`
+  in one file and would have been a second in the other.
+
+### One thing found rather than built, for the close's honesty
+
+2.13.5 found a **shipped browser assertion that had been green against the wrong
+element** since Task 2.12.6: `security-price-chart.spec.ts` asked a helper with an
+`.or()` fallback for _some_ clock time, and the panel's own live sentence
+satisfies it. `e2e/README.md` gained the rule. Worth a line in the close, because
+this story's own instruments are the third set to be checked this way and the
+count of "a green check that was checking nothing" is now three across two
+stories — which is the sort of figure §14.2's four tests are supposed to be read
+against.
+
+Add to **Done when**:
+
+- ADR 0028 states the shared axis as **four** separately-undoable mechanisms, and
+  says explicitly that the second context is not the store trigger firing
+- The two new "one home" claims are checked against `CLAUDE.md`'s gap list rather
+  than re-argued
