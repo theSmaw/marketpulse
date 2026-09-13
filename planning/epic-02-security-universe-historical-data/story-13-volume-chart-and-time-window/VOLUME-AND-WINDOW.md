@@ -3890,3 +3890,32 @@ truth rather than a nuisance:
   element is a wrapper and the text is in a child. It covers the two
   `chart-readout.module.css` sizers too, which were only ever missed because
   nothing had yet queried their text.
+
+## 70. Twenty-one dead stories, since Task 2.13.4
+
+Found by opening the workshop to review §69: **every story on
+`Market/BarSeriesPanel` was an error screen**, and had been since the task that
+put the chart inside the panel.
+
+`useChartAxis` throws outside a `ChartAxis` on purpose — §15.1's mechanism, and
+the thing that stops a second plot building its own axis — so from the moment
+`BarSeriesPanel` rendered a `PriceChart`, its stories needed the provider the
+route and the component test both give it. Every chart story in
+`components/PriceChart/` wraps correctly. The one file that needed a decorator
+was the one file that did not have one.
+
+**Nothing caught it and nothing could have.** `pnpm stories` fails if a component
+has no stories _file_; it does not open one. Storybook's build compiles a story
+rather than rendering it, so twenty-one throwing stories build clean. `pnpm
+verify` was green throughout, and so was the browser suite, which drives the
+product rather than the workshop.
+
+The repair is one decorator on `meta`, built from `screen.shown` rather than
+`screen.view` — the axis is the window of the picture that is **on screen**,
+which on a window change is not the window that was asked for — plus one
+`ChartAxis` per panel inside `AllPermutations`, because an axis is a window and
+that story holds thirteen.
+
+It is worth recording as a **class** rather than as a bug: a story is reviewed by
+a person, and the gap between _builds_ and _renders_ is invisible to every gate
+this repository has. `CLAUDE.md`'s gap list carries the re-measure.

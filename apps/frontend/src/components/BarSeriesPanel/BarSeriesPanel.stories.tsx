@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
 import { Fragment } from "react";
 
 import {
@@ -8,6 +8,8 @@ import {
   windowChangeFixtureScreen,
 } from "../../fixtures/bar-series.js";
 import gridStyles from "../stories.module.css";
+import { ChartAxis } from "../PriceChart/ChartAxis.js";
+import type { BarSeriesPanelProps } from "./BarSeriesPanel.js";
 import { BarSeriesPanel } from "./BarSeriesPanel.js";
 
 // Every state this panel can be in, side by side, with **no backend running**.
@@ -53,10 +55,36 @@ import { BarSeriesPanel } from "./BarSeriesPanel.js";
 //    that all three can be true at once without any of them being read as the
 //    others.
 
+/**
+ * Annotated rather than inferred: an inline decorator makes `meta`'s type
+ * unnameable and `tsc -b` refuses it (`TS2883`).
+ */
+const onOneAxis: Decorator<BarSeriesPanelProps> = (Story, context) => (
+  <ChartAxis view={context.args.screen.shown}>
+    <Story />
+  </ChartAxis>
+);
+
 const meta = {
   title: "Market/BarSeriesPanel",
   component: BarSeriesPanel,
   parameters: { layout: "padded" },
+  /*
+   * **The axis the panel's chart hangs on**, which is how the route renders it
+   * and how `BarSeriesPanel.test.tsx` renders it (2026-09-13).
+   *
+   * `useChartAxis` throws outside a `ChartAxis` on purpose — `chart-axis-context
+   * .ts` carries why, and it is the only thing stopping a second plot building
+   * its own axis — so every story here was a thrown error from the moment Task
+   * 2.13.4 put the chart inside this panel. Nothing caught it: `pnpm stories`
+   * asserts a stories *file* exists, and Storybook's build compiles a story
+   * rather than rendering one.
+   *
+   * It is built from `screen.shown` and not from `screen.view`: the axis is the
+   * window of the picture that is **on screen**, which on a window change is not
+   * the window that was asked for. That is the whole of `WindowChanging` below.
+   */
+  decorators: [onOneAxis],
   args: {
     screen: barSeriesFixtureScreen("partial"),
     symbol: "NVDA",
@@ -281,12 +309,15 @@ export const AllPermutations: Story = {
       ).map(([label, screen, symbol, defaulted]) => (
         <Fragment key={label}>
           <p className={gridStyles.label}>{label}</p>
-          <BarSeriesPanel
-            screen={screen}
-            symbol={symbol}
-            defaulted={defaulted}
-            onRetry={() => undefined}
-          />
+          {/* One axis per panel: an axis is a window, and these are thirteen. */}
+          <ChartAxis view={screen.shown}>
+            <BarSeriesPanel
+              screen={screen}
+              symbol={symbol}
+              defaulted={defaulted}
+              onRetry={() => undefined}
+            />
+          </ChartAxis>
         </Fragment>
       ))}
     </div>
