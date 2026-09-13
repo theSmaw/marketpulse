@@ -67,24 +67,51 @@ function anAnswer(page: Page) {
 }
 
 /**
- * The exact line the price plot is drawing, as its path data.
+ * **Every mark the price plot draws, serialised** — the instrument for *the
+ * picture did not move*.
  *
- * **The longest `d` in the region**, which is the series by a wide margin — the
- * only other paths are the marks a `Marker` draws, at a dozen characters each.
+ * Two wrong instruments were tried first and each failed in a way worth keeping,
+ * because both are the obvious thing to reach for:
  *
- * A path count is what this asked for first and it is the wrong instrument: the
- * held-window rail brings a marker of its own, so the count goes up by one when
- * a window change lands and the assertion fails against a chart that did not
- * move. The path *data* says the thing the test is actually about — **the same
- * line is still on screen** — and says it about the line rather than about how
- * many elements happen to be in the panel.
+ *  1. **A count of `svg path` in the region.** The held-window rail brings a
+ *     `Marker` of its own, so the count rises by one when a window change lands
+ *     and the assertion fails against a chart that did not move.
+ *  2. **The longest `d` in the region** — the series line. It is a good
+ *     assertion on a store with bars and it is **meaningless on CI**, whose store
+ *     holds 518 securities and **zero** bars: every window there is a correct
+ *     `empty`, there is no line, and the longest `d` becomes whichever marker
+ *     glyph happens to be on screen. This file's own header says every assertion
+ *     here must be about the rail, the frame and the control rather than about a
+ *     line; that instrument was a violation of it, and CI caught it.
+ *
+ * What is compared instead is every geometric element of the plot at **chart
+ * scale** — the `> 100px` filter is what excludes the 13px marker glyphs — with
+ * its attributes. On a backfilled store that includes the series path, the two
+ * directional washes and the reference rule; on CI it is the gridlines, the
+ * session seams and the uncovered ground. **Both are the whole picture**, so the
+ * assertion says the same thing in both places and is strictly stronger than the
+ * path comparison it replaces: a held series redrawn dimmer, dashed or in a
+ * second stroke fails it, which is `FRONTEND-STATE.md` §2's reversal trigger
+ * held mechanically.
  */
-async function seriesPath(page: Page): Promise<string> {
-  const drawn = await priceRegion(page)
-    .locator("svg path")
-    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("d") ?? ""));
-
-  return [...drawn].sort((a, b) => b.length - a.length)[0] ?? "";
+async function plotMarks(page: Page): Promise<string> {
+  return priceRegion(page)
+    .locator("svg")
+    .evaluateAll((nodes) =>
+      nodes
+        .filter((node) => node.getBoundingClientRect().width > 100)
+        .flatMap((node) => [
+          ...node.querySelectorAll("path, line, rect, circle"),
+        ])
+        .map(
+          (element) =>
+            `${element.tagName}:${[...element.attributes]
+              .filter((attribute) => attribute.name !== "class")
+              .map((attribute) => `${attribute.name}=${attribute.value}`)
+              .join(",")}`,
+        )
+        .join("|"),
+    );
 }
 
 /**
@@ -128,8 +155,10 @@ test("a window change keeps the previous window's charts on screen, labelled", a
   await page.goto(EXPLORER);
   await expect(anAnswer(page)).toBeVisible();
 
-  const before = await seriesPath(page);
-  expect(before.length).toBeGreaterThan(100);
+  // Non-empty on both stores: a frame is drawn in every state that has a window,
+  // so there are gridlines and an axis rule even where there are no bars.
+  const before = await plotMarks(page);
+  expect(before).not.toBe("");
 
   const release = await holdTheAnswer(page);
   await cell(page, "1 month").click();
@@ -139,7 +168,7 @@ test("a window change keeps the previous window's charts on screen, labelled", a
   await expect(heldRail(page)).toContainText(
     "Still showing the 5-session window while the 21-session window is read",
   );
-  expect(await seriesPath(page)).toBe(before);
+  expect(await plotMarks(page)).toBe(before);
   // `.first()`: the volume plot draws its canvas and its reading overlay as two
   // absolutely-positioned siblings, so `locator("svg")` is two nodes.
   await expect(volumeRegion(page).locator("svg").first()).toBeVisible();
@@ -157,7 +186,7 @@ test("a failed window change leaves the charts, one retry, and no blank page", a
   await page.goto(EXPLORER);
   await expect(anAnswer(page)).toBeVisible();
 
-  const before = await seriesPath(page);
+  const before = await plotMarks(page);
 
   // The one retryable failure this layer has. `route.fulfill()` rather than a
   // real broken backend, for `security-series-states.spec.ts`'s reason: a
@@ -188,7 +217,7 @@ test("a failed window change leaves the charts, one retry, and no blank page", a
 
   // The charts are untouched, the control is still operable, and there is
   // **exactly one** `Try again` on the screen.
-  expect(await seriesPath(page)).toBe(before);
+  expect(await plotMarks(page)).toBe(before);
   await expect(page.getByRole("button", { name: "Try again" })).toHaveCount(1);
   await expect(cell(page, "5 days")).toBeEnabled();
   await expectNothingFailedToRender(page);
@@ -237,7 +266,7 @@ test("a refusal after an answer keeps the answer, and names which window it is",
   await page.goto(EXPLORER);
   await expect(anAnswer(page)).toBeVisible();
 
-  const before = await seriesPath(page);
+  const before = await plotMarks(page);
 
   // A hand-typed address, which is exactly how this refusal is reached — and
   // the navigation is client-side, so the previous answer is still held.
@@ -250,7 +279,7 @@ test("a refusal after an answer keeps the answer, and names which window it is",
   await expect(heldRail(page)).toContainText(
     "Still showing the 5-session window. The 1,000-session window was not answered",
   );
-  expect(await seriesPath(page)).toBe(before);
+  expect(await plotMarks(page)).toBe(before);
   await expect(page.getByRole("button", { name: "Try again" })).toHaveCount(0);
 });
 

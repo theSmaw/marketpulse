@@ -601,6 +601,17 @@ In the same shape ADR 0010 states it for the tick.
   figures above are Task 1.13.4's, taken on ten tests, and have not been re-taken
   since.
 
+  **And one rule this suite keeps re-learning, sharpened 2026-09-13 by Task
+  2.13.7.** CI's store holds 518 securities and **zero bars**, so every window is
+  a correct `empty` there and a `partial` locally — and an assertion about a
+  **drawn series** therefore passes locally and is meaningless on CI. It happened
+  again: a new spec's own header said every assertion in it must be about the
+  rail, the frame and the control rather than about a line, and two of its tests
+  then compared the series path. Both were green locally and red on the gate,
+  which is the gate working. The instrument that survives both stores is **every
+  mark at chart scale**, which on a backfilled store includes the line and on CI
+  is the frame — and it is strictly stronger than the thing it replaced.
+
   **And one figure that is about this machine rather than about the suite, added
   2026-09-13 by Task 2.13.7.** At four workers on a loaded laptop, three of the
   heaviest specs — the 518-row universe render and two whole-document axe runs —
