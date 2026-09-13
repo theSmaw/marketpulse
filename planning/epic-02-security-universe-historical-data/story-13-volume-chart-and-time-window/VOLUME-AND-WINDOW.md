@@ -536,3 +536,637 @@ around a specific figure is wrong for every window except one.
 Six decisions, each with its alternatives and a reversal trigger that is a
 condition. Nothing was added to `apps/frontend/src`; the benchmark that produced
 §1.1's second table was written, run and deleted in the same task.
+
+---
+
+# Part two — the instrument, added 2026-09-13 by Task 2.13.2
+
+§§1–6 settled **what the product offers**. §§8–16 settle **what it looks like**,
+on the `Component library for MarketPulse` canvas that has been the source of
+truth since [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md),
+with the tokens landed in the chain the ADR fixes: canvas → `VISUAL-LANGUAGE.md`
+→ `tokens.css` → components.
+
+The canvas file is **`Volume and window.dc.html`**, added for the scope reason
+rather than the mechanical one — the main canvas cannot be read-modify-written
+past 256 KiB, but this would have been its own file anyway: it is a different
+question about a different surface. The specimens in it are **drawn rather than
+described**, and the two series in them are **real** — NVDA's 1,950 stored
+minute bars from 2026-08-31 to 2026-09-04, the default window, at the measured
+1,019 px region. Two things were corrected by drawing them and both are recorded
+below where they were found.
+
+**Nothing was drawn in the application, and the fence held.** There is no volume
+plot, no window control and no change to any route. `SecurityExplorer.tsx`'s
+Volume region still holds its placeholder naming this story, and Task 2.13.4 is
+still the first volume in MarketPulse.
+
+---
+
+## 8. The window control
+
+### 8.1 A segmented control, and the two alternatives it beat
+
+**Decided: one bordered box at `--control-height`, five cells, hairline
+separators.** The labels are this language's existing micro-label idiom —
+uppercase, letterspaced, 11 px, monospace — and **no new idiom was invented**,
+which is what makes the control read as an instrument rather than as five web
+buttons.
+
+- **Five separate buttons** were rejected: they read as five unrelated actions
+  and put four gaps where a reader is trying to see one axis of choice.
+- **A `<select>`** was rejected: it hides a five-member vocabulary that fits in
+  230 px behind a click, and it is the single most default-looking control a
+  browser ships.
+
+### 8.2 Selection is three channels and none of them is hue
+
+A **2 px near-black bar** along the bottom of the cell, the label at
+`--font-weight-strong`, and the ink stepping `--ink-secondary` →
+`--ink-primary`.
+
+That is `VISUAL-LANGUAGE.md`'s existing tab idiom — _a selected tab is an
+underline, never a filled pill, paired with a weight change_ — transposed, with
+one substitution: **the bar is near-black rather than crimson**. The identity
+accent has four sanctioned positions in the chrome, none of them is a control
+that changes a datum, and a fifth is a decision to escalate rather than a detail
+to slip in.
+
+**This control needed no greyscale measurement, because it spends no colour.**
+The bar is a shape, the weight is a weight, and the two inks differ by luminance.
+`grayscale(1)` changes nothing about it, and the canvas shows that as a pair
+rather than asserting it.
+
+**The selected cell takes no ground; hover owns the ground.** Two states that a
+person using a mouse and a keyboard together can have on screen at the same
+moment must differ by more than a shade — the lesson
+[`SEARCH-AND-SELECTION.md`](../story-11-security-search-and-selection/SEARCH-AND-SELECTION.md)'s
+combobox already paid for with its hovered row and its active row.
+
+### 8.3 Two things drawing it corrected
+
+Both would have shipped, and neither was reachable by reasoning about tokens.
+
+1. **Hover is `--surface-sunken`, not `--surface-page`.** The page ground is
+   **1.02:1 against white**. On a row inside a floating result surface it works,
+   because the surface is raised above a page that is already that colour. On a
+   control standing on a raised panel it is simply not there — drawn, the
+   hovered cell was indistinguishable from its neighbours.
+2. **The readout sits outside the bordered box.** It was drawn inside first, as
+   a sixth cell on a sunken ground, and it read as a sixth **button** — and it
+   competed with hover for the one ground a cell can take. Outside, in the
+   micro-label idiom, it is unmistakably a readout, and it is the same
+   `LABEL · value` shape the status strip already uses for the market feed.
+
+### 8.4 The readout, and the state it makes ordinary
+
+§4(b) decided that the address admits any session count the server accepts and
+that the control **shows no selection rather than snapping to the nearest**. So
+"nothing selected" is a real, reachable, permanent state — the first thing a
+stranger sees if they edit the address, and the routine outcome of Epic 11's
+`setTimeWindow` asking for thirty sessions.
+
+**Decided: it is answered by adding a readout rather than by drawing a sixth
+state.** The control always carries a static micro-label beside it giving the
+**resolved session count** of whatever is on screen:
+
+| On screen      | Control  | Readout       |
+| -------------- | -------- | ------------- |
+| the default    | `5D` set | `5 SESSIONS`  |
+| `?sessions=21` | `1M` set | `21 SESSIONS` |
+| `?sessions=7`  | none set | `7 SESSIONS`  |
+
+Two things follow, and the second is the one that makes this a good answer rather
+than a decoration:
+
+- **The no-selection state stops being special-cased.** It is the same control
+  with no bar, beside a sentence that explains exactly why. Five empty buttons
+  read as broken; five empty buttons beside `7 SESSIONS` read as a product that
+  understood the address.
+- **It is §4(e) made visible.** _The label says the approximation; the readout
+  says the fact._ `1M` is not a month — it is twenty-one trading sessions, which
+  is the number the axis is divided into and the number
+  `chart-alternative.ts` speaks aloud. A control whose visible vocabulary and
+  whose spoken vocabulary disagree is how a sighted reader and a listener end up
+  describing different windows.
+
+**Reversal trigger:** the first window whose resolved count is not a fact worth
+printing — an absolute range from Epic 13's scrubber has no session count that
+means anything to a reader, and at that point the readout needs a second form or
+needs to be absent rather than wrong.
+
+### 8.5 What is not drawn, because it cannot occur
+
+**There is no disabled, greyed or unavailable window**, and that follows from §6
+rather than from a preference: 424 sessions of calendar headroom against a
+widest offer of 252, and the timeframe mapping forecloses the 10,000-bar cap for
+every session count from every source.
+
+Two consequences worth stating so they are inherited rather than rediscovered:
+Task 2.13.6 does **not** need `TextField`'s `aria-disabled` + `readOnly` idiom
+here, and the WCAG consequence that idiom drags with it — that an inactive
+control's border and ink stop being exempt from 1.4.11 and 1.4.3 — does not
+arise.
+
+### 8.6 Where it sits
+
+**Right-aligned on the Price region's heading row, over the panel's near-black
+rule.**
+
+The honest statement of the reason is not that the window belongs to price — it
+belongs to the **screen**, and it moves the volume plot in a different region.
+It is that this product has no page-level control bar, and inventing one for a
+single control is chrome arriving before its second occupant.
+
+**Reversal trigger: the second screen-level control.** That is almost certainly
+Epic 8's comparison picker, at which point both belong in a bar above the
+regions rather than one in each panel.
+
+At 342 px of region the control wraps to its own full-width row beneath the
+heading and the cells flex. It never truncates a label and never drops the
+readout, which is the half that explains the other five.
+
+---
+
+## 9. The proportion of the pair, and it is a number with a reason
+
+### 9.1 The pair is **aligned** rather than adjacent
+
+Price and Volume are **two `Region` panels**, not one chart with two plots.
+Story 2.11's shell placed `PRODUCT_SPEC.md` §8.3's seven contents as seven
+regions and this inherits that rather than reopening it; what separates the two
+plots on screen is a panel heading.
+
+**So the alignment is structural rather than visual**, and it is worth being
+precise about what guarantees it: both regions declare the same span on the same
+grid, both plots are measured the same way, and **both spend the same
+`--chart-gutter`**. That is why the gutter is a token — `tokens.css` already
+says _two charts that disagree about where their value scale starts cannot be
+stacked_ — and it is why **volume keeps the full 56 px gutter for a single label
+it does not need.** Alignment outranks tightness.
+
+One thing the grid does that is worth knowing before reading 2.13.4's e2e specs:
+at three columns and at two, Price and Volume are vertically adjacent at the
+same width, with the Abnormal-move region beside Price rather than between them.
+**At one column they are separated**, by that region and by the price panel's
+own eight stated facts — and that is unavoidable in any DOM order, because the
+price panel alone is taller than a phone. §11 is the design consequence.
+
+### 9.2 **88 px against 280, and 68 against 220**
+
+Decided against the reading the plot has to support rather than by eye.
+`PRODUCT_SPEC.md` §11's volume anomaly and §38's demo line are both a
+**multiple** — _"Volume 3.8× normal"_ — and Epic 5 draws that claim on this
+plot. With the domain running zero to the window's peak, a window whose peak is
+3.8× its typical bar draws that typical bar at one 3.8th of the height:
+
+| Volume plot         | The ordinary bar at 3.8× peak | Verdict                                                        |
+| ------------------- | ----------------------------: | -------------------------------------------------------------- |
+| 70 px — a quarter   |                         18 px | The step from typical to slightly elevated stops being legible |
+| **88 px — taken**   |                     **23 px** | Reads                                                          |
+| 140 px — a half     |                         37 px | No longer a supporting series                                  |
+| **68 px — compact** |                     **18 px** | The floor, and it is why the compact pair keeps the ratio      |
+
+88 : 280 is **3.18 : 1** and 68 : 220 is **3.24 : 1**, so **the compact pair
+keeps the ratio rather than keeping the height** — which is the only way the
+arithmetic above survives a narrow region.
+
+**Reversal trigger:** the first window whose peak is more than about six times
+its typical bar as a routine matter. At that ratio the ordinary bar is 15 px at
+88 and the plot has stopped being readable at the bottom of its own domain, and
+the repair is a domain that is not linear rather than a taller plot.
+
+### 9.3 The volume domain is **zero to the window's peak, unpadded**
+
+Volume has a true zero, so there is nothing to pad at the bottom, and the peak
+is a fact worth touching the ceiling rather than a maximum to be given room. It
+is also what makes §9.2's arithmetic true and Epic 5's baseline free: a 3.8×
+spike puts the normal-volume rule at 26% of the height by construction, so that
+mark displaces nothing.
+
+### 9.4 What volume keeps of price's chrome, and what it does not
+
+| Mark                               | Volume    | Why                                                                                                                                                                                                                               |
+| ---------------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The axis rule                      | **yes**   | Here it is a **true zero** and the columns grow from it — the one place the two plots are honestly different                                                                                                                      |
+| Session seams, full height         | **yes**   | They are the shared axis made visible, and they are what a reader lines the two plots up by across a panel boundary                                                                                                               |
+| Uncovered ground and coverage edge | **yes**   | §10                                                                                                                                                                                                                               |
+| Value scale                        | one label | The window's peak, abbreviated (§5a), **top-aligned to the plot rather than centred on its edge** — centred, it collides with the price scale's lowest label above it. A volume domain's zero is the axis rule and needs no label |
+| Gridlines                          | **no**    | Volume is read comparatively — this bar against its neighbours — not off a scale. A second set of horizontal rules doubles the chrome for the supporting series                                                                   |
+| Intraday times                     | **no**    | See below                                                                                                                                                                                                                         |
+| The directional wash               | **no**    | §12                                                                                                                                                                                                                               |
+| The reference rule                 | **no**    | Reserved for Epic 5's baseline (§13)                                                                                                                                                                                              |
+
+**The time labels are the first and last session date only** — which is
+`sessionLabels: "ends"`, a policy value `chart-density.ts` already defines for
+narrow regions, **reused rather than invented and with no viewport branch of its
+own**. It is enough to anchor the plot where §9.1 says it will be read alone,
+and visibly less than the six labels above it. A media query choosing between
+"no labels" and "the price chart's" was the obvious alternative and is exactly
+the second copy of a breakpoint `CHARTING.md` §11.1 spent a task removing.
+
+**The seams are drawn under the bars.** A 1.70:1 dashed rule crossing a 3.50:1
+filled column is the column's pixel: the mark carrying data wins every pixel it
+shares with the mark carrying chrome. On the price plot the two never overlap,
+because a line is a line.
+
+---
+
+## 10. The volume mark, at both ends of a 130× range
+
+### 10.1 One `<path>`, always
+
+These are the first marks on this axis that are **per bar**, and `CHARTING.md`
+§1 forbids the obvious implementation outright: one element per bar at the cap is
+**9,790 plot elements and main-thread tasks of 137–254 ms**. So the visual
+question and the rendering question are one question, and the answer has to hold
+from **11.5 px per bar to 0.089 px per bar**.
+
+**Decided: the columns are butt-capped stems on a single stroked path whose
+`stroke-width` is the column width.** One element at every window, exactly as the
+price line is one element at every window.
+
+### 10.2 Three regimes, and the threshold is the device rather than a taste
+
+The rule is _does a bar have a pixel of its own_:
+
+| Slot     | Mark                        | Stems         |
+| -------- | --------------------------- | ------------- |
+| ≥ 2 px   | Columns with a **1 px gap** | one per bar   |
+| 1 – 2 px | Columns, **no gap**         | one per bar   |
+| < 1 px   | **A silhouette**            | one per pixel |
+
+The gap is what makes columns read as columns rather than as a filled area; below
+2 px there is no room for a 1 px gap and a 1 px column, and the column wins.
+
+**The third regime is the one worth arguing for.** Below a pixel per bar the
+stems overlap completely, so **only the tallest in each pixel column can be
+seen** — drawing the other ten is overdraw, not detail. Taking the column's
+maximum paints _exactly the same picture_ and bounds the cost by the plot's width
+instead of by the bar count.
+
+### 10.3 What that is worth, measured
+
+Taken 2026-09-13 from `fixtures/bar-series/dense.json` — 1,950 real NVDA minute
+bars — on a 726 px plot. The 1M row is those bars tiled to the 8,190 that window
+holds.
+
+| Window |  Bars | Slot     | Column | Stems              | Path `d` |
+| ------ | ----: | -------- | ------ | ------------------ | -------: |
+| 1D     |   390 | 1.862 px | 1.862  | 390, one per bar   |   9.0 kB |
+| 5D     | 1,950 | 0.372 px | 1      | **726, per pixel** |  16.8 kB |
+| 1M     | 8,190 | 0.089 px | 1      | **726, per pixel** |  16.8 kB |
+| 3M     |    63 | 11.52 px | 10.52  | 63, one per bar    |   1.5 kB |
+| 1Y     |  ~252 | 2.98 px  | 1.98   | 244, one per bar   |   5.6 kB |
+
+**One stem per bar at 1M would be 8,190 stems and a 158 kB `d` attribute.** The
+per-pixel rule costs 16.8 kB and does not grow again — a **9.4× reduction that
+is also a ceiling**, because it is bounded by a plot that is never wider than
+about a thousand pixels.
+
+### 10.4 And it raises a cost nothing has measured — handed to 2.13.9
+
+§1's constraint is an **element count**. This is a different axis of the same
+problem: a single element whose attribute is six figures long. By the same
+arithmetic **the price line at 1M is 8,190 points and about 103 kB of path
+string**, against 24.5 kB at today's default — and a line **cannot** take the
+per-pixel repair without first deciding what a downsampled line means.
+
+Nothing in this repository has measured the parse or memory cost of a path
+attribute of that size, and 1M is the window this story makes reachable. It is
+raised rather than absorbed: **Task 2.13.9 owes the measurement**, and the
+condition to watch is 1M rather than the cap, because 1M is the widest window at
+minute resolution and 3M and 1Y are two orders of magnitude smaller in points.
+
+### 10.5 The picture is per pixel and the reading is per bar
+
+The silhouette regime changes what is **drawn** and changes nothing about what is
+**read**. The crosshair still resolves to a bar, the readout still states that
+bar's exact integer volume (§5a), and the arrow keys still step bars.
+
+That split already exists on the price plot at 0.47 px per bar and is not new.
+What is new is that the drawing now says so explicitly rather than relying on
+overdraw to hide it — which is the better state to be in, because a reader who
+notices that two bars share a pixel is noticing something true.
+
+### 10.6 The 1 px gap is a component constant and not a token
+
+Against this repository's usual rule, and deliberately. It participates in
+arithmetic that produces a coordinate, and `PriceChart.module.css` already
+records that coordinates come from the geometry module because **a computed
+pixel is data rather than design**. A `--chart-volume-gap: 1px` in CSS with a
+`slot >= 2` threshold in a module would be one number in two homes with nothing
+comparing them, which is the trap `CHARTING.md` §10.3 spent a task closing and
+`CLAUDE.md`'s gap list still carries as a live hazard.
+
+---
+
+## 11. The ink, measured against every ground a column can stand on
+
+**`--chart-volume: #848995`**, and it is **the one chart ink with a measured
+contrast _floor_ rather than a measured contrast _cost_**.
+
+The distinction decides the value. The directional wash is decorative — the
+geometry carries direction and the tint repeats it — so it has no floor to fail,
+which is why ADR 0026's exception did not fire for it. Volume columns are **not**
+decorative: they are the only thing on their plot carrying the magnitude, so
+WCAG 1.4.11's 3:1 for _a graphical object required to understand the content_
+applies squarely. And it applies against **four grounds rather than one**,
+because the uncovered treatment and Epic 8's future overlays put a fill behind
+the bars.
+
+| Against                             | Ratio      |
+| ----------------------------------- | ---------- |
+| `#ffffff` — the panel               | **3.50:1** |
+| `#f2f3f9` — `--chart-uncovered`     | **3.16:1** |
+| `#e6f2ec` — `--price-positive-wash` | **3.05:1** |
+| `#fbeae9` — `--price-negative-wash` | **3.01:1** |
+
+`#848995` is the lowest-contrast value in this language's cool-grey family that
+clears 3:1 on the worst of the four, and **the bound is real in both
+directions**: lighter fails on the uncovered ground, and darker starts to make a
+filled area outweigh a 1.5 px line. It reads at 3.50:1 where `--chart-series`
+reads at **17.08:1**, which is what "supporting series" means here, said as a
+number rather than as an adjective.
+
+Achromatic in effect — `grayscale(1)` takes it to `#898989` and nothing on the
+plot changes — and the same cool-grey family as `--chart-seam` and
+`--chart-reference`, so the volume plot is visibly part of one instrument rather
+than a second palette.
+
+**ADR 0026's exception did not fire and has still fired three times.** No canvas
+value was overridden: this token had no canvas predecessor, and it was taken on
+the canvas against the floor rather than adopted and then corrected.
+
+**And this is the mark `CHARTING.md` §14.5 was warning about.** A fill is opaque
+where every mark before it was a stroke, which is how a one-pixel measurement
+error painted the uncovered ground over the axis rule and stayed invisible for
+three tasks. The correction is now mechanical — `e2e/specs/security-price-chart.spec.ts`
+asserts the ground's painted box ends above the plot's own bottom edge — and
+Task 2.13.4 must confirm the same assertion covers the volume plot, which is the
+second fill this axis carries.
+
+---
+
+## 12. Volume does not encode direction
+
+**Decided: no, and it is the strongest form of the standing rule rather than an
+exception to it.**
+
+A volume bar coloured by its own bar's direction is a mark whose meaning vanishes
+under a greyscale filter — `--price-positive` and `--price-negative` differ by
+**1.04:1** as inks and **1.009:1** as washes there. The price plot answered that
+by making **geometry** the first channel: the side of a dashed rule the line
+finishes on. **A column has no geometry left.** It has one end on the baseline
+and one end at its own height, and its height already means something else. The
+second channel would have to be invented — a hatch, an outline, a split column —
+at 0.089 px wide, where none of them exists.
+
+And it would be answering a question nothing asked. **Volume is a magnitude.**
+`PRODUCT_SPEC.md` §11's volume anomaly is _current volume against the historical
+median for the same time of day_ — a ratio, with no sign in it. Nothing in the
+anomaly model, the flagship demo line or the agent toolset asks for which way a
+bar closed **and** how much traded as one figure. The price line above already
+says which way the window went, the split wash says which way it was at any
+point, and the reading says what one bar did; a fourth statement of direction, on
+the one mark that cannot carry it honestly, is the definition of colour used as
+decoration.
+
+**Reversal trigger:** a feature that needs buying and selling pressure told
+apart. That is a different datum, needing trade-side data this product does not
+hold, rather than a colour on a bar it already draws.
+
+`CHARTING.md` §12.6 is the precedent and it is a strong one: four greyscale
+simulations passed against a chart that was wrong, and a person looking at a
+screenshot found it. **The lesson taken here is not "simulate harder" — it is
+that a mark which never spends hue cannot fail that way.**
+
+---
+
+## 13. Two plots, one coverage edge — and the room reserved for later
+
+### 13.1 The coverage rule, applied twice
+
+`CHARTING.md` §17.5 item 4 names this as the item most likely to be got wrong by
+a second plot, and the canvas draws it rather than asserting it. **Two plots
+sharing one x-domain must stop at the same pixel** — the price line, the two
+washes, the reference rule, the volume columns and the volume baseline. The
+uncovered ground is drawn **once per plot**, never once per region: it is a
+statement about a frame, and there are two frames.
+
+What does **not** stop is everything derived from the window: the axis rule, the
+seams and the tick labels run the full width in both plots. That is §14's one
+rule, applied twice rather than re-decided.
+
+### 13.2 Room reserved, stated as what displaces what
+
+- **Epic 5's volume baseline.** The demo's _"Volume 3.8× normal"_ is drawn on the
+  volume plot, as a dashed horizontal `--chart-reference` rule at the normal
+  level with the multiple stated at its right-hand end. **It displaces nothing**
+  (§9.3), and it needs **no new token** — the reference rule and its `2 4` rhythm
+  already exist and mean exactly this on the plot above.
+- **Epic 8's comparison series does not reach the volume plot at all.** It stays
+  **single-series, always**: columns cannot overlay, grouped or stacked at
+  0.089 px per slot is not drawable, and at 11.5 px it is a different chart. When
+  a comparison arrives, volume shows the **subject's** volume only and the
+  comparison is price-only. That is a real cost decided now rather than
+  discovered inside Epic 8, and it is the second thing that epic loses on this
+  screen — it already displaces the directional wash.
+- **Epic 9's filing lane is unchanged in size and moved in place.** The 14 px
+  `--chart-filing-lane` now sits below the **volume** baseline rather than the
+  price one, because it is a lane on the shared time axis and volume is what is
+  above it. Each plot keeps its own lane so a marker can appear under either; the
+  token is what stops the two disagreeing.
+
+### 13.3 The high–low extent band is **not** decided here
+
+Task 2.12.5 declined it at `1m` — a bar's high and low sit within a few
+hundredths of a percent of its close — and named **Story 2.13's `1d` windows** as
+when it returns. It cannot be settled on an artboard: **no `1d` response body has
+been recorded** (§2.3 owes one), so there is nothing to draw it against, and its
+whole question is whether a session's range is thick enough to see.
+
+**It stays Task 2.13.4's, with a measurement rather than a judgement:** draw it
+at 3M and at 1Y against a real `1d` body and read the band's height in pixels.
+`--price-unchanged-wash` is still reserved for it and still has no application
+consumer.
+
+---
+
+## 14. The transition, and the four tests
+
+### 14.1 What the chart adds between one window and the next: **nothing**
+
+Stated plainly, because the task asked for it plainly — and it is a decision with
+an argument rather than a third deferral.
+
+**Stale-while-loading is inherited whole** (`FRONTEND-STATE.md` §2's amendment):
+a held answer for the same request paints in the first commit, marked by a rail
+above the body — a dashed marker, a sentence, a travelling dashed hairline — and
+**no number is touched**; the settle wash plays only if a figure actually moved.
+
+**The chart adds nothing to it, because two windows have no interpolable
+intermediate.** A chart tweening from five sessions to twenty-one passes through
+frames that are charts of windows nobody asked for, on an axis that is not a
+continuum — it is session-ordinal, and the number of ordinals is what changed.
+Animating it would be drawing four false pictures to soften the arrival of a true
+one.
+
+No dim, no blur, no fade and no second style on a held series, which keeps §2's
+stated reversal trigger — _a chart that redraws a held series in a second style_
+— unfired.
+
+**What is alive instead is latency rather than motion, and it is answered.** The
+address is the source of truth, so the selection moves in the frame the press
+lands, before any request resolves: the control has no pending state, no spinner
+and no disabled window. The frame does not move either — heights, gutter, axis
+and readout are computable from the box alone — so a window change **re-labels
+rather than re-lays-out**.
+
+The full vocabulary stays Epic 3's, against numbers that actually change. A
+window change is a **dataset swap** and is the easy case, which is exactly the
+case a motion vocabulary should not be designed against.
+
+### 14.2 The four tests, applied to the pictures
+
+Written now so that Task 2.13.10 is not the first time anybody applies them, and
+written against the artboard rather than against a shipped screen, which is a
+different and later question.
+
+| Test                                 | Verdict | Why                                                                                                                                                                                                                                      |
+| ------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 — a real funded product?           | **yes** | A minute-resolution volume profile under a five-session price line, with session boundaries lining up across both, is a picture that only exists if somebody actually holds 48 million bars                                              |
+| 2 — designed rather than defaulted?  | **yes** | Every default was declined and the declines are visible: no box around either plot, no gridlines on volume, no second time axis, no second gutter width, a value scale of exactly one label, and a selected state with no fill in it     |
+| 3 — a moment worth showing somebody? | **yes** | The 1M silhouette. Eight thousand minute bars resolved to the plot's own pixels, reading as the month's trading intensity. It is also the moment that _proves_ the rendering decision, which is rarer than a moment that only looks good |
+| 4 — does it feel alive?              | **no**  | And for the third time. See below                                                                                                                                                                                                        |
+
+**Test 4 is answered "not yet, and not from here" for the third consecutive
+story, and that is now a pattern rather than a deferral.** The half that is
+latency is answered above. The half that is motion has been deferred by name to
+Epic 3 by Task 2.4.4, by Story 2.12's close and now by this task — each time for
+the same correct reason, that the hard question is what happens when a **price**
+changes and that has to be answered against real moving numbers.
+
+**What is worth flagging rather than repeating a fourth time:** three deferrals
+of one criterion is the shape of a criterion that never gets met. Epic 3 is the
+next epic and it does have the moving numbers, so the trigger is met by the
+calendar rather than by a condition — but **Story 2.14's close should record the
+count**, so that if Epic 3 ships without a motion vocabulary the deferral is
+visible as a debt rather than as a habit.
+
+---
+
+## 15. One reading, two strips
+
+The shared reading is Task 2.13.5's. What is decided here is its **layout**, and
+one decision in it is load-bearing enough to take now.
+
+**Decided: each plot carries its own readout strip, under its own axis, stating
+its own subject.**
+
+A single strip under the price chart was the obvious shape and it fails on §9.1's
+one-column arrangement, where the two regions are unavoidably a screen apart:
+somebody pointing at a volume bar would get the answer off screen. Two strips is
+**not** duplication — it is the rule this product already keeps for live regions,
+that **a readout belongs to a subject and its sentences name it**
+([`FRONTEND-STATE.md`](../story-10-frontend-market-data-layer/FRONTEND-STATE.md)
+§7). Two strips that said the same thing would be the two-surfaces-one-sentence
+defect; two strips that say different things are two subjects.
+
+| Strip  | Under the pointer                                                                                                    | At rest                                                                                  |
+| ------ | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Price  | The bar's market instant, its four prices with the close emphasised, its change labelled `BAR` — unchanged           | The invitation, which is the only thing on the page saying the keyboard path exists      |
+| Volume | The same instant and the **exact integer** — abbreviation is for the axis and summaries, never for the reading (§5a) | The window's peak and when it happened — the figure Epic 5 later qualifies as a multiple |
+
+The volume strip's rest state is a decision rather than a mirror. A second copy
+of the invitation is noise, and an empty reserved row is a hole; the peak is a
+fact the plot's own scale already states half of, it names its subject, and it is
+the figure this plot exists to make checkable.
+
+**The reservation is a hidden reading, not a height.** `CHARTING.md` §15.4 found
+that no single reserved height is correct at more than one width — a reading
+wraps where the invitation does not, and the exact figures below moved 14 to
+32 px at every viewport but 1440 while `pnpm verify` and all 96 browser tests
+stayed green. The volume strip inherits the **mechanism**: a hidden reading of the
+last bar in the same grid cell, measured at the real width.
+`--chart-readout-height` stays the row's floor. **A second `min-height` token
+would be re-taking a decision that has already been paid for once.**
+
+### 15.1 The constraint this hands to 2.13.5
+
+One read position now drives marks in **two regions**, and that is not free.
+
+Task 2.12.6 took a structural repair — the read position lives in a sibling, so
+the frame's owner does not re-render — and `PriceChart.test.tsx` counts **zero**
+frame recomputations across forty arrow presses, with its own counter verified
+live in the same test. `CLAUDE.md` records that lifting that state back up costs
+**17× the CPU on the pointer path** and produces no long task at all, so §28's
+own criterion cannot see the regression.
+
+Lifting it to `SecurityExplorer` would be worse than that: it would re-render the
+**518-row universe table** on every pointer move, on a page already spending
+50–66 ms of main thread on a cold load because of that table.
+
+**The shape that survives is the same one, generalised:** the state lives in a
+wrapper that renders its `children` through unchanged, so React re-renders only
+the context consumers — which are the two reading overlays and neither frame
+owner. The existing zero-recomputation test is the instrument and needs
+**re-pointing at the pair, not replacing**.
+
+---
+
+## 16. The tokens, in the chain and in order
+
+Three new, each in `VISUAL-LANGUAGE.md` first, then the stylesheet, then
+`styles/tokens.ts`'s declared set.
+
+| Token                           | Value     | File                                                                     |
+| ------------------------------- | --------- | ------------------------------------------------------------------------ |
+| `--chart-volume`                | `#848995` | `tokens.css` theme block — it is ink, and a dark palette would change it |
+| `--chart-volume-height`         | `88px`    | `tokens.css` geometry block — a dark palette would change nothing        |
+| `--chart-volume-height-compact` | `68px`    | as above                                                                 |
+
+**None of them carries market meaning**, so none is in `market.css`: a plot's
+magnitude scale says nothing about the market, and the one thing that would have
+put a volume token there — direction — was declined in §12.
+
+**They have no application consumer until Task 2.13.4, and that is expected for
+one task.** What stops them being invisible is `Foundations/Chart tokens`, which
+`CHARTING.md` §17.4 kept deliberately as the place a chart mark is reviewed as a
+**language** before it is drawn anywhere. Two stories were added to it: the
+volume column at its three densities, drawn at **exactly 480 CSS pixels** because
+the subject is a threshold measured in pixels and a stretched specimen shows a
+gap the regime it is labelled with does not have; and the column on all four
+grounds, as rendered and under `grayscale(1)`.
+
+**And one omission was found while landing them.** `--chart-filing-lane` was
+declared in `tokens.css` by Task 2.12.4 and **never added to
+`styles/tokens.ts`'s declared set** — so the one mechanism this repository has
+for making a missing token a startup throw naming itself did not cover the token
+reserving Epic 9's lane. Story 2.12's close recorded that all sixteen `--chart-*`
+tokens had an application consumer and did not check that all sixteen were
+_declared_. Added here.
+
+---
+
+## 17. What Part two hands the rest of the story
+
+- **2.13.3** builds the volume formatter (§5b) and the shared axis. It does
+  **not** own the 1 px gap or the density threshold — §10.6 puts those with the
+  geometry, beside the coordinates they produce.
+- **2.13.4** draws one path, three regimes, `#848995` on four grounds, no
+  gridlines, `sessionLabels: "ends"`, and the coverage edge at the same pixel as
+  the price plot's. It also **confirms §11's fill assertion covers the second
+  plot**, and it takes §13.3's extent-band measurement against a real `1d` body.
+- **2.13.5** lays out two readout strips rather than one (§15), inherits
+  2.12.8's hidden-sizer **mechanism** and not a `min-height` token, and must keep
+  the read position out of both frame owners (§15.1) —
+  `PriceChart.test.tsx`'s zero-recomputation guard needs re-pointing at the pair
+  rather than replacing.
+- **2.13.6** builds the control in §8: five cells, a 2 px near-black bar, a
+  readout that always states the resolved session count, no disabled state, and
+  a selection that moves in the frame the press lands.
+- **2.13.9** owes §10.4 — the path-string cost at 1M, which is a different axis
+  from `CHARTING.md` §1's element count and is unmeasured.
+- **2.13.10** applies §14.2's four tests to the deployed page and records the
+  **count** of test-4 deferrals rather than only the verdict.

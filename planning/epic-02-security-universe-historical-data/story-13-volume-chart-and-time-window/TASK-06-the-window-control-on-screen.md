@@ -173,3 +173,74 @@ Add to **Done when**:
   test proves the address was not rewritten
 - A `1d` response body is recorded, a story renders it, and somebody **read the
   two `1d` sentences aloud**
+
+---
+
+## Amended 2026-09-13 by Task 2.13.2 — the control is fully specified, and it gains a part this file does not mention
+
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §8 took every visual position, so
+_"per 2.13.2's canvas positions"_ in the Work section now resolves to something.
+Three things change here.
+
+### The control has a **readout**, and it is not optional
+
+The Work section describes five cells and nothing else. §8.4 added a sixth part:
+**a static micro-label beside the box stating the resolved session count** —
+`5 SESSIONS`, `21 SESSIONS`, `7 SESSIONS` — present in every state, never
+focusable, never a button, and sitting **outside** the bordered box.
+
+It is what makes this task's own no-snapping obligation legible. Five unselected
+buttons read as broken; five unselected buttons beside `7 SESSIONS` read as a
+product that understood the address. It is also §4(e) made visible — the label
+says the approximation, the readout says the fact — and it is the only place on
+screen that says `1M` means twenty-one trading sessions.
+
+**Reversal trigger, inherited:** the first window whose resolved count is not a
+fact worth printing. An absolute range from Epic 13's scrubber has no session
+count that means anything to a reader.
+
+### The selection moves **before** the request resolves
+
+§14.1: the address is the source of truth, so the selected cell changes in the
+frame the press lands. **The control has no pending state, no spinner and no
+disabled window** — the chart carries the stale rail, and the control carries
+nothing. This is the whole of what this story can answer of test 4 _does it feel
+alive_, and it is testable rather than a feeling: the selected cell must change
+without waiting on `useBarSeries`.
+
+It also resolves the tension 2.13.7's Work section names — _"the control is the
+thing most likely to be left in a state that contradicts the chart"_. It cannot
+be: it follows the address, and the address is what the request was built from.
+
+### The marks, so they are not re-derived
+
+Selection is **three channels and none of them is hue** — a 2 px **near-black**
+bar along the cell's bottom, the label at `--font-weight-strong`, and the ink
+stepping `--ink-secondary` → `--ink-primary`. Near-black rather than crimson: the
+identity accent has four sanctioned positions in the chrome and a control that
+changes a datum is not one of them, so a crimson bar is a fifth position and a
+decision to escalate.
+
+**The selected cell takes no ground; hover owns the ground**, and hover is
+`--surface-sunken` and **not** `--surface-page` — the page ground is 1.02:1
+against white and does not appear on a control standing on a raised panel. That
+was found by drawing it, and it is the kind of value a component author
+reasonably reaches for from the combobox's row hover, where it is correct.
+
+Each cell carries the **abbreviation for the eye and the spelled-out name for the
+ear** (§4d). The ARIA pattern itself — the group's role, whether the members are
+radios, and the roving tab stop — was deliberately **not** taken on the canvas
+and is this task's.
+
+At 342 px of region the control wraps to its own full-width row beneath the
+heading and the cells flex. It never truncates a label and **never drops the
+readout**, which is the half that explains the other five.
+
+Add to **Done when**:
+
+- The readout is present in every state, states the **resolved session count**,
+  and is not focusable
+- The selected cell changes in the frame the press lands, proved without waiting
+  on a request — no pending state anywhere on the control
+- Hover and selected are different channels, and a test or a screenshot shows
+  them coexisting without ambiguity

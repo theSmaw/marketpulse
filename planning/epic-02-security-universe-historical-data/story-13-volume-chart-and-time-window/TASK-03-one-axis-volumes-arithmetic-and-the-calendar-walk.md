@@ -189,3 +189,76 @@ Add to **Done when**:
   a test asserts **no session count inside the calendar can exceed the cap**
 - The re-taken figures are recorded at the windows this product **offers**,
   beside §16.5's, with the method stated for both
+
+---
+
+## Amended 2026-09-13 by Task 2.13.2 — two of this task's open questions are closed, one algorithm is named, and one boundary needs stating
+
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) Part two settled the instrument,
+and three things here move.
+
+### The volume domain is decided: **zero to the window's peak, unpadded**
+
+The Work bullet says _"Decide what the top of the domain is"_. §9.3 decided it,
+and the reason is not aesthetic: **§9.2's proportion arithmetic depends on it.**
+88 px was taken against _a window whose peak is 3.8× its typical bar draws that
+bar at 23 px_, and that is only true if the top of the domain **is** the peak. A
+padded top silently changes the ratio the plot was sized for, and it makes Epic
+5's baseline rule land somewhere other than where §13.2 says it lands.
+
+The floor stays zero and the bullet's argument for it is unchanged. **The
+all-zero window is still this task's to answer** and was not decided on the
+canvas — an artboard cannot draw a domain of `[0, 0]`.
+
+### The bar geometry now has a named algorithm, and it has a correctness property
+
+§10 specifies **one `<path>` at every window** — butt-capped stems whose
+`stroke-width` is the column width — with three regimes from one rule, _does a
+bar have a pixel of its own_:
+
+| Slot     | Column                  | Stems                                             |
+| -------- | ----------------------- | ------------------------------------------------- |
+| ≥ 2 px   | `slot − 1` (a 1 px gap) | one per bar                                       |
+| 1 – 2 px | `slot` (no gap)         | one per bar                                       |
+| < 1 px   | 1 px                    | one per pixel, carrying that column's **maximum** |
+
+The third regime is the one that needs a test rather than a reading. Its claim is
+that taking each pixel column's maximum **paints the identical picture** the
+overlapping stems would paint, because only the tallest in a column can be seen.
+That is a property — _the reduced stem set and the full stem set produce the same
+rendered silhouette_ — and it is assertable at the unit level as _every pixel
+column's height equals the max of the bars falling in it_, which is the form that
+catches an off-by-one in the column assignment. A reduction that drops the wrong
+bar produces a plausible chart, not a broken one.
+
+Measured on the real series at a 726 px plot (§10.3): 1M goes from 8,190 stems
+and a **158 kB** path attribute to 726 stems and **16.8 kB**, and does not grow
+again, because the bound is the plot's width.
+
+### The boundary: what belongs in `market/` and what does not
+
+This task's fence is the DOM and that is unchanged, but "no DOM" is not the same
+line as "`market/`", and the tree already draws both:
+
+- **`market/`** holds scales, axes and density — `chart-scale.ts`,
+  `chart-value-axis.ts`, `chart-time-axis.ts`, `chart-density.ts`. **Volume's
+  value domain is a scale and belongs here.**
+- **`components/PriceChart/chart-geometry.ts`** holds frame assembly, and it is
+  DOM-free too. **The stem geometry, the 1 px gap and the ≥ 2 px threshold belong
+  here** — §10.6: they participate in arithmetic that produces a coordinate, and
+  `PriceChart.module.css` already records that coordinates come from the geometry
+  module because a computed pixel is data rather than design.
+
+That is why **there is no `--chart-volume-gap` token**. One number in a
+stylesheet and its threshold in a module is the two-homes trap `CHARTING.md`
+§10.3 spent a task closing, and `CLAUDE.md`'s gap list still carries it as a live
+hazard.
+
+Add to **Done when**:
+
+- Volume's domain is **zero to the window's peak, unpadded**, with the all-zero
+  window answered
+- The per-pixel reduction is tested as a **property** — each pixel column's
+  height is the maximum of the bars falling in it — and not only as a stem count
+- The gap and the threshold live with the geometry, not in `market/` and not as a
+  token; `grep -n "chart-volume-gap"` finds nothing

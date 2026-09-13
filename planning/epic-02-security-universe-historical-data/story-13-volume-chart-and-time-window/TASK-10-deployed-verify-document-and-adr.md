@@ -121,3 +121,56 @@ Two smaller carries for the same sweep:
   Epic 13 distinguishes its scrubber from, and §4(b)'s "the address admits any
   count the control does not offer" is the single decision with the longest
   reach in it.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.2 — ADR 0028 gains a subject, and test 4 gains a count
+
+Two carries from [`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) Part two.
+
+### ADR 0028's subject is wider than the vocabulary
+
+The Work section scopes it to _"the window vocabulary, the timeframe mapping, and
+the shared-axis property"_. §10 added a **rendering** decision that outlives this
+screen by at least as far: **the volume mark is one path at every window, and
+below a pixel per bar it is one stem per pixel column carrying that column's
+maximum.**
+
+That belongs in the ADR rather than only in `CHARTING.md`, because it is the
+second statement of ADR 0027's constraint and it generalises it. 0027 says the
+chart layer is hand-built SVG and that one element per bar at the cap costs
+9,790 elements and 137–254 ms. This says what a **per-bar** mark does about that,
+and Epic 5's anomaly markers and Epic 9's filing markers are both per-bar marks
+that will meet the same question. It also carries the cost §10.4 raised and
+2.13.9 measures — the path **string**, which 0027's element count does not see.
+
+Note 0027 is not reopened and gets no amendment for this: it decided the
+renderer, and this decides what to draw with it.
+
+### Test 4 gets a count, not only a verdict
+
+_Does it feel alive_ has now been answered "not yet, and not from here" **three
+stories running** — by Task 2.4.4 when the motion section was written, by Story
+2.12's close, and by 2.13.2's four tests against the artboard. Each deferral was
+individually correct and for the same reason: the hard version of the question is
+what happens when a **price** changes, and there are no live prices.
+
+The Work bullet already asks for an honest answer and for _"what would change it
+and who owns that"_. **Add the count.** Three deferrals of one criterion is the
+shape of a criterion that never gets met, and the count is the only thing that
+makes it visible as a debt rather than as a habit. Epic 3 is the next epic and it
+does bring the moving numbers, so the trigger is met by the calendar rather than
+by a condition — which is precisely why it needs writing down: nothing fires.
+
+What this story **can** answer is the half that is latency rather than motion, and
+2.13.6 built it: the selection moves in the frame the press lands, the frame
+re-labels rather than re-lays-out, and no number moves while it is being read.
+Answer that half separately rather than folding it into the verdict.
+
+Add to **Done when**:
+
+- ADR 0028 records the per-bar rendering rule and its path-string cost alongside
+  the window vocabulary, and says why ADR 0027 is not reopened
+- Test 4's answer carries the **count** of deferrals and names what would change
+  it, and the latency half is answered separately from the motion half
+- Story 2.14's close inherits the count in writing

@@ -356,3 +356,43 @@ occur and gains the **no-selection** state that can; 2.13.3 gains
 `time-window.ts`, which no task owned; 2.13.6 gains the no-snapping rule and the
 `1d` fixture; 2.13.7 gains the labelling tension and §1.3's judgement; 2.13.9 and
 2.13.10 get the corrected headline figure.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.2 — the instrument is settled, and one task's objective was reversed
+
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) gained Part two, §§8–17. **No task
+was added, deleted or re-ordered** — the dependency graph is unchanged and the
+ordering argument this file makes for volume before the control was confirmed
+rather than revisited. Eight task files carry dated amendments.
+
+**One of them is a reversal rather than a refinement, and it is worth naming
+here.** Task 2.13.5's objective said the word that matters is _one_ — one
+crosshair, one readout, one tab stop — and that two readouts would be "the same
+information at twice the cost". §15 reversed the readout half: **each plot
+carries its own strip, stating its own subject.** The objection was correct about
+two strips saying one sentence and does not apply to two strips saying two, which
+is this product's existing live-region rule. What forced it is a layout fact this
+file's own scope did not anticipate: at one column the two regions are
+unavoidably a screen apart, because the price panel and its eight stated facts
+are taller than a phone, so a single strip puts the answer off screen for anybody
+pointing at a volume bar. One crosshair, one tab stop and one read position are
+unchanged.
+
+The rest, in one line each:
+
+| Task    | What moved                                                                                                                                                                                                                            |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.13.3  | Volume's domain is decided (zero to peak, unpadded — §9.2's proportion depends on it); the per-pixel reduction is named and owes a property test; the gap and threshold belong with the geometry, not in `market/` and not as a token |
+| 2.13.4  | Gains three obligations it did not have — `provenance.sources` (owed from 2.13.1 and never filed), the extent-band measurement (owed from 2.12.5), and confirming the axis-pixel assertion covers the second fill                     |
+| 2.13.5  | The reversal above, plus the volume strip's rest state and the wrapper that keeps one read position out of both frame owners                                                                                                          |
+| 2.13.6  | The control gains a **readout** stating the resolved session count, and a selection that moves before the request resolves                                                                                                            |
+| 2.13.7  | The control can no longer contradict the chart — it follows the address, and has no pending state; and the surface count is four                                                                                                      |
+| 2.13.8  | Greyscale becomes a confirmation rather than a search; the text alternative's open question is narrowed but still this task's                                                                                                         |
+| 2.13.9  | A fourth candidate on a different axis: the path **string** at 1M, which `CHARTING.md` §1's element count cannot see                                                                                                                  |
+| 2.13.10 | ADR 0028 gains the per-bar rendering rule; test 4 gains a **count** of deferrals rather than only a verdict                                                                                                                           |
+
+**Acceptance criterion 4 is unchanged and is now better supported.** §6.3's
+labelling tension — `refused` and `failed` draw no frame, while criterion 4 asks
+that a failed change leave the previous data visible — is still 2.13.7's to
+resolve, and 2.13.2 added nothing that makes it harder.

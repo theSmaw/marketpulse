@@ -123,3 +123,82 @@ is an honest `partial` and draws §6.2's uncovered ground in public, while the
 deployed store answers it in full. **Both photographs are correct** (§11.3), and
 the deployed environment is the one place the coverage treatment is not under
 observation.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.2 — the marks are specified, and this task inherits three obligations it did not have
+
+This task had **no amendment from 2.13.1** and two of the items below are owed
+from that task rather than from 2.13.2. They are collected here because this is
+the task that pays them.
+
+### What the plot draws, now decided rather than open
+
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §9.4 settles what volume keeps and
+what it drops, and two of those are not in this task's Work section at all:
+
+- **No gridlines**, and **no intraday times** — the x labels are the **first and
+  last session date only**, which is `chart-density.ts`'s existing
+  `sessionLabels: "ends"` reused. **Reused, not branched**: there is no viewport
+  test and no media query here, for `CHARTING.md` §11.1's reason.
+- **One value label** — the window's peak, abbreviated — **top-aligned to the
+  plot rather than centred on its edge**, because centred it collides with the
+  price scale's lowest label above it. And **volume keeps the full
+  `--chart-gutter`** for that one label: the two plots share a gutter width so
+  their seams land on the same x across a panel boundary, and alignment outranks
+  tightness.
+- **The seams are drawn under the bars.** A 1.70:1 dashed rule crossing a 3.50:1
+  filled column is the column's pixel. On the price plot the two never overlap,
+  because a line is a line.
+
+Geometry: **88 px** at `--chart-volume-height`, **68 px** compact — the compact
+pair keeps the **ratio**, not the height. Ink: `--chart-volume`, `#848995`, which
+clears 3:1 against all four grounds a column can stand on.
+
+### Owed from 2.13.1: the volume plot reads `provenance.sources`
+
+§5(c), and it never reached this task file. **The plot must read
+`provenance.sources` rather than a single feed label**, because Story 2.14 draws
+a seam there and a plot built against one feed string has to be rebuilt to tell
+the truth.
+
+The reason it is sharper for volume than for price: every bar this store holds is
+consolidated SIP, but Epic 3's live tail is **IEX only** — and an IEX _price_ is
+approximately the market's price while an IEX _volume_ is a small fraction of the
+market's volume rather than a sample of it. A stitched series therefore has a
+step change at the seam that is an artefact of the feed and **would read as a
+collapse in trading**. This task does not draw the seam; it must not make the
+seam unsayable.
+
+### Owed from 2.12.5: the high–low extent band, measured rather than judged
+
+`CHARTING.md` §12.2 declined the band at `1m` and named **Story 2.13's `1d`
+windows** as when it returns. 2.13.2 could not settle it — no `1d` response body
+has been recorded, and the whole question is whether a session's range is thick
+enough to see, which is a measurement against real data rather than a drawing.
+
+**So it lands here, as a measurement:** once a `1d` window draws, read the band's
+height in pixels at 3M and at 1Y and decide from the number. `--price-unchanged-wash`
+is still reserved for it and still has no application consumer. Note the `1d`
+body itself is **2.13.6's** to record, so if this task runs first the measurement
+is deferred to whichever task has a `1d` body in hand — say which, rather than
+letting it fall between them.
+
+### The fill trap has an existing instrument; confirm it covers the second plot
+
+The Work bullet on `usePlotSize`'s `offsetHeight - clientHeight` subtraction is
+right and incomplete. That correction is held by **one assertion** in
+`e2e/specs/security-price-chart.spec.ts` — the uncovered ground's painted box must
+end above the plot's own bottom edge, by more than nothing and less than two
+pixels — and that assertion is about the **price** plot. The volume columns are
+the second fill this axis carries and `CHARTING.md` §17.5 item 4 names them as
+such. **Confirm the assertion covers this plot too, or add its pair.**
+
+Add to **Done when**:
+
+- The plot draws no gridlines and no intraday times, carries the first and last
+  session date via `sessionLabels: "ends"`, and keeps the full `--chart-gutter`
+- The plot reads `provenance.sources` and not a single feed label
+- The extent band is measured at `1d` and decided from the number, or explicitly
+  handed to the task holding the `1d` body
+- The axis-rule-pixel assertion covers the volume plot, break-verified

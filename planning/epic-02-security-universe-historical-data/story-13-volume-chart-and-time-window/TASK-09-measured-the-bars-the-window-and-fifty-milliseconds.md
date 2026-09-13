@@ -121,3 +121,44 @@ exactly like a figure that was mis-recorded.
 
 The rest of this task is unchanged, including the instruction not to absorb the
 universe table's 50–66 ms into a new number.
+
+---
+
+## Amended 2026-09-13 by Task 2.13.2 — a fourth candidate, and it is a different axis from the other three
+
+This task's three candidates are all about **element counts and CPU**.
+[`VOLUME-AND-WINDOW.md`](VOLUME-AND-WINDOW.md) §10.4 raised a fourth that none of
+them would catch, and it is raised rather than absorbed exactly as 2.12.9 raised
+the universe table.
+
+**`CHARTING.md` §1's constraint is a count. This is a single element whose
+attribute is six figures long.**
+
+Taken 2026-09-13 from the real series at a 726 px plot, the volume mark's
+per-pixel rule holds its path string at **16.8 kB** from 5D upward, against
+**158 kB** for one stem per bar at 1M — a 9.4× reduction that is also a ceiling,
+because it is bounded by the plot's width rather than by the bar count.
+
+**The price line has no such ceiling.** By the same arithmetic it is **24.5 kB at
+today's 1,950-bar default and about 103 kB at 1M's 8,190 bars**, and a line
+**cannot** take the per-pixel repair without first deciding what a downsampled
+line means — which is a product question about whether a chart may omit a datum,
+not a rendering one.
+
+Nothing in this repository has measured the parse, memory or paint cost of a path
+attribute that size, and **1M is the window this story makes reachable**. Measure
+it at 1M rather than at the cap: 1M is the widest window at minute resolution,
+and 3M and 1Y are two orders of magnitude smaller in points, so the curve has its
+knee inside the offered set.
+
+If it is under budget, say so with the figure — a cost measured and found
+acceptable is a different artefact from a cost nobody looked at, and the next
+window control will want the number.
+
+Add to **Done when**:
+
+- The path-string cost is measured at 1M for **both** marks — the volume
+  silhouette and the price line — with parse or paint attributed, not only the
+  byte count
+- Either it is under budget with the figure stated, or it is raised with a
+  condition and a named owner
