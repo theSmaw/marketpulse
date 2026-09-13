@@ -1399,3 +1399,49 @@ duration on a shared runner. **Re-measure rather than cite**: load `/securities`
 in Chromium with `PerformanceObserver({ entryTypes: ["longtask"] })` installed
 before navigation, and compare against the same page with the universe response
 trimmed to twenty rows.
+
+### Re-measured 2026-09-13 by Task 2.13.9 — unchanged, with more on the page
+
+Story 2.13 added a second plot and a time-window control to
+`/securities/:symbol`, so the figure was re-taken rather than carried forward.
+**Ten cold loads of each this time, and a second instrument** — the largest gap
+between consecutive `requestAnimationFrame` callbacks, which is continuous and
+can therefore tell _comfortably inside budget_ from _one millisecond inside it_
+where `longtask` cannot. Read ~16.7 ms as one frame and 33.3 ms as two.
+
+| What was loaded                                        | Tasks over 50 ms, ten loads       | Worst frame gap p50 / max |
+| ------------------------------------------------------ | --------------------------------- | ------------------------: |
+| `/` — neither table nor chart                          | **none**                          |            20.8 / 50.0 ms |
+| `/securities` — the table, **no chart at all**         | 5 — 53, 75, 52, 52, 66 ms         |           83.3 / 100.0 ms |
+| `/securities/NVDA` — 5D, 1,950 bars, **both plots**    | 5 — 60, 66, 66, 52, 70 ms         |           83.6 / 115.8 ms |
+| `/securities/NVDA?sessions=21` — 1M, 8,190 bars        | 6 — 107, 58, 52, 50, 63, 50 ms    |           67.7 / 149.2 ms |
+| `/securities/NVDA?sessions=25` — the cap, 9,750 bars   | 4 — 53, 51, 72, 78 ms             |           67.7 / 100.1 ms |
+| `/securities/NVDA?sessions=252` — 1Y, 248 bars of `1d` | 7 — 53, 53, 50, 52, 50, 51, 50 ms |           83.3 / 100.0 ms |
+| **`/securities`, 20-row universe**                     | **none**                          |        **32.6 / 33.4 ms** |
+| **the cap-sized chart, 20-row universe**               | **none**                          |        **32.3 / 34.4 ms** |
+| **1M, 20-row universe**                                | **none**                          |        **33.3 / 34.4 ms** |
+| **1Y, 20-row universe**                                | **none**                          |        **33.3 / 33.4 ms** |
+
+**Three readings, and none of them changes the disposition.**
+
+**The attribution is the same and the second plot did not move it.** The task is
+there with no chart at all and gone with a 20-row universe while a 9,750-bar
+chart is still drawn. It does not track the bar count — 1,950, 8,190, 9,750 and
+zero produce the same figure.
+
+**The frame-gap column is what the original measurement could not say.** Every
+20-row row sits at **32–34 ms**, which is the instrument's two-frame floor rather
+than a cost, with both plots drawn. Every 518-row row is at **67–84 ms** on the
+same instrument. So this is not a page that is marginally over a line; it is a
+page doing about fifty milliseconds of layout that a 20-row page does not do.
+
+**And the tail got longer, not shorter.** The 107 ms and 149 ms readings are new
+and they are the table too — they appear on the 1M row and vanish on the
+1M-with-20-rows row, which draws the _larger_ chart. A ten-load sample has a tail
+that a five-load one does not show; it is recorded rather than smoothed away.
+
+Everything else stands: raised rather than repaired, the three options above
+unchanged, and the trigger unchanged — **the first time a second surface on this
+page renders per-row markup at universe scale**. Story 2.14's close still owes
+the answer, and it now owes it against two datings of the same defect a day
+apart.
