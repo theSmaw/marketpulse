@@ -4356,6 +4356,24 @@ chart`: the `Close` label's position inside its region, beside `plotTop`, at
   differently either side of a press — but it would not say _what_ moved, and
   the reading row, now carrying a display figure, a strip of four and the rail,
   is the likeliest answer.
+
+  **It shipped throwing on CI, and the reason is worth more than the assertion.**
+  The runner's store holds all 518 securities and **zero bars** — the panel there
+  is a correct `empty`, which renders no figures at all, so there is no `Close`
+  label, and the helper's `throw` took three tests red on a required gate while
+  passing on every developer's machine. `CLAUDE.md` records the store difference
+  and `security-series-states.spec.ts` states it in prose; neither was consulted
+  before adding an assertion **about a figure**. The repair is that the helper
+  answers `null` and the figures half is skipped where there are no figures, so
+  the chart half still runs everywhere — which is what `plotTop` was chosen for,
+  because the chart draws its frame in every state that has a window.
+
+  The general rule: **a new browser assertion about a number is an assertion
+  about data the runner may not have.** A chart draws with no bars; a price does
+  not exist without them. Nothing below the gate can see the difference, because
+  a developer's store has bars — which is the same asymmetry §66 records for the
+  coverage states, reached from the opposite direction.
+
 - **`BarSeriesPanel.test.tsx`**: the prices precede the drawing in **document
   order**. jsdom computes no layout, so nothing below `pnpm e2e` can tell where
   any of this is drawn — but it does know what comes before what, and that is
