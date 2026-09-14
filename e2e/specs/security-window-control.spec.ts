@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import { expectNothingFailedToRender } from "../support/app.js";
+import { expectNothingFailedToRender, readable } from "../support/app.js";
 
 // **The control that changes what the data says** (Task 2.13.6), in the only
 // instrument that can see most of what it is.
@@ -364,7 +364,22 @@ test("the window on screen is described at the stop focus lands on", async ({
   // exists for: five cells with no bar under any of them, and a sentence
   // saying why.
   await page.goto(`${EXPLORER}?sessions=7`);
-  await expect(anAnswer(page).or(page.getByText(/could not be/))).toBeVisible();
+  // Corrected 2026-09-14. This was a page-wide `getByText(/could not be/)` with
+  // no scope and no `.first()`, which is a strict-mode failure the moment a
+  // second node anywhere carries the phrase — and one now does: the rail's
+  // reserved slot lays out a **hidden** copy of the longest sentence it can
+  // hold, which since §80.4 is the failure one.
+  //
+  // `readable` rather than a narrower `getByText`, because that is the whole
+  // repair. The sizer is `aria-hidden` and visually hidden, so scoping alone
+  // still picked it and reported `hidden` — a locator that does not say which
+  // channel it means resolves to both, which is the rule this suite already has
+  // for the live region.
+  await expect(
+    anAnswer(page).or(
+      readable(page.getByRole("region", { name: "Price" }), /could not be/),
+    ),
+  ).toBeVisible();
 
   let inside = false;
   for (let press = 0; press < 30 && !inside; press += 1) {

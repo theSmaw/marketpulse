@@ -326,8 +326,15 @@ What is here is a **thin first cut**, not a system, and the restraint is the dec
 | `--motion-duration-quick`  | 120ms                     | a state change under the pointer |
 | `--motion-duration-settle` | 240ms                     | content arriving                 |
 | `--motion-ease-standard`   | `cubic-bezier(0.2,0,0,1)` | both                             |
+| `--motion-duration-pulse`  | 1400ms                    | a wait, breathing                |
 
 One easing, and it is asymmetric on purpose: fast out of the gate and slow into rest, which reads as something coming to a stop rather than something being tweened.
+
+**`--motion-duration-pulse` was added 2026-09-14** and is the set's first **loop**, which is why it needed a token of its own rather than reusing `settle`: the two above describe something that happens once and stops, and reduced motion resolves them to `0ms` on the reasoning that a transition of zero still ends in its final state. A loop has no final state, and zeroing it means it simply does not run — which for the one thing that uses it, `ChartPending`, leaves the same panel at the same size holding still. That is the same statement made without movement rather than a degraded version of it, and it is why the rule below still holds unchanged.
+
+1400ms rather than something snappier, because a loop is the one kind of motion a reader is not meant to watch: it says _this is not the answer_ and then gets out of the way, and anything under about a second reads as urgency — which is a claim about the data rather than about the wait.
+
+**It originated in code rather than on the design canvas**, which is [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)'s chain run backwards and is recorded rather than tidied away. The `Component library for MarketPulse` project was not reachable from the session that added it, and the canvas has no loading treatment of any kind to adopt. **It owes a sync back**, and until it gets one this row is the only place the value is argued. `VOLUME-AND-WINDOW.md` §80.2 has what it is for.
 
 ### Two rules, and the second is the one that will be argued with
 
@@ -340,6 +347,8 @@ One easing, and it is asymmetric on purpose: fast out of the gate and slow into 
 **Epic 3 owns the full vocabulary**, and waiting is the decision rather than a deferral. The hard question in this product is what should happen when a **price** changes on screen, and that has to be answered against real moving numbers. A vocabulary settled against the first screen that needed any — a table that arrives once and then sits still — would be a vocabulary designed for the easy case and then inherited by the hard one.
 
 So: nothing here about a value updating, nothing about a row entering or leaving a live list, nothing about a chart redrawing, and no third duration. Add those against something that actually moves.
+
+**Amended 2026-09-14: there is now a third duration, and it is the exception that keeps the rule.** `--motion-duration-pulse` was added against something that does move — a wait, drawn as a panel over a plot — and it is deliberately about the **absence** of a number rather than about one changing. Everything this section defers is still deferred: nothing here yet says what happens when a **price** changes, and that is still Epic 3's against real moving numbers.
 
 ## The chart — added 2026-09-11 by Task 2.12.2
 

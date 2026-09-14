@@ -99,6 +99,16 @@ import {
 export function chartAlternative(
   view: BarSeriesView,
   symbol: string,
+  pending = false,
+): string | null {
+  const described = chartAlternativeBody(view, symbol);
+
+  return described === null ? null : `${described}${waitClause(pending)}`;
+}
+
+function chartAlternativeBody(
+  view: BarSeriesView,
+  symbol: string,
 ): string | null {
   switch (view.state) {
     case "loading":
@@ -208,6 +218,16 @@ const COLUMNS: Mark = {
  * listener cannot ask a crosshair.
  */
 export function volumeAlternative(
+  view: BarSeriesView,
+  symbol: string,
+  pending = false,
+): string | null {
+  const described = volumeAlternativeBody(view, symbol);
+
+  return described === null ? null : `${described}${waitClause(pending)}`;
+}
+
+function volumeAlternativeBody(
   view: BarSeriesView,
   symbol: string,
 ): string | null {
@@ -551,4 +571,24 @@ function feedClause(series: PopulatedBarSeries): string {
 function listOf(items: readonly string[]): string {
   if (items.length <= 1) return items[0] ?? "an unnamed feed";
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1] ?? ""}`;
+}
+
+/**
+ * **What a listener is told while the pending panel is up** (2026-09-14, §80).
+ *
+ * The panel is a wordless block and it is `aria-hidden`, so without this clause
+ * a sighted reader is told a newer answer is coming and a listener is told
+ * nothing at all — a fact with one audience, which is the shape of defect this
+ * chart's alternative exists to prevent.
+ *
+ * Appended to whatever the state already says rather than replacing it, because
+ * both facts are true at once and the reader needs the first one more: the
+ * picture under the panel is still a true picture of the window it is labelled
+ * with, and *that* is what a listener is most likely to have been reading.
+ *
+ * Empty rather than a sentence when nothing is pending, so the common case adds
+ * no characters and the concatenation stays one string.
+ */
+function waitClause(pending: boolean): string {
+  return pending ? " A newer answer is on its way." : "";
 }

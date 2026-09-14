@@ -1,0 +1,52 @@
+/*
+ * **The panel a plot shows while a slow answer is on its way** (2026-09-14).
+ *
+ * Not a spinner and not a skeleton of the chart. A skeleton draws a fake line
+ * where a real one will be, and on a product whose whole argument is that every
+ * number comes from deterministic code, a **drawn shape that is not data** is
+ * the one thing a plot must never contain — a reader glancing at it has been
+ * shown a price movement that nobody computed.
+ *
+ * So it is one block, the size of the plot, breathing. It says *this is not the
+ * answer* and nothing else, which is the entire job.
+ *
+ * `VOLUME-AND-WINDOW.md` §80 has why it replaced a labelled held chart, and
+ * `use-pending-panel.ts` has the two numbers that decide when it appears.
+ */
+
+.pending {
+  composes: overlay from "./chart-marks.module.css";
+  background: var(--chart-uncovered);
+  animation: breathe var(--motion-duration-pulse) ease-in-out infinite;
+}
+
+/*
+ * **The surface moves, not the opacity, and that was a correction made by
+ * looking at it.**
+ *
+ * Opacity was the obvious choice — it composites rather than repaints, and one
+ * ink is easier to keep honest than two. Probed at 1440 against the real story
+ * it is wrong: the panel sits over the plot's own `<svg>`, so fading it also
+ * fades the gridlines *in*, and what breathes is the frame appearing and
+ * disappearing underneath. That is a good deal more than texture, and on a plot
+ * a reader has just pressed a control on it reads as the chart flickering.
+ *
+ * So the block stays fully opaque and the colour moves instead. Nothing beneath
+ * it is ever visible, and the pulse is pure surface.
+ *
+ * The two ends are `--chart-uncovered` and `--chart-grid`, which differ by
+ * **1.107:1** — the same range the uncovered wash already uses, so the movement
+ * happens inside a difference a reader perceives as texture rather than as a
+ * value changing. A pulse with real contrast in it competes with the numbers
+ * beside it, and this is chrome.
+ */
+@keyframes breathe {
+  0%,
+  100% {
+    background: var(--chart-uncovered);
+  }
+
+  50% {
+    background: var(--chart-grid);
+  }
+}

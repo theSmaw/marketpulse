@@ -272,7 +272,7 @@ export function BarSeriesPanel({
        * answer, which is `PRODUCT_SPEC.md` §28's 500 ms satisfied by the frame
        * rather than by the response.
        */}
-      <PriceChart symbol={symbol} view={shown} />
+      <PriceChart pending={screen.pending} symbol={symbol} view={shown} />
       {/*
        * **The body follows the picture, not the request** (Task 2.13.7), and it
        * is almost nothing now.
@@ -566,7 +566,33 @@ function reservedSentence(screen: BarSeriesScreen): string {
     (longest, phrase) => (phrase.length > longest.length ? phrase : longest),
   );
 
-  return inFlightSentence(holding, widest);
+  // **Amended 2026-09-14 (§80): the worst case is now the failure sentence.**
+  // The in-flight rail no longer renders — nobody could read it — so the only
+  // sentences that can reach this slot are the two settled ones, and `failed`
+  // is the longer of them by four characters. Measuring against the in-flight
+  // copy would leave the slot short of the sentence that can actually appear,
+  // which is a chart that jumps at the moment an error lands.
+  return `Still showing ${holding}. ${heldFailureSentence(widest)}`;
+}
+
+/**
+ * The longest sentence the rail can now put in the slot above the chart.
+ *
+ * Composed from `outcomeSentence`'s own `failed` arm rather than written out,
+ * for the reason the in-flight version had before it: a second copy written for
+ * the sizer is a measurement of a sentence this panel does not say.
+ */
+function heldFailureSentence(asked: string): string {
+  return outcomeSentence(
+    {
+      state: "failed",
+      failure: "unreachable",
+      requestId: null,
+      retryable: true,
+      retrying: false,
+    },
+    asked,
+  );
 }
 
 /**
@@ -627,18 +653,6 @@ function RailSentence({ children }: { readonly children: ReactNode }) {
 }
 
 /**
- * *Still showing X while Y is read.*
- *
- * The in-flight rail's copy, in one place, because the reservation above has to
- * lay out the same sentence the rail will put in the slot — and a second copy
- * written for the sizer would be a measurement of a sentence this panel does not
- * say.
- */
-function inFlightSentence(holding: string, asked: string): string {
-  return `Still showing ${holding} while ${asked} is read.`;
-}
-
-/**
  * **A different window is on screen, and here is why** (Task 2.13.7).
  *
  * The rail `Refreshing` occupies, with a subject. It is rendered exactly when
@@ -692,20 +706,33 @@ function HeldWindow({
   // cannot check and the honest fallback costs one line.
   if (screen.previous === null) return null;
 
+  // **No sentence while a window is merely in flight** (2026-09-14, §80).
+  //
+  // `previous` is unchanged and still non-null here, because it is the fact
+  // that the picture belongs to *that* window — the figures above are labelled
+  // from it, and a held 5-session chart under `1M OPEN` is the plausible-and-
+  // shifted defect this panel is most careful about. What goes is only the
+  // **sentence**, and only for `loading`.
+  //
+  // The reason is that nobody can read it. A window change costs 2–9 ms warm
+  // and 7–68 ms cold against a local pair, so the in-flight rail's whole
+  // visible life is under a tenth of a second: text appearing and vanishing
+  // over a chart that did not visibly change, which is a flicker rather than
+  // information. A wait long enough to be worth saying something about gets
+  // `ChartPending` instead, and by then there is no held picture to name.
+  //
+  // A refusal and a failure keep theirs. Those are states a reader sits in, the
+  // sentence carries the server's own words and the retry, and it is the only
+  // thing explaining why a 5-session chart is under a 21-session heading.
+  if (view.state === "loading") return null;
+
   const holding = windowPhrase(screen.previous.window);
   const asked = windowPhrase(screen.asked.window);
 
   return (
-    <div
-      className={cx(
-        styles.heldWindow,
-        view.state === "loading" ? styles.working : undefined,
-      )}
-    >
+    <div className={styles.heldWindow}>
       <RailSentence>
-        {view.state === "loading"
-          ? inFlightSentence(holding, asked)
-          : `Still showing ${holding}. ${outcomeSentence(view, asked)}`}
+        {`Still showing ${holding}. ${outcomeSentence(view, asked)}`}
       </RailSentence>
       {view.state === "refused" && <RefusalDetail message={view.message} />}
       {view.state === "failed" && (

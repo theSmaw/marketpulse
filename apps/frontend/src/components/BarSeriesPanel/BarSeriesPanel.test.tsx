@@ -596,7 +596,18 @@ describe("a window change", () => {
     expect(screen.queryByText(/^1M /, VISIBLE)).toBeNull();
   });
 
-  it("names both windows, so the old one cannot be mistaken for the new", () => {
+  // **This asserted the in-flight sentence until 2026-09-14** (§80), and the
+  // inversion is the change rather than a relaxation. A window change costs
+  // 2–9 ms warm and 7–68 ms cold on a local pair, so that sentence's whole
+  // visible life was under a tenth of a second: text appearing and vanishing
+  // over a chart that did not visibly change.
+  //
+  // **What must not go with it is the labelling**, which is the half that was
+  // never about reading a sentence. §6.3's tension is resolved by the figures
+  // carrying the window they belong to, and a held 5-session chart under
+  // `1M Open` is the plausible-and-shifted defect this panel is most careful
+  // about. So: no sentence, and the labels unchanged.
+  it("labels the held figures with their own window and says nothing about it", () => {
     render(
       <Screen
         {...props}
@@ -608,15 +619,9 @@ describe("a window change", () => {
       />,
     );
 
-    // `VOLUME-AND-WINDOW.md` §6.3's tension resolved: the previous window's
-    // series is a true picture of the previous window, and stays true only
-    // because the label above says which window it is of.
-    expect(
-      screen.getByText(
-        /Still showing the 5-session window while the 21-session window is read/,
-        VISIBLE,
-      ),
-    ).toBeTruthy();
+    expect(screen.queryByText(/Still showing/, VISIBLE)).toBeNull();
+    expect(screen.getByText("5D Open", VISIBLE)).toBeTruthy();
+    expect(screen.queryByText("1M Open", VISIBLE)).toBeNull();
   });
 
   it("keeps them and says what happened when the new window is refused", () => {
@@ -719,13 +724,21 @@ describe("a window change", () => {
       .map((node) => node.textContent)
       .find((text) => text.includes("Still showing"));
 
-    expect(sentence).toMatch(/Still showing the .*-session window while/);
+    // **The worst case moved on 2026-09-14** (§80): the in-flight sentence no
+    // longer renders, so the longest thing that can reach this slot is the
+    // failure one — four characters longer than the refusal, and the sentence
+    // the slot must therefore be measured against.
+    expect(sentence).toMatch(
+      /Still showing the .*-session window\. The .*-session window could not be read\./,
+    );
   });
 
-  it("shows the refreshing rail and the held-window rail never together", () => {
-    // Two marks for one fact. A held answer is not about to be refreshed — the
-    // request behind it has already been superseded — so the screen says one
-    // thing or the other.
+  it("shows neither rail while a window is merely in flight", () => {
+    // Two marks for one fact, and since §80 the answer is **neither**. A held
+    // answer is not about to be refreshed — the request behind it has already
+    // been superseded — and the sentence that used to say which window is on
+    // screen is gone because nobody could read it. What is left on screen is
+    // the previous window's chart, correctly labelled, and no prose at all.
     render(
       <Screen
         {...props}
@@ -737,7 +750,7 @@ describe("a window change", () => {
       />,
     );
 
-    expect(screen.getByText(/Still showing/, VISIBLE)).toBeTruthy();
+    expect(screen.queryByText(/Still showing/, VISIBLE)).toBeNull();
     expect(screen.queryByText(/^Refreshing/, VISIBLE)).toBeNull();
   });
 

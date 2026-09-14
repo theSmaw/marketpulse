@@ -573,6 +573,29 @@
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
   /*
+   * A third duration, added 2026-09-14, and it is the first **loop** here
+   * rather than a third transition.
+   *
+   * `quick` and `settle` both describe something that happens once and stops.
+   * `pulse` describes a panel breathing while an answer is in flight, and the
+   * reason it is a token rather than a component constant is entirely the block
+   * below: reduced motion is answered once, at this layer, and a component that
+   * hard-codes `1400ms` is the only way to get that wrong.
+   *
+   * **1400ms rather than something snappier.** A loop is the one kind of motion
+   * a reader is not meant to watch — it is there to say *this is not the answer*
+   * and then get out of the way — and anything under about a second reads as
+   * urgency, which is a claim about the data rather than about the wait.
+   *
+   * **It originated here rather than on the design canvas**, which is a
+   * deviation from ADR 0026's chain worth stating: the
+   * `Component library for MarketPulse` project was not reachable from the
+   * session that added it, and the canvas has no loading treatment of any kind
+   * to adopt. It owes a sync back.
+   */
+  --motion-duration-pulse: 1400ms;
+
+  /*
    * The plot's own geometry, including the stroke width, which is here rather
    * than beside the series ink above because a dark theme changes the colour
    * and not the weight.
@@ -675,5 +698,15 @@
   :root {
     --motion-duration-quick: 0ms;
     --motion-duration-settle: 0ms;
+
+    /*
+     * Zero means an animation **does not run**, which for a loop is exactly the
+     * right answer and not a degraded one: the pending panel is still there,
+     * still the right size, still saying *this is not the answer yet* — it
+     * simply holds still. The paragraph above is about transitions ending in
+     * their final state; a loop has no final state, so what it gets is the
+     * static frame it would otherwise breathe from.
+     */
+    --motion-duration-pulse: 0ms;
   }
 }

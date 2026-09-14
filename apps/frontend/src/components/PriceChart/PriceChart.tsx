@@ -8,6 +8,7 @@ import { priceFrame } from "./chart-geometry.js";
 import { chartSubject, drawsAFrame } from "./chart-subject.js";
 import { usePlotBox } from "./use-plot-box.js";
 import { ChartReading } from "./ChartReading.js";
+import { ChartPending } from "./ChartPending.js";
 import { ChartVacancy } from "./ChartVacancy.js";
 import styles from "./PriceChart.module.css";
 
@@ -153,6 +154,17 @@ import styles from "./PriceChart.module.css";
 
 export interface PriceChartProps {
   /**
+   * **Is a slow answer in flight?** (2026-09-14, §80.) `false` by default, which
+   * is what every story and every settled screen wants.
+   *
+   * A boolean rather than a state member, because it is not one: the wait is a
+   * property of *how long* a request has taken, and `BarSeriesView` is a total
+   * answer to *what came back*. `BarSeriesScreen.pending` is where it is decided;
+   * this prop is that value arriving.
+   */
+  readonly pending?: boolean;
+
+  /**
    * Everything this application knows about the series. **Taken whole and
    * never spread** (`FRONTEND-STATE.md` §1).
    *
@@ -174,7 +186,7 @@ export interface PriceChartProps {
   readonly symbol: string;
 }
 
-export function PriceChart({ view, symbol }: PriceChartProps) {
+export function PriceChart({ view, symbol, pending = false }: PriceChartProps) {
   // **The axis comes from above and the height from this element** (Task
   // 2.13.4). Every mark whose x this component draws is the same value the
   // volume plot draws its columns at, because both read one `TimeFrame` — which
@@ -229,7 +241,7 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
       ? `url(#${coveredId})`
       : undefined;
 
-  const alternative = chartAlternative(view, symbol);
+  const alternative = chartAlternative(view, symbol, pending);
 
   // Two states have no window to draw an axis for: a refusal is an answer about
   // the *request* and a failure never got one. A frame under either would be a
@@ -473,6 +485,20 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
          * header carries the three reasons, and the shortest is that SVG text
          * does not wrap.
          */}
+        {/*
+         * **A wait that has gone on long enough to be worth showing** (§80).
+         *
+         * Over whatever frame is already here, rather than instead of it: the
+         * held chart, the loading scale, an empty answer's wash. The panel above
+         * is untouched, so the figures stay at full ink and the plot does not
+         * move — which is the reserved rail slot's own rule (2026-09-13) surviving
+         * a change that could easily have broken it.
+         *
+         * `pending` is false for the whole of an ordinary window change, so this
+         * is the slow case by construction.
+         */}
+        {pending && <ChartPending />}
+
         {subject !== null &&
           frame.coverage.covered === null &&
           frame.coverage.uncovered.length > 0 && (
