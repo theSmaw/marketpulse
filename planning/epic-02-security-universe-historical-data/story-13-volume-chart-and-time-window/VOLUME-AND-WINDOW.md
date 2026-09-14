@@ -4107,3 +4107,35 @@ attributes the page's movement to the chart. Both boxes are now read in one
 It is the same class as §71.6 and worth stating as a rule: **a comparison of two
 positions must be taken in one round trip**, or the thing being measured is the
 interval rather than the layout.
+
+## 73. The readout, narrowed to the state it was invented for
+
+`63 sessions` beside a selected `3M` is the same figure a third time. The chart's
+spoken description already names the resolved session count, and the coverage
+sentence beneath the plot states the range in full — so §4(e)'s _the label says
+the approximation and the readout says the fact_ is satisfied twice over on the
+same screen before this control says anything.
+
+What the readout is genuinely for is the state the **address** makes reachable
+and the control cannot: `?sessions=7` by hand, `?sessions=30` from Epic 11's
+`setTimeWindow`. The control shows no selection rather than snapping, so five
+cells with no bar under any of them is a real and permanent state — and five
+blank cells read as broken, while five blank cells beside `7 sessions` read as a
+product that understood the address.
+
+So it renders when nothing is selected, and not otherwise.
+
+**Both channels are narrowed together.** The cells' `aria-describedby` points at
+it only where it exists. Task 2.13.8's walk applied parity between what a reader
+sees and what a listener hears as its test; a description that a sighted reader
+cannot see fails that test in the other direction, and "the readout is on screen
+but only spoken" would be the same defect mirrored.
+
+**It retires §71.4's reservation rather than keeping it.** That existed because
+the readout's width decided whether this row wrapped, so a press that changed `5
+SESSIONS` to `21 SESSIONS` made the control 24px taller. No press changes it now:
+a press moves one selected state to another and neither has a readout. One
+transition still changes this control's width — _no selection_ to a pressed
+window — and it is reachable only from a hand-typed or agent-written count, once,
+and it narrows chrome rather than moving anything under a reader's hand. That is
+recorded rather than reserved against.

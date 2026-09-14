@@ -91,7 +91,12 @@ test("the five windows are named for the ear, and the one on screen is checked",
   }
 
   await expect(cell(page, "5 days")).toHaveAttribute("aria-checked", "true");
-  await expect(controlAndReadout(page)).toContainText("5 sessions");
+
+  // **And no readout beside a selected window** (2026-09-14). The count is said
+  // where the control cannot say it — see the no-selection test below — and the
+  // chart's spoken description and the coverage sentence beneath the plot carry
+  // the resolved count for a window that *is* selected.
+  await expect(controlAndReadout(page)).not.toContainText("sessions");
   await expectNothingFailedToRender(page);
 });
 
@@ -120,7 +125,7 @@ test("choosing a window writes the address, re-asks, and never reloads the appli
   // table at the URL layer.
   await expect(page).toHaveURL(/\?sessions=21$/);
   await expect(cell(page, "1 month")).toHaveAttribute("aria-checked", "true");
-  await expect(controlAndReadout(page)).toContainText("21 sessions");
+  await expect(controlAndReadout(page)).not.toContainText("sessions");
 
   expect(
     await page.evaluate(
@@ -173,7 +178,7 @@ test("a reload and a cold deep link both land on the window that was chosen", as
   await page.goto(`${EXPLORER}?sessions=252`);
   await expect(anAnswer(page)).toBeVisible();
   await expect(cell(page, "1 year")).toHaveAttribute("aria-checked", "true");
-  await expect(controlAndReadout(page)).toContainText("252 sessions");
+  await expect(controlAndReadout(page)).not.toContainText("sessions");
 });
 
 test("an address naming a count outside the five shows no selection and is not rewritten", async ({
@@ -207,7 +212,7 @@ test("both plots move together, from one request", async ({ page }) => {
   await expect(anAnswer(page)).toBeVisible();
 
   await cell(page, "1 month").click();
-  await expect(controlAndReadout(page)).toContainText("21 sessions");
+  await expect(cell(page, "1 month")).toHaveAttribute("aria-checked", "true");
   await expect(anAnswer(page)).toBeVisible();
 
   // **One** request for two regions, counted by the window rather than by the
@@ -243,8 +248,8 @@ for (const viewport of VIEWPORTS) {
 
     // **It never truncates a label and never drops the readout**, which is the
     // half that explains the other five (§8.6). At 390 px the control wraps to
-    // its own row under the region's heading; what must not happen is a cell
-    // clipped to `1…` or a readout pushed out of the panel.
+    // its own row; what must not happen is a cell clipped to `1…` or a readout
+    // pushed out of the panel.
     for (const label of ["1D", "5D", "1M", "3M", "1Y"]) {
       const box = await control(page)
         .getByText(label, { exact: true })
@@ -252,7 +257,12 @@ for (const viewport of VIEWPORTS) {
       expect(box?.width ?? 0).toBeGreaterThan(10);
     }
 
-    await expect(controlAndReadout(page)).toContainText("5 sessions");
+    // The readout half, at the address that has one (2026-09-14): it is rendered
+    // where **no** cell is selected, which is the state it exists for, so that is
+    // the state this width has to hold it in.
+    await page.goto(`${EXPLORER}?sessions=7`);
+    await expect(anAnswer(page)).toBeVisible();
+    await expect(controlAndReadout(page)).toContainText("7 sessions");
 
     // And the page does not scroll sideways because of it. A control that
     // overflows its panel is the one way this can be wrong and still look fine

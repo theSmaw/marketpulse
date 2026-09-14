@@ -78,21 +78,22 @@ describe("TimeWindowControl", () => {
     expect(screen.getByText("7 sessions")).toBeTruthy();
   });
 
-  it("states the resolved session count beside the labels, in every state", () => {
-    // §4(e) made visible: **the label says the approximation and the readout
-    // says the fact.** `1M` is not a month, it is twenty-one trading sessions —
-    // the number the axis is divided into and the number the chart's spoken
-    // description uses. This is the only place on screen that says so.
+  it("states the resolved session count where the control cannot", () => {
+    // §4(e) made visible, narrowed 2026-09-14 to the state it was invented for:
+    // the address admits any count the server accepts, the control shows **no
+    // selection** rather than snapping to the nearest, and five cells with no bar
+    // under any of them read as broken. Beside `7 sessions` they read as a
+    // product that understood the address.
     const { rerender, unmount } = render(
-      <TimeWindowControl onChange={vi.fn()} sessions={21} />,
+      <TimeWindowControl onChange={vi.fn()} sessions={7} />,
     );
-    expect(screen.getByText("21 sessions", VISIBLE)).toBeTruthy();
+    expect(screen.getByText("7 sessions", VISIBLE)).toBeTruthy();
 
     rerender(<TimeWindowControl onChange={vi.fn()} sessions={1} />);
     // Singular, because `1 sessions` is the kind of figure that makes a reader
-    // stop trusting the other five.
-    expect(screen.getByText("1 session", VISIBLE)).toBeTruthy();
-
+    // stop trusting the other five — and it is reachable: one session is a
+    // window this control offers, so the copy has to be right for a count that
+    // is *not* on screen here as well as for one that is.
     rerender(<TimeWindowControl onChange={vi.fn()} sessions={Number.NaN} />);
     // The one state the canvas's `N SESSIONS` cannot express. An address admits
     // anything, `NaN SESSIONS` is a figure this product must never print, and
@@ -100,6 +101,20 @@ describe("TimeWindowControl", () => {
     expect(screen.getByText("not a session count", VISIBLE)).toBeTruthy();
 
     unmount();
+  });
+
+  it("says nothing beside a window that is selected, in either channel", () => {
+    // The narrowing, and **both channels move together**: a description a
+    // sighted reader cannot see fails the parity test Task 2.13.8's walk applied,
+    // in the other direction. The fact itself is not lost — the chart's spoken
+    // description names the resolved count and the coverage sentence beneath the
+    // plot states the range in full.
+    render(<TimeWindowControl onChange={vi.fn()} sessions={21} />);
+
+    expect(screen.queryByText("21 sessions", VISIBLE)).toBeNull();
+    for (const cell of screen.getAllByRole("radio")) {
+      expect(cell.getAttribute("aria-describedby")).toBeNull();
+    }
   });
 
   // **On the cells rather than on the group, since Task 2.13.8's walk.** The

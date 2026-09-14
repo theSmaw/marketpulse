@@ -204,7 +204,7 @@ export function TimeWindowControl({
               aria-checked={checked}
               // **On the cell, not on the group** — see the header. The group
               // is never focused, so a description hung there is unreachable.
-              aria-describedby={readoutId}
+              aria-describedby={selected === undefined ? readoutId : undefined}
               className={cx(styles.cell, checked ? styles.checked : undefined)}
               key={window.label}
               onClick={() => {
@@ -243,53 +243,52 @@ export function TimeWindowControl({
       </div>
 
       {/*
-       * **The readout, outside the box** (§8.3, §8.4) — the resolved session
-       * count of whatever is on screen, in the micro-label idiom the status
-       * strip already uses for the market feed.
+       * **The readout, outside the box, and only where it has something to say**
+       * (§8.3, §8.4, narrowed 2026-09-14).
        *
-       * It is what makes "nothing selected" an ordinary state rather than a
-       * sixth one to draw: five cells with no bar read as broken, and five cells
-       * beside `7 SESSIONS` read as a product that understood the address. It is
-       * also §4(e) made visible — **the label says the approximation and this
-       * says the fact** — and it is the only place on screen that says `1M` means
-       * twenty-one trading sessions, which is the number the axis is divided into
-       * and the number the chart's description speaks aloud.
+       * The resolved session count of whatever is on screen, in the micro-label
+       * idiom the status strip already uses for the market feed — shown **when
+       * no cell is selected**, and not otherwise.
+       *
+       * What it is for is the state the address makes reachable and the control
+       * cannot: `?sessions=7` by hand, `?sessions=30` from an agent. The control
+       * shows no selection rather than snapping to the nearest, so "nothing
+       * selected" is a real, permanent, ordinary state — and five cells with no
+       * bar under any of them read as broken, while five cells beside `7
+       * sessions` read as a product that understood the address.
+       *
+       * Beside a **selected** cell it was saying something nobody needed. §4(e)
+       * calls it *the label says the approximation and this says the fact*, and
+       * that was true — `1M` is twenty-one trading sessions and not a month —
+       * but the fact has two other homes on the same screen: the chart's spoken
+       * description names the resolved count, and the coverage sentence beneath
+       * the plot states the range in full. A third copy beside the control it
+       * qualifies is the same figure three times.
+       *
+       * Both channels are narrowed together. The cells' `aria-describedby` goes
+       * with it, so a listener and a reader get the readout in exactly the same
+       * states — parity between the two channels is the test Task 2.13.8's walk
+       * applied, and a description a sighted reader cannot see would fail it in
+       * the other direction.
        *
        * Static, never focusable, never a button. Drawn inside the box first, as
        * a sixth cell, where it read as a sixth *button* and competed with hover
        * for the one ground a cell can take.
-       */}
-      {/*
-       * **The readout reserves its own width** (2026-09-13).
        *
-       * It is the second occupant of a wrapping row, so its width decides
-       * whether that row is one line or two — and its width is a function of the
-       * *count*. `5 SESSIONS` fitted beside the box at 768px and `21 SESSIONS`
-       * did not, so pressing `1M` there made this control 24px taller and pushed
-       * the chart below it down the page. The rail beside it had just been
-       * reserved against exactly that, which is what made this visible: one
-       * jump repaired, the other one still there and now the only one left.
-       *
-       * So the value sits in a one-cell grid with a hidden copy of the **widest
-       * count this control could be asked to show** — the five it offers, and
-       * whatever the address named — laid out beside it. The row's wrap decision
-       * is then the same in every state. `aria-hidden` keeps the copy out of the
-       * description every cell points at; `visibility: hidden` is what keeps it
-       * in the layout, which is the entire point.
+       * **The reservation this used to carry is gone with it.** It existed
+       * because the readout's width decided whether this row wrapped, so a press
+       * that changed `5 SESSIONS` to `21 SESSIONS` made the control 24px taller.
+       * No press changes it now: a press moves one selected state to another and
+       * neither carries a readout. What remains is one transition that does
+       * change this control's width — *no selection* to a pressed window, which
+       * needs a hand-typed count and happens once — and it narrows chrome rather
+       * than moving anything under a reader's hand.
        */}
-      <span className={styles.readout}>
-        <span aria-hidden="true" className={styles.readoutSizer}>
-          {widestReadout(windows, sessions)}
-        </span>
-        {/*
-         * **The id is on the value, not on the cell around it**, so the
-         * description every radio points at is the sentence a reader sees and
-         * not that sentence with a hidden measurement in front of it.
-         */}
-        <span className={styles.readoutValue} id={readoutId}>
+      {selected === undefined && (
+        <span className={styles.readout} id={readoutId}>
           {readoutText(sessions)}
         </span>
-      </span>
+      )}
     </div>
   );
 }
@@ -317,25 +316,4 @@ export function readoutText(sessions: number): string {
   // sentence a surface says about a count that is not one is that surface's own,
   // and a shared one would be the two-surfaces-one-sentence defect.
   return describeSessionCount(sessions) ?? "not a session count";
-}
-
-/**
- * The widest thing the readout could be asked to say, for the reservation above.
- *
- * Built from the windows this control was given plus the count on screen, rather
- * than from a literal: a `1,000-session` address is a routine input here, and a
- * reservation that only knew about the five would be a measurement of a state
- * this control can leave.
- *
- * Compared by length rather than by rendered width, which is an approximation
- * and is the right one: these strings differ only in digits, in a face where
- * digits are tabular.
- */
-function widestReadout(
-  windows: readonly TimeWindow[],
-  sessions: number,
-): string {
-  return [...windows.map((window) => window.sessions), sessions]
-    .map((count) => readoutText(count))
-    .reduce((widest, text) => (text.length > widest.length ? text : widest));
 }

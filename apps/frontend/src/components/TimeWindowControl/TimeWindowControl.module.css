@@ -135,28 +135,13 @@
  * panel heading is the one way this can look broken, and it is the state that
  * explains the other five.
  *
- * **One grid cell since 2026-09-13**, holding the value and a hidden copy of the
- * widest count this control could show. Its width is what decides whether the
- * row above the chart is one line or two, and a width that changes with the
- * count is a chart that moves when somebody presses a window — the component
- * carries the measurement.
+ * **It is rendered only where no cell is selected** (2026-09-14), which is also
+ * what retired the width reservation this rule carried for a day: no press
+ * changes the readout now, because a press moves one selected state to another
+ * and neither has one.
  */
 .readout {
   composes: microLabel from "../../styles/type.module.css";
   color: var(--ink-secondary);
   white-space: nowrap;
-
-  display: inline-grid;
-  grid-template-columns: 1fr;
-  justify-items: end;
-}
-
-.readoutValue,
-.readoutSizer {
-  grid-area: 1 / 1;
-}
-
-/* Present in layout, absent from everything else. */
-.readoutSizer {
-  visibility: hidden;
 }
