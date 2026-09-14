@@ -36,8 +36,9 @@
     "bars:check": "node scripts/check-bars.mjs",
     "image": "node scripts/build-image.mjs",
     "e2e": "node scripts/run-e2e.mjs",
+    "probe": "node scripts/probe.mjs",
     "e2e:deployed": "node scripts/run-deployed-check.mjs",
-    "verify": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run links && pnpm run coverage:check && pnpm run test && pnpm run test:process"
+    "verify": "node scripts/check-quiet.mjs && pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run links && pnpm run coverage:check && pnpm run test && pnpm run test:process"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
