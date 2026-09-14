@@ -150,15 +150,18 @@ test("the identity block names the security, and qualifies its close", async ({
   const symbol = page.getByRole("heading", { level: 2, name: "NVDA" });
   await expect(symbol).toBeVisible();
 
-  // The grain, stated. This figure is a stored **daily** bar and the panel
-  // below renders the last **minute** bar of its window; on 2026-09-04 they are
-  // 230.36 and 230.34. Two inches apart with one word on both, they read as one
-  // number that cannot make its mind up.
+  // The baseline of the percentage beside it, stated. This block's change is
+  // against the **previous session's** close and the panel below states an
+  // open-to-close move across its window; on 2026-09-11 the deployed page read
+  // -0.03% here and -1.38% there, from one session. Two unlabelled percentages
+  // 1.35 points apart read as one number contradicting itself.
   //
   // Branched rather than asserted outright: CI's store holds 518 securities and
   // zero bars, so the close is absent there and present on a developer's
   // machine and on the deployed pair. Both are correct.
-  const qualifier = page.getByText(/from a stored daily bar|no daily bar held/);
+  const qualifier = page.getByText(
+    /change from the previous close|no daily close stored/,
+  );
   await expect(qualifier).toHaveCount(1);
 });
 

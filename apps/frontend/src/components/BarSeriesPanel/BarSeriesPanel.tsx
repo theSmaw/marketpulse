@@ -307,12 +307,27 @@ export function BarSeriesPanel({
  * It stays a number in the DOM, in the data face, and is never a label drawn on
  * the line.
  *
- * **The prices joined it on 2026-09-14**, from beneath the drawing, and they
- * are three rather than four: the headline beside them *is* the close. The
- * reason is not this row's convenience, it is the row *below* the drawing: the
- * volume plot hangs on the price plot's axis, and everything between the two is
+ * **The prices joined it on 2026-09-14**, from beneath the drawing. The reason
+ * is not this row's convenience, it is the row *below* the drawing: the volume
+ * plot hangs on the price plot's axis, and everything between the two is
  * distance a reader has to carry a shape across. The strip was the last thing
  * in this panel standing there.
+ *
+ * **`CLOSE` came back on 2026-09-15, one day after it left**, and the reversal
+ * is worth stating because the argument that removed it was correct and was
+ * about a different question. It left because the headline beside it *is* the
+ * close, so the strip was restating in the quietest type on the row the one
+ * figure a reader cannot miss. What that misses is the figure two inches
+ * **above** this panel: the identity block's `LAST SESSION CLOSE` is the
+ * session's official close from a stored daily bar, this headline is the last
+ * **minute** bar of the window, and on 2026-09-11 they read `218.29` and
+ * `218.19`. A reader who notices asks which one is wrong, and the answer —
+ * neither, they are different measurements — has to be legible from the screen.
+ *
+ * `1D CLOSE` in the window vocabulary the other three already speak is what
+ * makes it legible: it says this number is *of the window*, which is exactly
+ * what the one above it is not. The restatement stopped being redundancy the
+ * moment there was a second close on the page to tell it apart from.
  *
  * They are one element rather than two occupants of `.reading`, and that is
  * load-bearing: with three independent items the rail could wrap *between* the
@@ -391,6 +406,7 @@ function Figures({ screen }: { readonly screen: BarSeriesScreen }) {
             { label: priceLabel("Open"), value: formatPrice(prices.open) },
             { label: priceLabel("High"), value: formatPrice(prices.high) },
             { label: priceLabel("Low"), value: formatPrice(prices.low) },
+            { label: priceLabel("Close"), value: formatPrice(prices.close) },
           ]}
         />
       </div>

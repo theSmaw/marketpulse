@@ -370,7 +370,7 @@
 }
 
 /*
- * The three prices beside the headline.
+ * The four prices beside the headline.
  *
  * A basis **below** the strip's own column width, on purpose: `MetricStrip`'s
  * `auto-fit` turns it into fewer columns when the room is not there, which is
@@ -392,12 +392,10 @@
    * in the quietest type on the row. Dropping it is what makes room for the
    * window control to join this row at all.
    *
-   * **The check `MetricStrip` says an override owes**, taken rather than
-   * argued. The columns resolve to 114px at 1440 and **89px at 390**, below the
-   * primitive's own 7rem floor, and the labels are window-qualified now — so the
-   * measurement is of `5D HIGH` rather than `HIGH`. Each metric is 42px tall at
-   * both widths, which is one line of value over one line of label; a wrapped
-   * label would read 58.
+   * **The figures above are from the three-column strip** and are left as the
+   * record of what it measured: 114px at 1440 and 89px at 390, each metric 42px
+   * tall. The four-column measurement is against `flex` below, where the floor
+   * that four columns need is set.
    *
    * 58 is what `?sessions=7` measures at 390, where the qualifier falls back to
    * `7-SESSION` and wraps. That is the knowing exception rather than a miss: the
@@ -405,9 +403,32 @@
    * hand-typed address or an agent's command, and the alternative there is the
    * bare word in the one case a reader cannot guess the window.
    */
-  --metric-columns: repeat(3, minmax(0, 1fr));
-  flex: 1 1 12rem;
-  min-width: 0;
+  --metric-columns: repeat(4, minmax(0, 1fr));
+  /*
+   * **A floor rather than `min-width: 0`, and the number is measured** (Task
+   * 2.13's working loop: a tolerance is measured, never argued).
+   *
+   * `min-width: 0` let this strip shrink to whatever the headline left it,
+   * which was right while it was three columns and wrong at four. Probed at
+   * four viewports with `CLOSE` restored: the columns resolve to 81px at 1440,
+   * 65px at 768 and 62px at 390 — one line of value over one line of label,
+   * 42px tall — and **48px at 1024**, where the label wraps and every metric
+   * grows to 58px. 1024 is the worst case rather than 390 because it is the
+   * widest layout where the strip still shares its row with the rail and the
+   * window control: at 390 the row has already given up and handed the strip
+   * its full width.
+   *
+   * 19rem is four 62px columns and their three 20px gaps, rounded up — the
+   * narrowest measured width at which `1D CLOSE` sets on one line. Below it the
+   * strip wraps onto its own line inside `.figures` and takes the panel's full
+   * width — 97px columns at 1024. It is paid for in height: the headline row
+   * goes from 168px to 182px there, which is 14px to remove a wrapped label
+   * from four figures, and is the same 182px the two narrower viewports already
+   * spend. 1440 is untouched at 92px. The check `MetricStrip` says an override
+   * owes is this paragraph.
+   */
+  flex: 1 1 19rem;
+  min-width: 19rem;
 }
 
 @keyframes settle {
