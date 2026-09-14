@@ -14,8 +14,24 @@
    * and a strip of six are the same component, and the number of metrics is a
    * property of the data rather than of the layout. The 7rem floor is what
    * stops a `234.76` and its `HIGH` label ending up on two lines.
+   *
+   * **The track list is a custom property since 2026-09-14**, defaulting to
+   * exactly the expression this component has always had, and it is `Marker`'s
+   * idiom rather than a new one: the primitive owns the layout and a consumer
+   * states the one thing only the context knows.
+   *
+   * What made it necessary is a strip that **shares a row**. `auto-fit` answers
+   * a shortage of width by dropping a column, which is right for a strip whose
+   * length is a property of its data — and wrong for one whose four members are
+   * a set: three prices and an orphaned fourth is a worse picture at every
+   * width than four narrow ones. A consumer overriding this owes the check the
+   * 7rem floor encodes: that its longest value and its longest label each still
+   * fit on one line at the width it is asking for.
    */
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  grid-template-columns: var(
+    --metric-columns,
+    repeat(auto-fit, minmax(7rem, 1fr))
+  );
   gap: var(--space-12) var(--space-20);
   margin: 0;
 }

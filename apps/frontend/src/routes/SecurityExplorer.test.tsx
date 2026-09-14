@@ -545,11 +545,12 @@ describe("the Security Explorer shell", () => {
     // describing one screen must not open on the same clause. Eight regions
     // arrived at once here, and the cheap check is exactly this — a locator
     // that resolves to two nodes means two surfaces are saying one thing.
-    // The Price region is **not** in this list since 2026-09-13: it carries no
-    // sentence at all, which is a different claim and is asserted above.
+    // **Two** regions are not in this list, and for one reason: Price since
+    // 2026-09-13 and Volume since 2026-09-14 carry no sentence at all, because
+    // each holds a drawing that says what the sentence said in less space. That
+    // is a different claim from *its sentence is unique* and is asserted above.
     for (const opening of [
       "How unusual this security's behaviour",
-      "Traded volume over the same window",
       "This security measured against",
       "Which securities move with this one",
       "Primary-source evidence from SEC EDGAR",

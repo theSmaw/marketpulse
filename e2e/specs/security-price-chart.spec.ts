@@ -524,7 +524,22 @@ for (const viewport of VIEWPORTS) {
     // until green instead of understood.
     await expect(restingStrip(page)).toHaveCount(1);
 
-    const prices = priceRegion(page).getByText("Open", { exact: true });
+    /**
+     * **The thing below the readout, and it had to be replaced on 2026-09-14.**
+     *
+     * This was the price strip's `Open` label, chosen because it was the first
+     * thing beneath the chart's reading strip. That change moved the four
+     * prices **above** the drawing — so the old sentinel is now above the thing
+     * it is measuring, and this test would have gone quietly, permanently green
+     * at all three viewports while the defect it exists for stayed invisible.
+     * An instrument that moved above its subject is worse than a deleted one,
+     * because it still reports.
+     *
+     * The Volume region's heading is the replacement: it is the next thing down
+     * the page from the reading strip, it exists in every state, and it is
+     * nothing this panel can re-arrange.
+     */
+    const below = volumeRegion(page).getByRole("heading", { name: "Volume" });
 
     // **Measured against the document rather than the viewport**, which is what
     // makes this assertable at the two narrow sizes at all: the chart is below
@@ -533,7 +548,7 @@ for (const viewport of VIEWPORTS) {
     // first, it reported a 111px jump at 430 and 0 at 1440 — the wrong number at
     // both.
     const documentY = () =>
-      prices.evaluate(
+      below.evaluate(
         (element) => element.getBoundingClientRect().top + window.scrollY,
       );
 
@@ -784,6 +799,41 @@ test("the two plots hang on one axis and stop at the same pixel", async ({
   const volumeBox = await volumePlot(page).boundingBox();
   expect(volumeBox?.x).toBeCloseTo(priceBox?.x ?? -1, 1);
   expect(volumeBox?.width).toBeCloseTo(priceBox?.width ?? -1, 1);
+
+  /*
+   * **And they are near each other, which is a separate claim** (2026-09-14).
+   *
+   * One axis and one width make the two plots comparable in arithmetic; being a
+   * screen apart makes them incomparable to a reader anyway. Everything that
+   * ever sat between them was there for a good local reason — a strip of
+   * figures, a paragraph explaining what volume is — and each addition was
+   * invisible to every assertion in this suite.
+   *
+   * **One evaluate, two boxes**, which is §72.5's rule: something on this
+   * screen moves the page shortly after load, and a comparison of two positions
+   * taken in two round trips measures that interval rather than the layout.
+   *
+   * The ceiling is a measurement rather than a target. Two panels' padding, the
+   * grid gap, the reading strip and the Volume heading come to **190px** at
+   * 1440 — that is the floor, and nothing here is asking for it to be smaller.
+   * What the ceiling refuses is a **third block arriving in the gap**: the
+   * Volume region's deleted paragraph was two lines, so restoring it clears
+   * this by a wide margin, which is how it was break-verified.
+   */
+  const gap = await page.evaluate(() => {
+    const plots = [...document.querySelectorAll("svg:has(line)")];
+    const [price, volume] = plots;
+    if (price === undefined || volume === undefined) {
+      throw new Error("expected two plots on the page");
+    }
+
+    return (
+      volume.getBoundingClientRect().top - price.getBoundingClientRect().bottom
+    );
+  });
+
+  expect(gap).toBeGreaterThan(0);
+  expect(gap).toBeLessThan(220);
 
   // Then every vertical mark on them — the session seams and the coverage edge.
   // Identical strings, not merely a similar count: these are the same values

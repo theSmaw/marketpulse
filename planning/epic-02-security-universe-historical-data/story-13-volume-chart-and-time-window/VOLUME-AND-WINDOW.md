@@ -3957,7 +3957,9 @@ moment the page is looked at:
 ### 71.2 The rail and the control share one row
 
 The control is permanent, so the row is permanent. The rail takes the space to
-its left, which is dead at every width where the two fit on one line. The rail
+its left, which is dead at every width where the two fit on one line. (_Amended
+2026-09-14: that space is no longer dead — §75 put the four prices on this row.
+The reservation is unchanged and is re-measured there._) The rail
 therefore costs **nothing** at those widths: the row's height is the control's,
 and the reservation §69 built is absorbed by it.
 
@@ -4157,7 +4159,10 @@ each before it came off:
 | `Market feed — All US exchanges`                              | The masthead's `FeedProvenance`, on every screen; and the chart's text alternative, per series                                 |
 
 What is left on the panel is the identity, the control, the headline, the
-picture, the reserved reading strip and the four prices.
+picture, the reserved reading strip and the four prices. (_Amended 2026-09-14:
+the list is unchanged and the arrangement is not — §75 moved the four prices from
+beneath the picture to the headline's own row above it, so nothing at all is
+stated under the drawing._)
 
 ### 74.1 The feed row is narrowed rather than deleted
 
@@ -4195,3 +4200,221 @@ rest_ is now asserted as **no live `Bar` label and a hidden one still there** �
 which is a stronger assertion than the invitation ever was, because it fails
 against a strip that has stopped reserving its height as well as one that has
 stopped resting.
+
+## 75. The prices come up beside the headline, and the volume comes up to meet them
+
+Asked for on 2026-09-14, from a mockup, with the reason stated in the request:
+**the two plots are coupled and they are being read as two pictures.** They hang
+on one axis, at one width, stopping at one coverage edge — §13 is explicit that
+this adjacency is the one in `PRODUCT_SPEC.md` §8.3 that is not a preference —
+and everything that had accumulated between them was distance a reader has to
+carry a shape across.
+
+What was in the gap, top to bottom: the price chart's reserved reading strip,
+the four-price `MetricStrip`, the panel's bottom padding, the grid gap, the
+Volume region's heading, and a two-line paragraph explaining what volume is.
+
+Every one of those arrived for a good local reason. That is the point worth
+recording: **nothing in this repository measures a distance between two
+regions**, so each addition was correct where it was decided and invisible to
+every assertion in the suite.
+
+### 75.1 The four prices go above the picture
+
+The arrangement is the mockup's, chosen by the user against two alternatives (a
+row of their own between the headline and the chart, and a strip of three with
+the headline standing in for the close):
+
+```
+NVDA                                    [1D 5D 1M 3M 1Y]
+218.29 +6.55%   204.86   234.76   189.80   218.29     <rail>
+                OPEN     HIGH     LOW      CLOSE
+─── price chart ─────────────────────────────────────
+─── reading strip ───────────────────────────────────
+```
+
+`Close` is stated twice, at two sizes, and that is the arrangement rather than a
+duplication overlooked: the display figure answers _what is it now_ and the
+strip answers _where did the window open, how far did it go, where did it end_.
+The second is a set and the close is a member of it; dropping the member to
+avoid repeating a number would leave a set of three with a hole in it, and would
+take the `Close` label off the panel — which §74.2 records is the surface half
+the browser suite synchronises on.
+
+**They are one element, not two occupants of the row.** `Figures` owns the
+headline and the strip together, so `.reading` is two flex items rather than
+three. With three, `space-between` would park the strip in the middle of the row
+and, at the widths where the row wraps, the rail could land **between** the close
+and the four prices it is a statement about. That is the one arrangement here
+that would be actively wrong.
+
+**The strip is `compact`.** At `large` it is a headline block of its own, which
+is what it was while it opened the facts beneath the drawing. Beside a figure at
+display size it is a qualifier, and two headlines on one row is two answers to
+_what is the number here_. `MetricStrip` keeps the micro label at full size in
+both, which is what makes the size step safe — a label that shrinks stops being
+legible at exactly the point it carries the most meaning.
+
+**The rule above the strip did not come with it.** `.prices` carried a
+`border-top` and 16px of padding; both existed to separate the strip from the
+**chart above it**, and that relationship has inverted. A rule under the strip
+now is a caption rule under a picture's label, costing height in the exact place
+this change is buying it back.
+
+### 75.2 The settle wash moves up, and widens
+
+`.settle`'s `key={settleSignature(...)}` wrapped only the prices. It moves onto
+`Figures`, which is a **widening** rather than a move: the close is one of the
+three fields the signature is computed from, and until now it was the one figure
+the signature was _about_ that the wash did not cover.
+
+**The `arrive` animation is retired and not replaced.** `.series` was the body of
+the answer and rose four pixels into place when the answer landed; the body is
+gone. Moving that keyframe onto `.figures` is the obvious substitution and is
+wrong — `.figures` is keyed, so a `translateY` would replay on **every settle**,
+which is a value sliding while an analyst reads it. That is the thing
+`VISUAL-LANGUAGE.md` forbids and the whole reason the settle is a background
+wash. Nothing is lost: the wash already plays on mount as well as on a re-key.
+
+### 75.3 What is left of the body, and why it returns `null`
+
+`SeriesState` held the prices and `Provenance`. With the prices gone it is a flex
+column with a 16px gap around one child that renders nothing until a series names
+two feeds — so it is deleted, and `Body`'s `loaded`/`partial` case returns
+`<Provenance>` directly.
+
+That shape matters: a component returning `null` is **no DOM node**, so it is no
+flex item, so `.panel`'s 16px gap is not spent under the chart. An empty wrapper
+would have given back one of the pixels this change exists to remove.
+
+`Provenance` itself is untouched — §74.1's argument stands, and it renders itself
+the day Epic 3's IEX socket makes a stitched series name two feeds.
+
+### 75.4 Eight dead rules, swept in passing
+
+`.prices` and `.series` go with their markup. `.coverage`, `.short`, `.windows`,
+`.window`, `.windowLabel` and `.windowValue` were **already** dead — §74 took
+their markup off the panel and left the rules standing, which raises nothing,
+because a CSS Module class name that nothing uses is as silent as one that is
+misspelled.
+
+### 75.5 The Volume region's paragraph goes, by §71.3's judgement a second time
+
+> _Traded volume over the same window as the price above it, on the same axis and
+> stopping at the same coverage edge, which is why it sits directly beneath at the
+> same width. The window control above moves both._
+
+It was amended in the same commit as the drawing at Task 2.13.4, which was right
+at the time — a region that says it holds a plan while holding a chart is a live
+claim. What was left afterwards is exactly what §71.3 describes for the Price
+region: a caption for a picture immediately below it, costing the drawing a
+paragraph of height at every width.
+
+Here it cost that paragraph in the most expensive place on the screen — directly
+between the two plots. So it is **deleted rather than amended a second time**.
+The region's name and its landmark are unchanged and still asserted;
+`SecurityExplorer.test.tsx`'s uniqueness list loses the entry, as the Price
+region's did, and its comment now names two regions carrying no sentence rather
+than one.
+
+### 75.6 One instrument had moved above its subject, which is worse than a deleted one
+
+`security-price-chart.spec.ts`'s `the readout reserves its height at ${viewport}`
+— three tests, and the repair §15.4 argues for — measured the **price strip's
+`Open` label**, chosen at Task 2.12.8 because it was the first thing beneath the
+chart's reading strip.
+
+This change moves that label **above** the drawing. The test would have gone
+quietly, permanently green at all three viewports while the defect it exists for
+became undetectable: an instrument that still reports from above its subject is
+worse than one that was deleted, because nothing looks wrong.
+
+The sentinel is now the Volume region's heading — the next thing down the page
+from the reading strip, present in every state, and nothing this panel can
+re-arrange.
+
+**The general shape is worth keeping**, because it is not about this test: a
+layout assertion names its subject by _what is next to it_, and any change that
+re-orders a page can invert one without touching it. Nothing anywhere checks
+that an instrument is still on the correct side of the thing it measures.
+
+### 75.7 What was added, and what it can and cannot see
+
+- **`security-price-chart.spec.ts`**, in `the two plots hang on one axis and stop
+at the same pixel`: the **vertical gap** between the price plot's bottom and
+  the volume plot's top. One axis and one width make the two comparable in
+  arithmetic; a screen apart makes them incomparable to a reader anyway, and
+  until now nothing asserted the second half at all. Both boxes in **one
+  `evaluate`**, which is §72.5's rule — something on this screen moves the page
+  shortly after load, and two round trips measure that interval rather than the
+  layout. The ceiling is deliberately generous: it is not a design measurement,
+  it is the distance at which these stop reading as one instrument, and what it
+  refuses is a **third block arriving in the gap**.
+- **`security-window-change.spec.ts`**, in `pressing a window does not move the
+chart`: the `Close` label's position inside its region, beside `plotTop`, at
+  all three viewports. `plotTop` would already catch a row that wrapped
+  differently either side of a press — but it would not say _what_ moved, and
+  the reading row, now carrying a display figure, a strip of four and the rail,
+  is the likeliest answer.
+- **`BarSeriesPanel.test.tsx`**: the prices precede the drawing in **document
+  order**. jsdom computes no layout, so nothing below `pnpm e2e` can tell where
+  any of this is drawn — but it does know what comes before what, and that is
+  the one property of this arrangement a unit level can hold.
+
+### 75.8 The wrap, which is a judgement rather than a measurement
+
+The reading row is content-sized at every width and **no reserved height is
+added anywhere** — §15.4's rule is untouched, and the only reservation on the row
+is still the rail's hidden sentence.
+
+A press cannot move it: both occupants of `Figures` derive from `screen.shown`,
+which a press does not touch, and the rail's width is fixed by `flex: 1 1 18rem`
+rather than by its content, so the strip's wrap point is identical either side of
+a press. The new assertion in §75.7 is what holds that rather than the argument.
+
+What is left to judgement is legibility at the narrow widths, where the strip
+becomes two rows of two (`MetricStrip`'s own `auto-fit`, at four columns of
+`minmax(7rem, 1fr)`) and the rail takes a line of its own. That is constant
+across every state and across a press, so it moves nothing; it is a thing to look
+at rather than a defect to assert.
+
+### 75.9 Two defects the first rendering found, both about bidding for width
+
+Neither was visible in the markup, in a test, or in any reasoning about the
+change. Both were found by looking at the running page at 1440 and measuring the
+boxes.
+
+**The rail was taking half the row.** `.rail` was `flex: 1 1 18rem` — _grow_ one
+— since §72.2 put it there, and the comment beside it said it "takes the room the
+figure leaves and no more", which was not what it did. With two occupants that
+both grew, the free space split evenly: a 170px headline and a rail saying
+nothing at all held **441px and 423px** of an 889px row. It cost nothing while
+the other occupant was one figure, and it folded the strip into three columns and
+an orphan the moment four prices joined it. It is `flex: 0 1 18rem` now, and the
+comment is finally true. **The general shape**: a flex item that grows is bidding
+for width it may not need, and a row with one occupant cannot tell you whether it
+is.
+
+**`auto-fit` answers a shortage of width by dropping a column**, which is right
+for a strip whose length is a property of its data and wrong for one whose
+members are a **set**. Four prices at `MetricStrip`'s 7rem floor need 508px and
+never have it here, so the strip rendered three across with `CLOSE` orphaned
+underneath — at 1440 beside the headline, and again at 768 and 390 where it has
+the row to itself. `MetricStrip`'s track list is now a custom property defaulting
+to exactly the expression it always had, and this one consumer states the thing
+only it knows: _always four_. Measured at 81px per column at 1440, 97 at 1024, 65
+at 768 and 62 at 390, which is the narrowest and still fits a six-character value
+and `CLOSE` on one line each.
+
+### 75.10 The ceiling in §75.7 is a measurement, and the first one was wrong
+
+The gap assertion was written at 180px from reasoning and the real figure is
+**190** at 1440: two panels' padding, the grid gap, the reading strip and the
+Volume heading. It is the floor, and nothing about this change asks for it to be
+smaller. The ceiling is 220 — above the floor, below the floor plus the two-line
+paragraph that was deleted, which is what makes restoring that paragraph the
+break-verification rather than a guess.
+
+This is `CLAUDE.md`'s own rule catching a number written into a test from
+argument: a tolerance is a measurement or it is a place for the next defect to
+hide.

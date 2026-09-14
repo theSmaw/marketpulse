@@ -310,16 +310,22 @@ export function SecurityExplorer() {
            * than leave standing. The same thing happened here at Task 2.12.4 for
            * the Price region.
            *
+           * **And on 2026-09-14 the sentence is deleted rather than amended a
+           * second time**, which is §71.3's judgement made again for the same
+           * reason one region up: what was left was a caption for a picture
+           * immediately below it, costing the drawing a paragraph of height at
+           * every width — and here that paragraph sat in the one place on this
+           * screen where height is most expensive, directly between two plots
+           * that hang on one axis and have to be read against each other. The
+           * region's *name* and its landmark are unchanged and still asserted.
+           *
            * The chart is **inside** this region and not in a panel beside it,
            * which is the concrete defect `e2e/specs/security-price-chart.spec.ts`
            * exists to catch: jsdom computes no layout, so every unit and component
            * test is green either way.
            */}
           <div className={page.wide}>
-            <Region
-              name="Volume"
-              filledBy="Traded volume over the same window as the price above it, on the same axis and stopping at the same coverage edge, which is why it sits directly beneath at the same width. The window control above moves both."
-            >
+            <Region name="Volume">
               <VolumeChart view={series.screen.shown} symbol={symbol} />
             </Region>
           </div>

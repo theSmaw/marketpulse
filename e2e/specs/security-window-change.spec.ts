@@ -186,6 +186,31 @@ async function plotTop(page: Page): Promise<number> {
 }
 
 /**
+ * Where the figures sit inside their region — the **other** row this press can
+ * move, since 2026-09-14.
+ *
+ * The four prices came up onto the headline's row that day, so the row above the
+ * picture now holds a figure at display size, a strip of four and the rail. A
+ * row that wrapped into a different number of lines either side of a press would
+ * move the chart, and `plotTop` would catch that — but it would not say *what*
+ * moved, and the reading row is now the likeliest answer. This names it.
+ *
+ * Against the region and in one evaluate, for `plotTop`'s two reasons above.
+ */
+async function closeLabelTop(page: Page): Promise<number> {
+  return priceRegion(page).evaluate((section) => {
+    const label = [...section.querySelectorAll("dt")].find(
+      (element) => element.textContent === "Close",
+    );
+    if (label === undefined) throw new Error("no Close label in the region");
+
+    return (
+      label.getBoundingClientRect().top - section.getBoundingClientRect().top
+    );
+  });
+}
+
+/**
  * The three widths, for the one assertion whose answer differs between them.
  *
  * The rail's sentence wraps to two lines at 390px and to one at 1440, so a slot
@@ -256,6 +281,7 @@ for (const viewport of VIEWPORTS) {
     await expect(anAnswer(page)).toBeVisible();
 
     const wasAt = await plotTop(page);
+    const figuresWereAt = await closeLabelTop(page);
 
     const release = await holdTheAnswer(page);
     await cell(page, "1 month").click();
@@ -264,10 +290,16 @@ for (const viewport of VIEWPORTS) {
     // One pixel of tolerance rather than none: a box is a float, and the
     // reservation is the same sentence laid out twice at the same width.
     expect(Math.abs((await plotTop(page)) - wasAt)).toBeLessThan(1);
+    expect(Math.abs((await closeLabelTop(page)) - figuresWereAt)).toBeLessThan(
+      1,
+    );
 
     release();
     await expect(anAnswer(page)).toBeVisible();
     expect(Math.abs((await plotTop(page)) - wasAt)).toBeLessThan(1);
+    expect(Math.abs((await closeLabelTop(page)) - figuresWereAt)).toBeLessThan(
+      1,
+    );
     await expectNothingFailedToRender(page);
   });
 }
