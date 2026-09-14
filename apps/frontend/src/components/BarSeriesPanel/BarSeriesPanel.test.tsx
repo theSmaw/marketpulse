@@ -463,12 +463,20 @@ describe("BarSeriesPanel", () => {
   // canvas, no SVG — so that Story 2.12 would take the charting decision
   // against a data layer already known to be right. It now asserts the thing
   // that replaced it, and the thing that is easy to undo by accident: the
-  // drawing is **above** the stated facts and has not replaced any of them.
+  // drawing has not replaced any of the stated facts.
+  //
+  // **The order inverted on 2026-09-14** and the assertion is now explicit
+  // about it. The four prices moved onto the headline's row *above* the
+  // picture, so that the volume plot — which hangs on this chart's axis and is
+  // the next thing down the page — is not separated from it by a strip of
+  // figures. Document order is the one property of this arrangement that jsdom
+  // can see: it computes no layout, so nothing below `pnpm e2e` can tell where
+  // any of this is drawn, but it does know what comes before what.
   //
   // It stays `svg` and not `canvas`, which is `CHARTING.md` §1's decision
   // showing through: a canvas here would mean the chart had quietly changed
   // renderer, and nothing else in this repository would notice.
-  it("draws the series above the facts, and drops none of them", () => {
+  it("states the facts above the drawing, and drops none of them", () => {
     const { container } = render(
       <Panel {...props} view={barSeriesFixtureView("full")} />,
     );
@@ -485,6 +493,17 @@ describe("BarSeriesPanel", () => {
     for (const fact of ["Open", "High", "Low", "Close"]) {
       expect(screen.getByText(fact)).not.toBeNull();
     }
+
+    // And they are above it. `DOCUMENT_POSITION_FOLLOWING` reads *the drawing
+    // comes after the label*, which is the arrangement this change bought and
+    // the one a well-meant tidy-up would undo by moving the strip back into the
+    // body where it lived for two stories.
+    const chart = container.querySelector("svg");
+    expect(chart).not.toBeNull();
+    expect(
+      screen.getByText("Close").compareDocumentPosition(chart as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });
 

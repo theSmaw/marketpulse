@@ -69,9 +69,16 @@ a story number — see §1's own.
 
 ### 2. A line of closes for V1. Candlesticks have a measured threshold they do not meet.
 
-The bars carry all four prices and the OHLC values are **stated beneath the
-chart**, so nothing is discarded — what is deferred is drawing four marks per
-bar, which is the shape §16.7 priced at 137–254 ms. A candle is legible at a
+The bars carry all four prices and the OHLC values are **stated as text beside
+the chart**, so nothing is discarded — what is deferred is drawing four marks per
+bar, which is the shape §16.7 priced at 137–254 ms.
+
+_Amended 2026-09-14: they were stated **beneath** the chart when this was
+written and are stated **above** it now, on the headline's own row, so that the
+volume plot can sit against the price plot's axis. The decision is untouched —
+what it rests on is that the four prices are stated somewhere as text, not
+where._
+A candle is legible at a
 bar width the default window does not offer: at 1,950 bars the default window
 is **0.47 px per bar**. Candlesticks return with a window that makes them
 readable, which is Story 2.13's control and `CHARTING.md` §2's trigger.

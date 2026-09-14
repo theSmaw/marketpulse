@@ -140,14 +140,21 @@
  * consumer and the first outside a chart. No height token, deliberately: a
  * number here would be a measurement of one viewport declared as a constant.
  *
- * `flex: 1` with `min-width: 0` — it takes the room the figure leaves and no
- * more, and a long sentence wraps inside it rather than pushing anything off the
- * row.
+ * `flex: 0 1 18rem` with `min-width: 0` — it takes the room the figures leave
+ * and no more, and a long sentence wraps inside it rather than pushing anything
+ * off the row.
+ *
+ * **It grew until 2026-09-14, and that was invisible while it was one of two.**
+ * With `flex-grow: 1` the rail split the row's free space evenly with the
+ * headline — which cost nothing when the other occupant was a single figure
+ * 170px wide, and took **half the row** the moment the four prices joined it,
+ * folding a strip that fits comfortably into three columns and an orphan. The
+ * rail says nothing at all in the steady state; it must not bid for width.
  */
 .rail {
   display: grid;
   grid-template-columns: 1fr;
-  flex: 1 1 18rem;
+  flex: 0 1 18rem;
   min-width: 0;
 }
 
@@ -298,36 +305,20 @@
 /* --- The answer with bars in it --- */
 
 /*
- * The answer entering, and it plays **once, before anybody is reading.**
+ * **The arrival mark is retired, on 2026-09-14, and it is not replaced.**
  *
- * That is the line `tokens.css` draws around motion in this product: nothing
- * animates a value already on screen, because a number that slides while an
- * analyst reads it is worse than one that changes instantly. This container
- * mounts when the answer lands and never re-mounts while it is being read.
+ * `.series` was the body of the answer and it rose four pixels into place when
+ * the answer landed. The body is gone — the figures moved onto the row above
+ * the picture and the only thing left below it renders nothing — so the mark
+ * has nothing to play on.
  *
- * The rise is four pixels, which is `UniverseTable`'s measured judgement rather
- * than a fresh guess: four reads as content settling and twenty reads as a
- * slide transition, which is a marketing-site gesture and the first thing a
- * stranger would identify as templated.
- *
- * Reduced motion is honoured with no rule here at all — the duration token
- * resolves to `0ms` under the preference, so the animation does not run and the
- * series is simply already arrived.
+ * It is deliberately **not** moved onto `.figures`, which is the obvious
+ * substitution and would be wrong: `.figures` is keyed, so a `translateY` on it
+ * would replay on every settle, which is a value sliding while an analyst reads
+ * it — the thing `VISUAL-LANGUAGE.md` forbids and the whole reason the settle
+ * below is a background wash. The wash already plays on mount as well as on a
+ * re-key, so the figures still land with a mark rather than appearing flatly.
  */
-.series {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-16);
-  animation: arrive var(--motion-duration-settle) var(--motion-ease-standard)
-    both;
-}
-
-@keyframes arrive {
-  from {
-    opacity: 0;
-    transform: translateY(var(--space-4));
-  }
-}
 
 /*
  * The figures settling after a held answer was replaced by a fresh one.
@@ -342,20 +333,63 @@
  *
  * No padding and no margin, so the wash covers exactly the box the figures
  * already occupy and nothing shifts by a pixel when it mounts. An earlier draft
- * bled it outwards with a negative margin and that is the defect to avoid: the
- * rules above the price strip and the window list would have overhung the
- * panel's own edge, which is visible for a quarter of a second and looks like a
- * layout bug rather than a settle.
+ * bled it outwards with a negative margin and that is the defect to avoid: a
+ * wash that overhangs the panel's own edge is visible for a quarter of a second
+ * and looks like a layout bug rather than a settle.
  *
  * `--motion-duration-settle` resolves to `0ms` under `prefers-reduced-motion`,
  * which leaves the change instantaneous and unmarked. That is the correct
  * degradation: the mark is a courtesy, and the numbers are already right.
+ *
+ * **It is the figures group itself since 2026-09-14**, which is a widening
+ * rather than a move: the close is one of the three fields `settleSignature` is
+ * computed from, and until now it was the one figure the signature was *about*
+ * that the wash did not cover.
+ *
+ * The group is a wrapping sub-row rather than a column, and it is one element
+ * rather than two occupants of `.reading` for a layout reason: with three
+ * independent items the rail could wrap **between** the close and the four
+ * prices it is a statement about.
  */
-.settle {
+.figures {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-16);
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-24);
+  /* Takes the room the rail's fixed basis leaves, and reflows inside it. */
+  flex: 1 1 auto;
+  min-width: 0;
   animation: settle var(--motion-duration-settle) var(--motion-ease-standard);
+}
+
+/*
+ * The four prices beside the headline.
+ *
+ * A basis **below** the strip's own four-column width, on purpose:
+ * `MetricStrip`'s `auto-fit` turns it into two rows of two when the room is not
+ * there, which is the correct narrow answer, and a wider basis would push the
+ * rail off the row before that happened.
+ */
+.priceStrip {
+  /*
+   * **Always four columns, never three and an orphan.**
+   *
+   * `MetricStrip`'s `auto-fit` default is right for a strip whose length is a
+   * property of its data. These four are a *set* — the window's open, its
+   * extremes and its close — and a reader comparing an open to a close is
+   * comparing two figures on one line. Measured: the default folds them into
+   * three and an orphan at 1440 beside the headline and the rail, and again at
+   * 768 and 390 where the strip has the row to itself.
+   *
+   * Measured at four viewports: 81px columns at 1440 (where the strip shares
+   * the row with the headline and the rail), 97 at 1024, 65 at 768 and **62 at
+   * 390**, which is the narrowest and the one that owes the check. Six
+   * characters in the data face at the compact size and `CLOSE` at the micro
+   * size both still sit on one line there — looked at, not calculated.
+   */
+  --metric-columns: repeat(4, minmax(0, 1fr));
+  flex: 1 1 16rem;
+  min-width: 0;
 }
 
 @keyframes settle {
@@ -399,100 +433,21 @@
 }
 
 /*
- * The coverage sentence — the panel's real answer, and the reason it sits
- * directly under the headline rather than among the facts below.
+ * **The four prices, the two windows and the coverage line are gone from this
+ * file** (2026-09-14).
  *
- * It is set at body size while everything in the grid is dense, which is the
- * whole of its emphasis: no colour, no rule, no box. Standing out is a job for
- * hierarchy.
- */
-.coverage {
-  /* `--marker-color` is the custom property `Marker` reads: the primitive owns
-     the geometry and the silhouette and never the colour, so every consumer
-     sets it on the row the marker sits in and it inherits down. Four components
-     already do this; forgetting it renders an invisible marker, which is
-     exactly what happened here before it was added. */
-  --marker-color: var(--ink-secondary);
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-8);
-  margin: 0;
-  color: var(--ink-primary);
-}
-
-/*
- * A short answer is not a failure and must not read as one, so there is no red
- * and no amber here — the difference from a complete answer is the marker's
- * shape (a ring rather than a disc) and the sentence itself. Secondary ink is
- * as far as it goes.
- */
-.short {
-  color: var(--ink-secondary);
-}
-
-/* --- The four prices --- */
-
-/*
- * A strip, not a list. `UniverseTable`'s summary is the idiom this reuses —
- * figure large, label small beneath it — and the reason is that a reader
- * comparing an open to a close is comparing two *figures*, and a label sitting
- * between them is what turns a terminal into a form.
+ * The strip's own layout was always `MetricStrip`'s — the grid, the
+ * `column-reverse` that lifts each figure above its label, and the type. What
+ * lived here was the rule above it and the space under that, which described a
+ * strip sitting *beneath* a drawing; the strip is above the drawing now and
+ * `.priceStrip` is its whole box.
  *
- * `auto-fit` with a floor rather than four fixed columns, so the strip becomes
- * two rows of two on a narrow panel instead of four crushed ones.
+ * `.coverage`, `.short`, `.windows`, `.window`, `.windowLabel` and
+ * `.windowValue` were dead before this change — §74 took their markup off the
+ * panel and left the rules standing. A CSS Module class-name typo is completely
+ * silent in this workspace, which cuts both ways: an unused rule raises nothing
+ * either.
  */
-.prices {
-  padding-top: var(--space-16);
-  border-top: var(--border-width) solid var(--rule-soft);
-}
-
-/*
- * The strip's own layout is `MetricStrip`'s since the 2026 refresh — the grid,
- * the `column-reverse` that lifts each figure above its label, and the type.
- * What stays here is the rule above it and the space under that, which are
- * facts about this panel's stack rather than about a strip of figures.
- */
-
-/* --- The windows --- */
-
-/*
- * A fixed label column so every value starts in the same place. Two ranges that
- * do not line up cannot be compared without reading both in full, and comparing
- * them is the question this block exists to answer.
- *
- * `max-content` on the label column rather than a literal width: the longest
- * label decides, so adding one does not require re-measuring anything.
- */
-.windows {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: var(--space-4) var(--space-16);
-  margin: 0;
-  padding-top: var(--space-16);
-  border-top: var(--border-width) solid var(--rule-soft);
-}
-
-/* `display: contents` so the pair's two children join the parent grid rather
-   than forming a row box of their own — which is what keeps the value column
-   aligned across every row. */
-.window {
-  display: contents;
-}
-
-.windowLabel {
-  color: var(--ink-secondary);
-  font-size: var(--font-size-dense);
-  line-height: var(--line-height-dense);
-  white-space: nowrap;
-}
-
-.windowValue {
-  margin: 0;
-  font-family: var(--font-data);
-  font-size: var(--font-size-dense);
-  line-height: var(--line-height-dense);
-  font-variant-numeric: tabular-nums;
-}
 
 /* --- Provenance --- */
 

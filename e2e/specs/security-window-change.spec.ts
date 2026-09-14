@@ -186,6 +186,59 @@ async function plotTop(page: Page): Promise<number> {
 }
 
 /**
+ * Where the figures sit inside their region — the **other** row this press can
+ * move, since 2026-09-14.
+ *
+ * The four prices came up onto the headline's row that day, so the row above the
+ * picture now holds a figure at display size, a strip of four and the rail. A
+ * row that wrapped into a different number of lines either side of a press would
+ * move the chart, and `plotTop` would catch that — but it would not say *what*
+ * moved, and the reading row is now the likeliest answer. This names it.
+ *
+ * Against the region and in one evaluate, for `plotTop`'s two reasons above.
+ *
+ * **`null` where there is no answer with bars in it, and that is CI rather than
+ * an edge case.** The runner's store holds all 518 securities and **zero bars**
+ * — `security-series-states.spec.ts` says it out loud: *every window on CI is a
+ * correct `empty` and the same window locally is `partial`*. An `empty` panel
+ * renders no figures at all, so there is no `Close` label to measure, and a
+ * helper that threw took this test red on the runner while passing on every
+ * developer's machine. It did exactly that, once, which is how this comment
+ * came to be written.
+ *
+ * `plotTop` has no such problem: the chart draws its frame in every state that
+ * has a window, which is why it and not this is the load-bearing half.
+ */
+async function closeLabelTop(page: Page): Promise<number | null> {
+  return priceRegion(page).evaluate((section) => {
+    const label = [...section.querySelectorAll("dt")].find(
+      (element) => element.textContent === "Close",
+    );
+    if (label === undefined) return null;
+
+    return (
+      label.getBoundingClientRect().top - section.getBoundingClientRect().top
+    );
+  });
+}
+
+/**
+ * The figures have not moved — where there are figures.
+ *
+ * The two halves of the guard are asserted separately rather than folded into
+ * one, because they fail for different reasons and a reader of a red run should
+ * be told which: `plotTop` says *the picture moved*, this says *the row above it
+ * re-wrapped*.
+ */
+async function expectFiguresUnmoved(page: Page, wasAt: number | null) {
+  if (wasAt === null) return;
+
+  const now = await closeLabelTop(page);
+  expect(now).not.toBeNull();
+  expect(Math.abs((now ?? 0) - wasAt)).toBeLessThan(1);
+}
+
+/**
  * The three widths, for the one assertion whose answer differs between them.
  *
  * The rail's sentence wraps to two lines at 390px and to one at 1440, so a slot
@@ -257,6 +310,11 @@ for (const viewport of VIEWPORTS) {
 
     const wasAt = await plotTop(page);
 
+    // `null` on CI, where the store has no bars and the panel is a correct
+    // `empty` — see the helper. Captured rather than skipped, so the figures
+    // half runs wherever there are figures and the chart half runs everywhere.
+    const figuresWereAt = await closeLabelTop(page);
+
     const release = await holdTheAnswer(page);
     await cell(page, "1 month").click();
     await expect(heldRail(page)).toBeVisible();
@@ -264,10 +322,12 @@ for (const viewport of VIEWPORTS) {
     // One pixel of tolerance rather than none: a box is a float, and the
     // reservation is the same sentence laid out twice at the same width.
     expect(Math.abs((await plotTop(page)) - wasAt)).toBeLessThan(1);
+    await expectFiguresUnmoved(page, figuresWereAt);
 
     release();
     await expect(anAnswer(page)).toBeVisible();
     expect(Math.abs((await plotTop(page)) - wasAt)).toBeLessThan(1);
+    await expectFiguresUnmoved(page, figuresWereAt);
     await expectNothingFailedToRender(page);
   });
 }

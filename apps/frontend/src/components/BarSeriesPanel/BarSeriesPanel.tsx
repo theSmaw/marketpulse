@@ -63,6 +63,14 @@ import styles from "./BarSeriesPanel.module.css";
 // became the stated-facts block beneath the drawing. A future task that deletes
 // those to tidy the region is deleting the thing that makes the region honest.
 //
+// **Amended 2026-09-14.** That block no longer exists. §74 took four of its
+// members off the panel on the test that none of them was the only home of what
+// it said, and this change moves the last of them — the four prices — **above**
+// the drawing, onto the row the headline was already on. What is under the
+// picture now is the reading strip and nothing else, which is the whole point:
+// the volume plot is the next thing down the page, and two charts on one axis
+// have to be near each other to be read against each other.
+//
 // ## What it is for, which is not decoration
 //
 // It is the first thing in this product to render a **series**, and its job is
@@ -223,7 +231,8 @@ export function BarSeriesPanel({
         {control}
       </div>
       {/*
-       * **The value, and beside it what happened to the request** (2026-09-13).
+       * **The figures, and beside them what happened to the request**
+       * (2026-09-13; the four prices joined them 2026-09-14).
        *
        * The rail needs a permanent partner or it moves the chart when it
        * appears, and this row is the best one in the panel: the close is set at
@@ -236,11 +245,12 @@ export function BarSeriesPanel({
        * and the answer sits against the one number they were looking at.
        */}
       <div className={styles.reading}>
-        <Reading view={shown} />
+        <Figures view={shown} />
         <Rail screen={screen} onRetry={onRetry} />
       </div>
       {/*
-       * **The chart, above the facts and not instead of them** (Task 2.12.4).
+       * **The chart, under the figures it is a picture of** (Task 2.12.4; the
+       * figures moved above it 2026-09-14).
        *
        * It takes the view whole and fetches nothing, exactly as this panel
        * does, so the workshop can render it with no backend running. It draws
@@ -250,12 +260,19 @@ export function BarSeriesPanel({
        */}
       <PriceChart symbol={symbol} view={shown} />
       {/*
-       * **The body follows the picture, not the request** (Task 2.13.7). Where
-       * a held answer is on screen the eight stated facts beneath the chart are
-       * *its* facts — the window it covers, its bar count, its four prices, its
-       * feed — because a chart of one window over the figures of another is the
-       * defect this panel exists to make impossible. What happened to the
-       * request is on the rail above, once.
+       * **The body follows the picture, not the request** (Task 2.13.7), and it
+       * is almost nothing now.
+       *
+       * The rule it exists for is unchanged and is the one that matters: every
+       * figure on this panel is a figure of the series that is *drawn*, never
+       * of the request in flight, because a chart of one window over the
+       * numbers of another is the defect this panel exists to make impossible.
+       * `Figures` above takes the same `shown` for exactly that reason.
+       *
+       * What is left here is the states with no picture — and, for the two that
+       * have one, the provenance, which renders nothing until a series names
+       * two feeds (§74.1). It returns `null` rather than an empty wrapper, so
+       * the panel's stack gains no gap under the chart.
        */}
       <Body
         view={shown}
@@ -267,46 +284,99 @@ export function BarSeriesPanel({
 }
 
 /**
- * The current value, in the chart's chrome.
+ * Every figure this panel states, on one row above the picture.
  *
- * **This is the headline that used to open the facts block**, moved by
- * `CHARTING.md` §5: the one figure a person reads before they read anything
- * else belongs with the picture it is the end of, and the value scale is on the
- * right for the same reason — the latest price, the last point of the line and
- * the scale all land in the same place.
- *
+ * **The headline** is the one moved by `CHARTING.md` §5: the figure a person
+ * reads before they read anything else belongs with the picture it is the end
+ * of, and the value scale is on the right for the same reason — the latest
+ * price, the last point of the line and the scale all land in the same place.
  * It stays a number in the DOM, in the data face, and is never a label drawn on
- * the line. It is deliberately paired with the coverage sentence below the
- * chart rather than standing alone, because a percentage with no window
- * attached is a number about nothing.
+ * the line.
+ *
+ * **The four prices joined it on 2026-09-14**, from beneath the drawing. The
+ * reason is not this row's convenience, it is the row *below* the drawing: the
+ * volume plot hangs on the price plot's axis, and everything between the two is
+ * distance a reader has to carry a shape across. The strip was the last thing
+ * in this panel standing there.
+ *
+ * They are one element rather than two occupants of `.reading`, and that is
+ * load-bearing: with three independent items the rail could wrap *between* the
+ * close and the prices it is a statement about, which is the one arrangement
+ * that would be actively wrong.
+ *
+ * **The settle flash lives here now**, keyed exactly as it was. Task 2.10.8
+ * owes a mark for the moment a held answer is replaced by a fresh one — and
+ * owes it *only when something changed*, because a refetch landing on an
+ * identical answer is the common case for a closed session's bars and must pass
+ * in silence. The signature below is the whole implementation: React remounts a
+ * keyed element when its key changes and leaves it alone when it does not, so
+ * no previous-value ref and no second copy of *which fields count as the
+ * answer* exists to drift from the ones on screen. It is a background wash and
+ * never a transform, so no number is harder to read while it plays.
  */
-function Reading({ view }: { readonly view: BarSeriesView }) {
-  const prices = readablePrices(view);
-  if (prices === null) return null;
+function Figures({ view }: { readonly view: BarSeriesView }) {
+  const series = readableSeries(view);
+  if (series === null) return null;
 
+  const prices = seriesPrices(series);
   const percent = changePercent(prices);
 
   return (
-    <div className={styles.headline}>
-      <span className={styles.close}>{formatPrice(prices.close)}</span>
-      {percent !== null && (
-        <span className={styles.headlineChange}>
-          <PriceChange
-            change={formatChangePercent(percent)}
-            direction={directionOf(percent)}
-          />
-        </span>
-      )}
+    <div className={styles.figures} key={settleSignature(series, prices)}>
+      <div className={styles.headline}>
+        <span className={styles.close}>{formatPrice(prices.close)}</span>
+        {percent !== null && (
+          <span className={styles.headlineChange}>
+            <PriceChange
+              change={formatChangePercent(percent)}
+              direction={directionOf(percent)}
+            />
+          </span>
+        )}
+      </div>
+      {/*
+       * The four prices, as a strip rather than as rows of a list.
+       *
+       * This is the one block on the panel that has to read at a glance, and a
+       * label/value list cannot: a reader comparing an open to a close is
+       * comparing two figures, and putting a sentence's worth of label between
+       * them is what makes a terminal feel like a form.
+       *
+       * **`compact` since it moved up here.** At `large` it is a headline block
+       * of its own, which is what it was while it opened the facts beneath the
+       * drawing; beside a figure set at display size it is a qualifier, and two
+       * headlines on one row is two answers to *what is the number here*. The
+       * label stays at the micro size in both, which is `MetricStrip`'s own
+       * rule and the reason the size step is safe to take.
+       */}
+      <div className={styles.priceStrip}>
+        <MetricStrip
+          size="compact"
+          metrics={[
+            { label: "Open", value: formatPrice(prices.open) },
+            { label: "High", value: formatPrice(prices.high) },
+            { label: "Low", value: formatPrice(prices.low) },
+            { label: "Close", value: formatPrice(prices.close) },
+          ]}
+        />
+      </div>
     </div>
   );
 }
 
-/** The four prices of the window, when the answer has bars in it. */
-function readablePrices(view: BarSeriesView): SeriesPrices | null {
+/**
+ * The series behind the figures, when the answer has bars in it.
+ *
+ * **The series rather than the prices**, since 2026-09-14: the settle key is
+ * computed from the bar count and the coverage edge as well as the close, so a
+ * helper that returned only `SeriesPrices` would have the caller reach back
+ * into the union for the other two and narrow it a second time.
+ */
+function readableSeries(view: BarSeriesView): PopulatedBarSeries | null {
   switch (view.state) {
     case "loaded":
     case "partial":
-      return seriesPrices(view.series);
+      return view.series;
     case "loading":
     case "empty":
     case "refused":
@@ -726,7 +796,7 @@ function Body({
 
     case "loaded":
     case "partial":
-      return <SeriesState series={view.series} />;
+      return <Provenance series={view.series} />;
 
     case "empty":
       return (
@@ -772,76 +842,7 @@ function LoadingState() {
 const SKELETON_ROWS = [1, 2, 3, 4];
 
 /**
- * The two answers that have bars in them.
- *
- * **One component for `loaded` and `partial`, with a boolean, and that is not
- * the boolean-instead-of-a-state mistake.** The state union does the work it
- * exists for one level up — the two members are separate there, and `covered`
- * is narrowed to non-null on both — and what reaches here is the one difference
- * that shows: whether the coverage line says we hold all of it. Rendering them
- * from two near-identical components is how the two drift apart.
- */
-function SeriesState({ series }: { readonly series: PopulatedBarSeries }) {
-  const prices = seriesPrices(series);
-
-  return (
-    <div className={styles.series}>
-      {/*
-       * **The settle flash, and it is a `key` rather than a comparison.**
-       *
-       * Task 2.10.8 owes a mark for the moment a held answer is replaced by a
-       * fresh one — and owes it *only when something changed*, because a flash
-       * over numbers that did not move is a claim about the numbers. A refetch
-       * landing on an identical answer is the common case for a closed
-       * session's bars, and it must pass in silence.
-       *
-       * The signature below is the whole implementation. React remounts a
-       * keyed element when its key changes and leaves it alone when it does
-       * not, so the animation on `.settle` plays exactly on the transitions
-       * that moved a figure — no previous-value ref, no `useEffect`, and no
-       * second copy of "which fields count as the answer" that could drift
-       * from the ones on screen.
-       *
-       * It is a background wash and never a transform: nothing here is a
-       * `translate` or an `opacity` on a value, so no number is harder to read
-       * while it plays. On the first paint it runs alongside `.series`' own
-       * arrival, which reads as one thing arriving rather than two.
-       */}
-      <div className={styles.settle} key={settleSignature(series, prices)}>
-        {/*
-         * The four prices, as a strip rather than as rows of a list.
-         *
-         * This is the one block on the panel that has to read at a glance, and a
-         * label/value list cannot: a reader comparing an open to a close is
-         * comparing two figures, and putting a sentence's worth of label between
-         * them is what makes a terminal feel like a form.
-         *
-         * **It is a `MetricStrip` since the 2026 refresh**, which is the component
-         * this block's own comment asked for: it used to say `UniverseTable`'s
-         * summary strip was the idiom and that it was "reused here rather than
-         * re-invented", which is a stated copy — the signal this repository
-         * extracts on. The `<div>` around it keeps the rule and the padding, which
-         * are this panel's business rather than the strip's.
-         */}
-        <div className={styles.prices}>
-          <MetricStrip
-            metrics={[
-              { label: "Open", value: formatPrice(prices.open) },
-              { label: "High", value: formatPrice(prices.high) },
-              { label: "Low", value: formatPrice(prices.low) },
-              { label: "Close", value: formatPrice(prices.close) },
-            ]}
-          />
-        </div>
-      </div>
-
-      <Provenance series={series} />
-    </div>
-  );
-}
-
-/**
- * What counts as *the answer changed*, for the settle flash above.
+ * What counts as *the answer changed*, for `Figures`' settle flash.
  *
  * The three facts a reader would notice moving: where it closed, how many bars
  * we hold, and how far the coverage reaches. Deliberately **not** every field —
