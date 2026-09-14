@@ -2786,6 +2786,17 @@ are listed here rather than left for a reader to assume the badge covers them.
 Last re-checked **2026-09-05** by Task 2.1.8, by measurement rather than by reading
 this list — every `prettier --file-info` reading below reproduced.
 
+> **Note added 2026-09-14.** This section is the reader-facing five, and it is
+> **not** the live list. The working list — roughly sixty entries, each with a
+> `Re-measure:` line — is [`docs/GAPS.md`](docs/GAPS.md), which is where new
+> entries go and where the seven that became `pnpm invariants` are recorded. The
+> two have diverged: this one has said "five things" since 2026-09-05 while the
+> other grew to sixty-four. **Reconciling them is its own change**, deliberately
+> not done here, because this section is written for a human reading the README
+> end to end and that one is a working reference — collapsing either into the
+> other would destroy a record rather than merge two. Read `docs/GAPS.md` before
+> concluding that anything is covered.
+
 **1. `apps/backend/scripts/dev.sh`.** ESLint sees only JavaScript and
 TypeScript, Prettier has no shell parser, and `tsc` has no view of it —
 `prettier --file-info` reports `"inferredParser": null` for it and ESLint

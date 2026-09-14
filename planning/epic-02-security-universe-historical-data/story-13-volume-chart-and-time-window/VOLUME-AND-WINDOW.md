@@ -4436,3 +4436,204 @@ break-verification rather than a guess.
 This is `CLAUDE.md`'s own rule catching a number written into a test from
 argument: a tolerance is a measurement or it is a place for the next defect to
 hide.
+
+## 76. The claims that were prose become checks, and the file that loads every session halves
+
+Asked for on 2026-09-14, immediately after §75, in two parts: _what else can we
+do to help you carry out development tasks more quickly (without compromising
+robustness, safety or quality)_, and then _do we have too much context? Should we
+tighten up some of our .md files?_
+
+§75 answered the first half of the loop — **looking** at a layout went from four
+minutes of improvisation to thirty seconds of `pnpm probe`, and the heavy-job
+lock made a red browser run mean a defect again. This section is what was left,
+and the first thing it did was measure rather than guess.
+
+### 76.1 `pnpm verify` was never the problem
+
+Warm, on a quiet machine (load 3.02 on 8 cores):
+
+| Step              | Warm wall clock |
+| ----------------- | --------------: |
+| `tsc -b`          |           0.6 s |
+| `vite build`      |           1.1 s |
+| `storybook build` |           3.8 s |
+| `lint`            |          12.5 s |
+| `format:check`    |          13.1 s |
+| `test`            |          11.8 s |
+| **all of it**     |       **~55 s** |
+
+Fifty-five seconds, for 1,540 tests and every gate CI runs. **Scoping `verify`
+would have been a false economy**, and it is recorded here because it is the
+obvious thing to reach for and it is wrong. The costs that were actually left
+were not steps running slowly.
+
+### 76.2 The gap list had begun to rot, which is the argument in one grep
+
+`CLAUDE.md`'s _What `pnpm verify` does not cover_ held **64 entries and 56
+`Re-measure:` commands**. One of them said:
+
+> Re-measure: `grep -n "CLOSED_ANSWER" apps/backend/src/http-cache.ts`
+
+That returns **nothing**. The constants moved to `series-cache.ts` at some point
+nobody recorded, and **a prose re-measure that no longer resolves is
+indistinguishable from one that passes**, because nobody runs either. The entry
+had been sitting there describing a file it was not about.
+
+This is the failure the whole list exists to prevent, happening to the list
+itself. It is also exactly the migration `CLAUDE.md` had already written down and
+not taken: _a prose entry with a re-measure command is a check nobody runs, and a
+`verify` step is one that cannot be skipped._
+
+**Seven entries were a single grep over checked-in files.** All seven held. None
+was checked by anything. They are now `pnpm invariants`, a `verify` step that
+runs after `build` because one of them reads `apps/frontend/dist/`.
+
+The one that matters most is the first: **no recorded market body reaches the
+shipped bundle.** Seven fixtures, the largest 357 kB, all of them under `src/`
+and one well-meant import away from being served to every visitor.
+
+### 76.3 Every "must find nothing" check needs an anchor
+
+The rot in §76.2 is a specific mechanism and the new script had to not repeat it.
+A check that asserts a string is **absent** passes vacuously the day its subject
+moves — and that is indistinguishable from a pass. So:
+
+- the bundle check asserts `dist/assets/*.js` **exists and holds .js files**
+  before asserting the fixtures are absent, and names `pnpm run build` when it
+  does not;
+- every file-reading check reports a missing file as a **failure**, not a skip;
+- `initiallyCollapsed` going missing entirely is a failure too, with the message
+  saying so — the prop is deliberately unused, and "unused" and "deleted" are
+  different states.
+
+One check was tightened after it was written. `timeAxis` and `positionOfInstant`
+were originally matched with `includes()`, and **both files discuss both
+functions at length in prose** — so the comments alone would have satisfied it. It
+matches a **call** now. A check a comment can satisfy is not a check.
+
+### 76.4 `pnpm break` — the revert stops being a step somebody remembers
+
+`CLAUDE.md`'s first corollary under _Measure rather than cite_ is that a break
+which does not go red is not evidence the check works. Honouring it by hand is
+edit → scoped run → read the red → **revert**, and the fourth step is the one
+whose failure ships a deliberate break.
+
+`pnpm break <name>` does all four from a checked-in registry. The order is the
+safety argument: it **refuses on a dirty target** (a restore overwrites, so a
+file with uncommitted changes would lose them), checksums, substitutes, runs,
+restores on `exit` and on `SIGINT`/`SIGTERM`/`SIGHUP`, and then reports the
+**restore before the verdict** — because if the tree is wrong that is the only
+thing that matters and it must not be buried under a test result.
+
+It refuses two ways a hand-run break fails silently: a substitution matching
+other than exactly once, and a command that failed **for an unrelated reason**.
+
+All seven invariants are break-verified through it, and the kill behaviour was
+measured rather than asserted:
+
+| Signal    | Result                                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------------------------- |
+| `SIGINT`  | file restored, byte-identical                                                                                     |
+| `SIGKILL` | file left broken — **and loudly**: `git status` shows it and `pnpm invariants` reports `1 of 7 invariants failed` |
+
+`SIGKILL` cannot be handled by anyone, so the honest claim is that the damage is
+loud rather than absent. Recovery is `git checkout --` plus, for a break that
+builds, `pnpm run build`. It is also why the dirty-target refusal earns its
+place: a killed break is precisely the state in which somebody re-runs the
+command.
+
+### 76.5 `pnpm store:bare` — the round trip that had already been paid once
+
+CI's `e2e` job runs `pnpm migrate` and `pnpm universe` and **never
+`pnpm backfill`**, so its store is **518 securities and zero bars**. A
+developer's has bars. Nothing on a laptop could see the difference, and §75.7's
+own new assertion walked straight into it: PR #314 read the `Close` label out of
+the price panel, passed locally, and failed on CI at all three viewports with
+`no Close label in the region`, because a panel with no bars renders no figures.
+
+`pnpm store:bare` builds `marketpulse_bare` beside the developer's own with
+**CI's two commands by name**, then **proves the shape rather than asserting
+it** — it counts and refuses unless it is many securities and zero bars, because
+a script that claimed to reproduce CI while quietly holding bars would send
+somebody to CI confident about a run that proved nothing.
+
+Measured on arrival: `518 securities, 0 bars`, and
+`GET /market-data/bars?symbol=NVDA&sessions=5&timeframe=1m` answering
+`"bars":[]`. The developer's own store read `518 securities, 48797343 bars`
+afterwards — untouched.
+
+**It was proved against the defect it exists for.** Driving the pair at the bare
+store, `security-window-change.spec.ts` passes 10/10 in **15.3 s**; restoring
+#314's bug — `closeLabelTop` throwing rather than answering `null` — takes
+exactly the three `pressing a window does not move the chart` tests red with the
+CI message. Fifteen seconds against a six-minute round trip.
+
+### 76.6 The file that loads at every session start, halved
+
+The second question. Measured: **8.92 MB of markdown against 4.70 MB of source**,
+documentation at 1.9× the whole codebase — but that figure turned out to be the
+wrong one to act on, because only `CLAUDE.md` loads automatically. At 144,820
+bytes it was ~36k tokens at the start of every session, and it broke down:
+
+| Section                           | Share |
+| --------------------------------- | ----: |
+| `What pnpm verify does not cover` |   41% |
+| `Current state`                   |   19% |
+| `Conventions and traps`           |   17% |
+| Everything else                   |   23% |
+
+**60% of it was a reference list plus a rolling narrative**, while the part that
+is actually rules was the smallest of the three.
+
+Two moves, in that order. The gap list went to `docs/GAPS.md` — **after** the
+seven mechanised entries were compressed into it, so the risk being taken (an
+entry nobody reads is an entry nobody honours) was smaller by seven when the move
+happened. `Current state` went from 26.8 kB of per-story narrative to 5.5 kB of
+orientation: what is on screen, what is settled and where it is argued, what is
+**open with a named owner**, and the two-stores caveat.
+
+**Nothing was deleted on a judgement that it was redundant.** Every distinctive
+figure in `Current state` was grepped for a surviving home first: **43 of 44**
+were already in a subject document or an ADR, usually in several. `CLAUDE.md` was
+the fifth copy, not the source. The single apparent orphan — `178,846`, the
+worked example of the exact-grouped-integer rule — turned out to have its **rule**
+in this document at §15 and its example in a task file, which is the right
+distribution. A second near-miss is worth recording as a method note:
+`31 px of a 280 px plot` appeared to exist only here, and does not — §30.3 holds
+it as a table cell, which a phrase-grep cannot see. **A figure can be present in
+a form your search cannot match**, so a grep returning nothing is a prompt to
+look, not a licence to delete.
+
+144,820 → 65,491 bytes, a 55% cut, and `Conventions and traps` is now the largest
+section — which is the right shape for a file of rules.
+
+### 76.7 A divergence found on the way, and deliberately not fixed
+
+`README.md` carries its **own** copy of the gap list: 428 lines, 28.5 kB, last
+re-checked 2026-09-05, opening _"Five things sit outside the net"_ against the
+other's sixty-four. They have been drifting for nine days.
+
+It is **not** merged here, and the reason is a rule rather than laziness. One is
+written for a human reading the README end to end; the other is a working
+reference. Collapsing either into the other destroys a record rather than merging
+two, and this repository's own instruction is to amend live claims and leave
+historical ones standing. README gained a dated note pointing at `docs/GAPS.md`
+as the live list and saying plainly that the two disagree. Reconciling them is
+its own change.
+
+### 76.8 What was raised, measured, and dropped
+
+**axe is 19% of the browser suite** — 188.1 s of 966.3 test-seconds over 10
+tests — and `--grep-invert axe` already works through `run-e2e.mjs`'s argument
+forwarding, documented nowhere. Alongside it, §75's measurement that 2 workers
+cost the same wall clock as 4 for a quarter of the noise.
+
+Raised with the numbers and **dropped at the user's direction**, recorded here so
+the next person does not re-measure it: it is a real saving, it touches a required
+gate, and it belongs in its own change with its own measurement.
+
+The 4.7 MB of `planning/TASK-*.md` — as much text as the entire codebase — was
+also raised and deliberately left alone. It is the historical record, this
+repository forbids rewriting it, and it costs nothing because it is read on
+demand and rarely needed.
