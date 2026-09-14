@@ -2,7 +2,14 @@
 
 **Status:** Not started
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
-**Depends on:** 2.14.1, 2.14.2
+**Depends on:** 2.14.1, 2.14.2, 2.14.3 (which creates the component this adds to)
+
+> **Amended 2026-09-14 by Task 2.14.1.** Three of this task's bullets asked for a
+> decision that [`PROVENANCE.md`](PROVENANCE.md) §5 has now taken, and two of them
+> it took the **other way**: the date is stated in full rather than as an age, and
+> a stale file gets **no mark**. The landing place also moved — it is a clause on
+> Task 2.14.3's `SourceNote`, **not** the identity block and **not** the universe
+> table. Edited in place.
 
 ## Objective
 
@@ -32,6 +39,20 @@ topology by one.
   and a `retrievedAt`; `kind` deliberately carries none, because it is a
   judgement rather than a retrieval and a timestamp on it would be a lie about
   what kind of fact it is.
+- **`classification` is stated and `profile` is not** (§5.2). The scope names the
+  concern exactly: sector and industry did not come from the market-data provider
+  and the UI must not imply they did. Nobody mistakes a company's **name** or its
+  **listing exchange** for a market observation; a sector sitting above a price
+  chart is precisely the field that can be read as one. The condition that earns
+  `profile` a line of its own: **the first profile field that is a number** — a
+  market cap, a share count — because then it is a figure and §35 applies.
+- **The note names the field GROUP, never the source string** (§5.2).
+  `FieldGroupProvenance.source` is a free `string`, deliberately, so that a
+  provider can replace `curated` later — which means **no `Record<…>` guard can
+  ever give it words**, and a renderer printing `s&p-500-gics + curated ETFs` at a
+  reader is printing an internal slug. The slug stays in the response for an
+  operator. This is a discovery rather than a preference and it is the reason the
+  wording below is what it is.
 - **`provenance` is `null` when the server declined to make a claim**, and
   `use-securities.ts` already models that. A null is a state to render, not a
   field to default.
@@ -44,16 +65,21 @@ topology by one.
 
 ## Work
 
-- **Render it where 2.14.2's canvas put it**, which will be the identity block
-  and may also be the universe table. If it lands in the table, read Task
-  2.14.8's subject first: that table is the one published-target breach this
-  epic ships with, and per-row markup at universe scale is precisely its cause.
-  Adding a per-row element is a decision with a measurement attached to it.
-- **Age, not a raw instant.** A reader learns nothing from an ISO string. What
-  they need is whether this is current — and the honest answer for a curated file
-  is measured in weeks, so decide the granularity, and put the formatting
-  in the market/format layer beside the existing `formatMarketInstant` rather
-  than in a component.
+- **Add a clause to `SourceNote`**, the component Task 2.14.3 creates. Not the
+  identity block, and — settled — **not the universe table**: §5 keeps this off
+  a 518-row surface, which also means Task 2.14.8's re-measure is a confirmation
+  rather than a reading of markup this task added. If a later reading of 2.14.2's
+  canvas argues for the table after all, that is a decision with a measurement
+  attached to it and 2.14.8 is the place it is taken.
+- **The words, settled** (§5.2): _"Sector and industry are curated, not from the
+  market feed. Last checked 8 September 2026."_
+- ~~**Age, not a raw instant.**~~ **A full date, and not a relative age**
+  (§5.3). A relative age is computed against the **browser's clock**, which this
+  repository fences off for market instants for good reasons, and an ISO string
+  is a machine's spelling — so `8 September 2026`, in body text. The formatting
+  goes beside the existing `formatMarketInstant` rather than in a component; note
+  this one is a **date without a market session behind it**, so it is a different
+  function rather than a reuse.
 - **The `null` provenance state renders**, and it says _we do not claim_ rather
   than showing an empty space. `SecurityIdentity`'s existing absence states and
   their markers are the idiom: a marker shape carries "we don't know" separately
@@ -61,21 +87,35 @@ topology by one.
 - **Do not imply the market-data provider supplied it**, which is this bullet's
   entire point and the scope line that named it. `Source: MarketPulse curated`
   and `Source: Alpaca` are different claims and the UI has been making neither.
-- **A stale file is visible.** Decide, with 2.14.1, whether age is merely stated
-  or whether beyond some threshold it is _marked_ — and if it is marked, the mark
-  is not colour alone.
+- ~~**A stale file is visible.** Decide whether age is merely stated or marked.~~
+  **Settled: stated, never marked** (§5.3). There is no threshold and no amber.
+  The argument is an ordering one rather than a taste one: `pnpm universe:check`
+  already exists, compares the curated universe against the vendor and changes
+  nothing, and **the honest path to a staleness mark is to put that check on a
+  schedule first** — so that _overdue_ means a run that did not happen rather than
+  a date somebody eyeballed. A mark with no cadence behind it is a claim nothing
+  checks, which is how a stated invariant quietly stops being true. **Do not add
+  one here**, and if the date looks uncomfortably old on screen, that is the
+  disclosure working.
 - **Stories for: fresh, old, absent provenance, and a security the universe does
-  not hold.** The last already has a rendering; it must not regress.
+  not hold.** The last already has a rendering; it must not regress. Add the
+  no-bars case too, where `SourceNote` renders nothing — the classification clause
+  is about the **security** rather than about the series, so whether it survives
+  an empty chart is a real question this task answers rather than inherits.
 
 ## Done when
 
-- Sector, industry and their source and age render on the Security Explorer, in
-  the canvas's placement.
+- The classification's claim and its date render on the Security Explorer, as a
+  clause of `SourceNote`, in the canvas's placement.
+- **No source slug reaches the screen** — the group is named, not
+  `s&p-500-gics + curated ETFs`.
 - The `null`-provenance and not-found states render deliberately and are in
   stories.
-- No screen implies the market-data provider classified anything.
-- If a per-row element was added to the universe table, its cost was measured
-  and the number is in Task 2.14.8's record rather than asserted to be small.
+- No screen implies the market-data provider classified anything, and no screen
+  marks the file stale.
+- **Nothing was added to the universe table.** If that changed, its cost was
+  measured and the number is in Task 2.14.8's record rather than asserted to be
+  small.
 - `pnpm stories`, `pnpm verify` and the frontend suite pass; the page was looked
   at with `pnpm probe` at 1440 and 390 before any suite ran.
 
@@ -83,4 +123,12 @@ topology by one.
 
 `GET /securities` is the request the whole application makes once and shares.
 Nothing here should add a second request, and if something appears to need one,
-the fact wanted is probably already in the body.
+the fact wanted is probably already in the body. `use-securities.ts` has held
+`provenance` parsed and typed since Story 2.10 and **nothing has ever rendered a
+character of it** — this task is pure rendering, and if it finds itself editing a
+route, it has gone wrong.
+
+Task 2.14.6 leans on the same response for a different reason — a security absent
+from `coverage` is one we hold nothing for. Two clauses of one screen now read two
+keys of one body, which is the shape `SecuritiesResponse`'s envelope was argued
+for.

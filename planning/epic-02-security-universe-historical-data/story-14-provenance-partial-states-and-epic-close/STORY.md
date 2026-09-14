@@ -445,7 +445,7 @@ design tests, and what ships open with a name against it.
 | [2.14.3](TASK-03-where-these-numbers-came-from-on-screen.md)                | Feed, adjustment and retrieval on the series — a screenshot that carries its own source  | **Yes — the payoff**                |
 | [2.14.4](TASK-04-the-curated-files-age-and-what-alpaca-did-not-tell-us.md)  | Sector and industry name their source and their age; Story 2.3's column finally renders  | **Yes**                             |
 | [2.14.5](TASK-05-through-when-and-the-coverage-honesty-pass.md)             | Through when the data runs, and every string read for implied — or disclaimed — coverage | **Yes**                             |
-| [2.14.6](TASK-06-two-empty-answers-told-apart.md)                           | _Nothing held_ against _nothing in this window_, on the wire or deliberately not         | **Yes**                             |
+| [2.14.6](TASK-06-two-empty-answers-told-apart.md)                           | _Nothing held_ against _nothing in this window_, derived on the client (2026-09-14)      | **Yes**                             |
 | [2.14.7](TASK-07-every-failure-and-partial-state-as-a-set.md)               | Every failure and partial state produced, screenshotted and compared as a set            | **Yes — where it matters most**     |
 | [2.14.8](TASK-08-the-answer-about-fifty-milliseconds.md)                    | §28's breach: repair it, accept it in writing, or hand it to Epic 14 by name             | Only if the disposition is a repair |
 | [2.14.9](TASK-09-the-deployed-suite-asserts-the-exit-criterion.md)          | The exit criterion executed deployed, and asserted on every deploy thereafter            | No — but a broken deploy now fails  |
@@ -457,6 +457,31 @@ the provider seam and the outcome taxonomy, which is mechanism. This one is what
 the product **claims about its own data on screen**, which Epic 3 extends, Epic 8
 parallels with a different kind of provenance, and Epic 13 constrains with a
 clock.
+
+### Amended 2026-09-14, after Task 2.14.1 — no task moves, eight are edited
+
+The decision task settled all six decisions
+([`PROVENANCE.md`](PROVENANCE.md)) and **no task was added, deleted or
+re-ordered**. Eight were edited in place, and four of those substantively:
+
+- **2.14.3** builds a **new `SourceNote` component** at the foot of the Explorer
+  rather than changing `BarSeriesPanel` — whose two-feed condition is confirmed
+  and untouched (§1.3).
+- **2.14.4** adds a clause to that note rather than to the identity block, and
+  two of its bullets were settled the **other way**: a full date rather than a
+  relative age, and **no** staleness mark (§5).
+- **2.14.6** took **neither** of the two branches it was written as. The two
+  empty answers are told apart, with two sentences, **derived on the client** from
+  `GET /securities` — so there is no backend change in it at all (§6).
+- **2.14.9** carried an assertion that is false: provenance is **not** present at
+  zero bars, because a claim about data requires data (§0.1). That is the class of
+  error a deployed spec finds six minutes at a time.
+
+The lighter edits: 2.14.2 draws one prominence rather than weighing two; 2.14.5
+narrows the recency sentence to `partial` and is told the document sweep is
+already done; 2.14.7 gains two states; 2.14.8's dependency on 2.14.4 adding
+table markup is withdrawn; 2.14.10's ADR candidate moved and its sweep became a
+confirmation. **2.14.1 itself is complete.**
 
 **What none of the ten owns**: the live feed and the `LIVE` indicator (Epic 3);
 confidence and evidence provenance for findings (Epic 8); the final
