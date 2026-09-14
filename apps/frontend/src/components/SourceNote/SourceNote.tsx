@@ -2,7 +2,12 @@ import { cx } from "../../cx.js";
 import type { BarSeriesView } from "../../market/index.js";
 import { formatCount } from "../BarSeriesPanel/series-facts.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
-import { hasClauses, toSourceNote } from "./source-note.js";
+import type { SecuritiesView } from "../../use-securities.js";
+import {
+  CLASSIFICATION_CLAIM,
+  hasClauses,
+  toSourceNote,
+} from "./source-note.js";
 import styles from "./SourceNote.module.css";
 
 // Where the numbers on this screen came from (Task 2.14.3).
@@ -48,9 +53,20 @@ import styles from "./SourceNote.module.css";
 // `settleSignature` — the two decisions are the same decision made at two
 // surfaces.
 //
-// It is presentational: two props, no hook, no `fetch`. Every state is
+// It is presentational: four props, no hook, no `fetch`. Every state is
 // reachable from a story, which matters because two of them cannot be produced
 // by a running server at all.
+//
+// ## The fourth fact, added by Task 2.14.4, is not about the bars
+//
+// `GET /securities` has carried `provenance.classification` since Story 2.9 and
+// nothing rendered a character of it, so a **sector** — curated by this project,
+// not supplied by the market-data provider — has sat three centimetres above a
+// price chart reading exactly like a market observation. The clause says
+// otherwise and says when the file was last checked. Its data is the universe
+// answer rather than the series, which is why it is the one clause that draws on
+// a page holding no bars: the commonest page in the browser suite, and until
+// this the only kind of page with no note on it at all.
 
 export interface SourceNoteProps {
   /**
@@ -72,15 +88,42 @@ export interface SourceNoteProps {
    * remember which absence it was looking at.
    */
   readonly feed: MarketFeedView;
+
+  /**
+   * The tracked universe, in whatever state it is in (Task 2.14.4).
+   *
+   * Taken whole rather than as a resolved security or a bare provenance pair,
+   * which is `SecurityIdentity`'s precedent and `UniverseTable`'s argument: the
+   * union exists so the impossible combinations cannot be constructed, and
+   * handing a renderer the pieces gives back the boolean space it removed. It
+   * is also what keeps this component free of a fetch — the page already makes
+   * this request once for the identity block and the table, and this clause
+   * adds none.
+   */
+  readonly securities: SecuritiesView;
+
+  /**
+   * The security this page is about, from the address.
+   *
+   * Needed even though the claim is per response: on an address the universe
+   * does not hold there is no sector to disclose the origin of, and the clause
+   * is silent. See `toClassification`.
+   */
+  readonly symbol: string;
 }
 
-export function SourceNote({ shown, feed }: SourceNoteProps) {
-  const note = toSourceNote(shown, feed);
+export function SourceNote({
+  shown,
+  feed,
+  securities,
+  symbol,
+}: SourceNoteProps) {
+  const note = toSourceNote(shown, feed, securities, symbol);
 
   // Bound here rather than read twice inside the JSX: the narrowing does not
   // survive into the `map` callback, and the callback needs the length to know
   // whether there is a split worth counting.
-  const { feeds, prices } = note;
+  const { feeds, prices, classification } = note;
 
   // **Nothing at all, rather than an empty note with a rule over it.** §0.1:
   // a claim about data requires data, and on a zero-bar page every clause this
@@ -194,6 +237,65 @@ export function SourceNote({ shown, feed }: SourceNoteProps) {
             {prices.sentence !== undefined && (
               <span className={cx(styles.sentence)}>{prices.sentence}</span>
             )}
+          </dd>
+        </>
+      )}
+
+      {classification !== null && (
+        <>
+          {/*
+           * **A term of its own rather than a second line under `Prices`**,
+           * which is the arrangement the canvas settled and the reason is the
+           * one the label column exists for: these are two subjects, not two
+           * facts about one. `Prices` answers *where these numbers came from*;
+           * this answers *where the words above the numbers came from*. A
+           * reader scanning the label column finds the one they want without
+           * reading either.
+           *
+           * It is the **last** term because it is the least surprising claim on
+           * the note and the one furthest from the picture — and because on a
+           * zero-bar page it is the only term, where being last costs nothing.
+           */}
+          <dt className={cx(styles.term)}>Classification</dt>
+          <dd className={cx(styles.definition)}>
+            {/*
+             * The claim, then its date on the line under it — the opposite
+             * order to the prices clause above, deliberately, and the reason is
+             * that this clause has no label to pair a date with. `Unadjusted ·
+             * Retrieved 8 September 2026` works because `Unadjusted` comes from
+             * a closed vocabulary; this group's source is a free string that
+             * may never reach a screen, so there is no word to hoist and a
+             * whole sentence beside a date is the run 2.14.3 measured and
+             * removed. What is consistent between the two is what matters:
+             * each opens with its claim and qualifies it underneath.
+             */}
+            <span className={cx(styles.line)}>
+              <span>
+                {CLASSIFICATION_CLAIM.before}
+                {/*
+                 * The word a reader lands on, at the weight the adjustment's
+                 * label carries on the line above — which is what makes the two
+                 * clauses read as one note rather than as two paragraphs that
+                 * happen to share a rule.
+                 */}
+                <span className={cx(styles.value)}>
+                  {CLASSIFICATION_CLAIM.group}
+                </span>
+                {CLASSIFICATION_CLAIM.after}
+              </span>
+            </span>
+            {/*
+             * **No marker, including when the date is the one we do not have.**
+             * This surface is entirely typographic and stays that way: what is
+             * missing in that state is one date inside a claim still being
+             * made, and a marker would rank a missing date above a stated one.
+             * There is also no threshold and no amber on an old one — the date
+             * is the disclosure, and a mark with no cadence behind it is a
+             * claim nothing checks.
+             */}
+            <span className={cx(styles.retrieved)}>
+              {classification.checked}
+            </span>
           </dd>
         </>
       )}

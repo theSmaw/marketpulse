@@ -657,6 +657,43 @@ an artboard decided:
   bars on screen. The recorded stitch produces one — `8–10 September 2026` — so
   this is the commonest multi-source shape rather than a hypothetical.
 
+#### Amended 2026-09-14 by Task 2.14.4 — **the note has a term per subject, and one of them is not about the numbers**
+
+The two shapes above are unchanged; what this records is the arrangement
+**inside** them, now that the note carries a claim whose data is a different
+fetch.
+
+**A term per subject, in the label column.** The note's terms are `Source` or
+`Sources` (only where a feed is worth naming at all), `Prices`, and
+`Classification`. The bullet above already said the two lines were _grouped by
+subject_; a term each is that grouping made structural rather than typographic,
+and a reader scanning the label column finds the one they want without reading
+either. **Before adding a fourth term, name its subject** — the same test the
+grain table applies one level up, applied one level down.
+
+**The classification clause opens with its claim and puts its date underneath**,
+which is the opposite of the prices clause beside it and is a consequence rather
+than a choice: `Unadjusted · Retrieved 8 September 2026` pairs a date with a
+label from a closed vocabulary, and this group has none — its source is a free
+string that may never reach a screen. There is no word to hoist, and a whole
+sentence beside a date is the run measured and removed above. What the two
+clauses share is the shape that matters: **claim first, qualification on the line
+beneath.**
+
+**The surface stays entirely typographic — no marker, in any state**, including
+the one where the curated file's date is not available and the clause says so in
+words. The absence there is one date inside a claim that is still being made, and
+a marker would rank a missing date above a stated one. Markers remain
+`SecurityIdentity`'s, where an absence is the whole answer.
+
+**One date on this surface is not a market instant.** The curated file's
+`checkedOn` is a calendar date a person typed, widened to an instant only because
+JSON has no date type, and it is read as UTC rather than converted to market
+time — converting it reads it a day early, on a page where nothing would look
+wrong. Recorded here because it is a property of what this surface says, not of
+one task: any future clause carrying a date owes the same question, _is this an
+instant somebody stamped, or a date somebody typed?_
+
 ### The divergence taken, measured
 
 **2026-09-14 (Task 2.14.2):** the canvas draws micro type in `#74777f`. On `--surface-page` `#f8f9ff` that measures **4.26:1**, against WCAG 1.4.3's 4.5 for text at this size. It is **worse than the 4.48 ADR 0026 already recorded for the same ink**, because that measurement was taken on white and the note is the first micro surface in this product that stands on the page ground rather than inside a panel. The intent is adopted and the value is not: it ships as `--ink-secondary`, **8.87:1**, and the recession is carried by size, by the label column and by position — _receding, like standing out, is a job for weight and hierarchy, never for ink outside the contrast floor_.

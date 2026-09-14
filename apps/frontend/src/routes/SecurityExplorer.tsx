@@ -408,9 +408,21 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
            * other surface on this page does: while a newer request is in flight
            * the picture is the previous answer, and provenance for bars nobody
            * can see is worse than none.
+           *
+           * **It also reads the universe answer** (Task 2.14.4), which is the
+           * same `useSecurities()` the identity block and the table already
+           * read — no second request, and none needed: the curated file's claim
+           * and its date have been on that body since Story 2.9. That clause is
+           * why the note now appears on a page holding no bars at all, which is
+           * every page CI renders.
            */}
           <div className={page.full}>
-            <SourceNote shown={series.screen.shown} feed={marketFeed} />
+            <SourceNote
+              shown={series.screen.shown}
+              feed={marketFeed}
+              securities={view}
+              symbol={symbol}
+            />
           </div>
 
           {/*

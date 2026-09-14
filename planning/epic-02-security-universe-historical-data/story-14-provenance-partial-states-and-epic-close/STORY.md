@@ -521,6 +521,56 @@ runs through three of them:
 
 **2.14.3 itself is complete.**
 
+### Amended 2026-09-14, after Task 2.14.4 — again no task moves, four are edited
+
+The second build task shipped, and for the third time in this story **no task was
+added, deleted or re-ordered**. The dependency graph has now been right at every
+close, which is worth recording as a pass rather than noticed only when it fails.
+Four tasks were edited in place:
+
+- **2.14.5's conditional is resolved.** Its corpus bullet read _"Task 2.14.4's
+  classification wording, if that task has landed first"_; it has, and the four
+  strings are named. The reason they matter most to that pass is **where they
+  appear** rather than how they are worded: the clause reads the universe answer
+  rather than the bars, so it draws on every security page including one holding
+  no bars — every page CI renders. And it is the epic's first string that is a
+  **disclaimer**, which is the direction of criterion 2 the pass is most likely to
+  get backwards.
+- **2.14.7's enumeration gains two entries, and one of its live claims was
+  wrong.** The note renders nothing on a page whose universe fetch has not
+  resolved or has failed **and on one whose address names a symbol the universe
+  does not hold** — three causes, not two, and the third is the only one a person
+  reaches by typing. The new story-only entry is the classification clause **with
+  no date**, which is the one state in the set where what is missing is a
+  _qualification_ rather than an answer, and the one absence in it carrying no
+  marker.
+- **2.14.8 is told two things about its own control.** The note is a `dl` of
+  **three** terms now, not two; and 2.14.4 added the security page's first
+  per-render read of the whole 518-security array — one linear scan, not a scan
+  per row, deliberately not a third `Map`. Nowhere near that task's class of cost,
+  named because its entire argument is _the table is the cause_ and an unmentioned
+  new read of the same array is what makes such an argument look convenient later.
+- **2.14.10 gains one ADR candidate and one sweep candidate.** The candidate rule
+  is the finding that travels furthest out of this task: _is this an instant
+  somebody stamped, or a date somebody typed?_ Every other timestamp in this
+  product is converted to market time, correctly; the curated file's `checkedOn`
+  is a calendar date widened to UTC midnight, and converting it reads the screen a
+  day early **with nothing on the page looking wrong**. Epic 3's clock, Epic 9's
+  filing dates and Epic 13's replay clock all hang dates on surfaces. The sweep
+  candidate is a single grep — _no renderer reads `FieldGroupProvenance.source`_ —
+  which is a `pnpm invariants` entry rather than a `GAPS.md` one, by the list's
+  own rule.
+
+**One ordering question was asked and declined.** 2.14.8 depends only on 2.14.4
+and is therefore unblocked, while 2.14.5 to 2.14.7 still run in sequence — so it
+_could_ move earlier, and there is a thin argument for it: if its disposition were
+a repair, 2.14.7 would review the repaired page rather than the current one. It
+stays where it is, because the likely disposition is a hand-off to Epic 14 with no
+visible change, and moving a task to serve an outcome it probably will not have is
+how a sequence stops reflecting its own reasoning.
+
+**2.14.4 itself is complete.**
+
 **What none of the ten owns**: the live feed and the `LIVE` indicator (Epic 3);
 confidence and evidence provenance for findings (Epic 8); the final
 accessibility review (Epic 15). And two things ship open by name rather than

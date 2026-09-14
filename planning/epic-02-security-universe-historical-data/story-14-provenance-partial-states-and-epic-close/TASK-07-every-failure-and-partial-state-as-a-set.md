@@ -14,6 +14,14 @@
 > two, and the note's **reduced** shape — one clause, on every zero-bar page — is
 > a state the enumeration would otherwise miss entirely. See the list below.
 
+> **Amended 2026-09-14 by Task 2.14.4, which built that clause.** The split
+> above is right and the **causes** under it were incomplete. Two more entries
+> join the set, and one live claim in the list below was wrong: the note renders
+> nothing on a page whose universe fetch has not resolved or has failed **and on
+> one whose address names a symbol the universe does not hold** — which, unlike
+> the other two, is reachable by typing it. The new story-only entry is the
+> classification clause **with no date**. Both are in the list.
+
 ## Objective
 
 Acceptance criterion 3, and the local half of criterion 5. Take every failure
@@ -73,8 +81,30 @@ anywhere in the epic's surface.
   **nothing at all** only where no clause has data, which is a page whose
   universe fetch has not resolved or has failed. Both belong in the list, and the
   first is the one nobody would think to look at, because it is the shape **every
-  page CI renders** ([`PROVENANCE.md`](PROVENANCE.md) §0.1). Write the list into `PROVENANCE.md` — the list **is** the deliverable of
-  this bullet, because a set checked from memory is a set with a hole in it.
+  page CI renders** ([`PROVENANCE.md`](PROVENANCE.md) §0.1).
+
+  **Two more, added 2026-09-14 once Task 2.14.4 had built the clause**, and the
+  second corrects the sentence immediately above rather than extending it:
+
+  - **The classification clause with no date** — `provenance` absent from the
+    universe envelope, the claim standing, and the date replaced by _When they
+    were last checked is not recorded._ **No server this product runs can produce
+    it**, because there is one curated file, so it is a story and that fact goes
+    in the list beside it. It is the one entry in the set where what is missing is
+    a **qualification** rather than an answer, and it carries no marker
+    deliberately — which is worth checking against the rest of the set, since
+    every other absence in it has one.
+  - **A symbol the universe does not hold**, where the note renders **nothing**.
+    The sentence above names two causes for that and there are three; this is the
+    only one a person reaches by typing. It is also the entry most likely to be
+    judged wrongly in isolation: `SecurityIdentity` has already said what is wrong
+    with the address, in its own words and with its own marker, so what this pass
+    checks is that **one** surface answers and the others are silent — not that
+    each of them says something.
+
+  Write the list into `PROVENANCE.md` — the list **is** the deliverable of this
+  bullet, because a set checked from memory is a set with a hole in it.
+
 - **Produce each one for real**, against a running pair. `store:bare` gives the
   empties; a stopped backend gives the unreachable states; `?sessions=` beyond
   the cap gives the refusal. Where a state needs a body no server sends, it is a

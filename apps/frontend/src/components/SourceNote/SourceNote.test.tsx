@@ -5,6 +5,10 @@ import {
   barSeriesFixtureView,
   twoFeedStitchView,
 } from "../../fixtures/bar-series.js";
+import {
+  LOADING_UNIVERSE,
+  securitiesFixtureView,
+} from "../../fixtures/securities.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
 import { SourceNote } from "./SourceNote.js";
 
@@ -24,6 +28,21 @@ import { SourceNote } from "./SourceNote.js";
 // is read.
 
 const SIP: MarketFeedView = { state: "configured", feed: "sip" };
+
+/** A security the recorded universe holds. */
+const SUBJECT = "NVDA";
+
+/**
+ * The universe still in flight, which is what every test below about the
+ * **bars** is handed.
+ *
+ * Not a convenience: the classification clause draws whenever the universe has
+ * resolved, so a loaded universe in a test about the feed or the adjustment
+ * would put a second claim in every reading and make each assertion about two
+ * things. This is a real state — the bars answer first often enough — and it
+ * keeps one test to one subject. The clause has its own `describe` below.
+ */
+const PENDING_UNIVERSE = LOADING_UNIVERSE;
 
 /** The definition beside one term. */
 function definitionOf(term: string): HTMLElement {
@@ -48,6 +67,16 @@ function definitionOf(term: string): HTMLElement {
  * together) against markup that speaks correctly. This walks the tree the way
  * the accessibility layer does: hidden subtrees skipped, element boundaries
  * worth a space.
+ *
+ * **With one correction, added by Task 2.14.4 and earned by it.** The
+ * classification clause emphasises one word *inside* a sentence, so the walk
+ * crosses an element boundary mid-clause and produced `curated , not from the
+ * market feed.` — a space before a comma, which no assistive technology
+ * inserts and no reader hears. A boundary between two block-ish parts of the
+ * note is a real pause; a boundary inside a running sentence is not, and jsdom
+ * computes no layout so the walk cannot tell them apart. Dropping whitespace
+ * before punctuation is the one rule that separates them and costs nothing
+ * elsewhere: none of the other readings has punctuation at a boundary.
  */
 function reading(element: Element): string {
   const parts: string[] = [];
@@ -70,7 +99,11 @@ function reading(element: Element): string {
 
   walk(element);
 
-  return parts.join(" ").replace(/\s+/gu, " ").trim();
+  return parts
+    .join(" ")
+    .replace(/\s+/gu, " ")
+    .replace(/\s+(?=[,.;:])/gu, "")
+    .trim();
 }
 
 /**
@@ -91,7 +124,14 @@ function rowsOf(term: string): readonly string[] {
 
 describe("SourceNote", () => {
   it("states what has been done to the prices and when they were fetched", () => {
-    render(<SourceNote shown={barSeriesFixtureView("full")} feed={SIP} />);
+    render(
+      <SourceNote
+        shown={barSeriesFixtureView("full")}
+        feed={SIP}
+        securities={PENDING_UNIVERSE}
+        symbol={SUBJECT}
+      />,
+    );
 
     // The label, its sentence and the retrieval date, in one reading. The
     // sentence is `ADJUSTMENT_DESCRIPTIONS`' and is asserted verbatim: a
@@ -112,7 +152,12 @@ describe("SourceNote", () => {
     // is one fact about coverage and the chrome is already stating it.
     for (const name of ["full", "stitched"] as const) {
       const { unmount } = render(
-        <SourceNote shown={barSeriesFixtureView(name)} feed={SIP} />,
+        <SourceNote
+          shown={barSeriesFixtureView(name)}
+          feed={SIP}
+          securities={PENDING_UNIVERSE}
+          symbol={SUBJECT}
+        />,
       );
 
       expect(screen.queryByText("Source")).toBeNull();
@@ -126,7 +171,14 @@ describe("SourceNote", () => {
     // The case invariant 6 exists for. The counts are what make *whichever feed
     // is first* visibly rather than invisibly wrong, and the order is the
     // sources' own — never sorted, never deduplicated to the first.
-    render(<SourceNote shown={twoFeedStitchView()} feed={SIP} />);
+    render(
+      <SourceNote
+        shown={twoFeedStitchView()}
+        feed={SIP}
+        securities={PENDING_UNIVERSE}
+        symbol={SUBJECT}
+      />,
+    );
 
     expect(rowsOf("Sources")).toEqual([
       "60 bars All US exchanges",
@@ -140,6 +192,8 @@ describe("SourceNote", () => {
       <SourceNote
         shown={barSeriesFixtureView("full")}
         feed={{ state: "configured", feed: "iex" }}
+        securities={PENDING_UNIVERSE}
+        symbol={SUBJECT}
       />,
     );
 
@@ -158,6 +212,8 @@ describe("SourceNote", () => {
       <SourceNote
         shown={barSeriesFixtureView("full")}
         feed={{ state: "not-configured" }}
+        securities={PENDING_UNIVERSE}
+        symbol={SUBJECT}
       />,
     );
 
@@ -175,6 +231,8 @@ describe("SourceNote", () => {
       <SourceNote
         shown={barSeriesFixtureView("full")}
         feed={{ state: "checking" }}
+        securities={PENDING_UNIVERSE}
+        symbol={SUBJECT}
       />,
     );
 
@@ -188,7 +246,12 @@ describe("SourceNote", () => {
     // picture. The container is asserted rather than one absent string, because
     // "renders nothing" and "was never rendered" look identical otherwise.
     const { container } = render(
-      <SourceNote shown={barSeriesFixtureView("empty")} feed={SIP} />,
+      <SourceNote
+        shown={barSeriesFixtureView("empty")}
+        feed={SIP}
+        securities={PENDING_UNIVERSE}
+        symbol={SUBJECT}
+      />,
     );
 
     expect(container.innerHTML).toBe("");
@@ -201,11 +264,197 @@ describe("SourceNote", () => {
       barSeriesFixtureView("unavailable"),
     ] as const) {
       const { container, unmount } = render(
-        <SourceNote shown={shown} feed={SIP} />,
+        <SourceNote
+          shown={shown}
+          feed={SIP}
+          securities={PENDING_UNIVERSE}
+          symbol={SUBJECT}
+        />,
       );
 
       expect(container.innerHTML).toBe("");
       unmount();
     }
+  });
+});
+
+// The clause Task 2.14.4 adds, and the four states it has.
+//
+// It is a separate `describe` because it reads a **different fetch** from every
+// test above: the universe, not the series. That is the whole point of it —
+// `GET /securities` has carried this claim since Story 2.9 and no screen has
+// rendered a character of it, and because its data is the universe's rather
+// than the bars', it is the one clause that draws on a page holding no bars.
+describe("SourceNote — the curated classification", () => {
+  it("says the sector is ours and when the file was last checked", () => {
+    render(
+      <SourceNote
+        shown={barSeriesFixtureView("full")}
+        feed={SIP}
+        securities={securitiesFixtureView("full")}
+        symbol={SUBJECT}
+      />,
+    );
+
+    // The settled words, verbatim (`PROVENANCE.md` §5.2), read as a listener
+    // gets them. `curated` is a `<span>` inside the sentence rather than a
+    // hoisted label, so the reading is what proves the sentence survived the
+    // split — `getByText("curated")` would pass against a note with the rest of
+    // it missing.
+    expect(reading(definitionOf("Classification"))).toBe(
+      "Sector and industry are curated, not from the market feed. " +
+        "Last checked 8 September 2026",
+    );
+  });
+
+  it("reads the curated date as written rather than as a market instant", () => {
+    // **The defect this assertion exists for.** `UNIVERSE_PROVENANCE` holds
+    // `checkedOn: "2026-09-08"`, a date a person types and reviews in a diff,
+    // and the loader parses it as UTC midnight so a run in any timezone stores
+    // the same instant. Put that instant through `marketDateAt` — which is
+    // exactly right for the bars' own retrieval three lines above — and it
+    // lands at 20:00 on the **7th** in New York. The screen would then read
+    // `7 September 2026` against a file, an ADR and four documents that all say
+    // the 8th, and nothing on the page would look wrong.
+    render(
+      <SourceNote
+        shown={barSeriesFixtureView("full")}
+        feed={SIP}
+        securities={securitiesFixtureView("full")}
+        symbol={SUBJECT}
+      />,
+    );
+
+    expect(
+      screen.queryByText(/7 September 2026/u, { selector: "dd *" }),
+    ).toBeNull();
+  });
+
+  it("draws alone on a page holding no bars", () => {
+    // **The state this task exists for, and the commonest page in the suite.**
+    // CI's store is 518 securities and zero bars, so every chart there is a
+    // correct `empty` — and until this clause the note was absent from every
+    // page CI has ever rendered. §0.1 is a claim about data requiring data, per
+    // clause: the bars have none, the universe has answered.
+    render(
+      <SourceNote
+        shown={barSeriesFixtureView("empty")}
+        feed={SIP}
+        securities={securitiesFixtureView("full")}
+        symbol={SUBJECT}
+      />,
+    );
+
+    expect(screen.queryByText("Prices")).toBeNull();
+    expect(screen.queryByText("Source")).toBeNull();
+    expect(reading(definitionOf("Classification"))).toBe(
+      "Sector and industry are curated, not from the market feed. " +
+        "Last checked 8 September 2026",
+    );
+  });
+
+  it("keeps the claim and drops the date when the server made none", () => {
+    // `provenance` goes absent when the rows stop sharing one pair — not when
+    // they stop being ours. The sentence is still true; the date is the only
+    // thing we cannot say, and an empty space in its place would read as a
+    // rendering fault rather than as an honest absence.
+    const loaded = securitiesFixtureView("full");
+
+    if (loaded.state !== "loaded") throw new TypeError("expects a universe");
+
+    render(
+      <SourceNote
+        shown={barSeriesFixtureView("full")}
+        feed={SIP}
+        securities={{ ...loaded, provenance: null }}
+        symbol={SUBJECT}
+      />,
+    );
+
+    expect(reading(definitionOf("Classification"))).toBe(
+      "Sector and industry are curated, not from the market feed. " +
+        "When they were last checked is not recorded.",
+    );
+  });
+
+  it("carries no marker, in either state", () => {
+    // The tension Task 2.14.2 left open, resolved rather than inherited. This
+    // surface is entirely typographic: what is missing in the undated state is
+    // one date inside a claim that is still being made, and a marker would rank
+    // a missing date above a stated one. `SecurityIdentity`'s markers stay
+    // where an absence is the whole answer.
+    const loaded = securitiesFixtureView("full");
+
+    if (loaded.state !== "loaded") throw new TypeError("expects a universe");
+
+    for (const securities of [loaded, { ...loaded, provenance: null }]) {
+      const { container, unmount } = render(
+        <SourceNote
+          shown={barSeriesFixtureView("full")}
+          feed={SIP}
+          securities={securities}
+          symbol={SUBJECT}
+        />,
+      );
+
+      expect(container.querySelector("svg")).toBeNull();
+      unmount();
+    }
+  });
+
+  it("says nothing about a security the universe does not hold", () => {
+    // There is no sector on this page to disclose the origin of, so the
+    // sentence would have no subject — §0.1 again. `SecurityIdentity` has
+    // already said what is wrong with the address, in its own words and with
+    // its own marker, and a second surface saying it differently is the
+    // footnote pile arriving as sympathy.
+    const { container } = render(
+      <SourceNote
+        shown={barSeriesFixtureView("empty")}
+        feed={SIP}
+        securities={securitiesFixtureView("full")}
+        symbol="NOTATICKER"
+      />,
+    );
+
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("says nothing while the universe is unresolved, failed or empty", () => {
+    for (const securities of [
+      PENDING_UNIVERSE,
+      securitiesFixtureView("unavailable"),
+      securitiesFixtureView("empty"),
+    ]) {
+      const { container, unmount } = render(
+        <SourceNote
+          shown={barSeriesFixtureView("empty")}
+          feed={SIP}
+          securities={securities}
+          symbol={SUBJECT}
+        />,
+      );
+
+      expect(container.innerHTML).toBe("");
+      unmount();
+    }
+  });
+
+  it("never prints the response's source slug", () => {
+    // `FieldGroupProvenance.source` is a free string by design, so no
+    // compile-time table can ever give it words — which is exactly why a
+    // renderer must not reach for it. The slug stays in the response for an
+    // operator.
+    const { container } = render(
+      <SourceNote
+        shown={barSeriesFixtureView("full")}
+        feed={SIP}
+        securities={securitiesFixtureView("full")}
+        symbol={SUBJECT}
+      />,
+    );
+
+    expect(container.textContent).not.toContain("gics");
+    expect(container.textContent).not.toContain("alpaca-assets");
   });
 });
