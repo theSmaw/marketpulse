@@ -25,6 +25,9 @@
     "stories": "node scripts/check-stories.mjs",
     "env:check": "node scripts/check-env-example.mjs",
     "links": "node scripts/check-links.mjs",
+    "invariants": "node scripts/check-invariants.mjs",
+    "break": "node scripts/break-verify.mjs",
+    "store:bare": "node scripts/build-bare-store.mjs",
     "coverage:check": "node scripts/check-backfill-coverage.mjs",
     "ready": "node scripts/check-ready.mjs",
     "db": "node scripts/local-database.mjs",
@@ -38,7 +41,7 @@
     "e2e": "node scripts/run-e2e.mjs",
     "probe": "node scripts/probe.mjs",
     "e2e:deployed": "node scripts/run-deployed-check.mjs",
-    "verify": "node scripts/check-quiet.mjs && pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run links && pnpm run coverage:check && pnpm run test && pnpm run test:process"
+    "verify": "node scripts/check-quiet.mjs && pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run links && pnpm run invariants && pnpm run coverage:check && pnpm run test && pnpm run test:process"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
