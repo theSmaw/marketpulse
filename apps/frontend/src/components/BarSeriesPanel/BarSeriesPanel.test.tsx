@@ -3,12 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   BAR_SERIES_FIXTURE_NAMES,
+  barSeriesFixtureResult,
   barSeriesFixtureView,
   barSeriesViewScreen,
   staleBarSeriesFixtureView,
   windowChangeFixtureScreen,
 } from "../../fixtures/bar-series.js";
 import type { BarSeriesView } from "../../market/index.js";
+import { toBarSeriesView } from "../../market/index.js";
 import { ChartAxis } from "../PriceChart/ChartAxis.js";
 import type { BarSeriesPanelProps } from "./BarSeriesPanel.js";
 import { BarSeriesPanel } from "./BarSeriesPanel.js";
@@ -83,8 +85,17 @@ function Panel({
  * That failure is the queries telling the truth. Every assertion about what a
  * *reader* sees says so here; the announcement has its own tests below, which
  * are the only ones that look inside `role="status"`.
+ *
+ * `aria-hidden` joined the list on 2026-09-13, for the rail's reservation: the
+ * slot above the chart lays out a hidden copy of the in-flight sentence so the
+ * picture cannot move when a real one appears, which puts a second *Still
+ * showing …* in the DOM that no reader can read. Same rule as the live region —
+ * a query that does not say which channel it means resolves to both.
  */
-const VISIBLE = { ignore: "[role='status'], script, style" } as const;
+const VISIBLE = {
+  ignore:
+    "[role='status'], [aria-hidden='true'], [aria-hidden='true'] *, script, style",
+} as const;
 
 describe("BarSeriesPanel", () => {
   it("names the security in every state, including the ones with no series", () => {
@@ -97,61 +108,31 @@ describe("BarSeriesPanel", () => {
     }
   });
 
-  it("says it holds all of a complete window rather than saying nothing", () => {
-    render(<Panel {...props} view={barSeriesFixtureView("full")} />);
-
-    // Silence on a complete answer would make "we hold all of it" and "nobody
-    // checked" look identical, which is the distinction this panel exists for.
-    expect(screen.getByText(/Holding all 30 bars/)).toBeTruthy();
-  });
-
-  it("renders a short answer as an answer, naming where it stops", () => {
+  it("states no window figures of its own, because three surfaces already do", () => {
+    // **2026-09-14 took four blocks off this panel**: the coverage sentence, the
+    // `Asked for` / `Held` / `Bars` / `First → last` list, the chart's resting
+    // invitation and — where it can be right — the feed row. What is left is the
+    // picture, the four prices and the states that have no picture.
+    //
+    // None of it was the *only* home of anything. Coverage is drawn, as the
+    // uncovered ground and the coverage edge, and spoken, in the chart's text
+    // alternative, which counts it in the axis's own trading minutes; the window
+    // is in the address and on the control; the bar count and the instants are
+    // in the reading a pointer or an arrow key produces.
+    //
+    // The assertion is absence, which is worth one test rather than none: a
+    // panel that grew a second copy of a figure the chart already states is the
+    // two-surfaces-one-fact defect this repository has paid for three times.
     render(<Panel {...props} view={barSeriesFixtureView("partial")} />);
 
-    // The two facts a reader acts on: how much, and through when. Both come off
-    // the response — `covered.end` — and never from a constant.
-    const coverage = screen.getByText(/Holding 60 bars/);
-    expect(coverage.textContent).toContain("2026-09-04 16:00:00 EDT");
-    expect(coverage.textContent).toContain("less than the window asked for");
+    expect(screen.queryByText(/Holding \d/, VISIBLE)).toBeNull();
+    expect(screen.queryByText("Asked for", VISIBLE)).toBeNull();
+    expect(screen.queryByText("Held", VISIBLE)).toBeNull();
+    expect(screen.queryByText("First → last", VISIBLE)).toBeNull();
 
-    // And it is not a failure: nothing offers to try again.
+    // And it is still an answer rather than a failure: nothing offers to try
+    // again.
     expect(screen.queryByRole("button")).toBeNull();
-  });
-
-  it("shows both windows, so the reader can see what was asked for", () => {
-    render(<Panel {...props} view={barSeriesFixtureView("partial")} />);
-
-    // Asserted as the concatenation a screen reader is handed rather than as
-    // one element's text, because the term and its definition are two nodes.
-    const asked = screen.getByText("Asked for").parentElement;
-    expect(asked?.textContent).toContain("2026-09-05 16:00:00 EDT");
-
-    const held = screen.getByText("Held").parentElement;
-    expect(held?.textContent).toContain("2026-09-04 16:00:00 EDT");
-  });
-
-  it("renders market timestamps in market time, with the zone named", () => {
-    render(<Panel {...props} view={barSeriesFixtureView("full")} />);
-
-    // The 13:30Z bar is the 09:30 bar. A panel rendering it in the runner's own
-    // zone is the same defect as a window resolved from the browser's clock:
-    // plausible, shifted, and invisible to anyone not looking for it. The zone
-    // abbreviation is what makes it checkable at all.
-    const first = screen.getByText("First → last").parentElement;
-    expect(first?.textContent).toContain("Sep 4 · 09:30 EDT");
-  });
-
-  it("states a daily bar as a session rather than as a midnight event", () => {
-    // **The row is two bars and not two windows**, which is why it spells them
-    // the way both readout strips do (Task 2.13.6). Before the `1d` window was
-    // reachable this row read `2026-06-12 00:00:00 EDT`, which is a whole
-    // session's trading wearing the timestamp of the hour it was stamped at —
-    // the vendor stamps a daily bar at midnight market time.
-    render(<Panel {...props} view={barSeriesFixtureView("daily")} />);
-
-    const first = screen.getByText("First → last").parentElement;
-    expect(first?.textContent).toContain("Jun 12");
-    expect(first?.textContent).not.toContain("00:00");
   });
 
   it("states the four prices from the bars it holds", () => {
@@ -166,25 +147,66 @@ describe("BarSeriesPanel", () => {
     expect(high?.textContent).toMatch(/\d+\.\d\d/);
   });
 
-  it("labels the feed in the shipped vocabulary rather than a slug", () => {
-    render(<Panel {...props} view={barSeriesFixtureView("full")} />);
+  it("says nothing about the feed where the chrome's own label is right", () => {
+    // The masthead carries `FeedProvenance` on every screen. For a series whose
+    // sources all name one feed, this row was that fact a second time — and the
+    // recorded stitch is exactly that case rather than an exception: both of its
+    // halves came from Alpaca's historical API, so two sources are one feed.
+    for (const name of ["full", "stitched"] as const) {
+      const { unmount } = render(
+        <Panel {...props} view={barSeriesFixtureView(name)} />,
+      );
 
-    // `MARKET_FEED_DESCRIPTIONS`' words, and the rule that a label gets a
-    // sentence only when it cannot stand alone — `All US exchanges` can, so
-    // there is deliberately no second line here.
-    expect(screen.getByText("Market feed")).toBeTruthy();
-    expect(screen.getByText("All US exchanges")).toBeTruthy();
-    expect(screen.queryByText(/sip/i)).toBeNull();
+      expect(screen.queryByText("Market feed", VISIBLE)).toBeNull();
+      expect(screen.queryByText("All US exchanges", VISIBLE)).toBeNull();
+      unmount();
+    }
   });
 
-  it("names every distinct feed of a stitched series", () => {
-    render(<Panel {...props} view={barSeriesFixtureView("stitched")} />);
+  it("names both feeds when one series carries two", () => {
+    // **The case invariant 6 exists for, and the one body no fixture can be.**
+    // The free Alpaca plan is asymmetric — stored history is consolidated SIP
+    // and the live stream is IEX — so from Epic 3 a stitched series genuinely
+    // names two feeds and one page-level label is wrong about half of it. No
+    // recorded body has two, because no shipped endpoint produces one yet.
+    //
+    // So this is the recorded stitch with **one field changed**, through the
+    // real transition, rather than a view typed by hand: the shape, the bars and
+    // the coverage are all the server's. The field is named here so the day a
+    // two-feed body is recorded, this test is replaced by it rather than kept.
+    const recorded = barSeriesFixtureResult("stitched");
+    if (recorded.outcome !== "ok") throw new Error("the stitch is an answer");
 
-    // Both recorded sources are SIP, so this renders **one** label for two
-    // sources — which is the correct behaviour and the reason the assertion is
-    // on distinctness rather than on a count of sources. Epic 3's IEX socket is
-    // what makes this row show two.
-    expect(screen.getAllByText("All US exchanges")).toHaveLength(1);
+    const [stored, tail] = recorded.data.series.provenance.sources;
+    if (stored === undefined || tail === undefined) {
+      throw new Error("the stitch has two sources");
+    }
+
+    render(
+      <Panel
+        {...props}
+        view={toBarSeriesView(
+          { state: "loading" },
+          {
+            ...recorded,
+            data: {
+              ...recorded.data,
+              series: {
+                ...recorded.data.series,
+                provenance: {
+                  ...recorded.data.series.provenance,
+                  sources: [stored, { ...tail, feed: "iex" }],
+                },
+              },
+            },
+          },
+        )}
+      />,
+    );
+
+    expect(screen.getByText("Market feed", VISIBLE)).toBeTruthy();
+    expect(screen.getByText("All US exchanges", VISIBLE)).toBeTruthy();
+    expect(screen.getByText("IEX", VISIBLE)).toBeTruthy();
   });
 
   it("renders an empty series as an answer about a window", () => {
@@ -304,8 +326,8 @@ describe("BarSeriesPanel", () => {
     // the fresh answer will replace is still fully on screen and still says
     // exactly what it said. A treatment that emptied or replaced them would
     // pass a "there is a mark" assertion and fail the product.
-    expect(screen.getByText(/Holding 60 bars/)).toBeTruthy();
     expect(screen.getByText("Open")).toBeTruthy();
+    expect(screen.getAllByText(/\d+\.\d\d/).length).toBeGreaterThan(0);
   });
 
   it("shows no refreshing mark on an answer that just arrived", () => {
@@ -333,7 +355,7 @@ describe("BarSeriesPanel", () => {
 
     // And the bars are still there. An untracked security keeps its history and
     // the route still serves it: this is not a 404 and not an absence.
-    expect(screen.getByText(/Holding all 30 bars/)).toBeTruthy();
+    expect(screen.getByText("Open")).toBeTruthy();
   });
 
   it("says nothing about tracking for a security we still follow", () => {
@@ -455,14 +477,14 @@ describe("BarSeriesPanel", () => {
     expect(container.querySelector("svg")).not.toBeNull();
 
     // An axis is sampled and it is niced, so it never states an exact fact.
-    // These are the figures the picture rounds, and `CHARTING.md` §5 dropped
-    // none of them.
-    for (const fact of ["Open", "Asked for", "Held", "Market feed"]) {
+    // These are the figures the picture rounds — **the four prices, since
+    // 2026-09-14**, which is what is left of `CHARTING.md` §5's list once the
+    // windows, the coverage sentence and the feed row came off. The rest of that
+    // list did not go missing: it moved to surfaces that were already stating
+    // it, which the test above this one asserts as absence here.
+    for (const fact of ["Open", "High", "Low", "Close"]) {
       expect(screen.getByText(fact)).not.toBeNull();
     }
-    expect(
-      screen.getByText(/Holding all 30 bars of the window asked for/),
-    ).not.toBeNull();
   });
 });
 
@@ -490,7 +512,7 @@ describe("a window change", () => {
 
     // The whole point, asserted as what did *not* happen: the figures are still
     // there, at full ink, unblanked.
-    expect(screen.getByText(/Holding 60 bars/, VISIBLE)).toBeTruthy();
+    expect(screen.getByText("Open", VISIBLE)).toBeTruthy();
     expect(screen.getByText("Open", VISIBLE)).toBeTruthy();
   });
 
@@ -541,7 +563,7 @@ describe("a window change", () => {
     // window — and no control, because waiting never helps.
     expect(screen.getByText(/trading calendar/, VISIBLE)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
-    expect(screen.getByText(/Holding 60 bars/, VISIBLE)).toBeTruthy();
+    expect(screen.getByText("Open", VISIBLE)).toBeTruthy();
   });
 
   it("keeps them and offers exactly one retry when the new window fails", () => {
@@ -570,7 +592,7 @@ describe("a window change", () => {
     expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(
       1,
     );
-    expect(screen.getByText(/Holding 60 bars/, VISIBLE)).toBeTruthy();
+    expect(screen.getByText("Open", VISIBLE)).toBeTruthy();
   });
 
   it("drops the previous security's series rather than relabelling it", () => {
@@ -592,6 +614,32 @@ describe("a window change", () => {
 
     expect(screen.queryByText(/Still showing/, VISIBLE)).toBeNull();
     expect(screen.getByText(/Reading the series…/, VISIBLE)).toBeTruthy();
+  });
+
+  it("reserves the rail's slot in a state with no rail in it", () => {
+    // **The chart must not move when a window is pressed** (2026-09-13). The rail
+    // is rendered above the picture and only while a request is unanswered, so
+    // the slot it goes in lays out a hidden copy of its sentence in every state
+    // — which is the only reservation that is correct at more than one width,
+    // because the sentence wraps at 390px and does not at 1440.
+    //
+    // jsdom computes no layout, so this asserts the **mechanism** and not the
+    // pixels: that the hidden sentence is there, that it is out of the
+    // accessibility tree, and that it is shaped like the rail it reserves for.
+    // `e2e/specs/security-window-change.spec.ts` is the only instrument that can
+    // see the chart's position.
+    const { container } = render(
+      <Panel {...props} view={barSeriesFixtureView("partial")} />,
+    );
+
+    expect(screen.queryByText(/Still showing/, VISIBLE)).toBeNull();
+
+    const reserved = container.querySelectorAll("[aria-hidden='true']");
+    const sentence = [...reserved]
+      .map((node) => node.textContent)
+      .find((text) => text.includes("Still showing"));
+
+    expect(sentence).toMatch(/Still showing the .*-session window while/);
   });
 
   it("shows the refreshing rail and the held-window rail never together", () => {
@@ -650,7 +698,7 @@ describe("a window change", () => {
       />,
     );
 
-    expect(screen.getByText(/Holding 60 bars/, VISIBLE)).toBeTruthy();
+    expect(screen.getByText("Open", VISIBLE)).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(
       1,
     );

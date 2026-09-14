@@ -57,9 +57,9 @@ function panel(page: Page) {
  * both.
  */
 function anAnswer(page: Page) {
-  return readable(panel(page), /Holding .* bars/).or(
-    readable(panel(page), /No bars stored for this window/),
-  );
+  return panel(page)
+    .getByText("Close", { exact: true })
+    .or(readable(panel(page), /No bars stored for this window/));
 }
 
 test("an empty window reads as an answer, not as a broken product", async ({

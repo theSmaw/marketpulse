@@ -1,4 +1,6 @@
-import type { MarketFeed, TimeRange } from "@marketpulse/shared";
+import type { ReactNode } from "react";
+
+import type { MarketFeed } from "@marketpulse/shared";
 import { MARKET_FEED_DESCRIPTIONS } from "@marketpulse/shared";
 
 import { Badge } from "../Badge/Badge.js";
@@ -12,9 +14,10 @@ import type {
 } from "../../market/index.js";
 import {
   directionOf,
-  formatBarInstant,
   formatChangePercent,
   formatPrice,
+  seriesWindowFor,
+  TIME_WINDOWS,
   windowPhrase,
 } from "../../market/index.js";
 import { Marker } from "../Marker/Marker.js";
@@ -23,10 +26,7 @@ import { PriceChart } from "../PriceChart/PriceChart.js";
 import { announceSeries } from "./series-announcement.js";
 import type { SeriesPrices } from "./series-facts.js";
 import {
-  barSpan,
   changePercent,
-  formatCount,
-  formatMarketInstant,
   formatMarketRange,
   seriesPrices,
 } from "./series-facts.js";
@@ -152,6 +152,27 @@ export interface BarSeriesPanelProps {
    * found one, and the sentence would be noise.
    */
   readonly defaulted: boolean;
+
+  /**
+   * What changes the window, on the security's own name line (2026-09-13).
+   *
+   * **It used to be on the region's heading row** — `VOLUME-AND-WINDOW.md` §8.6
+   * put it there, on the honest argument that this product has no page-level
+   * control bar and inventing one for a single control is chrome arriving before
+   * its second occupant. That argument still holds, and what it did not weigh is
+   * that a control on a heading row makes *that* region's heading taller than
+   * every other region's on the screen.
+   *
+   * It spent half a day on a row of its own here, which was worse: a row with
+   * one right-aligned occupant is two thirds dead space. The ticker's line was
+   * empty to its right the whole time — a segmented control in the micro-label
+   * idiom is instrument chrome, and instrument chrome belongs on the
+   * instrument's name line.
+   *
+   * It is a slot rather than a component, for the reason this panel takes no
+   * router: the window lives in the address, and the address is the route's.
+   */
+  readonly control?: ReactNode;
 }
 
 export function BarSeriesPanel({
@@ -159,6 +180,7 @@ export function BarSeriesPanel({
   symbol,
   onRetry,
   defaulted,
+  control,
 }: BarSeriesPanelProps) {
   const { shown } = screen;
   return (
@@ -175,29 +197,48 @@ export function BarSeriesPanel({
         {announceSeries(screen, symbol)}
       </p>
 
-      <Subject
-        symbol={symbol}
-        defaulted={defaulted}
-        untracked={isUntracked(shown)}
-      />
       {/*
-       * **One rail position, two subjects** (Task 2.13.7), and they are mutually
-       * exclusive rather than stacked.
+       * **The header band: the instrument on the left, what changes it on the
+       * right** (2026-09-13).
        *
-       * `Refreshing` says *a newer answer to this question is coming*.
-       * `HeldWindow` says *this is the answer to a different question, and here
-       * is what happened to the one you asked*. A screen showing both would be
-       * telling a reader that the picture is one request old **and** about
-       * another window, which is two marks for one fact: the held answer is by
-       * definition not about to be refreshed, because the request behind it has
-       * already been superseded.
+       * The control had a row of its own for half a day and it was the wrong
+       * answer twice over — a row with one right-aligned occupant is two thirds
+       * dead space, and the row it replaced on the region's heading made *that*
+       * heading taller than every other region's on the screen. It belongs here,
+       * beside the thing it is a control for, on a line the ticker was already
+       * leaving empty.
+       *
+       * `VISUAL-LANGUAGE.md`'s own reading of the shape: a segmented control in
+       * the micro-label idiom is instrument chrome, and instrument chrome sits on
+       * the instrument's name line. Nothing new is invented here — one row,
+       * `space-between`, which is what `PageHeader` and `Panel` already do one
+       * level up.
        */}
-      {screen.previous === null ? (
-        isStale(shown) && <Refreshing />
-      ) : (
-        <HeldWindow screen={screen} onRetry={onRetry} />
-      )}
-      <Reading view={shown} />
+      <div className={styles.header}>
+        <Subject
+          symbol={symbol}
+          defaulted={defaulted}
+          untracked={isUntracked(shown)}
+        />
+        {control}
+      </div>
+      {/*
+       * **The value, and beside it what happened to the request** (2026-09-13).
+       *
+       * The rail needs a permanent partner or it moves the chart when it
+       * appears, and this row is the best one in the panel: the close is set at
+       * display size, so a line — or two — of secondary text beside it is
+       * **inside** the height the figure already spends. §71's reservation
+       * survives underneath for the widths where it is not.
+       *
+       * It is also where the sentence belongs to be read. A reader whose screen
+       * did not change when they pressed a window asks *what am I looking at*,
+       * and the answer sits against the one number they were looking at.
+       */}
+      <div className={styles.reading}>
+        <Reading view={shown} />
+        <Rail screen={screen} onRetry={onRetry} />
+      </div>
       {/*
        * **The chart, above the facts and not instead of them** (Task 2.12.4).
        *
@@ -311,6 +352,120 @@ function isUntracked(view: BarSeriesView): boolean {
 }
 
 /**
+ * **What happened to the request, beside the value it is about** (2026-09-13).
+ *
+ * At most one of the two rails, in the right-hand half of the headline row.
+ *
+ * ## Why it lives on that row
+ *
+ * The rail is rendered exactly when somebody presses a window, and it has to sit
+ * **above** the picture: §6.3 is explicit that the label saying *which window
+ * the picture is of* cannot come after the picture, because a reader's first
+ * question about a screen that did not change when they pressed something is
+ * *what am I looking at*. A rail in a row of its own therefore pushed the chart
+ * down 30px on every press — under the pointer of the person reading it — and
+ * reserving a row for it spent that height on every screen in the steady state.
+ *
+ * The headline row is the one row in this panel that can absorb it for nothing.
+ * The close is set at display size; a line, or two, of secondary text beside it
+ * is **inside** the height that figure already spends. It is also the row the
+ * sentence is about — the held window's close, above the held window's chart.
+ *
+ * ## The reservation that is left, and why it is still a measurement
+ *
+ * Two states carry no headline at all — a held `empty`, and every state before
+ * the first answer — so the row cannot be relied on to be tall. And at 390 the
+ * sentence wraps past the figure's height. So the cell is one grid cell holding
+ * every state the rail can be in, with a hidden copy of the in-flight sentence
+ * laid out beside the live one: as tall as the tallest of them **at this width**,
+ * which is the only reservation that survives a sentence that wraps at 390 and
+ * does not at 1440 (`CHARTING.md` §15.4). Where the figure is the taller of the
+ * two, it costs nothing at all.
+ *
+ * What is deliberately *not* reserved is the extra content the refused and failed
+ * rails bring — the server's sentence, the retry, the reference. Those are
+ * settled outcomes that no press of a window can produce (the control emits only
+ * the five counts, and every one of them is answerable), and reserving the
+ * tallest of them permanently would put a failure's worth of empty space above
+ * every chart in the product.
+ */
+function Rail({
+  screen,
+  onRetry,
+}: {
+  readonly screen: BarSeriesScreen;
+  readonly onRetry: () => void;
+}) {
+  return (
+    <div className={styles.rail}>
+      {/*
+       * The reservation: the in-flight rail, at the longest window phrase this
+       * screen could name, hidden. `aria-hidden` and `visibility: hidden` — it
+       * is present in layout and absent from everything else, and it has
+       * nothing focusable in it, so it is out of the tab order by construction.
+       */}
+      <div
+        aria-hidden="true"
+        className={cx(styles.railState, styles.railSizer)}
+      >
+        <div className={styles.heldWindow}>
+          <RailSentence>{reservedSentence(screen)}</RailSentence>
+        </div>
+      </div>
+      <div className={styles.railState}>
+        {/*
+         * **One rail position, two subjects** (Task 2.13.7), and they are
+         * mutually exclusive rather than stacked.
+         *
+         * `Refreshing` says *a newer answer to this question is coming*.
+         * `HeldWindow` says *this is the answer to a different question, and
+         * here is what happened to the one you asked*. A screen showing both
+         * would be telling a reader that the picture is one request old **and**
+         * about another window, which is two marks for one fact: the held
+         * answer is by definition not about to be refreshed, because the
+         * request behind it has already been superseded.
+         */}
+        {screen.previous === null ? (
+          isStale(screen.shown) && <Refreshing />
+        ) : (
+          <HeldWindow screen={screen} onRetry={onRetry} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The exact sentence the reservation is measured against.
+ *
+ * Not an approximation and not the longest sentence imaginable: it is **the
+ * worst case a press of the control can actually produce from here**. The window
+ * being held is whatever is on screen now, which is known; the window being
+ * asked for is one of the five the control offers, so the widest of those is the
+ * other half. A reservation built from the widest phrase in *both* halves
+ * over-reserves by a line at every width where that extra clause wraps and the
+ * real one does not — measured at 1024, where it put an empty second line above
+ * the chart on every screen.
+ *
+ * The current window is in the candidate set for the second half too, because an
+ * address may name a count the control does not offer — `?sessions=1000` — and
+ * pressing a window from there holds a phrase no member of `TIME_WINDOWS` is as
+ * long as.
+ */
+function reservedSentence(screen: BarSeriesScreen): string {
+  const holding = windowPhrase((screen.previous ?? screen.asked).window);
+  const offered = TIME_WINDOWS.map((window) =>
+    windowPhrase(seriesWindowFor(window.sessions)),
+  );
+
+  const widest = [...offered, windowPhrase(screen.asked.window)].reduce(
+    (longest, phrase) => (phrase.length > longest.length ? phrase : longest),
+  );
+
+  return inFlightSentence(holding, widest);
+}
+
+/**
  * A newer answer is on its way, and the ones below are held.
  *
  * ## What it must not do, which decided nearly everything about it
@@ -345,13 +500,38 @@ function isUntracked(view: BarSeriesView): boolean {
  */
 function Refreshing() {
   return (
+    <RailSentence>
+      Refreshing — showing the held answer while a newer one is read.
+    </RailSentence>
+  );
+}
+
+/**
+ * A rail's one line: the dashed marker, and the sentence beside it.
+ *
+ * One home for the row, because three things render it — the stale rail, the
+ * held-window rail, and the hidden reservation that measures the slot they share
+ * — and a marker that differed between them would be three marks for one fact.
+ */
+function RailSentence({ children }: { readonly children: ReactNode }) {
+  return (
     <p className={styles.refreshing}>
       <Marker shape="dashed" />
-      <span>
-        Refreshing — showing the held answer while a newer one is read.
-      </span>
+      <span>{children}</span>
     </p>
   );
+}
+
+/**
+ * *Still showing X while Y is read.*
+ *
+ * The in-flight rail's copy, in one place, because the reservation above has to
+ * lay out the same sentence the rail will put in the slot — and a second copy
+ * written for the sizer would be a measurement of a sentence this panel does not
+ * say.
+ */
+function inFlightSentence(holding: string, asked: string): string {
+  return `Still showing ${holding} while ${asked} is read.`;
 }
 
 /**
@@ -418,14 +598,11 @@ function HeldWindow({
         view.state === "loading" ? styles.working : undefined,
       )}
     >
-      <p className={cx(styles.refreshing)}>
-        <Marker shape="dashed" />
-        <span>
-          {view.state === "loading"
-            ? `Still showing ${holding} while ${asked} is read.`
-            : `Still showing ${holding}. ${outcomeSentence(view, asked)}`}
-        </span>
-      </p>
+      <RailSentence>
+        {view.state === "loading"
+          ? inFlightSentence(holding, asked)
+          : `Still showing ${holding}. ${outcomeSentence(view, asked)}`}
+      </RailSentence>
       {view.state === "refused" && <RefusalDetail message={view.message} />}
       {view.state === "failed" && (
         <FailureDetail view={view} onRetry={onRetry} retry />
@@ -549,9 +726,7 @@ function Body({
 
     case "loaded":
     case "partial":
-      return (
-        <SeriesState series={view.series} complete={view.state === "loaded"} />
-      );
+      return <SeriesState series={view.series} />;
 
     case "empty":
       return (
@@ -606,16 +781,8 @@ const SKELETON_ROWS = [1, 2, 3, 4];
  * that shows: whether the coverage line says we hold all of it. Rendering them
  * from two near-identical components is how the two drift apart.
  */
-function SeriesState({
-  series,
-  complete,
-}: {
-  readonly series: PopulatedBarSeries;
-  readonly complete: boolean;
-}) {
+function SeriesState({ series }: { readonly series: PopulatedBarSeries }) {
   const prices = seriesPrices(series);
-  const { first, last } = barSpan(series);
-  const { requested, covered } = series.coverage;
 
   return (
     <div className={styles.series}>
@@ -642,21 +809,6 @@ function SeriesState({
        */}
       <div className={styles.settle} key={settleSignature(series, prices)}>
         {/*
-         * The headline used to open this block and now opens the chart's chrome
-         * above it (`CHARTING.md` §5, Task 2.12.4). What that costs is that the
-         * settle wash no longer passes under the close — the wash marks the
-         * facts, which is where the bar count and the coverage it keys on both
-         * live. Extending it over the reading is Task 2.12.7's call to take
-         * with the rest of the states rather than a detail to change here.
-         */}
-        <Coverage
-          complete={complete}
-          bars={series.bars.length}
-          requested={requested}
-          coveredEnd={formatMarketInstant(covered.end)}
-        />
-
-        {/*
          * The four prices, as a strip rather than as rows of a list.
          *
          * This is the one block on the panel that has to read at a glance, and a
@@ -681,40 +833,6 @@ function SeriesState({
             ]}
           />
         </div>
-
-        {/*
-         * The windows, and they are the reason this panel exists.
-         *
-         * Two rows rather than four scattered facts, aligned so the two ranges
-         * sit directly above one another — because the question a reader is
-         * asking is *how do these two differ*, and two ranges that do not line up
-         * cannot be compared without reading both in full.
-         */}
-        <dl className={styles.windows}>
-          <Window label="Asked for" value={formatMarketRange(requested)} />
-          <Window label="Held" value={formatMarketRange(covered)} />
-          <Window
-            label="Bars"
-            value={`${formatCount(series.bars.length)} × ${series.timeframe}`}
-          />
-          {/*
-           * **A bar's instant, in the spelling every other bar instant in this
-           * product uses** — `formatBarInstant` and not `formatMarketInstant`,
-           * since Task 2.13.6. The two rows above are *windows*, which genuinely
-           * have a second in them; this row is two **bars**, and at `1d` a bar is
-           * a session with no time of day in it.
-           *
-           * It is the sixth surface that repair reached, and the only one nobody
-           * had listed: the task named the two readout strips, the resting peak,
-           * the spoken sentence and the volume chart's peak clause. This one was
-           * found by looking at a `1d` window on the running page, which is why
-           * the fixture had to be recorded before the decision could be taken.
-           */}
-          <Window
-            label="First → last"
-            value={`${formatBarInstant(first.startsAt, series.timeframe)} → ${formatBarInstant(last.startsAt, series.timeframe)}`}
-          />
-        </dl>
       </div>
 
       <Provenance series={series} />
@@ -747,68 +865,6 @@ function settleSignature(
 }
 
 /**
- * How much of the window we hold, in a sentence.
- *
- * **The complete case says so rather than saying nothing**, and that is the
- * decision worth stating: silence on a complete answer would make *"we hold all
- * of it"* and *"nobody checked"* look identical, which is precisely the
- * distinction this panel exists to make visible.
- *
- * The partial case names the instant it stops at, from `covered.end`, and never
- * from a constant. It is `MARKET-DATA-API.md` §6's answer rendered as an answer:
- * a short series is not a failure and must not read as one.
- */
-function Coverage({
-  complete,
-  bars,
-  requested,
-  coveredEnd,
-}: {
-  readonly complete: boolean;
-  readonly bars: number;
-  readonly requested: TimeRange;
-  readonly coveredEnd: string;
-}) {
-  return (
-    <p className={cx(styles.coverage, complete ? undefined : styles.short)}>
-      <Marker shape={complete ? "disc" : "ring"} />
-      {complete ? (
-        <span>
-          Holding all {formatCount(bars)} bars of the window asked for.
-        </span>
-      ) : (
-        <span>
-          Holding {formatCount(bars)} bars, through {coveredEnd} — less than the
-          window asked for, which runs to {formatMarketInstant(requested.end)}.
-        </span>
-      )}
-    </p>
-  );
-}
-
-/**
- * One labelled window or span, on a fixed label column so the values align.
- *
- * The alignment is the whole point: two ranges that do not start in the same
- * column cannot be compared at a glance, and comparing them is the question
- * this block answers.
- */
-function Window({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: string;
-}) {
-  return (
-    <div className={styles.window}>
-      <dt className={styles.windowLabel}>{label}</dt>
-      <dd className={styles.windowValue}>{value}</dd>
-    </div>
-  );
-}
-
-/**
  * Which feed these bars came from, in the shipped vocabulary.
  *
  * The words are `MARKET_FEED_DESCRIPTIONS`', never this component's: a renderer
@@ -824,9 +880,29 @@ function Window({
  * two sources mean two feeds. So this renders the distinct feeds rather than one
  * label, and it does not write the *"stitched from two feeds"* wording, because
  * that sentence has no producer yet and Story 2.14 owns it.
+ *
+ * ## It renders only where the chrome's own label cannot be right — 2026-09-14
+ *
+ * The masthead carries `FeedProvenance` on every screen, so for a series whose
+ * sources all name **one** feed this line was the same fact twice, three
+ * centimetres below a chart that had just been given back its vertical space.
+ *
+ * What it is *not* safe to delete is the case invariant 6 exists for. The free
+ * Alpaca plan is asymmetric — stored history is consolidated SIP and the live
+ * stream is IEX — so the moment Epic 3 stitches a live tail onto stored bars,
+ * **one page-level label is wrong about half of this series** and the honest
+ * answer is per-series. That is the condition below, and it is a property of the
+ * answer rather than a flag: more than one distinct feed in the sources.
+ *
+ * So today it never renders and no reader loses anything, and the day the second
+ * feed arrives it renders itself. The alternative was a note in a document
+ * saying *put this back in Epic 3*, which is the kind of note that is read after
+ * the screen has shipped without it.
  */
 function Provenance({ series }: { readonly series: PopulatedBarSeries }) {
   const feeds = [...new Set(series.provenance.sources.map((s) => s.feed))];
+
+  if (feeds.length < 2) return null;
 
   return (
     <div className={styles.provenance}>

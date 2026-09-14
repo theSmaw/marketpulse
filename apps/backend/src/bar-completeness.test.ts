@@ -370,6 +370,85 @@ describe("compareStoreToCalendar — cause 4, the fetch never happened", () => {
     expect(report.series[0]?.barsExpected).toBe(0);
   });
 
+  it("tells a security that listed mid-window from one the backfill missed", () => {
+    // **The finding this separation exists for**, and it was found in the store
+    // rather than in a test: FDXF, HONA and Q — FedEx Freight, Honeywell
+    // Aerospace and Qnity Electronics — are 2025–26 spin-offs, and every session
+    // before each one listed was reported as *behind the rest of the window*
+    // under a heading saying that is the one finding meaning something is wrong
+    // with us rather than with the market. It was neither: every one of those
+    // sessions was fetched and the vendor had nothing to send.
+    //
+    // The attempt log is the only thing that tells the two apart, which is the
+    // same statement criterion 4 makes one row further in.
+    const report = compare([
+      {
+        symbol: NVDA,
+        timeframe: "1m",
+        coverage: coverageOver(
+          NVDA,
+          WEEK.slice(3),
+          completeBars(WEEK.slice(3)),
+        ),
+        attempts: WEEK.slice(0, 3).map((session) =>
+          attempt({ sessionDate: session.date, outcome: "ok" }),
+        ),
+        lastBarAt: openOf(WEEK, 4),
+      },
+    ]);
+
+    const listed = report.findings.filter(
+      (finding) => finding.kind === "listed-mid-window",
+    );
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.sessions).toHaveLength(3);
+    expect(listed[0]?.firstHeld).toBe(WEEK[3]?.date);
+
+    // Not a gap, and not a person's problem.
+    expect(
+      report.findings.filter((finding) => finding.kind === "not-fetched"),
+    ).toEqual([]);
+    expect(report.findings.filter(needsAttention)).toEqual([]);
+
+    // **And not reported twice.** Those same three sessions are in the attempt
+    // log, and listing them there as well is what turned three spin-offs into
+    // 416 rows of `ok` that a reader has to scroll past to find the one attempt
+    // that matters.
+    expect(
+      report.findings.filter(
+        (finding) => finding.kind === "attempted-and-empty",
+      ),
+    ).toEqual([]);
+  });
+
+  it("still reports a session nobody asked about as a gap", () => {
+    // The other half, and the one a catch-up acts on: no attempt against it, so
+    // nothing knows whether the market had anything. The separation must not
+    // swallow this.
+    const report = compare([
+      {
+        symbol: NVDA,
+        timeframe: "1m",
+        coverage: coverageOver(
+          NVDA,
+          WEEK.slice(3),
+          completeBars(WEEK.slice(3)),
+        ),
+        attempts: WEEK.slice(0, 1).map((session) =>
+          attempt({ sessionDate: session.date, outcome: "ok" }),
+        ),
+        lastBarAt: openOf(WEEK, 4),
+      },
+    ]);
+
+    const missed = report.findings.filter(
+      (finding) => finding.kind === "not-fetched",
+    );
+    expect(missed).toHaveLength(1);
+    // Two of the three, because one of them was asked for.
+    expect(missed[0]?.sessions).toEqual([WEEK[1]?.date, WEEK[2]?.date]);
+  });
+
   it("finds a symbol behind the rest of the universe", () => {
     // The default window is the ledger's own span, so `not fetched` means
     // *behind the rest* — the state Task 2.8.6 left with no instrument at all,

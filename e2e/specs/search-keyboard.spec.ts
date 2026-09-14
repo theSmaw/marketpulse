@@ -120,9 +120,9 @@ test("search, open, and land on that security's page", async ({ page }) => {
   // in both environments — see `security-series.spec.ts` for the full argument.
   const price = page.getByRole("region", { name: "Price" });
   await expect(
-    readable(price, /Holding .* bars/).or(
-      readable(price, /No bars stored for this window/),
-    ),
+    price
+      .getByText("Close", { exact: true })
+      .or(readable(price, /No bars stored for this window/)),
   ).toBeVisible();
 
   await expectNothingFailedToRender(page);
@@ -332,7 +332,8 @@ for (const [width, height] of [
     // a correct page to walk.
     await expect(
       page
-        .getByText(/Holding .* bars/)
+        .getByRole("region", { name: "Price" })
+        .getByText("Close", { exact: true })
         .or(page.getByText(/No bars stored for this window/))
         .first(),
     ).toBeVisible();

@@ -699,6 +699,14 @@ At 342 px of region the control wraps to its own full-width row beneath the
 heading and the cells flex. It never truncates a label and never drops the
 readout, which is the half that explains the other five.
 
+**Amended 2026-09-13 (§71, and again in §72): it is no longer on the heading
+row.** It sits on the panel's own header band, at the right-hand end of the line
+carrying the security's ticker. The reason above still stands — this is not a page-level control bar, it
+is one row inside one panel — and what it did not weigh is that a control on a
+heading row makes _that_ region's heading taller than every other region's on the
+screen, and that the rail had nowhere to go but into the flow above the chart.
+The reversal trigger is unchanged.
+
 ---
 
 ## 9. The proportion of the pair, and it is a number with a reason
@@ -3782,3 +3790,408 @@ date on it. Two things this story owes are open and named with owners rather tha
 closed quietly: the listening pass and the weekday 1D photograph. One thing it
 tried to make mechanical could not be made mechanical, and that is recorded with
 the reason rather than as a silent omission.
+
+---
+
+# Part ten — after the close (2026-09-13)
+
+## 69. The rail took its height out of the flow, and the chart jumped 30px
+
+Reported by a person using the page: **press a window and the price chart drops
+down**, then rises again when the answer lands.
+
+The cause is §6.3's rail and nothing else. It is rendered above the picture,
+exactly and only while a request is unanswered — which is to say **at the moment
+somebody presses a window** — and it took its height out of the normal flow. So
+the sequence a reader gets for one press is: chart in place, chart 30px lower,
+chart in place. The picture is the thing they are looking at and, on a machine
+with a pointer, the thing their hand is on.
+
+Measured rather than estimated: with the repair reverted,
+`e2e/specs/security-window-change.spec.ts` reports **30** where it requires under
+
+1. That figure is one dense line of sentence plus the rail block's twelve pixels
+   of padding above its own hairline, which is the rail's whole height — the panel's
+   16px gap is spent either way.
+
+### 69.1 Why it is a reservation rather than a move
+
+Three repairs were available and two were rejected:
+
+- **Move the rail below the chart.** Rejected: §6.3 is explicit that the label
+  saying _which window the picture is of_ has to be **above** the picture,
+  because a reader's first question about a screen that did not change when they
+  pressed something is _what am I looking at_. A sentence under the chart answers
+  it after the chart has already been misread.
+- **Overlay the rail on the chart.** Rejected for the reason the stale rail was
+  put beside the numbers rather than on them in the first place: nothing in this
+  panel is allowed to make a figure harder to read while somebody is reading it.
+- **Reserve the slot.** Taken.
+
+### 69.2 The reservation is a measurement, not a length
+
+`CHARTING.md` §15.4's finding applies here unchanged, and it is the reason this
+is not a `min-height` token: **no single reserved height is correct at more than
+one width.** The rail's sentence — _Still showing the 5-session window while the
+21-session window is read._ — is one line at 1440 and **two** at 390.
+
+So the slot is one grid cell with every state of the rail placed in it, the live
+one visible and a hidden copy of the in-flight sentence laid out beside it. The
+row is therefore as tall as the tallest of them _at this width_. The hidden copy
+is `aria-hidden` and `visibility: hidden` — present in layout, absent from
+everything else — and has nothing focusable in it, so it is out of the tab order
+by construction.
+
+The phrase it is measured against is the **longest** of the five windows the
+control offers, plus the two this screen is actually holding and asking for. That
+last part matters: an address naming a count the control does not offer sizes the
+slot for itself rather than being clipped by a vocabulary that never saw it.
+
+### 69.3 What the break-verification says, and it says the expected thing twice
+
+Two substitutions were performed rather than assumed:
+
+1. **The sizer deleted.** `pressing a window does not move the chart` goes red at
+   **30** against a tolerance of 1, and the component test asserting the
+   reservation is present goes red with it. `pnpm verify` stays entirely green
+   throughout, which is this file's standing point about layout: jsdom computes
+   no layout, so the defect and the repair render identically below `pnpm e2e`.
+2. **The sizer replaced by a 30px `height`** — the obvious wrong repair, a
+   measurement of one viewport declared as a constant. **Desktop stays green and
+   tablet and phone go red.** That is §15.4's shape reproduced exactly, and it is
+   why the new test runs at three viewports rather than at the one a developer
+   is looking at.
+
+### 69.4 What is deliberately not reserved
+
+The extra content the **refused** and **failed** rails bring — the server's own
+sentence, the retry, the reference. Those are settled outcomes that no press of a
+window can produce: the control emits only the five counts and every one of them
+is answerable, so a refusal needs a hand-typed address and a failure needs a
+broken network. Reserving the tallest of them permanently would put a failure's
+worth of empty space above every chart in the product, on every screen, for ever.
+
+The residue is honest: **a window change that fails still moves the chart**, by
+whatever the failure's own rail is taller than one sentence. It moves once, to a
+settled state, rather than twice under a pointer.
+
+### 69.5 One number, and it is a fraction of a token
+
+`.rail` gives back half the panel's gap at each end (`margin-block: calc(-1 *
+var(--space-8))`). Without it the slot spends a full gap above **and** below a
+region that is empty in the steady state, and the result reads as a missing
+element between the ticker and the price rather than as breathing room around the
+display figure. Eight pixels either side is what the rail needs to sit clear of
+both when it _is_ occupied, and it already carries twelve below its sentence
+before its hairline.
+
+### 69.6 Two locators learned that a hidden copy is in the DOM
+
+Both are the same correction made twice, and both are the query telling the
+truth rather than a nuisance:
+
+- `BarSeriesPanel.test.tsx`'s `VISIBLE` now ignores `aria-hidden` subtrees, as it
+  already ignored `role="status"`. Same rule: a text query that does not say
+  which channel it means resolves to every channel.
+- `e2e/support/app.ts`'s `readable` now requires `:visible`. Note this is the one
+  exclusion that could not be written as an attribute selector — the hidden
+  element is a wrapper and the text is in a child. It covers the two
+  `chart-readout.module.css` sizers too, which were only ever missed because
+  nothing had yet queried their text.
+
+## 70. Twenty-one dead stories, since Task 2.13.4
+
+Found by opening the workshop to review §69: **every story on
+`Market/BarSeriesPanel` was an error screen**, and had been since the task that
+put the chart inside the panel.
+
+`useChartAxis` throws outside a `ChartAxis` on purpose — §15.1's mechanism, and
+the thing that stops a second plot building its own axis — so from the moment
+`BarSeriesPanel` rendered a `PriceChart`, its stories needed the provider the
+route and the component test both give it. Every chart story in
+`components/PriceChart/` wraps correctly. The one file that needed a decorator
+was the one file that did not have one.
+
+**Nothing caught it and nothing could have.** `pnpm stories` fails if a component
+has no stories _file_; it does not open one. Storybook's build compiles a story
+rather than rendering it, so twenty-one throwing stories build clean. `pnpm
+verify` was green throughout, and so was the browser suite, which drives the
+product rather than the workshop.
+
+The repair is one decorator on `meta`, built from `screen.shown` rather than
+`screen.view` — the axis is the window of the picture that is **on screen**,
+which on a window change is not the window that was asked for — plus one
+`ChartAxis` per panel inside `AllPermutations`, because an axis is a window and
+that story holds thirteen.
+
+It is worth recording as a **class** rather than as a bug: a story is reviewed by
+a person, and the gap between _builds_ and _renders_ is invisible to every gate
+this repository has. `CLAUDE.md`'s gap list carries the re-measure.
+
+## 71. The row above the picture, and the region heading given back
+
+§69 reserved a slot for the rail and paid for it in height: a band above the
+chart that is empty in the steady state. Looked at on the running page, that band
+was **the wrong shape of repair** — it bought a still picture with permanent
+white space, and it was noticed immediately.
+
+What replaced it costs nothing, and the move is three changes that only work
+together.
+
+### 71.1 The control comes off the region's heading row
+
+§8.6 put it there and gave the honest reason: this product has no page-level
+control bar, and inventing one for a single control is chrome arriving before its
+second occupant. That reason still stands — what is below is **one row inside one
+panel**, not a control bar — and two things it did not weigh are visible the
+moment the page is looked at:
+
+1. **It makes the Price region's heading taller than every other region's.** Four
+   regions on that screen have a heading of one line; one has a heading sized by
+   a 36px control. Nothing about the window is a property of _this_ region's
+   name.
+2. **It leaves the rail nowhere to go.** The rail has to sit above the picture
+   (§6.3), it exists only while a request is unanswered, and everything above the
+   picture in this panel is in the normal flow.
+
+### 71.2 The rail and the control share one row
+
+The control is permanent, so the row is permanent. The rail takes the space to
+its left, which is dead at every width where the two fit on one line. The rail
+therefore costs **nothing** at those widths: the row's height is the control's,
+and the reservation §69 built is absorbed by it.
+
+Measured on the running page at 1440: the chart's top is identical either side of
+a press, and the row above it is the same height it was with no rail in it.
+
+Where they do not fit — 768px and 390px of _region_, which is where the control
+alone already wraps — the rail takes a line of its own and §69's reservation is
+what stops that line appearing under the reader's hand. So the reservation
+survives, and it is free exactly where the space was expensive.
+
+### 71.3 The `filledBy` sentence goes
+
+_"One security's closes over the window you choose, drawn — with the exact figures
+the picture rounds stated beneath it."_
+
+It earned its place when this region held a **fence** — Story 1.5's convention was
+that a region says what it holds and what it deliberately does not, and a panel of
+numbers where a reader expects a chart looks unfinished unless it says the chart
+is a story away. Task 2.12.4 drew the chart and amended the sentence; Task 2.13.6
+shipped the control and amended it again. What was left was a caption for a
+picture immediately below it, above a control that says the same thing in less
+space, costing the drawing a paragraph of height at every width.
+
+So it is **deleted rather than amended a third time**, and `Region`'s prop is
+optional rather than this one call site passing an empty string. `SecurityExplorer
+.test.tsx`'s assertion moved with the sentence, as it did both previous times —
+the region's _name_ and its landmark are unchanged and still asserted.
+
+`Region`'s `control` prop is removed in the same change. It had one consumer, and
+an honest-but-unused slot on a shared component is the `initiallyCollapsed`
+hazard `SEARCH-AND-SELECTION.md` records: the next author to reach for it would be
+re-introducing the taller heading with nothing going red.
+
+### 71.4 The defect this uncovered, which was the same defect one layer down
+
+With the rail reserved, the tablet viewport **still moved 24px** — and the rail
+was not the cause. The control's own readout is what moved: `5 SESSIONS` fitted
+beside the five cells at 318px of region and `21 SESSIONS` did not, so pressing
+`1M` wrapped the readout onto a second line and made the control 24px taller.
+
+It is the same rule as §69 one layer down, and it had been there since Task
+2.13.6 — invisible while the control sat on a heading row with nothing under it
+that a reader was looking at. The repair is the same idiom for the third time:
+the readout is a one-cell grid holding its value and a hidden copy of the
+**widest count this control could be asked to show** — the five it offers, plus
+whatever the address named, because a `1,000-session` address is a routine input
+here. Its `aria-describedby` target moved to the value itself, so the description
+every cell points at is the sentence a reader sees rather than that sentence with
+a measurement in front of it.
+
+**Break-verified**: deleting that copy takes `pressing a window does not move the
+chart at tablet` red at **24**, and leaves desktop and phone green. Which is the
+third time in two days that the middle viewport is the instrument.
+
+### 71.5 What this cost, honestly
+
+At 768px and 390px of region the reserved rail line is still a band of white
+above the control in the steady state, and the control is now permanently two
+lines at those widths rather than sometimes one. Both are the price of a picture
+that does not move. It is strictly less than what was there before this change,
+which was a taller heading, a three-line paragraph **and** the reserved band.
+
+### 71.6 One instrument corrected
+
+`plotTop` measured the plot against the **document** and was flaky at 390px in a
+full parallel run — 82px, with nothing in the panel having changed. The cause is
+worth recording because it is not this change: the identity block above the grid
+is filled by the **universe** request, and under load that can land after the bars
+do, moving the whole region down the page. The assertion is now the plot's
+position **inside its own region**, which is the property the rail can actually
+affect.
+
+## 72. The header band, and the row that had one occupant
+
+§71 moved the control off the region's heading and gave it a row of its own,
+with the rail beside it. Looked at on the running page, **a row with one
+right-aligned occupant is two thirds dead space** — the same complaint §69's
+reserved slot drew, in a new place. It was noticed immediately, again, which is
+worth recording: both of these were found by a person opening the page and
+neither was visible to anything mechanical.
+
+### 72.1 The panel already had an empty line, and it was the right one
+
+`NVDA` sits on a line of its own with nothing to its right. `VISUAL-LANGUAGE.md`'s
+own reading of the control settles where it goes: a segmented control in the
+micro-label idiom is **instrument chrome**, and instrument chrome belongs on the
+instrument's name line. So the header band is one row — subject left, control
+right, `space-between` — which is what `Panel` and `PageHeader` already do one
+level up. No new idiom, and one row fewer than before.
+
+`flex-end` rather than `center`, because the subject block is one line or two (the
+`defaulted` sentence on the bare `/securities`) and a control floating against the
+middle of a two-line block reads as belonging to neither line.
+
+### 72.2 The rail moves to the headline row, where it is free
+
+The rail needs a permanent partner or it moves the chart. The headline row is the
+best one in the panel for it: **the close is set at display size**, so a line — or
+two — of secondary text beside it is inside the height that figure already spends.
+
+It is also where the sentence belongs to be read. _Still showing the 5-session
+window while the 21-session window is read_ is a statement about the window whose
+close is the figure it now sits beside, above the chart of that same window.
+
+The dashed marching rule under it lands directly above the chart, which turned out
+to be the best position it has had: it reads as a rule closing the header band
+rather than as an underline of a sentence.
+
+§69's reservation stays underneath, and is still a measurement rather than a
+length. Two states carry **no headline at all** — a held `empty`, and everything
+before the first answer — so the row cannot be relied on to be tall, and at 390
+the sentence wraps past the figure's height anyway.
+
+### 72.3 The reservation got tighter, because it was over-reserving
+
+`reservedPhrase` built the sizer from the **widest phrase in both halves**. That
+is not the worst case; it is worse than the worst case. Measured at 1024, the
+extra clause wrapped where the real sentence did not, putting an empty second line
+above the chart on every screen at that width.
+
+The exact worst case a press of the control can produce is known: the window being
+**held** is whatever is on screen now, and the window being **asked for** is one of
+the five the control offers. So the sizer is `inFlightSentence(current, widest
+offered)` — one line at 1024 where the old one was two, and still an upper bound
+rather than a guess. The current window stays in the candidate set for the second
+half because an address may name a count no member of `TIME_WINDOWS` is as long as.
+
+### 72.4 Swept at nine widths rather than three
+
+The shipped assertion runs at the suite's three viewports. This change was checked
+at **1440, 1280, 1100, 1024, 900, 768, 600, 500 and 390**, against all three of
+`1D`, `1M` and `1Y`, four repeats each — 108 runs, no movement at any of them. The
+sweep is not kept: it is nine viewports of browser for a property three already
+hold, and `CLAUDE.md`'s rule is that a check nobody runs is not a check. What it
+bought is the 1024 finding above, which the three viewports do not reach.
+
+### 72.5 The instrument, corrected a second time
+
+The sweep failed intermittently at **exactly 14 px**, at random widths, with every
+element in the panel measuring identically in both snapshots. The cause is that
+`plotTop` read two bounding boxes in **two** round trips: something on this screen
+moves the whole page 14 px shortly after load, and a measurement that straddles it
+attributes the page's movement to the chart. Both boxes are now read in one
+`evaluate`.
+
+It is the same class as §71.6 and worth stating as a rule: **a comparison of two
+positions must be taken in one round trip**, or the thing being measured is the
+interval rather than the layout.
+
+## 73. The readout, narrowed to the state it was invented for
+
+`63 sessions` beside a selected `3M` is the same figure a third time. The chart's
+spoken description already names the resolved session count, and the coverage
+sentence beneath the plot states the range in full — so §4(e)'s _the label says
+the approximation and the readout says the fact_ is satisfied twice over on the
+same screen before this control says anything.
+
+What the readout is genuinely for is the state the **address** makes reachable
+and the control cannot: `?sessions=7` by hand, `?sessions=30` from Epic 11's
+`setTimeWindow`. The control shows no selection rather than snapping, so five
+cells with no bar under any of them is a real and permanent state — and five
+blank cells read as broken, while five blank cells beside `7 sessions` read as a
+product that understood the address.
+
+So it renders when nothing is selected, and not otherwise.
+
+**Both channels are narrowed together.** The cells' `aria-describedby` points at
+it only where it exists. Task 2.13.8's walk applied parity between what a reader
+sees and what a listener hears as its test; a description that a sighted reader
+cannot see fails that test in the other direction, and "the readout is on screen
+but only spoken" would be the same defect mirrored.
+
+**It retires §71.4's reservation rather than keeping it.** That existed because
+the readout's width decided whether this row wrapped, so a press that changed `5
+SESSIONS` to `21 SESSIONS` made the control 24px taller. No press changes it now:
+a press moves one selected state to another and neither has a readout. One
+transition still changes this control's width — _no selection_ to a pressed
+window — and it is reachable only from a hand-typed or agent-written count, once,
+and it narrows chrome rather than moving anything under a reader's hand. That is
+recorded rather than reserved against.
+
+## 74. Four blocks off the panel, and what still says each thing
+
+Asked for on 2026-09-14, by name: the chart's resting invitation, the coverage
+sentence, the `Asked for` / `Held` / `Bars` / `First → last` list, and the
+`Market feed` row.
+
+**None of them was the only home of what it said**, which is the test applied to
+each before it came off:
+
+| Removed                                                       | Still stated by                                                                                                                |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| _Point at the chart, or press the left and right arrow keys…_ | The chart's `aria-describedby`, read on arrival at its single tab stop                                                         |
+| _Holding 59 bars, through … — less than the window asked for_ | The uncovered ground and the coverage edge, drawn; and the chart's text alternative, counted in the axis's own trading minutes |
+| `Asked for` / `Held` / `Bars` / `First → last`                | The address and the control for the window; the reading a pointer or an arrow key produces for the instants and the bar count  |
+| `Market feed — All US exchanges`                              | The masthead's `FeedProvenance`, on every screen; and the chart's text alternative, per series                                 |
+
+What is left on the panel is the identity, the control, the headline, the
+picture, the reserved reading strip and the four prices.
+
+### 74.1 The feed row is narrowed rather than deleted
+
+Invariant 6 is not a preference. The free Alpaca plan is asymmetric — stored
+history is consolidated SIP, the live stream is IEX — so from Epic 3 a stitched
+series genuinely names **two** feeds and one page-level label is wrong about half
+of it.
+
+So `Provenance` renders when the series carries more than one distinct feed, and
+not otherwise. Today no body has two, so it never renders and the screen is
+exactly what was asked for; the day the second feed arrives it renders itself.
+The alternative was a note in a document saying _put this back in Epic 3_, which
+is the kind of note that is read after the screen has shipped without it.
+
+Its test is the one place in `BarSeriesPanel.test.tsx` that does not use a
+recorded body whole: it is the recorded stitch with **one field changed**,
+through the real transition, because no shipped endpoint produces a two-feed body
+yet. The field is named in the test so that the day one is recorded, this is
+replaced by it rather than kept.
+
+### 74.2 What this cost in tests, which is the interesting part
+
+Nineteen component tests and **fifty-seven** browser assertions went red, and
+almost none of them were _about_ the removed text. They failed because
+`Holding N bars` was the signal the whole suite waited on — `anAnswer(page)`, in
+six specs, meaning _the panel has settled_. A sentence that half a suite
+synchronises on is a load-bearing surface whether or not anybody designed it to
+be one.
+
+The replacement is the `Close` metric label, which is the narrowest thing on the
+panel that exists exactly when an answer with bars does. Two derived readings
+moved with it: _does this store cover the whole window_ now comes off the chart's
+text alternative (`the full width of the window asked for`), and _is the strip at
+rest_ is now asserted as **no live `Bar` label and a hidden one still there** —
+which is a stronger assertion than the invitation ever was, because it fails
+against a strip that has stopped reserving its height as well as one that has
+stopped resting.

@@ -97,10 +97,32 @@ function chart() {
  * `aria-hidden`, which is exactly the claim *this is not for a reader*.
  */
 function readout(): HTMLElement {
-  const marker = screen.getByText(/Point at the chart|·/u, { ignore: HIDDEN });
+  const marker = screen.getByText(/·/u, { ignore: HIDDEN });
   const line = marker.parentElement;
   if (line === null) throw new Error("the readout strip lost its row");
   return line;
+}
+
+/**
+ * What the strip is showing a **reader**, which at rest is nothing at all.
+ *
+ * Since 2026-09-14 the resting state carries no invitation, so "at rest" cannot
+ * be asserted by finding a sentence — it is asserted by the live row being
+ * empty while the hidden reading that reserves its height is not. That pair is
+ * the whole mechanism, and a test that only looked at the first half would pass
+ * against a strip that had stopped reserving anything.
+ */
+function resting(container: HTMLElement): boolean {
+  const line = container.querySelector("p");
+  const rows = [...(line?.children ?? [])];
+
+  return (
+    strip(container) === "" &&
+    rows.some(
+      (row) =>
+        row.getAttribute("aria-hidden") === "true" && row.textContent !== "",
+    )
+  );
 }
 
 /** Everything the accessibility tree drops, as a selector. */
@@ -148,17 +170,16 @@ describe("what a person reaches", () => {
   });
 
   it("says nothing at all before anybody has pointed at it", () => {
-    renderReading();
+    const { container } = renderReading();
 
     // Silent on arrival — `FRONTEND-STATE.md` §7's fourth clause. The region is
     // present so a screen reader is watching it, and it is empty.
     expect(screen.getByRole("status").textContent).toBe("");
 
-    // And the strip holds the invitation rather than a blank, which is the only
-    // thing on this page that says the keyboard path exists.
-    expect(
-      screen.getByText(/Point at the chart/u, { ignore: HIDDEN }),
-    ).toBeTruthy();
+    // And the strip is blank to a reader while still holding its height open —
+    // the invitation it used to carry went on 2026-09-14, and the hidden reading
+    // beside it is now the only thing reserving the row.
+    expect(resting(container)).toBe(true);
   });
 
   it("renders nothing at all when there is nothing to read", () => {
@@ -247,22 +268,18 @@ describe("the keyboard path", () => {
   });
 
   it("clears the reading on Escape and leaves the chart focused", () => {
-    renderReading();
+    const { container } = renderReading();
 
     chart().focus();
     fireEvent.keyDown(chart(), { key: "ArrowLeft" });
-    expect(
-      screen.queryByText(/Point at the chart/u, { ignore: HIDDEN }),
-    ).toBeNull();
+    expect(resting(container)).toBe(false);
 
     fireEvent.keyDown(chart(), { key: "Escape" });
 
-    // The strip returns to the invitation — the same height, so nothing below
+    // The strip returns to its resting blank — the same height, so nothing below
     // it moves — and focus stays where it was, which is only legible because
     // the focus ring is on the plot rather than on a disc that has just gone.
-    expect(
-      screen.getByText(/Point at the chart/u, { ignore: HIDDEN }),
-    ).toBeTruthy();
+    expect(resting(container)).toBe(true);
     expect(document.activeElement).toBe(chart());
   });
 
@@ -310,17 +327,13 @@ describe("the keyboard path", () => {
   });
 
   it("clears the reading when focus leaves", () => {
-    renderReading();
+    const { container } = renderReading();
 
     fireEvent.focus(chart());
-    expect(
-      screen.queryByText(/Point at the chart/u, { ignore: HIDDEN }),
-    ).toBeNull();
+    expect(resting(container)).toBe(false);
 
     fireEvent.blur(chart());
-    expect(
-      screen.getByText(/Point at the chart/u, { ignore: HIDDEN }),
-    ).toBeTruthy();
+    expect(resting(container)).toBe(true);
   });
 });
 
@@ -546,7 +559,7 @@ describe("a window change, with a reading still live", () => {
     // presented as the bar the reader was looking at.
     rerender(<ReadingFor name="full" />);
 
-    expect(strip(container)).toContain("Point at the chart");
+    expect(resting(container)).toBe(true);
   });
 
   it("leaves focus exactly where Escape leaves it", () => {

@@ -1642,3 +1642,89 @@ rule about an instant:
 **Break-verified**: restoring `wanted + 1 … .slice(0, wanted)` takes **all seven**
 red. A guard for a defect this quiet is worth nothing unless the break was
 performed, and this is a defect that survived four green instruments.
+
+## 8.20 Three spin-offs read as a backfill failure — found 2026-09-14
+
+`pnpm bars:check` reported three series under the heading **_behind the rest of
+the window_**, whose own text says _this is the one finding that means something
+is wrong with us rather than with the market_:
+
+```
+  ○ 3 series behind the rest of the window:
+      FDXF    183 sessions, 2025-09-08 … 2026-05-29
+      HONA    193 sessions, 2025-09-08 … 2026-06-12
+      Q       40 sessions, 2025-09-08 … 2025-10-31
+```
+
+Nothing is wrong with them. They are **FedEx Freight Holding, Honeywell
+Aerospace and Qnity Electronics** — 2025–26 spin-offs, all three in the curated
+universe, none of which existed for the whole window.
+
+### 8.20.1 What the store actually holds
+
+|        | `1m` covered            | `1d` covered            | first bars     |
+| ------ | ----------------------- | ----------------------- | -------------- |
+| `FDXF` | 2026-06-01 → 2026-09-11 | 2026-05-13 → 2026-09-14 | **2026-06-01** |
+| `HONA` | 2026-06-15 → 2026-09-11 | 2026-06-11 → 2026-09-14 | **2026-06-15** |
+| `Q`    | 2025-11-03 → 2026-09-11 | 2025-10-21 → 2026-09-14 | **2025-11-03** |
+
+Every one of them is covered to the current session. Every missing session has a
+recorded attempt whose outcome is **`ok`** — the vendor answered and had nothing
+to send — 183, 193 and 40 of them at `1m`, and 604, 614 and 461 at `1d`.
+
+**Confirmed against the vendor rather than inferred**, one request each:
+
+- `FDXF` 2026-05-20 → 2026-06-05 returns **5 bars**, the first stamped
+  2026-06-01, opening at 164.00 and closing its first day at 149.53.
+- `HONA` 2026-06-08 → 2026-06-17 returns **3 bars**, the first 2026-06-15 —
+  401 shares at a flat 200.00, which is what a when-issued first print looks
+  like.
+- `Q` 2025-10-27 → 2025-11-05 returns **3 bars**, the first 2025-11-03.
+
+Each matches the ledger's covered start exactly. The ingestion is correct and has
+been all along.
+
+### 8.20.2 The defect was in the instrument, and it reported the same fact twice
+
+`compareStoreToCalendar` classified a session as `not-fetched` on one test —
+_does it lie outside the ledger's covered range_ — and then pushed every attempt
+as `attempted-and-empty` regardless. So the same 416 sessions appeared **twice**:
+once as three series "behind", and once as 416 rows of `ok` that a reader has to
+scroll past to reach the one attempt that matters.
+
+The repair is that _outside the covered range_ and _not fetched_ are different
+questions, and the attempt log is the only thing that tells them apart:
+
+- a missing session **with** a recorded attempt was fetched and the market had
+  nothing → new finding `listed-mid-window`, one line per series, and the
+  attempt is no longer listed a second time;
+- a missing session **with no attempt** is a genuine gap → `not-fetched`,
+  unchanged, and still the only finding a catch-up run should act on.
+
+Neither needs a person. The report grew a **third** closing line for the case
+where nothing needs a person _and_ nothing needs a run, because telling a reader
+to re-run against a report whose only findings are listings is how a diagnostic
+teaches people to ignore it.
+
+### 8.20.3 What it found once it could see
+
+At `1d` over the full 2024–2026 window the same rule names **eight**, and every
+one is a real listing event:
+
+`GEV` (GE Vernova) and `SOLV` (Solventum) and `RDDT` (Reddit) all from
+2024-03-18, `SNDK` (SanDisk) 2025-02-03, `PSKY` (Paramount Skydance) 2025-07-28,
+`Q` 2025-10-21, `FDXF` 2026-05-13, `HONA` 2026-06-11.
+
+Three spin-offs on one day in March 2024 is the check corroborating itself: that
+is a real week in the market, not an artefact of our ingestion.
+
+### 8.20.4 The residue
+
+`1d` still reports 61 `ok` attempts, mostly `FDXF` between 2026-05-13 and
+2026-05-29. Those sit **inside** the ledger's covered range — the daily backfill
+opened the range at the window it asked for rather than at the first bar — so
+they are genuinely "attempted and empty" by the rule above, and the report's own
+sentence explains what `ok` means. It is 61 rows rather than 416 and it is left
+alone: a second rule keyed on "before this series' first bar" would need a
+first-bar date the completeness report does not carry, to quieten a section that
+is already honest.

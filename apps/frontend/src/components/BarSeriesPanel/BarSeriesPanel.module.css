@@ -88,6 +88,85 @@
 /* --- A newer answer on its way --- */
 
 /*
+ * **The header band** (2026-09-13): the instrument on the left, the control that
+ * changes it on the right.
+ *
+ * One row rather than two. The control had a row of its own for half a day and
+ * a row with one right-aligned occupant is two thirds dead space; the ticker's
+ * line was empty to its right the whole time. `space-between` and `wrap`, which
+ * is what `Panel` and `PageHeader` already do one level up — nothing here is a
+ * new idiom.
+ *
+ * `flex-end` rather than `center`: the subject block is one line or two (the
+ * defaulted sentence), and a control that floats against the middle of a
+ * two-line block reads as unattached to either. Sitting on the block's last
+ * line it reads as belonging to the name above it.
+ */
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-16);
+}
+
+/*
+ * **The headline row**: the close on the left, and whatever happened to the
+ * request on the right.
+ *
+ * The pairing is the whole point. The close is set at display size, so a line —
+ * or two — of secondary text beside it is inside the height the figure already
+ * spends, and the rail costs nothing at the widths where they fit side by side.
+ *
+ * `baseline` so the sentence sits on the figure's own baseline rather than
+ * floating against its cap height. That is this file's existing rule: the
+ * headline's own percentage is baselined against the close for the same reason.
+ */
+.reading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-24);
+}
+
+/*
+ * The rail's own cell: one grid cell with every state of the rail placed in it,
+ * so none of them can change the row's height and push the chart down.
+ *
+ * The row is as tall as the tallest of them **at this width** — the only form of
+ * reservation that survives a sentence that wraps at 390px and does not at 1440.
+ * `chart-readout.module.css` carries the whole argument; this is its second
+ * consumer and the first outside a chart. No height token, deliberately: a
+ * number here would be a measurement of one viewport declared as a constant.
+ *
+ * `flex: 1` with `min-width: 0` — it takes the room the figure leaves and no
+ * more, and a long sentence wraps inside it rather than pushing anything off the
+ * row.
+ */
+.rail {
+  display: grid;
+  grid-template-columns: 1fr;
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+/* One state of the cell. They are stacked in it rather than in a column. */
+.railState {
+  grid-area: 1 / 1;
+}
+
+/*
+ * Present in layout and absent from everything else — `visibility: hidden`
+ * rather than `display: none`, which is the entire point, and `pointer-events:
+ * none` so a hidden sentence cannot take a click meant for the figure beside it.
+ */
+.railSizer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/*
  * The stale rail: one sentence, a dashed marker, and a hairline under it that
  * travels.
  *

@@ -61,7 +61,7 @@ function cell(page: Page, name: string) {
 /** The panel has settled on an answer — **either** answer. */
 function anAnswer(page: Page) {
   return priceRegion(page)
-    .getByText(/Holding .* bars/)
+    .getByText("Close", { exact: true })
     .or(priceRegion(page).getByText(/No bars stored for this window/))
     .first();
 }
@@ -149,6 +149,56 @@ async function holdTheAnswer(page: Page) {
   };
 }
 
+/**
+ * **Where the price plot is on the page** — the instrument for *the picture did
+ * not move*, as distinct from *the picture did not change*.
+ *
+ * `plotMarks` above compares what is drawn; this compares where it is drawn, and
+ * the two are independent: the rail that appears when a window is pressed is
+ * rendered **above** the chart, so a rail that takes its height out of the flow
+ * pushes an identical picture down the page. That is a defect a reader finds
+ * immediately — the chart jumps under the pointer that is reading it — and it is
+ * invisible to every level below this one, because jsdom computes no layout.
+ *
+ * `svg:has(line)` is `security-price-chart.spec.ts`' plot locator, verbatim: a
+ * bare `locator("svg")` also matches the reading overlay and, in the failure
+ * states, nothing at all.
+ */
+async function plotTop(page: Page): Promise<number> {
+  // **Measured against the region rather than the document, and both boxes read
+  // in one evaluate.** Two properties, both learned by watching it fail:
+  //
+  //  - *Against the region*, because the identity block above this grid is
+  //    filled by the **universe** request and under load that can land after the
+  //    bars do, moving the whole region 82 px with nothing in this panel changed.
+  //  - *In one evaluate*, because two `boundingBox()` calls are two round trips:
+  //    anything that moves the page between them — and something on this screen
+  //    moves it by 14 px shortly after load — lands entirely in the difference.
+  //    That is a measurement straddling a reflow rather than a chart moving.
+  return priceRegion(page).evaluate((section) => {
+    const plot = section.querySelector("svg:has(line)");
+    if (plot === null) throw new Error("no plot in the Price region");
+
+    return (
+      plot.getBoundingClientRect().top - section.getBoundingClientRect().top
+    );
+  });
+}
+
+/**
+ * The three widths, for the one assertion whose answer differs between them.
+ *
+ * The rail's sentence wraps to two lines at 390px and to one at 1440, so a slot
+ * reserved by a **length** passes at the width somebody measured and fails at
+ * every other. `CHARTING.md` §15.4 is the same finding on the readout strip, and
+ * the middle viewport is again the instrument.
+ */
+const VIEWPORTS = [
+  { name: "desktop", width: 1440, height: 900 },
+  { name: "tablet", width: 768, height: 800 },
+  { name: "phone", width: 390, height: 780 },
+] as const;
+
 test("a window change keeps the previous window's charts on screen, labelled", async ({
   page,
 }) => {
@@ -159,6 +209,7 @@ test("a window change keeps the previous window's charts on screen, labelled", a
   // so there are gridlines and an axis rule even where there are no bars.
   const before = await plotMarks(page);
   expect(before).not.toBe("");
+  const wasAt = await plotTop(page);
 
   const release = await holdTheAnswer(page);
   await cell(page, "1 month").click();
@@ -169,6 +220,11 @@ test("a window change keeps the previous window's charts on screen, labelled", a
     "Still showing the 5-session window while the 21-session window is read",
   );
   expect(await plotMarks(page)).toBe(before);
+  // **And it did not move.** The rail is above the chart, so the slot it goes in
+  // is reserved whether it is occupied or not — `BarSeriesPanel.tsx`'s `Rail`.
+  // One pixel of tolerance rather than none: a box is a float and the rail's
+  // sentence is laid out twice at the same width.
+  expect(Math.abs((await plotTop(page)) - wasAt)).toBeLessThan(1);
   // `.first()`: the volume plot draws its canvas and its reading overlay as two
   // absolutely-positioned siblings, so `locator("svg")` is two nodes.
   await expect(volumeRegion(page).locator("svg").first()).toBeVisible();
@@ -179,6 +235,42 @@ test("a window change keeps the previous window's charts on screen, labelled", a
   await expect(anAnswer(page)).toBeVisible();
   await expectNothingFailedToRender(page);
 });
+
+// **The chart does not move when a window is pressed** (2026-09-13).
+//
+// The rail is rendered above the picture and only while a request is
+// unanswered, so without a reserved slot the chart drops the instant somebody
+// presses a window and rises again when the answer lands — 30px, measured, under
+// the pointer of the person reading it. `BarSeriesPanel.tsx`'s `Rail` is the
+// repair and this is the only instrument that can see it: jsdom computes no
+// layout, so the defect and the fix render identically below `pnpm e2e`.
+for (const viewport of VIEWPORTS) {
+  test(`pressing a window does not move the chart at ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({
+      width: viewport.width,
+      height: viewport.height,
+    });
+    await page.goto(EXPLORER);
+    await expect(anAnswer(page)).toBeVisible();
+
+    const wasAt = await plotTop(page);
+
+    const release = await holdTheAnswer(page);
+    await cell(page, "1 month").click();
+    await expect(heldRail(page)).toBeVisible();
+
+    // One pixel of tolerance rather than none: a box is a float, and the
+    // reservation is the same sentence laid out twice at the same width.
+    expect(Math.abs((await plotTop(page)) - wasAt)).toBeLessThan(1);
+
+    release();
+    await expect(anAnswer(page)).toBeVisible();
+    expect(Math.abs((await plotTop(page)) - wasAt)).toBeLessThan(1);
+    await expectNothingFailedToRender(page);
+  });
+}
 
 test("a failed window change leaves the charts, one retry, and no blank page", async ({
   page,

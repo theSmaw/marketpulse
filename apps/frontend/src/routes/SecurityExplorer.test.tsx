@@ -311,28 +311,27 @@ describe("the market-data region", () => {
     });
   });
 
-  it("names the region and what it deliberately does not hold", async () => {
+  it("names the region, and no longer captions the picture inside it", async () => {
     renderAt(PATHS.securities);
 
     // The region is a landmark with a name, like every other one on this page,
     // so a keyboard or screen-reader user has something to jump to.
     //
-    // **`filledBy` has now been amended twice in the same way**, which is the
-    // rule for a live claim that has become false rather than a habit. Task
-    // 2.12.4 drew the chart and deleted *"a chart arrives with Story 2.12"* in
-    // the same commit; Task 2.13.6 shipped the control and deleted *"changing
-    // the window arrives with Story 2.13"* in the same commit. Both times the
-    // assertion moved with the sentence rather than being deleted, because a
-    // region whose description stops matching its contents is exactly what
-    // nothing else here would catch.
+    // **`filledBy` was amended twice and then removed**, and the third move is
+    // the same rule as the first two rather than a reversal of them. Task 2.12.4
+    // drew the chart and deleted *"a chart arrives with Story 2.12"*; Task
+    // 2.13.6 shipped the control and deleted *"changing the window arrives with
+    // Story 2.13"*. What was left described a drawing directly beneath it, above
+    // a control that says the same thing in less space — so 2026-09-13 deleted
+    // the sentence rather than amending it a third time, and this assertion
+    // moved with it. `Region`'s prop is optional; the name and the landmark are
+    // not.
     await waitFor(() => {
       expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
     });
-    expect(screen.getByText(/closes over the window you choose/)).toBeTruthy();
+    expect(screen.queryByText(/closes over the window you choose/)).toBeNull();
 
-    // And the sentence no longer promises a story that has landed. A region that
-    // says a capability is coming while carrying the control for it is the live
-    // claim this check exists to keep honest.
+    // And nothing here promises a story that has landed.
     expect(
       screen.queryByText(/Changing the window arrives with Story 2.13/),
     ).toBeNull();
@@ -427,7 +426,11 @@ describe("search, and the rest of the page around it", () => {
       expect(screen.getByText("no response")).toBeTruthy();
     });
     // The panel answered, and says so with a figure only a real body carries.
-    expect(screen.getByText("30 × 1m")).toBeTruthy();
+    // The bar count came off the panel on 2026-09-14 with the rest of the window
+    // list, so the figure is now one of the four prices — still a number this
+    // page cannot produce without a body.
+    expect(screen.getByText("Close")).toBeTruthy();
+    expect(screen.getAllByText(/\d+\.\d\d/).length).toBeGreaterThan(0);
   });
 
   // `SEARCH-AND-SELECTION.md` §6: the summary line says which of two numbers it
@@ -542,8 +545,9 @@ describe("the Security Explorer shell", () => {
     // describing one screen must not open on the same clause. Eight regions
     // arrived at once here, and the cheap check is exactly this — a locator
     // that resolves to two nodes means two surfaces are saying one thing.
+    // The Price region is **not** in this list since 2026-09-13: it carries no
+    // sentence at all, which is a different claim and is asserted above.
     for (const opening of [
-      "One security's closes over the window you choose",
       "How unusual this security's behaviour",
       "Traded volume over the same window",
       "This security measured against",

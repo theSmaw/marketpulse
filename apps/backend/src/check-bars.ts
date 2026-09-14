@@ -172,11 +172,23 @@ export function summariseBarsCheck(
   lines.push(...renderFindings(report.findings));
 
   const attention = report.findings.filter(needsAttention).length;
+
+  // **Three closings rather than two** (2026-09-14). A run fixes a gap; it does
+  // not fix a security that had not listed yet, and telling a reader to re-run
+  // against a report whose only findings are listings is how a diagnostic
+  // teaches people to ignore it.
+  const fixableByARun = report.findings.some(
+    (finding) =>
+      finding.kind === "not-fetched" || finding.kind === "never-fetched",
+  );
+
   lines.push(
     "",
-    attention === 0
-      ? "  Nothing here needs a person: re-running `pnpm backfill` is the whole response."
-      : `  ${String(attention)} of these need a person rather than another backfill run.`,
+    attention > 0
+      ? `  ${String(attention)} of these need a person rather than another backfill run.`
+      : fixableByARun
+        ? "  Nothing here needs a person: re-running `pnpm backfill` is the whole response."
+        : "  Nothing here needs a person and nothing here needs a run. Every finding above is\n  the market rather than the store.",
     "",
     "  Nothing was written. This command reads the store and reports on it.",
     "",
@@ -224,6 +236,33 @@ function renderFindings(
       "    fetched — this is the one finding that means something is wrong with us",
       "    rather than with the market. A symbol that is behind and stays behind after a",
       "    re-run is one the backfill gave up on; look for it below.",
+    );
+  }
+
+  const listedLate = findings.filter(
+    (finding) => finding.kind === "listed-mid-window",
+  );
+  if (listedLate.length > 0) {
+    lines.push(
+      "",
+      `  ○ ${String(listedLate.length)} series that listed after the window opened:`,
+      ...listedLate
+        .slice(0, MAX_TABLE_ROWS)
+        .map(
+          (finding) =>
+            `      ${finding.symbol.padEnd(8)}${String(finding.sessions.length)} sessions before it traded` +
+            (finding.firstHeld === undefined
+              ? ""
+              : `, first bars ${finding.firstHeld}`),
+        ),
+      ...(listedLate.length > MAX_TABLE_ROWS
+        ? [`      … and ${String(listedLate.length - MAX_TABLE_ROWS)} more`]
+        : []),
+      "",
+      "    Every one of these sessions WAS fetched and the vendor had nothing to send —",
+      "    a spin-off or a new listing has no bars before its first trade, and no run",
+      "    will ever produce one. Nothing to do. It is reported so a series shorter than",
+      "    its neighbours has a stated reason rather than looking like a gap.",
     );
   }
 

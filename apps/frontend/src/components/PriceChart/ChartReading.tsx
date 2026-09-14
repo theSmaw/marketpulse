@@ -192,7 +192,7 @@ export function ChartReading({
   //  - **No tab stop.** A focusable chart that answers no key press is a stop
   //    that wastes a press, and this component is reached in `loading` and in
   //    `empty` — both of which draw a real frame with no line in it.
-  //  - **No invitation.** "Point at the chart to read a bar" over a chart with
+  //  - **Nothing to invite.** A resting strip over a chart with
   //    no bars is an instruction that does not work.
   //  - **No live region.** This is the page's fourth, and the persistence rule
   //    (`FRONTEND-STATE.md` §7 — a region mounted at the moment it has
@@ -425,16 +425,18 @@ const POINT_RADIUS = 4.5;
  * ## The height is reserved whether or not there is a reading
  *
  * A region that grows when a pointer enters it is a page that jumps under
- * somebody's hand, and the figures below this strip are the exact ones the
- * picture rounds. So the empty state is the same height as the full one, and it
- * holds **the invitation** — which is the only affordance this chart has, and
- * the only thing in the product that says the keyboard path exists.
+ * somebody's hand. So the empty state is the same height as the full one —
+ * and since 2026-09-14 the empty state is **empty**: the invitation it used to
+ * hold is gone, and what is left is a reserved row that says nothing until a
+ * pointer or an arrow key gives it something to say.
  *
  * **How it is reserved changed on 2026-09-12**, and the reason is in the body:
  * a token held it at 1440 and nowhere else, because a reading wraps at widths
- * the invitation does not. It is now a hidden reading in the same grid cell,
+ * a shorter state does not. It is now a hidden reading in the same grid cell,
  * which makes the reservation a measurement of the real thing at the real
- * width rather than a number somebody chose at one viewport.
+ * width rather than a number somebody chose at one viewport. With the
+ * invitation gone that hidden reading is the *only* thing holding the row open,
+ * which makes it more load-bearing than it was, not less.
  *
  * ## The change is labelled `BAR`, and that label is load-bearing
  *
@@ -490,50 +492,30 @@ function Readout({
         </span>
       )}
       {/*
-       * **The second sizer, added by Task 2.13.5** — and it completes the
-       * mechanism rather than adding to it.
+       * **At rest this row says nothing** (2026-09-14), and the sizer above is
+       * what keeps it a row anyway.
        *
-       * With one hidden reading the row is `max(reading, whatever is live)`: at
-       * rest that is `max(reading, invitation)` and with a reading it is
-       * `max(reading, reading)`. So a width at which the *invitation* is the
-       * taller of the two still drops the strip by a line the moment a pointer
-       * enters the plot — the identical defect §15.4 found from the other
-       * direction, and it has never been measured at three viewports. Hiding
-       * **both** states makes the row the taller of the two at every width,
-       * whichever one is showing.
+       * It used to carry an invitation — *point at the chart, or press the left
+       * and right arrow keys, to read a bar* — which was the only thing on screen
+       * saying the keyboard path exists. What replaced it for a listener is
+       * nothing, because nothing needed replacing: the hint below is the chart's
+       * own `aria-describedby`, read on arrival at its single tab stop, and it
+       * always was the channel that mattered. What a sighted reader loses is the
+       * discoverability, deliberately — a permanent instruction under a chart is
+       * chrome that every reader pays for and each one needs once.
        *
-       * The volume strip needed this first, because both of its states are
-       * content rather than one being an invitation. Doing it here in the same
-       * change is what stops the two strips reserving their height by two
-       * different rules.
+       * The **reservation stays**, and is the whole reason the empty state is a
+       * `<span>` rather than nothing: a row that collapses at rest and opens
+       * under a pointer moves everything below it at the moment somebody is
+       * reading a figure, which is `CHARTING.md` §15.4's defect from the other
+       * direction.
        */}
-      <span aria-hidden="true" className={cx(styles.line, styles.sizer)}>
-        <Invitation />
-      </span>
       <span className={styles.line}>
-        {point === undefined ? (
-          <Invitation />
-        ) : (
+        {point === undefined ? null : (
           <BarFigures bar={point.bar} timeframe={timeframe} />
         )}
       </span>
     </p>
-  );
-}
-
-/**
- * The resting state, and the only thing in this product that says the keyboard
- * path exists.
- *
- * A component rather than a literal since Task 2.13.5, because it is now
- * rendered twice — once live and once hidden, to reserve the row at a width
- * where it is the taller of the strip's two states.
- */
-function Invitation() {
-  return (
-    <span className={styles.invitation}>
-      Point at the chart, or press the left and right arrow keys, to read a bar.
-    </span>
   );
 }
 

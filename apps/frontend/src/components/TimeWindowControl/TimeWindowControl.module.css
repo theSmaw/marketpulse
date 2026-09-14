@@ -134,6 +134,11 @@
  * `white-space: nowrap` because `21 SESSIONS` breaking across two lines in a
  * panel heading is the one way this can look broken, and it is the state that
  * explains the other five.
+ *
+ * **It is rendered only where no cell is selected** (2026-09-14), which is also
+ * what retired the width reservation this rule carried for a day: no press
+ * changes the readout now, because a press moves one selected state to another
+ * and neither has one.
  */
 .readout {
   composes: microLabel from "../../styles/type.module.css";

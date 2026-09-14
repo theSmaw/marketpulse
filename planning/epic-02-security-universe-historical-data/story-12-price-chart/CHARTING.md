@@ -1258,6 +1258,16 @@ exact pixel. At rest the row carries **the invitation** — which is the only
 affordance this chart has, and the only thing anywhere on the page that says the
 keyboard path exists.
 
+> **Amended 2026-09-14: the invitation is gone and the row stays.** A permanent
+> instruction under a chart is chrome every reader pays for and each one needs
+> once, and it was one of four blocks taken off this panel in the same change
+> (`VOLUME-AND-WINDOW.md` §74). What a listener gets is unchanged — the hint is
+> the chart's own `aria-describedby`, read on arrival at its single tab stop, and
+> that always was the channel that mattered; what a sighted reader loses is the
+> discoverability, deliberately. The **reservation** below is untouched and is
+> now more load-bearing than it was: with nothing live in the resting row, the
+> hidden reading is the only thing holding it open.
+
 ### 13.7 The memoisation repair, measured after rather than reported
 
 Task 2.12.4's amendment assigned this task the unmemoised `chartFrame` call and

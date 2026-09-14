@@ -68,14 +68,14 @@ function anAnswer(scope: Locator): Locator {
   // live region whose sentence repeats what is on screen, so a bare text match
   // resolves to two elements. Every assertion in this file is about what a
   // reader sees; the announcement has its own spec.
-  return readable(scope, /Holding .* bars/).or(
-    readable(scope, /No bars stored for this window/),
-  );
+  return scope
+    .getByText("Close", { exact: true })
+    .or(readable(scope, /No bars stored for this window/));
 }
 
 /** Did this run land on a store with bars in it? */
 async function hasBars(scope: Locator): Promise<boolean> {
-  return scope.getByText(/Holding .* bars/).isVisible();
+  return scope.getByText("Close", { exact: true }).isVisible();
 }
 
 test("a deep link renders one security's real bars, from a real request", async ({
@@ -103,35 +103,32 @@ test("a deep link renders one security's real bars, from a real request", async 
   await expect(region.getByText(/E[DS]T/).first()).toBeVisible();
 
   if (await hasBars(region)) {
-    // Both windows, which is the pair this whole story exists to keep honest.
-    // `exact` because the coverage sentence also contains the words "asked for"
-    // — a substring match resolves to two elements and fails in strict mode,
-    // which is Playwright telling the truth rather than being awkward.
-    await expect(region.getByText("Asked for", { exact: true })).toBeVisible();
-    await expect(region.getByText("Held", { exact: true })).toBeVisible();
-
-    // The four prices a session is summarised by.
+    // The four prices a session is summarised by, which since 2026-09-14 are the
+    // whole of what this panel states as text. The two windows and the coverage
+    // sentence came off it: the window is in the address and on the control, and
+    // the coverage is drawn as the uncovered ground and spoken in the chart's
+    // text alternative, counted in the axis's own trading minutes.
     for (const label of ["Open", "High", "Low", "Close"]) {
       await expect(region.getByText(label, { exact: true })).toBeVisible();
     }
 
-    // The feed, in the shipped vocabulary rather than a slug — invariant 6 on
-    // the one series this page renders. It comes off the series' provenance, so
-    // there is nothing to label when there are no bars.
+    // **Invariant 6 on the one series this page renders**, and it is now stated
+    // once rather than twice. The panel's own `Market feed` row came off on
+    // 2026-09-14 for every series whose sources name one feed — the masthead
+    // carries that label on every screen — and what still names it *per series*
+    // is the chart's text alternative, because a picture-reader is owed the
+    // provenance the label carries.
     //
-    // **`exact` on both since Task 2.12.8**, and the reason is the rule about
-    // two surfaces using one set of words rather than an awkward locator: the
-    // chart's text alternative names the feed too, because a picture-reader is
-    // owed the provenance the label carries, and it names it in the *shipped*
-    // vocabulary — which is the one part of that sentence that cannot be
-    // re-worded to avoid the collision. So the label is matched as the whole of
-    // an element's text, which the alternative's own sentence is not.
-    await expect(
-      region.getByText("Market feed", { exact: true }),
-    ).toBeVisible();
-    await expect(
-      region.getByText("All US exchanges", { exact: true }),
-    ).toBeVisible();
+    // So this matches the shipped vocabulary **inside** the alternative's
+    // sentence rather than as the whole of an element's text, which is the
+    // opposite of what Task 2.12.8 needed when both surfaces existed.
+    await expect(region).toContainText("All US exchanges");
+
+    // And the row itself is gone, which is the half that would otherwise come
+    // back by accident: two surfaces naming one feed three centimetres apart.
+    await expect(region.getByText("Market feed", { exact: true })).toHaveCount(
+      0,
+    );
   }
 
   await expectNothingFailedToRender(page);
