@@ -1,6 +1,6 @@
 # Task 2.14.2 — The provenance surface, and the states it shares a page with, on the canvas
 
-**Status:** Not started
+**Status:** Complete — 2026-09-14
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.1
 
@@ -109,3 +109,146 @@ visible" plainly.
 Do not build anything here. The one thing this task may touch in the tree is
 `tokens.css` and `VISUAL-LANGUAGE.md`; components are 2.14.3 onward. The
 separation is what made 2.13.2 cheap and 2.13.4 fast.
+
+---
+
+## What was done
+
+**Canvas:** `Provenance and the empty answers.dc.html`, a new file in the
+`Component library for MarketPulse` project. ADR 0026's rule applied rather than
+departed from: _a design that does not fit the main canvas is added as its own
+file_, and the main canvas is still past `get_file`'s 256 KiB ceiling.
+
+Nine sections. §01 the spine; §02 the whole Security Explorer at 1440 with
+everything this story adds in place at once; §03 the masthead and the note on one
+artboard; §04 the note's three shapes; §05 the coverage sentence's placement;
+§06 the two empty answers; §07 the four tests; §08 the reconciliation; §09 what
+is left open. Every string traces to a module named in 2.14.1's decisions.
+
+### The finding the whole task exists for
+
+Five additions to one panel do not pile up if **each surface on the screen owns
+one subject and states nothing that belongs to another** — and the test for
+which surface a clause belongs to is its **grain**: per deployment, per request,
+per bar, per screen, per empty plot. There is exactly one surface per grain. That
+is now the language's rule rather than this story's arrangement, because Epic 3
+extends this surface and Epic 8 has a parallel kind of provenance.
+
+### Three things drawing it changed
+
+1. **§0.1's suppression rule is per clause, not per note.** A zero-bar page still
+   has a resolved security, so the classification claim has data and the note
+   draws it alone. As written the rule would have removed that claim from every
+   page CI renders. Amended in `PROVENANCE.md` §0.1.
+2. **The coverage sentence goes on the rail, and the rail gains a stated
+   priority** — held window, then coverage, then nothing. Recorded in §3, with
+   the reservation re-measure handed to 2.14.5.
+3. **The two empty answers are four literals, not two.** The volume plot names
+   its own subject, and a price plot and a volume plot telling different stories
+   about one empty screen is worse than the extra literal. Recorded in §6.3, with
+   the four `pnpm break` entries it costs.
+
+A fourth, smaller: **the note sits above the tracked universe, not at the foot of
+the page.** The table is not one of §8.3's seven contents and is not about this
+security.
+
+### Reconciled downward
+
+- **`VISUAL-LANGUAGE.md` gains a `Provenance` section** — the five-surface spine
+  and the grain test, the note's two shapes, the rail's priority, the two empty
+  answers, the divergence, and Epic 3's reserved live row.
+- **`tokens.css` gains nothing, deliberately.** Every value the surface needs
+  already exists and already means this; a token here would be one designed
+  against no consumer, which is why ADR 0026 declined `micro/10` and why it stays
+  declined.
+- **The standing exception fired a fourth time and was swept upward the same
+  day.** The canvas's `#74777f` micro ink measures **4.26:1** on
+  `--surface-page` — worse than the 4.48 ADR 0026 records for the same ink,
+  because that was measured on white and this is the first micro surface in the
+  product standing on the page ground. Ships as `--ink-secondary`, 8.87:1. The
+  count was live and wrong in four places: `CLAUDE.md`, `VISUAL-LANGUAGE.md`
+  twice, and ADR 0026 (a dated amendment, not a rewrite).
+
+### The four tests, and test 4's number
+
+1. **A real funded product** — yes; a chart with an account of itself is the
+   difference between an instrument and a scaffold.
+2. **Designed rather than defaulted** — yes, and the evidence is what is absent.
+   A default provenance surface is an icon, a tooltip and grey badges.
+3. **A moment worth showing somebody** — yes: the two-row ledger, `780 bars ·
+All US exchanges` over `30 bars · IEX`.
+4. **Does it feel alive** — **deferred. This is the fifth time, stated as a
+   number.** Everything this story adds is static by construction and §5.3
+   explicitly refused to make the one candidate relative. What this task does
+   instead of deferring empty-handed is **reserve the position**: Epic 3's
+   §36 sentence is a provenance claim that changes while somebody watches, and it
+   has a drawn home in the ledger's first row.
+
+**What the user can see: nothing.** No new label, no new sentence, no new state.
+The payoffs are 2.14.3, 2.14.4, 2.14.5 and 2.14.6. **What a user still cannot
+do:** watch a price move.
+
+---
+
+## For the stakeholder — what this actually was, in plain words
+
+**Nothing on the screen changed today.** This was a drawing job, and the reason
+it was worth a day is easier to state as the alternative.
+
+MarketPulse is about to tell you five new things about the numbers it shows you:
+which stock exchanges the prices came from, whether they have been restated for
+stock splits, when we last fetched them, that the "Technology · Semiconductors"
+label is our own filing rather than something the market said, and — when we only
+managed to answer part of the period you asked for — exactly how far the answer
+reaches. Every one of those is worth saying. Said one at a time, by five
+different people on five different days, they would have arrived as five small
+lines of grey text stacked under a chart: the sort of footnote pile that teaches
+people the small print is not worth reading, which is precisely the opposite of
+the point.
+
+So before writing any of it, we drew the finished screen with all five on it at
+once, and asked whether it still reads as one instrument. It does — but only
+because of a rule the drawing forced us to find. **Every surface on the page
+answers exactly one question, and never borrows another's.** The strip at the top
+of the window says what feed this deployment reads and nothing else. The line
+beside the price says what happened to the request you made. The row under the
+chart says what one bar did. A single note at the foot says where the numbers came
+from. Once that is written down, there is never an argument about where a new
+sentence goes — you name what the sentence is _about_, and that names its home.
+
+Three real problems fell out of the drawing, each of which would otherwise have
+been found by a user or by a reviewer months later:
+
+- The rule we had written would have **hidden the "we chose this sector
+  ourselves" disclosure on exactly the pages with no price data** — which is
+  every page in our automated test environment, and any newly added security. The
+  disclosure is about our own research file, not about the prices, so it stays.
+- The sentence saying **how far a short answer reaches** had two candidate
+  homes, and the obvious one put it _underneath_ the picture it explains — the
+  same mistake we caught and fixed last week, where people met an empty box first
+  and its explanation second. It goes above the chart, beside the numbers it
+  qualifies.
+- Telling **"we hold nothing at all for this company"** apart from **"we hold
+  plenty, just not for these dates"** turns out to need wording on _both_ charts,
+  not one. They imply different next actions — in the first case changing the
+  date range will not help — and half a screen saying one and half saying the
+  other is worse than not distinguishing them at all.
+
+We also re-measured a colour. The shared design system draws this kind of fine
+print in a light grey that, on the background this particular note sits on, is
+below the legibility threshold for small text — 4.26 against a required 4.5. The
+design system's _intention_ was adopted, its value was not, and the measurement
+is written down beside the decision so nobody "corrects" it back.
+
+**Where this leaves the product.** Epic 2 has been about making one security's
+history real: the data, the charts, the time windows. This story is about making
+it _honest_ — which is not a compliance exercise, it is the foundation for
+everything after it. The whole premise of MarketPulse is that an AI investigates
+a market move and a human can check its evidence. Evidence you cannot trace is not
+evidence. The surfaces drawn today are where every later claim — a live price in
+Epic 3, an anomaly score in Epic 5, an SEC filing in Epic 9, an AI finding in Epic
+10 — will have to say where it came from, and they now have a home, a vocabulary
+and a rule that stops them multiplying into noise.
+
+The next four tasks are the build. They are renderers now, which is exactly what
+this task was for.
