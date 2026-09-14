@@ -162,6 +162,16 @@ wrong at least as much as on its happy path.
 1. A user looking at any market number can see which feed it came from, without hovering
 2. No screen states or implies full US-market coverage — checked by reading every string
    the epic added, not by intent
+
+   > **Read this as _coverage claimed wrongly in either direction_, not as
+   > written** (Task 2.14.5, `PROVENANCE.md` §11.1). Taken literally it inverts:
+   > stored bars **are** the consolidated SIP tape, so `All US exchanges` is an
+   > exact statement of what is in them, and deleting it would be a false
+   > disclaimer rather than an honest hedge. The two failures are implying
+   > coverage the plan does not have **and** disclaiming coverage it does — and
+   > the second is the one a careful reviewer introduces by accident. The pass
+   > was executed against both, and is recorded as a list in §11.3.
+
 3. Every failure and partial state in the epic renders locally and deployed, and none of
    them produces a global error screen
 4. **The epic's exit criterion is executed in the deployed environment**: search NVDA, open

@@ -6,9 +6,11 @@ import type { PopulatedBarSeries } from "../../market/index.js";
 import {
   barSpan,
   changePercent,
+  coveragePhrase,
   formatCount,
   formatMarketInstant,
   formatMarketRange,
+  sentenceCase,
   seriesPrices,
 } from "./series-facts.js";
 
@@ -167,5 +169,70 @@ describe("barSpan", () => {
 describe("formatCount", () => {
   it("gives a count its separators, so 10,000 reads as a number", () => {
     expect(formatCount(10_000)).toBe("10,000");
+  });
+});
+
+describe("coveragePhrase", () => {
+  // The whole point of the sentence is the pair of instants: the axis is
+  // session-ordinal (ADR 0027), so a reader can see that the line stops short
+  // of the frame and cannot read back *when* it stopped. Both ends are stated
+  // in full, zone abbreviation included, for `formatMarketInstant`'s own
+  // reason — a bare `16:00` on a five-session window does not say which day.
+  it("says how far the answer reaches and how far the window ran", () => {
+    const view = barSeriesFixtureView("partial");
+    if (view.state !== "partial") throw new Error("not partial");
+
+    expect(coveragePhrase(view.series)).toBe(
+      "holding 60 bars, through 2026-09-04 16:00:00 EDT, of a window " +
+        "running to 2026-09-05 16:00:00 EDT.",
+    );
+  });
+
+  // A statement of fact rather than a warning: a historical chart that ends
+  // where the store ends is a correct historical chart, and stored history is
+  // caught up overnight. §36's *"Live feed disconnected"* earns its urgency
+  // because something stopped; nothing has stopped here, and the words must not
+  // borrow the alarm.
+  it("carries no alarm in its words", () => {
+    const view = barSeriesFixtureView("partial");
+    if (view.state !== "partial") throw new Error("not partial");
+
+    const phrase = coveragePhrase(view.series);
+
+    for (const alarm of [
+      "only",
+      "just",
+      "unfortunately",
+      "failed",
+      "missing",
+      "incomplete",
+      "unavailable",
+      "sorry",
+    ]) {
+      expect(phrase.toLowerCase()).not.toContain(alarm);
+    }
+  });
+
+  it("gives the count its separators, like every other count on the panel", () => {
+    const view = barSeriesFixtureView("dense");
+    if (view.state !== "partial" && view.state !== "loaded")
+      throw new Error("not an answer");
+
+    // `dense` is the default window's density — 1,950 bars over five sessions —
+    // and a four-figure count with no separator in a sentence of two
+    // timestamps is the one figure a reader has to stop and parse.
+    expect(coveragePhrase(view.series)).toContain(",");
+  });
+});
+
+describe("sentenceCase", () => {
+  it("raises a clause to the start of a sentence and touches nothing else", () => {
+    expect(sentenceCase("holding 60 bars, through 16:00.")).toBe(
+      "Holding 60 bars, through 16:00.",
+    );
+  });
+
+  it("is total on the empty string, which is what a missing clause is", () => {
+    expect(sentenceCase("")).toBe("");
   });
 });

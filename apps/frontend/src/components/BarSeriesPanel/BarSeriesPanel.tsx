@@ -29,7 +29,12 @@ import { PriceChange } from "../PriceChange/PriceChange.js";
 import { PriceChart } from "../PriceChart/PriceChart.js";
 import { announceSeries } from "./series-announcement.js";
 import type { SeriesPrices } from "./series-facts.js";
-import { changePercent, seriesPrices } from "./series-facts.js";
+import {
+  changePercent,
+  coveragePhrase,
+  sentenceCase,
+  seriesPrices,
+} from "./series-facts.js";
 import styles from "./BarSeriesPanel.module.css";
 
 // One security's bar series — **the chart, and the exact figures the picture
@@ -522,19 +527,31 @@ function Rail({
   return (
     <div className={styles.rail}>
       {/*
-       * The reservation: the in-flight rail, at the longest window phrase this
-       * screen could name, hidden. `aria-hidden` and `visibility: hidden` — it
-       * is present in layout and absent from everything else, and it has
-       * nothing focusable in it, so it is out of the tab order by construction.
+       * The reservation: the sentences this slot could be asked to hold, laid
+       * out and hidden. `aria-hidden` and `visibility: hidden` — present in
+       * layout and absent from everything else, and with nothing focusable in
+       * them they are out of the tab order by construction.
+       *
+       * **Two cells since 2026-09-15 (Task 2.14.5), and stacked rather than
+       * compared.** The rail gained a third occupant and the two candidates are
+       * not commensurable as strings: the held sentence's worst case is picked
+       * from a closed set of window phrases, the coverage sentence's length is
+       * a property of an answer. Comparing character counts would be an
+       * argument; putting both in the same grid cell makes the row as tall as
+       * the taller **at this width**, which is the only reservation that
+       * survives a sentence that wraps at 390 and does not at 1440, and is the
+       * measurement `CLAUDE.md` asks for rather than the argument it warns
+       * about.
        */}
       <div
         aria-hidden="true"
         className={cx(styles.railState, styles.railSizer)}
       >
-        <div className={styles.heldWindow}>
+        <div className={styles.railBlock}>
           <RailSentence>{reservedSentence(screen)}</RailSentence>
         </div>
       </div>
+      <CoverageReservation view={screen.shown} />
       <div className={styles.railState}>
         {/*
          * **One rail position, two subjects** (Task 2.13.7), and they are
@@ -547,12 +564,139 @@ function Rail({
          * about another window, which is two marks for one fact: the held
          * answer is by definition not about to be refreshed, because the
          * request behind it has already been superseded.
+         *
+         * **A third subject joined them on 2026-09-15** (Task 2.14.5), and it
+         * is the one that is *not* exclusive with the other two — a held
+         * answer can itself be partial. So the slot has a stated priority
+         * rather than a stack, and {@link Settled} is where the second half of
+         * it is written.
          */}
         {screen.previous === null ? (
-          isStale(screen.shown) && <Refreshing />
+          <Settled view={screen.shown} />
         ) : (
           <HeldWindow screen={screen} onRetry={onRetry} />
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * **What the rail says when the picture is the answer to the question that was
+ * asked** (Task 2.14.5) — which is the half of the priority that is not about a
+ * held window.
+ *
+ * `PROVENANCE.md` §3.2 states the order rather than stacking it, because the
+ * slot reserves one sentence's height and two sentences in it is the layout
+ * shift the reservation exists to prevent:
+ *
+ *   1. **A held window**, handled by {@link HeldWindow} above this component.
+ *      The picture belongs to a window the reader did not ask for, and until
+ *      that is said every other sentence about *the window* is ambiguous about
+ *      which one — including the coverage sentence, which would otherwise be
+ *      describing a window nobody asked for.
+ *   2. **Refreshing**, here. Same genus as the held sentence — an outcome of a
+ *      request rather than a property of the picture — and it outranks coverage
+ *      for the same reason: a reader is owed *this is one answer old* before
+ *      *this answer is short*, and the two are naturally sequential anyway. The
+ *      refetch settles and the new answer's own coverage sentence takes the
+ *      slot, one beat later.
+ *   3. **Coverage**, when the answer on screen is short of the window it was
+ *      asked for.
+ *   4. **Nothing**, which is the ordinary case and is the decision rather than
+ *      an omission — see {@link Coverage}.
+ */
+function Settled({ view }: { readonly view: BarSeriesView }) {
+  if (isStale(view)) return <Refreshing />;
+  if (view.state !== "partial") return null;
+
+  return <Coverage series={view.series} />;
+}
+
+/**
+ * **How far this answer reaches, and how far the window ran** (Task 2.14.5).
+ *
+ * ## Why there is no sentence under a complete chart
+ *
+ * Because the axis is the answer there, and `PROVENANCE.md` §3.1 rejected
+ * saying it anyway by name: *"data through 16:00"* under a chart whose line
+ * ends at 16:00 is padding, and padding in a small type teaches a reader that
+ * the small type is not worth reading. This absence is a decision and is
+ * recorded as one so that a later reader does not read it as a state somebody
+ * forgot.
+ *
+ * ## Why there is one under a short chart
+ *
+ * The picture already says *something is missing* and *it stops here* — that is
+ * `CHARTING.md` §14.1's uncovered ground and its coverage edge, and it is a
+ * geometric answer this task does not touch. What it cannot say is **when**,
+ * because the axis is session-ordinal (ADR 0027) and an instant is exactly what
+ * an ordinal position cannot be read back as. That gap is the whole
+ * justification for the sentence.
+ *
+ * ## The words are not written here
+ *
+ * {@link coveragePhrase} is read by `series-announcement.ts` too, so the
+ * sentence a listener hears and the sentence a reader sees are one string
+ * produced once. `sentenceCase` is the only difference — spoken it is a clause
+ * mid-sentence, drawn it starts one.
+ *
+ * ## And it is not a warning
+ *
+ * The dashed marker `RailSentence` gives every occupant of this slot, no colour
+ * and no box, for the reason the two rails beside it carry: **nothing has gone
+ * wrong.** A historical chart that ends where the store ends is a correct
+ * historical chart, the four prices beside this sentence are correct prices of
+ * the bars we hold, and stored history is caught up overnight. §36's sentence
+ * has an alarm in it because something disconnected; this one must not borrow
+ * it.
+ */
+function Coverage({ series }: { readonly series: PopulatedBarSeries }) {
+  return (
+    // `.railBlock` and not a bare sentence, which is the difference between
+    // this and `Refreshing` drawn rather than said: that rail carries a
+    // hairline that **travels**, because a newer answer is on its way. This one
+    // is settled — the answer arrived and this is what it turned out to be — so
+    // it takes the static rule the held rail takes, and the rule closes the
+    // block above the picture rather than marching under a finished sentence.
+    <div className={styles.railBlock}>
+      <RailSentence>{sentenceCase(coveragePhrase(series))}</RailSentence>
+    </div>
+  );
+}
+
+/**
+ * The height a coverage sentence would take, held open before there is one.
+ *
+ * Rendered from the series **on screen** rather than from an invented worst
+ * case, and the reason is the one {@link reservedSentence} gives for
+ * enumerating only the windows the control offers: a reservation built from the
+ * longest sentence imaginable over-reserves at every width where the extra
+ * clause wraps and the real one does not, which is an empty line above every
+ * chart in the product.
+ *
+ * **What that leaves unreserved is the bar count's digits**, and it is stated
+ * rather than hidden: a press that turns a 390-bar answer into an 8,190-bar one
+ * moves this sentence's last line by two characters. Measured at 1440, 1024,
+ * 768 and 390, the line count does not change across that range — the sentence
+ * is two instants and a count, and the count is nowhere near a wrap boundary at
+ * any of the four. The residue is recorded in `docs/GAPS.md` with the width to
+ * re-measure at, because the day the phrase is reworded is the day that stops
+ * being true and nothing mechanical can see it.
+ *
+ * `null` where there is no series, which is every state before the first
+ * answer: a coverage sentence is unreachable from there without the whole panel
+ * changing shape anyway, so reserving for one would spend the height on the one
+ * screen that has no picture to protect.
+ */
+function CoverageReservation({ view }: { readonly view: BarSeriesView }) {
+  const series = readableSeries(view);
+  if (series === null) return null;
+
+  return (
+    <div aria-hidden="true" className={cx(styles.railState, styles.railSizer)}>
+      <div className={styles.railBlock}>
+        <RailSentence>{sentenceCase(coveragePhrase(series))}</RailSentence>
       </div>
     </div>
   );
@@ -749,7 +893,7 @@ function HeldWindow({
   const asked = windowPhrase(screen.asked.window);
 
   return (
-    <div className={styles.heldWindow}>
+    <div className={styles.railBlock}>
       <RailSentence>
         {`Still showing ${holding}. ${outcomeSentence(view, asked)}`}
       </RailSentence>
@@ -777,7 +921,7 @@ function HeldWindow({
  * states everywhere else on this panel.
  */
 function outcomeSentence(view: BarSeriesView, asked: string): string {
-  const subject = asked.charAt(0).toUpperCase() + asked.slice(1);
+  const subject = sentenceCase(asked);
 
   switch (view.state) {
     case "refused":

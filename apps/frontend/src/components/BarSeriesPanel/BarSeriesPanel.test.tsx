@@ -13,6 +13,7 @@ import type { BarSeriesView } from "../../market/index.js";
 import { ChartAxis } from "../PriceChart/ChartAxis.js";
 import type { BarSeriesPanelProps } from "./BarSeriesPanel.js";
 import { BarSeriesPanel } from "./BarSeriesPanel.js";
+import { announceSeries } from "./series-announcement.js";
 
 // What the panel says in each of its six states, asserted against **recorded**
 // bodies rather than hand-built ones (Task 2.10.7).
@@ -133,9 +134,17 @@ describe("BarSeriesPanel", () => {
     // The assertion is absence, which is worth one test rather than none: a
     // panel that grew a second copy of a figure the chart already states is the
     // two-surfaces-one-fact defect this repository has paid for three times.
+    //
+    // **One of the four came back on 2026-09-15 (Task 2.14.5), and the reason
+    // is the one clause of the paragraph above that was not true.** Coverage is
+    // drawn and it is spoken; what neither the uncovered ground nor the coverage
+    // edge can say is *when* the data stops, because the axis is
+    // session-ordinal and an instant is exactly what an ordinal position cannot
+    // be read back as. So the sentence is not a second copy of a figure the
+    // chart states — it is the one fact on this subject the picture structurally
+    // cannot carry, and it is asserted below rather than removed from this list.
     render(<Panel {...props} view={barSeriesFixtureView("partial")} />);
 
-    expect(screen.queryByText(/Holding \d/, VISIBLE)).toBeNull();
     expect(screen.queryByText("Asked for", VISIBLE)).toBeNull();
     expect(screen.queryByText("Held", VISIBLE)).toBeNull();
     expect(screen.queryByText("First → last", VISIBLE)).toBeNull();
@@ -143,6 +152,47 @@ describe("BarSeriesPanel", () => {
     // And it is still an answer rather than a failure: nothing offers to try
     // again.
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  // **How far a short answer reaches, in the rail** (Task 2.14.5).
+  //
+  // Three assertions, and each is a separate decision that could be taken
+  // wrongly on its own:
+  //
+  //   1. `partial` says it. The instants are the point — the axis is
+  //      session-ordinal, so the picture can say *it stops here* and cannot say
+  //      *when*.
+  //   2. `loaded` does **not**, which is `PROVENANCE.md` §3.1's rejected
+  //      candidate. Under a complete chart the axis already ends where the data
+  //      ends, and padding in a small type teaches a reader that the small type
+  //      is not worth reading. This absence is a decision, so it is a test.
+  //   3. It is the **same string** a listener is given. The drift this whole
+  //      task exists to prevent is a visible copy and a spoken copy written
+  //      separately, and the only instrument that can see it is one that reads
+  //      both and compares them.
+  it("says how far a short answer reaches, in the same words it speaks them", () => {
+    const view = barSeriesFixtureView("partial");
+    render(<Panel {...props} view={view} />);
+
+    const drawn = screen.getByText(
+      /^Holding [\d,]+ bars, through /u,
+      VISIBLE,
+    ).textContent;
+    expect(drawn).toContain("of a window running to");
+
+    // **The one function, read twice.** The phrase is a clause in the spoken
+    // sentence and the start of the drawn one, so the only difference is the
+    // first character — which is `sentenceCase`, and is exactly what the
+    // comparison below allows for and nothing more. A visible copy that drifted
+    // by a word would fail here.
+    const spoken = announceSeries(barSeriesViewScreen(view), "NVDA");
+    expect(spoken).toContain(drawn.slice(1));
+  });
+
+  it("says nothing about coverage under a complete answer", () => {
+    render(<Panel {...props} view={barSeriesFixtureView("full")} />);
+
+    expect(screen.queryByText(/Holding \d/, VISIBLE)).toBeNull();
   });
 
   // **Four again since 2026-09-15, and the day `Close` spent out of the strip

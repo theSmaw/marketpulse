@@ -1,4 +1,8 @@
-// Seven claims that used to be prose. This is the check that says they hold.
+// The claims that used to be prose. This is the check that says they hold.
+//
+// It was seven when it was written and is ten now — the count is in the
+// output rather than in this sentence, because a number in a comment beside
+// a list is a second spelling of `INVARIANTS.length`.
 //
 // ## Why this exists
 //
@@ -17,11 +21,14 @@
 // longer resolves is indistinguishable from one that passes, because nobody
 // runs either. It is check 7 below for exactly that reason.
 //
-// Seven entries were a single grep over checked-in files. They are these.
+// Seven entries were a single grep over checked-in files. They are these, plus
+// everything later stories have added the same way — Story 2.14's string pass
+// added two (`PROVENANCE.md` §11), which is `CLAUDE.md`'s rule doing its job:
+// an entry that can be made mechanical should be.
 //
 // ## What this proves
 //
-// That seven specific, named properties of the tree hold right now. Each one is
+// That a set of specific, named properties of the tree hold right now. Each is
 // a *shape* — a string present, a string absent, a count — and each replaces a
 // gap-list entry that is deleted in the same change.
 //
@@ -164,6 +171,33 @@ function sourceFilesUnder(directory) {
  * is separately identifiable in a failure message. `holiday-week` is the
  * largest at 357 kB; `securities/` is the whole recorded universe.
  */
+/**
+ * A source file with its **whole-line** comments removed.
+ *
+ * For the checks that ask *where is this sentence written*, and it exists
+ * because this repository writes more prose than code: six shipped files
+ * discuss the feed vocabulary and the coverage sentence at length in comments,
+ * and a check a comment can trip is a check nobody can keep green. The first
+ * version of `one-home-for-the-coverage-phrase` went red on a doc comment
+ * quoting the sentence it guards, which is the check being wrong rather than
+ * the tree.
+ *
+ * **It strips block comments and lines that are only a comment, and nothing
+ * else** — never a trailing `//` after code. That asymmetry is deliberate and
+ * is the safe direction: a stripper that cut a line short could *hide* a real
+ * second copy, and a missed copy looks exactly like a pass. Leaving code lines
+ * whole means the worst this can do is report a match that a reader then reads
+ * for themselves.
+ *
+ * Every caller pairs it with an anchor — the literal must still be **found** in
+ * its one expected home — so over-stripping is loud rather than silent.
+ */
+function withoutComments(text) {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//gu, "")
+    .replace(/^[ \t]*\/\/.*$/gmu, "");
+}
+
 const RECORDED_BODIES = [
   { fixture: "bar-series/default", pattern: /2026-09-04T13:3[0-9]/u },
   { fixture: "securities/universe", pattern: /Agilent Technologies/u },
@@ -448,6 +482,141 @@ const INVARIANTS = [
             "locates a settled answer by this phrase, and CI's store makes " +
             "every chart there an `empty`.",
         );
+      }
+    },
+  },
+
+  {
+    id: "one-home-for-the-coverage-phrase",
+    claim:
+      "The sentence saying how far a short answer reaches is written in one " +
+      "source file and read by both the drawn and the spoken copy.",
+    check() {
+      // **The drift this prevents is the one Story 2.14 spends most of its
+      // time on**, and it is invisible to every other instrument here: a
+      // visible sentence and a spoken sentence about the same fact, written
+      // separately, that agree on the day they are written and diverge on the
+      // day one of them is reworded. Nothing renders both at once, no test that
+      // reads one reads the other, and a reader who can see the screen never
+      // hears the other copy.
+      //
+      // `PROVENANCE.md` §3.2 settles it as **one function, two readers**. This
+      // is that arrangement as a grep.
+      //
+      // **Anchored on a literal that must be FOUND.** A "no second copy"
+      // assertion passes just as happily when the phrase has been renamed,
+      // which is how one of the original seven rotted.
+      //
+      // Read through `withoutComments`, because `chart-alternative.ts` quotes
+      // this exact sentence in prose to explain why *its* coverage clause says
+      // something different — which is the rule being honoured, not broken.
+      const PHRASE = "of a window running to";
+
+      const homes = sourceFilesUnder(
+        resolve(REPO_ROOT, "apps/frontend/src"),
+      ).filter(
+        ({ path, text }) =>
+          !/\.(?:test|stories)\.tsx?$/u.test(path) &&
+          withoutComments(text).includes(PHRASE),
+      );
+
+      const expected =
+        "apps/frontend/src/components/BarSeriesPanel/series-facts.ts";
+
+      if (homes.length === 0) {
+        throw new InvariantFailure(
+          `No source file contains ${JSON.stringify(PHRASE)}. Either the ` +
+            "coverage sentence was reworded — in which case reword it here " +
+            "too — or a partial answer stopped saying how far it reaches, " +
+            "which is the only fact about a short answer the session-ordinal " +
+            "axis cannot carry.",
+        );
+      }
+
+      const paths = homes.map(({ path }) => relative(REPO_ROOT, path));
+
+      if (paths.length !== 1 || paths[0] !== expected) {
+        throw new InvariantFailure(
+          `The coverage sentence should be written only in ${expected}, and ` +
+            `is in:\n      ` +
+            paths.join("\n      ") +
+            "\n      A second copy is two vocabularies for one fact: the " +
+            "rail and the announcement must read one function, or the screen " +
+            "and the screen reader can come to disagree with nothing to " +
+            "notice.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "one-home-for-the-feed-words",
+    claim:
+      "The words for a market feed are written once, in the shipped " +
+      "vocabulary, and never in a renderer.",
+    check() {
+      // **`PRODUCT_SPEC.md` §7.1 and invariant 6, as a grep** — and it guards
+      // both directions of Story 2.14's acceptance criterion 2, which is why
+      // it takes two literals rather than one:
+      //
+      //  - `All US exchanges` is the most coverage-claiming string in the
+      //    product. Since Task 2.14.3 it reaches the *page* rather than only
+      //    the chrome. A renderer writing those four words itself is a claim of
+      //    full US coverage that no vocabulary decided.
+      //  - the IEX sentence is the same hazard in the other direction: a
+      //    disclaimer copied onto a surface whose bars are the consolidated
+      //    tape disclaims coverage the plan actually has, and criterion 2 read
+      //    literally asks for exactly that mistake.
+      //
+      // Both live in `MARKET_FEED_DESCRIPTIONS`, and every renderer reads
+      // `.label` / `.sentence` from there. The check is that they are the only
+      // spellings.
+      //
+      // **Read through `withoutComments`**, because at least four shipped
+      // files discuss these words at length in prose — `BarSeriesPanel` and
+      // `chart-alternative` both name them in doc comments, correctly — and a
+      // check a comment can trip is a check nobody can keep green.
+      const VOCABULARY = "packages/shared/src/market-provenance.ts";
+
+      const LITERALS = [
+        "All US exchanges",
+        "Trades reported by the IEX exchange only",
+      ];
+
+      const shipped = [
+        resolve(REPO_ROOT, "apps/frontend/src"),
+        resolve(REPO_ROOT, "apps/backend/src"),
+        resolve(REPO_ROOT, "packages/shared/src"),
+      ].flatMap((directory) =>
+        sourceFilesUnder(directory)
+          .filter(({ path }) => !/\.(?:test|stories)\.tsx?$/u.test(path))
+          .map(({ path, text }) => ({ path, text: withoutComments(text) })),
+      );
+
+      for (const literal of LITERALS) {
+        const homes = shipped
+          .filter(({ text }) => text.includes(literal))
+          .map(({ path }) => relative(REPO_ROOT, path));
+
+        if (homes.length === 0) {
+          throw new InvariantFailure(
+            `No shipped source file writes ${JSON.stringify(literal)}. The ` +
+              `feed vocabulary lives in ${VOCABULARY}; if the words changed, ` +
+              "change them here too — and read §7.1 first, because both of " +
+              "these are claims about which venues are in a number.",
+          );
+        }
+
+        if (homes.length !== 1 || homes[0] !== VOCABULARY) {
+          throw new InvariantFailure(
+            `${JSON.stringify(literal)} should be written only in ` +
+              `${VOCABULARY}, and is in:\n      ` +
+              homes.join("\n      ") +
+              "\n      A renderer with its own words for a feed is a claim " +
+              "about market coverage that no vocabulary decided, which is " +
+              "the defect invariant 6 exists for.",
+          );
+        }
       }
     },
   },

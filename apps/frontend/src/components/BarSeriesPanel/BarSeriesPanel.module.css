@@ -241,8 +241,23 @@
 }
 
 /*
- * The held-window rail (Task 2.13.7) — the same position as `.refreshing`, with
- * a subject and, in two of its three forms, more than a sentence in it.
+ * A **settled** rail: a sentence about something that has finished happening,
+ * closed by a dashed rule that does not move.
+ *
+ * **It was `.heldWindow` until 2026-09-15** (Task 2.14.5), and the rename is
+ * the correction a third occupant forced rather than tidying. The class was
+ * named after the one state that used it; the coverage sentence is now a second,
+ * and it is not about a held window at all — it is about the picture below it.
+ * What the two share is exactly what this rule declares: they are settled, so
+ * the rule under them is static, and the block above the chart is closed.
+ *
+ * The distinction that matters is against `.refreshing`, which is a rail that
+ * marches. A travelling rule under a settled state would say a newer answer is
+ * on its way when none is.
+ *
+ * Introduced for the held-window rail (Task 2.13.7) — the same position as
+ * `.refreshing`, with a subject and, in two of its three forms, more than a
+ * sentence in it.
  *
  * It is a **block** rather than a paragraph because a refusal brings the
  * server's own sentence with it and a failure brings a control and a reference.
@@ -256,7 +271,7 @@
  * to group them, and the whole rail read as body copy between the symbol and
  * the price. The rule belongs to the block it closes.
  */
-.heldWindow {
+.railBlock {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -280,7 +295,7 @@
 
 /*
  * **The in-flight rail stopped rendering on 2026-09-14 (§80)**, so the form that
- * marched is gone with it and `.heldWindow.working` with that. What is left in
+ * marched is gone with it and `.heldWindow.working` (as it was then spelled) with that. What is left in
  * the rail is the refusal and the failure, and neither ever marched: a
  * travelling rule under a settled state would say a newer answer is on its way
  * when none is.
@@ -297,7 +312,7 @@
  * and gives back the two declarations that make that class a rail on its own —
  * because here the block above is the rail.
  */
-.heldWindow .refreshing {
+.railBlock .refreshing {
   padding-bottom: 0;
   background-image: none;
   animation: none;

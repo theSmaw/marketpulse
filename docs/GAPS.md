@@ -28,8 +28,8 @@ reference rather than a rule. `CLAUDE.md` keeps the rule and points here.
 ## What became mechanical, and what it replaced
 
 `pnpm invariants` (`scripts/check-invariants.mjs`) is a `verify` step holding
-seven claims that used to be prose here, each a single grep over checked-in
-files. Every one is break-verified through `pnpm break`:
+the claims that used to be prose here, each a single grep over checked-in files.
+Every one is break-verified through `pnpm break`:
 
 | Invariant                                          | Break that proves it             |
 | -------------------------------------------------- | -------------------------------- |
@@ -40,6 +40,17 @@ files. Every one is break-verified through `pnpm break`:
 | No route seeds `initiallyCollapsed`                | `route-seeds-initiallycollapsed` |
 | Words and wash count the same axis                 | `words-count-elapsed-time`       |
 | The five-minute ceiling stays derived              | `ceiling-spelled-twice`          |
+| The empty-window sentence has one home             | `empty-explanation-twice`        |
+| The coverage sentence has one home                 | `coverage-sentence-twice`        |
+| The feed's words are written once                  | `feed-words-in-a-renderer`       |
+
+**The table is the count.** It read _seven_ until 2026-09-15 and the list had
+already grown to eight — `one-home-for-the-empty-explanation` shipped on
+2026-09-14 and nothing brought the sentence above it along. That is this
+document's own failure mode in miniature: a number in prose beside a list that
+moves. Corrected here rather than re-counted, and the last two rows are Story
+2.14's string pass (`PROVENANCE.md` §11) obeying the rule below — an entry that
+can be made mechanical should be.
 
 **One of those seven had already rotted before it was mechanised**, which is the
 argument for the migration in a sentence: the five-minute-ceiling entry told a
@@ -198,6 +209,13 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
 
    - **That the source note's two-feed ledger says something true.** The sentence it draws — each stretch, in contribution order, with its bar count — is the one invariant 6 exists for, and **no server this product runs can produce the answer it renders**: all sixteen recorded bar-series bodies carry `feed: "sip"`, `stitched.json` included, because both halves of that stitch came from Alpaca's historical API. So the state is reached from a story and a test through `twoFeedStitchView()`, which is the recorded stitch with **one field changed** through the real transition. What nothing checks is that the change still corresponds to what Epic 3's socket will actually send. Re-measure: when the IEX stream lands, record a real two-feed body, delete `twoFeedStitchView` and point its three readers at the fixture — the function is named and commented so that deletion is the obvious move rather than an archaeology exercise.
    - **That the note and the masthead never print one fact twice.** §1.3's rule is the acceptance test for this surface, and it is now held _structurally_ — the note's condition for naming a feed is the negation of the chrome's for claiming one, so the two cannot both say `All US exchanges` — rather than by a check. What nothing can see is a **fifth** clause added later that restates something the chrome, the rail or the reading strip already owns; the grain table in `VISUAL-LANGUAGE.md` is the rule and a reader applying it is the whole mechanism. Re-measure: `pnpm probe /securities/NVDA` and read the masthead and the foot of the page in one screenshot, which is what found the two wording defects this task shipped without.
+
+   Three added 2026-09-15 by Task 2.14.5, and the first is the residue of a
+   reservation that is otherwise measured:
+
+   - **That the rail's reservation still clears the coverage sentence at every width.** The slot above the picture is as tall as the tallest sentence it can hold **at this width** — two hidden copies in one grid cell, so nothing counts characters — and the coverage sentence is now the taller of the two: measured 2026-09-15 against a store four sessions behind, the rail is **66px** where the held-window sentence alone reserved **48px**, at 1440 and at 390 alike. What is _not_ reserved is the bar count's digits: the hidden copy carries the count of the series **on screen**, so a press that turns a 390-bar answer into an 8,190-bar one moves the last line by two characters. It does not change the line count at any of the four viewports today, and nothing anywhere would notice if a rewording made it. Re-measure: `pnpm probe "/securities/NVDA?sessions=5" --within Price` and read `rail`; then `?sessions=21`, which asks for twenty-one times the bars, and confirm the height is unchanged.
+   - **That a coverage sentence and a coverage edge never disagree about where the data stops.** The rail says _through 2026-09-11 16:00:00 EDT_; the plot draws its edge at `coverage.covered.end` through `positionOfInstant`. Both read the same field of the same response, which is what makes them agree — and **nothing compares them**, because one is a string in the DOM and the other is an `x` on an SVG line, and the instant is not recoverable from the pixel. This is the pair the whole sentence exists for: it says the _when_ the session-ordinal axis cannot. Re-measure: open a partial answer, read the instant out of the rail, and check it against `series.coverage.covered.end` in the response for the same request — `curl "$BACKEND/market-data/bars?symbol=NVDA&sessions=5&timeframe=1m" | jq .series.coverage`.
+   - **That `No shares changed hands anywhere in the window.` stays true when a series names two feeds.** It is the one user-facing sentence in the product making a claim about **the market** rather than about our store, and it is correct today for the reason the pass records: every stored bar is the consolidated tape, so _anywhere_ means every US venue. The moment Epic 3 stitches an IEX tail onto stored bars, the sentence is a single venue's silence reported as the whole market's — the exact failure `PRODUCT_SPEC.md` §7.1 forbids, in the one place a reader would never look for it. `PROVENANCE.md` §11 records it as read-and-left with this trigger. Re-measure: when a series can carry two feeds, render `Market/VolumeReading` against `twoFeedStitchView()` and read the sentence.
 
 4. **Prose figures.** Documentation publishes numbers nothing regenerates. `pnpm links` closed the _link_ half of this gap; the figures half cannot be closed, because a figure in a sentence has no referent.
 5. **Schemas.** `verify.yml`, `deploy.yml`, `dependabot.yml`, `staticwebapp.config.json` and `compose.yaml` are all _formatted_ by Prettier and validated by nothing.

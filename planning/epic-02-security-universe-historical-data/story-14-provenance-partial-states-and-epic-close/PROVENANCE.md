@@ -418,6 +418,42 @@ candidate: a fully-covered window during a session is complete and still moving,
 and at that point `loaded` needs a sentence too and the threshold option comes
 back into scope with a real signal behind it.
 
+#### Amended 2026-09-15 by Task 2.14.5, which built it — three things shipping it settled
+
+**1. The instants are written in full, and the canvas drew them short.** §05 of
+`Provenance and the empty answers.dc.html` mocked the sentence as _"Holding 59
+bars, through 15:42, of a window running to 16:00."_ The shipped sentence is
+`formatMarketInstant`'s, dates and zone abbreviation included, and the first
+partial answer on a running pair is why: it reads **through 2026-09-11 16:00:00
+EDT, of a window running to 2026-09-14 16:00:00 EDT** — two _different days_,
+which the short form renders as _"through 16:00, of a window running to
+16:00"_, a sentence that says a window was missed by nothing at all. The canvas
+is the source of truth for the language and a mock is not a measurement; **§05
+has been redrawn to the shipped form** rather than the tree being left to
+diverge from it, which is ADR 0026's chain applied in the direction it is meant
+to run.
+
+**2. The reservation is 66px, and it was measured rather than compared.** The
+rail now holds **two** hidden copies in its one grid cell — the held sentence's
+worst case and the coverage sentence — so the row is as tall as the taller _at
+this width_, and nothing counts characters. Comparing the two as strings was the
+obvious implementation and is exactly the argued tolerance `CLAUDE.md` warns
+about: the held sentence's worst case is picked from a closed set of window
+phrases, and the coverage sentence's length is a property of an answer. Measured
+2026-09-15 against a store four sessions behind: **48px before, 66px after, at
+1440 and at 390 alike.** The residue — the bar count's digits, which the hidden
+copy takes from the series on screen — is in `docs/GAPS.md` with the probe that
+re-takes it.
+
+**3. The rail's static rule is now a shared class, and the class was renamed for
+it.** `.heldWindow` became `.railBlock`, because a third occupant arrived that is
+not about a held window at all. What the two share is the thing the rule
+declares: they are **settled**, so the hairline under them does not travel.
+`.refreshing`'s does, and it means _a newer answer is on its way_ — a travelling
+rule under a coverage sentence would say work is in progress under a finished
+answer, which is the tone failure this task's own notes predicted, arriving
+through CSS rather than through copy.
+
 ---
 
 ## 4. Decision 4 — the adjusted/unadjusted disclosure
@@ -850,3 +886,105 @@ pile is built.
 
 **What a user still cannot do:** watch a price move. There is no live data, and
 the two-feed sentence §2 settles has no producer until there is.
+
+---
+
+## 11. The coverage-honesty pass — 2026-09-15, by Task 2.14.5
+
+Acceptance criterion 2 says _checked by reading every string, not by intent_, so
+this is a list of what was read rather than a claim that it was. The document
+half of the sweep was already done (§8.2) and is not repeated; this is the
+**user-facing string** half, which is a different corpus and had never been
+read.
+
+### 11.1 How criterion 2 has to be read, because as written it inverts
+
+The criterion reads _"No screen states or implies full US-market coverage"_. Read
+literally, and against the measurement of 2026-09-07, **it asks us to delete a
+true label**: stored bars are the consolidated SIP tape, `All US exchanges` is an
+exact statement of what is in them, and removing it would be a false disclaimer
+rather than an honest hedge.
+
+**It is applied here as _coverage claimed wrongly in either direction_**, and
+every string below is judged against both:
+
+- **(a) implying coverage the plan does not have** — the historical failure, and
+  the one §7.1 was written for;
+- **(b) disclaiming coverage the plan does have** — the failure added
+  2026-09-07, and the one a well-meaning reviewer is far more likely to
+  introduce.
+
+The next reader should apply it that way rather than as written, which is why
+this paragraph is here rather than in a commit message.
+
+### 11.2 How the corpus was enumerated
+
+Mechanically rather than from memory: every non-test, non-story `.ts`/`.tsx`
+under `apps/frontend/src`, with comments stripped, reduced to its string
+literals, template literals and JSX text nodes; plus `apps/backend/src`'s
+refusal messages, `README.md`'s description of what the product shows, and the
+one page title. **Every phrase containing the word _market_ was then read
+individually**, because that is the word that does the implying and it is in the
+product's name.
+
+### 11.3 What was read, and what was decided
+
+| Surface                                                                                                                                                                         | Judgement                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MARKET_FEED_DESCRIPTIONS` — `All US exchanges`, `IEX` + its sentence, `Simulated` + its sentence                                                                               | **Correct in both directions, and now guarded.** The label is exact for SIP; the IEX sentence disclaims the single venue without disclaiming the tape. Made mechanical — see §11.4.                                                                                                                                                    |
+| `ADJUSTMENT_DESCRIPTIONS` — `Unadjusted`, `Prices as they printed. Not restated for stock splits.`, `Split-adjusted`                                                            | **Left.** A claim about arithmetic, not about venues. Neither direction applies.                                                                                                                                                                                                                                                       |
+| `SourceNote` — `Source` / `Sources`, `N bars`, `Prices`, `Retrieved …`, `Classification`                                                                                        | **Left.** The ledger's counts are what stop a stitched series reading as single-venue, which is (a) answered structurally rather than in words.                                                                                                                                                                                        |
+| The classification claim — `Sector and industry are curated, not from the market feed.`, `Last checked 8 September 2026`, `When they were last checked is not recorded.`        | **Read hardest in direction (b), and left.** It is a disclaimer, and the question is whether it disclaims coverage we have. It does not: sector and industry genuinely are ours and genuinely are not from the feed.                                                                                                                   |
+| `chart-alternative.ts` — `Market feed: All US exchanges.` and `Stitched: 60 bars from All US exchanges and 90 from IEX.`                                                        | **Left, and it is the one a pass would skip**: spoken only, and a sentence about coverage. It names the split **with counts**, so a listener can tell a 782-bar chart with two IEX bars from one that is half and half.                                                                                                                |
+| `VolumeReading` — `No shares changed hands anywhere in the window.`                                                                                                             | **Read, left, and given a trigger.** The one shipped sentence claiming something about **the market** rather than about our store. True while every bar is the consolidated tape; a single venue's silence the moment Epic 3 stitches an IEX tail. In `docs/GAPS.md` with that trigger.                                                |
+| `ChartVacancy` — `No bars stored for this window.`, `No volume stored for this window.`, and the two sentences under them                                                       | **Left.** They say what **is stored**, never what the market did — which is the same distinction the row above gets wrong by one word, and worth noting as the pair.                                                                                                                                                                   |
+| The rail — `Still showing …`, `Refreshing — …`, and **the sentence this task adds**                                                                                             | **New, and judged.** `Holding 1,560 bars, through 2026-09-11 16:00:00 EDT, of a window running to 2026-09-14 16:00:00 EDT.` claims coverage of **the window**, states the shortfall, and disclaims nothing we hold. Neither direction fires.                                                                                           |
+| `SecuritySearch` — `Search covers the 518 securities MarketPulse holds, by symbol and by company name.`                                                                         | **Left, and it is the best string in the product for this criterion**: it answers (a) with a number rather than a hedge.                                                                                                                                                                                                               |
+| `UniverseTable` — `securities tracked`, `Market history is stored for all of them.`, `Market proxies`, `Whole-market ETFs, which belong to no sector`                           | **Left.** _all of them_ has _the tracked universe_ as its stated subject one clause earlier; _whole-market_ describes what a market-proxy ETF **is**, not what we cover.                                                                                                                                                               |
+| `SecurityIdentity` — `MarketPulse does not track this security…`, `Untracked`, `Market proxy`                                                                                   | **Left.** Disclaims our universe, which is the honest half of (a).                                                                                                                                                                                                                                                                     |
+| `AppHeader` — `MarketPulse`, `Market situational awareness`, `Market feed`, `Market clock`                                                                                      | **Left.** _Market_ names the domain in all four. None is a statement about venues.                                                                                                                                                                                                                                                     |
+| `FeedProvenance` — `No market-data provider is configured.`, `The market feed could not be read.`, `not configured`                                                             | **Left.** States an absence and claims no feed at all — which is the condition the source note's own suppression rule keys on.                                                                                                                                                                                                         |
+| `MarketClock` — `Market time, US Eastern`, `ET`, `Opens at …`, `Closes early at …`                                                                                              | **Left.** The calendar, not coverage.                                                                                                                                                                                                                                                                                                  |
+| `SecurityExplorer` — the region headings and their sentences, `The securities MarketPulse follows…`                                                                             | **Left.** The universe is named as ours in the one place it could be mistaken for the market.                                                                                                                                                                                                                                          |
+| `MarketOverview` — Story 1.4's render check: `Displaying data through 10:42:17`, `Last update 10:41:58 — slower than expected`, `Peer comparison failed`, and its invented rows | **Read, judged out of criterion 2's scope, flagged.** They imply a live feed rather than market coverage, and the page's own prose calls itself a render check. It is nonetheless the weakest provenance surface in the product — invented figures with no marker, under a masthead reading `NOT CONFIGURED` — and Epic 4 replaces it. |
+| `routes/market-data.ts` — `NVDA is not a security this system tracks. The tracked universe is listed at /securities.`, and the cap and calendar refusals                        | **Left.** _this system tracks_ is the disclaimer, in the server's own words, which the client renders verbatim.                                                                                                                                                                                                                        |
+| `README.md` — `AI-assisted situational awareness for US equities.`                                                                                                              | **Left.** Names an asset class, not a coverage fraction, and `PRODUCT_SPEC.md` §6 scopes the universe two paragraphs later.                                                                                                                                                                                                            |
+| `index.html` — `<title>MarketPulse</title>`                                                                                                                                     | **Left.** The one page title, and it makes no claim.                                                                                                                                                                                                                                                                                   |
+
+**Nothing was changed by the pass.** That is the honest outcome and it is stated
+as one rather than dressed up: the vocabulary was decided in one module in Story
+2.6 and every surface since has read it rather than writing its own, which is
+what a pass over three stories' worth of strings is supposed to find. What the
+pass produced is two guards and two recorded triggers.
+
+### 11.4 What became mechanical
+
+Two of the claims above are of the form _no shipped string says X_, so
+`CLAUDE.md`'s rule applies and they are `pnpm invariants` steps rather than
+prose. Each owes a break, and each was run red:
+
+- **`one-home-for-the-feed-words`** — `All US exchanges` and the IEX sentence are
+  written in `market-provenance.ts` and nowhere else in `apps/frontend/src`,
+  `apps/backend/src` or `packages/shared/src`. Break: `feed-words-in-a-renderer`,
+  a fallback label in `FeedIndicator` for the deployment with no provider
+  configured — which reads as defensive and is a coverage claim no vocabulary
+  decided.
+- **`one-home-for-the-coverage-phrase`** — the sentence this task adds is written
+  in `series-facts.ts` and nowhere else, so the drawn copy and the spoken copy
+  cannot diverge. Break: `coverage-sentence-twice`, the sentence re-inlined in
+  `series-announcement.ts` where it was assembled until this task.
+
+**Both checks read their sources with comments stripped**, and that was forced
+rather than chosen: the first version of the coverage check went red on
+`chart-alternative.ts`'s doc comment, which quotes the sentence in prose to
+explain why its own clause says something different. A check a correct comment
+can trip is a check nobody can keep green. The stripper removes block comments
+and whole-line `//` comments and never truncates a line of code, which is the
+safe direction — the worst it can do is report a match a reader then reads.
+
+### 11.5 What the pass could not make mechanical
+
+Three claims, in `docs/GAPS.md` with a `Re-measure:` naming a file that exists:
+the rail's reservation against the coverage sentence at four widths; that the
+sentence and the coverage edge never disagree about where the data stops; and
+the `No shares changed hands anywhere` trigger above.

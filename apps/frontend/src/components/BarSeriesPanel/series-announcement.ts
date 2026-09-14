@@ -9,9 +9,10 @@ import {
 } from "../../market/index.js";
 import {
   changePercent,
+  coveragePhrase,
   formatCount,
-  formatMarketInstant,
   formatMarketRange,
+  sentenceCase,
   seriesPrices,
 } from "./series-facts.js";
 
@@ -138,11 +139,6 @@ export function announceSeries(
   return `${symbol}: ${sentence}${held}`;
 }
 
-/** A noun phrase at the start of a sentence. */
-function sentenceCase(phrase: string): string {
-  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
-}
-
 /** Everything after the subject. */
 function describe(view: BarSeriesView, symbol: string): string {
   switch (view.state) {
@@ -165,9 +161,13 @@ function describe(view: BarSeriesView, symbol: string): string {
 
     case "partial": {
       const prices = seriesPrices(view.series);
-      const { requested, covered } = view.series.coverage;
       return join([
-        `holding ${formatCount(view.series.bars.length)} bars, through ${formatMarketInstant(covered.end)}, of a window running to ${formatMarketInstant(requested.end)}.`,
+        // **The phrase is `series-facts.ts`', not this file's** (Task 2.14.5).
+        // It was assembled here until the rail grew a visible copy of the same
+        // fact, and two sentences about one thing written in two places is the
+        // drift `MARKET_FEED_DESCRIPTIONS` exists to prevent one layer up. The
+        // wording is unchanged: what moved is where it is written.
+        coveragePhrase(view.series),
         lastClose(prices.close, changePercent(prices)),
         untracked(view.securityStatus),
         stale(view.stale),
