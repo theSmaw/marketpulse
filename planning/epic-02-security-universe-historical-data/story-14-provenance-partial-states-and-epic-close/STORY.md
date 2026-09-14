@@ -399,3 +399,68 @@ full and its three open decisions were settled by Task 2.13.1. This story's
 dependency, position and the rest of its scope — the feed label per source, the
 curated file's age, the coverage-honesty pass, the failure-state sweep, the cost
 figure — are untouched by Story 2.13 and stand as written.
+
+---
+
+## The tasks — added 2026-09-14
+
+Ten tasks, sequential, in the shape the last five stories used: **settle, draw,
+build, sweep, close.** Three of them put something on screen, and they are
+deliberately early — 2.14.3, 2.14.4 and 2.14.5 land one after another, so the
+epic's last story is not four days of documents before anything changes.
+
+**2.14.1 is the decision task and nothing may skip it.** This story's three open
+decisions are live, its planning premise was inverted on 2026-09-07, and there
+is a sixth decision — whether the two empty answers go on the **wire** — that
+`routes/market-data.ts` currently takes by defaulting. Every wording decision
+lands in a **module** (`MARKET_FEED_DESCRIPTIONS` and its neighbours), never in
+a component, because the `satisfies` on that record is what makes a feed added
+without words a compile error.
+
+**2.14.2 draws the whole panel rather than the addition.** Provenance is text
+added to the most crowded surface in the product — a coverage sentence, four
+prices, two window labels, a count and two plots. Five correct additions made
+one at a time produce a footnote pile, and that is a finding to have on a canvas
+rather than in a component.
+
+**2.14.3–2.14.6 are the four visible pieces**: where the numbers came from, where
+the _classification_ came from and how old it is, through when the data runs, and
+an empty chart that explains itself correctly rather than plausibly.
+
+**2.14.7 checks the failure states as a set**, which nothing has ever done — each
+was reviewed against its own story, and none against the others. That comparison
+is the deliverable, and it is invisible one state at a time.
+
+**2.14.8, 2.14.9 and 2.14.10 close the epic.** The §28 answer this epic owes and
+which is the 518-row table's rather than the chart's; the deployed suite finally
+asserting the exit criterion instead of a person having observed it once; and the
+close itself — the cost figure with a database running, the ADR this story's own
+decisions need (**not** the six that already exist), the document sweep, the four
+design tests, and what ships open with a name against it.
+
+| Task                                                                        | What it does                                                                             | Visible?                            |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------- |
+| [2.14.1](TASK-01-settle-the-provenance-claims-and-the-two-empty-answers.md) | Six decisions: prominence, the two-feed wording, recency, adjustment, metadata, the wire | No                                  |
+| [2.14.2](TASK-02-the-provenance-surface-on-the-canvas.md)                   | The whole panel with every addition at once, and the vacancy wording, on the canvas      | **In the workshop**                 |
+| [2.14.3](TASK-03-where-these-numbers-came-from-on-screen.md)                | Feed, adjustment and retrieval on the series — a screenshot that carries its own source  | **Yes — the payoff**                |
+| [2.14.4](TASK-04-the-curated-files-age-and-what-alpaca-did-not-tell-us.md)  | Sector and industry name their source and their age; Story 2.3's column finally renders  | **Yes**                             |
+| [2.14.5](TASK-05-through-when-and-the-coverage-honesty-pass.md)             | Through when the data runs, and every string read for implied — or disclaimed — coverage | **Yes**                             |
+| [2.14.6](TASK-06-two-empty-answers-told-apart.md)                           | _Nothing held_ against _nothing in this window_, on the wire or deliberately not         | **Yes**                             |
+| [2.14.7](TASK-07-every-failure-and-partial-state-as-a-set.md)               | Every failure and partial state produced, screenshotted and compared as a set            | **Yes — where it matters most**     |
+| [2.14.8](TASK-08-the-answer-about-fifty-milliseconds.md)                    | §28's breach: repair it, accept it in writing, or hand it to Epic 14 by name             | Only if the disposition is a repair |
+| [2.14.9](TASK-09-the-deployed-suite-asserts-the-exit-criterion.md)          | The exit criterion executed deployed, and asserted on every deploy thereafter            | No — but a broken deploy now fails  |
+| [2.14.10](TASK-10-the-epic-close-cost-adr-documents-and-what-ships-open.md) | Cost, the ADR, the sweep, the four tests, and what ships open with an owner              | No — the epic closes                |
+
+**The subject document is `PROVENANCE.md`** in this directory, created by 2.14.1
+and finished by 2.14.10. It is not a section of `PROVIDER.md`: that document is
+the provider seam and the outcome taxonomy, which is mechanism. This one is what
+the product **claims about its own data on screen**, which Epic 3 extends, Epic 8
+parallels with a different kind of provenance, and Epic 13 constrains with a
+clock.
+
+**What none of the ten owns**: the live feed and the `LIVE` indicator (Epic 3);
+confidence and evidence provenance for findings (Epic 8); the final
+accessibility review (Epic 15). And two things ship open by name rather than
+quietly — the listening pass, and the weekday `1D` photograph — both recorded in
+2.14.10 with their owners, because _"nobody checked"_ and _"it was checked and it
+was fine"_ are different artefacts.
