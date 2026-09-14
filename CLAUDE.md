@@ -124,6 +124,29 @@ Work descends epic → story → task, in small iterations. **Do not scaffold ah
 
 **Prefer a vertical slice to a layer** wherever the dependency graph allows. A run of stories with no visible change is how a product stops being demonstrable; Story 2.4 was inserted for exactly that reason.
 
+### The working loop
+
+Written down on 2026-09-14, after a layout change took 52 minutes of which nine
+were the edit. Each of these cost real time that session.
+
+- **Look at the page before you run a suite.** `pnpm probe` is thirty seconds
+  and the browser suite is five minutes. This repository's record says the same
+  thing five times over — `VOLUME-AND-WINDOW.md` §69, §71 and §72 each open with
+  a defect "found by a person opening the page" and invisible to everything
+  mechanical, and the change that added `probe` found two more the same way.
+  Both were plain in its output and in nothing else.
+- **Run the specs your change touches first**, the whole suite once at the end.
+  A scoped run is seconds.
+- **Never start a second heavy job while one is running** — the lock now refuses,
+  and the reason it had to be mechanical is that the failure is deceptive rather
+  than loud. See the gap-list entry.
+- **A tolerance is measured, never argued.** Take the number from `pnpm probe`,
+  then write the assertion around it. A plot-gap ceiling written from argument
+  was 180; the figure is 190, and learning that cost a full suite run.
+- **Do not idle while a background job runs.** Write the record, amend the
+  documents, prepare the commit. Polling a log is the one thing that is never
+  the next piece of work.
+
 **Every story and task states what the user will be able to see**, and the honest answer is often "nothing". Three rules: say "nothing visible" plainly and name the story that pays it off; describe what is _on the screen_ rather than what was built; and say what the user still cannot do.
 
 **Decisions are recorded with their alternatives and a reversal trigger.** A trigger is a _condition_ ("the first check that fails without a database", "a fifth pinned action"), never a story number — story numbers move, and a trigger written against something that has already happened will never fire.
@@ -188,8 +211,18 @@ pnpm universe:check # compare the curated universe against the vendor. Changes n
 pnpm bars          # fetch and print one symbol's bars. Read-only, stores nothing. Metered request.
 pnpm backfill      # fetch and STORE bars. Metered, paced, sequential.
 pnpm bars:check    # what is missing from the store, and why.
-pnpm e2e           # the browser suite against a pair YOU started with `pnpm dev`.
+pnpm e2e           # the browser suite against a pair YOU started with `pnpm dev`. ~5 min.
+                   # EVERY argument is forwarded to Playwright, so scope it while iterating:
+                   #   pnpm e2e security-price-chart.spec.ts
+                   #   pnpm e2e security-price-chart.spec.ts -g "one axis"    # 2.6s, not 4.9m
+                   # Takes the heavy-job lock; `--anyway` overrides and is not forwarded.
 pnpm e2e:deployed  # the same browser against the LIVE environment. Needs both deployed addresses.
+pnpm probe         # LOOK at a layout, against the pair you started. NOT a test and NOT a gate.
+                   #   pnpm probe /securities/NVDA --within Price
+                   # Per viewport (1440/1024/768/390): every element with a module class, its
+                   # box, its computed `flex` and its RESOLVED grid tracks, plus a screenshot in
+                   # .probe/ and any page error. Thirty seconds, and it is where a tolerance's
+                   # number comes from. `--widths 1440,390`, `--all`, `--story <id>`.
 pnpm image         # build the backend container image. Pushes nothing.
 pnpm clean         # tsc -b --clean, plus the frontend's dist/ and storybook-static/
 pnpm format        # prettier --write .   (also format:check)
@@ -520,6 +553,10 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
 4. **Prose figures.** Documentation publishes numbers nothing regenerates. `pnpm links` closed the _link_ half of this gap; the figures half cannot be closed, because a figure in a sentence has no referent.
 5. **Schemas.** `verify.yml`, `deploy.yml`, `dependabot.yml`, `staticwebapp.config.json` and `compose.yaml` are all _formatted_ by Prettier and validated by nothing.
 6. **Configuration that exists only on the platform.** The deploy uses `update` and never `create`, so the container app's probes, replica floor, ingress port, `CORS_ORIGIN`, `MARKET_DATA_PROVIDER` and the Alpaca credential exist in **no file in this repository** — as do the database's firewall rules, its Entra administrator, both Postgres roles and their grants, its alerts and its delete lock. `HOSTING.md` is their only durable copy. A diffing script **cannot** be a `verify` step, because `verify` has no credentials; making it one would fork the definition of "verified".
+
+   One added 2026-09-14, and it is a property of the machine rather than of the tree:
+
+   - **That a browser run was taken on a quiet machine.** Under load the suite fails a **different random set of tests on each run**, each failure carrying a real assertion message, a screenshot and a trace — which is the worst shape a failure can have, because nothing about it looks like a flake. Measured 2026-09-14 across four runs of **unchanged code**: 6 failures, then 16, then 10, then 1; two of those runs had `pnpm verify` and `pnpm format` going beside them, and the one failure that survived to the quiet run was a spec that times out at 30 s under load and passes in **7.6 s** alone. Triaging it cost more than the runs did. This matters more here than in most repositories because `e2e/playwright.config.ts` sets `retries: 0` and argues it — _"a retry is how a suite stops being able to tell a flake from a defect, and this repository has never once responded to a failure by re-running it"_ — and that argument only holds while a red run means a defect. The heavy-job lock (`scripts/heavy-job.mjs`) now refuses a second job **started from this repository**; what nothing can see is the rest of the machine, which is why `scripts/check-quiet.mjs` reports the load average as a warning rather than a refusal. Re-measure: read `uptime` before believing a red run, and re-run one failing spec **alone** before believing it is a defect.
 
 **One entry left this list on 2026-09-12 by being made mechanical, and the route is worth knowing.** _"The scheduled backfill fills every timeframe the application reads"_ was never written here — it was a defect first: the nightly job filled `1m` only for eight days, every run green, while `routes/securities.ts` read its last close at `1d` (`BARS.md` §8.18). It is now `pnpm coverage:check`, a `verify` step. **That is the migration this list wants** — a prose entry with a re-measure command is a check nobody runs, and a `verify` step is one that cannot be skipped. An entry that can be made mechanical should be; what stays here is the residue that genuinely cannot, which is the breaks a human has to perform and the claims only a browser or a live store can see.
 

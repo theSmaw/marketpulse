@@ -28,6 +28,12 @@
 //      red suite is red through `pnpm e2e`, through `pnpm --filter`, and
 //      through anything that wraps them. This repository has verified exit-code
 //      propagation at every layer it has added; this is a new one.
+//   4. **Takes the heavy-job lock** (2026-09-14), so this cannot run beside
+//      another suite or a `pnpm verify`. `scripts/heavy-job.mjs` carries the
+//      measurement; the short version is that `retries: 0` is only defensible
+//      while a red run means a defect, and under load it stops meaning one. It
+//      also closes a hazard nothing else noticed: two concurrent runs both pass
+//      the readiness gate and both write into the same `e2e/test-results`.
 //
 // It does **not** start the servers, and that is the decision rather than an
 // omission — see the long note in `e2e/playwright.config.ts`. `pnpm dev` in
@@ -38,12 +44,16 @@
 //
 // Arguments are forwarded untouched, so `pnpm e2e --headed`, `pnpm e2e
 // --debug`, `pnpm e2e specs/landing-route.spec.ts` and `pnpm e2e -g "chrome"`
-// all work the way Playwright documents them.
+// all work the way Playwright documents them. **Use that while iterating**: the
+// whole suite is five minutes and the specs a change touches are often under
+// one, and running the whole thing five times is how the change that added the
+// lock below spent half its afternoon.
 
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import process from "node:process";
 
+import { acquireLock, loadRatio, releaseLockOnExit } from "./heavy-job.mjs";
 import { resolvePairAddresses } from "./pair-addresses.mjs";
 
 const REPO_ROOT = resolve(import.meta.dirname, "..");
@@ -56,6 +66,52 @@ if (!resolved.ok) {
 }
 
 const { backendOrigin, frontendOrigin } = resolved.addresses;
+
+// --- Is anything else heavy running? ---
+
+// Before the readiness gate, because a refusal here is about this machine and
+// says nothing about the pair — running `pnpm ready` first would print three
+// ticks and then decline, which reads as the check having failed.
+//
+// `--anyway` is this script's own and is **stripped** below rather than
+// forwarded: Playwright's CLI rejects options it does not know, so passing it
+// through would turn an override into a usage error naming a flag Playwright
+// has never heard of.
+if (!process.argv.includes("--anyway")) {
+  const lock = acquireLock("pnpm e2e");
+
+  if (!lock.ok) {
+    console.error(lock.message);
+    process.exit(1);
+  }
+
+  releaseLockOnExit();
+}
+
+// **And a warning for the load the lock cannot see**, which is most of it. The
+// lock knows about jobs started from this repository; a container VM, an IDE
+// indexing and somebody's video call are invisible to it and cost this suite
+// exactly as much.
+//
+// Added the same afternoon as the lock, on the evidence of the run that was
+// verifying the lock: load average **47 across 8 cores**, against a threshold
+// of 0.7, with nothing holding the lock and the largest consumer a virtual
+// machine. A guard that only watches its own repository would have said
+// nothing at all there — and this suite is the job in this workspace most
+// sensitive to load, so it is the last one that should be silent about it.
+//
+// A warning rather than a refusal, for `check-quiet.mjs`'s reason: refusing on
+// a number that is somebody else's browser is a gate people route around.
+const { ratio, cores } = await loadRatio();
+
+if (ratio > 0.7) {
+  console.warn(
+    `\n⚠ Load average ${(ratio * cores).toFixed(1)} across ${String(cores)} cores before this run.\n` +
+      "  Expect slow tests and timeouts that are about the machine rather than the product.\n" +
+      "  Before treating a failure here as a defect, re-run that one spec alone:\n" +
+      "      pnpm e2e <spec>.spec.ts -g \"<test name>\"\n",
+  );
+}
 
 // --- Is the pair up? ---
 
@@ -84,9 +140,13 @@ if (ready.status !== 0) {
 
 console.log(`\nDriving ${frontendOrigin}\n`);
 
+const forwarded = process.argv
+  .slice(2)
+  .filter((argument) => argument !== "--anyway");
+
 const suite = spawnSync(
   "playwright",
-  ["test", "--config", "e2e/playwright.config.ts", ...process.argv.slice(2)],
+  ["test", "--config", "e2e/playwright.config.ts", ...forwarded],
   {
     cwd: REPO_ROOT,
     stdio: "inherit",

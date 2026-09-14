@@ -24,8 +24,23 @@ environment's bug.
 
 Arguments are forwarded, so `pnpm e2e --headed`, `pnpm e2e --debug`,
 `pnpm e2e -g "recover"` and `pnpm e2e specs/backend-health.spec.ts` all work.
+**Scope it while iterating**: the whole suite is about five minutes and one
+named test is under three seconds, and a change that runs the whole thing five
+times has spent half an hour learning what two minutes would have told it.
 The browsers are a separate, explicit install — `pnpm exec playwright install
 chromium`, ~554 MB, once per machine.
+
+Since 2026-09-14 this takes the **heavy-job lock** and refuses to start beside
+another suite or a `pnpm verify`. `scripts/heavy-job.mjs` carries the
+measurement; the short version is that `retries: 0` below is only defensible
+while a red run means a defect, and a contended run fails a different random set
+of tests every time. `--anyway` overrides it and is stripped rather than
+forwarded, because Playwright rejects options it does not know.
+
+And **look at the page before running any of this** — `pnpm probe` prints every
+element's box, its computed `flex` and its resolved grid tracks at four
+viewports, in about thirty seconds. It is where the number in a tolerance comes
+from; an assertion about that number belongs here.
 
 ## What is here
 

@@ -57,6 +57,10 @@ export default tseslint.config(
       // source. Mirrored in .gitignore and .prettierignore.
       "**/test-results/",
       "**/playwright-report/",
+      // `pnpm probe`'s screenshots and the heavy-job lock (2026-09-14).
+      // Neither is source. Mirrored in .gitignore and .prettierignore.
+      ".probe/",
+      ".heavy-job.lock",
       "**/*.tsbuildinfo",
       ".claude/worktrees/",
     ],
