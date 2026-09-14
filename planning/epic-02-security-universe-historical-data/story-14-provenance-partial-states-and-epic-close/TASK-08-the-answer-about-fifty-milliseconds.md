@@ -22,6 +22,26 @@
 > cause. A note of a few elements is the cheapest possible control on that
 > claim.
 
+> **Amended 2026-09-14 by Task 2.14.4, and it adds a second control rather than
+> a second worry.** Two corrections to the paragraph above, both small and both
+> the kind that quietly stops being true:
+>
+> - **The note is a `dl` of three terms now, not two** — `Source`/`Sources` where
+>   a feed is worth naming, `Prices`, and `Classification`. Still a handful of
+>   elements; the expectation is unchanged for the same reason.
+> - **It also added the page's first per-render read of the whole universe
+>   array.** `toClassification` runs one linear `.some()` over the 518 securities
+>   to decide whether this page has a security to make the claim about. That is
+>   **one scan of 518, not 518 scans** — it is nowhere near the class of cost this
+>   task is about, and it is deliberately not a `Map`, because the page builds two
+>   of those already and a third for a single membership test would be a map
+>   constructed per render to avoid a scan per render. It is named here because
+>   this task's entire argument is _the table is the cause_, and an unmentioned
+>   new read of the same array is exactly what makes such an argument look
+>   convenient later. If the figure has moved, this is the second thing to rule
+>   out and it is cheap to rule out: it is the same work whether the note draws
+>   one clause or three.
+
 ## Objective
 
 Discharge the one published-target breach this epic ships with, by **deciding**

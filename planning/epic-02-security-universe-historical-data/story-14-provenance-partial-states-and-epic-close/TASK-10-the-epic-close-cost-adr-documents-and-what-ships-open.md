@@ -4,6 +4,27 @@
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.1 – 2.14.9
 
+> **Amended 2026-09-14 by Task 2.14.4 — one candidate for the ADR, and one for
+> the sweep.** Neither is a new task; both are things this close is the right
+> place to take.
+>
+> - **A rule the ADR should carry, because it outlives this story:** _is this an
+>   instant somebody stamped, or a date somebody typed?_ Every other timestamp in
+>   this product is converted to market time, and that is right for one a server
+>   stamped. The curated file's `checkedOn` is a calendar date a person types,
+>   widened to a UTC-midnight instant only because JSON has no date type — convert
+>   it and the screen reads a day early with **nothing on the page looking
+>   wrong**. It is recorded in `VISUAL-LANGUAGE.md`'s Provenance section as a
+>   standing question, and it is load-bearing well past Epic 2: Epic 3's live
+>   clock, Epic 9's filing dates and Epic 13's replay clock all hang dates on
+>   surfaces.
+> - **A candidate for `pnpm invariants` rather than for `GAPS.md`:** _no renderer
+>   reads `FieldGroupProvenance.source`._ It is a free string by design, so no
+>   compile-time table can ever guard it, and the rule that keeps the slug off the
+>   screen is currently a decision plus one component test. It is a single grep
+>   and would owe a `pnpm break` entry. Decide it here rather than leaving it —
+>   the list's own rule is that an entry which can be made mechanical should be.
+
 > **Amended 2026-09-14 by Task 2.14.1.** The ADR's candidate second subject moved
 > (the empty distinction did **not** go on the wire), the document sweep turned
 > out to be a **confirmation** rather than a repair

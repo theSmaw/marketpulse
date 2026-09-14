@@ -112,7 +112,21 @@ between a chart and a chart an analyst will quote.
     `Market feeds: …`. It is **spoken only**, which puts it squarely in the class
     this bullet calls the most likely to be skipped, and it is a sentence about
     coverage;
-  - Task 2.14.4's classification wording, if that task has landed first.
+  - ~~Task 2.14.4's classification wording, if that task has landed first.~~
+    **It landed 2026-09-14, and the conditional is resolved — four strings, and
+    they are the most-seen additions in the epic.** `Classification` as a term,
+    `Sector and industry are curated, not from the market feed.`,
+    `Last checked 8 September 2026`, and — reachable from no server today —
+    `When they were last checked is not recorded.` The reason they matter most to
+    this pass is not their wording but **where they appear**: the clause reads
+    the universe answer rather than the bars, so it draws on **every** security
+    page including one holding no bars at all, which is every page CI renders.
+    Judge them in the direction this corpus is most likely to get backwards: this
+    is a **disclaimer**, and the second failure direction asks whether it
+    disclaims coverage the product actually has. It does not — sector and
+    industry genuinely are ours and genuinely are not from the market feed — but
+    that is a judgement to make by reading rather than to inherit from this
+    sentence.
 
   Note what this changes about the shape of the risk: **`All US exchanges` now
   appears on the page rather than only in the chrome**, on any deployment with no
