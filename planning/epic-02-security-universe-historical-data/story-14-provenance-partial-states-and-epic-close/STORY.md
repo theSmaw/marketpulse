@@ -84,6 +84,18 @@ plumbing — which is why it is last and why it is small.
 - The adjusted/unadjusted disclosure, since Story 2.6 made it explicit in the data
 - The metadata provenance Story 2.3 opened: sector and industry did not come from the market
   data provider, and the UI should not imply that they did
+- **Two things this story no longer starts from zero on, pulled forward on 2026-09-14
+  (`VOLUME-AND-WINDOW.md` §79).** Neither is finished and the scope is unchanged; what
+  moved is the surface they land on, so this story amends rather than invents.
+  - **Where the empty explanation is drawn.** It moved off the panel and onto the plot,
+    as `ChartVacancy`, with `pnpm invariants` holding that it has exactly one home. The
+    _placement_ is settled; the **wording** is not, and this story still owns it.
+  - **And the wording it owns is a pair.** `routes/market-data.ts` distinguishes _nothing
+    held for this security and timeframe_ from _nothing held in this window_ in a debug
+    log and in nothing else — both are the same 200 body, deliberately. `ChartVacancy`
+    says the second, always, because it cannot see the difference. Telling them apart on
+    screen means putting the distinction on the wire, which is this story's decision to
+    take and not one that was taken for it.
 - The complete pass over failure and partial states across the epic's surface (§36), checked
   as a set rather than per component: search unavailable, security found with no data, chart
   failed with the page intact, window failed with the previous window still readable,

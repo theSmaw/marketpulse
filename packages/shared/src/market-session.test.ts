@@ -4,6 +4,7 @@ import { MarketCalendarRangeError } from "./market-calendar.js";
 import { instantFromMarketTime, toMarketDate } from "./market-time.js";
 import {
   lastMarketSessions,
+  lastOpenedMarketSession,
   marketSessionCacheEntries,
   MARKET_SESSION_CACHE_DATES,
   marketSessionOn,
@@ -489,6 +490,101 @@ describe("the session memo", () => {
     // The refusal is checked before the lookup, so a warm cache cannot turn one
     // into an answer. Case 14 asserts the cold version of this.
     expect(() => marketSessionOn(toMarketDate("2029-01-02"))).toThrow(
+      MarketCalendarRangeError,
+    );
+  });
+});
+
+describe("the last session whose bell has rung", () => {
+  // Added 2026-09-14. Every case below is one status of `marketSessionStateAt`,
+  // because the whole of this function is a five-way answer and only one of the
+  // five differs from what the caller had before it existed.
+  //
+  // 2026-09-04 is a Friday and an ordinary session; 2026-09-03 is the Thursday
+  // before it. 2026-09-05 and -06 are the weekend, 2026-09-07 is Labor Day, and
+  // 2026-09-08 is the Tuesday after — all from CALENDAR.md §7.1's list.
+
+  it("answers with today's session once the bell has rung", () => {
+    expect(lastOpenedMarketSession(at("2026-09-04", "09:30")).date).toBe(
+      "2026-09-04",
+    );
+    expect(lastOpenedMarketSession(at("2026-09-04", "12:00")).date).toBe(
+      "2026-09-04",
+    );
+  });
+
+  it("still answers with today's session after the close", () => {
+    // The session happened. Nothing about a closed session makes it stop being
+    // the most recent one to have opened, and a window ending at tonight's
+    // close is a window over time that exists.
+    expect(lastOpenedMarketSession(at("2026-09-04", "16:00")).date).toBe(
+      "2026-09-04",
+    );
+    expect(lastOpenedMarketSession(at("2026-09-04", "23:59")).date).toBe(
+      "2026-09-04",
+    );
+  });
+
+  it("answers with the previous session before the bell", () => {
+    // **This is the whole repair.** Between midnight and 09:30 ET today is a
+    // trading day whose session has not begun, and `marketDateAt` cannot see
+    // the difference.
+    expect(lastOpenedMarketSession(at("2026-09-04", "00:00")).date).toBe(
+      "2026-09-03",
+    );
+    expect(lastOpenedMarketSession(at("2026-09-04", "09:29")).date).toBe(
+      "2026-09-03",
+    );
+  });
+
+  it("changes its answer at the bell and not a minute either side", () => {
+    // The boundary is what a later author moves, so it is asserted rather than
+    // implied by the two cases above. Inclusive at the open, matching
+    // `marketSessionStateAt`, whose own boundary case is case 3.
+    const beforeTheBell = instantFromMarketTime(toMarketDate("2026-09-04"), {
+      hour: 9,
+      minute: 29,
+      second: 59,
+    });
+
+    expect(lastOpenedMarketSession(beforeTheBell).date).toBe("2026-09-03");
+    expect(lastOpenedMarketSession(at("2026-09-04", "09:30")).date).toBe(
+      "2026-09-04",
+    );
+  });
+
+  it("answers a weekend with the Friday before it", () => {
+    expect(lastOpenedMarketSession(at("2026-09-05", "12:00")).date).toBe(
+      "2026-09-04",
+    );
+    expect(lastOpenedMarketSession(at("2026-09-06", "12:00")).date).toBe(
+      "2026-09-04",
+    );
+  });
+
+  it("answers a holiday with the session before it", () => {
+    // Labor Day 2026. The Friday before, because the weekend is also skipped —
+    // which is `previousMarketSession` walking rather than anything here.
+    expect(lastOpenedMarketSession(at("2026-09-07", "12:00")).date).toBe(
+      "2026-09-04",
+    );
+  });
+
+  it("returns the whole session, not just its date", () => {
+    // The caller resolves a window from it, so the instants have to be right
+    // and not merely present.
+    const session = lastOpenedMarketSession(at("2026-09-14", "06:52"));
+
+    expect(session.date).toBe("2026-09-11");
+    expect(session.open.toISOString()).toBe("2026-09-11T13:30:00.000Z");
+    expect(session.close.toISOString()).toBe("2026-09-11T20:00:00.000Z");
+  });
+
+  it("refuses rather than truncating at the calendar's lower edge", () => {
+    // 2024-01-01 is New Year's Day, inside the covered range, and the session
+    // before it is in 2023 — so this is reachable rather than theoretical, and
+    // it is the module's stated rule that the error propagates.
+    expect(() => lastOpenedMarketSession(at("2024-01-01", "12:00"))).toThrow(
       MarketCalendarRangeError,
     );
   });

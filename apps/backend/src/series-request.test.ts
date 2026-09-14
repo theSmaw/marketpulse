@@ -364,6 +364,94 @@ describe("parseSeriesRequest", () => {
     });
   });
 
+  // Added 2026-09-14, and every case here is a pure addition: before this, every
+  // pinned clock in this file was mid-session or after the close, which is
+  // precisely why nothing went red when the rule was wrong. A window ending in a
+  // session that has not opened is a window over time that has not happened, and
+  // no test in this repository could tell that rule from the right one.
+  describe("a window before the opening bell ends at the session that has", () => {
+    /** 02:52 ET on Monday 2026-09-14 — the instant the defect was observed at. */
+    const BEFORE_THE_OPEN = new Date("2026-09-14T06:52:00.000Z");
+
+    // The measurement: this resolved to 2026-09-14 13:30Z → 20:00Z, a session
+    // that had not begun, and answered a correct 200 with no bars in it.
+    it("resolves one session to the last one that opened, not to today", () => {
+      const request = accepted(
+        parseSeriesRequest(
+          { symbol: "NVDA", timeframe: "1m", sessions: "1" },
+          BEFORE_THE_OPEN,
+        ),
+      );
+      expect(request.range.start.toISOString()).toBe(
+        "2026-09-11T13:30:00.000Z",
+      );
+      expect(request.range.end.toISOString()).toBe("2026-09-11T20:00:00.000Z");
+    });
+
+    // The default window, which spent a fifth of its frame on the unopened
+    // session. Five sessions back from Friday 2026-09-11 is 09-11, 09-10, 09-09,
+    // 09-08 and 09-04 — Labor Day (09-07) and the weekend are skipped, which is
+    // `lastMarketSessions` doing its job on top of the corrected end date.
+    it("counts the five back from the session that opened", () => {
+      const request = accepted(
+        parseSeriesRequest(
+          { symbol: "NVDA", timeframe: "1m", sessions: "5" },
+          BEFORE_THE_OPEN,
+        ),
+      );
+      expect(request.range.start.toISOString()).toBe(
+        "2026-09-04T13:30:00.000Z",
+      );
+      expect(request.range.end.toISOString()).toBe("2026-09-11T20:00:00.000Z");
+    });
+
+    // The boundary is the thing a later author moves, so it is asserted at this
+    // layer as well as beside the helper. Inclusive at the open.
+    it("changes its answer at the bell and not a minute either side", () => {
+      const oneMinuteBefore = accepted(
+        parseSeriesRequest(
+          { symbol: "NVDA", timeframe: "1m", sessions: "1" },
+          new Date("2026-09-14T13:29:00.000Z"),
+        ),
+      );
+      const atTheBell = accepted(
+        parseSeriesRequest(
+          { symbol: "NVDA", timeframe: "1m", sessions: "1" },
+          new Date("2026-09-14T13:30:00.000Z"),
+        ),
+      );
+
+      expect(oneMinuteBefore.range.end.toISOString()).toBe(
+        "2026-09-11T20:00:00.000Z",
+      );
+      expect(atTheBell.range.end.toISOString()).toBe(
+        "2026-09-14T20:00:00.000Z",
+      );
+    });
+
+    // Four of the five statuses are unchanged by the repair, and the two that
+    // were already walking backwards are the ones most likely to be broken by a
+    // careless fix — a weekend that answered with the *previous* Friday's
+    // previous session would be a whole session out and look plausible.
+    it("leaves the after-close, weekend and holiday answers where they were", () => {
+      const ends = (now: string) =>
+        accepted(
+          parseSeriesRequest(
+            { symbol: "NVDA", timeframe: "1m", sessions: "1" },
+            new Date(now),
+          ),
+        ).range.end.toISOString();
+
+      // 21:00Z on the Friday — after the 16:00 ET close, still that session.
+      expect(ends("2026-09-11T21:00:00.000Z")).toBe("2026-09-11T20:00:00.000Z");
+      // The Saturday and the Sunday, both answered with the Friday.
+      expect(ends("2026-09-12T16:00:00.000Z")).toBe("2026-09-11T20:00:00.000Z");
+      expect(ends("2026-09-13T16:00:00.000Z")).toBe("2026-09-11T20:00:00.000Z");
+      // Labor Day 2026, answered with the Friday before the weekend.
+      expect(ends("2026-09-07T16:00:00.000Z")).toBe("2026-09-04T20:00:00.000Z");
+    });
+  });
+
   describe("the calendar's range, which is a client error and not an internal one", () => {
     // The control: the same request one session inside the calendar and one
     // session outside it. 2024-01-02 is the first session of the covered range;

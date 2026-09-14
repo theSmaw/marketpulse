@@ -185,6 +185,7 @@ export type {
 // simply costs what a map lookup costs the second time it is asked.
 export {
   lastMarketSessions,
+  lastOpenedMarketSession,
   MARKET_SESSION_CACHE_DATES,
   marketSessionCacheEntries,
   MARKET_SESSION_CLOSE,

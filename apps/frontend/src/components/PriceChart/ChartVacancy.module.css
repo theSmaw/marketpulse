@@ -1,0 +1,111 @@
+/*
+ * **The sentence that goes where the picture would be** (2026-09-14).
+ *
+ * A chart holding nothing for its window used to draw a full-frame wash and say
+ * why in small text *beneath* the panel. Looked at pre-open on a real page, the
+ * order that reaches a reader is the wrong way round: a grey box first, and the
+ * reason second if at all. `VOLUME-AND-WINDOW.md` §78 records the observation
+ * and the reversal trigger it fired.
+ *
+ * So the words moved onto the ground they are about. **They are the same words**
+ * — moved, never copied, and `pnpm invariants` holds that.
+ *
+ * ## It is an overlay, not a mark
+ *
+ * `composes: overlay` puts it in the plot's own box without entering the `<svg>`,
+ * which is deliberate three times over: SVG text does not wrap, so the 390px
+ * region would need hand-computed `<tspan>` lines; `composes:` is how this
+ * product reaches its type layer and an SVG `text` cannot use it; and
+ * `security-window-change.spec.ts` compares every geometric element inside each
+ * plot as its *the picture did not move* instrument, which an HTML sibling
+ * leaves alone.
+ *
+ * `pointer-events: none` because `ChartReading`'s own overlay is in the same
+ * grid cell and a reader must still be able to put the crosshair on an empty
+ * frame — there are no bars to read, but the frame is real and the behaviour
+ * should not change under it.
+ */
+
+/*
+ * **The box is composed; the centring is on a child, and that is not a style
+ * choice.** `composes:` emits the composed rule as a second class of equal
+ * specificity, so which of two conflicting declarations wins is decided by
+ * emitted source order — and `.overlay` sets `display: block`, which beat a
+ * `display: flex` written here. The symptom was a sentence pinned to the top
+ * left of the plot with the frame around it looking correct, measured at
+ * `801×18 @57,670` where a centred one is nothing like that.
+ *
+ * Nothing below `pnpm e2e` can see it: jsdom applies no stylesheet and computes
+ * no layout, so the component test that asserts the words are there passes
+ * against both. It took `pnpm probe` and thirty seconds.
+ */
+.vacancy {
+  composes: overlay from "./chart-marks.module.css";
+  padding: 0 var(--space-16);
+  pointer-events: none;
+  text-align: center;
+}
+
+/** The centring, on a child, for the reason above. */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/*
+ * The ink is measured against **the wash, not the panel**. `--chart-uncovered`
+ * sits at 1.107:1 over the plot ground, so a sentence that clears the floor on
+ * the panel is not thereby cleared here — the figure beside each token is the
+ * one taken over the uncovered ground.
+ */
+.headline {
+  --marker-color: var(--ink-secondary);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  margin: 0;
+  color: var(--ink-primary);
+}
+
+/*
+ * Capped rather than let run: the Price region is 1,019px at a 1920 viewport,
+ * and a single sentence set across the whole of it reads as a banner rather than
+ * as a note about the frame it is on.
+ */
+.detail {
+  max-width: 44ch;
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+/*
+ * **Compact arrives as a prop, not as an ancestor class and not as a media
+ * query.** The `.compact` class the two charts set lives in their own modules,
+ * so a descendant selector here would be written against a hash that never
+ * matches — silent, and the exact failure `CLAUDE.md` names as completely
+ * invisible to every level below a browser. A media query is worse: the 600px
+ * boundary is a fact about the *region* rather than the viewport, it has one
+ * home in `chart-density.ts`, and `pnpm invariants` fails an `@media` in these
+ * stylesheets for that reason.
+ *
+ * Below it the sentence **narrows and stays**. Dropping it was tried first and
+ * reverted the same hour: the whole reason it moved onto the frame is that it
+ * was too easy to miss, and a repair that removes it on the narrowest screen —
+ * where a grey box is the largest share of what is on the page — is the defect
+ * arriving by a different route.
+ *
+ * There is room. Measured at 390 with `pnpm probe`: the compact price plot is
+ * 220px tall and the block's box is 230px wide, which the sentence fills in five
+ * lines with the headline above it. The volume plot never carries this line at
+ * all — it is 68px tall and its own headline fills it — so this rule only ever
+ * applies to a plot that has the height for it.
+ */
+.compact .detail {
+  max-width: none;
+}

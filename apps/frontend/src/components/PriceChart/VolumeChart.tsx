@@ -7,6 +7,7 @@ import { volumeAlternative } from "./chart-alternative.js";
 import { volumeFrame, volumeTicks } from "./chart-geometry.js";
 import { chartSubject, drawsAFrame } from "./chart-subject.js";
 import { usePlotBox } from "./use-plot-box.js";
+import { ChartVacancy } from "./ChartVacancy.js";
 import { VolumeReading } from "./VolumeReading.js";
 import styles from "./VolumeChart.module.css";
 
@@ -109,7 +110,8 @@ export function VolumeChart({ view, symbol }: VolumeChartProps) {
   // The shared width, this plot's own height — see `PriceChart.tsx` for why the
   // width comes from the frame rather than from this component's measurement.
   const box = { width: time.width, height: plot.height };
-  const volume = volumeFrame(time, plot.height, chartSubject(view)?.bars ?? []);
+  const subject = chartSubject(view);
+  const volume = volumeFrame(time, plot.height, subject?.bars ?? []);
   const ticks = volumeTicks(time);
   const alternative = volumeAlternative(view, symbol);
 
@@ -234,6 +236,26 @@ export function VolumeChart({ view, symbol }: VolumeChartProps) {
             </g>
           )}
         </svg>
+
+        {/*
+         * **The volume plot said nothing at all until 2026-09-14.** Its caption
+         * had been removed earlier the same day, so an empty answer here was a
+         * grey box with no words anywhere near it — worse than the price plot's,
+         * which at least had a sentence under the panel.
+         *
+         * One line, and its own subject: two regions under one axis both saying
+         * *no bars* reads as one failure repeated. The schedule sentence stays on
+         * the price plot, which has the height for it.
+         */}
+        {subject !== null &&
+          time.coverage.covered === null &&
+          time.coverage.uncovered.length > 0 && (
+            <ChartVacancy
+              compact={time.density.compact}
+              requested={subject.requested}
+              subject="volume"
+            />
+          )}
       </div>
 
       {alternative !== null && (

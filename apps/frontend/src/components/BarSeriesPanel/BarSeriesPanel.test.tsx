@@ -226,14 +226,31 @@ describe("BarSeriesPanel", () => {
     expect(screen.getByText("IEX", VISIBLE)).toBeTruthy();
   });
 
-  it("renders an empty series as an answer about a window", () => {
+  // The sentence this used to assert moved into the plot on 2026-09-14 —
+  // `PriceChart.test.tsx` and `VolumeChart.test.tsx` now own it. What is left
+  // here is the panel's own half of the state, and it is worth an assertion
+  // rather than a deletion: `empty` is the one answer whose body is nothing, and
+  // "renders nothing" is indistinguishable from "was never rendered" unless the
+  // panel around it is checked at the same time.
+  it("renders an empty series with a heading and no body of its own", () => {
     render(<Panel {...props} view={barSeriesFixtureView("empty")} />);
 
-    expect(screen.getByText(/No bars stored for this window/)).toBeTruthy();
-    // It still says what was asked for. A panel that dropped the window would
-    // leave "no data" with nothing to be about.
-    expect(screen.getByText(/We asked for/).textContent).toContain("EDT");
+    // The panel rendered rather than collapsing: the chart's own text
+    // alternative is there, which is the one thing an `empty` answer always
+    // produces. (No visible heading — the panel stopped carrying one on
+    // 2026-09-14, two changes earlier the same day.)
+    expect(screen.getByText(/no line is drawn/)).toBeTruthy();
+
+    // And it offers nothing to press. A window holding no bars is a correct
+    // answer about the request rather than a failure to retry, so a button here
+    // would be one that cannot work.
     expect(screen.queryByRole("button")).toBeNull();
+
+    // The sentence is not in the panel's own body any more. Asserted, because
+    // two copies is a Playwright strict-mode failure across the browser suite
+    // and this is the level that catches it in milliseconds rather than in six
+    // minutes. `pnpm invariants` holds the same claim over the source.
+    expect(screen.queryByText(/We asked for/)).toBeNull();
   });
 
   it.each([

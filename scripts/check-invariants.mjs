@@ -395,6 +395,62 @@ const INVARIANTS = [
       }
     },
   },
+
+  {
+    id: "one-home-for-the-empty-explanation",
+    claim:
+      "The sentence explaining an empty window is written in exactly one " +
+      "source file.",
+    check() {
+      // The sentence moved out of `BarSeriesPanel` and into the plot on
+      // 2026-09-14 (`VOLUME-AND-WINDOW.md` §78). **Moved, not copied**, and the
+      // difference is not tidiness: `e2e/support/app.ts`'s `readable()` does not
+      // filter `aria-hidden`, and two of the specs that locate a settled answer
+      // by this phrase build their locator without `.first()`. A second copy
+      // inside the Price region is a Playwright strict-mode failure — on CI, in
+      // every spec, because CI's store holds 518 securities and zero bars so
+      // every chart there is a correct `empty`.
+      //
+      // That is a six-minute round trip to discover and a grep to prevent.
+      //
+      // **Anchored on a literal that must be FOUND**, not on one that must be
+      // absent: a check whose passing condition is "no matches" passes just as
+      // happily when the string it looks for has been renamed, which is how one
+      // of the original seven invariants rotted. If this sentence is reworded,
+      // this check goes red and names the new home rather than going quiet.
+      const SENTENCE = "No bars stored for this window.";
+
+      const homes = sourceFilesUnder(
+        resolve(REPO_ROOT, "apps/frontend/src"),
+      ).filter(
+        ({ path, text }) =>
+          !/\.(?:test|stories)\.tsx?$/u.test(path) && text.includes(SENTENCE),
+      );
+
+      if (homes.length === 0) {
+        throw new InvariantFailure(
+          `No source file contains ${JSON.stringify(SENTENCE)}. Either the ` +
+            "sentence was reworded — in which case reword it here too, and " +
+            "check the nine browser specs that match on it — or the empty " +
+            "state stopped explaining itself, which is the defect this " +
+            "guards.",
+        );
+      }
+
+      if (homes.length > 1) {
+        throw new InvariantFailure(
+          "The sentence has more than one home:\n      " +
+            homes
+              .map(({ path }) => relative(REPO_ROOT, path))
+              .join("\n      ") +
+            "\n      Two visible copies inside the Price region is a " +
+            "Playwright strict-mode failure in every browser spec that " +
+            "locates a settled answer by this phrase, and CI's store makes " +
+            "every chart there an `empty`.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

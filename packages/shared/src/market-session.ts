@@ -394,6 +394,65 @@ export function marketSessionStateAt(instant: Date): MarketSessionState {
 }
 
 /**
+ * The most recent session whose **opening bell has already rung** at an instant.
+ *
+ * The question is *has the bell rung*, and it is **never** *do we hold data for
+ * it*. The distinction is the whole of this function's reason to exist:
+ * `VOLUME-AND-WINDOW.md` §1.3 weighed and rejected "the most recent session with
+ * data" because a client cannot know which session has data without asking, so
+ * that rule is either a second round trip or a clock read in the browser. This
+ * one is a pure function of a calendar and an instant — it returns the same
+ * session for every caller on earth at the same moment, and it does not know
+ * what is in the store.
+ *
+ * **`before_open` is the only status where this differs from
+ * {@link marketDateAt}'s session**, and it is the whole repair: between midnight
+ * and the bell, today is a trading day whose session has not begun, so a window
+ * ending "at today's close" ends inside a session that cannot contain a bar.
+ *
+ * | Status at `instant` | Answer            |
+ * | ------------------- | ----------------- |
+ * | `open`              | today's session   |
+ * | `after_close`       | today's session   |
+ * | `before_open`       | the one before it |
+ * | `weekend`           | the one before it |
+ * | `holiday`           | the one before it |
+ *
+ * **The two statuses are spelled out rather than tested with `"session" in
+ * state`**, and that is load-bearing rather than verbose: `before_open` *carries*
+ * a session, so the membership test — which is exactly what `serve-series.ts`'s
+ * `currentSession` does, correctly, for a different question — answers this one
+ * with the session that has not started. The difference between the two
+ * functions is one status wide and invisible in a diff.
+ *
+ * ## Four rules in this repository now sound alike. They are not.
+ *
+ * | Where                                        | The question it answers                  |
+ * | -------------------------------------------- | ---------------------------------------- |
+ * | here                                         | has the bell rung                        |
+ * | `serve-series.ts` → `currentSession`         | which session may still be accumulating  |
+ * | `series-cache.ts` → `closedThrough`          | which session is definitely over         |
+ * | `store-freshness.ts` → `lastCompletedSession`| the same, computed a different way       |
+ *
+ * The last two are near-duplicates of each other and collapsing them is a real
+ * piece of work that is deliberately not done here. They are named so that the
+ * next author reaches for one of the four rather than writing a fifth.
+ *
+ * Propagates {@link MarketCalendarRangeError} like everything else in this
+ * module — reachable from `2024-01-01`, a holiday inside the covered range whose
+ * previous session is in 2023.
+ */
+export function lastOpenedMarketSession(instant: Date): MarketSession {
+  const state = marketSessionStateAt(instant);
+
+  if (state.status === "open" || state.status === "after_close") {
+    return state.session;
+  }
+
+  return previousMarketSession(marketDateAt(instant));
+}
+
+/**
  * The first session strictly **before** a market date.
  *
  * Strictly before, so `previousMarketSession` of a trading day is the day before

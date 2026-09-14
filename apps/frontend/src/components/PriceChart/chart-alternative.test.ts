@@ -156,7 +156,31 @@ describe("chartAlternative", () => {
       "NVDA price chart: no line is drawn. The frame is drawn across 1 " +
         "trading session. No bars are stored anywhere in the " +
         "window asked for, 2026-09-10 09:30:00 EDT → 2026-09-10 16:00:00 EDT, " +
-        "so the whole frame is empty ground.",
+        "so the whole frame is empty ground. Stored history is caught up " +
+        "overnight.",
+    );
+  });
+
+  // The schedule clause arrived on 2026-09-14 and is asserted apart from the
+  // sentence above, because the reason it is here is not the wording.
+  //
+  // It was the second half of `BarSeriesPanel`'s `EmptyState`, which moved into
+  // the plot as `ChartVacancy` — and `ChartVacancy` is `aria-hidden`, since
+  // everything it says is already said here. Moving a visible sentence out of
+  // the accessibility tree without checking what it carried is how a fact
+  // disappears for one audience and nobody notices, so the one clause with no
+  // spoken home got one.
+  it("keeps the schedule on the price chart and off the volume chart", () => {
+    expect(alternative("empty")).toContain(
+      "Stored history is caught up overnight",
+    );
+
+    // Not on the volume plot. Two regions under one axis repeating one fact is
+    // the sentence read twice, and the visible detail line is on the price plot
+    // alone for the same reason.
+    const empty = barSeriesFixtureView("empty");
+    expect(volumeAlternative(empty, SYMBOL)).not.toContain(
+      "caught up overnight",
     );
   });
 
