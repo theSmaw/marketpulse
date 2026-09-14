@@ -10,6 +10,10 @@
 > `SourceNote` is a designed absence that belongs in the enumeration rather than
 > looking like a gap in it.
 
+> **Amended 2026-09-14 by Task 2.14.3.** The second of those entries splits in
+> two, and the note's **reduced** shape — one clause, on every zero-bar page — is
+> a state the enumeration would otherwise miss entirely. See the list below.
+
 ## Objective
 
 Acceptance criterion 3, and the local half of criterion 5. Take every failure
@@ -59,9 +63,17 @@ anywhere in the epic's surface.
   chart request failed; a window change refused by the cap; a window change failed with
   the previous window still readable; the stale mark; the untracked badge; the
   backend unreachable entirely; a security page opened cold with no backend at
-  all; **and the state where `SourceNote` renders nothing**, which is every
-  zero-bar page and is a designed absence rather than a missing element
-  ([`PROVENANCE.md`](PROVENANCE.md) §0.1). Write the list into `PROVENANCE.md` — the list **is** the deliverable of
+  all; ~~**and the state where `SourceNote` renders nothing**, which is every
+  zero-bar page and is a designed absence rather than a missing element~~ —
+  **corrected 2026-09-14: it is two states, not one, and the enumeration gains
+  the more interesting of them.** §0.1 is **per clause** since Task 2.14.2, and
+  Task 2.14.3 implemented it that way, so: a zero-bar page draws the note
+  **reduced to its classification clause alone** — the designed absence is of the
+  two bar-derived clauses rather than of the note — and the note renders
+  **nothing at all** only where no clause has data, which is a page whose
+  universe fetch has not resolved or has failed. Both belong in the list, and the
+  first is the one nobody would think to look at, because it is the shape **every
+  page CI renders** ([`PROVENANCE.md`](PROVENANCE.md) §0.1). Write the list into `PROVENANCE.md` — the list **is** the deliverable of
   this bullet, because a set checked from memory is a set with a hole in it.
 - **Produce each one for real**, against a running pair. `store:bare` gives the
   empties; a stopped backend gives the unreachable states; `?sessions=` beyond

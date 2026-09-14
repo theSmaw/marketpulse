@@ -57,9 +57,19 @@ today a reader gets whichever sentence we happened to write.
   `"number"` reaching the wire as `0`~~. Both were hazards of **adding a field**,
   and decision 6 adds none. They stay live for any task that does.
 - **A claim about data requires data** ([`PROVENANCE.md`](PROVENANCE.md) §0.1).
-  The source note renders nothing when `bars.length === 0`, so on both of these
-  states the vacancy sentence is the **whole** explanation on screen. It is
-  carrying more weight than it looks.
+  ~~The source note renders nothing when `bars.length === 0`, so on both of these
+  states the vacancy sentence is the **whole** explanation on screen.~~
+  **Corrected 2026-09-14, and the conclusion survives the correction.** §0.1 is
+  **per clause** since Task 2.14.2, and Task 2.14.4 draws the one clause whose
+  data is not the bars — so a zero-bar page carries a one-line source note
+  saying the sector and industry are curated, and not silence. What is still
+  true, and is the half that matters here: **nothing on that page explains the
+  empty picture except the vacancy sentence.** The note says where the _words
+  above_ the chart came from and nothing about why there is no chart. So this
+  sentence is still carrying the whole weight, with one grey line of unrelated
+  provenance beneath it — which is worth knowing before writing it, because the
+  page is less bare than §0.1 first implied and the sentence must still read as
+  the answer rather than as one of two footnotes.
 
 ## Work
 

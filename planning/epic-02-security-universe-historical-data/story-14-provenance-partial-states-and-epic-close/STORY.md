@@ -483,6 +483,44 @@ already done; 2.14.7 gains two states; 2.14.8's dependency on 2.14.4 adding
 table markup is withdrawn; 2.14.10's ADR candidate moved and its sweep became a
 confirmation. **2.14.1 itself is complete.**
 
+### Amended 2026-09-14, after Task 2.14.3 — again no task moves, six are edited
+
+The first build task shipped and **no task was added, deleted or re-ordered**;
+the dependency graph was right. Six were edited in place, and one correction
+runs through three of them:
+
+- **The note is not absent at zero bars, and three tasks said it was.** §0.1
+  became **per clause** at 2.14.2 and 2.14.3 implemented it that way, so from
+  2.14.4 a page with no bars draws a `SourceNote` **reduced to its
+  classification line** rather than nothing. 2.14.6, 2.14.7 and 2.14.9 each
+  carried the per-note version as a live claim — including the bullet in the
+  amendment above, which is therefore **half wrong and is left standing as the
+  record it is**. Each task now carries the correction, and 2.14.7 gains a state
+  it would otherwise have missed entirely: the note in its **reduced** shape,
+  which is what every page CI renders.
+- **2.14.4** may not write a date formatter: `formatFullDate` and its month
+  table shipped with 2.14.3 and the classification's date takes the identical
+  path. Its component shape is also settled — a third clause, a third view, a
+  third term in `hasClauses` — and it is the task that makes the note appear on a
+  zero-bar page at all. One tension is handed to it deliberately rather than
+  inherited: the note carries **no marker**, so a marker for the `null` state
+  would be the surface's first.
+- **2.14.5's corpus was missing this story's own strings**, which are the ones
+  most exposed to the criterion the pass is for — `ADJUSTMENT_DESCRIPTIONS`, the
+  note's labels, and `feedClause`, whose spoken wording 2.14.3 changed. And the
+  risk moved: **`All US exchanges` now appears on the page** rather than only in
+  the chrome, on any deployment with no provider configured.
+- **2.14.8** is told that this story does add page markup — a two-term `dl` —
+  so "something other than this story moved it" is too strong; the expectation is
+  still _unchanged_, and the note is the cheapest control on the claim that the
+  table is the cause.
+- **2.14.10's ADR carries the amended forms** of §1.3 and §0.1 rather than the
+  first ones, and gains the two-feed ledger to its list of what ships open with
+  an owner: the sentence invariant 6 exists for is correct, drawn, tested — and
+  producible by nothing until Epic 3's socket.
+
+**2.14.3 itself is complete.**
+
 **What none of the ten owns**: the live feed and the `LIVE` indicator (Epic 3);
 confidence and evidence provenance for findings (Epic 8); the final
 accessibility review (Epic 15). And two things ship open by name rather than
