@@ -32,6 +32,38 @@
 > reading against the measurement rather than as written (§8.1). Each is edited in
 > place below.
 
+> **Amended 2026-09-15 by Task 2.14.5, and one item below is now discharged
+> rather than owed.**
+>
+> - **Acceptance criterion 2 is done.** The bullet below says it "must not be
+>   signed off as written" and asks for a record of how it was discharged. That
+>   record exists: [`PROVENANCE.md`](PROVENANCE.md) §11 is the pass as a list —
+>   §11.1 states the inversion and the reading, §11.2 how the corpus was
+>   enumerated, §11.3 every surface with its judgement, §11.4 what became
+>   mechanical and §11.5 what could not. `STORY.md` carries the reading beside the
+>   criterion itself. **What is left here is a confirmation and one check**: that
+>   the pass covers the strings Tasks 2.14.6 and 2.14.7 added _after_ it, which is
+>   2.14.6's own amended done-when. Do not re-run the pass; check the two rows are
+>   there.
+> - **The ADR gains a fourth candidate, and it is the one with reach.** §3.2's
+>   _one function, two readers_ shipped as a mechanism rather than a preference:
+>   the drawn sentence and the spoken one are one string, and a second copy fails
+>   the build. It generalises past provenance — every surface this product gives a
+>   screen reader has a visible twin — and it is the concrete form of §2's _return
+>   a structure, not a sentence_ rather than a separate idea. Fold them into one
+>   paragraph.
+> - **One more thing ships open, and it has an owner already.**
+>   `No shares changed hands anywhere in the window.` is the only shipped sentence
+>   claiming something about **the market** rather than about our store. True
+>   while every bar is the consolidated tape; a single venue's silence the moment
+>   Epic 3 stitches an IEX tail. **Owner: Epic 3**, alongside the two-feed ledger,
+>   and carried in [`docs/GAPS.md`](../../../docs/GAPS.md) since 2026-09-15. It is
+>   listed below.
+> - **A live claim in this file was already corrected**: `docs/GAPS.md`'s
+>   invariant table read _seven_ while the list had been eight since 2026-09-14.
+>   Fixed 2026-09-15, and it is worth one sentence in the close as an instance of
+>   this document's own failure mode — a number in prose beside a list that moves.
+
 ## Objective
 
 Close Story 2.14 and close Epic 2: take the cost figure with a database
@@ -120,12 +152,16 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
     through in two places — §8.1 is explicit that **the struck-through prose is a
     historical record and needs no correction**; what needs amending is the
     `Status`, the _What the user can see_ section and the acceptance criteria.
-- **Acceptance criterion 2 must not be signed off as written** (§8.1). It reads
-  _"No screen states or implies full US-market coverage"_ and the measurement
-  **inverts** it: stored bars _are_ the consolidated tape, so applied literally it
-  asks us to delete the one true label on the page. Record how it was actually
-  discharged — coverage claimed wrongly in **either** direction — so a future
-  reader does not find an unmet criterion where there is a corrected one.
+- ~~**Acceptance criterion 2 must not be signed off as written** (§8.1). Record
+  how it was actually discharged — coverage claimed wrongly in **either**
+  direction — so a future reader does not find an unmet criterion where there is
+  a corrected one.~~ **Done 2026-09-15 by Task 2.14.5**, and the bullet is struck
+  rather than deleted because the reasoning behind it is what makes the record
+  readable. §11 is the pass, §11.1 the reading, and `STORY.md` carries it beside
+  the criterion. **What remains here is one check**: that §11.3 gained a row for
+  each user-facing string Tasks 2.14.6 and 2.14.7 added after the pass ran. A
+  pass with a hole the size of the two newest sentences is the failure this
+  criterion is most likely to be signed off with.
 - **Acceptance criterion 1 needs its reading recorded too** (§1.2). _"without
   hovering"_ is met by the masthead plus `SourceNote`; it is **not** met by a mark
   inside the plot frame, and that is a decision with an argument rather than an
@@ -162,6 +198,14 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
     the first thing that can record a real one; the function is named and
     commented so that deleting it and pointing its three readers at a fixture is
     the obvious move. Carried in `docs/GAPS.md` since 2026-09-14.
+  - **The one sentence that claims something about the market.**
+    `No shares changed hands anywhere in the window.` is true while every stored
+    bar is the consolidated tape and becomes a single venue's silence reported as
+    the whole market's the first time a live tail is stitched on — the failure
+    `PRODUCT_SPEC.md` §7.1 forbids, in the one place a reader would never look for
+    it. It also has **two homes** today, drawn and spoken, and nothing guards
+    them. **Owner: Epic 3**, beside the two-feed ledger. `PROVENANCE.md` §11.3 and
+    `docs/GAPS.md`.
   - Plus whatever Task 2.14.8 deferred, and the `synthetic` branch that no
     recorded body exercises.
 - **Hand Epic 3 what it inherits**, in one paragraph in `EPIC.md`: the
@@ -177,7 +221,9 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
 
 - Acceptance criteria 1–8 are each addressed by name, with what discharged them
   — criteria 1 and 2 including the reading they were discharged under, because
-  both are met in a form other than the one they are written in.
+  both are met in a form other than the one they are written in. **Criterion 2 is
+  already discharged** (§11); what this close owes it is the check that the pass
+  covers the strings added after it ran.
 - The story's ADR is written and `docs/adr/README.md` indexes it.
 - The cost figure is in `HOSTING.md`, dated, with the offer's remaining months.
 - All seven fixture greps were run against the **deploy** build and found

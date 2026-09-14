@@ -700,7 +700,9 @@ instant somebody stamped, or a date somebody typed?_
 
 ### The coverage sentence belongs to the rail, and the rail now has a priority
 
-_Holding 59 bars, through 15:42, of a window running to 16:00_ is a fact about **a request**, so it lands in the slot that already says what happened to one. It is never rendered under a complete answer, where the axis is the answer and a sentence restating it is the padding ADR 0019 §3 rejected.
+_Holding 1,560 bars, through 2026-09-11 16:00:00 EDT, of a window running to 2026-09-14 16:00:00 EDT_ is a fact about **a request**, so it lands in the slot that already says what happened to one. It is never rendered under a complete answer, where the axis is the answer and a sentence restating it is the padding ADR 0019 §3 rejected.
+
+**Amended 2026-09-15 by Task 2.14.5, which shipped it.** The sentence above read _"through 15:42, of a window running to 16:00"_ here and on the canvas, and the shortened instants did not survive the first real answer: the two ends fall on **different days** far more often than not, and the short form renders that as _"through 16:00, of a window running to 16:00"_ — a sentence saying a window was missed by nothing at all. Both instants are `formatMarketInstant`'s, zone abbreviation included, for that function's own reason. The canvas is corrected to match.
 
 The rail holds one line's reserved height and now has three possible occupants, so the order is stated rather than stacked:
 
@@ -709,6 +711,8 @@ The rail holds one line's reserved height and now has three possible occupants, 
 3. **nothing**, when the answer is complete.
 
 They are naturally sequential rather than simultaneous: when the held sentence clears, the new answer's own coverage sentence takes the slot.
+
+**The rule under a settled rail does not move, and that is the language's rule rather than one panel's.** A rail that is _waiting_ carries a travelling hairline; a rail stating something that has **finished happening** carries the same dashes, static. They are one class, and it was renamed for this — `.railBlock`, after being named for the first of its occupants. The general form: **motion in this product means work in progress, and nothing else may borrow it.** A moving rule under a finished sentence is the fourth design test answered backwards — alive where alive would be a lie.
 
 ### Two empty answers look identical and read differently
 

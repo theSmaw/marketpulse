@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
-**Depends on:** 2.14.4
+**Depends on:** 2.14.4, 2.14.5
 
 > **Amended 2026-09-14 by Task 2.14.1.** The dependency read _"which may have
 > added markup to the table in question"_. [`PROVENANCE.md`](PROVENANCE.md) §5
@@ -41,6 +41,26 @@
 >   convenient later. If the figure has moved, this is the second thing to rule
 >   out and it is cheap to rule out: it is the same work whether the note draws
 >   one clause or three.
+
+> **Amended 2026-09-15 by Task 2.14.5, which is now a dependency.** The three
+> amendments above each record what the preceding task added to the page, so that
+> _the table is the cause_ stays an argument with controls under it rather than a
+> convenient conclusion. This task added:
+>
+> - **Four elements per panel, hidden.** The rail's reservation became two hidden
+>   cells instead of one — a `div`, a `p`, a marker and a span — laid out and
+>   `visibility: hidden`, so they cost layout and no paint. Against a 518-row
+>   table's thousands this is noise, and it is named for the same reason the
+>   note's three terms were.
+> - **No new read of the universe array**, and nothing per row anywhere. The
+>   coverage sentence is a pure function of the series the page already holds.
+>
+> So the expectation is 2.13.9's figure unchanged, for the third time — and the
+> value of taking it remains that an unchanged figure you measured and an
+> unchanged figure you assumed look identical in a document and nowhere else.
+> **The dependency moved because the re-measure should be taken against the tree
+> that ships**, and 2.14.5 is the last task before this one that adds markup to
+> the security page.
 
 ## Objective
 

@@ -1,6 +1,6 @@
 # Task 2.14.5 — Through when, and the pass over every string that could imply the whole market
 
-**Status:** Not started
+**Status:** Done — 2026-09-15
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.1, 2.14.3
 
@@ -174,3 +174,213 @@ The most likely thing to go wrong here is tone. Every sentence this task writes
 is about something being incomplete, and five of them together will make a
 working product read as a broken one. That is a design finding, and it belongs
 back on 2.14.2's canvas rather than in a CSS file.
+
+---
+
+## What was done
+
+### The sentence
+
+`Holding 1,560 bars, through 2026-09-11 16:00:00 EDT, of a window running to
+2026-09-14 16:00:00 EDT.` — in the rail, above the picture, beside the four
+prices it qualifies, and **only under a `partial` answer**.
+
+It is produced by `coveragePhrase` in
+`apps/frontend/src/components/BarSeriesPanel/series-facts.ts` and read by
+**both** the visible rendering and `series-announcement.ts`, which is the half
+of decision 3 worth more than the decision. The spoken sentence is byte-for-byte
+what it was; what moved is where it is written. `sentenceCase` moved there too —
+its third consumer — and is the only difference between the two readings.
+
+Under a `loaded` chart there is **no** sentence, and that is now recorded in
+three places rather than being an absence somebody could read as an oversight:
+the `Complete` story's docstring (which asserted the opposite and has been
+corrected in place, with the old sentence quoted), a component test that asserts
+it, and `PROVENANCE.md` §3.
+
+### The rail
+
+Three occupants, one slot, a stated priority, and a reservation that is measured
+rather than argued — recorded in full in
+[`VOLUME-AND-WINDOW.md`](../story-13-volume-chart-and-time-window/VOLUME-AND-WINDOW.md)
+§82. Three figures from it:
+
+- **48px → 66px**, at 1440 and at 390 alike, on every answer that has a series.
+  `?sessions=1` on this store is `empty` and is unchanged at 48px.
+- The reservation is **two hidden copies in one grid cell** rather than the
+  longer of two strings. The two are not commensurable — one worst case is
+  picked from five window phrases, the other is a property of an answer — and
+  comparing them would have been the argued tolerance this repository has
+  already paid a full suite run for.
+- `.heldWindow` → `.railBlock`. A bare `RailSentence` resolves to `.refreshing`,
+  whose hairline **travels**; a travelling rule under a settled sentence says
+  work is in progress under an answer that has arrived. The notes at the foot of
+  this task predicted tone as the likeliest failure, and it very nearly arrived
+  through a stylesheet.
+
+### The canvas
+
+`Provenance and the empty answers.dc.html` §05 drew the sentence as _"through
+15:42, of a window running to 16:00"_. The first partial answer on a running
+pair reads **through 2026-09-11 16:00:00 EDT, of a window running to 2026-09-14
+16:00:00 EDT** — two different days, which the short form renders as "through
+16:00, of a window running to 16:00": a sentence saying a window was missed by
+nothing at all. **The canvas was redrawn to the shipped form**, which is ADR
+0026's chain run in the direction it is meant to run rather than the tree being
+left to diverge.
+
+### The pass
+
+Recorded as a list in [`PROVENANCE.md`](PROVENANCE.md) §11 — what was read, what
+was decided, what was left and why — rather than summarised as "checked". Four
+things about it are worth surfacing here:
+
+- **Criterion 2 inverts as written**, and §11.1 says so and says how to read it
+  instead. _"No screen states or implies full US-market coverage"_ read literally
+  asks us to delete `All US exchanges`, which is an exact statement of what is in
+  a stored bar. Every string was judged against **both** directions.
+- **Nothing was changed by the pass**, and that is the honest outcome stated as
+  one. The vocabulary was decided in one module in Story 2.6 and every surface
+  since has read it — which is what a pass over three stories' strings is
+  supposed to find.
+- **One string was read, left, and given a trigger.**
+  `No shares changed hands anywhere in the window.` is the only shipped sentence
+  claiming something about **the market** rather than about our store. It is true
+  while every bar is the consolidated tape and becomes a single venue's silence
+  reported as the whole market's the moment Epic 3 stitches an IEX tail.
+- **The corpus was enumerated mechanically**, not from memory — every non-test
+  `.ts`/`.tsx` under `apps/frontend/src` with comments stripped, reduced to its
+  literals and JSX text nodes, plus the backend's refusals, `README.md`'s
+  description and the one page title. Every phrase containing the word _market_
+  was then read individually.
+
+### What became mechanical, and the break each owes
+
+Two new `pnpm invariants` steps, both run red through `pnpm break`:
+
+| Invariant                          | Claim                                                             | Break                      |
+| ---------------------------------- | ----------------------------------------------------------------- | -------------------------- |
+| `one-home-for-the-feed-words`      | `All US exchanges` and the IEX sentence are written in one module | `feed-words-in-a-renderer` |
+| `one-home-for-the-coverage-phrase` | The coverage sentence is written in one source file               | `coverage-sentence-twice`  |
+
+**Both read their sources with comments stripped, and that was forced.** The
+first version of the coverage check went red on `chart-alternative.ts`'s doc
+comment, which quotes the sentence in prose to explain why its own clause says
+something different — a check a correct comment can trip is a check nobody can
+keep green. The stripper removes block comments and whole-line `//` comments and
+never truncates a line of code, which is the safe direction: the worst it can do
+is report a match a reader then reads.
+
+**And the check found something before it was even finished.** The `pnpm
+invariants` table in `docs/GAPS.md` read _seven_ while the list had been eight
+since 2026-09-14 — `one-home-for-the-empty-explanation` shipped and nothing
+brought the sentence above it along. Corrected, and the count is now the table.
+
+### What could not be made mechanical
+
+Three entries in [`docs/GAPS.md`](../../../docs/GAPS.md), each with a
+`Re-measure:` naming a file that exists: the rail's reservation against the
+coverage sentence at four widths (and the one digit of bar count it does not
+reserve); that the sentence and the coverage edge never disagree about where the
+data stops; and the `No shares changed hands anywhere` trigger.
+
+### What was verified
+
+`pnpm verify`, and the two browser specs the change touches —
+`security-price-chart.spec.ts` and `security-series.spec.ts`, 31 passing — run
+before the full suite rather than after it. The page was looked at with `pnpm
+probe` at 1440 and 390 **before** any suite, which is how the travelling-rule
+defect was caught.
+
+## What the user can see
+
+**How current the numbers are, without working it out from an axis.** Where the
+store answered part of the window, the line above the chart says how many bars
+are held, through which instant, of a window running to which instant — and
+where it answered all of it, that line is silent, because the axis already says
+so.
+
+**What a user still cannot do:** watch a price move. There is no live data.
+
+---
+
+## For the stakeholder — what this actually was, in plain words
+
+Until today, when MarketPulse could only answer part of the period you asked
+for, the chart told you so with a picture: the line stopped, and the rest of the
+frame was drawn as empty ground. That is enough to know **something is missing**
+and **it stops about here**. It is not enough to know **when** — and _when_ is
+the thing an analyst needs before they will quote a number off a screen.
+
+The reason the picture cannot tell you is a deliberate design decision taken
+three weeks ago. Our charts do not plot time evenly, because markets do not
+trade evenly: a weekend would be two-sevenths of a week-long chart spent drawing
+nothing. So the horizontal axis counts _trading sessions_, not hours — which
+makes the picture far more readable and makes a clock time unrecoverable from
+it. What we added is the one sentence that fills exactly that gap:
+
+> Holding 1,560 bars, through 2026-09-11 16:00:00 EDT, of a window running to
+> 2026-09-14 16:00:00 EDT.
+
+Three decisions inside that sentence are worth a stakeholder's minute.
+
+**It appears only when there is something to say.** Under a chart that answered
+your whole period, it says nothing at all — the line already ends where the data
+ends, so the sentence would be restating the picture. That sounds like a small
+economy and it is not: small print that repeats what is already on screen is how
+you teach people that your small print is not worth reading. The day we need
+them to read it, they will not.
+
+**It is written once and used twice.** The same sentence is read aloud to
+someone using a screen reader and drawn on screen for everyone else. That is one
+function with two readers rather than two copies — because two copies agree on
+the day they are written and quietly diverge the first time somebody rewords
+one, and nobody would ever notice, since no one person sees both. We added an
+automated check that fails the build if a second copy of it ever appears.
+
+**It does not sound like something went wrong.** Nothing did. A historical chart
+that ends where our stored history ends is a correct historical chart, and the
+gap fills overnight. So there is no red, no warning box, no _only_ and no
+_unfortunately_ — and, after looking at the real page, no moving line underneath
+it either: our "we are fetching something" marker is a hairline that travels,
+and putting it under a finished sentence would have said work was in progress
+when none was. That was caught by opening the page, thirty seconds in, and by
+nothing else.
+
+The second half of the task was a **coverage-honesty audit**, and it is the kind
+of work that is easy to fake and worth doing properly. Our data plan is
+lopsided: the historical prices we store come from the full US consolidated
+tape — every exchange — while the live stream we get in the next epic comes from
+a single exchange, IEX. Saying the wrong one of those in the wrong place is a
+false statement about the market, so we read **every single sentence the product
+shows or speaks** — mechanically listed rather than recalled — and judged each
+one twice: does it claim more coverage than we have, and does it disclaim
+coverage we _do_ have. Both are lies; the second is the one a cautious reviewer
+introduces by accident.
+
+**We changed nothing.** That is the result, and it is a good one: three stories
+of screens all take their wording from a single vocabulary written once, which
+is exactly what that arrangement was for. What the audit produced instead was
+two automated checks — one that fails the build if any screen invents its own
+words for a data feed, one for the sentence above — and three honest notes about
+things a machine cannot check, each with the command to re-check it by hand.
+
+One of those notes is worth naming, because it is a real bug we have scheduled
+rather than a hypothetical. When a chart shows a period in which nothing traded,
+we currently say _"No shares changed hands anywhere in the window."_ Today that
+is true, because every stored price comes from every exchange. The moment we
+plug in the live single-exchange feed next epic, that same sentence becomes one
+venue's quiet afternoon reported as the whole market standing still. It is
+written down, with the trigger, in the place the next engineer will read.
+
+We also found that our own index of automated checks said "seven" when there
+were eight. Corrected — and it is a small illustration of why this repository
+keeps turning written promises into checks that run.
+
+**Where the product stands:** Epic 2 has one task-set left. A user can search 518
+US securities, open one, and read its price and volume on a shared time axis
+across five time windows — and the screen now accounts for itself: where the
+prices came from, whether they have been restated for splits, when we fetched
+them, that the sector label is our own research rather than a market fact, and
+how far the answer reaches. What they still cannot do is watch a price move.
+That is Epic 3.

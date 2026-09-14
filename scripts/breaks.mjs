@@ -160,4 +160,47 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "one-home-for-the-empty-explanation",
   },
+
+  {
+    name: "coverage-sentence-twice",
+    proves:
+      "The coverage sentence re-inlined in the announcement while the rail " +
+      "also draws it puts one fact in two vocabularies — the drift a screen " +
+      "and a screen reader can diverge through with nothing to notice — and " +
+      "the invariant catches the second home.",
+    // The break is the change somebody would actually make: putting the
+    // sentence back where it was assembled until Task 2.14.5, because reaching
+    // into a component's `series-facts.ts` from the announcement looks like a
+    // layering mistake until you know why it is one function.
+    file: "apps/frontend/src/components/BarSeriesPanel/series-announcement.ts",
+    find: "        coveragePhrase(view.series),",
+    replace:
+      "        `holding ${formatCount(view.series.bars.length)} bars, ` +\n" +
+      "          `through ${String(view.series.coverage.covered.end)}, ` +\n" +
+      "          `of a window running to ${String(view.series.coverage.requested.end)}.`,",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-coverage-phrase",
+  },
+
+  {
+    name: "feed-words-in-a-renderer",
+    proves:
+      "A renderer writing its own words for a feed is a claim about US market " +
+      "coverage that no vocabulary decided — `PRODUCT_SPEC.md` §7.1 and " +
+      "invariant 6 — and the invariant catches the second spelling.",
+    // The break is the plausible one rather than a synthetic edit: a fallback
+    // label in the component that renders the chrome's feed indicator, for the
+    // deployment where no provider is configured. It reads as defensive and it
+    // is a coverage claim.
+    file: "apps/frontend/src/components/FeedIndicator/FeedIndicator.tsx",
+    find: "export function FeedIndicator({",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      'const FALLBACK_FEED_LABEL = "All US exchanges";\n' +
+      "void FALLBACK_FEED_LABEL;\n" +
+      "\n" +
+      "export function FeedIndicator({",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-feed-words",
+  },
 ];

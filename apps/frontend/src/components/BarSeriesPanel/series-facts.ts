@@ -127,6 +127,68 @@ export function formatCount(count: number): string {
 }
 
 /**
+ * **How far a short answer reaches, and how far the window ran** — one phrase,
+ * two readers (Task 2.14.5, `PROVENANCE.md` §3.2).
+ *
+ * The sentence appears **exactly when the answer is short of the window asked
+ * for**, which is the `partial` state and nothing else. Under a `loaded` chart
+ * the axis already ends where the data ends, so this would restate the picture,
+ * and padding in a small type teaches a reader that the small type is not worth
+ * reading — the padding ADR 0019 §3 rejected in a neighbouring case.
+ *
+ * ## Why it lives here rather than in either of its readers
+ *
+ * It is assembled by `series-announcement.ts` for a listener and drawn by
+ * `BarSeriesPanel`'s rail for a reader. A visible copy written beside the
+ * spoken one would be **two vocabularies for one fact**, which is the drift
+ * `MARKET_FEED_DESCRIPTIONS` exists to prevent one layer up and the one this
+ * story spends most of its time preventing. One function, two readers; the
+ * casing is the only thing that differs, and {@link sentenceCase} is how.
+ *
+ * ## It is a statement of fact, and deliberately carries no alarm
+ *
+ * `PRODUCT_SPEC.md` §36's shape — *"Live feed disconnected — displaying data
+ * through 10:42:17"* — earns its urgency because something **stopped**. Nothing
+ * has stopped here: a historical chart that ends where the store ends is a
+ * correct historical chart, and stored history is caught up overnight. So the
+ * words are *holding* and *running to*, there is no *only*, no *just* and no
+ * *unfortunately*, and the mark beside it is the same dashed silhouette the
+ * rail's other sentences carry rather than anything amber.
+ *
+ * ## Both instants are full, and that is what the picture cannot give back
+ *
+ * The axis is **session-ordinal** (ADR 0027), so a reader can see that the line
+ * stops before the frame does and cannot recover **when** from it. A bare
+ * `15:42` would answer that for a one-session window and leave a five-session
+ * window saying *which day?* — so this spends the characters `formatMarketInstant`
+ * spends, including the zone abbreviation, for that function's own stated
+ * reason.
+ */
+export function coveragePhrase(series: PopulatedBarSeries): string {
+  const { requested, covered } = series.coverage;
+
+  return (
+    `holding ${formatCount(series.bars.length)} bars, ` +
+    `through ${formatMarketInstant(covered.end)}, ` +
+    `of a window running to ${formatMarketInstant(requested.end)}.`
+  );
+}
+
+/**
+ * A noun phrase raised to the start of a sentence.
+ *
+ * **The third consumer moved it here**, which is this file's own rule for when
+ * a helper stops being a component's business: `series-announcement.ts` had one
+ * for the held-window clause, `BarSeriesPanel` had the same two expressions
+ * inline for the rail's subject, and {@link coveragePhrase} is the third — a
+ * phrase written once and read in two cases, spoken mid-sentence and drawn at
+ * the start of one.
+ */
+export function sentenceCase(phrase: string): string {
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
+}
+
+/**
  * The market timestamps of the first and last bars we hold.
  *
  * Off the **bars** rather than off `covered`, and the two are not the same

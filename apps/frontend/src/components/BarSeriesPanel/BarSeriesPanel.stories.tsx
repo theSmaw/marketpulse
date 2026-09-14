@@ -112,14 +112,47 @@ type Story = StoryObj<typeof meta>;
  * window always reaches to the current session's close and the backfill runs
  * nightly, so an answer that stops short is the ordinary one. It has to read as
  * an answer.
+ *
+ * **It is the only state carrying a coverage sentence, since 2026-09-15** (Task
+ * 2.14.5). Read this story beside {@link Complete} rather than alone: the pair
+ * is the decision. What the rail says here — *how many bars, through when, of a
+ * window running to when* — is the one fact about coverage the picture cannot
+ * carry, because the axis is session-ordinal and an instant is not recoverable
+ * from an ordinal position. Everything else about the shortfall is drawn: the
+ * uncovered ground and the coverage edge.
+ *
+ * And it is set as a statement rather than a warning. No colour, no box, the
+ * same dashed marker every occupant of this rail takes, and a rule under it
+ * that does **not** travel — a travelling rule is `Stale`'s, and means a newer
+ * answer is on its way.
  */
 export const Partial: Story = {
   args: { screen: barSeriesFixtureScreen("partial") },
 };
 
-/** Every bar of the window asked for. The coverage line says so rather than
- * saying nothing — silence would make *"we hold all of it"* and *"nobody
- * checked"* look identical. */
+/**
+ * Every bar of the window asked for — and the rail says **nothing**.
+ *
+ * **This docstring asserted the opposite until 2026-09-15**, and the reversal is
+ * worth keeping rather than overwriting: it read *"the coverage line says so
+ * rather than saying nothing — silence would make 'we hold all of it' and
+ * 'nobody checked' look identical"*. That was true of a panel whose coverage
+ * block was a permanent list of four figures. It is not true of a sentence
+ * bound to `partial`: here the axis already ends where the data ends, so the
+ * sentence would restate the picture, and padding in a small type teaches a
+ * reader that the small type is not worth reading — the argument ADR 0019 §3
+ * turned on and `PROVENANCE.md` §3.1 applied here.
+ *
+ * The distinction the old sentence worried about is still made, and made by the
+ * picture: a complete chart has no uncovered ground and no coverage edge, and a
+ * chart that nobody could answer is `Empty`, which draws its own words on the
+ * ground they are about.
+ *
+ * **Reversal trigger, from `PROVENANCE.md` §3.2:** the first reader that has to
+ * tell *we hold all of it* from *all of it that exists so far*. Epic 3's live
+ * tail is the named candidate — a fully covered window during a session is
+ * complete and still moving — and at that point this state needs a sentence too.
+ */
 export const Complete: Story = {
   args: { screen: barSeriesFixtureScreen("full") },
 };

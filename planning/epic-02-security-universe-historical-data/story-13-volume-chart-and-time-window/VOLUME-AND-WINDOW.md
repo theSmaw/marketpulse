@@ -5263,3 +5263,84 @@ dollars anywhere on this page** — both percentages are percentages, which is
 `last-close.ts`'s deliberate choice for a column of 518 securities and is a
 weaker one on a page about a single security. Not repaired here: it is a figure
 this page does not currently state, rather than one it states badly.
+
+---
+
+## 82. The rail's third occupant, and the class named after its first
+
+**Added 2026-09-15 by Story 2.14's Task 2.14.5**, in this document because the
+rail is §71's and §80's and everything about it is recorded here. The decision
+itself is `PROVENANCE.md` §3; what follows is the part that is about this rail
+rather than about provenance.
+
+### 82.1 Three occupants, one slot, and a stated order
+
+The rail held two mutually exclusive subjects: `Refreshing` — _a newer answer to
+this question is coming_ — and `HeldWindow` — _this is the answer to a different
+question, and here is what happened to the one you asked_. §80 took the
+in-flight sentence out of the second, because it lived 3–68 ms and nobody could
+read it.
+
+Coverage is a third, and it is the one that is **not** exclusive with the
+others: a held answer can itself be short of its own window. So the slot has a
+priority rather than a stack, and it is stated because a stack is a second line
+in a slot that reserves one:
+
+1. **the held-window sentence**, because until it is said, every other sentence
+   about _the window_ is ambiguous about which window — including the coverage
+   one, which would otherwise be describing a window nobody asked for;
+2. **`Refreshing`**, which is the same genus as the held sentence — an outcome
+   of a request rather than a property of the picture;
+3. **the coverage sentence**, when the answer on screen is short of what was
+   asked for;
+4. **nothing**, which is the ordinary case.
+
+They are naturally sequential rather than simultaneous. When a held or
+refreshing sentence clears, the new answer's own coverage sentence takes the
+slot — nothing is lost, it arrives one beat later.
+
+### 82.2 The reservation, re-measured
+
+§71's reservation is a hidden copy of the worst sentence laid out beside the
+live one, so the row is as tall as the tallest **at this width**. With a second
+candidate it became a hidden **pair**, both in the same grid cell.
+
+That is the decision worth recording, because the obvious implementation is to
+compare the two sentences' lengths and lay out the longer — and it is an argued
+tolerance of exactly the kind this repository has already paid for once. The two
+are not commensurable as strings: the held sentence's worst case is picked from
+the five window phrases the control offers, and the coverage sentence's length
+is a property of an answer. Two cells cost nothing and measure both.
+
+Measured 2026-09-15 with `pnpm probe`, against a store four sessions behind:
+
+| Window          | Rail height, before | After    |
+| --------------- | ------------------- | -------- |
+| `?sessions=1`   | 48px                | **48px** |
+| `?sessions=5`   | 48px                | **66px** |
+| `?sessions=21`  | 48px                | **66px** |
+| `?sessions=252` | 48px                | **66px** |
+
+Identical at 1440 and at 390. `?sessions=1` is unchanged because that answer is
+`empty` on this store — there is no series, so no coverage sentence is reachable
+from it without the whole panel changing shape, and reserving for one would
+spend 18px on the one screen with no picture to protect.
+
+**18px is the price**, paid above every chart that has a series, and it buys the
+one fact about a short answer that the picture structurally cannot carry.
+
+### 82.3 `.heldWindow` became `.railBlock`, and the rename is the finding
+
+The class carried the static dashed rule that closes the block above the
+picture, and it was named after the only state that used it. The coverage
+sentence needs the same rule and is not about a held window.
+
+What made this more than tidying is what the wrong answer would have been.
+`RailSentence` on its own resolves to `.refreshing`, whose hairline **travels** —
+and a travelling rule under a settled coverage sentence says _work is in
+progress_ under an answer that has arrived. Task 2.14.5's own notes predicted
+that this task's likeliest failure was tone; it very nearly arrived through a
+stylesheet rather than through a word.
+
+So `.railBlock` is the name for what the two settled rails actually share: a
+rule that does not move. `.refreshing` keeps `march`, and keeps meaning it.
