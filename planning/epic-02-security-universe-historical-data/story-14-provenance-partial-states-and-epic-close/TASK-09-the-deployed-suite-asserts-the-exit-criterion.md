@@ -4,6 +4,13 @@
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.3, 2.14.5, 2.14.6, 2.14.7
 
+> **Amended 2026-09-14 by Task 2.14.1.** One bullet below asserted that
+> provenance is present _"all true at zero bars"_. It is not:
+> [`PROVENANCE.md`](PROVENANCE.md) §0.1 makes `SourceNote` render **nothing** when
+> a series has no bars, so on CI's store and on `store:bare` there is correctly no
+> provenance on the page. Corrected in place, because this is exactly the class of
+> assertion the suite's README says costs a six-minute round trip to discover.
+
 ## Objective
 
 Acceptance criteria 4 and 5. Execute the epic's exit criterion in the **deployed
@@ -54,7 +61,9 @@ by a person opening the page. Say "nothing visible" plainly.
 
 - **Walk it deployed, by hand, first.** Cold, at 1440, 1024 and 390, including
   the window control and the crosshair, and including everything Tasks 2.14.3–6
-  added — this is the first time provenance, recency and the vacancy wording have
+  added — noting that the deployed store is backfilled nightly and answers the
+  default window in full, so it is the **one** store where `SourceNote` and the
+  vacancy sentence cannot both be seen — this is the first time provenance, recency and the vacancy wording have
   been seen against the real store rather than a fixture. Record what the store
   was at the time: `GET /diagnostics/freshness` answers _how many sessions
   behind_, and a journey verified against a store three sessions behind is a
@@ -67,9 +76,20 @@ by a person opening the page. Say "nothing visible" plainly.
 - **Assert what is true in every store this can run against.** The distinction
   is between _structure_ and _figures_: that both plots share one axis and one
   width, that the window control drives both, that the address carries the
-  window, that provenance is present — all true at zero bars. A close price is
-  not. Where a figure genuinely must be asserted, gate it on the store having
-  data and say so in the spec's own text.
+  window. A close price is not. Where a figure genuinely must be asserted, gate
+  it on the store having data and say so in the spec's own text.
+- **~~that provenance is present — all true at zero bars~~ — corrected
+  2026-09-14, and this is the kind of thing a deployed spec discovers six minutes
+  at a time.** [`PROVENANCE.md`](PROVENANCE.md) §0.1: **a claim about data
+  requires data**, so `SourceNote` renders **nothing** when `bars.length === 0`.
+  A zero-bar store — CI's, and `store:bare` — therefore has no provenance on the
+  page at all, correctly. An assertion that provenance is present would be an
+  assertion about data the runner may not have, which is the hazard the suite's
+  README already names, arriving through a sentence that reads like structure.
+  What **is** true at zero bars and is worth asserting: the masthead's
+  `FeedProvenance`, which is a standing claim about the deployment and is there on
+  every route whatever the store holds; and the **vacancy sentence**, which is the
+  whole explanation on a zero-bar page.
 - **Reuse the local suite's page objects** where they exist (`support/app.ts`)
   rather than growing a second vocabulary for the same page. Two suites with two
   selectors for one control is the drift that makes a deployed failure
@@ -83,7 +103,8 @@ by a person opening the page. Say "nothing visible" plainly.
 - The exit criterion is executed deployed, by a person, at three viewports, with
   the store's freshness recorded beside the result.
 - `specs-deployed/` asserts that journey including the window change, and the
-  spec says in its own text which of its assertions survive a zero-bar store.
+  spec says in its own text which of its assertions survive a zero-bar store —
+  explicitly including that **`SourceNote` is not one of them**.
 - `pnpm e2e:deployed` is green, twice, and `pnpm e2e` is still green.
 - `pnpm verify` passes.
 

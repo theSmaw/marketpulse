@@ -4,6 +4,12 @@
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.3, 2.14.4, 2.14.5, 2.14.6
 
+> **Amended 2026-09-14 by Task 2.14.1.** Two entries join the set: the two empty
+> answers are now genuinely two states rather than one sentence used twice, and
+> **they cannot both be produced in one store**; and a zero-bar page's missing
+> `SourceNote` is a designed absence that belongs in the enumeration rather than
+> looking like a gap in it.
+
 ## Objective
 
 Acceptance criterion 3, and the local half of criterion 5. Take every failure
@@ -47,11 +53,15 @@ anywhere in the epic's surface.
 
 - **Enumerate the set before producing any of it.** At minimum: search
   unavailable; the universe unreachable; a security not in the universe; a
-  security found with no data; both empties (2.14.6); a partial window; a chart
-  request failed; a window change refused by the cap; a window change failed with
+  security found with no data; **both** empties, which are now two distinct
+  sentences derived from two different facts (2.14.6) and which **cannot both be
+  seen in one store** — `store:bare` gives only the first; a partial window; a
+  chart request failed; a window change refused by the cap; a window change failed with
   the previous window still readable; the stale mark; the untracked badge; the
   backend unreachable entirely; a security page opened cold with no backend at
-  all. Write the list into `PROVENANCE.md` — the list **is** the deliverable of
+  all; **and the state where `SourceNote` renders nothing**, which is every
+  zero-bar page and is a designed absence rather than a missing element
+  ([`PROVENANCE.md`](PROVENANCE.md) §0.1). Write the list into `PROVENANCE.md` — the list **is** the deliverable of
   this bullet, because a set checked from memory is a set with a hole in it.
 - **Produce each one for real**, against a running pair. `store:bare` gives the
   empties; a stopped backend gives the unreachable states; `?sessions=` beyond

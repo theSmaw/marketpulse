@@ -2,7 +2,15 @@
 
 **Status:** Not started
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
-**Depends on:** 2.14.4 (which may have added markup to the table in question)
+**Depends on:** 2.14.4
+
+> **Amended 2026-09-14 by Task 2.14.1.** The dependency read _"which may have
+> added markup to the table in question"_. [`PROVENANCE.md`](PROVENANCE.md) §5
+> settled the classification onto `SourceNote` and explicitly **not** onto the
+> universe table, so 2.14.4 adds nothing per-row and the re-measure below is a
+> **confirmation** rather than a reading of new markup. Still take it — a figure
+> cited is a figure nobody checked — but expect it unchanged, and if it has moved,
+> something other than this story moved it.
 
 ## Objective
 
@@ -58,10 +66,11 @@ Take **one** of three dispositions, in writing, with the argument:
 
 Whichever is chosen:
 
-- **Re-measure once with the current tree** before deciding. Task 2.14.4 may
-  have added a per-row element to that table, which is the one change since
-  2.13.9 that could move this number, and moving it in the wrong direction while
-  choosing disposition 2 would be an unfortunate way to find out.
+- **Re-measure once with the current tree** before deciding. ~~Task 2.14.4 may
+  have added a per-row element to that table~~ — it did not, by decision; so the
+  expected result is 2.13.9's figure unchanged, and the value of taking it is that
+  an unchanged figure you measured and an unchanged figure you assumed look
+  identical in a document and nowhere else.
 - **Falsification travels upward.** If the number has moved, what it invalidates
   is a premise in `SEARCH-AND-SELECTION.md`, in `CHARTING.md` §16.1 and possibly
   in §28 — grep for the claim, correct the live sites, leave the historical

@@ -4,6 +4,13 @@
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.1
 
+> **Amended 2026-09-14 by Task 2.14.1.** Decision 1 is **taken** rather than left
+> for two pictures to settle, and it introduces a surface this task did not know
+> about: a new `SourceNote` at the foot of the Security Explorer, governed by _the
+> note states what the chrome cannot, and never repeats what the chrome can_
+> ([`PROVENANCE.md`](PROVENANCE.md) §1.3). The classification is a clause of that
+> note and **not** of the universe table. Edited in place.
+
 ## Objective
 
 Draw, on the design canvas, the surfaces Tasks 2.14.3–2.14.6 will build: a
@@ -40,23 +47,40 @@ visible" plainly.
   in place at once. If the five additions cannot coexist legibly, that is a
   finding for 2.14.1's decisions to absorb now rather than a layout problem for
   2.14.5 to discover.
-- **Draw provenance at the two prominences decision 1 weighed**, so the choice is
-  made from two pictures rather than two sentences. A screenshot of a chart
-  travels without its chrome; that argument is easy to make and easy to
-  over-serve.
+- ~~**Draw provenance at the two prominences decision 1 weighed**~~ — **decided,
+  so draw the one.** §1.2 records why the screenshot argument was accepted in a
+  narrower form than it is usually made (nothing short of a mark **inside the plot
+  frame** survives a crop, and that mark is refused by ADR 0027's element budget
+  and by §74's decluttering). What is drawn is the `SourceNote` as settled. The
+  alternative is recorded in §1.3 rather than drawn.
+- **Draw the note beside the masthead in the same artboard**, because §1.3's rule
+  is a statement about **two** surfaces and is unreviewable from one. The test the
+  canvas is for: put the masthead and the note on one screen and check that no
+  fact appears twice. `Market feed: All US exchanges` in two places is not
+  redundancy a reader forgives — it teaches them the small type is not worth
+  reading, which is the harm ADR 0019 §3 turned on.
+- **Draw the note's own empty state, which is nothing at all.** §0.1: a claim
+  about data requires data, so the note does not render when a series has no bars
+  — and that is the state CI, `store:bare` and every zero-bar page are in. An
+  artboard that only ever shows the populated note has not drawn the commonest
+  case in the test suite.
 - **Draw the two-feed case**, which is the one nothing can currently produce and
   which Epic 3 makes real. This is the cheapest place in the project to find out
   that two labels plus a sentence plus a coverage line is three sentences under
   a chart.
-- **Draw the classification block** — source and age beside a sector — at both
-  the Security Explorer's identity block and, if 2.14.1 put it there, the
-  universe table. A per-row provenance in a 518-row table is a different
-  proposition from one in an identity block, and §28's open breach (Task 2.14.8)
-  is about exactly that table's markup.
+- **Draw the classification clause** — the group's claim and the date — as part
+  of the note, which is where §5 put it. **Not** the identity block and **not**
+  the universe table: a per-row provenance in a 518-row table is a different
+  proposition entirely, and §28's open breach (Task 2.14.8) is about exactly that
+  table's markup. Draw it in the note; if the artboard argues for the table, that
+  is a finding with a measurement attached and it goes to 2.14.8.
 - **Draw the empty answers, both of them**, as `ChartVacancy` will render them.
   Placement is settled — it is on the plot, with `pnpm invariants` holding that
   it has one home — so what is drawn here is **wording and weight**, and whether
-  the two answers look different or only read different.
+  the two answers look different or only read different. §6.3 has the two
+  sentences; what is open is their weight, and it matters more than it looks,
+  because on an empty page the vacancy sentence is the **whole** explanation on
+  screen — the note has correctly rendered nothing.
 - **Apply the four tests to the artboard** before reconciling: real funded
   product; designed rather than defaulted; a moment worth showing somebody;
   feels alive. Test 4 has now been answered _"not yet"_ **four** times and its
@@ -72,6 +96,9 @@ visible" plainly.
 
 - The canvas holds the artboards above and `VISUAL-LANGUAGE.md` records the
   provenance treatment, with any exception measured and noted beside its token.
+- **The masthead and the note were reviewed on one artboard and no fact appears
+  twice.** This is §1.3's rule as an acceptance test, and it is read rather than
+  asserted.
 - Every string drawn traces to a module named in 2.14.1's decisions — a canvas
   that invents copy is a second vocabulary.
 - The four tests are applied in writing, with test 4's count stated as a number.

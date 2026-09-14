@@ -4,6 +4,13 @@
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.1 – 2.14.9
 
+> **Amended 2026-09-14 by Task 2.14.1.** The ADR's candidate second subject moved
+> (the empty distinction did **not** go on the wire), the document sweep turned
+> out to be a **confirmation** rather than a repair
+> ([`PROVENANCE.md`](PROVENANCE.md) §8.2), and acceptance criterion 2 needs
+> reading against the measurement rather than as written (§8.1). Each is edited in
+> place below.
+
 ## Objective
 
 Close Story 2.14 and close Epic 2: take the cost figure with a database
@@ -41,10 +48,16 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
 - **The ADR this story owes.** One ADR for the decisions Task 2.14.1 took — the
   obvious subject being **what a series says when its sources disagree about
   feed**, which is a wording rule with a mechanism behind it and which Epic 3 is
-  the first thing to exercise. Fold in whichever of 2.14.1's other five
-  decisions are load-bearing (the wire-level empty distinction is the candidate).
-  Then read `docs/adr/README.md` and confirm the index covers every ADR through
-  this one — the index is a current index, not an append log.
+  the first thing to exercise. Fold in whichever of 2.14.1's other five decisions
+  are load-bearing. ~~the wire-level empty distinction is the candidate~~ —
+  **decision 6 kept it off the wire** (§6.2), so the candidate is now the shape of
+  the refusal: a distinction worth drawing, drawn from a response the screen
+  already holds, with the condition that would put it on the wire after all. Two
+  others earn their place: §1.3's _the note states what the chrome cannot_, which
+  is the rule that will govern every provenance surface Epics 3 and 8 add; and
+  §0.1's _a claim about data requires data_, which is one line and governs three
+  decisions. Then read `docs/adr/README.md` and confirm the index covers every ADR
+  through this one — the index is a current index, not an append log.
 - **The cost figure, re-taken with the database running**, against the $20
   budget and its alerts (acceptance criterion 6). The free-offer clock started at
   signup — the subscription's first resource is stamped `2026-09-03T05:32:32Z` —
@@ -60,12 +73,33 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
   **They have never been run against the _deploy_ build**, which is a different
   invocation on a different machine, and this story is the one that touches the
   deploy. Run them there.
-- **The document sweep.** `CLAUDE.md` and `README.md` reflect what actually
-  landed (criterion 7): the current-state section, the "what a user can see
-  today" section, the open items, the epic status. `EPIC.md` gains its close.
-  And specifically — **this story's own STORY.md contains the inverted premise**,
-  the IEX disclaimer struck through in two places, plus scope prose Task 2.14.1
-  flagged; live claims get amended, the struck-through record stays.
+- **The document sweep, and §8 hands it a list rather than a search.** Two halves,
+  and they are different jobs:
+  - **The upward half is already a pass.** §8.2 grepped every Markdown file in
+    the tree for `IEX`: `CLAUDE.md` invariant 6, `PRODUCT_SPEC.md` §7.1,
+    `README.md`, `UNIVERSE.md` (superseded in place by its own §16.6) and
+    `EPIC.md` are all already correct about the asymmetry. **Confirm rather than
+    repair**, and record that it was a pass — this epic's history contains a day
+    on which two documents recorded a spec claim as false while five others went
+    on asserting it, and the difference between _swept_ and _was already clean_ is
+    worth one sentence.
+  - **The forward half is real.** `CLAUDE.md` and `README.md` reflect what
+    actually landed (criterion 7): the current-state section, the "what a user can
+    see today" section, the open items, the epic status. `EPIC.md` gains its
+    close. And **this story's own STORY.md contains the inverted premise**, struck
+    through in two places — §8.1 is explicit that **the struck-through prose is a
+    historical record and needs no correction**; what needs amending is the
+    `Status`, the _What the user can see_ section and the acceptance criteria.
+- **Acceptance criterion 2 must not be signed off as written** (§8.1). It reads
+  _"No screen states or implies full US-market coverage"_ and the measurement
+  **inverts** it: stored bars _are_ the consolidated tape, so applied literally it
+  asks us to delete the one true label on the page. Record how it was actually
+  discharged — coverage claimed wrongly in **either** direction — so a future
+  reader does not find an unmet criterion where there is a corrected one.
+- **Acceptance criterion 1 needs its reading recorded too** (§1.2). _"without
+  hovering"_ is met by the masthead plus `SourceNote`; it is **not** met by a mark
+  inside the plot frame, and that is a decision with an argument rather than an
+  omission. State it, or a future reader calls the criterion unmet.
 - **The four design tests, applied to a screenshot of what this story built**,
   in writing: real funded product; designed rather than defaulted; a moment worth
   showing somebody; **does it feel alive**. That fourth has been answered _"not
@@ -103,7 +137,9 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
 
 ## Done when
 
-- Acceptance criteria 1–8 are each addressed by name, with what discharged them.
+- Acceptance criteria 1–8 are each addressed by name, with what discharged them
+  — criteria 1 and 2 including the reading they were discharged under, because
+  both are met in a form other than the one they are written in.
 - The story's ADR is written and `docs/adr/README.md` indexes it.
 - The cost figure is in `HOSTING.md`, dated, with the offer's remaining months.
 - All seven fixture greps were run against the **deploy** build and found

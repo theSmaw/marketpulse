@@ -4,30 +4,52 @@
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.1, 2.14.2
 
+> **Amended 2026-09-14 by Task 2.14.1.** Three things this task left open came
+> back decided, and one of them moves the surface:
+> [`PROVENANCE.md`](PROVENANCE.md) §1.3 puts the provenance on a **new
+> `SourceNote` component at the foot of the Security Explorer**, not under the
+> plots and not on `BarSeriesPanel`. `BarSeriesPanel`'s existing two-feed
+> condition is **confirmed and untouched**. Retrieval time and the adjustment are
+> **in**, and both are `SourceNote`'s. The task below is edited in place; the
+> shape of the work is the same size, in a different file.
+
 ## Objective
 
 Make the Security Explorer's numbers carry their own provenance: which feed each
-source is, whether the prices have been adjusted, and — per 2.14.1's decision —
-when they were retrieved. Ship the sentence for a series whose sources disagree
-about feed, even though nothing can produce one yet.
+source is, whether the prices have been adjusted, and — decided — when they were
+retrieved. Ship the sentence for a series whose sources disagree about feed, even
+though nothing can produce one yet.
+
+**The vehicle is a new component, `SourceNote`**, one per screen, at the foot of
+the region group, governed by §1.3's rule: **it states what the chrome cannot,
+and never repeats what the chrome can.** That rule is what keeps it one line
+instead of five, and it is the thing to check this task against — a clause that
+restates the masthead does not belong in it.
 
 This is the task acceptance criterion 1 turns on: _a user looking at any market
 number can see which feed it came from, without hovering._
 
 ## What the user can see when this lands
 
-**Under the price and volume, the product says where those numbers came from
-and what has been done to them** — in words rather than an acronym, for the
-first time on a surface that holds actual figures rather than a status strip.
-The chrome has claimed a feed since Task 2.6.7; from here the _chart_ does, and
-a screenshot of it carries its own provenance.
+**At the foot of the Security Explorer, the product says what has been done to
+these prices and when they were fetched** — in words rather than an acronym, for
+the first time on a screen that holds actual figures rather than a status strip.
+The chrome has claimed a feed since Task 2.6.7; from here the **page** says the
+three things the chrome can never say about a particular answer.
+
+**Be accurate about the screenshot claim when reporting this**, because the
+original phrasing overstates it and §1.2 says why: nothing short of a mark inside
+the plot frame survives a crop, and that mark is refused. What lands is _on the
+page with the number_, which is the form of the argument that survives.
 
 ## What is already decided and must not be re-taken
 
 - **`MARKET_FEED_DESCRIPTIONS` owns the words.** Read them; do not re-word them
   here. A renderer deriving a user-facing sentence from a slug plus a table of
-  its own is the copy that drifts, and the `satisfies` on that record is the
-  thing that makes a feed added without words a compile error.
+  its own is the copy that drifts, and the `Record<MarketFeed, …>` annotation on
+  that record is the thing that makes a feed added without words a compile error.
+  (It was `as const satisfies` until `sentence` became optional; the guard is
+  unchanged, the spelling is not.)
 - **A feed gets a sentence when its label cannot stand alone** (ADR 0019 §3).
   `IEX` does; `All US exchanges` does not. Inherited, not re-argued.
 - **Provenance rides on the series and names a list of sources.** The existing
@@ -38,21 +60,43 @@ a screenshot of it carries its own provenance.
 
 ## Work
 
-- **Change the condition, not the shape.** `BarSeriesPanel` renders its
-  provenance line only when `feeds.length >= 2`, which was a correct decision on
-  the day — with one feed the line repeated the chrome — and which 2.14.1 has now
-  either confirmed or overturned. Implement what it decided, and if the line
-  becomes unconditional, the chrome's line and the panel's line must not read as
-  the same sentence printed twice.
-- **The adjustment disclosure**, in the words and at the grain 2.14.1 settled.
-  It is on every source, on the wire, and rendered nowhere today. Watch the trap
-  named in that task: on this plan every source carries the same adjustment, so a
-  per-source rendering is one fact repeated until the day it is not.
-- **Retrieval time, if 2.14.1 said so**, and if so read its warning first — a
-  retrieval timestamp changes on **every request**, so anything that renders it
-  is a value that changes when nothing about the market did. Decide what that
-  does to the live region before it announces a page as changed because a
-  timestamp moved.
+- **Do not touch `BarSeriesPanel`'s condition.** It renders its feed line only
+  when `feeds.length >= 2`, and §1.3 **confirmed** that: the panel is the right
+  place to draw a mixed series when the series is mixed, and it correctly draws
+  nothing when one page-level label is already true. Deleting it would leave
+  `SourceNote` as the only reader of a fact the panel is better placed to show.
+- **Build `SourceNote`** — `apps/frontend/src/components/SourceNote/`, with the
+  assembly in `source-note.ts` as a pure function over the two views, so it is
+  unit-testable with no DOM. Its clauses, in §1.3's table: the series' feeds
+  (**only** when they number more than one, or when the one feed is not what
+  `useMarketFeed` reports configured — both unreachable today and both true from
+  Epic 3); the adjustment, always; the retrieval, always. Task 2.14.4 adds the
+  fourth clause to this same component.
+- **It renders nothing when `bars.length === 0`** — §0.1, and it is the rule that
+  caught itself: `SOURCE_OF_NOTHING` hands a renderer a complete, truthful
+  provenance record describing **zero bars**, and printing it under an empty frame
+  is four accurate words making a false impression. This is a real state; it needs
+  a story, not just an early return.
+- **The two shared vocabularies go in `packages/shared/src/market-provenance.ts`
+  in this task.** `ADJUSTMENT_DESCRIPTIONS` as a `Record<Adjustment,
+ProvenanceDescription>` — `raw` → **Unadjusted** with _"Prices as they printed.
+  Not restated for stock splits."_, `split-adjusted` → **Split-adjusted** with
+  **no sentence**, which is ADR 0019 §3's rule doing work rather than being
+  applied uniformly. `MarketFeedDescription` generalises to
+  `ProvenanceDescription`; the feed name stays as an alias so the sentence rule is
+  stated once rather than twice.
+- **The adjustment is per series and the type already enforces it.** §4.1: it
+  sits on `SeriesProvenance` and not on `BarSource`, and `mergeSeriesProvenance`
+  refuses to join two. The trap the original bullet warned about — one fact
+  repeated per source — has no day on which it is not. Do not render it per
+  source.
+- **Retrieval time, and the original warning is narrower than it was written.**
+  It is stamped at fetch and **never re-stamped on read**, so for a fully-stored
+  series it does not move between requests; it moves when a tail is fetched. Two
+  consequences to honour anyway: it stays out of `Figures`' `settleSignature`,
+  which deliberately excludes it so a refetch does not flash the panel, and
+  `SourceNote` is **outside the panel's live region**, so a moved timestamp
+  never announces a page as changed.
 - **Write the two-feed sentence, and reach it honestly.** It goes in the module
   2.14.1 named. It is reachable from a **story** built on a body the fixtures can
   justify, and the story says in its own text that no server has yet sent one and
@@ -64,9 +108,11 @@ a screenshot of it carries its own provenance.
   to conclude that one venue is the whole tape. That is a wording requirement on
   the _stitched_ sentence specifically, and it is the reason 2.14.1 forbade
   collapsing to whichever feed is first.
-- **Stories for every permutation**, in `BarSeriesPanel.stories.tsx`'s existing
-  `AllPermutations` grid rather than beside it — the grid is the review surface
-  and a state outside it is a state nobody looks at twice.
+- **Stories for every permutation**, in a `SourceNote.stories.tsx` grid built the
+  way `BarSeriesPanel`'s `AllPermutations` is — one grid, every state side by
+  side, because a state outside the grid is a state nobody looks at twice. The
+  states: one feed, two feeds, a feed that is not the configured one, both
+  adjustments, and the **no-bars** case that renders nothing.
 - **Component tests assert the concatenation a screen reader is handed**, not a
   single element's text: this panel splits its sentences across elements, and
   `CLAUDE.md`'s rule exists because of exactly that shape.
@@ -74,10 +120,17 @@ a screenshot of it carries its own provenance.
 ## Done when
 
 - Every market number on `/securities/:symbol` has visible provenance without
-  hovering, at the prominence 2.14.2's canvas chose.
-- The two-feed sentence exists, is reachable from a story, and its story says
-  what cannot produce it yet.
-- The `AllPermutations` grid covers every new state; `pnpm stories` passes.
+  hovering, at the placement §1.3 settled and 2.14.2's canvas drew.
+- **`SourceNote` repeats nothing the masthead says.** This is the acceptance test
+  for §1.3's rule and it is read rather than asserted: put the two on one
+  screenshot and check no fact appears twice.
+- The two-feed sentence exists, names the split in contribution order with the
+  bar counts, is reachable from a story, and its story says what cannot produce
+  it yet.
+- The no-bars case renders **nothing** and is in the grid as a state.
+- `ADJUSTMENT_DESCRIPTIONS` exists with its `Record<…>` guard; adding a member to
+  `ADJUSTMENTS` without words is a compile error.
+- The grid covers every new state; `pnpm stories` passes.
 - `pnpm probe /securities/NVDA --within Price` was run and **looked at** before
   any suite — the panel is the most crowded surface in the product and this task
   adds to it.
@@ -85,7 +138,12 @@ a screenshot of it carries its own provenance.
 
 ## Notes
 
-The failure mode to watch for is not a bug. It is a panel that is now correct,
+The failure mode to watch for is not a bug. It is a screen that is now correct,
 complete, honest and unreadable. If the probe screenshot shows four grey
-sentences stacked under a chart, the fix is in 2.14.2's canvas, not in a
-`font-size`.
+sentences stacked at the foot of the page, the fix is in 2.14.2's canvas, not in
+a `font-size`.
+
+The second failure mode is subtler and §1.3's rule exists for it: a note that
+restates the masthead. `Market feed: All US exchanges` appearing twice on one
+screen is not redundancy a reader forgives — it teaches them that the small type
+is not worth reading, which is the harm ADR 0019 §3 turned on.
