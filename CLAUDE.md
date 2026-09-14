@@ -70,8 +70,10 @@ Both plots draw real minute or daily bars on **one shared time axis**, answer
 **one reading** from one crosshair, and can be driven by pointer or keyboard from
 a single tab stop. A segmented control — `1D 5D 1M 3M 1Y` — moves both together,
 and the window lives in the query string (`?sessions=21`). Changing it never
-blanks the page: the last answer stays on screen, labelled, until a newer one
-replaces it. Every failure has an honest sentence and one `Try again` per screen.
+blanks the page: the last answer stays on screen until a newer one replaces it,
+and a wait longer than 160 ms is covered by a pulsing panel rather than left
+looking current. Every failure has an honest sentence and one `Try again` per
+screen.
 
 **What they still cannot do:** watch a price move — there is no live data yet.
 
@@ -91,7 +93,10 @@ summarised in one line here and argued in full where the table below points:
   greyscale simulations passed against a chart that was wrong.
 - **The window vocabulary, the per-bar mark and the answer that stays on screen**
   (ADR 0028). `1M` is twenty-one trading sessions, not a month; a count outside
-  the five shows **no selection rather than snapping**.
+  the five shows **no selection rather than snapping**. Amended 2026-09-14: a
+  named window ends at the last session whose **bell has rung**, the in-flight
+  rail sentence is withdrawn (it lived 3–68 ms, which nobody can read), and a
+  wait over 160 ms draws a panel over the picture — never over a number.
 - **The design language's source of truth is the design canvas**, not the
   document (ADR 0026): canvas → `VISUAL-LANGUAGE.md` → `tokens.css` →
   components, with one standing exception where a canvas value fails a measured

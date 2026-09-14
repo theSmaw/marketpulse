@@ -15,6 +15,14 @@ import { BARS_ROUTE_PATTERN } from "../support/pair.js";
 // Five things below are unreachable at any level under `pnpm e2e`, and each is
 // the reason a test is here rather than in `BarSeriesPanel.test.tsx`:
 //
+// **Amended 2026-09-14 (§80).** The premise below — that a window change leaves
+// a labelled held answer on screen — is half true now. The chart still stays and
+// its figures still carry their own window; the **sentence** saying so is gone,
+// because its whole visible life was 3–68 ms. A slow change draws a pending
+// panel over the chart instead, which is the state two tests here reach through
+// `holdTheAnswer`. What the rail still does is name the window under a refusal
+// and under a failure, which are states a reader sits in.
+//
 //  1. **That a real window change goes through the held state at all.** A
 //     component test is handed the state; only a browser produces the sequence
 //     — a press, a request, an answer — with a real hook, a real cache and a
@@ -123,6 +131,25 @@ async function plotMarks(page: Page): Promise<string> {
  */
 function heldRail(page: Page) {
   return readable(priceRegion(page), /Still showing the/);
+}
+
+/**
+ * The pending panel, in the only way a spec can honestly reach it.
+ *
+ * The panel is `aria-hidden` and wordless, so there is no role and no phrase on
+ * it to ask for — and a CSS-module hash is not a contract. What **is** a
+ * contract is the clause the chart's text alternative gains while it is up:
+ * *A newer answer is on its way.* That clause exists because the panel is
+ * otherwise a fact with one audience, and writing this helper is what found
+ * that — the first draft asserted `loading`'s own sentence and it is not the
+ * one on screen, because the panel goes **over** a held answer rather than
+ * replacing it.
+ *
+ * So this asserts the state rather than the class name, which is what every
+ * other helper in this file does.
+ */
+function waiting(page: Page) {
+  return readable(priceRegion(page), /A newer answer is on its way/);
 }
 
 /**
@@ -252,7 +279,13 @@ const VIEWPORTS = [
   { name: "phone", width: 390, height: 780 },
 ] as const;
 
-test("a window change keeps the previous window's charts on screen, labelled", async ({
+// **Amended 2026-09-14 (§80).** This asserted that a window change leaves the
+// previous chart on screen *labelled*, which is half of what it now asserts. The
+// label went: the in-flight rail's whole visible life is 3–68 ms on a local pair,
+// which is a sentence appearing and vanishing over a chart that did not visibly
+// change. What stayed is the chart, the figures and their labels, which are the
+// part acceptance criterion 4 is actually about.
+test("a window change keeps the previous window's charts on screen, unlabelled", async ({
   page,
 }) => {
   await page.goto(EXPLORER);
@@ -268,11 +301,18 @@ test("a window change keeps the previous window's charts on screen, labelled", a
   await cell(page, "1 month").click();
 
   // **The whole of acceptance criterion 4's first half.** The address and the
-  // control have moved; the picture has not, and it says which window it is of.
-  await expect(heldRail(page)).toContainText(
-    "Still showing the 5-session window while the 21-session window is read",
-  );
+  // control have moved; the picture has not.
   expect(await plotMarks(page)).toBe(before);
+
+  // And no sentence about it, in either direction — neither the in-flight rail
+  // nor the refresh mark. Both were unreadable at the speed this happens.
+  await expect(heldRail(page)).toHaveCount(0);
+
+  // What says which window the picture is of is the figures' own labels, which
+  // is the half that was never about reading prose. `null` on CI, where the
+  // store has no bars and there are no figures to label.
+  const label = priceRegion(page).getByText("5D Open");
+  if ((await label.count()) > 0) await expect(label).toBeVisible();
   // **And it did not move.** The rail is above the chart, so the slot it goes in
   // is reserved whether it is occupied or not — `BarSeriesPanel.tsx`'s `Rail`.
   // One pixel of tolerance rather than none: a box is a float and the rail's
@@ -284,8 +324,46 @@ test("a window change keeps the previous window's charts on screen, labelled", a
   await expect(cell(page, "1 month")).toHaveAttribute("aria-checked", "true");
 
   release();
-  await expect(heldRail(page)).toBeHidden();
   await expect(anAnswer(page)).toBeVisible();
+  await expectNothingFailedToRender(page);
+});
+
+// **The panel a slow window change draws** (2026-09-14, §80).
+//
+// `holdTheAnswer` is what makes this reachable: the panel appears 160 ms into a
+// wait, and an ordinary window change costs 2–9 ms warm and 7–68 ms cold, so
+// nothing short of an indefinitely held response gets here. That is the point of
+// the threshold rather than a limitation of the test.
+//
+// The instrument is the chart's text alternative rather than a class name: the
+// panel is `aria-hidden` and wordless, and what it corresponds to is the state
+// the alternative names. Whether it *looks* like a wait is
+// `Market/ChartPending` in the workshop; no browser assertion can judge that.
+test("a slow window change draws a panel over the chart, and keeps the figures", async ({
+  page,
+}) => {
+  await page.goto(EXPLORER);
+  await expect(anAnswer(page)).toBeVisible();
+
+  const wasAt = await plotTop(page);
+  const figuresWereAt = await closeLabelTop(page);
+
+  const release = await holdTheAnswer(page);
+  await cell(page, "1 month").click();
+
+  await expect(waiting(page)).toBeVisible();
+
+  // **Over the chart, not instead of it.** The plot has not moved and the
+  // figures have not moved, which is the reserved rail slot's own rule
+  // (2026-09-13) surviving a change that could easily have broken it: an earlier
+  // draft of this repair replaced the whole answer and dropped the chart 30 px
+  // under the pointer.
+  expect(Math.abs((await plotTop(page)) - wasAt)).toBeLessThan(1);
+  await expectFiguresUnmoved(page, figuresWereAt);
+
+  release();
+  await expect(anAnswer(page)).toBeVisible();
+  await expect(waiting(page)).toHaveCount(0);
   await expectNothingFailedToRender(page);
 });
 
@@ -317,7 +395,11 @@ for (const viewport of VIEWPORTS) {
 
     const release = await holdTheAnswer(page);
     await cell(page, "1 month").click();
-    await expect(heldRail(page)).toBeVisible();
+    // The in-flight rail stopped rendering on 2026-09-14 (§80), so what marks
+    // the moment is the state itself. The assertion below is unchanged and is
+    // the point: whatever is drawn while a window is in flight, the chart does
+    // not move.
+    await expect(waiting(page)).toBeVisible();
 
     // One pixel of tolerance rather than none: a box is a float, and the
     // reservation is the same sentence laid out twice at the same width.
@@ -500,16 +582,19 @@ test("a rapid sequence of presses settles on the last one, showing one held answ
   await cell(page, "3 months").click();
   await cell(page, "1 year").click();
 
-  // **One rail, not three.** The mark is about *what is on screen*, and what is
-  // on screen never changed: it is still the answer to five sessions.
-  await expect(heldRail(page)).toHaveCount(1);
-  await expect(heldRail(page)).toContainText(
-    "Still showing the 5-session window while the 252-session window is read",
-  );
+  // **One wait, not three.** Superseded requests do not each get their own
+  // state: what is on screen never changed, and it is still the answer to five
+  // sessions with one panel over it.
+  //
+  // Amended 2026-09-14 (§80): this read the rail's sentence, which no longer
+  // renders. The alternative says the same fact and is the one thing addressed
+  // to a reader in this state.
+  await expect(waiting(page)).toHaveCount(1);
+  await expect(heldRail(page)).toHaveCount(0);
   await expect(page).toHaveURL(/\?sessions=252$/);
 
   release();
-  await expect(heldRail(page)).toBeHidden();
+  await expect(waiting(page)).toHaveCount(0);
 
   // Every press asked, and the last one is what settled. Nothing here asserts
   // that the earlier answers did not arrive — they may have — only that none of

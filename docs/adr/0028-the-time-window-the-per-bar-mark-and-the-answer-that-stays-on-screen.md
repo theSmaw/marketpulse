@@ -254,6 +254,35 @@ window while the previous window's series is still a true picture of the
 which: _"Still showing the 5-session window. The 21-session window could not be
 read."_
 
+> **Amended 2026-09-14 (`VOLUME-AND-WINDOW.md` §80) — the decision holds; one
+> half of it is now time-bounded, and one sentence is withdrawn.**
+>
+> **The held chart stays.** Everything below about the fence, about Epic 3's
+> seam, about `setTimeWindow`, and about this being neither a seventh member nor
+> `stale` is unchanged. So is the rule for a **refusal** and a **failure**,
+> including the rail sentence quoted above, which is the example this decision is
+> written around.
+>
+> Two things changed, and a measurement forced both. A window change costs
+> **2–9 ms warm and 7–68 ms cold** against a local pair, so the _in-flight_ rail
+> — the one reading _"Still showing the 5-session window while the 21-session
+> window is read"_ — had a visible life under a tenth of a second: a sentence
+> appearing and vanishing over a chart that did not visibly change. **That
+> sentence is withdrawn.** What replaces its job is the figures' own window
+> labels, which say the same thing without needing to be read in time.
+>
+> And a wait **longer than 160 ms** draws a pending panel over the plot rather
+> than leaving a picture that looks current. The chart, the figures, their labels
+> and the plot's position are all untouched — only the picture is covered — so
+> `CHARTING.md` §6.2's _no dim, no blur, no fade over a price_ stands as written.
+> An ordinary window change never reaches it.
+>
+> `FRONTEND-STATE.md` §2's trigger — _a chart that redraws a held series in a
+> second style_ — **still has not fired**, and that is worth stating rather than
+> assuming: the held series is not redrawn at all. It is drawn identically and
+> something opaque is placed in front of it, which is why the browser suite's
+> byte-identical assertion on the series path is unchanged and still passes.
+
 Three things make it ADR-worthy:
 
 - **It is the seam Epic 3 lands on.** A screen that already knows how to keep

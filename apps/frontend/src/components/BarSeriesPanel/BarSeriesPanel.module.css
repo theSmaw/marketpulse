@@ -279,19 +279,16 @@
 }
 
 /*
- * **Motion means work in progress and nothing else here.**
+ * **The in-flight rail stopped rendering on 2026-09-14 (§80)**, so the form that
+ * marched is gone with it and `.heldWindow.working` with that. What is left in
+ * the rail is the refusal and the failure, and neither ever marched: a
+ * travelling rule under a settled state would say a newer answer is on its way
+ * when none is.
  *
- * Only the in-flight form marches. A refusal and a failure have both finished,
- * and a travelling rule under either would say a newer answer is on its way when
- * none is — which is the one thing the movement is for. What stays in all three
- * is the **dashes**, which is where the meaning lives: these figures are correct
- * and they are an answer to a different window. Under
- * `prefers-reduced-motion` the token resolves to `0ms` and all three forms are
- * the static rule, which is the point of putting the meaning in the dashes.
+ * `march` itself stays — `.refreshing` at the top of this file still uses it,
+ * and that rail is about *the same window, one answer old*, which is a different
+ * fact and still in flight when it says so.
  */
-.heldWindow.working {
-  animation: march calc(var(--motion-duration-settle) * 5) linear infinite;
-}
 
 /*
  * The sentence inside the rail carries no rule of its own.

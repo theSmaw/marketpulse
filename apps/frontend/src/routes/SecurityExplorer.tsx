@@ -332,7 +332,11 @@ export function SecurityExplorer() {
            */}
           <div className={page.wide}>
             <Region name="Volume">
-              <VolumeChart view={series.screen.shown} symbol={symbol} />
+              <VolumeChart
+                pending={series.screen.pending}
+                symbol={symbol}
+                view={series.screen.shown}
+              />
             </Region>
           </div>
 

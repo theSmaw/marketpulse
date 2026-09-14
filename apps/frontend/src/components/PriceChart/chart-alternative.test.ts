@@ -170,6 +170,29 @@ describe("chartAlternative", () => {
   // the accessibility tree without checking what it carried is how a fact
   // disappears for one audience and nobody notices, so the one clause with no
   // spoken home got one.
+  // Added 2026-09-14 (§80). The pending panel is a wordless `aria-hidden` block,
+  // so without this clause a sighted reader is told a newer answer is coming and
+  // a listener is told nothing — a fact with one audience, which is the shape of
+  // defect this whole module exists to prevent.
+  it("says a newer answer is coming while the pending panel is up", () => {
+    const held = barSeriesFixtureView("full");
+
+    expect(chartAlternative(held, SYMBOL, true)).toContain(
+      "A newer answer is on its way.",
+    );
+    expect(volumeAlternative(held, SYMBOL, true)).toContain(
+      "A newer answer is on its way.",
+    );
+
+    // Appended rather than replacing: the picture under the panel is still a
+    // true picture of its own window, and that is the fact a listener is most
+    // likely to have been reading when the panel appeared.
+    expect(chartAlternative(held, SYMBOL, true)).toContain("a line of");
+
+    // And absent by default, so the common case adds no characters at all.
+    expect(chartAlternative(held, SYMBOL)).not.toContain("on its way");
+  });
+
   it("keeps the schedule on the price chart and off the volume chart", () => {
     expect(alternative("empty")).toContain(
       "Stored history is caught up overnight",

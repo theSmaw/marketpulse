@@ -7,6 +7,7 @@ import { volumeAlternative } from "./chart-alternative.js";
 import { volumeFrame, volumeTicks } from "./chart-geometry.js";
 import { chartSubject, drawsAFrame } from "./chart-subject.js";
 import { usePlotBox } from "./use-plot-box.js";
+import { ChartPending } from "./ChartPending.js";
 import { ChartVacancy } from "./ChartVacancy.js";
 import { VolumeReading } from "./VolumeReading.js";
 import styles from "./VolumeChart.module.css";
@@ -81,6 +82,17 @@ import styles from "./VolumeChart.module.css";
 
 export interface VolumeChartProps {
   /**
+   * **Is a slow answer in flight?** (2026-09-14, §80.) `false` by default, which
+   * is what every story and every settled screen wants.
+   *
+   * A boolean rather than a state member, because it is not one: the wait is a
+   * property of *how long* a request has taken, and `BarSeriesView` is a total
+   * answer to *what came back*. `BarSeriesScreen.pending` is where it is decided;
+   * this prop is that value arriving.
+   */
+  readonly pending?: boolean;
+
+  /**
    * Everything this application knows about the series. **Taken whole and never
    * spread** (`FRONTEND-STATE.md` §1) — the same value the price chart is given
    * and the same value `ChartAxis` builds the window from, because two plots
@@ -98,7 +110,11 @@ export interface VolumeChartProps {
   readonly symbol: string;
 }
 
-export function VolumeChart({ view, symbol }: VolumeChartProps) {
+export function VolumeChart({
+  view,
+  symbol,
+  pending = false,
+}: VolumeChartProps) {
   const { frame: time, report } = useChartAxis();
   const { chartRef, plotRef, plot } = usePlotBox(report, "volume");
 
@@ -113,7 +129,7 @@ export function VolumeChart({ view, symbol }: VolumeChartProps) {
   const subject = chartSubject(view);
   const volume = volumeFrame(time, plot.height, subject?.bars ?? []);
   const ticks = volumeTicks(time);
-  const alternative = volumeAlternative(view, symbol);
+  const alternative = volumeAlternative(view, symbol, pending);
 
   const clipToCovered =
     time.coverage.uncovered.length > 0 && time.coverage.covered !== null
@@ -247,6 +263,9 @@ export function VolumeChart({ view, symbol }: VolumeChartProps) {
          * *no bars* reads as one failure repeated. The schedule sentence stays on
          * the price plot, which has the height for it.
          */}
+        {/* The pair pulses together, or the axis has one half waiting. */}
+        {pending && <ChartPending />}
+
         {subject !== null &&
           time.coverage.covered === null &&
           time.coverage.uncovered.length > 0 && (

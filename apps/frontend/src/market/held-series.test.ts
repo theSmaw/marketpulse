@@ -199,7 +199,20 @@ describe("barSeriesScreen", () => {
     expect(screen.previous).toBeNull();
   });
 
-  it("names both windows when a held answer is on screen", () => {
+  // **`previous` still names the held window during a window change, and that
+  // is deliberate after §80 rather than left over from before it.**
+  //
+  // The in-flight *sentence* stopped rendering on 2026-09-14 because its whole
+  // visible life is 3–68 ms — text appearing and vanishing over a chart that did
+  // not visibly change. `previous` is a different thing: it is the fact that the
+  // picture belongs to *that* window, and `BarSeriesPanel` labels the figures
+  // from it. Nulling it here would put `1M Open` over a five-session chart,
+  // which is plausible and wrong rather than visibly broken — the defect this
+  // whole module exists to prevent, arriving through the repair for a flicker.
+  //
+  // So the suppression is presentation and lives in the panel. This layer keeps
+  // saying what is true.
+  it("names the held window during a window change, for the labels", () => {
     const request = barSeriesFixtureRequest(21);
     const changing = toRequestedBarSeriesState(answered("dense", 5), request, {
       state: "loading",
@@ -211,5 +224,82 @@ describe("barSeriesScreen", () => {
     expect(screen.previous?.window).toEqual({ form: "named", sessions: 5 });
     expect(screen.shown.state).toBe("loaded");
     expect(screen.view.state).toBe("loading");
+  });
+
+  // And the rail survives where it was always legible. A refusal and a failure
+  // are states a reader sits in rather than passes through, so the sentence
+  // saying which window is on screen has time to be read and is the only thing
+  // explaining why a 5-session chart is under a 21-session heading.
+  it("still names both windows under a refusal", () => {
+    const request = barSeriesFixtureRequest(21);
+    const changing = toRequestedBarSeriesState(answered("dense", 5), request, {
+      state: "loading",
+    });
+
+    const refused = toBarSeriesState(
+      changing,
+      request,
+      barSeriesFixtureResult("refusedCap"),
+    );
+
+    const screen = barSeriesScreen(refused, request);
+
+    expect(screen.view.state).toBe("refused");
+    expect(screen.shown.state).toBe("loaded");
+    expect(screen.previous?.window).toEqual({ form: "named", sessions: 5 });
+  });
+
+  describe("and when the wait has gone on long enough to show", () => {
+    // `pending` is `usePendingPanel`'s answer, and it is false for the whole of
+    // an ordinary window change — so every case here is the slow one.
+
+    // **It rides on the screen and changes nothing else about it**, which is the
+    // whole shape of the decision. The pulse goes over the picture; the figures,
+    // their labels and the held answer behind them are untouched.
+    //
+    // Replacing them was the first design and it was wrong twice: it collapsed
+    // the panel and dropped the chart 30 px under the pointer — the defect the
+    // reserved rail slot exists to prevent (2026-09-13) — and it took the
+    // figures from a reader most likely to be mid-sentence about them.
+    it("carries the pulse without disturbing what is drawn", () => {
+      const request = barSeriesFixtureRequest(21);
+      const changing = toRequestedBarSeriesState(
+        answered("dense", 5),
+        request,
+        { state: "loading" },
+      );
+
+      const screen = barSeriesScreen(changing, request, true);
+
+      expect(screen.pending).toBe(true);
+      expect(screen.shown.state).toBe("loaded");
+      expect(screen.previous?.window).toEqual({ form: "named", sessions: 5 });
+      expect(screen.view.state).toBe("loading");
+    });
+
+    // The minimum hold, which is the half that costs something: once the panel
+    // is up it stays up, so `pending` can be true over an answer that has
+    // already landed. Without it the slow case degrades into the flicker the
+    // delay exists to prevent.
+    it("can be true over an answer that arrived during the minimum", () => {
+      const request = barSeriesFixtureRequest(21);
+      const settled = answered("dense", 21);
+
+      expect(barSeriesScreen(settled, request, true).pending).toBe(true);
+      expect(barSeriesScreen(settled, request, true).shown.state).toBe(
+        "loaded",
+      );
+    });
+
+    it("is false unless it is asked for", () => {
+      // The default, and every settled screen in the product. A pulse nobody
+      // asked for, over a chart that is not loading, is a claim that something
+      // is coming when nothing is.
+      const request = barSeriesFixtureRequest(21);
+
+      expect(barSeriesScreen(answered("dense", 21), request).pending).toBe(
+        false,
+      );
+    });
   });
 });

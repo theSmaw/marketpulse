@@ -6,6 +6,7 @@ import { barSeriesQuery } from "../bar-series-query.js";
 import type { BarSeriesView } from "./bar-series-view.js";
 import { toStaleBarSeriesView } from "./bar-series-view.js";
 import type { BarSeriesScreen, BarSeriesState } from "./held-series.js";
+import { usePendingPanel } from "./use-pending-panel.js";
 import {
   barSeriesScreen,
   toBarSeriesState,
@@ -324,9 +325,16 @@ export function useBarSeries(request: BarSeriesRequest): BarSeriesSource {
     load();
   }, [load]);
 
+  // **How long the current wait has lasted, which nothing else here knows**
+  // (2026-09-14). The hook owns the timers; this owns the question it answers.
+  // `loading` and nothing else: a refusal and a failure are answers a reader
+  // sits in rather than waits through, and a pulse over either would claim
+  // something is still coming.
+  const pending = usePendingPanel(state.view.state === "loading");
+
   return {
     view: state.view,
-    screen: barSeriesScreen(state, pinned.request),
+    screen: barSeriesScreen(state, pinned.request, pending),
     retry,
   };
 }

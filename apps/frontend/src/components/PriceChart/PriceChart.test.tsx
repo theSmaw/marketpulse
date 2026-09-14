@@ -53,10 +53,16 @@ vi.mock("./chart-geometry.js", async (importOriginal) => {
  * its own axis would look right at every width where the two agreed, which is
  * every width until one of them was measured a frame later than the other.
  */
-function Chart({ view }: { readonly view: BarSeriesView }) {
+function Chart({
+  view,
+  pending = false,
+}: {
+  readonly view: BarSeriesView;
+  readonly pending?: boolean;
+}) {
   return (
     <ChartAxis view={view}>
-      <PriceChart symbol="NVDA" view={view} />
+      <PriceChart pending={pending} symbol="NVDA" view={view} />
     </ChartAxis>
   );
 }
@@ -362,6 +368,36 @@ describe("what a screen reader is handed", () => {
     // to load.
     expect(exposedText(container)).toContain("no line is drawn");
     expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  // Added 2026-09-14 (§80). The pulse is a picture and jsdom draws nothing, so
+  // what this level can assert is the mechanism: that it appears only when it is
+  // asked for, that it goes **over** the chart rather than instead of it, and
+  // that it says nothing to a listener. Whether it reads as a wait is
+  // `Market/ChartPending` in the workshop, and when it appears is
+  // `use-pending-panel.test.ts`.
+  it("draws the pulse over a held chart, and only when asked", () => {
+    measureEverythingAt(800, 280);
+
+    const settled = render(<Chart view={barSeriesFixtureView("full")} />);
+    const marks = settled.container.querySelectorAll("path, rect").length;
+    expect(marks).toBeGreaterThan(0);
+    settled.unmount();
+
+    const { container } = render(
+      <Chart pending view={barSeriesFixtureView("full")} />,
+    );
+
+    // The series is still there. Replacing it was the first design and it
+    // collapsed the panel — see `held-series.ts`.
+    expect(container.querySelectorAll("path, rect").length).toBe(marks);
+
+    // And the panel is over it, hidden, adding no word to what a listener gets.
+    const pulse = container.querySelector(
+      "[aria-hidden='true'][class*=pending]",
+    );
+    expect(pulse).not.toBeNull();
+    expect(exposedText(container)).not.toContain("pending");
   });
 
   // Moved here from `BarSeriesPanel.test.tsx` on 2026-09-14, with the sentence

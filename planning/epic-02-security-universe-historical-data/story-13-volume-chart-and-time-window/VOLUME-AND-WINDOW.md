@@ -5019,3 +5019,131 @@ the line at all.
   explanation is drawn inside a plot. Two notes on one frame is the panel's
   two-surfaces-one-sentence problem moved into the picture, and the answer then
   is a vocabulary rather than another paragraph.
+
+---
+
+## 80. A wait you can see, and a sentence nobody could read
+
+Added 2026-09-14, from one sentence: _"the transition is quite quick, so trying
+to show text is useless as there is no time to read it."_
+
+That is a report about §37's in-flight rail, and it is correct. A window change
+costs **2–9 ms warm and 7–68 ms cold** against a local pair — three runs per
+window, measured the same day — so the rail reading _"Still showing the
+5-session window while the 21-session window is read"_ has a visible life under a
+tenth of a second. What a reader gets is a sentence appearing and vanishing over a
+chart that did not visibly change: a flicker where information was intended.
+
+Two repairs, and they pull in opposite directions on purpose.
+
+### 80.1 The in-flight sentence is withdrawn, and the labels are not
+
+`BarSeriesPanel`'s `Rail` returns `null` for `loading`. It keeps rendering for a
+refusal and for a failure, which are states a reader **sits in** rather than
+passes through, where the sentence carries the server's own words and the retry,
+and where it is the only thing explaining why a 5-session chart is under a
+21-session heading.
+
+**`BarSeriesScreen.previous` is unchanged, and that distinction is the whole of
+the care here.** The first attempt nulled it during `loading`, on the reasoning
+that a rail nobody can read is a rail nobody needs. `previous` is not the rail:
+`BarSeriesPanel.tsx` labels the **figures** from `previous ?? asked`, so nulling
+it puts `1M Open` over a five-session chart — plausible and shifted, which is the
+defect class this layer exists to prevent, arriving through the repair for a
+flicker. It was caught by a component test that had been written to assert
+exactly that pairing.
+
+So the suppression is **presentation and lives in the panel**; the state layer
+goes on saying what is true. What replaces the sentence's job is the figures'
+own window labels, which say the same thing without needing to be read in time.
+
+### 80.2 A wait longer than 160 ms is covered by a panel
+
+`ChartPending` — one block, the size of the plot, breathing between
+`--chart-uncovered` and `--chart-grid`, a 1.107:1 range.
+
+**Not a skeleton.** A skeleton draws a fake line where the real one will be, and
+on a product whose first invariant is that every number comes from deterministic
+code, a drawn shape that is not data is the one thing a plot must not contain: a
+reader glancing at it has been shown a price movement nobody computed.
+
+**Over the picture and never over the figures**, which is the shape of the whole
+decision and the second thing that had to be got right. The first design replaced
+`shown` with the `loading` member, which is tidy and wrong twice over: it
+collapses the panel — dropping the chart 30 px under the pointer, the exact defect
+the reserved rail slot was built to prevent on 2026-09-13 — and it takes the
+figures from a reader most likely to be mid-sentence about them. So `pending` is
+a field on `BarSeriesScreen`, the plots draw the panel over whatever frame is
+already there, and nothing else on the panel moves.
+
+**The two numbers, and they are measured rather than argued** —
+`use-pending-panel.ts` holds both:
+
+- `SHOW_AFTER_MS = 160`, above the 2–68 ms a window change costs plus
+  `CLAUDE.md`'s recorded 50–66 ms of main thread on a cold security page. **The
+  ordinary case therefore never pulses at all**, which is ADR 0028's intent
+  surviving its own reversal: one chart swaps for the next with nothing in
+  between. It is also what stops the rail flashing, rather than merely stopping
+  the panel flashing.
+- `HOLD_FOR_MS = 400`, because without it a 161 ms wait is 160 ms of chart, one
+  frame of panel, then the answer — the flicker the delay exists to remove,
+  reintroduced at a different boundary. **It costs something honest**: real data
+  is held back by up to 400 ms in a narrow window. That is the trade, and it is a
+  trade.
+
+### 80.3 What the browser suite found that nothing else could
+
+The first spec for the panel asserted `loading`'s own alternative — _the frame is
+drawn and the series has not arrived yet_ — and failed, because that sentence is
+never on screen: the panel goes **over** a held answer, so the alternative is
+still describing the held series.
+
+Chasing that turned up the real defect, which was not the test. **The panel is a
+wordless `aria-hidden` block, so it was a fact with exactly one audience**: a
+sighted reader saw a newer answer was coming and a listener was told nothing at
+all. `chartAlternative` and `volumeAlternative` now take `pending` and append
+_"A newer answer is on its way."_ — appended rather than replacing, because the
+picture under the panel is still a true picture of its own window and that is
+what a listener is most likely to have been reading.
+
+This is the second time in two days that moving something visual has quietly
+dropped a fact for one audience: §79.3 lost the backfill schedule the same way.
+**The rule that generalises is worth stating**: when a visible sentence moves or
+goes, grep the alternative for what it was carrying before deciding the move is
+free.
+
+### 80.4 What it cost elsewhere, all of it small and none of it obvious
+
+- **`.heldWindow.working` and `inFlightSentence` are gone**, the first being the
+  rail form that marched and the second its copy. `march` itself stays —
+  `.refreshing` still uses it, and that rail is about _the same window, one
+  answer old_, which is a different fact and genuinely still in flight.
+- **The reserved slot above the chart is measured against a different sentence.**
+  It laid out the in-flight copy, which no longer renders; the longest sentence
+  that can now reach it is the failure one, four characters longer than the
+  refusal. `reservedSentence` composes it from `outcomeSentence`'s own arm rather
+  than writing it out, for the reason the in-flight version had before it.
+- **The pulse animates its surface, not its opacity**, and that was a correction
+  made by looking. Opacity is the obvious choice — it composites rather than
+  repaints — and probed at 1440 against the real story it is wrong: the panel
+  sits over the plot's `<svg>`, so fading it fades the **gridlines in**, and what
+  breathes is the frame appearing and disappearing underneath.
+- **`--motion-duration-pulse` is the token layer's first loop.** `quick` and
+  `settle` both describe something that happens once; a loop needs its own
+  duration so that `prefers-reduced-motion` can zero it, which leaves the same
+  panel holding still rather than a degraded version of it. It **originated in
+  code rather than on the design canvas** — ADR 0026's chain run backwards — and
+  it owes a sync: the `Component library for MarketPulse` project was not
+  reachable from the session that added it, and the canvas has no loading
+  treatment of any kind to adopt.
+
+### 80.5 Reversal triggers, as conditions
+
+- **For the withdrawal of the in-flight sentence:** the first environment where a
+  window change routinely outlasts the panel's own threshold — a deployed page on
+  a slow link, or Epic 13's replay reading a cold window. At that point the wait
+  is long enough to read something during, and the question of what to say
+  reopens with the panel as the place to say it.
+- **For the panel itself:** the first answer that routinely outlives
+  `HOLD_FOR_MS`, which would mean the minimum is protecting nothing and is only
+  ever delaying data.

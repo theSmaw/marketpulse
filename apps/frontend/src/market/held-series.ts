@@ -118,6 +118,27 @@ export interface BarSeriesScreen {
    * vocabulary for the same window.
    */
   readonly previous: BarSeriesRequest | null;
+
+  /**
+   * **Has the wait gone on long enough to be worth drawing?** (2026-09-14, §80.)
+   *
+   * `usePendingPanel`'s answer, carried here so the two plots and the panel
+   * cannot disagree about it. When it is true each plot draws `ChartPending`
+   * over its own frame; everything else on the panel is untouched.
+   *
+   * **It replaces the picture and never the figures**, and that is the whole
+   * shape of the decision. The figures above the plot are a true reading of the
+   * window they are labelled with, they are what a reader is most likely to be
+   * mid-sentence about when they press a control, and removing them for 400ms
+   * would collapse the panel and drop the chart 30px under the pointer — which
+   * is the defect the reserved rail slot was built to prevent in the first
+   * place (2026-09-13).
+   *
+   * False for the whole of an ordinary window change: it costs 2–9 ms warm and
+   * 7–68 ms cold on a local pair, against a 160 ms threshold. So this is the
+   * slow case by construction.
+   */
+  readonly pending: boolean;
 }
 
 /**
@@ -206,8 +227,13 @@ export function toRetryingBarSeriesState(
 export function barSeriesScreen(
   state: BarSeriesState,
   asked: BarSeriesRequest,
+  pending = false,
 ): BarSeriesScreen {
-  const base = { view: state.view, asked } as const;
+  // `pending` rides on the screen rather than reaching the plots as a second
+  // prop from three call sites. It is a fact about *what is on screen*, which is
+  // exactly what this value is for, and one producer is what stops a component
+  // being handed a pulse and a picture that disagree.
+  const base = { view: state.view, asked, pending } as const;
 
   switch (state.view.state) {
     case "loaded":

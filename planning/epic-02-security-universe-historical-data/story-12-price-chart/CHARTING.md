@@ -554,6 +554,15 @@ Two further rules inherited whole:
   the state and renders the member it is given.
 - **A held answer stays on screen, marked, while the next one loads, and the mark
   never touches a number** — no dim, no blur, no fade, no skeleton over a price.
+  **Amended 2026-09-14 (`VOLUME-AND-WINDOW.md` §80): the rule now has a time
+  bound on one half and is unchanged on the other.** A wait longer than 160 ms
+  draws `ChartPending` over the plot. What it does not touch is still every
+  number: the figures stay at full ink, they keep the label of the window they
+  belong to, and the panel is confined to the picture. So _no dim, no blur, no
+  fade over a price_ stands exactly as written; what changed is that a **picture**
+  a reader can no longer trust to be current is covered rather than left looking
+  current. The 160 ms is measured — a window change costs 2–9 ms warm and 7–68 ms
+  cold — so the ordinary case is untouched and swaps one chart for the next.
   A chart that redraws a held series _in a second style_ is
   `FRONTEND-STATE.md` §2's stated reversal trigger for promoting `stale` from a
   flag to a seventh union member. **If Task 2.12.7 needs that, it is taken there,
