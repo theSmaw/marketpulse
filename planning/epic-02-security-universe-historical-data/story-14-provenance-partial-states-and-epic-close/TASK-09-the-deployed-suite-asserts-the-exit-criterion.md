@@ -11,6 +11,14 @@
 > provenance on the page. Corrected in place, because this is exactly the class of
 > assertion the suite's README says costs a six-minute round trip to discover.
 
+> **Amended again 2026-09-14, by Task 2.14.3 — and the correction above was
+> itself half wrong, which is the lesson rather than an embarrassment.** §0.1
+> became **per clause** the same day (Task 2.14.2), and 2.14.3 built it that way.
+> So at zero bars the note does not vanish: it **reduces to its classification
+> clause**, because that clause's data is the universe answer rather than the
+> bars. There _is_ provenance on a zero-bar page, it is exactly one line, and it
+> is assertable in every store. The bullet below is corrected a second time.
+
 ## Objective
 
 Acceptance criteria 4 and 5. Execute the epic's exit criterion in the **deployed
@@ -78,18 +86,25 @@ by a person opening the page. Say "nothing visible" plainly.
   width, that the window control drives both, that the address carries the
   window. A close price is not. Where a figure genuinely must be asserted, gate
   it on the store having data and say so in the spec's own text.
-- **~~that provenance is present — all true at zero bars~~ — corrected
-  2026-09-14, and this is the kind of thing a deployed spec discovers six minutes
-  at a time.** [`PROVENANCE.md`](PROVENANCE.md) §0.1: **a claim about data
-  requires data**, so `SourceNote` renders **nothing** when `bars.length === 0`.
-  A zero-bar store — CI's, and `store:bare` — therefore has no provenance on the
-  page at all, correctly. An assertion that provenance is present would be an
-  assertion about data the runner may not have, which is the hazard the suite's
-  README already names, arriving through a sentence that reads like structure.
-  What **is** true at zero bars and is worth asserting: the masthead's
-  `FeedProvenance`, which is a standing claim about the deployment and is there on
-  every route whatever the store holds; and the **vacancy sentence**, which is the
-  whole explanation on a zero-bar page.
+- **~~that provenance is present — all true at zero bars~~ — corrected twice,
+  and this is the kind of thing a deployed spec otherwise discovers six minutes
+  at a time.** [`PROVENANCE.md`](PROVENANCE.md) §0.1 — **a claim about data
+  requires data** — is applied **per clause**, so a zero-bar store (CI's, and
+  `store:bare`) draws a `SourceNote` **reduced to one line**: the classification
+  clause, whose data is the universe answer and not the bars. The rule for this
+  suite falls out of that cleanly, and it is the structure/figures distinction
+  the bullet above already makes:
+
+  - **Assertable in every store** — the masthead's `FeedProvenance`, a standing
+    claim about the deployment present on every route whatever the store holds;
+    the **classification clause**, because it reads a fetch that resolves
+    independently of any bar; and the **vacancy sentence** where there are none.
+  - **Not assertable** — the note's **adjustment, retrieval and feed** clauses,
+    every one of which is a claim about bars the runner may not have. An
+    assertion that _the source note is present_ is fine; an assertion that it
+    says `Unadjusted` is an assertion about data, wearing a sentence that reads
+    like structure.
+
 - **Reuse the local suite's page objects** where they exist (`support/app.ts`)
   rather than growing a second vocabulary for the same page. Two suites with two
   selectors for one control is the drift that makes a deployed failure
@@ -104,7 +119,8 @@ by a person opening the page. Say "nothing visible" plainly.
   the store's freshness recorded beside the result.
 - `specs-deployed/` asserts that journey including the window change, and the
   spec says in its own text which of its assertions survive a zero-bar store —
-  explicitly including that **`SourceNote` is not one of them**.
+  explicitly including **which clauses of `SourceNote` do and do not**: the
+  classification line survives one, the adjustment and retrieval lines do not.
 - `pnpm e2e:deployed` is green, twice, and `pnpm e2e` is still green.
 - `pnpm verify` passes.
 

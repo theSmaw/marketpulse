@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import * as provenanceModule from "./market-provenance.js";
 import {
+  ADJUSTMENT_DESCRIPTIONS,
   ADJUSTMENTS,
+  describeSeriesFeeds,
+  distinctSeriesFeeds,
   MARKET_FEED_DESCRIPTIONS,
   MARKET_FEEDS,
   mergeSeriesProvenance,
@@ -199,5 +202,101 @@ describe("mergeSeriesProvenance — the stitch", () => {
     // collapsing them.
     const one = toSeriesProvenance("raw", FIXTURE_SOURCE);
     expect(mergeSeriesProvenance(one, one, one).sources).toHaveLength(3);
+  });
+});
+
+describe("the adjustment vocabulary", () => {
+  it("gives every adjustment a label", () => {
+    // The `Record<Adjustment, …>` annotation is the real guard and it is a
+    // compile-time one; what a runtime test can add is that the table has not
+    // been given a member with an empty word in it, which typechecks.
+    for (const adjustment of ADJUSTMENTS) {
+      expect(ADJUSTMENT_DESCRIPTIONS[adjustment].label.length).toBeGreaterThan(
+        0,
+      );
+    }
+  });
+
+  it("gives a sentence to the label that cannot stand alone, and only that one", () => {
+    // ADR 0019 §3's rule, and the assertion is the rule rather than the
+    // strings: *Unadjusted* reads to somebody who has not met the word as a
+    // fault, which is the same misread `SIMULATED` was caught by, and
+    // *Split-adjusted* states the whole thing in two words so a sentence under
+    // it could only restate it. Applying the rule uniformly is what produced
+    // three wrong strings for `sip` in a day.
+    expect(ADJUSTMENT_DESCRIPTIONS.raw.sentence).toBe(
+      "Prices as they printed. Not restated for stock splits.",
+    );
+    expect(ADJUSTMENT_DESCRIPTIONS["split-adjusted"].sentence).toBeUndefined();
+  });
+});
+
+describe("describeSeriesFeeds", () => {
+  const sip: BarSource = {
+    provider: "alpaca",
+    feed: "sip",
+    retrievedAt: "2026-09-08T13:30:00.000Z",
+    barCount: 780,
+  };
+  const iex: BarSource = { ...sip, feed: "iex", barCount: 30 };
+
+  it("names every stretch in contribution order, with its count", () => {
+    // The decision rather than the illustration (`PROVENANCE.md` §2.2). A
+    // reader told *780 then 30* cannot mistake the picture for a single-venue
+    // chart, and a renderer that dropped a stretch would produce a claim whose
+    // arithmetic does not reach the bar count on the axis.
+    const stitched = mergeSeriesProvenance(
+      toSeriesProvenance("raw", sip),
+      toSeriesProvenance("raw", iex),
+    );
+
+    expect(describeSeriesFeeds(stitched)).toEqual([
+      { feed: "sip", barCount: 780, label: "All US exchanges" },
+      {
+        feed: "iex",
+        barCount: 30,
+        label: "IEX",
+        sentence:
+          "Trades reported by the IEX exchange only — not the full US consolidated tape.",
+      },
+    ]);
+  });
+
+  it("never sorts and never collapses to whichever feed is first", () => {
+    // The failure mode invariant 6 forbids outright: collapsing a stitched
+    // series to its first feed is what would let a chart whose last bars came
+    // from a single venue be labelled as the whole consolidated tape.
+    const stitched = mergeSeriesProvenance(
+      toSeriesProvenance("raw", iex),
+      toSeriesProvenance("raw", sip),
+    );
+
+    expect(describeSeriesFeeds(stitched).map((s) => s.feed)).toEqual([
+      "iex",
+      "sip",
+    ]);
+  });
+
+  it("keeps two stretches that name one feed as two stretches", () => {
+    // What a stitch of stored bars and a fetched tail looks like on this plan:
+    // two sources, one feed. They are two stretches and the record says so —
+    // whether it is worth *drawing* is `distinctSeriesFeeds`' question.
+    const stitched = mergeSeriesProvenance(
+      toSeriesProvenance("raw", sip),
+      toSeriesProvenance("raw", { ...sip, barCount: 90 }),
+    );
+
+    expect(describeSeriesFeeds(stitched)).toHaveLength(2);
+    expect(distinctSeriesFeeds(stitched)).toEqual(["sip"]);
+  });
+
+  it("reports the feeds in first-contribution order", () => {
+    const stitched = mergeSeriesProvenance(
+      toSeriesProvenance("raw", iex),
+      toSeriesProvenance("raw", sip),
+      toSeriesProvenance("raw", { ...iex, barCount: 5 }),
+    );
+
+    expect(distinctSeriesFeeds(stitched)).toEqual(["iex", "sip"]);
   });
 });

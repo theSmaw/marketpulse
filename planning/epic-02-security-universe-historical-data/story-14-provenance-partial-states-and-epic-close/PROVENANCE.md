@@ -163,7 +163,7 @@ this surface for_.
 | Fact                                                            | Who states it                                                                                                              | Why                                                                                                                                                     |
 | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | the deployment's feed                                           | the **chrome**, always                                                                                                     | it is a standing claim about a deployment and cannot change without a deploy and a reload (`FeedProvenance`'s own argument for not being a live region) |
-| **this series'** feeds                                          | the **note**, when they number more than one **or** when the single feed is not the one `useMarketFeed` reports configured | both conditions are readable from data the page already holds; neither can be true today, and both become true in Epic 3                                |
+| **this series'** feeds                                          | the **note**, when they number more than one **or** when the single feed is not the one `useMarketFeed` reports configured | both conditions are readable from data the page already holds; see the amendment below for which of them is reachable today                             |
 | the adjustment                                                  | the **note**, always (when there are bars)                                                                                 | the chrome can never state it — it is a property of a request, not of a deployment                                                                      |
 | when these bars were retrieved                                  | the **note**, always (when there are bars)                                                                                 | likewise                                                                                                                                                |
 | where sector and industry came from, and when they were checked | the **note**, always                                                                                                       | §5; likewise, and it is the fact most easily mistaken for market data                                                                                   |
@@ -187,6 +187,38 @@ arrives — because its condition is the same condition the note uses and deleti
 it would leave the note as the only reader of a fact the panel is better placed
 to draw when it is the panel's own series that is mixed. What §74.1 settled about
 it is untouched.
+
+#### Amended 2026-09-14 by Task 2.14.3 — **the second condition fires today, on a deployment with no provider**
+
+The table above said _neither can be true today_. Building it found that the
+second one can, and the case is the **default one**: `MARKET_DATA_PROVIDER`
+defaults to `none`, the chrome then reads `MARKET FEED — NOT CONFIGURED`, and
+the store goes on serving bars regardless, because a stored series does not need
+a live provider. So the page holds numbers and the chrome makes **no feed claim
+at all**.
+
+Suppressing the note there was the alternative, and it is the one that fails
+§35: it would leave a screen of prices with no statement anywhere of which
+venues are in them, which is _hide data provenance_ reached by the rule meant to
+prevent duplication. **So the rule is stated as: suppression requires a positive
+match.** The note says nothing about the feed only when the chrome is naming
+_this_ feed correctly — `state: "configured"` and the same value — and speaks in
+every other case.
+
+Two consequences worth recording:
+
+- **The duplication §1.3 exists to prevent is now structural rather than
+  inspected.** The two surfaces cannot both print `All US exchanges`, because the
+  note's condition is the negation of the chrome's. The done-when's _put the two
+  on one screenshot and check no fact appears twice_ was still performed and it
+  passed; what changed is that it can no longer fail by accident.
+- **`checking` suppresses without a match**, and that is the one exception. It
+  lasts one settle, and a row that appears on the first frame and is taken away
+  three hundred milliseconds later is a worse reading than a fact that arrives
+  with everything else.
+
+The first condition — more than one feed — is still unreachable and still Epic
+3's.
 
 **Alternatives weighed and declined**
 

@@ -258,8 +258,19 @@ export type { TimeRange } from "./time-range.js";
 // vocabularies for one fact. `Market feed: IEX` alone satisfies §7.1's letter
 // and fails its intent — the sentence is the requirement, the label is the
 // affordance.
+//
+// Since Task 2.14.3 there are TWO vocabularies with words — the feed's and the
+// adjustment's — and one interface stating the rule they share, which is what
+// keeps `split-adjusted` having no sentence a decision rather than an omission.
+// `describeSeriesFeeds` is the third thing Story 2.14 needed: the ordered
+// stretches of a stitched series, as a structure rather than a sentence, so the
+// source note and the chart's text alternative render the same facts in their
+// own media instead of each assembling a copy.
 export {
+  ADJUSTMENT_DESCRIPTIONS,
   ADJUSTMENTS,
+  describeSeriesFeeds,
+  distinctSeriesFeeds,
   MARKET_FEED_DESCRIPTIONS,
   MARKET_FEEDS,
   mergeSeriesProvenance,
@@ -272,6 +283,8 @@ export type {
   MarketFeed,
   MarketFeedDescription,
   ProviderId,
+  ProvenanceDescription,
+  SeriesFeedStretch,
   SeriesProvenance,
 } from "./market-provenance.js";
 

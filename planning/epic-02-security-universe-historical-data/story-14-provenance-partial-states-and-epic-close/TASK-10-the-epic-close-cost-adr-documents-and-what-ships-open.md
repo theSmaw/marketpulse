@@ -56,7 +56,16 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
   others earn their place: §1.3's _the note states what the chrome cannot_, which
   is the rule that will govern every provenance surface Epics 3 and 8 add; and
   §0.1's _a claim about data requires data_, which is one line and governs three
-  decisions. Then read `docs/adr/README.md` and confirm the index covers every ADR
+  decisions. **Both are carried in their amended forms and not as first
+  written** (2026-09-14): §1.3's operative rule is _suppression requires a
+  positive match_, and its interesting property is that the duplication it exists
+  to prevent became **structural** — the note's condition for naming a feed is
+  the negation of the chrome's for claiming one, so the two cannot print the same
+  fact; and §0.1 is applied **per clause**, which is what lets a zero-bar page
+  carry one true line rather than none. A third candidate worth a paragraph is
+  §2's _return a structure, not a sentence_, which is what stops the visible
+  claim and the spoken one drifting and is the pattern every later provenance
+  surface should copy. Then read `docs/adr/README.md` and confirm the index covers every ADR
   through this one — the index is a current index, not an append log.
 - **The cost figure, re-taken with the database running**, against the $20
   budget and its alerts (acceptance criterion 6). The free-offer clock started at
@@ -124,6 +133,14 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
     cannot be taken is only the one between the bell and that night's backfill.
     **Owner: the next person to open `/securities/NVDA?sessions=1` on the
     deployed site during market hours.**
+  - **The two-feed ledger, which is correct and unproducible.** The sentence
+    invariant 6 exists for — each stretch, in contribution order, with its bar
+    count — is reached only through `twoFeedStitchView()`, the recorded stitch
+    with one field changed, because every recorded body carries `sip` and no
+    shipped endpoint produces two feeds. **Owner: Epic 3**, whose IEX socket is
+    the first thing that can record a real one; the function is named and
+    commented so that deleting it and pointing its three readers at a fixture is
+    the obvious move. Carried in `docs/GAPS.md` since 2026-09-14.
   - Plus whatever Task 2.14.8 deferred, and the `synthetic` branch that no
     recorded body exercises.
 - **Hand Epic 3 what it inherits**, in one paragraph in `EPIC.md`: the

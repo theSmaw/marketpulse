@@ -11,6 +11,12 @@
 > Task 2.14.3's `SourceNote`, **not** the identity block and **not** the universe
 > table. Edited in place.
 
+> **Amended 2026-09-14 by Task 2.14.3, which built the component this joins.**
+> Three things below are now decided by what shipped rather than open: the date
+> formatter **exists and must be reused**, the component's shape is known, and
+> this task's clause is what makes the note appear on a zero-bar page at all.
+> Edited in place; the objective and the wording are untouched.
+
 ## Objective
 
 Render the metadata provenance the wire has carried since Story 2.9 and no
@@ -65,25 +71,48 @@ topology by one.
 
 ## Work
 
-- **Add a clause to `SourceNote`**, the component Task 2.14.3 creates. Not the
-  identity block, and — settled — **not the universe table**: §5 keeps this off
+- **Add a clause to `SourceNote`**, the component Task 2.14.3 built — which is
+  a third field on `SourceNoteView` (`feeds`, `prices`, and this), a third term
+  in the `dl`, and a third argument to `toSourceNote`, whose two views become
+  three. The route already holds what it needs: `SecurityExplorer` calls
+  `useSecurities()` for the identity block and the table, so this clause reads a
+  fetch the page already makes and adds none. `hasClauses` is the predicate that
+  already decides whether the note draws at all, and it needs one more term.
+
+  Not the identity block, and — settled — **not the universe table**: §5 keeps this off
   a 518-row surface, which also means Task 2.14.8's re-measure is a confirmation
   rather than a reading of markup this task added. If a later reading of 2.14.2's
   canvas argues for the table after all, that is a decision with a measurement
   attached to it and 2.14.8 is the place it is taken.
+
 - **The words, settled** (§5.2): _"Sector and industry are curated, not from the
   market feed. Last checked 8 September 2026."_
 - ~~**Age, not a raw instant.**~~ **A full date, and not a relative age**
   (§5.3). A relative age is computed against the **browser's clock**, which this
   repository fences off for market instants for good reasons, and an ISO string
   is a machine's spelling — so `8 September 2026`, in body text. The formatting
-  goes beside the existing `formatMarketInstant` rather than in a component; note
-  this one is a **date without a market session behind it**, so it is a different
-  function rather than a reuse.
+  ~~goes beside the existing `formatMarketInstant` rather than in a component;
+  note this one is a **date without a market session behind it**, so it is a
+  different function rather than a reuse.~~ **Written already — reuse it**
+  (2026-09-14, Task 2.14.3). `components/SourceNote/source-note.ts` holds
+  `formatFullDate`, which turns a market date into `8 September 2026`, and a
+  twelve-member `MONTH_NAMES` table beside it. The retrieval clause takes the
+  same path this one needs — an ISO instant through `marketDateAt` and then that
+  formatter — so writing a second one here would be a second table of month names
+  for one vocabulary, which is the drift this story spends its time preventing
+  one layer up. If it needs to be shared more widely than one module, move it;
+  do not copy it.
 - **The `null` provenance state renders**, and it says _we do not claim_ rather
   than showing an empty space. `SecurityIdentity`'s existing absence states and
   their markers are the idiom: a marker shape carries "we don't know" separately
-  from the words.
+  from the words. **One tension to resolve deliberately rather than inherit**
+  (2026-09-14): as shipped, `SourceNote` carries **no marker at all** — it is
+  entirely typographic, and the recession is done by size, the label column and
+  position. A marker added for this one clause would be the first on the surface,
+  and the question is whether _we do not claim_ earns one when _these prices are
+  unadjusted_ does not. Take it as a decision with a sentence beside it; the
+  answer may well be yes, since an absence is the one thing on this surface that
+  is not a claim.
 - **Do not imply the market-data provider supplied it**, which is this bullet's
   entire point and the scope line that named it. `Source: MarketPulse curated`
   and `Source: Alpaca` are different claims and the UI has been making neither.
@@ -98,10 +127,20 @@ topology by one.
   one here**, and if the date looks uncomfortably old on screen, that is the
   disclosure working.
 - **Stories for: fresh, old, absent provenance, and a security the universe does
-  not hold.** The last already has a rendering; it must not regress. Add the
-  no-bars case too, where `SourceNote` renders nothing — the classification clause
-  is about the **security** rather than about the series, so whether it survives
-  an empty chart is a real question this task answers rather than inherits.
+  not hold.** The last already has a rendering; it must not regress. ~~Add the
+  no-bars case too, where `SourceNote` renders nothing~~ — **answered before this
+  task starts, and it is the consequence worth reading twice.** §0.1's rule is
+  **per clause** since 2026-09-14 and Task 2.14.3 implemented it that way
+  (`hasClauses`, and a `null` per clause rather than for the note): the
+  classification's data is the **universe** answer, which has resolved on a
+  zero-bar page, so this clause draws and the note renders **with it alone**.
+  So this task is what makes the note appear on every zero-bar page — which is
+  **every page CI renders**, since CI's store is 518 securities and no bars. Add
+  the story, and expect the knock-on: three later tasks currently say the note is
+  absent there, and each carries an amendment pointing here. The existing
+  `NoBars` story in `SourceNote.stories.tsx` stops rendering nothing and becomes
+  the one-clause shape; its text says so today and must be corrected rather than
+  left.
 
 ## Done when
 

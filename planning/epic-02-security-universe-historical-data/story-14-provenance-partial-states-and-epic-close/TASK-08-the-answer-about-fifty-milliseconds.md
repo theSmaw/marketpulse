@@ -12,6 +12,16 @@
 > cited is a figure nobody checked — but expect it unchanged, and if it has moved,
 > something other than this story moved it.
 
+> **Amended 2026-09-14 by Task 2.14.3, narrowing the last sentence above.** This
+> story _does_ add markup to the security page — `SourceNote` is a `dl` of two
+> terms at the foot of the region group — so "something other than this story
+> moved it" is now too strong. It is a handful of elements against a 518-row
+> table's thousands, so the expectation is still _unchanged_; what the record
+> should say, if the figure has moved, is **by how much and against which
+> markup**, because the whole argument of this task is that the table is the
+> cause. A note of a few elements is the cheapest possible control on that
+> claim.
+
 ## Objective
 
 Discharge the one published-target breach this epic ships with, by **deciding**

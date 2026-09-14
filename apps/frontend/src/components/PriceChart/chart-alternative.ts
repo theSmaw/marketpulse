@@ -1,4 +1,4 @@
-import { MARKET_FEED_DESCRIPTIONS } from "@marketpulse/shared";
+import { describeSeriesFeeds, distinctSeriesFeeds } from "@marketpulse/shared";
 import type { BarSeries, TimeRange, Timeframe } from "@marketpulse/shared";
 
 import type {
@@ -547,24 +547,44 @@ function slotWord(timeframe: Timeframe, count: number): string {
 /**
  * Which feed these prices came from, in the shipped vocabulary.
  *
- * `MARKET_FEED_DESCRIPTIONS`' words and never this module's, for `Provenance`'s
- * reason: a second table of user-facing sentences derived from the same slugs
- * is the copy that drifts. **The label only, without its sentence** — the
+ * `MARKET_FEED_DESCRIPTIONS`' words and never this module's, for the source
+ * note's reason: a second table of user-facing sentences derived from the same
+ * slugs is the copy that drifts. **The label only, without its sentence** — the
  * sentence is on screen beside the label, and repeating it here would make this
  * alternative the longest thing on the page for the sake of a clause a listener
  * reaches two paragraphs later anyway.
  *
- * The distinct feeds rather than one, because a stitched series truthfully
- * names more than one (`PRODUCT_SPEC.md` §7.1 — provenance is per series, and
- * there is no single true answer to *which feed is this?*).
+ * ## Two feeds name the split, with its counts — 2026-09-14 (Task 2.14.3)
+ *
+ * A stitched series truthfully names more than one feed (`PRODUCT_SPEC.md`
+ * §7.1 — provenance is per series, and there is no single true answer to *which
+ * feed is this?*). What this clause used to say about one was `Market feeds:
+ * All US exchanges and IEX.`, which names both and says **which bars are
+ * which** about neither — so a listener to a 782-bar chart whose last two bars
+ * are IEX and a listener to one that is half and half were told the same thing.
+ *
+ * `PROVENANCE.md` §2.2 settles that for the whole product: the split is named
+ * in contribution order **with the bar counts**, never sorted and never
+ * collapsed to whichever feed is first. The structure comes from
+ * `describeSeriesFeeds`, which the source note reads too — so the visible claim
+ * and the spoken one are the same facts in two media rather than two
+ * vocabularies for one fact.
+ *
+ * The single-feed sentence is unchanged, which is every series a server can
+ * currently produce.
  */
 function feedClause(series: PopulatedBarSeries): string {
-  const feeds = [...new Set(series.provenance.sources.map((s) => s.feed))];
-  const labels = feeds.map((feed) => MARKET_FEED_DESCRIPTIONS[feed].label);
+  const stretches = describeSeriesFeeds(series.provenance);
 
-  return labels.length > 1
-    ? `Market feeds: ${listOf(labels)}.`
-    : `Market feed: ${listOf(labels)}.`;
+  if (distinctSeriesFeeds(series.provenance).length <= 1) {
+    return `Market feed: ${stretches[0].label}.`;
+  }
+
+  const split = stretches.map(
+    (stretch) => `${formatCount(stretch.barCount)} from ${stretch.label}`,
+  );
+
+  return `Stitched: ${listOf(split)}.`;
 }
 
 /** `a`, `a and b`, `a, b and c` — the one place this module builds a list. */

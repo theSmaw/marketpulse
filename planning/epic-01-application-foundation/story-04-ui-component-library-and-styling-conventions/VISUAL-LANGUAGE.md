@@ -631,6 +631,32 @@ Two consequences, both deliberate and both costly enough to be worth stating. **
 
 **No new token was needed and none was added.** `--font-size-micro` at 11/16, `--ink-secondary`, `--rule-hairline`, `--font-data` and `--letter-spacing-micro` already exist and already mean this. A token added here would be one designed against no consumer, which is the reason ADR 0026 declined the canvas's own `micro/10` step and the reason it stays declined.
 
+#### Amended 2026-09-14 by Task 2.14.3 — three things building it settled
+
+The arrangement above is unchanged. What drawing it in a browser rather than on
+an artboard decided:
+
+- **The count is drawn only where there is a split to measure.** A single
+  stretch has no split in it, and the panel above the chart already says how many
+  bars are held — so a count on a one-row ledger is the note repeating a fact
+  another surface owns, which is the rule broken in the direction hardest to
+  notice. It also left the one-row note's label eight pixels right of the value
+  on the line below it, because the row was still paying the count column's gap.
+- **A sentence hangs under its line rather than continuing it.** Set as one run,
+  `Unadjusted · Retrieved 8 September 2026 Prices as they printed.` collides a
+  date with the capital letter of the sentence after it, and a reader parses the
+  two as one clause and then has to go back. The two facts that are one reading —
+  what was done to these prices, and when they were fetched — share a line and
+  are joined by the middle dot this product already uses for exactly that; the
+  sentence explaining the first is a second reading and gets its own line. The
+  dot is `aria-hidden`, because a listener gets the boundary from the elements.
+- **The retrieval date is a range when the stretches were fetched on different
+  days.** A stitched series is stored bars plus a tail fetched later; naming only
+  the newer date claims the whole picture is that fresh, and naming only the
+  older one claims it is that stale. Both ends of a range are true of some of the
+  bars on screen. The recorded stitch produces one — `8–10 September 2026` — so
+  this is the commonest multi-source shape rather than a hypothetical.
+
 ### The divergence taken, measured
 
 **2026-09-14 (Task 2.14.2):** the canvas draws micro type in `#74777f`. On `--surface-page` `#f8f9ff` that measures **4.26:1**, against WCAG 1.4.3's 4.5 for text at this size. It is **worse than the 4.48 ADR 0026 already recorded for the same ink**, because that measurement was taken on white and the note is the first micro surface in this product that stands on the page ground rather than inside a panel. The intent is adopted and the value is not: it ships as `--ink-secondary`, **8.87:1**, and the recession is carried by size, by the label column and by position — _receding, like standing out, is a job for weight and hierarchy, never for ink outside the contrast floor_.

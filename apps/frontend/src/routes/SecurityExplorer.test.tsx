@@ -71,8 +71,17 @@ function stubFetch(respond: () => Promise<Response>): void {
 const json = (status: number, body: unknown) =>
   Promise.resolve(new Response(JSON.stringify(body), { status }));
 
+// The feed view every render in this file supplies, and it is the deployed
+// value rather than a convenience: `configured`/`sip` is what the masthead
+// claims in production, which is the condition under which the source note
+// says nothing about a feed at all (`PROVENANCE.md` §1.3). A test rendering
+// this route with `checking` would silently be testing a different note.
+const MARKET_FEED = { state: "configured", feed: "sip" } as const;
+
 const render = () =>
-  renderWithContext(<SecurityExplorer />, { at: PATHS.securities });
+  renderWithContext(<SecurityExplorer marketFeed={MARKET_FEED} />, {
+    at: PATHS.securities,
+  });
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -266,8 +275,14 @@ describe("the market-data region", () => {
     );
     return renderWithContext(
       <Routes>
-        <Route path={PATHS.securities} element={<SecurityExplorer />} />
-        <Route path={ROUTE_PATTERNS.security} element={<SecurityExplorer />} />
+        <Route
+          path={PATHS.securities}
+          element={<SecurityExplorer marketFeed={MARKET_FEED} />}
+        />
+        <Route
+          path={ROUTE_PATTERNS.security}
+          element={<SecurityExplorer marketFeed={MARKET_FEED} />}
+        />
       </Routes>,
       { at: address },
     );
@@ -572,7 +587,10 @@ describe("the Security Explorer shell", () => {
     );
     renderWithContext(
       <Routes>
-        <Route path={ROUTE_PATTERNS.security} element={<SecurityExplorer />} />
+        <Route
+          path={ROUTE_PATTERNS.security}
+          element={<SecurityExplorer marketFeed={MARKET_FEED} />}
+        />
       </Routes>,
       { at: "/securities/SPY" },
     );

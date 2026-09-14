@@ -97,6 +97,28 @@ between a chart and a chart an analyst will quote.
   rail, the failure sentences, the announcements (which are strings a user
   _hears_ and are the ones most likely to be skipped), the page titles and
   `README.md`'s description of what the product shows.
+- **And this story's own strings, which is the correction that matters most**
+  (added 2026-09-14 by Task 2.14.3). The corpus above stops at Story 2.13, and
+  **the strings most exposed to criterion 2 are the ones this story is adding** —
+  a pass that read every sentence in the product except the new ones about
+  coverage would be the wrong way round. Four additions to read, three of them
+  already shipped:
+  - `ADJUSTMENT_DESCRIPTIONS` — two labels and one sentence, in
+    `packages/shared/src/market-provenance.ts`;
+  - `SourceNote`'s own clause labels and the phrases around them — `Source` /
+    `Sources`, `Prices`, `Retrieved …`, and the word `bars` in the ledger;
+  - **`chart-alternative.ts`'s `feedClause`, whose wording changed**: it now says
+    `Stitched: 60 bars from All US exchanges, then 90 from IEX.` where it said
+    `Market feeds: …`. It is **spoken only**, which puts it squarely in the class
+    this bullet calls the most likely to be skipped, and it is a sentence about
+    coverage;
+  - Task 2.14.4's classification wording, if that task has landed first.
+
+  Note what this changes about the shape of the risk: **`All US exchanges` now
+  appears on the page rather than only in the chrome**, on any deployment with no
+  provider configured. That is the single most coverage-claiming string in the
+  product, and criterion 2 is about exactly it — in both directions.
+
 - **Judge each against two failure directions, not one**: implying coverage the
   plan does not have, and disclaiming coverage the plan does have. ~~This story's
   own scope prose fails the second test in two places~~ — refined by §8.1: that
