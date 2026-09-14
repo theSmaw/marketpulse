@@ -261,8 +261,14 @@ export function SecurityExplorer() {
                    * did not weigh is that the control made the Price region's
                    * heading taller than every other region's on the screen, and
                    * that the held-window rail had nowhere to go but into the
-                   * flow above the chart. Both are answered by putting the two
-                   * on one row: see `BarSeriesPanel`'s `control`.
+                   * flow above the chart.
+                   *
+                   * **Where the slot lands is `BarSeriesPanel`'s and has moved
+                   * twice since.** It was the ticker's line; the ticker came off
+                   * on 2026-09-14 and it is now the top of the headline row's
+                   * right-hand column, above the rail. See `.aside` there — the
+                   * arrangement is a measurement rather than a preference, and
+                   * this route deliberately knows none of it.
                    *
                    * It knows nothing about `useBarSeries`. It reports a session
                    * count; this route turns that into an address, and the address

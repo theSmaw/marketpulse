@@ -58,7 +58,7 @@ function panel(page: Page) {
  */
 function anAnswer(page: Page) {
   return panel(page)
-    .getByText("Close", { exact: true })
+    .getByText(/(^| )Open$/)
     .or(readable(panel(page), /No bars stored for this window/));
 }
 
@@ -220,7 +220,14 @@ test("nothing arriving at all is a product state, not a blank panel", async ({
 
   // The heading survives every failure. The thing that says what you are
   // looking at must not be the thing that disappears when looking at it fails.
-  await expect(region.getByRole("heading", { name: SYMBOL })).toBeVisible();
+  //
+  // It is the identity block's `h2` since 2026-09-14, the panel's own `h3`
+  // having come off as a third copy of the symbol. That makes this a **stronger**
+  // assertion rather than a relocated one: the surviving heading is now rendered
+  // by a different component from the one whose request failed.
+  await expect(
+    page.getByRole("heading", { level: 2, name: SYMBOL }),
+  ).toBeVisible();
   await expectNothingFailedToRender(page);
 });
 

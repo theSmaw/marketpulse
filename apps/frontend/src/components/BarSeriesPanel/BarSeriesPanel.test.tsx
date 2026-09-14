@@ -98,12 +98,23 @@ const VISIBLE = {
 } as const;
 
 describe("BarSeriesPanel", () => {
-  it("names the security in every state, including the ones with no series", () => {
+  // **This asserted the opposite until 2026-09-14**, and the inversion is the
+  // change rather than a relaxation: the panel carried an `h3` with the ticker
+  // in it in every state, and it was a third statement of a fact the page
+  // already made twice — `SecurityIdentity` sets the symbol at display size two
+  // blocks above, and `Region` names this landmark `Price`. Neither of those is
+  // this panel's to remove, so what went was the copy that was nobody's answer
+  // to anything.
+  //
+  // Asserted as absence rather than deleted, because a panel that regrows its
+  // own ticker is the two-surfaces-one-fact defect this repository has paid for
+  // three times, and it would regrow silently.
+  it("restates no symbol of its own, in any state", () => {
     for (const name of ["full", "refusedCap", "unavailable"] as const) {
       const { unmount } = render(
         <Panel {...props} view={barSeriesFixtureView(name)} />,
       );
-      expect(screen.getByRole("heading", { name: "NVDA" })).toBeTruthy();
+      expect(screen.queryByRole("heading", { name: "NVDA" })).toBeNull();
       unmount();
     }
   });
@@ -135,15 +146,21 @@ describe("BarSeriesPanel", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("states the four prices from the bars it holds", () => {
+  // **Three since 2026-09-14, and `Close` is the one that went.** The headline
+  // beside the strip *is* the close, set at display size; the strip was
+  // restating the one figure on this panel a reader could not miss, in the
+  // quietest type on the row. Its absence is asserted below rather than merely
+  // dropped from the loop, because re-adding it would look like a completion.
+  it("states the three prices from the bars it holds", () => {
     render(<Panel {...props} view={barSeriesFixtureView("full")} />);
 
-    for (const label of ["Open", "High", "Low", "Close"]) {
+    for (const label of ["5D Open", "5D High", "5D Low"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
+    expect(screen.queryByText(/Close/, VISIBLE)).toBeNull();
     // The high is the highest high across the held bars rather than the last
     // bar's — the assertion that would fail if the reduction were a `[0]`.
-    const high = screen.getByText("High").parentElement;
+    const high = screen.getByText("5D High").parentElement;
     expect(high?.textContent).toMatch(/\d+\.\d\d/);
   });
 
@@ -326,7 +343,7 @@ describe("BarSeriesPanel", () => {
     // the fresh answer will replace is still fully on screen and still says
     // exactly what it said. A treatment that emptied or replaced them would
     // pass a "there is a mark" assertion and fail the product.
-    expect(screen.getByText("Open")).toBeTruthy();
+    expect(screen.getByText("5D Open")).toBeTruthy();
     expect(screen.getAllByText(/\d+\.\d\d/).length).toBeGreaterThan(0);
   });
 
@@ -355,7 +372,7 @@ describe("BarSeriesPanel", () => {
 
     // And the bars are still there. An untracked security keeps its history and
     // the route still serves it: this is not a 404 and not an absence.
-    expect(screen.getByText("Open")).toBeTruthy();
+    expect(screen.getByText("5D Open")).toBeTruthy();
   });
 
   it("says nothing about tracking for a security we still follow", () => {
@@ -485,12 +502,12 @@ describe("BarSeriesPanel", () => {
     expect(container.querySelector("svg")).not.toBeNull();
 
     // An axis is sampled and it is niced, so it never states an exact fact.
-    // These are the figures the picture rounds — **the four prices, since
+    // These are the figures the picture rounds — **the three prices, since
     // 2026-09-14**, which is what is left of `CHARTING.md` §5's list once the
     // windows, the coverage sentence and the feed row came off. The rest of that
     // list did not go missing: it moved to surfaces that were already stating
     // it, which the test above this one asserts as absence here.
-    for (const fact of ["Open", "High", "Low", "Close"]) {
+    for (const fact of ["5D Open", "5D High", "5D Low"]) {
       expect(screen.getByText(fact)).not.toBeNull();
     }
 
@@ -501,7 +518,7 @@ describe("BarSeriesPanel", () => {
     const chart = container.querySelector("svg");
     expect(chart).not.toBeNull();
     expect(
-      screen.getByText("Close").compareDocumentPosition(chart as Node) &
+      screen.getByText("5D Low").compareDocumentPosition(chart as Node) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
@@ -531,8 +548,35 @@ describe("a window change", () => {
 
     // The whole point, asserted as what did *not* happen: the figures are still
     // there, at full ink, unblanked.
-    expect(screen.getByText("Open", VISIBLE)).toBeTruthy();
-    expect(screen.getByText("Open", VISIBLE)).toBeTruthy();
+    expect(screen.getByText("5D Open", VISIBLE)).toBeTruthy();
+    expect(screen.getByText("5D High", VISIBLE)).toBeTruthy();
+  });
+
+  // **The qualifier follows the picture, not the request** (2026-09-14), and
+  // this is the assertion that makes the qualifier safe to have at all.
+  //
+  // `5D OPEN` over five sessions of held bars is true while a 21-session answer
+  // is in flight; `1M OPEN` over the same bars would be a **wrong number** on
+  // screen rather than a missing one, and it is what taking the label off the
+  // control — or off `screen.asked` alone — produces for as long as the held
+  // answer is up. It is the two-windows-one-picture defect this panel exists to
+  // make impossible, in the newest place it could appear.
+  it("qualifies the held figures with the held window, not the one in flight", () => {
+    render(
+      <Screen
+        {...props}
+        screen={windowChangeFixtureScreen({
+          held: "partial",
+          heldSessions: 5,
+          askedSessions: 21,
+        })}
+      />,
+    );
+
+    for (const label of ["5D Open", "5D High", "5D Low"]) {
+      expect(screen.getByText(label, VISIBLE)).toBeTruthy();
+    }
+    expect(screen.queryByText(/^1M /, VISIBLE)).toBeNull();
   });
 
   it("names both windows, so the old one cannot be mistaken for the new", () => {
@@ -582,7 +626,7 @@ describe("a window change", () => {
     // window — and no control, because waiting never helps.
     expect(screen.getByText(/trading calendar/, VISIBLE)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
-    expect(screen.getByText("Open", VISIBLE)).toBeTruthy();
+    expect(screen.getByText("5D Open", VISIBLE)).toBeTruthy();
   });
 
   it("keeps them and offers exactly one retry when the new window fails", () => {
@@ -611,7 +655,7 @@ describe("a window change", () => {
     expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(
       1,
     );
-    expect(screen.getByText("Open", VISIBLE)).toBeTruthy();
+    expect(screen.getByText("5D Open", VISIBLE)).toBeTruthy();
   });
 
   it("drops the previous security's series rather than relabelling it", () => {
@@ -717,7 +761,7 @@ describe("a window change", () => {
       />,
     );
 
-    expect(screen.getByText("Open", VISIBLE)).toBeTruthy();
+    expect(screen.getByText("5D Open", VISIBLE)).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(
       1,
     );

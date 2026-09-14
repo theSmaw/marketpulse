@@ -18,6 +18,7 @@ import {
   formatPrice,
   seriesWindowFor,
   TIME_WINDOWS,
+  windowLabelFor,
   windowPhrase,
 } from "../../market/index.js";
 import { Marker } from "../Marker/Marker.js";
@@ -206,30 +207,22 @@ export function BarSeriesPanel({
       </p>
 
       {/*
-       * **The header band: the instrument on the left, what changes it on the
-       * right** (2026-09-13).
+       * **What qualifies the subject, when anything does** (2026-09-14).
        *
-       * The control had a row of its own for half a day and it was the wrong
-       * answer twice over — a row with one right-aligned occupant is two thirds
-       * dead space, and the row it replaced on the region's heading made *that*
-       * heading taller than every other region's on the screen. It belongs here,
-       * beside the thing it is a control for, on a line the ticker was already
-       * leaving empty.
+       * This was a header band carrying the ticker and the window control, and
+       * both left in the same change. The ticker because the page already sets
+       * this security's symbol at display size two blocks above — a panel
+       * repeating it was a second answer to *what am I looking at* on a screen
+       * that had one — and the control because the figures row below is where it
+       * belongs (see `.reading`).
        *
-       * `VISUAL-LANGUAGE.md`'s own reading of the shape: a segmented control in
-       * the micro-label idiom is instrument chrome, and instrument chrome sits on
-       * the instrument's name line. Nothing new is invented here — one row,
-       * `space-between`, which is what `PageHeader` and `Panel` already do one
-       * level up.
+       * What could not leave is the pair of qualifications that used to hang off
+       * the ticker: an untracked security and a defaulted one. They render
+       * `null` when neither applies, which is the ordinary case, so the row they
+       * are in costs no height at all in the state the panel is usually in.
+       * That is the property the header band never had.
        */}
-      <div className={styles.header}>
-        <Subject
-          symbol={symbol}
-          defaulted={defaulted}
-          untracked={isUntracked(shown)}
-        />
-        {control}
-      </div>
+      <Notes defaulted={defaulted} untracked={isUntracked(shown)} />
       {/*
        * **The figures, and beside them what happened to the request**
        * (2026-09-13; the four prices joined them 2026-09-14).
@@ -245,8 +238,33 @@ export function BarSeriesPanel({
        * and the answer sits against the one number they were looking at.
        */}
       <div className={styles.reading}>
-        <Figures view={shown} />
-        <Rail screen={screen} onRetry={onRetry} />
+        <Figures screen={screen} />
+        {/*
+         * **What changes the window, and what happened last time you did**
+         * (2026-09-14), in one right-hand column.
+         *
+         * The column is a measurement rather than a preference. The control has
+         * now been in three places — the region's heading, where it made *that*
+         * heading 14px taller than the one in the panel beside it; a row of its
+         * own, where it was one right-aligned occupant and two thirds dead
+         * space; and the ticker's line, which went when the ticker did. This row
+         * is where it belongs, because it belongs beside the numbers it changes.
+         *
+         * What it cannot do is sit *in line* with them. Measured at 1440, where
+         * the panel is 889px: the headline is 170, the strip will not read below
+         * about 190, the rail's basis is 288 and the control is 232 — 954 before
+         * the gaps. The control wrapped to a second line and the row went from
+         * 61px to 105px, which is the opposite of the change this is.
+         *
+         * So the two right-hand occupants stack instead of competing. They are
+         * the same subject in the order a person meets them: the control is what
+         * you press, and the rail is what the press did. The rail keeps its own
+         * reservation inside this column, so nothing below moves when it speaks.
+         */}
+        <div className={styles.aside}>
+          <div className={styles.control}>{control}</div>
+          <Rail screen={screen} onRetry={onRetry} />
+        </div>
       </div>
       {/*
        * **The chart, under the figures it is a picture of** (Task 2.12.4; the
@@ -293,7 +311,8 @@ export function BarSeriesPanel({
  * It stays a number in the DOM, in the data face, and is never a label drawn on
  * the line.
  *
- * **The four prices joined it on 2026-09-14**, from beneath the drawing. The
+ * **The prices joined it on 2026-09-14**, from beneath the drawing, and they
+ * are three rather than four: the headline beside them *is* the close. The
  * reason is not this row's convenience, it is the row *below* the drawing: the
  * volume plot hangs on the price plot's axis, and everything between the two is
  * distance a reader has to carry a shape across. The strip was the last thing
@@ -314,12 +333,32 @@ export function BarSeriesPanel({
  * answer* exists to drift from the ones on screen. It is a background wash and
  * never a transform, so no number is harder to read while it plays.
  */
-function Figures({ view }: { readonly view: BarSeriesView }) {
-  const series = readableSeries(view);
+function Figures({ screen }: { readonly screen: BarSeriesScreen }) {
+  const series = readableSeries(screen.shown);
   if (series === null) return null;
 
   const prices = seriesPrices(series);
   const percent = changePercent(prices);
+
+  /*
+   * **The window the figures on screen are *of*, which is not always the one in
+   * flight** (2026-09-14).
+   *
+   * `previous ?? asked` is `held-series.ts`'s own rule read the other way round:
+   * `previous` is non-null exactly when the answer on screen belongs to a window
+   * other than the one being fetched, so it is the shown series' window whenever
+   * it exists and `asked` is when it does not.
+   *
+   * This is the whole reason the qualifier is worth more than it costs and also
+   * the whole reason it is dangerous. A strip reading `1Y OPEN` over five
+   * sessions of bars — which is what taking the label off the control, or off
+   * `asked` alone, would produce for the second or so a held answer is on screen
+   * — is a wrong number rather than a missing one. It is the defect this panel
+   * exists to make impossible, in a new place.
+   */
+  const windowLabel = windowLabelFor((screen.previous ?? screen.asked).window);
+  const priceLabel = (name: string) =>
+    windowLabel === null ? name : `${windowLabel} ${name}`;
 
   return (
     <div className={styles.figures} key={settleSignature(series, prices)}>
@@ -353,10 +392,9 @@ function Figures({ view }: { readonly view: BarSeriesView }) {
         <MetricStrip
           size="compact"
           metrics={[
-            { label: "Open", value: formatPrice(prices.open) },
-            { label: "High", value: formatPrice(prices.high) },
-            { label: "Low", value: formatPrice(prices.low) },
-            { label: "Close", value: formatPrice(prices.close) },
+            { label: priceLabel("Open"), value: formatPrice(prices.open) },
+            { label: priceLabel("High"), value: formatPrice(prices.high) },
+            { label: priceLabel("Low"), value: formatPrice(prices.low) },
           ]}
         />
       </div>
@@ -713,46 +751,49 @@ function outcomeSentence(view: BarSeriesView, asked: string): string {
 }
 
 /**
- * Which security this is, above everything that can change underneath it.
+ * What qualifies this security, when anything does — otherwise nothing at all.
  *
- * Rendered in **every** state including the failures, which is the same rule
- * `Region` follows for its own heading: the thing that says what you are
- * looking at must not be the thing that disappears when looking at it fails.
+ * **This was `Subject`, and it had a ticker in it until 2026-09-14.** The h3 was
+ * removed rather than restyled: `SecurityIdentity` states the symbol at display
+ * size two blocks up the same page, and `Region` already names this landmark
+ * `Price`, so the heading was neither the page's answer to *which security* nor
+ * the region's accessible name. It was a third statement of a fact stated twice.
+ *
+ * What is left is the two qualifications that used to hang off it, and the
+ * reason they are still **above** the figures is unchanged from Task 2.10.8's
+ * D2: an untracked security is untracked whatever this answer turned out to be —
+ * still true under a partial series, under an empty one, and while a newer
+ * answer is being read — so a note at the bottom of the body reads as a footnote
+ * on the numbers when it is a qualification on the subject.
+ *
+ * `null` when there is nothing to say, which is the ordinary case. The panel's
+ * column gap is only spent when this renders something, which is the whole
+ * reason the band it replaced could go.
  */
-function Subject({
-  symbol,
+function Notes({
   defaulted,
   untracked,
 }: {
-  readonly symbol: string;
   readonly defaulted: boolean;
   readonly untracked: boolean;
 }) {
+  if (!defaulted && !untracked) return null;
+
   return (
-    <div className={styles.subject}>
-      <div className={styles.subjectLine}>
-        <h3 className={styles.symbol}>{symbol}</h3>
-        {/*
-         * **On the header and not in the body**, which is Task 2.10.8's D2 and
-         * is an argument about what the fact is *about*. An untracked security
-         * is untracked whatever this answer turned out to be — it is still true
-         * under a partial series, under an empty one, and while a newer answer
-         * is being read — so a note at the bottom of the body reads as a
-         * footnote on the numbers when it is a qualification on the subject.
-         * Beside the symbol it is read before the figures rather than after
-         * them, which is the order it matters in.
-         *
-         * A `Badge`, and the neutral tone, because it is **not a warning**: the
-         * bars are real and the series is correct, and what changed is the
-         * universe. `BADGE_TONES` has no warning tone by design, which is the
-         * language agreeing with the judgement rather than constraining it.
-         */}
-        {untracked && <Badge>Untracked</Badge>}
-      </div>
+    <div className={styles.notes}>
       {untracked && (
         <p className={styles.defaulted}>
-          MarketPulse no longer tracks this security. These bars are what was
-          stored while it did.
+          {/*
+           * A `Badge`, and the neutral tone, because it is **not a warning**:
+           * the bars are real and the series is correct, and what changed is the
+           * universe. `BADGE_TONES` has no warning tone by design, which is the
+           * language agreeing with the judgement rather than constraining it.
+           *
+           * It leads the sentence now that it has no ticker to sit beside, so
+           * the sentence is what gives it its subject.
+           */}
+          <Badge>Untracked</Badge> MarketPulse no longer tracks this security.
+          These bars are what was stored while it did.
         </p>
       )}
       {defaulted && (

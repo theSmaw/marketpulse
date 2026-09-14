@@ -21,41 +21,26 @@
   gap: var(--space-16);
 }
 
-/* --- The subject, which survives every state below it --- */
+/* --- What qualifies the subject, when anything does --- */
 
-.subject {
+/*
+ * **This was `.subject`, `.subjectLine` and `.symbol` until 2026-09-14.**
+ *
+ * The ticker left the panel: the page sets this security's symbol at display
+ * size two blocks above, and `Region` names the landmark `Price`, so a heading
+ * here was a third statement of a fact already stated twice. What is left is the
+ * pair of sentences that used to hang off it, and they render nothing at all in
+ * the ordinary case — which is what let a permanent header band become a block
+ * that costs no height until it has something to say.
+ *
+ * `baseline` so the badge leading a sentence sits on that sentence's baseline
+ * rather than floating against its cap height — the same rule `.headline` and
+ * the old subject line both follow.
+ */
+.notes {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-}
-
-/*
- * The ticker and whatever qualifies it, on one line.
- *
- * `baseline` rather than `center`, so a badge sits on the ticker's baseline
- * rather than floating beside its cap height — the same reason the headline's
- * percentage is baselined against the close.
- */
-.subjectLine {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-8);
-  flex-wrap: wrap;
-}
-
-/*
- * The ticker, set as the panel's own name. `--font-data` because a ticker is a
- * short identifier read character by character rather than a word — the same
- * argument `.code` below carries, and the reason `BRK.B` and `BRKB` have to be
- * told apart at a glance.
- */
-.symbol {
-  margin: 0;
-  font-family: var(--font-data);
-  font-size: var(--font-size-subheading);
-  line-height: var(--line-height-subheading);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--letter-spacing-micro);
 }
 
 .defaulted {
@@ -88,43 +73,55 @@
 /* --- A newer answer on its way --- */
 
 /*
- * **The header band** (2026-09-13): the instrument on the left, the control that
- * changes it on the right.
+ * **The right-hand column of the headline row** (2026-09-14): the window control
+ * and, under it, whatever happened to the request.
  *
- * One row rather than two. The control had a row of its own for half a day and
- * a row with one right-aligned occupant is two thirds dead space; the ticker's
- * line was empty to its right the whole time. `space-between` and `wrap`, which
- * is what `Panel` and `PageHeader` already do one level up — nothing here is a
- * new idiom.
+ * `0 0 auto` and no growth, which is the whole rule. Its width is the rail's own
+ * basis — the widest of the two occupants — so the figures beside it keep every
+ * pixel the column does not need, and a control whose width is a property of the
+ * five labels in it is never squeezed out of shape.
  *
- * `flex-end` rather than `center`: the subject block is one line or two (the
- * defaulted sentence), and a control that floats against the middle of a
- * two-line block reads as unattached to either. Sitting on the block's last
- * line it reads as belonging to the name above it.
+ * They stack because measurement says they cannot do anything else. At 1440 the
+ * panel is 889px and the four in-line occupants want 954 before the gaps; laid
+ * out in a row the control wrapped and the row grew from 61px to 105px. Stacked,
+ * the column is 92px and the two rows it replaced — a header band and this one —
+ * were 113px together.
  */
-.header {
+.aside {
   display: flex;
+  flex-direction: column;
   align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-8) var(--space-16);
+  gap: var(--space-8);
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 /*
- * **The headline row**: the close on the left, and whatever happened to the
- * request on the right.
+ * The control's own cell. `0 0 auto` for the reason above, and nothing else —
+ * `TimeWindowControl` owns everything about how it looks.
+ */
+.control {
+  flex: 0 0 auto;
+}
+
+/*
+ * **The headline row**: the close and the prices on the left, and on the right
+ * the control that changes them above the sentence saying what it did.
  *
- * The pairing is the whole point. The close is set at display size, so a line —
- * or two — of secondary text beside it is inside the height the figure already
- * spends, and the rail costs nothing at the widths where they fit side by side.
+ * The pairing is the whole point. The close is set at display size, so the
+ * control sits inside the height that figure already spends, and the rail costs
+ * only what the control does not.
  *
- * `baseline` so the sentence sits on the figure's own baseline rather than
- * floating against its cap height. That is this file's existing rule: the
- * headline's own percentage is baselined against the close for the same reason.
+ * `flex-start` rather than `baseline` since 2026-09-14. The right-hand occupant
+ * is a **column** now, and a column has no single baseline to align on — aligned
+ * on one, its second row would hang below the figures and drag the row's height
+ * with it. What baseline alignment bought is bought instead inside `.figures`,
+ * which still has it, and by the control's own 36px sitting against the
+ * headline's 32px cap.
  */
 .reading {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-8) var(--space-24);
@@ -154,8 +151,21 @@
 .rail {
   display: grid;
   grid-template-columns: 1fr;
-  flex: 0 1 18rem;
-  min-width: 0;
+  /*
+   * **A width rather than a basis, since it moved into `.aside`** (2026-09-14).
+   *
+   * `flex-basis` is a length on the *main* axis, and the main axis here is
+   * vertical: the 18rem that had been the rail's width for a day became 288px of
+   * reserved **height** the moment the column existed, and the panel grew by a
+   * quarter of a screen. The figure was right and the axis was not.
+   *
+   * `0 0 auto` with an explicit width, so the column is as wide as the rail
+   * whatever the control's labels do, and the rail neither grows into the
+   * column's height nor is compressed out of the one it reserves for itself.
+   */
+  flex: 0 0 auto;
+  width: 18rem;
+  max-width: 100%;
 }
 
 /* One state of the cell. They are stacked in it rather than in a column. */
@@ -363,32 +373,43 @@
 }
 
 /*
- * The four prices beside the headline.
+ * The three prices beside the headline.
  *
- * A basis **below** the strip's own four-column width, on purpose:
- * `MetricStrip`'s `auto-fit` turns it into two rows of two when the room is not
- * there, which is the correct narrow answer, and a wider basis would push the
- * rail off the row before that happened.
+ * A basis **below** the strip's own column width, on purpose: `MetricStrip`'s
+ * `auto-fit` turns it into fewer columns when the room is not there, which is
+ * the correct narrow answer, and a wider basis would push the rail and the
+ * control off the row before that happened.
  */
 .priceStrip {
   /*
-   * **Always four columns, never three and an orphan.**
+   * **Always three columns, never two and an orphan.**
    *
    * `MetricStrip`'s `auto-fit` default is right for a strip whose length is a
-   * property of its data. These four are a *set* — the window's open, its
-   * extremes and its close — and a reader comparing an open to a close is
-   * comparing two figures on one line. Measured: the default folds them into
-   * three and an orphan at 1440 beside the headline and the rail, and again at
-   * 768 and 390 where the strip has the row to itself.
+   * property of its data. These three are a *set* — where the window opened and
+   * the two extremes it reached — and a reader comparing them is comparing three
+   * figures on one line.
    *
-   * Measured at four viewports: 81px columns at 1440 (where the strip shares
-   * the row with the headline and the rail), 97 at 1024, 65 at 768 and **62 at
-   * 390**, which is the narrowest and the one that owes the check. Six
-   * characters in the data face at the compact size and `CLOSE` at the micro
-   * size both still sit on one line there — looked at, not calculated.
+   * **There were four until 2026-09-14.** `CLOSE` left because the headline
+   * beside it *is* the close, set at display size: the strip was restating the
+   * one figure on this panel that a reader could not possibly miss, and doing it
+   * in the quietest type on the row. Dropping it is what makes room for the
+   * window control to join this row at all.
+   *
+   * **The check `MetricStrip` says an override owes**, taken rather than
+   * argued. The columns resolve to 114px at 1440 and **89px at 390**, below the
+   * primitive's own 7rem floor, and the labels are window-qualified now — so the
+   * measurement is of `5D HIGH` rather than `HIGH`. Each metric is 42px tall at
+   * both widths, which is one line of value over one line of label; a wrapped
+   * label would read 58.
+   *
+   * 58 is what `?sessions=7` measures at 390, where the qualifier falls back to
+   * `7-SESSION` and wraps. That is the knowing exception rather than a miss: the
+   * count only appears for a window the control does not offer, which is a
+   * hand-typed address or an agent's command, and the alternative there is the
+   * bare word in the one case a reader cannot guess the window.
    */
-  --metric-columns: repeat(4, minmax(0, 1fr));
-  flex: 1 1 16rem;
+  --metric-columns: repeat(3, minmax(0, 1fr));
+  flex: 1 1 12rem;
   min-width: 0;
 }
 

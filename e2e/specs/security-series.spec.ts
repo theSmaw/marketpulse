@@ -69,13 +69,13 @@ function anAnswer(scope: Locator): Locator {
   // resolves to two elements. Every assertion in this file is about what a
   // reader sees; the announcement has its own spec.
   return scope
-    .getByText("Close", { exact: true })
+    .getByText(/(^| )Open$/)
     .or(readable(scope, /No bars stored for this window/));
 }
 
 /** Did this run land on a store with bars in it? */
 async function hasBars(scope: Locator): Promise<boolean> {
-  return scope.getByText("Close", { exact: true }).isVisible();
+  return scope.getByText(/(^| )Open$/).isVisible();
 }
 
 test("a deep link renders one security's real bars, from a real request", async ({
@@ -88,7 +88,15 @@ test("a deep link renders one security's real bars, from a real request", async 
 
   // The symbol comes from the **address**, which is the property that makes a
   // link to a security shareable before search exists.
-  await expect(region.getByRole("heading", { name: SYMBOL })).toBeVisible();
+  //
+  // **Asserted on the page rather than inside the region since 2026-09-14.** The
+  // panel had an `h3` with the ticker in it and it came off: the identity block
+  // above states the symbol at display size, and `Region` names this landmark
+  // `Price`, so the copy inside was a third statement of a fact stated twice.
+  // The property under test is unchanged — the address chose the security.
+  await expect(
+    page.getByRole("heading", { level: 2, name: SYMBOL }),
+  ).toBeVisible();
 
   // The panel settles on an answer. Which one depends on the store behind this
   // run — see the header; both are 200s and neither is a failure.
@@ -103,12 +111,18 @@ test("a deep link renders one security's real bars, from a real request", async 
   await expect(region.getByText(/E[DS]T/).first()).toBeVisible();
 
   if (await hasBars(region)) {
-    // The four prices a session is summarised by, which since 2026-09-14 are the
-    // whole of what this panel states as text. The two windows and the coverage
+    // The three prices the held window is summarised by, which since
+    // 2026-09-14 are the whole of what this panel states as text. `Close` left
+    // that day too: the headline beside them *is* the close, at display size.
+    //
+    // **The window qualifies each label**, and the qualifier is the load-bearing
+    // half: these are computed over the window on screen, so `OPEN` alone is
+    // read as *today's* open and on a five-session window is not. This spec
+    // lands on the default window, so the qualifier is `5D`. The two windows and the coverage
     // sentence came off it: the window is in the address and on the control, and
     // the coverage is drawn as the uncovered ground and spoken in the chart's
     // text alternative, counted in the axis's own trading minutes.
-    for (const label of ["Open", "High", "Low", "Close"]) {
+    for (const label of ["5D Open", "5D High", "5D Low"]) {
       await expect(region.getByText(label, { exact: true })).toBeVisible();
     }
 
@@ -170,7 +184,13 @@ test("a symbol the universe does not hold is a sentence, not a crash", async ({
   await page.goto("/securities/ZZZZ");
 
   const region = page.getByRole("region", { name: "Price" });
-  await expect(region.getByRole("heading", { name: "ZZZZ" })).toBeVisible();
+  // The symbol the reader typed, named on the page. **On the identity block's
+  // `h2` rather than inside the region since 2026-09-14**, the panel's own `h3`
+  // having come off as a third copy — and the identity block prints the address's
+  // symbol whether or not the universe resolves it, which is exactly this case.
+  await expect(
+    page.getByRole("heading", { level: 2, name: "ZZZZ" }),
+  ).toBeVisible();
   await expect(
     readable(region, /ZZZZ is not a security this system tracks/),
   ).toBeVisible();

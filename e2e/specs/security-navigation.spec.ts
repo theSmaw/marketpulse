@@ -67,6 +67,25 @@ function panel(page: Page) {
 }
 
 /**
+ * **Whose page this is**, as a heading (2026-09-14).
+ *
+ * It was `panel(page).getByRole("heading", …)` until the panel's own `h3` came
+ * off — it was a third statement of a symbol the identity block already sets at
+ * display size and `Region` already uses to name the landmark.
+ *
+ * The move makes every assertion below **stronger** rather than relocated, and
+ * that is worth stating because the opposite is the obvious reading. This file's
+ * subject is _the panel must never show one security's bars under another's
+ * name_, and the defect is the panel lagging the address. While both halves were
+ * rendered by `BarSeriesPanel` from one prop they could not disagree; the name
+ * comes from a different component now, so a lagging panel is a mismatch these
+ * assertions can actually see.
+ */
+function subject(page: Page, symbol: string) {
+  return page.getByRole("heading", { level: 2, name: symbol });
+}
+
+/**
  * The panel has settled on an answer — **either** answer.
  *
  * The shape both series specs arrived at: which of the two appears is a
@@ -74,7 +93,7 @@ function panel(page: Page) {
  */
 function anAnswer(page: Page) {
   return panel(page)
-    .getByText("Close", { exact: true })
+    .getByText(/(^| )Open$/)
     .or(readable(panel(page), /No bars stored for this window/));
 }
 
@@ -138,9 +157,7 @@ test("a row in the tracked universe opens that security, and the application is 
   await page.getByRole("link", { name: SECOND }).click();
 
   await expect(page).toHaveURL(new RegExp(`/securities/${SECOND}$`));
-  await expect(
-    panel(page).getByRole("heading", { name: SECOND }),
-  ).toBeVisible();
+  await expect(subject(page, SECOND)).toBeVisible();
 
   expect(
     await page.evaluate(
@@ -165,7 +182,7 @@ test("a row's symbol is reachable by keyboard and opens on Enter", async ({
   await link.press("Enter");
 
   await expect(page).toHaveURL(new RegExp(`/securities/${FIRST}$`));
-  await expect(panel(page).getByRole("heading", { name: FIRST })).toBeVisible();
+  await expect(subject(page, FIRST)).toBeVisible();
   expect(await documentLoads(page)).toBe(1);
 });
 
@@ -184,9 +201,7 @@ test("returning to a security paints the held answer before the network answers,
   // the next test is about. Waiting only for "an answer" resolves against that
   // frame, and the rest of this test then measures a navigation that had not
   // happened yet. Ask for the new subject before asking what is under it.
-  await expect(
-    panel(page).getByRole("heading", { name: SECOND }),
-  ).toBeVisible();
+  await expect(subject(page, SECOND)).toBeVisible();
   await expect(anAnswer(page)).toBeVisible();
 
   // From here the network is held open, so anything that appears came from the
@@ -195,7 +210,7 @@ test("returning to a security paints the held answer before the network answers,
 
   await page.goBack();
 
-  await expect(panel(page).getByRole("heading", { name: FIRST })).toBeVisible();
+  await expect(subject(page, FIRST)).toBeVisible();
   // The held answer, and the mark that says a newer one is being read. Both
   // while the request behind them has not returned — which is the whole claim.
   await expect(anAnswer(page)).toBeVisible({ timeout: 2_000 });
@@ -225,9 +240,7 @@ test("the panel never shows one symbol's bars under another's name", async ({
 
   await page.getByRole("link", { name: SECOND }).click();
 
-  await expect(
-    panel(page).getByRole("heading", { name: SECOND }),
-  ).toBeVisible();
+  await expect(subject(page, SECOND)).toBeVisible();
   // The previous security's figures are **gone**, not relabelled. `loading` is
   // the correct thing to be looking at here: a held answer for a *different*
   // key is not an answer about this security.
@@ -292,7 +305,7 @@ test("a fast sequence of navigations lands on the last one", async ({
   await page.getByRole("link", { name: THIRD }).click();
 
   await expect(page).toHaveURL(new RegExp(`/securities/${THIRD}$`));
-  await expect(panel(page).getByRole("heading", { name: THIRD })).toBeVisible();
+  await expect(subject(page, THIRD)).toBeVisible();
   await expect(anAnswer(page)).toBeVisible();
 
   // Past the two superseded answers, which have now both come back. The
@@ -300,7 +313,7 @@ test("a fast sequence of navigations lands on the last one", async ({
   // has — and the retry control is the sharpest half of it, because the panel
   // offers one in exactly one state and it is not this one.
   await page.waitForTimeout(4_000);
-  await expect(panel(page).getByRole("heading", { name: THIRD })).toBeVisible();
+  await expect(subject(page, THIRD)).toBeVisible();
   await expect(anAnswer(page)).toBeVisible();
   await expect(panel(page).getByRole("button")).toHaveCount(0);
   expect(await documentLoads(page)).toBe(1);

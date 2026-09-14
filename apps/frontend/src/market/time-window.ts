@@ -199,6 +199,51 @@ export function describeSessionCount(sessions: number): string | null {
 }
 
 /**
+ * A window as a **qualifier on a figure**, or `null` when it cannot be one
+ * (2026-09-14).
+ *
+ * `5D`, so a metric reads `5D OPEN` rather than `OPEN`. This exists because the
+ * bare word was wrong in a way that was invisible: the strip's open is the first
+ * held bar's open **over the window on screen**, so on five sessions it is the
+ * open of the earliest of the five — and `OPEN`, unqualified and beside a price,
+ * is read by anybody who has used a finance product as *today's*. On NVDA that
+ * was 233.11 against a session open near 218. The figure was right and the label
+ * invited a false reading of it.
+ *
+ * **The control's label rather than `windowPhrase`'s count, and that is a
+ * departure from §4(e)** — *the count is the fact and the label is the
+ * approximation*. The rule is unchanged for a **sentence**, which has to be true
+ * about the picture; this is a **qualifier on a figure**, read in a glance, in
+ * the micro type, in a 65px column at 390px, a few centimetres from a control
+ * whose pressed cell says the same two characters. `21-SESSION HIGH` in that
+ * position is the approximation's own cost paid in the one place the
+ * approximation is what the reader is holding.
+ *
+ * **The unoffered count keeps the count**, which is where the two rules meet:
+ * `?sessions=7` has no label — `windowForSessions` returns `undefined` and the
+ * control shows no selection — so the qualifier falls back to `7-session`. It is
+ * long and it is rare, and the alternative is the bare word in exactly the case
+ * where the window is least guessable.
+ *
+ * `null` for the absolute form and for a count that is not one. The caller then
+ * states the bare word, which is the honest answer when there is no name for
+ * what it is over — and the absolute form is not reachable from this
+ * application's own controls.
+ */
+export function windowLabelFor(window: SeriesWindow): string | null {
+  if (window.form === "absolute") return null;
+
+  const offered = windowForSessions(window.sessions);
+  if (offered !== undefined) return offered.label;
+
+  if (describeSessionCount(window.sessions) === null) return null;
+
+  // The **singular** noun, for `windowPhrase`'s reason one line of code away:
+  // an attributive compound does not take a plural in English.
+  return `${window.sessions.toLocaleString("en-US")}-session`;
+}
+
+/**
  * A window named as a noun phrase, for a sentence that has to say **which
  * window is on screen** (Task 2.13.7).
  *

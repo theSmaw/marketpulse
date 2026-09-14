@@ -121,7 +121,7 @@ test("search, open, and land on that security's page", async ({ page }) => {
   const price = page.getByRole("region", { name: "Price" });
   await expect(
     price
-      .getByText("Close", { exact: true })
+      .getByText(/(^| )Open$/)
       .or(readable(price, /No bars stored for this window/)),
   ).toBeVisible();
 
@@ -333,7 +333,7 @@ for (const [width, height] of [
     await expect(
       page
         .getByRole("region", { name: "Price" })
-        .getByText("Close", { exact: true })
+        .getByText(/(^| )Open$/)
         .or(page.getByText(/No bars stored for this window/))
         .first(),
     ).toBeVisible();

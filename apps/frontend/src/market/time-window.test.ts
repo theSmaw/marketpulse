@@ -11,6 +11,7 @@ import {
   seriesWindowFor,
   timeframeForSessions,
   windowForSessions,
+  windowLabelFor,
   windowPhrase,
 } from "./time-window.js";
 
@@ -206,5 +207,48 @@ describe("windowPhrase", () => {
         end: "2026-09-08T17:00:00.000Z",
       }),
     ).toBe("the window asked for");
+  });
+});
+
+// --- 2026-09-14: the window as a qualifier on a figure ---
+
+describe("windowLabelFor", () => {
+  it("gives an offered window the label the control shows", () => {
+    // The same two characters the pressed cell is showing a few centimetres
+    // away, which is the argument for using the label here rather than the
+    // count: a strip reading `5D OPEN` beside a control reading `5D` is one
+    // vocabulary, and `5-SESSION OPEN` beside it would be two.
+    expect(windowLabelFor(seriesWindowFor(5))).toBe("5D");
+    expect(windowLabelFor(seriesWindowFor(21))).toBe("1M");
+    expect(windowLabelFor(seriesWindowFor(252))).toBe("1Y");
+  });
+
+  it("falls back to the count for a window the control does not offer", () => {
+    // `?sessions=7` is a window the address admits and the control renders as no
+    // selection. It is the case where the bare word would be *least* guessable,
+    // so it is the last case that may lose its qualifier.
+    expect(windowLabelFor(seriesWindowFor(7))).toBe("7-session");
+    expect(windowLabelFor(seriesWindowFor(1000))).toBe("1,000-session");
+  });
+
+  it("keeps the noun singular in the compound", () => {
+    // `7-session`, never `7-sessions` — `windowPhrase`'s rule, one function away
+    // and for the same reason.
+    expect(windowLabelFor(seriesWindowFor(2))).toBe("2-session");
+  });
+
+  it("is null where there is nothing to qualify a figure with", () => {
+    // The caller states the bare word, which is the honest answer when the
+    // window has no name. Neither of these is reachable from this application's
+    // own controls; both are reachable from an address and from a command.
+    expect(windowLabelFor(seriesWindowFor(Number.NaN))).toBeNull();
+    expect(windowLabelFor(seriesWindowFor(0))).toBeNull();
+    expect(
+      windowLabelFor({
+        form: "absolute",
+        start: "2026-09-03T13:30:00.000Z",
+        end: "2026-09-08T17:00:00.000Z",
+      }),
+    ).toBeNull();
   });
 });
