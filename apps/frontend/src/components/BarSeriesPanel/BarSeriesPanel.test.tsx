@@ -146,18 +146,26 @@ describe("BarSeriesPanel", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  // **Three since 2026-09-14, and `Close` is the one that went.** The headline
-  // beside the strip *is* the close, set at display size; the strip was
-  // restating the one figure on this panel a reader could not miss, in the
-  // quietest type on the row. Its absence is asserted below rather than merely
-  // dropped from the loop, because re-adding it would look like a completion.
-  it("states the three prices from the bars it holds", () => {
+  // **Four again since 2026-09-15, and the day `Close` spent out of the strip
+  // is the whole point of this comment.** It left because the headline beside
+  // the strip *is* the close, set at display size — a restatement in the
+  // quietest type on the row. It came back because the redundancy was only
+  // redundant while this panel's close was the only close on the screen: the
+  // identity block two inches above states the *session's* official close from
+  // a stored daily bar, this one is the last *minute* bar of the window, and on
+  // 2026-09-11 they read 218.29 and 218.19. `5D Close`, in the same window
+  // vocabulary as the other three, is what says which of the two this is.
+  //
+  // So the label is asserted **with its window qualifier** rather than as the
+  // bare word: an unqualified `Close` here would be the defect this re-add
+  // exists to repair, spelled the way it was before the repair.
+  it("states the four prices from the bars it holds, close included", () => {
     render(<Panel {...props} view={barSeriesFixtureView("full")} />);
 
-    for (const label of ["5D Open", "5D High", "5D Low"]) {
+    for (const label of ["5D Open", "5D High", "5D Low", "5D Close"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
-    expect(screen.queryByText(/Close/, VISIBLE)).toBeNull();
+    expect(screen.queryByText("Close", VISIBLE)).toBeNull();
     // The high is the highest high across the held bars rather than the last
     // bar's — the assertion that would fail if the reduction were a `[0]`.
     const high = screen.getByText("5D High").parentElement;

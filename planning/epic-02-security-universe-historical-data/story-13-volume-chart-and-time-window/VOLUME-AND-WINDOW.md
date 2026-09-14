@@ -4779,6 +4779,12 @@ in the mockup: the close, the move, three prices and the control that changes
 them, on one line, under one rule. The chart starts 8px higher on a panel that
 is 21px shorter.
 
+**Amended 2026-09-15: it is four prices again, and 1440 still measures 92px.**
+`CLOSE` came back the day after it left, for a reason that is about the figure
+**above** this panel rather than about this row — see §81. The measurement
+holding this section up is unchanged at 1440 and 768 and 390; 1024 is the width
+that paid for it, 14px.
+
 ## 78. `OPEN` was the wrong word, and the crosshair's `O` was the right one
 
 Asked as a question in the same message as §77 — _is `OPEN` the most accurate
@@ -5147,3 +5153,113 @@ free.
 - **For the panel itself:** the first answer that routinely outlives
   `HOLD_FOR_MS`, which would mean the minimum is protecting nothing and is only
   ever delaying data.
+
+## 81. Two closes on one screen, and two percentages that disagree correctly
+
+Not a task. **Raised by a person looking at the deployed page on 2026-09-15**
+and asking why the two circled figures did not match — which is the fourth time
+in this story that the working loop's first rule has produced the finding, and
+the first time it has produced one that nothing in the tree was wrong about.
+
+### 81.1 Neither number was wrong, and that is what made it a defect
+
+The deployed page on 2026-09-11, at `1D`:
+
+| Where              | Figure   | Change | Of what                                          |
+| ------------------ | -------- | ------ | ------------------------------------------------ |
+| The identity block | `218.29` | −0.03% | The session's official close, vs. the day before |
+| This panel         | `218.19` | −1.38% | The window's last minute bar, vs. its open       |
+
+Both are correct and they are four different measurements. The 10c is grain:
+`GET /securities` reads `readLastCloses("1d")`, so the identity figure is a
+stored daily bar and carries the closing auction, while this panel's headline is
+the last **minute** bar of the window. The 1.35 points is baseline: a quote's
+day change is against the **previous close** and deliberately includes the
+overnight gap, and this panel's is open-to-close **across the window** and
+deliberately excludes it. On that session NVDA gapped up 1.3% at the open and
+gave all of it back, so it finished flat against the day before after sliding
+all day — which is exactly the thing the pair of figures says and neither figure
+says alone.
+
+**The failure was that the screen stated four subjects and labelled two of
+them.** §5's governing principle — every figure says what it is of — had been
+applied inside each surface and never across the two.
+
+### 81.2 The identity block's qualifier said the grain and not the baseline
+
+It read `2026-09-11 · from a stored daily bar`. Two things were wrong with it,
+and the second is the one that mattered:
+
+- **It was our vocabulary.** "A stored daily bar" is a row in `market_bars`. A
+  reader of this page knows what a closing price is and does not know what we
+  store.
+- **It was qualifying the ordinary number.** Of the two closes on the screen,
+  the official one is the one a reader expects; the window's last minute bar is
+  the odd one. Explaining the expected figure made a reader decode a sentence in
+  order to understand why the **other** one was different.
+
+It reads `2026-09-11 · change from the previous close` now, and the clause is
+**omitted where `previousClose` is null** rather than printed as a claim about a
+subtraction that was not made — the figure already says `No previous session`
+there, and a qualifier repeating it in secondary ink is furniture. The absent
+state's `no daily bar held` became `no daily close stored` in the same pass, for
+the vocabulary half of the same reason.
+
+### 81.3 The grain moved onto the panel, as `CLOSE` in the window vocabulary
+
+Which is a reversal of §77.5, one day old, and the argument that removed `CLOSE`
+was not wrong — it was answering a different question. It left because the
+headline beside it **is** the close at display size, so the strip was restating
+in the quietest type on the row the one figure a reader cannot miss.
+
+That is true exactly as long as this panel's close is the only close on the
+screen. It is not: there is another one two inches above it, in larger type,
+that is a different measurement of the same session. `1D CLOSE`, in the same
+window vocabulary the other three already speak, is what says which of the two
+this one is — and the vocabulary is §78's, which is why this cost a metric
+rather than a sentence.
+
+**The restatement stopped being redundancy the moment there was a second close
+on the page to tell it apart from.** The reversal trigger for taking it out
+again is the same condition read backwards: the identity block ceasing to state
+a close of its own.
+
+### 81.4 The fourth column has a floor, and 1024 is the width that found it
+
+`.priceStrip` overrode `MetricStrip`'s `auto-fit` with three fixed columns and
+`min-width: 0`, so it shrank to whatever the headline left it. At four columns
+that is not survivable at every width, and the failing one is **not** the
+narrowest. Probed at four viewports:
+
+| Viewport | Columns, `min-width: 0` | Metric height | Columns, floored | Metric height |
+| -------- | ----------------------- | ------------- | ---------------- | ------------- |
+| 1440     | 81px                    | 42px          | 81px             | 42px          |
+| 1024     | **48px**                | **58px**      | 97px             | 42px          |
+| 768      | 65px                    | 42px          | 65px             | 42px          |
+| 390      | 62px                    | 42px          | 62px             | 42px          |
+
+1024 is the worst case because it is the **widest layout where the strip still
+shares its row** with the rail and the window control — at 768 and below the row
+has already given up and handed the strip its full width. A development machine
+at 1440 and a phone check at 390 would both have missed it, which is the same
+shape as the sticky-header finding in `CLAUDE.md`.
+
+The floor is `flex: 1 1 19rem` with `min-width: 19rem` — four 62px columns and
+their three 20px gaps, rounded up, which is the narrowest measured width at
+which `1D CLOSE` sets on one line. Below it the strip wraps onto its own line
+inside `.figures`. It costs 14px of panel height at 1024 (168px → 182px, the
+same 182px the two narrower viewports already spend) and nothing at 1440.
+
+**This is the check `MetricStrip` says an override owes**, taken rather than
+argued — and the reason that sentence is in the primitive is that the last
+consumer to override it did not take it at every width.
+
+### 81.5 What a reader can see, and what they still cannot
+
+They can see why two closes on one screen differ, without being told: one says
+`LAST SESSION CLOSE … change from the previous close` and the other says
+`1D CLOSE` beside `1D OPEN`. **They still cannot see the absolute change in
+dollars anywhere on this page** — both percentages are percentages, which is
+`last-close.ts`'s deliberate choice for a column of 518 securities and is a
+weaker one on a page about a single security. Not repaired here: it is a figure
+this page does not currently state, rather than one it states badly.

@@ -39,11 +39,37 @@ describe("SecurityIdentity", () => {
       <SecurityIdentity symbol="NVDA" view={securitiesFixtureView("full")} />,
     );
 
-    // And it says which *grain* of close, because the panel below renders the
-    // last minute bar of its window and the two differ by a couple of cents.
+    // And it says what the percentage beside it is measured *from*, which is
+    // the previous session's close and not the session's own open. The panel
+    // below states an open-to-close move across its window, so this page shows
+    // two percentages about one session that legitimately disagree — 2026-09-11
+    // was -0.03% here and -1.38% there — and each is only readable with its
+    // baseline on it. See the note above `Close` in the component.
     expect(
-      screen.getByText(`${FIXTURE_SESSION} · from a stored daily bar`),
+      screen.getByText(`${FIXTURE_SESSION} · change from the previous close`),
     ).toBeTruthy();
+  });
+
+  it("drops the baseline clause when there is no previous close to compare", () => {
+    // The clause is a claim about a subtraction. Where the store holds one
+    // daily bar there is no subtraction, the figure says so itself, and a
+    // qualifier repeating it in secondary ink is furniture — so the line falls
+    // back to the bare session date rather than describing a comparison that
+    // was not made.
+    const loaded = securitiesFixtureView("full");
+    if (loaded.state !== "loaded") throw new TypeError("fixture is not loaded");
+
+    const close = loaded.lastCloses.get("NVDA");
+    if (close === undefined) throw new TypeError("fixture has no NVDA close");
+
+    const lastCloses = new Map(loaded.lastCloses);
+    lastCloses.set("NVDA", { ...close, previousClose: null });
+
+    render(<SecurityIdentity symbol="NVDA" view={{ ...loaded, lastCloses }} />);
+
+    expect(screen.getByText(FIXTURE_SESSION)).toBeTruthy();
+    expect(screen.queryByText(/change from the previous close/)).toBeNull();
+    expect(screen.getByText("No previous session")).toBeTruthy();
   });
 
   it("says a close is absent rather than rendering a zero", () => {
@@ -57,6 +83,7 @@ describe("SecurityIdentity", () => {
     );
 
     expect(screen.getByText("None stored")).toBeTruthy();
+    expect(screen.getByText("no daily close stored")).toBeTruthy();
     expect(screen.queryByText("0.00")).toBeNull();
   });
 

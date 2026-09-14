@@ -161,22 +161,44 @@ export function SecurityIdentity({ symbol, view }: SecurityIdentityProps) {
  * The label says **close**, never "price". Nothing in this product is labelled
  * a price while the live feed does not exist.
  *
- * ## Why the label says *session* and the qualifier says *daily bar*
+ * ## What the qualifier line says, and what it stopped saying on 2026-09-15
  *
- * Found by looking at the page rather than by a test. This figure comes from a
- * stored **`1d`** bar — `GET /securities` reads `readLastCloses("1d")`, the
- * session's official closing price. The panel directly below it renders the
- * last **minute** bar of the window it was asked for, and for NVDA on
- * 2026-09-04 the two are `230.36` and `230.34`. Both are correct and they are
- * two different measurements; two inches apart with one word — "close" — on
- * both of them, they read as one number that cannot make its mind up.
+ * It reads `2026-09-11 · change from the previous close`. Until this change it
+ * read `· from a stored daily bar`, and both halves of that swap were prompted
+ * by a person looking at the deployed page and not understanding it.
  *
- * So the grain is stated rather than implied, in three words that cost nothing.
- * **The bar count that used to be on this line is gone for the same reason**:
- * a minute-bar depth beside a daily close invited exactly the reading that a
- * daily close is what those minute bars add up to. How much history we hold is
- * the price region's answer and the universe table's column, and neither of
- * them is pretending to be identity.
+ * **"from a stored daily bar" was our vocabulary, not a reader's.** It was
+ * carrying the *grain*: this figure comes from a stored **`1d`** bar —
+ * `GET /securities` reads `readLastCloses("1d")`, the session's official
+ * closing price, closing auction included — while the panel directly below
+ * renders the last **minute** bar of the window it was asked for. They differ
+ * by pennies (`218.29` against `218.19` on 2026-09-11; `230.36` against
+ * `230.34` on 2026-09-04) and both are correct. That distinction is real and
+ * still has to be drawn — it is drawn **on the panel** now, where the unusual
+ * figure is, by the `CLOSE` metric that names its window. Qualifying the
+ * ordinary number was making a reader decode a sentence to understand why the
+ * *other* one was different.
+ *
+ * **What the line says instead is the baseline of the percentage beside it**,
+ * which nothing on this page stated and which is the thing that actually
+ * confused somebody. This block's change is `close` against the **previous
+ * session's** close (`UniverseTable/last-close.ts`) — the standard quote
+ * convention, and it includes the overnight gap on purpose. The panel's is
+ * open-to-close **across the window on screen**, and it excludes the gap on
+ * purpose. On 2026-09-11 that is −0.03% here and −1.38% there, from the same
+ * session: NVDA gapped up 1.3% at the open and gave all of it back. Two
+ * unlabelled percentages 1.35 points apart read as one number contradicting
+ * itself; each is right once it says what it is measured from.
+ *
+ * The clause is **omitted when there is no previous close**, rather than
+ * printed as a claim about a comparison that was not made. The figure says
+ * `No previous session` in that case and a qualifier repeating it is furniture.
+ *
+ * **The bar count that used to be on this line is gone** for the reason the
+ * grain note has now followed: a minute-bar depth beside a daily close invited
+ * exactly the reading that a daily close is what those minute bars add up to.
+ * How much history we hold is the price region's answer and the universe
+ * table's column, and neither of them is pretending to be identity.
  */
 function Close({
   lastClose,
@@ -188,7 +210,7 @@ function Close({
       <div className={cx(styles.close)}>
         <p className={cx(styles.closeLabel)}>Last session close</p>
         <p className={cx(styles.noClose)}>None stored</p>
-        <p className={cx(styles.qualifier)}>no daily bar held</p>
+        <p className={cx(styles.qualifier)}>no daily close stored</p>
       </div>
     );
   }
@@ -210,7 +232,9 @@ function Close({
         )}
       </p>
       <p className={cx(styles.qualifier)}>
-        {lastClose.session} · from a stored daily bar
+        {percent === null
+          ? lastClose.session
+          : `${lastClose.session} · change from the previous close`}
       </p>
     </div>
   );
