@@ -108,7 +108,7 @@ function volumePlot(page: Page) {
  */
 function anAnswer(page: Page) {
   return priceRegion(page)
-    .getByText("Close", { exact: true })
+    .getByText(/(^| )Open$/)
     .or(priceRegion(page).getByText(/No bars stored for this window/))
     .first();
 }
@@ -129,7 +129,7 @@ async function isComplete(page: Page): Promise<boolean> {
 /** Did this run land on a store with bars in it? */
 function hasBars(page: Page): Promise<boolean> {
   return priceRegion(page)
-    .getByText("Close", { exact: true })
+    .getByText(/(^| )Open$/)
     .first()
     .isVisible();
 }

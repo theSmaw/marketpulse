@@ -277,12 +277,13 @@ describe("the market-data region", () => {
     renderAt("/securities/AMD");
 
     await waitFor(() => {
-      // Two headings carry this symbol and both are correct: the identity
-      // block's `h2` says whose page this is, and the panel's `h3` says whose
-      // bars these are. A panel that stopped naming its own subject would be
-      // wrong in the workshop and wrong the day it appears beside a second
-      // security's panel.
-      expect(screen.getAllByRole("heading", { name: "AMD" })).toHaveLength(2);
+      // **One heading carries this symbol, and that is the change of
+      // 2026-09-14.** The identity block's `h2` says whose page this is; the
+      // panel's `h3` said whose bars these are and was a second answer to a
+      // question this page had already answered at display size two blocks
+      // above. `Region` still names the landmark `Price`, so nothing lost a
+      // name — a third copy lost its excuse.
+      expect(screen.getAllByRole("heading", { name: "AMD" })).toHaveLength(1);
     });
 
     // The window is **named and never resolved here**, which is the property
@@ -427,9 +428,9 @@ describe("search, and the rest of the page around it", () => {
     });
     // The panel answered, and says so with a figure only a real body carries.
     // The bar count came off the panel on 2026-09-14 with the rest of the window
-    // list, so the figure is now one of the four prices — still a number this
+    // list, so the figure is now one of the three prices — still a number this
     // page cannot produce without a body.
-    expect(screen.getByText("Close")).toBeTruthy();
+    expect(screen.getByText("5D Open")).toBeTruthy();
     expect(screen.getAllByText(/\d+\.\d\d/).length).toBeGreaterThan(0);
   });
 

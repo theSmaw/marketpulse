@@ -4637,3 +4637,189 @@ The 4.7 MB of `planning/TASK-*.md` — as much text as the entire codebase — w
 also raised and deliberately left alone. It is the historical record, this
 repository forbids rewriting it, and it costs nothing because it is read on
 demand and rarely needed.
+
+## 77. One row instead of three, and a reversal of §75.1
+
+Asked for on 2026-09-14, from a second mockup, a few hours after §75. The
+picture was the panel with a single row of figures in it:
+
+```
+Price
+─────────────────────────────────────────────────────
+218.19 -6.40%   233.11   233.71   217.20   [1D 5D 1M 3M 1Y]
+                OPEN     HIGH     LOW
+─── price chart ─────────────────────────────────────
+```
+
+Three things left in one change, and only one of them is a layout move.
+
+### 77.1 `CLOSE` goes, which reverses §75.1's own choice
+
+§75.1 records the user choosing this arrangement against exactly the one that
+replaced it — _a strip of three with the headline standing in for the close_ —
+and states the argument for keeping it: the four are a **set**, and dropping a
+member to avoid repeating a number leaves a set of three with a hole in it.
+
+That argument is still the right shape and it lost to a stronger one. The
+headline is the close, at display size, 24px from the strip's own copy of it set
+in the quietest type on the row. What §75.1 called a set is three questions
+about the window — _where did it open, how far did it go_ — and one restatement
+of the number a reader cannot miss. The hole is only a hole if the set is
+`OHLC`; here the set is _what the window did_, and the close is the answer
+already on the row.
+
+It also bought the width the rest of this section needed. At 1440 the panel is
+889px and four prices leave nothing for a control.
+
+**The second half of §75.1's argument was real and had to be paid.** `Close` was
+the label the browser suite synchronises on — §74.2 records it — in **twelve**
+places across seven specs. They now synchronise on `Open`, which is the same
+property (a label only a body can produce) with no second home. The sweep was
+mechanical and the residue was three comments and one `compareDocumentPosition`
+anchor.
+
+### 77.2 The ticker goes, as a third copy of a fact stated twice
+
+`BarSeriesPanel` rendered an `h3` with the symbol in it in every state, and
+§8.6's descendants had been arguing about what should sit on its line since
+2026-09-13. The line was the wrong question: `SecurityIdentity` sets the symbol
+at display size two blocks above it, and `Region` names this landmark `Price`,
+so the `h3` was neither the page's answer to _which security_ nor the region's
+accessible name. It was a third statement.
+
+What could not go with it is the pair of qualifications that hung off it — the
+`Untracked` badge and its sentence, and the defaulted sentence. They are now a
+`Notes` block above the figures that returns `null` when it has nothing to say,
+which is the ordinary case. **That is the property the header band never had**:
+a permanent 36px row became a block costing no height at all in the state the
+panel is usually in.
+
+Two assertions moved rather than went. `security-series.spec.ts` and
+`security-series-states.spec.ts` both asserted the symbol inside the `Price`
+region; they assert it on the page's `h2` now. The second one is **stronger**
+for the move — _the heading survives every failure_ is a better test when the
+surviving heading is rendered by a different component from the one whose
+request failed.
+
+The cost is the workshop: a `BarSeriesPanel` story renders with no identity
+block above it, so the panel in Storybook no longer names its subject anywhere.
+Accepted rather than overlooked — the story titles say which state each is, and
+inventing a symbol line for the workshop alone would be the component carrying
+scaffolding for its reviewer.
+
+### 77.3 The control cannot sit in line with the figures, measured
+
+The mockup puts the window control on the figures row. Implemented literally it
+made the row **taller**, which is the opposite of the change:
+
+| Arrangement                                  | `.reading` height at 1440   |
+| -------------------------------------------- | --------------------------- |
+| Before (plus a 36px header band and its gap) | 61px (113px total)          |
+| Control in line with figures and rail        | **105px** — control wrapped |
+| Control and rail stacked in one right column | **92px**                    |
+
+The arithmetic behind the middle row, at the 889px the panel is: the headline is
+170, the strip will not read below about 190, the rail's basis is 288 and the
+control is 232 — 880 before three 24px gaps. Flex wraps on hypothetical size
+rather than shrunk size, so the control went to a second line and took the row's
+height with it.
+
+So the two right-hand occupants stack. They are the same subject in the order a
+person meets them: **the control is what you press, and the rail is what the
+press did.** The rail keeps its own reservation inside the column, so §71's
+guarantee is untouched — nothing below moves when it speaks.
+
+### 77.4 The defect the column found: a basis is an axis-relative length
+
+First rendering of the stacked column grew the panel by a quarter of a screen.
+`.rail` was `flex: 0 1 18rem`, which had been its **width** for a day, and
+`flex-basis` is a length on the **main** axis — which in a `column` is the
+height. 18rem of intended width became 288px of reserved height.
+
+It is `flex: 0 0 auto` with an explicit `width: 18rem` now. Worth recording
+because the figure was never wrong and nothing that reads a stylesheet could
+have caught it: the rule typechecks, lints, builds and renders, and what it
+produced was a plausible panel with too much air in it. `pnpm probe` printed
+`rail 437×288` and the answer was in the second number.
+
+### 77.5 What this is worth
+
+113px of panel above the chart became 92px, and the row that is left is the one
+in the mockup: the close, the move, three prices and the control that changes
+them, on one line, under one rule. The chart starts 8px higher on a panel that
+is 21px shorter.
+
+## 78. `OPEN` was the wrong word, and the crosshair's `O` was the right one
+
+Asked as a question in the same message as §77 — _is `OPEN` the most accurate
+term for what we are showing there, and the same for the `O` under the pointer?_
+— and the two halves have different answers, which is why it is worth a section.
+
+### 78.1 The strip was mislabelled, and the figure was never wrong
+
+`seriesPrices` is explicit about what it computes: the **first held bar's open**,
+the highest high and the lowest low **across the held bars**. On the default
+window that is the open of the earliest of five sessions. Measured on NVDA on
+2026-09-14: the strip said `OPEN 233.11` while the session it was drawn on
+opened near 218.
+
+Nothing in it is inaccurate. `OPEN` beside a price, in a product with a chart on
+it, is read as _today's_ by anybody who has used a finance product, and this is
+the one panel in MarketPulse whose figures are **period-relative by
+construction** — the window is a control, so the figure moves when the control
+does.
+
+The labels are `5D OPEN`, `5D HIGH`, `5D LOW`, chosen by the user against
+`WINDOW OPEN …` and `OPENED AT / HIGHEST / LOWEST`.
+
+**This is a departure from §4(e)** — _the count is the fact and the label is the
+approximation_ — and the departure is scoped rather than a reversal. §4(e)
+governs a **sentence**, which has to be true about the picture; the rail still
+says `the 21-session window` and always will. This is a **qualifier on a figure**,
+read in a glance, in the micro type, in a 65px column at 390px, a few
+centimetres below a control whose pressed cell says the same two characters.
+`21-SESSION HIGH` in that position buys precision nobody is reading and spends a
+second vocabulary on one screen to do it.
+
+**The count comes back where there is no label.** `?sessions=7` is a window the
+address admits and the control renders as no selection, so `windowLabelFor`
+falls back to `7-session` — it wraps to two lines at 390px, measured, and that is
+the right trade in the case where the bare word would be least guessable.
+`null`, and the bare word, is left for the absolute form and for a count that is
+not one; neither is reachable from this application's own controls.
+
+### 78.2 The qualifier follows the picture, not the request
+
+The dangerous half, and the reason this is more than a string change. The
+qualifier cannot come off the control, and it cannot come off `screen.asked`:
+both would read `1M OPEN` over five sessions of held bars for as long as a held
+answer is on screen, which is **a wrong number rather than a missing one** — the
+two-windows-one-picture defect this panel exists to make impossible, in the
+newest place it could appear.
+
+It is `screen.previous ?? screen.asked`, which is `held-series.ts`'s own rule
+read backwards: `previous` is non-null exactly when the answer on screen belongs
+to a window other than the one being fetched. A component test asserts it
+against `windowChangeFixtureScreen`, holding five sessions while twenty-one are
+in flight.
+
+### 78.3 The crosshair's `O H L C` is correct as it stands
+
+The same question, and the opposite answer. The readout describes **one bar** —
+one minute, or one session on a daily series — and `O` there is that bar's own
+open, exactly. `O H L C` is the notation of the thing itself, the strip is read
+left to right in one glance, and the instant leads it so the reading is never
+ambiguous about _which_ bar.
+
+Nothing changed there, and the distinction is the point worth recording: **a
+per-bar figure needs no qualifier and a per-window figure cannot do without
+one.** The next figure this product adds above a chart inherits that question.
+
+### 78.4 What it cost, which is the part that would be underestimated
+
+Twelve locations in seven browser specs synchronise on the strip's label — §74.2
+records how it became the suite's marker for _the panel has figures_. `Close`
+left in §77.1 and they moved to `Open`; the qualifier moved them again, to
+`/(^| )Open$/` rather than to `5D Open`, because several of those specs change
+the window mid-test and an exact match would then be asserting the label of a
+window the spec had just left.

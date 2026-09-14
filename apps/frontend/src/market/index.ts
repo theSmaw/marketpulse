@@ -139,6 +139,7 @@ export {
   seriesWindowFor,
   timeframeForSessions,
   windowForSessions,
+  windowLabelFor,
   windowPhrase,
 } from "./time-window.js";
 export type { TimeWindow } from "./time-window.js";

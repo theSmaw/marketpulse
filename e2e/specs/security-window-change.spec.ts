@@ -61,7 +61,7 @@ function cell(page: Page, name: string) {
 /** The panel has settled on an answer — **either** answer. */
 function anAnswer(page: Page) {
   return priceRegion(page)
-    .getByText("Close", { exact: true })
+    .getByText(/(^| )Open$/)
     .or(priceRegion(page).getByText(/No bars stored for this window/))
     .first();
 }
@@ -189,7 +189,7 @@ async function plotTop(page: Page): Promise<number> {
  * Where the figures sit inside their region — the **other** row this press can
  * move, since 2026-09-14.
  *
- * The four prices came up onto the headline's row that day, so the row above the
+ * The prices came up onto the headline's row that day, so the row above the
  * picture now holds a figure at display size, a strip of four and the rail. A
  * row that wrapped into a different number of lines either side of a press would
  * move the chart, and `plotTop` would catch that — but it would not say *what*
@@ -201,7 +201,7 @@ async function plotTop(page: Page): Promise<number> {
  * an edge case.** The runner's store holds all 518 securities and **zero bars**
  * — `security-series-states.spec.ts` says it out loud: *every window on CI is a
  * correct `empty` and the same window locally is `partial`*. An `empty` panel
- * renders no figures at all, so there is no `Close` label to measure, and a
+ * renders no figures at all, so there is no `Open` label to measure, and a
  * helper that threw took this test red on the runner while passing on every
  * developer's machine. It did exactly that, once, which is how this comment
  * came to be written.
@@ -211,8 +211,8 @@ async function plotTop(page: Page): Promise<number> {
  */
 async function closeLabelTop(page: Page): Promise<number | null> {
   return priceRegion(page).evaluate((section) => {
-    const label = [...section.querySelectorAll("dt")].find(
-      (element) => element.textContent === "Close",
+    const label = [...section.querySelectorAll("dt")].find((element) =>
+      /(^| )Open$/.test(element.textContent),
     );
     if (label === undefined) return null;
 

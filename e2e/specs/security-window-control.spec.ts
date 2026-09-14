@@ -71,7 +71,7 @@ function cell(page: Page, name: string) {
 function anAnswer(page: Page) {
   const region = page.getByRole("region", { name: "Price" });
   return region
-    .getByText("Close", { exact: true })
+    .getByText(/(^| )Open$/)
     .or(region.getByText(/No bars stored for this window/))
     .first();
 }
