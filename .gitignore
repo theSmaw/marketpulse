@@ -23,6 +23,16 @@ storybook-static/
 test-results/
 playwright-report/
 
+# `pnpm probe`'s screenshots (2026-09-14). The script clears and rewrites this
+# on every run, so it is output rather than evidence — the boxes it prints are
+# the reading, and the pictures are there to be looked at once. Mirrored in
+# .prettierignore and eslint.config.mjs.
+.probe/
+
+# The heavy-job lock (2026-09-14). A pid file, written for the life of a browser
+# run and taken back when the holder is gone. Mirrored in the other two.
+.heavy-job.lock
+
 .env
 .env.*
 !.env.example

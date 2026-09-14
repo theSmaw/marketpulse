@@ -25,6 +25,12 @@ storybook-static/
 test-results/
 playwright-report/
 
+# `pnpm probe`'s screenshots and the heavy-job lock (2026-09-14). PNGs Prettier
+# has no opinion about, and a pid file it would reformat on every browser run.
+# Mirrored in .gitignore and eslint.config.mjs.
+.probe/
+.heavy-job.lock
+
 # Incremental build state. A single-line JSON blob that TypeScript rewrites on
 # every build and Prettier would otherwise expand into a formatted document,
 # producing a diff per build.
