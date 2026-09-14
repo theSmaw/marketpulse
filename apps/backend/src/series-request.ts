@@ -61,6 +61,7 @@
 import {
   isTicker,
   lastMarketSessions,
+  lastOpenedMarketSession,
   MARKET_CALENDAR_RANGE,
   MarketCalendarRangeError,
   marketDateAt,
@@ -243,8 +244,8 @@ const SESSION_COUNT = /^\d+$/;
  * trading calendar.
  *
  * `now` is the instant the request arrived. It is used for exactly one thing —
- * resolving the named window's end date through `marketDateAt` — and an
- * absolute request never reads it.
+ * resolving the named window's end date through `lastOpenedMarketSession` — and
+ * an absolute request never reads it.
  */
 export function parseSeriesRequest(
   query: SeriesRequestQuery,
@@ -386,12 +387,40 @@ function parseWindow(
  * at all and returns a perfectly well-formed empty answer. That function is the
  * one place that knows it, and this is its third caller rather than a copy.
  *
- * **Today counts as a session if today is a trading day**, even before the open.
- * That is deliberate and it is `MARKET-DATA-API.md` §2's resolution written
- * literally. The alternative — quietly ending at the last *complete* session —
- * would make `sessions=5` mean a different window depending on the hour, and the
- * honest report of how much of it we actually hold is `coverage.covered`, which
- * Task 2.9.4 fills in.
+ * **The window ends at the last session whose opening bell has rung** —
+ * `lastOpenedMarketSession`, not `marketDateAt`. Amended 2026-09-14, and the
+ * argument it replaces is answered rather than deleted.
+ *
+ * This read the other way until 2026-09-14: today counted as a session if today
+ * was a trading day, even before the open, on the grounds that ending at the
+ * last *complete* session would make `sessions=5` mean a different window
+ * depending on the hour. That argument does not survive contact with the clock
+ * it appeals to. The window already changed once a day — at **midnight ET**,
+ * where nothing happens — and this moves that one boundary to the **opening
+ * bell**, which is the moment the vocabulary is about. One change a day either
+ * way; the difference is whether it lands where a reader would put it.
+ *
+ * What forced it was a measurement rather than the argument. At 02:52 ET on
+ * Monday 2026-09-14, `sessions=1` resolved to `2026-09-14 13:30Z → 20:00Z` — a
+ * session that had not begun — and answered a correct `200` with no bars in it,
+ * which the chart drew as a full-frame empty. The default `sessions=5` spent a
+ * fifth of its frame the same way. `coverage.covered` reported all of that
+ * honestly, and honest was not the problem: the window was asking for time that
+ * had not happened yet.
+ *
+ * **It is one status of five.** `open` and `after_close` still end at today,
+ * `weekend` and `holiday` already walked back through `lastMarketSessions`, and
+ * only `before_open` moves. That is also why no existing test changed when this
+ * landed — which is the finding, not a reassurance: nothing here could tell the
+ * two rules apart, which is how it survived.
+ *
+ * **Not `VOLUME-AND-WINDOW.md` §1.3's rejected rule.** That was "the most recent
+ * session *with data*", refused because a client cannot know which session has
+ * data without asking. This one never asks the store; it is a calendar and an
+ * instant, and it answers the same for every caller at the same moment.
+ *
+ * `coverage.covered` is still the honest report of how much of the window we
+ * actually hold, which Task 2.9.4 fills in. See `MARKET-DATA-API.md` §2.
  */
 function namedWindow(
   raw: unknown,
@@ -415,10 +444,20 @@ function namedWindow(
   }
 
   try {
-    // `marketDateAt` and not `now.toISOString().slice(0, 10)`, which is the
-    // mistake that costs a whole day: 2026-09-04T00:00:00Z is 2026-09-03 in New
-    // York, so the slice is right all afternoon and wrong every evening.
-    const sessions = lastMarketSessions(count, marketDateAt(now));
+    // Inside the `try` on purpose: `lastOpenedMarketSession` walks backwards
+    // through the calendar for four of its five statuses and propagates
+    // `MarketCalendarRangeError` off the edge, which is the error
+    // `calendarRefusal` below already turns into a 400 naming the range.
+    //
+    // The date comes from the session rather than from `marketDateAt(now)`,
+    // which is the mistake that costs a whole session — and `marketDateAt` was
+    // itself the fix for the one that costs a whole day, since
+    // `now.toISOString().slice(0, 10)` reads 2026-09-04 for an instant that is
+    // 2026-09-03 in New York: right all afternoon and wrong every evening.
+    const sessions = lastMarketSessions(
+      count,
+      lastOpenedMarketSession(now).date,
+    );
     const first = sessions[0];
     const last = sessions.at(-1);
     if (first === undefined || last === undefined) {

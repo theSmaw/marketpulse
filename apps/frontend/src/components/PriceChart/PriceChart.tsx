@@ -8,6 +8,7 @@ import { priceFrame } from "./chart-geometry.js";
 import { chartSubject, drawsAFrame } from "./chart-subject.js";
 import { usePlotBox } from "./use-plot-box.js";
 import { ChartReading } from "./ChartReading.js";
+import { ChartVacancy } from "./ChartVacancy.js";
 import styles from "./PriceChart.module.css";
 
 // **The first chart in MarketPulse** (Task 2.12.4) — one security's closes, on
@@ -190,9 +191,10 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
   // can see.
   const box = { width: time.width, height: plot.height };
   const density = time.density;
+  const subject = chartSubject(view);
   const frame = {
     ...time,
-    ...priceFrame(time, plot.height, chartSubject(view)?.bars ?? []),
+    ...priceFrame(time, plot.height, subject?.bars ?? []),
   };
 
   // Four document-unique ids: the fill's definition, its two clips, and the
@@ -455,6 +457,31 @@ export function PriceChart({ view, symbol }: PriceChartProps) {
             />
           )}
         </svg>
+
+        {/*
+         * **Why the frame is empty, on the frame** (2026-09-14).
+         *
+         * The condition is geometric rather than a branch on the state, which
+         * keeps §14.1's one rule intact: `coverage.covered === null` with a span
+         * of uncovered ground across the whole plot is coverage zero, and the
+         * same pair with *no* uncovered span at all is `loading` — nothing is
+         * yet known to be missing, which is a different value from all of it
+         * missing rather than the same absence. Neither is a state name read
+         * here.
+         *
+         * A sibling of the `<svg>` and not a child of it: `ChartVacancy`'s
+         * header carries the three reasons, and the shortest is that SVG text
+         * does not wrap.
+         */}
+        {subject !== null &&
+          frame.coverage.covered === null &&
+          frame.coverage.uncovered.length > 0 && (
+            <ChartVacancy
+              compact={density.compact}
+              requested={subject.requested}
+              subject="bars"
+            />
+          )}
       </div>
 
       {/*

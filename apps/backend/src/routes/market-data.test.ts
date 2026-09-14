@@ -758,6 +758,50 @@ describe("a named window across a week with a holiday in it", () => {
   });
 });
 
+// The pre-open window, on the wire (added 2026-09-14).
+//
+// This is the layer the defect was actually observed at — a `curl` at 02:52 ET
+// on Monday 2026-09-14 that came back `200` with `bars: []` and a
+// `coverage.requested` of `2026-09-14T13:30:00Z → 20:00:00Z`, a session that had
+// not begun. `series-request.test.ts` asserts the resolution; this asserts that
+// what reaches a client is the corrected window, because `coverage.requested` is
+// what the chart draws its frame from and a rule that is right in the resolver
+// and wrong on the wire looks identical from the page.
+describe("a named window asked for before the opening bell", () => {
+  /** 02:52 ET on Monday 2026-09-14 — a trading day whose session has not begun. */
+  const BEFORE_THE_OPEN = new Date("2026-09-14T06:52:00.000Z");
+
+  it("reports the last session that opened, not the one that has not", async () => {
+    const instance = await barsServer({
+      store: { rows: [], held: undefined },
+      now: BEFORE_THE_OPEN,
+    });
+
+    const response = await instance.inject({
+      method: "GET",
+      url: "/market-data/bars?symbol=NVDA&timeframe=1m&sessions=1",
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    const body = response.json<BarSeriesResponse>();
+
+    // Friday 2026-09-11, in full. EDT, so 13:30Z and 20:00Z.
+    expect(body.series.coverage.requested).toStrictEqual({
+      start: "2026-09-11T13:30:00.000Z",
+      end: "2026-09-11T20:00:00.000Z",
+    });
+
+    // And the window does not reach past the instant it was asked at, which is
+    // the property that makes it a window over time that has happened. Stated
+    // as a comparison rather than as a second literal, so it cannot be
+    // satisfied by copying the constant above.
+    expect(new Date(body.series.coverage.requested.end).getTime()).toBeLessThan(
+      BEFORE_THE_OPEN.getTime(),
+    );
+  });
+});
+
 // The response schema (Task 2.9.3), driven through the real route.
 //
 // Everything worth asserting about a response schema is a property of the

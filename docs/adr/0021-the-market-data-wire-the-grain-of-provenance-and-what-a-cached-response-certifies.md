@@ -67,6 +67,19 @@ same answer. And a named window reaching outside the calendar's 2024–2028 rang
 **400 naming the range**, never a 500 and never a truncated list — the caller asked for a
 window this system cannot express.
 
+> **Amended 2026-09-14 — where the named form ENDS.** The decision above is unchanged
+> and nothing here reverses it: the named form still resolves server-side through the
+> trading calendar into an absolute range, for the browser-clock reason argued above.
+> What is refined is which session it ends at. It resolved through `marketDateAt(now)`,
+> which counts today as a session from midnight ET — so before the opening bell a named
+> window ended inside a session that had not begun and was answered, correctly, with
+> nothing. It now resolves through `lastOpenedMarketSession(now)`: **the last session
+> whose opening bell has rung.** One of five session states changes. This is a pure
+> function of the calendar and an instant, so it is the same answer for every caller at
+> the same moment, and it is deliberately **not** "the most recent session with data",
+> which would need a store read or a client clock. `MARKET-DATA-API.md` §2.1 has the
+> measurement and the table; `VOLUME-AND-WINDOW.md` §79 has what a reader saw.
+
 **Reversal trigger:** the first named window that cannot be expressed as a count of
 sessions — "year to date", "since the open", "since the last earnings". At that point the
 named form is becoming a query language, and the answer is to resolve those in the client

@@ -363,6 +363,36 @@ describe("what a screen reader is handed", () => {
     expect(exposedText(container)).toContain("no line is drawn");
     expect(screen.queryByRole("img")).toBeNull();
   });
+
+  // Moved here from `BarSeriesPanel.test.tsx` on 2026-09-14, with the sentence
+  // itself. It is the same words in a different place, and the place is the
+  // change: a reader met a grey box first and its explanation second, in the
+  // smallest type on the panel.
+  it("draws the reason on the frame, and says it once", () => {
+    measureEverythingAt(800, 280);
+
+    const { container } = render(
+      <Chart view={barSeriesFixtureView("empty")} />,
+    );
+
+    expect(screen.getByText(/No bars stored for this window/)).toBeTruthy();
+
+    // It still names the window that was asked for. A sentence that dropped it
+    // would be "no data" with nothing to be about.
+    expect(screen.getByText(/We asked for/).textContent).toContain("EDT");
+
+    // Nothing to press: a window holding no bars is a correct answer about the
+    // request, not a failure to retry.
+    expect(screen.queryByRole("button")).toBeNull();
+
+    // **And it is not spoken twice.** The block is `aria-hidden` because the
+    // text alternative already carries all of it, so what a listener gets is one
+    // copy — including the schedule clause, which had no spoken home until the
+    // visible one moved. `exposedText` walks the tree a reader is handed.
+    const exposed = exposedText(container);
+    expect(exposed).toContain("Stored history is caught up overnight");
+    expect(exposed).not.toContain("We asked for");
+  });
 });
 
 // **The uncovered treatment reaches the DOM** (Task 2.12.7).

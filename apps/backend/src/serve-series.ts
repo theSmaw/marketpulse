@@ -333,6 +333,15 @@ export function tailWindow(
  * yesterday's, even though it has not started. It is the conservative answer:
  * the tail is then empty at 08:00 and no request is made, where yesterday's
  * session would make one across an overnight that cannot contain a bar.
+ *
+ * **Do not collapse this into `lastOpenedMarketSession`** (added 2026-09-14),
+ * which looks like the same function and differs in exactly the status above.
+ * That one answers *has the bell rung* and is what a named window's end date is
+ * resolved through; this one answers *which session may still be accumulating*
+ * and is what a live tail is bounded by. Merging them would make a pre-open
+ * request fetch across the overnight, which is the one thing the paragraph
+ * above exists to prevent. `market-session.ts` names all four rules of this
+ * shape in the repository.
  */
 function currentSession(now: Date): MarketSession {
   const state = marketSessionStateAt(now);

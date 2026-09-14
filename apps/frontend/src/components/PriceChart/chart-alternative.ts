@@ -109,12 +109,21 @@ export function chartAlternative(
       return `${symbol} price chart: the frame is drawn and the series has not arrived yet.`;
 
     case "empty":
+      // **The schedule clause is here and nowhere else** (2026-09-14). It used
+      // to be the second half of `BarSeriesPanel`'s `EmptyState`, which moved
+      // into the plot as `ChartVacancy` — and `ChartVacancy` is `aria-hidden`,
+      // because everything it says is already said here. Moving a visible
+      // sentence out of the accessibility tree without checking what it carried
+      // is how a fact disappears for one audience only, so this is the clause
+      // that had no spoken home and now has exactly one: the price chart's, not
+      // the volume chart's, for the same reason the visible detail line is on
+      // the price plot alone.
       return (
         `${symbol} price chart: no line is drawn. ` +
         `${frameClause(view.series)} ` +
         `No bars are stored anywhere in the window asked for, ` +
         `${formatMarketRange(view.series.coverage.requested)}, so the whole ` +
-        `frame is empty ground.`
+        `frame is empty ground. Stored history is caught up overnight.`
       );
 
     case "loaded":

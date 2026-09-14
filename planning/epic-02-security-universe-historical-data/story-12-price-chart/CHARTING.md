@@ -1318,6 +1318,13 @@ the bars and share one `clipPath`. Everything else falls out of a single number
 - `empty` — coverage zero, which is one uncovered span across the whole plot.
   **Not a fourth treatment**, and it is what tells the state apart from
   `loading` on screen, which is the same frame with the wash absent.
+  **Amended 2026-09-14:** it also carries a sentence now — `ChartVacancy`,
+  centred on that ground, saying why the frame is empty. Still not a fourth
+  treatment, and the rule above is what makes that true rather than a claim: the
+  sentence is derived from the **window**, so it runs the full frame like every
+  other mark that is, and its condition is the same coverage pair rather than a
+  branch on the state name. `VOLUME-AND-WINDOW.md` §79.3 has the argument for why
+  the words moved off the panel and onto the plot.
 - `loading` — nothing is _known_ to be missing before anything has been
   answered, which is a different value from "all of it is missing" rather than
   the same absence.

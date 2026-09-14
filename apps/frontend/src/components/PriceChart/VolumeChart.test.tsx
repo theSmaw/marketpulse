@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
@@ -180,6 +180,34 @@ describe("with a measured box", () => {
     // *was* asked for.
     expect(container.querySelector("path")).toBeNull();
     expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+  });
+
+  // Added 2026-09-14. Until then this plot said **nothing at all** when it held
+  // nothing: its caption had been removed earlier the same day, so an empty
+  // answer here was a grey box with no words anywhere near it — worse than the
+  // price plot's, which at least had a sentence under the panel.
+  it("says why the frame is empty, in its own subject", () => {
+    const { container } = renderAt("empty");
+
+    // **Volume, not bars.** Two regions under one axis both saying *no bars*
+    // reads as one failure repeated rather than as one answer about two plots.
+    expect(screen.getByText("No volume stored for this window.")).toBeTruthy();
+    expect(screen.queryByText(/No bars stored/)).toBeNull();
+
+    // And no schedule sentence: this plot is 88px tall, 68 compact, and the
+    // fact is stated once, under the plot with room for it.
+    expect(screen.queryByText(/We asked for/)).toBeNull();
+
+    // Spoken once, and by the alternative rather than by this. The block is
+    // hidden from the accessibility tree because `volumeAlternative` already
+    // carries the same fact, and two surfaces claiming one sentence is the
+    // defect this panel has now had to decide four times.
+    expect(
+      screen
+        .getByText("No volume stored for this window.")
+        .closest("[aria-hidden='true']"),
+    ).not.toBeNull();
+    expect(container.textContent).toContain("no columns are drawn");
   });
 
   it("clips the columns so an end column cannot paint outside the plot", () => {

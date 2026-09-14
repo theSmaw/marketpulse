@@ -323,6 +323,30 @@ describe("the session bound", () => {
     expect(stub.requests).toHaveLength(1);
   });
 
+  // Added 2026-09-14, when `series-request.ts` began resolving a named window
+  // through `lastOpenedMarketSession`. That function and `currentSession` here
+  // differ in exactly one status — `before_open` — and this is the one place the
+  // two rules meet, so the interaction is asserted rather than reasoned about.
+  it("asks for no tail before the bell, when the window is yesterday's", () => {
+    // 02:52 ET on Monday 2026-09-14. The request layer now resolves `sessions=1`
+    // to Friday's session, and the store holds it in full; `currentSession`
+    // still answers with today's unopened session, so the bound is Monday's open
+    // and the window has already ended before it. Nothing is fetched, and
+    // nothing is fetched across the overnight either — which is what the
+    // `before_open` paragraph on `currentSession` exists to guarantee.
+    const fridayOpen = new Date("2026-09-11T13:30:00.000Z");
+    const fridayClose = new Date("2026-09-11T20:00:00.000Z");
+
+    const window = tailWindow(
+      ledger(toTimeRange(fridayOpen, fridayClose), 1),
+      "1m",
+      toTimeRange(fridayOpen, fridayClose),
+      new Date("2026-09-14T06:52:00.000Z"),
+    );
+
+    expect(window).toBe<TailDeclineReason>("covered");
+  });
+
   it("treats a weekend and a holiday as no gap at all", () => {
     // Friday's close to Tuesday's open spans a weekend and Labor Day, and
     // contains no session — so a store caught up to Friday stitches onto

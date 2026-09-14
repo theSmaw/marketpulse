@@ -135,4 +135,29 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "the-five-minute-ceiling-stays-derived",
   },
+
+  {
+    name: "empty-explanation-twice",
+    proves:
+      "The empty-window sentence restored to the panel while the plot also " +
+      "draws it puts two visible copies inside one region — a Playwright " +
+      "strict-mode failure in every browser spec on a store with no bars — and " +
+      "the invariant catches the second home.",
+    // The break is the change somebody would actually make: putting the
+    // sentence back where it used to be, because the plot's copy is easy to
+    // miss when reading the panel. That is the reason this check exists rather
+    // than a synthetic edit chosen to trip a grep.
+    file: "apps/frontend/src/components/BarSeriesPanel/BarSeriesPanel.tsx",
+    find: '    case "empty":\n      return null;',
+    replace:
+      '    case "empty":\n' +
+      "      return (\n" +
+      "        <p>\n" +
+      "          {/* pnpm break: reverted automatically */}\n" +
+      "          No bars stored for this window.\n" +
+      "        </p>\n" +
+      "      );",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-empty-explanation",
+  },
 ];

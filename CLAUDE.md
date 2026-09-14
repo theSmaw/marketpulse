@@ -115,7 +115,10 @@ summarised in one line here and argued in full where the table below points:
   real moving numbers.
 - **The weekday `1D` photograph**, which no address, fixture or pinned clock can
   produce, because the free plan's fifteen-minute embargo only exists during a
-  session.
+  session. **Narrower since 2026-09-14**: a named window now ends at the last
+  session whose _bell has rung_, so `1D` before the open is a complete chart
+  rather than an empty one, and the photograph that cannot be taken is only the
+  one between the bell and that night's backfill.
 
 **Two stores photograph differently and both are correct.** The deployed store is
 backfilled nightly and answers the default window in full; a developer's answers

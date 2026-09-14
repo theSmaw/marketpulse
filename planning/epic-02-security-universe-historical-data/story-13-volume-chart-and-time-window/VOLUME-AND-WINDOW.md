@@ -175,6 +175,15 @@ control with a different meaning and should not become this one.
 This is the window the task asked to be explicit about, and the honest statement
 is uncomfortable enough to be worth making plainly.
 
+> **Amended 2026-09-14 (§79): the premise in the next paragraph is no longer
+> true, and the paragraph is left standing because the decision it argues for
+> still is.** A named window now reaches to the last session whose **opening bell
+> has rung**, so `sessions=1` before the bell resolves to the previous session
+> and is answered in full. What survives of the case below is the part that
+> happens _during_ a session and until that night's backfill, which is still a
+> correct `200` with `bars: []` and still the reason `DEFAULT_SESSIONS` is 5.
+> Note the repair is **not** the first option refused below.
+
 A named window always reaches to the **current** session's close. The store is
 backfilled nightly, the free Alpaca plan refuses the most recent ~15 minutes,
 and there is no live tail until Epic 3. So `sessions=1` resolves to today's
@@ -299,6 +308,14 @@ most recent ~15 minutes, and the backfill runs nightly. So the real question is
 **Decided: nothing special. The window always means the last N sessions to the
 current session's close, and a shortfall is reported by the machinery that
 already reports shortfalls.**
+
+> **Amended 2026-09-14 (§79):** "the current session's close" became "the close
+> of the last session whose bell has rung". The decision itself — _nothing
+> special; the shortfall is reported by the machinery that already reports
+> shortfalls_ — is unchanged, and so is every sentence below it. What changed is
+> that one class of shortfall stopped being generated: a window whose last
+> session has not started is not a shortfall to report, it is a window nobody
+> should have asked for.
 
 That machinery exists and is not being built here. `coverage.requested` says what
 the window meant; `coverage.covered` says what was answered; `CHARTING.md` §14's
@@ -2128,6 +2145,13 @@ trigger that needs a person: _if the empty rendering at 1D reads as a broken
 product rather than as an honest one when somebody looks at the screen, 1D is
 withdrawn._ It was looked at, at 1440 in a real browser, on both stores.
 
+> **Amended 2026-09-14 (§79): it fired.** Looked at a third time, before the
+> opening bell rather than during a session, and the answer inverted. Carrying
+> reasons 1 and 2 below still hold and are untouched; **reason 3 moved** — the
+> sentence is no longer beneath the plot, it is on the frame. 1D still stays, and
+> for a stronger reason than this section could give: before the bell it is no
+> longer empty at all.
+
 **The trigger did not fire. 1D stays.** Three things carry it, and none of them
 is the absence of a line:
 
@@ -2145,6 +2169,12 @@ What would have made it read as broken is a bare empty box, or a frame with no
 labels on it. Neither is what it draws.
 
 ### 39.1 And a correction to §1.3's premise, from the deployed store
+
+> **Amended 2026-09-14 (§79):** narrower again, and this time by construction
+> rather than by luck. A pre-open weekday now resolves the same way a Saturday
+> does, so the honest statement is that **1D is empty during a session and
+> complete outside one, on every day of the week** — where the paragraph below
+> had to say "Saturday" because a Monday morning behaved differently.
 
 §1.3 says 1D is **reliably** empty. That is true only _during_ a session. Looked
 at on the deployed page on **2026-09-13, a Saturday**, `?sessions=1` resolved to
@@ -4823,3 +4853,169 @@ left in §77.1 and they moved to `Open`; the qualifier moved them again, to
 `/(^| )Open$/` rather than to `5D Open`, because several of those specs change
 the window mid-test and an exact match would then be asserting the label of a
 window the spec had just left.
+
+---
+
+## 79. The window ends at a session that happened, and an empty frame says why on itself
+
+Added 2026-09-14, from one screenshot and one `curl`. Two repairs, and the first
+one removes most of the need for the second.
+
+### 79.1 What was on the screen
+
+`/securities/NVDA?sessions=1`, opened at 02:52 ET on a Monday, was a grey box.
+The reason was there and it was correct — two lines of the smallest type on the
+panel, under the plot — and it reached the reader second, if at all.
+
+The measurement behind it, taken the same minute:
+
+```
+GET /market-data/bars?symbol=NVDA&sessions=1&timeframe=1m
+  → 200  bars: []
+         coverage.requested  2026-09-14T13:30:00Z → 2026-09-14T20:00:00Z
+         coverage.covered    null
+```
+
+**The window was Monday's session, and Monday's session had not begun.** The
+default `5D` lost a fifth of its frame the same way: it asked Sep 8 → Sep 14 and
+covered Sep 8 → Sep 11.
+
+This is §1.3's reversal trigger — _if the empty rendering at 1D reads as a broken
+product rather than an honest one when a person looks at the screen_. §39 looked
+on 2026-09-12, during a session, and said it did not fire. It fired here, and the
+difference between the two looks is the whole diagnosis: **§39 was looking at a
+window over a session that was happening, and this was a window over a session
+that had not.**
+
+### 79.2 Repair one — the window ends at the last session whose bell has rung
+
+`series-request.ts` resolved the end date through `marketDateAt(now)`, and its
+own comment argued for it: ending at the last _complete_ session would make
+`sessions=5` mean a different window depending on the hour.
+
+**The argument does not survive contact with the clock it appeals to.** The
+window already changed once a day, at midnight ET, where nothing happens. The
+repair moves that one boundary to the opening bell. One change a day either way;
+the difference is whether it lands where a reader would put it.
+
+`lastOpenedMarketSession(instant)` is the new rule and it lives in
+`packages/shared/src/market-session.ts` — one status of five differs:
+
+| `marketSessionStateAt(now)` | old end  | new end          | changed |
+| --------------------------- | -------- | ---------------- | ------- |
+| `open`                      | today    | today            | no      |
+| `after_close`               | today    | today            | no      |
+| `before_open`               | today    | previous session | **yes** |
+| `weekend`                   | previous | previous         | no      |
+| `holiday`                   | previous | previous         | no      |
+
+**Not §1.3's rejected option.** That was "the most recent session **with
+data**", refused because a client cannot know which session has data without
+asking — a second round trip, or a clock read in the browser. This one never asks
+the store. It is a pure function of the calendar and an instant, resolved
+server-side where `CHARTING.md` §6.1 already puts the clock, and it answers the
+same for every caller on earth at the same moment.
+
+**Measured after, at 03:30 ET the same morning.** `sessions=1` came back as
+Friday's session, 390 bars, fully covered; `5` as 1,950 bars fully covered where
+an hour earlier it had been 1,560 and short; `21` as 8,190, fully covered. The
+page drew a complete intraday line under a `1D` tab that had been a grey box.
+
+**And no test in this repository could tell the two rules apart.** Every pinned
+clock in `series-request.test.ts` was mid-session or after the close, so the
+change landed with nothing going red. That is the finding, not a reassurance; the
+pre-open cases added beside it — including the two either side of the bell — are
+the repair for it.
+
+`serve-series.ts`'s `currentSession` was deliberately **not** collapsed into the
+new helper. It looks like the same function and differs in exactly the status
+above: it answers `before_open` with today's session so the live tail is bounded
+by today's open and no request is made across an overnight that cannot contain a
+bar. Merging them would cause exactly that fetch. Both now carry a comment naming
+the other, and `market-session.ts` names all four rules of this shape in the
+repository — `currentSession`, `closedThrough` and `lastCompletedSession` are the
+other three, and the last two are near-duplicates that are deliberately left
+alone.
+
+### 79.3 Repair two — the sentence moves onto the ground it is about
+
+Repair one cannot reach the case that survives: from the opening bell until that
+night's backfill, a window over the current session really is answered with
+nothing. That stays true until Epic 3's live feed.
+
+`ChartVacancy` draws the explanation centred on the uncovered ground, inside the
+frame, in both plots. **The words did not change. Their position did**, which was
+the actual diagnosis.
+
+Three things are worth stating because each was a candidate design:
+
+- **It is not a fourth treatment.** `CHARTING.md` §14.1 collapsed four
+  state-by-state renderings into one rule, and the frame, the gridlines, the
+  seams and the session's own date are still drawn underneath this. The condition
+  is geometric, not a branch on the state: `covered === null` with an uncovered
+  span across the whole plot is coverage zero, and the same pair with _no_
+  uncovered span is `loading` — nothing yet known to be missing, which is a
+  different value from all of it missing. §39's carrying reasons 1 and 2 are
+  untouched; only 3 moved.
+- **It moved rather than being copied, and that is mechanical.**
+  `pnpm invariants` proves the sentence has exactly one home in
+  `apps/frontend/src`, with `pnpm break empty-explanation-twice` proving the
+  check goes red. Two copies is not merely redundant: `e2e/support/app.ts`'s
+  `readable()` does not filter `aria-hidden`, and two of the specs that locate a
+  settled answer by this phrase build their locator without `.first()` — so a
+  second copy inside the Price region is a Playwright strict-mode failure in
+  every spec, on CI, where 518 securities and zero bars make every chart an
+  `empty`.
+- **The volume plot said nothing at all before this**, its caption having been
+  removed earlier the same day. It now carries one line in its own subject —
+  `No volume stored for this window.` — because two regions under one axis both
+  saying _no bars_ reads as one failure repeated. The schedule sentence stays on
+  the price plot, which has the height for it.
+
+Nothing here is focusable, nothing is a button, and the whole block is
+`aria-hidden`: `chart-alternative.ts` already says all of it. What that revealed
+is the one clause with **no** spoken home — _stored history is caught up
+overnight_ — which had only ever existed in the visible copy. It is now in
+`chartAlternative`'s `empty` branch and not in `volumeAlternative`'s.
+
+### 79.4 One thing the layout cost, and the instrument that found it
+
+`.vacancy` composes `overlay` from `chart-marks.module.css` and then set
+`display: flex` to centre its contents. `composes:` emits the composed rule as a
+second class of **equal specificity**, so which of two conflicting declarations
+wins is decided by emitted source order — and `.overlay`'s `display: block` won.
+
+What that produced was a sentence pinned to the top-left of the plot with a
+correct frame around it: `headline 801×18 @57,670`, where a centred one measures
+`198×18 @358,761`. **Nothing below `pnpm e2e` could see it.** jsdom applies no
+stylesheet and computes no layout, so the component test asserting the words are
+present passed against both. `pnpm probe` found it in thirty seconds, which is
+the fifth time this file has recorded a defect found by looking at the page.
+
+The repair is a `.content` child carrying the flex, rather than a specificity
+fight nothing enforces.
+
+### 79.5 And one design decision reversed inside the hour
+
+The detail line was hidden at the compact density first, on the argument that a
+two-line note centred in a small plot is a wall of text. **Reverted, and the
+argument that reverses it is the one this whole section is about:** the reason
+the sentence moved is that it was too easy to miss, and removing it on the
+narrowest screen — where a grey box is the largest share of what is on the page —
+is the defect arriving by a different route.
+
+There is room, and it is a measurement rather than a judgement. At 390 the
+compact price plot is 220px tall and the block's box is 230px wide; the headline
+and the sentence together measure 116px, centred. The volume plot never carries
+the line at all.
+
+### 79.6 The two reversal triggers, as conditions
+
+- **For the window rule:** the first caller that must name a session which has
+  **not** opened yet — an Epic 13 replay clock positioned before a bell, or a
+  session picker offering today from midnight. At that point the endpoint is a
+  parameter on the request rather than a rule in the resolver.
+- **For the in-frame sentence:** the first time a second, differently worded
+  explanation is drawn inside a plot. Two notes on one frame is the panel's
+  two-surfaces-one-sentence problem moved into the picture, and the answer then
+  is a vocabulary rather than another paragraph.

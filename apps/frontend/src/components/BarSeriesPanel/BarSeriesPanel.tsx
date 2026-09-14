@@ -26,11 +26,7 @@ import { PriceChange } from "../PriceChange/PriceChange.js";
 import { PriceChart } from "../PriceChart/PriceChart.js";
 import { announceSeries } from "./series-announcement.js";
 import type { SeriesPrices } from "./series-facts.js";
-import {
-  changePercent,
-  formatMarketRange,
-  seriesPrices,
-} from "./series-facts.js";
+import { changePercent, seriesPrices } from "./series-facts.js";
 import styles from "./BarSeriesPanel.module.css";
 
 // One security's bar series — **the chart, and the exact figures the picture
@@ -839,12 +835,20 @@ function Body({
     case "partial":
       return <Provenance series={view.series} />;
 
+    // **Nothing here, because the sentence moved into the plot** (2026-09-14).
+    //
+    // It used to render `EmptyState` under the figures. `VOLUME-AND-WINDOW.md`
+    // §78 has the argument: the words were right and their position was not, so
+    // `ChartVacancy` draws them on the uncovered ground they are about. `null`
+    // rather than an empty element, which is what `Provenance` returns for the
+    // same three states, so the stack gains no gap.
+    //
+    // **Moved, not copied.** `pnpm invariants` proves the sentence exists in one
+    // source file: two visible copies inside the Price region is a Playwright
+    // strict-mode failure in every spec whose store has no bars, which on CI is
+    // all of them.
     case "empty":
-      return (
-        <EmptyState
-          requested={formatMarketRange(view.series.coverage.requested)}
-        />
-      );
+      return null;
 
     case "refused":
       return <RefusedState message={view.message} />;
@@ -986,30 +990,6 @@ function FeedLabel({ feed }: { readonly feed: MarketFeed }) {
         <span className={styles.feedSentence}>{description.sentence}</span>
       )}
     </span>
-  );
-}
-
-/**
- * A 200 with nothing in it, which is an answer.
- *
- * The commonest reason is the ordinary one and is worth saying plainly: the
- * window reaches into a session the nightly backfill has not taken yet. A panel
- * that said only "no data" would leave a reader deciding between *"this stock
- * does not exist"* and *"this product is broken"*, and neither is true.
- */
-function EmptyState({ requested }: { readonly requested: string }) {
-  return (
-    <div className={styles.state}>
-      <p className={styles.stateLine}>
-        <Marker shape="ring" />
-        <span>No bars stored for this window.</span>
-      </p>
-      <p className={styles.stateDetail}>
-        We asked for {requested} and hold nothing in it. A window reaching into
-        the current session is usually this: stored history is caught up
-        overnight.
-      </p>
-    </div>
   );
 }
 

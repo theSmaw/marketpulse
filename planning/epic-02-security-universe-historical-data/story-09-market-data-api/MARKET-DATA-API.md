@@ -103,8 +103,9 @@ market date; the browser knows a timezone. So `today` is resolved in the handler
 exists so a client never has to.
 
 **The absolute range is the primitive and the named form is sugar over it.** The
-handler resolves `sessions=5` through `lastMarketSessions(5, marketDateAt(now))`
-to `[first.open, last.close)` and then proceeds identically. That is what makes
+handler resolves `sessions=5` through
+`lastMarketSessions(5, lastOpenedMarketSession(now).date)` to
+`[first.open, last.close)` and then proceeds identically. That is what makes
 this two shapes rather than two products: there is one query, one cap check and
 one `SeriesCoverage`, and `coverage.requested` always carries the **resolved
 absolute range** so a named request and an absolute request are the same answer.
@@ -121,6 +122,63 @@ expressed as a count of sessions — "year to date", "since the open", "since th
 last earnings". At that point the named form is becoming a query language, and
 the answer is to resolve those in the client against a server-supplied market
 date rather than to grow a vocabulary here.
+
+### 2.1 Amended 2026-09-14 — **the window ends at the last session whose bell has rung**
+
+The resolution above read `lastMarketSessions(5, marketDateAt(now))` until
+2026-09-14, and the code carried an argument for it: today counts as a session if
+today is a trading day, **even before the open**, because ending at the last
+_complete_ session would make `sessions=5` mean a different window depending on
+the hour.
+
+**That argument does not survive contact with the clock it appeals to.** The
+window already changed once a day — at midnight ET, where nothing happens. The
+amendment moves that one boundary to the **opening bell**, which is the moment
+the vocabulary is about. One change a day either way; the difference is whether
+it lands where a reader would put it.
+
+What forced it was a measurement. At 02:52 ET on Monday 2026-09-14,
+`?symbol=NVDA&sessions=1&timeframe=1m` answered a correct `200` with
+`bars: []`, `coverage.covered: null` and a `coverage.requested` of
+`2026-09-14T13:30:00Z → 2026-09-14T20:00:00Z` — a session that had not begun. The
+default `sessions=5` spent a fifth of its frame the same way, requesting
+Sep 8 → Sep 14 and covering Sep 8 → Sep 11. `coverage.covered` reported all of
+that honestly, and honest was not the problem: **the window was asking for time
+that had not happened yet.** What a reader saw is in
+`VOLUME-AND-WINDOW.md` §78.
+
+**It is one status of five**, which is why nothing went red when it landed:
+
+| `marketSessionStateAt(now)` | today a session? | old end  | new end          | changed |
+| --------------------------- | ---------------- | -------- | ---------------- | ------- |
+| `open`                      | yes              | today    | today            | no      |
+| `after_close`               | yes              | today    | today            | no      |
+| `before_open`               | yes              | today    | previous session | **yes** |
+| `weekend`                   | no               | previous | previous         | no      |
+| `holiday`                   | no               | previous | previous         | no      |
+
+Every pinned clock in `series-request.test.ts` was mid-session or after the
+close, so **no test in this repository could tell the two rules apart.** That is
+the finding rather than a reassurance, and the pre-open cases added alongside the
+change are the repair for it.
+
+**This is not `VOLUME-AND-WINDOW.md` §1.3's rejected rule.** That was "the most
+recent session **with data**", refused because a client cannot know which session
+has data without asking — so it is either a second round trip or a clock read in
+the browser. `lastOpenedMarketSession` never asks the store: it is a pure
+function of the calendar and an instant, and it answers the same for every caller
+on earth at the same moment. The measured effect at 03:30 ET the same morning is
+that `sessions=1`, `5` and `21` all came back **fully covered**, where `5` had
+been short by a session an hour earlier.
+
+`coverage.covered` is still the honest report of how much of the window is held.
+The named form is still sugar over the absolute one, and an absolute request
+never reads the clock at all — so replay is untouched.
+
+**Reversal trigger, as a condition:** the first caller that must name a session
+which has **not** opened yet — an Epic 13 replay clock positioned before a
+session's bell, or a session picker offering today from midnight. At that point
+the endpoint is a parameter rather than a rule, and it belongs on the request.
 
 ---
 
