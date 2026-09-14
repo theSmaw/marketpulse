@@ -4139,3 +4139,59 @@ transition still changes this control's width — _no selection_ to a pressed
 window — and it is reachable only from a hand-typed or agent-written count, once,
 and it narrows chrome rather than moving anything under a reader's hand. That is
 recorded rather than reserved against.
+
+## 74. Four blocks off the panel, and what still says each thing
+
+Asked for on 2026-09-14, by name: the chart's resting invitation, the coverage
+sentence, the `Asked for` / `Held` / `Bars` / `First → last` list, and the
+`Market feed` row.
+
+**None of them was the only home of what it said**, which is the test applied to
+each before it came off:
+
+| Removed                                                       | Still stated by                                                                                                                |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| _Point at the chart, or press the left and right arrow keys…_ | The chart's `aria-describedby`, read on arrival at its single tab stop                                                         |
+| _Holding 59 bars, through … — less than the window asked for_ | The uncovered ground and the coverage edge, drawn; and the chart's text alternative, counted in the axis's own trading minutes |
+| `Asked for` / `Held` / `Bars` / `First → last`                | The address and the control for the window; the reading a pointer or an arrow key produces for the instants and the bar count  |
+| `Market feed — All US exchanges`                              | The masthead's `FeedProvenance`, on every screen; and the chart's text alternative, per series                                 |
+
+What is left on the panel is the identity, the control, the headline, the
+picture, the reserved reading strip and the four prices.
+
+### 74.1 The feed row is narrowed rather than deleted
+
+Invariant 6 is not a preference. The free Alpaca plan is asymmetric — stored
+history is consolidated SIP, the live stream is IEX — so from Epic 3 a stitched
+series genuinely names **two** feeds and one page-level label is wrong about half
+of it.
+
+So `Provenance` renders when the series carries more than one distinct feed, and
+not otherwise. Today no body has two, so it never renders and the screen is
+exactly what was asked for; the day the second feed arrives it renders itself.
+The alternative was a note in a document saying _put this back in Epic 3_, which
+is the kind of note that is read after the screen has shipped without it.
+
+Its test is the one place in `BarSeriesPanel.test.tsx` that does not use a
+recorded body whole: it is the recorded stitch with **one field changed**,
+through the real transition, because no shipped endpoint produces a two-feed body
+yet. The field is named in the test so that the day one is recorded, this is
+replaced by it rather than kept.
+
+### 74.2 What this cost in tests, which is the interesting part
+
+Nineteen component tests and **fifty-seven** browser assertions went red, and
+almost none of them were _about_ the removed text. They failed because
+`Holding N bars` was the signal the whole suite waited on — `anAnswer(page)`, in
+six specs, meaning _the panel has settled_. A sentence that half a suite
+synchronises on is a load-bearing surface whether or not anybody designed it to
+be one.
+
+The replacement is the `Close` metric label, which is the narrowest thing on the
+panel that exists exactly when an answer with bars does. Two derived readings
+moved with it: _does this store cover the whole window_ now comes off the chart's
+text alternative (`the full width of the window asked for`), and _is the strip at
+rest_ is now asserted as **no live `Bar` label and a hidden one still there** —
+which is a stronger assertion than the invitation ever was, because it fails
+against a strip that has stopped reserving its height as well as one that has
+stopped resting.

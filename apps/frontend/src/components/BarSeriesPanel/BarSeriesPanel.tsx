@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { MarketFeed, TimeRange } from "@marketpulse/shared";
+import type { MarketFeed } from "@marketpulse/shared";
 import { MARKET_FEED_DESCRIPTIONS } from "@marketpulse/shared";
 
 import { Badge } from "../Badge/Badge.js";
@@ -14,7 +14,6 @@ import type {
 } from "../../market/index.js";
 import {
   directionOf,
-  formatBarInstant,
   formatChangePercent,
   formatPrice,
   seriesWindowFor,
@@ -27,10 +26,7 @@ import { PriceChart } from "../PriceChart/PriceChart.js";
 import { announceSeries } from "./series-announcement.js";
 import type { SeriesPrices } from "./series-facts.js";
 import {
-  barSpan,
   changePercent,
-  formatCount,
-  formatMarketInstant,
   formatMarketRange,
   seriesPrices,
 } from "./series-facts.js";
@@ -730,9 +726,7 @@ function Body({
 
     case "loaded":
     case "partial":
-      return (
-        <SeriesState series={view.series} complete={view.state === "loaded"} />
-      );
+      return <SeriesState series={view.series} />;
 
     case "empty":
       return (
@@ -787,16 +781,8 @@ const SKELETON_ROWS = [1, 2, 3, 4];
  * that shows: whether the coverage line says we hold all of it. Rendering them
  * from two near-identical components is how the two drift apart.
  */
-function SeriesState({
-  series,
-  complete,
-}: {
-  readonly series: PopulatedBarSeries;
-  readonly complete: boolean;
-}) {
+function SeriesState({ series }: { readonly series: PopulatedBarSeries }) {
   const prices = seriesPrices(series);
-  const { first, last } = barSpan(series);
-  const { requested, covered } = series.coverage;
 
   return (
     <div className={styles.series}>
@@ -823,21 +809,6 @@ function SeriesState({
        */}
       <div className={styles.settle} key={settleSignature(series, prices)}>
         {/*
-         * The headline used to open this block and now opens the chart's chrome
-         * above it (`CHARTING.md` §5, Task 2.12.4). What that costs is that the
-         * settle wash no longer passes under the close — the wash marks the
-         * facts, which is where the bar count and the coverage it keys on both
-         * live. Extending it over the reading is Task 2.12.7's call to take
-         * with the rest of the states rather than a detail to change here.
-         */}
-        <Coverage
-          complete={complete}
-          bars={series.bars.length}
-          requested={requested}
-          coveredEnd={formatMarketInstant(covered.end)}
-        />
-
-        {/*
          * The four prices, as a strip rather than as rows of a list.
          *
          * This is the one block on the panel that has to read at a glance, and a
@@ -862,40 +833,6 @@ function SeriesState({
             ]}
           />
         </div>
-
-        {/*
-         * The windows, and they are the reason this panel exists.
-         *
-         * Two rows rather than four scattered facts, aligned so the two ranges
-         * sit directly above one another — because the question a reader is
-         * asking is *how do these two differ*, and two ranges that do not line up
-         * cannot be compared without reading both in full.
-         */}
-        <dl className={styles.windows}>
-          <Window label="Asked for" value={formatMarketRange(requested)} />
-          <Window label="Held" value={formatMarketRange(covered)} />
-          <Window
-            label="Bars"
-            value={`${formatCount(series.bars.length)} × ${series.timeframe}`}
-          />
-          {/*
-           * **A bar's instant, in the spelling every other bar instant in this
-           * product uses** — `formatBarInstant` and not `formatMarketInstant`,
-           * since Task 2.13.6. The two rows above are *windows*, which genuinely
-           * have a second in them; this row is two **bars**, and at `1d` a bar is
-           * a session with no time of day in it.
-           *
-           * It is the sixth surface that repair reached, and the only one nobody
-           * had listed: the task named the two readout strips, the resting peak,
-           * the spoken sentence and the volume chart's peak clause. This one was
-           * found by looking at a `1d` window on the running page, which is why
-           * the fixture had to be recorded before the decision could be taken.
-           */}
-          <Window
-            label="First → last"
-            value={`${formatBarInstant(first.startsAt, series.timeframe)} → ${formatBarInstant(last.startsAt, series.timeframe)}`}
-          />
-        </dl>
       </div>
 
       <Provenance series={series} />
@@ -928,68 +865,6 @@ function settleSignature(
 }
 
 /**
- * How much of the window we hold, in a sentence.
- *
- * **The complete case says so rather than saying nothing**, and that is the
- * decision worth stating: silence on a complete answer would make *"we hold all
- * of it"* and *"nobody checked"* look identical, which is precisely the
- * distinction this panel exists to make visible.
- *
- * The partial case names the instant it stops at, from `covered.end`, and never
- * from a constant. It is `MARKET-DATA-API.md` §6's answer rendered as an answer:
- * a short series is not a failure and must not read as one.
- */
-function Coverage({
-  complete,
-  bars,
-  requested,
-  coveredEnd,
-}: {
-  readonly complete: boolean;
-  readonly bars: number;
-  readonly requested: TimeRange;
-  readonly coveredEnd: string;
-}) {
-  return (
-    <p className={cx(styles.coverage, complete ? undefined : styles.short)}>
-      <Marker shape={complete ? "disc" : "ring"} />
-      {complete ? (
-        <span>
-          Holding all {formatCount(bars)} bars of the window asked for.
-        </span>
-      ) : (
-        <span>
-          Holding {formatCount(bars)} bars, through {coveredEnd} — less than the
-          window asked for, which runs to {formatMarketInstant(requested.end)}.
-        </span>
-      )}
-    </p>
-  );
-}
-
-/**
- * One labelled window or span, on a fixed label column so the values align.
- *
- * The alignment is the whole point: two ranges that do not start in the same
- * column cannot be compared at a glance, and comparing them is the question
- * this block answers.
- */
-function Window({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: string;
-}) {
-  return (
-    <div className={styles.window}>
-      <dt className={styles.windowLabel}>{label}</dt>
-      <dd className={styles.windowValue}>{value}</dd>
-    </div>
-  );
-}
-
-/**
  * Which feed these bars came from, in the shipped vocabulary.
  *
  * The words are `MARKET_FEED_DESCRIPTIONS`', never this component's: a renderer
@@ -1005,9 +880,29 @@ function Window({
  * two sources mean two feeds. So this renders the distinct feeds rather than one
  * label, and it does not write the *"stitched from two feeds"* wording, because
  * that sentence has no producer yet and Story 2.14 owns it.
+ *
+ * ## It renders only where the chrome's own label cannot be right — 2026-09-14
+ *
+ * The masthead carries `FeedProvenance` on every screen, so for a series whose
+ * sources all name **one** feed this line was the same fact twice, three
+ * centimetres below a chart that had just been given back its vertical space.
+ *
+ * What it is *not* safe to delete is the case invariant 6 exists for. The free
+ * Alpaca plan is asymmetric — stored history is consolidated SIP and the live
+ * stream is IEX — so the moment Epic 3 stitches a live tail onto stored bars,
+ * **one page-level label is wrong about half of this series** and the honest
+ * answer is per-series. That is the condition below, and it is a property of the
+ * answer rather than a flag: more than one distinct feed in the sources.
+ *
+ * So today it never renders and no reader loses anything, and the day the second
+ * feed arrives it renders itself. The alternative was a note in a document
+ * saying *put this back in Epic 3*, which is the kind of note that is read after
+ * the screen has shipped without it.
  */
 function Provenance({ series }: { readonly series: PopulatedBarSeries }) {
   const feeds = [...new Set(series.provenance.sources.map((s) => s.feed))];
+
+  if (feeds.length < 2) return null;
 
   return (
     <div className={styles.provenance}>

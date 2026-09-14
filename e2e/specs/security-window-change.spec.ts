@@ -61,7 +61,7 @@ function cell(page: Page, name: string) {
 /** The panel has settled on an answer — **either** answer. */
 function anAnswer(page: Page) {
   return priceRegion(page)
-    .getByText(/Holding .* bars/)
+    .getByText("Close", { exact: true })
     .or(priceRegion(page).getByText(/No bars stored for this window/))
     .first();
 }

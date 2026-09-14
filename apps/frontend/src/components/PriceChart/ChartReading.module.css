@@ -64,25 +64,6 @@
 }
 
 /*
- * The resting state, and the only place in this product that tells a person
- * what a control can do before they have touched it.
- *
- * It earns that exception: until Task 2.12.6 the chart was `aria-hidden` and
- * carried no interaction at all, so nothing on the page said the picture answers
- * questions — and **nothing whatsoever said the keyboard path exists**, which is
- * where charts usually fail silently. Both inputs are named in one sentence,
- * because a keyboard hint that only appears on focus is a hint nobody reads.
- *
- * The volume strip deliberately does **not** repeat it (`VOLUME-AND-WINDOW.md`
- * §15): a second copy of a sentence about a keyboard path that belongs to the
- * plot above is noise, and its resting state states a fact instead.
- */
-.invitation {
-  composes: prose from "../../styles/type.module.css";
-  color: var(--ink-secondary);
-}
-
-/*
  * The close carries the weight, because it is the price the line is made of and
  * therefore the one figure on this strip that is also on the plot. The other
  * three are what the picture cannot show at 0.47px per bar, which is why they

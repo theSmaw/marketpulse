@@ -138,9 +138,11 @@ test("five sessions across a week with a holiday in it, drawn", async ({
   await page.goto(EXPLORER);
 
   await expect(plot(page)).toBeVisible();
-  await expect(
-    priceRegion(page).getByText(/Holding all 1,770 bars/),
-  ).toBeVisible();
+  // **The bar count moved to the chart's own text alternative** on 2026-09-14,
+  // when the panel's coverage sentence came off. It is the same figure from the
+  // same body and it is still the thing that says this fixture was served: no
+  // store on any runner holds a week that has not happened.
+  await expect(priceRegion(page)).toContainText("1,770 closing prices");
 
   // **Four seams and not five.** A naive window would have put one between
   // Wednesday and Friday for a Thursday that never opened.

@@ -108,15 +108,28 @@ function volumePlot(page: Page) {
  */
 function anAnswer(page: Page) {
   return priceRegion(page)
-    .getByText(/Holding .* bars/)
+    .getByText("Close", { exact: true })
     .or(priceRegion(page).getByText(/No bars stored for this window/))
     .first();
+}
+
+/**
+ * Does this store cover the whole window it was asked for?
+ *
+ * Read from the chart's text alternative, which is where that fact lives since
+ * 2026-09-14 — the panel's coverage sentence came off, and the alternative had
+ * been stating the same thing all along, counted in the axis's own trading
+ * minutes.
+ */
+async function isComplete(page: Page): Promise<boolean> {
+  const said = (await priceRegion(page).textContent()) ?? "";
+  return said.includes("the full width of the window asked for");
 }
 
 /** Did this run land on a store with bars in it? */
 function hasBars(page: Page): Promise<boolean> {
   return priceRegion(page)
-    .getByText(/Holding .* bars/)
+    .getByText("Close", { exact: true })
     .first()
     .isVisible();
 }
@@ -303,9 +316,10 @@ test("the span that was asked for and is not held has a ground behind it", async
   await expect(plot(page)).toBeVisible();
   await expect(anAnswer(page)).toBeVisible();
 
-  const complete = await priceRegion(page)
-    .getByText(/Holding all /)
-    .isVisible();
+  // **Completeness comes off the chart's own text alternative** since
+  // 2026-09-14, when the panel's coverage sentence was removed: it is the same
+  // fact from the same body, and it is the surface that still states it.
+  const complete = await isComplete(page);
   if (complete) test.skip(true, "this store covers the whole window");
 
   // A direct child of the plot's SVG: the only other rects this chart draws are
@@ -403,18 +417,18 @@ function barLabel(page: Page) {
 }
 
 /**
- * The resting line's sentence, in the **live** half of the strip.
+ * The strip, resting — which since 2026-09-14 is **blank**.
  *
- * `filter({ visible: true })` since Task 2.13.5, for `barLabel`'s reason one
- * step further: the strip reserves its height by laying out *every* state it
- * can be in, hidden, in the same grid cell — so the invitation is in the
- * document twice whenever a reading is on screen, and once as its own
- * reservation when it is not.
+ * It used to hold an invitation, and a spec could wait for that sentence. With
+ * the sentence gone the resting state is asserted the only way it can be: no
+ * live `Bar` label, and a hidden one still there reserving the row. The second
+ * half is what stops this passing against a strip that has stopped reserving
+ * anything, which is the whole property the three-viewport test below is about.
  */
-function invitation(page: Page) {
+function restingStrip(page: Page) {
   return priceRegion(page)
-    .getByText(/Point at the chart/)
-    .filter({ visible: true });
+    .getByText("Bar", { exact: true })
+    .filter({ visible: false });
 }
 
 /**
@@ -439,10 +453,9 @@ test("a pointer over the plot reads the bar under it, and leaving clears it", as
   await expect(anAnswer(page)).toBeVisible();
   if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
 
-  // Resting: the invitation, which is the only thing on this page that says the
-  // chart answers questions at all — and the only thing anywhere that says the
-  // keyboard path exists.
-  await expect(invitation(page)).toBeVisible();
+  // Resting: the strip is blank to a reader and still holding its height open.
+  await expect(restingStrip(page)).toHaveCount(1);
+  await expect(barLabel(page)).toHaveCount(0);
 
   const box = await reader(page).boundingBox();
   if (box === null) throw new Error("the reading layer has no box");
@@ -471,7 +484,7 @@ test("a pointer over the plot reads the bar under it, and leaving clears it", as
 
   // Off the plot entirely, which is the state the chart spends its life in.
   await page.mouse.move(box.x + box.width / 2, box.y - 80);
-  await expect(invitation(page)).toBeVisible();
+  await expect(restingStrip(page)).toHaveCount(1);
   expect(await reader(page).locator("circle").count()).toBe(0);
 });
 
@@ -509,7 +522,7 @@ for (const viewport of VIEWPORTS) {
     // nothing to do with a reading appearing. The test failed once that way and
     // passed alone, which is the shape of a flake that would have been re-run
     // until green instead of understood.
-    await expect(invitation(page)).toBeVisible();
+    await expect(restingStrip(page)).toHaveCount(1);
 
     const prices = priceRegion(page).getByText("Open", { exact: true });
 
@@ -581,7 +594,7 @@ test("the chart is one tab stop, and it is reachable", async ({ page }) => {
   // Escape clears the reading and **keeps the focus**, which is the whole reason
   // the focus ring is on the plot rather than on a disc that has just gone.
   await page.keyboard.press("Escape");
-  await expect(invitation(page)).toBeVisible();
+  await expect(restingStrip(page)).toHaveCount(1);
   expect(
     await reader(page).evaluate(
       (element) => element === document.activeElement,
@@ -667,9 +680,10 @@ test("the uncovered ground stops above the axis rule", async ({ page }) => {
   await expect(plot(page)).toBeVisible();
   await expect(anAnswer(page)).toBeVisible();
 
-  const complete = await priceRegion(page)
-    .getByText(/Holding all /)
-    .isVisible();
+  // **Completeness comes off the chart's own text alternative** since
+  // 2026-09-14, when the panel's coverage sentence was removed: it is the same
+  // fact from the same body, and it is the surface that still states it.
+  const complete = await isComplete(page);
   if (complete) test.skip(true, "this store covers the whole window");
 
   const gap = await plot(page).evaluate((svg) => {
@@ -778,9 +792,10 @@ test("the two plots hang on one axis and stop at the same pixel", async ({
 
   // And the uncovered ground, where this store has one — which is the mark that
   // says where the data stopped, painted separately in each frame.
-  const complete = await priceRegion(page)
-    .getByText(/Holding all /)
-    .isVisible();
+  // **Completeness comes off the chart's own text alternative** since
+  // 2026-09-14, when the panel's coverage sentence was removed: it is the same
+  // fact from the same body, and it is the surface that still states it.
+  const complete = await isComplete(page);
 
   if (!complete) {
     const ground = (locator: ReturnType<typeof plot>) =>
@@ -911,14 +926,10 @@ test("a pointer over the volume plot reads the bar under it", async ({
   await expect(anAnswer(page)).toBeVisible();
   if (!(await hasBars(page))) test.skip(true, "this store holds no bars");
 
-  // At rest: the window's peak and when it happened. **Not** a second copy of
-  // the price strip's invitation — that sentence is about a keyboard path
-  // belonging to the plot above, and two surfaces saying one thing is the
-  // defect two strips exist to avoid rather than to commit.
+  // At rest: the window's peak and when it happened. The price strip beside it
+  // states nothing at all at rest since 2026-09-14, so the two resting states
+  // are now a fact and a blank rather than a fact and a sentence.
   await expect(volumeStrip(page)).toContainText("Peak");
-  await expect(volumeRegion(page).getByText(/Point at the chart/)).toHaveCount(
-    0,
-  );
 
   // **Scrolled to first**, which is not caution: `boundingBox()` is relative to
   // the viewport and this region is below the fold at every viewport this suite

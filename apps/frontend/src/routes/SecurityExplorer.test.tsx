@@ -426,7 +426,11 @@ describe("search, and the rest of the page around it", () => {
       expect(screen.getByText("no response")).toBeTruthy();
     });
     // The panel answered, and says so with a figure only a real body carries.
-    expect(screen.getByText("30 × 1m")).toBeTruthy();
+    // The bar count came off the panel on 2026-09-14 with the rest of the window
+    // list, so the figure is now one of the four prices — still a number this
+    // page cannot produce without a body.
+    expect(screen.getByText("Close")).toBeTruthy();
+    expect(screen.getAllByText(/\d+\.\d\d/).length).toBeGreaterThan(0);
   });
 
   // `SEARCH-AND-SELECTION.md` §6: the summary line says which of two numbers it

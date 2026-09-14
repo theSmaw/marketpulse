@@ -73,9 +73,9 @@ function panel(page: Page) {
  * property of the store behind the run rather than of the code.
  */
 function anAnswer(page: Page) {
-  return readable(panel(page), /Holding .* bars/).or(
-    readable(panel(page), /No bars stored for this window/),
-  );
+  return panel(page)
+    .getByText("Close", { exact: true })
+    .or(readable(panel(page), /No bars stored for this window/));
 }
 
 /** The mark a held answer carries while a newer one is in flight. */
