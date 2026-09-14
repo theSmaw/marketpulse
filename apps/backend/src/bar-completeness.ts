@@ -191,6 +191,30 @@ export type CompletenessFinding =
       readonly sessions: readonly MarketDate[];
     }
   /**
+   * The window opens before this security did.
+   *
+   * Every session missing from the ledger was **asked for**, and the vendor
+   * answered and had nothing to send — which is what the attempt log is for.
+   * A security that listed partway through the window has no bars before its
+   * first trade, and no run will ever produce any.
+   *
+   * It is a separate kind from {@link CompletenessFinding} `not-fetched`
+   * because the two lead to opposite actions: that one is a catch-up's job, and
+   * this one is the market. Reporting them together is what made three spin-offs
+   * — FedEx Freight, Honeywell Aerospace and Qnity Electronics — read as a
+   * backfill failure for as long as they have been in the universe, under a
+   * heading saying *this is the one finding that means something is wrong with
+   * us rather than with the market*.
+   */
+  | {
+      readonly kind: "listed-mid-window";
+      readonly symbol: Ticker;
+      readonly timeframe: Timeframe;
+      readonly sessions: readonly MarketDate[];
+      /** The first session the ledger holds, which is the listing as we saw it. */
+      readonly firstHeld?: MarketDate;
+    }
+  /**
    * A session was attempted and left no bars, and the log says why.
    *
    * This is the finding the whole attempt log exists to make possible: without
@@ -325,6 +349,8 @@ export function compareStoreToCalendar(
     // produces a density figure whose numerator and denominator describe
     // different spans, which is a number that looks like an answer.
     const covered = input.sessions.filter(isHeld);
+    const heldDates = new Set(covered.map((session) => session.date));
+    const isHeldDate = (date: MarketDate): boolean => heldDates.has(date);
     const barsExpected = covered.reduce(
       (total, session) => total + expectedBars(timeframe, session),
       0,
@@ -341,12 +367,36 @@ export function compareStoreToCalendar(
       attempts,
     });
 
-    if (notFetched.length > 0) {
+    // **A session that was asked for is not a session that was missed.**
+    //
+    // The two are told apart by the attempt log and by nothing else: a session
+    // outside the covered range with an attempt against it was fetched, and the
+    // vendor had nothing. For a security that listed partway through the window
+    // that is every session before its first trade, and no run will ever produce
+    // a bar for one of them.
+    const attemptedDates = new Set(
+      attempts.map((attempt) => attempt.sessionDate),
+    );
+    const missed = notFetched.filter((date) => !attemptedDates.has(date));
+    const beforeListing = notFetched.filter((date) => attemptedDates.has(date));
+
+    if (missed.length > 0) {
       findings.push({
         kind: "not-fetched",
         symbol,
         timeframe,
-        sessions: notFetched,
+        sessions: missed,
+      });
+    }
+
+    if (beforeListing.length > 0) {
+      const firstHeld = covered[0]?.date;
+      findings.push({
+        kind: "listed-mid-window",
+        symbol,
+        timeframe,
+        sessions: beforeListing,
+        ...(firstHeld === undefined ? {} : { firstHeld }),
       });
     }
 
@@ -360,7 +410,18 @@ export function compareStoreToCalendar(
       });
     }
 
+    // Only the attempts **inside** the covered range. One outside it is a
+    // session before this security listed, already reported above as one line
+    // for the series rather than as one line per session — which is the
+    // difference between a report and 416 rows of the same fact.
     for (const attempt of attempts) {
+      if (
+        attemptedDates.has(attempt.sessionDate) &&
+        !isHeldDate(attempt.sessionDate)
+      ) {
+        continue;
+      }
+
       findings.push({
         kind: "attempted-and-empty",
         symbol,
@@ -427,6 +488,12 @@ export function needsAttention(finding: CompletenessFinding): boolean {
       return true;
     case "not-fetched":
     case "never-fetched":
+      return false;
+    // **The market rather than us**, and the only finding here that no run can
+    // change: a security that listed partway through the window has no bars
+    // before its first trade. It is reported so a reader is not left wondering
+    // why a series is shorter than its neighbours, and it is never a problem.
+    case "listed-mid-window":
       return false;
     default: {
       const unhandled: never = finding;
