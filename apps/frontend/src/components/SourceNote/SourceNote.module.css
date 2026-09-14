@@ -1,0 +1,197 @@
+/*
+ * The Security Explorer's source note (Task 2.14.3).
+ *
+ * `VISUAL-LANGUAGE.md`'s Provenance section is the specification and this is
+ * the rendering: **one note per screen, at the foot of the region group, in the
+ * micro type, on the page ground.** Everything it needs already existed —
+ * `--font-size-micro`, `--ink-secondary`, `--rule-hairline`, `--font-data`,
+ * `--letter-spacing-micro` — and **no token was added**, deliberately: a token
+ * introduced here would be one designed against no consumer, which is the
+ * reason ADR 0026 declined the canvas's own `micro/10` step and the reason it
+ * stays declined.
+ *
+ * ## Why it stands on the page ground rather than in a panel
+ *
+ * A `Panel` is a claim that what is inside it is one of the screen's contents.
+ * This is not one of PRODUCT_SPEC.md §8.3's seven — it is an account of the
+ * other seven — so giving it a surface, a border and a heading would rank it
+ * beside the price chart. It recedes by size, by position and by the label
+ * column, which is the language's rule stated the other way round: **receding,
+ * like standing out, is a job for weight and hierarchy, never for ink outside
+ * the contrast floor.**
+ *
+ * ## The divergence, measured rather than argued
+ *
+ * The design canvas draws micro type here in `#74777f`, which measures
+ * **4.26:1** on `--surface-page` `#f8f9ff` against WCAG 1.4.3's 4.5 for text at
+ * this size — worse than the 4.48 ADR 0026 records for the same ink, because
+ * that was measured on white and this is the first micro surface in the product
+ * standing on the page ground. ADR 0026's one standing exception applies for
+ * the fourth time: the intent is adopted, the value is not, and it ships as
+ * `--ink-secondary` at 8.87:1.
+ *
+ * Nothing here is red or green. A single-venue feed is not a fault
+ * (PRODUCT_SPEC.md §36) and neither is an unadjusted price.
+ */
+
+/*
+ * A definition list, and the grid is the reason it is one rather than rows of
+ * `div`s: every line here is a label and the thing it labels, and `dt`/`dd` is
+ * the markup that says so without a landmark, an ARIA attribute or a heading.
+ *
+ * **No landmark.** A `<section>` with an accessible name is a `region`, and
+ * this screen already declares seven of them for the things a reader came for.
+ * An eighth for the footnote would put it in landmark navigation beside the
+ * price chart, and — in the permutation grid — would produce a page of
+ * identically-named landmarks, which is the axe rule `AppHeader` was caught by.
+ *
+ * The rule above it is `--rule-hairline`: the note is separated from the region
+ * group rather than boxed, which is what a footnote is.
+ */
+.note {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-8) var(--space-16);
+  align-items: baseline;
+  margin: 0;
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--rule-hairline);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The label column — the uppercase letterspaced micro-label, which is the idiom
+ * `VISUAL-LANGUAGE.md` calls the one that most says "institutional
+ * application". It is what makes two lines of fine print read as a structure
+ * rather than as a paragraph somebody shrank.
+ */
+.term {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+}
+
+.definition {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Two facts on one line — what was done to these prices, and when they were
+   fetched. They are one reading, so they share a line; the sentence that
+   explains the first is a second reading and gets its own. */
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.separator {
+  color: var(--ink-secondary);
+}
+
+/*
+ * The ledger: one row per stretch, the count in its own column so that two
+ * stretches are compared down a column rather than read across a sentence.
+ *
+ * `list-style: none` with the list role intact — the count and the label carry
+ * the meaning, and a bullet in an 11px footnote is furniture.
+ */
+.ledger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4) var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * The count column exists only where there is a split to measure. Without this
+ * the single-stretch note still paid the column's gap, and its label sat eight
+ * pixels right of the value on the line below it — two rows of a two-row note
+ * failing to line up, which is the kind of thing that reads as carelessness
+ * rather than as a bug.
+ */
+.counted {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+
+/*
+ * **`subgrid` rather than `display: contents`**, and the difference is an
+ * accessibility one rather than a stylistic one. Both make a row's cells line
+ * up in the ledger's own columns; `display: contents` on an `li` removes the
+ * element's box, and several browsers have shipped versions that drop the list
+ * semantics with it — so a listener would be told the number of stretches by
+ * nothing. Subgrid keeps the `li` and borrows the columns.
+ */
+.stretch {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  column-gap: var(--space-8);
+}
+
+/*
+ * The bar count, right-aligned and in the data face.
+ *
+ * **The alignment is the fact.** `PROVENANCE.md` §2.2's decision is that a
+ * stitched series names each stretch *with its count*, because a reader told
+ * "780 bars, then 30" cannot mistake the picture for a single-venue chart —
+ * and a column of figures whose last digits line up is the only arrangement in
+ * which two counts are compared at a glance rather than read.
+ */
+.count {
+  composes: dataCell from "../../styles/type.module.css";
+  justify-self: end;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--ink-primary);
+}
+
+/*
+ * The feed's own label, and the adjustment's, at the weight that makes them the
+ * word on the line a reader lands on. Both are affordances from a shared
+ * vocabulary rather than this component's words.
+ */
+.feedLabel,
+.value {
+  color: var(--ink-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+/*
+ * A stretch's label and its sentence share the column the label is in, so the
+ * sentence wraps under the label rather than under the count — the same
+ * arrangement `FeedProvenance` uses in the chrome, and for the same reason: a
+ * sentence indented to a figure's column reads as a caption for the figure.
+ */
+.counted .feedLabel,
+.counted .sentence {
+  grid-column: 2;
+}
+
+.sentence,
+.retrieved {
+  color: var(--ink-secondary);
+}
+
+/*
+ * The one place this note could become unreadable is the two-feed case at
+ * 390px, where a count column, a label and a 77-character sentence share a
+ * line. The sentence is allowed to wrap and nothing is truncated: a provenance
+ * claim with an ellipsis in it is a provenance claim a reader cannot check.
+ */
+@media (width < 30rem) {
+  .note {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .term {
+    margin-top: var(--space-8);
+  }
+}

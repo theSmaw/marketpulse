@@ -6,6 +6,7 @@ import { PageHeader } from "../components/PageHeader/PageHeader.js";
 import { Region } from "../components/Region/Region.js";
 import { RegionPlaceholder } from "../components/RegionPlaceholder/RegionPlaceholder.js";
 import { SecurityIdentity } from "../components/SecurityIdentity/SecurityIdentity.js";
+import { SourceNote } from "../components/SourceNote/SourceNote.js";
 import { SecuritySearch } from "../components/SecuritySearch/SecuritySearch.js";
 import { UniverseTable } from "../components/UniverseTable/UniverseTable.js";
 import { TimeWindowControl } from "../components/TimeWindowControl/TimeWindowControl.js";
@@ -15,6 +16,7 @@ import {
   timeframeForSessions,
   useBarSeries,
 } from "../market/index.js";
+import type { MarketFeedView } from "../use-market-feed.js";
 import { useSecurities } from "../use-securities.js";
 import { securityPath } from "./paths.js";
 import { useSecuritySymbol } from "./use-security-symbol.js";
@@ -54,7 +56,21 @@ import page from "./SecurityExplorer.module.css";
 // holds state — that is why — and a region that acquires some owes the reset
 // `useBarSeries` already does.
 
-export function SecurityExplorer() {
+export interface SecurityExplorerProps {
+  /**
+   * What the chrome claims about this deployment's feed, passed down rather
+   * than fetched here.
+   *
+   * `App` owns every hook that makes a request — a component that fetches is a
+   * component the workshop cannot render, and `useMarketFeed` is fetched once
+   * per page load for a value that cannot change without a deploy. The source
+   * note at the foot of this page needs it for one reason: to say nothing about
+   * a feed the masthead is already naming correctly (`PROVENANCE.md` §1.3).
+   */
+  readonly marketFeed: MarketFeedView;
+}
+
+export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
   // The hooks are called here rather than inside the regions, so a component
   // that throws hits `Region`'s own boundary and leaves the request that
   // produced it alone — the same argument `App` makes for calling
@@ -367,6 +383,35 @@ export function SecurityExplorer() {
           >
             <RegionPlaceholder filledBy="Epic 5 — Anomaly Detection" />
           </Region>
+
+          {/*
+           * **Where these numbers came from** (Task 2.14.3) — one note for the
+           * screen, at the foot of the region group and above the tracked
+           * universe, on the page ground rather than in a `Region`.
+           *
+           * It is **not** one of §8.3's seven contents: it is an account of the
+           * other seven, which is why it declares no landmark and carries no
+           * heading. `PROVENANCE.md` §1.3 settles the position and the rule
+           * that keeps it to two lines — *the note states what the chrome
+           * cannot, and never repeats what the chrome can* — and
+           * `VISUAL-LANGUAGE.md`'s Provenance section is where the arrangement
+           * lives, because Epic 3 extends this surface and Epic 8 has a
+           * parallel kind of provenance to be consistent with.
+           *
+           * **Above the table rather than at the foot of the page**, which is
+           * Task 2.14.2's fourth finding: the table is not one of the seven
+           * contents either and it is not about this security, so a note about
+           * this security's numbers placed under it would be a footnote to the
+           * wrong thing.
+           *
+           * It reads `screen.shown` — what is drawn — for the reason every
+           * other surface on this page does: while a newer request is in flight
+           * the picture is the previous answer, and provenance for bars nobody
+           * can see is worse than none.
+           */}
+          <div className={page.full}>
+            <SourceNote shown={series.screen.shown} feed={marketFeed} />
+          </div>
 
           {/*
            * **The universe table stays, on both addresses, last and full width**

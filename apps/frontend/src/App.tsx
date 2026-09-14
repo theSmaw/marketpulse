@@ -204,7 +204,17 @@ export function App() {
                 path={PATHS.investigations}
                 element={<InvestigationWorkspace />}
               />
-              <Route path={PATHS.securities} element={<SecurityExplorer />} />
+              {/* `marketFeed` is threaded in rather than fetched again: the
+                  rule above is that a hook which makes a network request is
+                  called here, and the Security Explorer's source note needs to
+                  know what the chrome is already claiming so it can avoid
+                  claiming it twice (`PROVENANCE.md` §1.3). A second
+                  `useMarketFeed()` inside the route would be a second request
+                  for a value that cannot change without a deploy. */}
+              <Route
+                path={PATHS.securities}
+                element={<SecurityExplorer marketFeed={marketFeed} />}
+              />
               {/* The same screen for one named security (Task 2.10.7). A
                   sibling rather than a nested `<Route>` with an `<Outlet>`,
                   because the two addresses render the *same* component with a
@@ -215,7 +225,7 @@ export function App() {
                   destination; that file carries the argument. */}
               <Route
                 path={ROUTE_PATTERNS.security}
-                element={<SecurityExplorer />}
+                element={<SecurityExplorer marketFeed={marketFeed} />}
               />
               <Route path={PATHS.replay} element={<MarketReplay />} />
               {/* Everything else. `*` is not in PATHS because it is not an

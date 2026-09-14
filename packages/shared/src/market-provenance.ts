@@ -127,7 +127,7 @@ export type MarketFeed = (typeof MARKET_FEEDS)[number];
  * A short label for the chrome, and — **only where the label cannot be
  * understood on its own** — a sentence saying what it means.
  */
-export interface MarketFeedDescription {
+export interface ProvenanceDescription {
   /** The affordance: short enough for a status region. */
   readonly label: string;
 
@@ -158,6 +158,21 @@ export interface MarketFeedDescription {
 }
 
 /**
+ * The feed vocabulary's own name for {@link ProvenanceDescription}, kept
+ * because it is what six readers already import and because a feed's label is
+ * the case the rule above was written against.
+ *
+ * **The generalisation is the point rather than the rename** (Task 2.14.3).
+ * Story 2.14 adds a second vocabulary — {@link ADJUSTMENT_DESCRIPTIONS} — whose
+ * words obey exactly the same rule: *a sentence appears when the label cannot
+ * stand alone, and not otherwise*. Two interfaces would be two places to state
+ * that rule and two places for it to drift; one interface with the rule stated
+ * once is what keeps `split-adjusted` having no sentence a **decision** rather
+ * than an omission.
+ */
+export type MarketFeedDescription = ProvenanceDescription;
+
+/**
  * The words, decided here rather than by whatever renders them.
  *
  * **`Market feed: IEX` alone satisfies §7.1's letter and fails its intent**,
@@ -185,7 +200,7 @@ export interface MarketFeedDescription {
  */
 export const MARKET_FEED_DESCRIPTIONS: Record<
   MarketFeed,
-  MarketFeedDescription
+  ProvenanceDescription
 > = {
   iex: {
     label: "IEX",
@@ -261,6 +276,54 @@ export const MARKET_FEED_DESCRIPTIONS: Record<
 export const ADJUSTMENTS = ["raw", "split-adjusted"] as const;
 
 export type Adjustment = (typeof ADJUSTMENTS)[number];
+
+/**
+ * What a person reads when an adjustment is shown to them.
+ *
+ * The second vocabulary in this module to carry words, and it is **the same
+ * rule applied rather than a new one** (ADR 0019 §3, `PROVENANCE.md` §4.2): a
+ * sentence appears when the label cannot stand alone, and not otherwise.
+ *
+ * - **`raw` needs one.** The slug is a spelling nobody outside this codebase
+ *   uses, and *Unadjusted* — which is the honest label — reads to somebody who
+ *   has not met the word as a **fault**, as though these prices are missing
+ *   something they were supposed to get. That is the same misread `SIMULATED`
+ *   was caught by, and the sentence is what fixes it: these are the prices that
+ *   printed, and the thing not done to them is named.
+ * - **`split-adjusted` gets none, deliberately.** §3's persona *"understands
+ *   concepts such as price moves, volume, sectors, correlations and filings"*;
+ *   the label states the whole thing in two words and a sentence under it could
+ *   only restate it. That is the rule doing work rather than being applied
+ *   uniformly — and applying it uniformly is exactly what produced three wrong
+ *   strings for `sip` in a day.
+ *
+ * The `Record<Adjustment, …>` annotation is the same guard
+ * {@link MARKET_FEED_DESCRIPTIONS} carries and exists for the same reason: an
+ * adjustment added to {@link ADJUSTMENTS} without words is a compile error
+ * naming the missing member, so a vocabulary cannot grow a member that reaches
+ * a screen as a slug.
+ *
+ * **Why this is worth shipping while every series is `raw`.** The module
+ * comment above states the consequence: a series spanning no corporate action
+ * returns identical numbers in both modes, so a wrong adjustment is invisible
+ * in testing and wrong exactly once — on the one name and the one week somebody
+ * is looking at. The disclosure is cheap now for the same reason it is nearly
+ * pointless now, and it stops being either the first time an offered window
+ * spans a split, at which point the step in the picture is a real print and
+ * this is the only thing on the screen that says so.
+ */
+export const ADJUSTMENT_DESCRIPTIONS: Record<
+  Adjustment,
+  ProvenanceDescription
+> = {
+  raw: {
+    label: "Unadjusted",
+    sentence: "Prices as they printed. Not restated for stock splits.",
+  },
+  "split-adjusted": {
+    label: "Split-adjusted",
+  },
+};
 
 /**
  * One place a stretch of a series came from.
@@ -441,4 +504,114 @@ function assertSource(source: BarSource): void {
         `against the bars rather than trusted.`,
     );
   }
+}
+
+/**
+ * One stretch of a series, with the words for the feed it came from.
+ *
+ * A **structure rather than an assembled sentence**, which is
+ * `PROVENANCE.md` §2.2's decision and not an implementation taste. A function
+ * returning one string would force every reader to choose between marked-up
+ * text and plain text, and would put the emphasis inside the string — so the
+ * source note would either render a paragraph with no hierarchy in it or build
+ * a second, parallel version of these facts for itself. A structure lets the
+ * note draw a ledger, the chart's text alternative speak a sentence, and both
+ * be reading the same vocabulary. That is the one-vocabulary rule
+ * {@link MARKET_FEED_DESCRIPTIONS} already holds, applied to an arrangement of
+ * several of them rather than to one word.
+ */
+export interface SeriesFeedStretch {
+  /** Which venues are in this stretch. */
+  readonly feed: MarketFeed;
+
+  /** How many of the series' bars this stretch contributed. */
+  readonly barCount: number;
+
+  /** The affordance — {@link MARKET_FEED_DESCRIPTIONS}', never a caller's. */
+  readonly label: string;
+
+  /** The sentence, where this feed's label cannot stand alone. */
+  readonly sentence?: string;
+}
+
+/**
+ * Every stretch of a series, **in contribution order, never sorted and never
+ * deduplicated**.
+ *
+ * This is the shape `PROVENANCE.md` §2.2 settles, and the ordering and the
+ * counts are the decision rather than incidental detail. The failure mode it
+ * exists to prevent is a renderer collapsing a stitched series to *whichever
+ * feed is first in the list* — which is wrong in the one way invariant 6 forbids
+ * outright, because it would let a chart whose last bars came from a single
+ * venue be labelled as the whole US consolidated tape.
+ *
+ * **The counts are what make that failure visible rather than invisible.** A
+ * reader told *780 bars, then 30* cannot mistake the picture for a single-venue
+ * chart, and a renderer that dropped a stretch would produce a note whose
+ * arithmetic does not reach the bar count on the axis. `barCount` rather than a
+ * time range because `barCount` is what {@link BarSource} carries; a range is a
+ * second fact the wire does not have, and walking the bars to compute one in a
+ * client is the client deriving provenance rather than reading it.
+ *
+ * **Two sources naming one feed stay two entries**, because they are two
+ * stretches and the record says so. Whether that is worth *drawing* is a
+ * question for whatever draws it — {@link distinctSeriesFeeds} is the answer to
+ * *how many feeds is this?*, which is a different question and the one that
+ * decides whether a feed is worth naming at all.
+ *
+ * **Reversal trigger:** the first source whose stretch is not contiguous. A
+ * count locates a stretch only while each source contributes one run of bars;
+ * the moment one does not, the count stops answering *which part* and the wire
+ * owes a range.
+ */
+export function describeSeriesFeeds(
+  provenance: SeriesProvenance,
+): readonly [SeriesFeedStretch, ...SeriesFeedStretch[]] {
+  const stretches = provenance.sources.map((source) => {
+    const description = MARKET_FEED_DESCRIPTIONS[source.feed];
+
+    // Built in two branches rather than with `sentence: description.sentence`,
+    // because `exactOptionalPropertyTypes` makes *absent* and *present as
+    // undefined* different types — and the difference is the one this record
+    // turns on: a feed whose label stands alone has no sentence, rather than
+    // having one that is nothing.
+    return description.sentence === undefined
+      ? {
+          feed: source.feed,
+          barCount: source.barCount,
+          label: description.label,
+        }
+      : {
+          feed: source.feed,
+          barCount: source.barCount,
+          label: description.label,
+          sentence: description.sentence,
+        };
+  });
+
+  // Non-empty by construction: `sources` is a non-empty tuple and `map`
+  // preserves length. The cast carries that from the argument type, which the
+  // compiler cannot see through `map`.
+  return stretches as unknown as readonly [
+    SeriesFeedStretch,
+    ...SeriesFeedStretch[],
+  ];
+}
+
+/**
+ * How many *feeds* a series names, in first-contribution order.
+ *
+ * The question every renderer of provenance actually asks first, and it is not
+ * the same as how many sources there are: a series stitched from stored bars
+ * and a freshly fetched tail has two sources, and on this plan both are the
+ * consolidated tape — so it is one fact about coverage, not two.
+ *
+ * Extracted because three readers computed it identically and separately
+ * (`BarSeriesPanel`, the chart's text alternative, and the source note), and a
+ * fourth would have too. What each does with the answer stays its own.
+ */
+export function distinctSeriesFeeds(
+  provenance: SeriesProvenance,
+): readonly MarketFeed[] {
+  return [...new Set(provenance.sources.map((source) => source.feed))];
 }

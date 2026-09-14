@@ -3,14 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   BAR_SERIES_FIXTURE_NAMES,
-  barSeriesFixtureResult,
   barSeriesFixtureView,
   barSeriesViewScreen,
   staleBarSeriesFixtureView,
+  twoFeedStitchView,
   windowChangeFixtureScreen,
 } from "../../fixtures/bar-series.js";
 import type { BarSeriesView } from "../../market/index.js";
-import { toBarSeriesView } from "../../market/index.js";
 import { ChartAxis } from "../PriceChart/ChartAxis.js";
 import type { BarSeriesPanelProps } from "./BarSeriesPanel.js";
 import { BarSeriesPanel } from "./BarSeriesPanel.js";
@@ -197,37 +196,14 @@ describe("BarSeriesPanel", () => {
     //
     // So this is the recorded stitch with **one field changed**, through the
     // real transition, rather than a view typed by hand: the shape, the bars and
-    // the coverage are all the server's. The field is named here so the day a
-    // two-feed body is recorded, this test is replaced by it rather than kept.
-    const recorded = barSeriesFixtureResult("stitched");
-    if (recorded.outcome !== "ok") throw new Error("the stitch is an answer");
-
-    const [stored, tail] = recorded.data.series.provenance.sources;
-    if (stored === undefined || tail === undefined) {
-      throw new Error("the stitch has two sources");
-    }
-
-    render(
-      <Panel
-        {...props}
-        view={toBarSeriesView(
-          { state: "loading" },
-          {
-            ...recorded,
-            data: {
-              ...recorded.data,
-              series: {
-                ...recorded.data.series,
-                provenance: {
-                  ...recorded.data.series.provenance,
-                  sources: [stored, { ...tail, feed: "iex" }],
-                },
-              },
-            },
-          },
-        )}
-      />,
-    );
+    // the coverage are all the server's. The change itself lives in
+    // `fixtures/bar-series.ts` since Task 2.14.3, named there as the one thing
+    // in that module which is not a recorded body — the source note's story and
+    // its component test are the second and third readers of it, and three
+    // copies of a one-field edit is three places for the edit to stop matching.
+    // The day a two-feed body is recorded, that function is deleted and every
+    // reader points at the fixture instead.
+    render(<Panel {...props} view={twoFeedStitchView()} />);
 
     expect(screen.getByText("Market feed", VISIBLE)).toBeTruthy();
     expect(screen.getByText("All US exchanges", VISIBLE)).toBeTruthy();

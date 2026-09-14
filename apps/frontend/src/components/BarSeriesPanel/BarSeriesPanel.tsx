@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 
 import type { MarketFeed } from "@marketpulse/shared";
-import { MARKET_FEED_DESCRIPTIONS } from "@marketpulse/shared";
+import {
+  distinctSeriesFeeds,
+  MARKET_FEED_DESCRIPTIONS,
+} from "@marketpulse/shared";
 
 import { Badge } from "../Badge/Badge.js";
 import { Button } from "../Button/Button.js";
@@ -989,7 +992,10 @@ function settleSignature(
  * the screen has shipped without it.
  */
 function Provenance({ series }: { readonly series: PopulatedBarSeries }) {
-  const feeds = [...new Set(series.provenance.sources.map((s) => s.feed))];
+  // `distinctSeriesFeeds` rather than a `Set` built here: three surfaces asked
+  // this same question with three copies of the same expression, and the source
+  // note was going to be the fourth (Task 2.14.3).
+  const feeds = distinctSeriesFeeds(series.provenance);
 
   if (feeds.length < 2) return null;
 
