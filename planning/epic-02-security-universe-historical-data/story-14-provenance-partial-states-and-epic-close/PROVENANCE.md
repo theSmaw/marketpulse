@@ -75,6 +75,34 @@ all render nothing when `bars.length === 0`.** The empty state's whole
 explanation is `ChartVacancy`'s sentence and §6's correction to it. This is one
 rule and it is checkable from one field.
 
+#### Amended 2026-09-14 by Task 2.14.2 — **the rule is per clause, not per note**
+
+Drawing the zero-bar page found one clause the sentence above suppresses that it
+should not, and the rule as written is what finds it rather than what hides it:
+**a claim about data requires data, and the classification clause's data is not
+the bars.**
+
+The feed, the adjustment and the retrieval date are properties of `BarSource`
+and `SeriesProvenance`; with no bars they describe nothing, and printing them
+under an empty frame reads as a claim about the picture. The classification
+clause is a property of the **universe** response, which on a zero-bar page has
+resolved — `SecurityIdentity` three centimetres above is still printing
+`Technology · Semiconductors · NASDAQ`, still one region above a chart, still on
+a market product. Suppressing the only sentence saying those two words are
+curated, because a _different_ fetch came back empty, removes a true claim from
+the page where least else is competing for attention. It is also the commonest
+page in the suite: CI's store is 518 securities and zero bars, so the rule as
+first written would suppress that claim on **every page CI renders**.
+
+**So the rule is applied per clause: each clause renders when its own data is
+present, and the note renders when at least one clause does.** A series with no
+bars therefore draws the classification line alone; a page with no resolved
+security, or a failed universe fetch, draws no note at all — which is the
+shape §0.1 was reaching for and is unchanged in every case it was written
+against. [Task 2.14.3](TASK-03-where-these-numbers-came-from-on-screen.md) and
+[2.14.4](TASK-04-the-curated-files-age-and-what-alpaca-did-not-tell-us.md)
+implement it; the canvas is `Provenance and the empty answers.dc.html` §04.
+
 ---
 
 ## 1. Decision 1 — how prominent, and where
@@ -321,6 +349,26 @@ producing the phrase, **read by both the visible rendering and
 vocabularies for one fact, which is the drift `MARKET_FEED_DESCRIPTIONS` exists
 to prevent one layer up. One function, two readers.
 
+> **Placed 2026-09-14 by Task 2.14.2: the rail, and the rail now has a stated
+> priority.** The reading strip is declined for two reasons that are one reason —
+> it answers _what did this one bar do_ at a reserved height so that pointing at
+> the chart never moves a figure under a reader's hand, and it sits below the
+> plot, which the constraint in this paragraph forbids. The rail already exists
+> to say what became of the window you asked for, and _we answered 59 of the 78
+> bars_ is the same genus; it is also the only position on the panel that is
+> beside the four prices this sentence qualifies, which are computed over the
+> bars we hold rather than over the window we asked for.
+>
+> The rail holds one line's reserved height and now has three possible
+> occupants, so the order is **stated rather than stacked**: the held-window
+> sentence first, because until it is said every other sentence about "the
+> window" is ambiguous about which one; the coverage sentence second; nothing
+> third. They are naturally sequential — when the held sentence clears, the new
+> answer's own coverage sentence takes the slot — so nothing is lost, it arrives
+> one beat later. **The reservation is re-measured against the longer of the two
+> phrases** by [Task 2.14.5](TASK-05-through-when-and-the-coverage-honesty-pass.md);
+> a tolerance is measured, never argued.
+
 **Where it is drawn is `Task 2.14.2`'s to place on the canvas**, under one
 constraint this decision does impose: it is a statement about **what the picture
 is of**, so §6.3's rule applies and it may not come after the picture. The
@@ -563,6 +611,23 @@ Case one's rendering, in `ChartVacancy`'s module:
 > not help — the store is filled overnight.
 
 Case two keeps today's sentence verbatim.
+
+> **Amended 2026-09-14 by Task 2.14.2: it is four literals, not two.** The
+> volume plot is what this section did not count. There are two plots under one
+> axis and each names its own subject — that is the shipped convention, because
+> two regions saying _no bars_ under one axis reads as one failure repeated — so
+> case one needs `No volume stored for NVDA yet.` as well. The alternative is
+> worse in a specific way: a price plot saying _no history for NVDA yet_ above a
+> volume plot saying _none for this window_ tells a reader two different stories
+> about one empty screen. The consequence is a cost rather than a problem, named
+> here so it is not discovered inside the implementation: the invariant covers
+> **four** literals and `scripts/breaks.mjs` owes **four** entries.
+>
+> The two answers are otherwise **identical in weight** — same marker, type, ink,
+> position and uncovered ground — and what tells them apart is the _subject of
+> the headline_. The difference between them is a fact about our store rather
+> than a difference in severity, and a second treatment would rank one above the
+> other when both are correct 200s.
 
 **`pnpm invariants` has an entry that this change breaks, and it must be extended
 in the same commit.** `one-home-for-the-empty-explanation` anchors on the literal

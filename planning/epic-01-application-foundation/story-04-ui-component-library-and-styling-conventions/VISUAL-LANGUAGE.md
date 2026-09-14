@@ -17,7 +17,7 @@ This is the design input to the token layer. `tokens.css` turns it into CSS cust
 What that changes about how to read this file:
 
 - **Where this file and the canvas disagree, the canvas wins and this file is wrong** — which is the opposite of the rule above, and the rule above still holds for everything _downstream_: a component still may not diverge from this document. The chain is canvas → this document → `tokens.css` → components, and each link is a change to the next.
-- **There is one standing exception, and it is the only one.** Where a canvas value fails a measured accessibility floor, the _intent_ is adopted and the value is not, and the deviation is recorded with its measurement beside the token. This has happened three times already — the input boundary, the placeholder ink, and the validated tick's green. Each is written up where it lives rather than here.
+- **There is one standing exception, and it is the only one.** Where a canvas value fails a measured accessibility floor, the _intent_ is adopted and the value is not, and the deviation is recorded with its measurement beside the token. This has happened **four** times — the input boundary, the placeholder ink, the validated tick's green, and (2026-09-14) the source note's micro ink, which is the first micro surface in this product to stand on the page ground rather than inside a panel. Each is written up where it lives rather than here.
 - **This file keeps its arguments.** The canvas carries values; it does not carry the reasoning for them, and a value with no argument is the thing that gets "fixed" by the next person. Everything below that explains _why_ is still load-bearing, including the parts whose numbers have since moved.
 
 ## What the 2026-09-10 refresh changed, and why this document was rewritten rather than amended
@@ -393,7 +393,7 @@ The measurement that forces that ordering, taken 2026-09-11:
 
 The washes are, for practical purposes, **the same colour**. That is a stronger version of the finding already recorded above under _The rule that outranks every value above_, and it is why the tint here is explicitly decorative: cover it and the chart still says which way the window went, because the line finishes above or below the reference, because the reading carries a glyph and a sign, and because the headline says so in words.
 
-**It is not an [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md) exception.** A decorative fill has no contrast floor to fail, so nothing was overridden — the canvas value was adopted and a second channel was added beside it. The exception has still fired three times and not four.
+**It is not an [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md) exception.** A decorative fill has no contrast floor to fail, so nothing was overridden — the canvas value was adopted and a second channel was added beside it. **This is not one of the firings**, and the sentence that used to say so by giving a count is left as a count no longer: the firings are listed where they live, they are all inks against a measured floor, and none of them is a decorative fill.
 
 **A flat window gets the neutral wash.** Three states, not two, exactly as the price trio already is: `--price-unchanged` is achromatic on every screen in this product, and a window that closed where it opened is not a green one.
 
@@ -597,6 +597,65 @@ Stated rather than drawn, because three retrofits cost more than three sentences
 - **Epic 8's comparison series** — the same axes, y switched to normalised percent change, a legend above the plot beside the reading. **It displaces the wash**: one filled area cannot serve _n_ series, so the directional tint is a single-series treatment and is dropped the moment a second series arrives. The second channel there is stroke pattern — the subject stays solid, comparators are dashed and dotted — which survives greyscale where _n_ hues do not.
 - **Epic 9's filing markers** — a 14 px lane _below_ the baseline and above the tick labels, outside the plot, because a filing is not a price. The gap between baseline and labels is reserved at 14 px from today rather than 6 px. **It became a token on 2026-09-12**, `--chart-filing-lane`, when Task 2.12.4 drew the first axis that had to spend it: reserved space that exists only as a number inside one component's stylesheet is reserved by nobody, and the volume chart inherits this axis. The hard part is inherited from `CHARTING.md` §3: most 8-Ks land after the close, an ordinal axis has no position for an instant between sessions, and those markers sit on the seam carrying their true timestamp in the label.
 - **Epic 6's topology is not an inheritor of any of this.** `PRODUCT_SPEC.md` §27 commits it to Sigma.js/WebGL against a different problem.
+
+## Provenance — added 2026-09-14 by Task 2.14.2
+
+The canvas file is `Provenance and the empty answers.dc.html`; [`PROVENANCE.md`](../../epic-02-security-universe-historical-data/story-14-provenance-partial-states-and-epic-close/PROVENANCE.md) carries the six decisions behind the words. **What belongs to the language, rather than to Story 2.14, is the arrangement** — because Epic 3 extends this surface from _which feed_ to _which feed, and is it still connected_, and Epic 8 has a different kind of provenance to make consistent with it.
+
+### Five surfaces, five subjects, and the grain picks the surface
+
+Story 2.14 adds five statements to a panel that was already full. Drawn one at a time in a component, five correct additions produce a **footnote pile** — the failure this section exists to prevent. The rule that prevents it is not about size or position:
+
+| Surface           | The question it answers                  | Grain          |
+| ----------------- | ---------------------------------------- | -------------- |
+| The chrome        | What feed does this deployment read?     | per deployment |
+| The rail          | What happened to the window I asked for? | per request    |
+| The reading strip | What did this one bar do?                | per bar        |
+| The source note   | Where did these numbers come from?       | per screen     |
+| The chart vacancy | Why is there no picture?                 | per empty plot |
+
+**Before adding a clause anywhere on this screen, name its grain.** The grain picks the surface, and there is exactly one surface per grain. A clause with a new grain is a new surface and a decision to escalate.
+
+Two consequences, both deliberate and both costly enough to be worth stating. **The reading strips stay pure** — no provenance, ever — even though they are the surface closest to a number; a row that answers _what did this bar do_ and _where did it come from_ at once is the row a reader stops reading. And **the chrome is never extended** to say something about a series, however convenient: it is a standing claim about a deployment, and a series' claim that changes under it would make both unreadable.
+
+### The source note, and the rule that keeps it to two lines
+
+**One note per screen, at the foot of the region group, in the micro type, on the page ground.** Its governing rule is `PROVENANCE.md` §1.3 — _the note states what the chrome cannot, and never repeats what the chrome can_ — which is why it names no feed at all on a deployment whose every series comes from the configured one.
+
+**It has two shapes and one condition chooses between them**, which is the same condition that decides whether feeds are named at all — _how many sources does this series have_. This is one branch, not two:
+
+- **One source: a sentence.** Two lines in the label/text grid `FeedProvenance` already uses — the adjustment and its retrieval date, then the curated-classification claim. The two lines are grouped by subject on purpose: one answers _where these numbers came from_ and one answers _where the words above the numbers came from_.
+- **More than one: a ledger.** Each stretch on its own row, its bar count right-aligned in the data face, its label beside it and its sentence after that. Drawn as prose the same facts are three sentences under a chart before the classification line has said anything, and §2's counts — the part that makes _whichever feed is first_ visibly rather than invisibly wrong — end up buried mid-clause. The counts are compared down a column for `MetricStrip`'s reason: a label between two figures is what makes a terminal feel like a form.
+
+**A claim about data requires data.** Each clause renders when its own data is present, and the note renders when at least one clause does. So a series with no bars has no feed clause, no adjustment and no retrieval date — printing them under an empty frame is four accurate words describing nothing, which a reader takes as a claim about the picture.
+
+**No new token was needed and none was added.** `--font-size-micro` at 11/16, `--ink-secondary`, `--rule-hairline`, `--font-data` and `--letter-spacing-micro` already exist and already mean this. A token added here would be one designed against no consumer, which is the reason ADR 0026 declined the canvas's own `micro/10` step and the reason it stays declined.
+
+### The divergence taken, measured
+
+**2026-09-14 (Task 2.14.2):** the canvas draws micro type in `#74777f`. On `--surface-page` `#f8f9ff` that measures **4.26:1**, against WCAG 1.4.3's 4.5 for text at this size. It is **worse than the 4.48 ADR 0026 already recorded for the same ink**, because that measurement was taken on white and the note is the first micro surface in this product that stands on the page ground rather than inside a panel. The intent is adopted and the value is not: it ships as `--ink-secondary`, **8.87:1**, and the recession is carried by size, by the label column and by position — _receding, like standing out, is a job for weight and hierarchy, never for ink outside the contrast floor_.
+
+### The coverage sentence belongs to the rail, and the rail now has a priority
+
+_Holding 59 bars, through 15:42, of a window running to 16:00_ is a fact about **a request**, so it lands in the slot that already says what happened to one. It is never rendered under a complete answer, where the axis is the answer and a sentence restating it is the padding ADR 0019 §3 rejected.
+
+The rail holds one line's reserved height and now has three possible occupants, so the order is stated rather than stacked:
+
+1. **the held-window sentence**, whenever the picture belongs to a window the reader did not ask for — until that is said, every other sentence about "the window" is ambiguous about _which_;
+2. **the coverage sentence**, when the shown answer is `partial`;
+3. **nothing**, when the answer is complete.
+
+They are naturally sequential rather than simultaneous: when the held sentence clears, the new answer's own coverage sentence takes the slot.
+
+### Two empty answers look identical and read differently
+
+_No history stored for NVDA yet_ and _No bars stored for this window_ get the same ring marker, type, ink, position and uncovered ground. The difference between them is a fact about our store rather than a difference in severity, and a second treatment would rank one above the other — both are correct 200s.
+
+**What tells them apart is the subject of the headline**: one names the security, one names the window. That is the same channel this screen already uses to keep three statements of direction apart, and it passes the standing colour rule for free, because there is no colour in either.
+
+### Room reserved: Epic 3's live row
+
+The §36 sentence — _Live feed disconnected — displaying data through 10:42:17_ — is a provenance claim that changes while somebody is watching. It belongs in the ledger as a **first row above the stretches**, carrying a marker of its own. Reserved now for the reason the anomaly lane, the comparison series and the filing lane were: three retrofits cost more than three sentences.
 
 ## What this is not
 

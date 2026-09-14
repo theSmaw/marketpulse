@@ -149,6 +149,30 @@ The third is the one worth noticing: it is not a contrast failure. It is the
 canvas proposing a colour that is already spoken for _in this product_, which
 the canvas has no way to know.
 
+#### Amended 2026-09-14 by Task 2.14.2 — **a fourth firing, and it is the same ink measured on a different ground**
+
+The table above is left as it stands. What has become false is the count in the
+sentence introducing it.
+
+The canvas draws micro type in `#74777f`, and Story 2.14's source note is the
+first micro surface in this product that stands on **the page ground** rather
+than inside a panel. Measured there it is **4.26:1**, where WCAG 1.4.3 wants 4.5
+for text at that size — worse than the 4.48 the placeholder row above records
+for the same ink, because that measurement was taken on white. Adopted: the
+intent, that provenance recedes. Not adopted: the value. It ships as
+`--ink-secondary`, 8.87:1, with the recession carried by size, by a label column
+and by position.
+
+The measurement lives in `VISUAL-LANGUAGE.md`'s divergences, beside the three
+earlier ones, because no new token was added to put it beside — which is itself
+worth recording: the note needed nothing the token layer did not already carry,
+and the canvas's own `micro/10` step stays declined for the reason this ADR
+gives, that it would be a token designed against no consumer.
+
+**And the standing instruction this ADR already wrote for its file count applies
+to this count too: do not restate it.** The firings are listed in
+`VISUAL-LANGUAGE.md`; what belongs here is the rule.
+
 ### What was reconciled
 
 |                             | Was                              | Now                                                 |
