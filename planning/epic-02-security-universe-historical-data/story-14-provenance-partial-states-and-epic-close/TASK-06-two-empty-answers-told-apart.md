@@ -13,6 +13,34 @@
 > one-sentence branch is withdrawn; what replaces both is §6.2's derivation, and
 > there is **no backend change in this task at all**.
 
+> **Amended 2026-09-15 by Task 2.14.5.** Three things that task settled land on
+> this one. Two are mechanisms to copy rather than re-derive; the third is a
+> defect it found next door and deliberately did not fix.
+>
+> - **The string pass has a hole exactly the shape of this task.**
+>   [`PROVENANCE.md`](PROVENANCE.md) §11 read every user-facing string the epic
+>   had added **as of 2026-09-15**, and the two sentences below did not exist yet.
+>   Acceptance criterion 2 says _every string the epic added_, so **this task owes
+>   §11.1's two-direction read on its own two sentences** and a row each in §11.3.
+>   That is the same correction Task 2.14.3 made to 2.14.5 and it is worth making
+>   once more rather than discovering at the close: a pass that read every
+>   sentence in the product except the newest ones is the wrong way round.
+> - **`one-home-for-the-coverage-phrase` is the template for this task's
+>   invariant**, and it comes with a helper. Both of 2.14.5's checks read their
+>   sources through `withoutComments` in `scripts/check-invariants.mjs`, because
+>   the first version went red on a doc comment quoting the sentence it guards —
+>   and the sentences below are discussed in prose in at least three files. Use
+>   the helper; do not re-derive the lesson.
+> - **`No shares changed hands anywhere in the window.` already has two homes**,
+>   `VolumeReading.tsx` and `chart-alternative.ts`, drawn and spoken, and nothing
+>   guards them. It is adjacent to this task and **out of its scope** — it is a
+>   zero-volume _bar reading_, not a vacancy — and it is named here so that
+>   whoever extends the invariant neither widens into it by accident nor leaves it
+>   unnoticed a second time. It also carries its own Epic 3 trigger (§11.3): it is
+>   the one shipped sentence claiming something about **the market** rather than
+>   about our store, and a single venue's silence the moment a live tail is
+>   stitched on. Both facts are in [`docs/GAPS.md`](../../../docs/GAPS.md).
+
 ## Objective
 
 Implement decision 6. The server already knows two different things and says
@@ -101,7 +129,10 @@ adds no request, no field, no union member and no fixture.
   it. The second sentence is a second literal with the same hazard —
   `e2e/support/app.ts`'s `readable()` does not filter `aria-hidden`, and CI's
   store is 518 securities and **zero bars**, so every chart there is an `empty`
-  and a duplicate is a strict-mode failure in every spec. Cover both literals.
+  and a duplicate is a strict-mode failure in every spec. Cover both literals,
+  and read them through `withoutComments` (2026-09-15): a check a correct doc
+  comment can trip is a check nobody can keep green, and these sentences are
+  quoted in prose in more than one file.
 - **A check you add owes a break.** Add the entry to `scripts/breaks.mjs` and run
   `pnpm break <name>`; a check that has never failed has never been tested.
 - **`MARKET-DATA-API.md` and `routes/market-data.ts`'s outcome table are
@@ -130,6 +161,11 @@ adds no request, no field, no union member and no fixture.
   state a screen-reader user cannot observe.
 - `pnpm invariants` covers **both** literals, `scripts/breaks.mjs` has an entry
   for the new one, and `pnpm break <name>` was run and went red.
+- **Both new sentences are read against §11.1's two directions and given a row
+  each in [`PROVENANCE.md`](PROVENANCE.md) §11.3** — implying coverage the plan
+  does not have, and disclaiming coverage it does. The second is the live hazard
+  here: a sentence about an empty window that says something about _the market_
+  rather than about _our store_ is the defect §11.3 records next door.
 - `MARKET-DATA-API.md` records that the single outcome row is deliberate and the
   client derives the distinction.
 - `pnpm verify` and the frontend suite pass; the empty case was looked at against

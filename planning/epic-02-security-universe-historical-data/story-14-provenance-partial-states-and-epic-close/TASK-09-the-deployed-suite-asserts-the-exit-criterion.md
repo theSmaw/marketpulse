@@ -19,6 +19,26 @@
 > bars. There _is_ provenance on a zero-bar page, it is exactly one line, and it
 > is assertable in every store. The bullet below is corrected a second time.
 
+> **Amended 2026-09-15 by Task 2.14.5, and this is the correction most likely to
+> cost a round trip.** The sentence that task shipped —
+> `Holding 1,560 bars, through … , of a window running to …` — renders **only**
+> under a `partial` answer, and **the deployed store is the one store that
+> structurally does not produce one.** It is backfilled nightly and answers a
+> named window in full, so its answers are `loaded`; CI's store and `store:bare`
+> hold zero bars, so theirs are `empty`. The coverage sentence is therefore
+> **unassertable in both directions at once**: a deployed spec that asserted it
+> would be red exactly when the store is **healthiest**, which is the worst
+> possible signal to wire into a post-merge check.
+>
+> It belongs in the _not assertable_ list below, for a reason subtly different
+> from the note's bar-derived clauses: those are absent when the runner **lacks**
+> data, this one is absent when the runner **has all of it**.
+>
+> The hand-walk is the opposite case and is worth doing deliberately: read
+> `GET /diagnostics/freshness` **first**, and if the deployed store is current,
+> record that the coverage sentence was not seen deployed and why — rather than
+> going looking for a state the environment cannot make.
+
 ## Objective
 
 Acceptance criteria 4 and 5. Execute the epic's exit criterion in the **deployed
@@ -104,6 +124,12 @@ by a person opening the page. Say "nothing visible" plainly.
     assertion that _the source note is present_ is fine; an assertion that it
     says `Unadjusted` is an assertion about data, wearing a sentence that reads
     like structure.
+  - **Not assertable, from the other end — the coverage sentence** (2026-09-15).
+    Every clause above is absent when the runner lacks data; this one is absent
+    when the runner **has all of it**, because it renders only under a `partial`
+    answer and a healthy deployed store answers a named window in full. It is the
+    one state in this epic that a green deployed run should be **unable** to see,
+    and asserting it would turn a well-backfilled store into a red check.
 
 - **Reuse the local suite's page objects** where they exist (`support/app.ts`)
   rather than growing a second vocabulary for the same page. Two suites with two
@@ -116,7 +142,9 @@ by a person opening the page. Say "nothing visible" plainly.
 ## Done when
 
 - The exit criterion is executed deployed, by a person, at three viewports, with
-  the store's freshness recorded beside the result.
+  the store's freshness recorded beside the result — **and the freshness is read
+  before the walk, not after**, because it decides which of this epic's states
+  the environment is capable of producing at all.
 - `specs-deployed/` asserts that journey including the window change, and the
   spec says in its own text which of its assertions survive a zero-bar store —
   explicitly including **which clauses of `SourceNote` do and do not**: the

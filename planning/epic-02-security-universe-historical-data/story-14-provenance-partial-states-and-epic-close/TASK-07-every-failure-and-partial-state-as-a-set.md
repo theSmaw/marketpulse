@@ -22,6 +22,25 @@
 > the other two, is reachable by typing it. The new story-only entry is the
 > classification clause **with no date**. Both are in the list.
 
+> **Amended 2026-09-15 by Task 2.14.5.** A state joins the set, a rule joins the
+> decided list, and the store hazard this task already carries turns out to have
+> a third case.
+>
+> - **The coverage sentence is a state**, and it is the newest voice in the set:
+>   `Holding 1,560 bars, through 2026-09-11 16:00:00 EDT, of a window running to
+2026-09-14 16:00:00 EDT.`
+> - **It cannot be seen in the two stores this pass is most likely to be run
+>   against.** `store:bare` has zero bars, so every chart there is a correct
+>   `empty` and never a `partial`; the deployed store is backfilled nightly and
+>   answers a named window in full, so it is `loaded`. **A developer's own store,
+>   a few sessions behind, is the only one that produces it** — which makes three
+>   states in this set that no single store can show together, where the task was
+>   written for two.
+> - **The rail now has three possible occupants and a stated priority**, and that
+>   is the one place in the epic where three sentences compete for one slot. It is
+>   exactly what this task is for: _held window_, _refreshing_, _coverage_. Check
+>   them as a trio.
+
 ## Objective
 
 Acceptance criterion 3, and the local half of criterion 5. Take every failure
@@ -53,6 +72,15 @@ anywhere in the epic's surface.
   never over a number**, and the in-flight rail sentence was withdrawn because it
   lived 3–68 ms (ADR 0028, amended 2026-09-14). Do not reintroduce a sentence
   nobody can read.
+- **The rail's order is stated rather than stacked** (`VOLUME-AND-WINDOW.md` §82,
+  `PROVENANCE.md` §3.2): held window, then refreshing, then coverage, then
+  nothing. This pass checks that the three speak one voice; it does not re-decide
+  which of them wins.
+- **Motion means work in progress, and nothing else may borrow it**
+  (`VISUAL-LANGUAGE.md`, 2026-09-15). A settled rail's hairline is static; only
+  `.refreshing`'s marches. A state in this set that moves while saying something
+  has finished is a defect this pass should catch, and it is the one that nearly
+  shipped in 2.14.5.
 - **The last answer stays on screen until a newer one replaces it.** A window
   change never blanks the page.
 - **One `Try again` per screen**, and every failure has an honest sentence.
@@ -67,7 +95,11 @@ anywhere in the epic's surface.
   unavailable; the universe unreachable; a security not in the universe; a
   security found with no data; **both** empties, which are now two distinct
   sentences derived from two different facts (2.14.6) and which **cannot both be
-  seen in one store** — `store:bare` gives only the first; a partial window; a
+  seen in one store** — `store:bare` gives only the first; a partial window **and its coverage
+  sentence**, which is 2026-09-15's addition and is visible in **neither**
+  `store:bare` **nor** the deployed store — the first has no bars and the second
+  has them all, so only a developer's own store a few sessions behind produces
+  it; a
   chart request failed; a window change refused by the cap; a window change failed with
   the previous window still readable; the stale mark; the untracked badge; the
   backend unreachable entirely; a security page opened cold with no backend at
@@ -136,6 +168,11 @@ anywhere in the epic's surface.
   and where it was seen — product or story.
 - Every state renders as a designed state at 1440 and 390, and the screenshots
   were looked at as a set.
+- **The rail's three occupants were compared against each other**, not only each
+  against its own story: they share one slot, one reserved height and one marker,
+  and three sentences that are individually fine and collectively three voices is
+  the defect this task exists to find, arriving in the one place the product
+  guarantees a reader will meet them in sequence.
 - No state in the set produces a global error screen, and that was verified
   rather than assumed.
 - The local browser suite covers the failure states; `pnpm e2e` is green.
