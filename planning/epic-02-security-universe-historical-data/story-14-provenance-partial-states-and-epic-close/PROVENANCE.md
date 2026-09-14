@@ -564,6 +564,55 @@ a `warn` — and at that point the group's claim is not one claim, the note cann
 make it, and `source` has to become a closed vocabulary with words before it can
 be named per row.
 
+#### Amended 2026-09-14 by Task 2.14.4, which built it — three things shipping it settled
+
+The three decisions above are unchanged and the words are the words. What
+building the clause decided, and one of them is a defect the wording could not
+have caught:
+
+- **The curated date is read as UTC and is deliberately not converted to market
+  time.** It is the one date on this note that is not a market instant.
+  `UNIVERSE_PROVENANCE` holds `checkedOn` as a plain `YYYY-MM-DD` a person types
+  and reviews in a diff; the loader parses it as **UTC midnight** so a run in any
+  timezone stores the same instant, and `GET /securities` serves it back through
+  `toISOString()`. Put `2026-09-08T00:00:00Z` through `marketDateAt` — exactly
+  right for the bars' own retrieval, one clause above — and it lands at 20:00 on
+  the **7th** in New York, so the screen reads `7 September 2026` against a file,
+  an ADR and four documents that all say the 8th, **and nothing on the page looks
+  wrong.** The conversion `formatRetrieval` is right to make is the one this
+  clause is right to refuse; the formatter is shared and the way the date is
+  reached is not. There is a test named for it.
+- **It is a term of its own — `Classification` — rather than a second paragraph
+  under `Prices`.** §04 of the canvas drew both under one `SOURCES` label and
+  already said they were grouped by subject; Task 2.14.3 then built the note as a
+  label/value grid with a term per subject, and a term each is that grouping made
+  structural. `Prices` answers _where these numbers came from_ and this answers
+  _where the words above the numbers came from_, so a reader scanning the label
+  column finds the one they want without reading either. It is drawn on the
+  canvas as §10.
+- **The date sits under the claim rather than beside it, which is the opposite
+  of the prices clause and has a reason rather than being an oversight.** That
+  line reads `Unadjusted · Retrieved 8 September 2026` because `Unadjusted` comes
+  from `ADJUSTMENT_DESCRIPTIONS`, a closed vocabulary. This group has none — its
+  `source` is a free string that may never reach a screen — so there is no word
+  to hoist, and a whole sentence beside a date is the run Task 2.14.3 measured
+  and removed. A label invented in a renderer to look symmetrical would be the
+  second vocabulary this story spends its time preventing. What is consistent
+  between the two clauses is the thing that matters: each opens with its claim
+  and qualifies it on the line beneath.
+
+**And the open tension about a marker is resolved: there is none, in either
+state.** Task 2.14.3 left the question open because `SourceNote` is entirely
+typographic and _we do not claim_ looked like the one absence that might earn the
+first marker on the surface. It does not — because the absence is smaller than
+that phrasing suggests. `provenance` goes absent when the rows stop sharing one
+pair, **not when they stop being ours**: whatever slug the server would have
+named, the universe is still this project's own file rather than a market
+observation, so the sentence is still true and the date is the only thing
+withdrawn. The clause therefore keeps its claim and swaps the date for _When they
+were last checked is not recorded._ A marker on that would rank a missing date
+above a stated one, which is the opposite of what the two mean.
+
 ---
 
 ## 6. Decision 6 — whether the two empty answers go on the wire

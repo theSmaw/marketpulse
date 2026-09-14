@@ -5,8 +5,13 @@ import {
   barSeriesFixtureView,
   twoFeedStitchView,
 } from "../../fixtures/bar-series.js";
+import {
+  LOADING_UNIVERSE,
+  securitiesFixtureView,
+} from "../../fixtures/securities.js";
 import type { BarSeriesView } from "../../market/index.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
+import type { SecuritiesView } from "../../use-securities.js";
 import gridStyles from "../stories.module.css";
 import { SourceNote } from "./SourceNote.js";
 
@@ -32,22 +37,54 @@ import { SourceNote } from "./SourceNote.js";
 //    carry, and nothing constructs one yet.
 //
 // The third notable state is the one nobody would think to draw and is the
-// commonest in the suite: **no bars, and therefore no note at all.** CI's store
-// is 518 securities and zero bars, so that is what every chart in the browser
-// suite renders — and `SOURCE_OF_NOTHING` hands this component a complete,
-// entirely truthful provenance record describing **zero numbers**. Printing it
-// under an empty frame would be four accurate words making a false impression.
-// It is in the grid as a state, with its label, because a state that renders
-// nothing is indistinguishable from a state nobody thought about unless the
-// grid says which it is.
+// commonest in the suite: **no bars.** CI's store is 518 securities and zero
+// bars, so that is what every chart in the browser suite renders — and
+// `SOURCE_OF_NOTHING` hands this component a complete, entirely truthful
+// provenance record describing **zero numbers**. Printing it under an empty
+// frame would be four accurate words making a false impression.
+//
+// **That state stopped being "no note at all" on 2026-09-14** (Task 2.14.4).
+// §0.1 is a per-clause rule, and the classification clause is about the
+// universe answer rather than the bars — so on a zero-bar page it draws alone,
+// and this is now the shape of the commonest page in the suite rather than an
+// empty cell. The genuinely silent states are still in the grid, with their
+// labels, because a state that renders nothing is indistinguishable from a
+// state nobody thought about unless the grid says which it is.
 
 const CONFIGURED_SIP: MarketFeedView = { state: "configured", feed: "sip" };
+
+/** A security the recorded universe holds. */
+const SUBJECT = "NVDA";
+
+/** The recorded universe, through the real transition. */
+const UNIVERSE = securitiesFixtureView("full");
+
+/**
+ * The same universe with the server's one claim withdrawn.
+ *
+ * **Derived rather than recorded, and the derivation is the contract.**
+ * `provenance` is absent from the envelope the moment two rows stop sharing one
+ * pair — the day Alpaca fills the profile fields on a different date than the
+ * curated file filled the classification ones — and no server this product runs
+ * can produce that today, because there is one curated file. It is one field
+ * removed from a body that went through `toSecuritiesView`, which is
+ * `twoFeedStitchView`'s admissibility argument applied to the other request.
+ */
+function withoutProvenance(view: SecuritiesView): SecuritiesView {
+  if (view.state !== "loaded") throw new TypeError("expects a universe");
+  return { ...view, provenance: null };
+}
 
 const meta = {
   title: "Market/SourceNote",
   component: SourceNote,
   parameters: { layout: "padded" },
-  args: { shown: barSeriesFixtureView("full"), feed: CONFIGURED_SIP },
+  args: {
+    shown: barSeriesFixtureView("full"),
+    feed: CONFIGURED_SIP,
+    securities: UNIVERSE,
+    symbol: SUBJECT,
+  },
 } satisfies Meta<typeof SourceNote>;
 
 export default meta;
@@ -111,16 +148,62 @@ export const NoProviderConfigured: Story = {
 };
 
 /**
- * **Nothing at all**, and it is the state CI renders on every page.
+ * **One clause, and it is the state CI renders on every page.**
  *
- * §0.1: a claim about data requires data. Every clause this component ships
- * describes the bars, and there are none — so each one is silent and the note
- * with them. Task 2.14.4's classification clause is the exception that proves
- * the rule is per clause: its data is the universe answer, which has resolved,
- * so on this same page it will draw alone.
+ * §0.1 — a claim about data requires data — applied **per clause**. Every
+ * clause about the bars is silent, because `SOURCE_OF_NOTHING` is a complete
+ * and truthful provenance record describing zero numbers and four accurate
+ * words under an empty frame are read as a claim about the picture. The
+ * classification clause is not about the bars: its data is the universe answer,
+ * which has resolved on this same page.
+ *
+ * **This story's text used to say the note renders nothing here**, and Task
+ * 2.14.4 is what changed it. CI's store is 518 securities and zero bars, so
+ * this is the commonest page in the browser suite — and until this clause
+ * shipped it was the only kind of page with no note on it at all.
  */
 export const NoBars: Story = {
   args: { shown: barSeriesFixtureView("empty") },
+};
+
+/**
+ * The curated file's date, absent — and the claim standing without it.
+ *
+ * `provenance` goes absent when the server declines to make **one** claim about
+ * the whole list, which is what the envelope has predicted since Story 2.9 and
+ * what happens the day the profile fields are filled on a different date than
+ * the classification ones. None of that is the rows ceasing to be ours: the
+ * sentence is still true and the date is the only thing we cannot say.
+ *
+ * **No marker, deliberately** (`PROVENANCE.md` §5.3 and Task 2.14.2's open
+ * tension, resolved here). What is missing is one date inside a claim that is
+ * still being made, and a marker would rank a missing date above a stated one.
+ */
+export const NoCuratedDate: Story = {
+  args: { securities: withoutProvenance(UNIVERSE) },
+};
+
+/**
+ * A symbol the universe does not hold — and the note is silent.
+ *
+ * There is no sector on this page to disclose the origin of, so the sentence
+ * would have no subject. `SecurityIdentity` has already said what is wrong with
+ * the address, in its own words and with its own marker; a second surface
+ * saying it differently is the footnote pile arriving as sympathy.
+ */
+export const SecurityNotTracked: Story = {
+  args: { shown: barSeriesFixtureView("empty"), symbol: "NOTATICKER" },
+};
+
+/**
+ * The universe still in flight — the clause waits rather than guessing.
+ *
+ * The same answer for a universe that could not be read and for one that is
+ * migrated and never loaded. All three are *we have no security here yet*,
+ * which is not a claim about a curated file.
+ */
+export const UniversePending: Story = {
+  args: { securities: LOADING_UNIVERSE },
 };
 
 /**
@@ -140,12 +223,22 @@ export const AllPermutations: Story = {
             "One source — the deployed case",
             barSeriesFixtureView("full"),
             CONFIGURED_SIP,
+            UNIVERSE,
+            SUBJECT,
           ],
-          ["Two feeds — Epic 3", twoFeedStitchView(), CONFIGURED_SIP],
+          [
+            "Two feeds — Epic 3",
+            twoFeedStitchView(),
+            CONFIGURED_SIP,
+            UNIVERSE,
+            SUBJECT,
+          ],
           [
             "A feed the chrome does not claim",
             barSeriesFixtureView("full"),
             { state: "configured", feed: "iex" },
+            UNIVERSE,
+            SUBJECT,
           ],
           // A fixture-backed deployment serving a real stored series, which is
           // producible — `MARKET_DATA_PROVIDER=fixture` against a store with
@@ -156,39 +249,77 @@ export const AllPermutations: Story = {
             "Chrome says simulated; these bars are not",
             barSeriesFixtureView("full"),
             { state: "configured", feed: "synthetic" },
+            UNIVERSE,
+            SUBJECT,
           ],
           [
             "No provider configured",
             barSeriesFixtureView("full"),
             { state: "not-configured" },
+            UNIVERSE,
+            SUBJECT,
           ],
           [
             "Split-adjusted",
             splitAdjusted(barSeriesFixtureView("full")),
             CONFIGURED_SIP,
+            UNIVERSE,
+            SUBJECT,
           ],
-          ["Partial answer", barSeriesFixtureView("partial"), CONFIGURED_SIP],
           [
-            "No bars — renders nothing",
+            "Partial answer",
+            barSeriesFixtureView("partial"),
+            CONFIGURED_SIP,
+            UNIVERSE,
+            SUBJECT,
+          ],
+          // **No longer "renders nothing", and that is this row's whole
+          // point.** Every clause about the bars is silent and the
+          // classification clause is not, because its data is the universe
+          // answer. It is the commonest page in the browser suite.
+          [
+            "No bars — the classification clause alone",
             barSeriesFixtureView("empty"),
             CONFIGURED_SIP,
+            UNIVERSE,
+            SUBJECT,
           ],
           [
-            "Refused — renders nothing",
+            "No bars, no curated date",
+            barSeriesFixtureView("empty"),
+            CONFIGURED_SIP,
+            withoutProvenance(UNIVERSE),
+            SUBJECT,
+          ],
+          [
+            "A symbol the universe does not hold — renders nothing",
+            barSeriesFixtureView("empty"),
+            CONFIGURED_SIP,
+            UNIVERSE,
+            "NOTATICKER",
+          ],
+          [
+            "Refused, universe pending — renders nothing",
             barSeriesFixtureView("refusedCap"),
             CONFIGURED_SIP,
+            LOADING_UNIVERSE,
+            SUBJECT,
           ],
           [
             "Before the first answer",
             { state: "loading" } as const,
             CONFIGURED_SIP,
+            LOADING_UNIVERSE,
+            SUBJECT,
           ],
         ] as const satisfies readonly (readonly [
           string,
           BarSeriesView,
           MarketFeedView,
+          SecuritiesView,
+          string,
         ])[]
-      ).map(([label, shown, feed]) => (
+      ).map(([label, shown, feed, securities, symbol]) => (
         <Fragment key={label}>
           <p className={gridStyles.label}>{label}</p>
           {/*
@@ -200,7 +331,12 @@ export const AllPermutations: Story = {
            * the grid is for.
            */}
           <div>
-            <SourceNote shown={shown} feed={feed} />
+            <SourceNote
+              shown={shown}
+              feed={feed}
+              securities={securities}
+              symbol={symbol}
+            />
           </div>
         </Fragment>
       ))}

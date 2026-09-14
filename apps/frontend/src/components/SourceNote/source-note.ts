@@ -8,6 +8,7 @@ import {
 
 import type { BarSeriesView } from "../../market/index.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
+import type { SecuritiesView } from "../../use-securities.js";
 
 // What the source note says, assembled with no DOM (Task 2.14.3).
 //
@@ -34,10 +35,11 @@ import type { MarketFeedView } from "../../use-market-feed.js";
 // note**: each clause renders when its own data is present, and the note
 // renders when at least one clause does. The feed, the adjustment and the
 // retrieval date are properties of the bars, so a series with no bars has none
-// of them. Task 2.14.4's classification clause is a property of the *universe*
-// answer, which on a zero-bar page has resolved — so it will draw alone, which
-// matters more than it looks: CI's store is 518 securities and zero bars, so
-// that is the commonest page in the suite.
+// of them. **The classification clause is a property of the *universe*
+// answer** (Task 2.14.4), which on a zero-bar page has resolved — so it draws
+// alone, which matters more than it looks: CI's store is 518 securities and
+// zero bars, so that is the commonest page in the suite, and until this clause
+// shipped the note was absent from every one of them.
 //
 // ## What this module may not do
 //
@@ -78,6 +80,43 @@ export interface PricesClause {
 }
 
 /**
+ * Where the words **above** the numbers came from (Task 2.14.4).
+ *
+ * The one clause on this surface that is not about the bars. `GET /securities`
+ * has carried `provenance.classification` since Story 2.9 and no screen has
+ * ever rendered a character of it, so a sector sitting three centimetres above
+ * a price chart on a market product has read, until now, exactly like a market
+ * observation. It is not one: it is this project's own curated file.
+ *
+ * **The group is named and its source string never is** (`PROVENANCE.md` §5.2).
+ * `FieldGroupProvenance.source` is a free `string` by design, so that a provider
+ * can replace `curated` later — which means no `Record<…>` guard can ever give
+ * it words, and a renderer printing `s&p-500-gics + curated ETFs` at a reader is
+ * printing an internal identifier. The slug stays in the response for an
+ * operator, which is where a free string belongs.
+ *
+ * **`profile` is deliberately not stated.** Nobody mistakes a company's name or
+ * its listing exchange for a market observation. The condition that earns it a
+ * clause of its own is *the first profile field that is a number* — a market
+ * cap, a share count — because at that point it is a figure and
+ * `PRODUCT_SPEC.md` §35 applies to it.
+ */
+export interface ClassificationClause {
+  /**
+   * When the curated file was last checked, or the sentence that says we
+   * cannot tell — already assembled, because the words live here rather than
+   * in JSX (`PROVENANCE.md` §9).
+   *
+   * **No threshold and no mark, whatever it says** (§5.3). The date is the
+   * disclosure. `pnpm universe:check` already compares the curated universe
+   * against the vendor and changes nothing, so the honest path to a staleness
+   * mark is to put *that* on a schedule first — until then *overdue* would mean
+   * a date somebody eyeballed rather than a run that did not happen.
+   */
+  readonly checked: string;
+}
+
+/**
  * The note, as clauses. `null` means *this clause has no data and says
  * nothing*, which is not the same as an empty string.
  *
@@ -96,12 +135,25 @@ export interface SourceNoteView {
 
   /** The adjustment and the retrieval, whenever there are bars. */
   readonly prices: PricesClause | null;
+
+  /**
+   * The curated-classification claim, whenever this page has a security.
+   *
+   * **Its data is the universe answer, not the series**, which is the whole
+   * consequence of §0.1 being a per-clause rule: a page holding no bars has
+   * resolved its security, so this clause draws there — alone — and it is what
+   * makes the note appear at all on every zero-bar page. CI's store is 518
+   * securities and zero bars, so that is the commonest page in the suite.
+   */
+  readonly classification: ClassificationClause | null;
 }
 
 /** Whether the note has anything at all to say. The component renders nothing
  * when it does not, rather than an empty box with a hairline over it. */
 export function hasClauses(note: SourceNoteView): boolean {
-  return note.feeds !== null || note.prices !== null;
+  return (
+    note.feeds !== null || note.prices !== null || note.classification !== null
+  );
 }
 
 /**
@@ -139,10 +191,13 @@ export function hasClauses(note: SourceNoteView): boolean {
 export function toSourceNote(
   shown: BarSeriesView,
   feed: MarketFeedView,
+  securities: SecuritiesView,
+  symbol: string,
 ): SourceNoteView {
+  const classification = toClassification(securities, symbol);
   const provenance = drawnProvenance(shown);
 
-  if (provenance === null) return { feeds: null, prices: null };
+  if (provenance === null) return { feeds: null, prices: null, classification };
 
   const description = ADJUSTMENT_DESCRIPTIONS[provenance.adjustment];
   const retrieved = formatRetrieval(provenance);
@@ -162,7 +217,121 @@ export function toSourceNote(
             sentence: description.sentence,
             retrieved,
           },
+    classification,
   };
+}
+
+/**
+ * The words of the claim, in three pieces so the group can carry the emphasis.
+ *
+ * **Here rather than in JSX** — `PROVENANCE.md` §9's rule: a vocabulary that
+ * describes a domain value lives beside that value, a sentence that assembles
+ * several of them for one screen lives beside the component that draws it, and
+ * neither is ever a literal inside a renderer. There is no shared table to put
+ * it in, for the reason the clause exists: the value this sentence is about is
+ * a free string that may never reach a screen, so there is nothing for a
+ * `Record<…>` to be keyed on.
+ *
+ * Three pieces and not one, because the word a reader lands on is the middle
+ * one. The alternative — hoisting `Curated` onto the line the way the prices
+ * clause hoists `Unadjusted` — was rejected on the same grounds: that label
+ * comes from `ADJUSTMENT_DESCRIPTIONS`, a closed vocabulary, and this group has
+ * none. A label invented in a renderer to look symmetrical is the second
+ * vocabulary this story spends its time preventing.
+ */
+export const CLASSIFICATION_CLAIM = {
+  before: "Sector and industry are ",
+  group: "curated",
+  after: ", not from the market feed.",
+} as const;
+
+/** What the clause says when the file's date is known, and when it is not. */
+const CHECKED_ON = (date: string) => `Last checked ${date}`;
+const CHECKED_UNKNOWN = "When they were last checked is not recorded.";
+
+/**
+ * The classification claim, or `null` where this page has no security to make
+ * it about.
+ *
+ * ## Why it needs the symbol and not only the response
+ *
+ * The claim is per response — one curated file means one pair of provenance
+ * values for every row — but §0.1 is per clause: *a claim about data requires
+ * data*. On an address naming a symbol the universe does not hold there is no
+ * sector on the page to disclose the origin of, so the sentence would have no
+ * subject, and `SecurityIdentity` has already said what is wrong with the
+ * address in its own words and with its own marker. Silence here is that
+ * surface being allowed to own it.
+ *
+ * The other three universe states — in flight, unreadable, migrated but never
+ * loaded — are the same answer for the same reason.
+ *
+ * ## Why a `null` provenance still makes the claim
+ *
+ * **The claim survives; only the date goes.** `provenance` goes absent when the
+ * server declines to make *one* claim about the whole list — the day Alpaca
+ * fills the profile fields on a different date than the curated file filled the
+ * classification ones, or two rows stop sharing a classification source. None
+ * of those is the rows ceasing to be ours: whatever slug the server would have
+ * named, the universe is still this project's own file rather than a market
+ * observation, so the sentence this task exists to say is still true. What we
+ * cannot say is when it was last checked, and the clause says that rather than
+ * a date or an empty space.
+ *
+ * **And it earns no marker for saying so** — `SourceNote` is entirely
+ * typographic and stays that way. The question was whether *we have no date*
+ * deserves the absence marker `SecurityIdentity` uses when *these prices are
+ * unadjusted* does not. It does not: what is missing is one date inside a claim
+ * that is still being made, and a marker would rank a missing date above a
+ * stated one, which is the opposite of what the two mean.
+ */
+function toClassification(
+  securities: SecuritiesView,
+  symbol: string,
+): ClassificationClause | null {
+  if (securities.state !== "loaded") return null;
+
+  const held = securities.securities.some(
+    (security) => security.symbol === symbol,
+  );
+
+  if (!held) return null;
+
+  const retrievedAt = securities.provenance?.classification.retrievedAt;
+
+  return {
+    checked:
+      retrievedAt === undefined
+        ? CHECKED_UNKNOWN
+        : CHECKED_ON(formatFullDate(curatedDateOf(retrievedAt))),
+  };
+}
+
+/**
+ * The calendar date inside a curated file's retrieval instant — **read as UTC,
+ * and deliberately not converted to market time.**
+ *
+ * This is the one date on this note that is not a market instant, and treating
+ * it as one reads it a day early. `UNIVERSE_PROVENANCE` holds `checkedOn` as a
+ * plain `YYYY-MM-DD` a person types and reviews in a diff; the loader parses it
+ * as **UTC midnight** so a run in any timezone stores the same instant, and the
+ * route serves that back through `toISOString()`. Put `2026-09-08T00:00:00Z`
+ * through `marketDateAt` and it lands at 20:00 on the 7th in New York — so the
+ * screen would read `7 September 2026` against a file, an ADR and four
+ * documents that all say the 8th, and nothing would look wrong.
+ *
+ * So the conversion `formatRetrieval` is right to make is the conversion this
+ * one is right to refuse. A bar's `retrievedAt` is an instant a server stamped
+ * and its market date is a real question; this is a date somebody typed,
+ * widened to an instant only because JSON has no date type, and the honest
+ * reading is the one that round-trips it.
+ *
+ * A slice rather than a `Date`, for the same reason stated positively: there is
+ * nothing here to convert, and constructing one would invite a reader to
+ * convert it.
+ */
+function curatedDateOf(retrievedAt: string): string {
+  return retrievedAt.slice(0, 10);
 }
 
 /**
