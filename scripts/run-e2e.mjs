@@ -109,7 +109,7 @@ if (ratio > 0.7) {
     `\n⚠ Load average ${(ratio * cores).toFixed(1)} across ${String(cores)} cores before this run.\n` +
       "  Expect slow tests and timeouts that are about the machine rather than the product.\n" +
       "  Before treating a failure here as a defect, re-run that one spec alone:\n" +
-      "      pnpm e2e <spec>.spec.ts -g \"<test name>\"\n",
+      '      pnpm e2e <spec>.spec.ts -g "<test name>"\n',
   );
 }
 
