@@ -133,7 +133,7 @@ recorder that structurally cannot see half of what might arrive. That is also a
 Two lines are **struck** from §3's register — figure 3 (the handshake) and
 figure 11 (connect + authenticate + subscribe for 518: **1,312–1,537 ms,
 518/518 accepted**, and read as an envelope rather than a budget until it is
-re-taken from the deployment rather than a UK domestic link). Figure 16 is
+re-taken from the deployment rather than from Asia/Singapore). Figure 16 is
 **bounded from below and deliberately not struck**: no server ping in 30 s of
 quiet is not the keepalive interval, and a long idle is Task 3.1.3's window.
 

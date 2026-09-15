@@ -105,7 +105,7 @@ naming the pino reversal above, which fires here.
   its own (§4.2). Name them in the close so Story 3.2 meets them in a hand-off
   rather than in a debugging session.
 - **Name Story 3.11's owed re-measure as a condition.** Every latency figure in
-  this story was taken from a UK domestic link against an `eastus2` deployment,
+  this story was taken from a machine in Asia/Singapore against an `eastus2` deployment,
   so the provider's share of `PRODUCT_SPEC.md` §28 is an **upper bound** rather
   than a number. Trigger: **the first time a real socket runs in the deployed
   backend.**

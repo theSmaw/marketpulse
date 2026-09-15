@@ -58,10 +58,11 @@ both of these change how figure 8 must be _quoted_ rather than how it is taken:
   +420 ms and measures nothing. If Alpaca's bar timestamps are not NTP-accurate,
   **no instrument in this story can tell.**
 - **The vantage point is wrong for §28 and saying so is this task's job.** Every
-  figure here is taken from a UK domestic link — round trip to Alpaca measured
-  **271–311 ms** (§4.6) — while the deployment is Azure `eastus2`. §28's target
+  figure here is taken from a machine in **Asia/Singapore** — round trip to
+  Alpaca measured **271–311 ms** (§4.6) — while the deployment is Azure
+  `eastus2`. §28's target
   is about the moment **our server** receives an event, and this measurement
-  adds a transatlantic leg the production path does not have. So the provider's
+  adds most of the way around the world that the production path does not have. So the provider's
   share of §28 is an **upper bound from this vantage**, labelled as such, and
   the re-measure is handed to **Story 3.11** (whose name carries _Performance_)
   under a condition: **the first time a real socket runs in the deployed
@@ -120,7 +121,7 @@ instrument, in the shape that lets it be re-taken.
 - The p50/p95 arrival gap is recorded **both corrected and uncorrected**, with
   the capture's own clock offset and the NTP spread beside it, and §28's upstream
   boundary is stated in a sentence a later story can quote — **a sentence that
-  says _upper bound from a UK link_ and names Story 3.11's re-measure**.
+  says _upper bound from Asia/Singapore_ and names Story 3.11's re-measure**.
 - The `t` question is answered **with a control**, and the answer is compared
   explicitly against `ALPACA.md` §5.3 — agreement or disagreement, said plainly.
 - Live IEX coverage across 518 symbols is recorded with its distribution and its

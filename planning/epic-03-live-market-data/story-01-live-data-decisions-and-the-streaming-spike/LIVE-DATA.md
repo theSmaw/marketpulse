@@ -664,9 +664,11 @@ absence for a measurement.
   corrected by the offset recorded in its **own** capture header, and the
   vendor's clock could not be pinned down at all — so figure 8 carries a stated
   residual risk rather than a clean denominator.
-- **Every latency in §4.3 was taken from a UK domestic link**, and the
-  deployment is Azure `eastus2`. The round trip measured 271–311 ms (§4.6), which
-  is most of the connect term.
+- **Every latency in §4.3 was taken from a machine in Asia/Singapore**, and the
+  deployment is Azure `eastus2`. The round trip measured 271–311 ms (§4.6), ICMP
+  agreeing at 242–383 ms, which is most of the connect term. **This is the
+  longest plausible path of the three continents involved**, so the figures are a
+  ceiling rather than a typical case.
 - **The subscription-cap figures (§1.4) were taken on 2026-09-07 against a
   different question.** They are the only WebSocket numbers this repository has,
   they are about the acknowledgement rather than about any message, and they are
@@ -780,9 +782,12 @@ probe re-took that control on this date — 60 trades symbols still refused with
 
 **Three caveats that make these numbers an envelope rather than a budget.**
 `connect` is by far the largest term and it is almost entirely network: this was
-taken from a UK domestic link, and the round trip to Alpaca measured
-**271–311 ms** (§4.6). The deployment is Azure `eastus2`, which is a different
-and much shorter path. **Re-take this from the deployed backend before Story
+taken from a machine in **Asia/Singapore** — `/etc/localtime`, verified
+2026-09-15, after an earlier draft of this section said "a UK domestic link" and
+was wrong — and the round trip to Alpaca measured **271–311 ms** in the
+WebSocket probe (§4.6), with ICMP agreeing at **242–383 ms**. The deployment is
+Azure `eastus2`, which is a different and **much** shorter path: this is close
+to the longest vantage the three continents allow. **Re-take this from the deployed backend before Story
 3.2 spends it**, and until then read it as _worst case_, not as _the number_.
 
 ### 4.4 What a BAD subscription does — nine probes, one connection
@@ -1025,7 +1030,7 @@ arithmetically impossible. Every figure in §4 was read off the capture by hand
 before it was written here.
 
 **What the whole of §4 is n=1 on**, inherited from `ALPACA.md` §10 and not
-fixed here: one free-plan paper account, one machine, one domestic UK link.
+fixed here: one free-plan paper account, one machine in Asia/Singapore, one domestic link.
 §4.3's latencies are the ones this bites hardest — see the caveat there.
 
 ---
