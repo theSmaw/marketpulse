@@ -1,6 +1,6 @@
 # Epic 2 — Security Universe & Historical Market Data
 
-**Status:** In progress — **Stories 2.1 to 2.13 complete (Story 2.13 closed 2026-09-13, ten tasks).** One story remains: the epic close (2.14).
+**Status:** **Complete — all fourteen stories. Closed 2026-09-15 by Task 2.14.10.**
 
 **The epic's exit criterion is met and verified on the deployed site: a user can search for NVDA, open it, and inspect its recent historical price _and volume_.** Story 2.4 put the first real data on screen and Story 2.11 made the screen interactive — a search field that matches as you type, a per-security URL that deep-loads cold, and the Security Explorer shell holding §8.3's seven regions, two of them filled. **Story 2.12 then drew the first chart in MarketPulse** into the Price region of that shell — a session-ordinal axis, direction carried by geometry rather than by hue, one coverage rule across six states, a reading reachable by keyboard, and a text alternative that counts trading minutes (ADR 0027, [`CHARTING.md`](story-12-price-chart/CHARTING.md)). **Task 2.13.4 then filled the Volume region** (2026-09-13) — traded volume beneath the price, on an axis that is literally the same object rather than a second derivation of it, so the two plots stop at the same pixel by arithmetic ([`VOLUME-AND-WINDOW.md`](story-13-volume-chart-and-time-window/VOLUME-AND-WINDOW.md) §18). Both charts fill regions of that shell that already existed and already named them, rather than adding panels. **Task 2.13.6 then added the reader's choice of period** (2026-09-13) — five named windows on the Price region's heading row, resolved to trading sessions by the server, with the count living in the address so a window is shareable and survives a reload; **and Task 2.13.7 made every way that choice can answer a designed state** (2026-09-13), so a window change never blanks the page: the previous window's charts stay on screen under a rail naming which window they are of, whether the new one is in flight, refused or failed ([`VOLUME-AND-WINDOW.md`](story-13-volume-chart-and-time-window/VOLUME-AND-WINDOW.md) §§36–41). **The exit criterion is met, and it is verified on the deployed site rather than asserted** (Task 2.13.10, 2026-09-13): NVDA opened cold at 1440, 1024 and 390, and from five cold deep links, against a store that is zero sessions behind — 1,950 bars at the default window and 8,190 at `?sessions=21`, both answered in full, with the two plots at an identical x and an identical width at all three viewports. Story 2.13 closed with the walk (2.13.8), the measurement against §28 (2.13.9) and the deployed verification, the four design tests and **ADR 0028** (2.13.10). Three things are carried into Story 2.14 open and named rather than closed quietly: the 518-row universe table's long task (`SEARCH-AND-SELECTION.md` §10, twice dated, still the one published-target breach this epic ships with), a listening pass that needs a person and a screen reader ([`VOLUME-AND-WINDOW.md`](story-13-volume-chart-and-time-window/VOLUME-AND-WINDOW.md) §65), and test 4 of the design bar — _does it feel alive_ — now deferred for the **fourth** time, to Epic 3's motion vocabulary against real moving numbers (§63).
 **Sequence:** 2 of 15 — follows Epic 1 (Application Foundation)
@@ -396,3 +396,98 @@ with its alternatives, in the story that owns it.
 | Charting library or hand-built; line or candles                                             | 2.12                  | Inherited by Epics 5, 8 and 11                                                                                                                                                                                                                                  |
 | Which time windows                                                                          | 2.13                  | Reaches backwards into ingestion depth and payload size                                                                                                                                                                                                         |
 | Feed-label prominence and wording                                                           | 2.14                  | Invariant 6; read by every visitor                                                                                                                                                                                                                              |
+
+## The epic close (Task 2.14.10, 2026-09-15)
+
+**Fourteen stories. The exit criterion is met, walked by a person on the deployed
+site at three viewports, and asserted on every deploy from here on.** What Epic 1
+handed forward was a pair of deployed shells; what this epic hands Epic 3 is a
+product with real market data in it that says where the data came from and what
+it does not have.
+
+**Story 2.14 added no new capability and changed what the product is allowed to
+claim**, which is ADR 0029: a claim about data requires data; a surface may make
+the confident claim only when the thing that would license it has been read; a
+surface that owns nothing defers; and one fact has one home, enforced by a grep
+and a break rather than by review.
+
+### What Epic 3 inherits
+
+**The provenance pattern extends from _which feed_ to _which feed, and is it
+still connected_.** `FeedIndicator` has read `disconnected` throughout this epic
+deliberately and correctly — there is nothing to connect to — and Epic 3 is what
+makes it true rather than what fixes it. Three specific inheritances, each
+already written and none of them producible here:
+
+1. **The two-feed sentence.** `market-provenance.ts` names each stretch in
+   contribution order with its bar count, and refuses to sort or deduplicate to
+   the first. **Epic 3's socket is the first thing that can produce one**: all
+   sixteen recorded bar-series bodies carry `sip`, `stitched.json` included,
+   because both halves of that stitch came from Alpaca's historical API. The
+   state is reached today through `twoFeedStitchView()` — the recorded stitch
+   with **one field changed**, named and commented so that deleting it and
+   pointing its three readers at a real recorded body is the obvious move.
+2. **A defect in the store, not in the wording.** `bar_coverage` holds provenance
+   per `(security, timeframe)` and `market_bars` will hold two tapes with **the
+   row not saying which**. The sentence above is true only while the IEX tail is
+   stitched **at read time**. The day Epic 3 **stores** an IEX bar, the ledger's
+   single provenance row describes it as SIP, `mergeSeriesProvenance` is never
+   called, and the series reports one feed with complete confidence and is wrong.
+3. **One sentence that claims something about the market rather than about our
+   store.** `No shares changed hands anywhere in the window.` is true while every
+   stored bar is the consolidated tape, and becomes a single venue's silence
+   reported as the whole market's the first time a live tail is stitched on —
+   which is the failure `PRODUCT_SPEC.md` §7.1 forbids, in the one place a reader
+   would never look for it. It has two homes today, drawn and spoken, and nothing
+   guards them.
+
+**And the honest label must not be inherited by word.** The free Alpaca plan is
+**asymmetric**: stored historical bars are consolidated SIP, the live stream is
+IEX only. Epic 3 must not carry Epic 2's `All US exchanges` onto a live tail, and
+invariant 6's fence stands on the sentence under the acronym rather than on the
+acronym.
+
+### What ships open, each with an owner rather than a story number
+
+| Open                                                                                                                                                                                                                                                                                                | Owner                                                                                                                                                                          |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **The listening pass.** Whether a polite live region changing every 477 ms queues or replaces is a property of a specific screen reader on a specific platform — not readable from the DOM, a timing, or an agent. The repair is designed and unshipped: split the sentence, do not raise the floor | **A person with a screen reader**, before Epic 11 hands this surface to a model                                                                                                |
+| **The two-feed ledger and the market-claim sentence** (above)                                                                                                                                                                                                                                       | **Epic 3**                                                                                                                                                                     |
+| **The §28 cold-load breach** — 50–76 ms local, 52–54 ms on two of six deployed cold loads, the 518-row universe table rather than the chart. **Handed, not deferred**, beside `Expand all`'s 69–87 ms                                                                                               | **Epic 14**, with the trigger kept **above** the epic: _the first time a second surface on that page renders per-row markup at universe scale_ (Epic 5's `EPIC.md` carries it) |
+| **The weekday `1D` photograph** — narrower since 2026-09-14, now only the window between the bell and that night's backfill                                                                                                                                                                         | **The next person to open `/securities/NVDA?sessions=1` on the deployed site during market hours**                                                                             |
+| **That every named region says something when its subject is missing.** No general check exists                                                                                                                                                                                                     | **The next story that adds a region**                                                                                                                                          |
+| **The masthead's primary navigation is clipped at 390**, reading `Market O` with no affordance saying so. It is the chrome, not this epic's surface                                                                                                                                                 | **The first story that touches `AppHeader`**                                                                                                                                   |
+| **The `synthetic` feed branch has never executed.** No recorded body carries it; no decision is taken about it                                                                                                                                                                                      | Carried, not owned                                                                                                                                                             |
+| **Test 4 of the design bar, _does it feel alive_** — answered "not yet" for the **seventh** time. Its trigger is the calendar rather than a condition, which is exactly why it is written down: nothing fires                                                                                       | **Epic 3's motion vocabulary**, against real moving numbers                                                                                                                    |
+
+**Three states a healthy deployment structurally cannot show** are recorded so
+their absence is never read as a missing check: the coverage sentence, both
+vacancy sentences and the volume plot's deferral all render only when something
+is less than perfect, and the deployed store is backfilled nightly. Nothing is
+owed for them. They are the reason the deployed journey asserts structure and no
+figure, and the reason a spec asserting any of them would go red exactly when the
+store is healthiest.
+
+### What the epic cost, in money
+
+**`$7.57`/month at the measured rate**, read 2026-09-15 over seven full days from
+`Microsoft.CostManagement/query` — Container Registry `$5.07` (67%), Container
+Apps `$2.50` (33%), **the database `$0.00`**, Azure Monitor and Log Analytics
+`$0.00`. That is **38% of the `$20` budget** and below the `$9.21`–`$19.04` band
+Epic 1 predicted. **The 12-month free offer is 12 days spent and ~11.6 months
+remaining**, expiring around 2027-09-03, at which point `$16.09`/month arrives on
+one day and takes the total to `$23.66` — over budget, with no code change. **And
+market data is free**: Alpaca costs quota, not cash, and 48 million bars appear
+nowhere on this bill. The figures and the four-shapes-of-refusal story are in
+[`HOSTING.md`](../epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md).
+
+### One pattern this epic found three times, worth more than any of the three
+
+**A count or an inventory copied into prose beside a list that moves, checked by
+nothing.** `docs/GAPS.md`'s invariant table read _seven_ against a list of eight;
+`CLAUDE.md`'s command block read _seven_ against a list of **ten**; and one claim
+about the deployed suite's contents was stale in **two files at once**. Three
+independent occurrences, one shape — and the repair is not to fix the third and
+forget. `pnpm invariants` prints its own count on every run, so the prose copies
+are removable, and they have been removed rather than corrected. **Where a
+document must carry a number, the list itself is the count.**

@@ -62,6 +62,16 @@ and **66–84 ms on every 518-row page**. The table costs roughly **35–50 ms o
 frame** that a small universe does not spend, over a **10,385-node** document
 against 848.
 
+**And a fourth measurement, taken over a network against the deployed store on
+2026-09-15 by Task 2.14.9, because none of the other three was.** The breach is
+present and **softer**: **52–54 ms on two of six cold loads at 1440**, three per
+route — the bottom of the 50–76 ms band, and **intermittent** where locally it is
+every cold load. The plausible reading is that an internet round trip spreads the
+same work across more frames; it is a reason the deployed number is softer, never
+a reason to think the repair is less needed. **No timing assertion was added to
+`specs-deployed/`**, deliberately — a duration measured from one machine over one
+link cannot tell its own network from the environment.
+
 - **The three candidate repairs, with what is wrong with each**, are in
   [`SEARCH-AND-SELECTION.md` §10](../epic-02-security-universe-historical-data/story-11-security-search-and-selection/SEARCH-AND-SELECTION.md):
   `content-visibility: auto` per band, collapsed bands below a row threshold, or

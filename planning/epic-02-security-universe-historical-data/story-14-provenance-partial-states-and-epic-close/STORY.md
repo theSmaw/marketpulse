@@ -1,6 +1,6 @@
 # Story 2.14 — Market-Data Provenance, Partial States & Epic Close
 
-**Status:** Not started
+**Status:** **Complete — closed 2026-09-15, ten tasks.** It closes Epic 2.
 **Epic:** [Epic 2 — Security Universe & Historical Market Data](../EPIC.md)
 **Depends on:** Story 2.13
 **Epic scope covered:** Market-data provenance display; closes the epic
@@ -160,6 +160,22 @@ wrong at least as much as on its happy path.
 ## Acceptance criteria
 
 1. A user looking at any market number can see which feed it came from, without hovering
+
+   > **Met, and the reading is recorded because a future reader would otherwise
+   > call it unmet** (`PROVENANCE.md` §1.2, §1.3). _"Without hovering"_ is
+   > satisfied by **the chrome plus the source note**, and it is deliberately
+   > **not** satisfied by a mark inside the plot frame. The screenshot argument —
+   > a chart travels, so the label should be on it — was taken seriously and
+   > found to prove something narrower than it claims: what travels is a
+   > screenshot of a _region_, and every capture that includes a number in this
+   > product includes either the chrome above it or the note below it. A mark
+   > inside the frame would be a fourth caption for one fact set, which is
+   > §1.3's footnote pile arriving by the one road that also costs plot area.
+   > **The note names the series' own feed exactly when the chrome cannot** — the
+   > two conditions are negations of each other, so they can never print the same
+   > fact — and on a deployment with no provider configured, which is the
+   > default, that condition fires on every page.
+
 2. No screen states or implies full US-market coverage — checked by reading every string
    the epic added, not by intent
 
@@ -174,6 +190,24 @@ wrong at least as much as on its happy path.
 
 3. Every failure and partial state in the epic renders locally and deployed, and none of
    them produces a global error screen
+
+   > **Met under a corrected reading, and the correction is structural rather
+   > than an omission** (Task 2.14.9). The local half is discharged in full:
+   > Task 2.14.7 produced the complete set, by cause rather than by component,
+   > and it found four defects none of which was visible one state at a time
+   > (`PROVENANCE.md` §12). **The deployed half cannot be discharged as
+   > written, because a healthy deployment produces none of those states** — the
+   > coverage sentence renders only under `partial`, both vacancy sentences only
+   > where something is missing, the volume deferral only under `refused` or
+   > `failed` — and the deployed suite deliberately **never intercepts a route**,
+   > because everything it asserts is about a real environment being really
+   > correct. So the honest reading is: _every failure and partial state renders
+   > locally, and the deployed environment is asserted to be in **none** of
+   > them_, which is a **stronger** claim about a production site than the
+   > criterion asks for. This is ADR 0029's decision 1 pointed at a test rather
+   > than a screen: a claim about data requires data, and a spec may assert only
+   > what the environment it runs against can produce.
+
 4. **The epic's exit criterion is executed in the deployed environment**: search NVDA, open
    it, inspect recent historical price and volume, change the window
 5. That journey is asserted by the deployed browser suite, and the local suite covers the
@@ -182,6 +216,37 @@ wrong at least as much as on its happy path.
    alerts
 7. The ADRs are written, and `CLAUDE.md` and `README.md` reflect what actually landed
 8. `pnpm verify` passes, and both browser suites pass
+
+## What landed, in the words of what is on the screen — 2026-09-15
+
+**Amended at the close.** The _What the user can see_ section above was written
+against the inverted premise and its struck-through prose is a historical record
+that needs no correction. What is actually on the screen is this:
+
+- **One source note** at the foot of the Explorer's region group, three labelled
+  rows — `SOURCE` / `PRICES` / `CLASSIFICATION` — in the micro type. It names the
+  series' feed when the chrome cannot; it always states the adjustment and the
+  retrieval date when there are bars; and it always says that sector and industry
+  are **curated, not from the market feed**, with the date the curated file was
+  last checked.
+- **A coverage sentence** on the Price region's rail whenever the answer is short
+  of the window asked for — _holding 1,560 bars, through 2026-09-11 16:00:00 EDT,
+  of a window running to 2026-09-14 16:00:00 EDT_ — in full instants, because the
+  short form renders two different days as one.
+- **Four vacancy sentences**, two empty answers × two plots, telling _we hold
+  nothing for this security at this timeframe_ from _we hold nothing in this
+  window_ — derived on the client from the universe response, with no wire
+  change.
+- **Every failure and partial state in the epic**, checked as a **set** rather
+  than per component, and four defects repaired that were invisible one state at
+  a time.
+- **The epic's exit criterion walked on the deployed site** at 1440, 1024 and 390
+  — and now asserted on **every deploy** by
+  `specs-deployed/security-explorer-journey.spec.ts`.
+
+**What a user still cannot do: watch a price move.** There is no live data. That
+is Epic 3, and it is also the first thing that can produce the two-feed sentence
+this story wrote.
 
 ## What this story hands forward
 

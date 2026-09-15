@@ -732,6 +732,35 @@ Against Epic 1's re-derived totals, and the budget was re-read today rather than
 
 **And the cost question Epic 1 could not answer is still unanswered, with its refusal characterised again — the shape has not changed since Task 1.12.7.** `az consumption usage list` for 2026-09-01 to 2026-09-04 returns **`[]` at exit 0**, and the budget reports `currentSpend` of **`0.0` USD** with no forecast. **What has changed is that the lag explanation no longer covers it**: the first resource in this subscription is stamped `2026-09-03T05:32:32Z` and this reading was taken at `2026-09-04T11:20Z`, so the environment is now about **30 hours** old against Azure's documented 8–24 hour cost-data lag. Either the data is late beyond its own stated window or something else refuses it. **Task 2.1.8 still owns it**, and now has a sharper question than "wait longer".
 
+### The cost figure, re-taken with the database running — 2026-09-15, Task 2.14.10 (Epic 2's close)
+
+**The three predictions above are checked against a real bill rather than re-derived, and all three hold.** This is the first reading in this repository's history that returns a number instead of a refusal, and it is taken at the close of the epic that provisioned the database, so the arithmetic above stops being a prediction.
+
+**Read on 2026-09-15 from `Microsoft.CostManagement/query`, `ActualCost`, grouped by `ServiceName`.** Two windows, because a month-to-date figure over a partial month is not a rate:
+
+| Service                           | 7 full days (09-07 → 09-13) | Per month (× 30.44) | Share |
+| --------------------------------- | --------------------------- | ------------------- | ----- |
+| Container Registry, Basic         | `$1.1662`                   | **`$5.07`**         | 67%   |
+| Azure Container Apps              | `$0.5748`                   | **`$2.50`**         | 33%   |
+| **Azure Database for PostgreSQL** | **`$0.0000`**               | **`$0.00`**         | 0%    |
+| Azure Monitor                     | `$0.0000`                   | `$0.00`             | 0%    |
+| Log Analytics                     | `$0.0000`                   | `$0.00`             | 0%    |
+| **Total**                         | **`$1.7410`**               | **`$7.57`**         |       |
+
+**Against the `$20` budget that is 38%, and no alert has fired.** The budget was re-read rather than cited — `marketpulse-monthly`, `$20`/month, actual-cost alerts at 50 / 80 / 100% to the account owner, all three enabled, `currentSpend` **`$2.6763`** month-to-date.
+
+**Prediction 1 holds: the database's line is `$0.00`.** Prediction 2 holds: no budget alert has fired at all, let alone one attributable to the database. **Prediction 3 holds and is conservative** — the predicted band was `$9.21`–`$19.04` and the measured rate is `$7.57`, below the bottom of it. The gap is entirely Container Apps: predicted `$4.21`/month for the always-on replica, measured `$2.50`. The registry's `$5.07` matches its prediction almost exactly.
+
+**So Task 1.11.3's finding is confirmed and has got worse, which is the number worth carrying forward.** The registry was recorded as 54% of the bill for the least interesting resource in the deployment. Measured, it is **67%** — not because the registry moved but because the compute it serves costs less than predicted. **The reversal trigger is unchanged and is the bill mattering**: GHCR is free, the cost of moving is one image reference and one pull secret, and the managed-identity argument is still the argument.
+
+**How much of the free offer is spent, which is the number that decides anything.** The clock started at `2026-09-03T05:32:32Z` and runs 12 months, so it expires around **2027-09-03**. On 2026-09-15 that is **12 days spent and roughly 11.6 months remaining** — the offer has barely been touched, and the database contributed `$0.00` through a 48-million-bar backfill, which is the load it was most likely to break under.
+
+**What happens at expiry is unchanged and is the thing to diary.** `$16.09`/month arrives on one day, taking the total from `$7.57` to **`$23.66`** — which exceeds the `$20` budget and fires all three alerts, with no code change and no traffic change. The budget stays at `$20` for the reason Task 2.1.1 gave: a budget raised to accommodate a cost that should not exist cannot report that cost appearing.
+
+**And market data is free.** Alpaca costs quota, not cash — no provider request appears on this bill in any month, and nothing in this table is attributable to the 48 million bars in the store.
+
+**The cost question's refusal has changed shape for a fourth time, and this time only half of it refuses.** `az consumption usage list` for 2026-09-01 → 2026-09-15 now returns **81 records** naming all seven billable products including the database — and **every one of them carries `pretaxCost: 'None'`**, exactly as Task 2.7's reading did. So `az consumption` is still unusable and the answer came from `Microsoft.CostManagement/query` instead, which is the finding: **the question was never unanswerable, it was asked through the wrong API for four tasks.** The Cost Management query endpoint rate-limits hard (`429` on two of three attempts) and needs a retry loop; that is the whole of its difficulty.
+
 ### What each later task inherits from this one
 
 - **2.1.2** — the local database is **PostgreSQL 18**, and it authenticates with a password, because the deployed mechanism structurally cannot be reproduced locally.
@@ -2164,6 +2193,17 @@ exist_ and no numbers in them; the query API refuses outright. Two different
 instruments failing two different ways against a subscription whose resources are
 nearly two days old is evidence about the API tier or the offer type rather than
 about timing.
+
+> **Amended 2026-09-15 by Task 2.14.10, which got an answer.** Half of this
+> holds and half of it does not, and the half that does not is the one that
+> cost four tasks. `az consumption usage list` still returns shaped records with
+> `pretaxCost: 'None'` — 81 of them now, naming all seven billable products —
+> so that instrument is genuinely unusable. **The Cost Management query API is
+> not refusing; it is rate-limiting.** A `429` on the first attempt and a
+> success on the third, behind a twenty-second retry loop, returns the bill
+> grouped by service. See _The cost figure, re-taken with the database
+> running_ above for the numbers. The lesson is the one this document keeps
+> teaching: a tool's error message describes the tool.
 
 **The database does not appear in either, and that one genuinely is timing**: it
 was created `2026-09-04T23:46:10Z` and was **2.1 hours old** when this was read,
