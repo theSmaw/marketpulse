@@ -65,9 +65,17 @@
 >   on a developer's own store puts **that symbol** into case one while every
 >   other security stays populated — so case one, case two and a `partial` can
 >   be seen in one sitting against one pair. Used and restored on 2026-09-15
->   (row count checked back to 1,036). **Restore it**, and note that the bars
->   still serve from that store, so the security only reads as case one in a
->   window that holds none.
+>   (row count checked back to 1,036). **Restore it.**
+>
+>   **But it is a way to look at a state, not a way to verify a spec**, and that
+>   distinction cost a red CI run on the day it was written. The bars still
+>   serve from that store — only the ledger row is gone — so the security reads
+>   as case one **in a window that holds none** and as a populated chart in
+>   every other. A spec landing on the default window therefore takes the
+>   populated branch and passes, exactly where CI takes the vacancy branch and
+>   fails. `store:bare` is the only faithful shape, it takes about a minute to
+>   build, and a bare pair runs the whole suite in four.
+>
 > - **Four more rows for the copy matrix, and one of them was reworded by a
 >   browser run.** Each drawn sentence has a deliberately _differently worded_
 >   spoken twin in `chart-alternative.ts` or `series-announcement.ts`. That is

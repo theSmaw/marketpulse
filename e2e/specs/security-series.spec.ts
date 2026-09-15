@@ -104,13 +104,38 @@ test("a deep link renders one security's real bars, from a real request", async 
   // run — see the header; both are 200s and neither is a failure.
   await expect(anAnswer(region)).toBeVisible();
 
-  // Market time with the zone named, in **either** answer: an empty one still
-  // states the window it asked for. A timestamp rendered in the browser's own
-  // zone is the same class of defect as a window resolved from its clock, and
-  // the abbreviation is the only thing that makes it visible at all. The
-  // runner's timezone is not New York, so this is a real check rather than a
-  // coincidence.
-  await expect(region.getByText(/E[DS]T/).first()).toBeVisible();
+  // Market time with the zone named, **wherever an instant is drawn at all**.
+  //
+  // A timestamp rendered in the browser's own zone is the same class of defect
+  // as a window resolved from its clock, and the abbreviation is the only thing
+  // that makes it visible. The runner's timezone is not New York, so where this
+  // runs it is a real check rather than a coincidence.
+  //
+  // **It used to read `in either answer: an empty one still states the window
+  // it asked for`, and that premise died on 2026-09-15 (Task 2.14.6.)** There
+  // are two empty answers now. The one about the *window* still names it; the
+  // one about the *store* — `No history stored for NVDA yet.` — deliberately
+  // names no window at all, because the window is not the reason and printing
+  // it would invite a reader to change something that cannot help.
+  //
+  // **Which makes this the trap recorded two files over, in the same words.**
+  // `security-price-chart.spec.ts` §`priceStrip` records an assertion that was
+  // *green against a chart nobody had pointed at*, because it asked for **some**
+  // `EDT` in the Price region and the panel's own sentence supplied one. This
+  // assertion was the same shape: on CI — 518 securities, zero bars — the only
+  // instant on the page came from the vacancy's requested range, which is not
+  // what the check is about. It went red the day that sentence stopped carrying
+  // a range, which is the check telling the truth rather than a regression.
+  //
+  // So it is scoped to the answers that have an instant to get wrong, and the
+  // store answer asserts the other half: that it claims no window either.
+  const nothingStored = readable(region, /No history stored for \w+ yet/);
+
+  if (await nothingStored.isVisible()) {
+    await expect(region.getByText(/E[DS]T/)).toHaveCount(0);
+  } else {
+    await expect(region.getByText(/E[DS]T/).first()).toBeVisible();
+  }
 
   if (await hasBars(region)) {
     // The three prices the held window is summarised by, which since

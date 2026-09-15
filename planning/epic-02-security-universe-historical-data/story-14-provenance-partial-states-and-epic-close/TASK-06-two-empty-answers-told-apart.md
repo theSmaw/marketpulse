@@ -274,6 +274,36 @@ Both empties, which no single store can show:
 shape it produces is the same: 518 securities, zero coverage rows, every
 security case one.
 
+### What CI found that no local run did
+
+**One browser spec went red on the first push, and it was right to.**
+`security-series.spec.ts` asserted that the Price region carries a market
+instant with its zone — `EDT`/`EST` — _in either empty answer_, on the stated
+grounds that an empty one still names the window it asked for. Case one does
+not, deliberately: naming a window a reader cannot usefully change is the thing
+§6.3 removed.
+
+Two things worth keeping out of it:
+
+- **The assertion was green in CI only because of an incidental string.** The
+  check is about a timestamp being formatted in market time rather than the
+  runner's zone. On a zero-bar store the only instant on the page came from the
+  window vacancy's requested range — not from anything the check is about. It is
+  the same trap `security-price-chart.spec.ts` records two files over in almost
+  the same words: _green against a chart nobody had pointed at_, because the
+  helper fell back to the first `EDT` in the region. The spec now scopes the
+  assertion to answers that have an instant to get wrong, and asserts of the
+  store vacancy that it claims **no** window. The coverage that genuinely
+  disappears from CI's run is in `docs/GAPS.md`.
+- **The local approximation of CI's store was not one.** Case one was produced
+  by deleting a security's `1m` ledger row, which leaves the **bars** serving —
+  so the default window still drew a chart and the spec took the populated
+  branch and passed, exactly where CI took the vacancy branch and failed.
+  `pnpm store:bare` is the faithful shape; it builds in about a minute and the
+  whole suite runs against a bare pair in four. **124 passed, 15 skipped, 0
+  failed** against it. Recorded on TASK-07, whose production recipes this
+  belongs to.
+
 ### Checks
 
 - `pnpm invariants` — `one-home-for-the-empty-explanation` now covers **four**
