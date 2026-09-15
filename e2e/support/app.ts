@@ -143,3 +143,24 @@ export function readable(scope: Locator, text: RegExp | string): Locator {
     .and(scope.locator(':not([role="status"])'))
     .and(scope.locator(":visible"));
 }
+
+/**
+ * **Either empty answer**, as one pattern (Task 2.14.6).
+ *
+ * A plot holding nothing says one of two things, and which one depends on the
+ * store behind the run: *no bars stored for this window* where we hold history
+ * for the security and none in the window asked for, and *no history stored for
+ * NVDA yet* where we hold nothing at all. **CI's store is 518 securities and
+ * zero bars, so every chart there is the second one** — which is why this
+ * constant exists rather than nine specs each spelling the first.
+ *
+ * Every one of those specs uses it the same way: as one arm of *the panel has
+ * settled on an answer*, beside the arm that matches a populated chart. Which
+ * arm matches is an environment fact rather than an assertion, and a spec that
+ * hard-coded either would pass on one store and fail on the other.
+ *
+ * The two subjects — bars and volume — are both matched, so a spec scoped to
+ * the Volume region finds its own region's sentence.
+ */
+export const AN_EMPTY_PLOT =
+  /No (?:bars|volume) stored for this window|No (?:volume )?history stored for \w+ yet/;

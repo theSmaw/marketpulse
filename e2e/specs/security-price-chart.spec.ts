@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 import { expectNoAxeViolations } from "../support/axe.js";
-import { expectNothingFailedToRender } from "../support/app.js";
+import { AN_EMPTY_PLOT, expectNothingFailedToRender } from "../support/app.js";
 
 // **The chart, in the region that named it** (Task 2.12.4) — and the three
 // facts about it that no other level in this repository can see.
@@ -109,7 +109,7 @@ function volumePlot(page: Page) {
 function anAnswer(page: Page) {
   return priceRegion(page)
     .getByText(/(^| )Open$/)
-    .or(priceRegion(page).getByText(/No bars stored for this window/))
+    .or(priceRegion(page).getByText(AN_EMPTY_PLOT))
     .first();
 }
 

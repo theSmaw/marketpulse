@@ -2,7 +2,11 @@ import { REQUEST_ID_HEADER, apiError } from "@marketpulse/shared";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import { expectNothingFailedToRender, readable } from "../support/app.js";
+import {
+  AN_EMPTY_PLOT,
+  expectNothingFailedToRender,
+  readable,
+} from "../support/app.js";
 import { BARS_ROUTE_PATTERN } from "../support/pair.js";
 
 // Moving between two securities **without reloading the application**
@@ -94,7 +98,7 @@ function subject(page: Page, symbol: string) {
 function anAnswer(page: Page) {
   return panel(page)
     .getByText(/(^| )Open$/)
-    .or(readable(panel(page), /No bars stored for this window/));
+    .or(readable(panel(page), AN_EMPTY_PLOT));
 }
 
 /** The mark a held answer carries while a newer one is in flight. */

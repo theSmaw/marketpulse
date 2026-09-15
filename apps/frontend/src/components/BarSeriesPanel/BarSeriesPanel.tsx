@@ -27,6 +27,7 @@ import {
 import { Marker } from "../Marker/Marker.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import { PriceChart } from "../PriceChart/PriceChart.js";
+import type { StoredHistory } from "../PriceChart/chart-vacancy.js";
 import { announceSeries } from "./series-announcement.js";
 import type { SeriesPrices } from "./series-facts.js";
 import {
@@ -186,6 +187,21 @@ export interface BarSeriesPanelProps {
    * router: the window lives in the address, and the address is the route's.
    */
   readonly control?: ReactNode;
+
+  /**
+   * What the store holds for this security (Task 2.14.6), from
+   * `chart-vacancy.ts` — which of the two empty answers an empty plot is.
+   *
+   * **The panel does not use it and hands it on**, to the price chart and to
+   * the announcement, which is worth saying because a pass-through prop looks
+   * like a layering mistake until the reason is written down. The derivation
+   * reads the *universe* answer, and this panel is about the *series* one: it
+   * has no business fetching a second thing, and the route already holds both.
+   * That the same value reaches the drawn sentence and the spoken one is the
+   * point — a screen and a screen reader disagreeing about which empty answer
+   * this is would be the exact drift this story spends its time preventing.
+   */
+  readonly stored?: StoredHistory;
 }
 
 export function BarSeriesPanel({
@@ -194,6 +210,7 @@ export function BarSeriesPanel({
   onRetry,
   defaulted,
   control,
+  stored = "unknown",
 }: BarSeriesPanelProps) {
   const { shown } = screen;
   return (
@@ -207,7 +224,7 @@ export function BarSeriesPanel({
        * suite asserts by node identity, because a text assertion cannot see it.
        */}
       <p className={styles.visuallyHidden} role="status">
-        {announceSeries(screen, symbol)}
+        {announceSeries(screen, symbol, stored)}
       </p>
 
       {/*
@@ -280,7 +297,12 @@ export function BarSeriesPanel({
        * answer, which is `PRODUCT_SPEC.md` §28's 500 ms satisfied by the frame
        * rather than by the response.
        */}
-      <PriceChart pending={screen.pending} symbol={symbol} view={shown} />
+      <PriceChart
+        pending={screen.pending}
+        stored={stored}
+        symbol={symbol}
+        view={shown}
+      />
       {/*
        * **The body follows the picture, not the request** (Task 2.13.7), and it
        * is almost nothing now.

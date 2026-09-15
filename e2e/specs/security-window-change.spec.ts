@@ -1,7 +1,11 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import { expectNothingFailedToRender, readable } from "../support/app.js";
+import {
+  AN_EMPTY_PLOT,
+  expectNothingFailedToRender,
+  readable,
+} from "../support/app.js";
 import { BARS_ROUTE_PATTERN } from "../support/pair.js";
 
 // **Every way a window change can end, in the only instrument that can see most
@@ -70,7 +74,7 @@ function cell(page: Page, name: string) {
 function anAnswer(page: Page) {
   return priceRegion(page)
     .getByText(/(^| )Open$/)
-    .or(priceRegion(page).getByText(/No bars stored for this window/))
+    .or(priceRegion(page).getByText(AN_EMPTY_PLOT))
     .first();
 }
 

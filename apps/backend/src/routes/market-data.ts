@@ -677,14 +677,26 @@ export function createMarketDataRoutes(
 
         if (cached === undefined) cache.write(key, served, instant);
 
-        // The two empty answers, told apart in the log and nowhere else.
+        // The two empty answers, told apart in the log and nowhere else **on
+        // this route** — which since 2026-09-15 is a decision rather than a
+        // deferral.
         //
         // `held === undefined` is *we hold nothing for this (symbol,
         // timeframe)*; a present ledger row with an empty series is *the window
         // had no prints in it*. Both are the same 200 body, deliberately — §6
-        // — and the distinction is what Story 2.14's wording will be built from.
-        // It is available here without a second query because Task 2.9.4 put the
-        // ledger row beside the series.
+        // — and it is available here without a second query because Task 2.9.4
+        // put the ledger row beside the series.
+        //
+        // **Story 2.14 draws both sentences and this route still sends one
+        // body.** `PROVENANCE.md` §6.2: the client derives the distinction from
+        // `SecuritiesResponse.coverage`, which omits a security with no bars
+        // rather than sending a zero — so the Security Explorer already holds
+        // the answer and nothing here had to change. This line stays as the
+        // **operator's** view of a distinction the client now draws
+        // independently; do not delete it as redundant, and do not add a field
+        // here to replace it. The condition that puts it on the wire is the
+        // first consumer of this route that does **not** also hold the tracked
+        // universe — Epic 10's agent tools are the named candidate.
         if (served.series.bars.length === 0) {
           request.log.debug(
             {

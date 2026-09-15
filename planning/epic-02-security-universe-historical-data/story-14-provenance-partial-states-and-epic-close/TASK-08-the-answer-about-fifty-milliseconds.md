@@ -62,6 +62,29 @@
 > that ships**, and 2.14.5 is the last task before this one that adds markup to
 > the security page.
 
+> **Amended 2026-09-15 by Task 2.14.6, which is the fourth control on the same
+> argument — and this one is a new per-render read, so it is the first of these
+> amendments that is not simply _nothing to see_.**
+>
+> - **A second linear `.some()` over the 518-security array**, in
+>   `storedHistoryFor` (`chart-vacancy.ts`), deciding which of the two empty
+>   answers a plot is drawing. It is one scan of 518 rather than 518 scans — the
+>   same class as `toClassification`'s and nowhere near what this task is about.
+> - **But it does not run on the store this figure was taken against.** The scan
+>   happens only when the symbol is **absent** from the coverage map, so a
+>   populated store pays `Map.has` and stops. Where it does run is every page
+>   `store:bare` and CI render, which is the one store where the universe table
+>   is also at its cheapest — 518 rows with no closes and no depth. Whichever way
+>   the figure is taken, name the store beside it.
+> - **The page now performs two scans of one array for one symbol** —
+>   `toClassification`'s and this one — and they are deliberately not merged.
+>   Merging them would couple the source note to the chart's vacancy for a
+>   membership test; a `Map` built per render to avoid a scan per render is the
+>   trade 2.14.4 already declined. Recorded rather than done: **if this task's
+>   measurement has moved, this is the third thing to rule out**, and ruling it
+>   out is cheap because the work is identical whether the plot draws a sentence
+>   or a line.
+
 ## Objective
 
 Discharge the one published-target breach this epic ships with, by **deciding**

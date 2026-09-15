@@ -2,7 +2,11 @@ import { REQUEST_ID_HEADER, apiError } from "@marketpulse/shared";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import { expectNothingFailedToRender, readable } from "../support/app.js";
+import {
+  AN_EMPTY_PLOT,
+  expectNothingFailedToRender,
+  readable,
+} from "../support/app.js";
 import { BARS_ROUTE_PATTERN } from "../support/pair.js";
 
 // Every state the bar-series panel can be in, produced in a **real browser**
@@ -59,7 +63,7 @@ function panel(page: Page) {
 function anAnswer(page: Page) {
   return panel(page)
     .getByText(/(^| )Open$/)
-    .or(readable(panel(page), /No bars stored for this window/));
+    .or(readable(panel(page), AN_EMPTY_PLOT));
 }
 
 test("an empty window reads as an answer, not as a broken product", async ({
@@ -93,17 +97,36 @@ test("an empty window reads as an answer, not as a broken product", async ({
   await page.goto(`/securities/${SYMBOL}`);
 
   const region = panel(page);
-  await expect(
-    readable(region, /No bars stored for this window/),
-  ).toBeVisible();
+  await expect(readable(region, AN_EMPTY_PLOT)).toBeVisible();
 
-  // It still says what was asked for, in market time with the zone named. A
-  // panel that dropped the window would leave "no data" with nothing to be
-  // about.
-  const detail = readable(region, /We asked for/);
-  await expect(detail).toBeVisible();
-  await expect(detail).toContainText(/E[DS]T/);
-  await expect(detail).toContainText(/caught up overnight/);
+  // **Which empty answer this is depends on the STORE, not on the body this
+  // route emptied** (Task 2.14.6). The forced body says *no bars in this
+  // window*; whether that is the whole truth depends on whether the universe
+  // holds any coverage for this security — and **CI's store is 518 securities
+  // and zero bars**, so CI takes the second branch and a developer's own store
+  // takes the first. Both are correct 200s and both are asserted, because a
+  // spec that expected one would pass in one environment and fail in the other.
+  const windowAnswer = readable(region, /No bars stored for this window/);
+
+  if (await windowAnswer.isVisible()) {
+    // Case two names the window, in market time with the zone named. A panel
+    // that dropped it would leave "no data" with nothing to be about.
+    const detail = readable(region, /We asked for/);
+    await expect(detail).toBeVisible();
+    await expect(detail).toContainText(/E[DS]T/);
+    await expect(detail).toContainText(/caught up overnight/);
+  } else {
+    // Case one names the **security**, which is the whole encoding, and it is
+    // the one sentence in the product that tells a reader a visible control is
+    // the wrong next move.
+    await expect(
+      readable(region, /No history stored for \w+ yet/),
+    ).toBeVisible();
+    await expect(
+      readable(region, /Changing the window will not help/),
+    ).toBeVisible();
+    await expect(readable(region, /We asked for/)).toHaveCount(0);
+  }
 
   // And it is an **answer**: no control, no correlation id, nothing that reads
   // as a fault.

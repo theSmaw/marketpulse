@@ -31,18 +31,21 @@ reference rather than a rule. `CLAUDE.md` keeps the rule and points here.
 the claims that used to be prose here, each a single grep over checked-in files.
 Every one is break-verified through `pnpm break`:
 
-| Invariant                                          | Break that proves it             |
-| -------------------------------------------------- | -------------------------------- |
-| No recorded market body reaches the shipped bundle | `fixture-in-the-bundle`          |
-| The chart's density breakpoints are spelled once   | `second-density-breakpoint`      |
-| The three dash rhythms are three and differ        | `coverage-edge-matches-the-seam` |
-| The readout reservation has one home               | `second-readout-reservation`     |
-| No route seeds `initiallyCollapsed`                | `route-seeds-initiallycollapsed` |
-| Words and wash count the same axis                 | `words-count-elapsed-time`       |
-| The five-minute ceiling stays derived              | `ceiling-spelled-twice`          |
-| The empty-window sentence has one home             | `empty-explanation-twice`        |
-| The coverage sentence has one home                 | `coverage-sentence-twice`        |
-| The feed's words are written once                  | `feed-words-in-a-renderer`       |
+| Invariant                                          | Break that proves it               |
+| -------------------------------------------------- | ---------------------------------- |
+| No recorded market body reaches the shipped bundle | `fixture-in-the-bundle`            |
+| The chart's density breakpoints are spelled once   | `second-density-breakpoint`        |
+| The three dash rhythms are three and differ        | `coverage-edge-matches-the-seam`   |
+| The readout reservation has one home               | `second-readout-reservation`       |
+| No route seeds `initiallyCollapsed`                | `route-seeds-initiallycollapsed`   |
+| Words and wash count the same axis                 | `words-count-elapsed-time`         |
+| The five-minute ceiling stays derived              | `ceiling-spelled-twice`            |
+| The empty-window sentence has one home             | `empty-explanation-twice`          |
+| The volume plot's empty sentence has one home      | `volume-explanation-twice`         |
+| Case one's price headline has one home             | `no-history-sentence-twice`        |
+| Case one's volume headline has one home            | `no-volume-history-sentence-twice` |
+| The coverage sentence has one home                 | `coverage-sentence-twice`          |
+| The feed's words are written once                  | `feed-words-in-a-renderer`         |
 
 **The table is the count.** It read _seven_ until 2026-09-15 and the list had
 already grown to eight — `one-home-for-the-empty-explanation` shipped on
@@ -51,6 +54,12 @@ document's own failure mode in miniature: a number in prose beside a list that
 moves. Corrected here rather than re-counted, and the last two rows are Story
 2.14's string pass (`PROVENANCE.md` §11) obeying the rule below — an entry that
 can be made mechanical should be.
+
+**Four of those rows are one invariant**, and that is the honest spelling rather
+than four checks. `one-home-for-the-empty-explanation` guards **four** sentences
+since 2026-09-15 — two empty answers × two plots (`PROVENANCE.md` §6.3) — and a
+check guarding four literals owes four breaks, because a break proves one
+substitution and not a loop. The rows are the breaks; the invariant is one.
 
 **One of those seven had already rotted before it was mechanised**, which is the
 argument for the migration in a sentence: the five-minute-ceiling entry told a
@@ -215,6 +224,13 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
 
    - **That the rail's reservation still clears the coverage sentence at every width.** The slot above the picture is as tall as the tallest sentence it can hold **at this width** — two hidden copies in one grid cell, so nothing counts characters — and the coverage sentence is now the taller of the two: measured 2026-09-15 against a store four sessions behind, the rail is **66px** where the held-window sentence alone reserved **48px**, at 1440 and at 390 alike. What is _not_ reserved is the bar count's digits: the hidden copy carries the count of the series **on screen**, so a press that turns a 390-bar answer into an 8,190-bar one moves the last line by two characters. It does not change the line count at any of the four viewports today, and nothing anywhere would notice if a rewording made it. Re-measure: `pnpm probe "/securities/NVDA?sessions=5" --within Price` and read `rail`; then `?sessions=21`, which asks for twenty-one times the bars, and confirm the height is unchanged.
    - **That a coverage sentence and a coverage edge never disagree about where the data stops.** The rail says _through 2026-09-11 16:00:00 EDT_; the plot draws its edge at `coverage.covered.end` through `positionOfInstant`. Both read the same field of the same response, which is what makes them agree — and **nothing compares them**, because one is a string in the DOM and the other is an `x` on an SVG line, and the instant is not recoverable from the pixel. This is the pair the whole sentence exists for: it says the _when_ the session-ordinal axis cannot. Re-measure: open a partial answer, read the instant out of the rail, and check it against `series.coverage.covered.end` in the response for the same request — `curl "$BACKEND/market-data/bars?symbol=NVDA&sessions=5&timeframe=1m" | jq .series.coverage`.
+     Three added 2026-09-15 by Task 2.14.6, and all three are about the empty page:
+
+   - **That `SecuritiesResponse.coverage`'s `1m`-only shape does not mislabel a daily-timeframe empty.** The distinction between the two empty answers is derived from that array (`chart-vacancy.ts`, `PROVENANCE.md` §6.2), and the array carries the **minute** half of the ledger by Task 2.8.9's stated choice. So a security holding minute bars and no daily bars reads as _we hold nothing in this window_ at `3M` and `1Y` when the honest answer there is _we hold nothing at all_. The backfill fills both timeframes, so the shape is unlikely rather than impossible, and it fails in the safe direction — the error it can make is the **cautious** sentence where the confident one was available, never the reverse. Seen from the other side while the task was being looked at: removing one security's `1m` ledger row on a developer store draws _No history stored for ZTS yet_ under an identity block still showing a last close, because that close comes from a **daily** bar the array never described. The sentence stays true because it says _at this timeframe_, which is the clause that earns its place. Re-measure: delete one security's `1m` row from `bar_coverage`, open `/securities/<symbol>?sessions=1`, then `?sessions=63`, and read the two answers against each other. `pnpm coverage:check` is what would make this mechanical, and it does not compare the two timeframes' ledgers for a _single_ security.
+   - **That the drawn empty sentence and its two spoken twins say the same thing.** Four literals are drawn (`ChartVacancy`), and each has a spoken counterpart in `chart-alternative.ts` or `series-announcement.ts` that is deliberately **worded differently**, because visible text is written to be scanned and an announcement to be heard once. `pnpm invariants` holds that each drawn sentence has one home; **nothing holds that a drawn sentence and its spoken twin agree about which empty answer they are describing**, because they share a derivation and not a string. What stops them drifting is one value threaded from one place — `storedHistoryFor` in the route — and a unit test on each side. Re-measure: `pnpm --filter @marketpulse/frontend test SecurityExplorer`, which renders the route with both requests stubbed and reads both spoken copies out of the DOM; a drawn/spoken disagreement is only visible there.
+
+   - **That a market instant is ever rendered in market time by the browser suite CI runs.** Every assertion of the form _this timestamp carries `EDT`/`EST`_ is now scoped to an answer that has an instant in it, and **a bare store has none**: the readout checks `test.skip` with no bars, the coverage sentence needs a `partial`, and as of 2026-09-15 the store vacancy names no window. So on CI — 518 securities, zero bars — nothing in a browser checks that a timestamp is not being rendered in the runner's own timezone, which is the defect the check exists for and the one a machine in another zone is most likely to introduce. This is not a regression in the product; it is a coverage claim that was **quietly resting on an incidental string** — the window vacancy's requested range — and stopped when that sentence correctly stopped carrying one. Re-measure: `pnpm store:bare`, drive the pair at it, and read `security-series.spec.ts`'s store-vacancy branch; the assertion that survives there is that the page claims _no_ window, not that it formats one. The mechanical repair, if it is wanted, is a spec that asserts market time against a surface with no data dependency — the market clock in the status strip is the only candidate, and it prints `ET` rather than `EDT`.
+
    - **That `No shares changed hands anywhere in the window.` stays true when a series names two feeds.** It is the one user-facing sentence in the product making a claim about **the market** rather than about our store, and it is correct today for the reason the pass records: every stored bar is the consolidated tape, so _anywhere_ means every US venue. The moment Epic 3 stitches an IEX tail onto stored bars, the sentence is a single venue's silence reported as the whole market's — the exact failure `PRODUCT_SPEC.md` §7.1 forbids, in the one place a reader would never look for it. `PROVENANCE.md` §11 records it as read-and-left with this trigger. Re-measure: when a series can carry two feeds, render `Market/VolumeReading` against `twoFeedStitchView()` and read the sentence.
 
 4. **Prose figures.** Documentation publishes numbers nothing regenerates. `pnpm links` closed the _link_ half of this gap; the figures half cannot be closed, because a figure in a sentence has no referent.

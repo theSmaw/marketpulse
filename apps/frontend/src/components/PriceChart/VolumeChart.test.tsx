@@ -5,6 +5,7 @@ import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import type { BarSeriesFixtureName } from "../../fixtures/bar-series.js";
 import type { BarSeriesView } from "../../market/index.js";
 import { ChartAxis } from "./ChartAxis.js";
+import type { StoredHistory } from "./chart-vacancy.js";
 import { VolumeChart } from "./VolumeChart.js";
 
 // What a component test can and cannot see of the volume plot (Task 2.13.4).
@@ -67,10 +68,16 @@ function measureEverythingAt(width: number, height: number) {
  * `useChartAxis` throws outside a `ChartAxis` on purpose; see
  * `chart-axis-context.ts` for why a fallback would be worse than a throw.
  */
-function Chart({ view }: { readonly view: BarSeriesView }) {
+function Chart({
+  view,
+  stored = "unknown",
+}: {
+  readonly view: BarSeriesView;
+  readonly stored?: StoredHistory;
+}) {
   return (
     <ChartAxis view={view}>
-      <VolumeChart symbol="NVDA" view={view} />
+      <VolumeChart stored={stored} symbol="NVDA" view={view} />
     </ChartAxis>
   );
 }
@@ -208,6 +215,42 @@ describe("with a measured box", () => {
         .closest("[aria-hidden='true']"),
     ).not.toBeNull();
     expect(container.textContent).toContain("no columns are drawn");
+  });
+
+  // **Its own subject in the other empty answer too** (Task 2.14.6), and this
+  // is the literal §6.3 did not count. A price plot saying *no history for NVDA
+  // yet* above a volume plot saying *none for this window* tells a reader two
+  // different stories about one empty screen.
+  it("names the security in its own subject, when the store holds nothing", () => {
+    measureEverythingAt(800, 88);
+
+    const { container } = render(
+      <Chart stored="none" view={barSeriesFixtureView("empty")} />,
+    );
+
+    expect(
+      screen.getByText("No volume history stored for NVDA yet."),
+    ).toBeTruthy();
+    expect(screen.queryByText(/No history stored for NVDA/)).toBeNull();
+    expect(screen.queryByText(/No volume stored for this window/)).toBeNull();
+
+    // Still no schedule sentence: that fact is stated once, on the plot with
+    // room for it.
+    expect(screen.queryByText(/the store is filled overnight/)).toBeNull();
+
+    // And spoken by the alternative rather than by the hidden block.
+    expect(container.textContent).toContain(
+      "No volume history is stored for NVDA at this timeframe",
+    );
+  });
+
+  it("falls back to the window sentence when the universe is unreadable", () => {
+    measureEverythingAt(800, 88);
+
+    render(<Chart stored="unknown" view={barSeriesFixtureView("empty")} />);
+
+    expect(screen.getByText("No volume stored for this window.")).toBeTruthy();
+    expect(screen.queryByText(/No volume history stored/)).toBeNull();
   });
 
   it("clips the columns so an end column cannot paint outside the plot", () => {
