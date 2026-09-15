@@ -1,6 +1,6 @@
 # Task 2.14.9 — The deployed suite asserts the exit criterion, on every deploy
 
-**Status:** Not started
+**Status:** Complete — 2026-09-15
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.3, 2.14.5, 2.14.6, 2.14.7
 
@@ -236,3 +236,295 @@ by a person opening the page. Say "nothing visible" plainly.
 Scope the deployed suite hard. Every test in it runs after every merge, over a
 network, against a shared environment — and a flaky deployed test is worse than
 no deployed test, because it teaches everyone to re-run it.
+
+---
+
+## What was done — 2026-09-15
+
+### 0. The freshness reading, taken **before** the walk
+
+`GET /diagnostics/freshness`, at `2026-09-15T02:55:30Z`:
+
+```
+lastCompletedSession 2026-09-14
+1m  newestSession 2026-09-14  sessionsBehind 0  stalestSessionsBehind 0  securities 518
+1d  newestSession 2026-09-14  sessionsBehind 0  stalestSessionsBehind 0  securities 518
+```
+
+**Zero sessions behind on both timeframes, and every one of the 518 securities
+current.** That is the store at its healthiest, and reading it first is what
+decided the rest of the task rather than merely annotating it: the amendments
+above name three states this epic shipped that a current store **structurally
+cannot produce**, and the walk therefore went looking for none of them.
+
+Recorded in the shape those amendments ask for:
+
+- **The coverage sentence was not seen deployed**, because the store answers
+  every named window in full. The chart's own text alternative said so in words
+  — _the line runs the full width of the window asked for_ — which is the
+  positive form of the same fact and is what a walk should record instead.
+- **Neither vacancy sentence was seen deployed**, for the same reason: there is
+  no vacancy on the page at all.
+- **The volume plot's deferral was not seen deployed**, because it renders only
+  under `refused` or `failed` and nothing refused or failed.
+
+None of those three is a missing state. All three are the environment being
+well.
+
+### 1. The hand-walk, at 1440, 1024 and 390
+
+Cold loads of `https://red-smoke-029583a0f.5.azurestaticapps.net/securities/NVDA`
+at each viewport, with the window control pressed and the crosshair driven at
+each. **This is the first time the provenance surface, the recency line and the
+vacancy wording have been looked at against the real store rather than against a
+fixture.** What was on the page:
+
+| Viewport | Price plot     | Volume plot    | Regions | `role="alert"` | Page errors |
+| -------- | -------------- | -------------- | ------- | -------------- | ----------- |
+| 1440     | `x 41 w 832.7` | `x 41 w 832.7` | 8 of 8  | 0              | 0           |
+| 1024     | `x 41 w 400`   | `x 41 w 400`   | 8 of 8  | 0              | 0           |
+| 390      | `x 41 w 262`   | `x 41 w 262`   | 8 of 8  | 0              | 0           |
+
+**One axis, exactly, at all three widths** — the two plots share a left edge and
+a width to the tenth of a pixel, which is the structural claim `CHARTING.md`
+§17.5 names as the thing a second plot most often gets wrong.
+
+**One crosshair, one reading, at all three widths.** A pointer at 60 % of the
+plot produced `Sep 10 · 15:59 EDT` in the price strip and the identical instant
+in the volume strip, with one crosshair line and one disc.
+
+**The source note draws two clauses deployed**, and that is the first time it
+has been seen against real ledger rows:
+
+```
+PRICES          Unadjusted · Retrieved 9 September 2026
+                Prices as they printed. Not restated for stock splits.
+CLASSIFICATION  Sector and industry are curated, not from the market feed.
+                Last checked 8 September 2026
+```
+
+There is **no `Source` term**, which is correct and worth recording: the
+deployed series is one stretch on one feed, and §1.3's rule is that the note
+states what the chrome cannot. The masthead already says `ALL US EXCHANGES`.
+
+**One thing the walk found that no fixture could have**, and it is the note
+behaving exactly as designed: the retrieval date **changes with the window**.
+`5D` reads `Retrieved 9 September 2026` and `1M` reads `Retrieved 8 September
+2026`, because the 1M window reaches back into bars fetched a day earlier. A
+single date hard-coded per security would have looked identical on every fixture
+in the repository and wrong here.
+
+**The window change**, deployed: pressing `1M` moved both plots together, put
+`?sessions=21` in the address, re-labelled every figure `1M Open` / `1M High` /
+`1M Low` / `1M Close`, and left the two plots on one axis at the same two
+numbers as before.
+
+### 2. Two instrument findings from the walk, neither of them a product defect
+
+- **The Claude-in-Chrome tab cannot judge this page, and the failure looks like
+  a defect.** `docs/GAPS.md` already records the mechanism and it fired again on
+  the first attempt: the tab reports `document.visibilityState === "hidden"`, so
+  the market clock froze at `22:55:48` and the backend indicator stayed on
+  `checking` for ever. Both are the application's own visibility rule behaving
+  correctly — it exists so a tab somebody forgot is not billed for — and neither
+  is visible in Playwright, which reports `visible`. The walk was re-done with a
+  Playwright script for exactly this reason, and the viewport is the second
+  half: `resize_window` moved the OS window and left `innerWidth` at 1710, so
+  the three-viewport half of this task is not reachable through that tool at
+  all.
+- **A pointer at a plot that has not been scrolled into view reads nothing.**
+  At 390 the first pass reported no crosshair and no reading — this suite's own
+  recorded trap rather than a narrow-viewport defect. With
+  `scrollIntoViewIfNeeded` first, 390 reads exactly as 1440 does. The spec
+  carries the call and the reason.
+
+### 3. `PRODUCT_SPEC.md` §28, deployed — observed, owned, and **not** filed again
+
+Task 2.14.8's inoculation applies and is recorded as used. Six cold loads over
+the network at 1440, three of each route, reading `PerformanceObserver` on
+`longtask`:
+
+| Route              | Run 1 | Run 2 | Run 3 |
+| ------------------ | ----- | ----- | ----- |
+| `/securities`      | 54 ms | none  | none  |
+| `/securities/NVDA` | none  | none  | 52 ms |
+
+**The breach is present deployed and at the bottom of its measured band** (50–76
+ms), which is the known finding and needs nothing from this task. What is new,
+and is the thing 2.14.8 asked to be recorded if it appeared, is that deployed it
+is **intermittent** where locally it is every cold load: two of six loads
+crossed 50 ms and four produced no long task at all. The plausible reading is
+that an internet round trip spreads the same work across more frames than a
+local pair does — which is a reason the deployed figure is _softer_ than the
+local one, not a reason to think the repair is less needed. It belongs to Epic
+14 either way, and no timing assertion was added to `specs-deployed/`.
+
+### 4. The spec
+
+[`e2e/specs-deployed/security-explorer-journey.spec.ts`](../../../e2e/specs-deployed/security-explorer-journey.spec.ts)
+— **two tests**, and the file's own header argues the count.
+
+- **The exit criterion as one journey.** Search `nvid` on `/securities`, open
+  the result, land on `/securities/NVDA`; every one of `PRODUCT_SPEC.md` §8.3's
+  eight regions present **and non-empty**; both plots drawn on one axis at one
+  width; one pointer producing one reading in both strips; press `1 month`; the
+  address carries `?sessions=21`, the cell is checked, both plots are still one
+  axis; the source note's classification clause; and no `role="alert"` anywhere.
+- **A cold deep link to a window.** `/securities/NVDA?sessions=21` loaded cold
+  is a different chain from the same address reached through the control — the
+  host's fallback answers a two-segment path with a query, the bundle boots, and
+  the window is read from the address before anything is fetched. It is also
+  exactly how Epic 11's `setTimeWindow` will arrive at a window.
+
+**What it asserts and what it refuses** is set out in the file's header as the
+structure/figures rule, and the refusals are the half that was expensive to
+learn: no figure, no coverage sentence, no vacancy sentence, no volume deferral,
+no adjustment or retrieval or feed clause, and no duration. Every one of those
+is either absent when the runner **lacks** data or absent when the runner **has
+all of it**, and a post-merge check that goes red when the store is healthiest
+is worse than no check.
+
+The crosshair is the one gated assertion — `if (bars)` — because a plot with no
+bars has nothing under a pointer. Everything else survives a zero-bar store, and
+that is a checked claim rather than an argued one: `security-price-chart.spec.ts`
+asserts both plots visible unconditionally and is green on CI, whose store is
+518 securities and **zero bars**.
+
+### 5. Three locator findings, all of them caught by running it
+
+Worth keeping, because each looked right and each was wrong for a reason a
+reader would repeat:
+
+1. **`getByText("Volume", { exact: true })` matches the Volume region's own
+   heading.** The region is named after the word its readout labels a figure
+   with, so the obvious locator resolves to two nodes and fails strict mode
+   against a page that is working.
+2. **`EDT\b` matches nothing.** The strip concatenates its figures with no
+   separator — `Sep 14 · 15:59 EDTO211.18…` — so there is no word boundary after
+   the zone. It is `support/app.ts`' `Backend servicehealthy` trap on a second
+   surface, and the fix is to drop the boundary rather than to widen the pattern.
+3. **The chart's text alternative is a `<p>` that carries a market instant too**
+   — it names the busiest minute — so "the paragraph with an instant in it" is
+   two paragraphs. What separates them is that the alternative is _pointed at_
+   by `aria-describedby` and therefore carries an `id`, and the readout is
+   pointed at by nothing. A CSS-module hash would have told them apart today and
+   is not a contract; being referenced is.
+
+`innerText` is used deliberately for the readout, because it respects
+`visibility: hidden` and the strip holds three rows in one grid cell — the live
+one and two reservations. The consequence is stated beside it: `innerText`
+returns **rendered** text, so the labels read `BAR` and `VOLUME` and are matched
+case-insensitively.
+
+### 6. What was run
+
+- **`pnpm e2e:deployed` green twice** against the live pair — `18 passed` in
+  **30.3 s** and **31.0 s**. Twice, because a suite that passes once against a
+  deployment mid-upload has told you nothing about the second run.
+- **`pnpm verify` green.**
+- The local suite is untouched by this change: it adds one file to
+  `specs-deployed/`, which `pnpm e2e` does not collect.
+
+### 7. Documents amended
+
+- **[`e2e/README.md`](../../../e2e/README.md)** — the file table; a new
+  post-deploy section setting out what this journey asserts and the three states
+  a healthy deployment cannot produce; and the live claim _the deployed suite is
+  three files and 16 tests and none of them drives Story 2.13_, which this task
+  made false. It is now four and 18, with the narrower sentence that replaces it.
+- **[`docs/GAPS.md`](../../../docs/GAPS.md)** — the same claim, in the entry
+  about the two stores photographing differently. The gap **narrows rather than
+  closes**, and for a sharper reason than before: it is no longer that nothing
+  looks at the deployed coverage treatment, it is that a healthy deployment
+  cannot produce the state to be looked at.
+
+---
+
+## What the user can see when this lands
+
+**Nothing on screen, and that is the honest answer.** No new label, no new
+sentence, no new state, no faster page.
+
+What changed is behind the product: from this deploy on, a release that breaks
+the Security Explorer's central journey **fails a check** instead of waiting to
+be found by a person opening the page.
+
+**What a user still cannot do:** watch a price move. There is no live data yet;
+Epic 3 is where that arrives.
+
+---
+
+## For a stakeholder — what this task actually did, in plain words
+
+**The short version.** MarketPulse now checks itself, on the real website, every
+single time we ship. Before today that check looked at the front door and the
+lights; from today it walks the whole house.
+
+**What was already true.** The product's main journey — find a company, open it,
+look at how its price and trading volume moved, change the time range — has
+worked for a while, and a person had confirmed it worked on the live site once,
+by hand, at the end of the previous piece of work. That is a photograph. It says
+the product was fine at one moment, on one afternoon.
+
+**The gap that closed.** We already ran an automated check against the live site
+after every release, but it only confirmed the boring foundations: that the
+pages load, that the two halves of the system can talk to each other, and that
+the list of companies we follow comes out of the database. It never once clicked
+a time-range button, never pointed at a chart, never looked at whether the price
+chart and the volume chart were lined up. So a release could have broken the
+single most important screen in the product and the check would have gone green.
+It would have been found by whoever happened to open the page next — which, on a
+portfolio product, might be the person you were hoping to impress.
+
+**What I built.** An automated walkthrough that does what a person does: it
+searches for NVIDIA, opens it, checks that all eight areas of the screen are
+present and have something to say, confirms the price chart and the volume chart
+are drawn on exactly the same timeline, moves a pointer across them and checks
+both charts answer about the _same minute_, switches the time range from five
+days to one month, and confirms the web address updates so the view can be
+shared or bookmarked. If any link in that chain breaks on the live site, the
+release goes red and we know within a minute.
+
+**The decision that took the most thought, and why.** The obvious instinct is to
+make the check as strict as possible — assert the actual prices, assert the
+sentence that tells you how much history we hold. I deliberately did not, and
+the reason is counter-intuitive enough to be worth stating. Some of the messages
+this product shows only appear when something is _less_ than perfect: "we only
+hold part of this period", "there's no history stored for this company yet". Our
+live database is topped up every night and is completely current, so it never
+shows those messages. A check that demanded to see them would turn red precisely
+when the system was at its healthiest — the single worst thing you can do to an
+alarm, because the fastest way to make people ignore a warning light is to have
+it come on when nothing is wrong. So the check asserts the things that are true
+whatever state the data is in — the structure, the wiring, the layout, the web
+address — and the file explains, in its own text, exactly which claims it is
+declining to make and why.
+
+For the same reason it measures no speeds. This check runs from one machine over
+one internet connection; a slow result would as likely be someone's wifi as a
+real problem, and a check that cries wolf teaches everybody to press "run it
+again".
+
+**What I confirmed by hand first, because a tool can't see everything.** Before
+writing any of it I walked the live site myself at three screen sizes — a large
+desktop, a small laptop and a phone — and confirmed the charts line up perfectly
+at all three, that pointing at either chart gives you one consistent reading, and
+that the small print explaining where the numbers came from is present and
+correct against real data for the first time. One nice detail fell out of that:
+the "retrieved on" date correctly changes depending on how far back you look,
+because a longer view reaches into data we fetched on an earlier day. That is the
+kind of honesty this product is being built around, and no amount of test data
+would have proved it.
+
+I also re-checked a known performance issue on the live site — one slow moment
+when the page of 518 companies first loads. It is still there, it is already
+owned by a later phase of work with a plan attached, and I recorded one new fact
+about it: over the internet it happens on some page loads rather than all of
+them. I did not add an alarm for it, for the cry-wolf reason above.
+
+**Where this leaves the product.** This was the second-to-last piece of work in
+the phase that gives MarketPulse its historical market data. The foundations —
+518 companies, roughly 48 million minutes of price history, charts a person can
+actually read and interrogate — are now not just built but _guarded_. The next
+phase makes the prices move in real time, and it will inherit a safety net that
+was not there before.

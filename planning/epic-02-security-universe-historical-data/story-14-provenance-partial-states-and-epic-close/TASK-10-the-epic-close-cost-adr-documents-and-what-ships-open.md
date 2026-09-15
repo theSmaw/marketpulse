@@ -176,6 +176,69 @@
 >   two entries are joined in Epic 14's `EPIC.md` for that reason, and the close
 >   should not restate either as though it stood alone.
 
+> **Amended 2026-09-15 by Task 2.14.9. Two criteria are discharged, a third
+> needs a recorded reading the way criterion 2 did, the sweep gains two files and
+> the §28 hand-off gains a deployed figure.**
+>
+> - **Acceptance criteria 4 and 5 are discharged, and this close owes them a
+>   record rather than a repeat.** The exit criterion was executed deployed by a
+>   person at 1440, 1024 and 390, with the store's freshness read **first** —
+>   `GET /diagnostics/freshness`, zero sessions behind on both timeframes, all
+>   518 securities — and `specs-deployed/security-explorer-journey.spec.ts` now
+>   asserts that journey on every deploy. The deployed suite is **four files and
+>   18 tests**, green twice at 30.3 s and 31.0 s. **Do not re-walk it**; the
+>   figures, the three-viewport table and the two instrument findings are in
+>   [2.14.9](TASK-09-the-deployed-suite-asserts-the-exit-criterion.md) §§1–2.
+> - **Acceptance criterion 3 has criterion 2's problem and needs the same
+>   treatment.** It reads _every failure and partial state in the epic renders
+>   locally **and deployed**_. The local half is done — 2.14.7 produced the set.
+>   **The deployed half cannot be discharged as written, and that is structural
+>   rather than an omission.** A healthy deployment produces none of those
+>   states: the coverage sentence renders only under `partial`, both vacancy
+>   sentences only where something is missing, the volume deferral only under
+>   `refused` or `failed` — and the deployed suite deliberately **never
+>   intercepts a route**, because everything it asserts is about a real
+>   environment being really correct. So the honest reading is _every failure and
+>   partial state renders locally, and the deployed environment is asserted to be
+>   in **none** of them_, which is a stronger claim about a production site than
+>   the criterion asks for. **Record the reading beside the criterion in
+>   `STORY.md`**, as §11.1 did for criterion 2; a future reader otherwise finds an
+>   unmet criterion where there is a corrected one.
+> - **The sweep gains two files, as confirmations.**
+>   [`e2e/README.md`](../../../e2e/README.md) and
+>   [`docs/GAPS.md`](../../../docs/GAPS.md) both carried the live claim _the
+>   deployed suite is three files and 16 tests and none of them drives Story
+>   2.13_. Both were amended by 2.14.9 rather than rewritten — the gap **narrows
+>   rather than closes**, and for a sharper reason than before. Confirm they still
+>   say it and that they agree with each other.
+> - **And that is a third instance of this close's own pattern**, which makes it
+>   worth the sentence 2.14.7 asked for rather than an anecdote. 2.14.5 found
+>   `docs/GAPS.md`'s invariant table reading _seven_ against a list of eight;
+>   2.14.7 found `CLAUDE.md`'s command block reading _seven_ against a list of
+>   **ten**; 2.14.9 found one claim about the deployed suite's contents, stale in
+>   **two** files at once. Three occurrences, one shape: **a count or an inventory
+>   copied into prose beside a list that moves, checked by nothing.** The close
+>   should say the shape, not fix the third one and forget.
+> - **The §28 hand-off gains its deployed figure, which 2.14.8 asked for by
+>   name.** That task's inoculation said the one new thing worth recording would
+>   be the breach behaving differently on the deployed host, because none of the
+>   three measurements was taken over a network against the real store. It does:
+>   **52–54 ms on two of six cold loads at 1440**, three per route — the bottom of
+>   the measured 50–76 ms band, and **intermittent** where locally it is every
+>   cold load. The plausible reading is that an internet round trip spreads the
+>   same work across more frames. **Carry it into Epic 14's `EPIC.md` beside the
+>   local figures**; it is a reason the deployed number is softer, never a reason
+>   to think the repair is less needed. No timing assertion was added to
+>   `specs-deployed/`, deliberately.
+> - **One candidate for the ADR, and it is one sentence rather than a subject.**
+>   §0.1's _a claim about data requires data_ turns out to govern **assertions**
+>   as well as renderings, and in both directions: a deployed spec may assert only
+>   what the environment it runs against can actually produce, so a state that
+>   renders when something is wrong is unassertable on a healthy site exactly as a
+>   state that renders when data is present is unassertable on an empty store. It
+>   is the same rule pointed at a test rather than at a screen, and it is why the
+>   deployed journey asserts structure and no figure.
+
 ## Objective
 
 Close Story 2.14 and close Epic 2: take the cost figure with a database
@@ -340,6 +403,15 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
     close — it gained a dated amendment **naming the two exceptions**, which is
     the opposite move. `SEARCH-AND-SELECTION.md` §10 holds all three datings and
     the argument.
+  - **Three states a healthy deployment structurally cannot show, recorded so
+    their absence is not later read as a missing check** (2026-09-15, Task
+    2.14.9). The coverage sentence, both vacancy sentences and the volume plot's
+    deferral all render only when something is less than perfect, and the
+    deployed store is backfilled nightly. This is not owed to anybody and needs
+    no repair — it is the reason the deployed journey asserts structure and no
+    figure, and the reason a spec asserting any of them would be red exactly when
+    the store is healthiest. `e2e/README.md`'s post-deploy section and
+    `docs/GAPS.md` both carry it.
   - Plus the `synthetic` branch that no recorded body exercises.
 - **Hand Epic 3 what it inherits**, in one paragraph in `EPIC.md`: the
   provenance pattern extends from _which feed_ to _which feed, and is it still
@@ -348,7 +420,11 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
   sentence this story wrote is the first thing Epic 3's socket will produce.
 - **Then the gates.** `pnpm verify`, `pnpm e2e`, `pnpm e2e:deployed`, and
   `pnpm test:database` — the last is not in `verify` and this epic is the one
-  that added every database test in the tree.
+  that added every database test in the tree. **`pnpm e2e:deployed` means more
+  than it did when this bullet was written** (2026-09-15): it is four files and
+  18 tests, and one of them walks the epic's exit criterion. Read
+  `GET /diagnostics/freshness` before believing anything it says about a
+  coverage state — a current store cannot produce one.
 
 ## Done when
 
