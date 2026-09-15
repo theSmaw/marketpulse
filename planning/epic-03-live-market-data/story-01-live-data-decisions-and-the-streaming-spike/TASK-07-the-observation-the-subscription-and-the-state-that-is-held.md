@@ -38,6 +38,24 @@ not each size themselves differently.
 - **The universe is 518**, and 518 × 390 is the number to reason with for a full
   session per security.
 
+**Added 2026-09-15 by Task 3.1.2** — [`LIVE-DATA.md`](LIVE-DATA.md) §4.4.
+Decision 3 asks _what happens when a browser asks for something outside the
+universe_, and the upstream half of that is now measured rather than open:
+
+- **Alpaca accepts a symbol that does not exist** and echoes it back as held, so
+  a subscription acknowledgement is **not** evidence a symbol is real.
+  Validation against our own universe is the only thing that can tell a typo
+  apart from a genuinely quiet security, and it has to happen **before** the
+  frame is sent. Design decision 3 around validation we own, never around a
+  refusal we expect.
+- **An empty symbol list is a `400`** — exactly the frame a scope that resolves
+  to nothing produces. "Subscribe to whatever the selection resolves to" is a
+  bug on the empty selection, and decision 3 must say what is sent instead.
+- **The subscription acknowledgement is the full current state, not a delta**,
+  and when it is empty the channel key is **absent** rather than `[]`. So the
+  server is authoritative about what we hold: decision 4's state object should
+  **reconcile against the ack** rather than maintain a count and hope.
+
 ## Work
 
 Settle each in `LIVE-DATA.md`, with alternatives weighed, the measurement that

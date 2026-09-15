@@ -75,7 +75,11 @@ naming the pino reversal above, which fires here.
 - **No credential appears anywhere in the repository**, checked rather than
   assumed — grep the tree for the key's own bytes and for the shape of one, and
   record that the check ran and what it covered. Acceptance criterion 4 is
-  satisfied by the check, not by the intention.
+  satisfied by the check, not by the intention. **The tooling exists since Task
+  3.1.2**: the harness's `verify-captures.mjs` sweeps every capture
+  independently of the writer, and a repo-wide `git grep` over four credential
+  forms ran clean on 2026-09-15. **Re-run both before deleting**, because the
+  captures written by 3.1.3–3.1.5 have not been through the second check yet.
 - **Finish `LIVE-DATA.md`.** All eight decisions present with alternatives, a
   measurement where one exists, and a reversal trigger that is a **condition**.
   Every figure dated and naming the instrument that produced it. A short opening
@@ -92,6 +96,19 @@ naming the pino reversal above, which fires here.
   figure this story has now taken for real. Correct the live claims, give any
   ADR a **dated amendment** rather than a rewrite, and leave historical records
   standing.
+- **Hand Story 3.2 the two constraints this story measured but does not own.**
+  Both are in [`LIVE-DATA.md`](LIVE-DATA.md) §4 and neither is one of the eight
+  decisions, which is exactly how a measured constraint gets lost: **Node's
+  built-in `WebSocket` cannot see a ping or a pong**, so a client built on the
+  global can do no ping-based liveness detection (§4.6); and **the close code
+  carries no intent** — a clean close reads `1006` — so the client must carry
+  its own (§4.2). Name them in the close so Story 3.2 meets them in a hand-off
+  rather than in a debugging session.
+- **Name Story 3.11's owed re-measure as a condition.** Every latency figure in
+  this story was taken from a machine in Asia/Singapore against an `eastus2` deployment,
+  so the provider's share of `PRODUCT_SPEC.md` §28 is an **upper bound** rather
+  than a number. Trigger: **the first time a real socket runs in the deployed
+  backend.**
 - **Check the design canvas is reachable, and record the result.** EPIC.md warns
   that the `Component library for MarketPulse` canvas was **not reachable** from
   the session that planned this epic, and Story 3.4 owes a sync before it

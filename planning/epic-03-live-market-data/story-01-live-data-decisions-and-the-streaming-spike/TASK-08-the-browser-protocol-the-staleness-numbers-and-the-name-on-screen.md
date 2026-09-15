@@ -51,6 +51,17 @@ here.
   counterfactual is measured**: 40 whole-route re-renders in 20 s against 0. The
   live connection state is about to face the same choice at a higher rate.
 
+**Added 2026-09-15 by Task 3.1.2** — [`LIVE-DATA.md`](LIVE-DATA.md) §4.5, and it
+lands directly on decision 6's four-cell grid:
+
+- **An upstream socket that is open is not an upstream socket that is working.**
+  The `sip` endpoint opens, greets us identically to the working one, refuses at
+  **authentication** with `409`, and then **stays open**. A connection state
+  driven by `onopen` would report a healthy feed indefinitely. Whatever the
+  strip says, the claim behind it must be driven by the **authenticated** frame
+  — which is a fifth thing the grid's cells have to be true of, not a sixth
+  cell.
+
 ## Work
 
 **Decision 2 — the browser transport's message protocol.** Settle, with

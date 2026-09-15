@@ -38,6 +38,28 @@ honestly without this capture.
 - **`PRODUCT_SPEC.md` §36: degrade incrementally and locally**, never collapse
   to a global error screen. Every fault below has to have a local answer.
 
+**Added 2026-09-15 by Task 3.1.2** — [`LIVE-DATA.md`](LIVE-DATA.md) §4.2 and
+§4.4, and the first of these reshapes the taxonomy's own _How our side finds
+out_ column rather than informing it:
+
+- **The close code carries no intent.** A clean, client-initiated `close(1000)`
+  is observed locally as **`1006` with an empty reason** — the same code a
+  dropped link produces — because Alpaca never echoes a close frame. Confirmed
+  at two wait lengths. So **no row in this taxonomy may be distinguished by its
+  close code alone**, and the harness must record what it asked for before a
+  code means anything. This is the measurement Story 3.10 most needs.
+- **An error is a frame, not a closure.** Nine deliberately bad requests, nine
+  `T=error` frames, the socket never closed once. A fault that arrives as a
+  message on the data channel is the normal case here, so a state machine that
+  tears a socket down on one error is wrong — and a fault probe that waits for a
+  close will record a false _silent_.
+- **The `sip` refusal is the shape to expect from an auth-stage failure**
+  (§4.5): the socket **opens**, the greeting is identical to the working
+  endpoint's, the refusal arrives at authentication as `409`, and **the server
+  leaves the socket open afterwards**. Expect the bad-credential probes below to
+  have the same shape, and record whether they do — a client keying "connected"
+  off `onopen` reports healthy forever in exactly this case.
+
 ## Work
 
 Produce each of the following, record the frames, the close codes and the
@@ -87,7 +109,9 @@ are the ones that need a timer rather than a handler.
 
 - Every fault above is either produced and recorded, or listed as not
   producible with the reason.
-- Each row states how our side finds out and how long that takes.
+- Each row states how our side finds out and how long that takes — **and, where
+  the answer is a close, states what the client had asked for**, because `1006`
+  means nothing on its own.
 - The silent faults are named as a set.
 - The subscription-across-reconnect and the missed-bars questions are answered
   with frames, and their consequences are named against Story 3.5 and

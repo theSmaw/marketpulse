@@ -731,6 +731,18 @@ for it, not worse.
 - **Anything about the WebSocket stream beyond the subscription cap.** Deliberate: the stream
   is Epic 3's, and the cap was an explicit, narrow exception because another story is parked
   on it. No bar was consumed from the socket, and no reconnection behaviour was touched.
+
+  **Amended 2026-09-15 — no longer true, and the pointer matters more than the correction.**
+  Epic 3's Task 3.1.2 has now read the socket: the handshake frame by frame, the control
+  messages, what a bad subscription does, the `sip` refusal first-hand and the clock
+  discipline. **That record lives in
+  [`LIVE-DATA.md`](../../epic-03-live-market-data/story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md)
+  §4, not here**, and this document is not the place to look for a streaming figure. Two
+  things it confirms about §1: the 60-symbol trades refusal still returns `405 symbol limit
+exceeded` on 2026-09-15, and 518 bar symbols are accepted 518 of 518. Still unmeasured on
+  that date: a bar consumed from the socket, and every reconnection behaviour — Tasks 3.1.3
+  to 3.1.5.
+
 - **A second account.** Every figure is from one free-plan paper account, so anything
   account-scoped (the rate limit especially) is n=1.
 

@@ -407,9 +407,24 @@ panel would have bars in it; it survives as the chart's default on its own merit
 
 - **399 ms cold, 306 ms warm — inside §28's 500 ms, measured, at the worst
   vantage this product has been measured from.** Against a 293 ms conditional
-  floor that is almost entirely the transatlantic link, the window costs about
-  100 ms of actual payload. There is no cheaper window that shows more than one
+  floor that is almost entirely the network link, the window costs about
+  100 ms of actual payload.
+
+  **Amended 2026-09-15 (Task 3.1.3). The figures stand; the word
+  "transatlantic" did not, and the attribution is now in doubt.** Epic 2's
+  latency notes describe their vantage as "from the UK". On 2026-09-15 the
+  development machine's timezone was **Asia/Singapore** (`/etc/localtime`), and
+  an independent round trip to a US-east host measured **242–383 ms** — which is
+  consistent with this 293 ms floor and is **not** consistent with a UK link,
+  where US-east is typically 80–100 ms. So the floor was very probably measured
+  from Asia rather than Europe. **Nothing numeric changes** — a floor is a floor
+  whichever ocean it crosses, and it remains the worst vantage this product has
+  measured from, which is what the argument rests on. What changes is that
+  anybody re-taking it should record the vantage from `/etc/localtime` and a
+  measured RTT rather than from memory. Epic 2's own task records are left
+  standing as the historical documents they are. There is no cheaper window that shows more than one
   day.
+
 - **1,950 bars is 0.47 px per bar at 1440** (§2) — dense enough that the line has
   real shape, and the density that makes candlesticks impossible is what makes a
   line worth drawing.

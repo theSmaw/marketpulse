@@ -186,6 +186,17 @@ what it got wrong was not the day but the question. Everything a shut market can
 answer is taken while it is shut, so the live session (3.1.4) is spent only on
 what needs a live session.
 
+**Amended 2026-09-15, after Task 3.1.2.** That argument is unchanged and still
+right — everything a shut market can answer is still taken while it is shut.
+What was wrong was reading it as a **linear dependency**: 3.1.3 owns an
+overnight hold and a weekend, and a weekend is five days from this story's
+start. A strict `3.1.4 depends on 3.1.3` parks the story's single most
+consequential measurement behind a window that has not opened yet, and 3.1.5
+behind that. So **3.1.3's _short_ windows come first where the calendar allows,
+and its long holds do not block 3.1.4.** The instrument, which is the only thing
+3.1.4 genuinely needs from upstream, exists as of 3.1.2. The grouping is about
+windows; a window nobody can open yet is not an ordering.
+
 **The three human decisions are asked once, together, and late (3.1.6)** —
 because two of them are unanswerable without the measured rate. A budget is a
 number about a bill and a bill is a number about bytes per second.

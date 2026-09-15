@@ -35,6 +35,24 @@ rather than an imagined one.
   (`CCI`) — on _stored_ IEX history. Silence is therefore not evidence of a
   broken socket, and this task is where that stops being a guess.
 
+**Added 2026-09-15 by Task 3.1.2, which has now read the socket** —
+[`LIVE-DATA.md`](LIVE-DATA.md) §4:
+
+- **The recorder's control-frame path is proven, so silence in a capture is
+  readable.** The server answers a client ping with the payload echoed (§4.6).
+  Without that, "no keepalive observed" would have been indistinguishable from a
+  recorder that structurally cannot see one — and Node's built-in `WebSocket`
+  is exactly such a recorder, which is why the harness uses `ws@8`.
+- **Figure 16 is already bounded from below: no server-initiated ping in 30 s of
+  quiet.** This task owns the long idle and must not re-take the short one.
+- **A clean client-initiated close is observed as `1006` with an empty reason**
+  (§4.2), because Alpaca never echoes a close frame. So a `1006` seen at the end
+  of an idle hold is **not** evidence the server closed us — the harness must
+  record whether it asked for the close before the code means anything.
+- **An error is a frame, not a closure.** Nine deliberately bad requests, nine
+  frames, the socket never closed once (§4.4). A quiet socket that is still open
+  is the expected shape here, not a surprise.
+
 ## Work
 
 Run the harness across the boundaries and record, per window, what arrived.
@@ -73,7 +91,10 @@ window is an unmeasured case, and saying so is worth more than inferring it.
 ## Done when
 
 - Every one of the four windows has a dated, instrument-named record, or is
-  explicitly listed as unmeasured with the reason.
+  explicitly listed as unmeasured with the reason. **A window listed as
+  unmeasured gets a named owner and a condition, not just a reason** — the
+  weekend is five days from this story's start and "unmeasured" with nobody
+  holding it is how a window is never taken at all.
 - The longest observed silence is recorded with its instants.
 - The extended-hours question is answered, with frames, and its consequence for
   Stories 3.6, 3.7 and 3.9 is named.
