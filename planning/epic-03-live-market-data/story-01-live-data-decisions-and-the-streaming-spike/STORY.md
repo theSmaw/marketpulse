@@ -197,6 +197,21 @@ and its long holds do not block 3.1.4.** The instrument, which is the only thing
 3.1.4 genuinely needs from upstream, exists as of 3.1.2. The grouping is about
 windows; a window nobody can open yet is not an ordering.
 
+**Amended again 2026-09-15, after Task 3.1.3, and the windows moved rather than
+the ordering.** That task took the three windows a Tuesday can give — overnight,
+pre-market and the open boundary — and could not take the other two without
+spending somebody else's window, because **the free plan allows exactly one
+connection** and three of these tasks each want one. So **after hours and the
+close boundary went to 3.1.4**, whose capture now runs to 16:30 ET rather than
+stopping at the bell and gets them for half an hour rather than a window; and
+**the weekend went to 3.1.9** as a constraint on when it may delete the harness,
+rather than as a tenth task, because a task triggered by a date is a task that
+never fires. **A holiday is out of reach and is recorded as unmeasured** — the
+next closure is Thanksgiving, 2026-11-26, with the 13:00 ET half day after it.
+The single-connection constraint is now a scheduling hazard rather than a note,
+and 3.1.4 and 3.1.5 each carry a line saying to check nothing else is holding
+the socket before they start.
+
 **The three human decisions are asked once, together, and late (3.1.6)** —
 because two of them are unanswerable without the measured rate. A budget is a
 number about a bill and a bill is a number about bytes per second.
@@ -210,7 +225,7 @@ two that are about this process and this tree, beside the close.
 | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------- |
 | [3.1.1](TASK-01-the-subject-document-and-the-eight-questions.md)                      | `LIVE-DATA.md` created: what is inherited, the eight questions open, the figures that don't exist | No       |
 | [3.1.2](TASK-02-the-harness-the-credential-and-the-capture-format.md)                 | The harness, the credential boundary, the capture format, and the handshake verbatim              | No       |
-| [3.1.3](TASK-03-what-the-socket-says-when-the-market-is-shut.md)                      | Pre-market, after hours, overnight, a weekend — and the longest legitimate silence                | No       |
+| [3.1.3](TASK-03-what-the-socket-says-when-the-market-is-shut.md)                      | Pre-market, the open boundary, overnight — the heartbeat, and the longest legitimate silence      | No       |
 | [3.1.4](TASK-04-what-arrives-during-a-session-and-how-fast.md)                        | 518 symbols live: message shapes, the rate, the arrival gap, what `t` marks, real IEX coverage    | No       |
 | [3.1.5](TASK-05-what-the-socket-does-when-it-is-unhappy.md)                           | Duplicate connection, bad credential, idle, server close, reconnect — frames and codes verbatim   | No       |
 | [3.1.6](TASK-06-the-three-questions-for-a-person-and-the-cost-envelope.md)            | The cost envelope from the measured rate, and the three questions put to a person together        | No       |

@@ -43,10 +43,33 @@ whatever is decided here.
   and Epic 4 builds it. An answer to question 2 that only works for one security
   is an answer Epic 4 has to re-take.
 
+**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.6. This
+corrects where the envelope's two halves come from, and it matters because as
+written this task would have gone to Task 3.1.4 for a number 3.1.4 cannot
+produce:
+
+- **The overnight half of the cost question is measured and it is zero.** An
+  open, authenticated, out-of-hours socket received **0 payload bytes in 721
+  seconds** — about **0.15 B/s** once the empty heartbeat frames' headers are
+  counted — against the **1,000 B/s** the Consumption plan's idle vCPU rate
+  requires. That is three to four orders of magnitude of headroom.
+- **So question 1's cost objection is gone, and the question is now about
+  meaning rather than money.** §2.8's alternative 1 — hold the socket open
+  always — no longer costs anything overnight, which leaves the real content of
+  question 1 as the one riding with it: **does `LIVE` in the chrome mean _the
+  socket is up_ or _data is arriving_?** Put that as the substance, not as the
+  rider, and do not spend the person's attention on an overnight bill that has
+  been measured away.
+- **The envelope's remaining unknown is entirely in-session**, which is figure 9
+  and Task 3.1.4's. The factor by which 1,000 B/s is broken, and for how many
+  hours a day, is one rate and one session length — nothing about the night.
+
 ## Work
 
-**First, produce the envelope**, so the conversation has a number in it. From
-Task 3.1.4's measured bytes per second, across a session and across a month:
+**First, produce the envelope**, so the conversation has a number in it. **It
+takes two rates from two tasks and one of them is already settled**, per the
+amendment above: Task 3.1.4's in-session bytes per second, and Task 3.1.3's
+out-of-hours figure, which is zero. Across a session and across a month:
 what the replica's vCPU actually costs at the active rate; by what factor the
 1,000 B/s condition is broken and for how many hours a day; and what the answer
 would be under each of the two candidate answers to question 1. State the
@@ -98,9 +121,13 @@ condition** — not a story number.
 
 ## Notes
 
-Ask all three at once. They interact: holding the socket open overnight is
-cheap if nothing is subscribed and expensive if the whole universe is, and the
-budget threshold is a function of both. Asked one at a time, each answer is
+Ask all three at once. They interact: the payload a browser gets and the budget
+threshold are a function of each other, and of question 1's answer. **One
+interaction this note used to claim is now measured away** — it read "holding
+the socket open overnight is cheap if nothing is subscribed and expensive if the
+whole universe is", and Task 3.1.3 measured **0 payload bytes per second with
+all 518 subscribed, out of hours** (§6.6). Overnight is cheap either way; the
+expense is the session. Asked one at a time, each answer is
 taken without the constraint the next one supplies — which is the same failure
 mode this entire story exists to prevent, applied to a person instead of to a
 task.

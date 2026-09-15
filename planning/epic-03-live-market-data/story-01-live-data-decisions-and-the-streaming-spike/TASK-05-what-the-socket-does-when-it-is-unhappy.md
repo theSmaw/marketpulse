@@ -60,6 +60,31 @@ out_ column rather than informing it:
   have the same shape, and record whether they do — a client keying "connected"
   off `onopen` reports healthy forever in exactly this case.
 
+**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.2 and
+§6.6. One of these removes work from this task and one adds a probe nobody knew
+to ask for:
+
+- **The plain idle question is answered, so do not re-take it.** The server
+  heartbeats a WebSocket `ping` every **54 seconds** — measured at 53.96–54.04 s
+  on a socket subscribed to nothing and on one subscribed to all 518, so it is a
+  property of the connection rather than of the subscription — and it did not
+  close an idle connection across Task 3.1.3's holds. The idle bullet below is
+  therefore **not** _does an idle socket get closed_; it is the rude-client case
+  immediately after.
+- **The probe this task now owes: a client that stops answering.** Every capture
+  in this story pongs, because `ws@8` answers a ping automatically and silently.
+  **Nothing has measured what Alpaca does to a connection that stops ponging**,
+  and it is not academic: a Story 3.2 client built on Node's built-in
+  `WebSocket` can neither see the ping nor send a pong (§4.6), so it would fall
+  into this case **by construction** on its first quiet night. Produce it
+  deliberately — suppress the automatic pong, hold, and record whether the
+  server closes, after how many missed heartbeats, and with what code. This is
+  the other half of figure 19.
+- **Check that nothing else is holding the socket before starting**, for the
+  reason Task 3.1.4 now carries the same line: one connection on this plan, and
+  Task 3.1.3 may have an unattended multi-hour hold running. An overlap turns
+  this task's duplicate-connection measurement into a measurement of itself.
+
 ## Work
 
 Produce each of the following, record the frames, the close codes and the
@@ -74,8 +99,10 @@ close, a timeout, or nothing at all. The last is the dangerous one.
   revoked if that can be produced. Frames and codes, each distinguished, because
   Story 3.2's operator-facing log needs to tell "you typed it wrong" apart from
   "your account changed".
-- **An idle period**, carried over from Task 3.1.3's overnight hold: does the
-  server close an idle connection, after how long, and with what code.
+- **An idle period, in the one form Task 3.1.3 could not take**: a client that
+  receives the server's 54-second heartbeat and **does not answer it**. Does the
+  server close, after how many missed pongs, and with what code. The quiet-but-
+  polite case is already measured (§6.2, §6.6) and is not re-taken here.
 - **A server-side close** — whatever can be induced, plus whatever is observed
   unprompted across the story's running time. Record any unsolicited close that
   happens, with its instant and code, even if it was not provoked; **an
