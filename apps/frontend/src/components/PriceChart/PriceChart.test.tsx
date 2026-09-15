@@ -452,13 +452,16 @@ describe("what a screen reader is handed", () => {
     // And the next action is in the words. This is the one sentence in the
     // product that tells a reader a visible control is the wrong move.
     //
-    // **Two matches, and that is the correct count**: the drawn sentence and
-    // the text alternative both carry it, which is the one clause a listener
-    // would otherwise lose. They are two channels rather than two copies — the
-    // hidden block is `aria-hidden`, so no reader meets both.
+    // **Exactly one match, and the count is the assertion.** The listener is
+    // told the same *fact* in the text alternative below, in different words —
+    // *a different window will not change that* — because a spoken sentence is
+    // written to be heard once and out of context, and because two channels
+    // quoting one string is a Playwright strict-mode failure for any spec that
+    // matches on it: `readable()` cannot filter a visually-hidden paragraph,
+    // since `clip` is still `:visible`. That was found by a browser run.
     expect(
       screen.getAllByText(/Changing the window will not help/),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(screen.queryByText(/We asked for/)).toBeNull();
 
     // The spoken half agrees, which is the half a reader cannot check. A state

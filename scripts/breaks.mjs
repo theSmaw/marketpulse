@@ -195,7 +195,7 @@ export const BREAKS = [
     // one of them is derived and the other is written, and quoting a drawn
     // string in a spoken one is the arrangement that guarantees the opposite.
     file: "apps/frontend/src/components/BarSeriesPanel/series-announcement.ts",
-    find: '            "no history is stored for this security at this timeframe. Changing the window will not help; the store is filled overnight."',
+    find: '            "no history is stored for this security at this timeframe. A different window will not change that; the store is filled overnight."',
     replace: "            `No history stored for ${symbol} yet.`",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "one-home-for-the-empty-explanation",

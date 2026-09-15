@@ -720,6 +720,12 @@ _No history stored for NVDA yet_ and _No bars stored for this window_ get the sa
 
 **What tells them apart is the subject of the headline**: one names the security, one names the window. That is the same channel this screen already uses to keep three statements of direction apart, and it passes the standing colour rule for free, because there is no colour in either.
 
+**Amended 2026-09-15 by Task 2.14.6, which shipped it — and it is four sentences, not two.** Two plots hang on one axis and each names its own subject, so the pair above has a volume pair beneath it: _No volume history stored for NVDA yet_ and _No volume stored for this window_. A price plot saying _no history for NVDA yet_ above a volume plot saying _none for this window_ would tell a reader two different stories about one empty screen.
+
+**And there is a third state that draws no third thing.** When the universe answer is not available — failed, or still in flight — the plot says the **window** sentence. It never infers _we hold nothing_ from an absence it could not read, and the language's rule out of that is general: **a surface may only make the confident claim when the thing that would license it has actually been read.** The degraded screen is one the product already has, which is what makes the rule free to obey.
+
+**The one word that came from a check rather than from the design.** The volume headline says _volume history_ where _volume_ would have read the same, because `pnpm invariants` anchors on a literal and `No volume stored for ` is a prefix of the window sentence — so the guard could not have told the two homes apart. It is recorded here rather than left in a commit message because the next person to shorten it will be right about the prose and wrong about the guard.
+
 ### Room reserved: Epic 3's live row
 
 The §36 sentence — _Live feed disconnected — displaying data through 10:42:17_ — is a provenance claim that changes while somebody is watching. It belongs in the ledger as a **first row above the stretches**, carrying a marker of its own. Reserved now for the reason the anomaly lane, the comparison series and the filing lane were: three retrofits cost more than three sentences.

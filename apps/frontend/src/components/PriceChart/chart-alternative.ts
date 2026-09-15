@@ -140,13 +140,22 @@ function chartAlternativeBody(
       // waiting for tonight's backfill is precisely what does. A visible
       // sentence forked while the spoken one was left saying the old thing
       // would be the same defect with one audience left in it.
+      //
+      // **Worded to be heard rather than lifted from the plot**, which is this
+      // module's standing rule and which a browser run insisted on: the drawn
+      // sentence says *changing the window will not help* beside a control the
+      // reader can see, and this one says *a different window will not change
+      // that*, referring back to the empty frame it has just described. Two
+      // channels quoting one string is also a strict-mode failure for any spec
+      // matching on it — `readable()` does not filter a visually-hidden
+      // paragraph, because `clip` is still `:visible`.
       if (stored === "none") {
         return (
           `${symbol} price chart: no line is drawn. ` +
           `${frameClause(view.series)} ` +
           `No history is stored for ${symbol} at this timeframe, so the ` +
-          `whole frame is empty ground. Changing the window will not help; ` +
-          `the store is filled overnight.`
+          `whole frame is empty ground. A different window will not change ` +
+          `that; the store is filled overnight.`
         );
       }
 

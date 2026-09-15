@@ -196,7 +196,7 @@ function describe(
             // twice in one breath. On screen the symbol is what distinguishes
             // the two answers at a glance; here the position in the sentence
             // already does that job.
-            "no history is stored for this security at this timeframe. Changing the window will not help; the store is filled overnight."
+            "no history is stored for this security at this timeframe. A different window will not change that; the store is filled overnight."
           : `no bars are stored for the window asked for, ${formatMarketRange(view.series.coverage.requested)}.`,
         untracked(view.securityStatus),
         stale(view.stale),

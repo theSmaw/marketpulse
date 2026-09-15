@@ -171,8 +171,8 @@ describe("chartAlternative", () => {
     expect(chartAlternative(empty, SYMBOL, false, "none")).toBe(
       "NVDA price chart: no line is drawn. The frame is drawn across 1 " +
         "trading session. No history is stored for NVDA at this timeframe, " +
-        "so the whole frame is empty ground. Changing the window will not " +
-        "help; the store is filled overnight.",
+        "so the whole frame is empty ground. A different window will not " +
+        "change that; the store is filled overnight.",
     );
 
     expect(volumeAlternative(empty, SYMBOL, false, "none")).toBe(

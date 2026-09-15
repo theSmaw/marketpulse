@@ -1,6 +1,6 @@
 # Task 2.14.6 — The two empty answers, told apart or deliberately not
 
-**Status:** Not started
+**Status:** Complete — 2026-09-15
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.1 (decision 6), 2.14.2
 
@@ -185,3 +185,234 @@ store that holds bars and a window outside them — a developer's own store with
 window reaching into the current session is the cheap one. **Both empties are not
 visible in one store**, and a pass that only ever saw `store:bare` would have seen
 the new sentence and never the old one.
+
+---
+
+## What was done
+
+**Decision 6, implemented with no backend change**, as §6.2 settles it. An empty
+chart now says which empty answer it is, and the distinction is derived on the
+client from a request the Security Explorer already makes.
+
+### The derivation
+
+`apps/frontend/src/components/PriceChart/chart-vacancy.ts` — one pure function
+over two views, in `source-note.ts`'s shape and for its reason:
+
+```
+storedHistoryFor(securities: SecuritiesView, symbol: string): StoredHistory
+```
+
+`StoredHistory` has **three** members and the third is the rule rather than a
+state somebody forgot. `"some"` is a symbol present in
+`SecuritiesResponse.coverage`; `"none"` is a symbol the universe holds and that
+array does not; `"unknown"` is everything else — in flight, failed, or a symbol
+the response does not carry at all — and every reader renders it as the **window**
+sentence. A boolean would have made the degradation rule a `?? false` at a call
+site, which is exactly where it would later be written the other way round.
+
+`SecurityExplorer` reads it once and hands the same value to the panel, to both
+plots and to the announcement. That is what makes the drawn fork and the two
+spoken forks incapable of disagreeing: they share a derivation, not a string.
+
+### The four sentences, and the four spoken twins
+
+| Plot   | Case one (`"none"`)                      | Case two (`"some"` / `"unknown"`)   |
+| ------ | ---------------------------------------- | ----------------------------------- |
+| Price  | `No history stored for NVDA yet.`        | `No bars stored for this window.`   |
+| Volume | `No volume history stored for NVDA yet.` | `No volume stored for this window.` |
+
+The price plot's detail line forks with it — _"Changing the window will not help
+— the store is filled overnight."_ against the window sentence's _"We asked for
+… and hold nothing in it."_ — and so does the spoken half, in
+`chart-alternative.ts` (both plots) and `series-announcement.ts` (the panel's
+live region). The spoken wording is deliberately **not** the drawn wording: the
+announcement says _this security_ rather than the symbol, because every
+announcement already opens with the symbol.
+
+### Three things building it settled
+
+- **The volume headline gained a word, and the word came from the check.**
+  §6.3's amendment specifies `No volume stored for NVDA yet.` and that string
+  cannot be guarded: it is a **prefix of the window sentence**, so
+  `one-home-for-the-empty-explanation` could not have told the two homes apart
+  and would have stayed green with the sentence deleted — the rot `CLAUDE.md`
+  names, built in deliberately. `No volume history stored for ` is distinct, and
+  reads as the parallel of the price headline. Recorded in `PROVENANCE.md` §6.3
+  and in `VISUAL-LANGUAGE.md`, because the next person to shorten it will be
+  right about the prose and wrong about the guard.
+- **The `1m` seam is visible from the other side, and the wording already
+  covers it.** Looked at on a real page: removing one security's minute ledger
+  row on a store that still holds its daily bars draws _No history stored for
+  ZTS yet_ under an identity block still printing `72.97 ▲ +0.15%`, because that
+  close comes from a **daily** bar the coverage array never described. The
+  sentence stays true because it says _at this timeframe_ — a clause that was
+  careful in §6.3 and is load-bearing now. In `docs/GAPS.md` with a re-measure.
+- **The browser suite would have gone red in CI on the first push.** Nine specs
+  locate a settled answer by the window sentence, and **CI's store is 518
+  securities and zero bars** — so every chart there becomes case one the moment
+  this ships, and every one of those locators would have matched nothing. They
+  now read one exported pattern, `AN_EMPTY_PLOT` in `e2e/support/app.ts`. One
+  needed more than a pattern: `security-series-states.spec.ts` forces an empty
+  body and then asserts the _window_ detail line, which case one does not draw,
+  so it now branches on which answer is on screen and asserts both. This was
+  found by reading, not by a six-minute round trip.
+
+### What was looked at, on a page
+
+Both empties, which no single store can show:
+
+- **Case two**, on the developer's store at `/securities/NVDA?sessions=1` — the
+  window reaches into a session the nightly backfill has not caught up with.
+- **Case one**, by removing one security's `1m` ledger row (restored
+  immediately, row count checked back to 1,036) and opening
+  `/securities/ZTS?sessions=1`. The volume headline measures **233px** in an
+  801px content box — one line, centred, no overflow — against the window
+  sentence's 198px.
+
+`store:bare` was not needed to see case one once that was available, and the
+shape it produces is the same: 518 securities, zero coverage rows, every
+security case one.
+
+### Checks
+
+- `pnpm invariants` — `one-home-for-the-empty-explanation` now covers **four**
+  literals, each read through `withoutComments`, each anchored on a string that
+  must be **found**. The two case-one headlines interpolate the symbol, so each
+  is anchored on its longest fixed fragment.
+- `pnpm break` gained three entries — `volume-explanation-twice`,
+  `no-history-sentence-twice`, `no-volume-history-sentence-twice` — and all
+  four were run: **broken → red → restored byte-identical**, each matching
+  `one-home-for-the-empty-explanation`.
+- `pnpm verify` green. 943 frontend tests, 20 of them new: the derivation
+  against recorded universe bodies (`chart-vacancy.test.ts`), both plots'
+  sentences and their hidden twins, both spoken channels, and two route-level
+  tests that drive both requests. The last of those found a real defect —
+  `stored` was reaching the volume plot and the announcement but not the price
+  plot — which no unit test could have seen.
+
+### Documents
+
+`PROVENANCE.md` §6.3 amended with the three findings and §11.3 given two rows
+(both new sentence sets read in §11.1's two directions; neither implies coverage
+we lack nor disclaims coverage we have); §9's table gains the derivation's
+module. `MARKET-DATA-API.md` §6 records that the single outcome row is
+deliberate and that the client derives the distinction, with the reversal
+trigger restated against that route; `routes/market-data.ts`'s debug branch says
+the same thing beside the log line, so it is not deleted as redundant.
+`VISUAL-LANGUAGE.md` gains the volume pair, the third state and the general rule
+it is an instance of. `docs/GAPS.md` gains the three break rows, a note that
+four rows are one invariant, and two new entries.
+
+**Canvas:** `Provenance and the empty answers.dc.html` gains **§11 — Where the
+distinction comes from, and the third state §06 did not draw**: the derivation
+as a three-row decision table, why it is free, what it costs instead, the rule
+the third row is, the three findings, and what a reviewer should look for.
+Nothing in §06 was redrawn — it was right — and no token was added.
+
+### What the user can see
+
+**An empty chart that explains itself correctly rather than plausibly.** Before
+today every empty plot said the same thing — _no bars stored for this window,
+and a window reaching into the current session is usually this_ — which is right
+most of the time and wrong for a security we hold nothing for. Now the two send
+a reader to two different next actions, and one of them says explicitly that the
+control on screen will not help.
+
+**What a user still cannot do:** watch a price move. There is no live data.
+
+---
+
+## For the stakeholder — what this actually was, in plain words
+
+### The problem, in one screen
+
+Open a chart and sometimes there is nothing on it. That is not a bug — sometimes
+there genuinely is nothing to draw — but until today the product gave the same
+explanation whatever the reason, and the explanation it gave was a **guess**:
+
+> _No bars stored for this window. A window reaching into the current session is
+> usually this: stored history is caught up overnight._
+
+That sentence is right most of the time. It is wrong in one specific case, and
+the case is not rare: a security we hold **no** history for at all. Then the
+sentence quietly tells you to wait, or to try a different date range, when
+neither will ever help.
+
+For a product whose entire claim is _we will not tell you anything we cannot
+show you the evidence for_, an explanation that is usually right is the wrong
+kind of thing to have on the screen. It is the difference between an answer that
+is plausible and one that is correct.
+
+### What it says now
+
+Two sentences, chosen by what we actually hold:
+
+> **No history stored for NVDA yet.** We hold no bars for this security at this
+> timeframe. Changing the window will not help — the store is filled overnight.
+
+> **No bars stored for this window.** We asked for … and hold nothing in it. A
+> window reaching into the current session is usually this: stored history is
+> caught up overnight.
+
+They send you to two different next actions, and that is the whole point. One
+tells you to press a different time window — the control is right there. The
+other tells you not to bother, because nothing you can do on this screen changes
+the answer, and the data will arrive overnight.
+
+### Three decisions worth knowing about
+
+**One: this cost nothing on the server, and that was the interesting part.** The
+obvious way to do this is to add a new field to the data the chart asks for. We
+didn't — because the page already asks a _second_ question, for the list of
+securities, and the answer to that question already contains this fact. A
+security we hold no prices for is simply **missing** from that list's
+"how much history do we hold" section. So the screen already knew; it just had
+never been asked. No new server work, no new data on the wire, nothing for a
+future feature to keep in step.
+
+The cost of that choice is written down rather than hidden: this only works on a
+screen that asks both questions. When something reads the price data on its own —
+the AI investigation tools in Epic 10 are the named candidate — the distinction
+will have to go on the wire properly, and the condition for doing it is recorded
+so nobody has to re-derive the argument.
+
+**Two: when we don't know, we say less.** If the list of securities hasn't
+arrived yet, or failed to arrive, the chart shows the _window_ sentence — the
+one that claims less. It never guesses "we hold nothing for this security" from
+a list it couldn't read. That sounds obvious written down; it is exactly the
+same mistake this task exists to fix, arriving from the other direction, and the
+code is shaped so that only a positive answer earns the confident sentence.
+
+**Three: the two answers look identical, deliberately.** Same marker, same type,
+same colour, same position. The difference between them is a fact about our
+data, not a difference in how bad things are — both are perfectly correct
+answers — so giving one a warning colour or heavier type would rank one above
+the other and mislead about severity. What tells them apart is what the sentence
+is _about_: one names the security, the other names the time window. That also
+means the distinction survives for somebody who cannot see colour at all, which
+is a standing rule in this product rather than a nicety.
+
+### One thing we found by looking rather than testing
+
+The four sentences are also spoken — a screen reader hears its own version of
+each. It would have been easy to fix the visible half and leave the spoken half
+saying the old, sometimes-wrong thing, which is how a fact quietly disappears for
+one audience. Both halves fork, from one shared decision, and a test on the whole
+page proves they agree. That test immediately caught a real wiring mistake:
+the volume chart and the spoken summary had the new information and the price
+chart did not. Nothing smaller than a whole-page test could have seen it.
+
+### Where this leaves the product
+
+Epic 2 is one task from done. The Security Explorer now tells you where its
+numbers came from, how fresh they are, how much of the window they cover, which
+parts of the description are ours rather than the market's — and, as of today,
+an honest account of itself when it has nothing to show you at all. That last
+one matters more than it sounds: **most of what a user will see in the next few
+weeks is an empty or partial chart**, because the live feed does not arrive
+until Epic 3, and a product that explains its gaps well reads as careful where
+one that hand-waves them reads as broken.
+
+**What you still cannot do: watch a price move.** That is Epic 3, and it is
+next.

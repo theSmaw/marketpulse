@@ -89,7 +89,7 @@ describe("announceSeries", () => {
     // And the symbol is said once, not twice: every announcement already opens
     // with it.
     expect(spoken.match(/NVDA/gu)).toHaveLength(1);
-    expect(spoken).toContain("Changing the window will not help");
+    expect(spoken).toContain("A different window will not change that");
     expect(spoken).not.toContain("the window asked for");
   });
 

@@ -530,6 +530,27 @@ case informative, and a 404 carries no body of ours at all.
 body _is_ the answer here: provenance and the requested window are the two facts
 an empty series still carries.
 
+**The single empty row is deliberate, and since 2026-09-15 the client draws two
+sentences from it.** This route knows two different things and the table above
+collapses them on purpose: _we hold nothing at all for this (symbol, timeframe)_
+and _we hold history, just none in this window_ are the same 200 with the same
+body, and the difference survives only in `routes/market-data.ts`'s `debug` line
+— which stays, because it is the **operator's** view of the distinction.
+
+The **client** now tells them apart without this route changing, and the next
+reader should not "fix" the single row. Task 2.14.6 derives it from the other
+request the Security Explorer already makes: `SecuritiesResponse.coverage` holds
+_one record per security that has any_, so a symbol **absent** from that array is
+the first case and a symbol present is the second — which is that endpoint's own
+stated spelling of the same idea. The full argument, the cost, and the reversal
+trigger are [`PROVENANCE.md`](../story-14-provenance-partial-states-and-epic-close/PROVENANCE.md)
+§6.2; the trigger, restated here because it fires against **this** route, is
+**the first consumer of `GET /market-data/bars` that does not also hold the
+tracked universe**. Epic 10's agent tools are the named candidate: a tool result
+is read on its own, and _nothing held_ against _nothing in this window_ is
+exactly the kind of distinction a model must not be left to infer. At that point
+the distinction comes onto this wire and this table grows a row.
+
 ### `API_ERROR_CODES` gains its fourth member here, and that was already decided
 
 **Corrected 2026-09-09, the same day, before any of it was built.** This section
