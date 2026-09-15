@@ -7,6 +7,7 @@ import {
   formatPrice,
   windowPhrase,
 } from "../../market/index.js";
+import type { StoredHistory } from "../PriceChart/chart-vacancy.js";
 import {
   changePercent,
   coveragePhrase,
@@ -115,8 +116,9 @@ import {
 export function announceSeries(
   screen: BarSeriesScreen,
   symbol: string,
+  stored: StoredHistory = "unknown",
 ): string {
-  const sentence = describe(screen.view, symbol);
+  const sentence = describe(screen.view, symbol, stored);
   if (sentence === "") return "";
 
   // **The held-window clause, and it is appended rather than substituted**
@@ -140,7 +142,11 @@ export function announceSeries(
 }
 
 /** Everything after the subject. */
-function describe(view: BarSeriesView, symbol: string): string {
+function describe(
+  view: BarSeriesView,
+  symbol: string,
+  stored: StoredHistory,
+): string {
   switch (view.state) {
     case "loading":
       // Silent, and the same asymmetry the universe table records: there is no
@@ -175,8 +181,23 @@ function describe(view: BarSeriesView, symbol: string): string {
     }
 
     case "empty":
+      // **The two empty answers, told apart here too** (Task 2.14.6). A state
+      // that reaches the view and not the announcement is a state a
+      // screen-reader user cannot observe — and this one is worse than
+      // unobservable, because the sentence it replaces is a confident claim
+      // about the *window* on a security we hold nothing for. The derivation is
+      // `chart-vacancy.ts`'s, read once by the route and handed to all three
+      // surfaces, so the drawn fork and the two spoken forks cannot diverge.
       return join([
-        `no bars are stored for the window asked for, ${formatMarketRange(view.series.coverage.requested)}.`,
+        stored === "none"
+          ? // **The security, not the symbol**, unlike the drawn headline: the
+            // sentence already opens with the symbol, and a listener hearing
+            // *"NVDA: no history is stored for NVDA"* is being told the subject
+            // twice in one breath. On screen the symbol is what distinguishes
+            // the two answers at a glance; here the position in the sentence
+            // already does that job.
+            "no history is stored for this security at this timeframe. Changing the window will not help; the store is filled overnight."
+          : `no bars are stored for the window asked for, ${formatMarketRange(view.series.coverage.requested)}.`,
         untracked(view.securityStatus),
         stale(view.stale),
       ]);

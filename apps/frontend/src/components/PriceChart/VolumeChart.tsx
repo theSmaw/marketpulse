@@ -9,6 +9,7 @@ import { chartSubject, drawsAFrame } from "./chart-subject.js";
 import { usePlotBox } from "./use-plot-box.js";
 import { ChartPending } from "./ChartPending.js";
 import { ChartVacancy } from "./ChartVacancy.js";
+import type { StoredHistory } from "./chart-vacancy.js";
 import { VolumeReading } from "./VolumeReading.js";
 import styles from "./VolumeChart.module.css";
 
@@ -108,12 +109,25 @@ export interface VolumeChartProps {
    * name its subject in every state it can speak in.
    */
   readonly symbol: string;
+
+  /**
+   * What the store holds for this security, from `chart-vacancy.ts` (Task
+   * 2.14.6) — the same value the price plot is given, because two plots under
+   * one axis telling different stories about one empty screen is the defect
+   * that made this four literals rather than two.
+   *
+   * Optional and defaulting to the answer that claims least, for the price
+   * chart's reason: a caller that has not read the universe has nothing to say
+   * about the store.
+   */
+  readonly stored?: StoredHistory;
 }
 
 export function VolumeChart({
   view,
   symbol,
   pending = false,
+  stored = "unknown",
 }: VolumeChartProps) {
   const { frame: time, report } = useChartAxis();
   const { chartRef, plotRef, plot } = usePlotBox(report, "volume");
@@ -129,7 +143,7 @@ export function VolumeChart({
   const subject = chartSubject(view);
   const volume = volumeFrame(time, plot.height, subject?.bars ?? []);
   const ticks = volumeTicks(time);
-  const alternative = volumeAlternative(view, symbol, pending);
+  const alternative = volumeAlternative(view, symbol, pending, stored);
 
   const clipToCovered =
     time.coverage.uncovered.length > 0 && time.coverage.covered !== null
@@ -272,7 +286,9 @@ export function VolumeChart({
             <ChartVacancy
               compact={time.density.compact}
               requested={subject.requested}
+              stored={stored}
               subject="volume"
+              symbol={symbol}
             />
           )}
       </div>

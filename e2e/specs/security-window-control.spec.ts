@@ -1,7 +1,11 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import { expectNothingFailedToRender, readable } from "../support/app.js";
+import {
+  AN_EMPTY_PLOT,
+  expectNothingFailedToRender,
+  readable,
+} from "../support/app.js";
 
 // **The control that changes what the data says** (Task 2.13.6), in the only
 // instrument that can see most of what it is.
@@ -72,7 +76,7 @@ function anAnswer(page: Page) {
   const region = page.getByRole("region", { name: "Price" });
   return region
     .getByText(/(^| )Open$/)
-    .or(region.getByText(/No bars stored for this window/))
+    .or(region.getByText(AN_EMPTY_PLOT))
     .first();
 }
 

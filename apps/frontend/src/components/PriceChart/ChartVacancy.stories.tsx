@@ -4,6 +4,8 @@ import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import type { BarSeriesView } from "../../market/index.js";
 import { ChartAxis } from "./ChartAxis.js";
 import { ChartVacancy } from "./ChartVacancy.js";
+import type { ChartVacancyProps } from "./ChartVacancy.js";
+import type { StoredHistory } from "./chart-vacancy.js";
 import { PriceChart } from "./PriceChart.js";
 import { VolumeChart } from "./VolumeChart.js";
 import styles from "./PriceChart.stories.module.css";
@@ -36,6 +38,22 @@ import styles from "./PriceChart.stories.module.css";
 // The volume plot is 68px tall compact and the price plot 220px. `Compact` below
 // is the case, and the full sentence is still spoken either way.
 //
+// **And since Task 2.14.6: whether the two empty answers read as two answers
+// rather than as two severities.** `TheTwoAnswers` puts them side by side, which
+// is the only arrangement that can be judged — each on its own looks correct,
+// and what a reviewer has to check is that neither ranks above the other. They
+// are deliberately identical in marker, type, ink, position and ground; the
+// entire difference is the **subject of the headline**, because the difference
+// between them is a fact about our store and not about severity. Both are
+// correct 200s.
+//
+// `UniverseUnavailable` is the third state and the rule rather than a state
+// somebody forgot: when `GET /securities` has failed or has not landed, the
+// vacancy says the **window** sentence. It never infers *we hold nothing* from
+// an absence it could not read, and it must be reviewed precisely because it
+// looks identical to `Empty` — a reviewer's job here is to confirm there is no
+// third treatment to find.
+//
 // ## Why there is no bare story
 //
 // The obvious third story is the component on its own, for the type and the
@@ -55,19 +73,36 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/**
+ * The args every story shares, so a story says only what it is *about*.
+ *
+ * `ChartVacancy` takes no children and has no bare story — see the header — so
+ * these drive the Storybook controls rather than the render, and a story that
+ * differs from `Empty` by one field spells only that field.
+ */
+const EMPTY_ARGS = {
+  compact: false,
+  requested: emptyWindow(),
+  stored: "some",
+  subject: "bars",
+  symbol: "NVDA",
+} satisfies ChartVacancyProps;
+
 /** The pair, on one axis, at a region width — which is how the product draws it. */
 function Pair({
   view,
   width,
+  stored = "unknown",
 }: {
   readonly view: BarSeriesView;
   readonly width: "wide" | "narrow";
+  readonly stored?: StoredHistory;
 }) {
   return (
     <div className={styles[width]}>
       <ChartAxis view={view}>
-        <PriceChart symbol="NVDA" view={view} />
-        <VolumeChart symbol="NVDA" view={view} />
+        <PriceChart stored={stored} symbol="NVDA" view={view} />
+        <VolumeChart stored={stored} symbol="NVDA" view={view} />
       </ChartAxis>
     </div>
   );
@@ -82,8 +117,66 @@ function Pair({
  * volume, and only the price plot carries the schedule.
  */
 export const Empty: Story = {
-  args: { compact: false, requested: emptyWindow(), subject: "bars" },
-  render: () => <Pair view={barSeriesFixtureView("empty")} width="wide" />,
+  args: EMPTY_ARGS,
+  render: () => (
+    <Pair stored="some" view={barSeriesFixtureView("empty")} width="wide" />
+  ),
+};
+
+/**
+ * **The other empty answer: we hold nothing for this security at all.**
+ *
+ * The state `pnpm store:bare` and CI are in for every security, and the state a
+ * newly added security is in until the next backfill. It is derived from the
+ * universe response rather than from the series — a symbol absent from
+ * `coverage` holds no bars — so nothing about the body drawn here differs from
+ * `Empty` above. Only the sentence does.
+ *
+ * The judgement: does *changing the window will not help* read as help rather
+ * than as an apology? It is the only sentence in the product that tells a reader
+ * a visible control is the wrong move, and it says so because the control is
+ * right there and unpressed.
+ */
+export const NothingStored: Story = {
+  args: { ...EMPTY_ARGS, stored: "none" },
+  render: () => (
+    <Pair stored="none" view={barSeriesFixtureView("empty")} width="wide" />
+  ),
+};
+
+/**
+ * **The two answers side by side**, which is the only way the weight question
+ * can be reviewed.
+ *
+ * Separately, each is plainly correct. Together, the thing to check is that
+ * neither looks worse than the other — no second marker, no amber, no heavier
+ * ink, no extra line of chrome. The difference is what the headline is *about*.
+ */
+export const TheTwoAnswers: Story = {
+  args: EMPTY_ARGS,
+  render: () => (
+    <div className={styles.stack}>
+      <Pair stored="none" view={barSeriesFixtureView("empty")} width="narrow" />
+      <Pair stored="some" view={barSeriesFixtureView("empty")} width="narrow" />
+    </div>
+  ),
+};
+
+/**
+ * **The universe answer is not available**, so the vacancy says the window
+ * sentence.
+ *
+ * Identical to `Empty` on purpose. The rule is that a failed or in-flight
+ * `GET /securities` must never produce a confident sentence about the store —
+ * that is the same defect this task exists to remove, arriving from the other
+ * side — and the way a rule like that is reviewed is by confirming that the
+ * screen it produces is one the product already has.
+ */
+export const UniverseUnavailable: Story = {
+  args: { ...EMPTY_ARGS, stored: "unknown" },
+  render: () => (
+    <Pair stored="unknown" view={barSeriesFixtureView("empty")} width="wide" />
+  ),
 };
 
 /**
@@ -96,8 +189,27 @@ export const Empty: Story = {
  * reader can already see is empty.
  */
 export const Compact: Story = {
-  args: { compact: true, requested: emptyWindow(), subject: "bars" },
-  render: () => <Pair view={barSeriesFixtureView("empty")} width="narrow" />,
+  args: { ...EMPTY_ARGS, compact: true },
+  render: () => (
+    <Pair stored="some" view={barSeriesFixtureView("empty")} width="narrow" />
+  ),
+};
+
+/**
+ * The same compact height, holding case one.
+ *
+ * The one place the four literals are visibly four: the price plot loses its
+ * detail line here and the volume plot never had one, so both densities rest
+ * entirely on a headline that has to name its own subject. A volume plot saying
+ * *none for this window* under a price plot saying *no history for NVDA yet*
+ * would tell a reader two stories about one screen, which is the reason case
+ * one has a volume literal at all.
+ */
+export const CompactNothingStored: Story = {
+  args: { ...EMPTY_ARGS, compact: true, stored: "none" },
+  render: () => (
+    <Pair stored="none" view={barSeriesFixtureView("empty")} width="narrow" />
+  ),
 };
 
 /**

@@ -161,6 +161,40 @@ describe("chartAlternative", () => {
     );
   });
 
+  // **The two empty answers, spoken apart** (Task 2.14.6). Until this fork the
+  // sentence above was case two's explanation asserted for both — and the half
+  // that was wrong is the half a listener would act on: *stored history is
+  // caught up overnight* says waiting helps, on a security where nothing does.
+  it("tells the two empty answers apart, in the picture's own sentence", () => {
+    const empty = barSeriesFixtureView("empty");
+
+    expect(chartAlternative(empty, SYMBOL, false, "none")).toBe(
+      "NVDA price chart: no line is drawn. The frame is drawn across 1 " +
+        "trading session. No history is stored for NVDA at this timeframe, " +
+        "so the whole frame is empty ground. Changing the window will not " +
+        "help; the store is filled overnight.",
+    );
+
+    expect(volumeAlternative(empty, SYMBOL, false, "none")).toBe(
+      "NVDA volume chart: no columns are drawn. The frame is drawn across 1 " +
+        "trading session. No volume history is stored for NVDA at this " +
+        "timeframe, so the whole frame is empty ground.",
+    );
+  });
+
+  // The degradation rule reaches the spoken channel too, and the default is
+  // what carries it: a caller with no universe answer says the window sentence.
+  it("says the window sentence when the store's answer is unknown", () => {
+    const empty = barSeriesFixtureView("empty");
+
+    expect(chartAlternative(empty, SYMBOL, false, "unknown")).toBe(
+      alternative("empty"),
+    );
+    expect(chartAlternative(empty, SYMBOL, false, "some")).toBe(
+      alternative("empty"),
+    );
+  });
+
   // The schedule clause arrived on 2026-09-14 and is asserted apart from the
   // sentence above, because the reason it is here is not the wording.
   //

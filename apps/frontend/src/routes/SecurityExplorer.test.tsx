@@ -87,7 +87,80 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/**
+ * The same routing with an **empty** series, so the plots draw a vacancy.
+ *
+ * Its own helper rather than a parameter on `stubFetch`, because every other
+ * test in this file wants the series out of the way and this is the one pair of
+ * assertions that is about the series and the universe **together** — which is
+ * the whole of Task 2.14.6: the distinction between the two empty answers is a
+ * property of the *screen*, and this is the only level that has one.
+ */
+function stubEmptySeries(respond: () => Promise<Response>): void {
+  stubEveryRequest((call) =>
+    call.url.includes("/market-data/bars")
+      ? Promise.resolve(barSeriesFixtureResponse("empty"))
+      : respond(),
+  );
+}
+
 describe("SecurityExplorer", () => {
+  // **The two empty answers, told apart on a real page** (Task 2.14.6). Both
+  // requests are stubbed and both matter: the bars come back as a correct 200
+  // with nothing in them, and the universe says whether we hold anything for
+  // this security at all. `coverage: []` with NVDA in the list is the wire
+  // contract's spelling of *we hold nothing for this one*.
+  it("says the store holds nothing when the universe says so", async () => {
+    stubEmptySeries(() =>
+      json(200, { securities: [NVDA, SPY], coverage: [], lastCloses: [] }),
+    );
+    render();
+
+    // **The spoken channel rather than the drawn one, and that is forced.**
+    // The vacancy is drawn on a measured plot, and jsdom computes no layout —
+    // so at this level the block has no box and never renders. Every sentence
+    // this derivation produces has a spoken twin for exactly the reason this
+    // task exists, and the twins are what an integration test can read.
+    // `ChartVacancy`'s own rendering is asserted in `PriceChart.test.tsx` and
+    // `VolumeChart.test.tsx`, where the measurement is stubbed.
+    await waitFor(() => {
+      expect(
+        screen.getByText(/no history is stored for this security/),
+      ).toBeTruthy();
+    });
+
+    // Both plots, each in its own subject — a price plot and a volume plot
+    // telling different stories about one empty screen is the defect that made
+    // this four sentences rather than two.
+    expect(document.body.textContent).toContain(
+      "No history is stored for NVDA at this timeframe",
+    );
+    expect(document.body.textContent).toContain(
+      "No volume history is stored for NVDA at this timeframe",
+    );
+    expect(screen.queryByText(/the window asked for/)).toBeNull();
+  });
+
+  // **The degradation rule on the page it is about.** A universe request that
+  // failed cannot tell us anything about the store, so the vacancy says the
+  // window sentence — never a confident claim derived from an absence it could
+  // not read.
+  it("keeps the window sentence when the universe could not be read", async () => {
+    stubEmptySeries(() => Promise.reject(new TypeError("Failed to fetch")));
+    render();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/no bars are stored for the window asked for/),
+      ).toBeTruthy();
+    });
+
+    expect(
+      screen.getByText(/NVDA price chart: no line is drawn/).textContent,
+    ).toContain("No bars are stored anywhere in the window asked for");
+    expect(screen.queryByText(/no history is stored/i)).toBeNull();
+  });
+
   it("renders the universe as a table of symbol, name, industry and kind", async () => {
     stubFetch(() =>
       json(200, { securities: [NVDA, SPY], coverage: [], lastCloses: [] }),

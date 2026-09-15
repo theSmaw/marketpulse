@@ -1,7 +1,11 @@
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import { expectNothingFailedToRender, readable } from "../support/app.js";
+import {
+  AN_EMPTY_PLOT,
+  expectNothingFailedToRender,
+  readable,
+} from "../support/app.js";
 
 // One security's bar series on screen, deep-linked, against the **real pair**
 // (Task 2.10.7).
@@ -68,9 +72,7 @@ function anAnswer(scope: Locator): Locator {
   // live region whose sentence repeats what is on screen, so a bare text match
   // resolves to two elements. Every assertion in this file is about what a
   // reader sees; the announcement has its own spec.
-  return scope
-    .getByText(/(^| )Open$/)
-    .or(readable(scope, /No bars stored for this window/));
+  return scope.getByText(/(^| )Open$/).or(readable(scope, AN_EMPTY_PLOT));
 }
 
 /** Did this run land on a store with bars in it? */

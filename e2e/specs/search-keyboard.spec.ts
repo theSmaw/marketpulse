@@ -1,7 +1,11 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import { expectNothingFailedToRender, readable } from "../support/app.js";
+import {
+  AN_EMPTY_PLOT,
+  expectNothingFailedToRender,
+  readable,
+} from "../support/app.js";
 import { SECURITIES_ROUTE_PATTERN } from "../support/pair.js";
 
 // The journey the epic's exit criterion is a sentence about — **search, open,
@@ -120,9 +124,7 @@ test("search, open, and land on that security's page", async ({ page }) => {
   // in both environments — see `security-series.spec.ts` for the full argument.
   const price = page.getByRole("region", { name: "Price" });
   await expect(
-    price
-      .getByText(/(^| )Open$/)
-      .or(readable(price, /No bars stored for this window/)),
+    price.getByText(/(^| )Open$/).or(readable(price, AN_EMPTY_PLOT)),
   ).toBeVisible();
 
   await expectNothingFailedToRender(page);
@@ -334,7 +336,7 @@ for (const [width, height] of [
       page
         .getByRole("region", { name: "Price" })
         .getByText(/(^| )Open$/)
-        .or(page.getByText(/No bars stored for this window/))
+        .or(page.getByText(AN_EMPTY_PLOT))
         .first(),
     ).toBeVisible();
 

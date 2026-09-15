@@ -6,6 +6,7 @@ import type {
   PopulatedBarSeries,
   TimeAxis,
 } from "../../market/index.js";
+import type { StoredHistory } from "./chart-vacancy.js";
 import {
   directionOf,
   formatBarInstant,
@@ -100,8 +101,9 @@ export function chartAlternative(
   view: BarSeriesView,
   symbol: string,
   pending = false,
+  stored: StoredHistory = "unknown",
 ): string | null {
-  const described = chartAlternativeBody(view, symbol);
+  const described = chartAlternativeBody(view, symbol, stored);
 
   return described === null ? null : `${described}${waitClause(pending)}`;
 }
@@ -109,6 +111,7 @@ export function chartAlternative(
 function chartAlternativeBody(
   view: BarSeriesView,
   symbol: string,
+  stored: StoredHistory,
 ): string | null {
   switch (view.state) {
     case "loading":
@@ -128,6 +131,25 @@ function chartAlternativeBody(
       // that had no spoken home and now has exactly one: the price chart's, not
       // the volume chart's, for the same reason the visible detail line is on
       // the price plot alone.
+      //
+      // **And it is the clause Task 2.14.6 had to fork**, because it was case
+      // two's explanation asserted for both. *Stored history is caught up
+      // overnight* is a true and useful thing to hear about a window that
+      // reaches into the current session, and a wrong one about a security we
+      // hold nothing for at all — where nothing the listener does helps and
+      // waiting for tonight's backfill is precisely what does. A visible
+      // sentence forked while the spoken one was left saying the old thing
+      // would be the same defect with one audience left in it.
+      if (stored === "none") {
+        return (
+          `${symbol} price chart: no line is drawn. ` +
+          `${frameClause(view.series)} ` +
+          `No history is stored for ${symbol} at this timeframe, so the ` +
+          `whole frame is empty ground. Changing the window will not help; ` +
+          `the store is filled overnight.`
+        );
+      }
+
       return (
         `${symbol} price chart: no line is drawn. ` +
         `${frameClause(view.series)} ` +
@@ -221,8 +243,9 @@ export function volumeAlternative(
   view: BarSeriesView,
   symbol: string,
   pending = false,
+  stored: StoredHistory = "unknown",
 ): string | null {
-  const described = volumeAlternativeBody(view, symbol);
+  const described = volumeAlternativeBody(view, symbol, stored);
 
   return described === null ? null : `${described}${waitClause(pending)}`;
 }
@@ -230,12 +253,26 @@ export function volumeAlternative(
 function volumeAlternativeBody(
   view: BarSeriesView,
   symbol: string,
+  stored: StoredHistory,
 ): string | null {
   switch (view.state) {
     case "loading":
       return `${symbol} volume chart: the frame is drawn and the columns have not arrived yet.`;
 
     case "empty":
+      // Its own subject, in both cases — the shipped convention, and the
+      // reason the drawn answer is four literals rather than two. The schedule
+      // clause stays on the price chart's sentence alone, which is where the
+      // visible detail line is for the same reason.
+      if (stored === "none") {
+        return (
+          `${symbol} volume chart: no columns are drawn. ` +
+          `${frameClause(view.series)} ` +
+          `No volume history is stored for ${symbol} at this timeframe, so ` +
+          `the whole frame is empty ground.`
+        );
+      }
+
       return (
         `${symbol} volume chart: no columns are drawn. ` +
         `${frameClause(view.series)} ` +

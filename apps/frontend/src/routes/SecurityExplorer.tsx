@@ -6,6 +6,7 @@ import { PageHeader } from "../components/PageHeader/PageHeader.js";
 import { Region } from "../components/Region/Region.js";
 import { RegionPlaceholder } from "../components/RegionPlaceholder/RegionPlaceholder.js";
 import { SecurityIdentity } from "../components/SecurityIdentity/SecurityIdentity.js";
+import { storedHistoryFor } from "../components/PriceChart/chart-vacancy.js";
 import { SourceNote } from "../components/SourceNote/SourceNote.js";
 import { SecuritySearch } from "../components/SecuritySearch/SecuritySearch.js";
 import { UniverseTable } from "../components/UniverseTable/UniverseTable.js";
@@ -108,6 +109,24 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
   // `use-time-window.ts` is the one place it is decoded and `securityPath` the
   // one place it is written.
   const { sessions } = useTimeWindow();
+
+  // **Which of the two empty answers an empty chart is** (Task 2.14.6), derived
+  // here because this is the one place that holds both answers.
+  //
+  // `PROVENANCE.md` §6.2: the server distinguishes *we hold nothing for this
+  // security* from *we hold nothing in this window* in a debug log and nowhere
+  // else, and both are the same 200. The distinction is already on the wire —
+  // on the **universe** response, where a security with no bars is absent from
+  // `coverage` rather than present with a zero — and this page has fetched that
+  // since the identity block. So no new request, no new field, and no seventh
+  // member of `BarSeriesView`: one derivation, read by the two plots and by the
+  // panel's announcement, so the drawn sentence and the spoken one cannot come
+  // to disagree.
+  //
+  // It is a property of the **screen** rather than of either response, which is
+  // the cost as well as the saving. §6.2's reversal trigger is the first
+  // consumer of `GET /market-data/bars` that does not also hold the universe.
+  const stored = storedHistoryFor(view, symbol);
 
   const series = useBarSeries({
     symbol,
@@ -261,6 +280,7 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
             <Region name="Price">
               <BarSeriesPanel
                 screen={series.screen}
+                stored={stored}
                 symbol={symbol}
                 onRetry={series.retry}
                 defaulted={!fromAddress}
@@ -350,6 +370,7 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
             <Region name="Volume">
               <VolumeChart
                 pending={series.screen.pending}
+                stored={stored}
                 symbol={symbol}
                 view={series.screen.shown}
               />

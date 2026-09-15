@@ -162,6 +162,65 @@ export const BREAKS = [
   },
 
   {
+    name: "volume-explanation-twice",
+    proves:
+      "The volume plot's empty sentence re-inlined in the spoken alternative " +
+      "puts one fact in two vocabularies — and one of them is the copy no " +
+      "sighted reader ever checks — and the invariant catches the second home.",
+    // The break is the change somebody would actually make: making the spoken
+    // sentence quote the drawn one, on the reasonable-sounding grounds that a
+    // listener and a reader should be told the same thing. They should be told
+    // the same *fact*; visible text is written to be scanned and an
+    // announcement to be heard once, out of context.
+    file: "apps/frontend/src/components/PriceChart/chart-alternative.ts",
+    find:
+      "        `No bars are stored anywhere in the window asked for, ` +\n" +
+      "        `${formatMarketRange(view.series.coverage.requested)}, so the whole ` +\n" +
+      "        `frame is empty ground.`\n" +
+      "      );",
+    replace: "        `No volume stored for this window.`\n" + "      );",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-empty-explanation",
+  },
+
+  {
+    name: "no-history-sentence-twice",
+    proves:
+      "Case one's price headline re-inlined in the announcement is the drawn " +
+      "sentence and the spoken sentence written twice — the drift a screen and " +
+      "a screen reader can diverge through with nothing to notice — and the " +
+      "invariant catches the second home.",
+    // The break is the plausible one: hoisting the visible headline into the
+    // live region so the two "cannot disagree". They cannot disagree *because*
+    // one of them is derived and the other is written, and quoting a drawn
+    // string in a spoken one is the arrangement that guarantees the opposite.
+    file: "apps/frontend/src/components/BarSeriesPanel/series-announcement.ts",
+    find: '            "no history is stored for this security at this timeframe. Changing the window will not help; the store is filled overnight."',
+    replace: "            `No history stored for ${symbol} yet.`",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-empty-explanation",
+  },
+
+  {
+    name: "no-volume-history-sentence-twice",
+    proves:
+      "Case one's volume headline re-inlined in the volume alternative is the " +
+      "fourth of these sentences given a second home, and the invariant " +
+      "catches it as surely as the first three.",
+    // The break is the same motivation one plot across: the volume plot's
+    // spoken sentence quoting its drawn one. It is written out separately
+    // because four literals is four hazards — `PROVENANCE.md` §6.3 costed them
+    // as four `pnpm break` entries and this is the fourth.
+    file: "apps/frontend/src/components/PriceChart/chart-alternative.ts",
+    find:
+      "          `No volume history is stored for ${symbol} at this timeframe, so ` +\n" +
+      "          `the whole frame is empty ground.`",
+    replace: "          `No volume history stored for ${symbol} yet.`",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-empty-explanation",
+  },
+
+  {
     name: "coverage-sentence-twice",
     proves:
       "The coverage sentence re-inlined in the announcement while the rail " +

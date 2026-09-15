@@ -10,6 +10,7 @@ import { usePlotBox } from "./use-plot-box.js";
 import { ChartReading } from "./ChartReading.js";
 import { ChartPending } from "./ChartPending.js";
 import { ChartVacancy } from "./ChartVacancy.js";
+import type { StoredHistory } from "./chart-vacancy.js";
 import styles from "./PriceChart.module.css";
 
 // **The first chart in MarketPulse** (Task 2.12.4) — one security's closes, on
@@ -184,9 +185,27 @@ export interface PriceChartProps {
    * which is Task 2.12.8's to change.
    */
   readonly symbol: string;
+
+  /**
+   * What the store holds for this security, from `chart-vacancy.ts` (Task
+   * 2.14.6) — which of the two empty answers an empty frame is.
+   *
+   * **Optional, defaulting to the answer that claims least.** The default is
+   * the degradation rule rather than a convenience: a caller that has not read
+   * the universe has nothing to say about the store, and `"unknown"` renders
+   * the window sentence. Every story and every unit test therefore describes
+   * the window unless it deliberately says otherwise, which is the same shape
+   * `pending` takes one field up.
+   */
+  readonly stored?: StoredHistory;
 }
 
-export function PriceChart({ view, symbol, pending = false }: PriceChartProps) {
+export function PriceChart({
+  view,
+  symbol,
+  pending = false,
+  stored = "unknown",
+}: PriceChartProps) {
   // **The axis comes from above and the height from this element** (Task
   // 2.13.4). Every mark whose x this component draws is the same value the
   // volume plot draws its columns at, because both read one `TimeFrame` — which
@@ -241,7 +260,7 @@ export function PriceChart({ view, symbol, pending = false }: PriceChartProps) {
       ? `url(#${coveredId})`
       : undefined;
 
-  const alternative = chartAlternative(view, symbol, pending);
+  const alternative = chartAlternative(view, symbol, pending, stored);
 
   // Two states have no window to draw an axis for: a refusal is an answer about
   // the *request* and a failure never got one. A frame under either would be a
@@ -505,7 +524,9 @@ export function PriceChart({ view, symbol, pending = false }: PriceChartProps) {
             <ChartVacancy
               compact={density.compact}
               requested={subject.requested}
+              stored={stored}
               subject="bars"
+              symbol={symbol}
             />
           )}
       </div>

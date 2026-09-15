@@ -71,6 +71,41 @@ describe("announceSeries", () => {
     expect(spoken).toMatch(/E[DS]T/);
   });
 
+  // **The other empty answer** (Task 2.14.6). A state that reaches the view and
+  // not the announcement is a state a screen-reader user cannot observe — and
+  // this one is worse than unobservable, because the sentence above is a
+  // confident claim about the *window* on a security we hold nothing for.
+  it("reads the other empty answer as an answer about the store", () => {
+    const spoken = announceSeries(
+      barSeriesFixtureScreen("empty"),
+      "NVDA",
+      "none",
+    );
+
+    expect(spoken).toContain(
+      "no history is stored for this security at this timeframe",
+    );
+
+    // And the symbol is said once, not twice: every announcement already opens
+    // with it.
+    expect(spoken.match(/NVDA/gu)).toHaveLength(1);
+    expect(spoken).toContain("Changing the window will not help");
+    expect(spoken).not.toContain("the window asked for");
+  });
+
+  // The degradation rule, carried by the default: a caller with no universe
+  // answer claims nothing about the store.
+  it("says the window sentence when the store's answer is unknown", () => {
+    const screen = barSeriesFixtureScreen("empty");
+
+    expect(announceSeries(screen, "NVDA", "unknown")).toBe(
+      announceSeries(screen, "NVDA"),
+    );
+    expect(announceSeries(screen, "NVDA", "some")).toBe(
+      announceSeries(screen, "NVDA"),
+    );
+  });
+
   it("passes a refusal's own sentence through, verbatim", () => {
     // The numbers in it are the server's arithmetic. A client re-wording it
     // would be inventing a sentence about a calculation it did not do — which

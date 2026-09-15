@@ -433,8 +433,8 @@ const INVARIANTS = [
   {
     id: "one-home-for-the-empty-explanation",
     claim:
-      "The sentence explaining an empty window is written in exactly one " +
-      "source file.",
+      "Each of the four sentences explaining an empty plot is written in " +
+      "exactly one source file.",
     check() {
       // The sentence moved out of `BarSeriesPanel` and into the plot on
       // 2026-09-14 (`VOLUME-AND-WINDOW.md` §78). **Moved, not copied**, and the
@@ -447,41 +447,73 @@ const INVARIANTS = [
       //
       // That is a six-minute round trip to discover and a grep to prevent.
       //
-      // **Anchored on a literal that must be FOUND**, not on one that must be
+      // **Anchored on literals that must be FOUND**, not on ones that must be
       // absent: a check whose passing condition is "no matches" passes just as
       // happily when the string it looks for has been renamed, which is how one
-      // of the original seven invariants rotted. If this sentence is reworded,
-      // this check goes red and names the new home rather than going quiet.
-      const SENTENCE = "No bars stored for this window.";
+      // of the original seven invariants rotted. If a sentence is reworded, this
+      // check goes red and names its new home rather than going quiet.
+      //
+      // ## Four rather than one, since Task 2.14.6
+      //
+      // `PROVENANCE.md` §6 tells the two empty answers apart — *we hold nothing
+      // for this security* and *we hold nothing in this window* — and there are
+      // two plots under one axis, each naming its own subject. So the product
+      // has four of these sentences, all four are located by the browser suite
+      // or could be, and all four carry the same duplication hazard.
+      //
+      // **Two of them interpolate the symbol**, because naming the security is
+      // the whole encoding of case one, so each is anchored on the longest
+      // fragment a grep can see — and the two fragments are deliberately
+      // distinct from each other. `No volume stored for ` would have been a
+      // prefix of the window sentence, so the check could not have told the two
+      // homes apart and would have stayed green with the sentence deleted.
+      //
+      // **Read through `withoutComments`**, for the reason
+      // `one-home-for-the-coverage-phrase` learned first: these sentences are
+      // quoted in prose in more than one file — `chart-alternative.ts` and
+      // `series-announcement.ts` both explain why their own wording differs —
+      // and a check a correct doc comment can trip is a check nobody can keep
+      // green.
+      const SENTENCES = [
+        "No bars stored for this window.",
+        "No volume stored for this window.",
+        "No history stored for ",
+        "No volume history stored for ",
+      ];
 
-      const homes = sourceFilesUnder(
-        resolve(REPO_ROOT, "apps/frontend/src"),
-      ).filter(
-        ({ path, text }) =>
-          !/\.(?:test|stories)\.tsx?$/u.test(path) && text.includes(SENTENCE),
-      );
+      const expected =
+        "apps/frontend/src/components/PriceChart/ChartVacancy.tsx";
 
-      if (homes.length === 0) {
-        throw new InvariantFailure(
-          `No source file contains ${JSON.stringify(SENTENCE)}. Either the ` +
-            "sentence was reworded — in which case reword it here too, and " +
-            "check the nine browser specs that match on it — or the empty " +
-            "state stopped explaining itself, which is the defect this " +
-            "guards.",
-        );
-      }
+      const files = sourceFilesUnder(resolve(REPO_ROOT, "apps/frontend/src"))
+        .filter(({ path }) => !/\.(?:test|stories)\.tsx?$/u.test(path))
+        .map(({ path, text }) => ({ path, text: withoutComments(text) }));
 
-      if (homes.length > 1) {
-        throw new InvariantFailure(
-          "The sentence has more than one home:\n      " +
-            homes
-              .map(({ path }) => relative(REPO_ROOT, path))
-              .join("\n      ") +
-            "\n      Two visible copies inside the Price region is a " +
-            "Playwright strict-mode failure in every browser spec that " +
-            "locates a settled answer by this phrase, and CI's store makes " +
-            "every chart there an `empty`.",
-        );
+      for (const sentence of SENTENCES) {
+        const homes = files
+          .filter(({ text }) => text.includes(sentence))
+          .map(({ path }) => relative(REPO_ROOT, path));
+
+        if (homes.length === 0) {
+          throw new InvariantFailure(
+            `No source file contains ${JSON.stringify(sentence)}. Either the ` +
+              "sentence was reworded — in which case reword it here too, and " +
+              "check the browser specs that match on it — or one of the two " +
+              "empty answers stopped explaining itself, which is the defect " +
+              "this guards.",
+          );
+        }
+
+        if (homes.length > 1 || homes[0] !== expected) {
+          throw new InvariantFailure(
+            `${JSON.stringify(sentence)} should be written only in ` +
+              `${expected}, and is in:\n      ` +
+              homes.join("\n      ") +
+              "\n      Two visible copies inside one region is a Playwright " +
+              "strict-mode failure in every browser spec that locates a " +
+              "settled answer by this phrase, and CI's store makes every " +
+              "chart there an `empty`.",
+          );
+        }
       }
     },
   },

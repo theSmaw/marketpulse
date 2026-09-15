@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import type { BarSeriesView } from "../../market/index.js";
 import { ChartAxis } from "./ChartAxis.js";
+import type { StoredHistory } from "./chart-vacancy.js";
 import { PriceChart } from "./PriceChart.js";
 import { VolumeChart } from "./VolumeChart.js";
 
@@ -56,13 +57,15 @@ vi.mock("./chart-geometry.js", async (importOriginal) => {
 function Chart({
   view,
   pending = false,
+  stored = "unknown",
 }: {
   readonly view: BarSeriesView;
   readonly pending?: boolean;
+  readonly stored?: StoredHistory;
 }) {
   return (
     <ChartAxis view={view}>
-      <PriceChart pending={pending} symbol="NVDA" view={view} />
+      <PriceChart pending={pending} stored={stored} symbol="NVDA" view={view} />
     </ChartAxis>
   );
 }
@@ -428,6 +431,57 @@ describe("what a screen reader is handed", () => {
     const exposed = exposedText(container);
     expect(exposed).toContain("Stored history is caught up overnight");
     expect(exposed).not.toContain("We asked for");
+  });
+
+  // **The other empty answer** (Task 2.14.6). The server knows two things and
+  // says neither — both are the same 200 — so the distinction comes from the
+  // universe response, which a symbol with no bars is absent from. `stored`
+  // carries it here.
+  it("says the security holds nothing, when that is what the store says", () => {
+    measureEverythingAt(800, 280);
+
+    const { container } = render(
+      <Chart stored="none" view={barSeriesFixtureView("empty")} />,
+    );
+
+    // It names the **security**, which is the encoding: case one names the
+    // security and case two names the window, and they are otherwise identical.
+    expect(screen.getByText("No history stored for NVDA yet.")).toBeTruthy();
+    expect(screen.queryByText(/No bars stored for this window/)).toBeNull();
+
+    // And the next action is in the words. This is the one sentence in the
+    // product that tells a reader a visible control is the wrong move.
+    //
+    // **Two matches, and that is the correct count**: the drawn sentence and
+    // the text alternative both carry it, which is the one clause a listener
+    // would otherwise lose. They are two channels rather than two copies — the
+    // hidden block is `aria-hidden`, so no reader meets both.
+    expect(
+      screen.getAllByText(/Changing the window will not help/),
+    ).toHaveLength(2);
+    expect(screen.queryByText(/We asked for/)).toBeNull();
+
+    // The spoken half agrees, which is the half a reader cannot check. A state
+    // that reaches the view and not the alternative is a state a screen-reader
+    // user cannot observe.
+    const exposed = exposedText(container);
+    expect(exposed).toContain(
+      "No history is stored for NVDA at this timeframe",
+    );
+    expect(exposed).not.toContain("No bars are stored anywhere in the window");
+  });
+
+  // **The degradation rule, and it is a rule rather than a default.** A failed
+  // or in-flight `GET /securities` must not produce a confident sentence about
+  // the store — that is the same defect this task exists to remove, arriving
+  // from the other side.
+  it("falls back to the window sentence when the universe is unreadable", () => {
+    measureEverythingAt(800, 280);
+
+    render(<Chart stored="unknown" view={barSeriesFixtureView("empty")} />);
+
+    expect(screen.getByText(/No bars stored for this window/)).toBeTruthy();
+    expect(screen.queryByText(/No history stored for/)).toBeNull();
   });
 });
 
