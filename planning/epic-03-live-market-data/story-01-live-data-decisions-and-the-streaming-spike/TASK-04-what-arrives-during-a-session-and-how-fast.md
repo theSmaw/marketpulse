@@ -2,7 +2,12 @@
 
 **Status:** Not started
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
-**Depends on:** 3.1.3
+**Depends on:** 3.1.2 for the instrument. **Amended 2026-09-15:** 3.1.3's
+_short_ windows should be taken first where the calendar allows, exactly as
+STORY.md argues — but 3.1.3's overnight and weekend **holds** do not block this
+task. A weekend is five days out and a session is today; a linear dependency
+would park the story's most consequential measurement behind a window that has
+not opened yet.
 
 ## Objective
 
@@ -36,6 +41,31 @@ consumed by Decisions 1, 3, 4 and 5 in Tasks 3.1.6–3.1.8.
 - **IEX coverage is thin and it is measured — on stored history.** 82.8% median,
   43.1% worst case (`ALPACA.md` §5.2). The live stream is the case that figure
   was always about.
+
+**Added 2026-09-15 by Task 3.1.2** — [`LIVE-DATA.md`](LIVE-DATA.md) §4.7, and
+both of these change how figure 8 must be _quoted_ rather than how it is taken:
+
+- **Subtract the offset recorded in this task's OWN capture header, not a cited
+  one.** The harness re-takes the clock offset at the top of every run. On
+  2026-09-15 this machine was **≈257 ms slow** against three agreeing NTP
+  references — larger than the whole of §28's 250 ms budget, and in the
+  flattering direction. **Quote the corrected and the uncorrected figure side by
+  side**, with the NTP spread, so a later reader can see the correction was
+  applied rather than trust that it was.
+- **The vendor's own clock could not be pinned down**, and figure 8 carries that
+  sentence rather than omitting it: Alpaca's `Date` header is one-second granular
+  against a 769–1,288 ms round trip, which bounds the offset between −570 ms and
+  +420 ms and measures nothing. If Alpaca's bar timestamps are not NTP-accurate,
+  **no instrument in this story can tell.**
+- **The vantage point is wrong for §28 and saying so is this task's job.** Every
+  figure here is taken from a UK domestic link — round trip to Alpaca measured
+  **271–311 ms** (§4.6) — while the deployment is Azure `eastus2`. §28's target
+  is about the moment **our server** receives an event, and this measurement
+  adds a transatlantic leg the production path does not have. So the provider's
+  share of §28 is an **upper bound from this vantage**, labelled as such, and
+  the re-measure is handed to **Story 3.11** (whose name carries _Performance_)
+  under a condition: **the first time a real socket runs in the deployed
+  backend.** Do not let a later story quote this figure as _the_ number.
 - **The universe is 518** — the S&P 500 as published plus eleven sector SPDRs
   and four market proxies. Size against the real figure, never against §6's
   "roughly 100".
@@ -87,8 +117,10 @@ instrument, in the shape that lets it be re-taken.
 - Every observed message type has a verbatim example and a one-line description.
 - The rate is recorded at the open, midday and the close, as a distribution, in
   both messages and bytes per second.
-- The p50/p95 arrival gap is recorded, and §28's upstream boundary is stated in
-  a sentence a later story can quote.
+- The p50/p95 arrival gap is recorded **both corrected and uncorrected**, with
+  the capture's own clock offset and the NTP spread beside it, and §28's upstream
+  boundary is stated in a sentence a later story can quote — **a sentence that
+  says _upper bound from a UK link_ and names Story 3.11's re-measure**.
 - The `t` question is answered **with a control**, and the answer is compared
   explicitly against `ALPACA.md` §5.3 — agreement or disagreement, said plainly.
 - Live IEX coverage across 518 symbols is recorded with its distribution and its
