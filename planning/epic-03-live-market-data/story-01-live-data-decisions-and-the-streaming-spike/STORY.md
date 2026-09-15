@@ -168,3 +168,62 @@ together rather than one at a time:
 
 The file the next ten stories cite instead of re-deciding, and the first real
 numbers this product has about its own live feed.
+
+## Tasks
+
+**Nine tasks, in three groups, and the grouping is about _windows_ rather than
+about layers.** 3.1.1–3.1.2 need nothing but a keyboard; 3.1.3–3.1.5 each need a
+particular state of the market and cannot be reordered to suit convenience;
+3.1.6–3.1.9 are decisions that consume what those captures produced.
+
+**The instrument is built before any window opens (3.1.2)**, because each of the
+three capture tasks has a clock running against it and none of them should spend
+its window debugging a recorder.
+
+**The shut-market capture comes first (3.1.3)**, which is Epic 2's lesson
+inverted. Task 2.7.1 ran on Labor Day and lost a measurement to a closed market;
+what it got wrong was not the day but the question. Everything a shut market can
+answer is taken while it is shut, so the live session (3.1.4) is spent only on
+what needs a live session.
+
+**The three human decisions are asked once, together, and late (3.1.6)** —
+because two of them are unanswerable without the measured rate. A budget is a
+number about a bill and a bill is a number about bytes per second.
+
+**The eight decisions are split three ways by who consumes them**, not by
+subject: 3.1.7 holds the three that are one piece of arithmetic seen from three
+places, 3.1.8 holds the three **Story 3.3 needs to exist**, and 3.1.9 holds the
+two that are about this process and this tree, beside the close.
+
+| Task                                                                                  | What it does                                                                                      | Visible? |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------- |
+| [3.1.1](TASK-01-the-subject-document-and-the-eight-questions.md)                      | `LIVE-DATA.md` created: what is inherited, the eight questions open, the figures that don't exist | No       |
+| [3.1.2](TASK-02-the-harness-the-credential-and-the-capture-format.md)                 | The harness, the credential boundary, the capture format, and the handshake verbatim              | No       |
+| [3.1.3](TASK-03-what-the-socket-says-when-the-market-is-shut.md)                      | Pre-market, after hours, overnight, a weekend — and the longest legitimate silence                | No       |
+| [3.1.4](TASK-04-what-arrives-during-a-session-and-how-fast.md)                        | 518 symbols live: message shapes, the rate, the arrival gap, what `t` marks, real IEX coverage    | No       |
+| [3.1.5](TASK-05-what-the-socket-does-when-it-is-unhappy.md)                           | Duplicate connection, bad credential, idle, server close, reconnect — frames and codes verbatim   | No       |
+| [3.1.6](TASK-06-the-three-questions-for-a-person-and-the-cost-envelope.md)            | The cost envelope from the measured rate, and the three questions put to a person together        | No       |
+| [3.1.7](TASK-07-the-observation-the-subscription-and-the-state-that-is-held.md)       | Decisions 1, 3, 4 — what an observation is, what is subscribed, what the backend holds            | No       |
+| [3.1.8](TASK-08-the-browser-protocol-the-staleness-numbers-and-the-name-on-screen.md) | Decisions 2, 5, 6 — the browser protocol, the staleness numbers, the words on screen              | No       |
+| [3.1.9](TASK-09-the-store-the-process-the-harness-is-gone-and-the-document-lands.md)  | Decisions 7, 8 — the store and the process — then the harness gone, the sweep, the close          | No       |
+
+**Every row says No, and that is the story rather than a disappointment.** The
+epic's sequence is built so that the wait is short: `LIVE` reaches the chrome in
+Story 3.3 and the first price moves in Story 3.4, which is two and three stories
+away rather than seven. What this story buys is that those two stories are
+**implementations rather than arguments**.
+
+**Two tasks are load-bearing for the UI in particular.** Task 3.1.8 settles the
+words, the four-cell honest-label grid and the staleness numbers that Story 3.3
+puts on every route in the product; and Task 3.1.9 checks the **design canvas is
+reachable** — EPIC.md records that it was not, from the session that planned this
+epic, and Story 3.4 owes a sync before it designs anything. Answering that here
+costs minutes and is the difference between Story 3.4 designing forwards and
+discovering a broken chain on the day.
+
+**The subject document is `LIVE-DATA.md`** in this directory, created by 3.1.1
+and finished by 3.1.9. It is not a section of `PROVIDER.md` — that document is
+the historical provider seam and its outcome taxonomy — and it is not a section
+of `MARKET-DATA-API.md`, which is the HTTP wire. This one is **how a live
+observation reaches a screen**, which every story in this epic and Epic 4's
+overview both read.
