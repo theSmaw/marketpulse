@@ -1464,3 +1464,118 @@ unchanged, and the trigger unchanged — **the first time a second surface on th
 page renders per-row markup at universe scale**. Story 2.14's close still owes
 the answer, and it now owes it against two datings of the same defect a day
 apart.
+
+### Re-measured 2026-09-15 by Task 2.14.8 — unchanged a third time, and the disposition is taken: **Epic 14 owns it**
+
+Story 2.14 put five new things on `/securities/:symbol` — a three-term source
+note, two hidden rail cells, a vacancy headline with `text-wrap: balance`, a
+deferral sentence, and two linear scans of the 518-security array — so the figure
+was taken again rather than carried forward. **The point of taking it is that an
+unchanged figure you measured and an unchanged figure you assumed look identical
+in a document and nowhere else.**
+
+**Ten cold loads of each, 1440×900, Playwright 1.62.1's Chromium against the
+built artefact under `vite preview`, every backend response fulfilled from a
+recorded body.** The harness was checked before anything was measured with it
+(§47.1's warning in [`VOLUME-AND-WINDOW.md`](../story-13-volume-chart-and-time-window/VOLUME-AND-WINDOW.md)):
+every row below read `document.visibilityState === "visible"` with **84–93 rAF
+callbacks in 1,500 ms**, so the page painted and the frame-gap column means
+something.
+
+| What was loaded                                        | Tasks over 50 ms, ten loads | Worst frame gap p50 / max | Document nodes |
+| ------------------------------------------------------ | --------------------------- | ------------------------: | -------------: |
+| `/` — neither table nor chart                          | **none**                    |            20.6 / 25.7 ms |            172 |
+| `/securities` — the table, **no chart at all**         | 4 — 60, 58, 54, 51 ms       |            67.6 / 83.4 ms |         10,385 |
+| `/securities/NVDA` — 5D, 1,950 bars, **both plots**    | 3 — 53, 52, 50 ms           |            66.7 / 83.3 ms |         10,382 |
+| `/securities/NVDA?sessions=252` — 1Y, 252 bars of `1d` | 5 — 61, 59, 55, 51, 50 ms   |            83.3 / 84.3 ms |         10,381 |
+| `/securities/NVDA` — **zero bars**, the vacancy page   | 2 — 76, 72 ms               |           66.6 / 100.1 ms |         10,286 |
+| **`/securities`, 20-row universe**                     | **none**                    |        **20.0 / 34.4 ms** |            848 |
+| **5D, both plots, 20-row universe**                    | **none**                    |        **33.3 / 33.6 ms** |            845 |
+| **zero bars, 20-row universe**                         | **none**                    |        **24.7 / 34.3 ms** |            749 |
+
+**The attribution is unchanged for the third time.** The task is there with no
+chart at all and gone with a 20-row universe while both plots are still drawn.
+It does not track the bar count — 1,950, 252 and **zero** produce the same
+figure, which is the same pair of ends 2.12.9 and 2.13.9 used.
+
+**The zero-bar row is new here and it is the one that rules out Story 2.14.**
+That page is what CI and `pnpm store:bare` render, it is where 2.14.6's second
+`.some()` scan actually runs, and it is where 2.14.7's `text-wrap: balance`
+lives — and it reads the same 66.6 ms frame gap as every other 518-row row and
+**nothing at all** at twenty rows.
+
+#### The tail is lower than 2.13.9 published, and the old commit says why
+
+2.13.9 reported 4–7 tasks per row with outliers at **107 and 149 ms**. This run
+reports 2–5 with a maximum of **76 ms**. `CLAUDE.md`'s rule is that _a figure
+that has moved looks exactly like a figure that was mis-recorded, and only
+rebuilding the old commit tells them apart_ — so it was rebuilt.
+
+**Commit `997170d` — the tree 2.13.9 measured — was checked out into a worktree,
+installed, built, and served beside the shipped build on the same machine within
+the same ten minutes, and measured with the identical harness:**
+
+| What was loaded                        | `997170d` (2.13.9's tree) | As shipped today     |
+| -------------------------------------- | ------------------------- | -------------------- |
+| `/securities`, 518 rows                | 5 tasks, 66.7 ms p50      | 4 tasks, 67.6 ms p50 |
+| `/securities/NVDA` 5D, 518 rows        | 1 task, 66.6 ms p50       | 3 tasks, 66.7 ms p50 |
+| `/securities/NVDA` 1Y, 518 rows        | 5 tasks, 82.4 ms p50      | 5 tasks, 83.3 ms p50 |
+| `/securities/NVDA` zero bars, 518 rows | 2 tasks, 66.6 ms p50      | 2 tasks, 66.6 ms p50 |
+| `/securities`, 20 rows                 | 1 task, 32.7 ms p50       | none, 20.0 ms p50    |
+| 5D, 20 rows                            | none, 21.1 ms p50         | none, 33.3 ms p50    |
+| zero bars, 20 rows                     | none, 24.5 ms p50         | none, 24.7 ms p50    |
+
+**The old tree and the new tree read the same, and neither reproduces 2.13.9's
+published tail.** The one row that does not read clean at twenty is the old
+tree's `/securities` — a single 50.2 ms task across ten loads, one tenth of a
+millisecond over the instrument's floor. It is recorded rather than smoothed
+away, and it is the wrong sign to help the product: it appears on the **older**
+build. So the tail is the machine rather than the product — 2.13.9
+said so at the time ("a laptop with a browser, a database and three preview
+servers running"), and this is the control that settles it. Nothing Story 2.14
+added moved the figure, and the five amendments on that task's file that each
+predicted "unchanged" were each right.
+
+The node counts corroborate it from the other end: Story 2.14 is **−1 node** on
+`/securities`, **−2** on the 5D page and **+17** on the zero-bar page, against a
+document of ten thousand.
+
+#### The disposition, which this section has owed since 2026-09-12
+
+Task 2.14.8 had three: repair it, accept the breach in writing, or hand it to
+Epic 14 by name. **It is handed to Epic 14, and this is the third rather than a
+softer second.**
+
+**Why not a repair here.** All three candidates above are still the candidates,
+and each one is a decision this story cannot honestly take at an epic close.
+`content-visibility: auto` changes how a table sizes its columns and how §6's
+jump control measures an offset, so it is a table redesign wearing a stylesheet
+change; collapsing bands below a threshold was declined by Task 2.11.8 **on its
+merits**, and reversing a product decision for a performance figure is the shape
+of change this repository keeps arguing against; and virtualisation is an ADR
+with a dependency decision inside it. A close that quietly rebuilds the surface
+another story owns is a close whose scope has stopped meaning anything — which
+is the same rule that made 2.12.9 raise this rather than fix it.
+
+**Why not acceptance.** Acceptance says the number is fine. It is not fine and it
+is getting less so: the frame-gap instrument says a 20-row page sits at **20–33
+ms**, which is one to two frames and is the floor, while every 518-row page sits
+at **66–83 ms** — so the table costs roughly **35–50 ms of frame that a small
+universe does not spend**, on the two most-visited routes, before the product has
+a live price in it. Epic 5 adds an anomaly score per security to exactly this
+surface. Writing "accepted" against a number that is going to double is how a
+published target quietly stops being true.
+
+**Why Epic 14 is a real owner and not a deferral.** It is the performance epic;
+its scope already names main-thread task measurement and bottleneck analysis; it
+already inherits one measured §28 exception on this same table (`Expand all`,
+69–87 ms, Task 2.11.8), and **the two are the same component and probably the
+same repair** — a virtualised table fixes both. The hand-off is written into
+[`planning/epic-14-performance-scale-validation/EPIC.md`](../../epic-14-performance-scale-validation/EPIC.md)
+and `planning/EPICS.md` beside the one it joins, so it arrives with that epic
+rather than being rediscovered.
+
+**The trigger is unchanged and it is still a condition rather than a story
+number: the first time a second surface on this page renders per-row markup at
+universe scale.** If that fires before Epic 14, the repair is due then and not at
+Epic 14's convenience.

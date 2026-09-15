@@ -326,6 +326,19 @@ What is **not** available is leaving it unstated — §28 is a published target 
 product misses on its two most-visited routes, and `CLAUDE.md`'s rule is that a
 stated invariant nothing checks quietly stops being true.
 
+**Settled 2026-09-15 by Task 2.14.8, and it is the third.** The figure was
+re-measured a third time and is unchanged — 2–5 tasks of 50–76 ms at 518 rows
+and none at twenty while both plots are still drawn. The tail that came out
+_lower_ than 2.13.9's was separated from the product rather than credited to it:
+commit `997170d`, the tree 2.13.9 measured, was rebuilt in a worktree and served
+beside the shipped build on the same machine, and the two read the same. The
+repair is handed to **Epic 14** by name — into that epic's own `EPIC.md` and into
+`EPICS.md`, beside the `Expand all` exception that is the same component and
+probably the same repair. `PRODUCT_SPEC.md` §28 carries a dated amendment naming
+both exceptions **without amending the target**, and the trigger is kept _above_
+the epic, so a second per-row surface on that page pulls the repair forward
+rather than waiting for Epic 14's turn.
+
 ### 3. Test 4's deferral count is **four**, and this is the last place it can be recorded
 
 _Does it feel alive_ has been answered "not yet, and not from here" by Task 2.4.4

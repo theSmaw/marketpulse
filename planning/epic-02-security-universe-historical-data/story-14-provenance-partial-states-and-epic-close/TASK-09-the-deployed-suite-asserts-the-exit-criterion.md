@@ -92,6 +92,27 @@ history stored for NVDA yet.` and `No volume history stored for NVDA yet.`
 >   and the local suite's `/^Try again/` is the idiom to reuse if one is added,
 >   because it counts controls rather than spellings.
 
+> **Amended 2026-09-15 by Task 2.14.8, and it is one line of inoculation rather
+> than a correction.** This task's first bullet is a **hand-walk of the deployed
+> page at three viewports**, which is the one activity in this story most likely
+> to notice §28's known breach and file it a fourth time. It is known, it is
+> measured three times, and **it has an owner**: every cold load of `/securities`
+> and `/securities/:symbol` spends one main-thread task of **50–76 ms**, it is
+> the 518-row universe table rather than the chart, and Epic 14 owns the repair
+> with the trigger kept above it
+> ([`SEARCH-AND-SELECTION.md`](../story-11-security-search-and-selection/SEARCH-AND-SELECTION.md)
+> §10). **If the cold load feels slow during the walk, that is this and it needs
+> nothing from this task — record that it was observed deployed, and move on.**
+> What would be new, and is worth recording, is the breach behaving _differently_
+> on the deployed host from the local build: none of the three measurements was
+> taken over a network against the real store.
+>
+> **And do not add a timing assertion to `specs-deployed/` for it.** That is this
+> task's own _scope the deployed suite hard_ note arriving with a concrete case:
+> a duration asserted from one machine over one link, after a merge, against a
+> shared environment is the definition of a check that teaches everyone to re-run
+> it.
+
 ## Objective
 
 Acceptance criteria 4 and 5. Execute the epic's exit criterion in the **deployed
