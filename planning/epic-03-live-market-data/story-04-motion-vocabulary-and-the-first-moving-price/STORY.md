@@ -1,0 +1,168 @@
+# Story 3.4 — The Motion Vocabulary & the First Price That Moves
+
+**Status:** Not started
+**Epic:** [Epic 3 — Live Market Data](../EPIC.md)
+**Depends on:** 3.3
+**Epic scope covered:** the motion vocabulary (design test 4), live price updates in the UI — on one surface
+
+## Description
+
+**The design criterion this product has answered _not yet_ seven times.**
+
+`VISUAL-LANGUAGE.md`'s Motion section is explicit that it is a thin first cut
+rather than a system, and that **Epic 3 owns the full vocabulary** — _"the hard
+question in this product is what should happen when a price changes on screen,
+and that has to be answered against real moving numbers. A vocabulary settled
+against the first screen that needed any — a table that arrives once and then
+sits still — would be a vocabulary designed for the easy case and then inherited
+by the hard one."_ Three tokens exist: `quick` at 120 ms for a state change
+under the pointer, `settle` at 240 ms for content arriving, and `pulse` at
+1400 ms for a wait that breathes. **Nothing says what happens when a number
+changes**, and Story 3.3 has just made numbers that can.
+
+Seven deferrals of one criterion is not caution; it is the shape of a criterion
+that never gets met, and Epic 2's close said so and handed it here by name.
+
+So this story settles the vocabulary **and applies it to exactly one surface**:
+the last price in the Security Explorer's identity block. One surface, because a
+vocabulary is a decision and three surfaces would make it three decisions.
+
+## What the user can see when this story lands
+
+**A price that changes while they watch it**, on `/securities/NVDA`, with the
+market open — the first number in this product's history that moves on its own.
+
+And a vocabulary underneath it that says how: what a rising value does, what a
+falling one does, what an unchanged tick does (very likely nothing, and that is
+a decision rather than an omission), how long it lasts, and what a reader with
+`prefers-reduced-motion` gets instead.
+
+What the user still cannot do: watch the universe table move (Story 3.6), see
+the chart extend to now (Story 3.7), or reload the page and still see today
+(Story 3.9). And with the market shut they see a still price with an honest
+sentence, which is Story 3.10's subject and is stubbed honestly here.
+
+## Why it sits here in the sequence
+
+**Immediately after the first live value can reach a browser, and immediately
+before three surfaces would each need one.** Stories 3.6, 3.7 and 3.10 all put
+changing values on screen; if this story ran after any of them, the vocabulary
+would be reverse-engineered from whatever the first of them happened to do.
+
+It is also the last cheap moment. The identity block's last price is **one
+number in one place** — the smallest possible subject for a decision this
+consequential, and small enough that getting it wrong twice costs an afternoon.
+
+## Scope
+
+- **The vocabulary**, as tokens and as rules, in `VISUAL-LANGUAGE.md` and
+  `tokens.css`, **and synced to the design canvas**. ADR 0026's chain is
+  canvas → document → tokens → components, and the motion row is the one place
+  in the product where it has already run backwards; that row _owes a sync_ and
+  says so. **Establish that the canvas is reachable before designing anything**,
+  so this epic's largest design decision is not the second exception.
+- **What a changing value does.** The candidates are a direction-carrying
+  flash, a brief emphasis on the digits that changed, a mark that appears beside
+  the number, or nothing at all with only the digits swapping. Take it against
+  the two rules already standing, both of which have teeth here:
+  - **Motion must never make a number harder to read.** A value that fades or
+    slides while an analyst is reading it is worse than one that changes
+    instantly. This is the constraint that makes a market application's motion
+    genuinely hard and it is why the existing set is so small.
+  - **Colour is never the sole encoding of anything.** The price palette differs
+    by **1.04:1 in greyscale**, so hue is the entire difference between up and
+    down — shape, sign, glyph or word must carry it. A green flash and a red
+    flash are the same flash to a large number of readers, and this repository
+    has already caught a real defect where four greyscale simulations passed
+    against a chart that was wrong.
+- **What a value arriving for the first time does**, which is `settle`'s
+  existing job and probably needs nothing new.
+- **`prefers-reduced-motion`, answered at the token layer as it already is.** The
+  durations resolve to `0ms` under the preference, so a consumer reading the
+  tokens honours it by construction and a consumer hard-coding `240ms` is the
+  only way to get it wrong. A flash that is the **only** signal of a change is
+  a change invisible to that reader — so whatever carries direction must survive
+  the motion being removed.
+- **The rule that already governs and must not be broken here**: _motion in this
+  product means work in progress, and nothing else may borrow it._ A moving rule
+  under a finished sentence is the fourth design test answered backwards — alive
+  where alive would be a lie. A **price** changing is not work in progress; it
+  is a fact arriving, and if the vocabulary needs those to look different, say so
+  in the document.
+- **The rate problem, which is a design problem before it is a performance one.**
+  A minute bar changes a price once a minute; a trade stream changes it many
+  times a second. Whatever Story 3.1 decided, the vocabulary must state what
+  happens when two changes arrive inside one animation, because _every_ answer
+  that does not state it produces a smear.
+- **The identity block's last price**, wired to the stream for one security.
+- **What a spoken interface hears.** A region that changes on its own is a live
+  region question, and this repository already has a **known, unshipped repair**
+  in that area: the spoken bar sentence is 25 words against a 1,500 ms pacing
+  floor, and whether a region changing every 477 ms queues or replaces _is
+  readable from neither the DOM nor a timing nor by an agent_. A price that
+  changes every minute is a gentler case than that one and is the same question.
+  **Do not announce a price change by default** — decide it, and write down what
+  was decided and what nobody has heard yet.
+
+## Out of scope, and who owns it
+
+- The universe table — Story 3.6, which inherits this vocabulary and does not
+  extend it
+- The chart — Story 3.7. A chart that animates its own first paint is decoration
+  rather than a market moving, and `VISUAL-LANGUAGE.md` already says so
+- The degraded states' own treatment — Story 3.10
+- A listening pass with a real screen reader. That is owed by this repository
+  already, is owned by _a person with a screen reader_ rather than by a story,
+  and this story adds to its backlog rather than discharging it
+
+## Open decisions — settle with the user
+
+1. **The treatment itself.** This is a design decision with product weight and
+   the user has a standing instruction about the bar; put two or three real
+   options on a real screen and let them be looked at rather than described.
+   Static mock-ups cannot settle a motion decision.
+2. **Whether an unchanged tick shows anything.** A feed that says _still 174.32_
+   is information, and drawing it is the difference between a live application
+   and a static one during a quiet minute — and also the difference between a
+   calm screen and a twitching one.
+
+## The design bar
+
+**This is the story where test 4 is finally answered, and the answer has to be
+yes.** The other three tests apply as always, and one of them is at unusual
+risk: _is there a moment in it worth showing somebody_ has been the hardest test
+for this product's sober, dense screens, and a price moving well is the most
+showable thing it has ever had. It is also, done badly, the fastest route to
+looking like a defaulted trading widget.
+
+**Restraint is not the same as plain**, and the inverse applies here: the
+correct answer may be very small, and it must still be _decided_ rather than
+minimal by default.
+
+## Acceptance criteria
+
+1. `VISUAL-LANGUAGE.md` carries the vocabulary with its rationale, its rejected
+   alternatives and a reversal trigger, and the canvas carries it too — or the
+   canvas's unreachability is recorded in the same terms the motion row already
+   uses
+2. Every duration is a token; no component hard-codes one
+3. Under `prefers-reduced-motion`, a price change is still perceivable — the
+   direction survives the motion being removed
+4. Direction is never carried by hue alone, checked in **greyscale** rather than
+   argued
+5. A price on `/securities/:symbol` updates without a page refresh, within
+   §28's **250 ms p95 from server-received event to application state**, measured
+   rather than assumed and excluding provider latency
+6. Two changes inside one animation produce a defined result, and it is the one
+   the document states
+7. No routine main-thread task over 50 ms, and no layout thrash: a value that
+   changes width must not move anything around it — the numerals are tabular for
+   this reason and the reason is now load-bearing
+8. `pnpm probe` at all four viewports, and a person looked at the screen with
+   the market open before the browser suite ran
+9. `pnpm verify` passes
+
+## What this story hands forward
+
+The vocabulary every remaining story in this epic uses, and the first answer to
+a question this product has been postponing since Epic 1.
