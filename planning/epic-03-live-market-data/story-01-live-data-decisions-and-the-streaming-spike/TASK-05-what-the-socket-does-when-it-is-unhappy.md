@@ -1,0 +1,105 @@
+# Task 3.1.5 — What the socket does when it is unhappy
+
+**Status:** Not started
+**Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
+**Depends on:** 3.1.4
+
+## Objective
+
+Produce, deliberately, every way this connection can go wrong, and record the
+frames and the codes verbatim — so that Story 3.2's state machine and
+Story 3.10's degraded states are written against a measured vendor rather than a
+documented one.
+
+The precedent is exact and it is the reason this is a task rather than a
+paragraph: `ALPACA.md` §9b records that a mapping written from documentation got
+**three things wrong** on the HTTP API, and every one of them was a case a
+reasonable reader would have got wrong the same way.
+
+## What the user can see when this lands
+
+**Nothing.** The payoff is Story 3.3 for the connection state, and Story 3.10
+for the whole set of degraded states — which is the story that cannot be done
+honestly without this capture.
+
+## What is already decided and must not be re-taken
+
+- **The free plan allows exactly one connection.** So a duplicate connection is
+  not an edge case in this product, it is the **deploy**: a rolling replica
+  replacement has two processes alive at once by design, and whichever behaviour
+  the server picks is a production behaviour on every deploy.
+- **The socket is outbound and `minReplicas: 1` is required** (ADR 0011). No
+  ingress timeout governs it; the failure mode that kills it is the replica
+  ceasing to exist, and that failure **looks like a feed that stops rather than
+  an error**.
+- **A 5xx never carries the thrown message** and a message written for a
+  developer is internal detail. Whatever this task finds, the mapping it feeds
+  reaches a user as a product sentence, not as a vendor string.
+- **`PRODUCT_SPEC.md` §36: degrade incrementally and locally**, never collapse
+  to a global error screen. Every fault below has to have a local answer.
+
+## Work
+
+Produce each of the following, record the frames, the close codes and the
+timings verbatim, and note in each case **how our side finds out** — a frame, a
+close, a timeout, or nothing at all. The last is the dangerous one.
+
+- **A duplicate connection.** Two authenticated connections on one plan. Which
+  one survives; what the loser receives; whether the winner is disturbed; how
+  long it takes. Then the deploy-shaped version: connection B authenticates
+  while A is mid-session, and A is the one holding subscriptions.
+- **A bad credential** — wrong key, wrong secret, absent, and well-formed but
+  revoked if that can be produced. Frames and codes, each distinguished, because
+  Story 3.2's operator-facing log needs to tell "you typed it wrong" apart from
+  "your account changed".
+- **An idle period**, carried over from Task 3.1.3's overnight hold: does the
+  server close an idle connection, after how long, and with what code.
+- **A server-side close** — whatever can be induced, plus whatever is observed
+  unprompted across the story's running time. Record any unsolicited close that
+  happens, with its instant and code, even if it was not provoked; **an
+  unprovoked close observed once is the single most valuable frame in this
+  capture**, because it is the one Story 3.10 has to survive and the one nothing
+  can schedule.
+- **A network interruption on our side** — the link dropped under the socket
+  rather than closed by the server. What the client observes, how long it takes
+  to notice, and whether anything is silently lost.
+- **What happens to subscriptions across a reconnect.** Does the server remember
+  them? Almost certainly not, and it must be captured rather than assumed,
+  because Story 3.5's subscription model is either authoritative state we
+  re-assert or a thing we believe the server holds — and those are different
+  designs.
+- **What is missed while away.** Reconnect after a gap of a known length during
+  a session and establish whether the bars for those minutes are ever delivered,
+  replayed, or simply gone. **Gone is the expected answer and it is the one that
+  writes Story 3.10's gap-filling scope** — a chart that carries a hole from a
+  thirty-second dropout for the rest of the day is the defect that story exists
+  to prevent, and the repair is an HTTP backfill rather than a socket feature.
+- **Reconnection courtesy.** Whether reconnecting immediately is penalised, and
+  if so how — this is the input to Story 3.2's backoff, and a backoff policy
+  invented without it is a guess with a number in it.
+
+Write the taxonomy into `LIVE-DATA.md` as a table: the fault, how it was
+produced, the verbatim frame or code, how our side learns of it, and the time to
+detection. Add a short section naming **which faults are silent**, because those
+are the ones that need a timer rather than a handler.
+
+## Done when
+
+- Every fault above is either produced and recorded, or listed as not
+  producible with the reason.
+- Each row states how our side finds out and how long that takes.
+- The silent faults are named as a set.
+- The subscription-across-reconnect and the missed-bars questions are answered
+  with frames, and their consequences are named against Story 3.5 and
+  Story 3.10 by name.
+- `pnpm verify` passes. No credential written, and every capture swept.
+
+## Notes
+
+Fault injection against a third party is the part of this story most likely to
+be shortened under time pressure, and it is the part whose absence is invisible
+until production. The three things the HTTP mapping got wrong were all
+**plausible-and-false**, which is exactly what a documentation-based guess
+produces. Budget the session time for it.
+
+---
