@@ -47,6 +47,7 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0026](0026-the-design-canvas-as-the-source-of-truth.md)                                                   | The design canvas as the source of truth, and what a reconciled token layer certifies           | Accepted |
 | [0027](0027-the-chart-layer-hand-built-svg-and-what-a-green-chart-suite-certifies.md)                      | The chart layer: hand-built SVG, a session-ordinal axis, and what a green chart suite certifies | Accepted |
 | [0028](0028-the-time-window-the-per-bar-mark-and-the-answer-that-stays-on-screen.md)                       | The time window, the per-bar mark, and the answer that stays on screen                          | Accepted |
+| [0029](0029-provenance-on-screen-the-partial-states-and-what-an-honest-empty-answer-certifies.md)          | Provenance on screen, the partial states, and what an honest empty answer certifies             | Accepted |
 
 **0024 was written on 2026-09-11, out of order, and the gap it filled is worth
 remembering.** It was reserved by Story 2.11 and three planning documents cited it by

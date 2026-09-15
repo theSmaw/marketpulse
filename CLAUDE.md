@@ -48,13 +48,14 @@ frontend that both run, build, deploy and are verified in CI, logging with a
 correlation id, an error contract, configuration, testing at six levels, a CI
 pipeline, and both halves deployed to Azure.
 
-**Epic 2 (Security Universe & Historical Data): in progress.** Stories 2.1–2.13
-are complete; **2.14, the epic close, remains.** A managed PostgreSQL instance, a
+**Epic 2 (Security Universe & Historical Data): complete, 14 stories, closed
+2026-09-15.** A managed PostgreSQL instance, a
 migration mechanism, a curated universe of 518 securities, a trading calendar and
 market-time module, a provider seam, a real Alpaca client, a bar store of roughly
 48 million minute bars with a ledger and nightly backfill, the market-data wire
 (2.9), the frontend's state and fetch layer (2.10), search and selection (2.11),
-the price chart (2.12) and the volume chart with time-window selection (2.13).
+the price chart (2.12), the volume chart with time-window selection (2.13), and
+the provenance surface, the partial states and the close (2.14).
 
 ### What a user can see today
 
@@ -75,12 +76,21 @@ and a wait longer than 160 ms is covered by a pulsing panel rather than left
 looking current. Every failure has an honest sentence and one `Try again` per
 screen.
 
+**And the screen says where its numbers came from.** One source note at the foot
+of the region group — not one per region — states the adjustment, when the bars
+were retrieved, and that sector and industry are **curated** rather than market
+data; it names the series' own feed when the chrome cannot, which on a
+deployment with no provider configured is every time. A short answer says how far
+it reaches, in full instants. And the two empty answers are different sentences:
+_no history stored for NVDA yet_ (changing the window will not help) against _no
+bars stored for this window_.
+
 **What they still cannot do:** watch a price move — there is no live data yet.
 
 ### What is settled, and where the argument lives
 
-Four things are decided, load-bearing, and expensive to rediscover. Each is
-summarised in one line here and argued in full where the table below points:
+These are decided, load-bearing, and expensive to rediscover. Each is summarised
+in one line here and argued in full where the table below points:
 
 - **This product draws with hand-built SVG, not a charting library** (ADR 0027).
   The constraint is a count rather than a taste: one element per bar at the
@@ -101,6 +111,17 @@ summarised in one line here and argued in full where the table below points:
   document (ADR 0026): canvas → `VISUAL-LANGUAGE.md` → `tokens.css` →
   components, with one standing exception where a canvas value fails a measured
   accessibility floor.
+- **A claim about data requires data, and a surface that owns nothing defers**
+  (ADR 0029). Four rules that reach well past provenance: a fully-formed
+  provenance record about **zero bars** is a false impression rather than a
+  courtesy, so each clause renders only when its own data is present — and the
+  rule governs _assertions_ too, which is why a deployed spec asserts structure
+  and no figure; a surface may make the confident claim only when the thing that
+  would license it has actually been read, which is why `StoredHistory` has three
+  members and not two; the surface that owns the data owns the account of it and
+  everything else points once and stops, never saying nothing; and **one fact has
+  one home** — a drawn sentence and its spoken twin are one string with two
+  renderings, and a second copy fails the build.
 
 ### What is open, with a named owner rather than a story number
 
@@ -121,10 +142,32 @@ summarised in one line here and argued in full where the table below points:
   `SEARCH-AND-SELECTION.md` §10 holds all three datings. **The trigger is
   unchanged and outranks the epic: the first time a second surface on this page
   renders per-row markup at universe scale.**
-- **The fourth design test, _does it feel alive_, has been answered "not yet"
-  four times.** Four deferrals of one criterion is the shape of a criterion that
-  never gets met. It is deferred by name to Epic 3's motion vocabulary against
-  real moving numbers.
+- **The fourth design test, _does it feel alive_, has now been answered "not yet"
+  seven times**, the seventh at Epic 2's close. Seven deferrals of one criterion
+  is not caution, it is the shape of a criterion that never gets met — and its
+  trigger is the **calendar** rather than a condition, so nothing fires. It is
+  deferred by name to Epic 3's motion vocabulary against real moving numbers, and
+  Epic 3 is the first epic where the honest version of the question is even
+  askable: the hard form is what happens when a **price** changes.
+- **Two shipped sentences are correct today and become false the first time an
+  IEX tail is stitched on. Owner: Epic 3, beside the two-feed ledger.** The
+  ledger itself — each stretch, in contribution order, with its bar count — is
+  the sentence invariant 6 exists for, and **no server this product runs can
+  produce it**: all sixteen recorded bar-series bodies carry `sip`, so the state
+  is reached through `twoFeedStitchView()`, the recorded stitch with one field
+  changed. And `No shares changed hands anywhere in the window.` is the only
+  shipped sentence claiming something about **the market** rather than about our
+  store — true while every bar is the consolidated tape, a single venue's silence
+  reported as the whole market's the moment it is not.
+- **Nothing checks that a named region says something when its subject is
+  missing.** A region whose content is legitimately conditional looks identical
+  to one whose content silently disappeared; one screen is covered by one browser
+  test. **Owner: the next story that adds a region.** Beside it, two smaller
+  findings from the same pass: the defaulted search note invites a reader to use
+  a control that has just said it is unavailable (trigger: the second sentence in
+  the product pointing at another surface's control), and **the masthead's
+  primary navigation is clipped at 390**, reading `Market O` with no affordance
+  saying so — **owner: the first story that touches `AppHeader`.**
 - **The weekday `1D` photograph**, which no address, fixture or pinned clock can
   produce, because the free plan's fifteen-minute embargo only exists during a
   session. **Narrower since 2026-09-14**: a named window now ends at the last
@@ -151,7 +194,7 @@ This repository documents itself thoroughly, and **that documentation is the sou
 
 | Subject                                                                                                                                      | Read                                                                                                                                                   |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Every architectural decision, and what each green check certifies                                                                            | [`docs/adr/README.md`](docs/adr/README.md) — a current index of ADRs 0001–0028                                                                         |
+| Every architectural decision, and what each green check certifies                                                                            | [`docs/adr/README.md`](docs/adr/README.md) — a current index, not an append log                                                                        |
 | **What a green `pnpm verify` does NOT certify** — the claims nothing mechanical guards, each with a re-measure                               | [`docs/GAPS.md`](docs/GAPS.md)                                                                                                                         |
 | Hosting, the deployed environment, Azure resources, the database's creation decisions, the credential path                                   | [`HOSTING.md`](planning/epic-01-application-foundation/story-11-deployment-pipeline-and-dev-environment/HOSTING.md)                                    |
 | The design language, the visual bar, tokens and their rationale                                                                              | [`VISUAL-LANGUAGE.md`](planning/epic-01-application-foundation/story-04-ui-component-library-and-styling-conventions/VISUAL-LANGUAGE.md)               |
@@ -170,6 +213,7 @@ This repository documents itself thoroughly, and **that documentation is the sou
 | Search, selection, the URL rule, the input idiom, the Explorer shell, and the keyboard flow                                                  | [`SEARCH-AND-SELECTION.md`](planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/SEARCH-AND-SELECTION.md)         |
 | **How this product draws**: the renderer, the series type, the session-ordinal axis, the coverage rule, the states, the walk and the figures | [`CHARTING.md`](planning/epic-02-security-universe-historical-data/story-12-price-chart/CHARTING.md) — and ADR 0027                                    |
 | The time window, the second plot, and what stays on screen while a second request is in flight                                               | [`VOLUME-AND-WINDOW.md`](planning/epic-02-security-universe-historical-data/story-13-volume-chart-and-time-window/VOLUME-AND-WINDOW.md) — and ADR 0028 |
+| **What this product claims about its own data**, in whose words, and the complete set of its failure and partial states                      | [`PROVENANCE.md`](planning/epic-02-security-universe-historical-data/story-14-provenance-partial-states-and-epic-close/PROVENANCE.md) — and ADR 0029   |
 | Setup, commands and the running application, for humans                                                                                      | [`README.md`](README.md)                                                                                                                               |
 
 Every story has a `STORY.md` with acceptance criteria and open decisions, and every task a `TASK-NN-*.md` with what was done and what was found. **Read the STORY.md before starting a story**: several carry open decisions that are deliberately unresolved and should be settled with the user rather than assumed.
@@ -258,7 +302,9 @@ pnpm typecheck     # the tsc -b half only; no bundle
 pnpm lint          # eslint . over the whole workspace in one process; also lint:fix
 pnpm stories       # fails if a component under src/components/ has no stories file
 pnpm env:check     # fails if .env.example and CONFIG_VARIABLES have drifted apart
-pnpm invariants    # twelve claims that used to be prose in docs/GAPS.md, each a single grep.
+pnpm invariants    # the claims that used to be prose in docs/GAPS.md, each a single grep.
+                   # The run prints its own count; no prose here repeats it, because two
+                   # copies of that number have gone stale already.
                    # Runs AFTER build — one of them reads apps/frontend/dist/. Every one is
                    # break-verified by a `pnpm break` entry.
 pnpm break         # perform a documented break, prove the check goes red, put the tree back.

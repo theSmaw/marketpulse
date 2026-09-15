@@ -1,6 +1,6 @@
 # Task 2.14.10 — The epic close: the cost, the ADR, the sweep, and what ships open
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-15.** It closes Story 2.14 and Epic 2.
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.1 – 2.14.9
 
@@ -450,3 +450,246 @@ prepare the commit. And do the document sweep with greps rather than from
 memory: this epic's own history contains a day on which two documents recorded
 that a spec claim was false while the spec, the README, two ADRs and an
 invariant went on asserting it.
+
+---
+
+# What this task did — 2026-09-15
+
+## 1. Acceptance criteria 1–8, each by name
+
+| #   | Criterion                                                                                | Discharged by                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | A user looking at any market number can see which feed it came from, without hovering    | **Met, under a reading now recorded in `STORY.md` beside the criterion.** The chrome plus `SourceNote`; **not** a mark inside the plot frame, which is a decision with an argument (§1.2) rather than an omission. Verified live at 1440 on the running pair: the chrome reads `MARKET FEED — NOT CONFIGURED` and the note's `SOURCE` row reads `All US exchanges` — §1.3's second condition firing on the default deployment, which is the case the original table said could not happen                                                      |
+| 2   | No screen states or implies full US-market coverage                                      | **Met, under §11.1's reading — _coverage claimed wrongly in either direction_.** `PROVENANCE.md` §11 is the pass as a list: §11.2 how the corpus was enumerated, §11.3 every surface with its judgement, §11.4 what became mechanical, §11.5 what could not. **The one check this close owed was the hole**: that §11.3 gained rows for the strings 2.14.6 and 2.14.7 added _after_ the pass ran. It did — four drawn vacancy sentences and their spoken twins (2.14.6), two more (2.14.7) — closed with a dated note. The pass was not re-run |
+| 3   | Every failure and partial state renders locally **and deployed**, no global error screen | **Met under a corrected reading, now recorded in `STORY.md`.** Local half: Task 2.14.7's set (§12). Deployed half is **structurally undischargeable as written** — a healthy deployment produces none of those states — so the honest claim is the stronger one: the deployed environment is asserted to be in **none** of them                                                                                                                                                                                                                |
+| 4   | The exit criterion executed in the deployed environment                                  | **Met by Task 2.14.9**, walked by a person at 1440, 1024 and 390 with the store's freshness read first (`GET /diagnostics/freshness`: zero sessions behind on both timeframes, all 518 securities). **Not re-walked here**                                                                                                                                                                                                                                                                                                                     |
+| 5   | That journey asserted by the deployed suite; the local suite covers the failure states   | **Met by Task 2.14.9.** `specs-deployed/security-explorer-journey.spec.ts`; the deployed suite is four files and 18 tests                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 6   | The cost figure re-taken with the database running                                       | **Done here** — §2 below, and `HOSTING.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 7   | The ADRs written; `CLAUDE.md` and `README.md` reflect what landed                        | **Done here** — **ADR 0029**, §3; the sweep, §4                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 8   | `pnpm verify` passes and both browser suites pass — **all four green**                   | **Done here** — §7                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+
+**The first half of criterion 7 was stale when written and reading it as a
+backlog would have produced six duplicate ADRs.** All six ADRs its scope bullet
+names already exist, written at each story's own close, plus six it does not
+name. What it owed was **one** ADR for this story's own decisions, and a check
+that the index is current: `docs/adr/README.md` now holds **29 rows against 29
+files**.
+
+## 2. The cost figure, and the question that was never unanswerable
+
+Read from `Microsoft.CostManagement/query`, `ActualCost`, grouped by
+`ServiceName`, over **seven full days** (2026-09-07 → 2026-09-13) because a
+month-to-date figure over a partial month is not a rate. Full table and
+arithmetic in `HOSTING.md`.
+
+- **`$7.57`/month at the measured rate** — Container Registry `$5.07` (67%),
+  Container Apps `$2.50` (33%), **database `$0.00`**, Monitor and Log Analytics
+  `$0.00`. **38% of the `$20` budget**, no alert fired, `currentSpend` `$2.6763`
+  month-to-date.
+- **All three of Task 2.1.1's falsifiable predictions hold**, and the third is
+  conservative: the predicted band was `$9.21`–`$19.04` and the measured rate is
+  **below the bottom of it**. The gap is entirely Container Apps — `$4.21`
+  predicted, `$2.50` measured. The registry matched its prediction almost to the
+  cent.
+- **Task 1.11.3's finding is confirmed and has got worse.** The registry was 54%
+  of the bill; it is now **67%**, not because it moved but because the compute it
+  serves costs less than predicted. The reversal trigger is unchanged — the bill
+  mattering — and GHCR is one image reference and one pull secret away.
+- **The free offer is 12 days spent and ~11.6 months remaining**, expiring around
+  2027-09-03. The database contributed `$0.00` through a 48-million-bar backfill,
+  which is the load it was most likely to break under. At expiry `$16.09`/month
+  arrives on one day and takes the total to **`$23.66`** — over budget, with no
+  code change and no traffic change.
+- **Market data is free.** Alpaca costs quota, not cash. No provider request
+  appears on this bill in any month.
+
+**And the cost question that was refused four times was never unanswerable — it
+was being asked through the wrong API.** `az consumption usage list` now returns
+**81 records** naming all seven billable products including the database, with
+**every one carrying `pretaxCost: 'None'`** — so that instrument is genuinely
+unusable and is the fourth distinct shape of its refusal. The Cost Management
+query endpoint is not refusing; it is **rate-limiting**: `429` on the first two
+attempts and a full answer on the third, behind a twenty-second retry loop. Four
+tasks recorded a refusal that was a missing retry. `HOSTING.md`'s historical
+record is amended in place with a dated pointer rather than rewritten.
+
+## 3. The ADR
+
+**[ADR 0029](../../../docs/adr/0029-provenance-on-screen-the-partial-states-and-what-an-honest-empty-answer-certifies.md)
+— Provenance on screen, the partial states, and what an honest empty answer
+certifies.** Eight decisions, folded as the amendments to this task asked:
+
+1. **A claim about data requires data, applied per clause** (§0.1 and its
+   2026-09-14 amendment) — and, since 2.14.9, governing **assertions** as well as
+   renderings, in both directions. One sentence, three decisions, and the reason
+   a deployed spec asserts structure and no figure.
+2. **The note states what the chrome cannot**, carried in its amended form:
+   the operative rule is _suppression requires a positive match_, and the
+   duplication it exists to prevent became **structural** — the two conditions
+   are negations of each other.
+3. **The stitched-series ledger** — each stretch, in contribution order, with its
+   bar count, never sorted and never deduplicated to the first — with the
+   non-contiguity reversal trigger and the store defect that is Epic 3's.
+4. **Return a structure, not a sentence**, folded into **one paragraph** with
+   §3.2's _one function, two readers_ and `VISUAL-LANGUAGE.md`'s _a surface that
+   owns nothing defers_, exactly as 2.14.5 and 2.14.7 asked. All three are one
+   instinct: **one fact has one home.**
+5. **The coverage sentence bound to `partial`**, with the full instants and the
+   reason the canvas's short form was wrong.
+6. **The adjustment is one value per series and unrepresentable per source.**
+7. **The two empty answers, told apart on the screen and not on the wire** — and
+   the general form, which is the half with reach: **a surface may make the
+   confident claim only when the thing that would license it has actually been
+   read**, which is why `StoredHistory` has three members.
+8. **One bullet, not a subject: the measured §28 exception, owned rather than
+   accepted**, copying ADR 0024's precedent for the same component. The figure,
+   that it was measured three times and attributed from both ends, the owner, and
+   the trigger. **§28's target is not amended** and the ADR says so in those
+   words.
+
+## 4. The document sweep, done with greps rather than from memory
+
+**The upward half is a pass, and recording that it was a pass is the point.**
+§8.2's `IEX` grep over every Markdown file in the tree was re-confirmed:
+`CLAUDE.md` invariant 6, `PRODUCT_SPEC.md` §7.1, `README.md`, `UNIVERSE.md`
+§16.6 and `EPIC.md` are all correct about the asymmetry, and Story 2.3's task
+files are historical records left standing. **The difference between _swept_ and
+_was already clean_ is worth the sentence**, because this epic contains a day on
+which two documents recorded a spec claim as false while five others went on
+asserting it.
+
+**2.14.8's four confirmations all hold and they agree with each other.**
+`PRODUCT_SPEC.md` §28 carries its dated amendment naming both exceptions and
+stating the target is unchanged; Epic 14's `EPIC.md` holds the figures, the three
+candidate repairs and the re-measure; Epic 5's `EPIC.md` holds the trigger;
+`CLAUDE.md` reads **owned** rather than open. A figure now living in six places
+is exactly the shape this close warns about, and they were compared rather than
+assumed.
+
+**2.14.9's two confirmations hold**: `e2e/README.md` and `docs/GAPS.md` both
+carry the deployed suite's amended contents, and they agree.
+
+**The forward half, and what changed:**
+
+- **`CLAUDE.md`** — Epic 2 is **complete, 14 stories**; the _what a user can see_
+  section gains the note, the coverage sentence and the two empty answers; the
+  settled list gains ADR 0029's four rules; the open list gains the two Epic 3
+  sentences, the region gap, the search note and the 390 masthead clip; the
+  design-test count is corrected to **seven**; `PROVENANCE.md` joins _Where the
+  record lives_.
+- **`README.md`** — the shell paragraph and the `/securities/:symbol` row, which
+  still described a price chart alone with six unfilled regions.
+- **`EPIC.md`** — the status line and a close: what Epic 3 inherits, what ships
+  open with owners, what the epic cost, and the one pattern found three times.
+- **`STORY.md`** — the `Status`, a _what landed_ section in the words of what is
+  on the screen, and **the readings for criteria 1 and 3** beside the criteria
+  themselves, as §11.1 did for criterion 2. The struck-through prose is left
+  alone: it is the record of what was planned.
+- **`docs/adr/README.md`** — ADR 0029 indexed; 29 rows against 29 files.
+- **`HOSTING.md`** — the cost figure, and the dated amendment on the refusal.
+- **Epic 14's `EPIC.md`** — the **deployed** §28 figure, which 2.14.8 asked for
+  by name and 2.14.9 measured: 52–54 ms on two of six cold loads at 1440,
+  intermittent where locally it is every cold load.
+
+**Two prose counts were removed rather than corrected.** `CLAUDE.md`'s command
+block said _twelve claims_ and its record table said _a current index of ADRs
+0001–0028_. Both were correct at the moment of reading and both are the shape
+that has already gone stale twice. `pnpm invariants` prints its own count; the
+ADR index is a current index. **Where a document must carry a number, the list
+itself is the count** — which is what `docs/GAPS.md` already says in those words.
+
+**And that pattern now has three occurrences, which is why it is stated as a
+shape rather than fixed a third time.** `docs/GAPS.md`'s invariant table read
+_seven_ against a list of eight (found 2.14.5); `CLAUDE.md`'s command block read
+_seven_ against a list of **ten** (found 2.14.7); one claim about the deployed
+suite's contents was stale in **two files at once** (found 2.14.9). A count or an
+inventory copied into prose beside a list that moves, checked by nothing. **This
+task file was a fourth occurrence**: its own amendments said test 4 had been
+deferred _four_ times while `PROVENANCE.md` §12.6 had already recorded the
+**sixth**.
+
+## 5. The must-not-ship fixture sweep, against the deploy build
+
+**Run where they had never been run.** All seven bodies are now `pnpm
+invariants` entries rather than prose greps, but the invocation was the point:
+they had only ever been checked against a developer's `pnpm build`. The deploy
+build differs by exactly one thing — `deploy.yml` builds nothing of its own and
+sets `VITE_API_BASE_URL` — so it was reproduced:
+
+```
+VITE_API_BASE_URL=https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io pnpm build
+pnpm invariants
+```
+
+**Clean.** `12 invariants hold`, which includes `fixture-in-the-bundle` over all
+seven distinctive strings — `holiday-week.json` (357 kB, the largest, and the one
+no store could answer because the week has not happened), the recorded universe
+(190,736 B), `dense.json` (221,603 B), `uncovered.json` (146,807 B),
+`daily.json`, `daily-year.json` (the only string reaching into 2025), and the
+bars body. Nothing found.
+
+## 6. The four design tests, applied to what this story built
+
+Applied to two captures taken on the running pair at 1440 on 2026-09-15: the
+Price region carrying a live **partial** answer, and the foot of the Explorer
+carrying the source note.
+
+**1. Would a stranger believe this is a real funded product? Yes**, and the
+reason is specific to this story rather than inherited. The note reads
+`SOURCE / PRICES / CLASSIFICATION` in three labelled rows of micro type, with
+`Unadjusted` and `curated` picked out and the qualifying sentence beneath in
+lighter ink. That is the register of a terminal's footnote, not a caption — and
+the thing a stranger actually reacts to is that the product volunteers _Prices as
+they printed. Not restated for stock splits._ when nothing forced it to. Products
+that are not real do not disclose.
+
+**2. Does it look designed rather than defaulted? Yes**, and the evidence is what
+is **absent**. There is **one** note for the whole screen, at the foot, in one
+type size — not a caption under each plot, not a tooltip, not a badge. Five
+correct additions made one at a time would have produced three of each, and the
+reason they did not is that Task 2.14.2 drew the whole surface on a canvas before
+any of it was a component.
+
+**3. Is there a moment worth showing somebody? Yes, and it is the coverage
+sentence.** On the capture the Price rail reads _Holding 1,560 bars, through
+2026-09-11 16:00:00 EDT, of a window running to 2026-09-14 16:00:00 EDT_ against
+a chart whose uncovered ground stops at the same instant. A product that answers
+_here is what I have and here is what you asked for_, in full instants, beside a
+picture that agrees with it, is the moment. The short form the canvas drew would
+have rendered that same state as _"through 16:00, of a window running to 16:00"_
+— a sentence saying a window was missed by nothing at all.
+
+**4. Does it feel alive? No — and this is the SEVENTH time.** Not the fifth this
+task file predicted: Tasks 2.4.4, Story 2.12's close, Task 2.13.2, Story 2.13's
+close, Task 2.14.2 and `PROVENANCE.md` §12.6 are six, and this is seven.
+
+**Seven deferrals of one criterion is not caution; it is the shape of a criterion
+that never gets met**, and the reason it needs writing down rather than deferring
+again is that **its trigger is the calendar rather than a condition, so nothing
+fires.** Each deferral was individually correct and for the same reason: the hard
+version of the question is what happens when a **price** changes, and there are
+no live prices. This story made it harder rather than easier — everything it
+built is a static sentence about a static answer, and a provenance note that
+animated would be an alarm. The one moving thing in the epic, the refreshing
+hairline, is already the correct exception.
+
+**It is deferred by name to Epic 3's motion vocabulary against real moving
+numbers**, and Epic 3's `EPIC.md` is where it now sits. If Epic 3 closes without
+answering it, the count is eight and the honest conclusion is that the test needs
+replacing rather than deferring.
+
+## 7. The gates
+
+**All four green, 2026-09-15.**
+
+| Gate                 | Result                                                                                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm verify`        | **green.** `311 documents, 1125 cross-file links, 39 anchor links, 0 broken`; `12 invariants hold`                                                                                                           |
+| `pnpm e2e`           | **140 passed, 2.8m**                                                                                                                                                                                         |
+| `pnpm e2e:deployed`  | **18 passed, 30.9s**, four files — and the store was read **first**: `GET /diagnostics/freshness` reports `1m=0 behind, 1d=0 behind`, so a coverage state was structurally unavailable and none was asserted |
+| `pnpm test:database` | **165 tests, 6 files, 4.28s** against a real PostgreSQL server. Not a `verify` step, and this epic added every database test in the tree                                                                     |
+
+`pnpm e2e:deployed` means more than it did when this task was written: **four
+files and 18 tests**, one of which walks the epic's exit criterion.
+`GET /diagnostics/freshness` is read before believing anything it says about a
+coverage state — a current store cannot produce one.
