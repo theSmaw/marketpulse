@@ -41,6 +41,43 @@
 >   exactly what this task is for: _held window_, _refreshing_, _coverage_. Check
 >   them as a trio.
 
+> **Amended 2026-09-15 by Task 2.14.6, which built the two empty answers.**
+> The set grows by more than the two entries 2.14.1 anticipated, and one of the
+> additions is a state whose whole content is that it draws nothing new.
+>
+> - **It is four sentences, not two.** Each plot names its own subject, so the
+>   pair is `No history stored for NVDA yet.` / `No bars stored for this window.`
+>   on the price plot and `No volume history stored for NVDA yet.` /
+>   `No volume stored for this window.` beneath it. **Check them as a square
+>   rather than as a pair**: the failure this task exists to find is a price plot
+>   telling one story about an empty screen while the volume plot tells another,
+>   and that is now reachable in two directions rather than one.
+> - **There is a third vacancy state and it draws the second sentence on
+>   purpose.** When the universe answer has failed or has not landed, the plot
+>   says the **window** sentence, because it never infers _we hold nothing_ from
+>   an absence it could not read. It is in the set precisely because it looks
+>   identical to an entry already in it: what this pass verifies is that there is
+>   **no third treatment to find**. The workshop story is
+>   `Market/ChartVacancy` → `UniverseUnavailable`.
+> - **Case one is producible on a populated store, which the enumeration bullet
+>   below assumes it is not.** `store:bare` is still the honest shape of CI, but
+>   it is not the only way: deleting one security's `1m` row from `bar_coverage`
+>   on a developer's own store puts **that symbol** into case one while every
+>   other security stays populated — so case one, case two and a `partial` can
+>   be seen in one sitting against one pair. Used and restored on 2026-09-15
+>   (row count checked back to 1,036). **Restore it**, and note that the bars
+>   still serve from that store, so the security only reads as case one in a
+>   window that holds none.
+> - **Four more rows for the copy matrix, and one of them was reworded by a
+>   browser run.** Each drawn sentence has a deliberately _differently worded_
+>   spoken twin in `chart-alternative.ts` or `series-announcement.ts`. That is
+>   the standing rule — visible text is scanned, an announcement is heard once —
+>   and it is now also mechanical: `readable()` cannot filter a visually-hidden
+>   paragraph, since `clip` is still `:visible`, so two channels quoting one
+>   string is a Playwright strict-mode failure. The drawn detail line and the
+>   text alternative both said _Changing the window will not help_ until a
+>   browser run said so.
+
 ## Objective
 
 Acceptance criterion 3, and the local half of criterion 5. Take every failure

@@ -39,6 +39,30 @@
 > record that the coverage sentence was not seen deployed and why — rather than
 > going looking for a state the environment cannot make.
 
+> **Amended 2026-09-15 by Task 2.14.6, and this corrects a live claim in the
+> assertability list below rather than adding to it.** That list says the
+> **vacancy sentence** is _assertable in every store_. It no longer is, as
+> written: there are now **two** vacancy sentences per plot, chosen by what the
+> universe response says the store holds, and the two stores this suite can run
+> against sit on **opposite** sides of that choice.
+>
+> - **CI and `store:bare` — 518 securities, zero bars — draw case one**, `No
+history stored for NVDA yet.` and `No volume history stored for NVDA yet.`
+>   Every security, every page. A deployed spec asserting the window sentence
+>   would be red there and nowhere a developer would reproduce it.
+> - **A healthy deployed store draws neither**: it is backfilled nightly and
+>   answers a named window in full, so there is no vacancy on the page at all.
+> - **What stays assertable is _a plot holding nothing says which nothing it
+>   is_**, and the suite already has the shape for it: `AN_EMPTY_PLOT` in
+>   `e2e/support/app.ts` is the union, written for precisely this reason and used
+>   by the nine local specs that locate a settled answer. Reuse it rather than
+>   spelling either sentence — which is this task's own _reuse the local suite's
+>   page objects_ bullet arriving with a concrete case.
+> - **And the hand-walk gains a line to record.** Read
+>   `GET /diagnostics/freshness` first, as the coverage-sentence amendment above
+>   already says; if the store is current, record that **no** vacancy was seen
+>   deployed and why, rather than treating its absence as a missing state.
+
 ## Objective
 
 Acceptance criteria 4 and 5. Execute the epic's exit criterion in the **deployed
@@ -118,7 +142,12 @@ by a person opening the page. Say "nothing visible" plainly.
   - **Assertable in every store** — the masthead's `FeedProvenance`, a standing
     claim about the deployment present on every route whatever the store holds;
     the **classification clause**, because it reads a fetch that resolves
-    independently of any bar; and the **vacancy sentence** where there are none.
+    independently of any bar; and ~~the **vacancy sentence** where there are
+    none~~ — **corrected 2026-09-15 by Task 2.14.6: the vacancy is two sentences
+    per plot and the store chooses between them.** What is assertable is the
+    union, `AN_EMPTY_PLOT`; the individual sentence is an assertion about which
+    store the runner is talking to, wearing a sentence that reads like
+    structure — the same trap as `Unadjusted` one bullet down.
   - **Not assertable** — the note's **adjustment, retrieval and feed** clauses,
     every one of which is a claim about bars the runner may not have. An
     assertion that _the source note is present_ is fine; an assertion that it

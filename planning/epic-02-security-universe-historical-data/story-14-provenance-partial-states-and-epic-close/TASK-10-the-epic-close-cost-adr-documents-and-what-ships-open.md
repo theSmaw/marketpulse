@@ -64,6 +64,34 @@
 >   Fixed 2026-09-15, and it is worth one sentence in the close as an instance of
 >   this document's own failure mode — a number in prose beside a list that moves.
 
+> **Amended 2026-09-15 by Task 2.14.6. One item is discharged, one subject is
+> confirmed for the ADR, and two entries are owed to the close's own reading of
+> `docs/GAPS.md`.**
+>
+> - **Half of the criterion-2 confirmation above is done.** 2.14.5's amendment
+>   asks that the pass cover the strings Tasks 2.14.6 and 2.14.7 add _after_ it.
+>   2.14.6 added its own two rows to [`PROVENANCE.md`](PROVENANCE.md) §11.3 — the
+>   four drawn vacancy sentences, and their spoken twins read separately — each
+>   judged in §11.1's two directions. **Only 2.14.7's strings are still owed.**
+> - **The ADR's §6 subject is confirmed rather than changed**, and it is now a
+>   built decision rather than a refusal: the distinction is derived on the client
+>   from `SecuritiesResponse.coverage`, the bars wire is unchanged, and the
+>   reversal trigger — _the first consumer of `GET /market-data/bars` that does
+>   not also hold the tracked universe_ — is recorded in three places
+>   (`PROVENANCE.md` §6.2, `MARKET-DATA-API.md` §6, and beside the route's own
+>   debug line). The ADR should carry the **general** form, because it is the
+>   rule and not the instance: **a surface may make the confident claim only when
+>   the thing that would license it has actually been read** — the degradation
+>   rule, which is why `StoredHistory` has three members and not two.
+> - **Two new `GAPS.md` entries to read at the close**, both about the empty
+>   page: the coverage array's `1m`-only shape against a daily-timeframe empty,
+>   and that nothing holds a drawn sentence and its spoken twin to the same
+>   _answer_. Neither can be made mechanical today; both name a re-measure that
+>   resolves.
+> - **And one figure to check, not cite:** `docs/GAPS.md`'s break table gained
+>   three rows for **one** invariant, because a break proves one substitution and
+>   not a loop. The table is the count, and that sentence has been wrong once.
+
 ## Objective
 
 Close Story 2.14 and close Epic 2: take the cost figure with a database
