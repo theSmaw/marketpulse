@@ -1161,6 +1161,28 @@ Long tasks:
 
 Heavy transformations should move to Web Workers where beneficial.
 
+**Amended 2026-09-15 by Task 2.14.8 — the target is unchanged and the product
+knowingly misses it in two places, both the same component.** A published target
+a product misses without annotating it is how a stated invariant quietly stops
+being true, so the exceptions are named here rather than only in the epic that
+found them:
+
+- **Every cold load of `/securities` and `/securities/:symbol`** spends one
+  main-thread task of **50–76 ms**, and it is the **518-row tracked-universe
+  table** rather than the chart. Measured in real Chromium on 2026-09-12,
+  2026-09-13 and 2026-09-15, attributed from both ends each time.
+- **`Expand all` on that table costs 69–87 ms** in a production build
+  (2026-09-11).
+
+**Neither amends this target — it is right.** Both are measured exceptions with
+a named owner: **Epic 14**, whose `EPIC.md` holds the figures, the three
+candidate repairs and the re-measure. The reversal trigger is a condition rather
+than an epic number — **the first time a second surface on that page renders
+per-row markup at universe scale** — and if it fires first, the repair is due
+then. Nothing else in this section is known to be breached, and the chart layer
+specifically is not: it produces no task over 50 ms at any density the API can
+serve.
+
 ### Investigation
 
 Visible indication that an investigation has begun:

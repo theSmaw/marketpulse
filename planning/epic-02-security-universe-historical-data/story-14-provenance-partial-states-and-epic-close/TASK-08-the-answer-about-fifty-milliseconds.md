@@ -1,6 +1,6 @@
 # Task 2.14.8 — The answer this epic owes about §28, and it is the table's
 
-**Status:** Not started
+**Status:** Complete — finished 2026-09-15
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.4, 2.14.5, 2.14.7
 
@@ -201,3 +201,225 @@ Whichever is chosen:
 The failure mode here is a fourth disposition nobody chooses on purpose:
 mentioning it in the close, not writing it anywhere durable, and shipping. Three
 of the four options are fine. That one is not.
+
+---
+
+## What was done, 2026-09-15
+
+**The disposition is the third one: the repair is handed to Epic 14 by name,
+with the existing trigger outranking it.** The re-measure was taken first,
+because a figure cited is a figure nobody checked.
+
+### The re-measure, and the control under it
+
+2.13.9's method restated rather than re-derived: Playwright 1.62.1's Chromium
+(the version `pnpm e2e` pins) at 1440×900, against the **built** artefact under
+`vite preview`, every backend response fulfilled from a recorded body, ten cold
+loads per row in a fresh context, `PerformanceObserver` on `longtask` plus the
+largest gap between consecutive `requestAnimationFrame` callbacks.
+
+**The instrument was checked before anything was measured with it**, because
+§47.1's warning invalidates rather than inconveniences this measurement: every
+row read `document.visibilityState === "visible"` with 84–93 rAF callbacks in
+1,500 ms.
+
+The full table is in
+[`SEARCH-AND-SELECTION.md` §10](../story-11-security-search-and-selection/SEARCH-AND-SELECTION.md).
+The short version:
+
+- **Unchanged, for the third time.** 2–5 tasks of 50–76 ms on every 518-row
+  page; **none** on any 20-row page while both plots are still drawn. Frame gap
+  66–83 ms at 518 rows against 20–33 ms at twenty — the table costs roughly
+  **35–50 ms of frame** a small universe does not spend.
+- **The five amendments above each predicted "unchanged" and each was right.**
+  Story 2.14 is **−1 node** on `/securities`, **−2** on the 5D page and **+17**
+  on the zero-bar page, against a document of 10,385.
+- **The zero-bar page was added as a row, and it is the one that rules Story 2.14
+  out.** It is what CI and `store:bare` render, it is where 2.14.6's second
+  `.some()` scan actually runs, and it is where 2.14.7's `text-wrap: balance`
+  lives. It reads the same 66.6 ms frame gap as every other 518-row row and
+  nothing at all at twenty rows. The three things the amendments asked to be
+  ruled out are ruled out by that single row.
+
+**The tail is lower than 2.13.9 published — 76 ms here against 107 and 149 —
+and that was separated from the product rather than argued away.** `CLAUDE.md`
+says a figure that has moved looks exactly like a figure that was mis-recorded
+and only rebuilding the old commit tells them apart, so commit **`997170d`**, the
+tree 2.13.9 measured, was checked out into a worktree, installed, built and
+served beside the shipped build on the same machine within the same ten minutes,
+and measured with the identical harness. **The old tree and the new tree read the
+same, and neither reproduces the published tail.** So the tail is the laptop —
+2.13.9 said as much at the time, and this is the control that settles it. Nothing
+in the record needed correcting upward; nothing was falsified.
+
+### The disposition, and why it is not the other two
+
+**Not a repair here.** All three of §10's candidates are decisions this close
+cannot honestly take: `content-visibility: auto` changes column sizing and the
+jump control's measured offsets, so it is a table redesign wearing a stylesheet
+change; collapsing bands was declined by Task 2.11.8 **on its merits**, and
+reversing a product decision to buy a performance figure is the shape of change
+this repository keeps arguing against; virtualisation is an ADR with a dependency
+decision inside it. A close that quietly rebuilds another story's surface is a
+close whose scope has stopped meaning anything.
+
+**Not acceptance.** Acceptance says the number is fine, and it is not: the
+continuous instrument says a 20-row page is at the two-frame floor while a
+518-row page spends 35–50 ms more, on the two most-visited routes, **before the
+product has a live price in it** — and Epic 5 adds an anomaly score per security
+to exactly this surface. Writing "accepted" against a number about to double is
+how a published target quietly stops being true.
+
+**Epic 14 is a real owner rather than a deferral.** Its scope already names
+main-thread task measurement and bottleneck analysis; it already inherits one
+measured §28 exception on this same table (`Expand all`, 69–87 ms); and **the two
+are the same component and probably the same repair.** Joining them is what makes
+the hand-off worth more than a note.
+
+### Where it is written
+
+| Document                       | What it now says                                                                          |
+| ------------------------------ | ----------------------------------------------------------------------------------------- |
+| `SEARCH-AND-SELECTION.md` §10  | the third dated measurement, the `997170d` control, and the disposition with its argument |
+| `planning/epic-14-.../EPIC.md` | the hand-off — both exceptions, the three repairs, the trigger, the re-measure            |
+| `planning/EPICS.md`            | the same entry beside the `Expand all` one it joins                                       |
+| `PRODUCT_SPEC.md` §28          | a dated amendment naming both exceptions. **The target itself is not amended**            |
+| `docs/GAPS.md`                 | the third dating and the owner                                                            |
+| `CLAUDE.md`                    | moved from _open_ to _owned_, with the trigger kept above the epic                        |
+
+**The trigger is unchanged and it outranks Epic 14 deliberately: the first time a
+second surface on this page renders per-row markup at universe scale.** A
+hand-off to an epic eleven epics away is only honest if the condition can fire
+first, and this one can.
+
+### What the user can see
+
+**Nothing visible**, and that is the honest answer for this disposition. No
+frontend code changed. The 50–76 ms on a cold load of `/securities` and
+`/securities/NVDA` is still there, and a person on a fast machine will not notice
+it. What changed is that it is now a piece of work with an owner, a set of
+figures, three costed repairs and a condition that pulls it forward if the page
+grows a second per-row surface first — instead of a paragraph in a task file that
+somebody would have measured again from scratch. **Epic 14 pays it off**, or the
+trigger does, whichever comes first.
+
+### What nothing checks
+
+Unchanged and worth restating, because this task's whole output is prose. Nothing
+in `pnpm verify` can see this figure — jsdom computes no layout — and `pnpm e2e`
+cannot assert it either: CI's store is 518 securities and **zero bars**, so an
+assertion there would be a duration on a shared runner. The re-measure command is
+in Epic 14's `EPIC.md` and in `docs/GAPS.md`, and it begins by checking
+`document.visibilityState`, because a tab driven over CDP reports `hidden` and
+every figure taken in one is small, plausible and meaningless.
+
+---
+
+## In plain words — a status report for stakeholders
+
+### What this task was actually about
+
+Somewhere in the project's written commitments there is a promise about
+responsiveness: **no single piece of work the app does should block the screen
+for more than a twentieth of a second.** That is the threshold at which a person
+stops experiencing a click as instant and starts experiencing it as a computer
+thinking.
+
+Three weeks ago we measured our own product against that promise and **found we
+were breaking it.** Not badly, not everywhere — but on the two screens people
+visit most, every time they arrive.
+
+This task was not asked to fix it. It was asked to **decide what we are going to
+do about it, and write that down somewhere it will actually be read.**
+
+### What we found, and why we trust it
+
+The culprit is not the thing you would guess. It is not the price chart, which
+draws thousands of data points and is genuinely the clever part of the screen.
+**It is the list of the 518 companies we track.** Building that list as a web page
+is about ten thousand small pieces of layout, and the browser takes roughly
+fifty milliseconds to do it.
+
+We know it is the list and not the chart because we tested it from both ends: the
+delay is there on the page that has the **list and no chart at all**, and it
+**disappears** when we shrink the list to twenty companies while still drawing the
+biggest chart the product can produce. That is as close to proof as this kind of
+measurement gets, and we have now taken it three separate times, a day and three
+days apart, on progressively busier versions of the screen.
+
+One detail is worth mentioning because it shows the standard we hold ourselves
+to. This time the numbers came out slightly _better_ than last time — the worst
+spikes were smaller. That is exactly the sort of thing a team talks itself into
+believing ("we must have improved something"). We did not believe it. We
+**rebuilt the three-day-old version of the product from scratch** and ran both
+versions side by side on the same laptop, ten minutes apart. They performed
+identically. So the improvement was the laptop being quieter, not the product
+getting faster, and we wrote that down rather than taking the credit.
+
+### The decision, and why
+
+Three options were on the table.
+
+**Fix it now.** We declined, and the reason is discipline rather than laziness.
+The real fix is to stop building all 518 rows at once and only build the ones on
+screen — a well-understood technique, and a genuine piece of engineering with its
+own design decision attached. Doing that as an unplanned side-quest at the end of
+an epic about market data is how projects acquire half-finished rewrites of
+things that were working. The two cheaper shortcuts both have real costs: one
+breaks how the table sizes its columns and how the "jump to a sector" control
+works, and the other reverses a product decision we took deliberately a week ago
+for good reasons that have not changed.
+
+**Accept it and move on.** We declined this too, and this is the more important
+refusal. Accepting means writing "this is fine" — and it is not going to stay
+fine. Our measurements show the big list costs about **forty milliseconds more
+per page load** than a small one, and that is _today_, on a product that does not
+yet show live prices. A later phase of this project adds an "unusual activity
+score" next to every one of those 518 companies. That is a second helping of
+exactly the work that is already too slow. Signing off a number that is about to
+double is how a written promise quietly becomes a lie.
+
+**Give it to the team that owns performance.** This is what we did. There is a
+planned phase of this project — Epic 14 — whose entire job is measuring and
+proving performance at scale. A properly engineered 518-row table is precisely
+its kind of work. Crucially, **there is already a second, related slowness on the
+very same table** waiting in that epic's inbox, found a week ago. They are the
+same component, and one piece of work almost certainly fixes both. Putting them
+side by side is worth more than either note on its own.
+
+### The part that stops this from being a polite way of ignoring it
+
+Epic 14 is a long way off. A deferral with a distant date is often just a burial.
+
+So the hand-off carries a **condition that overrides the schedule**: the moment
+anyone adds a second per-row element to that table — the anomaly score being the
+obvious candidate — the repair becomes due **then**, regardless of which epic we
+are in. Two helpings of a fifty-millisecond delay in one page load is not
+something a user mistakes for a slow laptop.
+
+And we have written the breach into **six places**, including the product
+specification itself, right underneath the promise it breaks. The specification's
+target has not been watered down — the fifty-millisecond promise is correct and
+stands. What it now says, dated, is that we currently miss it in two specific
+places, who owns fixing it, and where the evidence lives.
+
+### How this moves the product forward
+
+Honestly: **a user would not see a single difference today.** No code changed.
+The tenth of a second is still there.
+
+What changed is the project's relationship to it. The difference between a
+respectable engineering project and an impressive one is rarely that the
+impressive one has no problems — it is that the impressive one can tell you
+exactly which problems it has, how big they are, how it measured them, who owns
+them, and what would make them urgent. Before this task, that fifty milliseconds
+was a worry living in a document. After it, it is a tracked piece of work with
+three costed options and a tripwire.
+
+This also clears the last substantive question standing between us and closing
+out the historical-data phase of the product. The picture there is genuinely
+healthy: a person can search 518 real companies, open one, and read a real price
+and volume chart driven by real market data, with the source of every number
+stated on screen. The thing they still cannot do — **watch a price actually
+move** — is the next phase's job, and it starts as soon as this one is signed
+off.

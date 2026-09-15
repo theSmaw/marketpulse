@@ -109,11 +109,18 @@ summarised in one line here and argued in full where the table below points:
   477 ms queues or replaces is readable from neither the DOM nor a timing nor by
   an agent. The repair is designed and unshipped. Owner: a person with a screen
   reader, before Epic 11 hands this surface to an agent.
-- **The security page spends 50–66 ms of main thread on a cold load**, breaching
-  `PRODUCT_SPEC.md` §28's _no routine task over 50 ms_ — and it is the 518-row
-  universe table, not the chart. Raised rather than absorbed;
-  `SEARCH-AND-SELECTION.md` §10 holds three candidate repairs, and the trigger is
-  the first time a second surface renders per-row markup at universe scale.
+- ~~**The security page spends 50–66 ms of main thread on a cold load**~~ —
+  **owned since 2026-09-15 rather than open.** The breach is real and unchanged:
+  every cold load of `/securities` and `/securities/:symbol` spends one task of
+  50–76 ms against `PRODUCT_SPEC.md` §28, and it is the 518-row universe table
+  rather than the chart. Measured three times and attributed from both ends each
+  time. Task 2.14.8 took the disposition the epic owed and **handed it to Epic 14
+  by name**, beside the `Expand all` exception that is the same component and
+  probably the same repair. The figures, the three candidate repairs and the
+  re-measure are in `planning/epic-14-performance-scale-validation/EPIC.md`;
+  `SEARCH-AND-SELECTION.md` §10 holds all three datings. **The trigger is
+  unchanged and outranks the epic: the first time a second surface on this page
+  renders per-row markup at universe scale.**
 - **The fourth design test, _does it feel alive_, has been answered "not yet"
   four times.** Four deferrals of one criterion is the shape of a criterion that
   never gets met. It is deferred by name to Epic 3's motion vocabulary against

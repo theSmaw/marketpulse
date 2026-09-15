@@ -496,6 +496,24 @@ Performance targets are reproducible and documented rather than claimed.
 Recorded here because a finding that lives only in the task file that took it is
 a finding somebody measures again from scratch.
 
+- **Every cold load of `/securities` and `/securities/:symbol` spends a
+  main-thread task of 50–76 ms**, which exceeds `PRODUCT_SPEC.md` §28's _no
+  routine main-thread task >50 ms_ — and it is the **518-row universe table**,
+  not the chart. Measured three times in real Chromium against the built
+  artefact (2026-09-12, 2026-09-13, 2026-09-15) and attributed from both ends
+  every time: the task is present on `/securities` where **no chart exists at
+  all**, and absent with a 20-row universe while both plots are still drawn. It
+  does not track the bar count. A continuous instrument — the largest gap
+  between consecutive `requestAnimationFrame` callbacks — puts every 20-row page
+  at **20–33 ms**, which is the floor, and every 518-row page at **66–84 ms**,
+  over a 10,385-node document against 848. **§28's target is not amended** — it
+  is right, and this is a measured exception to it, handed here by Task 2.14.8
+  rather than accepted, because Epic 5 adds a second per-row surface to the same
+  screen. This epic's own `EPIC.md` holds the three candidate repairs and the
+  re-measure; the trigger is a condition rather than a number — **the first time
+  a second surface on this page renders per-row markup at universe scale** — and
+  if it fires first, the repair is due then. **It is the same component as the
+  entry below and probably the same repair.**
 - **`Expand all` on the tracked universe costs 69–87 ms**, which exceeds
   `PRODUCT_SPEC.md` §28's _no routine main-thread task >50 ms_. Taken 2026-09-11
   by Task 2.11.8 against a **production** build in Chromium, four runs; the
