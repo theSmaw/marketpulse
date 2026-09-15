@@ -159,7 +159,7 @@ const STATUS_SHAPE: Readonly<Record<BackendStatus, MarkerShape>> = {
 const DEGRADED_DETAIL: Readonly<Record<BackendDegradedCause, string>> = {
   "not-ok-status": "The service answered with an error.",
   "unreadable-body":
-    "Something answered at the service's address, and it was not this service.",
+    "Something answered at the service’s address, and it was not this service.",
 };
 
 const UNREACHABLE_DETAIL = "No response from the service.";

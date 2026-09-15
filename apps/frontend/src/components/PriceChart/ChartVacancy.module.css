@@ -69,6 +69,20 @@
   gap: var(--space-8);
   margin: 0;
   color: var(--ink-primary);
+
+  /*
+   * **The last word must not be alone on a line** (Task 2.14.7, seen at 390 on
+   * a bare store). Case one's headline wraps there, and it wrapped as
+   * *No volume history stored for NVDA* / *yet.* — a centred orphan of four
+   * characters under a plot 68px tall, which is the one place in this pair
+   * where there is no second line for it to sit beside.
+   *
+   * `balance` rather than `pretty`: this is a heading of at most two lines,
+   * which is exactly what `balance` is for and what the engine caps it at.
+   * `pretty` only protects the last line of a long run and would leave this
+   * unchanged.
+   */
+  text-wrap: balance;
 }
 
 /*

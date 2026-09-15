@@ -27,7 +27,7 @@ import styles from "./SecurityRow.module.css";
 // invented its own table would be demonstrating a different component.
 
 const BAND_EXPLANATION: Readonly<Record<AnomalyBand, string>> = {
-  normal: "Behaviour is within this security's own history",
+  normal: "Behaviour is within this security’s own history",
   elevated: "Moving more than usual, within recognisable bounds",
   unusual: "Clearly outside the historical distribution",
   extreme: "Far outside it — the case an investigation starts from",

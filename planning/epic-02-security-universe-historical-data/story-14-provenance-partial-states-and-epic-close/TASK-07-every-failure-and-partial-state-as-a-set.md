@@ -1,6 +1,6 @@
 # Task 2.14.7 — Every failure and partial state in the epic, checked as a set
 
-**Status:** Not started
+**Status:** Complete — 2026-09-15
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
 **Depends on:** 2.14.3, 2.14.4, 2.14.5, 2.14.6
 
@@ -229,3 +229,199 @@ This task is where this epic either reads as trustworthy or reads as broken, and
 it is the one most likely to be declared done from a green suite. A green suite
 says the states exist. It says nothing about whether they speak the same
 language, and that is the entire deliverable.
+
+---
+
+## What was done
+
+**The enumerated set is
+[`PROVENANCE.md`](PROVENANCE.md) §12** — thirty-one states in thirty-seven rows,
+each with the cause it was produced from and whether it was seen in the product
+or only in the workshop. That list is the deliverable of the first work bullet
+and everything below came out of reading it.
+
+**The set was produced against the running pair**, each state forced from a
+named cause, screenshotted at 1440 and 390, and — the part that mattered — with
+**every readable sentence on the page dumped into one list per state**, live
+regions and hidden reservations excluded. The instrument was a throwaway
+Playwright driver in a scratch directory rather than a spec: `pnpm probe` cannot
+intercept, and the browser suite asserts rather than shows. Six surfaces on one
+screen is not something a person compares by scrolling.
+
+### The instrument was broken before the pass could use it
+
+`pnpm probe /securities/NVDA` — the form this script's own usage text leads with
+and `CLAUDE.md` documents — reported `⚠ no region named "null" on this page`,
+printed no measurements and exited 1. The page-scope branch returned the region
+**name** across the `page.evaluate` boundary, and with no `--within` that name is
+`null`, which is indistinguishable from the not-found sentinel. Fixed in this
+change: the boundary carries a boolean, which cannot collide with an absent name.
+The whole-page invocation has never worked, which says something about how the
+tool has been used and is worth knowing.
+
+### Four defects, none of them visible one state at a time
+
+Each was correct in its own component, reviewed against its own story, and wrong
+on the page. `PROVENANCE.md` §12.3 has each in full; in one line apiece:
+
+1. **The Volume region said nothing at all** on a refused or failed series — a
+   named landmark with a visible heading and an empty box, beside a Price region
+   carrying three lines and a retry. It now draws a **deferral**, not an
+   explanation: `No volume to draw. The Price region says why.`
+2. **Search and the tracked universe said one thing twice.** They render from one
+   fetch, so both describe every failure of it four inches apart, and two of the
+   four search hints carried the table's own sentence — one reworded by two
+   words, one verbatim. Neither was reachable by any instrument.
+3. **Two retry controls shared one accessible name.** Story 2.11's reversal
+   trigger — _the first screen where the two surfaces read different fetches_ —
+   had already fired and nobody recorded it. Two controls is the rule holding;
+   two identical names is not.
+4. **One screen was set in two apostrophes**, with the same sentence in the tree
+   twice, once each way.
+
+### Two of them became checks, and both breaks were run red
+
+- **`one-apostrophe-in-the-product-voice`**, break `straight-apostrophe-on-screen`.
+- **`search-and-the-universe-share-no-words`**, break `search-repeats-the-table` —
+  and the break **restores the tree exactly as it shipped**, which is the
+  strongest kind: the check is proved against the defect it was written for.
+
+**The second one is also this task's own lesson about measuring.** Its window was
+first written as six words from reasoning, and it went green on the tree it had
+just been written to catch — `CLAUDE.md`'s _a tolerance is measured, never
+argued_ and _a break that does not go red is not evidence the check works_,
+arriving together within ten minutes. The window is four, measured across the
+broken tree and the repaired one, with both neighbours recorded in the check so
+the next reader can see what is either side of it.
+
+**A third measurement corrected a repair mid-flight.** The two retry controls were
+first given their subject as a visually-hidden suffix inside the button. It works
+on screen and not in the name: the accessible-name computation trims each text
+node before joining them, so `Try again` + ` — the price series` came out as
+`Try again— the price series`. Two tests had already been written against a name
+the product did not have. It is an `aria-label` now.
+
+### What the set found to be right, which is the larger half
+
+Six surfaces, six subjects, one failure — Task 2.14.2's grain rule surviving the
+worst state the epic can produce. The rail's three occupants share one grammar
+and one marker, compared against each other for the first time here. The empty
+answers read as a square rather than a pair, and the third vacancy draws no third
+thing. And **no global error screen anywhere, holding structurally rather than by
+care**: no fetch in this application throws, so there is no exception to unwind
+into a boundary.
+
+### The canvas
+
+**`Failure and partial states.dc.html`**, a new file in the
+`Component library for MarketPulse` project — ADR 0026's rule applied rather than
+departed from, since the main canvas is still past `get_file`'s 256 KiB ceiling.
+Eight sections, arranged **by cause rather than by component**, which is the
+arrangement nothing in the tree produces and the only one the comparison is
+possible in. §01 is the six-voice screen; §08 applies the four tests to the set.
+
+### The four tests, and test 4's number
+
+1. **A real funded product** — yes, and this is the part of a product where that
+   is decided. A scaffold has one grey box for everything that went wrong.
+2. **Designed rather than defaulted** — yes, and the evidence is what is absent:
+   no banner, no modal, no toast, no exclamation mark, no error icon. The only
+   colour in the whole set is on a single marker.
+3. **A moment worth showing somebody** — yes: the §01 screenshot. Six surfaces
+   reporting one outage, each about its own subject, page intact underneath.
+4. **Does it feel alive** — **deferred. This is the sixth time, stated as a
+   number.** Everything here is static by construction; a failure that animated
+   would be an alarm, and the one moving thing in the set — the refreshing
+   hairline — is already the correct exception. The position stays reserved for
+   Epic 3's live feed, where §36's _displaying data through 10:42:17_ is a
+   failure sentence that changes while somebody watches.
+
+### Documents swept
+
+- **`PROVENANCE.md`** gains §12, the set and its findings.
+- **`VISUAL-LANGUAGE.md`** gains _a surface that owns nothing defers_ as a named
+  part of the language, with its three rules and the reason a deferral is spoken
+  where an empty answer is not.
+- **`VOLUME-AND-WINDOW.md` §36** gains a dated amendment: _no frame_ was right
+  and _nothing at all_ was not.
+- **`SEARCH-AND-SELECTION.md` §6** gains a dated amendment recording that its
+  reversal trigger fired at Story 2.12 and what it costs.
+- **`docs/GAPS.md`** gains the two new invariants in its table and three entries
+  the pass could not make mechanical.
+- **`CLAUDE.md`**'s invariant count was live and wrong — _seven_ against a list of
+  ten before this task added two.
+
+### What the user can see
+
+**A screen that no longer has a blank half.** Every named region on the Security
+Explorer says something when its subject is missing, every sentence on it is
+about its own subject, and no sentence is on it twice. **What a user still cannot
+do:** watch a price move.
+
+---
+
+## For the stakeholder — what this actually was, in plain words
+
+Software is usually judged on what it looks like when everything works. This was
+a day spent on what MarketPulse looks like when things **don't** — when the
+server is down, when we have no data for a company, when you ask for a date range
+we haven't filled in yet. That matters more here than in most products, because
+the entire premise is that you can trust what the screen tells you. A product
+that is confident when it is right and incoherent when it is wrong has not earned
+that trust; it has just been lucky.
+
+**Thirty-one different things can go partly or wholly wrong on the screens this
+epic built.** Every one of them had already been designed, built and reviewed —
+individually. What had never happened is anybody looking at them **together**.
+That sounds like a formality. It is not, and here is the clearest example of why.
+
+When the server is unreachable, the price chart explains itself properly: it says
+nothing answered, that this is usually temporary, and offers a button to try
+again. Directly underneath it, the volume chart — the same width, the same
+heading style, part of the same instrument — showed **an empty white box**. Not a
+message. Nothing. Each half was correct on its own terms, and the pair was
+plainly broken: a reader seeing an explained chart above a blank one concludes
+the blank one is the bit that crashed. Nothing could have caught this except a
+person looking at the whole screen, which is exactly what this task was for. The
+volume chart now says one quiet line — _"No volume to draw. The Price region says
+why"_ — which points at the explanation rather than repeating it.
+
+The other three findings are the same shape. Two places on the page were telling
+you the same thing about a failed server in slightly different words, inches
+apart, which is how a reader learns that the small print is not worth reading.
+Two "Try again" buttons on one screen had identical names, so anyone using a
+screen reader heard the same two words twice with no way to tell which was which.
+And one screen was, quite literally, set in two different apostrophes — the
+typewriter kind next to the typographic kind, in the same size and colour, which
+is the sort of thing that makes a page feel assembled rather than designed.
+
+**Two of the four are now automated checks** that will fail the build if anyone
+reintroduces them, and each of those checks was proved by deliberately breaking
+the code and confirming it goes red. That matters: a check nobody has seen fail
+is a check nobody knows works. One of them caught us out — the first version was
+written from reasoning rather than measurement, passed happily against the very
+bug it was designed to find, and had to be rewritten around a measured number.
+That is recorded rather than tidied away, because it is the most useful thing in
+the task.
+
+**The larger half of the finding is that most of it was already right**, and it
+is worth saying plainly. With every single request to the server refused, the
+Security Explorer still shows all eight of its sections, and six different parts
+of the page each report the same outage **in their own words, about their own
+subject** — the status bar about the connection, the search box about searching,
+the chart about the request you made, the company list about the company list.
+None of them shouts. There is no red banner, no error dialog, no exclamation
+mark. The page is still a page. That was the hard criterion for this task — that
+nothing, anywhere, collapses into a single "something went wrong" screen — and it
+holds for a structural reason rather than because somebody was careful: nothing
+in this application throws an error that could take the page down in the first
+place.
+
+**Where this leaves the product.** Epic 2 set out to make one company's price
+history real and honest. The honesty half is nearly finished: the charts say
+where their numbers came from, how far they reach, and what they do not have. The
+remaining two tasks close the epic — a performance question and the deployed
+end-to-end check — after which Epic 3 turns the historical charts into live ones.
+That is the release where the screen starts changing while you watch it, and it
+is also the one where all of this pays off twice: a live feed that drops out is a
+partial state, and this is the epic that decided what one of those looks like.

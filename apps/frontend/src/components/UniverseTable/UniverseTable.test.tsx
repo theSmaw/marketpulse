@@ -638,7 +638,9 @@ describe("UniverseTable", () => {
 
     expect(screen.getByText("temporarily unavailable")).toBeTruthy();
     expect(screen.queryByText("unexpected response")).toBeNull();
-    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Try again — the tracked universe" }),
+    ).toBeTruthy();
     // Still the one internal identifier this product shows.
     expect(screen.getByText("3f1c")).toBeTruthy();
   });
@@ -691,8 +693,12 @@ describe("UniverseTable", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Try again — the tracked universe" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Try again — the tracked universe" }),
+    );
 
     expect(presses).toBe(2);
   });
@@ -709,7 +715,9 @@ describe("UniverseTable", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "Trying again…" });
+    const button = screen.getByRole("button", {
+      name: "Trying again… — the tracked universe",
+    });
     expect(button.hasAttribute("disabled")).toBe(false);
   });
 

@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Story:** [2.14 Market-Data Provenance, Partial States & Epic Close](STORY.md)
-**Depends on:** 2.14.4, 2.14.5
+**Depends on:** 2.14.4, 2.14.5, 2.14.7
 
 > **Amended 2026-09-14 by Task 2.14.1.** The dependency read _"which may have
 > added markup to the table in question"_. [`PROVENANCE.md`](PROVENANCE.md) §5
@@ -84,6 +84,39 @@
 >   measurement has moved, this is the third thing to rule out**, and ruling it
 >   out is cheap because the work is identical whether the plot draws a sentence
 >   or a line.
+
+> **Amended 2026-09-15 by Task 2.14.7 — the fifth control on the same argument,
+> and the dependency moved with it for the reason 2.14.5's did: the re-measure
+> should be taken against the tree that ships, and 2.14.7 is now the last task
+> before this one that touches the security page.**
+>
+> This one is a different shape from the four above. Two of the three things it
+> added are **not on the path this figure is about at all**, and the third is the
+> first thing this story has added that is a _layout algorithm_ rather than
+> elements:
+>
+> - **`VolumeDeferral` — a `p`, a marker and a span — renders only under
+>   `refused` or `failed`.** A cold load of `/securities/:symbol` against a
+>   working backend never draws it, so it is outside the measurement rather than
+>   small within it. Named anyway, because "it cannot be on the path" is a claim
+>   worth writing down once rather than re-deriving.
+> - **`text-wrap: balance` on the vacancy headline, and this is the one to look
+>   at.** It **is** on the cold-load path of every zero-bar page — which is every
+>   page CI and `store:bare` render, two of them per screen — and this task's
+>   figure is **40 ms of the engine's own style, layout and paint**. Balance asks
+>   the engine to try several line-break passes rather than one. On two headlines
+>   of six words each that is noise against a 10,331-node document, and the
+>   engines cap balancing at a small line count for exactly this reason. But it
+>   is the first property this story has added that makes the _engine_ do more
+>   work rather than giving it more nodes, so if the figure has moved, **this is
+>   the first thing to rule out** and it is ruled out by deleting one declaration.
+> - **No new read of the universe array, and nothing per row anywhere.** The two
+>   scans 2.14.4 and 2.14.6 recorded are still two.
+>
+> So the expectation is 2.13.9's figure unchanged for the **fourth** time. The
+> value of taking it is unchanged too, and by now it is the whole point of these
+> five amendments: an unchanged figure you measured and an unchanged figure you
+> assumed look identical in a document and nowhere else.
 
 ## Objective
 

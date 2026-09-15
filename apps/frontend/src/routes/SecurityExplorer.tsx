@@ -335,7 +335,7 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
            */}
           <Region
             name="Abnormal-move indicators"
-            filledBy="How unusual this security's behaviour is right now, scored 0–100 with the reason beside it."
+            filledBy="How unusual this security’s behaviour is right now, scored 0–100 with the reason beside it."
           >
             <RegionPlaceholder filledBy="Epic 5 — Anomaly Detection" />
           </Region>
@@ -473,7 +473,7 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
           <div className={page.full}>
             <Region
               name="Tracked universe"
-              filledBy="The securities MarketPulse follows, with each one's last stored close. Live prices arrive with the market feed in Epic 3."
+              filledBy="The securities MarketPulse follows, with each one’s last stored close. Live prices arrive with the market feed in Epic 3."
             >
               {/*
                * `retry` is passed down rather than the table asking for the

@@ -582,6 +582,196 @@ const INVARIANTS = [
   },
 
   {
+    id: "one-apostrophe-in-the-product-voice",
+    claim:
+      "Every apostrophe a reader sees is the typographic one, so two " +
+      "sentences on one screen are not set in two typefaces' worth of " +
+      "punctuation.",
+    check() {
+      // **Found by looking at the screen, and invisible from anywhere else**
+      // (Task 2.14.7). With the backend unreachable, `/securities/NVDA` drew
+      // *Nothing answered at the service’s address* four inches under *How
+      // unusual this security's behaviour is right now* — one curly, one
+      // straight, in the same size and colour. The same sentence existed twice
+      // in the tree, once each way: `BackendIndicator`'s *the service's
+      // address* against `UniverseTable`'s *the service’s address*.
+      //
+      // Nothing mechanical could see it. It typechecks, it lints, it renders,
+      // and every assertion about it matched whichever glyph the spec was
+      // written with. This product already sets curly double quotes (search's
+      // *No security matches “NVDA”*), em dashes and a real ellipsis, so the
+      // house style was settled and only the apostrophes had escaped it.
+      //
+      // **Scoped to what renders.** `.tsx` under `components/` and `routes/`,
+      // which is every file that returns markup — **stories included**, which
+      // is the one place this check departs from the others of its shape. The
+      // workshop is where a person reviews the language side by side, and nine
+      // of the fourteen straight apostrophes in the tree were in story captions
+      // and in copy the stories quote from the product. Excluding them would
+      // have left the grid a reviewer reads set in both.
+      //
+      // Deliberately not `.ts`: the one straight apostrophe left is in
+      // `market/bar-series-view.ts`'s `console.error`, which is written for a
+      // developer reading a devtools panel and is not the product's voice.
+      // Curated company names — *Domino's Pizza Inc* — are backend data and
+      // are outside this directory entirely, which is the right side of the
+      // line: they are what a vendor calls itself, not something we wrote.
+      const RENDERERS = [
+        resolve(REPO_ROOT, "apps/frontend/src/components"),
+        resolve(REPO_ROOT, "apps/frontend/src/routes"),
+      ];
+
+      const offenders = RENDERERS.flatMap((directory) =>
+        sourceFilesUnder(directory)
+          .filter(({ path }) => /\.tsx$/u.test(path))
+          .filter(({ path }) => !/\.test\.tsx$/u.test(path))
+          .flatMap(({ path, text }) =>
+            [
+              ...withoutComments(text).matchAll(
+                /"([^"\\\n]*[a-z]'[a-z][^"\\\n]*)"/gu,
+              ),
+            ].map((match) => `${relative(REPO_ROOT, path)}: ${match[1]}`),
+          ),
+      );
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `A straight apostrophe in a rendered string:\n      ` +
+            offenders.join("\n      ") +
+            "\n      This product sets ’, and a screen that mixes the two " +
+            "reads as two documents pasted together. Only a person looking " +
+            "at the page can see it, which is why it is a check.",
+        );
+      }
+    },
+  },
+  {
+    id: "search-and-the-universe-share-no-words",
+    claim:
+      "Search and the tracked universe describe one failure on one screen, " +
+      "and no clause of either appears in the other.",
+    check() {
+      // **The rule was written in 2026-09-11 and broken in the same file**
+      // (`SecuritySearch.tsx`'s `hintFor` header; the breaches are recorded
+      // there). Task 2.14.7 found both by producing the state and reading the
+      // screen, and this check exists because neither was reachable any other
+      // way: a browser locator sees *one* node for a clause that sits inside a
+      // longer sentence, and sees two different strings where one says *a
+      // service starting up* and the other *a service that is starting up*.
+      //
+      // Search and the table render from **one fetch**, so every failure of it
+      // puts both surfaces on screen at the same moment, inches apart. The rule
+      // this enforces is `PROVENANCE.md` §12's, and it is narrower than *say it
+      // once*: the **cause** belongs to the surface that owns the data, and the
+      // **prospect** is owed by both — search's hint is the input's
+      // `aria-describedby` and has to stand alone for a listener who never
+      // reaches the table. What neither may do is say it in the other's words.
+      //
+      // **Four words, measured across both trees rather than argued.** The
+      // first version of this check used six, from reasoning rather than
+      // measurement, and went green on the tree it was written to catch —
+      // `CLAUDE.md`'s *a tolerance is measured, never argued*, and *a break
+      // that does not go red is not evidence the check works*, both arriving
+      // in one afternoon. What the measurement says, over the historical tree
+      // and the repaired one:
+      //
+      //   6 — neither breach fires. `starting up looks exactly like this` is
+      //       six words but the two copies differ by *that is*, so no window
+      //       of six is shared.
+      //   5 — only `would produce the same answer` fires.
+      //   4 — both breaches fire, and the repaired tree is clean.
+      //   3 — `holds no securities` fires, and that is two surfaces sharing a
+      //       vocabulary rather than a sentence.
+      //
+      // So four is the only window that fails the real duplication and passes
+      // the real tree, and the two neighbours are recorded so the next person
+      // to reach for this number can see what is either side of it.
+      const WINDOW = 4;
+
+      // **A headline names the failure and both surfaces must; a cause or a
+      // prospect explains it and only one may.** That distinction is the whole
+      // of the rule, and the cheapest honest way to draw it turns out to be a
+      // length: the table's four headlines are 33–48 characters (*The tracked
+      // universe could not be read.*) and its causes and prospects are 60–115.
+      // Search legitimately repeats a headline — a reader told search is
+      // unavailable is owed the name of the thing that is — and may not repeat
+      // the explanation or the prospect, because the table owns the fetch and
+      // the control.
+      //
+      // The cut is stated rather than tuned: if a fifth failure arrives with a
+      // 60-character headline this check goes red on correct copy, and the
+      // repair then is to name the two halves in the source rather than to
+      // raise the number.
+      const SEARCH = {
+        path: "apps/frontend/src/components/SecuritySearch/SecuritySearch.tsx",
+        shortest: 24,
+      };
+
+      const UNIVERSE = {
+        path: "apps/frontend/src/components/UniverseTable/UniverseTable.tsx",
+        shortest: 55,
+      };
+
+      // Whole sentences only, and from **string literals** rather than from the
+      // file: JSX text and identifiers would put `securities tracked` and every
+      // sector name into the comparison, which is two surfaces sharing a
+      // vocabulary rather than sharing a sentence.
+      const clausesIn = ({ path, shortest }) => {
+        const text = withoutComments(readAnchored(path));
+        // **Single-line literals only.** A `[^"]` class matches a newline, so
+        // the first version of this matched from one string's opening quote to
+        // another's, swallowed forty lines of JSX between them and reported
+        // `view securitiesview string switch view state` as a shared clause —
+        // a check that goes red on two files that merely both switch on a union.
+        const literals = [...text.matchAll(/"([^"\\\n]+)"/gu)]
+          .filter((match) => match[1].length >= shortest)
+          .map((match) => match[1])
+          .filter(
+            (literal) => / [a-z]/u.test(literal) && !/[<>{}]/u.test(literal),
+          );
+
+        const windows = new Map();
+
+        for (const literal of literals) {
+          const words = literal
+            .toLowerCase()
+            .replace(/[^a-z0-9 ]/gu, " ")
+            .split(/\s+/u)
+            .filter(Boolean);
+
+          for (let at = 0; at + WINDOW <= words.length; at += 1)
+            windows.set(words.slice(at, at + WINDOW).join(" "), literal);
+        }
+
+        return windows;
+      };
+
+      const search = clausesIn(SEARCH);
+      const universe = clausesIn(UNIVERSE);
+
+      const shared = [...search.keys()].filter((phrase) =>
+        universe.has(phrase),
+      );
+
+      if (shared.length > 0) {
+        throw new InvariantFailure(
+          `Search and the tracked universe both write:\n      ` +
+            shared
+              .map(
+                (phrase) =>
+                  `${JSON.stringify(phrase)}\n        search:   ${JSON.stringify(search.get(phrase))}\n        universe: ${JSON.stringify(universe.get(phrase))}`,
+              )
+              .join("\n      ") +
+            "\n      One fetch feeds both, so both are on screen for one " +
+            "failure, inches apart. Both are entitled to say whether waiting " +
+            "helps — search's hint is the input's description and has to " +
+            "stand alone for a listener who never reaches the table — but " +
+            "neither may say it in the other's words. See PROVENANCE.md §12.",
+        );
+      }
+    },
+  },
+  {
     id: "one-home-for-the-feed-words",
     claim:
       "The words for a market feed are written once, in the shipped " +

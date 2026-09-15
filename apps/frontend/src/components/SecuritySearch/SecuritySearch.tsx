@@ -355,6 +355,30 @@ function placeholderFor(view: SecuritiesView): string {
  * this was found. Each of these leads with *what search can do about it*, which
  * is the only thing search is entitled to say.
  *
+ * **Two of them repeated it anyway, and it took until 2026-09-15 to see**
+ * (Task 2.14.7). The rule above was written about the *opening* clause, and
+ * both breaches were in the second one: the unreachable hint carried
+ * *a service starting up looks exactly like this* beside the table's *a service
+ * that is starting up looks exactly like this*, and the retryable hint carried
+ * *This is usually brief* **verbatim**. A browser assertion could not see
+ * either — the first is a near-copy and the second is a clause inside a longer
+ * sentence, so `getByText` matched one node in both cases.
+ *
+ * **The repair is not to delete the prospect**, and that was the first attempt
+ * and was wrong. This hint is the input's `aria-describedby`: a listener in the
+ * field hears it and may never reach the table, so §4's *say whether waiting
+ * helps* has to survive here. What the three sentences do instead is say it
+ * **about search** — *search comes back when it answers*, *asking again will
+ * not bring it back* — where the table says it about the universe and its own
+ * button. Same obligation, each surface's own grammar, and no clause a reader
+ * meets twice.
+ *
+ * It is now `pnpm invariants`' `search-and-the-universe-share-no-words`, whose
+ * window is **four words**, measured across the repaired and the historical
+ * tree rather than argued: at six neither breach fires, at five only one does,
+ * and at three the check goes red on *holds no securities* — which is two
+ * surfaces sharing a vocabulary rather than sharing a sentence.
+ *
  * **Nothing here offers the table as another way in.** The table's rows became
  * links in Task 2.11.5, so "search is unavailable" is normally a degraded state
  * with a working alternative on the same screen — but not from *this* cause:
@@ -375,12 +399,12 @@ function hintFor(view: SecuritiesView): string | undefined {
 
     case "failed":
       if (view.failure === "unreachable") {
-        return "Nothing to search yet: the tracked universe did not answer. A service starting up looks exactly like this, and the control that asks again is with the universe itself.";
+        return "Nothing to search yet: the tracked universe did not answer. Search comes back when it does, and the control that asks again is with the universe itself.";
       }
 
       return view.retryable
-        ? "Nothing to search yet: the tracked universe is temporarily unavailable. This is usually brief, and the control that asks again is with the universe itself."
-        : "Nothing to search: the tracked universe could not be read, and asking again would produce the same answer.";
+        ? "Nothing to search yet: the tracked universe is temporarily unavailable. Search comes back when it answers, and the control that asks again is with the universe itself."
+        : "Nothing to search: the tracked universe could not be read, and asking again will not bring it back.";
   }
 }
 

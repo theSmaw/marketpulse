@@ -28,7 +28,7 @@ import { Popover } from "./Popover.js";
 const SHORT = "Clearly outside the historical distribution";
 
 const LONG =
-  "Volume is 4.1× this security's 20-day median for the same point in the " +
+  "Volume is 4.1× this security’s 20-day median for the same point in the " +
   "session, and the move is 3.2 standard deviations against its own history " +
   "rather than against the sector.";
 

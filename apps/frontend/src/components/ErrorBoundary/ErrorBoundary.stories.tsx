@@ -31,7 +31,7 @@ class ThrowsWhileArmed extends Component<{
 
     if (props.armed.current) {
       props.armed.current = false;
-      throw new Error("Story: the region's contents failed to render");
+      throw new Error("Story: the region’s contents failed to render");
     }
   }
 

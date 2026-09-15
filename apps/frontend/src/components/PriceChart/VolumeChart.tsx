@@ -9,6 +9,7 @@ import { chartSubject, drawsAFrame } from "./chart-subject.js";
 import { usePlotBox } from "./use-plot-box.js";
 import { ChartPending } from "./ChartPending.js";
 import { ChartVacancy } from "./ChartVacancy.js";
+import { Marker } from "../Marker/Marker.js";
 import type { StoredHistory } from "./chart-vacancy.js";
 import { VolumeReading } from "./VolumeReading.js";
 import styles from "./VolumeChart.module.css";
@@ -153,7 +154,16 @@ export function VolumeChart({
   // `refused` and `failed` carry no window, so there is nothing here to be a
   // picture of — the same answer the price chart gives, from the same function,
   // because a volume frame under an absent price frame is half an instrument.
-  if (!drawsAFrame(view)) return null;
+  //
+  // **What is drawn instead is a deferral, added 2026-09-15 by Task 2.14.7**,
+  // and the reason it was not found earlier is the reason that task exists: the
+  // absence is correct one component at a time and wrong on the page. Until
+  // this, a refused or failed series left the Volume region a named landmark
+  // with a visible heading and **nothing under it at all** — beside a Price
+  // region that had just explained itself in three lines and offered a retry.
+  // A reader meeting that reads the blank half as the half that broke, which is
+  // the one thing §36 asks a partial failure not to do.
+  if (!drawsAFrame(view)) return <VolumeDeferral />;
 
   return (
     <div
@@ -354,5 +364,44 @@ export function VolumeChart({
         timeframe={time.axis?.timeframe ?? null}
       />
     </div>
+  );
+}
+
+/**
+ * What the Volume region says when there is no window to draw a frame from.
+ *
+ * **A deferral rather than an explanation**, and the distinction is the whole
+ * design. `refused` and `failed` are one failure of one request, and the Price
+ * region above is the surface that owns it: it carries the server's own words,
+ * the retryable/permanent judgement and — where there is one — the screen's
+ * `Try again`. A second sentence explaining the same failure would be one
+ * failure reported twice, which is the defect this component is otherwise the
+ * most careful about (`ChartVacancy` is four literals for exactly that reason).
+ *
+ * So this says one thing and hands the reader onward. The shape is
+ * `SecuritySearch`'s, which has deferred to the tracked universe since Story
+ * 2.11 and for the same reason: **the surface that owns the data owns the
+ * account of it.**
+ *
+ * Three things it deliberately is not:
+ *
+ * - **Not a control.** The screen's one `Try again` for this failure is in the
+ *   Price region, and a second would ask a reader to choose between two
+ *   spellings of one action.
+ * - **Not `aria-hidden`.** Unlike `ChartVacancy`, there is no spoken twin to
+ *   collide with: `volumeAlternative` returns `null` in both these states, so
+ *   without this the region is silent to a listener as well as blank to a
+ *   reader. One element, read by both channels, is what keeps `readable()` from
+ *   finding two.
+ * - **Not named by position.** *The Price region* rather than *above*: the
+ *   region is a landmark with a stable accessible name, and a layout claim in a
+ *   sentence is a claim that stops being true at 390.
+ */
+function VolumeDeferral() {
+  return (
+    <p className={styles.deferral}>
+      <Marker shape="ring" />
+      <span>No volume to draw. The Price region says why.</span>
+    </p>
   );
 }

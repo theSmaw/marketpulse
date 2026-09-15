@@ -1321,7 +1321,12 @@ function FailureDetail({
            decision and is deliberately kept: unlike the universe table's, this
            control sits inside the state it replaces, so a second press has
            nothing to supersede. */
+        /* The subject in the accessible name — `UniverseTable`'s control
+           carries the other half of this and its comment carries the argument.
+           Two fetches fail separately on this screen, so two controls is
+           correct and two identical names is not. */
         <Button
+          aria-label={`${view.retrying ? "Trying again…" : "Try again"} — the price series`}
           variant="secondary"
           icon="refresh"
           onClick={onRetry}

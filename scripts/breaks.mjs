@@ -262,4 +262,47 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "one-home-for-the-feed-words",
   },
+
+  {
+    name: "straight-apostrophe-on-screen",
+    proves:
+      "A straight apostrophe in a rendered sentence sets one screen in two " +
+      "kinds of punctuation — which typechecks, lints, renders and matches " +
+      "every assertion written with the same glyph — and the invariant " +
+      "catches it.",
+    // The break is the tree as it shipped until 2026-09-15: `BackendIndicator`
+    // wrote *the service's address* while `UniverseTable` wrote *the service’s
+    // address*, and a backend that was down put both on one screen.
+    file: "apps/frontend/src/components/BackendIndicator/BackendIndicator.tsx",
+    find: "Something answered at the service’s address, and it was not this service.",
+    replace:
+      "Something answered at the service's address, and it was not this service.",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-apostrophe-in-the-product-voice",
+  },
+
+  {
+    name: "search-repeats-the-table",
+    proves:
+      "Search and the tracked universe render from one fetch, so one failure " +
+      "puts both on screen — and a search hint that carries the table's own " +
+      "prospect is the same paragraph printed twice, which no browser " +
+      "assertion can see when the copy is a clause inside a longer sentence.",
+    // The break is the tree as it actually shipped from 2026-09-11 to
+    // 2026-09-15: the retryable hint carried the table's prospect verbatim.
+    // Restoring it is the whole break, which is the strongest kind — the check
+    // is proved against the defect it was written for rather than a synthetic
+    // one.
+    file: "apps/frontend/src/components/SecuritySearch/SecuritySearch.tsx",
+    find:
+      '? "Nothing to search yet: the tracked universe is temporarily ' +
+      "unavailable. Search comes back when it answers, and the control that " +
+      'asks again is with the universe itself."',
+    replace:
+      '? "Nothing to search yet: the tracked universe is temporarily ' +
+      "unavailable. This is usually brief, and the control that asks again is " +
+      'with the universe itself."',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "search-and-the-universe-share-no-words",
+  },
 ];

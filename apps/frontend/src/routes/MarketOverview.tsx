@@ -50,7 +50,7 @@ import styles from "./MarketOverview.module.css";
 // well as through tsc, and the two use entirely different resolvers.
 
 const BAND_MEANING: Readonly<Record<AnomalyBand, string>> = {
-  normal: "Behaviour is within this security's own history",
+  normal: "Behaviour is within this security’s own history",
   elevated: "Moving more than usual, within recognisable bounds",
   unusual: "Clearly outside the historical distribution",
   extreme: "Far outside it — the case an investigation starts from",

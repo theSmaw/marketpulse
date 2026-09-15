@@ -162,6 +162,46 @@ export const Refused: Story = {
 };
 
 /**
+ * **The same two states, beside the sentence they now carry** (Task 2.14.7) —
+ * and the reason this story exists is that `Refused` above was reviewed once a
+ * story and was correct, while the *page* it produced was not.
+ *
+ * Drawing no picture is right: neither state carries a window. Drawing nothing
+ * **at all** left the Volume region a named landmark with a visible heading and
+ * an empty box under it, next to a Price region that had just given three lines
+ * and a `Try again`. The half that says nothing reads as the half that broke.
+ *
+ * What is drawn instead is a **deferral**, not a second explanation. The Price
+ * region owns this failure — the server's own words, the retryable judgement
+ * and the screen's one retry for it — so this points and stops. The shape is
+ * `SecuritySearch`'s, which has deferred to the tracked universe since Story
+ * 2.11 for the same reason.
+ *
+ * Both causes are here rather than one, because the sentence is deliberately
+ * the same for a refusal and a failure: what differs between them is the
+ * explanation, and the explanation is not this region's to give.
+ */
+export const DeferredToThePriceRegion: Story = {
+  args: { symbol: "NVDA", view: barSeriesFixtureView("refusedUnknownSymbol") },
+  parameters: { layout: "fullscreen" },
+  render: () => (
+    <div className={gridStyles.grid}>
+      {(
+        [
+          ["Refused — a fact about the request", "refusedUnknownSymbol"],
+          ["Failed — nothing arrived", "unavailable"],
+        ] as const
+      ).map(([label, fixture]) => (
+        <Fragment key={fixture}>
+          <p className={gridStyles.label}>{label}</p>
+          <Plot view={barSeriesFixtureView(fixture)} width="wide" />
+        </Fragment>
+      ))}
+    </div>
+  ),
+};
+
+/**
  * **The three causes of a volume plot with no columns, side by side** (Task
  * 2.13.7) — the picture a reader is most likely to misread, and a window change
  * can move between all three of them.

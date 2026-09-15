@@ -193,3 +193,25 @@
 .visuallyHidden {
   composes: visuallyHidden from "../../styles/a11y.module.css";
 }
+
+/*
+ * The deferral, drawn where the frame would be when there is no window to build
+ * one from (Task 2.14.7).
+ *
+ * It borrows `BarSeriesPanel`'s state line rather than inventing a treatment —
+ * same marker, same baseline alignment, same gap — because the sentence it
+ * defers *to* is drawn that way one region up, and two shapes for one
+ * conversation is what this pass exists to find. The ink is secondary: this is
+ * the quieter half of the pair, and the half that is a pointer rather than an
+ * answer.
+ */
+.deferral {
+  --marker-color: var(--ink-secondary);
+  display: flex;
+  gap: var(--space-8);
+  align-items: baseline;
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}

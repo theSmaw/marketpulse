@@ -456,7 +456,10 @@ test("a failed window change leaves the charts, one retry, and no blank page", a
   // The charts are untouched, the control is still operable, and there is
   // **exactly one** `Try again` on the screen.
   expect(await plotMarks(page)).toBe(before);
-  await expect(page.getByRole("button", { name: "Try again" })).toHaveCount(1);
+  // `/^Try again/` rather than the whole name: this assertion is about **how
+  // many** retry controls the screen offers, across every subject, and Task
+  // 2.14.7 put the subject in each one’s accessible name.
+  await expect(page.getByRole("button", { name: /^Try again/ })).toHaveCount(1);
   await expect(cell(page, "5 days")).toBeEnabled();
   await expectNothingFailedToRender(page);
 });
@@ -483,7 +486,7 @@ test("the three refusals the address reaches are produced with no stubbing", asy
     // The server's own sentence, rendered verbatim, with no retry: a refusal is
     // a fact about the request rather than about the moment.
     await expect(readable(priceRegion(page), says)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Try again" })).toHaveCount(
+    await expect(page.getByRole("button", { name: /^Try again/ })).toHaveCount(
       0,
     );
 
@@ -518,7 +521,7 @@ test("a refusal after an answer keeps the answer, and names which window it is",
     "Still showing the 5-session window. The 1,000-session window was not answered",
   );
   expect(await plotMarks(page)).toBe(before);
-  await expect(page.getByRole("button", { name: "Try again" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Try again/ })).toHaveCount(0);
 });
 
 test("a chart that arrives after a refusal is measured, and draws", async ({

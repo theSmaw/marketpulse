@@ -251,7 +251,7 @@ pnpm typecheck     # the tsc -b half only; no bundle
 pnpm lint          # eslint . over the whole workspace in one process; also lint:fix
 pnpm stories       # fails if a component under src/components/ has no stories file
 pnpm env:check     # fails if .env.example and CONFIG_VARIABLES have drifted apart
-pnpm invariants    # seven claims that used to be prose in docs/GAPS.md, each a single grep.
+pnpm invariants    # twelve claims that used to be prose in docs/GAPS.md, each a single grep.
                    # Runs AFTER build — one of them reads apps/frontend/dist/. Every one is
                    # break-verified by a `pnpm break` entry.
 pnpm break         # perform a documented break, prove the check goes red, put the tree back.

@@ -6,9 +6,14 @@ import {
   backendIndicator,
   expectBackendStatus,
   expectNothingFailedToRender,
+  readable,
 } from "../support/app.js";
 import { expectNoAxeViolations } from "../support/axe.js";
-import { HEALTH_ROUTE_PATTERN } from "../support/pair.js";
+import {
+  BARS_ROUTE_PATTERN,
+  HEALTH_ROUTE_PATTERN,
+  SECURITIES_ROUTE_PATTERN,
+} from "../support/pair.js";
 
 // Story 1.12's three states, each produced from a named cause, and the
 // interface going on working through the worst of them (Task 1.13.3).
@@ -161,12 +166,105 @@ test("a 200 that is not this service reads as degraded, with a different sentenc
   // render a slug.
   await expect(
     backendIndicator(page).getByText(
-      "Something answered at the service's address, and it was not this service.",
+      "Something answered at the service’s address, and it was not this service.",
       { exact: true },
     ),
   ).toBeVisible();
 
   await expectNothingFailedToRender(page);
+});
+
+test("the whole backend down is one failure in six voices, and no global error screen", async ({
+  page,
+}) => {
+  // **Acceptance criterion 3, as one assertion about one screen** (Task
+  // 2.14.7). Every other spec in this suite produces one failure and reads the
+  // surface that owns it. This one produces the failure that reaches **all** of
+  // them at once — every request this application makes, refused — and reads
+  // the whole screen, because the defect it exists to catch is invisible a
+  // surface at a time: four sentences that are each individually fine and
+  // collectively four different voices, or a region that says nothing while
+  // the one beside it explains itself.
+  //
+  // It is deliberately the Security Explorer: five of the six surfaces are
+  // only ever on one screen together here.
+  for (const pattern of [
+    HEALTH_ROUTE_PATTERN,
+    SECURITIES_ROUTE_PATTERN,
+    BARS_ROUTE_PATTERN,
+  ])
+    await page.route(pattern, (route) => route.abort("connectionrefused"));
+
+  await page.goto("/securities/NVDA");
+  await expectBackendStatus(page, "unreachable");
+
+  // **The hard criterion first.** No `role="alert"` anywhere is what *no global
+  // error screen* means mechanically: the boundary's fallback is the only thing
+  // in this application that renders one, so a page that has none has not
+  // collapsed into one.
+  await expectNothingFailedToRender(page);
+
+  // Every region §8.3 names is still on the page. A failure that removed one
+  // would degrade the *layout* rather than the answer, which is the other way
+  // §36 is broken.
+  for (const name of [
+    "Price",
+    "Volume",
+    "Abnormal-move indicators",
+    "Relative performance",
+    "Connected securities",
+    "Relevant filings",
+    "Anomaly history",
+    "Tracked universe",
+  ])
+    await expect(page.getByRole("region", { name })).toBeVisible();
+
+  // **The Volume region speaks.** Until Task 2.14.7 it rendered nothing at all
+  // in this state — correct one component at a time, because neither `refused`
+  // nor `failed` carries a window to draw a frame from, and wrong on the page,
+  // because a named landmark with an empty box under it reads as the half that
+  // broke. It defers rather than explaining: the account belongs to the region
+  // that owns the request.
+  const volume = page.getByRole("region", { name: "Volume" });
+  await expect(
+    readable(volume, "No volume to draw. The Price region says why."),
+  ).toBeVisible();
+  await expect(volume.getByRole("button")).toHaveCount(0);
+
+  // **Two retries, because there are two failures, and they are named apart.**
+  // `SEARCH-AND-SELECTION.md` §6's rule is *one retry per failure per screen,
+  // owned by the surface that owns the data*, with the reversal trigger *the
+  // first screen where the two surfaces read different fetches*. This screen is
+  // that one — `GET /securities` and `GET /market-data/bars` — so two controls
+  // is the rule holding rather than breaking. What Task 2.14.7 added is that
+  // two controls owe two names: before it, anyone moving by control heard
+  // "Try again, button" twice with nothing to tell them apart.
+  await expect(page.getByRole("button", { name: /^Try again/ })).toHaveCount(2);
+  await expect(
+    page.getByRole("button", { name: "Try again — the price series" }),
+  ).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Try again — the tracked universe" }),
+  ).toHaveCount(1);
+
+  // **No sentence is on this screen twice.** Search and the tracked universe
+  // render from one fetch, so both describe this failure inches apart, and the
+  // clause each of them used to share is the one a reader met twice. The
+  // prospect is still owed by both — search's hint is the field's description
+  // and has to stand alone — so what is asserted is that each says it in its
+  // own grammar. `pnpm invariants` holds the general rule; this holds that the
+  // rule is about text a reader can actually see at the same moment.
+  await expect(
+    readable(page.locator("body"), /looks exactly like this/),
+  ).toHaveCount(1);
+  await expect(
+    readable(page.locator("body"), /Search comes back when it does/),
+  ).toHaveCount(1);
+
+  await expectNoAxeViolations(
+    page,
+    "the security explorer, wholly unreachable",
+  );
 });
 
 test("every route stays usable with the backend unreachable", async ({
