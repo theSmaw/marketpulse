@@ -44,21 +44,22 @@ from; an assertion about that number belongs here.
 
 ## What is here
 
-| File                                   | What it is for                                                         |
-| -------------------------------------- | ---------------------------------------------------------------------- |
-| `playwright.config.ts`                 | the decisions the first test settled for every test after it           |
-| `specs/landing-route.spec.ts`          | the chrome and PRODUCT_SPEC.md §9's four regions                       |
-| `specs/backend-health.spec.ts`         | the two halves talking — the journey this story exists for             |
-| `specs/backend-failure-states.spec.ts` | the three states from named causes, and §36's "the rest still works"   |
-| `specs/backend-recovery.spec.ts`       | recovery across a real poll interval, with no page reload              |
-| `specs/securities-route.spec.ts`       | the first page whose content arrives over the network                  |
-| `specs/search-keyboard.spec.ts`        | search → open → the security's page, by pointer and by keyboard alone  |
-| `specs/security-navigation.spec.ts`    | two securities in one page lifetime — the cache, and no second load    |
-| `specs/market-clock.spec.ts`           | the chrome's clock, and the one assertion below this level cannot make |
-| `support/`                             | locators, timings and the axe pass — not collected as tests            |
-| `playwright.deployed.config.ts`        | the post-deploy check's config — a second file, not a second project   |
-| `specs-deployed/two-halves.spec.ts`    | the two failures no other instrument here can see                      |
-| `specs-deployed/host-routing.spec.ts`  | Story 1.5's deep-link and missing-asset criteria, at last              |
+| File                                               | What it is for                                                         |
+| -------------------------------------------------- | ---------------------------------------------------------------------- |
+| `playwright.config.ts`                             | the decisions the first test settled for every test after it           |
+| `specs/landing-route.spec.ts`                      | the chrome and PRODUCT_SPEC.md §9's four regions                       |
+| `specs/backend-health.spec.ts`                     | the two halves talking — the journey this story exists for             |
+| `specs/backend-failure-states.spec.ts`             | the three states from named causes, and §36's "the rest still works"   |
+| `specs/backend-recovery.spec.ts`                   | recovery across a real poll interval, with no page reload              |
+| `specs/securities-route.spec.ts`                   | the first page whose content arrives over the network                  |
+| `specs/search-keyboard.spec.ts`                    | search → open → the security's page, by pointer and by keyboard alone  |
+| `specs/security-navigation.spec.ts`                | two securities in one page lifetime — the cache, and no second load    |
+| `specs/market-clock.spec.ts`                       | the chrome's clock, and the one assertion below this level cannot make |
+| `support/`                                         | locators, timings and the axe pass — not collected as tests            |
+| `playwright.deployed.config.ts`                    | the post-deploy check's config — a second file, not a second project   |
+| `specs-deployed/two-halves.spec.ts`                | the two failures no other instrument here can see                      |
+| `specs-deployed/host-routing.spec.ts`              | Story 1.5's deep-link and missing-asset criteria, at last              |
+| `specs-deployed/security-explorer-journey.spec.ts` | the epic's exit criterion, deployed — the journey, not the components  |
 
 ## Where it runs in CI
 
@@ -266,6 +267,45 @@ under 1,000 bytes per second, and platform probes are not billable while these
 requests are. Measured against the log, **a whole green run costs the deployed
 backend 5 requests**, against an idle baseline of a precise 4 per 30 s. Once per
 merge is negligible; on a schedule it is a decision with an owner.
+
+### The exit criterion runs here, and it asserts structure rather than figures
+
+Added 2026-09-15 by Task 2.14.9, and it is the first thing in this suite that
+drives the product's central journey: search NVDA, open it, read both plots off
+one crosshair, change the window. Until it existed, `pnpm e2e:deployed` drove
+routing, the tracked universe and the two halves talking — so a deploy that
+broke the Security Explorer was found by a person opening the page.
+
+**It is one test rather than six**, deliberately. The local suite owns component
+behaviour and owns it better: seventeen spec files drive the control, the rail,
+the plots, the crosshair, the refusals and the failure states before a merge.
+What only this suite can say is that the whole chain is wired together in the
+**deployed** environment — three hosts, two artefacts and a database, each able
+to break independently of the source those gates judged. Every extra test here
+is another page load against production after every merge.
+
+**The rule that decides what it may assert is structure versus figures**, and
+the second half of it is the one that costs a round trip to learn. Three states
+this epic shipped are **absent from a healthy deployment**, and their absence is
+the environment being well rather than a state gone missing:
+
+| State                                        | Why a green deployed run cannot see it                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------ |
+| the coverage sentence, _Holding 1,560 bars…_ | renders only under `partial`; a nightly-backfilled store answers in full |
+| either vacancy sentence                      | there is no vacancy on a current store's page                            |
+| the volume plot's deferral                   | renders only under `refused` or `failed`                                 |
+
+An assertion on any of them would be **red exactly when the store is
+healthiest**, which is the worst possible signal to wire into a post-merge
+check. The mirror case is the familiar one — the adjustment, retrieval and feed
+clauses of the source note are claims about bars a runner may not have — and the
+one clause that survives both ends is **classification**, whose data is the
+`GET /securities` answer rather than the bars.
+
+Nothing here asserts a duration either, for this suite's standing reason and one
+specific to this page: `PRODUCT_SPEC.md` §28's known breach lives on it, it has a
+named owner in Epic 14, and a duration asserted from one machine over one link
+after a merge is a check that teaches everybody to re-run it.
 
 ### axe here is a REPORT, not a gate — the opposite of the local suite
 
@@ -614,11 +654,16 @@ In the same shape ADR 0010 states it for the tick.
   **seventeen** spec files and 135 tests (2026-09-13, re-counted at Story
   2.13's close — sixteen and 129 at Task 2.13.7, fifteen and 122 at Task
   2.13.6, thirteen and 81 at Task 2.11.9). The deployed suite is a separate
-  **three** files and **16** tests, and **none of them drives Story 2.13** —
-  no window control, no rail, neither plot, no crosshair. A green
-  `pnpm e2e:deployed` after that story means exactly what it meant before it. Note the two timing
-  figures above are Task 1.13.4's, taken on ten tests, and have not been re-taken
-  since.
+  **four** files and **18** tests (2026-09-15, Task 2.14.9 — three and 16
+  before it, when **none of them drove Story 2.13**: no window control, no
+  rail, neither plot, no crosshair, so a green `pnpm e2e:deployed` after that
+  story meant exactly what it meant before it). The two tests that changed that
+  assert **structure and no figure** — see the post-deploy section — so the
+  sentence to keep is narrower than the one they retired: a green deployed run
+  says the chain is wired together in the deployed environment, and says
+  nothing about what any number on it is. Note the two timing figures above are
+  Task 1.13.4's, taken on ten tests, and have not been re-taken since; the
+  whole deployed suite is **30.3-31.0 s** across two green runs on 2026-09-15.
 
   **And one rule this suite keeps re-learning, sharpened 2026-09-13 by Task
   2.13.7.** CI's store holds 518 securities and **zero bars**, so every window is
