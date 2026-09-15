@@ -128,9 +128,44 @@ test("an empty window reads as an answer, not as a broken product", async ({
     await expect(readable(region, /We asked for/)).toHaveCount(0);
   }
 
+  // **The volume plot tells the same story, and that is the assertion rather
+  // than a second copy of the one above** (Task 2.14.7). The two plots hang on
+  // one axis and derive their sentence from one function, so the failure worth
+  // guarding is *half a screen saying we hold nothing and half saying not in
+  // this window* — which `PROVENANCE.md` §6.3 made reachable in two directions
+  // when it made the answers four literals rather than two. Read as a square:
+  // whichever case the store puts the price plot in, the volume plot is in the
+  // same one.
+  const volume = page.getByRole("region", { name: "Volume" });
+
+  if (await windowAnswer.isVisible()) {
+    await expect(
+      readable(volume, /No volume stored for this window/),
+    ).toBeVisible();
+    await expect(
+      readable(volume, /No volume history stored for \w+ yet/),
+    ).toHaveCount(0);
+  } else {
+    await expect(
+      readable(volume, /No volume history stored for \w+ yet/),
+    ).toBeVisible();
+    await expect(
+      readable(volume, /No volume stored for this window/),
+    ).toHaveCount(0);
+  }
+
+  // The schedule sentence is on the price plot and **only** there. The volume
+  // plot is 88px tall and its headline already fills it; one fact stated twice
+  // under one axis is the shape this pair is most careful about.
+  await expect(readable(volume, /caught up overnight/)).toHaveCount(0);
+  await expect(
+    readable(volume, /Changing the window will not help/),
+  ).toHaveCount(0);
+
   // And it is an **answer**: no control, no correlation id, nothing that reads
-  // as a fault.
+  // as a fault — on either plot.
   await expect(region.getByRole("button")).toHaveCount(0);
+  await expect(volume.getByRole("button")).toHaveCount(0);
   await expect(readable(region, /Reference/)).toHaveCount(0);
 
   await expectNothingFailedToRender(page);
@@ -182,7 +217,9 @@ test("a store that is down offers a retry and names a reference", async ({
   // The retry recovers the page with no reload, which is the property the
   // control exists for.
   down = false;
-  await region.getByRole("button", { name: "Try again" }).click();
+  await region
+    .getByRole("button", { name: "Try again — the price series" })
+    .click();
   await expect(anAnswer(page)).toBeVisible();
 
   // And the page never collapsed: §36's rule is that this degrades locally.
@@ -235,7 +272,13 @@ test("nothing arriving at all is a product state, not a blank panel", async ({
 
   const region = panel(page);
   await expect(readable(region, /No response from the service/)).toBeVisible();
-  await expect(region.getByRole("button", { name: "Try again" })).toBeVisible();
+  // **The subject is in the name since Task 2.14.7.** A wholly unreachable
+  // backend puts two `Try again` controls on this screen — this one and the
+  // tracked universe’s — and they re-ask different questions, so they are
+  // named apart. A locator that still said `Try again` would match neither.
+  await expect(
+    region.getByRole("button", { name: "Try again — the price series" }),
+  ).toBeVisible();
 
   // No id: nothing arrived, so there was no response to have carried one. A
   // panel that showed one anyway would be inventing a support reference.

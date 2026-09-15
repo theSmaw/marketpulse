@@ -1983,6 +1983,20 @@ together.
 **Decided: the last _answer_ this page painted stays on screen until a newer
 answer replaces it, and the label above it says which window it is of.**
 
+> **Amended 2026-09-15 by Task 2.14.7 — _no frame_ was right and _nothing at
+> all_ was not.** The clause above is unchanged as a statement about the
+> **picture**: neither state carries a window, so neither draws a frame, and
+> that is still true of both plots. What it did not say, and what nobody read
+> it as saying, is what the **Volume region** then contains on a cold failure,
+> where there is no held answer for the rule above to keep on screen. The
+> answer was `null` — a named landmark with a visible heading and an empty box
+> under it, beside a Price region carrying three lines and a retry.
+>
+> The volume plot now draws a **deferral** there: `No volume to draw. The Price
+region says why.` It is not a frame, not an explanation and not a control —
+> the account and the one retry belong to the region that owns the request.
+> `PROVENANCE.md` §12.3 A has the finding and the three things it is not.
+
 ```
 The last answer this page painted is kept, together with the request it
 answers, until a newer answer replaces it. It is cleared when the security

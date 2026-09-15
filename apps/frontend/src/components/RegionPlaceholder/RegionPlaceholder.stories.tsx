@@ -40,7 +40,7 @@ const REGIONS = [
   {
     name: "Abnormal-move indicators",
     filledBy:
-      "How unusual this security's behaviour is right now, scored 0–100 with the reason beside it.",
+      "How unusual this security’s behaviour is right now, scored 0–100 with the reason beside it.",
     plan: "Epic 5 — Anomaly Detection",
   },
   {

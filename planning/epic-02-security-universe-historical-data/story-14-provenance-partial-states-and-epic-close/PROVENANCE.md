@@ -1023,3 +1023,246 @@ Three claims, in `docs/GAPS.md` with a `Re-measure:` naming a file that exists:
 the rail's reservation against the coverage sentence at four widths; that the
 sentence and the coverage edge never disagree about where the data stops; and
 the `No shares changed hands anywhere` trigger above.
+
+---
+
+## 12. The set — every failure and partial state in the epic, 2026-09-15 by Task 2.14.7
+
+Acceptance criterion 3, and the local half of criterion 5. The list **is** the
+deliverable of the enumeration bullet, because a set checked from memory is a set
+with a hole in it — and this one had four.
+
+### 12.1 How it was produced, and what that cost
+
+**Against the running pair, in a real browser, with each state forced from a
+named cause**, and then read at 1440 and 390 as a set rather than one at a time.
+The instrument was a throwaway Playwright driver in a scratch directory — not a
+spec and not a gate — which loaded each address with the cause installed,
+screenshotted both widths, and dumped **every readable sentence on the page**
+with the live regions and the hidden reservations excluded. `pnpm probe` cannot
+do this: it cannot intercept.
+
+Two things about the reading are worth carrying forward.
+
+- **The sentence dump is what made the comparison possible.** Six surfaces on one
+  screen is not something a person compares by scrolling; it is something they
+  compare in a list. Two of the four findings below are visible only in the list
+  and one is visible only in the screenshot.
+- **`pnpm probe` was broken for its own headline invocation and had been since it
+  was written.** `pnpm probe /securities/NVDA` — the form its usage text leads
+  with and `CLAUDE.md` documents — reported `⚠ no region named "null" on this
+page`, printed no measurements and exited 1. The page-scope branch returned the
+  region _name_ across the `page.evaluate` boundary, and with no `--within` that
+  name is `null`, which is indistinguishable from the not-found sentinel. Fixed
+  in the same change: the boundary now carries a boolean, which cannot collide
+  with an absent name.
+
+### 12.2 The set
+
+Thirty-one entries. **Produced** means seen in the running product; **story**
+means no server this product runs can send the body, so the workshop is the only
+place it exists, and that is stated beside it rather than left to be discovered.
+
+| #   | State                                                                        | Cause, and how it was produced                                                                                     | Seen                                                   |
+| --- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| 1   | Backend unreachable                                                          | `route.abort("connectionrefused")` on `/health`                                                                    | produced                                               |
+| 2   | Backend answered with an error                                               | a 5xx carrying the error contract                                                                                  | produced                                               |
+| 3   | Backend answered and was not this service                                    | a 200 that is not the health body                                                                                  | produced                                               |
+| 4   | Feed not configured                                                          | the deployed and local default — no provider credentials                                                           | produced                                               |
+| 5   | Feed could not be read                                                       | `/market-data` refused                                                                                             | produced                                               |
+| 6   | Search unavailable — universe in flight                                      | the first paint of any cold load                                                                                   | produced                                               |
+| 7   | Search unavailable — universe unreachable                                    | `/securities` refused                                                                                              | produced                                               |
+| 8   | Search unavailable — universe temporarily unavailable                        | `/securities` 503 with a retryable code                                                                            | produced                                               |
+| 9   | Search unavailable — universe unreadable                                     | `/securities` answering a body that is not this service's                                                          | produced                                               |
+| 10  | Search — nothing to search                                                   | a migrated database nobody has loaded                                                                              | produced (`store:bare` before `pnpm universe`)         |
+| 11  | Search — no security matches                                                 | typing a string no symbol or name carries                                                                          | produced                                               |
+| 12  | Universe table — not loaded                                                  | the same empty answer, in the table's words                                                                        | produced                                               |
+| 13  | Universe table — not available / temporarily unavailable / could not be read | the three failures above                                                                                           | produced                                               |
+| 14  | A security the universe does not hold                                        | `/securities/ZZZZ` — reachable by typing                                                                           | produced                                               |
+| 15  | A security we no longer track                                                | the `Untracked` badge and its sentence                                                                             | produced (a `status` row)                              |
+| 16  | A default security, with no symbol in the address                            | `/securities`                                                                                                      | produced                                               |
+| 17  | Series in flight                                                             | the first paint, and `Reading the series…`                                                                         | produced                                               |
+| 18  | Series partial, **and its coverage sentence**                                | a developer's store a few sessions behind                                                                          | produced                                               |
+| 19  | Series empty — **we hold nothing** (price)                                   | `store:bare`, which is CI's shape                                                                                  | produced                                               |
+| 20  | Series empty — **we hold nothing** (volume)                                  | the same, on the plot below                                                                                        | produced                                               |
+| 21  | Series empty — **none in this window** (price)                               | `?sessions=1` on a backfilled store                                                                                | produced                                               |
+| 22  | Series empty — **none in this window** (volume)                              | the same                                                                                                           | produced                                               |
+| 23  | Series empty — **the universe could not be read**                            | `?sessions=1` with `/securities` refused                                                                           | produced                                               |
+| 24  | Series refused — outside the calendar                                        | `?sessions=99999`                                                                                                  | produced                                               |
+| 25  | Series refused — not a session count                                         | `?sessions=banana`                                                                                                 | produced                                               |
+| 26  | Series refused — a symbol we do not track                                    | `/securities/ZZZZ`                                                                                                 | produced                                               |
+| 27  | Series failed — nothing arrived                                              | `/market-data/bars` refused                                                                                        | produced                                               |
+| 28  | Series failed — answered badly, retryable                                    | a 503 with a retryable code                                                                                        | produced                                               |
+| 29  | Series failed — answered badly, permanent                                    | a coherent shape whose numbers disagree                                                                            | produced                                               |
+| 30  | A slow answer — the pending panel                                            | a route held for four seconds                                                                                      | produced                                               |
+| 31  | The rail's three occupants                                                   | held window (refusal), held window (failure), refreshing                                                           | produced                                               |
+| 32  | **The source note reduced to its classification clause**                     | every zero-bar page, which is every page CI renders                                                                | produced                                               |
+| 33  | **The source note rendering nothing at all**                                 | a page whose universe fetch failed, has not landed, **or whose address names a symbol the universe does not hold** | produced                                               |
+| 34  | The classification clause with **no date**                                   | `provenance` absent from the universe envelope                                                                     | **story** — one curated file, no server can produce it |
+| 35  | A series whose sources disagree about feed                                   | stored SIP bars beside a live IEX tail                                                                             | **story** — no producer until Epic 3                   |
+| 36  | The not-found route                                                          | `/no-such-page`                                                                                                    | produced                                               |
+| 37  | A thrown render inside a region                                              | the boundary's own story                                                                                           | **story** — nothing in the tree throws                 |
+
+**The count is 31 states and 37 rows** because six rows are the two plots' halves
+of one state, and that asymmetry is the point of the square in §12.4.
+
+### 12.3 What the set found, which is four things and none of them was visible one state at a time
+
+Each was correct in its own component, reviewed against its own story, and wrong
+on the page.
+
+#### A. The Volume region said nothing at all
+
+`refused` and `failed` carry no window, so the volume plot has nothing to be a
+picture of. That is right, is argued in
+[`VOLUME-AND-WINDOW.md`](../story-13-volume-chart-and-time-window/VOLUME-AND-WINDOW.md)
+§36, was reviewed as a story, and is asserted by a unit test checking that no
+`<svg>` is drawn. It rendered `null`. **On the page that is a named landmark
+with a visible heading and an empty white box under it**, four inches below a
+Price region that has just explained itself in three lines and offered a retry —
+and a reader meeting that reads the blank half as the half that broke, which is
+the one thing §36 asks a partial failure not to do.
+
+**It now draws a deferral rather than an explanation**: `No volume to draw. The
+Price region says why.` One line, one subject, no control. The shape is
+`SecuritySearch`'s, which has deferred to the tracked universe since Story 2.11
+for the same reason — **the surface that owns the data owns the account of it**.
+Three things it deliberately is not: not a second explanation, not a second
+control, and not named by position (_the Price region_, never _above_, because a
+layout claim in a sentence stops being true at 390). And **not `aria-hidden`**,
+which is where it departs from the `ChartVacancy` beside it: the plot's text
+alternative answers both these states with `null`, so hiding it would leave the
+region silent to a listener as well as blank to a reader.
+
+#### B. Search and the tracked universe said one thing twice
+
+They render from **one fetch**, so every failure of it puts both on screen at the
+same moment, four inches apart. `SecuritySearch`'s own header states the rule —
+_none of these repeats the table's own words_ — and two of the four hints broke
+it, in the second clause rather than the opening one the rule was written about:
+
+- _A service starting up looks exactly like this_ against the table's _A service
+  that is starting up looks exactly like this_ — one fact, two wordings.
+- _This is usually brief_ — **verbatim**, in both.
+
+**Neither was reachable by any instrument.** The first is a near-copy; the second
+is a clause inside a longer sentence, so a browser locator matches one node in
+both cases.
+
+The repair is **not** to delete the prospect, and that was the first attempt and
+was wrong: search's hint is the input's `aria-describedby`, so a listener in the
+field may never reach the table and `FRONTEND-STATE.md` §4's _say whether waiting
+helps_ has to survive there. What the three sentences do instead is say it
+**about search** — _Search comes back when it does_, _asking again will not bring
+it back_ — where the table says it about the universe and its own button. Same
+obligation, each surface's own grammar, and no clause a reader meets twice.
+
+It is now `pnpm invariants`' **`search-and-the-universe-share-no-words`**, with a
+`pnpm break` entry that restores the tree exactly as it shipped. The window is
+**four words**, measured across the broken tree and the repaired one rather than
+argued — the first version used six, from reasoning, and went green on the defect
+it was written to catch.
+
+#### C. Two retry controls, one name — a reversal trigger that had already fired
+
+[`SEARCH-AND-SELECTION.md`](../story-11-security-search-and-selection/SEARCH-AND-SELECTION.md)
+§6 decided _one retry per failure per screen, owned by the surface that owns the
+data_, and wrote the trigger: **the first screen where the two surfaces read
+different fetches.** It fired the day the bar panel landed beside the tracked
+universe — `GET /securities` and `GET /market-data/bars` are two failures and
+each owes its own control — and nobody recorded it. So a wholly unreachable
+backend puts two controls on the Security Explorer, which is the rule holding
+rather than breaking.
+
+**What nobody wrote down is that two controls owe two names.** Anyone moving by
+control heard _Try again, button_ twice, with nothing to tell them apart and two
+different questions behind them. Each now carries its subject in its accessible
+name; the visible words are unchanged and are still a substring of the label,
+which is WCAG 2.5.3 and is what keeps a voice driver's "try again" reaching
+either control.
+
+**An `aria-label` rather than a visually-hidden suffix, and that was measured
+rather than preferred.** The suffix works on screen and not in the name: the
+accessible-name computation trims each text node before joining them, so `Try
+again` + ` — the price series` came out as `Try again— the price series`, with
+the space gone. Two tests were written against a name the product did not have
+before the measurement was taken.
+
+#### D. One screen, two apostrophes
+
+With the backend unreachable, `/securities/NVDA` drew _Nothing answered at the
+service’s address_ four inches under _How unusual this security's behaviour is
+right now_ — one typographic, one straight, in the same size and colour. The
+same sentence existed in the tree twice, once each way: `BackendIndicator`'s
+_the service's address_ against `UniverseTable`'s _the service’s address_.
+
+Fourteen occurrences in all, **nine of them in the workshop grids where a person
+reviews the language side by side**. This product already sets curly double
+quotes, em dashes and a real ellipsis, so the house style was settled and only
+the apostrophes had escaped it. It typechecks, it lints, it renders, and every
+assertion about it matched whichever glyph the spec was written with — so it is
+now `pnpm invariants`' **`one-apostrophe-in-the-product-voice`**, with its own
+break. Scoped to `.tsx` under `components/` and `routes/`, **stories included**,
+which is the one place a check of this shape departs from its siblings and is
+argued in the check. Curated company names are backend data and outside it:
+_Domino's_ is what a vendor calls itself, not something we wrote.
+
+### 12.4 What the set found to be **right**, which is the larger half
+
+- **Six surfaces, six subjects, one failure.** With every request refused, the
+  status strip speaks per deployment, search per control, the identity block per
+  security, the price panel per request, the volume plot per plot, and the table
+  per fetch. Not one of them is about the same thing as another. That is Task
+  2.14.2's grain rule surviving contact with the worst state the epic can
+  produce, and it is the reason the screen reads as an instrument reporting a
+  fact rather than as a broken page.
+- **The rail's three occupants share one voice.** _Still showing…_, _Refreshing —
+  showing…_, _Holding…_ — all three open with what the panel is doing or holding,
+  in one grammar, under one dashed marker, with no colour on any. Compared
+  against each other for the first time here, which is what the task asked; the
+  one difference is that only _refreshing_'s hairline travels, and that is motion
+  meaning work in progress rather than a fourth voice.
+- **The empty answers read as a square.** Whichever case the store puts the price
+  plot in, the volume plot is in the same one, and the schedule sentence is on
+  the price plot only. The third vacancy — _the universe could not be read_ —
+  draws case two and there is **no third treatment to find**, which is the whole
+  content of that state and is now asserted rather than assumed.
+- **No global error screen, anywhere, and it holds structurally.** No fetch in
+  this application throws: every failure is a _value_ a hook stores, so there is
+  no exception to unwind into a boundary. Counted as `role="alert"` across every
+  produced state — zero — and all eight regions are still on the page with every
+  request refused, which is the other way §36 breaks.
+
+### 12.5 What this pass did not repair, with a named owner
+
+- **The defaulted note invites a reader to use a control that has just said it is
+  unavailable.** On `/securities` with the universe down, search says _Nothing to
+  search yet_ and the panel says _Showing a default security. Search for another
+  one above, or open one directly at `/securities/SYMBOL`._ Half the sentence is
+  still true. Recorded rather than repaired: the note's subject is _which
+  security you are looking at_, and coupling it to search's state is a dependency
+  worth naming before introducing. **Trigger: the second sentence in the product
+  that points at another surface's control.**
+- **The masthead's primary navigation is clipped at 390**, reading `Market O`
+  with no affordance saying so. Outside this set — it is the chrome rather than a
+  state — but it is in every screenshot this pass took, so it is written down
+  here rather than seen and forgotten. Owner: Epic 15, or the first story that
+  touches `AppHeader`.
+- **The listening pass.** Every judgement here about what a listener hears was
+  taken from the accessibility tree, which is the data an assistive technology is
+  handed and **not the same thing as hearing it**. The two new accessible names
+  and the volume deferral are the newest entries on that standing list.
+
+### 12.6 Where the pictures are
+
+The canvas: **`Failure and partial states.dc.html`** in the
+`Component library for MarketPulse` project — the set by cause rather than by
+component, which is the arrangement nothing in the tree produces and the only one
+the comparison is possible in. Eight sections; §01 is the six-voice screenshot,
+§08 applies the four tests to the set. **Test 4, _does it feel alive_, is
+deferred for the sixth time and the count is stated as a number**: everything in
+this set is static by construction, a failure that animated would be an alarm,
+and the one moving thing in it — the refreshing hairline — is already the correct
+exception. The position stays reserved for Epic 3's live feed, where §36's
+_displaying data through 10:42:17_ is a failure sentence that changes while
+somebody watches.

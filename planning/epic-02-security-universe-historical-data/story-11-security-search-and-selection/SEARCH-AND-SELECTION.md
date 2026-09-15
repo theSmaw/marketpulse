@@ -911,6 +911,25 @@ own control. Epic 3's live feed is the likely first. Task 2.11.7's shell did
 **not** fire it — the table stays on both addresses (§1's amendment), so every
 route that can hold this failure still has the control on it.
 
+> **Amended 2026-09-15 by Task 2.14.7 — the trigger fired, and it was not Epic 3.** It fired the day Story 2.12's bar panel landed on the Security Explorer
+> beside this table: `GET /securities` and `GET /market-data/bars` are two
+> fetches, so a wholly unreachable backend is two failures and the screen
+> correctly carries **two** `Try again` controls. The rule held; nobody wrote
+> down that it had started applying.
+>
+> **And two controls owe two names.** Both read `Try again`, so anyone moving by
+> control heard it twice with nothing to tell them apart and two different
+> questions behind them. Each now carries its subject in its accessible name —
+> `Try again — the price series`, `Try again — the tracked universe` — with the
+> visible words unchanged and still a substring of the label (WCAG 2.5.3). The
+> browser assertion that used to count `Try again` on the page counts
+> `/^Try again/` instead, so it still measures _how many controls this screen
+> offers_ rather than how many share one spelling.
+>
+> **The rule's next trigger is unchanged and is now about names rather than
+> counts:** a third surface on one screen reading a third fetch. See
+> `PROVENANCE.md` §12.3 C.
+
 ---
 
 ## 7. The keyboard flow, and what a listener hears — walked 2026-09-11 by Task 2.11.9

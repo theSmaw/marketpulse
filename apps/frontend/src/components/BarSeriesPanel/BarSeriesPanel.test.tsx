@@ -321,7 +321,9 @@ describe("BarSeriesPanel", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "Try again" });
+    const button = screen.getByRole("button", {
+      name: "Try again — the price series",
+    });
     button.click();
     expect(onRetry).toHaveBeenCalledTimes(1);
 
@@ -368,7 +370,9 @@ describe("BarSeriesPanel", () => {
     // find out whether it is still true, and put it back a moment later — which
     // reads as the thing breaking twice.
     expect(screen.getByText(/usually temporary/, VISIBLE)).toBeTruthy();
-    const button = screen.getByRole("button", { name: "Trying again…" });
+    const button = screen.getByRole("button", {
+      name: "Trying again… — the price series",
+    });
     expect(button.hasAttribute("disabled")).toBe(true);
   });
 
@@ -681,7 +685,9 @@ describe("a window change", () => {
     // The server's own sentence, verbatim, beside a chart of a different
     // window — and no control, because waiting never helps.
     expect(screen.getByText(/trading calendar/, VISIBLE)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Try again — the price series" }),
+    ).toBeNull();
     expect(screen.getByText("5D Open", VISIBLE)).toBeTruthy();
   });
 
@@ -708,9 +714,9 @@ describe("a window change", () => {
     // **Exactly one.** The rail carries it; the body below it is a correct
     // answer to a window that did not fail, so a second control there would
     // offer to re-read something that worked.
-    expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(
-      1,
-    );
+    expect(
+      screen.getAllByRole("button", { name: "Try again — the price series" }),
+    ).toHaveLength(1);
     expect(screen.getByText("5D Open", VISIBLE)).toBeTruthy();
   });
 
@@ -826,8 +832,8 @@ describe("a window change", () => {
     );
 
     expect(screen.getByText("5D Open", VISIBLE)).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(
-      1,
-    );
+    expect(
+      screen.getAllByRole("button", { name: "Try again — the price series" }),
+    ).toHaveLength(1);
   });
 });

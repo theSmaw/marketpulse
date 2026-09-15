@@ -67,7 +67,7 @@ const INK: readonly Specimen[] = [
   },
   {
     name: "--chart-reference",
-    why: "The dashed rule at the window's opening close. The side of it the line finishes on is the direction, which is the channel that is not colour.",
+    why: "The dashed rule at the window’s opening close. The side of it the line finishes on is the direction, which is the channel that is not colour.",
   },
   {
     name: "--chart-series",
@@ -79,7 +79,7 @@ const INK: readonly Specimen[] = [
   },
   {
     name: "--chart-point",
-    why: "The ring around the disc on the line. The fill is the panel's own ground punched through the series, so the disc reads as a hole and a near-black outline has something to sit outside of.",
+    why: "The ring around the disc on the line. The fill is the panel’s own ground punched through the series, so the disc reads as a hole and a near-black outline has something to sit outside of.",
   },
   {
     name: "--chart-uncovered",
@@ -109,13 +109,13 @@ const WASHES: readonly Specimen[] = [
 const GEOMETRY: readonly Specimen[] = [
   {
     name: "--chart-series-width",
-    why: "Measured against both ends of the region's width range: 1px disappears at 1,019px, 2px is a solid mass at 342px.",
+    why: "Measured against both ends of the region’s width range: 1px disappears at 1,019px, 2px is a solid mass at 342px.",
   },
   { name: "--chart-height", why: "The plot at 600px of region and above." },
   { name: "--chart-height-compact", why: "Below it." },
   {
     name: "--chart-gutter",
-    why: "The value scale's width, on the right, because right is where the latest price is.",
+    why: "The value scale’s width, on the right, because right is where the latest price is.",
   },
   { name: "--chart-gutter-compact", why: "Below 600px of region." },
   {
@@ -194,7 +194,7 @@ function Marks({ wash, shape }: { wash: string; shape: string }) {
       viewBox="0 0 480 128"
       className={styles.plot}
       role="img"
-      aria-label="A specimen of the chart's marks: gridlines, a session seam, a reference rule, the series line, a crosshair with its point, and the uncovered region."
+      aria-label="A specimen of the chart’s marks: gridlines, a session seam, a reference rule, the series line, a crosshair with its point, and the uncovered region."
     >
       <rect
         className={styles.uncovered}

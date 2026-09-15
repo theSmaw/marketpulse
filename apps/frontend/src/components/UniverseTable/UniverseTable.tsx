@@ -1470,7 +1470,39 @@ function FailedState({
          * word changes and the control stays where the user left it.
          */
         <p className={styles.actions}>
-          <Button variant="secondary" icon="refresh" onClick={onRetry}>
+          {/*
+           * **The subject is in the accessible name** (Task 2.14.7).
+           *
+           * A backend that is wholly unreachable puts *two* `Try again`
+           * buttons on the Security Explorer — this one and the price panel's
+           * — and until this they had the same accessible name. Anyone moving
+           * by control heard *Try again, button* twice, with nothing to tell
+           * them apart and two different questions behind them.
+           *
+           * **This is not the _one retry per failure per screen_ rule being
+           * broken; it is that rule's trigger having fired unrecorded.**
+           * `SEARCH-AND-SELECTION.md` §6 wrote the trigger as *the first
+           * screen where the two surfaces read different fetches*, and it
+           * fired the day the bar panel landed beside this table:
+           * `GET /securities` and `GET /market-data/bars` are two failures and
+           * each owes its own control. What nobody wrote down was that two
+           * controls owe two names.
+           *
+           * **`aria-label` rather than a visually-hidden suffix**, and that
+           * was measured rather than preferred: the suffix works on screen and
+           * not in the name, because the accessible-name computation trims
+           * each text node before joining them, so `Try again` + ` — the
+           * tracked universe` came out as `Try again— the tracked universe`
+           * with the space gone. The visible words are still a substring of
+           * the label, which is what WCAG 2.5.3 asks and what keeps a voice
+           * driver's "try again" reaching this control.
+           */}
+          <Button
+            aria-label={`${retrying ? "Trying again…" : "Try again"} — the tracked universe`}
+            variant="secondary"
+            icon="refresh"
+            onClick={onRetry}
+          >
             {retrying ? "Trying again…" : "Try again"}
           </Button>
         </p>

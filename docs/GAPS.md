@@ -46,6 +46,8 @@ Every one is break-verified through `pnpm break`:
 | Case one's volume headline has one home            | `no-volume-history-sentence-twice` |
 | The coverage sentence has one home                 | `coverage-sentence-twice`          |
 | The feed's words are written once                  | `feed-words-in-a-renderer`         |
+| Every apostrophe a reader sees is the same one     | `straight-apostrophe-on-screen`    |
+| Search and the universe share no clause            | `search-repeats-the-table`         |
 
 **The table is the count.** It read _seven_ until 2026-09-15 and the list had
 already grown to eight — `one-home-for-the-empty-explanation` shipped on
@@ -60,6 +62,14 @@ than four checks. `one-home-for-the-empty-explanation` guards **four** sentences
 since 2026-09-15 — two empty answers × two plots (`PROVENANCE.md` §6.3) — and a
 check guarding four literals owes four breaks, because a break proves one
 substitution and not a loop. The rows are the breaks; the invariant is one.
+
+**The last two rows are Task 2.14.7's**, and both hold claims nothing could see.
+A straight apostrophe against a typographic one typechecks, lints, renders and
+matches whichever glyph the assertion was written with; a search hint repeating
+the tracked universe's own clause is one node to a browser locator when the copy
+sits inside a longer sentence. Both were found by producing the state and
+**looking at the screen**, which is the third time this document has recorded
+that as the only instrument that worked.
 
 **One of those seven had already rotted before it was mechanised**, which is the
 argument for the migration in a sentence: the five-minute-ceiling entry told a
@@ -232,6 +242,37 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
    - **That a market instant is ever rendered in market time by the browser suite CI runs.** Every assertion of the form _this timestamp carries `EDT`/`EST`_ is now scoped to an answer that has an instant in it, and **a bare store has none**: the readout checks `test.skip` with no bars, the coverage sentence needs a `partial`, and as of 2026-09-15 the store vacancy names no window. So on CI — 518 securities, zero bars — nothing in a browser checks that a timestamp is not being rendered in the runner's own timezone, which is the defect the check exists for and the one a machine in another zone is most likely to introduce. This is not a regression in the product; it is a coverage claim that was **quietly resting on an incidental string** — the window vacancy's requested range — and stopped when that sentence correctly stopped carrying one. Re-measure: `pnpm store:bare`, drive the pair at it, and read `security-series.spec.ts`'s store-vacancy branch; the assertion that survives there is that the page claims _no_ window, not that it formats one. The mechanical repair, if it is wanted, is a spec that asserts market time against a surface with no data dependency — the market clock in the status strip is the only candidate, and it prints `ET` rather than `EDT`.
 
    - **That `No shares changed hands anywhere in the window.` stays true when a series names two feeds.** It is the one user-facing sentence in the product making a claim about **the market** rather than about our store, and it is correct today for the reason the pass records: every stored bar is the consolidated tape, so _anywhere_ means every US venue. The moment Epic 3 stitches an IEX tail onto stored bars, the sentence is a single venue's silence reported as the whole market's — the exact failure `PRODUCT_SPEC.md` §7.1 forbids, in the one place a reader would never look for it. `PROVENANCE.md` §11 records it as read-and-left with this trigger. Re-measure: when a series can carry two feeds, render `Market/VolumeReading` against `twoFeedStitchView()` and read the sentence.
+
+   Three added 2026-09-15 by Task 2.14.7's pass over the epic's failure states,
+   and all three are claims about **a screen** rather than about a module —
+   which is why the pass that found them was a person opening the page with
+   every request refused, and why the two that could be mechanised were.
+
+   - **That every named region on a screen says something when its subject is
+     missing.** The Volume region rendered nothing at all for a refused or
+     failed series until this pass — a landmark with a visible heading and an
+     empty box — and it was correct in its own component, reviewed in its own
+     story, and asserted by a unit test that checks no `<svg>` is drawn. There
+     is no general check for this: a region whose content is legitimately
+     conditional looks identical to one whose content silently disappeared.
+     `e2e/specs/backend-failure-states.spec.ts` now asserts all eight regions
+     are present **and** that the Volume region carries its deferral, which
+     covers this screen and no other. Re-measure: refuse every request with
+     `route.abort` and read each region's contents, not just its heading.
+   - **That the defaulted note's invitation is still available.** `/securities`
+     with the universe down says _Showing a default security. Search for
+     another one above_ four inches under search's own _Nothing to search yet_.
+     Half the sentence is true — the address half — and coupling the note to
+     search's state is a dependency `PROVENANCE.md` §12.5 declines to
+     introduce. Re-measure: refuse `GET /securities` and open `/securities`.
+     **Trigger: the second sentence in the product that points at another
+     surface's control.**
+   - **That the primary navigation is legible at 390.** It reads `Market O` —
+     clipped, with no affordance saying so — in every screenshot this pass
+     took. Outside the failure set, because it is the chrome rather than a
+     state, and outside every browser assertion, because the links are present
+     and reachable. Re-measure: `pnpm probe /securities/NVDA --widths 390` and
+     look at the masthead. Owner: the first story that touches `AppHeader`.
 
 4. **Prose figures.** Documentation publishes numbers nothing regenerates. `pnpm links` closed the _link_ half of this gap; the figures half cannot be closed, because a figure in a sentence has no referent.
 5. **Schemas.** `verify.yml`, `deploy.yml`, `dependabot.yml`, `staticwebapp.config.json` and `compose.yaml` are all _formatted_ by Prettier and validated by nothing.

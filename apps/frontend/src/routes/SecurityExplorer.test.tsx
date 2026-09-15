@@ -639,7 +639,7 @@ describe("the Security Explorer shell", () => {
     // each holds a drawing that says what the sentence said in less space. That
     // is a different claim from *its sentence is unique* and is asserted above.
     for (const opening of [
-      "How unusual this security's behaviour",
+      "How unusual this security’s behaviour",
       "This security measured against",
       "Which securities move with this one",
       "Primary-source evidence from SEC EDGAR",

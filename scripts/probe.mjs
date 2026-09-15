@@ -150,7 +150,7 @@ for (const viewport of VIEWPORTS.filter(
 
   console.log(`=== ${String(viewport.width)} × ${String(viewport.height)}`);
 
-  if (measured.scope === null) {
+  if (!measured.found) {
     console.log(`  ⚠ no region named "${String(within)}" on this page\n`);
     sawAnError = true;
   } else {
@@ -224,7 +224,14 @@ function measureLayout({ regionName, everything }) {
           (element) => named(element) === regionName,
         ) ?? null);
 
-  if (scope === null) return { scope: null, elements: [] };
+  // **`found` and not the scope itself**, because the scope is a DOM node and
+  // a `page.evaluate` boundary only carries serialisable values. Returning the
+  // *name* instead read as an answer and was not one: with no `--within` the
+  // name is `null`, which is indistinguishable from the region-not-found
+  // sentinel — so `pnpm probe /securities/NVDA`, the form this script's own
+  // usage text leads with, reported `no region named "null"`, printed no
+  // measurements and exited 1. A boolean cannot collide with an absent name.
+  if (scope === null) return { found: false, elements: [] };
 
   const MODULE_CLASS = /^_(?<name>[A-Za-z][A-Za-z0-9]*)_[a-z0-9]+_\d+$/;
 
@@ -278,7 +285,7 @@ function measureLayout({ regionName, everything }) {
     })
     .filter((element) => element !== null);
 
-  return { scope: regionName, elements };
+  return { found: true, elements };
 }
 
 /** One element, as a line. */

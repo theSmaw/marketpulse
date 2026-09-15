@@ -726,6 +726,22 @@ _No history stored for NVDA yet_ and _No bars stored for this window_ get the sa
 
 **The one word that came from a check rather than from the design.** The volume headline says _volume history_ where _volume_ would have read the same, because `pnpm invariants` anchors on a literal and `No volume stored for ` is a prefix of the window sentence — so the guard could not have told the two homes apart. It is recorded here rather than left in a commit message because the next person to shorten it will be right about the prose and wrong about the guard.
 
+### A surface that owns nothing defers, and says so in one line — added 2026-09-15 by Task 2.14.7
+
+**A region on a screen whose subject has gone missing must say something, and what it says is either an answer or a deferral — never nothing.** An empty named landmark reads as the half that broke, especially beside a sibling that has just explained itself.
+
+The distinction between the two is ownership, and it is decided by the same grain test the provenance spine uses: **the surface that owns the data owns the account of it.** Everything else points, once, and stops.
+
+A deferral is one line, with the ring marker and the secondary ink — the quieter half of the pair, because it is a pointer rather than an answer — and it is bound by three rules that are the whole of the treatment:
+
+- **It never explains.** A second account of one failure is one failure reported twice, which is the defect the four empty literals above exist to avoid, arriving from the other direction.
+- **It never carries a control.** The screen's one retry for a failure belongs to the surface that owns it. Two spellings of one action asks a reader to choose between them.
+- **It names its target, never its position.** _The Price region says why_, not _above_: a region is a landmark with a stable accessible name, and a layout claim in a sentence stops being true at 390.
+
+**It is spoken, unlike the empty answers beside it**, and that is a consequence rather than an exception. `ChartVacancy` is `aria-hidden` because the plot's text alternative already says all of it; a deferral is drawn in a state where the alternative says nothing, so hiding it would leave the region silent to a listener as well as blank to a reader. **The test is whether a spoken twin exists, not what the surface is.**
+
+Two surfaces speak this way today: search deferring to the tracked universe (Story 2.11), and the volume plot deferring to the Price region (Task 2.14.7). The shape was shipped twice before it was a rule, which is the usual sign that it is one.
+
 ### Room reserved: Epic 3's live row
 
 The §36 sentence — _Live feed disconnected — displaying data through 10:42:17_ — is a provenance claim that changes while somebody is watching. It belongs in the ledger as a **first row above the stretches**, carrying a marker of its own. Reserved now for the reason the anomaly lane, the comparison series and the filing lane were: three retrofits cost more than three sentences.

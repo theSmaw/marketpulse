@@ -644,11 +644,17 @@ describe("when the universe could not be read", () => {
     expect(
       screen.getByText(/the tracked universe did not answer/),
     ).not.toBeNull();
-    // Retryable, so the sentence says waiting may work — and points at the one
-    // control on the screen that asks again rather than growing a second one.
-    expect(
-      screen.getByText(/A service starting up looks exactly like this/),
-    ).not.toBeNull();
+    // Retryable, so the sentence says waiting may work — and points at the
+    // control that asks again rather than growing a second one.
+    //
+    // **The prospect is about *search*, not about the service** (Task 2.14.7).
+    // It said *a service starting up looks exactly like this* until then,
+    // which is the tracked universe's own sentence two blocks down the same
+    // page, reworded by two words — one failure explained twice. What each
+    // surface may still say is whether waiting helps, in its own grammar,
+    // because this hint is the input's description and has to stand alone for
+    // a listener who never reaches the table.
+    expect(screen.getByText(/Search comes back when it does/)).not.toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
   });
 
@@ -657,7 +663,7 @@ describe("when the universe could not be read", () => {
 
     expect(field.getAttribute("aria-disabled")).toBe("true");
     expect(
-      screen.getByText(/asking again would produce the same answer/),
+      screen.getByText(/asking again will not bring it back/),
     ).not.toBeNull();
   });
 

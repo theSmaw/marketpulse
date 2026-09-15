@@ -667,7 +667,9 @@ test("a dependency that is down says so, and the retry recovers the page", async
   await expectNoAxeViolations(page, "the securities route, temporarily down");
 
   unavailable = false;
-  await page.getByRole("button", { name: "Try again" }).click();
+  await page
+    .getByRole("button", { name: "Try again — the tracked universe" })
+    .click();
 
   // The dependency came back, so the answer changes without a navigation.
   await expect(

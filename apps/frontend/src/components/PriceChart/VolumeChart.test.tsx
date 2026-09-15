@@ -108,7 +108,7 @@ describe("without a measurement", () => {
   });
 
   it.each(["refusedUnknownSymbol", "unavailable"] as const)(
-    "draws nothing at all for %s, which has no window to be about",
+    "draws no picture at all for %s, which has no window to be about",
     (fixture) => {
       const { container } = render(
         <Chart view={barSeriesFixtureView(fixture)} />,
@@ -120,6 +120,44 @@ describe("without a measurement", () => {
       expect(container.querySelector("svg")).toBeNull();
     },
   );
+
+  it.each(["refusedUnknownSymbol", "unavailable"] as const)(
+    "hands the reader to the Price region for %s rather than saying nothing",
+    (fixture) => {
+      render(<Chart view={barSeriesFixtureView(fixture)} />);
+
+      // **The region is not left empty** (Task 2.14.7). Until then these two
+      // states rendered `null`, so the Volume region was a named landmark with
+      // a visible heading and nothing under it, beside a Price region that had
+      // just explained itself in three lines. A reader meeting that reads the
+      // blank half as the half that broke.
+      expect(
+        screen.getByText("No volume to draw. The Price region says why."),
+      ).not.toBeNull();
+    },
+  );
+
+  it("offers no control of its own where it defers", () => {
+    render(<Chart view={barSeriesFixtureView("unavailable")} />);
+
+    // One failure, one retry, and it belongs to the surface that owns the
+    // request. A second here would ask a reader to choose between two
+    // spellings of one action.
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("speaks the deferral rather than hiding it from a listener", () => {
+    render(<Chart view={barSeriesFixtureView("unavailable")} />);
+
+    // Unlike `ChartVacancy` this is **not** `aria-hidden`, and the reason is
+    // that there is no spoken twin to collide with: `volumeAlternative`
+    // answers both these states with `null`, so hiding this would leave the
+    // region silent as well as blank.
+    const sentence = screen.getByText(
+      "No volume to draw. The Price region says why.",
+    );
+    expect(sentence.closest('[aria-hidden="true"]')).toBeNull();
+  });
 });
 
 describe("with a measured box", () => {

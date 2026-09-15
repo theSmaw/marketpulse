@@ -20,7 +20,7 @@ import { Region } from "./Region.js";
 class Throws extends Component {
   constructor(props: Record<string, never>) {
     super(props);
-    throw new Error("Story: the region's contents failed to render");
+    throw new Error("Story: the region’s contents failed to render");
   }
 
   override render() {
