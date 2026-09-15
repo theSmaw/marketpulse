@@ -70,8 +70,21 @@ naming the pino reversal above, which fires here.
 
 **Then close.**
 
-- **The harness is gone.** Deleted, and the tree byte-identical outside
-  `planning/`. Check it rather than assert it.
+- **The harness is gone — but not before the weekend window, which this task now
+  holds.** Deleted, and the tree byte-identical outside `planning/`. Check it
+  rather than assert it. **Added 2026-09-15 by Task 3.1.3**: of that task's four
+  windows, the **weekend** could not be taken — the next one closes at 20:00 ET
+  on Friday 2026-09-18 and opens at 04:00 ET on Monday 2026-09-21 — and it is
+  parked here as a **constraint on the deletion** rather than as a new task,
+  deliberately. A task whose trigger is a date is a task that never fires; this
+  repository has the scar, in the design test deferred seven times because "its
+  trigger is the calendar rather than a condition, so nothing fires". A
+  constraint on a task that **cannot complete without discharging it** does
+  fire. So: **do not delete `~/marketpulse-live-spike/` until either the weekend
+  hold has been taken and written into `LIVE-DATA.md` §6, or this story has
+  closed and recorded the weekend as unmeasured with Epic 3 named as owner.**
+  The hold is unattended — the capture writes itself to disk every sixty seconds
+  — so it costs somebody a command on Saturday morning, not a morning.
 - **No credential appears anywhere in the repository**, checked rather than
   assumed — grep the tree for the key's own bytes and for the shape of one, and
   record that the check ran and what it covered. Acceptance criterion 4 is
@@ -96,14 +109,28 @@ naming the pino reversal above, which fires here.
   figure this story has now taken for real. Correct the live claims, give any
   ADR a **dated amendment** rather than a rewrite, and leave historical records
   standing.
-- **Hand Story 3.2 the two constraints this story measured but does not own.**
-  Both are in [`LIVE-DATA.md`](LIVE-DATA.md) §4 and neither is one of the eight
-  decisions, which is exactly how a measured constraint gets lost: **Node's
-  built-in `WebSocket` cannot see a ping or a pong**, so a client built on the
-  global can do no ping-based liveness detection (§4.6); and **the close code
-  carries no intent** — a clean close reads `1006` — so the client must carry
-  its own (§4.2). Name them in the close so Story 3.2 meets them in a hand-off
-  rather than in a debugging session.
+- **Hand Story 3.2 the three constraints this story measured but does not own.**
+  All three are in [`LIVE-DATA.md`](LIVE-DATA.md) and none is one of the eight
+  decisions, which is exactly how a measured constraint gets lost. **Amended
+  2026-09-15 by Task 3.1.3: there are three rather than two, and the first has
+  been promoted rather than restated.**
+  - **The server heartbeats every 54 seconds** (§6.2), on a socket subscribed to
+    nothing as much as on one subscribed to all 518. That is the signal that
+    tells a quiet feed from a dead one out of hours, and it means this product
+    does **not** need a keepalive of its own.
+  - **Node's built-in `WebSocket` cannot see a ping or a pong** (§4.6). In Task
+    3.1.2 this was a note about why the instrument used `ws@8`. After §6.2 it is
+    **load-bearing for the product**: a client on the global can neither observe
+    the heartbeat nor answer it, so it forfeits the only liveness signal
+    available at 3am and falls into Task 3.1.5's rude-client case by
+    construction. Do not let this reach Story 3.2 as trivia; it decides the
+    library.
+  - **The close code carries no intent** — a clean close reads `1006` — so the
+    client must carry its own (§4.2).
+
+  Name all three in the close so Story 3.2 meets them in a hand-off rather than
+  in a debugging session.
+
 - **Name Story 3.11's owed re-measure as a condition.** Every latency figure in
   this story was taken from a machine in Asia/Singapore against an `eastus2` deployment,
   so the provider's share of `PRODUCT_SPEC.md` §28 is an **upper bound** rather
@@ -122,7 +149,9 @@ naming the pino reversal above, which fires here.
 ## Done when
 
 - Decisions 7 and 8 are settled in `LIVE-DATA.md` with the trigger walk shown.
-- The harness is deleted and the tree is byte-identical outside `planning/`.
+- The harness is deleted and the tree is byte-identical outside `planning/` —
+  **and the weekend window was either taken first or recorded as unmeasured with
+  a named owner**, per the constraint above.
 - The credential check ran, and what it covered is recorded.
 - `LIVE-DATA.md` carries all eight decisions, an opening summary, a
   not-measured section, and dated instrument-named figures throughout.

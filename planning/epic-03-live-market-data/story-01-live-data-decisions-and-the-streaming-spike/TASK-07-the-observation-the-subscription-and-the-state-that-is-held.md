@@ -56,6 +56,22 @@ universe_, and the upstream half of that is now measured rather than open:
   server is authoritative about what we hold: decision 4's state object should
   **reconcile against the ack** rather than maintain a count and hope.
 
+**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.7. It
+sharpens the reconciliation rule immediately above rather than contradicting it,
+and the sharpening is the difference between a reconciler that works and one
+that reports a permanent mismatch:
+
+- **The acknowledgement contains channels nobody asked for.** A subscription to
+  `trades` comes back holding `corrections` and `cancelErrors` for the same
+  symbols, attached by the server and never requested. So the ack is still the
+  authoritative full state, but **a reconciler that diffs the whole ack against
+  the request is wrong on the very first subscription, every time**. Reconcile
+  **per channel this product cares about**, and ignore keys we never asked for.
+- **And it is one more small argument for decision 1 settling on bars.** A
+  `trades` subscription silently carries two message types this product has
+  never seen and cannot easily provoke — a correction and a cancellation need a
+  real one to occur. Under bars, none of it is reachable.
+
 ## Work
 
 Settle each in `LIVE-DATA.md`, with alternatives weighed, the measurement that

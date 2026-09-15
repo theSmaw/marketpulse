@@ -71,6 +71,30 @@ both of these change how figure 8 must be _quoted_ rather than how it is taken:
   and four market proxies. Size against the real figure, never against §6's
   "roughly 100".
 
+**Added 2026-09-15 by Task 3.1.3**, which took the shut-market windows and
+handed this task two things it did not previously carry —
+[`LIVE-DATA.md`](LIVE-DATA.md) §6:
+
+- **This capture runs to 16:30 ET at the earliest, not to the bell.** Task 3.1.3
+  could not take **after hours** or the **close boundary** without holding the
+  single permitted connection across the whole session, which is exactly what
+  its own placement note promised not to do. So they are this task's, and they
+  cost it half an hour rather than a window: the close boundary to the second,
+  what the channels do between 16:00 and 16:30, and the last bar's instant, all
+  in the same file as the session they follow. **A capture that stops at 16:00
+  answers none of them** and there is no second chance until tomorrow.
+- **Check that nothing else is holding the socket before starting.** The free
+  plan allows exactly one connection — `LIVE-DATA.md` §5 records that measuring
+  a duplicate by accident "is how three of these figures would be wrong". That
+  was a note about sequencing two short runs; it is now a real hazard, because
+  Task 3.1.3 may have an **unattended multi-hour hold** running (its weekend
+  window, per §6.1). An overlap corrupts both captures and neither says so.
+- **A `trades` subscription silently attaches `corrections` and `cancelErrors`**
+  for the same symbols, unrequested (§6.7). This task already records "every
+  control, status, correction, cancel or subscription frame the server emits
+  unprompted" — expect those two, and note that their shapes need a real
+  correction or cancellation to appear at all, so absence here is not evidence.
+
 ## Work
 
 Hold a connection across a full regular session with the whole universe
@@ -128,6 +152,10 @@ instrument, in the shape that lets it be re-taken.
   worst cases, and compared against the 82.8%/43.1% stored figures.
 - Anything a single session could not answer is listed as unmeasured with the
   reason, in the shape of `ALPACA.md` §10.
+- **The close boundary is recorded to the second** — when traffic stops relative
+  to 16:00 ET, by our clock with this capture's own offset applied — and the
+  16:00–16:30 stretch is described. This is Task 3.1.3's fourth window,
+  delegated here.
 - `pnpm verify` passes. No credential written.
 
 ## Notes
