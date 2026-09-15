@@ -52,7 +52,11 @@ A user can select one of the tracked securities and inspect its historical price
 ### Scope
 
 - Security domain model
-- Initial ~100-security universe
+- ~~Initial ~100-security universe~~ — **delivered at 518** (Story 2.8): the
+  sizing was re-taken once the WebSocket spike proved minute-bar channels are
+  exempt from Alpaca's 30-symbol cap, and the list is now allocated from a
+  published index constituent list rather than hand-picked. See `UNIVERSE.md`
+  §10
 - ETF/sector metadata
 - Market-data provider abstraction
 - Managed Postgres provisioning — tier and networking mode are irreversible
@@ -65,10 +69,23 @@ A user can select one of the tracked securities and inspect its historical price
 - Basic volume chart
 - Time-window selection
 - Market-data provenance display
+- Trading calendar and market-time module — added during delivery (Story 2.5)
+- Frontend market-data state and fetch layer — added during delivery (Story 2.10)
+- Bar-coverage ledger and nightly backfill — added during delivery (Story 2.8)
 
 ### Exit criteria
 
 A user can search for a security such as NVDA, open it, and inspect recent historical price and volume data.
+
+**Closed 2026-09-15**, all fourteen stories, the exit criterion walked by a
+person on the deployed site at three viewports and asserted on every deploy from
+here on — see `epic-02-security-universe-historical-data/EPIC.md`. Three items
+were added to its scope during delivery and are recorded above, beside the three
+added at the epic's start because Epic 1 named them and owned none of them; one
+scope item was delivered at five times the size it was written at. What ships
+open, each with a named owner rather than a story number, is in that file's
+closing table — and the three that land on a later epic are carried in that
+epic's own `EPIC.md` rather than only here.
 
 ---
 
@@ -95,6 +112,16 @@ Tracked securities update automatically as live market observations arrive.
 - Live price updates in the UI
 - Market timestamp / LIVE indicator
 - Continuous-connection cost envelope — the idle-rate estimate does not transfer
+- **A tape column on `market_bars`** — added 2026-09-15 from Epic 2's close. The
+  store records provenance once per `(security, timeframe)` and a stored IEX bar
+  would be described as SIP by a row that cannot say otherwise. A migration, not
+  a wording change
+- **The two-feed ledger, produced rather than simulated** — the sentence
+  invariant 6 exists for, reachable today only through `twoFeedStitchView()`
+- **The live feed's own honest label** — the free plan is asymmetric, and
+  Epic 2's `All US exchanges` must not be carried onto an IEX tail
+- **The motion vocabulary** — design test 4, _does it feel alive_, deferred here
+  by name after seven refusals, against real moving numbers
 
 ### Exit criteria
 
@@ -379,6 +406,11 @@ Natural-language intent dynamically changes the analytical workspace.
 - Workspace-command history
 - Undo/redo
 - User-pinned components
+- **A listening pass with a real screen reader, before this epic starts** —
+  added 2026-09-15 from Epic 2's close, which owned it to "a person with a
+  screen reader, before Epic 11" against a roadmap whose only accessibility
+  review is Epic 15's. It is an entry condition rather than a task: this is
+  where a model starts driving a live region a person was driving
 
 ### Exit criteria
 

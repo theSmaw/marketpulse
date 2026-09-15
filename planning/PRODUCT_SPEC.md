@@ -258,6 +258,22 @@ plus a small number of useful ETFs such as:
 
 We should begin development with roughly 100 securities.
 
+**Amended 2026-09-15, after Epic 2.** That instruction was honoured and is now
+discharged: Story 2.3 shipped **101** securities, and Story 2.8 re-took the
+sizing at **518** once Story 2.7's WebSocket spike had measured that Alpaca's
+"limited to 30 symbols" applies to trades and quotes and **not to minute-bar
+channels** — 1,500 symbols were accepted in 305 ms. The number above stays as
+the instruction the work started from; **the universe is 518 — the S&P 500 as
+published (503 equities) plus eleven sector SPDRs and four market proxies.**
+That is three equities past this section's own `100–500` band, and the band is
+not amended: the overshoot is the index's published membership rather than a
+choice, and re-deciding it would mean dropping three constituents by hand. The
+reasoning, and the sector floors and ceilings the list is built to, are in
+[`UNIVERSE.md`](epic-02-security-universe-historical-data/story-03-security-domain-model-and-tracked-universe/UNIVERSE.md)
+§10. Anything sizing work against "roughly 100" — a per-row surface, a breadth
+denominator, a payload — should size against the real figure and re-read it
+rather than cite this line.
+
 The architecture should support expansion without requiring a redesign.
 
 The smaller live universe keeps data costs, browser load and historical processing manageable while we establish the core architecture.
@@ -1717,6 +1733,14 @@ Do **not** begin with AI.
 The first vertical slice should be:
 
 > **Display 100 securities, receive live price updates, calculate an explainable anomaly score, and click a security to inspect the underlying price/volume evidence.**
+
+**Amended 2026-09-15, after Epic 2.** Two of the four clauses are done and the
+number is stale. The universe is **518** rather than 100 (§6 carries the
+re-sizing), securities are displayed, and a security can be clicked to inspect
+its price and volume evidence — Epic 2's exit criterion, walked on the deployed
+site. **Live price updates are Epic 3 and the explainable anomaly score is
+Epic 5**, in that order, and the milestone's real content — that this slice comes
+before any AI — is unchanged and still the ordering the roadmap follows.
 
 That establishes the domain model on which almost everything else depends.
 

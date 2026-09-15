@@ -58,8 +58,24 @@ gating a merge as the `e2e` job, ten deployed journeys running after one as
 `check-deployed`, an axe accessibility gate before the merge and an axe
 **report** after it, and `docs/adr/0013-*`. So the tool, the specs' home, the CI
 position, the post-deploy position and the rules for writing a spec
-(`e2e/README.md`) are all decided. What does not exist is journeys over a
-product — the twenty that exist drive an application that barely has behaviour.
+(`e2e/README.md`) are all decided. ~~What does not exist is journeys over a
+product — the twenty that exist drive an application that barely has
+behaviour.~~
+
+**Amended 2026-09-15, after Epic 2.** Everything above the strike still holds —
+the tool, the package, the two CI positions and the rules are unchanged — and
+the struck sentence was a true record of 2026-09-04 and is a false description
+of the tree. The suite has grown across fourteen stories and the specs now
+drive a product with real behaviour — search and selection, a per-security URL
+that deep-loads cold, two charts on a shared axis, a window control, and the
+failure and partial states asserted as a set — so "an application that barely
+has behaviour" is the half that expired. **No count is written here**:
+`find e2e -name '*.spec.ts'` is the count, and a number copied into prose beside
+a list that moves is the one pattern Epic 2 found three separate times.
+
+**What has not expired is why this epic owns it.** Growth incidental to fourteen
+stories is not a journey suite, and nothing below chose what a first-time
+visitor should be walked through.
 
 **Epic 8 is where the suite should start growing, not where it starts
 existing.** That is the checkpoint at which MarketPulse is a credible non-AI
@@ -67,9 +83,14 @@ product and the first point with journeys worth asserting on in quantity.
 Treating this epic as the owner means the suite is _reviewed and completed_
 here, not written from nothing here.
 
-**Two other scope items are further along than they read.** "ADRs" — thirteen
-already exist, `docs/adr/0001-*` through `0013-*`, so this epic's work is the
-overview and the gaps rather than the record. "Accessibility review" — an axe
+**Two other scope items are further along than they read.** "ADRs" — ~~thirteen
+already exist, `docs/adr/0001-*` through `0013-*`~~ **amended 2026-09-15: the
+record now runs `0001-*` through `0029-*`, Epic 2 having written everything from
+`0014-*` on** — so this epic's work is the overview and the gaps rather than the
+record, and it is a substantially larger overview than this paragraph was
+written against. No count is restated here on purpose: `docs/adr/README.md` is a
+current index rather than an append log, and the list is its own count.
+"Accessibility review" — an axe
 gate already runs against a real renderer on every merge, with the landing route
 at 0 violations / 37 passes / 1 inconclusive, and Task 1.13.6 made that gate
 assert it is not blind; what remains here is the judgement axe structurally

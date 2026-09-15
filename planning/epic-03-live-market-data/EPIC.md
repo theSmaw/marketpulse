@@ -25,10 +25,89 @@ Tracked securities update automatically as live market observations arrive.
 - Live price updates in the UI
 - Market timestamp / LIVE indicator
 - Continuous-connection cost envelope — **the idle-rate estimate does not transfer**
+- **A tape column on `market_bars`** — added 2026-09-15 from Epic 2's close; see below
+- **The two-feed ledger, produced rather than simulated**
+- **The live feed's own honest label**
+- **The motion vocabulary** — design test 4, against real moving numbers
 
 ## Exit criteria
 
 The application can maintain a live connection for the tracked universe and update visible market values without page refreshes.
+
+## What Epic 2 hands this epic (2026-09-15, Task 2.14.10)
+
+Epic 2 closed with fourteen stories, a product with real market data in it, and
+**three things it could not produce and this epic can**. They are written here
+because each one is a shipped sentence that is correct today and becomes false
+on a specific line of this epic's code, with nothing mechanical standing between
+the two.
+
+**The provenance pattern extends from _which feed_ to _which feed, and is it
+still connected_.** `FeedIndicator` has read `disconnected` throughout Epic 2
+deliberately and correctly — there is nothing to connect to — and this epic is
+what makes that true rather than what fixes it.
+
+### 1. A defect in the store, not in the wording — and it is a migration
+
+**`market_bars` has no column saying which tape a bar came from.** Provenance
+lives one row per `(security, timeframe)` in `bar_coverage`, which carries a
+single `feed` (`apps/backend/src/schema.ts`). Everything stored today is
+consolidated SIP, so one row per pair is sufficient and honest.
+
+**The day this epic _stores_ an IEX bar, it stops being either.** That single
+row describes the whole series as SIP, `mergeSeriesProvenance` is never called
+because there is only ever one provenance record to merge, and the series
+reports one feed with complete confidence and is wrong. The two-feed sentence is
+true today only because the IEX tail is stitched **at read time**.
+
+So this is a **schema change, before the first stored live bar** — and the
+roadmap's Epic 3 scope had no data-layer item at all until 2026-09-15. Note the
+migration rules before writing it: forward-only, four-digit sequence, immutable
+once applied (`apps/backend/migrations/README.md`).
+
+### 2. The two-feed ledger, produced rather than simulated
+
+`packages/shared/src/market-provenance.ts` names each stretch in contribution order with its bar
+count, and refuses to sort or deduplicate to the first. **This epic's socket is
+the first thing in the product that can produce one**: all sixteen recorded
+bar-series bodies carry `sip`, `stitched.json` included, because both halves of
+that stitch came from Alpaca's historical API. The state is reached today
+through `twoFeedStitchView()` — the recorded stitch with **one field changed**,
+named and commented so that deleting it and pointing its three readers at a real
+recorded body is the obvious move.
+
+### 3. One sentence that claims something about the market rather than about our store
+
+**`No shares changed hands anywhere in the window.`** is the only shipped
+sentence making a claim about **the market** rather than about our store. It is
+true while every stored bar is the consolidated tape, and becomes a single
+venue's silence reported as the whole market's the first time a live tail is
+stitched on — which is the failure `PRODUCT_SPEC.md` §7.1 forbids, in the one
+place a reader would never look for it. It has two homes today, drawn and
+spoken, and **nothing guards them**.
+
+This is not theoretical on IEX. `ALPACA.md` §5.2: median minute coverage is
+**82.8%** on IEX against **99.7%** on SIP, worst case **43.1%** (`CCI`). An
+absent bar is **ordinary** on IEX and **notable** on SIP, and that sentence was
+written for the second case.
+
+### And the honest label must not be inherited by word
+
+The free Alpaca plan is **asymmetric**: stored historical bars are consolidated
+SIP, the live stream is IEX only (`ALPACA.md` §2 — `wss://.../v2/sip` is refused
+with `409 insufficient subscription`). This epic must not carry Epic 2's
+`All US exchanges` onto a live tail, and **invariant 6's fence stands on the
+sentence under the acronym rather than on the acronym**.
+
+### The design test this epic was handed by name
+
+**Test 4 of the UI bar — _does it feel alive_ — has now been answered "not yet"
+seven times**, the seventh at Epic 2's close. Seven deferrals of one criterion is
+not caution; it is the shape of a criterion that never gets met. It was deferred
+**to this epic's motion vocabulary** because this is the first epic where the
+honest version of the question is even askable: the hard form is what happens
+when a **price** changes. Its trigger is the calendar rather than a condition,
+which is exactly why it is written into this epic's scope — nothing else fires.
 
 ## What Story 2.5 hands this epic — and what is left of the header strip (2026-09-06)
 
