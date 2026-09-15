@@ -22,6 +22,13 @@ error mappings were wrong last time
 §9b). Tasks 3.1.3 to 3.1.5 take the captures; Tasks 3.1.7 to 3.1.9 write the
 verdicts into §2 and strike the corresponding lines from §3.
 
+**Amended 2026-09-15 by Task 3.1.2.** The eight questions in §2 are still open
+and none of them is answered below. What has changed is that the socket has been
+**read** for the first time: §4 holds the handshake frame by frame, the control
+messages, what a bad subscription does, the `sip` refusal first-hand and the
+clock discipline every later figure depends on, and §5 records how to re-take
+all of it.
+
 **How to read a section that has been answered.** When a question is settled,
 its subsection keeps the alternatives and gains a verdict, a date, the
 instrument that produced the figure, and a **reversal trigger written as a
@@ -74,6 +81,12 @@ of scope of this document and is a change to §31.
 Stored historical bars are consolidated **SIP** — the full US tape. The live
 stream is **IEX only**: `wss://stream.data.alpaca.markets/v2/sip` is refused
 with `409 insufficient subscription` (`ALPACA.md` §2, 2026-09-07).
+
+**Re-taken first-hand 2026-09-15 (Task 3.1.2, §4.5), and the shape is not what
+inheritance would suggest.** The socket **opens**, the server greets us exactly
+as the working endpoint does, and the `409` arrives at **authentication** as a
+frame — after which the server leaves the socket open. Connection state must be
+driven by the authenticated frame, never by `onopen`.
 
 The consequence is the one this epic is most likely to get wrong by inheritance.
 `PRODUCT_SPEC.md` §7.1 requires that a reader is **not misled about coverage**,
@@ -581,24 +594,24 @@ instrument.
 
 ### 3.1 The frames themselves
 
-| #   | Figure                                                                                        | Sized against it                           | Task  |
-| --- | --------------------------------------------------------------------------------------------- | ------------------------------------------ | ----- |
-| 1   | The shape of a `b` frame — field names, types, symbol encoding                                | 3.2's normalization to `Bar` + `BarSource` | 3.1.4 |
-| 2   | The shapes of `t` and `q` frames, recorded once even though out of scope                      | §2.1's alternative 3                       | 3.1.4 |
-| 3   | The handshake verbatim — connect, auth, subscribe, and the acknowledgement's own shape        | 3.2's state machine                        | 3.1.2 |
-| 4   | **Which end of the interval the stream's `t` marks.** §1.5 is the HTTP API's answer           | Every surface at once, silently            | 3.1.4 |
-| 5   | Whether a `b` frame ever arrives with zero volume, or whether a quiet minute is simply absent | §2.5's thresholds; 3.10's gap-filling      | 3.1.4 |
+| #   | Figure                                                                                                                        | Sized against it                           | Task  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ----- |
+| 1   | The shape of a `b` frame — field names, types, symbol encoding                                                                | 3.2's normalization to `Bar` + `BarSource` | 3.1.4 |
+| 2   | The shapes of `t` and `q` frames, recorded once even though out of scope                                                      | §2.1's alternative 3                       | 3.1.4 |
+| 3   | ~~The handshake verbatim — connect, auth, subscribe, and the acknowledgement's own shape~~ **STRUCK 2026-09-15 — §4.1, §4.2** | 3.2's state machine                        | 3.1.2 |
+| 4   | **Which end of the interval the stream's `t` marks.** §1.5 is the HTTP API's answer                                           | Every surface at once, silently            | 3.1.4 |
+| 5   | Whether a `b` frame ever arrives with zero volume, or whether a quiet minute is simply absent                                 | §2.5's thresholds; 3.10's gap-filling      | 3.1.4 |
 
 ### 3.2 Rate, latency and size
 
-| #   | Figure                                                                      | Sized against it                                                                                                                                              | Task  |
-| --- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| 6   | Messages per second for 518 symbols at the open, at midday and at the close | §2.2's coalescing, §2.3, 3.5, 3.6                                                                                                                             | 3.1.4 |
-| 7   | The burst shape — how tightly a minute's bars cluster after the boundary    | §2.2, and §1.10's re-render question one layer out                                                                                                            | 3.1.4 |
-| 8   | **p50/p95 gap between a bar's `t` and its arrival**                         | `PRODUCT_SPEC.md` §28's _event → application state <250 ms p95_, which **excludes upstream latency** and which nothing has ever measured the upstream half of | 3.1.4 |
-| 9   | Bytes per second on the socket during a session                             | §2.8's cost, 3.11's envelope                                                                                                                                  | 3.1.4 |
-| 10  | Bytes per second on the socket **outside** a session                        | §2.8's whole question; the 1,000 B/s idle-rate condition                                                                                                      | 3.1.3 |
-| 11  | Connect + authenticate + subscribe latency for 518 symbols                  | 3.2's startup, 3.10's reconnection budget                                                                                                                     | 3.1.2 |
+| #   | Figure                                                                                                                                                                                                                  | Sized against it                                                                                                                                              | Task  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| 6   | Messages per second for 518 symbols at the open, at midday and at the close                                                                                                                                             | §2.2's coalescing, §2.3, 3.5, 3.6                                                                                                                             | 3.1.4 |
+| 7   | The burst shape — how tightly a minute's bars cluster after the boundary                                                                                                                                                | §2.2, and §1.10's re-render question one layer out                                                                                                            | 3.1.4 |
+| 8   | **p50/p95 gap between a bar's `t` and its arrival**                                                                                                                                                                     | `PRODUCT_SPEC.md` §28's _event → application state <250 ms p95_, which **excludes upstream latency** and which nothing has ever measured the upstream half of | 3.1.4 |
+| 9   | Bytes per second on the socket during a session                                                                                                                                                                         | §2.8's cost, 3.11's envelope                                                                                                                                  | 3.1.4 |
+| 10  | Bytes per second on the socket **outside** a session                                                                                                                                                                    | §2.8's whole question; the 1,000 B/s idle-rate condition                                                                                                      | 3.1.3 |
+| 11  | ~~Connect + authenticate + subscribe latency for 518 symbols~~ **STRUCK 2026-09-15 — §4.3: 1,312–1,537 ms, 518/518 accepted, and read it as an envelope rather than a budget until it is re-taken from the deployment** | 3.2's startup, 3.10's reconnection budget                                                                                                                     | 3.1.2 |
 
 **On figure 8 specifically.** §28's target is stated as excluding provider
 latency, and **nothing in this repository knows where the provider ends.** Until
@@ -614,15 +627,15 @@ denominator nobody has. It is the single most consequential number on this list.
 
 ### 3.4 Silence, and being unhappy
 
-| #   | Figure                                                                                                            | Sized against it                                                             | Task         |
-| --- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------ |
-| 14  | What the socket says pre-market, after hours, overnight, at a weekend and on a holiday                            | §2.8, §2.5, 3.10                                                             | 3.1.3        |
-| 15  | **The longest legitimate silence**, inside a session and outside one                                              | §2.5's two numbers, directly                                                 | 3.1.3, 3.1.4 |
-| 16  | Whether the server sends keepalives or pings, and at what interval                                                | 3.2's liveness detection; §2.5's disconnected threshold                      | 3.1.3        |
-| 17  | The duplicate-connection frame and code, verbatim — the free plan allows **one**                                  | 3.2, and every developer running `pnpm dev` against a live deployment (§1.6) | 3.1.5        |
-| 18  | The bad-credential frame and code, verbatim                                                                       | 3.2's error mapping                                                          | 3.1.5        |
-| 19  | What a server-side close looks like, and whether an idle connection is closed at all                              | 3.10's reconnection                                                          | 3.1.5        |
-| 20  | **Whether a resubscribe replays missed bars** — almost certainly not, and _almost certainly_ is not a measurement | 3.10's gap-filling, which is a different story if the answer is yes          | 3.1.5        |
+| #   | Figure                                                                                                                                                                                                                | Sized against it                                                             | Task         |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------ |
+| 14  | What the socket says pre-market, after hours, overnight, at a weekend and on a holiday                                                                                                                                | §2.8, §2.5, 3.10                                                             | 3.1.3        |
+| 15  | **The longest legitimate silence**, inside a session and outside one                                                                                                                                                  | §2.5's two numbers, directly                                                 | 3.1.3, 3.1.4 |
+| 16  | Whether the server sends keepalives or pings, and at what interval. **Bounded from below 2026-09-15 (§4.6): none in 30 s of quiet, and the server DOES answer a client ping. Not struck — a long idle is still owed** | 3.2's liveness detection; §2.5's disconnected threshold                      | 3.1.3        |
+| 17  | The duplicate-connection frame and code, verbatim — the free plan allows **one**                                                                                                                                      | 3.2, and every developer running `pnpm dev` against a live deployment (§1.6) | 3.1.5        |
+| 18  | The bad-credential frame and code, verbatim                                                                                                                                                                           | 3.2's error mapping                                                          | 3.1.5        |
+| 19  | What a server-side close looks like, and whether an idle connection is closed at all                                                                                                                                  | 3.10's reconnection                                                          | 3.1.5        |
+| 20  | **Whether a resubscribe replays missed bars** — almost certainly not, and _almost certainly_ is not a measurement                                                                                                     | 3.10's gap-filling, which is a different story if the answer is yes          | 3.1.5        |
 
 **Why these are captured verbatim rather than mapped from documentation.**
 `ALPACA.md` §9b records three things a documentation-based mapping got wrong on
@@ -646,10 +659,374 @@ absence for a measurement.
 
 - **Every figure in `ALPACA.md` is from one free-plan paper account**, so
   anything account-scoped is n=1. This spike inherits that and does not fix it.
+- **The harness's own clock was 257 ms slow on 2026-09-15** (§4.7), agreed by
+  three independent NTP references. Every arrival gap this story quotes must be
+  corrected by the offset recorded in its **own** capture header, and the
+  vendor's clock could not be pinned down at all — so figure 8 carries a stated
+  residual risk rather than a clean denominator.
+- **Every latency in §4.3 was taken from a UK domestic link**, and the
+  deployment is Azure `eastus2`. The round trip measured 271–311 ms (§4.6), which
+  is most of the connect term.
 - **The subscription-cap figures (§1.4) were taken on 2026-09-07 against a
   different question.** They are the only WebSocket numbers this repository has,
   they are about the acknowledgement rather than about any message, and they are
   **dated observations of a third party** — re-measure rather than cite.
+
+---
+
+## 4. What the socket actually says — the handshake, verbatim (2026-09-15, Task 3.1.2)
+
+**This is the first WebSocket frame this repository has ever read.** `ALPACA.md`
+§10 is explicit that the stream was measured for its subscription cap and for
+nothing else; everything below is new, and it was taken with the market **shut**
+(03:49–03:55 ET on a Tuesday), which is deliberate — a handshake needs no
+session, so it should not spend one. §5 records how to re-take all of it.
+
+Three lines are struck from §3's register by this section: **figure 3** (the
+handshake and the acknowledgement's own shape), **figure 11** (connect +
+authenticate + subscribe for 518), and the first-hand version of §1.3's `sip`
+refusal.
+
+### 4.1 The handshake, frame by frame, with every frame labelled
+
+```text
+                                         (client connects — TLS + HTTP upgrade)
+<-- [+2 ms]    SERVER-INITIATED   [{"T":"success","msg":"connected"}]
+
+--> [+0 ms]    request            {"action":"auth","key":"…","secret":"…"}
+<-- [+273 ms]  REPLY              [{"T":"success","msg":"authenticated"}]
+
+--> [+0 ms]    request            {"action":"subscribe","bars":["AAPL","NVDA","SPY"]}
+<-- [+261 ms]  REPLY              [{"T":"subscription","bars":["AAPL","NVDA","SPY"]}]
+
+--> [+0 ms]    request            {"action":"unsubscribe","bars":["AAPL","NVDA","SPY"]}
+<-- [+256 ms]  REPLY              [{"T":"subscription"}]
+
+--> close(1000)
+<-- socket-close                  code 1006, empty reason
+```
+
+**Which are server-initiated, checked rather than assumed.** The harness sat
+**three seconds quiet after connecting and before authenticating** — that window
+is the control. The `connected` greeting arrived 2 ms into it with nothing sent,
+so it is server-initiated; nothing else arrived in the window, and nothing
+arrived in a further five seconds while subscribed to three liquid names with
+the market shut. **In this whole capture, exactly one frame is unsolicited and
+every other frame is a reply.**
+
+That matters to Story 3.2 in a specific way: a state machine that sends `auth`
+on the `open` event, before the greeting, is writing into a socket the server
+has not greeted yet. It appears to work — and the six findings below are the
+reason "appears to work" is not the bar.
+
+### 4.2 Six things a state machine written from the documentation would get wrong
+
+**1. Every frame is an ARRAY, including the single-message ones.** `[{"T":…}]`,
+never `{"T":…}`. A parser written against the example in a blog post unwraps
+nothing and matches nothing.
+
+**2. `T` is the discriminant and it is overloaded.** `success`, `error` and
+`subscription` are all control messages on the same channel the data arrives on.
+`error` is a **frame**, not a transport failure: in nine deliberately bad
+requests (§4.4) the socket was never closed once.
+
+**3. The subscription acknowledgement is the FULL CURRENT STATE, not a delta.**
+Subscribing to `["RIVN"]` while already holding `["ZZQQTESTX"]` came back
+`{"T":"subscription","bars":["RIVN","ZZQQTESTX"]}`. This is the single most
+useful finding for Story 3.5: the server is authoritative about what we hold, so
+a subscription manager should **reconcile against the ack** rather than maintain
+its own count and hope.
+
+**4. An empty subscription is not empty — the key is ABSENT.** Unsubscribing
+from everything returned `[{"T":"subscription"}]` with **no `bars` key at all**,
+not `"bars":[]`. Code reading `ack.bars.length` throws on the one transition it
+most needs to handle.
+
+**5. The acknowledgement list is ordered, and it is not our order.** For 518 the
+returned list matched the request exactly — but the request was alphabetical.
+In §4.4 a two-symbol hold came back `["RIVN","ZZQQTESTX"]` after being
+subscribed in the other order. **Treat the list as a set.**
+
+**6. A clean client-initiated close is observed as `1006`, with an empty
+reason.** We sent `close(1000)`; Alpaca does not echo a close frame, so the
+local socket reports **abnormal closure** — the same code a dropped link
+produces. Confirmed twice, once with a 600 ms wait and once with 3,000 ms, so it
+is the server's behaviour rather than our timeout. **The close code cannot tell
+Story 3.10 whether we closed or the network did.** The client must carry its own
+intent and read the code only after it.
+
+### 4.3 Connect, authenticate and subscribe for the real 518 — figure 11
+
+Three fresh connections, sequential (the free plan allows exactly one), each
+subscribing to all **518** tracked securities in one frame.
+
+|                         | Run 1        | Run 2        | Run 3        |
+| ----------------------- | ------------ | ------------ | ------------ |
+| Connect (TLS + upgrade) | 879 ms       | 807 ms       | 793 ms       |
+| Authenticate            | 276 ms       | 280 ms       | 246 ms       |
+| Subscribe (518)         | 273 ms       | 450 ms       | 272 ms       |
+| **Total**               | **1,427 ms** | **1,537 ms** | **1,312 ms** |
+| Accepted                | **518/518**  | **518/518**  | **518/518**  |
+
+The subscribe frame is **3,243 bytes** and the acknowledgement is **3,243
+bytes** — the server echoes the list back, so a naive resubscribe-everything
+loop costs 6.5 KB each time it fires.
+
+**The control fired.** The accepted **list was counted**, not checked for the
+absence of an error, for the reason `ALPACA.md` §1 gives: a server silently
+dropping the 31st symbol looks identical to one that took it. And §4.4's last
+probe re-took that control on this date — 60 trades symbols still refused with
+`405` — so the instrument demonstrably sees a refusal when there is one.
+
+**Three caveats that make these numbers an envelope rather than a budget.**
+`connect` is by far the largest term and it is almost entirely network: this was
+taken from a UK domestic link, and the round trip to Alpaca measured
+**271–311 ms** (§4.6). The deployment is Azure `eastus2`, which is a different
+and much shorter path. **Re-take this from the deployed backend before Story
+3.2 spends it**, and until then read it as _worst case_, not as _the number_.
+
+### 4.4 What a BAD subscription does — nine probes, one connection
+
+The question Story 3.5 turns on: does the server **reject**, **ignore**, or
+**silently accept**? All nine on one authenticated connection, 1.5 s apart, each
+followed by a deliberate wait — because "ignored" and "answered" are told apart
+by the silence, so a probe that gets no frame must still wait for one.
+
+| Probe                                        | Server's answer, verbatim                                  | Reading                   |
+| -------------------------------------------- | ---------------------------------------------------------- | ------------------------- |
+| `bars:["ZZQQTESTX"]` — no such symbol        | `[{"T":"subscription","bars":["ZZQQTESTX"]}]`              | **SILENTLY ACCEPTED**     |
+| `bars:["RIVN"]` — real, not in our 518       | `[{"T":"subscription","bars":["RIVN","ZZQQTESTX"]}]`       | Accepted; full state back |
+| `bars:[]` — empty list                       | `[{"T":"error","code":400,"msg":"invalid syntax"}]`        | **Rejected**              |
+| `{"action":"subscribe"}` — no channel        | `[{"T":"error","code":400,"msg":"invalid syntax"}]`        | Rejected                  |
+| `sprockets:["AAPL"]` — unknown channel       | `[{"T":"error","code":400,"msg":"invalid syntax"}]`        | Rejected                  |
+| `news:["AAPL"]` — real channel, wrong stream | `[{"T":"error","code":400,"msg":"invalid syntax"}]`        | Rejected                  |
+| `trades:[60 symbols]` — **the control**      | `[{"T":"error","code":405,"msg":"symbol limit exceeded"}]` | Control fired             |
+| `unsubscribe bars:["KO"]` — never held       | `[{"T":"subscription","bars":["RIVN","ZZQQTESTX"]}]`       | Accepted, state unchanged |
+| `{"action":"levitate"}` — unknown action     | `[{"T":"error","code":400,"msg":"invalid syntax"}]`        | Rejected                  |
+
+**The socket was never closed. Not once.** Nine bad requests, nine frames, one
+connection surviving all of them. An error on this protocol is a message about a
+request, not an event about the connection, and Story 3.2 should not tear a
+socket down for one.
+
+**Two of these change Story 3.5's shape rather than informing it.**
+
+- **Alpaca does not validate symbols, so we must.** `ZZQQTESTX` was accepted and
+  echoed back as held. A subscription acknowledgement is therefore **not**
+  evidence that a symbol exists, and a security that silently never produces a
+  bar is indistinguishable from a typo. Validation against our own universe is
+  the only thing that can tell them apart, and it has to happen **before** the
+  frame is sent.
+- **An empty list is a 400, so a subscription manager must not send one.** That
+  is exactly the frame a filter that matched nothing produces. "Send whatever
+  the selection resolves to" is a bug on the empty selection, and it is the easy
+  one to write.
+
+**And the four `400`s are indistinguishable from each other.** An unknown
+channel, an unknown action, a missing key and an empty list all return the same
+`code` and the same `msg`. Any developer-facing message about a malformed
+subscription has to be written by **us**, from what we sent, because the server
+will not say which of the four it was.
+
+### 4.5 The `sip` refusal, first-hand — and it is not where you would look for it
+
+`PRODUCT_SPEC.md` §7.1 and `ALPACA.md` §2 both assert this; **invariant 6 stands
+on it**, so this story took it rather than inheriting it.
+
+```text
+        (connect to wss://stream.data.alpaca.markets/v2/sip)
+<-- socket OPEN                   — the HTTP upgrade SUCCEEDS
+<-- [+2 ms]    [{"T":"success","msg":"connected"}]      — identical greeting
+--> auth
+<-- [+255 ms]  [{"T":"error","code":409,"msg":"insufficient subscription"}]
+        (server does NOT close. Held 5s: still open, still silent.)
+```
+
+Confirmed on **2026-09-15** against the same credential that authenticated
+against `/v2/iex` minutes earlier — which is the control, because a refusal on
+both endpoints would have been a bad credential rather than a plan boundary.
+
+**The shape is the finding.** The refusal is not at the upgrade and not at the
+DNS — the socket opens, and the server greets us exactly as the working endpoint
+does. It arrives **at authentication**, as a frame, and **the server leaves the
+socket open afterwards**. A client whose "connected" state keys off the socket
+being open would report a healthy SIP connection indefinitely, having received
+one `409` it ignored. Connection state must be driven by the **authenticated**
+frame, never by `onopen`.
+
+### 4.6 Control frames, keepalives, and a fact about the built-in `WebSocket`
+
+- **The server answers a client ping**, echoing the payload: 311 ms and 271 ms
+  for two probes. That is a working liveness check available to Story 3.2 and a
+  round-trip figure for §4.3's caveat.
+- **No server-initiated ping was observed in 30 seconds of quiet** (nor in the
+  10 s of the handshake capture). This **bounds figure 16 from below and does not
+  answer it** — a long idle is Task 3.1.3's, and this line is not a strike.
+- **Node's built-in `WebSocket` cannot see a ping or a pong at all.** The WHATWG
+  API defines `open`/`message`/`close`/`error` and no control-frame event, so an
+  implementation built on the global cannot do ping-based liveness detection and
+  cannot observe the server's keepalive if there is one. The harness therefore
+  uses `ws@8`. **This is a constraint on Story 3.2's client**, discovered here
+  and costing nothing here.
+- The recorder's control-frame path was **exercised deliberately** rather than
+  assumed. Zero server pings in a capture whose ping handler had never fired is
+  an untested instrument, not a measurement of silence — and Task 3.1.3's entire
+  job is to sit in silence and report what arrived.
+
+### 4.7 The clock discipline — and the figure is bigger than the budget
+
+Every latency this story produces is a difference between a **vendor** timestamp
+and **ours**, so an unstated clock offset is a silent constant added to all of
+them.
+
+**Measured 2026-09-15, `sntp -t 5`, three samples against each of three
+independent servers:**
+
+| Reference             | Median offset | Spread |
+| --------------------- | ------------- | ------ |
+| `time.apple.com`      | +255.6 ms     | 2.8 ms |
+| `time.cloudflare.com` | +258.3 ms     | 2.8 ms |
+| `pool.ntp.org`        | +257.7 ms     | 4.0 ms |
+
+**Three independent references agree to within 2.1 ms: this machine's clock is
+≈257 ms BEHIND true time.** Three servers rather than one is the control — one
+reference cannot tell a wrong local clock from a wrong reference.
+
+**That figure is larger than the whole of `PRODUCT_SPEC.md` §28's 250 ms
+budget**, and it has the dangerous sign: a clock running late makes an arrival
+look **earlier** than it was, so every uncorrected arrival gap measured on this
+machine is **understated by about a quarter of a second**. Figure 8 is described
+in §3.2 as the most consequential number on the list; taken naively here it
+would have been flattering and wrong.
+
+**The rule, and it is a rule rather than a note.** The harness re-takes the
+offset **at the top of every run** and writes it into the capture header
+(`capture.clock`), so the correction belongs to the capture rather than to this
+paragraph. Tasks 3.1.4 and 3.1.5 must **subtract the offset recorded in their
+own capture** before quoting any gap, and must quote the NTP spread beside it.
+A capture whose `clock.established` is `false` yields **upper bounds**, labelled
+as such, not latencies.
+
+**We did not correct the machine's clock**, deliberately: a spike that silently
+changes the environment it measures cannot be re-run against the same
+conditions, and the correction is arithmetic we can apply afterwards from a
+number we recorded.
+
+**The vendor's own clock could not be pinned down, and that is stated rather
+than omitted.** Five `HEAD` requests to `data.alpaca.markets` put the apparent
+local-minus-vendor difference between **−570 ms and +420 ms**, but the `Date`
+header has **one-second granularity** and the round trip was 769–1,288 ms on
+this link. That bounds the vendor offset; it does not measure it. **So the
+residual risk is stated plainly: if Alpaca's bar timestamps are not
+NTP-accurate, no instrument in this story can tell.** Figure 8 should be quoted
+with that sentence attached.
+
+### 4.8 The capture format, fixed here (v1)
+
+Three tasks with three different windows must produce **comparable files**
+rather than three formats. One JSON document per run:
+
+```text
+capture   captureFormat, task, name, endpoint, question, control, instrument,
+          node, wsLibrary, startedAt, startedAtMarketTime, clock,
+          endedAt, durationMs, frameCount, credentialSweep
+outcome   the run's own answers, named
+notes     [ { at, offsetMs, text } ]
+frames    [ { seq, direction, kind, at, atMarketTime, offsetMs,
+              bytes, raw, parsed?, closeCode? } ]
+```
+
+**Four fields are load-bearing rather than tidy.**
+
+- **`at` — the arrival instant by our clock, on every frame.** The gap between a
+  bar's `t` and this is the number Task 3.1.4 exists to produce, and it **cannot
+  be recovered afterwards** from a file that did not record it. This is the one
+  field whose absence would make a capture worthless rather than incomplete.
+- **`offsetMs`** — monotonic from the run's start (`performance.now()`), so
+  burst shape and inter-arrival gaps survive a wall-clock adjustment mid-run.
+- **`clock`** — taken fresh per run, per §4.7. Not cited.
+- **`control`** — what result would have told me the instrument was lying,
+  written **before** the run. A capture with no control is a story, and a run
+  whose control did not fire is **inconclusive rather than clean**.
+
+`atMarketTime` sits beside `at` because half the findings in this story are
+about session boundaries, and `2026-09-15T07:49:28Z` does not read as
+`03:49 EDT` to anybody at speed.
+
+### 4.9 The credential boundary, and the break that proves it
+
+The shape is `ALPACA.md` §11's, which was verified clean across 22 captures, and
+it is a **mechanism rather than a habit**:
+
+- The credential lives in an env file **outside the repository** for the length
+  of this story, `chmod 600`, and **Task 3.1.9 deletes it with the harness**.
+- `redact()` replaces the credential's bytes at the moment a frame is recorded.
+  The `auth` frame is the only frame in this product that ever carries the
+  secret, and it reaches every capture as
+  `{"action":"auth","key":"[KEY-ID REDACTED]","secret":"[SECRET REDACTED]"}`.
+- `sweep()` then **refuses to write the file** if the credential's bytes survive
+  anywhere in the serialised document — in verbatim, percent-encoded **and
+  base64** form, the last being a smuggling `redact()` alone would not catch.
+  Two layers, because a redaction the author forgot is the case this exists for.
+- `verify-captures.mjs` re-sweeps **every file on disk afterwards**,
+  independently of the writer, and also checks each one still carries the v1
+  header and a well-formed frame array.
+
+**And the check was broken on purpose**, per this repository's rule that a check
+which has never gone red has never been tested. `sweep-break.mjs` defeats
+`redact()` by writing the raw secret into a capture after recording, and asserts
+three refusals and that **no file appeared on disk**:
+
+```text
+secret verbatim   -> refused: true   (REFUSING TO WRITE: … 1 occurrence(s) …)
+key id verbatim   -> refused: true
+secret as base64  -> refused: true
+files in captures/: 8 before, 8 after — must be equal
+BREAK VERIFIED
+```
+
+**Nine captures written on 2026-09-15, all swept clean, twice each.**
+
+---
+
+## 5. How the spike was taken, so it can be re-taken (Tasks 3.1.2–3.1.5)
+
+The shape is `ALPACA.md` §11's and Task 1.13.1's, and it is a rule rather than a
+style: **a harness outside the tree, run, recorded, deleted, leaving the tree
+byte-identical outside `planning/`.** Task 3.1.9 performs the deletion and the
+final sweep; until then the harness exists so Tasks 3.1.3 to 3.1.5 can point it
+at a window without rebuilding a recorder against a clock.
+
+**Where it lives.** `~/marketpulse-live-spike/`, outside the repository
+entirely. Nothing in the workspace imports it and it imports nothing from the
+workspace — the 518 symbols were extracted **once, as data**, into
+`universe.json` beside it, rather than reaching into `apps/backend/src`.
+
+**What it is.** Eight scripts and one recorder module, on Node 24 with a single
+dependency (`ws@8`, for the control-frame visibility §4.6 explains the built-in
+`WebSocket` cannot give). `handshake.mjs`, `handshake-518.mjs`,
+`bad-subscriptions.mjs`, `sip-refusal.mjs`, `keepalive-probe.mjs`, `clock.mjs`,
+`sweep-break.mjs` and `verify-captures.mjs`, writing the v1 captures of §4.8.
+
+**One connection at a time.** The free plan allows exactly one, so every run is
+sequential with a gap. Measuring a duplicate-connection refusal **on purpose**
+is Task 3.1.5; measuring one by accident is how three of these figures would be
+wrong.
+
+**Every capture states its control before it runs**, and §4 says which ones
+fired. The three that carry real weight: the three-second silence before `auth`
+(the greeting is server-initiated), the 60-symbol trades subscription (the
+instrument can see a refusal), and three independent NTP servers (a wrong local
+clock is distinguishable from a wrong reference).
+
+**Read the numbers, not the script's conclusion.** `ALPACA.md` §11 records an
+automated verdict that was wrong and was caught only because 391 > 390 is
+arithmetically impossible. Every figure in §4 was read off the capture by hand
+before it was written here.
+
+**What the whole of §4 is n=1 on**, inherited from `ALPACA.md` §10 and not
+fixed here: one free-plan paper account, one machine, one domestic UK link.
+§4.3's latencies are the ones this bites hardest — see the caveat there.
 
 ---
 
