@@ -34,6 +34,73 @@ Tracked securities update automatically as live market observations arrive.
 
 The application can maintain a live connection for the tracked universe and update visible market values without page refreshes.
 
+## Stories
+
+| #    | Story                                                                                                                               | Depends on | Visible?              |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------------------- |
+| 3.1  | [Live-Data Decisions & the Streaming Spike](story-01-live-data-decisions-and-the-streaming-spike/STORY.md)                          | Epic 2     | No                    |
+| 3.2  | [The Market-Data Stream Seam & the Alpaca IEX Client](story-02-stream-seam-and-alpaca-iex-client/STORY.md)                          | 3.1        | No                    |
+| 3.3  | [**The Browser Stream & `LIVE` in the Chrome** (the first vertical slice)](story-03-browser-stream-and-live-in-the-chrome/STORY.md) | 3.2        | **Yes**               |
+| 3.4  | [The Motion Vocabulary & the First Price That Moves](story-04-motion-vocabulary-and-the-first-moving-price/STORY.md)                | 3.3        | **Yes**               |
+| 3.5  | [Subscription Management & the Current Market State](story-05-subscription-management-and-current-market-state/STORY.md)            | 3.3        | No                    |
+| 3.6  | [Live Prices Across the Tracked Universe](story-06-live-prices-across-the-universe/STORY.md)                                        | 3.4, 3.5   | **Yes**               |
+| 3.7  | [The Live Edge on the Chart & the Two-Feed Ledger](story-07-the-live-edge-and-the-two-feed-ledger/STORY.md)                         | 3.6        | **Yes**               |
+| 3.8  | [The Tape on the Bar](story-08-the-tape-on-the-bar/STORY.md)                                                                        | 3.1        | No                    |
+| 3.9  | [Storing the Live Session](story-09-storing-the-live-session/STORY.md)                                                              | 3.5, 3.8   | **Yes — a cold load** |
+| 3.10 | [Disconnection, Staleness & Every Degraded State](story-10-disconnection-staleness-and-degraded-states/STORY.md)                    | 3.7, 3.9   | **Yes**               |
+| 3.11 | [Cost, Performance, the Sweep & the Epic Close](story-11-cost-performance-and-the-epic-close/STORY.md)                              | 3.10       | No                    |
+
+**Three phases, and the shape is deliberately not Epic 2's.** **3.1–3.2** make a
+socket exist behind a seam; **3.3–3.7** put a live application on screen, one
+surface at a time; **3.8–3.11** make the store, the degraded states and the bill
+honest. Epic 2 was layered — seven stories and roughly fifty-five tasks before a
+user could see anything, which is the defect Story 2.4 was inserted to repair.
+**This epic does not repeat it**: the third story is a thin end-to-end slice
+through every layer this epic adds, and every story after it changes something a
+stranger can see, with two exceptions that say so plainly.
+
+**The one place parallel work is genuinely available is 3.8**, which touches the
+schema and nothing 3.3–3.7 touch. It is placed late because its deadline is
+_the first stored live bar_ (Story 3.9) rather than the first streamed one, and
+early because nothing in 3.9 can start until it lands.
+
+## Why the slice is Story 3.3 and not Story 3.6
+
+**The connection is visible before any number moves, and that ordering is the
+design bar rather than impatience.** `VISUAL-LANGUAGE.md`'s Motion section
+defers the whole vocabulary to this epic on the argument that _what happens when
+a price changes_ must be settled against a real moving price — so a story that
+puts a moving price on screen before that vocabulary exists ships the thing the
+deferral was protecting against, and it ships it three times in three surfaces.
+
+So Story 3.3 renders a **connection state**, which is a state change rather than
+a number changing: `LIVE` appears in the chrome beside provenance, it says which
+single venue the stream is, and no datum on any screen moves. Story 3.4 then
+settles the vocabulary against the first price that does, on **one** surface,
+and Stories 3.6 and 3.7 inherit it rather than each inventing one.
+
+## Every story states what the user will be able to see
+
+Epic 2's convention carries forward unchanged, including the half that protects
+the next story: **say what the user still cannot do.** Two stories here answer
+"nothing visible" and both name the story that pays them off.
+
+## Every story that builds a screen is held to the design bar
+
+And this epic is the one where the fourth test — **does it feel alive** — is
+finally answerable. It has been answered _not yet_ seven times, and the seventh
+deferral named this epic by name. `PRODUCT_SPEC.md` §5.6 is explicit that a
+market screen which updates by silently swapping text is _technically correct
+and feels dead_; four of this epic's screens are exactly that risk.
+
+**A warning about the canvas, recorded rather than discovered.** ADR 0026 makes
+the `Component library for MarketPulse` design canvas the source of truth, and
+it was **not reachable** from the session that planned this epic — the same
+failure `VISUAL-LANGUAGE.md`'s motion row already records, which is why that row
+is the one token in the product argued only in the document. Story 3.4 owes a
+canvas sync and should establish reachability **before** it designs anything, so
+that the chain runs forwards for once.
+
 ## What Epic 2 hands this epic (2026-09-15, Task 2.14.10)
 
 Epic 2 closed with fourteen stories, a product with real market data in it, and
