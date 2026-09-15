@@ -144,6 +144,38 @@
 >   count on every run is what makes the prose copies removable; the sentence to
 >   consider is whether either copy needs a number at all.
 
+> **Amended 2026-09-15 by Task 2.14.8. One placeholder below is answered, the ADR
+> gains a bullet, the sweep gains four confirmations rather than repairs, and the
+> close now hands something onward to a _second_ epic.**
+>
+> - **The placeholder is gone.** _"Plus whatever Task 2.14.8 deferred"_ is edited
+>   in place below. The answer is §28's cold-load breach, and the entry's shape
+>   matters: **it is a hand-off with a named owner, not a deferral.** Epic 14
+>   owns it, beside the `Expand all` exception that is the same component and
+>   probably the same repair, and the trigger is kept **above** the epic.
+> - **Say "handed" rather than "accepted", and never "amended".** §28's target is
+>   unchanged and is right. What it gained is a dated amendment **naming the two
+>   exceptions** — the opposite move from watering a target down, and the close
+>   will read as the wrong thing if it is summarised carelessly.
+> - **The sweep is four confirmations, not four repairs.** `CLAUDE.md` (the open
+>   item moved from _open_ to _owned_), `docs/GAPS.md`, `PRODUCT_SPEC.md` §28 and
+>   `planning/EPICS.md` were all edited by 2.14.8 itself. **Confirm they still say
+>   it, and confirm they agree with each other** — this close's own note warns
+>   that this epic contains a day on which two documents recorded a claim as false
+>   while five others went on asserting it, and a figure now living in six places
+>   is exactly that shape.
+> - **The close hands onward to two epics, not one.** The existing bullet hands
+>   Epic 3 what it inherits. There is now a second: **Epic 14** carries the two
+>   §28 exceptions in its own `EPIC.md`, and **Epic 5** carries the trigger in
+>   its own, because Epic 5's anomaly-score-per-security is the named candidate
+>   for firing it and a trigger nobody reads at the moment it fires never fires.
+>   Confirm all three landed; do not write a fourth copy.
+> - **`Expand all` is the one to re-read while writing this.** It was accepted in
+>   Story 2.11 as _neither new nor routine_ — and the "not new" half of that
+>   argument is the cold-load breach, which is now owned rather than accepted. The
+>   two entries are joined in Epic 14's `EPIC.md` for that reason, and the close
+>   should not restate either as though it stood alone.
+
 ## Objective
 
 Close Story 2.14 and close Epic 2: take the cost figure with a database
@@ -198,7 +230,16 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
   carry one true line rather than none. A third candidate worth a paragraph is
   §2's _return a structure, not a sentence_, which is what stops the visible
   claim and the spoken one drifting and is the pattern every later provenance
-  surface should copy. Then read `docs/adr/README.md` and confirm the index covers every ADR
+  surface should copy. **And one short bullet that is not a subject but belongs in the same
+  ADR** (added 2026-09-15 by Task 2.14.8): **this epic ships a measured exception
+  to `PRODUCT_SPEC.md` §28 and it is owned rather than accepted.** ADR 0024
+  carries `Expand all`'s exception as exactly such a bullet, for the same
+  component, which is the precedent to copy — an ADR that records a decision
+  about a screen and omits the one published target that screen misses is the
+  kind of omission a reader finds later and distrusts the whole document for.
+  One bullet: the figure, that it was measured three times and attributed from
+  both ends, the owner, and the trigger. Then read `docs/adr/README.md` and
+  confirm the index covers every ADR
   through this one — the index is a current index, not an append log.
 - **The cost figure, re-taken with the database running**, against the $20
   budget and its alerts (acceptance criterion 6). The free-offer clock started at
@@ -286,8 +327,20 @@ cannot do: **watch a price move.** There is no live data; that is Epic 3.
     it. It also has **two homes** today, drawn and spoken, and nothing guards
     them. **Owner: Epic 3**, beside the two-feed ledger. `PROVENANCE.md` §11.3 and
     `docs/GAPS.md`.
-  - Plus whatever Task 2.14.8 deferred, and the `synthetic` branch that no
-    recorded body exercises.
+  - ~~Plus whatever Task 2.14.8 deferred~~ — **answered 2026-09-15, and it is a
+    hand-off rather than a deferral, which is a different entry in this list.**
+    §28's breach on `/securities` and `/securities/:symbol` — one cold-load task
+    of **50–76 ms**, the 518-row universe table rather than the chart, measured
+    three times and attributed from both ends each time — is handed to **Epic
+    14** by name, beside the `Expand all` exception (69–87 ms) that is the same
+    component and probably the same repair. **The trigger is kept above the
+    epic**: _the first time a second surface on that page renders per-row markup
+    at universe scale_, which is why Epic 5's `EPIC.md` now carries it too.
+    §28's **target is not amended** and must not be described as amended in the
+    close — it gained a dated amendment **naming the two exceptions**, which is
+    the opposite move. `SEARCH-AND-SELECTION.md` §10 holds all three datings and
+    the argument.
+  - Plus the `synthetic` branch that no recorded body exercises.
 - **Hand Epic 3 what it inherits**, in one paragraph in `EPIC.md`: the
   provenance pattern extends from _which feed_ to _which feed, and is it still
   connected_; `FeedIndicator` has read `disconnected` throughout this epic
