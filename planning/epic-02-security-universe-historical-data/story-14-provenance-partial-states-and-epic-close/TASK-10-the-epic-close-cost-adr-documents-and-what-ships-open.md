@@ -92,6 +92,58 @@
 >   three rows for **one** invariant, because a break proves one substitution and
 >   not a loop. The table is the count, and that sentence has been wrong once.
 
+> **Amended 2026-09-15 by Task 2.14.7. One owed item is discharged, the ADR
+> gains a fifth subject, and three things join the list that ships open.**
+>
+> - **Acceptance criterion 2 is now wholly done, and this close owes it nothing.**
+>   2.14.5's amendment asked that the pass cover the strings 2.14.6 and 2.14.7 add
+>   after it; 2.14.6 added its rows and 2.14.7 has added its two —
+>   [`PROVENANCE.md`](PROVENANCE.md) §11.3, closed with a dated note. **Do not go
+>   looking for 2.14.7's strings; check the note is there and move on.**
+>   One of them taught the table something general and the note records it: **a
+>   deferral claims nothing in either direction, and what to check instead is
+>   that it does not quietly imply what it is deferring about.** Epic 3 ships at
+>   least one more of those.
+> - **A fifth ADR subject, and it is the one with the longest reach after the
+>   degradation rule.** `VISUAL-LANGUAGE.md` now carries _a surface that owns
+>   nothing defers_, and it generalises the grain rule from **sentences** to
+>   **surfaces and controls**: the surface that owns the data owns the account of
+>   it, everything else points once and stops; a region whose subject is missing
+>   says something or defers, and **never nothing**; and a deferral is spoken
+>   where an answer is not, because the test is whether a spoken twin already
+>   exists. Two surfaces shipped that shape before it was a rule — search
+>   deferring to the tracked universe, and the volume plot deferring to the Price
+>   region — which is the usual sign that it is one. Fold it into the paragraph
+>   with §3.2's _one function, two readers_: both are the same instinct, that one
+>   fact has one home.
+> - **Three more things ship open, all recorded in
+>   [`docs/GAPS.md`](../../../docs/GAPS.md) with a re-measure, and all found by a
+>   person looking at a screen.** They belong in the close's list rather than
+>   being left in the gaps file alone, because two of them have owners outside
+>   this epic:
+>   - **That every named region on a screen says something when its subject is
+>     missing.** No general check exists: a region whose content is legitimately
+>     conditional looks identical to one whose content silently disappeared. One
+>     screen is covered by one browser test. **Owner: the next story that adds a
+>     region.**
+>   - **The defaulted note invites a reader to use a control that has just said
+>     it is unavailable** — _Search for another one above_ under search's own
+>     _Nothing to search yet_. Half the sentence is still true. **Trigger: the
+>     second sentence in the product that points at another surface's control.**
+>   - **The masthead's primary navigation is clipped at 390**, reading
+>     `Market O` with no affordance saying so. Outside this epic's surface — it
+>     is the chrome — and in every screenshot 2.14.7 took. **Owner: the first
+>     story that touches `AppHeader`.**
+> - **And the invariant-count instance has a second occurrence, which makes it a
+>   pattern worth one sentence rather than an anecdote.** 2.14.5's amendment
+>   records `docs/GAPS.md`'s table reading _seven_ against a list of eight.
+>   2.14.7 found `CLAUDE.md`'s **command block** reading _seven_ against a list of
+>   **ten**, in a different file, about the same list. Two independent copies of
+>   one count, both stale, neither checked by anything — and the close should say
+>   that rather than fix it twice and forget. `pnpm invariants` printing its own
+>   count on every run is what makes the prose copies removable; the sentence to
+>   consider is whether either copy needs a number at all.
+
 ## Objective
 
 Close Story 2.14 and close Epic 2: take the cost figure with a database

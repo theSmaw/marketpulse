@@ -63,6 +63,35 @@ history stored for NVDA yet.` and `No volume history stored for NVDA yet.`
 >   already says; if the store is current, record that **no** vacancy was seen
 >   deployed and why, rather than treating its absence as a missing state.
 
+> **Amended 2026-09-15 by Task 2.14.7, and it adds one assertion in each
+> direction rather than correcting anything below.** The four amendments above
+> are all corrections; this one is not, which is worth saying because a reader
+> skimming a stack of them will assume the fifth is a fifth thing that was
+> wrong.
+>
+> - **A new _structural_ claim, and it is the strongest kind this suite takes.**
+>   `PROVENANCE.md` §12 established that **every named region on the Security
+>   Explorer says something when its subject is missing** — the finding that pass
+>   exists for was a Volume region rendering nothing at all. That is structure,
+>   not figures: it survives a zero-bar store, a backfilled one and a deployed
+>   one identically, because it is a claim about **regions being non-empty**
+>   rather than about what any of them says. `e2e/specs/backend-failure-states.spec.ts`
+>   asserts it locally over all eight regions; the deployed journey should assert
+>   it over the ones the exit criterion visits, and it costs one loop.
+> - **And one more state a green deployed run should be _unable_ to see.** The
+>   volume plot's deferral — `No volume to draw. The Price region says why.` —
+>   renders only under `refused` or `failed`, which a healthy deployment does not
+>   produce. It joins the coverage sentence in the _not assertable_ list for the
+>   same reason and from the same end: **its absence deployed is the environment
+>   being healthy, not a state gone missing.** Record that in the hand-walk
+>   rather than going looking for it.
+> - **Two accessible names changed**, and this matters only if the deployed spec
+>   grows a retry assertion: the Security Explorer's two `Try again` controls are
+>   now `Try again — the price series` and `Try again — the tracked universe`.
+>   Nothing in `specs-deployed/` locates either today — checked, not assumed —
+>   and the local suite's `/^Try again/` is the idiom to reuse if one is added,
+>   because it counts controls rather than spellings.
+
 ## Objective
 
 Acceptance criteria 4 and 5. Execute the epic's exit criterion in the **deployed
@@ -112,7 +141,7 @@ by a person opening the page. Say "nothing visible" plainly.
 ## Work
 
 - **Walk it deployed, by hand, first.** Cold, at 1440, 1024 and 390, including
-  the window control and the crosshair, and including everything Tasks 2.14.3–6
+  the window control and the crosshair, and including everything Tasks 2.14.3–7
   added — noting that the deployed store is backfilled nightly and answers the
   default window in full, so it is the **one** store where `SourceNote` and the
   vacancy sentence cannot both be seen — this is the first time provenance, recency and the vacancy wording have
