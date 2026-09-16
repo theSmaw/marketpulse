@@ -198,8 +198,16 @@ test("the deployed chrome makes a real claim about the market feed", async ({
 }) => {
   await page.goto("/");
 
+  // **`contentinfo` rather than `banner` since 2026-09-16**, when the market
+  // feed and the backend service moved out of the masthead's status strip and
+  // into `AppFooter`. The local `market-feed.spec.ts` was rescoped in the same
+  // change and this file was **missed**, which is worth recording rather than
+  // quietly fixing: `e2e/specs/` and `e2e/specs-deployed/` are two directories
+  // and a grep over the first one finds neither the second's copy of a locator
+  // nor the fact that there is one. The deployed check caught it — after the
+  // merge, which is where it runs and what it is for.
   const region = page
-    .getByRole("banner")
+    .getByRole("contentinfo")
     .getByText("Market feed", { exact: true })
     .locator("..");
 
