@@ -245,6 +245,40 @@ reader came for is below it.
 second control on that screen that re-asks for the universe — either frees the
 copy dependency this decision turns on.
 
+**Amended 2026-09-16: the field is _on_ the heading row rather than under it,
+and its label is spoken rather than drawn.** This section's decision is
+unchanged and is what made the move cheap — the field is still in the page's own
+heading block, still above both surfaces and still inside neither `Region`, so
+the `scrollable-region-focusable` argument and the control-over-both argument
+both stand exactly as written. What changed is one line of the route: it goes in
+`PageHeader`'s `actions` slot instead of as a block beneath the header.
+
+The reason is a measurement of the page rather than a preference. The title
+block occupied about 550px of a 1900px measure and the field sat beneath it at
+the same left edge, so roughly 1250 × 340 — the largest void on the screen — was
+the space **beside** the two things a person does on arriving here. On the
+heading row the title is at the left edge and the field at the right, and that
+space becomes the gap between two things instead of the space next to one. Two
+smaller items went with it, both of which existed only because the top of the
+page was a column of prose: the route description (_"What is happening with one
+security…"_, which said the `<h1>` again) and the field's drawn `FIND A
+SECURITY` label, now `TextField`'s `labelHidden` — the accessible name is
+unchanged and still comes from a real `<label>`.
+
+**And the panel's _"Showing a default security. Search for another one above, or
+open one directly at `/securities/SYMBOL`."_ went with them**, along with
+`BarSeriesPanel`'s `defaulted` prop. It was a paragraph of instructions above
+the panel's own figures whose whole job was to point upward at a control; with
+that control now the second thing on the screen, the sentence was pointing at
+something already in the reader's eye. The fallback itself is untouched — a bare
+`/securities` still opens the default security — and `SecurityExplorer.test.tsx`
+now asserts it by the security that renders rather than by the notice about it,
+which is the stronger of the two assertions because the notice could have been
+drawn over the wrong symbol.
+
+**Reversal trigger for the label**: the second `TextField` caller that is not a
+search field.
+
 ### Reversal trigger
 
 - **The first screen other than the Security Explorer that has to change which

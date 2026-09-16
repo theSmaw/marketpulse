@@ -259,14 +259,21 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
      are present **and** that the Volume region carries its deferral, which
      covers this screen and no other. Re-measure: refuse every request with
      `route.abort` and read each region's contents, not just its heading.
-   - **That the defaulted note's invitation is still available.** `/securities`
-     with the universe down says _Showing a default security. Search for
-     another one above_ four inches under search's own _Nothing to search yet_.
-     Half the sentence is true — the address half — and coupling the note to
-     search's state is a dependency `PROVENANCE.md` §12.5 declines to
-     introduce. Re-measure: refuse `GET /securities` and open `/securities`.
-     **Trigger: the second sentence in the product that points at another
-     surface's control.**
+   - ~~**That the defaulted note's invitation is still available.**~~ **Closed
+     2026-09-16 by deleting the sentence**, which is worth recording because it
+     is not how the trigger expected to fire. The entry read: `/securities` with
+     the universe down says _Showing a default security. Search for another one
+     above_ four inches under search's own _Nothing to search yet_; half the
+     sentence is true — the address half — and coupling the note to search's
+     state is a dependency `PROVENANCE.md` §12.5 declines to introduce. The
+     trigger was **the second sentence in the product that points at another
+     surface's control**, and what actually happened is that the first one
+     stopped existing: the search field moved onto the page's heading row, so a
+     paragraph above the panel's figures pointing upward at it was pointing at
+     something already in the reader's eye. **A sentence that names another
+     surface's control is a coupling whether or not that control can answer**,
+     and the cheapest version of this gap was always the sentence's own
+     absence. The trigger stands for the next one.
    - **That the primary navigation is legible at 390.** It reads `Market O` —
      clipped, with no affordance saying so — in every screenshot this pass
      took. Outside the failure set, because it is the chrome rather than a

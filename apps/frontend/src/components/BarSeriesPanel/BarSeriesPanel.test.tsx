@@ -36,7 +36,6 @@ import { announceSeries } from "./series-announcement.js";
 
 const props = {
   symbol: "NVDA",
-  defaulted: false,
   onRetry: () => undefined,
 };
 
@@ -374,17 +373,6 @@ describe("BarSeriesPanel", () => {
       name: "Trying again… — the price series",
     });
     expect(button.hasAttribute("disabled")).toBe(true);
-  });
-
-  it("says search is a story away only when nobody named a security", () => {
-    const { unmount } = render(
-      <Panel {...props} defaulted view={barSeriesFixtureView("partial")} />,
-    );
-    expect(screen.getByText(/Showing a default security/)).toBeTruthy();
-    unmount();
-
-    render(<Panel {...props} view={barSeriesFixtureView("partial")} />);
-    expect(screen.queryByText(/Showing a default security/)).toBeNull();
   });
 
   // --- Task 2.10.8: the two marks that are not about the answer ---

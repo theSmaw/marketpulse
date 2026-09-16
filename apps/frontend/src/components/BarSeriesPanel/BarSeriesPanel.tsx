@@ -159,15 +159,6 @@ export interface BarSeriesPanelProps {
   readonly onRetry: () => void;
 
   /**
-   * Say that search is not here yet.
-   *
-   * True only on the bare `/securities`, where the reader had no way to name a
-   * security and is looking at a default. On `/securities/AMD` they evidently
-   * found one, and the sentence would be noise.
-   */
-  readonly defaulted: boolean;
-
-  /**
    * What changes the window, on the security's own name line (2026-09-13).
    *
    * **It used to be on the region's heading row** — `VOLUME-AND-WINDOW.md` §8.6
@@ -208,7 +199,6 @@ export function BarSeriesPanel({
   screen,
   symbol,
   onRetry,
-  defaulted,
   control,
   stored = "unknown",
 }: BarSeriesPanelProps) {
@@ -237,13 +227,21 @@ export function BarSeriesPanel({
        * that had one — and the control because the figures row below is where it
        * belongs (see `.reading`).
        *
-       * What could not leave is the pair of qualifications that used to hang off
-       * the ticker: an untracked security and a defaulted one. They render
-       * `null` when neither applies, which is the ordinary case, so the row they
-       * are in costs no height at all in the state the panel is usually in.
-       * That is the property the header band never had.
+       * What could not leave is the qualification that used to hang off the
+       * ticker: an untracked security. It renders `null` when it does not
+       * apply, which is the ordinary case, so the row it is in costs no height
+       * at all in the state the panel is usually in. That is the property the
+       * header band never had.
+       *
+       * **There were two until 2026-09-16**, and the other was
+       * *"Showing a default security. Search for another one above, or open one
+       * directly at /securities/SYMBOL."* It was a paragraph of instructions
+       * sitting on top of the panel's own figures, and what it explained is now
+       * answered by the layout instead: the search field moved onto the page's
+       * heading row, where it is the second thing on the screen rather than
+       * something to be pointed at from below. The prop it needed left with it.
        */}
-      <Notes defaulted={defaulted} untracked={isUntracked(shown)} />
+      <Notes untracked={isUntracked(shown)} />
       {/*
        * **The figures, and beside them what happened to the request**
        * (2026-09-13; the four prices joined them 2026-09-14).
@@ -967,49 +965,40 @@ function outcomeSentence(view: BarSeriesView, asked: string): string {
  * `Price`, so the heading was neither the page's answer to *which security* nor
  * the region's accessible name. It was a third statement of a fact stated twice.
  *
- * What is left is the two qualifications that used to hang off it, and the
- * reason they are still **above** the figures is unchanged from Task 2.10.8's
- * D2: an untracked security is untracked whatever this answer turned out to be —
- * still true under a partial series, under an empty one, and while a newer
- * answer is being read — so a note at the bottom of the body reads as a footnote
- * on the numbers when it is a qualification on the subject.
+ * What is left is **one** of the two qualifications that used to hang off it —
+ * the other, *"Showing a default security"*, left on 2026-09-16 with the search
+ * field that moved onto the page's heading row — and the reason it is still
+ * **above** the figures is unchanged from Task 2.10.8's D2: an untracked
+ * security is untracked whatever this answer turned out to be — still true
+ * under a partial series, under an empty one, and while a newer answer is being
+ * read — so a note at the bottom of the body reads as a footnote on the numbers
+ * when it is a qualification on the subject.
  *
  * `null` when there is nothing to say, which is the ordinary case. The panel's
  * column gap is only spent when this renders something, which is the whole
  * reason the band it replaced could go.
  */
-function Notes({
-  defaulted,
-  untracked,
-}: {
-  readonly defaulted: boolean;
-  readonly untracked: boolean;
-}) {
-  if (!defaulted && !untracked) return null;
+function Notes({ untracked }: { readonly untracked: boolean }) {
+  if (!untracked) return null;
 
+  // Still a `<div>` around a single `<p>`, and deliberately: `.notes` is the
+  // row, and a second qualification going in beside this one is a sibling
+  // rather than a restructuring. There were two here until 2026-09-16.
   return (
     <div className={styles.notes}>
-      {untracked && (
-        <p className={styles.defaulted}>
-          {/*
-           * A `Badge`, and the neutral tone, because it is **not a warning**:
-           * the bars are real and the series is correct, and what changed is the
-           * universe. `BADGE_TONES` has no warning tone by design, which is the
-           * language agreeing with the judgement rather than constraining it.
-           *
-           * It leads the sentence now that it has no ticker to sit beside, so
-           * the sentence is what gives it its subject.
-           */}
-          <Badge>Untracked</Badge> MarketPulse no longer tracks this security.
-          These bars are what was stored while it did.
-        </p>
-      )}
-      {defaulted && (
-        <p className={styles.defaulted}>
-          Showing a default security. Search for another one above, or open one
-          directly at <code className={styles.code}>/securities/SYMBOL</code>.
-        </p>
-      )}
+      <p className={styles.defaulted}>
+        {/*
+         * A `Badge`, and the neutral tone, because it is **not a warning**:
+         * the bars are real and the series is correct, and what changed is the
+         * universe. `BADGE_TONES` has no warning tone by design, which is the
+         * language agreeing with the judgement rather than constraining it.
+         *
+         * It leads the sentence now that it has no ticker to sit beside, so
+         * the sentence is what gives it its subject.
+         */}
+        <Badge>Untracked</Badge> MarketPulse no longer tracks this security.
+        These bars are what was stored while it did.
+      </p>
     </div>
   );
 }

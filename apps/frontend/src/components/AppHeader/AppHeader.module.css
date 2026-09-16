@@ -164,13 +164,12 @@
  * right-hand half was a ragged edge, and its left-hand half was empty. Read
  * quickly it was a line of debug output rather than instrumentation.
  *
- * The repair is the arrangement every terminal in this category already uses:
- * **divided cells**. Each fact gets a bounded column with its own left rule,
- * its micro-label on the top line and its value beneath, so the three labels
- * form a row, the three values form a row, and a detail sentence is obviously
- * inside the cell that owns it. Bounding is the whole mechanism — the same
- * hairline that reads as a ragged separator in open space reads as structure
- * the moment there is a cell on either side of it.
+ * The repair is **cells**: each fact gets a column with its micro-label on the
+ * top line and its value beneath, so the three labels form a row, the three
+ * values form a row, and a detail sentence is ranged with the thing that owns
+ * it rather than wherever its own component chose. That is the half that
+ * mattered, and it is the half that survived the day's second look (see
+ * `.region` for the hairlines that did not).
  *
  * **This reverses the refresh's label-beside-value decision, deliberately.**
  * That decision was taken to get the strip from 52px to 34px, and it did not
@@ -181,29 +180,55 @@
  * test. The height is paid for instead where it was actually being wasted:
  * `MarketClock` now puts its figure and its session word on one line.
  *
- * The cluster stays right-anchored. Nothing owns the left half of this row —
- * spreading three readouts across 1392px would separate them from each other
- * without attaching them to anything — and a bounded block at the end of the
- * chrome reads as one instrument, which is what it is.
+ * **The cluster spans the row, amended 2026-09-16.** It was anchored to the
+ * right for half a day on the argument that nothing owns the left half of this
+ * row and that spreading three readouts across 1392px separates them from each
+ * other without attaching them to anything. The first half of that is true and
+ * the conclusion did not follow: a bounded block at one end of a full-width
+ * band does not make the other end stop existing, it makes it a **void** — and
+ * it was the largest one on the screen, in the chrome, where every page pays
+ * for it. Cells that are already divided do not need proximity to read as a
+ * set; the rules do that work, which is what the whole arrangement is for.
+ *
+ * So the cells are spread edge to edge: the feed at the left gutter, the clock
+ * at the right, and the gaps between them are the band's own structure rather
+ * than the leftovers of ranging everything one way. That is also what a status
+ * bar has always looked like in this category, which is worth noticing given
+ * how much argument the right-anchored version took.
  */
 .status {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: stretch;
 
-  /* No gap: the cells' own rules and padding are the separation now, and a gap
-     on top of them would put a hairline floating in the middle of a space
-     rather than on the edge between two things. */
+  /* A gap so the three never touch at the width where the band is tightest;
+     `space-between` spends everything above it. The horizontal padding is the
+     page gutter, which is what ranges the outer two cells against the same
+     edges every page's content uses. */
+  gap: var(--space-4) var(--space-40);
   padding: 0 var(--space-24);
   background: var(--surface-sunken);
   border-top: var(--border-width) solid var(--rule-hairline);
 }
 
 /*
- * A cell. The left rule is on every one of them including the first, which is
- * what gives the cluster a left edge — without it the block has three internal
- * divisions and no outline, and reads as text that happens to have lines in it.
+ * A cell, and it carries **no divider**, which is the one thing the spread
+ * arrangement gave up.
+ *
+ * The rules were right while the three cells were a block at the right-hand
+ * end of the band: things standing next to each other need something between
+ * them, and the hairline is what turned three adjacent runs of text into three
+ * readouts. Spread edge to edge they are 400px apart, distance is already
+ * doing that work, and a rule hugging the left of each cell with half a screen
+ * of air after it reads as a tick mark for nothing rather than as a boundary
+ * between two things.
+ *
+ * What survives from the cluster — and is the half that mattered — is the
+ * **shape of a cell**: the micro-label on the top line, the value beneath it,
+ * and a detail sentence ranged with them instead of hanging wherever its own
+ * component chose. That is what makes the three labels a row and the three
+ * values a row, and it does not depend on the rules at all.
  */
 .region {
   display: flex;
@@ -211,15 +236,7 @@
   align-items: flex-start;
   gap: var(--space-4);
 
-  padding: var(--space-8) var(--space-20);
-  border-left: var(--border-width) solid var(--rule-hairline);
-}
-
-/* The last cell is flush with the page gutter, so the cluster's right edge is
-   the same edge every page's content is ranged against rather than 20px inside
-   it. The rule stays; only the padding goes. */
-.region:last-child {
-  padding-right: 0;
+  padding: var(--space-8) 0;
 }
 
 .microLabel {
@@ -260,15 +277,52 @@
  * backwards from where the room is. `useStickyChromeHeight` publishes whatever
  * it measures, so nothing downstream needs to know that.
  */
+/*
+ * --- The masthead, narrow ---
+ *
+ * **`Market O`, and what it took to stop reading that** — closed 2026-09-16,
+ * owned by whoever touched this file, which `CLAUDE.md` had been saying since
+ * Task 2.14 found it.
+ *
+ * At 390 the identity block is 235px of a 390px row — 201 of that the
+ * descriptor, which is the longest string in the chrome — and `.nav` got the
+ * 67px left over. It scrolls, so nothing was unreachable and no browser
+ * assertion could see it; what a person saw was a primary navigation reading
+ * `Market O`, clipped mid-word, **with no affordance saying there was more**.
+ * A scroll container whose first item is cut in the middle of a letter does not
+ * read as scrollable; it reads as broken.
+ *
+ * The repair is to stop spending the row's width on the thing that matters
+ * least here. The descriptor is a line for a stranger who has been sent a link
+ * to a screen they do not recognise, and it is worth its 201px at 1440; at 390
+ * it is worth less than the navigation being legible. With it gone and the gap
+ * tightened, `.nav` gets about 180px — enough for `Market Overview` **and the
+ * left edge of the next tab**, which is the affordance the clipped version was
+ * missing. The scrolling is unchanged; what changed is that it now looks like
+ * scrolling.
+ *
+ * The wordmark itself stays at every width. It is the product's name, it is the
+ * accessible identity of the chrome, and the mark beside it is `aria-hidden`.
+ */
+@media (max-width: 560px) {
+  .masthead {
+    gap: var(--space-16);
+    padding: 0 var(--space-16);
+  }
+
+  .descriptor {
+    display: none;
+  }
+
+  .wordmarks {
+    justify-content: center;
+  }
+}
+
 @media (max-width: 768px) {
   .status {
     display: block;
     padding: var(--space-4) var(--space-24);
-  }
-
-  .region {
-    padding: var(--space-8) 0;
-    border-left: 0;
   }
 
   .region + .region {

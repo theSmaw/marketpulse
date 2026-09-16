@@ -235,6 +235,15 @@ export function SecuritySearch({ view, onOpen }: SecuritySearchProps) {
       <div className={cx(styles.anchor)}>
         <TextField
           label="Find a security"
+          /* Spoken, not drawn — since 2026-09-16, when this field moved onto
+             the Security Explorer's heading row. The accessible name is
+             unchanged and still comes from a real `<label>`; see
+             `TextField`'s `labelHidden` for why that is a different decision
+             from letting the placeholder stand in for one. Beside an `<h1>`
+             reading **Security Explorer**, over a field whose placeholder says
+             *Search securities (e.g. AAPL)*, the drawn `FIND A SECURITY` was
+             the third time the page said the same thing. */
+          labelHidden
           value={query}
           onValueChange={(next) => {
             setQuery(next);

@@ -392,11 +392,20 @@ describe("the market-data region", () => {
     expect(urls[0]).not.toMatch(/start=|end=/);
   });
 
-  it("falls back to a default security and says search is not here yet", async () => {
+  it("falls back to a default security on the bare address", async () => {
+    // **The sentence this used to assert on is gone** (2026-09-16): the panel
+    // said *"Showing a default security. Search for another one above…"*, and
+    // it was a paragraph of instructions over the panel's own figures. What it
+    // pointed at now sits on the page's heading row instead, so the fallback is
+    // asserted by what it produces rather than by the notice about it — which
+    // is the stronger assertion of the two, because the notice could have been
+    // rendered over the wrong security.
     renderAt(PATHS.securities);
 
     await waitFor(() => {
-      expect(screen.getByText(/Showing a default security/)).toBeTruthy();
+      expect(
+        screen.getByRole("heading", { level: 2, name: /NVDA/ }),
+      ).toBeTruthy();
     });
   });
 

@@ -62,7 +62,11 @@ the provenance surface, the partial states and the close (2.14).
 Five routes, a status strip reporting the market feed, backend health and the
 market clock, and a **Security Explorer** a person can use rather than only read.
 They can type `nv` and open NVDA; the address becomes `/securities/NVDA` and a
-cold link works. That screen is `PRODUCT_SPEC.md` §8.3's seven regions, of which
+cold link works. **The field that does it is on the page's heading row since
+2026-09-16**, opposite the title rather than under it, which is also what
+retired the route description, the field's drawn label and the panel's
+_"Showing a default security"_ notice — three sentences that existed because the
+top of the screen was a column of prose beside a void. That screen is `PRODUCT_SPEC.md` §8.3's seven regions, of which
 **three hold something**: the identity block, the **Price** region and the
 **Volume** region. The other four are placeholders naming the epic that fills
 them, and that is on purpose.
@@ -163,11 +167,16 @@ in one line here and argued in full where the table below points:
   missing.** A region whose content is legitimately conditional looks identical
   to one whose content silently disappeared; one screen is covered by one browser
   test. **Owner: the next story that adds a region.** Beside it, two smaller
-  findings from the same pass: the defaulted search note invites a reader to use
-  a control that has just said it is unavailable (trigger: the second sentence in
-  the product pointing at another surface's control), and **the masthead's
-  primary navigation is clipped at 390**, reading `Market O` with no affordance
-  saying so — **owner: the first story that touches `AppHeader`.**
+  findings from the same pass. The first is **closed since 2026-09-16, by the
+  sentence ceasing to exist**: the defaulted search note invited a reader to use
+  a control that had just said it was unavailable, and its trigger — the second
+  sentence in the product pointing at another surface's control — never fired,
+  because the search field moved onto the page's heading row and the note was
+  deleted as the thing it pointed at came into view. The trigger stands for the
+  next such sentence. The second is open and its owner has now been reached
+  twice without acting: **the masthead's primary navigation is clipped at 390**,
+  reading `Market O` with no affordance saying so — **owner: the first story
+  that touches `AppHeader`.**
 - **The weekday `1D` photograph**, which no address, fixture or pinned clock can
   produce, because the free plan's fifteen-minute embargo only exists during a
   session. **Narrower since 2026-09-14**: a named window now ends at the last

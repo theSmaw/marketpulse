@@ -78,7 +78,12 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
   // `useBackendHealth` outside the header's boundary.
   const navigate = useNavigate();
   const { view, retry } = useSecurities();
-  const { symbol, fromAddress } = useSecuritySymbol();
+  // `fromAddress` is deliberately not read here any more. The one thing on
+  // this screen that distinguished a defaulted symbol from a named one was the
+  // panel's *"Showing a default security"* sentence, removed 2026-09-16, and
+  // the hook keeps the distinction because it is a true fact about the address
+  // rather than because this route wants it.
+  const { symbol } = useSecuritySymbol();
 
   // The request is a fresh object literal on every render **and that is the
   // intended call shape**: `useBarSeries` keys on `barSeriesQuery(request)`
@@ -171,14 +176,30 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
        * a stranger landing here from a link had the route's name and nothing
        * saying what it was for.
        */}
-      <PageHeader
-        title="Security Explorer"
-        description="What is happening with one security — its bars, its last close, and the universe it belongs to."
-      />
-
       {/*
-       * Search, in the page's own heading block — above both regions and inside
-       * neither (`SEARCH-AND-SELECTION.md` §1).
+       * **The header and the search are one row since 2026-09-16**, and the
+       * description is gone.
+       *
+       * Both changes come from the same reading of the page. The title block
+       * occupied about 550px of a 1900px measure and the field sat under it at
+       * the same edge, so everything right of them — roughly 1250 × 340 — was
+       * empty ground, and the two things a person does on arriving here were
+       * stacked down the left-hand side of it. The sentence that used to sit
+       * between them said what the route's own name and its contents already
+       * say; a page's opening sentence earns its place by telling a stranger
+       * something, and *"what is happening with one security"* under a heading
+       * reading **Security Explorer** was telling them the heading again.
+       *
+       * The field goes in `PageHeader`'s `actions` slot, which is what that
+       * slot is for and is why it needed no new arrangement: `.top` is already
+       * a `space-between` row that wraps. The title is at the left edge, the
+       * control that changes what the page is about is at the right, and the
+       * void between them is gone because it is now the space between two
+       * things rather than the space beside one.
+       *
+       * What is unchanged is `SEARCH-AND-SELECTION.md` §1's actual decision —
+       * the field is in the page's heading block, above both regions and
+       * inside neither:
        *
        * **Not inside the table's `Region`**, and that is a defect avoided
        * rather than a layout preference: `Region` declares `overflow: auto`,
@@ -201,14 +222,19 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
        * Where the table ends up underneath is Task 2.11.7's; that the field
        * sits above whatever it becomes is settled here.
        */}
-      <SecuritySearch
-        view={view}
-        onOpen={(symbol) => {
-          // The one spelling of this destination. `securityPath` is the only
-          // thing that builds one from `ROUTE_PATTERNS.security`, and a push
-          // rather than a replace is what keeps Back working.
-          void navigate(securityPath(symbol));
-        }}
+      <PageHeader
+        title="Security Explorer"
+        actions={
+          <SecuritySearch
+            view={view}
+            onOpen={(symbol) => {
+              // The one spelling of this destination. `securityPath` is the
+              // only thing that builds one from `ROUTE_PATTERNS.security`, and
+              // a push rather than a replace is what keeps Back working.
+              void navigate(securityPath(symbol));
+            }}
+          />
+        }
       />
 
       {/*
@@ -283,7 +309,6 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
                 stored={stored}
                 symbol={symbol}
                 onRetry={series.retry}
-                defaulted={!fromAddress}
                 control={
                   /*
                    * **The window control, on the row above the picture**
