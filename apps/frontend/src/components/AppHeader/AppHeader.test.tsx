@@ -1,58 +1,43 @@
 // The chrome. Two things here are decisions rather than markup, and both are
 // asserted: the product name is deliberately *not* an `<h1>`, and the current
 // route's accessible state and visible state are the same fact.
+//
+// **The feed and backend assertions moved to `AppFooter.test.tsx` on
+// 2026-09-16** with the indicators themselves. Nothing was dropped in the move
+// — including the one that is about the two of them *together*, which is now a
+// question about the footer rather than about the chrome. What stayed here is
+// what is still true of this component: it is a banner, it holds the primary
+// navigation, and it holds the clock.
 
 import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { PATHS } from "../../routes/paths.js";
 import { renderWithContext } from "../../test-render.js";
-import { AppHeader, type AppHeaderProps } from "./AppHeader.js";
-
-// A file-local helper rather than a module: this package is `noEmit`, so a
-// helper module would be legitimate here — but this one describes *these
-// tests'* defaults rather than the application's context, and
-// `test-render.tsx` is deliberately the only file that does the latter.
-//
-// The backend fields default to a settled healthy check so that the tests about
-// the feed, the navigation and the clock are about those things. Every test
-// that is about the backend passes its own.
-const LAST_SUCCESS = new Date(2026, 8, 4, 10, 42, 17);
-
-function props(overrides: Partial<AppHeaderProps> = {}): AppHeaderProps {
-  return {
-    marketFeed: { state: "configured", feed: "iex" },
-    backendStatus: "healthy",
-    backendDegradedCause: null,
-    backendLastSuccessAt: LAST_SUCCESS,
-    backendHasChecked: true,
-    ...overrides,
-  };
-}
+import { AppHeader } from "./AppHeader.js";
 
 describe("AppHeader", () => {
   it("is a banner containing a named navigation", () => {
-    renderWithContext(<AppHeader {...props()} />);
+    renderWithContext(<AppHeader />);
 
     const banner = screen.getByRole("banner");
     expect(
       within(banner).getByRole("navigation", { name: "Primary" }),
     ).toBeDefined();
   });
-
   // Task 1.5.2 demoted the product name to a `<p>` on purpose: every route
   // renders its own `<h1>`, and two on a page leaves a screen reader user with
   // no single answer to "what is this page?". Promoting it back would
   // reintroduce that on every route at once, which is why this is a test.
   it("does not make the product name a heading", () => {
-    renderWithContext(<AppHeader {...props()} />);
+    renderWithContext(<AppHeader />);
 
     expect(screen.getByText("MarketPulse").tagName).toBe("P");
     expect(screen.queryByRole("heading", { name: "MarketPulse" })).toBeNull();
   });
 
   it("links to every path in the table, and only those", () => {
-    renderWithContext(<AppHeader {...props()} />);
+    renderWithContext(<AppHeader />);
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const hrefs = within(nav)
@@ -67,7 +52,7 @@ describe("AppHeader", () => {
   // screen reader announces. `end` on the landing route is what stops `/`
   // matching every path beneath it, and that is the half worth asserting.
   it.each(Object.values(PATHS))("marks %s as the current page", (path) => {
-    renderWithContext(<AppHeader {...props()} />, { at: path });
+    renderWithContext(<AppHeader />, { at: path });
 
     const current = screen
       .getAllByRole("link")
@@ -75,49 +60,6 @@ describe("AppHeader", () => {
 
     expect(current).toHaveLength(1);
     expect(current[0]?.getAttribute("href")).toBe(path);
-  });
-
-  // Task 2.6.7 replaced a hard-coded `DISCONNECTED` here with the feed this
-  // deployment is actually configured to read. What is asserted is the property
-  // §7.1 requires — a reader is told what the feed covers in a **sentence**,
-  // because an acronym tells a non-specialist nothing — and that none of it is
-  // an error, because a single-venue feed is a product state (§36).
-  it("says which feed it reads, in a sentence, and never as an error", () => {
-    renderWithContext(
-      <AppHeader
-        {...props({ marketFeed: { state: "configured", feed: "iex" } })}
-      />,
-    );
-
-    expect(screen.getByText("IEX")).toBeDefined();
-    expect(
-      screen.getByText(/not the full US consolidated tape/i),
-    ).toBeDefined();
-    expect(screen.queryByRole("alert")).toBeNull();
-  });
-
-  // The value this replaced. A hard-coded status word in the chrome is the one
-  // thing this task exists to remove, and this is what would go red if a future
-  // change put a connection state back into this region without a connection
-  // behind it.
-  it("renders no invented connection state", () => {
-    renderWithContext(<AppHeader {...props()} />);
-
-    for (const invented of ["disconnected", "live", "stale"]) {
-      expect(screen.queryByText(invented)).toBeNull();
-    }
-  });
-
-  // The default deployment, and the state a correct first run shows.
-  it("says so when no market-data provider is configured", () => {
-    renderWithContext(
-      <AppHeader {...props({ marketFeed: { state: "not-configured" } })} />,
-    );
-
-    expect(screen.getByText("not configured")).toBeDefined();
-    expect(
-      screen.getByText(/No market-data provider is configured/),
-    ).toBeDefined();
   });
 
   // The region reserved `--:--:--` from Story 1.5 to Story 2.5 and holds a real
@@ -132,78 +74,26 @@ describe("AppHeader", () => {
   // fact that it **advances** is asserted in the browser suite, which is the one
   // level that can see a timer run.
   it("renders a real market clock rather than the reserved placeholder", () => {
-    renderWithContext(<AppHeader {...props()} />);
+    renderWithContext(<AppHeader />);
 
     expect(screen.getByText(/^\d{2}:\d{2}:\d{2}$/)).toBeDefined();
     expect(screen.queryByText("--:--:--")).toBeNull();
     expect(screen.getByText("ET")).toBeDefined();
   });
 
-  // The whole of Task 1.12.5's visible half: the strip carries **two**
-  // indicators, and they report two facts that fail independently. This is the
-  // assertion that would fail if somebody collapsed them back into one.
-  it("shows the backend service beside the market feed, as two labelled regions", () => {
-    renderWithContext(
-      <AppHeader
-        {...props({
-          marketFeed: { state: "not-configured" },
-          backendStatus: "healthy",
-        })}
-      />,
-    );
+  // The navigation is untouched by anything the footer reports, which is the
+  // "rest of the interface remains usable" criterion at this level — and it is
+  // structurally true now rather than asserted-and-hoped, because this
+  // component no longer takes the backend's state at all. Kept because the
+  // property is what matters, not the mechanism that currently guarantees it.
+  it("renders the whole navigation with no application state at all", () => {
+    renderWithContext(<AppHeader />);
 
-    expect(screen.getByText("Market feed")).toBeDefined();
-    expect(screen.getByText("Backend service")).toBeDefined();
-    // The two disagreeing, which is the whole argument for there being two of
-    // them: a healthy backend that is reading no market feed at all is the
-    // correct rendering of a correct first run.
-    expect(screen.getByText("not configured")).toBeDefined();
-    expect(screen.getByText("healthy")).toBeDefined();
-  });
-
-  // Before the first poll settles the hook's `status` reads `unreachable`,
-  // which is true and uninteresting. Rendering it would report the client's own
-  // startup as a fact about the server on every single page load, which is the
-  // opposite of §36 — so the header must pass `hasChecked` through rather than
-  // defaulting it.
-  it("renders the placeholder rather than a state before the first check", () => {
-    renderWithContext(
-      <AppHeader
-        {...props({
-          backendStatus: "unreachable",
-          backendLastSuccessAt: null,
-          backendHasChecked: false,
-        })}
-      />,
-    );
-
-    expect(screen.getByText("checking")).toBeDefined();
-    expect(screen.queryByText("unreachable")).toBeNull();
-  });
-
-  // None of the backend's states is an error either — the same property
-  // `FeedIndicator` holds, asserted here because this is where the two meet.
-  // An unreachable backend must not reach `ErrorBoundary` and must not render
-  // as an alert; the interface around it goes on working.
-  it("reports an unreachable backend as a state, not an error", () => {
-    renderWithContext(
-      <AppHeader
-        {...props({
-          backendStatus: "unreachable",
-          backendLastSuccessAt: LAST_SUCCESS,
-        })}
-      />,
-    );
-
-    expect(screen.getByText("unreachable")).toBeDefined();
-    expect(screen.getByText("Last confirmed 10:42:17 local")).toBeDefined();
-    expect(screen.queryByRole("alert")).toBeNull();
-    // The navigation is untouched by the backend being unreachable, which is
-    // the "rest of the interface remains usable" criterion at this level.
     expect(
       within(screen.getByRole("navigation", { name: "Primary" })).getAllByRole(
         "link",
       ),
     ).toHaveLength(Object.values(PATHS).length);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

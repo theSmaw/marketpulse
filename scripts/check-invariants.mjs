@@ -522,7 +522,7 @@ const INVARIANTS = [
     id: "one-home-for-the-coverage-phrase",
     claim:
       "The sentence saying how far a short answer reaches is written in one " +
-      "source file and read by both the drawn and the spoken copy.",
+      "source file, and nothing draws a second copy of it.",
     check() {
       // **The drift this prevents is the one Story 2.14 spends most of its
       // time on**, and it is invisible to every other instrument here: a
@@ -532,8 +532,19 @@ const INVARIANTS = [
       // reads one reads the other, and a reader who can see the screen never
       // hears the other copy.
       //
-      // `PROVENANCE.md` §3.2 settles it as **one function, two readers**. This
+      // `PROVENANCE.md` §3.2 settled it as **one function, two readers**. This
       // is that arrangement as a grep.
+      //
+      // **There is one reader since 2026-09-16** — the drawn sentence came off
+      // the rail and only the announcement's clause remains (§3.2's amendment)
+      // — and the check is unchanged and still earns its place, for two
+      // reasons that are easy to miss. It still catches somebody re-inlining
+      // the phrase in the announcement, which is the edit `pnpm break
+      // coverage-sentence-twice` performs and the one that looks like tidying
+      // up a layering mistake. And its `homes.length === 0` branch is now the
+      // *more* interesting half: with no drawn copy, the spoken clause is the
+      // only thing telling a listener a short answer is short, and deleting it
+      // would leave nothing on any channel.
       //
       // **Anchored on a literal that must be FOUND.** A "no second copy"
       // assertion passes just as happily when the phrase has been renamed,

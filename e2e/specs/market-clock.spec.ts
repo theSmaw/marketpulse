@@ -58,15 +58,17 @@ test("the market clock renders in ET and advances on its own", async ({
 }) => {
   await page.goto("/");
 
-  // Scoped through the micro-label rather than a role, for `support/app.ts`'s
-  // reason: the strip's three cells are cells of the chrome rather than areas
-  // of the page, so there is no landmark to scope by. Unscoped, `^\d{2}:...`
-  // would also match the backend indicator's `Last confirmed` time whenever
-  // that state is on screen.
-  const region = page
-    .getByRole("banner")
-    .getByText("Market clock", { exact: true })
-    .locator("..");
+  // **Scoped by landmark alone since 2026-09-16**, where this went through the
+  // `Market clock` micro-label to reach the cell that held it.
+  //
+  // Both halves of that changed on the same day and in the same direction. The
+  // label is gone — the figure and the session word say what this is, and
+  // `MarketClock` carries the accessible name itself — and the reason the label
+  // was needed as a *scope* is gone too: it was there because an unscoped
+  // `^\d{2}:...` would also match the backend indicator's `Last confirmed`
+  // time, and that indicator is in `AppFooter` now. So the banner is a
+  // sufficient scope, and it is a stronger one than a text lookup was.
+  const region = page.getByRole("banner");
 
   const clock = region.getByText(CLOCK_SHAPE);
   await expect(clock).toBeVisible();
@@ -126,11 +128,7 @@ test("the clock is on every route and does not restart when one changes", async 
 }) => {
   await page.goto("/");
 
-  const clock = page
-    .getByRole("banner")
-    .getByText("Market clock", { exact: true })
-    .locator("..")
-    .getByText(CLOCK_SHAPE);
+  const clock = page.getByRole("banner").getByText(CLOCK_SHAPE);
 
   // `AppHeader` is rendered once, outside `<Routes>`, so navigating must not
   // remount it. If it did, the clock would flash back to its mount value —

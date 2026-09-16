@@ -14,9 +14,20 @@
  *   colour-on-data decision nobody has argued for.
  */
 
+/*
+ * A width, added 2026-09-16 when this moved into `PageHeader`'s actions slot.
+ *
+ * It had none before because it was a block in the page body and took the
+ * measure it was given. In a flex slot it takes its content width instead,
+ * which for a field is the placeholder's width — 204px, a box that looks like
+ * it is for a postcode. 420 is the field this control has always drawn at
+ * rounded to something that leaves the heading room beside it; `100%` is what
+ * keeps it inside the slot once `.top` wraps.
+ */
 .search {
   display: grid;
   gap: var(--space-4);
+  width: min(420px, 100%);
 }
 
 /* The surface is positioned against this rather than against the page, so the

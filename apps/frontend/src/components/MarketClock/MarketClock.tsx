@@ -244,6 +244,20 @@ export function MarketClock({ reading }: MarketClockProps) {
 
   return (
     <div className={styles.clock}>
+      {/* **The figure is the first line and it is the hero** (2026-09-16).
+          Two arrangements preceded it in one day — figure over state over
+          sentence, then figure beside state over sentence — and both were
+          reading the clock as three facts to be fitted somewhere. It is one
+          fact with a qualifier: *it is 04:41:32 in New York, and the market is
+          closed until 09:30.* So the figure gets a line and the qualifier gets
+          a line.
+
+          The figure is set at the subheading size in the data face rather than
+          at the interface's default 13px. A ticking number is exactly what
+          `--font-data` and `tabular-nums` are for — the seconds change every
+          second and a proportional face reflows the whole reading when they do
+          — and this is the only number in the chrome, so there is nothing for
+          it to compete with. */}
       <p className={styles.time}>
         {/* The accessible name for the figure, and the reason the `ET` beside
             it is `aria-hidden`: read aloud, "ET" is two letters rather than a
@@ -257,18 +271,28 @@ export function MarketClock({ reading }: MarketClockProps) {
         </span>
       </p>
 
-      {/* The marker and the word are their own row, and the sentence is a
-          sibling rather than a third grid cell spanning it. That is forced
-          rather than tidy — see the stylesheet: a spanning item inflates the
-          columns it spans, so the two indicators' grid arrangement puts the
-          marker a centimetre from its word on the longest sentence this
-          renders. Caught in the workshop, on the one permutation the running
-          application cannot be put into on an ordinary day. */}
-      <span className={cx(styles.state, className)}>
-        <Marker shape={shape} />
-        <span className={styles.label}>{word}</span>
+      {/* The qualifier: what the market is doing, and what it does next.
+
+          They were on separate lines until now for a reason that was never
+          about them — the grid this used to sit in inflated any column a
+          spanning item crossed, so the sentence had to be a sibling of the
+          state rather than share a row with it. Nothing spans anything here,
+          and the two belong together: `CLOSED` alone is a state, and
+          `CLOSED · Opens at 09:30` is an answer.
+
+          The middot is the product's existing separator for a run of facts
+          about one subject — `SecurityIdentity`'s classification line uses it
+          the same way — and it is plain text there and here rather than an
+          `aria-hidden` flourish, so a listener hears the same grouping a reader
+          sees. */}
+      <span className={styles.reading}>
+        <span className={cx(styles.state, className)}>
+          <Marker shape={shape} />
+          <span className={styles.label}>{word}</span>
+        </span>
+        <span className={styles.separator}>·</span>
+        <span className={styles.detail}>{detail}</span>
       </span>
-      <span className={styles.detail}>{detail}</span>
     </div>
   );
 }

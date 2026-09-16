@@ -42,6 +42,26 @@ html {
    * element a header below where it belongs.
    */
   scroll-padding-top: var(--sticky-chrome-height, 0px);
+
+  /*
+   * And the same at the bottom, since 2026-09-16, because the chrome now has a
+   * second sticky edge: `AppFooter` is a status bar welded to the bottom of the
+   * viewport.
+   *
+   * The occlusion is the same fact reflected. Sequential focus navigation
+   * scrolls a target to the *nearest* edge of the scrollport when it is below
+   * the fold, which puts it under the bar — invisible in jsdom, invisible to
+   * axe, and visible only to a person pressing Tab. One declaration answers it
+   * for focus navigation, fragment links and `scrollIntoView()` alike, which is
+   * why it is here rather than at each call site.
+   *
+   * `AppFooter` measures the element and publishes the value for
+   * `useStickyChromeHeight`'s reason: the bar wraps to two rows below 768, so
+   * its height exists at more than one value and a token would be a second copy
+   * of it, wrong at one viewport the first time its contents change. The `0`
+   * fallback means *nobody has said*.
+   */
+  scroll-padding-bottom: var(--sticky-footer-height, 0px);
 }
 
 body {

@@ -131,6 +131,30 @@ export interface TextFieldProps extends Omit<
    */
   readonly label: string;
 
+  /**
+   * Render the label to assistive technology only — added 2026-09-16.
+   *
+   * **This is not a way to replace the label with the placeholder**, and the
+   * distinction is the whole reason it is a separate prop rather than
+   * `label?: string`. The `<label>` element is still rendered, still
+   * `htmlFor`-associated and still the accessible name; what goes is the ink.
+   * Everything the paragraph above warns about survives: a screen reader reads
+   * the name, and the name does not disappear when somebody types.
+   *
+   * It exists for one shape and should stay rare: a control whose **position**
+   * already says what it is, where the visible label would be the third time
+   * the page said so. The one case today is the security search, which moved
+   * onto the Security Explorer's heading row — a field with a magnifier and
+   * *"Search securities (e.g. AAPL)"*, sitting beside an `<h1>` reading
+   * **Security Explorer**, does not also need `FIND A SECURITY` over it.
+   *
+   * **Reversal trigger: the second caller that is not a search field.** A
+   * hidden label on a field a person has to fill in correctly is a different
+   * decision from a hidden label on a field they are scanning with, and the
+   * moment one of those appears this prop is the wrong shape for it.
+   */
+  readonly labelHidden?: boolean;
+
   /** The current value. This is a controlled input; there is no uncontrolled mode. */
   readonly value: string;
 
@@ -287,6 +311,7 @@ const SIZE_CLASS: Readonly<Record<TextFieldSize, string | undefined>> = {
 
 export function TextField({
   label,
+  labelHidden,
   value,
   onValueChange,
   icon,
@@ -367,7 +392,12 @@ export function TextField({
 
   return (
     <div className={cx(styles.field)}>
-      <label className={cx(styles.label)} htmlFor={id}>
+      <label
+        className={
+          labelHidden === true ? cx(a11y.visuallyHidden) : cx(styles.label)
+        }
+        htmlFor={id}
+      >
         {label}
       </label>
 

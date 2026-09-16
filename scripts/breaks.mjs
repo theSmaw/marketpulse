@@ -267,10 +267,10 @@ export const BREAKS = [
   {
     name: "coverage-sentence-twice",
     proves:
-      "The coverage sentence re-inlined in the announcement while the rail " +
-      "also draws it puts one fact in two vocabularies — the drift a screen " +
-      "and a screen reader can diverge through with nothing to notice — and " +
-      "the invariant catches the second home.",
+      "The coverage sentence re-inlined in the announcement puts the phrase " +
+      "in a second home, which is how one fact becomes two vocabularies — " +
+      "the drift a screen and a screen reader can diverge through with " +
+      "nothing to notice — and the invariant catches it.",
     // The break is the change somebody would actually make: putting the
     // sentence back where it was assembled until Task 2.14.5, because reaching
     // into a component's `series-facts.ts` from the announcement looks like a

@@ -1,11 +1,13 @@
 /*
- * The chrome: a 56px masthead over a status strip.
+ * The chrome: one 56px masthead, since 2026-09-16.
  *
- * Two grounds rather than one — the masthead is raised and the strip beneath it
- * is sunken — which is what makes the strip read as *instrumentation attached
- * to* the product rather than as a second row of navigation. The near-black
- * rule goes under the pair, not between them: it is the boundary between the
- * chrome and the page, and it is the most structural line in the application.
+ * It was two rows — this masthead over a sunken status strip — and the strip
+ * has become `AppFooter`, minus the market clock, which came up into the row
+ * below. See the component for why three facts became one and two.
+ *
+ * The near-black rule under it is unchanged and is the reason it still reads as
+ * chrome with one row rather than two: it is the boundary between the
+ * application's frame and its page, and it is the most structural line here.
  */
 
 .header {
@@ -149,54 +151,109 @@
 }
 
 /*
- * --- The status strip ---
+ * --- The market clock ---
  *
- * Right-aligned on the sunken ground. The generous gap is deliberate and
- * inherited from the pre-refresh strip: three facts that fail independently
- * need to read as three things, and 40px is what does that on a row where every
- * other measurement is 8 or 12.
+ * The masthead's third item, and the only one with an end alignment.
+ *
+ * **`margin-left: auto` rather than `justify-content: space-between` on the
+ * row**, and that is load-bearing rather than a style. `.nav` is the item that
+ * absorbs a narrowing viewport — it is `overflow-x: auto` and scrolls — and a
+ * row that distributes its free space hands every item exactly its content
+ * width, which takes the navigation's slack away and makes it start scrolling
+ * at the first pixel below its natural size instead of the first pixel below
+ * the row's. The `auto` margin puts all the slack in one place, between the
+ * tabs and the clock, which is where there is nothing to lose.
+ *
+ * **The label is baseline-aligned to the figure, not to the block** — amended
+ * 2026-09-16, and it is the second half of what "aligned with itself" turned
+ * out to mean. `MarketClock` is two lines with the figure on top; centring the
+ * label against the pair puts an 11px word in the gap between two lines, level
+ * with neither. On the figure's baseline it is a prefix to the number, which is
+ * what it is, and the row reads as one thing with a name rather than as a label
+ * beside a block.
+ *
+ * `align-self: center` because the masthead is `align-items: stretch`, so
+ * without it the cell is 56px tall and its contents sit at the top of it.
  */
-.status {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-12) var(--space-40);
-
-  padding: var(--space-8) var(--space-24);
-  background: var(--surface-sunken);
-  border-top: var(--border-width) solid var(--rule-hairline);
-}
-
-.region {
+.clockCell {
   display: flex;
   align-items: baseline;
-  gap: var(--space-8);
-}
-
-/*
- * The label and its value on **one line** since the refresh, where they used to
- * be stacked.
- *
- * The strip is a strip now — 34px rather than 52 — and the label reads as a
- * prefix to the value rather than as a heading over it. The trap this walks
- * past is recorded in `e2e/README.md` as `Backend servicehealthy`: there is no
- * word boundary between a label element and a value element, so anything
- * asserting on the region's *combined* text sees them run together. That was
- * already true stacked; the gap here is a CSS gap and not a space character, so
- * it stays true, and the specs that know it still pass.
- */
-.microLabel {
-  composes: microLabel from "../../styles/type.module.css";
-  margin: 0;
-  color: var(--ink-secondary);
+  align-self: center;
+  gap: var(--space-12);
+  margin-left: auto;
   flex-shrink: 0;
 }
 
-.serviceRegion,
-.feedRegion {
-  max-width: 46ch;
-}
+/*
+ * --- The masthead at phone width: two rows, and the navigation gets one ---
+ *
+ * **`Market O`, and what it took to stop reading that** — the open finding
+ * `CLAUDE.md` has carried since Task 2.14, closed 2026-09-16 by whoever touched
+ * this file, which is what it said would happen.
+ *
+ * At 390 the identity block was 235px of a 390px row — 201 of that the
+ * descriptor, the longest string in the chrome — and `.nav` got the 67px left
+ * over. It scrolls, so nothing was unreachable and no browser assertion could
+ * see it; what a person saw was a primary navigation reading `Market O`,
+ * clipped mid-word, **with no affordance saying there was more**. A scroll
+ * container whose first item is cut in the middle of a letter does not read as
+ * scrollable; it reads as broken.
+ *
+ * The row has to hold an identity block, four tabs and a clock, and it cannot.
+ * Something has to wrap, and the choice is the whole decision here.
+ *
+ * **The navigation wraps, and it is the right one to wrap because wrapping
+ * fixes it.** `Market O` — the clipped primary navigation `CLAUDE.md` has
+ * carried as an open finding — was a symptom of `.nav` getting whatever was
+ * left of the row after two other things had taken theirs. Given a row of its
+ * own it gets the full 390, which is `Market Overview`, `Investigation
+ * Workspace` and the left edge of the third: still a scroller, but one that
+ * visibly *is* one.
+ *
+ * The clock stays, because it is the reading a person came for and the reason
+ * it moved up here in the first place; the descriptor goes, because it is a
+ * line for a stranger who has been sent a link to a screen they do not
+ * recognise — worth its 201px at 1440, worth less than this row at 390. The
+ * wordmark itself stays at every width: it is the product's name and the
+ * accessible identity of the chrome, and the mark beside it is `aria-hidden`.
+ *
+ * The masthead's height becomes `auto` rather than a second token. Two readers
+ * needed `--app-header-height` to agree (the row and the tab underline) and
+ * they still do at every width above this one; here the two rows are measured
+ * by `useStickyChromeHeight` and published, which is the mechanism that already
+ * exists precisely so a chrome with more than one height does not need a
+ * constant per height.
+ */
+@media (max-width: 560px) {
+  .masthead {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 0;
+    padding: 0 var(--space-16);
+  }
 
-.clock {
-  text-align: right;
+  .descriptor {
+    display: none;
+  }
+
+  /* The identity sets the first row's height; the clock centres in whatever
+     that turns out to be. Giving the clock an explicit height instead puts its
+     two lines at the top of a 56px box, level with nothing — which is the same
+     defect the label caused at full width, arriving through a different
+     property. */
+  .identity {
+    height: var(--app-header-height);
+    align-items: center;
+  }
+
+  /* Its own full-width row, under the other two. */
+  .nav {
+    order: 3;
+    flex-basis: 100%;
+    border-top: var(--border-width) solid var(--rule-hairline);
+  }
+
+  .navLink {
+    padding: var(--space-8) var(--space-12);
+  }
 }

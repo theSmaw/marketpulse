@@ -30,12 +30,7 @@ import { PriceChart } from "../PriceChart/PriceChart.js";
 import type { StoredHistory } from "../PriceChart/chart-vacancy.js";
 import { announceSeries } from "./series-announcement.js";
 import type { SeriesPrices } from "./series-facts.js";
-import {
-  changePercent,
-  coveragePhrase,
-  sentenceCase,
-  seriesPrices,
-} from "./series-facts.js";
+import { changePercent, sentenceCase, seriesPrices } from "./series-facts.js";
 import styles from "./BarSeriesPanel.module.css";
 
 // One security's bar series — **the chart, and the exact figures the picture
@@ -159,15 +154,6 @@ export interface BarSeriesPanelProps {
   readonly onRetry: () => void;
 
   /**
-   * Say that search is not here yet.
-   *
-   * True only on the bare `/securities`, where the reader had no way to name a
-   * security and is looking at a default. On `/securities/AMD` they evidently
-   * found one, and the sentence would be noise.
-   */
-  readonly defaulted: boolean;
-
-  /**
    * What changes the window, on the security's own name line (2026-09-13).
    *
    * **It used to be on the region's heading row** — `VOLUME-AND-WINDOW.md` §8.6
@@ -208,7 +194,6 @@ export function BarSeriesPanel({
   screen,
   symbol,
   onRetry,
-  defaulted,
   control,
   stored = "unknown",
 }: BarSeriesPanelProps) {
@@ -237,13 +222,21 @@ export function BarSeriesPanel({
        * that had one — and the control because the figures row below is where it
        * belongs (see `.reading`).
        *
-       * What could not leave is the pair of qualifications that used to hang off
-       * the ticker: an untracked security and a defaulted one. They render
-       * `null` when neither applies, which is the ordinary case, so the row they
-       * are in costs no height at all in the state the panel is usually in.
-       * That is the property the header band never had.
+       * What could not leave is the qualification that used to hang off the
+       * ticker: an untracked security. It renders `null` when it does not
+       * apply, which is the ordinary case, so the row it is in costs no height
+       * at all in the state the panel is usually in. That is the property the
+       * header band never had.
+       *
+       * **There were two until 2026-09-16**, and the other was
+       * *"Showing a default security. Search for another one above, or open one
+       * directly at /securities/SYMBOL."* It was a paragraph of instructions
+       * sitting on top of the panel's own figures, and what it explained is now
+       * answered by the layout instead: the search field moved onto the page's
+       * heading row, where it is the second thing on the screen rather than
+       * something to be pointed at from below. The prop it needed left with it.
        */}
-      <Notes defaulted={defaulted} untracked={isUntracked(shown)} />
+      <Notes untracked={isUntracked(shown)} />
       {/*
        * **The figures, and beside them what happened to the request**
        * (2026-09-13; the four prices joined them 2026-09-14).
@@ -554,16 +547,14 @@ function Rail({
        * layout and absent from everything else, and with nothing focusable in
        * them they are out of the tab order by construction.
        *
-       * **Two cells since 2026-09-15 (Task 2.14.5), and stacked rather than
-       * compared.** The rail gained a third occupant and the two candidates are
-       * not commensurable as strings: the held sentence's worst case is picked
-       * from a closed set of window phrases, the coverage sentence's length is
-       * a property of an answer. Comparing character counts would be an
-       * argument; putting both in the same grid cell makes the row as tall as
-       * the taller **at this width**, which is the only reservation that
-       * survives a sentence that wraps at 390 and does not at 1440, and is the
-       * measurement `CLAUDE.md` asks for rather than the argument it warns
-       * about.
+       * **One cell again since 2026-09-16.** It was two from Task 2.14.5:
+       * the rail had gained a third occupant, the drawn coverage sentence,
+       * whose length is a property of an answer rather than of a closed set of
+       * window phrases — so the two reservations were stacked in one grid cell
+       * rather than compared as character counts. That sentence is gone (see
+       * {@link Settled}) and its reservation went with it, which leaves this
+       * slot reserving exactly what it reserved before: the worst in-flight
+       * sentence a press of the control can produce.
        */}
       <div
         aria-hidden="true"
@@ -573,7 +564,6 @@ function Rail({
           <RailSentence>{reservedSentence(screen)}</RailSentence>
         </div>
       </div>
-      <CoverageReservation view={screen.shown} />
       <div className={styles.railState}>
         {/*
          * **One rail position, two subjects** (Task 2.13.7), and they are
@@ -618,110 +608,39 @@ function Rail({
  *      which one — including the coverage sentence, which would otherwise be
  *      describing a window nobody asked for.
  *   2. **Refreshing**, here. Same genus as the held sentence — an outcome of a
- *      request rather than a property of the picture — and it outranks coverage
- *      for the same reason: a reader is owed *this is one answer old* before
- *      *this answer is short*, and the two are naturally sequential anyway. The
- *      refetch settles and the new answer's own coverage sentence takes the
- *      slot, one beat later.
- *   3. **Coverage**, when the answer on screen is short of the window it was
- *      asked for.
- *   4. **Nothing**, which is the ordinary case and is the decision rather than
- *      an omission — see {@link Coverage}.
+ *      request rather than a property of the picture.
+ *   3. **Nothing**, which is now every other case.
+ *
+ * **There were four until 2026-09-16, and the third was the drawn coverage
+ * sentence** — *"Holding 1,170 bars, through 2026-09-11 16:00:00 EDT, of a
+ * window running to 2026-09-15 16:00:00 EDT."* — rendered whenever the answer
+ * was short of the window asked for. It is gone, and what is gone with it is
+ * only the **drawing**: `coveragePhrase()` is unchanged and
+ * `series-announcement.ts` still speaks it.
+ *
+ * That is not a parity break, and the distinction is worth being exact about
+ * because it looks like one. Parity is equivalent information through each
+ * channel, not identical strings. A sighted reader is told *this stops short*
+ * by the picture — `CHARTING.md` §14.1's uncovered ground and coverage edge,
+ * the line ending before the frame does — and told roughly *where* by the
+ * axis's dated seams. A listener has neither, which is why the clause stays in
+ * the announcement. The drawn sentence was a third statement, in the smallest
+ * type on the screen, of something already drawn twice.
+ *
+ * Two full instants to the second, above the figures, on every short answer is
+ * also more than the fact is worth: on the deployed store, which is backfilled
+ * nightly, most answers are not short at all — this was overwhelmingly a
+ * developer's view of a developer's store.
+ *
+ * **Reversal trigger: an axis a reader cannot read a date off.** The whole
+ * argument above rests on the seams carrying dates (ADR 0027); a window whose
+ * labels are times, or none, takes the visual half of the parity away and the
+ * sentence has to come back — for everyone.
  */
 function Settled({ view }: { readonly view: BarSeriesView }) {
   if (isStale(view)) return <Refreshing />;
-  if (view.state !== "partial") return null;
 
-  return <Coverage series={view.series} />;
-}
-
-/**
- * **How far this answer reaches, and how far the window ran** (Task 2.14.5).
- *
- * ## Why there is no sentence under a complete chart
- *
- * Because the axis is the answer there, and `PROVENANCE.md` §3.1 rejected
- * saying it anyway by name: *"data through 16:00"* under a chart whose line
- * ends at 16:00 is padding, and padding in a small type teaches a reader that
- * the small type is not worth reading. This absence is a decision and is
- * recorded as one so that a later reader does not read it as a state somebody
- * forgot.
- *
- * ## Why there is one under a short chart
- *
- * The picture already says *something is missing* and *it stops here* — that is
- * `CHARTING.md` §14.1's uncovered ground and its coverage edge, and it is a
- * geometric answer this task does not touch. What it cannot say is **when**,
- * because the axis is session-ordinal (ADR 0027) and an instant is exactly what
- * an ordinal position cannot be read back as. That gap is the whole
- * justification for the sentence.
- *
- * ## The words are not written here
- *
- * {@link coveragePhrase} is read by `series-announcement.ts` too, so the
- * sentence a listener hears and the sentence a reader sees are one string
- * produced once. `sentenceCase` is the only difference — spoken it is a clause
- * mid-sentence, drawn it starts one.
- *
- * ## And it is not a warning
- *
- * The dashed marker `RailSentence` gives every occupant of this slot, no colour
- * and no box, for the reason the two rails beside it carry: **nothing has gone
- * wrong.** A historical chart that ends where the store ends is a correct
- * historical chart, the four prices beside this sentence are correct prices of
- * the bars we hold, and stored history is caught up overnight. §36's sentence
- * has an alarm in it because something disconnected; this one must not borrow
- * it.
- */
-function Coverage({ series }: { readonly series: PopulatedBarSeries }) {
-  return (
-    // `.railBlock` and not a bare sentence, which is the difference between
-    // this and `Refreshing` drawn rather than said: that rail carries a
-    // hairline that **travels**, because a newer answer is on its way. This one
-    // is settled — the answer arrived and this is what it turned out to be — so
-    // it takes the static rule the held rail takes, and the rule closes the
-    // block above the picture rather than marching under a finished sentence.
-    <div className={styles.railBlock}>
-      <RailSentence>{sentenceCase(coveragePhrase(series))}</RailSentence>
-    </div>
-  );
-}
-
-/**
- * The height a coverage sentence would take, held open before there is one.
- *
- * Rendered from the series **on screen** rather than from an invented worst
- * case, and the reason is the one {@link reservedSentence} gives for
- * enumerating only the windows the control offers: a reservation built from the
- * longest sentence imaginable over-reserves at every width where the extra
- * clause wraps and the real one does not, which is an empty line above every
- * chart in the product.
- *
- * **What that leaves unreserved is the bar count's digits**, and it is stated
- * rather than hidden: a press that turns a 390-bar answer into an 8,190-bar one
- * moves this sentence's last line by two characters. Measured at 1440, 1024,
- * 768 and 390, the line count does not change across that range — the sentence
- * is two instants and a count, and the count is nowhere near a wrap boundary at
- * any of the four. The residue is recorded in `docs/GAPS.md` with the width to
- * re-measure at, because the day the phrase is reworded is the day that stops
- * being true and nothing mechanical can see it.
- *
- * `null` where there is no series, which is every state before the first
- * answer: a coverage sentence is unreachable from there without the whole panel
- * changing shape anyway, so reserving for one would spend the height on the one
- * screen that has no picture to protect.
- */
-function CoverageReservation({ view }: { readonly view: BarSeriesView }) {
-  const series = readableSeries(view);
-  if (series === null) return null;
-
-  return (
-    <div aria-hidden="true" className={cx(styles.railState, styles.railSizer)}>
-      <div className={styles.railBlock}>
-        <RailSentence>{sentenceCase(coveragePhrase(series))}</RailSentence>
-      </div>
-    </div>
-  );
+  return null;
 }
 
 /**
@@ -967,49 +886,40 @@ function outcomeSentence(view: BarSeriesView, asked: string): string {
  * `Price`, so the heading was neither the page's answer to *which security* nor
  * the region's accessible name. It was a third statement of a fact stated twice.
  *
- * What is left is the two qualifications that used to hang off it, and the
- * reason they are still **above** the figures is unchanged from Task 2.10.8's
- * D2: an untracked security is untracked whatever this answer turned out to be —
- * still true under a partial series, under an empty one, and while a newer
- * answer is being read — so a note at the bottom of the body reads as a footnote
- * on the numbers when it is a qualification on the subject.
+ * What is left is **one** of the two qualifications that used to hang off it —
+ * the other, *"Showing a default security"*, left on 2026-09-16 with the search
+ * field that moved onto the page's heading row — and the reason it is still
+ * **above** the figures is unchanged from Task 2.10.8's D2: an untracked
+ * security is untracked whatever this answer turned out to be — still true
+ * under a partial series, under an empty one, and while a newer answer is being
+ * read — so a note at the bottom of the body reads as a footnote on the numbers
+ * when it is a qualification on the subject.
  *
  * `null` when there is nothing to say, which is the ordinary case. The panel's
  * column gap is only spent when this renders something, which is the whole
  * reason the band it replaced could go.
  */
-function Notes({
-  defaulted,
-  untracked,
-}: {
-  readonly defaulted: boolean;
-  readonly untracked: boolean;
-}) {
-  if (!defaulted && !untracked) return null;
+function Notes({ untracked }: { readonly untracked: boolean }) {
+  if (!untracked) return null;
 
+  // Still a `<div>` around a single `<p>`, and deliberately: `.notes` is the
+  // row, and a second qualification going in beside this one is a sibling
+  // rather than a restructuring. There were two here until 2026-09-16.
   return (
     <div className={styles.notes}>
-      {untracked && (
-        <p className={styles.defaulted}>
-          {/*
-           * A `Badge`, and the neutral tone, because it is **not a warning**:
-           * the bars are real and the series is correct, and what changed is the
-           * universe. `BADGE_TONES` has no warning tone by design, which is the
-           * language agreeing with the judgement rather than constraining it.
-           *
-           * It leads the sentence now that it has no ticker to sit beside, so
-           * the sentence is what gives it its subject.
-           */}
-          <Badge>Untracked</Badge> MarketPulse no longer tracks this security.
-          These bars are what was stored while it did.
-        </p>
-      )}
-      {defaulted && (
-        <p className={styles.defaulted}>
-          Showing a default security. Search for another one above, or open one
-          directly at <code className={styles.code}>/securities/SYMBOL</code>.
-        </p>
-      )}
+      <p className={styles.defaulted}>
+        {/*
+         * A `Badge`, and the neutral tone, because it is **not a warning**:
+         * the bars are real and the series is correct, and what changed is the
+         * universe. `BADGE_TONES` has no warning tone by design, which is the
+         * language agreeing with the judgement rather than constraining it.
+         *
+         * It leads the sentence now that it has no ticker to sit beside, so
+         * the sentence is what gives it its subject.
+         */}
+        <Badge>Untracked</Badge> MarketPulse no longer tracks this security.
+        These bars are what was stored while it did.
+      </p>
     </div>
   );
 }

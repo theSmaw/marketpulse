@@ -45,13 +45,20 @@ import { expect } from "@playwright/test";
 export const CHECKING = "checking";
 
 /**
- * The status strip cell that carries the backend service's state.
+ * The status-bar cell that carries the backend service's state.
  *
  * Scoped through the micro-label rather than a role, for the reason above.
+ *
+ * **`contentinfo` rather than `banner` since 2026-09-16**: this fact moved out
+ * of the header's status strip and into `AppFooter`, the sticky status bar at
+ * the bottom of the viewport. The shape it is found by is unchanged — a
+ * micro-label and the cell that contains it — which is why this is a one-word
+ * edit rather than a rewrite, and is the argument for having located it this
+ * way in the first place.
  */
 export function backendIndicator(page: Page): Locator {
   return page
-    .getByRole("banner")
+    .getByRole("contentinfo")
     .getByText("Backend service", { exact: true })
     .locator("..");
 }

@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router";
 
+import { AppFooter } from "./components/AppFooter/AppFooter.js";
 import { AppHeader } from "./components/AppHeader/AppHeader.js";
 import { ErrorBoundary } from "./components/ErrorBoundary/ErrorBoundary.js";
 import { InvestigationWorkspace } from "./routes/InvestigationWorkspace.js";
@@ -165,13 +166,7 @@ export function App() {
            * its only interesting member is `version`, which is `"0.0.0"` on
            * purpose.
            */}
-          <AppHeader
-            marketFeed={marketFeed}
-            backendStatus={backend.status}
-            backendDegradedCause={backend.degradedCause}
-            backendLastSuccessAt={backend.lastSuccessAt}
-            backendHasChecked={backend.hasChecked}
-          />
+          <AppHeader />
         </ErrorBoundary>
 
         <main className={styles.main}>
@@ -234,6 +229,40 @@ export function App() {
             </Routes>
           </ErrorBoundary>
         </main>
+
+        {/*
+          The status bar (2026-09-16), carrying the two facts that used to be
+          in the header's strip: the market feed's provenance and the backend
+          service's state.
+
+          **Its own boundary, and that is the improvement rather than the
+          ceremony.** These two were inside `AppHeader`'s boundary until now, so
+          a component throwing anywhere in the chrome took the navigation, the
+          clock *and* the indicator whose entire recorded purpose is to still be
+          there when something has broken. Two boundaries is two failures that
+          cannot take each other.
+
+          The fallback is `compact` for the header's reason: this is a 32px band
+          and a full error panel in place of it would be louder than the thing
+          it is reporting on.
+
+          Both polls stay in `App`, outside both boundaries, as they always
+          were — a boundary that caught a render must not also stop the loop
+          that would recover it.
+        */}
+        <ErrorBoundary
+          title="The status bar could not be displayed"
+          detail="The market feed and the backend service are unreported; the page above is unaffected."
+          compact
+        >
+          <AppFooter
+            marketFeed={marketFeed}
+            backendStatus={backend.status}
+            backendDegradedCause={backend.degradedCause}
+            backendLastSuccessAt={backend.lastSuccessAt}
+            backendHasChecked={backend.hasChecked}
+          />
+        </ErrorBoundary>
       </div>
     </BrowserRouter>
   );

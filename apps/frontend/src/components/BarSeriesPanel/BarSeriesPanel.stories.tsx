@@ -96,7 +96,6 @@ const meta = {
      */
     control: <TimeWindowControl onChange={() => undefined} sessions={5} />,
     symbol: "NVDA",
-    defaulted: false,
     onRetry: () => undefined,
   },
 } satisfies Meta<typeof BarSeriesPanel>;
@@ -273,19 +272,13 @@ export const Untracked: Story = {
   args: { screen: barSeriesFixtureScreen("untracked"), symbol: "AMD" },
 };
 
-/** The bare `/securities`, where nobody named a security. The panel says search
- * is a story away rather than presenting a default as a choice. */
-export const DefaultedSymbol: Story = {
-  args: { screen: barSeriesFixtureScreen("partial"), defaulted: true },
-};
-
 /**
  * Every state at once — the review that cannot be done one story at a time.
  *
  * The landmark rule that bit `AppHeader` and `Region` does not apply: this panel
- * declares no landmark, so thirteen of them on one page is thirteen `<div>`s.
+ * declares no landmark, so twelve of them on one page is twelve `<div>`s.
  *
- * **What it does now have is thirteen live regions**, which is a property of
+ * **What it does now have is twelve live regions**, which is a property of
  * the grid rather than of the panel and is worth knowing before anybody reads
  * an axe run here. A `role="status"` is not a landmark and does not want an
  * accessible name, so the uniqueness rule that forced `AppHeader`'s hand does
@@ -298,64 +291,43 @@ export const AllPermutations: Story = {
     <div className={gridStyles.grid}>
       {(
         [
-          ["Complete", barSeriesFixtureScreen("full"), "NVDA", false],
-          ["Partial", barSeriesFixtureScreen("partial"), "NVDA", false],
+          ["Complete", barSeriesFixtureScreen("full"), "NVDA"],
+          ["Partial", barSeriesFixtureScreen("partial"), "NVDA"],
           [
             "Stitched — two sources",
             barSeriesFixtureScreen("stitched"),
             "NVDA",
-            false,
           ],
-          ["Empty", barSeriesFixtureScreen("empty"), "NVDA", false],
-          ["Loading", barSeriesViewScreen({ state: "loading" }), "NVDA", false],
-          [
-            "Refused — the cap",
-            barSeriesFixtureScreen("refusedCap"),
-            "NVDA",
-            false,
-          ],
+          ["Empty", barSeriesFixtureScreen("empty"), "NVDA"],
+          ["Loading", barSeriesViewScreen({ state: "loading" }), "NVDA"],
+          ["Refused — the cap", barSeriesFixtureScreen("refusedCap"), "NVDA"],
           [
             "Refused — the calendar",
             barSeriesFixtureScreen("refusedCalendar"),
             "NVDA",
-            false,
           ],
           [
             "Refused — unknown symbol",
             barSeriesFixtureScreen("refusedUnknownSymbol"),
             "ZZZZ",
-            false,
           ],
-          [
-            "Failed — retryable",
-            barSeriesFixtureScreen("unavailable"),
-            "NVDA",
-            false,
-          ],
-          [
-            "Failed — incoherent",
-            barSeriesFixtureScreen("incoherent"),
-            "NVDA",
-            false,
-          ],
+          ["Failed — retryable", barSeriesFixtureScreen("unavailable"), "NVDA"],
+          ["Failed — incoherent", barSeriesFixtureScreen("incoherent"), "NVDA"],
           [
             "Stale — a newer answer in flight",
             barSeriesViewScreen(staleBarSeriesFixtureView("partial")),
             "NVDA",
-            false,
           ],
-          ["Untracked", barSeriesFixtureScreen("untracked"), "AMD", false],
-          ["Defaulted symbol", barSeriesFixtureScreen("partial"), "NVDA", true],
+          ["Untracked", barSeriesFixtureScreen("untracked"), "AMD"],
         ] as const
-      ).map(([label, screen, symbol, defaulted]) => (
+      ).map(([label, screen, symbol]) => (
         <Fragment key={label}>
           <p className={gridStyles.label}>{label}</p>
-          {/* One axis per panel: an axis is a window, and these are thirteen. */}
+          {/* One axis per panel: an axis is a window, and these are twelve. */}
           <ChartAxis view={screen.shown}>
             <BarSeriesPanel
               screen={screen}
               symbol={symbol}
-              defaulted={defaulted}
               onRetry={() => undefined}
               control={
                 <TimeWindowControl onChange={() => undefined} sessions={5} />

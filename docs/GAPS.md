@@ -44,7 +44,7 @@ Every one is break-verified through `pnpm break`:
 | The volume plot's empty sentence has one home      | `volume-explanation-twice`         |
 | Case one's price headline has one home             | `no-history-sentence-twice`        |
 | Case one's volume headline has one home            | `no-volume-history-sentence-twice` |
-| The coverage sentence has one home                 | `coverage-sentence-twice`          |
+| The coverage phrase has one home                   | `coverage-sentence-twice`          |
 | The feed's words are written once                  | `feed-words-in-a-renderer`         |
 | Every apostrophe a reader sees is the same one     | `straight-apostrophe-on-screen`    |
 | Search and the universe share no clause            | `search-repeats-the-table`         |
@@ -232,8 +232,9 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
    Three added 2026-09-15 by Task 2.14.5, and the first is the residue of a
    reservation that is otherwise measured:
 
-   - **That the rail's reservation still clears the coverage sentence at every width.** The slot above the picture is as tall as the tallest sentence it can hold **at this width** — two hidden copies in one grid cell, so nothing counts characters — and the coverage sentence is now the taller of the two: measured 2026-09-15 against a store four sessions behind, the rail is **66px** where the held-window sentence alone reserved **48px**, at 1440 and at 390 alike. What is _not_ reserved is the bar count's digits: the hidden copy carries the count of the series **on screen**, so a press that turns a 390-bar answer into an 8,190-bar one moves the last line by two characters. It does not change the line count at any of the four viewports today, and nothing anywhere would notice if a rewording made it. Re-measure: `pnpm probe "/securities/NVDA?sessions=5" --within Price` and read `rail`; then `?sessions=21`, which asks for twenty-one times the bars, and confirm the height is unchanged.
-   - **That a coverage sentence and a coverage edge never disagree about where the data stops.** The rail says _through 2026-09-11 16:00:00 EDT_; the plot draws its edge at `coverage.covered.end` through `positionOfInstant`. Both read the same field of the same response, which is what makes them agree — and **nothing compares them**, because one is a string in the DOM and the other is an `x` on an SVG line, and the instant is not recoverable from the pixel. This is the pair the whole sentence exists for: it says the _when_ the session-ordinal axis cannot. Re-measure: open a partial answer, read the instant out of the rail, and check it against `series.coverage.covered.end` in the response for the same request — `curl "$BACKEND/market-data/bars?symbol=NVDA&sessions=5&timeframe=1m" | jq .series.coverage`.
+   - ~~**That the rail's reservation still clears the coverage sentence at every width.**~~ **Closed 2026-09-16 with the sentence**, which came off the rail (`PROVENANCE.md` §3.2's amendment). The slot is back to one hidden copy and the held-window sentence's **48px**, which is what it reserved before Task 2.14.5 added a second — so this entry's whole subject, the two-cell reservation and the bar count's unreserved digits, no longer exists. What is worth carrying forward is the **shape**: a rail with two incommensurable sentences in it cannot reserve by comparing character counts, and the next third occupant will meet that again. Re-measure if one arrives: `pnpm probe "/securities/NVDA?sessions=5" --within Price` and read `rail`.
+   - ~~**That a coverage sentence and a coverage edge never disagree about where the data stops.**~~ **Closed 2026-09-16, and by removal rather than by repair** — there is no drawn sentence to disagree with the edge. What the reader has instead is the picture and the axis: the line stops at `coverage.covered.end` through `positionOfInstant`, and the seams carry dates, so _when_ is answered to the session rather than to the second. **The listener's clause survives and is now unpaired**, which quietly makes this a different gap and a smaller one: nothing compares the spoken instant against the drawn edge either, but there is no second visible claim that can drift from it. Re-measure: open a partial answer, read the instant out of the chart's spoken description, and check it against `series.coverage.covered.end` — `curl "$BACKEND/market-data/bars?symbol=NVDA&sessions=5&timeframe=1m" | jq .series.coverage`.
+   - **That a reader is told a short answer is short at all, now that only the picture says so.** This is the gap the removal opens and it is recorded rather than waved past. A sighted reader gets it from `CHARTING.md` §14.1's uncovered ground and coverage edge, and gets _when_ from the axis's dated seams — both geometric, neither asserted by anything mechanical, and the axis's labels thin out at narrow widths (§14's density table drops to first-and-last dates at 400–599px). **The reversal trigger is written in `Settled`'s own comment: an axis a reader cannot read a date off.** Re-measure: open a partial answer at 390 and ask whether the picture says _when_ it stops, not just _that_ it does.
      Three added 2026-09-15 by Task 2.14.6, and all three are about the empty page:
 
    - **That `SecuritiesResponse.coverage`'s `1m`-only shape does not mislabel a daily-timeframe empty.** The distinction between the two empty answers is derived from that array (`chart-vacancy.ts`, `PROVENANCE.md` §6.2), and the array carries the **minute** half of the ledger by Task 2.8.9's stated choice. So a security holding minute bars and no daily bars reads as _we hold nothing in this window_ at `3M` and `1Y` when the honest answer there is _we hold nothing at all_. The backfill fills both timeframes, so the shape is unlikely rather than impossible, and it fails in the safe direction — the error it can make is the **cautious** sentence where the confident one was available, never the reverse. Seen from the other side while the task was being looked at: removing one security's `1m` ledger row on a developer store draws _No history stored for ZTS yet_ under an identity block still showing a last close, because that close comes from a **daily** bar the array never described. The sentence stays true because it says _at this timeframe_, which is the clause that earns its place. Re-measure: delete one security's `1m` row from `bar_coverage`, open `/securities/<symbol>?sessions=1`, then `?sessions=63`, and read the two answers against each other. `pnpm coverage:check` is what would make this mechanical, and it does not compare the two timeframes' ledgers for a _single_ security.
@@ -259,14 +260,21 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
      are present **and** that the Volume region carries its deferral, which
      covers this screen and no other. Re-measure: refuse every request with
      `route.abort` and read each region's contents, not just its heading.
-   - **That the defaulted note's invitation is still available.** `/securities`
-     with the universe down says _Showing a default security. Search for
-     another one above_ four inches under search's own _Nothing to search yet_.
-     Half the sentence is true — the address half — and coupling the note to
-     search's state is a dependency `PROVENANCE.md` §12.5 declines to
-     introduce. Re-measure: refuse `GET /securities` and open `/securities`.
-     **Trigger: the second sentence in the product that points at another
-     surface's control.**
+   - ~~**That the defaulted note's invitation is still available.**~~ **Closed
+     2026-09-16 by deleting the sentence**, which is worth recording because it
+     is not how the trigger expected to fire. The entry read: `/securities` with
+     the universe down says _Showing a default security. Search for another one
+     above_ four inches under search's own _Nothing to search yet_; half the
+     sentence is true — the address half — and coupling the note to search's
+     state is a dependency `PROVENANCE.md` §12.5 declines to introduce. The
+     trigger was **the second sentence in the product that points at another
+     surface's control**, and what actually happened is that the first one
+     stopped existing: the search field moved onto the page's heading row, so a
+     paragraph above the panel's figures pointing upward at it was pointing at
+     something already in the reader's eye. **A sentence that names another
+     surface's control is a coupling whether or not that control can answer**,
+     and the cheapest version of this gap was always the sentence's own
+     absence. The trigger stands for the next one.
    - **That the primary navigation is legible at 390.** It reads `Market O` —
      clipped, with no affordance saying so — in every screenshot this pass
      took. Outside the failure set, because it is the chrome rather than a

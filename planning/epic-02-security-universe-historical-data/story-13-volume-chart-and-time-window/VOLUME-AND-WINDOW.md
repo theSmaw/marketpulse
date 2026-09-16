@@ -5289,6 +5289,14 @@ rather than about provenance.
 
 ### 82.1 Three occupants, one slot, and a stated order
 
+> **Two occupants again since 2026-09-16.** The drawn coverage sentence came off
+> the rail — `PROVENANCE.md` §3.2 carries the reversal and its trigger — so the
+> priority below has lost its third step and the reservation has gone back to
+> one hidden copy. The section is left whole because the _reasoning_ is what the
+> next occupant of this slot will need, and because the third step is the one
+> that made the order a decision rather than a pair of mutually exclusive
+> states.
+
 The rail held two mutually exclusive subjects: `Refreshing` — _a newer answer to
 this question is coming_ — and `HeldWindow` — _this is the answer to a different
 question, and here is what happened to the one you asked_. §80 took the

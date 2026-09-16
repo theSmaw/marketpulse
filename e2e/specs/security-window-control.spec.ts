@@ -98,8 +98,15 @@ test("the five windows are named for the ear, and the one on screen is checked",
 
   // **And no readout beside a selected window** (2026-09-14). The count is said
   // where the control cannot say it — see the no-selection test below — and the
-  // chart's spoken description and the coverage sentence beneath the plot carry
-  // the resolved count for a window that *is* selected.
+  // chart's spoken description carries the resolved count for a window that
+  // *is* selected.
+  //
+  // **That description is now the only thing that does** (2026-09-16): the
+  // coverage sentence beneath the plot was the second carrier and it has been
+  // removed. That does not weaken this decision, because the readout was never
+  // the coverage sentence's job — but it is worth noticing that the
+  // "two carriers" phrasing this comment used to have was doing rhetorical work
+  // the argument did not need.
   await expect(controlAndReadout(page)).not.toContainText("sessions");
   await expectNothingFailedToRender(page);
 });
