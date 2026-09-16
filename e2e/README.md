@@ -61,6 +61,31 @@ from; an assertion about that number belongs here.
 | `specs-deployed/host-routing.spec.ts`              | Story 1.5's deep-link and missing-asset criteria, at last              |
 | `specs-deployed/security-explorer-journey.spec.ts` | the epic's exit criterion, deployed — the journey, not the components  |
 
+### `specs/` and `specs-deployed/` hold their own copies of the same locators
+
+**Added 2026-09-16, because it cost a red deploy.** These are two directories,
+they do not share `support/`'s locators for everything, and a grep over one of
+them finds neither the other's copy nor the fact that there is one. The chrome
+moved the market feed and the backend service out of the masthead into
+`AppFooter`; `support/app.ts`, `specs/market-feed.spec.ts` and
+`specs/landing-route.spec.ts` were all rescoped from `banner` to `contentinfo`
+in the same change, and `specs-deployed/two-halves.spec.ts` was missed. `pnpm
+e2e` was green — 140 tests, three times over — and `check-deployed` went red
+after the merge.
+
+**Nothing mechanical connects the two**, and the entry in `docs/GAPS.md` says so
+rather than pretending otherwise. The habit that works is a grep over `e2e/`
+rather than `e2e/specs/` whenever a locator changes, and the thing to notice is
+that the local suite's green is **not evidence** about this directory: it does
+not run these specs at all.
+
+**It behaved correctly, which is the consolation and the design.** A deployed
+check runs after a merge, so it gates nothing and its output is a rollback
+decision — and the decision here was _no rollback_: the deployed page was
+correct throughout, the feed was rendered and labelled in the footer, and it was
+the spec that was stale. All 18 deployed specs pass against the live site with
+the one word changed.
+
 ## Where it runs in CI
 
 It is a **second job named `e2e` in `.github/workflows/verify.yml`**, alongside
