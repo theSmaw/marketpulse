@@ -106,9 +106,19 @@ exists to answer, and the answers are mechanical:
    (ADR 0030 decision 7a). The deployed backend is configured
    `MARKET_DATA_PROVIDER=alpaca`; outside a session it shows stored history, a
    clock reading closed, and a feed that is not delivering. **This story must
-   not ship anything that makes a deployed replay reachable**, and it is
-   configuration guarded by checks rather than a compiler — say so rather than
-   overclaiming it.
+   not ship anything that makes a deployed replay reachable.**
+
+   **Read ADR 0030 §7a–7f before implementing this, because the layering is the
+   decision.** One mechanism prevents (the deploy reads the configured provider
+   and refuses to roll on the wrong one — it **reads**, never sets, because
+   `deploy.yml` deliberately does not restate the app's environment variables);
+   two detect and bound how long a wrong state lasts (`check-deployed.mjs` after
+   a merge, and a scheduled probe within a day, since `deploy.yml` has no
+   `schedule:` and nothing looks at production between merges); and one raises
+   the count of independent mistakes needed from one to two (a second opt-in key
+   that production has never had). **None is a compiler, and the word
+   "guaranteed" should not appear in this story's record.**
+
 2. **The replay also cannot run during a session** — `createReplayStream`
    refuses to start, and stops if already running, whenever
    `marketSessionStateAt(now)` is `open`. That is the developer-side guard: it

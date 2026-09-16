@@ -206,24 +206,70 @@ from. That rule is not reversed here, because "which provider serves prices" is
 exactly a value. What it costs is that the guarantee needs two checks rather
 than a compiler, and those are 7b and 7c.
 
-### 7b. A deploy that would configure a replay fails before it rolls
+### 7b. A deploy READS the configured provider and refuses to roll on the wrong one
 
-`deploy.yml` sets the container app's `MARKET_DATA_PROVIDER` explicitly and
-**fails the deploy if the resolved value is anything but `alpaca`**. This is the
-cheap half and it runs before any traffic reaches the change.
+**Corrected 2026-09-16, before this ADR merged: an earlier draft said the deploy
+should _set_ `MARKET_DATA_PROVIDER=alpaca`, and that contradicts an argued
+decision in `deploy.yml` itself** — the update step deliberately does not
+re-specify the app's environment variables, because "a deploy step that restated
+them would be a second definition of the app's configuration", which is the
+failure Story 1.10 forbids for the build. The variables live on the container
+app, set out of band. Today's deployed value is `alpaca`, read from the app on
+2026-09-16.
+
+So the gate **reads and asserts** rather than sets, which is not a second
+definition: `az containerapp show` before the image rolls, and the deploy
+**fails if the configured provider is anything but `alpaca`**. This is the only
+one of these mechanisms that is genuinely **preventive** — the wrong
+configuration never serves a request.
+
+**What it does not cover, stated plainly:** an environment variable changed by
+hand on the container app **between** deploys. That creates a new revision and
+restarts the app with no workflow running at all, so nothing in 7b sees it. That
+gap is 7c's and 7e's.
 
 ### 7c. `check-deployed.mjs` fails, unconditionally, if production is ever replaying
 
 Not conditionally on the hour, not tolerantly: **if `/diagnostics/feed` on the
-deployed origin reports a `replay` provider or feed, the check fails.** It runs
-after every merge and its output is a rollback decision (ADR 0011), which is the
-only kind of runtime claim `verify` cannot make — it has no credentials and no
-network by design.
+deployed origin reports a `replay` provider or feed, the check fails.** Its
+output is a rollback decision (ADR 0011), which is the only kind of runtime claim
+`verify` can never make — it has no credentials and no network by design.
 
-### 7d. Replay is structurally incapable of running during a session
+**This is detective rather than preventive, and the distinction is the whole
+honesty of this section.** `check-deployed` runs after the rollout, so by the
+time it goes red the thing it objects to has already served traffic. What it
+bounds is the **duration** of a wrong state, not its existence.
 
-Unchanged from the first draft of this decision and still worth having, now as a
-**developer-side** guard rather than a production one: `createReplayStream`
+### 7d. A daily scheduled probe, because a merge is not the only way to change production
+
+`deploy.yml` triggers on `workflow_run` of `verify` and on `workflow_dispatch`
+and **has no `schedule:`**, so between merges nothing in this repository looks at
+the deployed app at all. A hand-edited environment variable on a quiet Tuesday
+would therefore be invisible until the next merge — which on this project can be
+days.
+
+A scheduled run of the same `/diagnostics/feed` assertion closes that to
+**one day**. It is the cheapest of these mechanisms and the only one that covers
+the gap the other two share.
+
+### 7e. Two keys, so one wrong value cannot do it
+
+`MARKET_DATA_PROVIDER=replay` alone is not sufficient to start a replay: it also
+requires a second, separately-named opt-in that production has never had and
+that reads unmistakably in a configuration listing — the deployed app must carry
+**neither** key, and 7b and 7c check for both.
+
+The point is not that two variables are harder to set than one. It is that the
+**first** one is a value in an existing, ordinary vocabulary that somebody could
+plausibly change for a reason that seemed good, and the second exists only to
+say _this is not production_. A configuration listing that contains it is
+self-evidently wrong to a human reading it, which is the property a single
+enumerated value does not have.
+
+### 7f. Replay is structurally incapable of running during a session
+
+Unchanged from the first draft of this decision and still worth having, now as
+a **developer-side** guard rather than a production one: `createReplayStream`
 refuses to start, and stops if already running, whenever
 `marketSessionStateAt(now)` is `open`. `packages/shared/src/market-session.ts`
 already answers that question exactly and already ships.
@@ -332,12 +378,14 @@ Conditions rather than story numbers:
 - **The first time a deployment needs one vendor for history and a different one
   for the stream** — that is the first real pressure on `PROVIDER.md` §12's
   single shared `MARKET_DATA_PROVIDER`, and it is not this.
-- **The first time a replay runs during a session** by any route — decision 7d
+- **The first time a replay runs during a session** by any route — decision 7f
   has been defeated, and everything downstream of it is void.
 - **The first time a replay reaches production** by any route — 7a has been
   defeated and this is the most serious of these triggers, because production
   told a user something untrue. The response is not to weaken the decision but
-  to find which of 7b and 7c failed to catch it.
+  to find which of 7b, 7c, 7d and 7e failed to catch it — **and then to take the
+  startup-refusal step named in 7a**, because at that point the evidence says
+  configuration-plus-checks was not enough.
 - **The first time somebody asks for a demonstrable surface that is alive out of
   hours** — the answer is **not** production (7a is not up for renegotiation on
   those grounds, having been decided on exactly that argument). It is a separate
