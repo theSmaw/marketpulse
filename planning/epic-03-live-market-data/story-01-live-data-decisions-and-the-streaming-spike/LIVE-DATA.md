@@ -1143,6 +1143,17 @@ sequential with a gap. Measuring a duplicate-connection refusal **on purpose**
 is Task 3.1.5; measuring one by accident is how three of these figures would be
 wrong.
 
+**And the hazard is not only a capture you remember starting — 2026-09-16.**
+Task 3.1.4's launcher grew a pre-flight refusal that looks for a running harness
+process, and **on its first rehearsal it refused**: a monitoring loop left over
+from Task 3.1.3's session was still polling, hours after the capture it watched
+had been written. It held no socket, so this particular one was a false
+positive — but a **stale process from a finished task, still running and
+invisible**, is precisely the shape that would have corrupted both captures
+silently, and nothing before this looked for one. The check is anchored on
+`argv[0]` being `node`, because a pattern loose enough to catch a monitoring
+shell is a pattern that refuses to launch on the day the window opens.
+
 **Every capture states its control before it runs**, and §4 says which ones
 fired. The three that carry real weight: the three-second silence before `auth`
 (the greeting is server-initiated), the 60-symbol trades subscription (the
