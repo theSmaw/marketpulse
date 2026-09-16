@@ -114,5 +114,13 @@ describe("resolveMarketData", () => {
 });
 
 function config(marketDataProvider: "none" | "fixture"): Config {
-  return loadConfig({ MARKET_DATA_PROVIDER: marketDataProvider });
+  // `NON_LIVE_MARKET_DATA` is granted here because `fixture` does not serve the
+  // live market and `loadConfig` refuses it otherwise (ADR 0030 §7). Granting
+  // it in the helper rather than only in the `fixture` branch is deliberate:
+  // the permission alone is not an error, and a helper that branched would be
+  // a second place the rule is expressed.
+  return loadConfig({
+    MARKET_DATA_PROVIDER: marketDataProvider,
+    NON_LIVE_MARKET_DATA: "permitted",
+  });
 }

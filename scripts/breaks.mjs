@@ -34,6 +34,50 @@
 // polluted `dist/` and go red for a reason that no longer exists.
 
 export const BREAKS = [
+  // **The first entry whose command is not `check-invariants.mjs`, and the
+  // harness's contract already allows it — `command` is argv.** The check being
+  // proven is a startup refusal rather than a grep, so what has to go red is a
+  // test.
+  //
+  // Two tests cover it and this break edits the one thing both depend on. The
+  // unit test proves `loadConfig` throws; `index.process.test.ts` proves the
+  // SERVER DIES, which is the claim that actually matters — "the container
+  // refuses to start" is inferrable from the unit test only if you already
+  // believe `index.ts` exits on a `ConfigError`.
+  //
+  // The edit is the one somebody would plausibly make: not deleting the block,
+  // but softening the condition while it still reads as a check. A deleted
+  // block is obvious in review; an inverted comparison is not.
+  {
+    name: "non-live-data-refused-at-startup",
+    proves:
+      "A deployment can be configured to serve generated or recorded prices " +
+      "without asking by name, which is how fabricated data reaches a real " +
+      "user. The refusal is what stands there.",
+    file: "apps/backend/src/config.ts",
+    find: '    nonLiveMarketData !== "permitted"',
+    replace: '    nonLiveMarketData === "permitted"',
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/config.test.ts",
+    ],
+    expect: "refuses a provider that does not serve the live market",
+    // **`build: true`, and it was added after the break left a polluted
+    // `dist/` behind.** The vitest command reads `src/` directly, so nothing
+    // about going red needs a build — but `index.process.test.ts` spawns
+    // `dist/index.js`, and `pnpm verify` runs it. Without this the harness
+    // restores the source byte-identical and leaves the SABOTAGED build on
+    // disk, where the next thing to read it is a suite that then fails for a
+    // reason that no longer exists.
+    //
+    // It was found by running the built server by hand, which is the check
+    // `CLAUDE.md` puts first: the server started and served fixture prices
+    // while every test was green.
+    build: true,
+  },
   {
     name: "fixture-in-the-bundle",
     proves:

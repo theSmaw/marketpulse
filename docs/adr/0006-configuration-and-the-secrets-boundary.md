@@ -176,6 +176,33 @@ introducing that concept rather than inheriting one — and it may turn out to
 need only a `LOG_LEVEL`, which is a value and not an environment. Do not add a
 variable naming the environment before something branches on it.
 
+**Amendment 2026-09-16 — the trigger was approached and NOT taken, and the
+approach is worth recording because the next one will look the same.** Epic 3's
+[ADR 0030](0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md)
+required that the deployed site never serve market data that is not the live
+market — a requirement stated as _"production has real users and must only ever
+tell the absolute truth about the real market"_, which reads exactly like
+something that must behave differently in production.
+
+It does not. The refusal that shipped asks **whether this deployment has been
+granted permission to serve non-live data**, never which environment it is in:
+`NON_LIVE_MARKET_DATA` defaults to `refused`, a provider that
+`PROVIDER_SERVES` marks `not-the-live-market` refuses to start without
+`permitted`, and **the rule is identical in every environment** — only the value
+differs, which is this decision's own model. Production never grants it; a
+developer writes one line in a gitignored `.env`.
+
+It is also the same argument `DATABASE_AUTH` already makes one screen away in
+`config.ts`: a deployment _"cannot fall back onto the fixture by forgetting a
+variable. It has to ask for password authentication by name."_
+
+**So the test this decision offers is sharper than it first looks.** "Does this
+have to behave differently in production?" is the wrong question, because almost
+any safety requirement can be phrased that way. The right one is **"can the
+requirement be expressed as a permission the environment grants or withholds?"**
+If it can, it is a value and this decision stands. `NODE_ENV` remains rejected as
+a variable with no reader; `NON_LIVE_MARKET_DATA` has one, and it exits 1.
+
 ### 5. The frontend's boundary is `envPrefix`, and the type-level half is gone
 
 `vite.config.ts` states `envPrefix: ["VITE_"]` and `envDir: "."` as decisions
