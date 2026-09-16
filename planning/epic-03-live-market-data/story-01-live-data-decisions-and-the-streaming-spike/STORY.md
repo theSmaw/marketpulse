@@ -1,6 +1,6 @@
 # Story 3.1 — Live-Data Decisions & the Streaming Spike
 
-**Status:** In progress — 3.1.1, 3.1.2 and 3.1.3 complete. **Next is 3.1.4, which needs a session and now also owns the open boundary**; it must start at 07:00 ET with the machine kept awake, and nothing else may hold the socket while it runs
+**Status:** In progress — 3.1.1, 3.1.2 and 3.1.3 complete. **3.1.4's instrument is built, dry-run and recorded (2026-09-16); its capture is outstanding and needs a session.** It must start at 07:00 ET with the machine kept awake and its lid open, and nothing else may hold the socket while it runs — and it owns the open boundary, liquid pre-market, after hours and the close boundary, none of which move again
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** Epic 2 (2.6, 2.7, 2.9, 2.10)
 **Epic scope covered:** the decisions under every other story in this epic, and the half of _Alpaca WebSocket ingestion_ that is a measurement rather than a client

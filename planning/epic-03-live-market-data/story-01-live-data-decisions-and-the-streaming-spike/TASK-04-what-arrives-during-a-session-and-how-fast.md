@@ -1,6 +1,6 @@
 # Task 3.1.4 — What arrives during a live session, how fast, and which end of the minute `t` marks
 
-**Status:** Not started
+**Status:** Instrument built, dry-run and recorded (2026-09-16). **The capture itself is outstanding** — it needs a live session on a machine that stays awake, and the window has not been given to it yet. See _Where this stands_ at the foot of this file.
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
 **Depends on:** 3.1.2 for the instrument. **Amended 2026-09-15:** 3.1.3's
 _short_ windows should be taken first where the calendar allows, exactly as
@@ -213,3 +213,172 @@ later story quote it as a constant. The second is the script's own verdict:
 because 391 > 390 is impossible. Read the numbers.
 
 ---
+
+## Where this stands — 2026-09-16
+
+**Nothing in `LIVE-DATA.md` §3's register is struck by this entry.** Figures 1,
+2, 4, 5, 6, 7, 8, 12 and 13 do not exist, the `t` question is unanswered, and
+both session boundaries are unmeasured. What exists is the instrument that takes
+them, proven against a shut market, and two findings that did not need a
+session.
+
+### What was built
+
+Four things, all in the throwaway harness outside the tree (`LIVE-DATA.md` §5,
+which now records them):
+
+- **`session.mjs`** — one connection held across a whole trading day, the 518
+  bar channels plus the eight narrow ones, the 165 s watchdog, an incremental
+  snapshot, and a scheduler that waits for the **next** occurrence of a market
+  time rather than a number of seconds into its own day.
+- **`analyse-session.mjs`** — streams the capture back and prints every figure
+  the Done-when asks for. It concludes nothing, per §5.
+- **`historical-control.mjs`** — the control the `t` question needs. Refetches
+  the same minutes over HTTP after the embargo and matches them **unshifted and
+  shifted ±1 minute**; the shifted rows going to zero is what makes it a
+  measurement.
+- **A change to the capture format**, argued in `LIVE-DATA.md` §4.8: frames
+  stream to a swept line-per-frame sidecar. Re-serialising a session-sized frame
+  array every 60 s blocks the event loop for seconds as the file grows, and the
+  field a block delays is `at` — **the arrival instant that is figure 8**. The
+  instrument would have inflated the one number the task exists to produce, and
+  the output would have looked like a measurement.
+
+Verified end to end against the shut market on 2026-09-16 at 21:48–21:51 ET:
+handshake, 518-symbol acknowledgement, the `d` rebroadcast §6.7 predicts, the
+sidecar, the analyser and the independent sweep. **15 captures + 1 sidecar, 0
+problems.**
+
+### Two findings that did not need a session
+
+- **The clock offset moved 202 ms overnight on the same machine** — `+257 ms`
+  (2026-09-15) to `+55.3 ms` (2026-09-16), three samples each, spreads 2.8 ms
+  and 0.27 ms. Written into `LIVE-DATA.md` §4.7 as a dated amendment. This is
+  §4.7's own rule earning its keep on its first use: a capture that had cited
+  yesterday's figure rather than re-taking it would have over-corrected every
+  arrival gap by four-fifths of §28's entire budget, in the direction that makes
+  the provider look **slower** than it is.
+- **Nothing in this repository opens an Alpaca WebSocket**, checked rather than
+  assumed. Story 3.2's client is unwritten and the provider, `pnpm bars` and
+  `pnpm backfill` are all HTTP. So the single-connection constraint collides only
+  with **another spike run** — it does not block ordinary development while a
+  capture is held, which is the opposite of what it looks like.
+
+### What the capture still needs, and what it costs
+
+One command, and a machine that stays awake with **the lid open** — the
+connection dies with the network and a clamshell sleep is why Task 3.1.3 lost
+the open boundary (§6.4):
+
+```
+~/marketpulse-live-spike/run-session.sh      # waits for 07:00 ET, holds to 16:30 ET
+```
+
+**Check nothing else is holding the socket first.** The free plan allows one.
+
+A truncated capture is **not** a lost one: every frame is on disk as it arrives
+and the header is re-snapshotted every 120 s, so a machine that dies mid-window
+yields everything up to that instant, bounded and labelled. That is the defect
+§6.4 had no defence against, and it is the reason a partial run is worth
+starting.
+
+**Running it elsewhere was considered and declined by the owner on
+2026-09-16.** A throwaway VM in `eastus` — the deployment's own region — was
+priced at about **$1.70** for the whole window and would have made figure 8 a
+materially better number: §4.7 currently has to label it an _upper bound from
+Asia/Singapore_ against a 271–311 ms round trip the production path does not
+have. It would **not** have discharged the re-measure §4.7 hands to Story 3.11,
+whose condition is _a real socket in the deployed backend_, and it would have
+made §4.3's handshake latencies non-comparable. Recorded here rather than
+forgotten, because **the option and its price are the same next time**, and the
+condition that would make it worth re-proposing is a **second** window being
+lost to a machine that slept.
+
+### Who holds the window
+
+**This task, unchanged**, and it does not move again. §6.5 and §6.9 delegated the
+open boundary, liquid pre-market, after hours and the close boundary here on the
+argument that one capture gets all four for nothing extra, and that argument is
+still right. **The trigger is a trading day the owner is willing to leave a
+machine awake through** — a condition rather than a date, because this repository
+has the scar on exactly that: the fourth design test has now been deferred seven
+times behind a trigger that was a calendar.
+
+---
+
+## What this task did, for somebody who does not read code
+
+**Short version: we built the measuring instrument, proved it works, and found
+out that the thing we were about to measure with would have lied to us. The
+measurement itself still needs a live trading day.**
+
+MarketPulse is a tool for spotting unusual behaviour in the US stock market and
+investigating it against real evidence. Everything shipped so far is
+**historical** — you can look up a company, see its price and volume history, and
+the screen tells you honestly where those numbers came from. What it cannot yet
+do is show you a price **moving**. That is this epic, and this task is the piece
+of homework the whole epic is standing on.
+
+**Why homework rather than features.** Our data provider sends live prices down a
+permanently open connection, and nobody here has ever actually listened to it.
+Every plan in this epic — how often the screen updates, how much data reaches
+your browser, how quickly a price change reaches you, whether a quiet stock looks
+broken or merely quiet — is currently sized against numbers **we have guessed**.
+This task's job is to open that connection for one full trading day and write
+down what really comes out of it.
+
+**What we built today.** A recorder that can sit on that connection from before
+the opening bell to after the closing bell, capture every message, and work out
+afterwards how fast, how much, and how complete it all was. Alongside it, a
+second instrument that goes back afterwards and fetches the _same_ minutes
+through a completely different route, so we can check the live feed against an
+independent source rather than take its word for it. Checking one thing against
+another is the difference between a measurement and an assumption, and this
+repository has been bitten before by the difference.
+
+**The bug we caught before it cost us anything.** The recorder's first design
+saved its work to disk every minute by rewriting the whole file. Over a full
+trading day that file becomes very large, and rewriting it would freeze the
+recorder for several seconds at a time. The thing those freezes would have
+delayed is the _timestamp of when each price arrived_ — which is precisely the
+number this whole exercise exists to produce. We would have produced a figure
+that looked perfectly respectable and was wrong, making our data provider appear
+slower than it really is, and every performance decision in this epic would have
+been built on it. The recorder now writes each message as it arrives instead.
+
+**The second thing we found is about trusting our own clock.** Measuring "how
+long did this take" means comparing our computer's clock to the provider's, so if
+our clock is wrong, every figure is wrong by the same hidden amount. Yesterday
+this machine was a quarter of a second behind true time. Today, with nothing
+changed, it is a twentieth of a second behind. The clock corrected itself
+overnight. Had we reused yesterday's figure — the obvious, convenient thing to do
+— every timing in this epic would have been out by roughly four-fifths of our
+entire performance budget. So the instrument now re-checks the clock against
+three independent time servers at the start of every single run, and writes the
+answer into the recording itself. It is a small discipline that just paid for
+itself before its first real use.
+
+**We also cleared up a misunderstanding worth money.** Our provider's free plan
+allows exactly one live connection at a time, and it looked as though running
+this measurement would lock the developer out of working on the product all day.
+We checked: nothing in the product opens that connection yet, so it does not. The
+measurement and ordinary development can happen side by side.
+
+**What this unlocks.** Nothing on screen — deliberately, and this task's parent
+story says so on every line of its plan. What it unlocks is that the next several
+pieces of work are **implementations rather than arguments**. Once the
+measurement is taken, we will know how stale a "live" price can honestly be, how
+much data it is reasonable to push to a browser, what to say on screen when a
+thinly-traded company simply has not traded for ten minutes, and how to tell a
+genuinely dead connection from a quiet market — a distinction that already cost
+us one lost measurement and is the difference between the product saying "live"
+honestly and saying it wrongly at three in the morning.
+
+**What still cannot be done.** The measurement needs one full trading day with
+the laptop awake and its lid open, and that day has not been given to it yet. We
+priced running it on a cloud machine instead — about $1.70, and it would actually
+have produced a _better_ number, because it would have been measured from the
+same part of the world our servers live in — and the owner chose not to. So the
+instrument sits ready, it takes one command, and it will survive the machine
+dying halfway through: whatever it has captured by that point is kept and clearly
+labelled as a partial day. The product remains, today, a historical explorer.

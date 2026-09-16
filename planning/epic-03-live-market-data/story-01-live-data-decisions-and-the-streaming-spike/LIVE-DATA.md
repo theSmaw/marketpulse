@@ -966,6 +966,19 @@ changes the environment it measures cannot be re-run against the same
 conditions, and the correction is arithmetic we can apply afterwards from a
 number we recorded.
 
+**Amended 2026-09-16 by Task 3.1.4, and the amendment is the rule earning its
+keep on its first use.** The same machine, the same three-sample method, the
+same reference: **+55.3 ms, spread 0.27 ms**, against yesterday's **+257 ms,
+spread 2.8 ms**. Nothing was done to the clock between the two — macOS simply
+re-disciplined it overnight. So the offset is **not a property of this machine**
+that a later capture could inherit; it is a property of the hour a capture ran
+in, and it moved by **202 ms**, which is four-fifths of `PRODUCT_SPEC.md` §28's
+entire budget. A Task 3.1.4 that had cited §4.7's figure instead of re-taking it
+would have over-corrected every arrival gap by about a fifth of a second, in the
+direction that makes the provider look **slower** than it is. The rule above
+says re-take per run; this is the measurement that says what citing would have
+cost.
+
 **The vendor's own clock could not be pinned down, and that is stated rather
 than omitted.** Five `HEAD` requests to `data.alpaca.markets` put the apparent
 local-minus-vendor difference between **−570 ms and +420 ms**, but the `Date`
@@ -1006,6 +1019,31 @@ frames    [ { seq, direction, kind, at, atMarketTime, offsetMs,
 `atMarketTime` sits beside `at` because half the findings in this story are
 about session boundaries, and `2026-09-15T07:49:28Z` does not read as
 `03:49 EDT` to anybody at speed.
+
+**Extended 2026-09-16 by Task 3.1.4 — v1 gains a sidecar, and it is a
+measurement decision rather than a storage one.** A whole-session capture holds
+tens of thousands of frames. Re-serialising that array into one pretty-printed
+document every 60 s, as the shut-market holds do, **blocks the event loop for
+seconds at a time as the file grows** — and the field a block delays is `at`,
+the arrival instant §4.8 has already named as the one whose absence would make a
+capture worthless. An instrument that inflates the number it exists to produce
+is worse than no instrument, because the output looks like a measurement.
+
+So a capture may set `streamFrames`, and then:
+
+- **every frame is appended to `<capture-name>.frames.jsonl`** as one JSON
+  object per line, redacted and **swept line by line** before the append, in
+  arrival order — a sub-millisecond write that does not grow with the capture;
+- the v1 document keeps its header, `outcome`, `notes`, and a `frames` array
+  holding **the handshake plus a rolling tail** rather than everything, with
+  `framesLog` naming the sidecar;
+- `verify-captures.mjs` sweeps the sidecars too, and checks the same per-frame
+  shape.
+
+**Nothing is discarded and the sidecar is the evidence.** The header stays the
+comparable part across all three capture tasks, which is what §4.8 was fixing in
+the first place; what changed is only where the frames live for a run long
+enough that holding them in one string would corrupt them.
 
 ### 4.9 The credential boundary, and the break that proves it
 
@@ -1072,6 +1110,33 @@ live instant and marks its capture `endedOnWatchdog` when nothing of any kind
 has arrived for **165 s** — three missed 54 s heartbeats. `DEAD_AFTER_MS` exists
 as an environment override **only** so the watchdog can be proven to fire below
 the heartbeat interval; a real capture never sets it.
+
+**Task 3.1.4 added three, and it is the first capture in this story long enough
+for the recorder's own cost to matter.** `session.mjs` holds one connection
+across a whole trading day and writes the v1 sidecar of §4.8;
+`analyse-session.mjs` streams that sidecar back line by line and prints the
+figures in bounded memory, concluding nothing; and `historical-control.mjs` is
+**the control for the `t` question** — it refetches the same minutes from the
+historical HTTP API after the 15-minute embargo and matches them against the
+live bars **unshifted and shifted by ±1 minute**, because a high unshifted match
+rate proves nothing on its own. It is the shifted rows going to zero that tells
+the two hypotheses apart.
+
+Three of `session.mjs`'s choices are decisions rather than settings, and each
+would be invisible in a figure that inherited it silently:
+
+- **`quotes` is a bounded probe, not a subscription.** A top-of-book feed for
+  ten liquid names runs one to two orders of magnitude above trades; nine and a
+  half hours of it would bury the bar measurement in a multi-gigabyte sidecar.
+  The shape and a rate figure are taken across two named minutes instead, with
+  both instants recorded, so anything quoted about `q` is a figure about those
+  minutes and says so.
+- **`dailyBars` stays at ten symbols and its byte share is reported apart from
+  everything else**, per §6.7. A blended byte rate cannot be un-blended
+  afterwards, and Decision 1 may well drop the channel.
+- **The tally runs inside the recorder, not over the frame array.** The array is
+  deliberately trimmed while streaming, so a poller would miss precisely the
+  open burst the capture exists to measure.
 
 **One connection at a time.** The free plan allows exactly one, so every run is
 sequential with a gap. Measuring a duplicate-connection refusal **on purpose**
