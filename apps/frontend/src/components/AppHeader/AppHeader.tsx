@@ -1,35 +1,53 @@
-import type { BackendDegradedCause, BackendStatus } from "@marketpulse/shared";
 import type { RefObject } from "react";
 import { useEffect, useRef } from "react";
 import { NavLink } from "react-router";
 
 import { cx } from "../../cx.js";
 import { Icon } from "../Icon/Icon.js";
-import { BackendIndicator } from "../BackendIndicator/BackendIndicator.js";
-import { FeedProvenance } from "../FeedProvenance/FeedProvenance.js";
 import { MarketClock } from "../MarketClock/MarketClock.js";
 import { PATHS } from "../../routes/paths.js";
-import type { MarketFeedView } from "../../use-market-feed.js";
 import { useMarketClock } from "../../use-market-clock.js";
 import styles from "./AppHeader.module.css";
 
 // The application chrome PRODUCT_SPEC.md §9 sketches: the product name, a
-// market clock area, a connection status area, and the navigation between §8's
-// four experiences. Rendered once, outside `<Routes>`, so it survives
-// navigation rather than being remounted by it.
+// market clock area and the navigation between §8's four experiences. Rendered
+// once, outside `<Routes>`, so it survives navigation rather than being
+// remounted by it.
 //
-// **The status strip is three regions since Task 1.12.5**: the market feed, the
-// backend service and the market clock. **Two of the three are driven by
-// something real since Task 2.5.5** — `App` polls `/health` and passes the
-// result down, and the clock reads the system clock through `useMarketClock`
-// here — which is what makes this header the one place in the application where
-// a failure of the backend is visible, and now also the first thing in the
-// product that is *alive* in PRODUCT_SPEC.md §5.6's sense. The market feed is
-// still hard-coded and still correctly reads `DISCONNECTED`: there is no market
-// data until Epic 3.
+// ## One row again, since 2026-09-16
 //
-// **The clock's hook is called here rather than in `App`, and that is a
-// decision this component would not otherwise take** (Task 2.5.5). Task 1.12.5
+// It was two from the 2026 refresh until then — a 56px masthead over a status
+// strip carrying **three** facts that fail independently: the market feed, the
+// backend service and the market clock. That strip was rearranged twice in one
+// day, from three right-aligned runs of text to a divided cluster to three
+// cells spread edge to edge, and each version was better than the last and none
+// of them was right.
+//
+// What none of them addressed is that **the three were not the same kind of
+// fact**. A clock answers a question a person asks *while reading a price* — is
+// the market open, and how long until it is? The other two answer *is the
+// software working* and *where do these numbers come from*, which are asked
+// once, or at the moment something looks wrong. Three things arranged into one
+// band will always look like a band of miscellany when one of them belongs
+// beside the data and two of them belong out of the way.
+//
+// So the clock came up into the masthead, where there were about 615px of
+// unused row between the last tab and the right edge, and the other two went
+// down to `AppFooter` — a sticky status bar at the bottom of the viewport,
+// which is where every terminal, IDE and trading application this product is
+// trying to read like puts exactly that content. The chrome went from 132px to
+// 56, and the strip's own reason for existing survived the move intact.
+//
+// **The one-row argument that was rejected in the refresh is not what was
+// adopted here, and the difference is the point.** That proposal kept all three
+// facts and dropped their labels to fit, which would have made a strip of three
+// unlabelled status words — `FeedProvenance`, `BackendIndicator` and
+// `MarketClock` each render one — and taken four browser specs with it. This
+// keeps every label and moves two of the facts somewhere else.
+//
+// ## The clock's hook is called here rather than in `App`
+//
+// A decision this component would not otherwise take (Task 2.5.5). Task 1.12.5
 // accepted a whole-tree re-render on every 30-second health poll and recorded
 // the reversal trigger beside it — "a second consumer, or a render rate that is
 // no longer a poll". A 1 Hz clock is sixty times that rate and mutates the DOM
@@ -38,114 +56,49 @@ import styles from "./AppHeader.module.css";
 // 36-row table once a second for a text node in the chrome. Called here, the
 // tick reaches this subtree and stops.
 //
-// That is not a hole in the four-props rule below, and the distinction is worth
-// keeping: that rule is about acquiring a dependency on a **network loop** —
+// That is not a hole in the props rule this component used to carry, and the
+// distinction is worth keeping now that the props themselves have gone to
+// `AppFooter`: that rule is about acquiring a dependency on a **network loop** —
 // state, failure states, an `AbortController`, a thing a story would have to
 // construct. `useMarketClock` makes no request and has no failure states, and
 // `MarketClock` itself stays presentational so all six of its renderings are
 // reviewable in the workshop.
 //
-// It being eager and outside `<Routes>` is what makes that indicator worth
-// having. A failure inside the router blanks `<main>` — four named landmarks
-// and the 70vh grid — under a header that still renders, measured in Task
-// 1.5.5, so the status survives the page body. The cost is stated rather than
-// discovered: this component sits inside its own `ErrorBoundary` (Task 1.7.6)
-// whose fallback replaces the `<header>`, so a broken chrome takes the banner
-// landmark, the navigation **and this indicator** with it. The poll itself is
-// unaffected — it is called in `App`, outside that boundary, on purpose.
+// ## The boundary, and what it now takes down
 //
-// **This is a component and not page shell, and that is the boundary decision
-// Task 1.4.5 left to this story.** The line is: does it have states worth
-// reviewing side by side? A route placeholder has one state made of two
-// strings, so `src/routes/` stays outside the workshop. This header has three
-// feed states, four backend renderings, an optional detail line and four
-// current-route states, and the
-// only other way to review them is to hard-code a status and click through the
-// running application. That is exactly what the workshop is for. `App.tsx` and
+// This component sits inside its own `ErrorBoundary` (Task 1.7.6) whose
+// fallback replaces the `<header>`, so a broken chrome takes the banner
+// landmark, the navigation **and the clock** with it. It no longer takes the
+// backend indicator, which is a straightforward improvement on the arrangement
+// it replaced: the two boundaries are now independent, and the indicator whose
+// recorded purpose is to survive a blanked page body is no longer inside the
+// same boundary as the navigation. `App` owns both polls, outside both
+// boundaries, on purpose.
+//
+// ## This is a component and not page shell
+//
+// The boundary decision Task 1.4.5 left to this story. The line is: does it
+// have states worth reviewing side by side? A route placeholder has one state
+// made of two strings, so `src/routes/` stays outside the workshop. This header
+// has six clock renderings and four current-route states, and the only other
+// way to review them is to pin a clock and click through the running
+// application. That is exactly what the workshop is for. `App.tsx` and
 // `main.tsx` stay exempt for the opposite reason — they are the mount and the
 // router's host, and neither renders anything to look at. The same rule is
 // written beside the check that enforces it, in `scripts/check-stories.mjs`.
 //
-// **The identity is no longer entirely structural, and this component is where
-// that changed** (the 2026 refresh, ADR 0022). It used to say: no brand hue, no
-// distinctive typeface, and what makes this read as the product is the warm
-// ground, the near-black hairline and the letterspaced micro-labels. The
-// refresh gave the product three real faces and one accent colour, and this
-// header is the only place in the application where that accent appears at all
-// — the pulse mark and the 2px bar under the current tab, and nothing else. See
-// `brand.css` for the rule that keeps it there.
+// ## The identity accent
 //
-// The chrome is **two rows**, and the split is the refresh's one structural
-// change to it:
-//
-//   - a 56px masthead — mark, wordmark, and the four experiences as tabs; and
-//   - the status strip beneath it, carrying the three facts that fail
-//     independently.
-//
-// One row was tried first, and it is what the reference design does. It does
-// not survive contact with this product: the reference carries a single clock
-// chip on the right, and we have three labelled regions whose labels are the
-// thing that makes them unambiguous — `FeedProvenance`, `BackendIndicator` and
-// `MarketClock` each render a short status word, and a strip of three
-// unlabelled words is a strip nobody can read. Dropping the labels to fit was
-// the alternative, and it would have taken four browser specs with it, all of
-// which assert on exactly those three strings.
+// The 2026 refresh (ADR 0022) gave the product three real faces and one accent
+// colour, and this header is the only place in the application where that
+// accent appears at all — the pulse mark and the 2px bar under the current tab,
+// and nothing else. See `brand.css` for the rule that keeps it there.
 
-export interface AppHeaderProps {
-  /**
-   * What this page knows about the **market feed's provenance** — which venues
-   * are in the numbers this deployment serves (Task 2.6.7).
-   *
-   * **One prop rather than spread fields, which is the opposite of the backend
-   * four below and is not an inconsistency.** That rule exists because those
-   * four are *independent* values whose impossible combinations a component
-   * would have to be trusted not to construct. `MarketFeedView` is a
-   * discriminated union, which is the shape that makes those combinations
-   * unconstructible — so spreading it would hand the renderer back exactly the
-   * space it removes. `UniverseTable` takes `SecuritiesView` whole for the same
-   * reason.
-   *
-   * It is still a network loop's result, and the header still does not know
-   * that: this is a value, and `App` owns the call.
-   */
-  readonly marketFeed: MarketFeedView;
-
-  /**
-   * The **backend service's** state, and the three fields that go with it.
-   *
-   * These are four props rather than one `health: BackendHealth` object, and
-   * the collapse is the thing to resist rather than the tidy-up to make. A
-   * prop named after a hook's return type is how a presentational component
-   * acquires a dependency on a network loop: `AppHeader` would then be a
-   * component that cannot be rendered without knowing what `useBackendHealth`
-   * returns, and its stories and tests would have to construct one. Four
-   * fields spread through a header that already takes `feedStatus` and
-   * `feedDetail` is the same shape it already has.
-   *
-   * They are prefixed `backend` for the reason the feed's are prefixed `feed`:
-   * this header carries two indicators reporting two facts that fail
-   * independently, and a bare `status` here would be ambiguous between them.
-   *
-   * The hook's fifth field, `lastSuccess`, is deliberately not here. Its only
-   * interesting member is `version`, which is `"0.0.0"` on purpose — the image
-   * tag and its digest are what answer "what is deployed" — so nothing renders
-   * it and passing it would be a prop with no reader.
-   */
-  readonly backendStatus: BackendStatus;
-
-  /** Which cause made it `degraded`, and `null` in every other state. */
-  readonly backendDegradedCause: BackendDegradedCause | null;
-
-  /** When the last successful check completed, or `null` if none ever has. */
-  readonly backendLastSuccessAt: Date | null;
-
-  /**
-   * Has any check settled yet? Before the first one has, the indicator renders
-   * a neutral placeholder rather than the hook's literally-true-but-
-   * uninteresting `unreachable` — see `BackendIndicator`.
-   */
-  readonly backendHasChecked: boolean;
-}
+// No props. The header took five until 2026-09-16 — a `MarketFeedView` and the
+// backend service's four fields — and all five left with the status strip, to
+// `AppFooter`. What is left reads the clock through `useMarketClock`, which
+// makes no request and has no failure states, so this component is back to
+// being renderable from nothing.
 
 // Every `to` reads from `PATHS`. React Router's `to` is a plain string, so a
 // literal typed here would be caught by nothing until somebody clicked it —
@@ -157,13 +110,7 @@ const NAVIGATION = [
   { to: PATHS.replay, label: "Market Replay" },
 ] as const;
 
-export function AppHeader({
-  marketFeed,
-  backendStatus,
-  backendDegradedCause,
-  backendLastSuccessAt,
-  backendHasChecked,
-}: AppHeaderProps) {
+export function AppHeader() {
   // The one clock read on any path that reaches the market — see
   // `use-market-clock.ts`, and the paragraph above for why the call site is
   // here and not in `App`.
@@ -233,80 +180,30 @@ export function AppHeader({
             </NavLink>
           ))}
         </nav>
-      </div>
-
-      <div className={styles.status}>
-        {/*
-          The market feed, and since Task 2.6.7 it says something true.
-
-          The comment that used to sit here said invariant 6's provenance label
-          belonged in this region and was "deliberately not written yet, because
-          there is no market data in this application". That was right about the
-          placement and wrong about the precondition, which is the correction
-          this task makes: **provenance is a fact about our configuration, not
-          about a number**, so it is answerable before a single price exists —
-          and it was the hard-coded `DISCONNECTED` beside it that was the claim
-          with nothing behind it.
-
-          Not a fourth region, deliberately. `.clock` is `align-items:
-          flex-end` because it is the end of the strip, so a region appended
-          after it takes that edge away (Task 1.12.5 hit this once already), and
-          `AppHeader`'s own `AllPermutations` stopped being a cartesian product
-          for a reason a fourth axis makes worse. Provenance is what this region
-          is *for*; it does not need one of its own.
-        */}
-        <div className={cx(styles.region, styles.feedRegion)}>
-          <p className={styles.microLabel}>Market feed</p>
-          <FeedProvenance view={marketFeed} />
-        </div>
 
         {/*
-          The backend service, and it is a **third region** rather than a
-          second thing inside the feed's (Task 1.12.5).
+          **The market clock, in the masthead since 2026-09-16**, where it used
+          to be the third cell of a status strip under it.
 
-          The micro-label names the **service**, not the connection and not the
-          network. "Connection" was the obvious word and is wrong twice over:
-          the states already say "unreachable", which is a statement about
-          reaching it, so the label would be redundant — and worse, a strip
-          holding two indicators would then have one labelled by the thing being
-          reported on and one by the act of reaching it, which is exactly the
-          ambiguity two separate indicators exist to remove.
+          It is here and the other two facts are in the footer because they are
+          not the same kind of fact, which is the thing three rearrangements of
+          that strip never fixed. A clock answers a question a person asks
+          *while reading a price* — is the market open, and how long until it
+          is? That belongs where the eye already is. *Is the software working*
+          and *where do these numbers come from* are asked once, or at the
+          moment something looks wrong, and that is a status bar at the bottom
+          of the screen.
 
-          It sits **before** the clock deliberately. `.clock` is
-          `align-items: flex-end` because it is the end of the strip, and a
-          region appended after it would take that edge away — so the two status
-          facts are adjacent, which is also where they are most comparable, and
-          the clock keeps the right-hand edge it is aligned to.
+          The masthead had the room. Between the last tab and the right edge
+          there were about 615px of nothing at 1440 — half of the dead space
+          this pass was asked to remove — and the clock is 163 of them.
+
+          `margin-left: auto` on the cell rather than `justify-content` on the
+          row, because `.nav` must keep the slack: it is the thing that scrolls
+          when the viewport narrows, and a row that distributes its space gives
+          the navigation exactly its content width and no more.
         */}
-        <div className={cx(styles.region, styles.serviceRegion)}>
-          <p className={styles.microLabel}>Backend service</p>
-          <BackendIndicator
-            status={backendStatus}
-            degradedCause={backendDegradedCause}
-            lastSuccessAt={backendLastSuccessAt}
-            hasChecked={backendHasChecked}
-          />
-        </div>
-
-        {/*
-          The clock, and it is a clock now (Task 2.5.5).
-
-          This region reserved the space with a `--:--:--` placeholder from
-          Story 1.5 to Story 2.5, deliberately: a plausible-looking `00:00:00`
-          would have been a fake time. The placeholder's own comment predicted
-          the one-off width shift when hyphens became digits — hyphens are not
-          in the font's tabular set — and paying it was always the better trade
-          than a placeholder that lied.
-
-          **It shipped here rather than in Epic 3, and `STORY.md` is amended
-          rather than left contradicting itself.** A clock is a fact about the
-          *calendar*: it needs a timezone and a session definition, both of
-          which exist after Task 2.5.4, and none of Epic 3's live feed. What
-          stays Epic 3's is the `LIVE` word in §9's sketch and anything else
-          claiming data is arriving — which is the feed's region, two cells to
-          the left.
-        */}
-        <div className={cx(styles.clockRegion, styles.region)}>
+        <div className={styles.clockCell}>
           <p className={styles.microLabel}>Market clock</p>
           <MarketClock reading={clock} />
         </div>

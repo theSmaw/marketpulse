@@ -42,4 +42,19 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-40);
+
+  /*
+   * Room for the status bar to sit over, added 2026-09-16 with `AppFooter`.
+   *
+   * `scroll-padding-bottom` in `base.css` stops the browser *scrolling*
+   * something under the bar; this stops the page *drawing* under it. Both are
+   * needed and they are different failures: without this, the last element on
+   * any page is permanently behind a 32px band at the point the document ends,
+   * and no amount of scrolling reveals it because there is nothing left to
+   * scroll.
+   *
+   * It reads the same published measurement rather than a token, so a bar that
+   * wraps to two rows at 768 takes its own room with it.
+   */
+  padding-bottom: calc(var(--space-24) + var(--sticky-footer-height, 0px));
 }

@@ -156,6 +156,15 @@ one page-level label is then wrong about half of it.
 in the micro type. Its governing rule is: _the note states what the chrome
 cannot, and never repeats what the chrome can._**
 
+**Amended 2026-09-16: "the chrome" is two landmarks rather than one, and the
+rule is unchanged.** The masthead's status strip was dismantled — the market
+clock went up into the masthead itself and the feed's provenance went down into
+`AppFooter`, a sticky status bar at the foot of the viewport. Everything this
+document says about the chrome's standing claim still holds of it: it is stated
+on every screen, from the backend, without a deploy able to change it silently,
+and it is the thing this note defers to. What moved is which end of the frame
+carries it.
+
 That rule is what makes it one line rather than five, and it resolves the
 prominence question by answering a different one — not _how loud_, but _what is
 this surface for_.
@@ -1261,11 +1270,16 @@ _Domino's_ is what a vendor calls itself, not something we wrote.
   security you are looking at_, and coupling it to search's state is a dependency
   worth naming before introducing. **Trigger: the second sentence in the product
   that points at another surface's control.**
-- **The masthead's primary navigation is clipped at 390**, reading `Market O`
-  with no affordance saying so. Outside this set — it is the chrome rather than a
-  state — but it is in every screenshot this pass took, so it is written down
-  here rather than seen and forgotten. Owner: Epic 15, or the first story that
-  touches `AppHeader`.
+- ~~**The masthead's primary navigation is clipped at 390**~~, reading
+  `Market O` with no affordance saying so. Outside this set — it is the chrome
+  rather than a state — but it is in every screenshot this pass took, so it was
+  written down here rather than seen and forgotten. Owner: Epic 15, or the first
+  story that touches `AppHeader`. **Closed 2026-09-16 by the second of two
+  design changes that touched that file**, which is the owner clause doing what
+  it was written to do: at 390 the navigation now takes a row of its own under
+  the identity block and the clock, so it gets the full width and shows `Market
+  Overview`, `Investigation Workspace` and the left edge of the third. Still a
+  scroller; now one that visibly is one.
 - **The listening pass.** Every judgement here about what a listener hears was
   taken from the accessibility tree, which is the data an assistive technology is
   handed and **not the same thing as hearing it**. The two new accessible names

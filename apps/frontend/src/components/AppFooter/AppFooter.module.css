@@ -1,0 +1,101 @@
+/*
+ * The status bar: one line, on the sunken ground, welded to the bottom of the
+ * viewport.
+ *
+ * It is the strip that used to sit under the masthead, moved and halved. What
+ * makes it a bar rather than a band is that it carries **no detail line of its
+ * own height** — the two indicators still render their sentences, and those
+ * sentences sit on the same line as the value rather than under it, which is
+ * what keeps this at one row where the strip needed three. See `.cell`.
+ */
+
+.footer {
+  /*
+   * Sticky at the bottom, for the reason in the component: the recorded purpose
+   * of the backend indicator is that it survives a page body that has blanked,
+   * and the Security Explorer is twenty thousand pixels tall. `z-index: 1`
+   * matches the masthead's — nothing in this application creates a stacking
+   * context, and a number chosen "to be safe" is how a codebase ends up with a
+   * scale nobody can reason about.
+   */
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-24);
+
+  padding: var(--space-8) var(--space-24);
+  background: var(--surface-sunken);
+  border-top: var(--border-width) solid var(--rule-strong);
+}
+
+/*
+ * A cell: the micro-label, the value, and the value's own sentence, **all on
+ * one line**.
+ *
+ * This is the opposite of the arrangement the top strip needed and it is the
+ * same reasoning arriving at a different answer. Up there the three facts were
+ * stacked label-over-value, because three cells whose labels form a row and
+ * whose values form a row is what made a wide band read as an instrument. Down
+ * here there are two facts, one line and no band to organise: a label above a
+ * value would double the bar's height to align two things that are already
+ * adjacent.
+ *
+ * `baseline` rather than `center`, because the micro-label, the value and the
+ * sentence are three type sizes and it is their baselines that have to agree.
+ */
+.cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-8);
+  min-width: 0;
+}
+
+.microLabel {
+  composes: microLabel from "../../styles/type.module.css";
+  margin: 0;
+  color: var(--ink-secondary);
+  flex-shrink: 0;
+}
+
+/*
+ * The indicators' own detail sentences, pulled onto the value's line.
+ *
+ * Both components lay themselves out as a two-column grid with the sentence in
+ * the second column, which is the right shape in a stacked cell and the wrong
+ * one in a bar. `display: contents` dissolves the grid so the marker, the word
+ * and the sentence become items of `.cell`'s flex row directly — no wrapper
+ * element, no second copy of either component, and no prop threaded through
+ * two files to say "you are in a footer now".
+ *
+ * The trade is that `.cell`'s `gap` is then the only thing spacing the marker
+ * from its word, which is why that gap is `--space-8` and not the `--space-4`
+ * the vertical axis uses.
+ */
+.cell > :is(span, div):not(.microLabel) {
+  display: contents;
+}
+
+/*
+ * --- Narrow ---
+ *
+ * Below 768 the two facts stack, because a market-feed sentence and a service
+ * state on one line is a line nobody can read at phone width. The bar becomes
+ * two rows and `useStickyFooterHeight` publishes whatever that measures, so
+ * `base.css`'s padding and scroll padding follow without being told.
+ */
+@media (max-width: 768px) {
+  .footer {
+    display: block;
+    padding: var(--space-8) var(--space-16);
+  }
+
+  .cell + .cell {
+    margin-top: var(--space-4);
+  }
+}

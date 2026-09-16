@@ -2525,11 +2525,19 @@ The addresses, and what is in each of them today, are in
 wired rather than what they show. The not-found route keeps the chrome intact
 like any other route, because it is a route.
 
-The chrome — product name and a status strip of **three** regions (market feed,
-backend service and, since Task 2.5.5, a working market clock), then the
-navigation — is
-`components/AppHeader`, rendered once outside the route table so it
-survives navigation rather than being remounted by it.
+The chrome is **two landmarks since 2026-09-16**, and they are two components.
+`components/AppHeader` is the masthead — product name, the navigation, and the
+market clock at the right-hand end of it — and `components/AppFooter` is a
+sticky status bar at the bottom of the viewport carrying the market feed's
+provenance and the backend service's state. Both render once outside the route
+table, so they survive navigation rather than being remounted by it.
+
+It was one component and a two-row header until then: a masthead over a status
+strip carrying all three of those facts. What separated them is that a clock
+answers a question asked _while reading a price_ and the other two answer _is
+this working_ and _where do the numbers come from_, which are asked once. Three
+things in one band always read as a band of miscellany while one of them belongs
+beside the data.
 
 Two conventions worth knowing before adding a route:
 

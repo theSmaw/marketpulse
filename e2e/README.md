@@ -179,7 +179,7 @@ local harness's happy accident in the one place where the accident is the bug.
 ### The two failures, and why they need two different assertions
 
 They are **indistinguishable on screen** — watched, not assumed: both put
-`unreachable` and `No successful check yet.` in the status strip, which is also
+`unreachable` and `No successful check yet.` in the status bar, which is also
 what a backend that is genuinely down looks like. So each is caught by its own
 instrument.
 

@@ -59,8 +59,10 @@ the provenance surface, the partial states and the close (2.14).
 
 ### What a user can see today
 
-Five routes, a status strip reporting the market feed, backend health and the
-market clock, and a **Security Explorer** a person can use rather than only read.
+Five routes, a **one-row masthead** carrying the navigation and the market
+clock, a **sticky status bar** at the foot of the viewport reporting the market
+feed and backend health, and a **Security Explorer** a person can use rather
+than only read.
 They can type `nv` and open NVDA; the address becomes `/securities/NVDA` and a
 cold link works. **The field that does it is on the page's heading row since
 2026-09-16**, opposite the title rather than under it, which is also what
@@ -173,10 +175,14 @@ in one line here and argued in full where the table below points:
   sentence in the product pointing at another surface's control — never fired,
   because the search field moved onto the page's heading row and the note was
   deleted as the thing it pointed at came into view. The trigger stands for the
-  next such sentence. The second is open and its owner has now been reached
-  twice without acting: **the masthead's primary navigation is clipped at 390**,
-  reading `Market O` with no affordance saying so — **owner: the first story
-  that touches `AppHeader`.**
+  next such sentence. The second is **also closed on 2026-09-16**, by the owner
+  clause doing exactly what it was written to do: **the masthead's primary
+  navigation was clipped at 390**, reading `Market O` with no affordance saying
+  so, owned by the first story to touch `AppHeader` — and the day's second
+  design change was that. At 390 the navigation now takes a row of its own under
+  the identity block and the clock, so it gets the full width and shows `Market
+  Overview`, `Investigation Workspace` and the left edge of the third. Still a
+  scroller; now one that visibly is one.
 - **The weekday `1D` photograph**, which no address, fixture or pinned clock can
   produce, because the free plan's fifteen-minute embargo only exists during a
   session. **Narrower since 2026-09-14**: a named window now ends at the last
@@ -486,7 +492,7 @@ Files not listed are either obvious or documented where they live.
 - **Frontend configuration is substituted at build time**, so one artefact cannot be promoted across environments — pointing the app at a different backend is a _rebuild_, not a setting. A `VITE_` prefix is a boundary against accidents, not a permission: prefixing a credential puts it in a file every visitor downloads.
 - `base` and `basename` are one input with two readers. Setting only Vite's `base` gives an app that loads perfectly and renders the not-found route at its own address, with every link pointing off the deployment.
 - **`vite preview` is not a static host** and neither is the deployed one — three hosts, three behaviours for an unmatched path: `python3 -m http.server` 404s, `vite preview` splits on the `Accept` header, Azure Static Web Apps splits on path. Never write "the SPA fallback" without saying which host you mean.
-- **A sticky header occludes focus, and the browser's own scroll-into-view does not know it.** Sequential focus navigation — every press of Tab — scrolls the target to the top of the scrollport and stops, which parks it behind the chrome. Measured 2026-09-11 on `/securities/NVDA`: **one** occluded stop at 1440×900, **four** at 768×800 and **two** at 390×780, and it **worsens as the viewport narrows** because the status strip wraps — so a development machine shows the least of it. jsdom has no layout and axe reads zero violations throughout, because this is a fact about where a scroller stopped rather than about a DOM. The one repair is `scroll-padding-top` on the scroll container, and it cannot be a token: `--app-header-height` is the masthead only and the chrome's real height exists at three values, so `AppHeader` measures the element and publishes `--sticky-chrome-height`. **It does not help a target taller than the viewport** — the browser does not scroll something it already considers in view.
+- **A sticky edge occludes focus, and the browser's own scroll-into-view does not know it.** **There are two of them since 2026-09-16** — the masthead and `AppFooter`'s status bar — answered by `scroll-padding-top` and `scroll-padding-bottom` reading `--sticky-chrome-height` and `--sticky-footer-height`, each published by the component that measures itself. The figures below are the top edge's, taken against the two-row chrome that has since become one row; the mechanism is what matters and it is unchanged. Sequential focus navigation — every press of Tab — scrolls the target to the top of the scrollport and stops, which parks it behind the chrome. Measured 2026-09-11 on `/securities/NVDA`: **one** occluded stop at 1440×900, **four** at 768×800 and **two** at 390×780, and it **worsens as the viewport narrows** because the status strip wraps — so a development machine shows the least of it. jsdom has no layout and axe reads zero violations throughout, because this is a fact about where a scroller stopped rather than about a DOM. The one repair is `scroll-padding-top` on the scroll container, and it cannot be a token: `--app-header-height` is the masthead only and the chrome's real height exists at three values, so `AppHeader` measures the element and publishes `--sticky-chrome-height`. **It does not help a target taller than the viewport** — the browser does not scroll something it already considers in view.
 - **A natively `disabled` control is not focusable, so anything `aria-describedby` hangs off it is unreachable.** A description is read when a control is _reached_. This shipped for two tasks: search's unavailable states carried a correct, attached, visible sentence that no key press could get to. `TextField` therefore renders `aria-disabled` + `readOnly` rather than `disabled`, product-wide — **and the consequence has to be followed**: the state stops being inactive, so WCAG 1.4.11's and 1.4.3's exemptions stop covering its border and its ink.
 - The React Compiler rules (17 of them, all effectively at error) **first fired on 2026-09-11**, on Story 2.11's combobox — the first component in the tree with real interactive state. Until then they had never fired, which was evidence that nothing had yet written the shape they dislike rather than that the tree satisfied them. Both catches were correct and both repairs were _simpler_ than the code they replaced: `refs` rejected a value written to a ref during render that never needed to survive one, and `set-state-in-effect` rejected clearing a live region from an effect body when the empty state was derivable. Expect them on anything holding state; treat a firing as a design note rather than a rule to route around.
 

@@ -51,10 +51,18 @@ function requiredSentence(feed: "iex" | "synthetic"): string {
   return sentence;
 }
 
-/** The region the strip's `Market feed` micro-label names. */
+/**
+ * The status-bar cell the `Market feed` micro-label names.
+ *
+ * **`contentinfo` rather than `banner` since 2026-09-16**, when this fact moved
+ * from the header's status strip to `AppFooter`. Invariant 6 is unchanged and
+ * so is every assertion below it: the feed is still labelled, still stated in a
+ * sentence and still in the chrome on every screen. Which end of the chrome is
+ * not something this spec has an opinion about.
+ */
 function feedRegion(page: Page) {
   return page
-    .getByRole("banner")
+    .getByRole("contentinfo")
     .getByText("Market feed", { exact: true })
     .locator("..");
 }

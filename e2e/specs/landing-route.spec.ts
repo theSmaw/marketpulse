@@ -52,10 +52,26 @@ const REGION_NAMES = [
   "Current investigations",
 ] as const;
 
-// The status strip's three micro-labels. These are labels rather than
-// landmarks — plain text above each indicator — which is why they are matched
-// as text and the regions below are matched by role.
-const STATUS_LABELS = ["Market feed", "Backend service", "Market clock"];
+// The chrome's three status micro-labels, and **which landmark each is in**
+// since 2026-09-16, which is the point of the pairing rather than bookkeeping.
+//
+// They were all three in a status strip under the masthead until then. The
+// clock stayed in the `banner` when that strip was dismantled, because it
+// answers a question a person asks while reading a price; the other two moved
+// to `AppFooter`'s `contentinfo` bar, because they answer *is this working* and
+// *where do the numbers come from*, which are asked once. Asserting the pairing
+// rather than a flat list is what makes this spec able to fail if a later
+// change quietly puts one back in the wrong end of the chrome — a flat
+// `page.getByText` over all three would pass either way.
+//
+// These are labels rather than landmarks — plain text beside each indicator —
+// which is why they are matched as text and the regions below are matched by
+// role.
+const STATUS_LABELS = [
+  { label: "Market feed", landmark: "contentinfo" },
+  { label: "Backend service", landmark: "contentinfo" },
+  { label: "Market clock", landmark: "banner" },
+] as const;
 
 test("the landing route serves the chrome and PRODUCT_SPEC §9's four regions", async ({
   page,
@@ -72,8 +88,15 @@ test("the landing route serves the chrome and PRODUCT_SPEC §9's four regions", 
   await expect(banner).toBeVisible();
   await expect(banner.getByText("MarketPulse", { exact: true })).toBeVisible();
 
-  for (const label of STATUS_LABELS) {
-    await expect(banner.getByText(label, { exact: true })).toBeVisible();
+  // The status bar is the chrome's second landmark, and it is asserted as one:
+  // a screen-reader user navigating by landmark can reach the two facts about
+  // whether the software is working without reading the page.
+  await expect(page.getByRole("contentinfo")).toBeVisible();
+
+  for (const { label, landmark } of STATUS_LABELS) {
+    await expect(
+      page.getByRole(landmark).getByText(label, { exact: true }),
+    ).toBeVisible();
   }
 
   // The navigation is named, so it is distinguishable from any other `nav` the
@@ -114,7 +137,11 @@ test("the landing route serves the chrome and PRODUCT_SPEC §9's four regions", 
   // Story 1.9's "do not assert on a single element's text where a component
   // splits it" arriving from the other direction — the concatenation a screen
   // reader is handed is not the string the elements read as.
-  const serviceRegion = banner
+  // The status bar rather than the banner since 2026-09-16 — see
+  // `AppFooter`. The chrome is two landmarks now, and this fact is in the
+  // second one.
+  const serviceRegion = page
+    .getByRole("contentinfo")
     .getByText("Backend service", { exact: true })
     .locator("..");
   await expect(

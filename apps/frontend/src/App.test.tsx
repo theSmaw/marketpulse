@@ -119,20 +119,27 @@ describe("the route table", () => {
 // in the chrome on every route; the part that will silently stop being true is
 // that a backend nobody can reach is a **value in state** rather than an
 // exception — so nothing here should ever produce a fallback.
+//
+// **The landmark it is scoped to changed on 2026-09-16** and the assertion did
+// not: these two facts moved from the header's status strip to `AppFooter`, so
+// the scope is `contentinfo` rather than `banner`. That is the whole of the
+// edit, and it is worth noticing that it *is* the whole of it — what this
+// describe block is about is that the status is in the **chrome**, on every
+// route, outside `<Routes>`, and which end of the chrome was never the point.
 describe("the backend status in the chrome", () => {
   it("renders the placeholder on every route while the first check is outstanding", () => {
     for (const path of [...Object.values(PATHS), "/nonsense"]) {
       const { unmount } = renderAt(path);
 
-      const banner = screen.getByRole("banner");
-      expect(within(banner).getByText("Backend service")).toBeDefined();
+      const bar = screen.getByRole("contentinfo");
+      expect(within(bar).getByText("Backend service")).toBeDefined();
 
       // **Two** placeholders since Task 2.6.7, not one: the market feed is read
       // from the backend too, so both cells say `checking` until their
       // respective requests settle. Asserted as a count rather than by
       // `getByText`, which throws on more than one match — the trap Story 1.9
       // records, arriving because a second indicator started reporting.
-      expect(within(banner).getAllByText("checking")).toHaveLength(2);
+      expect(within(bar).getAllByText("checking")).toHaveLength(2);
 
       unmount();
     }
@@ -163,6 +170,9 @@ describe("the backend status in the chrome", () => {
     ).toBeDefined();
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeDefined();
     expect(screen.queryByText("The header could not be displayed")).toBeNull();
+    expect(
+      screen.queryByText("The status bar could not be displayed"),
+    ).toBeNull();
     expect(screen.queryByText("This page could not be displayed")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
   });
