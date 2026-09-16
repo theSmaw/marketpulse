@@ -153,39 +153,32 @@ describe("BarSeriesPanel", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  // **How far a short answer reaches, in the rail** (Task 2.14.5).
+  // **How far a short answer reaches — spoken, and no longer drawn**
+  // (2026-09-16).
   //
-  // Three assertions, and each is a separate decision that could be taken
-  // wrongly on its own:
+  // Task 2.14.5 drew this sentence in the rail and spoke it in the
+  // announcement, from one string, and this test compared the two copies
+  // because the drift it existed to prevent is a visible copy and a spoken copy
+  // written separately. The drawn half is gone — see `Settled` — and what is
+  // asserted now is the pair of decisions that replaced it:
   //
-  //   1. `partial` says it. The instants are the point — the axis is
-  //      session-ordinal, so the picture can say *it stops here* and cannot say
-  //      *when*.
-  //   2. `loaded` does **not**, which is `PROVENANCE.md` §3.1's rejected
-  //      candidate. Under a complete chart the axis already ends where the data
-  //      ends, and padding in a small type teaches a reader that the small type
-  //      is not worth reading. This absence is a decision, so it is a test.
-  //   3. It is the **same string** a listener is given. The drift this whole
-  //      task exists to prevent is a visible copy and a spoken copy written
-  //      separately, and the only instrument that can see it is one that reads
-  //      both and compares them.
-  it("says how far a short answer reaches, in the same words it speaks them", () => {
+  //   1. **A listener is still told.** They have neither the picture's coverage
+  //      edge nor the axis's dated seams, so the clause is the only thing that
+  //      says a short answer is short. Removing it would be the parity break
+  //      that keeping it is sometimes mistaken for.
+  //   2. **A reader is not told in words, in any state.** `partial` is the case
+  //      that used to say it, so it is the case worth asserting silent; `loaded`
+  //      never did and is asserted below.
+  it("speaks how far a short answer reaches, and draws nothing about it", () => {
     const view = barSeriesFixtureView("partial");
     render(<Panel {...props} view={view} />);
 
-    const drawn = screen.getByText(
-      /^Holding [\d,]+ bars, through /u,
-      VISIBLE,
-    ).textContent;
-    expect(drawn).toContain("of a window running to");
+    expect(screen.queryByText(/Holding [\d,]+ bars/u, VISIBLE)).toBeNull();
+    expect(screen.queryByText(/of a window running to/u, VISIBLE)).toBeNull();
 
-    // **The one function, read twice.** The phrase is a clause in the spoken
-    // sentence and the start of the drawn one, so the only difference is the
-    // first character — which is `sentenceCase`, and is exactly what the
-    // comparison below allows for and nothing more. A visible copy that drifted
-    // by a word would fail here.
     const spoken = announceSeries(barSeriesViewScreen(view), "NVDA");
-    expect(spoken).toContain(drawn.slice(1));
+    expect(spoken).toMatch(/holding [\d,]+ bars, through /u);
+    expect(spoken).toContain("of a window running to");
   });
 
   it("says nothing about coverage under a complete answer", () => {

@@ -366,6 +366,36 @@ through 10:42:17"_, and that sentence earns its place because something
 
 ### 3.2 The decision — bound to `partial`, and given a visible home rather than only a spoken one
 
+> **Reversed on the visible half, 2026-09-16.** The drawn sentence came off the
+> rail; `coveragePhrase()` and the spoken clause are untouched, so a listener is
+> told exactly what this section decided they should be told. Everything below
+> is the original reasoning, left standing because it is still the reasoning for
+> the half that shipped and stayed.
+>
+> **What the reversal disagrees with is the last step of the argument, not the
+> argument.** §3.1 is right that the picture says _something is missing_ and
+> _it stops here_ and cannot say _when_ — and the step that did not survive
+> being looked at is the inference from _the picture cannot say when_ to
+> _therefore a reader needs a sentence saying when_. The axis's seams carry
+> dates (ADR 0027), so a reader gets _when_ to the session, which is the grain
+> the question is actually asked at; the sentence was spending two full instants
+> to the second, above the figures, on a refinement of something already drawn.
+> And it is **overwhelmingly a developer's view**: the deployed store is
+> backfilled nightly, so most answers there are not short at all.
+>
+> **This is not a parity break, and it is worth being exact because it looks
+> like one.** Parity is equivalent information through each channel, not
+> identical strings. A listener has neither the coverage edge nor the dated
+> seams, which is why the clause stays in the announcement — removing _that_
+> would be the break.
+>
+> **Reversal trigger: an axis a reader cannot read a date off.** A window whose
+> labels are times, or none, takes the visual half away and the sentence has to
+> come back, for everyone.
+>
+> The consequences recorded elsewhere in this document — §3.3's rail priority
+> and the two-cell reservation it needed — are amended where they sit.
+
 **The sentence appears exactly when the answer is short of the window asked for,
 and says how far the answer reaches and how far the window ran.**
 
@@ -442,8 +472,12 @@ has been redrawn to the shipped form** rather than the tree being left to
 diverge from it, which is ADR 0026's chain applied in the direction it is meant
 to run.
 
-**2. The reservation is 66px, and it was measured rather than compared.** The
-rail now holds **two** hidden copies in its one grid cell — the held sentence's
+**2. The reservation is 66px, and it was measured rather than compared.**
+_(Amended 2026-09-16: back to **one** hidden copy and the 48px below, when the
+drawn coverage sentence came off — see §3.2's box. The paragraph is kept whole
+because the argument in it is about how to reserve for two incommensurable
+sentences, which is the thing the next third occupant of this rail will need.)_
+The rail held **two** hidden copies in its one grid cell — the held sentence's
 worst case and the coverage sentence — so the row is as tall as the taller _at
 this width_, and nothing counts characters. Comparing the two as strings was the
 obvious implementation and is exactly the argued tolerance `CLAUDE.md` warns
@@ -1278,7 +1312,7 @@ _Domino's_ is what a vendor calls itself, not something we wrote.
   design changes that touched that file**, which is the owner clause doing what
   it was written to do: at 390 the navigation now takes a row of its own under
   the identity block and the clock, so it gets the full width and shows `Market
-  Overview`, `Investigation Workspace` and the left edge of the third. Still a
+Overview`, `Investigation Workspace` and the left edge of the third. Still a
   scroller; now one that visibly is one.
 - **The listening pass.** Every judgement here about what a listener hears was
   taken from the accessibility tree, which is the data an assistive technology is

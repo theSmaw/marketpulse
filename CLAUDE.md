@@ -180,9 +180,8 @@ in one line here and argued in full where the table below points:
   navigation was clipped at 390**, reading `Market O` with no affordance saying
   so, owned by the first story to touch `AppHeader` — and the day's second
   design change was that. At 390 the navigation now takes a row of its own under
-  the identity block and the clock, so it gets the full width and shows `Market
-  Overview`, `Investigation Workspace` and the left edge of the third. Still a
-  scroller; now one that visibly is one.
+  the identity block and the clock, so it gets the full width: two whole tabs
+  and the left edge of a third. Still a scroller; now one that visibly is one.
 - **The weekday `1D` photograph**, which no address, fixture or pinned clock can
   produce, because the free plan's fifteen-minute embargo only exists during a
   session. **Narrower since 2026-09-14**: a named window now ends at the last
