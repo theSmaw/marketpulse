@@ -164,43 +164,24 @@
  * the row's. The `auto` margin puts all the slack in one place, between the
  * tabs and the clock, which is where there is nothing to lose.
  *
- * Label and value side by side rather than stacked, because a 56px row has no
- * second line to give and the label is a prefix here rather than a heading.
- * That is the arrangement the old strip started with; what made it wrong there
- * was three cells needing their labels to line up, and there is one cell here.
+ * **The label is baseline-aligned to the figure, not to the block** — amended
+ * 2026-09-16, and it is the second half of what "aligned with itself" turned
+ * out to mean. `MarketClock` is two lines with the figure on top; centring the
+ * label against the pair puts an 11px word in the gap between two lines, level
+ * with neither. On the figure's baseline it is a prefix to the number, which is
+ * what it is, and the row reads as one thing with a name rather than as a label
+ * beside a block.
+ *
+ * `align-self: center` because the masthead is `align-items: stretch`, so
+ * without it the cell is 56px tall and its contents sit at the top of it.
  */
 .clockCell {
   display: flex;
   align-items: baseline;
-  /* The masthead is `align-items: stretch`, so without this the cell is 56px
-     tall and its contents sit at the top of it. */
   align-self: center;
   gap: var(--space-12);
   margin-left: auto;
   flex-shrink: 0;
-}
-
-.microLabel {
-  composes: microLabel from "../../styles/type.module.css";
-  margin: 0;
-  color: var(--ink-secondary);
-  flex-shrink: 0;
-}
-
-/*
- * Below 1024 the label goes and the clock does not.
- *
- * `MARKET CLOCK` is 88px of a row that has four tabs to fit, and what it labels
- * is the least ambiguous readout in the product: a monospace `03:26:34 ET`
- * beside the word `CLOSED` is not mistaken for anything. That is the
- * three-unlabelled-words problem from the old strip stated in reverse — the
- * labels were load-bearing there because three status words together are
- * unreadable, and this one is alone.
- */
-@media (max-width: 1024px) {
-  .clockCell .microLabel {
-    display: none;
-  }
 }
 
 /*
@@ -255,12 +236,13 @@
     display: none;
   }
 
-  .identity,
-  .clockCell {
-    height: var(--app-header-height);
-  }
-
+  /* The identity sets the first row's height; the clock centres in whatever
+     that turns out to be. Giving the clock an explicit height instead puts its
+     two lines at the top of a 56px box, level with nothing — which is the same
+     defect the label caused at full width, arriving through a different
+     property. */
   .identity {
+    height: var(--app-header-height);
     align-items: center;
   }
 

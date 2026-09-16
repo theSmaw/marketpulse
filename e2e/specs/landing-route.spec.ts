@@ -33,13 +33,13 @@ import { expectNothingFailedToRender } from "../support/app.js";
 // forced exactly the duplication `packages/shared` exists to prevent (Task
 // 1.13.1).
 //
-// Two things about the region labels that a selector gets wrong by default,
-// both handed over by Task 1.12.7. The strip holds **three** regions —
-// `Market feed`, `Backend service` and `Market clock` — all three of which now
-// render a word, and on a correct first run **two of them read `checking` at
-// once** while their requests settle (Task 2.6.7 made the market feed read from
-// the backend too). So a selector matching a status word without scoping to its
-// region is matching the wrong cell. And the words are rendered lowercase and
+// Two things about the status labels that a selector gets wrong by default,
+// both handed over by Task 1.12.7. The chrome holds **two** labelled status
+// cells — `Market feed` and `Backend service`, both in `AppFooter` since
+// 2026-09-16 — and on a correct first run **both read `checking` at once**
+// while their requests settle (Task 2.6.7 made the market feed read from the
+// backend too). So a selector matching a status word without scoping to its
+// cell is matching the wrong one. And the words are rendered lowercase and
 // uppercased by CSS, so the accessible text is `healthy`, not `HEALTHY`.
 
 // §9's four areas, in the vocabulary §8.1 gave them. Each is a `region`
@@ -70,8 +70,19 @@ const REGION_NAMES = [
 const STATUS_LABELS = [
   { label: "Market feed", landmark: "contentinfo" },
   { label: "Backend service", landmark: "contentinfo" },
-  { label: "Market clock", landmark: "banner" },
 ] as const;
+
+// The clock has **no micro-label** and is asserted by the only thing it renders
+// that nothing else does: a `hh:mm:ss` figure, in the banner.
+//
+// It had one until 2026-09-16 and it was in this list. Dropping the label was a
+// layout decision — see `AppHeader` — and it is worth noting what it does to
+// this spec rather than letting the line quietly become two: the pairing below
+// still fails if a labelled status fact turns up in the wrong end of the
+// chrome, and the clock is now asserted by its **shape**, which is a stronger
+// assertion than its label ever was. A label can be present over a cell that
+// renders nothing.
+const CLOCK_SHAPE = /^\d{2}:\d{2}:\d{2}$/u;
 
 test("the landing route serves the chrome and PRODUCT_SPEC §9's four regions", async ({
   page,
@@ -98,6 +109,8 @@ test("the landing route serves the chrome and PRODUCT_SPEC §9's four regions", 
       page.getByRole(landmark).getByText(label, { exact: true }),
     ).toBeVisible();
   }
+
+  await expect(banner.getByText(CLOCK_SHAPE)).toBeVisible();
 
   // The navigation is named, so it is distinguishable from any other `nav` the
   // application grows, and the four destinations are §8's four experiences.

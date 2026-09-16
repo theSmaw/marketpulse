@@ -23,33 +23,93 @@
  * token block in `market.css`.
  */
 
+/*
+ * Two lines, ranged **right**, since 2026-09-16: the figure, and the qualifier
+ * under it.
+ *
+ * The right edge is the decision rather than the stacking. This block sits at
+ * the end of the masthead, and the masthead's other occupant — the identity —
+ * is ranged left against the page gutter. A block at the *other* end ranged
+ * left has its ragged edge facing the one place in the row where an edge is
+ * visible, which is what made this read as unaligned with a header it was in
+ * fact already vertically centred in. Ranged right, the two lines end where the
+ * row ends, and the chrome is two blocks each squared against the gutter
+ * nearest it.
+ *
+ * `align-items` and `text-align` both, and they do different jobs: the first
+ * moves the two flex items, the second catches the qualifier's own row if it
+ * ever wraps.
+ */
 .clock {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-4);
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
 }
 
 /*
- * The figure and the session word on one baseline.
+ * The qualifier: the marker, the session word, and what happens next — one row
+ * under the figure.
+ *
+ * `CLOSED` alone is a state; `CLOSED · Opens at 09:30` is an answer, and a
+ * reader wants the second. They were separate lines until 2026-09-16 for a
+ * reason that was never about them: the grid this component used to sit in
+ * inflated any column a spanning item crossed, so the sentence had to be a
+ * sibling of the state rather than share a row with it. Nothing spans anything
+ * now.
  *
  * `flex-wrap` rather than a minimum width: the longest thing this row holds is
- * `09:42:16 ET` beside `unknown`, which fits everywhere the strip does — but
- * the row is also rendered in the workshop at a story's width, and a reading
- * that overflows its cell is worse than one that takes two lines.
+ * `closed · Opens at 09:30, closing early at 13:00`, which fits in the masthead
+ * at every width the block is drawn at — but it is also rendered in the
+ * workshop at a story's width, and a reading that overflows its box is worse
+ * than one that takes two lines. `justify-content` is what keeps a wrapped
+ * second line against the same right edge as everything else.
  */
 .reading {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: baseline;
-  gap: var(--space-4) var(--space-12);
+  gap: 0 var(--space-8);
 }
 
 /*
- * The figure. No `font-variant-numeric` here: `body` sets `tabular-nums` and it
- * is inherited, which is what stops the strip's right edge breathing as the
- * seconds change. Re-declaring it would suggest this component is what keeps
- * that true, and a component that *breaks* alignment has overridden it.
+ * The separator, and it is plain text rather than a CSS `::before`.
+ *
+ * `SecurityIdentity`'s classification line is the precedent — `TECHNOLOGY ·
+ * SEMICONDUCTORS & SEMICONDUCTOR EQUIPMENT · NASDAQ` — where it is a real
+ * character in a real node, so a listener hears the same grouping a reader
+ * sees. Generated content would be a mark only one of the two channels gets,
+ * which is the parity rule this product keeps arriving at from other
+ * directions.
+ */
+.separator {
+  color: var(--ink-disabled);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
+
+/*
+ * The figure, and it is the only number in the chrome.
+ *
+ * **The data face and the subheading size since 2026-09-16**, where this was
+ * 13px in the interface face. Both halves are deliberate and the first is not
+ * decoration: `--font-data` is this product's face for *figures and
+ * identifiers*, and a clock is the purest example of one in the application.
+ * A ticking readout set in the interface face reads as a caption that happens
+ * to contain digits.
+ *
+ * 16px against the row's 13 is what makes it the thing the eye lands on, and
+ * there is nothing here for it to compete with — the tabs are 13px interface
+ * text and the wordmark is at the other end of the row.
+ *
+ * Still no `font-variant-numeric`: `body` sets `tabular-nums` and it is
+ * inherited, which is what stops the right edge breathing as the seconds
+ * change. Re-declaring it would suggest this component is what keeps that true,
+ * and a component that *breaks* alignment has overridden it. `.dataCell` brings
+ * it a second time for its own reasons, which is the two arriving at the same
+ * value rather than a duplication to collapse.
  *
  * This is the value the reserved placeholder was sized against. `--:--:--` was
  * eight characters of which six were hyphens, and a hyphen is not a digit, so
@@ -57,13 +117,28 @@
  * digits rendered. Measured: it is small, and it is a shift rather than a jump.
  */
 .time {
+  composes: dataCell from "../../styles/type.module.css";
+
   margin: 0;
-  font-size: var(--font-size-dense);
-  line-height: var(--line-height-dense);
+  font-size: var(--font-size-subheading);
+  /* Tighter than `--line-height-subheading`, because this line is a number
+     rather than prose and the block under it is 2px away. */
+  line-height: 1.15;
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-primary);
 }
 
+/*
+ * `ET`, and it is deliberately quiet. It qualifies the figure rather than
+ * adding to it — a reader needs it once, to know this is not their own clock —
+ * so it takes the micro size and the secondary ink and gets out of the way.
+ *
+ * Back in the interface face explicitly, because `.time` now composes the data
+ * one and two letters of mono beside a mono figure read as part of the figure.
+ */
 .zone {
   color: var(--ink-secondary);
+  font-family: var(--font-sans);
   font-size: var(--font-size-micro);
   letter-spacing: var(--letter-spacing-micro);
 }

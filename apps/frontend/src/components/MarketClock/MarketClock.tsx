@@ -244,39 +244,55 @@ export function MarketClock({ reading }: MarketClockProps) {
 
   return (
     <div className={styles.clock}>
-      {/* The figure and the session word are **one row** since 2026-09-16,
-          where they used to be two.
+      {/* **The figure is the first line and it is the hero** (2026-09-16).
+          Two arrangements preceded it in one day — figure over state over
+          sentence, then figure beside state over sentence — and both were
+          reading the clock as three facts to be fitted somewhere. It is one
+          fact with a qualifier: *it is 04:41:32 in New York, and the market is
+          closed until 09:30.* So the figure gets a line and the qualifier gets
+          a line.
 
-          They are one reading — "it is 09:42 and the market is open" — and
-          stacking them cost the status strip a line it could not afford: with
-          the strip's own micro-label now sitting above its value rather than
-          beside it, a four-line clock was the tallest thing in the chrome and
-          the one setting its height. A flex row is also what lets the earlier
-          arrangement go: the grid this used to sit in inflated the columns a
-          spanning item crossed, which is why the sentence was a sibling rather
-          than a third cell. Nothing spans anything now. */}
-      <div className={styles.reading}>
-        <p className={styles.time}>
-          {/* The accessible name for the figure, and the reason the `ET` beside
+          The figure is set at the subheading size in the data face rather than
+          at the interface's default 13px. A ticking number is exactly what
+          `--font-data` and `tabular-nums` are for — the seconds change every
+          second and a proportional face reflows the whole reading when they do
+          — and this is the only number in the chrome, so there is nothing for
+          it to compete with. */}
+      <p className={styles.time}>
+        {/* The accessible name for the figure, and the reason the `ET` beside
             it is `aria-hidden`: read aloud, "ET" is two letters rather than a
             timezone. A screen reader hears "Market time, US Eastern
             09:42:16"; the eye reads "09:42:16 ET". Same fact, said in the
             register each channel understands. */}
-          <span className={styles.visuallyHidden}>
-            Market time, US Eastern{" "}
-          </span>
-          <span>{clock}</span>{" "}
-          <span aria-hidden="true" className={styles.zone}>
-            ET
-          </span>
-        </p>
+        <span className={styles.visuallyHidden}>Market time, US Eastern </span>
+        <span>{clock}</span>{" "}
+        <span aria-hidden="true" className={styles.zone}>
+          ET
+        </span>
+      </p>
 
+      {/* The qualifier: what the market is doing, and what it does next.
+
+          They were on separate lines until now for a reason that was never
+          about them — the grid this used to sit in inflated any column a
+          spanning item crossed, so the sentence had to be a sibling of the
+          state rather than share a row with it. Nothing spans anything here,
+          and the two belong together: `CLOSED` alone is a state, and
+          `CLOSED · Opens at 09:30` is an answer.
+
+          The middot is the product's existing separator for a run of facts
+          about one subject — `SecurityIdentity`'s classification line uses it
+          the same way — and it is plain text there and here rather than an
+          `aria-hidden` flourish, so a listener hears the same grouping a reader
+          sees. */}
+      <span className={styles.reading}>
         <span className={cx(styles.state, className)}>
           <Marker shape={shape} />
           <span className={styles.label}>{word}</span>
         </span>
-      </div>
-      <span className={styles.detail}>{detail}</span>
+        <span className={styles.separator}>·</span>
+        <span className={styles.detail}>{detail}</span>
+      </span>
     </div>
   );
 }

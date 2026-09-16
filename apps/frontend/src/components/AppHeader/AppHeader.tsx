@@ -202,9 +202,28 @@ export function AppHeader() {
           row, because `.nav` must keep the slack: it is the thing that scrolls
           when the viewport narrows, and a row that distributes its space gives
           the navigation exactly its content width and no more.
+
+          **And it carries no micro-label.** It had `MARKET CLOCK` for half a
+          day and the label is what made the block look unaligned: `MarketClock`
+          is two lines ranged right, the qualifier is the wider of them, so a
+          label hanging off the block's left edge sits 64px from the figure it
+          names and level with nothing. Three repairs were available and two of
+          them were worse — a third line does not fit in 56px, and interleaving
+          the label into the component's own rows means `display: contents` and
+          a component that lays out differently here than in its stories.
+
+          The third is that the label is **redundant**, which is the reason
+          rather than the convenience. `06:08:06 ET` beside `CLOSED` in a market
+          product is not mistaken for anything, and the accessible name is
+          already carried inside the component — `MarketClock` renders a
+          visually-hidden *"Market time, US Eastern"* before the digits, so the
+          label was a second naming for a listener too. The idiom is intact
+          where it earns its keep: `VISUAL-LANGUAGE.md` calls micro-labels the
+          thing that most says "institutional application", and both footer
+          cells still carry theirs, because `NOT CONFIGURED` and `HEALTHY` are
+          words that need saying what they are about.
         */}
         <div className={styles.clockCell}>
-          <p className={styles.microLabel}>Market clock</p>
           <MarketClock reading={clock} />
         </div>
       </div>
