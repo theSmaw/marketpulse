@@ -56,7 +56,7 @@ universe_, and the upstream half of that is now measured rather than open:
   server is authoritative about what we hold: decision 4's state object should
   **reconcile against the ack** rather than maintain a count and hope.
 
-**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.7. It
+**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.8. It
 sharpens the reconciliation rule immediately above rather than contradicting it,
 and the sharpening is the difference between a reconciler that works and one
 that reports a permanent mismatch:

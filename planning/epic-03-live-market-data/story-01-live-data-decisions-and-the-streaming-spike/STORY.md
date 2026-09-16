@@ -1,6 +1,6 @@
 # Story 3.1 — Live-Data Decisions & the Streaming Spike
 
-**Status:** Not started
+**Status:** In progress — 3.1.1, 3.1.2 and 3.1.3 complete. **Next is 3.1.4, which needs a session and now also owns the open boundary**; it must start at 07:00 ET with the machine kept awake, and nothing else may hold the socket while it runs
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** Epic 2 (2.6, 2.7, 2.9, 2.10)
 **Epic scope covered:** the decisions under every other story in this epic, and the half of _Alpaca WebSocket ingestion_ that is a measurement rather than a client
@@ -212,6 +212,19 @@ The single-connection constraint is now a scheduling hazard rather than a note,
 and 3.1.4 and 3.1.5 each carry a line saying to check nothing else is holding
 the socket before they start.
 
+**Amended a third time 2026-09-15, after Task 3.1.3 ran — and this one is about
+an instrument rather than a window.** That task's long hold sat on a connection
+that had **died silently four hours earlier**, with `readyState` still reporting
+`OPEN`, no error and no close frame ([`LIVE-DATA.md`](LIVE-DATA.md) §6.4). It
+cost the open boundary, which **moves to 3.1.4** rather than becoming a second
+overnight vigil: that task must hold a capture across 09:30 anyway, so the
+instant costs it nothing. Two consequences bind every remaining capture task in
+this story: the harness now **ends a hold when no inbound frame of any kind has
+arrived for 165 s** — three missed 54-second heartbeats — and **the machine
+taking a capture must stay awake with its lid open**, because the connection
+dies with the network and a clamshell sleep is why the broken capture never
+recovered.
+
 **The three human decisions are asked once, together, and late (3.1.6)** —
 because two of them are unanswerable without the measured rate. A budget is a
 number about a bill and a bill is a number about bytes per second.
@@ -221,17 +234,17 @@ subject: 3.1.7 holds the three that are one piece of arithmetic seen from three
 places, 3.1.8 holds the three **Story 3.3 needs to exist**, and 3.1.9 holds the
 two that are about this process and this tree, beside the close.
 
-| Task                                                                                  | What it does                                                                                      | Visible? |
-| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------- |
-| [3.1.1](TASK-01-the-subject-document-and-the-eight-questions.md)                      | `LIVE-DATA.md` created: what is inherited, the eight questions open, the figures that don't exist | No       |
-| [3.1.2](TASK-02-the-harness-the-credential-and-the-capture-format.md)                 | The harness, the credential boundary, the capture format, and the handshake verbatim              | No       |
-| [3.1.3](TASK-03-what-the-socket-says-when-the-market-is-shut.md)                      | Pre-market, the open boundary, overnight — the heartbeat, and the longest legitimate silence      | No       |
-| [3.1.4](TASK-04-what-arrives-during-a-session-and-how-fast.md)                        | 518 symbols live: message shapes, the rate, the arrival gap, what `t` marks, real IEX coverage    | No       |
-| [3.1.5](TASK-05-what-the-socket-does-when-it-is-unhappy.md)                           | Duplicate connection, bad credential, idle, server close, reconnect — frames and codes verbatim   | No       |
-| [3.1.6](TASK-06-the-three-questions-for-a-person-and-the-cost-envelope.md)            | The cost envelope from the measured rate, and the three questions put to a person together        | No       |
-| [3.1.7](TASK-07-the-observation-the-subscription-and-the-state-that-is-held.md)       | Decisions 1, 3, 4 — what an observation is, what is subscribed, what the backend holds            | No       |
-| [3.1.8](TASK-08-the-browser-protocol-the-staleness-numbers-and-the-name-on-screen.md) | Decisions 2, 5, 6 — the browser protocol, the staleness numbers, the words on screen              | No       |
-| [3.1.9](TASK-09-the-store-the-process-the-harness-is-gone-and-the-document-lands.md)  | Decisions 7, 8 — the store and the process — then the harness gone, the sweep, the close          | No       |
+| Task                                                                                  | What it does                                                                                                      | Visible? |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------- |
+| [3.1.1](TASK-01-the-subject-document-and-the-eight-questions.md)                      | `LIVE-DATA.md` created: what is inherited, the eight questions open, the figures that don't exist                 | No       |
+| [3.1.2](TASK-02-the-harness-the-credential-and-the-capture-format.md)                 | The harness, the credential boundary, the capture format, and the handshake verbatim                              | No       |
+| [3.1.3](TASK-03-what-the-socket-says-when-the-market-is-shut.md)                      | Pre-market, overnight, the 54 s heartbeat, the longest silence — and a **dead socket nobody could see**           | No       |
+| [3.1.4](TASK-04-what-arrives-during-a-session-and-how-fast.md)                        | 518 symbols live from 07:00 to 16:30 ET: shapes, rate, arrival gap, what `t` marks, coverage, **both boundaries** | No       |
+| [3.1.5](TASK-05-what-the-socket-does-when-it-is-unhappy.md)                           | Duplicate connection, bad credential, idle, server close, reconnect — frames and codes verbatim                   | No       |
+| [3.1.6](TASK-06-the-three-questions-for-a-person-and-the-cost-envelope.md)            | The cost envelope from the measured rate, and the three questions put to a person together                        | No       |
+| [3.1.7](TASK-07-the-observation-the-subscription-and-the-state-that-is-held.md)       | Decisions 1, 3, 4 — what an observation is, what is subscribed, what the backend holds                            | No       |
+| [3.1.8](TASK-08-the-browser-protocol-the-staleness-numbers-and-the-name-on-screen.md) | Decisions 2, 5, 6 — the browser protocol, the staleness numbers, the words on screen                              | No       |
+| [3.1.9](TASK-09-the-store-the-process-the-harness-is-gone-and-the-document-lands.md)  | Decisions 7, 8 — the store and the process — then the harness gone, the sweep, the close                          | No       |
 
 **Every row says No, and that is the story rather than a disappointment.** The
 epic's sequence is built so that the wait is short: `LIVE` reaches the chrome in

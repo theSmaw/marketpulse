@@ -60,8 +60,8 @@ out_ column rather than informing it:
   have the same shape, and record whether they do — a client keying "connected"
   off `onopen` reports healthy forever in exactly this case.
 
-**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.2 and
-§6.6. One of these removes work from this task and one adds a probe nobody knew
+**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.3 and
+§6.4. One of these removes work from this task and one adds a probe nobody knew
 to ask for:
 
 - **The plain idle question is answered, so do not re-take it.** The server
@@ -102,7 +102,7 @@ close, a timeout, or nothing at all. The last is the dangerous one.
 - **An idle period, in the one form Task 3.1.3 could not take**: a client that
   receives the server's 54-second heartbeat and **does not answer it**. Does the
   server close, after how many missed pongs, and with what code. The quiet-but-
-  polite case is already measured (§6.2, §6.6) and is not re-taken here.
+  polite case is already measured (§6.3, §6.4) and is not re-taken here.
 - **A server-side close** — whatever can be induced, plus whatever is observed
   unprompted across the story's running time. Record any unsolicited close that
   happens, with its instant and code, even if it was not provoked; **an

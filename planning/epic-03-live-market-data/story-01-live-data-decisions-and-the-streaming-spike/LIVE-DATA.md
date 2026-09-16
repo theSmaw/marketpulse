@@ -545,6 +545,15 @@ says when the market is shut, which is Task 3.1.3 and which nobody has measured.
 **Both of those figures are Epic 1's arithmetic rather than a bill**; both
 billing APIs refused to answer, then answered `[]` and `429`.
 
+**Amended 2026-09-15 by Task 3.1.3 — the out-of-hours half is now measured, and
+it is not close.** An idle socket receives **0 payload bytes**, ≈**0.15 B/s**
+counting the control frames' own headers, against the 1,000 B/s threshold
+(§6.4). So the out-of-hours rate cannot move the replica off the idle rate, and
+the objection this question was waiting on does not exist. What survives is a
+question about **meaning** rather than money, and it is Task 3.1.6's first: what
+`LIVE` claims at 03:00 when the socket is up and nothing is arriving. The
+in-session half is still figure 9 and still Task 3.1.4's.
+
 **The alternatives.**
 
 1. **Always open.** A feed that is up is a feed that can say so, reconnection is
@@ -610,7 +619,7 @@ instrument.
 | 7   | The burst shape — how tightly a minute's bars cluster after the boundary                                                                                                                                                | §2.2, and §1.10's re-render question one layer out                                                                                                            | 3.1.4 |
 | 8   | **p50/p95 gap between a bar's `t` and its arrival**                                                                                                                                                                     | `PRODUCT_SPEC.md` §28's _event → application state <250 ms p95_, which **excludes upstream latency** and which nothing has ever measured the upstream half of | 3.1.4 |
 | 9   | Bytes per second on the socket during a session                                                                                                                                                                         | §2.8's cost, 3.11's envelope                                                                                                                                  | 3.1.4 |
-| 10  | Bytes per second on the socket **outside** a session                                                                                                                                                                    | §2.8's whole question; the 1,000 B/s idle-rate condition                                                                                                      | 3.1.3 |
+| 10  | ~~Bytes per second on the socket **outside** a session~~ **STRUCK 2026-09-15 — §6.4: 0 payload bytes in 721 s, ≈0.15 B/s counting the control frames' own headers, against a 1,000 B/s threshold**                      | §2.8's whole question; the 1,000 B/s idle-rate condition                                                                                                      | 3.1.3 |
 | 11  | ~~Connect + authenticate + subscribe latency for 518 symbols~~ **STRUCK 2026-09-15 — §4.3: 1,312–1,537 ms, 518/518 accepted, and read it as an envelope rather than a budget until it is re-taken from the deployment** | 3.2's startup, 3.10's reconnection budget                                                                                                                     | 3.1.2 |
 
 **On figure 8 specifically.** §28's target is stated as excluding provider
@@ -627,15 +636,15 @@ denominator nobody has. It is the single most consequential number on this list.
 
 ### 3.4 Silence, and being unhappy
 
-| #   | Figure                                                                                                                                                                                                                | Sized against it                                                             | Task         |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------ |
-| 14  | What the socket says pre-market, after hours, overnight, at a weekend and on a holiday                                                                                                                                | §2.8, §2.5, 3.10                                                             | 3.1.3        |
-| 15  | **The longest legitimate silence**, inside a session and outside one                                                                                                                                                  | §2.5's two numbers, directly                                                 | 3.1.3, 3.1.4 |
-| 16  | Whether the server sends keepalives or pings, and at what interval. **Bounded from below 2026-09-15 (§4.6): none in 30 s of quiet, and the server DOES answer a client ping. Not struck — a long idle is still owed** | 3.2's liveness detection; §2.5's disconnected threshold                      | 3.1.3        |
-| 17  | The duplicate-connection frame and code, verbatim — the free plan allows **one**                                                                                                                                      | 3.2, and every developer running `pnpm dev` against a live deployment (§1.6) | 3.1.5        |
-| 18  | The bad-credential frame and code, verbatim                                                                                                                                                                           | 3.2's error mapping                                                          | 3.1.5        |
-| 19  | What a server-side close looks like, and whether an idle connection is closed at all                                                                                                                                  | 3.10's reconnection                                                          | 3.1.5        |
-| 20  | **Whether a resubscribe replays missed bars** — almost certainly not, and _almost certainly_ is not a measurement                                                                                                     | 3.10's gap-filling, which is a different story if the answer is yes          | 3.1.5        |
+| #   | Figure                                                                                                                                                                                                                                                                        | Sized against it                                                             | Task         |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------ |
+| 14  | What the socket says pre-market, after hours, overnight, at a weekend and on a holiday. **PART-STRUCK 2026-09-15 — §6.2, §6.7: early pre-market is silent on nine channels; after hours `dailyBars` rebroadcasts every minute. Weekend → 3.1.9, holiday → unmeasured (§6.9)** | §2.8, §2.5, 3.10                                                             | 3.1.3        |
+| 15  | **The longest legitimate silence**, inside a session and outside one. **PART-STRUCK 2026-09-15 — §6.6: outside a session it is ≥76 min of data on bar channels, 60.1 s with `dailyBars` attached, and 54.85 s of ANY inbound frame. Inside a session is still 3.1.4's**       | §2.5's two numbers, directly                                                 | 3.1.3, 3.1.4 |
+| 16  | ~~Whether the server sends keepalives or pings, and at what interval~~ **STRUCK 2026-09-15 — §6.3: a server-initiated WebSocket ping every 53.96–54.85 s, on a socket subscribed to nothing and on one subscribed to all 518**                                                | 3.2's liveness detection; §2.5's disconnected threshold                      | 3.1.3        |
+| 17  | The duplicate-connection frame and code, verbatim — the free plan allows **one**                                                                                                                                                                                              | 3.2, and every developer running `pnpm dev` against a live deployment (§1.6) | 3.1.5        |
+| 18  | The bad-credential frame and code, verbatim                                                                                                                                                                                                                                   | 3.2's error mapping                                                          | 3.1.5        |
+| 19  | What a server-side close looks like, and whether an idle connection is closed at all                                                                                                                                                                                          | 3.10's reconnection                                                          | 3.1.5        |
+| 20  | **Whether a resubscribe replays missed bars** — almost certainly not, and _almost certainly_ is not a measurement                                                                                                                                                             | 3.10's gap-filling, which is a different story if the answer is yes          | 3.1.5        |
 
 **Why these are captured verbatim rather than mapped from documentation.**
 `ALPACA.md` §9b records three things a documentation-based mapping got wrong on
@@ -867,6 +876,9 @@ frame, never by `onopen`.
 - **No server-initiated ping was observed in 30 seconds of quiet** (nor in the
   10 s of the handshake capture). This **bounds figure 16 from below and does not
   answer it** — a long idle is Task 3.1.3's, and this line is not a strike.
+  **Amended 2026-09-15 by Task 3.1.3 (§6.3): the server pings every 54 seconds,
+  so this capture was structurally incapable of seeing one and the caution above
+  was the difference between a bound and a wrong inference.**
 - **Node's built-in `WebSocket` cannot see a ping or a pong at all.** The WHATWG
   API defines `open`/`message`/`close`/`error` and no control-frame event, so an
   implementation built on the global cannot do ping-based liveness detection and
@@ -1012,6 +1024,17 @@ dependency (`ws@8`, for the control-frame visibility §4.6 explains the built-in
 `WebSocket` cannot give). `handshake.mjs`, `handshake-518.mjs`,
 `bad-subscriptions.mjs`, `sip-refusal.mjs`, `keepalive-probe.mjs`, `clock.mjs`,
 `sweep-break.mjs` and `verify-captures.mjs`, writing the v1 captures of §4.8.
+**Task 3.1.3 added two**: `quiet-window.mjs`, which holds a window and writes
+its capture **incrementally every 60 s** so an interrupted hold still yields the
+window it got, and `analyse-window.mjs`, which prints a capture's numbers and
+concludes nothing.
+
+**And it added a watchdog, after §6.4.** `harness.mjs` records the instant of
+every inbound frame and exposes `silentForMs()`; a hold ends, names the last
+live instant and marks its capture `endedOnWatchdog` when nothing of any kind
+has arrived for **165 s** — three missed 54 s heartbeats. `DEAD_AFTER_MS` exists
+as an environment override **only** so the watchdog can be proven to fire below
+the heartbeat interval; a real capture never sets it.
 
 **One connection at a time.** The free plan allows exactly one, so every run is
 sequential with a gap. Measuring a duplicate-connection refusal **on purpose**
@@ -1032,6 +1055,339 @@ before it was written here.
 **What the whole of §4 is n=1 on**, inherited from `ALPACA.md` §10 and not
 fixed here: one free-plan paper account, one machine in Asia/Singapore, one domestic link.
 §4.3's latencies are the ones this bites hardest — see the caveat there.
+
+---
+
+## 6. What the socket says when the market is shut (2026-09-15, Task 3.1.3)
+
+**A connection that is up says something every 54 seconds and says nothing
+else.** Both halves of that sentence are load-bearing, and the second half was
+proved in a way this task did not plan: **one of its own captures spent 4 hours
+21 minutes recording silence from a connection that was already dead**, and
+nothing in the instrument noticed. The finding the task was written to look for
+— can Story 3.10 tell _quiet_ from _dead_ — was answered from both ends in the
+same window. Yes, and **only** by watching the heartbeat.
+
+Everything below was taken on **Tuesday 2026-09-15**, a full trading day, with
+the harness of §5 against `wss://stream.data.alpaca.markets/v2/iex` on the free
+plan. **The free plan allows exactly one connection**, so the windows are
+sequential by necessity, and two of the four this task was written to take went
+to other tasks rather than spend somebody else's window — §6.9 says which, with
+owners.
+
+### 6.1 The windows, and which of them this task actually holds
+
+| Window                            | Market time taken          | Held    | Capture                               | Disposition                                           |
+| --------------------------------- | -------------------------- | ------- | ------------------------------------- | ----------------------------------------------------- |
+| No session at all (overnight)     | 03:49:28 – 03:55:00 ET     | 9 runs  | the nine `3.1.2-*` captures           | Short samples; the long hold is §6.9's                |
+| Pre-market, subscribed to nothing | 04:14:56 – 04:27:02 ET     | 724.9 s | `3.1.3-idle-unsubscribed-premarket-…` | **Clean** — figure 10                                 |
+| Pre-market, nine channels         | 04:27:09 – **05:31:07** ET | 3,838 s | `3.1.3-premarket-through-open-…`      | **Bounded by the death of the socket**, not by design |
+| After hours (16:00–20:00 ET)      | 19:53 – 19:56 ET           | 184.8 s | `3.1.3-watchdog-control-afterhours-…` | A **control** that became §6.7's finding              |
+| Across the 20:00 ET boundary      | 19:58 – 20:10 ET           | 12 min  | `3.1.3-after-2000-et-…`               | Taken to bound §6.7                                   |
+| The open boundary                 | —                          | —       | —                                     | **Not measured. Moved to Task 3.1.4** — §6.5          |
+| A holiday                         | —                          | —       | —                                     | **Unmeasured**, owner named — §6.9                    |
+
+**Why two pre-market captures rather than one.** The first is subscribed to
+nothing at all, the second to everything this account can have. A silent socket
+subscribed to nothing measures the **server's** behaviour toward an idle
+connection; a silent socket subscribed to 518 bar channels and eight others
+measures the **venue**. Either alone leaves "is this quiet because nothing is
+trading, or because a subscription silently did not take?" unanswerable.
+
+### 6.2 Nothing whatsoever, on nine channels at once
+
+**In 76 minutes of early pre-market — 04:14:56 to 05:31:07 ET — not one data
+message arrived, on any channel.** Not a bar, not a trade, not a quote, not a
+trading status. The qualifier _early_ is doing real work, and §6.7 is why: out
+of hours is **not one state**, and there is a channel that is never quiet at
+all. The subscription acknowledgement confirms what was live at the time:
+
+```text
+{"T":"subscription","trades":10,"quotes":10,"bars":518,"updatedBars":10,
+ "dailyBars":10,"statuses":10,"corrections":10,"cancelErrors":10}
+```
+
+**518 bar channels and eight other channels for ten of the most liquid names in
+the US market** — `AAPL`, `NVDA`, `SPY`, `TSLA`, `AMD`, `QQQ`, `MSFT`, `AMZN`,
+`META`, `F` — and the socket said nothing for an hour and a quarter.
+
+**The control was stated before the run and it is what makes this readable.**
+Trades and quotes were subscribed _alongside_ bars deliberately: had bars been
+silent while trades were not, the silence would have been about the **channel**,
+and an instrument subscribed to bars alone could not have told the two apart.
+All nine were silent together, which is a quiet venue rather than a broken
+subscription.
+
+**What this does and does not say about extended hours.** It says that in the
+**early** pre-market — 04:14 to 05:31 ET — IEX delivers nothing at all through
+this feed, so an extended-hours tail cannot appear on a chart from that stretch
+because there is nothing in it. It says **nothing about 07:00–09:30 ET**, which
+is where pre-market volume actually is, and that half of the question is
+**unanswered and owned** (§6.9). The task's real worry — that pre-market bars
+arrive on `b` indistinguishable from regular-session bars and silently grow a
+thin tail on every chart Stories 3.6 and 3.7 draw — is therefore **still open**,
+and it is open with a narrower question than it started with.
+
+### 6.3 The server heartbeats every 54 seconds — figure 16 STRUCK
+
+**A WebSocket ping frame arrives from the server every 54 seconds, and it is a
+property of the connection rather than of the subscription.**
+
+| Socket                                       | Intervals | Min     | Max     |
+| -------------------------------------------- | --------- | ------- | ------- |
+| Authenticated, subscribed to **nothing**     | n = 12    | 53.96 s | 54.04 s |
+| Authenticated, **518 bars + eight channels** | n = 70    | 53.96 s | 54.85 s |
+
+This **strikes figure 16**, and it inverts what the task expected. Its own Notes
+argued that a quiet socket would prove indistinguishable from a dead one and
+that the finding would "force a heartbeat into the design". It does not:
+**Story 3.10 can tell a quiet socket from a dead one without this product
+inventing a keepalive of its own.** A connection with no inbound frame of any
+kind — data or control — for materially more than 54 seconds is not quiet. It is
+gone. §6.4 is what that sentence cost to learn.
+
+**It also corrects §4.6's reading of its own result.** That capture recorded "no
+server-initiated ping in 30 seconds of quiet" and called it a lower bound rather
+than a strike. It was right to: 30 seconds is **shorter than the interval**, so
+that capture was structurally incapable of seeing a ping, and an instrument that
+cannot see a thing has not measured its absence.
+
+**And it decides a library, which §4.6 had only argued about.** Node's built-in
+`WebSocket` exposes no control-frame event at all, so a Story 3.2 client written
+on the global **cannot see this ping** — it forfeits the only liveness signal the
+connection offers at 03:00, on a feed whose data channels are legitimately
+silent for hours. That is now a constraint on the client rather than a note about
+the instrument, and Task 3.1.9 hands it forward.
+
+### 6.4 A dead connection is indistinguishable from a quiet one — unless you watch the heartbeat
+
+**The capture that was meant to photograph the open instead photographed a
+half-open TCP connection, in full, by accident.**
+
+```text
+05:31:07 ET   ping  (the 71st, and the last inbound frame of any kind)
+   …          4 h 21 min 09 s of nothing: no data, no ping, no close, no error
+09:52:16 ET   we ask to close
+09:52:46 ET   close fires — 30,016 ms later, ws@8's close TIMEOUT rather than a handshake
+```
+
+**Every signal a naive client looks at said the connection was fine.**
+`readyState` was `OPEN` throughout. No `error` event. No `close` frame. No
+TCP reset reached us. The application had one true statement available to it and
+was not reading it: **the heartbeats had stopped.** Twenty minutes in — while the
+machine was still awake and before anything else had changed — **22 of them in a
+row had failed to arrive**, which is 20 minutes of warning nobody collected. By
+the time we asked to close, roughly **290** had been missed.
+
+**The 30-second close is the second, independent witness.** A live socket
+answers a close in a fraction of a second — a control run tonight against the
+same endpoint completed its close in **243 ms**. This one sat for exactly
+ws@8's 30 s close timeout and then gave up, which is what a close looks like
+when there is nothing at the other end.
+
+**What killed it is _not_ determined, and that is stated rather than guessed.**
+The machine was awake and its lid open until 05:51 ET — twenty minutes **after**
+the last heartbeat — so the obvious explanation does not fit; the retained
+system logs carry no network event at that instant; the lid then closed, which
+is why nothing recovered. Two candidates remain, an upstream or middlebox drop
+and a local network interruption, and **this instrument cannot separate them**.
+**It does not matter to the product.** The finding is not "Alpaca dropped us" —
+it is that **a connection can stop existing without a single event to say so**,
+which is true of every WebSocket on every network, and which this epic now has
+first-hand in its own record instead of as folklore.
+
+**What it costs and what it buys.** It cost the open boundary, which moves to
+Task 3.1.4 (§6.5). It buys three things no argument would have won:
+
+1. **Story 3.2's client must run a liveness watchdog on inbound frames**, not on
+   `readyState` and not on data alone. The threshold has a measured basis for the
+   first time: three missed heartbeats ≈ **165 s**, against an interval of
+   53.96–54.85 s. Under 60 s it would fire on a healthy socket between pings;
+   much over 165 s and the product tells a user that a dead feed is live.
+2. **`FeedStatus.live` must never be derivable from "the socket object is
+   open".** On 2026-09-15 that predicate was true for four hours and twenty-one
+   minutes of a connection to nothing. Under §2.6's unresolved reading of the
+   word, this is exactly the 3am case: `LIVE` on screen, with the evidence for it
+   being a variable rather than a fact about the market.
+3. **The reconnect path is not an edge case**, it is the ordinary consequence of
+   holding a socket open all day, and §2.8's alternative 1 must be costed with it
+   rather than as "one code path rather than two".
+
+**And the instrument was repaired the same day.** `harness.mjs` now records the
+instant of every inbound frame and exposes `silentForMs()`; `quiet-window.mjs`
+ends a hold, writes a note naming the last live instant, and marks the capture
+`endedOnWatchdog` when nothing has arrived for 165 s. **The watchdog was then
+broken on purpose** — run with the threshold set below the heartbeat interval, it
+must fire on a demonstrably healthy socket, and it did, at 10 s, naming the last
+inbound frame. A control run at the real threshold across three heartbeats did
+not fire. This matters beyond tidiness: Tasks 3.1.4 and 3.1.5 each get one
+window, and an instrument that cannot tell a dead socket from a quiet market
+would have spent one of them the same way this task spent its own.
+
+### 6.5 The open boundary was not measured, and it moves to Task 3.1.4
+
+The task's Done-when asks for the instant traffic starts relative to 09:30:00 ET,
+to the second. **It was not taken**, and nothing in the capture may be read as if
+it were: the socket had been dead for nearly four hours by the time 09:30
+arrived, so "no traffic at the open" in that file is a fact about a broken
+connection and not about the market.
+
+**It is handed to Task 3.1.4 rather than re-taken here**, for a reason that is
+about windows rather than convenience. 3.1.4 must hold a capture across the whole
+session anyway; it already inherited the close boundary and after hours (§6.9);
+and its capture has to start before 09:30 to measure the open burst at all. So
+the open boundary costs it **nothing extra**, where re-taking it here costs
+another overnight vigil on a machine that must stay awake, and the second attempt
+is the one most likely to be tired. Its capture should start at **07:00 ET** so
+that the same run also answers §6.2's open half — whether liquid pre-market
+produces bars on `b`, and whether anything marks them as extended-hours.
+
+### 6.6 The longest observed silence, with its instants
+
+Three numbers, and **conflating any two of them is a defect Story 3.10 would
+inherit.**
+
+| Silence                                             | Longest observed | From        | To          |
+| --------------------------------------------------- | ---------------- | ----------- | ----------- |
+| **Of data**, market shut, bar channels, two holds   | **≥ 76 min**     | 04:14:56 ET | 05:31:07 ET |
+| **Of data**, market shut, with `dailyBars` attached | **60.1 s**       | 20:00:00 ET | 20:01:00 ET |
+| **Of any inbound frame**, on a live connection      | **54.85 s**      | 04:40:42 ET | 04:41:37 ET |
+
+The first is a lower bound rather than a measurement, and twice over: it spans
+**two consecutive connections** (a 12-minute idle hold, then the long one) with
+a 7-second gap between them, and it is bounded at the far end by the **death of
+the socket** at 05:31:07 rather than by a bar arriving. The true out-of-hours data
+silence is longer and is at least the whole overnight — the market simply does
+not trade, and §6.2's nine-channel control is what makes that a statement about
+the venue rather than about a subscription.
+
+**The middle row is why §2.5 cannot have a single number.** The same socket, in
+the same shut market, is silent for 76 minutes or for 60 seconds depending
+entirely on **which channels are subscribed** — so a staleness threshold defined
+against "the feed" is really defined against a subscription decision that has
+not been taken yet (§2.1, §2.3). The threshold and the subscription are one
+decision seen twice, which is the shape Task 3.1.7 exists to handle.
+
+**The last row is the one with a threshold hanging off it**, and it is remarkably
+tight: across 82 heartbeat intervals on two independently established sockets,
+the longest gap between inbound frames on a healthy connection was **54.85 s**.
+That is the measured tail §2.5 asks for on the _connection_ scale, and it is what
+makes 165 s a derived figure rather than a round number. The **data**-silence
+thresholds §2.5 needs for a _security_ still require a session, and are 3.1.4's.
+
+### 6.7 Out of hours is not one state — the daily-bar channel is never quiet
+
+**This was found by a control run rather than by a question**, which is the
+second time in one task that the instrument's own scaffolding produced the
+finding.
+
+At **19:54, 19:55 and 19:56 ET** — after the closing bell, inside the
+extended-hours session — the `dailyBars` channel delivered **ten messages a
+minute, one per subscribed symbol, and the payload did not change**:
+
+```text
+19:54:00 ET  {"T":"d","S":"F","o":13.88,"h":13.885,"l":13.48,"c":13.51,
+              "v":1715158,"t":"2026-09-15T04:00:00Z","n":5663,"vw":13.581094}
+19:55:00 ET  {"T":"d","S":"F", … "v":1715158 … "n":5663 … }   byte-identical
+19:56:00 ET  {"T":"d","S":"F", … "v":1715158 … "n":5663 … }   byte-identical
+```
+
+Same volume, same close, same trade count, three minutes running, for every one
+of the ten symbols. **It is an unchanged aggregate rebroadcast on a schedule**,
+and it carries no information whatsoever.
+
+**The arithmetic, and it is the reason this is in the record rather than in a
+footnote.** Ten symbols cost **21.6 B/s** of payload — 3,887 bytes over 180 s.
+Multiplied to the tracked universe that is on the order of **1,100 B/s**, which
+is **past ADR 0011's 1,000 B/s idle-vCPU condition**, out of hours, for data
+that never changes. §6.4's "an idle socket costs 0.15 B/s" is therefore true of
+**the socket** and false of **a subscription** — the out-of-hours byte rate is a
+property of the channels chosen, and one of those channels can put the cost
+objection to §2.8 straight back on the table.
+
+**Two consequences, and neither is a tuning detail.**
+
+1. **Decision 1 (§2.1) and Decision 3 (§2.3) should not take `dailyBars` at
+   universe scale.** Not because of the bytes alone, but because the bytes buy
+   nothing: the same number, re-sent. If a surface needs a day's aggregate, it
+   can hold the last one it received.
+2. **"Did anything arrive?" is not a liveness test.** A feed that re-sends
+   identical payloads on a timer will satisfy it forever. This is the mirror
+   image of §6.4 — there, a dead socket looked alive because nothing arrived and
+   nothing was watching; here, a stale value would look alive because something
+   arrives and it never changes. **Story 3.10's staleness rule must be about the
+   observation's own timestamp, never about the arrival of a frame.**
+
+**What is bounded and what is not.** A second hold was taken deliberately
+across the end of the extended session — 19:58:19 to 20:10:25 ET — to find out
+whether it stops at 20:00. **It does not.** 120 `d` messages in 12 minutes, ten
+a minute, unchanged, straight through the boundary and still going at 20:10:00,
+at **21.574 B/s** against the earlier window's 21.556 B/s. So the rebroadcast is
+not tied to the extended session's close.
+
+It **is** absent from the 04:14–05:31 ET window with the same ten symbols
+subscribed, so it stops somewhere between 20:10 and 04:14 ET — presumably at the
+daily rollover, and **the instant is unmeasured**. It is not chased, and the
+reason is worth stating rather than leaving as a gap: the product decision is
+the same whichever hour it is, because the channel carries nothing at any of
+them. Should a later story ever want the channel, that story owes the boundary.
+
+**Two runs, one number.** 21.556 B/s and 21.574 B/s, from two independently
+established connections 4 minutes apart, is as close to a repeated measurement
+as anything in this story has.
+
+### 6.8 Three smaller things worth having written down
+
+- **A trades subscription silently attaches `corrections` and `cancelErrors`**
+  for the same symbols, unrequested. The acknowledgement remains authoritative
+  full state, but **a reconciler that diffs the whole acknowledgement against
+  what it asked for is wrong on the first subscription, every time** — it will
+  see two channels it never requested and conclude it has drifted. Reconcile per
+  channel asked for.
+- **`statuses` is accepted and was silent**, which is worth recording because
+  trading-status messages are the one thing a reader might expect out of hours
+  (a halt, an auction notice). Ten liquid names, 76 minutes, nothing.
+- **A clean client-initiated close on a live socket completed in 243 ms**, which
+  is the number §4.2's `1006` finding was missing. A close that takes 30 s is not
+  a slow close; it is a close with nobody on the other end.
+
+### 6.9 What was NOT covered, and who holds each one
+
+**A window listed as unmeasured with nobody holding it is how a window never
+gets taken.** Each of these carries an owner and a condition rather than an
+intention.
+
+- **The open boundary — owner: Task 3.1.4**, per §6.5, whose capture should start
+  at 07:00 ET and which already runs to 16:30 ET.
+- **Liquid pre-market (07:00–09:30 ET) and whether extended-hours bars are
+  marked — owner: Task 3.1.4**, the same capture. This is a **product** question
+  and not only a vendor one: if pre-market bars arrive on `b` with nothing
+  distinguishing them, every chart in Stories 3.6, 3.7 and 3.9 silently gains a
+  thin tail, and the decision about whether to draw it belongs beside the
+  measurement.
+- **After hours (16:00–20:00 ET) and the close boundary — owner: Task 3.1.4.**
+  This task could not take them without holding the single permitted connection
+  across the entire session, which is what its own placement note promised not to
+  do. Tonight's two runs at 19:53 and 19:56 ET are watchdog controls, not that
+  window, and they are labelled so in the capture directory.
+- **A weekend — owner: Task 3.1.9**, as a constraint on when it may delete the
+  harness. It is deliberately **not** a tenth task: a task whose trigger is a
+  date is a task that never fires, and this repository has the scar — the fourth
+  design test has been deferred seven times for exactly that reason.
+- **A holiday — unmeasured, and stated rather than inferred.** No market holiday
+  falls inside this story's window. The next closure the calendar table carries
+  is **Thanksgiving, 2026-11-26**, with a **13:00 ET half day on 2026-11-27**
+  after it; the half day is the more interesting of the two, because it is the
+  one case where the socket's idea of the close and `CALENDAR.md`'s can disagree
+  by three hours. **Owner: the first story that ships a scheduled transition
+  driven by the trading calendar** — Story 3.2 if §2.8 settles on alternative 2
+  or 3, otherwise Story 3.10, whose degraded states are the only surface a wrong
+  half-day answer reaches.
+- **Everything about a session.** The rate, the burst shape, the arrival gap,
+  what a bar's `t` marks on the stream, and real IEX coverage are figures 6, 7,
+  8, 12 and 13, all Task 3.1.4's. **Nothing in this section bounds any of them.**
+  A socket that is silent out of hours has said nothing whatsoever about what it
+  does at 09:30:00.
 
 ---
 

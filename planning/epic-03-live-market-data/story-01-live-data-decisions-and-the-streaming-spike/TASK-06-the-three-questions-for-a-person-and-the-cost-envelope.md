@@ -43,7 +43,7 @@ whatever is decided here.
   and Epic 4 builds it. An answer to question 2 that only works for one security
   is an answer Epic 4 has to re-take.
 
-**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.6. This
+**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.4. This
 corrects where the envelope's two halves come from, and it matters because as
 written this task would have gone to Task 3.1.4 for a number 3.1.4 cannot
 produce:
@@ -126,8 +126,13 @@ threshold are a function of each other, and of question 1's answer. **One
 interaction this note used to claim is now measured away** — it read "holding
 the socket open overnight is cheap if nothing is subscribed and expensive if the
 whole universe is", and Task 3.1.3 measured **0 payload bytes per second with
-all 518 subscribed, out of hours** (§6.6). Overnight is cheap either way; the
-expense is the session. Asked one at a time, each answer is
+all 518 subscribed, out of hours** (§6.4). Overnight is cheap either way; the
+expense is the session. **One qualification, added the same day**: that zero is
+a bar subscription. `dailyBars` re-sends an unchanged daily aggregate every
+minute after the close — 21.6 B/s for ten symbols, which extrapolates past the
+1,000 B/s idle condition at universe scale (§6.7) — so the envelope must state
+**which channels** it is costing, and the cheap answer depends on Decision 1
+not taking that channel. Asked one at a time, each answer is
 taken without the constraint the next one supplies — which is the same failure
 mode this entire story exists to prevent, applied to a person instead of to a
 task.
