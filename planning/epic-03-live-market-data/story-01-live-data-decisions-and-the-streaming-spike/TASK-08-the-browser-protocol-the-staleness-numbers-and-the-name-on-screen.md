@@ -51,6 +51,25 @@ here.
   counterfactual is measured**: 40 whole-route re-renders in 20 s against 0. The
   live connection state is about to face the same choice at a higher rate.
 
+**Added 2026-09-16 by [ADR 0030](../../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md)
+— decision 6's grid gains a fifth cell, and this task ratifies the words rather
+than re-deciding them.** A replay of our own stored bars now runs whenever the
+market is shut, so a screen can show a connection genuinely delivering
+observations while the numbers are a recording:
+
+- **`replay` is a fifth `MarketFeed` with its own sentence** — "real bars from a
+  past US session, replayed. Not the live market." Neither `sip` nor `synthetic`
+  is honest for it, and §2.6 carries the argument.
+- **`LIVE` must never render while the feed is `replay`; the cell reads
+  `REPLAYING`.** Note what this does to this task's own open sub-question — _does
+  `LIVE` mean the socket is up or data is arriving_ — it **settles it for one
+  cell and leaves it open for the others**: with a replay running at 03:00 both
+  readings are true of the connection and neither is true of the market. Put the
+  remaining question to the person for the `iex` cells only.
+- **Confirm the four-cell grid is now five** and that each cell's sentence is
+  true beside its neighbours, which is Task 2.14.7's finding and the reason this
+  task exists.
+
 **Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.3, §6.4,
 §6.6 and §6.7. Decision 5 arrives here with **one number measured, one
 impossible to fix here, and a shipped doc comment to sharpen**:

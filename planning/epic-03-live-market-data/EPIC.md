@@ -29,10 +29,26 @@ Tracked securities update automatically as live market observations arrive.
 - **The two-feed ledger, produced rather than simulated**
 - **The live feed's own honest label**
 - **The motion vocabulary** — design test 4, against real moving numbers
+- **A replay of our own stored bars**, so this epic can be built, designed and
+  demonstrated outside 21:30–04:00 local — added 2026-09-16, [ADR 0030](../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md)
 
 ## Exit criteria
 
 The application can maintain a live connection for the tracked universe and update visible market values without page refreshes.
+
+**And every visible story has been watched working against the real IEX socket,
+during a real session, with a dated row in
+[`LIVE-REHEARSAL.md`](LIVE-REHEARSAL.md).** Added 2026-09-16 with ADR 0030: this
+epic can now be built at any hour against a replay of our own stored bars, and
+the exit criterion above would otherwise be satisfiable without anyone ever
+having seen the live feed work. Story 3.11 checks the ledger; `pnpm invariants`
+checks that Story 3.11 did.
+
+**The mechanism that makes this cheap rather than a discipline** is ADR 0030's
+decision 7: **a replay refuses to run while the market is open**, so the live
+socket is the only thing that can serve during a session — on a developer's
+machine and on the deployed site, every trading day. A broken live feed shows as
+broken rather than being masked. The rehearsals are minutes, not evenings.
 
 ## Stories
 

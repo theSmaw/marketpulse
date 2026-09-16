@@ -43,6 +43,23 @@ whatever is decided here.
   and Epic 4 builds it. An answer to question 2 that only works for one security
   is an answer Epic 4 has to re-take.
 
+**Added 2026-09-16 by [ADR 0030](../../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md)
+— question 1 has moved again, and in the useful direction.** A replay of our own
+stored bars now runs whenever the market is shut, so the socket is no longer the
+only thing that can be up at 03:00. Two things for the person:
+
+- **Question 1 is now genuinely about meaning alone.** The cost objection is
+  measured away (§6.4) and the word is settled for the replay cell — it reads
+  `REPLAYING`, not `LIVE`. What is left to ask is what `LIVE` claims in the
+  `iex` cells: the socket being up, or data arriving.
+- **A new question worth putting beside it, and it is a product question rather
+  than an engineering one:** should the **deployed** site replay when the market
+  is shut, so a viewer opening it on a Saturday sees a living product, or should
+  it show an honest still page? ADR 0030 assumes the former and makes it safe
+  (the replay cannot run during a session, and the label says what it is), but
+  the choice is about what this portfolio artefact should be, and that is the
+  person's.
+
 **Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.4. This
 corrects where the envelope's two halves come from, and it matters because as
 written this task would have gone to Task 3.1.4 for a number 3.1.4 cannot

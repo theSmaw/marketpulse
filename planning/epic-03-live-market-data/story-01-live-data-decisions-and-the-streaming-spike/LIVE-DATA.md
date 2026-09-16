@@ -481,6 +481,35 @@ is genuinely a claim rather than a word: **whether `LIVE` means the socket is
 up or data is arriving.** Those are different claims at 03:00 and identical at
 10:42, and §2.8's answer decides how often the difference is visible.
 
+**Amended 2026-09-16 — the grid has a fifth cell, and it is the one where the
+word and the connection state disagree most.**
+[ADR 0030](../../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md)
+adds a **replay** stream over our own stored bars, so a screen can now show a
+connection that is genuinely delivering observations while the market is shut
+and the numbers are a recording. Three consequences for this question:
+
+- **A fifth `MarketFeed` member, `replay`, with a sentence of its own.** Neither
+  existing member is honest for it. `sip` is the recording's real tape, and
+  printing it beside a live-looking screen is exactly the coverage implication
+  §7.1 forbids; `synthetic`'s _"Generated test data. Not a market feed."_ invites
+  a reader to dismiss numbers that are **real**. The words:
+
+  > **Market feed: Replay** — real bars from a past US session, replayed. Not
+  > the live market.
+
+- **The word `LIVE` must never render while the feed is `replay`.** This is the
+  sub-question above — _does `LIVE` mean the socket is up or data is arriving_ —
+  arriving in its sharpest form, and it answers itself: at 03:00 with a replay
+  running, **both** readings are true of the connection and **neither** is true
+  of the market, which is what the word is read as claiming. The cell reads
+  **`REPLAYING`**. That leaves the original sub-question live only for the
+  `iex` cells, where it remains Task 3.1.6's.
+- **Three regions, three facts, and this is where the two vocabularies earn
+  their separation.** The market clock still says **closed** — a replay running
+  does not open a market — the feed region says **Replay**, and the connection
+  region reports arriving observations honestly. A design that collapsed any two
+  of those would have to lie about one of them.
+
 **Consumed by** Story 3.3, which puts these words on every route in the product,
 and Story 3.10, which produces the rest of the grid.
 
