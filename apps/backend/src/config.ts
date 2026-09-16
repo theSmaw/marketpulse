@@ -35,7 +35,8 @@
 // So "validated against a declared schema" here means a declared set of
 // readers plus the CONFIG_VARIABLES table below, not a library.
 
-import { PROVIDER_IDS } from "@marketpulse/shared";
+import { PROVIDER_IDS, PROVIDER_SERVES } from "@marketpulse/shared";
+import type { ProviderId } from "@marketpulse/shared";
 import path from "node:path";
 import process from "node:process";
 
@@ -268,6 +269,41 @@ export type MarketDataProviderSelection =
 // deliberateness of that act is the property being bought.
 const DEFAULT_MARKET_DATA_PROVIDER: MarketDataProviderSelection = "none";
 
+// **Permission to serve numbers that are not the live market, asked for by
+// name.** Added 2026-09-16; the argument is ADR 0030 §7 and the shape is
+// `DATABASE_AUTH`'s, one screen down.
+//
+// The default above is the safety *default*; this is the safety *refusal*, and
+// the difference is what a mistake costs. A default protects a deployment that
+// never set the variable. It does nothing for one where somebody set it to a
+// plausible-looking value — and `fixture` is exactly that: a member of the
+// documented vocabulary, one edit away on a container app, serving INVENTED
+// prices to whoever is pointed at it. Nothing in this repository would have
+// noticed.
+//
+// So a provider `PROVIDER_SERVES` marks as `not-the-live-market` requires this
+// granted explicitly, and the process **refuses to start** otherwise.
+//
+// **Nothing here asks which environment it is in, and that is deliberate.**
+// ADR 0006 decision 4 forbids `NODE_ENV`, `APP_ENV` and `isProduction`, and its
+// reversal trigger is "the first thing that has to BEHAVE differently rather
+// than be CONFIGURED differently". This is not that: the rule is identical
+// everywhere and only the VALUE differs, which is the same model as every other
+// variable in this file. Production never grants the permission; a developer
+// writes one line in a gitignored `.env`. The trigger was examined here and not
+// taken.
+//
+// The vocabulary is two named words rather than a boolean, because there is no
+// boolean-valued variable in this file and `readEnum` makes the allowed list
+// the source of both the check and the message. It is also what a person
+// scanning a deployed configuration reads: `NON_LIVE_MARKET_DATA permitted`
+// beside `DATABASE_AUTH entra` is visibly wrong in a way `true` is not.
+export const NON_LIVE_MARKET_DATA_MODES = ["refused", "permitted"] as const;
+
+export type NonLiveMarketData = (typeof NON_LIVE_MARKET_DATA_MODES)[number];
+
+const DEFAULT_NON_LIVE_MARKET_DATA: NonLiveMarketData = "refused";
+
 // --- The Alpaca credential (Task 2.7.2) ---
 //
 // **This is the first bearer secret this application has ever held**, and it is
@@ -346,6 +382,17 @@ export interface Config {
   readonly corsOrigin: string;
   readonly database: DatabaseConfig;
   readonly marketDataProvider: MarketDataProviderSelection;
+
+  /**
+   * Whether this deployment may serve numbers that are not the live market.
+   *
+   * On `Config` rather than consumed only inside `loadConfig`, because
+   * `CONFIG_VARIABLES`'s own test asserts that every documented default is one
+   * `loadConfig` actually produces — and a default the test cannot read is a
+   * default it would have to restate, which is the copy that silently
+   * disagrees. `/diagnostics/feed` reads it too, from Story 3.2.
+   */
+  readonly nonLiveMarketData: NonLiveMarketData;
 
   // **Absent when no Alpaca credential is configured**, which is a clean
   // clone, every test that does not ask for one, and the deployment until
@@ -476,6 +523,12 @@ export const CONFIG_VARIABLES: readonly ConfigVariable[] = [
     required: false,
     default: DEFAULT_MARKET_DATA_PROVIDER,
     description: `Which market-data provider serves prices: ${MARKET_DATA_PROVIDER_SELECTIONS.join(" or ")}. \`none\` means no provider is configured and the backend serves no market data — the default, because \`fixture\` serves INVENTED prices and a default that quietly works is one that quietly ships fabricated data.`,
+  },
+  {
+    key: "NON_LIVE_MARKET_DATA",
+    required: false,
+    default: DEFAULT_NON_LIVE_MARKET_DATA,
+    description: `Whether this deployment may serve market data that is not the live market: ${NON_LIVE_MARKET_DATA_MODES.join(" or ")}. Providers that do not serve the live market — \`fixture\`, which invents prices — refuse to start without \`permitted\`. The default is \`refused\`, so no single wrong value and no omission can put fabricated prices in front of a real user. Production never sets this.`,
   },
   {
     key: ALPACA_KEY_ID_VARIABLE,
@@ -737,6 +790,15 @@ export function loadConfig(
     ),
   );
 
+  const nonLiveMarketData = read(() =>
+    readEnum(
+      env,
+      "NON_LIVE_MARKET_DATA",
+      NON_LIVE_MARKET_DATA_MODES,
+      DEFAULT_NON_LIVE_MARKET_DATA,
+    ),
+  );
+
   const databaseHost = read(() =>
     readString(env, "DATABASE_HOST", DEFAULT_DATABASE_HOST),
   );
@@ -880,6 +942,33 @@ export function loadConfig(
     );
   }
 
+  // **The refusal that keeps fabricated and recorded prices out of a real
+  // user's screen** (ADR 0030 §7). The fourth of these, and the only one whose
+  // failure mode is a person being misled rather than a deployment not working.
+  //
+  // The RAW read, like the `alpaca` check above and for the same reason: the
+  // resolved value always exists because there is a default, so only
+  // `present(env.MARKET_DATA_PROVIDER)` says what an operator ASKED FOR. It
+  // also fires for a provider id this build does not know, which the parsed
+  // value structurally cannot.
+  //
+  // `PROVIDER_SERVES` is a total `Record<ProviderId, …>` in `packages/shared`,
+  // so a provider added without an answer to "is this the live market?" is a
+  // compile error rather than a value that lands here unclassified. That
+  // totality is the half of this mechanism a check cannot supply.
+  const selection = present(env.MARKET_DATA_PROVIDER);
+
+  if (
+    selection !== undefined &&
+    (PROVIDER_IDS as readonly string[]).includes(selection) &&
+    PROVIDER_SERVES[selection as ProviderId] === "not-the-live-market" &&
+    nonLiveMarketData !== "permitted"
+  ) {
+    problems.push(
+      `MARKET_DATA_PROVIDER is ${selection}, which does not serve the live market, and NON_LIVE_MARKET_DATA is not permitted. A deployment serving generated or recorded prices has to ask for it by name; set NON_LIVE_MARKET_DATA to permitted in a development environment, and never in one with real users.`,
+    );
+  }
+
   // The undefined checks are redundant at runtime — a reader only returns
   // undefined after pushing a problem — and they are what narrows the types,
   // so the success path cannot be reached with a hole in it.
@@ -891,6 +980,7 @@ export function loadConfig(
     logFormat === undefined ||
     corsOrigin === undefined ||
     marketDataProvider === undefined ||
+    nonLiveMarketData === undefined ||
     databaseHost === undefined ||
     databasePort === undefined ||
     databaseName === undefined ||
@@ -963,6 +1053,7 @@ export function loadConfig(
     corsOrigin,
     database,
     marketDataProvider,
+    nonLiveMarketData,
     ...(alpaca === undefined ? {} : { alpaca }),
   });
 }

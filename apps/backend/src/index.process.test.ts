@@ -495,6 +495,36 @@ describe("failing to start", () => {
     }
   });
 
+  // **The claim ADR 0030 §7 rests on, proven at the only level that can prove
+  // it: the process.** A unit test proves `loadConfig` throws; only a spawned
+  // child proves the SERVER DIES, and "the container refuses to start" is the
+  // whole mechanism. Without this, the deployed behaviour would be an
+  // inference from two facts in different files.
+  //
+  // `fixture` invents prices and is a member of the documented vocabulary, so
+  // it is exactly the plausible-looking value somebody could set on a container
+  // app. `PROVIDER_SERVES` in `packages/shared` marks it `not-the-live-market`;
+  // this is what that marking costs a deployment that has not asked by name.
+  it("refuses to start on a provider that does not serve the live market", async () => {
+    // A REAL port, deliberately, and this is the difference between a test and
+    // a coincidence. `startServer(0)` would refuse for `PORT=0` as well — the
+    // case below — so the exit code would prove nothing about this refusal. A
+    // free port makes the provider the only thing wrong, so exit 1 is
+    // attributable to it and to nothing else.
+    const port = await probeFreePort();
+    const server = startServer(port, { MARKET_DATA_PROVIDER: "fixture" });
+    const exit = await waitForExit(server);
+
+    expect(exit.code).toBe(1);
+    expect(server.output()).toContain("NON_LIVE_MARKET_DATA");
+    expect(server.output()).toContain("MARKET_DATA_PROVIDER is fixture");
+
+    // Before the logger exists, exactly as the PORT case below: a configuration
+    // mistake has to be readable without a log viewer, which is why `config.ts`
+    // throws and `index.ts` exits.
+    expect(server.records()).toHaveLength(0);
+  });
+
   it("rejects PORT=0 with a plain stderr line and no log record", async () => {
     // The `PORT=0` finding, recorded as an assertion rather than as a comment:
     // the ephemeral-port strategy every process suite reaches for first is

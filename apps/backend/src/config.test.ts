@@ -36,6 +36,7 @@ describe("loadConfig defaults", () => {
       // The loud default: `fixture` serves invented prices, so opting into it
       // has to be a deliberate act (Task 2.6.6).
       marketDataProvider: "none",
+      nonLiveMarketData: "refused",
       database: {
         host: "127.0.0.1",
         port: 5432,
@@ -86,6 +87,7 @@ describe("loadConfig reading", () => {
         LOG_LEVEL: "debug",
         LOG_FORMAT: "pretty",
         CORS_ORIGIN: "https://marketpulse.example",
+        NON_LIVE_MARKET_DATA: "permitted",
         DATABASE_HOST: "db.example",
         DATABASE_PORT: "6432",
         DATABASE_NAME: "pulse",
@@ -101,6 +103,7 @@ describe("loadConfig reading", () => {
       logFormat: "pretty",
       corsOrigin: "https://marketpulse.example",
       marketDataProvider: "none",
+      nonLiveMarketData: "permitted",
       database: {
         host: "db.example",
         port: 6432,
@@ -317,6 +320,7 @@ describe("CONFIG_VARIABLES", () => {
       LOG_FORMAT: config.logFormat,
       CORS_ORIGIN: config.corsOrigin,
       MARKET_DATA_PROVIDER: config.marketDataProvider,
+      NON_LIVE_MARKET_DATA: config.nonLiveMarketData,
       DATABASE_HOST: config.database.host,
       DATABASE_PORT: String(config.database.port),
       DATABASE_NAME: config.database.name,
@@ -462,6 +466,79 @@ describe("loadConfig and the Alpaca credential", () => {
 
     expect(config.marketDataProvider).toBe("alpaca");
     expect(config.alpaca).toEqual({ keyId: KEY_ID, secretKey: SECRET });
+  });
+
+  // ---------------------------------------------------------------------
+  // Non-live market data (ADR 0030 §7)
+  // ---------------------------------------------------------------------
+
+  // **The refusal whose failure mode is a person being misled**, rather than a
+  // deployment that does not work. `fixture` invents prices; it is a member of
+  // the documented vocabulary and is one edit to a container app away. Before
+  // this refusal, nothing in this repository would have noticed.
+  it("refuses a provider that does not serve the live market unless it is permitted by name", () => {
+    let message = "";
+    try {
+      loadConfig({ MARKET_DATA_PROVIDER: "fixture" });
+    } catch (error) {
+      if (error instanceof ConfigError) {
+        message = error.message;
+      }
+    }
+
+    expect(message).toContain("MARKET_DATA_PROVIDER is fixture");
+    expect(message).toContain("NON_LIVE_MARKET_DATA");
+
+    // The message says what to do and where it is acceptable, because the
+    // reader is a developer at a terminal and the alternative is a correct
+    // refusal nobody can act on.
+    expect(message).toContain("permitted");
+    expect(message).toContain("real users");
+  });
+
+  it("accepts the same provider once the permission is granted by name", () => {
+    const config = loadConfig({
+      MARKET_DATA_PROVIDER: "fixture",
+      NON_LIVE_MARKET_DATA: "permitted",
+    });
+
+    expect(config.marketDataProvider).toBe("fixture");
+    expect(config.nonLiveMarketData).toBe("permitted");
+  });
+
+  // **The companion that makes the one above mean something.** A refusal that
+  // fired on every configuration would pass the test above and break every
+  // deployment; this is the half that says it is scoped to the providers
+  // `PROVIDER_SERVES` marks.
+  it("does not fire for a provider that does serve the live market", () => {
+    expect(
+      loadConfig({
+        MARKET_DATA_PROVIDER: "alpaca",
+        ALPACA_API_KEY_ID: KEY_ID,
+        ALPACA_API_SECRET_KEY: SECRET,
+      }).marketDataProvider,
+    ).toBe("alpaca");
+  });
+
+  // `none` serves no market data at all, so there is nothing to permit. Worth
+  // asserting because the refusal keys on membership of `PROVIDER_IDS` and
+  // `none` is deliberately not a member — a refusal that fired here would make
+  // the safe default unusable, which is the most expensive possible direction
+  // for this check to be wrong in.
+  it("does not fire on the default, which serves no market data at all", () => {
+    expect(loadConfig({}).marketDataProvider).toBe("none");
+  });
+
+  // The permission alone is not a configuration error. A developer switching
+  // between `fixture` and `alpaca` would otherwise have to add and remove the
+  // line each time, and friction on a safety check is how the check gets
+  // deleted. Production carrying it is caught by `check-deployed.mjs` instead,
+  // which is the right place: it is a fact about a deployment rather than about
+  // a coherent configuration.
+  it("permits the permission to stand alone, which is not an error", () => {
+    expect(
+      loadConfig({ NON_LIVE_MARKET_DATA: "permitted" }).nonLiveMarketData,
+    ).toBe("permitted");
   });
 
   // **The redaction rule, asserted rather than trusted.** This is the whole

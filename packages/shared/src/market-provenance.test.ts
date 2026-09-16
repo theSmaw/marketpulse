@@ -10,6 +10,7 @@ import {
   MARKET_FEEDS,
   mergeSeriesProvenance,
   PROVIDER_IDS,
+  PROVIDER_SERVES,
   toSeriesProvenance,
 } from "./market-provenance.js";
 import type { BarSource } from "./market-provenance.js";
@@ -56,6 +57,23 @@ describe("the provenance vocabulary", () => {
     );
 
     expect(defaults).toEqual([]);
+  });
+
+  it("answers the live-market question for every provider, and only with a member of the union", () => {
+    // The `Record<ProviderId, …>` annotation already makes a missing provider a
+    // compile error, which is the mechanism. What this holds is the half a type
+    // cannot: that the answers are the two words `config.ts`'s refusal keys on,
+    // so a typo in one of them cannot turn a non-live provider into a permitted
+    // one silently. A provider marked `the-live-market` by mistake is the only
+    // way a deployment could serve recorded prices without asking by name.
+    for (const provider of PROVIDER_IDS) {
+      expect(["the-live-market", "not-the-live-market"]).toContain(
+        PROVIDER_SERVES[provider],
+      );
+    }
+
+    expect(PROVIDER_SERVES.fixture).toBe("not-the-live-market");
+    expect(PROVIDER_SERVES.alpaca).toBe("the-live-market");
   });
 
   it("gives every feed a label, and a non-empty sentence where it has one", () => {
