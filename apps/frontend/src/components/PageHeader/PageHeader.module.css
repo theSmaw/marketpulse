@@ -12,14 +12,23 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-16);
-  padding-bottom: var(--space-16);
+  padding-bottom: var(--space-8);
 
   /*
-   * The structural rule under the whole header — the same near-black hairline a
-   * panel carries under its own heading. It is what makes the top of a screen
-   * read as a masthead rather than as a paragraph that happens to be large.
+   * **No rule under the header, since 2026-09-16.**
+   *
+   * It used to carry the near-black structural hairline a panel carries under
+   * its own heading, on the argument that it made the top of a screen read as a
+   * masthead rather than as a paragraph that happens to be large. Looked at on
+   * the page rather than in the workshop, that argument does not survive: a
+   * panel's rule is bounded left and right by the panel's own border, so it
+   * reads as a member of a box, and the same line drawn across the full 1392px
+   * measure with nothing bounding it is an `<hr>`. It was the heaviest ink on
+   * the screen after the title, and it was separating the title from a gap.
+   *
+   * What makes this a masthead is the display face at heading size over an
+   * eyebrow, and the space beneath it. Both were already doing the work.
    */
-  border-bottom: var(--border-width) solid var(--rule-strong);
 }
 
 .top {

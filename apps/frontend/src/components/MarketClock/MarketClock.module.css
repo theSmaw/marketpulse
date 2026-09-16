@@ -26,9 +26,23 @@
 .clock {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: var(--space-4);
-  text-align: right;
+}
+
+/*
+ * The figure and the session word on one baseline.
+ *
+ * `flex-wrap` rather than a minimum width: the longest thing this row holds is
+ * `09:42:16 ET` beside `unknown`, which fits everywhere the strip does — but
+ * the row is also rendered in the workshop at a story's width, and a reading
+ * that overflows its cell is worse than one that takes two lines.
+ */
+.reading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-12);
 }
 
 /*

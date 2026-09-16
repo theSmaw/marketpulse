@@ -151,40 +151,77 @@
 /*
  * --- The status strip ---
  *
- * Right-aligned on the sunken ground. The generous gap is deliberate and
- * inherited from the pre-refresh strip: three facts that fail independently
- * need to read as three things, and 40px is what does that on a row where every
- * other measurement is 8 or 12.
+ * **An instrument cluster since 2026-09-16**, where it was three right-aligned
+ * runs of text separated by 40px of air.
+ *
+ * What was wrong with the air is visible only on the page, which is where it
+ * was found. Three facts that fail independently do need to read as three
+ * things, and 40px does that — but nothing said where a *detail sentence*
+ * belonged, so each one hung under its own value at whatever alignment its
+ * component chose: the feed's ranged left under its label, the clock's ranged
+ * right against the page gutter, and neither lined up with anything. The strip
+ * was three lines tall rather than the one the refresh sized it for, its
+ * right-hand half was a ragged edge, and its left-hand half was empty. Read
+ * quickly it was a line of debug output rather than instrumentation.
+ *
+ * The repair is the arrangement every terminal in this category already uses:
+ * **divided cells**. Each fact gets a bounded column with its own left rule,
+ * its micro-label on the top line and its value beneath, so the three labels
+ * form a row, the three values form a row, and a detail sentence is obviously
+ * inside the cell that owns it. Bounding is the whole mechanism — the same
+ * hairline that reads as a ragged separator in open space reads as structure
+ * the moment there is a cell on either side of it.
+ *
+ * **This reverses the refresh's label-beside-value decision, deliberately.**
+ * That decision was taken to get the strip from 52px to 34px, and it did not
+ * hold: the detail lines took the height back and the run-on it produced
+ * (`MARKET FEED ○ NOT CONFIGURED`) is the thing `e2e/README.md` records as
+ * `Backend servicehealthy` — a label and a value with no word boundary between
+ * them, which turns out to read to a person about as well as it reads to a
+ * test. The height is paid for instead where it was actually being wasted:
+ * `MarketClock` now puts its figure and its session word on one line.
+ *
+ * The cluster stays right-anchored. Nothing owns the left half of this row —
+ * spreading three readouts across 1392px would separate them from each other
+ * without attaching them to anything — and a bounded block at the end of the
+ * chrome reads as one instrument, which is what it is.
  */
 .status {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--space-12) var(--space-40);
+  align-items: stretch;
 
-  padding: var(--space-8) var(--space-24);
+  /* No gap: the cells' own rules and padding are the separation now, and a gap
+     on top of them would put a hairline floating in the middle of a space
+     rather than on the edge between two things. */
+  padding: 0 var(--space-24);
   background: var(--surface-sunken);
   border-top: var(--border-width) solid var(--rule-hairline);
 }
 
+/*
+ * A cell. The left rule is on every one of them including the first, which is
+ * what gives the cluster a left edge — without it the block has three internal
+ * divisions and no outline, and reads as text that happens to have lines in it.
+ */
 .region {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-8);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+
+  padding: var(--space-8) var(--space-20);
+  border-left: var(--border-width) solid var(--rule-hairline);
 }
 
-/*
- * The label and its value on **one line** since the refresh, where they used to
- * be stacked.
- *
- * The strip is a strip now — 34px rather than 52 — and the label reads as a
- * prefix to the value rather than as a heading over it. The trap this walks
- * past is recorded in `e2e/README.md` as `Backend servicehealthy`: there is no
- * word boundary between a label element and a value element, so anything
- * asserting on the region's *combined* text sees them run together. That was
- * already true stacked; the gap here is a CSS gap and not a space character, so
- * it stays true, and the specs that know it still pass.
- */
+/* The last cell is flush with the page gutter, so the cluster's right edge is
+   the same edge every page's content is ranged against rather than 20px inside
+   it. The rule stays; only the padding goes. */
+.region:last-child {
+  padding-right: 0;
+}
+
 .microLabel {
   composes: microLabel from "../../styles/type.module.css";
   margin: 0;
@@ -192,11 +229,54 @@
   flex-shrink: 0;
 }
 
+/*
+ * A measure for the two cells that carry sentences. Without it the feed's
+ * longest sentence sets the width of a third of the chrome.
+ */
 .serviceRegion,
 .feedRegion {
   max-width: 46ch;
 }
 
-.clock {
-  text-align: right;
+/*
+ * The clock has no measure of its own — its sentence is a session time rather
+ * than prose — but it keeps a named class, because a cell with nothing to say
+ * about itself is the one a future reader deletes and then has to reintroduce.
+ */
+.clockRegion {
+  min-width: 0;
+}
+
+/*
+ * --- The strip, narrow ---
+ *
+ * Below 768 the cluster cannot be a row of cells: three columns at a readable
+ * measure do not fit, and flex wrapping would leave a left rule at the start of
+ * each wrapped line, where it marks nothing. So the cells stack, full width,
+ * and the divider moves to the edge between them — the same idiom rotated,
+ * rather than a second one.
+ *
+ * This is also the viewport where the chrome is tallest, which is exactly
+ * backwards from where the room is. `useStickyChromeHeight` publishes whatever
+ * it measures, so nothing downstream needs to know that.
+ */
+@media (max-width: 768px) {
+  .status {
+    display: block;
+    padding: var(--space-4) var(--space-24);
+  }
+
+  .region {
+    padding: var(--space-8) 0;
+    border-left: 0;
+  }
+
+  .region + .region {
+    border-top: var(--border-width) solid var(--rule-hairline);
+  }
+
+  .serviceRegion,
+  .feedRegion {
+    max-width: none;
+  }
 }

@@ -244,30 +244,38 @@ export function MarketClock({ reading }: MarketClockProps) {
 
   return (
     <div className={styles.clock}>
-      <p className={styles.time}>
-        {/* The accessible name for the figure, and the reason the `ET` beside
+      {/* The figure and the session word are **one row** since 2026-09-16,
+          where they used to be two.
+
+          They are one reading — "it is 09:42 and the market is open" — and
+          stacking them cost the status strip a line it could not afford: with
+          the strip's own micro-label now sitting above its value rather than
+          beside it, a four-line clock was the tallest thing in the chrome and
+          the one setting its height. A flex row is also what lets the earlier
+          arrangement go: the grid this used to sit in inflated the columns a
+          spanning item crossed, which is why the sentence was a sibling rather
+          than a third cell. Nothing spans anything now. */}
+      <div className={styles.reading}>
+        <p className={styles.time}>
+          {/* The accessible name for the figure, and the reason the `ET` beside
             it is `aria-hidden`: read aloud, "ET" is two letters rather than a
             timezone. A screen reader hears "Market time, US Eastern
             09:42:16"; the eye reads "09:42:16 ET". Same fact, said in the
             register each channel understands. */}
-        <span className={styles.visuallyHidden}>Market time, US Eastern </span>
-        <span>{clock}</span>{" "}
-        <span aria-hidden="true" className={styles.zone}>
-          ET
-        </span>
-      </p>
+          <span className={styles.visuallyHidden}>
+            Market time, US Eastern{" "}
+          </span>
+          <span>{clock}</span>{" "}
+          <span aria-hidden="true" className={styles.zone}>
+            ET
+          </span>
+        </p>
 
-      {/* The marker and the word are their own row, and the sentence is a
-          sibling rather than a third grid cell spanning it. That is forced
-          rather than tidy — see the stylesheet: a spanning item inflates the
-          columns it spans, so the two indicators' grid arrangement puts the
-          marker a centimetre from its word on the longest sentence this
-          renders. Caught in the workshop, on the one permutation the running
-          application cannot be put into on an ordinary day. */}
-      <span className={cx(styles.state, className)}>
-        <Marker shape={shape} />
-        <span className={styles.label}>{word}</span>
-      </span>
+        <span className={cx(styles.state, className)}>
+          <Marker shape={shape} />
+          <span className={styles.label}>{word}</span>
+        </span>
+      </div>
       <span className={styles.detail}>{detail}</span>
     </div>
   );

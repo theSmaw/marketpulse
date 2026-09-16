@@ -1,12 +1,21 @@
 /*
  * The band that says whose page this is. It is not a panel and not a cell: it
- * spans the whole measure, above the grid, separated from it by the same
- * near-black rule that sits under every panel heading in this product.
+ * spans the whole measure, above the grid, separated from it by a hairline.
  *
  * That rule is the reason this reads as part of the instrument rather than as a
- * card floating above one. `tokens.css` reserves `--rule-strong` for structure,
- * and the structure it is marking here is "everything below belongs to the
- * thing named above".
+ * card floating above one, and the structure it marks is "everything below
+ * belongs to the thing named above".
+ *
+ * **It is `--rule-hairline` rather than `--rule-strong` since 2026-09-16.** The
+ * near-black is reserved for structure and this *is* structure, so the weight
+ * was defensible in the abstract; what it did not survive is being looked at.
+ * Every other near-black rule in the product is bounded — by a panel's border,
+ * by a table's edge, by the chrome's own ground — so it reads as a member of
+ * something. This one and `PageHeader`'s were the two drawn across the bare
+ * page with nothing at either end, and at that weight an unbounded line stops
+ * reading as structure and starts reading as an `<hr>`. `PageHeader` dropped
+ * its rule entirely; this one keeps the separation it genuinely needs, one
+ * weight down.
  */
 
 .identity {
@@ -19,7 +28,7 @@
   gap: var(--space-24);
 
   padding-bottom: var(--space-20);
-  border-bottom: var(--border-width) solid var(--rule-strong);
+  border-bottom: var(--border-width) solid var(--rule-hairline);
 
   /*
    * **Once, on mount, and never again** — which is a mechanism rather than an

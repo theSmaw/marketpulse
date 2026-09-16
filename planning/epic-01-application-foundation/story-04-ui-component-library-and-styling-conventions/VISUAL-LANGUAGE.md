@@ -128,15 +128,21 @@ The panel shadow is new, and it is a consequence of the border going grey: the p
 
 **Three rule weights, and choosing between them is the most consequential styling decision in this language.**
 
-| Token             | Value     | For                                                                                                                                                  |
-| ----------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--rule-strong`   | `#181c23` | **Structure**: under the chrome, under a table head, over a group band, under a masthead, the 2px bar on the current tab, the left edge of a callout |
-| `--rule-hairline` | `#e2e4ed` | The **ordinary** border: panels, controls, inputs, chips. The default                                                                                |
-| `--rule-soft`     | `#eef0f4` | **Repeated** dividers — rows inside a long table — where the hairline would stripe                                                                   |
+| Token             | Value     | For                                                                                                                                                                                           |
+| ----------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--rule-strong`   | `#181c23` | **Structure, and only where the rule is bounded**: under a panel heading, under a table head, over a group band, under the chrome, the 2px bar on the current tab, the left edge of a callout |
+| `--rule-hairline` | `#e2e4ed` | The **ordinary** border: panels, controls, inputs, chips. The default                                                                                                                         |
+| `--rule-soft`     | `#eef0f4` | **Repeated** dividers — rows inside a long table — where the hairline would stripe                                                                                                            |
 
 **The near-black rule is still the single most distinctive idiom here and it is still the easiest to soften by accident**; what changed is where it belongs. Before the refresh it wrapped every panel, which works on a screen with one panel and reads as a cage on a screen with twelve. Reserved for structure it keeps its whole effect and lands where a reader is re-orienting.
 
 The trap this leaves, recorded because it has already caught two stylesheets: the token **name** `--rule-hairline` kept its meaning and changed its value, so a rule that wanted the near-black and says `--rule-hairline` now renders grey, and nothing complains.
+
+**Amended 2026-09-16: the near-black needs something at each end of it.** "Reserved for structure" turned out to be half a rule, and the missing half is only visible on a page rather than in the workshop. Every near-black rule that reads as structure is **bounded** — by a panel's border, by a table's edge, by the chrome's own ground — so it reads as a member of the thing it belongs to. Two of them were drawn across the bare page with nothing at either end, under `PageHeader` and under `SecurityIdentity`, and at that weight an unbounded line stops reading as structure and starts reading as an `<hr>`: it was the heaviest ink on the screen after the title, and on the Market Overview it was separating a title from a gap.
+
+The repair is not one substitution, because the two were not doing the same job. `PageHeader` **dropped its rule entirely** — a display face at heading size over an eyebrow, with space beneath it, was already the whole masthead — and `SecurityIdentity` kept the separation it genuinely needs, at `--rule-hairline`. What survives unchanged is the near-black under a panel heading and under a table head, which is where it has always earned its keep.
+
+So the question to ask of a near-black rule is no longer only _is this structure?_ but **_is there something at each end of it?_** A rule that spans the full measure of a bare page is answering no.
 
 ## Geometry
 
@@ -233,6 +239,7 @@ These are what a screenshot shows and a stylesheet does not. They are the identi
 - **Links inside prose are text** — underline and weight, plus the accent. A link that is _only_ coloured is a link half the audience reads as plain text
 - **Actions are small, uppercase and quiet.** A control's label is set in the micro-label idiom, which is what makes these read as instrument controls rather than as web buttons
 - **A metric strip separates its figures with a vertical hairline**, not with whitespace: three figures separated by space alone read as one sentence broken up
+- **The chrome's status strip is a divided cluster, and it is the same rule** — added 2026-09-16. Each fact gets a bounded cell with its own left rule, its micro-label on the top line and its value beneath, so the labels form a row and the values form a row. It was three right-aligned runs of text separated by 40 px until then, and the air failed for the reason the metric strip's already records, plus one the strip does not have: nothing said where a **detail sentence** belonged, so each hung under its own value at whatever alignment its component chose. The cluster stays anchored to the right end of the chrome — nothing owns the left half of that row, and spreading three readouts across the full measure separates them from each other without attaching them to anything
 - **Modules are white panels on the cool ground**, laid out on a grid — a module spans one, two or three columns rather than being free-form
 
 ### Controls

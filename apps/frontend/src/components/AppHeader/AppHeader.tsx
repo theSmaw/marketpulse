@@ -306,7 +306,7 @@ export function AppHeader({
           claiming data is arriving — which is the feed's region, two cells to
           the left.
         */}
-        <div className={cx(styles.region, styles.clock)}>
+        <div className={cx(styles.clockRegion, styles.region)}>
           <p className={styles.microLabel}>Market clock</p>
           <MarketClock reading={clock} />
         </div>
