@@ -101,24 +101,34 @@ those has a later owner and pulling any of them forward is the scaffolding
 replay and the real socket quietly stops working.** It is the objection ADR 0030
 exists to answer, and the answers are mechanical:
 
-1. **The replay cannot run during a session.** `createReplayStream` refuses to
-   start, and stops if already running, whenever `marketSessionStateAt(now)` is
-   `open`. So during market hours the only thing that can serve is the real IEX
-   socket, on a developer's machine and on the deployed site, every trading day.
-   A broken live feed shows as broken. **This owes a `pnpm break` entry.**
-2. **The real client is written first.** `createAlpacaStream` and its
+1. **The replay never reaches production, at any hour.** Production has real
+   users and must only ever tell the absolute truth about the real market
+   (ADR 0030 decision 7a). The deployed backend is configured
+   `MARKET_DATA_PROVIDER=alpaca`; outside a session it shows stored history, a
+   clock reading closed, and a feed that is not delivering. **This story must
+   not ship anything that makes a deployed replay reachable**, and it is
+   configuration guarded by checks rather than a compiler — say so rather than
+   overclaiming it.
+2. **The replay also cannot run during a session** — `createReplayStream`
+   refuses to start, and stops if already running, whenever
+   `marketSessionStateAt(now)` is `open`. That is the developer-side guard: it
+   catches the person who left `MARKET_DATA_PROVIDER=replay` in their `.env` and
+   is building against a recording while believing they are on the live feed.
+   **This owes a `pnpm break` entry.**
+3. **The real client is written first.** `createAlpacaStream` and its
    recorded-frame tests land **before** `createReplayStream`. A convenience built
    first becomes the thing everything is shaped around.
-3. **A replayed bar can never be stored.** `recordSeries` throws on a series
+4. **A replayed bar can never be stored.** `recordSeries` throws on a series
    whose provenance names `replay` — and note _why_ it must be a runtime guard:
    widening `PROVIDER_IDS` widens `schema.ts`'s insert types, so the compiler
    stops preventing the write at the same moment the database check starts
    permitting the value. **This owes a `pnpm break` entry too.**
-4. **`GET /diagnostics/feed`**, beside the shipped `/diagnostics/freshness`, so
-   `check-deployed.mjs` can fail after a merge when the market is open and the
-   deployed feed is not a connected `iex`. `verify` has no credentials by design,
-   so a runtime claim needs a runtime check.
-5. **The word `LIVE` must never render while the feed is `replay`.** It reads as
+5. **`GET /diagnostics/feed`**, beside the shipped `/diagnostics/freshness`, so
+   `check-deployed.mjs` can fail after a merge — when the market is open and the
+   deployed feed is not a connected `iex`, and **at any hour if the deployed feed
+   is `replay` at all**. `verify` has no credentials by design, so a runtime
+   claim needs a runtime check.
+6. **The word `LIVE` must never render while the feed is `replay`.** It reads as
    a claim about the market rather than about the connection. The cell reads
    `REPLAYING`; `LIVE-DATA.md` §2.6 owns the words and carries it as a fifth cell.
 

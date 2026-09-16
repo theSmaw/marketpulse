@@ -509,6 +509,14 @@ and the numbers are a recording. Three consequences for this question:
   does not open a market — the feed region says **Replay**, and the connection
   region reports arriving observations honestly. A design that collapsed any two
   of those would have to lie about one of them.
+- **None of this renders in production**, and that is a decision rather than an
+  omission: ADR 0030 decision 7a. **The deployed site never replays at any
+  hour** — it has real users and must only ever tell the absolute truth about
+  the real market — so out of hours it shows stored history, a clock reading
+  closed, and a feed that is not delivering. The replay cell is specified to the
+  production standard anyway, because a screenshot of a local run is the most
+  likely thing to escape into a README or a slide, and holding the development
+  surface to the same bar is what retires that risk rather than accepting it.
 
 **Consumed by** Story 3.3, which puts these words on every route in the product,
 and Story 3.10, which produces the rest of the grid.

@@ -24,11 +24,25 @@ three stories that have not started:
 - **Stories 3.6 and 3.7** put motion on the universe table and the chart's live
   edge, and **3.10** is the complete set of degraded states.
 
-There is a second, independent motive. `PRODUCT_SPEC.md` §38 is built around a
-five-minute demonstration and §40's success criterion is a first-time viewer
-understanding the product in about a minute. **A market product that is inert
-for three-quarters of every week fails both** — an interviewer opening the
-deployed site on a Saturday sees a historical explorer with a still price.
+**A second motive was proposed and rejected by the product owner, and it is
+recorded because `PRODUCT_SPEC.md` will keep generating it.** §38 is built around
+a five-minute demonstration and §40's criterion is a first-time viewer
+understanding the product in about a minute, so a market product that is inert
+for three-quarters of every week looks like it fails both — which argues for the
+deployed site replaying when the market is shut, so a Saturday visitor sees
+something alive.
+
+**That is refused, in one sentence and without qualification: the deployed site
+is production, it has real users, and it must only ever tell the absolute truth
+about the real market.** A page that is honestly still is not a product defect;
+a page that is alive with yesterday's prices is, however well it is labelled,
+because the label is the only thing standing between a viewer and a false
+impression — and §35 forbids manufacturing observations rather than forbidding
+manufacturing them unlabelled. So **replay is a development instrument and never
+a deployed one**, and this ADR's decisions 7a–7c exist to make that structural
+rather than a habit. What answers §38 and §40 is a demonstration given during a
+session, or a separate clearly-labelled surface that is not production at all —
+named in the reversal triggers, not built here.
 
 ### What was considered and rejected
 
@@ -121,16 +135,23 @@ column drifts.
 ### 4. The word on screen is `REPLAYING`, never `LIVE`
 
 `FeedStatus.live` is a claim about a **connection**; `LIVE` in the chrome reads
-as a claim about the **market**. With a replay running on a Saturday those two
-diverge completely, which is precisely why `FeedStatus` and `MarketSessionStatus`
-are separate vocabularies — this is the first time that separation earns its keep
-on screen.
+as a claim about the **market**. With a replay running on a Saturday afternoon
+those two diverge completely, which is precisely why `FeedStatus` and
+`MarketSessionStatus` are separate vocabularies — this is the first time that
+separation earns its keep on screen.
 
 Three regions, three facts, none of them collapsing into the others: the market
 clock still says **closed**, because a replay running does not open a market; the
 feed region says **Replay** with its sentence, square and amber, the treatment
 `synthetic` already has; the connection region reports arriving observations
 honestly.
+
+**These words never render in production** (7a) — a developer's screen is their
+only audience. They are specified to the same standard anyway, and the reason is
+not tidiness: a screenshot of a local run is the most likely thing to escape into
+a README, a slide or a message, and the first draft of this ADR had to carry
+"a screenshot cropped above the status strip" as a residual risk. Holding the
+development surface to the production standard is what retires it.
 
 This adds a **fifth cell** to `LIVE-DATA.md` §2.6's four-cell grid and is
 recorded there, because that section owns the words.
@@ -163,21 +184,60 @@ data.
 That is the correct objection, it is not answered by intent, and it is the reason
 the decisions below are mechanisms rather than practices.
 
-### 7. Replay is structurally incapable of running during a session
+### 7a. The deployed site never replays. Ever, at any hour
 
-**`createReplayStream` refuses to start, and stops if already running, whenever
-`marketSessionStateAt(now)` is `open`.** `packages/shared/src/market-session.ts`
+**Production has real users and must only ever tell the absolute truth about the
+real market.** The deployed backend is configured `MARKET_DATA_PROVIDER=alpaca`,
+and outside a session it shows what it honestly has: stored history, a market
+clock reading **closed**, and a feed that is not delivering. A still page that is
+true beats a moving page that needs a caption to be true.
+
+This is the strongest form of the objection's answer, because it removes the
+premise: **there is no deployed replay to mistake for a live feed.** It also
+deletes the residual risk the first draft of this ADR had to carry — a
+screenshot cropped above the status strip losing its label — since no such
+screenshot can be taken of production.
+
+**And it is configuration, guarded by checks, rather than a physical
+impossibility — which is worth saying plainly rather than overclaiming.** ADR
+0006 established that there is no `NODE_ENV` and nothing branches on which
+environment it is in; what differs between environments is where _values_ come
+from. That rule is not reversed here, because "which provider serves prices" is
+exactly a value. What it costs is that the guarantee needs two checks rather
+than a compiler, and those are 7b and 7c.
+
+### 7b. A deploy that would configure a replay fails before it rolls
+
+`deploy.yml` sets the container app's `MARKET_DATA_PROVIDER` explicitly and
+**fails the deploy if the resolved value is anything but `alpaca`**. This is the
+cheap half and it runs before any traffic reaches the change.
+
+### 7c. `check-deployed.mjs` fails, unconditionally, if production is ever replaying
+
+Not conditionally on the hour, not tolerantly: **if `/diagnostics/feed` on the
+deployed origin reports a `replay` provider or feed, the check fails.** It runs
+after every merge and its output is a rollback decision (ADR 0011), which is the
+only kind of runtime claim `verify` cannot make — it has no credentials and no
+network by design.
+
+### 7d. Replay is structurally incapable of running during a session
+
+Unchanged from the first draft of this decision and still worth having, now as a
+**developer-side** guard rather than a production one: `createReplayStream`
+refuses to start, and stops if already running, whenever
+`marketSessionStateAt(now)` is `open`. `packages/shared/src/market-session.ts`
 already answers that question exactly and already ships.
 
-The consequence is the whole answer: **during market hours the only thing that
-can serve is the real IEX socket.** If it is broken, the product shows a broken
-live feed — on the developer's machine and on the deployed site, every trading
-day, whether or not anyone is watching. There is no configuration in which a
-replay covers for a dead socket, so the failure mode the objection describes
-cannot be reached by forgetting anything.
+What it protects is the case 7a cannot reach: a developer who left
+`MARKET_DATA_PROVIDER=replay` in their `.env`, working during a session, quietly
+building against a recording while believing they are on the live feed. It is
+also the thing that makes a local `pnpm dev` at 22:00 tell the truth about a
+broken socket. **It owes a `pnpm break` entry.**
 
-It also means the deployed site exercises the real socket for 6½ hours a day,
-unattended.
+**One consequence worth stating, because it is the opposite of what a reader
+expects.** The deployed site now connects to the real IEX socket during every
+session and nothing else ever serves there — so the live feed is exercised
+_more_ under this ADR than it would be without it, not less.
 
 ### 8. `GET /diagnostics/feed`, and a deployed check that fails on it
 
@@ -191,9 +251,14 @@ runtime claim belongs in a runtime check.
 `feed`, the connection state, the newest observation's arrival and its
 `occurredAt`, and whether the market is open by our own calendar. The deployed
 check then fails when **the market is open and the feed is not `iex`, or is
-`iex` and disconnected, or has seen no observation inside the tolerance** — and
-out of hours it asserts the complement, because a replay that has quietly died
-is also a defect.
+`iex` and disconnected, or has seen no observation inside the tolerance** — and,
+per 7c, when the feed is `replay` at **any** hour.
+
+Out of hours the check asserts the honest still state rather than a moving one:
+the provider is `alpaca`, the connection is not delivering, and the market clock
+says closed. **A quiet production feed out of hours is correct**, which is why
+the assertion is about the feed's identity and the market's state rather than
+about observations arriving.
 
 That converts "did we forget the live feed?" from something a person must
 remember into something that runs on every merge.
@@ -257,31 +322,59 @@ does at 09:30:00.
 
 Conditions rather than story numbers:
 
-- **The first time a replayed observation could be mistaken for a live one on
-  screen** — reverse decision 4's wording, not the mechanism.
+- **The first time a replayed observation could be mistaken for a live one on a
+  developer's screen** — reverse decision 4's wording, not the mechanism. In
+  production this cannot arise, because 7a means there is no replayed
+  observation there to mistake.
 - **The first time the product wants a genuinely 24/7 asset class for its own
   sake**, rather than as a development convenience — reopen the crypto rejection
   in Context, which is about domain cost and not about the wire.
 - **The first time a deployment needs one vendor for history and a different one
   for the stream** — that is the first real pressure on `PROVIDER.md` §12's
   single shared `MARKET_DATA_PROVIDER`, and it is not this.
-- **The first time a replay runs during a session** by any route — decision 7 has
-  been defeated, and everything downstream of it is void.
+- **The first time a replay runs during a session** by any route — decision 7d
+  has been defeated, and everything downstream of it is void.
+- **The first time a replay reaches production** by any route — 7a has been
+  defeated and this is the most serious of these triggers, because production
+  told a user something untrue. The response is not to weaken the decision but
+  to find which of 7b and 7c failed to catch it.
+- **The first time somebody asks for a demonstrable surface that is alive out of
+  hours** — the answer is **not** production (7a is not up for renegotiation on
+  those grounds, having been decided on exactly that argument). It is a separate
+  deployment, on its own hostname, that is not this product's production site
+  and says so. Nobody has asked; it is named here so the request arrives at the
+  right answer instead of at 7a.
 
 ## Consequences
 
 - The three stories that need moving numbers can be worked in daylight, and
   Story 3.4's design test gets more than one evening.
-- The deployed portfolio artefact is alive whenever a viewer opens it, with an
-  honest label, and is demonstrably a _replay_ rather than implied to be live.
+- **The deployed site is unchanged by this ADR**, which is the point. It serves
+  the real feed during a session and an honest still page outside one, exactly as
+  it would have without any of this. The convenience is a development
+  convenience and stops at the deployment boundary.
+- **`PRODUCT_SPEC.md` §38 and §40 are not satisfied out of hours**, and that is
+  now a recorded consequence rather than a gap. A first-time viewer opening the
+  site on a Saturday sees a historical explorer. The answer is a demonstration
+  given during a session, and the reversal triggers name the only other route
+  that does not touch production.
 - Epic 13 inherits a tested replay mechanism and a tested temporal-isolation
   discipline instead of a plan. It still owns everything that makes replay a
   **feature**: the clock UI, the scrubber, play/pause, jump-to-event,
   "investigate at this moment", and the Kysely temporal plugin.
 - One additive migration, and a second vocabulary member in two unions.
 - **The live feed is exercised more, not less**, than it would have been without
-  this — because decision 7 makes the deployed site connect to it every trading
-  day rather than only when somebody is watching.
+  this — 7a keeps the deployed site on the real socket for every session, and
+  7c watches it after every merge, which is more scrutiny than it had before this
+  ADR existed.
+- **The guarantee is configuration plus two checks, not a compiler.** Stated
+  again here because it is the thing a future reader will most want to have been
+  told: nothing physically prevents a replay binary from being pointed at
+  production. 7b stops the deploy and 7c stops the merge from standing. If a
+  third guard is ever wanted, the honest one is making the deployed
+  configuration's provider assertion part of the container's own startup refusal
+  — and that is the first thing that must _behave_ differently by environment,
+  which is ADR 0006's stated reversal trigger and a separate decision.
 
 ## Related
 

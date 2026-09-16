@@ -52,13 +52,16 @@ only thing that can be up at 03:00. Two things for the person:
   measured away (§6.4) and the word is settled for the replay cell — it reads
   `REPLAYING`, not `LIVE`. What is left to ask is what `LIVE` claims in the
   `iex` cells: the socket being up, or data arriving.
-- **A new question worth putting beside it, and it is a product question rather
-  than an engineering one:** should the **deployed** site replay when the market
-  is shut, so a viewer opening it on a Saturday sees a living product, or should
-  it show an honest still page? ADR 0030 assumes the former and makes it safe
-  (the replay cannot run during a session, and the label says what it is), but
-  the choice is about what this portfolio artefact should be, and that is the
-  person's.
+- **One question was put to the person and is already answered — do not re-ask
+  it.** Should the **deployed** site replay when the market is shut, so a
+  Saturday visitor sees a living product? **No, without qualification:
+  production has real users and must only ever tell the absolute truth about the
+  real market.** ADR 0030 decision 7a, taken 2026-09-16. The consequence is
+  accepted rather than mitigated: out of hours the deployed site is an honest
+  historical explorer, `PRODUCT_SPEC.md` §38 and §40 are not satisfied at those
+  hours, and the answer to a demonstration is to give it during a session. **A
+  question already answered and asked again is how a decision gets reversed by
+  accident**, which is this whole story's premise applied to a person.
 
 **Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.4. This
 corrects where the envelope's two halves come from, and it matters because as

@@ -147,6 +147,12 @@ until the last feature story has shipped.
     to start while the market is open, and that a replayed series cannot reach
     `market_bars`. Both are the mechanisms ADR 0030 rests on, and a check that
     has not gone red this epic has not been tested this epic
+11. **The deployed site confirmed never to have replayed** — `check-deployed.mjs`
+    asserts it after every merge at any hour (ADR 0030, 7c), and this close
+    checks the assertion exists and has run rather than trusting that it does.
+    Production has real users and must only ever tell the absolute truth about
+    the real market; that is the one claim in this epic where a missed check is
+    a user being misled rather than a developer being inconvenienced
 
 ## What this story hands forward
 

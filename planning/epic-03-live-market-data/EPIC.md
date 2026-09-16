@@ -29,8 +29,10 @@ Tracked securities update automatically as live market observations arrive.
 - **The two-feed ledger, produced rather than simulated**
 - **The live feed's own honest label**
 - **The motion vocabulary** — design test 4, against real moving numbers
-- **A replay of our own stored bars**, so this epic can be built, designed and
-  demonstrated outside 21:30–04:00 local — added 2026-09-16, [ADR 0030](../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md)
+- **A replay of our own stored bars**, so this epic can be built and designed
+  outside 21:30–04:00 local — added 2026-09-16, [ADR 0030](../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md).
+  **A development instrument and never a deployed one:** production has real
+  users and must only ever tell the absolute truth about the real market
 
 ## Exit criteria
 
@@ -44,10 +46,14 @@ the exit criterion above would otherwise be satisfiable without anyone ever
 having seen the live feed work. Story 3.11 checks the ledger; `pnpm invariants`
 checks that Story 3.11 did.
 
-**The mechanism that makes this cheap rather than a discipline** is ADR 0030's
-decision 7: **a replay refuses to run while the market is open**, so the live
-socket is the only thing that can serve during a session — on a developer's
-machine and on the deployed site, every trading day. A broken live feed shows as
+**Two mechanisms make this cheap rather than a discipline**, both ADR 0030's.
+**The deployed site never replays, at any hour** (7a) — it serves the real feed
+during a session and an honest still page outside one, so the live socket is the
+only thing production has ever shown; a deploy configured otherwise fails before
+it rolls (7b) and `check-deployed.mjs` fails after every merge if production is
+ever replaying (7c). And **a replay refuses to run while the market is open**
+(7d), which catches the developer who left it on in their `.env` and is building
+against a recording while believing they are live. A broken live feed shows as
 broken rather than being masked. The rehearsals are minutes, not evenings.
 
 ## Stories

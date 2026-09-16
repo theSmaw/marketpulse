@@ -13,10 +13,16 @@ person who would pay for it:
 > _"We might build the app against the dummy feed and forget to have it working
 > properly against the real live feed."_
 
-ADR 0030's decision 7 makes that failure unreachable by accident — **a replay
-refuses to run while the market is open**, so the live socket is the only thing
-that can serve during a session, every trading day, watched or not. This ledger
-is the second line: it is the record that somebody **looked**.
+ADR 0030 makes that failure unreachable by accident in two places. **The
+deployed site never replays, at any hour** (7a) — production has real users and
+must only ever tell the absolute truth about the real market, so the live socket
+is the only thing production has ever shown. And **a replay refuses to run while
+the market is open** (7d), which catches a developer building against a
+recording while believing they are live.
+
+This ledger is the third line, and it is the only one that is about a person:
+it is the record that somebody **looked at the surface** rather than at a green
+check.
 
 ## The rules
 
@@ -58,4 +64,4 @@ That the live feed works **now**. Every row is a dated observation of a third
 party, and a feed that worked on the day a story shipped can stop working the
 next morning. What answers _now_ is `GET /diagnostics/feed` and
 `check-deployed.mjs` failing on it after a merge — the runtime half, which has no
-schedule to miss.
+schedule to miss, and which also fails if production is ever found replaying.
