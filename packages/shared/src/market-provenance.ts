@@ -98,6 +98,39 @@ export const PROVIDER_IDS = ["fixture", "alpaca"] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 /**
+ * Whether a provider's numbers are the live market, or are not.
+ *
+ * **A total record rather than a list or a predicate, and the totality is the
+ * whole mechanism.** `Record<ProviderId, …>` means a provider added to
+ * {@link PROVIDER_IDS} without an answer here is a **compile error**, so the
+ * question "is this the real market?" cannot be skipped for a provider nobody
+ * has thought of yet. It is the same arrangement
+ * {@link MARKET_FEED_DESCRIPTIONS} uses to make a feed without words
+ * unshippable, pointed at a different question.
+ *
+ * **What reads it is a startup refusal**, in `apps/backend/src/config.ts`: a
+ * deployment selecting a provider marked `not-the-live-market` has to grant
+ * `NON_LIVE_MARKET_DATA=permitted` by name, or the process refuses to start.
+ * The rule is universal — nothing anywhere asks which environment it is in,
+ * which is ADR 0006 decision 4 — and production simply never grants it. So
+ * **no single wrong value and no omission can put fabricated or recorded
+ * prices in front of a real user.**
+ *
+ * The distinction is not about quality or about whether a number is invented.
+ * `fixture` invents prices and a replay of stored bars would not, and both
+ * answer `not-the-live-market` for the same reason: neither is what is
+ * happening in the market now, which is the only claim this product's screens
+ * make about a price.
+ */
+export const PROVIDER_SERVES: Record<
+  ProviderId,
+  "the-live-market" | "not-the-live-market"
+> = {
+  fixture: "not-the-live-market",
+  alpaca: "the-live-market",
+};
+
+/**
  * Which venues are in the number. **This is the invariant-6 field, and it is
  * not the provider.**
  *

@@ -206,6 +206,48 @@ from. That rule is not reversed here, because "which provider serves prices" is
 exactly a value. What it costs is that the guarantee needs two checks rather
 than a compiler, and those are 7b and 7c.
 
+### 7a-bis. The process refuses to start — shipped 2026-09-16
+
+**Added after this ADR was written and before it merged, because the honest
+answer to "how is this guaranteed?" was "it is not".** The paragraph below 7a
+still stands — this is configuration rather than a compiler — but the shape has
+changed in the way that matters: **a single wrong value, or any omission, now
+stops the process.**
+
+`config.ts` refuses to start when `MARKET_DATA_PROVIDER` names a provider that
+`PROVIDER_SERVES` marks `not-the-live-market` and `NON_LIVE_MARKET_DATA` is not
+`permitted`. Three properties earn their place:
+
+- **The classification is total.** `PROVIDER_SERVES` is a
+  `Record<ProviderId, …>` in `packages/shared`, so a provider added without an
+  answer to _is this the live market_ **does not compile**. That is the half
+  that holds for providers nobody has thought of yet — `replay` included, when
+  Story 3.2 adds it.
+- **It never asks which environment it is in.** ADR 0006 decision 4 is honoured
+  rather than reopened, and that ADR now carries a dated amendment recording
+  that its reversal trigger was examined here and declined. The rule is
+  identical everywhere; only the value differs.
+- **It is preventive without a new assertion.** `index.ts` exits 1, and
+  `deploy.yml` already fails a rollout whose revision has a container that
+  restarted. So a wrong configuration is a failed deploy, with the old revision
+  serving throughout.
+
+**And it closed a hole that predated the replay entirely.** `fixture` invents
+prices, is a member of the documented vocabulary, and was one edit to the
+container app away — with nothing in this repository noticing. That is the
+first thing this refusal protects, before any replay code exists.
+
+**What it does not do**, stated with the same care as everything else here: two
+deliberate values still serve non-live data. `MARKET_DATA_PROVIDER=replay`
+_and_ `NON_LIVE_MARKET_DATA=permitted`, both set on purpose, start a replay
+anywhere. Nothing in software prevents that, and no mechanism below claims to.
+
+**The residual claim, still owed a measurement.** That a crash-looping new
+revision leaves the old one serving is inherited reasoning: Task 1.11.5 measured
+it for a rollout, not for an environment variable edited by hand between
+deploys. Until somebody takes that reading against the container app, 7b and 7c
+are what stand behind the refusal for that case.
+
 ### 7b. A deploy READS the configured provider and refuses to roll on the wrong one
 
 **Corrected 2026-09-16, before this ADR merged: an earlier draft said the deploy

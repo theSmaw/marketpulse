@@ -126,7 +126,15 @@ describe("GET /market-data", () => {
   // never check is that the configuration reaches the wire at all.
   it("reads the feed off the real configuration path", async () => {
     const instance = await serverWith(
-      resolveMarketData(loadConfig({ MARKET_DATA_PROVIDER: "fixture" })),
+      // `fixture` does not serve the live market, so `loadConfig` refuses it
+      // without the permission (ADR 0030 §7). This test is about what the wire
+      // says the feed is, and it still needs a real configuration to say it.
+      resolveMarketData(
+        loadConfig({
+          MARKET_DATA_PROVIDER: "fixture",
+          NON_LIVE_MARKET_DATA: "permitted",
+        }),
+      ),
     );
 
     const response = await instance.inject({ method: "GET", url: PATH });
