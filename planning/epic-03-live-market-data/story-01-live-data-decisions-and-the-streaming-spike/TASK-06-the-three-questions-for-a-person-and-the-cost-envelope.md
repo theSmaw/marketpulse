@@ -43,7 +43,27 @@ whatever is decided here.
   and Epic 4 builds it. An answer to question 2 that only works for one security
   is an answer Epic 4 has to re-take.
 
-**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.6. This
+**Added 2026-09-16 by [ADR 0030](../../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md)
+— question 1 has moved again, and in the useful direction.** A replay of our own
+stored bars now runs whenever the market is shut, so the socket is no longer the
+only thing that can be up at 03:00. Two things for the person:
+
+- **Question 1 is now genuinely about meaning alone.** The cost objection is
+  measured away (§6.4) and the word is settled for the replay cell — it reads
+  `REPLAYING`, not `LIVE`. What is left to ask is what `LIVE` claims in the
+  `iex` cells: the socket being up, or data arriving.
+- **One question was put to the person and is already answered — do not re-ask
+  it.** Should the **deployed** site replay when the market is shut, so a
+  Saturday visitor sees a living product? **No, without qualification:
+  production has real users and must only ever tell the absolute truth about the
+  real market.** ADR 0030 decision 7a, taken 2026-09-16. The consequence is
+  accepted rather than mitigated: out of hours the deployed site is an honest
+  historical explorer, `PRODUCT_SPEC.md` §38 and §40 are not satisfied at those
+  hours, and the answer to a demonstration is to give it during a session. **A
+  question already answered and asked again is how a decision gets reversed by
+  accident**, which is this whole story's premise applied to a person.
+
+**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.4. This
 corrects where the envelope's two halves come from, and it matters because as
 written this task would have gone to Task 3.1.4 for a number 3.1.4 cannot
 produce:
@@ -126,8 +146,13 @@ threshold are a function of each other, and of question 1's answer. **One
 interaction this note used to claim is now measured away** — it read "holding
 the socket open overnight is cheap if nothing is subscribed and expensive if the
 whole universe is", and Task 3.1.3 measured **0 payload bytes per second with
-all 518 subscribed, out of hours** (§6.6). Overnight is cheap either way; the
-expense is the session. Asked one at a time, each answer is
+all 518 subscribed, out of hours** (§6.4). Overnight is cheap either way; the
+expense is the session. **One qualification, added the same day**: that zero is
+a bar subscription. `dailyBars` re-sends an unchanged daily aggregate every
+minute after the close — 21.6 B/s for ten symbols, which extrapolates past the
+1,000 B/s idle condition at universe scale (§6.7) — so the envelope must state
+**which channels** it is costing, and the cheap answer depends on Decision 1
+not taking that channel. Asked one at a time, each answer is
 taken without the constraint the next one supplies — which is the same failure
 mode this entire story exists to prevent, applied to a person instead of to a
 task.

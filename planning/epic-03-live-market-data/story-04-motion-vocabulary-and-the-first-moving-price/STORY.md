@@ -53,6 +53,28 @@ It is also the last cheap moment. The identity block's last price is **one
 number in one place** — the smallest possible subject for a decision this
 consequential, and small enough that getting it wrong twice costs an afternoon.
 
+**Amended 2026-09-16 — this story's design work no longer waits for 21:30.**
+[ADR 0030](../../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md)
+adds a replay of our own stored minute bars behind the stream seam, so the
+vocabulary can be designed against **real recorded intraday movement** at any
+hour of the day. That matters specifically here: this criterion has been
+answered _not yet_ seven times, and the eighth deferral would most plausibly
+have been "there was one evening and it was not enough".
+
+Two constraints come with it, and they are the difference between designing
+against motion and designing against a toy:
+
+- **Design against the replay; accept against the live feed.** The replay is
+  real recorded movement and is the right instrument for the decision. It is not
+  the instrument for the acceptance: this story owes a **dated rehearsal row in
+  [`LIVE-REHEARSAL.md`](../LIVE-REHEARSAL.md)**, watched during a real session.
+- **Design at 1×.** The engine takes a speed multiplier and a developer may run
+  it faster to iterate, but **the vocabulary must be settled at the cadence the
+  product actually has** — one observation per symbol per minute (§2.1). A
+  motion language tuned against a 10× replay is a language designed for a market
+  that does not exist, which is this story's own warning about the easy case
+  inherited by the hard one, one level down.
+
 ## Scope
 
 - **The vocabulary**, as tokens and as rules, in `VISUAL-LANGUAGE.md` and

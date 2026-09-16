@@ -114,12 +114,12 @@ naming the pino reversal above, which fires here.
   decisions, which is exactly how a measured constraint gets lost. **Amended
   2026-09-15 by Task 3.1.3: there are three rather than two, and the first has
   been promoted rather than restated.**
-  - **The server heartbeats every 54 seconds** (§6.2), on a socket subscribed to
+  - **The server heartbeats every 54 seconds** (§6.3), on a socket subscribed to
     nothing as much as on one subscribed to all 518. That is the signal that
     tells a quiet feed from a dead one out of hours, and it means this product
     does **not** need a keepalive of its own.
   - **Node's built-in `WebSocket` cannot see a ping or a pong** (§4.6). In Task
-    3.1.2 this was a note about why the instrument used `ws@8`. After §6.2 it is
+    3.1.2 this was a note about why the instrument used `ws@8`. After §6.3 it is
     **load-bearing for the product**: a client on the global can neither observe
     the heartbeat nor answer it, so it forfeits the only liveness signal
     available at 3am and falls into Task 3.1.5's rude-client case by
@@ -127,8 +127,23 @@ naming the pino reversal above, which fires here.
     library.
   - **The close code carries no intent** — a clean close reads `1006` — so the
     client must carry its own (§4.2).
+  - **A connection can die with no event at all, and `readyState` will not say
+    so** (§6.4). **Amended 2026-09-15 — there are four, and this is the one with
+    a user-visible failure behind it.** A capture in this story held a dead
+    socket for **4h21m** with `readyState` reporting `OPEN`, no error and no
+    close; the close it eventually requested took **30,016 ms** to time out
+    against **243 ms** for a live one. So Story 3.2's client owes a **liveness
+    watchdog on inbound frames** — not on `readyState`, and not on data, which
+    is legitimately absent for hours — firing at three missed heartbeats
+    (**165 s**, from a measured 53.96–54.85 s interval). And `FeedStatus.live`
+    must never be derived from "the socket object is open": on 2026-09-15 that
+    predicate was true for four hours of a connection to nothing.
+  - **`dailyBars` re-sends an unchanged aggregate every minute out of hours**
+    (§6.7), which is both a cost trap at universe scale and the reason a
+    staleness rule must key on the **observation's timestamp** rather than on a
+    frame having arrived.
 
-  Name all three in the close so Story 3.2 meets them in a hand-off rather than
+  Name all five in the close so Story 3.2 meets them in a hand-off rather than
   in a debugging session.
 
 - **Name Story 3.11's owed re-measure as a condition.** Every latency figure in

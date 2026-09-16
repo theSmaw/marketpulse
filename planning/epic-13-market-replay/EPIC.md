@@ -80,6 +80,46 @@ that gets it wrong will pass every check anybody can write until this epic arriv
 `market_bars` (Story 2.8) is the first table with an `observed_at`, and **Story 2.9's bar
 query is the first place the seam does real work.**
 
+### A replay mechanism lands early, in Epic 3, and this epic inherits it (added 2026-09-16)
+
+**Part of this epic's machinery is being built three epics early, for a reason
+that has nothing to do with replay as a feature.** The developer is in
+Asia/Singapore, where the US session is 21:30–04:00, so Epic 3's design and
+demonstration work would otherwise all happen at night.
+[ADR 0030](../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md)
+answers that by replaying the **48.4M minute bars this product already stores**
+through Epic 3's live stream seam.
+
+**What this epic inherits, tested rather than planned:**
+
+- A replay engine that paces on **recorded offsets** rather than array position,
+  so the quiet minutes survive — and on a feed with 82.8% median minute coverage
+  the quiet minutes are most of the signal.
+- The **two-instant discipline**: a replayed observation carries a `startsAt`
+  shifted onto the wall clock and an `occurredAt` holding the recorded instant.
+  Epic 13 needs exactly this distinction everywhere, and it is the practical
+  shape of invariant 4.
+- **The first real exercise of temporal isolation.** The section above says the
+  seam is "ESTABLISHED and NOT YET EXERCISED BY ANYTHING". A replay stream that
+  may never emit a bar after its own clock is the first thing that exercises it,
+  with a check and a break behind it.
+- A `ReplayBarSource` seam with a store-backed and an in-memory implementation.
+
+**What this epic still owns, and none of it is started:** the replay clock as a
+**user-facing** object — play, pause, speed, drag, jump to event — the date
+selection, "investigate at this moment", the agent and analytical tools under a
+replay clock, and the Kysely temporal plugin that makes invariant 4 structural
+rather than arranged (ADR 0015 gap 4). Epic 3 builds a mechanism; this epic
+builds the feature.
+
+**One caution, and it is the one this epic should check first.** Epic 3's replay
+is deliberately **prevented from running while the market is open** (ADR 0030
+decision 7), because its purpose there is to not mask a broken live feed. This
+epic's replay has the opposite requirement — a user replaying 11:07 on a past
+Tuesday must be able to do so at 11:07 on a live Tuesday. **That is a lifting of
+the guard for a different object, not a loosening of it**, and the two must not
+end up sharing one flag.
+
 ### Two things to check first, before writing any of this epic
 
 1. **Audit the export lists**, not the queries. `grep` for a module that exports a `Kysely`

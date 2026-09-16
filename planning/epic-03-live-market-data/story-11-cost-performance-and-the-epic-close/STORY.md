@@ -133,6 +133,26 @@ until the last feature story has shipped.
 7. `docs/GAPS.md` updated, with anything mechanisable made mechanical
 8. `pnpm verify`, `pnpm test:database` and `pnpm e2e` all green, and every new
    check's break performed
+9. **[`LIVE-REHEARSAL.md`](../LIVE-REHEARSAL.md) is complete** — a dated row for
+   every visible story, each watched against the real IEX socket during a real
+   session, with its `What was wrong` column filled in honestly. Added
+   2026-09-16 with [ADR 0030](../../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md):
+   this epic can be built at any hour against a replay of our own bars, and
+   criterion 2 above is the only other thing standing between that convenience
+   and an epic that closes without anyone having watched the live feed work.
+   **A missing row is closed by taking the rehearsal, never by deleting the
+   row** — and a `pnpm invariants` entry asserts every story `EPIC.md` marks
+   complete has one, so this criterion is checked rather than remembered
+10. **The replay's guards re-broken rather than assumed**: that a replay refuses
+    to start while the market is open, and that a replayed series cannot reach
+    `market_bars`. Both are the mechanisms ADR 0030 rests on, and a check that
+    has not gone red this epic has not been tested this epic
+11. **The deployed site confirmed never to have replayed** — `check-deployed.mjs`
+    asserts it after every merge at any hour (ADR 0030, 7c), and this close
+    checks the assertion exists and has run rather than trusting that it does.
+    Production has real users and must only ever tell the absolute truth about
+    the real market; that is the one claim in this epic where a missed check is
+    a user being misled rather than a developer being inconvenienced
 
 ## What this story hands forward
 

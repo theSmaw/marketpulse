@@ -88,9 +88,47 @@ handed this task two things it did not previously carry —
   a duplicate by accident "is how three of these figures would be wrong". That
   was a note about sequencing two short runs; it is now a real hazard, because
   Task 3.1.3 may have an **unattended multi-hour hold** running (its weekend
-  window, per §6.1). An overlap corrupts both captures and neither says so.
+  window, per §6.9). An overlap corrupts both captures and neither says so.
+  **Added again 2026-09-15, after Task 3.1.3's capture died in flight** — the
+  first two of these change when this capture must **start**, and the third is
+  the reason its window cannot be trusted to survive on its own:
+
+- **This capture starts at 07:00 ET, and it inherits the OPEN boundary.** Task
+  3.1.3's socket stopped receiving frames at 05:31:07 ET and its end did not
+  notice for 4h21m, so the open was never photographed (§6.4, §6.5). It is not
+  re-taken as its own vigil: this task must hold a capture across the boundary
+  anyway to measure the open burst, so the instant costs it nothing, where a
+  second overnight hold costs a whole night. **Record when traffic starts
+  relative to 09:30:00 ET, to the second**, by our clock with this capture's own
+  offset applied.
+- **The same run answers the extended-hours question, which 3.1.3 could only
+  half-answer.** Early pre-market (04:14–05:31 ET) produced nothing at all on
+  nine channels; **07:00–09:30 is where pre-market volume is** and it is
+  unmeasured. Do pre-market bars arrive on `b`, and is anything on the frame
+  marking them as extended-hours? If they arrive unmarked, every chart in
+  Stories 3.6, 3.7 and 3.9 silently gains a thin tail, and **that is a product
+  decision that belongs beside this measurement rather than in the story that
+  trips over it**.
+- **A dead socket looks exactly like a quiet market, and this task has the most
+  to lose from it.** Use the harness's watchdog: it now records the instant of
+  every inbound frame and ends a hold when nothing of any kind has arrived for
+  **165 s** — three missed 54 s heartbeats (§6.3, §6.4). Do not remove it, do
+  not raise it, and if it fires mid-session, **the capture is bounded at the last
+  inbound instant and the rest of the file is not a measurement of the market**.
+- **The machine must stay awake with its lid open for the whole window.** The
+  connection dies with the network, and a 2026-09-15 clamshell sleep is why the
+  broken capture never recovered. `caffeinate` prevents idle sleep and **does
+  not prevent lid-close sleep**.
+- **`dailyBars` is not a quiet channel out of hours and it carries no new
+  information** (§6.7). Ten symbols re-sent a byte-identical daily bar every
+  minute after the close — 21.6 B/s for ten, which **extrapolates past ADR
+  0011's 1,000 B/s idle condition at universe scale**. If this capture
+  subscribes `dailyBars` for anything wider than a handful, record its share of
+  the byte rate **separately**, because Decision 1 may well drop the channel and
+  a blended figure cannot be un-blended afterwards.
+
 - **A `trades` subscription silently attaches `corrections` and `cancelErrors`**
-  for the same symbols, unrequested (§6.7). This task already records "every
+  for the same symbols, unrequested (§6.8). This task already records "every
   control, status, correction, cancel or subscription frame the server emits
   unprompted" — expect those two, and note that their shapes need a real
   correction or cancellation to appear at all, so absence here is not evidence.
@@ -152,6 +190,13 @@ instrument, in the shape that lets it be re-taken.
   worst cases, and compared against the 82.8%/43.1% stored figures.
 - Anything a single session could not answer is listed as unmeasured with the
   reason, in the shape of `ALPACA.md` §10.
+- **The open boundary is recorded to the second** — when traffic starts relative
+  to 09:30:00 ET, with this capture's own offset applied. Delegated here by Task
+  3.1.3, whose socket was dead by the time the bell rang.
+- **The extended-hours question is answered with frames**: whether `b` carries
+  pre-market bars between 07:00 and 09:30 ET, whether anything on the frame
+  distinguishes them from a regular-session bar, and what that means for the
+  charts in Stories 3.6, 3.7 and 3.9 — named, not left implied.
 - **The close boundary is recorded to the second** — when traffic stops relative
   to 16:00 ET, by our clock with this capture's own offset applied — and the
   16:00–16:30 stretch is described. This is Task 3.1.3's fourth window,

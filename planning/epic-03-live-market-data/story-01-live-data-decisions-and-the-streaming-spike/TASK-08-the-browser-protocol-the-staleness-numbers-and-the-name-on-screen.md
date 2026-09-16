@@ -51,6 +51,49 @@ here.
   counterfactual is measured**: 40 whole-route re-renders in 20 s against 0. The
   live connection state is about to face the same choice at a higher rate.
 
+**Added 2026-09-16 by [ADR 0030](../../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md)
+— decision 6's grid gains a fifth cell, and this task ratifies the words rather
+than re-deciding them.** A replay of our own stored bars now runs whenever the
+market is shut, so a screen can show a connection genuinely delivering
+observations while the numbers are a recording:
+
+- **`replay` is a fifth `MarketFeed` with its own sentence** — "real bars from a
+  past US session, replayed. Not the live market." Neither `sip` nor `synthetic`
+  is honest for it, and §2.6 carries the argument.
+- **`LIVE` must never render while the feed is `replay`; the cell reads
+  `REPLAYING`.** Note what this does to this task's own open sub-question — _does
+  `LIVE` mean the socket is up or data is arriving_ — it **settles it for one
+  cell and leaves it open for the others**: with a replay running at 03:00 both
+  readings are true of the connection and neither is true of the market. Put the
+  remaining question to the person for the `iex` cells only.
+- **Confirm the four-cell grid is now five** and that each cell's sentence is
+  true beside its neighbours, which is Task 2.14.7's finding and the reason this
+  task exists.
+
+**Added 2026-09-15 by Task 3.1.3** — [`LIVE-DATA.md`](LIVE-DATA.md) §6.3, §6.4,
+§6.6 and §6.7. Decision 5 arrives here with **one number measured, one
+impossible to fix here, and a shipped doc comment to sharpen**:
+
+- **The connection-scale threshold is measured: 165 s**, from a server heartbeat
+  of 53.96–54.85 s across 82 intervals on two independent sockets. Three missed
+  heartbeats. Under 60 s fires between pings on a healthy socket; much over
+  165 s tells a reader a dead feed is live.
+- **`FeedStatus.live` must not be defined as "the socket is open."** A capture
+  in this story held `readyState === OPEN` for **4h21m** on a connection that
+  had died (§6.4). `feed-status.ts`'s doc comment currently glosses `stale` as
+  "still connected", and **"still connected" is not observable** — the only
+  observable is _when the last inbound frame arrived_. That file is shipped
+  code, so this task (or Story 3.3) owes it a **dated amendment rather than a
+  rewrite**, per the ADR rule.
+- **The data-scale threshold cannot be set here and must not be guessed.** Out
+  of hours the same socket is silent for 76 minutes or for 60 seconds depending
+  on which channels are subscribed (§6.6, §6.7), so decision 5 is downstream of
+  decisions 1 and 3 rather than independent of them. Take the in-session tail
+  from Task 3.1.4 and the subscription from Task 3.1.7, then set it.
+- **And a staleness rule keyed on "a frame arrived" is already known to be
+  wrong**: `dailyBars` re-sends a byte-identical aggregate every minute out of
+  hours (§6.7). Key on the **observation's own timestamp**.
+
 **Added 2026-09-15 by Task 3.1.2** — [`LIVE-DATA.md`](LIVE-DATA.md) §4.5, and it
 lands directly on decision 6's four-cell grid:
 
