@@ -640,22 +640,30 @@ instrument.
 
 ### 3.1 The frames themselves
 
-| #   | Figure                                                                                                                        | Sized against it                           | Task  |
-| --- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ----- |
-| 1   | The shape of a `b` frame — field names, types, symbol encoding                                                                | 3.2's normalization to `Bar` + `BarSource` | 3.1.4 |
-| 2   | The shapes of `t` and `q` frames, recorded once even though out of scope                                                      | §2.1's alternative 3                       | 3.1.4 |
-| 3   | ~~The handshake verbatim — connect, auth, subscribe, and the acknowledgement's own shape~~ **STRUCK 2026-09-15 — §4.1, §4.2** | 3.2's state machine                        | 3.1.2 |
-| 4   | **Which end of the interval the stream's `t` marks.** §1.5 is the HTTP API's answer                                           | Every surface at once, silently            | 3.1.4 |
-| 5   | Whether a `b` frame ever arrives with zero volume, or whether a quiet minute is simply absent                                 | §2.5's thresholds; 3.10's gap-filling      | 3.1.4 |
+| #   | Figure                                                                                                                                     | Sized against it                           | Task  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ | ----- |
+| 1   | ~~The shape of a `b` frame~~ **STRUCK 2026-09-16 — §7.2: one field set `S,T,c,h,l,n,o,t,v,vw` across all 129,481 frames**                  | 3.2's normalization to `Bar` + `BarSource` | 3.1.4 |
+| 2   | ~~The shapes of `t` and `q` frames~~ **STRUCK 2026-09-16 — §7.2, both verbatim; `q` is 552 msg/s for TEN symbols**                         | §2.1's alternative 3                       | 3.1.4 |
+| 3   | ~~The handshake verbatim — connect, auth, subscribe, and the acknowledgement's own shape~~ **STRUCK 2026-09-15 — §4.1, §4.2**              | 3.2's state machine                        | 3.1.2 |
+| 4   | ~~**Which end of the interval the stream's `t` marks**~~ **STRUCK 2026-09-16 — §7.3: the START, agreeing with §1.5, with an HTTP control** | Every surface at once, silently            | 3.1.4 |
+| 5   | ~~Whether a `b` frame ever arrives with zero volume~~ **STRUCK 2026-09-16 — §7.2: ABSENT. 0 of 129,481 carried `v:0`; 0 repeats**          | §2.5's thresholds; 3.10's gap-filling      | 3.1.4 |
+
+**And one figure arrived that nobody listed — 2026-09-16, §7.8.** The `u`
+(`updatedBars`) channel restates a bar about thirty seconds after it was
+delivered, and in this capture **every one of the fourteen restatements changed
+the bar**, three of them on the close price. It is not on this register because
+nobody thought to ask, which is the argument for capturing a channel once even
+when the story's position is that it is out of scope. **A register is a list of
+known unknowns and this is what the other kind looks like.**
 
 ### 3.2 Rate, latency and size
 
 | #   | Figure                                                                                                                                                                                                                  | Sized against it                                                                                                                                              | Task  |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| 6   | Messages per second for 518 symbols at the open, at midday and at the close                                                                                                                                             | §2.2's coalescing, §2.3, 3.5, 3.6                                                                                                                             | 3.1.4 |
-| 7   | The burst shape — how tightly a minute's bars cluster after the boundary                                                                                                                                                | §2.2, and §1.10's re-render question one layer out                                                                                                            | 3.1.4 |
-| 8   | **p50/p95 gap between a bar's `t` and its arrival**                                                                                                                                                                     | `PRODUCT_SPEC.md` §28's _event → application state <250 ms p95_, which **excludes upstream latency** and which nothing has ever measured the upstream half of | 3.1.4 |
-| 9   | Bytes per second on the socket during a session                                                                                                                                                                         | §2.8's cost, 3.11's envelope                                                                                                                                  | 3.1.4 |
+| 6   | ~~Messages per second for 518 symbols at the open, at midday and at the close~~ **STRUCK 2026-09-16 — §7.5: open p50 9 / p95 419, midday p50 2 / p95 12, close p50 11 / p95 57**                                        | §2.2's coalescing, §2.3, 3.5, 3.6                                                                                                                             | 3.1.4 |
+| 7   | ~~The burst shape~~ **STRUCK 2026-09-16 — §7.4: a minute's bars land within 243 ms p50 / 511 ms p95**                                                                                                                   | §2.2, and §1.10's re-render question one layer out                                                                                                            | 3.1.4 |
+| 8   | ~~**p50/p95 gap between a bar's `t` and its arrival**~~ **STRUCK 2026-09-16 — §7.4: 491 ms p50 / 684 ms p95 raw, 708 / 901 corrected, against `t + 60s`. An upper bound from Asia/Singapore**                           | `PRODUCT_SPEC.md` §28's _event → application state <250 ms p95_, which **excludes upstream latency** and which nothing has ever measured the upstream half of | 3.1.4 |
+| 9   | ~~Bytes per second on the socket during a session~~ **STRUCK 2026-09-16 — §7.5: 6,838 B/s mean at the open, 977 at midday, against ADR 0011's 1,000 B/s**                                                               | §2.8's cost, 3.11's envelope                                                                                                                                  | 3.1.4 |
 | 10  | ~~Bytes per second on the socket **outside** a session~~ **STRUCK 2026-09-15 — §6.4: 0 payload bytes in 721 s, ≈0.15 B/s counting the control frames' own headers, against a 1,000 B/s threshold**                      | §2.8's whole question; the 1,000 B/s idle-rate condition                                                                                                      | 3.1.3 |
 | 11  | ~~Connect + authenticate + subscribe latency for 518 symbols~~ **STRUCK 2026-09-15 — §4.3: 1,312–1,537 ms, 518/518 accepted, and read it as an envelope rather than a budget until it is re-taken from the deployment** | 3.2's startup, 3.10's reconnection budget                                                                                                                     | 3.1.2 |
 
@@ -664,24 +672,33 @@ latency, and **nothing in this repository knows where the provider ends.** Until
 that gap is measured, any claim that the target is met is a claim about a
 denominator nobody has. It is the single most consequential number on this list.
 
+**Answered 2026-09-16 (§7.4), and the answer is uncomfortable.** The provider's
+share is **901 ms p95 corrected** — which is **more than triple §28's entire
+250 ms budget, before our own code has run at all**. That figure is an upper
+bound from Asia/Singapore over a round trip the production path does not have,
+so it does not yet falsify §28; what it does is make §28 **unevaluable** until
+the same measurement is taken from `eastus2`. **Story 3.11 owns the re-measure,
+its condition is the first real socket in the deployed backend, and no story
+before it may quote 901 ms as _the_ number.**
+
 ### 3.3 Coverage, and whether the feed looks broken
 
-| #   | Figure                                                                                                                                                                                        | Sized against it                                                | Task  |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ----- |
-| 12  | **Real live IEX per-minute coverage, thin names included.** `ALPACA.md` §5.2's 82.8% / 43.1% was measured on **stored** IEX history; the live stream is the case that figure was always about | §2.1, §2.5, 3.6's 518 rows, 3.7's chart, 3.10's honest sentence | 3.1.4 |
-| 13  | Whether the universe's thinnest names produce a bar in a session at all                                                                                                                       | Whether a bar-only feed reads as quiet or as broken             | 3.1.4 |
+| #   | Figure                                                                                                                                                         | Sized against it                                                | Task  |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ----- |
+| 12  | ~~**Real live IEX per-minute coverage**~~ **STRUCK 2026-09-16 — §7.6: 321 of 518 symbols p50 in a given minute; 65.1% median per-symbol against 82.8% stored** | §2.1, §2.5, 3.6's 518 rows, 3.7's chart, 3.10's honest sentence | 3.1.4 |
+| 13  | ~~Whether the universe's thinnest names produce a bar in a session at all~~ **STRUCK 2026-09-16 — §7.6: all 518 did. Worst is `ERIE` at 2.1%**                 | Whether a bar-only feed reads as quiet or as broken             | 3.1.4 |
 
 ### 3.4 Silence, and being unhappy
 
-| #   | Figure                                                                                                                                                                                                                                                                        | Sized against it                                                             | Task         |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------ |
-| 14  | What the socket says pre-market, after hours, overnight, at a weekend and on a holiday. **PART-STRUCK 2026-09-15 — §6.2, §6.7: early pre-market is silent on nine channels; after hours `dailyBars` rebroadcasts every minute. Weekend → 3.1.9, holiday → unmeasured (§6.9)** | §2.8, §2.5, 3.10                                                             | 3.1.3        |
-| 15  | **The longest legitimate silence**, inside a session and outside one. **PART-STRUCK 2026-09-15 — §6.6: outside a session it is ≥76 min of data on bar channels, 60.1 s with `dailyBars` attached, and 54.85 s of ANY inbound frame. Inside a session is still 3.1.4's**       | §2.5's two numbers, directly                                                 | 3.1.3, 3.1.4 |
-| 16  | ~~Whether the server sends keepalives or pings, and at what interval~~ **STRUCK 2026-09-15 — §6.3: a server-initiated WebSocket ping every 53.96–54.85 s, on a socket subscribed to nothing and on one subscribed to all 518**                                                | 3.2's liveness detection; §2.5's disconnected threshold                      | 3.1.3        |
-| 17  | The duplicate-connection frame and code, verbatim — the free plan allows **one**                                                                                                                                                                                              | 3.2, and every developer running `pnpm dev` against a live deployment (§1.6) | 3.1.5        |
-| 18  | The bad-credential frame and code, verbatim                                                                                                                                                                                                                                   | 3.2's error mapping                                                          | 3.1.5        |
-| 19  | What a server-side close looks like, and whether an idle connection is closed at all                                                                                                                                                                                          | 3.10's reconnection                                                          | 3.1.5        |
-| 20  | **Whether a resubscribe replays missed bars** — almost certainly not, and _almost certainly_ is not a measurement                                                                                                                                                             | 3.10's gap-filling, which is a different story if the answer is yes          | 3.1.5        |
+| #   | Figure                                                                                                                                                                                                                                                                            | Sized against it                                                             | Task         |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------ |
+| 14  | What the socket says pre-market, after hours, overnight, at a weekend and on a holiday. **PART-STRUCK 2026-09-15 — §6.2, §6.7: early pre-market is silent on nine channels; after hours `dailyBars` rebroadcasts every minute. Weekend → 3.1.9, holiday → unmeasured (§6.9)**     | §2.8, §2.5, 3.10                                                             | 3.1.3        |
+| 15  | ~~**The longest legitimate silence**, inside a session and outside one~~ **STRUCK 2026-09-16 — §6.6 outside (≥76 min on bar channels, 60.1 s with `dailyBars`, 54.85 s of any frame) and §7.9 inside (8.6 s of any frame; 54.0 s across the whole hold, which is the heartbeat)** | §2.5's two numbers, directly                                                 | 3.1.3, 3.1.4 |
+| 16  | ~~Whether the server sends keepalives or pings, and at what interval~~ **STRUCK 2026-09-15 — §6.3: a server-initiated WebSocket ping every 53.96–54.85 s, on a socket subscribed to nothing and on one subscribed to all 518**                                                    | 3.2's liveness detection; §2.5's disconnected threshold                      | 3.1.3        |
+| 17  | The duplicate-connection frame and code, verbatim — the free plan allows **one**                                                                                                                                                                                                  | 3.2, and every developer running `pnpm dev` against a live deployment (§1.6) | 3.1.5        |
+| 18  | The bad-credential frame and code, verbatim                                                                                                                                                                                                                                       | 3.2's error mapping                                                          | 3.1.5        |
+| 19  | What a server-side close looks like, and whether an idle connection is closed at all                                                                                                                                                                                              | 3.10's reconnection                                                          | 3.1.5        |
+| 20  | **Whether a resubscribe replays missed bars** — almost certainly not, and _almost certainly_ is not a measurement                                                                                                                                                                 | 3.10's gap-filling, which is a different story if the answer is yes          | 3.1.5        |
 
 **Why these are captured verbatim rather than mapped from documentation.**
 `ALPACA.md` §9b records three things a documentation-based mapping got wrong on
@@ -1104,6 +1121,33 @@ its capture **incrementally every 60 s** so an interrupted hold still yields the
 window it got, and `analyse-window.mjs`, which prints a capture's numbers and
 concludes nothing.
 
+**Task 3.1.4 added four more** (2026-09-16): `session.mjs`, one connection held
+across a whole trading day with a scheduler that waits for the **next**
+occurrence of a market time rather than a number of seconds into its own day;
+`analyse-session.mjs`, which prints every figure §7 needs and concludes nothing;
+`historical-control.mjs`, the HTTP refetch that makes §7.3 a control rather than
+an assertion; and `supervise-session.sh`.
+
+**The supervisor is the one worth explaining, because it exists for a failure
+this document has now recorded three times.** §6.4's silent death took Task
+3.1.3's open boundary; it took Task 3.1.4's first attempt at 08:38:41 on
+2026-09-16 after twenty-two minutes; and a hold that dies is not recoverable by
+an instrument that is designed, correctly, to stop when it does. The supervisor
+relaunches `session.mjs` whenever a segment ends before the window closes, backs
+off, and **refuses to race a capture that is already holding the socket** — the
+free plan allows one, and a supervisor that raced would be the duplicate §5's
+own note warns about. It does not touch the instrument: the watchdog still bounds
+every segment at its last inbound instant, and each segment is its own capture
+with its own header.
+
+**It was never needed on the day it was written** — the second hold ran the full
+7.77 hours — and that is not an argument against it. **A rate figure must not be
+taken across a seam**, because each relaunch re-subscribes 518 symbols and has
+its own first-frame latency; `finish.sh` prints the segment count at the head of
+its report for that reason, and became segment-aware in the same change after it
+was found to read only the **newest** capture file, which is right for one file
+and silently a fifth of a measurement once there are seams.
+
 **And it added a watchdog, after §6.4.** `harness.mjs` records the instant of
 every inbound frame and exposes `silentForMs()`; a hold ends, names the last
 live instant and marks its capture `endedOnWatchdog` when nothing of any kind
@@ -1496,11 +1540,369 @@ intention.
   driven by the trading calendar** — Story 3.2 if §2.8 settles on alternative 2
   or 3, otherwise Story 3.10, whose degraded states are the only surface a wrong
   half-day answer reaches.
-- **Everything about a session.** The rate, the burst shape, the arrival gap,
-  what a bar's `t` marks on the stream, and real IEX coverage are figures 6, 7,
-  8, 12 and 13, all Task 3.1.4's. **Nothing in this section bounds any of them.**
-  A socket that is silent out of hours has said nothing whatsoever about what it
-  does at 09:30:00.
+- ~~**Everything about a session.**~~ The rate, the burst shape, the arrival
+  gap, what a bar's `t` marks on the stream, and real IEX coverage are figures 6,
+  7, 8, 12 and 13, all Task 3.1.4's. **Nothing in this section bounds any of
+  them.** A socket that is silent out of hours has said nothing whatsoever about
+  what it does at 09:30:00. **Taken 2026-09-16 — §7.** The sentence is left
+  standing because it was the right thing to say at the time and is the reason
+  §7 exists; what changed is that §7 now bounds all five.
+
+---
+
+## 7. What the socket says during a session (2026-09-16, Task 3.1.4)
+
+**A minute bar arrives about half a second after the minute it describes has
+ended, and roughly 320 of 518 symbols produce one in any given minute.** Those
+two sentences are the story: the provider is fast and the feed is thin, and
+every later decision in this epic is a consequence of one or the other.
+
+Taken on **Wednesday 2026-09-16**, a full regular session, with the harness of
+§5 against `wss://stream.data.alpaca.markets/v2/iex` on the free plan. One
+connection, held **08:43:44 → 16:30:03 ET — 7.77 hours, 150,334 frames**, ended
+because the window closed rather than because the watchdog fired.
+
+**n=1, and it is a Wednesday in September.** Every rate figure below is one
+sample of one day. A later story quoting any of them as a constant is quoting a
+Wednesday. The shapes — that the open is burstier than midday, that `t` opens
+the interval, that coverage is thin — are the durable part; the numbers are a
+sighting.
+
+### 7.1 The windows, and the one that is short
+
+| Window              | Market time            | Disposition                                                        |
+| ------------------- | ---------------------- | ------------------------------------------------------------------ |
+| Pre-market          | 08:43:47 – 09:30 ET    | **Short by 1h43m** of the 07:00 the task asked for — see below     |
+| The open boundary   | 09:30:00 ET            | **Clean** — figures 6, 7, and §6.5's delegated instant             |
+| The regular session | 09:30 – 16:00 ET       | **Clean** — 390 of 390 bar minutes observed                        |
+| The close boundary  | 16:00:00 ET            | **Clean** — §6.9's delegated instant                               |
+| After the bell      | 16:00 – 16:30 ET       | **Clean** — §6.9's fourth window                                   |
+| A `quotes` probe    | 09:35:04 – 09:37:04 ET | Bounded on purpose, subscribed and unsubscribed with both instants |
+
+**The pre-market window is short and the reason is not interesting: the capture
+was started late.** The first attempt connected at 08:16:59 and its socket went
+silent at 08:38:41 — the §6.4 failure again, third occurrence — so the watchdog
+ended it at 08:43:12 with 68 frames, and the hold that produced everything below
+began 35 seconds later. What is lost is 07:00–08:43, which is most of where
+liquid pre-market volume is. **The extended-hours question in §7.7 is answered;
+the pre-market _rate_ is not, and must not be quoted from this capture.**
+
+> **A trap in the analyser's own output, recorded because it would have been
+> transcribed.** `analyse-session.mjs` prints a `pre-market 07:00-09:30` row with
+> `span=9000s silentSeconds=8868 total=218`. The socket did not exist for 8,568
+> of those seconds. Read as printed it understates the pre-market rate roughly
+> threefold. This is `ALPACA.md` §11's rule — _read the numbers, not the script's
+> conclusion_ — earning its keep for the second time.
+
+### 7.2 Every message type that arrived — figures 1, 2 and 5
+
+Seven, and two of them were not asked for by name.
+
+| `T`             | Count   | Bytes      | Window            |
+| --------------- | ------- | ---------- | ----------------- |
+| `t` trade       | 165,707 | 18,850,298 | 08:44:06–16:28:08 |
+| `b` minute bar  | 129,481 | 15,252,699 | 08:43:59–16:30:00 |
+| `q` quote       | 66,204  | 8,832,316  | **120 s only**    |
+| `d` daily bar   | 4,200   | 531,629    | 09:31:00–16:30:00 |
+| `u` updated bar | 14      | 1,742      | 09:39:30–16:00:30 |
+| `subscription`  | 4       | 14,452     | acknowledgements  |
+| `success`       | 2       | 70         | connect, auth     |
+
+Plus **516 server WebSocket pings**, which is §6.3's 54 s heartbeat continuing
+unchanged inside a session.
+
+**A bar, verbatim** — figure 1, and the field set is the same for all 129,481:
+
+```json
+{
+  "T": "b",
+  "S": "CIEN",
+  "o": 347.3,
+  "h": 347.3,
+  "l": 347.3,
+  "c": 347.3,
+  "v": 50,
+  "t": "2026-09-16T12:43:00Z",
+  "n": 2,
+  "vw": 347.3
+}
+```
+
+**A trade** — figure 2:
+
+```json
+{
+  "T": "t",
+  "S": "QQQ",
+  "i": 11,
+  "x": "V",
+  "p": 707.64,
+  "s": 120,
+  "c": ["@", "T"],
+  "z": "C",
+  "t": "2026-09-16T12:44:06.259763316Z"
+}
+```
+
+**A quote** — figure 2, and the reason it was bounded: 66,204 messages and
+8.8 MB in **120 seconds for ten symbols** is 552 msg/s and 73.6 kB/s. At 518
+symbols it is not a feed this product can carry to a browser, and that is
+settled by arithmetic rather than by preference:
+
+```json
+{
+  "T": "q",
+  "S": "QQQ",
+  "bx": "V",
+  "bp": 708.02,
+  "bs": 120,
+  "ax": "V",
+  "ap": 708.35,
+  "as": 280,
+  "c": ["R"],
+  "z": "C",
+  "t": "2026-09-16T13:35:04.443139256Z"
+}
+```
+
+**Figure 5 is answered, and the answer is _absent_.** Zero of 129,481 bars
+carried `v: 0`, and zero `(symbol, t)` pairs arrived twice on `b`. A minute in
+which a symbol did not trade produces **no frame at all** — not a zero-volume
+bar, not a repeat. Story 3.7 inherits _absent_, and §2.5's staleness vocabulary
+has to distinguish _no bar_ from _no connection_ without help from the feed.
+
+### 7.3 `t` marks the START of the interval — figure 4, with a control
+
+**Agreement with `ALPACA.md` §5.3, said plainly: the stream and the HTTP API
+mark the same end of the minute, and it is the start.**
+
+Two instruments, the same minutes. `historical-control.mjs` refetched 10:00–11:00
+ET for `SPY, NVDA, AAPL, TSLA, F` over HTTP after the embargo and matched them
+against the live frames. **Every pair was identical on `o/h/l/c/v/n/vw`, unshifted**,
+and the ±1-minute shifted matches went to zero. Two of ten:
+
+```
+NVDA  live  {"T":"b","S":"NVDA","o":214.88,"h":214.895,"l":214.555,"c":214.75,"v":5184,"t":"2026-09-16T14:01:00Z","n":82,"vw":214.743662}
+NVDA  http  {"c":214.75,"h":214.895,"l":214.555,"n":82,"o":214.88,"t":"2026-09-16T14:01:00Z","v":5184,"vw":214.743662}
+```
+
+The arithmetic agrees independently: a bar stamped `14:01:00Z` arrives at
+`14:02:00.5Z`, which is only explicable if `t` opens the interval and the frame
+is emitted when it closes. **A stream that marked the END would have put every
+live bar a minute out, silently, on a chart that looked plausible** — which is
+why this was a control and not an assertion.
+
+### 7.4 The arrival gap — figure 8, the number this task exists for
+
+**The clock first.** This capture's own offset, re-taken at the top of the run
+per §4.7: **+217.165 ms**, three `sntp -t 5 time.apple.com` samples, **spread
+0.661 ms**. Not yesterday's 257 ms and not the morning's 55.3 ms — §4.7's rule
+that the offset is re-taken rather than cited has now moved by 200 ms twice in
+two days.
+
+Measured against `t + 60s`, which §7.3 establishes is the instant the minute
+actually ends:
+
+| Figure | Raw      | Corrected (+217.2 ms) |
+| ------ | -------- | --------------------- |
+| p50    | 491 ms   | **708 ms**            |
+| p95    | 684 ms   | **901 ms**            |
+| p99    | 930 ms   | 1,147 ms              |
+| min    | −106 ms  | 111 ms                |
+| max    | 1,649 ms | 1,866 ms              |
+
+n = 129,481 bars. The raw gap against `t` itself is p50 60,491 ms / p95 60,684 ms,
+which is the same figures plus the minute.
+
+> **§28's upstream boundary, in a sentence a later story can quote.** The
+> provider's share of `PRODUCT_SPEC.md` §28's _event → application state
+> <250 ms p95_ is **901 ms p95, corrected — an upper bound from Asia/Singapore**,
+> taken over a 271–311 ms round trip (§4.6) that the production path does not
+> have. **§28's budget is already exceeded by the provider alone from this
+> vantage**, and the honest reading is that §28 cannot be evaluated until the
+> same figure is taken from `eastus2`. **The re-measure is Story 3.11's, and its
+> condition is the first time a real socket runs in the deployed backend.** Do
+> not quote 901 ms as _the_ number.
+
+**The negative minimum is not an error.** `min = −106 ms` means a bar arrived
+106 ms _before_ its own minute ended by our clock, which is a statement about the
+clock rather than about causality — and it is well inside the 217 ms offset.
+
+**The burst shape — figure 7.** How tightly one minute's bars cluster after the
+boundary, n=445 minutes:
+
+| Measure                      | p50    | p95    | p99    | max      |
+| ---------------------------- | ------ | ------ | ------ | -------- |
+| spread within one bar-minute | 243 ms | 511 ms | 616 ms | 770 ms   |
+| first bar, after `t + 60s`   | 285 ms | 370 ms | 529 ms | 1,229 ms |
+| last bar, after `t + 60s`    | 536 ms | 794 ms | 986 ms | 1,649 ms |
+
+**A minute's worth of bars lands inside about half a second.** That is the
+figure §2.2's coalescing question is actually about: a browser told about each
+bar individually would receive ~320 messages in 243 ms once a minute, and §1.10's
+re-render counterfactual is asked at that rate rather than at a smooth one.
+
+### 7.5 Rate and bytes — figures 6 and 9
+
+Per-second distributions rather than averages, because the average hides exactly
+the case that sizes the payload.
+
+| Window                     | msg/s p50 | p95 | p99 | max   | B/s p50 | B/s p95 | B/s max | mean B/s |
+| -------------------------- | --------- | --- | --- | ----- | ------- | ------- | ------- | -------- |
+| **The open** 09:30–10:00   | 9         | 419 | 777 | 1,339 | 1,043   | 54,788  | 175,151 | 6,838    |
+| open, first 5 min          | 12        | 43  | 333 | 446   | 1,326   | 4,800   | 52,586  | 2,333    |
+| **Midday** 12:00–12:30     | 2         | 12  | 293 | 339   | 237     | 1,357   | 39,699  | 977      |
+| **The close** 15:30–16:00  | 11        | 57  | 459 | 725   | 1,266   | 6,484   | 85,701  | 2,796    |
+| close, last 5 min          | 32        | 104 | 589 | 725   | 3,633   | 11,849  | 85,701  | 5,651    |
+| After the bell 16:00–16:30 | 0         | 0   | 11  | 522   | 0       | 0       | 63,504  | 62       |
+
+**The p50/p95 spread is the finding, not the maximum.** At the open the median
+second carries 9 messages and the 95th carries 419 — a 47× ratio, because the
+traffic is a once-a-minute burst rather than a stream. Sizing anything on the
+mean would be sizing on a number that occurs almost never.
+
+**Against ADR 0011's 1,000 B/s idle-vCPU condition:** the open averages
+**6,838 B/s**, the close 2,796, midday 977. The condition is broken by roughly
+7× at the open and **met at midday**, which is a sharper result than "broken" and
+is the one §2.8 needs.
+
+**`dailyBars` is 1.22% of all bytes — 531,629 of 43,483,206 — and that is for
+TEN symbols, not 518.** §6.7 predicted this channel would matter at universe
+scale; this capture cannot say by how much, because it did not subscribe it
+widely. **Do not scale by 51.8.** Decision 1 may drop the channel; a blended
+figure could not be un-blended, so it is recorded apart.
+
+### 7.6 Live IEX coverage — figures 12 and 13
+
+**Every one of 518 symbols produced at least one bar. None sat still all day.**
+
+| Measure                                             | min  | p50  | p95  | p99   | max   |
+| --------------------------------------------------- | ---- | ---- | ---- | ----- | ----- |
+| symbols producing a bar in one minute (n=390)       | 242  | 321  | 437  | 507   | 513   |
+| …as a percentage of 518                             | 46.7 | 62.0 | 84.4 | 97.9  | 99.0  |
+| per-symbol minute coverage over the session (n=518) | 2.1  | 65.1 | 99.0 | 100.3 | 105.6 |
+
+**390 of 390 regular-session bar minutes were observed**, so the denominator is
+the session rather than the capture.
+
+Worst fifteen: `ERIE` 2.1%, `AIZ` 4.9%, `L` 12.1%, `NVR` 12.6%, `IEX` 12.8%,
+`GL` 13.1%, `ESS` 13.8%, `FDS` 14.6%, `CPT` 16.4%, `DVA` 16.7%, `TPL` 16.9%,
+`WST` 16.9%, `SNA` 17.9%, `BIIB` 18.5%, `GRMN` 19.0%.
+
+**Against the stored figures** (`ALPACA.md` §5.2, 82.8% median / 43.1% worst,
+measured SIP-vs-IEX on history): the live stream is **materially thinner**.
+Median per-symbol coverage is **65.1% against 82.8%**, and §5.2's worst case
+`CCI` came in at **37.9% live (148 bars) against 43.1% stored**. The two are not
+the same measurement — stored coverage is _of SIP_, this is _of minutes_ — but
+they point the same way and the live one is worse.
+
+> **Percentages above 100 are not an error and are worth understanding.** `QQQ`
+> reads 105.6% because it produced 412 bars against a 390-minute regular session:
+> the extra 22 are pre-market and after-hours bars, which §7.7 shows are
+> indistinguishable from session bars. The arithmetic is the extended-hours tail
+> made visible.
+
+**What this decides.** Story 3.6's table of 518 rows will have **roughly 320
+moving in any given minute and about 200 sitting still**, with the composition
+changing minute to minute. That is a product problem with a product answer, not
+a bug — and §2.5's staleness vocabulary is the surface that answers it.
+
+### 7.7 Pre-market bars arrive, and nothing on the frame says so
+
+**37 pre-market bar minutes were observed, and they carry the identical field
+set to a regular-session bar** — one field set across all 129,481 frames
+(§7.2). There is no flag, no session marker, no `z` distinction.
+
+- first pre-market bar: `t=08:43` ET, arrived 08:43:59, `CIEN`
+- last pre-market bar: `t=09:28` ET, arrived 09:29:00, `AVGO`
+- first after-hours bar: `t=16:00` ET, arrived 16:01:00, `QQQ`
+- last after-hours bar: `t=16:29` ET, arrived 16:30:00, `GS`
+
+**This is a product decision and it is not taken here** — see §7.11.
+
+### 7.8 A bar can be revised after it is delivered — new, and not on the register
+
+**Not a figure anybody listed, found by reading the frames.** The `u`
+(`updatedBars`) channel was subscribed for the ten narrow names and delivered
+**14 frames, every one of which changed the bar it restated**, at a strikingly
+consistent **+28.6 to +29.8 seconds** after the original `b`.
+
+| Symbol      | Bar `t` (UTC) | Lag   | What changed                                 |
+| ----------- | ------------- | ----- | -------------------------------------------- |
+| SPY         | 13:44:00      | 29.8s | **`c` 758.85 → 758.81**, `v` 6688 → 6788     |
+| META        | 13:49:00      | 29.6s | **`c` 676.96 → 677.20**, `h` 677.13 → 677.20 |
+| TSLA        | 19:59:00      | 29.0s | **`c` 358.07 → 358.13**, `v` 17877 → 17977   |
+| (11 others) | —             | ~29s  | `v` and `n` only                             |
+
+**Three of fourteen changed the close price.** The rest added late-reported
+volume. The rate is **0.36%** of the 3,855 `b` frames those ten symbols produced.
+
+**Why this matters more than 0.36% suggests.** A "last price" taken from a `b`
+frame is provisional for about thirty seconds, and a chart that never subscribes
+`u` is permanently a few cents wrong on roughly one bar in three hundred — with
+no way to know which. Story 3.10's gap-filling treats a missing bar as a gap;
+**a revised bar is not a gap and would not be caught by any of it**. Whether the
+product subscribes `u` at universe scale is §7.11's second open decision.
+
+### 7.9 The longest silence inside a session — figure 15's other half
+
+**8.6 seconds**, between 13:07:40 and 13:07:49 ET, counting inbound frames of
+any kind across 518 bar channels plus ten trade channels.
+
+The longest gap across the **whole hold** was **54.0 seconds**, pre-market at
+08:57:17 → 08:58:11 — which is the §6.3 heartbeat and nothing else, confirming
+that the 54 s ping is the floor on silence whether or not a market is open.
+
+§6.6 gave the outside-a-session half: ≥76 min on bar channels, 60.1 s with
+`dailyBars` attached, 54.85 s of any inbound frame. **Together they size §2.5's
+two thresholds directly: inside a session, nine seconds of silence on a liquid
+feed is already unusual; sixty is not evidence of anything outside one.**
+
+### 7.10 What this session could not answer
+
+In `ALPACA.md` §10's shape — listed so the absence is not mistaken for a
+measurement.
+
+- **The pre-market rate.** The socket existed from 08:43:47, not 07:00 (§7.1).
+  The shape question is answered; the rate is not. **Re-take with a 07:00 start.**
+- **`corrections` and `cancelErrors`.** Both attach to a `trades` subscription
+  unrequested (§6.8) and neither emitted a frame. **Absence is not evidence** —
+  their shapes need a real correction or cancellation to appear at all.
+- **`statuses`.** Subscribed for ten names, no frame arrived. Same reasoning: a
+  session with no halt says nothing about what a halt looks like.
+- **Whether `u` behaves the same at 518 symbols.** Measured on ten liquid names;
+  a thin name's bar may be revised more often, less often, or not at all.
+- **Alpaca's own clock.** Unchanged from §4.7 — one-second granularity against a
+  769–1,288 ms round trip bounds nothing useful. If the vendor's bar timestamps
+  are not NTP-accurate, **no instrument in this story can tell**, and figure 8
+  carries that as residual risk rather than as a clean denominator.
+- **n=1.** One Wednesday in September. Not a Friday, not a December, not a
+  half-day, not a day with a halt in it.
+- **The vantage.** Asia/Singapore, not `eastus2`. Story 3.11's re-measure.
+
+### 7.11 Two product decisions this measurement forces, and neither is taken here
+
+Both belong beside the measurement rather than in the story that trips over
+them, and both are the owner's.
+
+**1. Do the charts show extended-hours bars?** Pre-market and after-hours bars
+arrive on `b` and are indistinguishable from session bars (§7.7). Left alone,
+every chart in Stories 3.6, 3.7 and 3.9 silently gains a thin tail before 09:30
+and after 16:00 — which is also what inflates `QQQ` past 100% in §7.6. The three
+candidates: render them (honest, but the tail is thin and jagged and the
+session-ordinal axis has no vocabulary for it); filter them by market time at
+the data layer (clean charts, and the filter is a claim the feed does not make);
+or render them marked (most honest, most work, and needs a visual vocabulary
+Story 3.4 has not built). **Epic 2's charts never met this because stored bars
+were fetched per session.**
+
+**2. Does the product subscribe `updatedBars`?** §7.8. Subscribing costs
+effectively nothing in bytes and means a bar can change under a reader ~30 s
+after it appeared; not subscribing means being quietly wrong on about one bar in
+three hundred, three times in fourteen on the close price itself. This interacts
+with §2.1's definition of a live observation and with Story 3.10's gap-filling,
+and it is the kind of decision that is very expensive to reverse once a chart
+has been built on it.
 
 ---
 
