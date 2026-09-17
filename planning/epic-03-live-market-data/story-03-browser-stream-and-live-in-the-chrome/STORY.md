@@ -164,3 +164,40 @@ that number current_.
 
 A protocol, a transport and a true `LIVE`. Story 3.4 sends the first price
 through it.
+
+---
+
+## Handed here by Task 3.1.8 — 2026-09-17, and this story can now start
+
+**All three decisions Story 3.3 consumes are settled.** [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md)
+§11: the browser protocol, the staleness numbers, and the words on screen.
+
+**The protocol (§11.1):** a **snapshot on connect, then one message per upstream
+frame**. The snapshot is the backend's current-state object serialised, and
+**absence is expressed by omission** — an entry for every security observed and
+**no entry at all** for the rest. After a restart the snapshot is `{}` and that
+is the true answer rather than a degraded one. Every entry carries its
+observation's own instant; **no `staleSeconds` on the wire**, because that is a
+clock read wearing a different name (ADR 0017).
+
+**The numbers (§11.2):** `disconnected` at **165 s** of no inbound frame of any
+kind, `stale` at **60 s** with no observation **while the market is open** —
+gated on the market clock, because out of hours the same socket is legitimately
+silent for 76 minutes. Both are measured; both name their figure.
+
+**And the thing most likely to be got wrong: a SECURITY gets no status word.**
+The gap between one security's bars has a p50 of 1 minute and a maximum of
+**187** (§11.2), so no threshold separates a quiet security from a broken one.
+A security carries **the age of its observation** and the surface renders that.
+`STALE` beside a price is a judgement this product cannot support.
+
+**The words (§11.3):** the grid is stated in full, and one row looks wrong and is
+correct — **`IEX` / `LIVE` / `CLOSED`** at 03:00. Our connection is healthy; the
+market is shut. Three regions, three facts.
+
+**One string this story owes and nobody has written:** the connection sentence
+for `live | stale | disconnected`, in a record beside `FEED_STATUSES` with the
+same `satisfies` guard `MARKET_FEED_DESCRIPTIONS` uses. §11.3 names it as
+unwritten and names this story as its owner. **Not a string in a component.**
+
+`feed-status.ts` already carries the thresholds as a dated amendment.

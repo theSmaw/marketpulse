@@ -165,3 +165,36 @@ The owner decided on 2026-09-17 that the product subscribes `updatedBars`
 (§7.11): a bar for a minute that already has one arrives about thirty seconds
 later and **changes it**. Gap-filling asks _which minutes are missing_; this is a
 minute that is present and wrong, which none of that machinery sees.
+
+---
+
+## Handed here by Task 3.1.8 — 2026-09-17
+
+**The thresholds are set and measured** ([`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §11.2):
+`disconnected` at **165 s** of no inbound frame of any kind — three missed
+heartbeats, from 53.96–54.85 s across 82 intervals — and `stale` at **60 s** with
+no observation while the market is open, which is **seven times** the longest
+in-session silence ever measured (8.6 s, §7.9).
+
+**Two things about them that are not obvious:**
+
+- **`stale` is gated on the market clock.** Out of hours the same socket is
+  legitimately silent for 76 minutes (§6.6), so an ungated 60 s rule reports a
+  healthy overnight feed as stale every minute of every night.
+- **Staleness is keyed on the observation's own timestamp, never on "a frame
+  arrived".** §6.7 measured `dailyBars` re-sending a **byte-identical** aggregate
+  every minute out of hours — a rule keyed on arrival would call that liveness.
+
+**A security gets no status word at all, and that is this story's largest
+inherited constraint.** §11.2 measured the gap between one security's bars at a
+p50 of 1 minute, a p95 of 4, and a **maximum of 187** — `ERIE` at 187, `AIZ` at
+146, against a median symbol at 4. **No threshold separates a quiet security from
+a broken one.** A security carries an age; the degraded-state vocabulary applies
+to the **feed** and only the feed.
+
+**And two sockets means two states** (§11.1): the browser's own connection is the
+browser's to observe, while the upstream feed's state arrives as a **`feed`
+message** carrying the status and the instant of the last upstream observation.
+_Our socket is fine and the market feed behind it is dead_ is a real state and
+needs a way to be said — conflating them is the defect this story exists to
+prevent.

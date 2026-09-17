@@ -1,6 +1,6 @@
 # Task 3.1.8 — Decisions 2, 5 and 6: the browser protocol, the staleness vocabulary in numbers, and what the live feed is called on screen
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-17.** Decisions 2, 5 and 6 are in [`LIVE-DATA.md`](LIVE-DATA.md) §11; §2.2, §2.5 and §2.6 are marked answered. **The headline is a measurement that removes a decision: there is no per-security staleness threshold**, because one security's inter-bar gap ranges from 1 minute to 187. `feed-status.ts` carries a dated amendment. **Story 3.3 can start.**
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
 **Depends on:** 3.1.7
 
@@ -278,6 +278,75 @@ reversal triggers, and name for each which story executes it.
 - Nothing in any of it is a string that would live in a component.
 - `pnpm verify` passes.
 
+## What was decided — 2026-09-17
+
+| Decision                 | Answer                                                                      | Trigger                                                                                                        |
+| ------------------------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 2 — the browser protocol | **Snapshot on connect, then one message per upstream frame.** No coalescing | The first message type whose rate is **not** bounded by the upstream frame rate                                |
+| 5 — staleness            | **The feed gets 165 s / 60 s. A security gets an age and no verdict**       | The first per-security **baseline** of expected inter-bar interval — which Epic 5 computes                     |
+| 6 — the words            | **The grid, in full, homed in `MARKET_FEED_DESCRIPTIONS`**                  | The first feed added to `MARKET_FEEDS` — which `replay` already is in ADR 0030 and is **not yet** in the union |
+
+### The measurement that removed a decision
+
+**The gap between one security's consecutive bars, 128,878 gaps across 518
+symbols, regular session:**
+
+|         | p50 | p90 | p95 | p99 | max       |
+| ------- | --- | --- | --- | --- | --------- |
+| Minutes | 1.0 | 3.0 | 4.0 | 9.0 | **187.0** |
+
+Per-symbol p95: the median symbol (`MSI`) is **4 minutes**; `ERIE` is **187**,
+`AIZ` **146**.
+
+**There is no threshold that works.** One sparing the median symbol must be under
+~4 minutes and marks `ERIE` and `AIZ` stale for essentially the whole session
+while they work perfectly; one sparing `ERIE` is 187 minutes and says nothing.
+**The distribution is bimodal across securities, not long-tailed**, and a single
+number cannot describe it.
+
+**So a security carries the age of its observation and no verdict.** That is
+`PROVENANCE.md`'s rule rather than a dodge: the age is a **fact** we hold, and
+`stale` is a **judgement** requiring a baseline this product does not have.
+Rendering it would be the same class of defect as a provenance record about zero
+bars.
+
+### The fourth state turned out not to need a fourth word
+
+Task 3.1.7 raised a state none of `live | stale | disconnected` can express:
+_never observed in this process's lifetime_, which every deploy produces for the
+whole universe at once. **It is an absence, not a word** — omission from the
+snapshot and a vacancy on screen, the treatment Epic 2 already built. The three
+words describe **the feed and only the feed**, so `FEED_STATUSES` stays at three
+members and the question closes without a new member.
+
+### Coalescing was measured away
+
+The instinct came from the burst — 332 bars inside 243 ms — and the burst is
+real. **But it is already coalesced upstream**: Alpaca delivers those 332 bars in
+**8.8 frames per minute** at the open, 16.1 at the close. Relaying frame for
+frame is ~16 messages a minute at worst, so a coalescing layer would save almost
+nothing and spend latency on a budget the provider has already overrun (§7.4's
+901 ms p95 against §28's 250 ms).
+
+**What the burst actually costs is applying 332 bars to a view**, which is Story
+3.6's render question rather than a transport one.
+
+### One shipped sentence was not observable
+
+`feed-status.ts` glossed `stale` as _"still connected, but the last update is
+older than it should be"_. **"Still connected" is not a thing a client can
+see** — §6.4 held `readyState === OPEN` for **4 h 21 min** on a dead socket. The
+file now carries a dated amendment with the two thresholds and the reason,
+rather than a rewrite.
+
+### And one string is specified but unshipped
+
+**`replay` is a fifth `MarketFeed` in ADR 0030 §3 and `MARKET_FEEDS` still holds
+three.** §11.3 records it as outstanding with an owner rather than letting the
+grid imply it exists. The `satisfies` guard makes adding it a compile error
+naming the missing words, which is the mechanism doing the work the grid would
+otherwise do by hand.
+
 ## Notes
 
 This is the task whose output a stranger sees first, three stories later, so the
@@ -288,3 +357,101 @@ class of defect as a provenance record about zero bars, and it is worse, because
 it is on every route.
 
 ---
+
+## What this task did, for somebody who does not read code
+
+**Short version: we settled how live prices travel to your browser, and what the
+screen is allowed to claim about them. The most useful thing we did was
+_abandon_ a feature — we had planned to mark prices as "stale", measured what
+that would take, and found there is no honest way to do it.**
+
+### The word we decided not to use
+
+The plan said the screen would label each price `live`, `stale` or
+`disconnected`. Sensible-sounding. So we measured how long a real company
+actually goes between price updates on our feed.
+
+**The typical gap is one minute. The worst is three hours.**
+
+A well-traded company updates most minutes. A quietly-traded one in our list —
+an insurance company called Erie Indemnity — went **187 minutes** between
+updates on a perfectly normal trading day, with nothing wrong anywhere. Another
+went 146.
+
+So any "this price is stale" rule has to pick a number. Pick five minutes, and
+Erie is marked broken for essentially the entire day while working perfectly.
+Pick three hours, and the label never fires for anybody and means nothing.
+**There is no number in between that helps** — the companies are not spread along
+a scale, they are in two clumps.
+
+**So we are not going to say "stale" about a price at all.** The screen will show
+_when_ the price is from — "11:42", or "4 minutes ago" — and let the reader
+decide. That is the difference between a **fact we have** and a **judgement we
+cannot support**, and this product has spent a lot of effort on that distinction
+already.
+
+**We wrote down what would change our minds**, in a way that is a condition
+rather than a wish: the day the product knows what is _normal_ for each
+individual company, "unusually quiet" becomes a claim we can actually make. That
+is not far off — a later phase of work computes exactly that kind of baseline in
+order to detect unusual activity, which is the product's whole purpose.
+
+### What the screen _can_ say
+
+The connection itself is a different matter, and there we do have honest numbers,
+because the provider sends a heartbeat every 54 seconds:
+
+- **Nothing at all for 165 seconds** — three missed heartbeats — and the feed is
+  **disconnected**.
+- **Nothing new for 60 seconds while the market is open** and it is **stale**.
+  Sixty seconds is seven times the longest silence we ever actually observed
+  during a session, so it will not cry wolf.
+
+The second one only applies **while the market is open**, and that detail is not
+fussiness. Out of hours the same connection is legitimately silent for over an
+hour — an ungated rule would declare our healthy feed broken every minute of
+every night.
+
+### How the prices actually get to you
+
+**When you open the page you get a snapshot, then updates.** Without the
+snapshot, a browser opening at 11:20 would see a **blank screen** until each
+company's next price — a minute for the busy ones, and up to three hours for the
+quiet ones. The snapshot is not a performance trick; it is what makes the first
+thing you see honest.
+
+**The snapshot simply leaves out companies we have no price for**, rather than
+sending a placeholder. After a server restart it is empty — and empty is the
+_true_ answer, not a broken one.
+
+**We also decided not to build something.** The prices arrive in a burst — about
+330 of them inside a quarter of a second, once a minute — and the obvious
+reaction is to bundle them up before forwarding. We measured it: **our provider
+has already bundled them.** Those 330 prices arrive as about nine packages, not
+330 messages. Bundling again would save almost nothing and would add delay to a
+figure that is already over budget. The real cost of that burst is the browser
+_drawing_ 330 updates at once, which is a different problem in a different piece
+of work.
+
+### One sentence in the existing code was quietly wrong
+
+Some of this vocabulary was written months ago, and its description of "stale"
+said _"still connected, but the last update is older than it should be."_
+
+**"Still connected" is not something our software can actually see.** We proved
+that the hard way: during this investigation a connection sat there looking
+perfectly healthy for **four hours and twenty-one minutes** after it had died.
+The only thing a program can truly observe is _when something last arrived_. We
+left the original text in place and added a dated correction underneath rather
+than rewriting history — that is this project's standing rule, and it is why a
+reader can still see what we used to believe.
+
+### What this unlocks
+
+**The first visible piece of live-market work can now begin.** Every decision it
+was waiting on exists: how prices travel, what the screen says, and what it is
+not allowed to claim. Three phases of planning end here.
+
+**The product remains, today, a historical explorer** — but the next piece of
+work is the one where a price moves on screen for the first time. One closing
+task remains in this planning phase, and then it is code.
