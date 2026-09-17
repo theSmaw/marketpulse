@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
-**Depends on:** 3.1.4
+**Depends on:** 3.1.4. **Also carries one measurement that is not a fault** — the `updatedBars` revision rate at 518 symbols, added 2026-09-17 as the reversal trigger on a decision already taken (`LIVE-DATA.md` §7.11). It is here because it needs a socket and not a session, which is this task's shape.
 
 ## Objective
 
@@ -127,6 +127,30 @@ close, a timeout, or nothing at all. The last is the dangerous one.
   if so how — this is the input to Story 3.2's backoff, and a backoff policy
   invented without it is a guess with a number in it.
 
+- **The `updatedBars` revision rate at 518 symbols — added 2026-09-17, and it is
+  the odd one out on this list.** Not a fault. It is here because it is the only
+  measurement left in this story that needs a socket and **not** a session, which
+  is exactly this task's shape, and because it is the **reversal trigger on a
+  decision the owner has already taken**: the product subscribes `updatedBars`
+  ([`LIVE-DATA.md`](LIVE-DATA.md) §7.11), on a revision rate of **0.36%**
+  measured in Task 3.1.4 on **ten liquid names**.
+
+  Thin names may revise more often, less often, or never, and the three answers
+  point different ways: more often makes "the feed is provisional" the honest
+  description and reopens the display question Story 3.4 is about to design
+  against; never means the correction channel is a liquid-name phenomenon and
+  Story 3.6's 518 rows mostly do not need it. **Subscribe `updatedBars` for the
+  whole universe alongside the bar channels for one session-length window** —
+  the channel cost 1,742 bytes across a whole session for ten symbols, so width
+  is affordable here in a way `quotes` was not — and record the per-symbol
+  revision rate, what fraction change the close rather than only volume, and the
+  lag distribution against Task 3.1.4's +28.6–29.8 s.
+
+  **It needs a live session to produce a revision at all**, which is the one
+  thing this task otherwise does not need. If the calendar does not give one
+  inside this task's window, **hand it to Task 3.1.9 rather than dropping it** —
+  and say so, because a trigger nobody owns is a trigger that never fires.
+
 Write the taxonomy into `LIVE-DATA.md` as a table: the fault, how it was
 produced, the verbatim frame or code, how our side learns of it, and the time to
 detection. Add a short section naming **which faults are silent**, because those
@@ -143,6 +167,12 @@ are the ones that need a timer rather than a handler.
 - The subscription-across-reconnect and the missed-bars questions are answered
   with frames, and their consequences are named against Story 3.5 and
   Story 3.10 by name.
+- **The `updatedBars` revision rate is measured at 518 symbols**, or handed to
+  Task 3.1.9 by name with the reason. Where it is measured, the answer is
+  compared explicitly against Task 3.1.4's 0.36% on ten names, and
+  [`LIVE-DATA.md`](LIVE-DATA.md) §7.11's reversal trigger is stated as fired or
+  not fired — **said plainly, because a trigger that is quietly not evaluated is
+  a decision nobody revisited.**
 - `pnpm verify` passes. No credential written, and every capture swept.
 
 ## Notes

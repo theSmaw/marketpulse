@@ -1936,6 +1936,16 @@ measurement.
 > revision rate at universe scale is materially above the 0.36% measured on ten
 > liquid names — at which point "rare correction" becomes "the feed is
 > provisional", and the display decision is a different one.
+>
+> **And the trigger has an owner, added 2026-09-17:
+> [Task 3.1.5](TASK-05-what-the-socket-does-when-it-is-unhappy.md)**, which
+> subscribes `updatedBars` for the whole universe for one session-length window
+> and states the trigger as fired or not fired. It is on that task rather than
+> this one because it needs a socket and **not** a session, which is 3.1.5's
+> shape — and if the calendar denies it a session, 3.1.5 hands it to Task 3.1.9
+> by name rather than dropping it. **A trigger nobody owns is a trigger that
+> never fires**, which this repository has recorded happening to the fourth
+> design test seven times over.
 
 Both belong beside the measurement rather than in the story that trips over
 them, and both are the owner's.
