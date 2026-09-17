@@ -147,3 +147,21 @@ certainly may not.
 
 An epic whose feature work is complete, and a set of states Epic 4's overview
 and Epic 5's scores inherit rather than re-invent.
+
+---
+
+## Handed here by Task 3.1.4 — 2026-09-17
+
+**The silence thresholds are measured, both halves** ([`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md)
+§7.9 and §6.6). Inside a session the longest silence of any inbound frame across
+518 bar channels was **8.6 seconds**; outside one it is 54.85 s of any frame,
+60.1 s with `dailyBars` attached, and ≥76 minutes on bar channels alone. **Nine
+seconds of silence inside a session is already unusual; sixty outside one is
+evidence of nothing.** The server's ping is every 54 s in both cases, so it is
+the floor on silence and the only thing that distinguishes quiet from dead.
+
+**A revised bar is not a gap, and this story's gap-filling would not catch it.**
+The owner decided on 2026-09-17 that the product subscribes `updatedBars`
+(§7.11): a bar for a minute that already has one arrives about thirty seconds
+later and **changes it**. Gap-filling asks _which minutes are missing_; this is a
+minute that is present and wrong, which none of that machinery sees.

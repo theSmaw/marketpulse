@@ -198,3 +198,24 @@ that Story 3.3's screen has something true to render.
 ## What this story hands forward
 
 A live feed inside the process, and the state Story 3.3 puts in the chrome.
+
+---
+
+## Handed here by Task 3.1.4 — 2026-09-17
+
+**The client must handle `u` (`updatedBars`), and it is not an optional
+channel.** The owner decided on 2026-09-17 that the product subscribes it
+([`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §7.11). A bar arrives, and roughly thirty seconds
+later a **corrected bar for the same minute** may arrive on `u` — measured at
+0.36% of bars on ten liquid names, with **every one of the fourteen changing
+something** and three changing the close price.
+
+So the seam's normalisation has a case it did not have: **a `Bar` for a
+`(symbol, minute)` that already exists is a replacement, not a duplicate.** A
+client that maps `u` to the same shape as `b` and appends will produce two bars
+for one minute; one that ignores `u` will be quietly wrong for ever. Neither is
+what was decided.
+
+**`t` marks the START of the interval on the stream** — confirmed with an HTTP
+control in §7.3, agreeing with `ALPACA.md` §5.3. The state machine's frames are
+in §4.1–§4.2 and the 54 s heartbeat in §6.3.
