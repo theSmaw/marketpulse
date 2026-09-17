@@ -117,6 +117,38 @@ epic builds in from the start. Say that plainly when reporting the close.
 > that designs a resubscription protocol is designing for a problem this epic
 > does not have.
 
+> **Added 2026-09-17 by Task 3.1.8 — decision 7 gains two more points, and
+> decision 8 gains a second audience.**
+>
+> **Decision 7: the walk now has three facts, not one, and all three point the
+> same way.** §10.3 gave it one writer and many readers. [`LIVE-DATA.md`](LIVE-DATA.md)
+> §11.1 adds a second — the browser protocol is **a snapshot then deltas**, so on
+> the frontend there is exactly **one message handler** applying everything, which
+> is one writer again rather than two surfaces racing. And §11.2 adds a third:
+> a security's **age is derived** from its instant and the reader's own clock, so
+> it is not state at all and cannot be state two features disagree about.
+>
+> **Walk it anyway and record the outcome either way** — this task's own rule —
+> but the honest expectation is now _no store_, and the walk should say so
+> plainly rather than arriving there apologetically.
+>
+> **Decision 8 has a second audience it did not have.** The task asks how the
+> socket's state is _observable to an operator_. §11.1 makes it observable to a
+> **user** as well: the upstream feed's state travels to browsers as a **`feed`
+> message**, and §11.2 gives it concrete numbers — `disconnected` at **165 s**,
+> `stale` at **60 s** while the market is open. So decision 8 settles one state
+> with two renderings, not two states, and _our socket is fine and the market
+> feed behind it is dead_ has to be sayable in both.
+>
+> **And the sweep has one specified-but-unbuilt item to confirm rather than
+> find.** §11.3: `replay` is a `ProviderId` **and** a `MarketFeed` in ADR 0030
+> §3, and neither union holds it — `PROVIDER_IDS` is `["fixture", "alpaca"]`,
+> `MARKET_FEEDS` is `["iex", "sip", "synthetic"]`, and no replay provider exists
+> in `apps/backend/src/`. **Owner: Story 3.2**, which builds the replay stream.
+> That is the correct state for an ADR whose implementer is a story ahead; the
+> sweep's job is to confirm the owner is still named rather than to raise it as
+> new.
+
 **Decision 7 — whether the frontend gains a store.** Answer it with the
 condition in hand. The question is not _will this epic be annoying without one_;
 it is **does a trigger fire**. Walk the three explicitly against what

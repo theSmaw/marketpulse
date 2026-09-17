@@ -2780,12 +2780,12 @@ becoming false the first time an IEX tail is stitched on.
 
 **Every string's home, and none of them is a component:**
 
-| String                          | Home                                                                     | State                                                                                                                                        |
-| ------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| The feed words and sentences    | `MARKET_FEED_DESCRIPTIONS` in `packages/shared/src/market-provenance.ts` | Shipped for `iex`, `sip`, `synthetic`                                                                                                        |
-| **`replay`'s words**            | The same record                                                          | **Specified in ADR 0030 §3, NOT yet in `MARKET_FEEDS`** — the union still holds three. Owner: whichever story implements the replay provider |
-| `live \| stale \| disconnected` | `FEED_STATUSES` in `packages/shared/src/feed-status.ts`                  | Shipped, and amended by this task — see below                                                                                                |
-| The connection sentence         | A new record beside `FEED_STATUSES`, same `satisfies` guard              | **Unwritten.** Story 3.3                                                                                                                     |
+| String                          | Home                                                                     | State                                                                                                                                                                                                           |
+| ------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The feed words and sentences    | `MARKET_FEED_DESCRIPTIONS` in `packages/shared/src/market-provenance.ts` | Shipped for `iex`, `sip`, `synthetic`                                                                                                                                                                           |
+| **`replay`'s words**            | The same record                                                          | **Specified in ADR 0030 §3, NOT yet in `MARKET_FEEDS`** — the union still holds three, and `PROVIDER_IDS` still holds two. **Owner: Story 3.2**, which builds the replay stream and therefore adds both members |
+| `live \| stale \| disconnected` | `FEED_STATUSES` in `packages/shared/src/feed-status.ts`                  | Shipped, and amended by this task — see below                                                                                                                                                                   |
+| The connection sentence         | A new record beside `FEED_STATUSES`, same `satisfies` guard              | **Unwritten.** Story 3.3                                                                                                                                                                                        |
 
 **`feed-status.ts` gets a dated amendment rather than a rewrite**, per the ADR
 rule, because one of its sentences is not observable. Its doc glosses `stale` as
@@ -2794,6 +2794,14 @@ connected" is not a thing a client can see**: §6.4 held `readyState === OPEN` f
 **4 h 21 min** on a socket that had died. The only observable is _when the last
 inbound frame arrived_.
 
+> **ADR 0030 is decision-only, and that was checked rather than assumed.**
+> `PROVIDER_IDS` is `["fixture", "alpaca"]`, `MARKET_FEEDS` is
+> `["iex", "sip", "synthetic"]`, there is no replay provider in
+> `apps/backend/src/`, and `config.ts` has never heard of it. So the fifth cell
+> in the grid above is **specified and unbuilt** — which is the correct state
+> for an ADR whose implementer is a story ahead, and is recorded as such rather
+> than left for a reader to discover the union is short.
+>
 > **Reversal trigger for the grid, as a condition:** the first feed added to
 > `MARKET_FEEDS` — which `replay` already is in ADR 0030 and is not yet in the
 > union. The `satisfies` guard makes that a compile error rather than a missing
