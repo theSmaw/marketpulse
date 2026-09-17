@@ -215,3 +215,41 @@ minute's bars land within **243 ms p50 / 511 ms p95** (§7.4) — about 320 symb
 in a quarter of a second, once a minute — rather than as a smooth stream. Motion
 designed against a smooth arrival will be designed against a case that does not
 occur.
+
+---
+
+## Handed here by Task 3.1.7 — 2026-09-17, and it is one sentence to design against
+
+**A live price is at most about a minute old for a liquid security, may
+legitimately be hours old for a thin one, and both of those are the feed working
+correctly.** [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §10.1, and both halves are measured.
+
+A bar arrives ~**0.5 s after its minute closes** (§7.4), so a security that
+trades every minute has a ceiling of a minute. But IEX coverage is **65.1% of
+minutes for a median symbol and 2.1% for `ERIE`** (§7.6), and a quiet minute
+produces **no frame at all** rather than a zero-volume bar (§7.2).
+
+**What that means for this story is the thing most likely to be got wrong: a
+number here ticks ONCE A MINUTE or less, never continuously.** There is no
+intra-minute movement on any screen in this epic — trades cannot reach 518
+symbols at all (§1.4's 30-symbol cap) and are not delivered by any story in it.
+**A motion vocabulary designed against a streaming tape will look correct in a
+mock and dead in production**, and the honest version has to make a once-a-minute
+step feel alive rather than animating a continuum that does not exist.
+
+**And this story owes two marks it did not originally owe**, both from §7.11:
+
+- **An extended-hours mark.** Pre-market and after-hours bars are rendered and
+  marked rather than filtered, and nothing on the frame distinguishes them
+  (§7.7) — so the mark is entirely ours to invent, and Stories 3.6, 3.7 and 3.9
+  consume it.
+- **A treatment for _this corrected_ that is not the treatment for _this
+  moved_.** The product subscribes `updatedBars`, so a displayed number can be
+  replaced ~30 s later by a corrected one for the same minute (§7.8). **A
+  correction is not a price movement** and must not borrow motion that says it
+  is — three of fourteen corrections changed the close price, which under a
+  "price moved" animation would read as a real tick that never happened.
+
+**Plus the burst shape, which is the rate this story is actually designing
+against**: about **332 bars land inside 243 ms**, once a minute (§7.4) — not a
+smooth arrival.

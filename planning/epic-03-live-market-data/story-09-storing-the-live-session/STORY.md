@@ -150,3 +150,31 @@ for one minute. `market_bars` has a uniqueness decision to take that Epic 2
 never needed, because a backfilled historical bar is final and a live one is not
 — and `observed_at` versus `recorded_at` is the pair that already exists to
 express it.
+
+---
+
+## Handed here by Task 3.1.7 — 2026-09-17, and this is the other half of a decision
+
+**Decision 4 and this story's scope are one decision seen twice, and the first
+half is now taken.** [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §10.3: the backend holds **only the
+last bar per security** in memory — 0.2 MB — and **not** today's bars, which were
+measured at **55.6 MB**, 10.9% of the replica's entire memory.
+
+**So this story is obliged to store the live session durably.** Story 3.7's chart
+needs today's bars; §10.3 declines to hold them in memory precisely because this
+story is about to hold them in the store, and the read path already exists —
+Epic 2 built `GET /market-data/bars` and a read-time stitch of stored bars with a
+live tail (§1.11). **If this story's scope narrows, §10.3 has to be re-taken**,
+because between them they are the only two places today's bars could live.
+
+**And §7.11's `updatedBars` decision reaches the schema directly.** A bar written
+for a `(symbol, minute)` may be **superseded about thirty seconds later** by a
+corrected one — measured at 0.36% of bars, with three of fourteen changing the
+close price (§7.8). An insert-only path produces two rows for one minute.
+`market_bars` needs a uniqueness decision Epic 2 never required, because a
+backfilled historical bar is final and a live one is not; `observed_at` versus
+`recorded_at` is the pair that already exists to express it.
+
+**Extended-hours bars are kept**, per §7.11: they arrive on the same channel with
+nothing distinguishing them (§7.7), and a store that filtered them by market time
+would be discarding real data on a boundary the feed does not assert.

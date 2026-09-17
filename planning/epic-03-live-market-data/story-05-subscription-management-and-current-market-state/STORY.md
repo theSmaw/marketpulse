@@ -132,3 +132,38 @@ idle or not.
 
 The model Epic 4's overview and Epic 5's scores read, and the capacity Story 3.6
 spends.
+
+---
+
+## Handed here by Task 3.1.7 — 2026-09-17, and this story got smaller
+
+**For bars, there is almost nothing to manage.** [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §10.2:
+a browser subscribes to the **whole universe, implicitly, naming no symbols**, so
+the upstream subscription is a **constant** — always the same 518. There is no
+diffing, no incremental subscribe, no unsubscribe path.
+
+§8.7 measured that the server remembers nothing across a reconnect, so the set is
+ours to re-assert — and re-asserting a constant reduces the reconciliation this
+story owed to **one check after each reconnect: does the `bars` key hold 518
+entries?** §6.8's warning still applies to that check and only to it: the
+acknowledgement carries channels nobody asked for, so reconcile **per channel we
+care about** rather than diffing the whole thing.
+
+**What this story does manage is the other two things in its title.** The browser
+fan-out — one upstream stream, N browsers, no interaction between them — and the
+**current market state object**, which §10.3 settles: a `Map<symbol, Bar>` of the
+latest observation per security, **0.2 MB measured**, one writer (the socket) and
+many readers.
+
+**Three readers are outside this epic** — Epic 4's overview, Epic 5's anomaly
+scores and Epic 7's analytical tools all want _the latest observation per
+security_ and none of them wants to open a socket. That is why the object exists
+at all.
+
+**Two properties of it that are easy to get wrong**, both in §10.3: after a
+restart the map is **legitimately empty** and refills unevenly — within a minute
+for a liquid name, possibly hours for `ERIE` — so _no current observation for this
+symbol_ is an ordinary answer rather than an error. And it is **not cleared on a
+session boundary**: at 09:31 on Monday it still holds Friday's bars, which is
+correct, and is only safe because every entry carries its own `startsAt` and no
+reader may render a price without reading it.

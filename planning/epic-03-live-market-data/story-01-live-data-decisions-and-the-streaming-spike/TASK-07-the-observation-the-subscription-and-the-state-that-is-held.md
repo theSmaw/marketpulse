@@ -1,6 +1,6 @@
 # Task 3.1.7 — Decisions 1, 3 and 4: what a live observation is, what is subscribed, and what is held
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-17.** Decisions 1, 3 and 4 are in [`LIVE-DATA.md`](LIVE-DATA.md) §10, each with alternatives, the measurement behind it and a condition-shaped reversal trigger. §2.1, §2.3 and §2.4 are marked answered. **The memory arithmetic was measured rather than estimated: 0.2 MB against 55.6 MB.**
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
 **Depends on:** 3.1.6
 
@@ -172,6 +172,78 @@ attached (ADR 0017 — `packages/shared` may not read the wall clock).
   session lifecycle, with the 518 × 390 arithmetic shown.
 - `pnpm verify` passes.
 
+## What was decided — 2026-09-17
+
+**A live observation is a minute bar; a browser is subscribed to all 518 of
+them; and what the backend holds is the last one per security.** All three are in
+[`LIVE-DATA.md`](LIVE-DATA.md) §10.
+
+| Decision                         | Answer                                                   | Trigger                                                                                 |
+| -------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| 1 — what a live observation is   | **A minute bar**, 518, nothing else on the live path     | The first surface needing **intra-minute** movement for one security                    |
+| 3 — what a browser subscribes to | **The whole universe, implicitly** — it names no symbols | The first browser surface receiving something **no other browser receives**             |
+| 4 — where current state lives    | **Last bar per security**, 0.2 MB, one writer            | The first reader needing more than the latest bar that **cannot** get it from the store |
+
+### The sentence Stories 3.4 and 3.10 were owed
+
+> **A live price is at most about a minute old for a liquid security, may
+> legitimately be hours old for a thin one, and both of those are the feed
+> working correctly.**
+
+Both halves measured: a bar arrives ~0.5 s after its minute closes (§7.4), and
+IEX coverage is 65.1% of minutes for a median symbol and **2.1% for `ERIE`**
+(§7.6). **What the product loses, plainly: a number ticks once a minute or less,
+never continuously.** A motion vocabulary designed against a streaming tape will
+look correct in a mock and dead in production.
+
+### Three questions that dissolved rather than being answered
+
+Decision 3 was written to ask what happens when a browser asks for something
+outside the universe, when a second browser asks for the same thing, and when one
+asks for nothing. **A browser that names no symbols cannot ask for the wrong
+one.** §4.4's two measured traps — Alpaca **accepts** a symbol that does not
+exist, and an empty list is a `400` — are hazards for a _dynamic_ subscription,
+and this is not one. Both come back the day any per-symbol channel exists, and
+§10.2 says so rather than letting them look retired.
+
+**The largest simplification in the epic falls out of it:** the upstream
+subscription is a **constant**. §8.7 measured that the server remembers nothing
+across a reconnect, so the set is ours to re-assert — and what we re-assert is
+always the same 518. Reconciliation reduces to _does the `bars` key hold 518
+entries?_
+
+### The memory arithmetic, measured
+
+| Object                                | Bars    | Heap        | Per bar |
+| ------------------------------------- | ------- | ----------- | ------- |
+| Last bar per security (518 × 1)       | 518     | **0.2 MB**  | 420 B   |
+| Today's bars per security (518 × 390) | 202,020 | **55.6 MB** | 288 B   |
+
+Against a **512 MB** replica, today's bars would be **10.9% of the whole
+replica** to hold something Story 3.9 is about to store durably. That is the
+argument rather than the raw size — and it **obliges Story 3.9** to store the
+live session, because between them they are the only two places today's bars
+could live.
+
+### Two properties of the state object that are easy to get wrong
+
+- **After a restart it is legitimately empty** and refills unevenly — a minute
+  for a liquid name, possibly hours for `ERIE`. _No current observation for this
+  symbol_ is an ordinary answer, the same shape §7.2 established for a quiet
+  minute. A reader that renders absence as an error will render it constantly.
+- **It is not cleared on a session boundary.** At 09:31 on Monday it still holds
+  Friday's bars, which is correct — clearing would replace a true-but-old answer
+  with no answer. It is only safe because **every entry carries its own
+  `startsAt` and no reader may render a price without reading it**.
+
+### One thing checked rather than assumed
+
+Story 3.8 is **"The Tape on the Bar"** and sounds like the trade tape. It is not
+— it is a **tape column** on `market_bars`, a schema change for SIP-versus-IEX
+provenance. **So no story in Epic 3 delivers trades at all**, and §10.1 records
+that rather than letting a later reader find the title in the roadmap and
+conclude the option was covered.
+
 ## Notes
 
 The failure mode here is deciding 1 in a sentence because the cap makes it
@@ -181,3 +253,106 @@ product consequence is not, and it is the consequence that later stories
 consume.
 
 ---
+
+## What this task did, for somebody who does not read code
+
+**Short version: we decided what a "live price" actually is in this product, who
+gets sent it, and what the server remembers. All three turned out smaller and
+simpler than we expected — and one of them we measured instead of guessing, which
+saved us from carrying fifty-five megabytes around for no reason.**
+
+### What counts as a live price
+
+Our data provider offers three levels of detail: every individual trade, every
+change in the best bid and offer, or a **one-minute summary** of each company's
+trading.
+
+We chose the one-minute summary, and the choice was mostly made for us. The
+provider's free plan will only send individual trades for **thirty companies at a
+time** — we track 518. There is no version of the detailed feed that covers the
+market we watch. The summaries have no such limit.
+
+**The honest consequence, which we have written down in one sentence for the
+people building the screens:** a price on screen updates **once a minute at
+best**, and for a quietly-traded company it may not update for hours — and
+**both of those are the system working correctly**. Our feed only sees one
+exchange, and on a full trading day the typical company in our list traded in
+about two-thirds of the minutes. One company traded in **2% of them**.
+
+That matters more than it sounds. The next piece of work designs how numbers
+_move_ on screen — and a design built for a price that flickers continuously
+would look wonderful in a mock-up and dead in the real product, where the number
+sits still for a minute and then steps. Better to know now.
+
+**We also checked something rather than assuming it.** There is a piece of
+planned work called "The Tape on the Bar", which sounds exactly like the
+trade-by-trade feed. It is not — it is a database change about recording which
+exchange a price came from. So **nothing currently planned delivers the detailed
+trade feed**, and we have said so plainly rather than letting a future reader see
+that title and assume it was covered.
+
+### Who gets sent what
+
+Every browser receives **all 518 companies**. The owner chose that yesterday once
+we measured the cost — 38 kilobytes a minute, which is nothing.
+
+**The interesting part is what that decision made disappear.** We had three
+questions queued up: what happens if a browser asks for a company that does not
+exist, what happens if two browsers ask for the same one, what happens if a
+browser asks for nothing? **A browser that never names a company cannot name the
+wrong one.** All three questions dissolved.
+
+That is not just tidy — one of them was a real trap. We had measured that our
+provider will happily **accept a made-up company name** and confirm it back to
+us as if it were real. Any design where the browser picks companies has to guard
+against that. Ours does not have to, and we have written down that the trap
+returns the day we build any feature that lets a browser choose.
+
+The same simplification reaches the server: because the list never changes, the
+server's relationship with the provider is a constant. There is no
+adding-and-removing to manage, which makes a later piece of planned work
+substantially smaller than its name suggests.
+
+### What the server remembers
+
+Two options: remember the **latest price** for each company, or remember **all of
+today's prices** for each company.
+
+We measured both rather than arguing about them. The latest price for 518
+companies is **0.2 megabytes**. All of today's prices is **55.6 megabytes** —
+about **11% of the entire memory** our server is allotted.
+
+We chose the small one. Not mainly because of the size, but because the big one
+would be holding a copy of something we are about to write into the database
+anyway, and the product already knows how to fetch a chart from the database and
+glue the newest few minutes onto the end of it. **That does create an obligation:
+the piece of work that saves live prices to the database is now required rather
+than optional**, because between the two of them they are the only places today's
+prices could live. We have written that into it.
+
+**Two details about the server's memory that are easy to get wrong, and are now
+written down.** When the server restarts, it remembers nothing and refills
+unevenly — a busy company reappears within a minute, a quiet one might take
+hours. So "we have no current price for this company" has to be treated as a
+perfectly normal answer, not an error, or the product will show errors
+constantly.
+
+And it is **not wiped at the end of the day**. At half past nine on Monday
+morning it still holds Friday's closing prices — which is correct, because the
+alternative is replacing a true-but-old answer with no answer at all. That is
+only safe because **every remembered price carries its own timestamp, and nothing
+is allowed to display a price without reading it.** A "last price" with no time
+attached is precisely the kind of quiet dishonesty this product spent its whole
+previous phase designing out.
+
+### What this unlocks
+
+The screens can now be built against settled answers rather than assumptions:
+what a price is, how often it changes, who receives it, and what the server
+keeps. One piece of planned work got noticeably smaller, one became mandatory,
+and the team designing how prices animate has a measured sentence to design
+against instead of an intuition.
+
+**The product remains, today, a historical explorer.** Nothing on screen has
+changed. But there is now exactly one planning task left in this phase before the
+work turns into code.
