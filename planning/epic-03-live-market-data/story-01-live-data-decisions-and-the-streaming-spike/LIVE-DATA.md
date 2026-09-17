@@ -241,6 +241,15 @@ product question rather than confirming it.
 
 ### 2.1 What a live observation is
 
+> **Amended 2026-09-17 by §7.11's second decision, and this is a premise change
+> rather than a detail.** The product subscribes `updatedBars`, so **a live
+> observation can be superseded by a later, corrected one for the same minute**
+> — measured at about thirty seconds behind, changing volume always and the
+> close price in three of fourteen cases (§7.8). Every alternative below was
+> written assuming an observation is final once delivered. Whichever is chosen
+> must answer what happens when a bar arrives for a minute that already has one:
+> replace in place, keep both, or version it. **Nothing below currently does.**
+
 **The question.** What arrives from Alpaca and becomes a domain object: minute
 bars, individual trades, or both.
 
@@ -1880,10 +1889,67 @@ measurement.
   half-day, not a day with a halt in it.
 - **The vantage.** Asia/Singapore, not `eastus2`. Story 3.11's re-measure.
 
-### 7.11 Two product decisions this measurement forces, and neither is taken here
+### 7.11 Two product decisions this measurement forces — **both answered 2026-09-17**
+
+> **ANSWERED by the owner on 2026-09-17, with the reasoning, and neither is to
+> be re-asked.** Task 3.1.6's own rule applies to its own questions: _a question
+> already answered and asked again is how a decision gets reversed by accident_.
+>
+> **1. Extended-hours bars are RENDERED AND MARKED.** Not filtered, not rendered
+> silently. The reasoning is the one this document keeps arriving at from other
+> directions: **the data is real, and a filter is a claim the feed does not
+> make.** Filtering would have been the cheap answer and it would have put a
+> session boundary into the product that nothing in the feed asserts — the same
+> shape as invariant 6's _provenance is displayed, never implied_, applied to
+> time instead of to venue. Rendering unmarked was rejected because a thin
+> jagged tail on a session-ordinal axis reads as a defect rather than as
+> pre-market.
+>
+> **The cost is accepted and it is a new dependency rather than work:** marking
+> needs a visual vocabulary **Story 3.4 has not designed**, so 3.4 now owes one,
+> and Stories 3.6, 3.7 and 3.9 consume it. That dependency did not exist before
+> this decision and is recorded in each of those stories rather than here alone.
+>
+> **Reversal trigger, as a condition:** the first window whose marked tail is
+> longer than its session — a pre-market-only or after-hours-only window, which
+> `1D` before the bell already produces. At that point "marked" stops being a
+> qualifier on a session and becomes the whole chart, and the question is a
+> different one.
+>
+> **2. The product SUBSCRIBES `updatedBars`.** The trade was stated as
+> two-sided and the owner took the side that costs display complexity rather
+> than the side that costs correctness: **being quietly wrong on one bar in
+> three hundred, for ever, with no way to know which, is not a defect this
+> product can carry** — its entire purpose is helping somebody trust what they
+> are looking at, and a price that is silently stale by a few cents is the exact
+> failure the provenance surface of Epic 2 exists to prevent.
+>
+> **The cost is accepted and it is real:** a number can change under a reader's
+> eye about thirty seconds after it appeared. That collides with §2.1's
+> definition of a live observation — **an observation can now be superseded, and
+> §2.1 must say so** — and it needs a motion treatment from Story 3.4 that says
+> _this corrected_ without saying _this moved_, which are different facts and
+> must not share a vocabulary. Story 3.2's client must handle `u`, and Story
+> 3.10's gap-filling must not mistake a revision for a gap.
+>
+> **Reversal trigger, as a condition:** the first measurement showing the
+> revision rate at universe scale is materially above the 0.36% measured on ten
+> liquid names — at which point "rare correction" becomes "the feed is
+> provisional", and the display decision is a different one.
 
 Both belong beside the measurement rather than in the story that trips over
 them, and both are the owner's.
+
+Both belong beside the measurement rather than in the story that trips over
+them, and both are the owner's.
+
+> **They are questions 4 and 5 of
+> [Task 3.1.6](TASK-06-the-three-questions-for-a-person-and-the-cost-envelope.md),
+> which is where they are actually asked.** Recorded there as well as here on
+> purpose: a decision that lives only in a findings document is not queued for
+> anybody — nothing schedules it, nothing blocks on it, and the next task
+> proceeds as though it were settled. Neither is blocked on 3.1.6's cost
+> envelope, so either may be answered sooner and recorded back here.
 
 **1. Do the charts show extended-hours bars?** Pre-market and after-hours bars
 arrive on `b` and are indistinguishable from session bars (§7.7). Left alone,

@@ -2,12 +2,13 @@
 
 **Status:** Not started
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
-**Depends on:** 3.1.5
+**Depends on:** 3.1.5. **Carried five questions briefly; back to three.** Task 3.1.4 added two on 2026-09-16 (`LIVE-DATA.md` §7.11) and both were answered on 2026-09-17, ahead of this task, because neither depended on the cost envelope. **Do not re-ask questions 4 and 5.**
 
 ## Objective
 
-Put this story's three genuinely-human decisions to a person **once, together,
-with the numbers on the table** — and record their answers **with the reasoning
+Put this story's genuinely-human decisions to a person **once, together, with
+the numbers on the table** — **five of them since 2026-09-16**, where the title
+says three — and record their answers **with the reasoning
 rather than just the outcome**, which is acceptance criterion 5 and the half
 that is usually dropped.
 
@@ -96,7 +97,15 @@ would be under each of the two candidate answers to question 1. State the
 arithmetic, state that it is an estimate over a rate card, and name Story 3.11
 as the thing that reads the bill.
 
-**Then put the three questions, together and in this shape.**
+**Then put the questions, together and in this shape.**
+
+> **There are FIVE since 2026-09-16, not three.** The title and the filename
+> still say three and are deliberately not renamed — a filename is referenced
+> from five places and renaming it to fix a count is how a reference rots. Task
+> 3.1.4's capture forced two more (`LIVE-DATA.md` §7.11), and they are questions
+> 4 and 5 below. They are **not** blocked on the cost envelope the way 1 and 2
+> are; if a window opens to ask them earlier, ask them earlier and record the
+> answer here.
 
 1. **Is the socket held open outside market hours?** The honest default is
    **yes** — a feed that is up is a feed that can say so — and it is the one
@@ -120,6 +129,54 @@ as the thing that reads the bill.
    they are separable: raise the budget to sit above the real active-rate total,
    and/or add a threshold **below** it so the transition from idle to active is
    visible at all.
+
+> **Questions 4 and 5 were ANSWERED on 2026-09-17 and must NOT be re-asked.**
+> They were added on 2026-09-16 and put to the owner the next day, ahead of the
+> cost envelope, because neither depended on it. The answers, the reasoning and
+> a reversal trigger for each are in [`LIVE-DATA.md`](LIVE-DATA.md) §7.11:
+> **extended-hours bars are rendered and marked**, and **the product subscribes
+> `updatedBars`**. They are left below with their options intact because this
+> task's own rule is that an outcome without the alternatives is a decision that
+> gets re-litigated — read them as the record of what was weighed. **This task
+> now carries three questions again.**
+
+4. **Do the charts show extended-hours bars?** **ANSWERED — rendered and
+   marked.** Added 2026-09-16 from
+   `LIVE-DATA.md` §7.7 and §7.11. Pre-market and after-hours bars arrive on `b`
+   and **nothing on the frame distinguishes them from a regular-session bar** —
+   one field set across all 129,481 frames in the capture. 37 pre-market bar
+   minutes were observed in a window that was itself 1h43m short, so the real
+   number is higher. Left alone, every chart in Stories 3.6, 3.7 and 3.9
+   silently grows a thin, sparse tail before 09:30 and after 16:00; it is also
+   what inflates `QQQ` to 105.6% coverage in §7.6, which is the tail showing up
+   as arithmetic. **Epic 2's charts never met this** because stored bars were
+   fetched per session. Three candidates, and say what each costs:
+   - **Render them.** Honest, and the tail is thin and jagged against a
+     session-ordinal axis that has no vocabulary for a gap in the middle of it.
+   - **Filter them at the data layer by market time.** Clean charts, and the
+     filter is a claim about the session that the feed itself does not make.
+   - **Render them marked.** Most honest and most work — it needs a visual
+     vocabulary Story 3.4 has not built, so choosing this one puts a dependency
+     on 3.4 that does not currently exist.
+
+5. **Does the product subscribe `updatedBars`?** **ANSWERED — yes.** Added 2026-09-16 from
+   `LIVE-DATA.md` §7.8, and it was on nobody's register — it was found by
+   reading frames. A bar is **restated about 30 seconds after it is delivered**:
+   14 restatements in the capture, **all 14 changed the bar**, three of them
+   changed the **close price** (SPY 758.85→758.81, META 676.96→677.20,
+   TSLA 358.07→358.13). That is 0.36% of the narrow set's bars, and the channel
+   costs 1,742 bytes across a whole session for ten symbols. The trade is
+   genuinely two-sided and neither side is free:
+   - **Subscribe.** A number can change under a reader's eye half a minute after
+     it appeared, which collides with §2.1's definition of a live observation and
+     with the motion vocabulary Story 3.4 has not designed.
+   - **Do not subscribe.** The product is quietly wrong on roughly one bar in
+     three hundred, for ever, with no way to know which — in a tool whose whole
+     purpose is helping somebody trust what they are looking at.
+   - **Note it interacts with Story 3.10's gap-filling**, which treats a missing
+     bar as a gap: a _revised_ bar is not a gap and none of that machinery would
+     catch it. Measure at 518 symbols before deciding the rate holds — this was
+     ten liquid names.
 
 **Record the answers with the reasoning.** A decision recorded as an outcome is
 a decision that gets re-litigated in six weeks by a reader who cannot tell

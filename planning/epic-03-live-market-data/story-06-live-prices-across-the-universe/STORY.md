@@ -126,3 +126,23 @@ encoding. A number must not get harder to read because it is moving.
 
 A live market on screen, the data Epic 4's overview aggregates, and a
 re-measurement of the one §28 breach this product carries.
+
+---
+
+## Handed here by Task 3.1.4 — 2026-09-17
+
+**The table has roughly 320 of 518 rows moving in any given minute, and about
+200 sitting still** ([`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §7.6). Measured: 321 symbols
+p50 per minute, 65.1% median per-symbol coverage across the session, every one
+of the 518 producing a bar at some point, worst case `ERIE` at 2.1%. **That is a
+product problem with a product answer, not a bug** — a row that has not moved
+for eleven minutes must read as a fact rather than as a fault.
+
+**It is worse than this epic was sized against.** `ALPACA.md` §5.2's 82.8%
+median came from stored history; the live stream is 65.1%.
+
+**Two decisions taken on 2026-09-17 reach this story's rows** (§7.11):
+extended-hours bars are **rendered and marked**, so this table's cells inherit
+Story 3.4's mark outside 09:30–16:00; and the product **subscribes
+`updatedBars`**, so a cell's value can be corrected about thirty seconds after
+it appeared.

@@ -165,3 +165,22 @@ keeps it from becoming a footnote pile is worth re-reading before adding to it.
 
 The first honest two-feed series this product has ever served, and the reason
 Story 3.8's migration cannot be deferred any further.
+
+---
+
+## Handed here by Task 3.1.4 — 2026-09-17
+
+**A quiet minute is ABSENT** — not a zero-volume bar and not a repeat. 0 of
+129,481 bars carried `v: 0` and no `(symbol, t)` arrived twice on `b`
+([`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §7.2). This story's chart inherits absence, and
+§2.5's staleness vocabulary has to tell _no bar_ from _no connection_ without
+help from the feed.
+
+**Two decisions taken on 2026-09-17 reach the live edge directly** (§7.11):
+
+- **Extended-hours bars are rendered and marked.** The live edge now runs
+  outside 09:30–16:00, using Story 3.4's mark. Epic 2's charts never met this
+  because stored bars were fetched per session.
+- **The product subscribes `updatedBars`.** The bar at the live edge is the one
+  most likely to be corrected — a correction arrives about thirty seconds after
+  the bar, which is while that bar is still the edge.

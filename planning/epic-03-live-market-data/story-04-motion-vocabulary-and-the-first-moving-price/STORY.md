@@ -188,3 +188,30 @@ minimal by default.
 
 The vocabulary every remaining story in this epic uses, and the first answer to
 a question this product has been postponing since Epic 1.
+
+---
+
+## Handed here by Task 3.1.4 — 2026-09-17, and it is two new obligations
+
+Both are consequences of decisions the owner took on 2026-09-17
+([`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §7.11), and **neither existed when this story was
+written**.
+
+**1. An extended-hours mark.** Pre-market and after-hours bars are **rendered
+and marked** rather than filtered. Nothing on the frame distinguishes them
+(§7.7), so the mark is entirely ours to invent, and Stories 3.6, 3.7 and 3.9
+consume it. This story owns the vocabulary; it did not previously owe one.
+
+**2. A treatment for _this corrected_ that is not the treatment for _this
+moved_.** The product subscribes `updatedBars`, so a displayed number can be
+replaced about thirty seconds later by a corrected one for the same minute
+(§7.8). **A correction is not a price movement** and must not borrow motion that
+says it is — three of fourteen corrections changed the close price by a few
+cents, which under a "price moved" animation would read as a real tick that
+never happened.
+
+**And the rate is now known**, which is what this story was waiting for: a
+minute's bars land within **243 ms p50 / 511 ms p95** (§7.4) — about 320 symbols
+in a quarter of a second, once a minute — rather than as a smooth stream. Motion
+designed against a smooth arrival will be designed against a case that does not
+occur.

@@ -130,3 +130,23 @@ before the store starts answering the same question.
 
 A store that holds today, and the first rows in this product whose provenance
 was not decided by a constant.
+
+---
+
+## Handed here by Task 3.1.4 — 2026-09-17
+
+**Two decisions taken on 2026-09-17 change what is stored**
+([`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §7.11).
+
+**Extended-hours bars are rendered and marked**, so they are also **kept**:
+pre-market and after-hours bars arrive on the same channel with nothing
+distinguishing them (§7.7), and a store that filtered them by market time would
+be discarding real data on a boundary the feed does not assert.
+
+**The product subscribes `updatedBars`**, and this is the sharper one for a
+store: a bar written for a `(symbol, minute)` may be **superseded about thirty
+seconds later** by a corrected one (§7.8). An insert-only path produces two rows
+for one minute. `market_bars` has a uniqueness decision to take that Epic 2
+never needed, because a backfilled historical bar is final and a live one is not
+— and `observed_at` versus `recorded_at` is the pair that already exists to
+express it.
