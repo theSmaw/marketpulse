@@ -74,6 +74,31 @@ epic builds in from the start. Say that plainly when reporting the close.
 
 ## Work
 
+> **Added 2026-09-17 by Task 3.1.6 — one answer settles decision 8's premise
+> and the other may have fired decision 7's trigger.**
+>
+> **Decision 8's answer is given** ([`LIVE-DATA.md`](LIVE-DATA.md) §9.3):
+> **the socket is held open always** — one connection, opened at boot, never
+> deliberately closed. Not on cost, which was measured away twice, but because
+> both alternatives buy a **calendar-driven scheduled transition**, and
+> `CALENDAR.md`'s exception table exists because that is where half-days and
+> holidays break. Decision 8 executes this; it does not re-open it.
+>
+> **Decision 7's walk has changed, and this is the part worth doing carefully.**
+> §9.5's answer is that a browser subscribes to the **whole universe**, so the
+> frontend holds live state for **518 securities** consumed by a table, a chart
+> and — in Epic 6 — a topology. `FRONTEND-STATE.md`'s first trigger is _the
+> first piece of state two features must agree about that neither owns_, and
+> 518 live prices read by three surfaces is exactly that shape.
+>
+> **It is not automatically fired**, and the distinction is the one this task
+> already insists on: **two readers is prop-drilling; two writers is a store.**
+> Live prices have one writer — the socket — and many readers, so the trigger
+> may still not fire. Walk it against the whole-universe answer rather than
+> against today's tree, and **record which of the two it turned out to be**,
+> because a reader in six weeks will see 518 shared prices and assume the
+> question was never asked.
+
 **Decision 7 — whether the frontend gains a store.** Answer it with the
 condition in hand. The question is not _will this epic be annoying without one_;
 it is **does a trigger fire**. Walk the three explicitly against what

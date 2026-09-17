@@ -1,6 +1,6 @@
 # Task 3.1.6 — The three questions that need a person, asked together with the measurements in hand
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-17.** The envelope is in [`LIVE-DATA.md`](LIVE-DATA.md) §9.1–§9.2 and **falsifies ADR 0011's premise**: this epic costs **$9.26/month**, not $19.04. All four questions were put to the owner together and answered, with reasoning and a condition-shaped reversal trigger each (§9.3–§9.6). ADR 0011 carries a dated amendment.
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
 **Depends on:** 3.1.5. **Carried five questions briefly; back to three.** Task 3.1.4 added two on 2026-09-16 (`LIVE-DATA.md` §7.11) and both were answered on 2026-09-17, ahead of this task, because neither depended on the cost envelope. **Do not re-ask questions 4 and 5.**
 
@@ -27,15 +27,26 @@ whatever is decided here.
 - **`minReplicas: 1` is required** (ADR 0011). The question below is not whether
   the replica exists overnight — it does, and must — but whether it **holds a
   socket open** while it is there.
+- ~~**Epic 1's recorded cost figure is an idle figure and this epic breaks the
+  condition it rests on.**~~ **Falsified by this task's own envelope, 2026-09-17
+  — `LIVE-DATA.md` §9.1.** This epic does **not** break that condition: a
+  bars-only feed averages 550.6 B/s against the 1,000 B/s threshold and crosses
+  it for 6.6 minutes a day, so the total is **$9.26** rather than $19.04. The
+  bullet is struck rather than deleted because it is what the envelope was
+  written to check, and the checking is the task. ADR 0011 carries a dated
+  amendment. The original:
 - **Epic 1's recorded cost figure is an idle figure and this epic breaks the
   condition it rests on.** The Consumption plan's idle vCPU rate requires the
   replica to receive **less than 1,000 bytes per second**. A replica holding a
   live feed exceeds that through every session, so the estimate moves from
   **$4.21** to **$14.04** for the replica — **$9.21 to $19.04** a month with ACR
   Basic. Memory bills the same either way; the discount is on vCPU alone.
-- **The `$20` budget with its 50/80/100% alerts sits just _above_ the
+- ~~**The `$20` budget with its 50/80/100% alerts sits just _above_ the
   active-rate total**, so the single change most likely to move this bill is the
-  one the thresholds cannot see. That is the defect, not the price.
+  one the thresholds cannot see. That is the defect, not the price.~~
+  **The defect does not arise — 2026-09-17, §9.6.** At a measured $9.26 the 50%
+  alert at $10 sits eight percent above the total, so the budget that looked
+  blind is already primed. Left unchanged, deliberately.
 - **Epic 1 could not take a real reading at all** — both billing APIs refused,
   then answered `[]` and `429`. So every figure here is arithmetic over a rate
   card, and it is an **estimate this story owes** and a **measurement Story 3.11
@@ -206,6 +217,60 @@ condition** — not a story number.
   handed to a named owner — not left as an observation.
 - `pnpm verify` passes.
 
+## What the envelope found and what the person answered — 2026-09-17
+
+### The envelope overturned the premise it was written to confirm
+
+ADR 0011 recorded that a replica holding a live feed bills at the **active**
+vCPU rate through every session — **$19.04/month**. Measured against Task
+3.1.4's 7.77-hour capture, a **bars-only** subscription to all 518 symbols
+averages **550.6 B/s** against the 1,000 B/s condition and crosses it for
+**397 seconds a day**. The total is **$9.26** — five cents above a replica doing
+nothing at all.
+
+**The error was a premise rather than a calculation**, which is why ADR 0011's
+tables are untouched and carry a dated amendment instead: _bills at the active
+rate through every session_ assumes the rate is **continuous**, and minute bars
+arrive as a **burst once a minute** (243 ms of traffic, 59 seconds of silence).
+**A once-a-minute burst cannot hold a per-second threshold.** The model in §9.2
+reproduces ADR 0011's own $4.21 and $14.04 to the cent before varying one input,
+so this is the same arithmetic with a corrected assumption rather than a rival
+calculation.
+
+**Also worth noticing: the blended capture figure is 2.9× the bars-only one**,
+and almost all of the difference is ten symbols' trades (18.9 MB against `b`'s
+15.4 MB for 518 names). A cost taken from the capture total would have costed a
+subscription this product is not going to have.
+
+### The four answers
+
+| #   | Question                     | Answer                                      | Trigger                                                                           |
+| --- | ---------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------- |
+| 1   | Socket outside market hours  | **Hold it always**                          | A month of billing above the measured 6.6 min/day                                 |
+| 2   | What `LIVE` means            | **The feed is healthy — heartbeat current** | The first surface asked _is this number current_ with no staleness mark beside it |
+| 3   | What a browser subscribes to | **The whole universe**                      | A tab unable to hold 60 FPS applying one minute's burst                           |
+| 4   | The budget                   | **Unchanged**                               | The first month whose actual bill exceeds $12                                     |
+
+**Each is recorded in §9.3–§9.6 with what was weighed**, because an outcome
+without its alternatives is a decision that gets re-litigated by a reader who
+cannot tell whether the other option was considered.
+
+### Three things the answers change downstream
+
+- **Staleness is no longer optional.** `LIVE` means _the feed is healthy_, so it
+  says nothing about how old the number under it is. A per-security staleness
+  mark is **Task 3.1.8's decision 5** and is now load-bearing: without it, `LIVE`
+  over a four-minute-old price is true and misleading at once.
+- **At 03:00 the chrome reads `LIVE` and `CLOSED` together, and that is
+  correct.** The feed's health and the market's state are different facts with
+  different cells. Recorded explicitly because it looks like a contradiction and
+  is not.
+- **The browser payload objection does not survive measurement.** 38 kB/min
+  mean, 53 at the close — under 1 kB/s. The constraint moved from bandwidth to
+  **render cost**: 332 bars inside a 243 ms burst, once a minute. That is Story
+  3.6's problem, and it is the real argument for server-side coalescing in Task
+  3.1.8's decision 2.
+
 ## Notes
 
 Ask all three at once. They interact: the payload a browser gets and the budget
@@ -225,3 +290,111 @@ mode this entire story exists to prevent, applied to a person instead of to a
 task.
 
 ---
+
+## What this task did, for somebody who does not read code
+
+**Short version: we worked out what running the live version of MarketPulse will
+actually cost, and found we had been over-estimating it by about double. Then we
+asked the owner four questions that only a person can answer, put the real
+numbers in front of them, and wrote down both the answers and the reasoning.**
+
+### The bill we were bracing for is not the bill we are going to get
+
+Our hosting has two prices. A server sitting quietly gets a **discounted** rate;
+a server that is busy pays about **eight times more** for its processor time. The
+line between the two is drawn at a thousand bytes a second of incoming traffic.
+
+When we planned this, we assumed that holding a live connection to the stock
+market would obviously push us onto the expensive side — all day, every trading
+day. On that basis we budgeted around **$19 a month**.
+
+We measured it instead of assuming it, and it is **$9.26**. That is five cents a
+month more than a server doing absolutely nothing.
+
+**The reason is a nice one.** Prices do not trickle in continuously — they arrive
+in a **burst once a minute**. Roughly a quarter of a second of activity, then
+fifty-nine seconds of silence. A limit measured _per second_ barely notices
+that: across a whole trading day we are over the line for about **six and a half
+minutes**. And the market itself is only open for 19% of the hours in a month.
+
+We also caught a trap in our own measurement. The recording we took last night
+included _trade-by-trade_ data for ten big companies, which is enormously
+chattier than the minute-by-minute prices we actually plan to use — it alone was
+larger than all 518 companies' prices put together. Costing from the raw total
+would have been costing a product we are not building.
+
+We were careful not to overclaim: this is still **arithmetic over a price list**,
+not a real invoice. Nobody has ever successfully read an actual bill for this
+project — the billing system refused us when we tried. A later piece of work owns
+reading it for real.
+
+### The four questions, and why they needed a person
+
+**1. Should we keep the connection to the market open overnight?**
+**Answer: yes, always.** Since it costs nothing, this became a question about
+complexity rather than money — and the alternatives both require the software to
+know the trading calendar and disconnect and reconnect on schedule. That is
+exactly the kind of logic that works all year and then breaks on a half-day
+before Thanksgiving. One connection that is simply always there has no such day.
+
+**2. What should the word "LIVE" on screen actually mean?**
+**Answer: the feed is healthy.** The tempting answer is "prices are arriving" —
+but our data source only covers one exchange, and for a quietly-traded company
+prices genuinely do not arrive most minutes. One company in our list produced a
+price in only **2% of the minutes** of a full trading day, entirely normally. A
+"LIVE" light wired to arriving data would sit dark for a third of the market at
+any moment and would be wrong to do so.
+
+So "LIVE" means _our connection to the market is working_. **That creates an
+obligation we have written down rather than left implied**: it says nothing about
+how old any particular price is, so each price now needs its own small "this is
+from four minutes ago" mark. That is the next piece of work along.
+
+One consequence that looks odd and is correct: at three in the morning the screen
+will say **LIVE** next to a market clock saying **CLOSED**. Those are two
+different facts — our connection is healthy, the market is shut — and the screen
+already has room for both.
+
+**3. What should a browser receive — everything, or just what is on screen?**
+**Answer: everything, all 518 companies.** This one was decided by a
+measurement that surprised us. We assumed sending the whole market to every
+browser would be extravagant. It is **38 kilobytes a minute** — less than a
+single small photograph, per minute. Restricting it would have been optimising
+something that was never expensive, and the product's main screen is supposed to
+show the whole market moving at once anyway.
+
+**What the measurement did do is move the difficulty somewhere else.** The
+problem is not the amount of data, it is that **330 price updates land in a
+quarter of a second, once a minute**, and the screen has to absorb that without
+stuttering. That is a genuine engineering problem and it is now a known one
+rather than a surprise.
+
+**4. Should we change the spending alert?**
+**Answer: leave it exactly as it is.** The alert was set at $20 with a warning at
+half that. We had flagged this as a flaw, because the *feared* cost of $19 would
+have slipped in just under the ceiling without ever triggering anything. But the
+real cost is $9.26 — so the existing warning at $10 sits just above where we
+actually are, and would fire immediately if anything pushed the cost up. The
+alarm we thought was badly placed turns out to be well placed; it was the cost
+estimate that was wrong.
+
+### Why we asked all four at once
+
+Because they interact. What a browser receives, what the connection costs, and
+what the spending alert should be are all functions of each other. Asked one at a
+time, each answer gets taken without the constraint the next one would have
+supplied — which is the same failure this whole piece of work exists to prevent,
+applied to a person instead of to a plan.
+
+### What this unlocks
+
+Three of the four answers feed directly into work that was waiting on them: the
+screen can now be told what "LIVE" means, the browser connection can be designed
+knowing it carries the whole market, and the server's relationship to its own
+connection is settled. None of them could have been taken sensibly before last
+night's recording existed.
+
+**The product remains, today, a historical explorer.** Nothing on screen has
+changed. But the remaining planning work in this phase is now down to executing
+answers rather than arguing about them — and we are budgeting against a measured
+number rather than a pessimistic guess.

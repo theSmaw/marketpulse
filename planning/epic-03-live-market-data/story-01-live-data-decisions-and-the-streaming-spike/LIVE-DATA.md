@@ -582,6 +582,14 @@ prevent.
 is **whether the socket is held open outside market hours**, and it is a cost
 question as much as an engineering one.
 
+> **Amended 2026-09-17 by Task 3.1.6 — it is barely a cost question at all.**
+> §9.1 measured the in-session half: a **bars-only** subscription to all 518
+> symbols averages **550.6 B/s**, _under_ the threshold, and crosses it for
+> **6.6 minutes a day**. The monthly total is **$9.26** against a fully-idle
+> $9.21. The paragraph below is left standing because it is the reasoning that
+> made the measurement worth taking, and because its arithmetic is right — what
+> was wrong is the assumption that the active rate applies continuously.
+
 **Why it is a cost question.** The Consumption plan's idle vCPU rate requires
 the replica to receive **less than 1,000 bytes per second**. A replica holding a
 live feed exceeds that through every session, which moves the recorded estimate
@@ -2192,6 +2200,210 @@ of work in deleting the harness:
 
 **Neither is dropped and neither is a new task**, which is the distinction that
 matters: a trigger with no owner never fires, and this story has the scar.
+---
+
+## 9. The cost envelope, and the four answers a person gave (2026-09-17, Task 3.1.6)
+
+**The envelope's headline is that this epic does not cost what Epic 1 thought it
+would, and the gap is a factor of two.** ADR 0011 recorded that a replica holding
+a live feed bills at the **active** vCPU rate and put the monthly total at
+**$19.04**. Measured against a real session, a bars-only feed is above the
+billing threshold for **six and a half minutes a day**, and the total is
+**$9.26** — five cents above a replica that does nothing at all.
+
+### 9.1 What the condition actually is, and what was measured against it
+
+ADR 0011's idle vCPU rate — an **8× discount**, $0.000003/s against
+$0.000024/s — requires the replica to **receive less than 1,000 bytes per
+second**. §6.4 measured the out-of-hours half at ≈**0.15 B/s**, three to four
+orders of magnitude clear. What was missing was the in-session half, which is
+figure 9, and it is now taken from Task 3.1.4's 7.77-hour capture.
+
+**Split by channel, because the blended figure is meaningless:**
+
+| Subscription                                         | Total bytes | Mean          | Seconds/day at or above 1,000 B/s     |
+| ---------------------------------------------------- | ----------- | ------------- | ------------------------------------- |
+| **Bars only, all 518**                               | 15,402,845  | **550.6 B/s** | **397 s — 6.6 min, 1.4% of the hold** |
+| As captured (bars + 10 trades + a 2-min quote probe) | 44,002,507  | 1,572.9 B/s   | 6,718 s — 1.87 h, 24%                 |
+
+**The blended figure is 2.9× the bars-only one and almost all of the difference
+is ten symbols' trades.** `t` alone was 18.9 MB against `b`'s 15.4 MB — for **ten
+names against 518** — and the 2-minute quote probe added 8.8 MB on its own. A
+cost figure taken from the capture's total would be costing a subscription this
+product is not going to have.
+
+### 9.2 The arithmetic, stated so it can be re-run
+
+ADR 0011's model, reproduced exactly before being varied: 0.25 vCPU, 0.5 GiB,
+`minReplicas: 1`, a 30-day month, against free grants of 180,000 vCPU-seconds
+and 360,000 GiB-seconds. Memory bills identically either way — **the discount is
+vCPU-only** — so it is a constant $2.81 in every row.
+
+| Scenario                                | vCPU active    | Replica   | + ACR Basic | **Total** |
+| --------------------------------------- | -------------- | --------- | ----------- | --------- |
+| Fully idle (ADR 0011)                   | 0 h/day        | $4.21     | $5.00       | **$9.21** |
+| **Bars only, 518 — measured**           | **0.11 h/day** | **$4.26** | $5.00       | **$9.26** |
+| As captured, with trades and quotes     | 1.87 h/day     | $4.95     | $5.00       | $9.95     |
+| Active every second of every session    | 6.50 h/day     | $6.79     | $5.00       | $11.79    |
+| Active 24/7 — **ADR 0011's assumption** | 24 h/day       | $13.74    | $5.00       | $18.74    |
+
+Twenty-one trading days a month. The reproduction check is that rows one and five
+return $4.21 and $14.04 for the replica, which are ADR 0011's own figures to the
+cent — so the variation is the same model with one input changed, rather than a
+second model that happens to agree.
+
+> **Why ADR 0011 was wrong, and it was not an arithmetic error.** Its figure
+> assumed the active rate applies **continuously**. The market is open 6.5 hours
+> on 21 days — **136.5 of 720 hours, 19% of the month** — and even inside a
+> session a bars-only feed crosses 1,000 B/s for 1.8% of it, because minute bars
+> arrive as a **burst once a minute** (§7.4: 243 ms p50) and the other 59 seconds
+> are silent. **A once-a-minute burst cannot hold a per-second threshold.**
+>
+> **It is an estimate over a rate card and remains one.** Epic 1 could read no
+> bill at all — both billing APIs refused the subscription — and nothing has
+> read one since. **Story 3.11 owns the measurement**, and its condition is a
+> month of billing with a socket held open.
+
+**What this envelope does NOT cover, named rather than implied:** it is
+**inbound from Alpaca only**. The replica also fans out to browsers, and §9.5's
+answer makes that the whole universe; whether Azure's condition counts egress,
+and what the fan-out adds, is **Decision 3's arithmetic in Task 3.1.7** and then
+Story 3.11's measurement. And it is **n=1** — one Wednesday in September.
+
+### 9.3 Answer 1 — the socket is held open, always
+
+**Chosen: hold it always.** One connection, opened at boot, never deliberately
+closed.
+
+**The reasoning, which is now entirely about mechanism rather than money.** The
+cost objection was measured away twice: §6.4 for the night, §9.1 for the session.
+What is left is that the two alternatives both buy a **scheduled transition
+driven by the trading calendar**, and this repository already knows what those
+cost — `CALENDAR.md`'s exception table exists because half-days and holidays are
+where that logic breaks, and the failure would be a socket that connects at
+09:30 on a day the market opened at 09:30 and closed at 13:00.
+
+**Holding always has no such state.** It is one connection with one lifecycle,
+and §8.7's measurement that immediate reconnection is not penalised means the
+recovery path is equally simple.
+
+> **Reversal trigger, as a condition:** the first month of real billing showing
+> the replica above the idle rate for materially more than the measured 6.6
+> minutes a day. That is Story 3.11's reading, and it is the only instrument
+> that can fire this.
+
+### 9.4 Answer 2 — `LIVE` means the feed is healthy, not that data arrived
+
+**Chosen: authenticated, subscribed, and the 54-second heartbeat current.**
+
+**The reasoning, and the alternative it rejects is the intuitive one.** _Data is
+arriving_ sounds like the honest definition and is the wrong one for this feed,
+because on IEX **an absent bar is ordinary**: §7.6 measured a median symbol
+producing a bar in 65.1% of minutes and the worst, `ERIE`, in **2.1%**. A
+definition keyed on data would report a correctly-working feed as not-live for a
+third of the universe at any moment, and for `ERIE` essentially always.
+
+**And the option this replaces was not a choice at all.** §8.4 measured that a
+rejected connection stays **OPEN for ever**, so _the socket is up_ is compatible
+with a connection that will never carry a bar. `LIVE` therefore requires
+**authenticated and subscribed** as well as attached, and the heartbeat is what
+makes _attached_ mean something — §8.8 records it as the only signal that
+distinguishes a live socket from a half-open one.
+
+**Two consequences, both of which belong to later tasks and are named here so
+they are not discovered:**
+
+- **Staleness is a second claim and needs its own surface.** `LIVE` now says
+  nothing about how old the number under it is. A per-security staleness mark is
+  **Task 3.1.8's decision 5**, and it is no longer optional: without it, `LIVE`
+  over a four-minute-old price is true and misleading at once.
+- **At 03:00 the chrome reads `LIVE` and `CLOSED` together, and that is
+  correct.** The feed's health and the market's state are different facts and
+  the chrome already carries both cells. _Our connection to the market is
+  healthy; the market is shut_ is a coherent sentence, and it is the one ADR
+  0030's `REPLAYING` cell sits beside.
+
+> **Reversal trigger, as a condition:** the first surface that has to answer _is
+> this number current_ using only the `LIVE` indicator, with no staleness mark
+> beside it. That is the point at which the word has been asked to carry the
+> claim it was deliberately not given.
+
+### 9.5 Answer 3 — a browser subscribes to the whole universe
+
+**Chosen: all 518.** Measured, that is what a browser receives:
+
+| Window             | Payload         | Bars         | Frames           |
+| ------------------ | --------------- | ------------ | ---------------- |
+| Open 09:30–10:00   | **38.8 kB/min** | 332/min      | 8.8/min          |
+| Midday 12:00–12:30 | 32.8 kB/min     | 284/min      | 6.8/min          |
+| Close 15:30–16:00  | **52.9 kB/min** | 450/min      | 16.1/min         |
+| Whole session      | 14.62 MB        | 3,649 frames | mean 38.4 kB/min |
+
+**The reasoning, and it is a reframing rather than a trade.** The payload
+objection this question was written around **does not survive measurement**:
+53 kB/min at the busiest is **under 1 kB/s**, which is not a constraint on any
+connection this product will meet. `PRODUCT_SPEC.md` §9's landing page shows the
+whole market moving, Epic 4 builds it, and any narrower answer would have been
+re-taken there.
+
+**What the measurement moves rather than removes is where the difficulty lives.**
+It is not bandwidth, it is **render cost**: 332 bars arrive inside a **243 ms**
+burst (§7.4), once a minute, and §1.10's re-render counterfactual was taken at a
+far lower rate. **That is Story 3.6's problem and it is now a known one** — and
+it is also the argument for server-side coalescing in Task 3.1.8's decision 2,
+which is a question about frames per burst rather than about bytes per month.
+
+> **Reversal trigger, as a condition:** the first measurement of a browser tab
+> unable to hold 60 FPS while applying one minute's burst. That is figure 21 and
+> it belongs to Stories 3.3 and 3.6 — payload is not the thing to watch, and a
+> reversal argued from bytes would be arguing from the term that was never
+> binding.
+
+### 9.6 Answer 4 — the budget is left exactly as it is
+
+**Chosen: no change.** `marketpulse-monthly`, **$20**, alerts at 50/80/100%.
+
+**The reasoning, and the defect this question was written to fix has evaporated.**
+The question existed because ADR 0011's active-rate total, $19.04, sat *just
+under* the $20 ceiling — so the single change most likely to move the bill was
+the one the thresholds could not see. §9.2 measures that total at **$9.26**.
+
+At $9.26 against $20, the **50% alert sits at $10** — about eight percent above
+the measured total. The budget that looked blind is in fact already primed: any
+regression that pushes the replica toward sustained active billing crosses $10
+long before it approaches the ceiling, and the alert that fires is one that was
+there all along.
+
+**Adding a threshold below it was offered and declined**, and the reason is worth
+keeping: a second alert at $11–12 would fire on the _first_ real regression and
+also on ACR growth, a database tier change, or anything else in the subscription
+— it would be a threshold on the total attributed to one component's behaviour.
+The existing 50% alert does the same job with one fewer moving part.
+
+> **Reversal trigger, as a condition:** the first month whose actual bill exceeds
+> **$12**. That is above the realistic worst case in §9.2 — active every second
+> of every session — so it cannot be reached by this epic behaving as measured,
+> and reaching it means an assumption in §9.2 is wrong. **Story 3.11 owns the
+> reading**; this answer is an estimate's consequence and only a bill can confirm
+> it.
+
+### 9.7 What these four answers are, and what they are not
+
+**They are the human inputs, not the eight decisions.** Task 3.1.6 exists to put
+the questions that need a person once, together, with the numbers on the table.
+Answers 1–3 constrain decisions that other tasks still have to execute into
+designs:
+
+| Answer                                     | Constrains                                     | Executed by            |
+| ------------------------------------------ | ---------------------------------------------- | ---------------------- |
+| The socket is held always                  | §2.8, the socket's relationship to the process | Task 3.1.9, decision 8 |
+| `LIVE` means the feed is healthy           | §2.6, what the live feed is called on screen   | Task 3.1.8, decision 6 |
+| A browser subscribes to the whole universe | §2.3, what the browser is subscribed to        | Task 3.1.7, decision 3 |
+| The budget is unchanged                    | Nothing in §2 — it is an operational answer    | Story 3.11 re-reads it |
+
+**None of the four may be re-asked.** A question already answered and asked
+again is how a decision gets reversed by accident, which is this story's premise
+applied to a person.
 ---
 
 ## What this document deliberately does not decide
