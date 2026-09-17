@@ -107,6 +107,16 @@ as the thing that reads the bill.
 > are; if a window opens to ask them earlier, ask them earlier and record the
 > answer here.
 
+> **Amended 2026-09-16 by Task 3.1.5 — question 1's rider is no longer a
+> choice, and the person must be told that rather than offered it.**
+> [`LIVE-DATA.md`](LIVE-DATA.md) §8.4: **all four authentication failures leave
+> the socket OPEN, for ever.** So _the socket is up_ is not the weaker of two
+> honest readings of `LIVE` — it is a claim that is **demonstrably compatible
+> with a connection that was rejected at the door and will never carry a bar**.
+> Putting it to a person as one of two options would be offering a choice that
+> only has one defensible side. Ask what `LIVE` should mean, and say that the
+> socket-up reading has been measured into the ground.
+
 1. **Is the socket held open outside market hours?** The honest default is
    **yes** — a feed that is up is a feed that can say so — and it is the one
    that costs money for nothing overnight. The related question rides with it

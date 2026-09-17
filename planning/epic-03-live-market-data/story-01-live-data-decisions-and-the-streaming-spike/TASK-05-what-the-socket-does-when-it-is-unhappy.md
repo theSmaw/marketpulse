@@ -239,8 +239,6 @@ produces. Budget the session time for it.
 
 ---
 
----
-
 ## What this task did, for somebody who does not read code
 
 **Short version: we spent an evening deliberately breaking our own connection to

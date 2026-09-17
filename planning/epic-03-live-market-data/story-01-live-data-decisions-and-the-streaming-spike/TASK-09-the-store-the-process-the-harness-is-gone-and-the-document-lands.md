@@ -41,7 +41,31 @@ epic builds in from the start. Say that plainly when reporting the close.
   executes that answer; it does not re-open it.
 - **`deploy.yml` rolls the backend**, and Task 3.1.5 measured what a duplicate
   connection does on a one-connection plan. Whatever that measurement said is
-  binding on decision 8.
+  binding on decision 8. **It said this, on 2026-09-16 —
+  [`LIVE-DATA.md`](LIVE-DATA.md) §8.2: the INCUMBENT wins.** The arriving
+  connection is told `{"T":"error","code":406,"msg":"connection limit exceeded"}`
+  233 ms after authenticating and is closed 9,964 ms later; the incumbent keeps
+  its socket **and all 518 subscriptions** and does not notice.
+
+  So decision 8 is not choosing a policy against an unknown — it is executing
+  against a **guaranteed, every-deploy behaviour**: the newly-rolled replica has
+  no feed until the outgoing one's socket is actually gone. Three things follow
+  and decision 8 owns the first two:
+
+  - **What the starting process does when refused.** Retry with what cadence,
+    for how long, and what it reports meanwhile. §8.7 measured that reconnecting
+    immediately is not penalised, so the cadence is a politeness decision rather
+    than a penalty-avoidance one — say so, because a backoff justified by a
+    penalty that does not exist is a number nobody can revisit.
+  - **What the stopping process does with its socket**, and whether it closes it
+    deliberately on `SIGTERM` rather than letting the replica's death close it.
+    §6.4 and §8.8 are the reason this matters more than it looks: a **half-open**
+    socket holds the one permitted connection with nothing alive behind it, so a
+    process that dies without closing can lock its own successor out for as long
+    as the upstream takes to notice — which §6.4 measured at over four hours.
+  - **Whether the overlap window is bounded at all** is Story 3.11's, and it is
+    named there rather than here.
+
 - **One logging decision reverses here.** Task 1.12.6 declined `ignore:
 "reqId,pid"` on pino-pretty after measuring 51 adjacent request pairs, and
   named its reversal trigger as **this epic's socket, or anything else that puts
