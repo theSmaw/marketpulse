@@ -301,6 +301,8 @@ chart may draw), 3.8 (the schema) and 3.9 (what is stored).
 
 ### 2.2 The browser transport's message protocol
 
+> **ANSWERED 2026-09-17 — §11.1: a snapshot on connect, then one message per upstream frame, with no coalescing.** Alpaca already batches (8.8 frames/min at the open for 332 bars), so relaying frame for frame is ~16 messages/min at worst. The alternatives below are the record of what was weighed.
+
 **The question.** WebSocket is settled (§1.2). What is open is what travels over
 it: whether a browser is sent a **snapshot then deltas** or **deltas only**, how
 a browser says which symbols it wants, and whether the server **coalesces**
@@ -418,6 +420,8 @@ wanting to hold a socket.
 
 ### 2.5 The staleness vocabulary, in numbers
 
+> **ANSWERED 2026-09-17 — §11.2, and it takes opposite answers at two scales.** The **feed** gets three words and two numbers (165 s disconnected, 60 s stale, gated on the market clock). A **security** gets **no threshold at all** — its gap p50 is 1 minute and its maximum is 187, so no number can separate a quiet security from a broken one. It carries an age, not a verdict.
+
 **The question.** `FeedStatus` ships `live | stale | disconnected` and says
 **nothing about when one becomes the next**. Two numbers are missing: how long
 without an observation before a feed is `stale`, and how long before it is
@@ -462,6 +466,8 @@ especially 3.10, which treats the degraded states as a set.
 ---
 
 ### 2.6 What the live feed is called on screen
+
+> **ANSWERED 2026-09-17 — §11.3: the grid in words, every string homed in `MARKET_FEED_DESCRIPTIONS`.** `LIVE` means the feed is healthy (§9.4). `replay`'s words are specified in ADR 0030 and **not yet in `MARKET_FEEDS`**, which §11.3 names as outstanding with an owner.
 
 **The question.** The words. `PRODUCT_SPEC.md` §7.1 is explicit that three
 letters teach a non-specialist nothing and that we must not imply IEX represents
@@ -2589,6 +2595,221 @@ a different name.
 
 **Not decided here.** Task 3.1.8's decision 2 settles the wire protocol and that
 is where the type, if any, is named.
+---
+
+## 11. Decisions 2, 5 and 6 (2026-09-17, Task 3.1.8)
+
+**The headline is a measurement that removes a decision rather than making one:
+there is no per-security staleness threshold, because the gap between one
+security's bars ranges from one minute to 187.** A security carries the **age of
+its observation**, not a verdict about it.
+
+### 11.1 Decision 2 — snapshot then deltas, relayed frame for frame
+
+**Chosen: on connect, one snapshot; thereafter, one message per upstream frame.**
+
+**Snapshot-then-deltas, and the alternative is not viable.** A browser
+connecting at 11:20 under deltas-only sees **nothing at all** until each symbol's
+next bar. §11.2's measurement puts that at a median of **1 minute**, a p95 of
+**4 minutes** and, for `ERIE`, **187 minutes**. Deltas-only is a blank screen for
+minutes, and for the thin tail of the universe most of a session. **A snapshot is
+not an optimisation here; it is what makes the first paint honest.**
+
+**The snapshot is §10.3's object serialised, and absence is expressed by
+omission.** It carries an entry for every security we have observed and **no
+entry at all** for the rest — not a null, not a placeholder. Three reasons, and
+the third is the one that matters:
+
+- It is the same shape the feed itself uses: a quiet minute produces **no frame**
+  rather than a zero-volume bar (§7.2).
+- The browser already holds the universe from `GET /securities`, so _in the
+  universe and absent from the snapshot_ is unambiguous without a second field.
+- It makes the empty case honest by construction. After a restart the snapshot is
+  `{}` — **and that is the true answer**, not a degraded one.
+
+**The server does not coalesce, and that is measured rather than assumed.**
+Alpaca already batches: at the open **332 bars arrive in 8.8 frames per minute**,
+at midday 284 in 6.8, at the close 450 in 16.1 (§9.5, §10.2). Relaying frame for
+frame is therefore **at most ~16 messages a minute**. A coalescing layer would
+save almost nothing, and it would spend latency on a budget the provider has
+already overrun — §7.4's 901 ms p95 against `PRODUCT_SPEC.md` §28's 250 ms.
+
+> **The instinct to coalesce came from the burst, and the burst is real** — 332
+> bars inside 243 ms (§7.4). But the burst is **already coalesced upstream**.
+> What arrives is a handful of fat frames, not 332 thin ones, and that is a
+> different problem: the cost is in **applying** 332 bars to a view, which is
+> Story 3.6's render question and not a transport one.
+
+**The envelope: a versioned, discriminated union, serialised by a named function
+over a declared type.** Three message types — `snapshot`, `bars`, `feed` — with a
+`type` discriminant and a protocol version.
+
+The HTTP wire's guarantee has no socket equivalent and must be built rather than
+assumed: `fast-json-stringify` strips every property a response schema does not
+declare, which is what makes _no internal detail reaches a client_ structural on
+that side. **A socket has no such mechanism**, so the rule here is that a frame
+is produced by a **named serialiser over a declared type**, never by
+`JSON.stringify` of whatever the handler is holding.
+
+**Every entry carries its observation's own instant**, per §10.3's rule that no
+reader may render a price without reading it. **No `staleSeconds` on the wire** —
+that is a clock read wearing a different name, and ADR 0017 forbids
+`packages/shared` reading the wall clock. The browser has a clock; let it
+subtract.
+
+**Two sockets, two states, and the second is a payload.** The browser's own
+connection state is the browser's to observe. **The upstream feed's state travels
+as a `feed` message**, carrying the `FeedStatus` of §11.2 and the instant of the
+last upstream observation. Conflating them is the defect Story 3.10 would
+otherwise inherit: _our socket is fine and the market feed behind it is dead_ is
+a real state and needs a way to be said.
+
+> **Reversal trigger, as a condition:** the first message type whose rate is not
+> bounded by the upstream frame rate — a per-browser computation, a replay
+> scrub, anything the server generates rather than relays. At that point
+> coalescing is a question again, and it is a question about our own output
+> rather than about Alpaca's.
+
+### 11.2 Decision 5 — the feed gets thresholds; a security gets an age
+
+**This decision has two scales and they take opposite answers.**
+
+#### The feed scale — three words, two numbers
+
+| State          | Condition                                                                   | From                                                                                                                                               |
+| -------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `disconnected` | **No inbound frame of any kind for 165 s**                                  | §6.3's 53.96–54.85 s heartbeat across 82 intervals; three missed. §8.8 confirms it is the **only** signal for a half-open socket                   |
+| `stale`        | Heartbeat current, but **no observation for 60 s while the market is open** | §7.9 measured the longest in-session silence of any inbound frame at **8.6 s**. 60 s is **7× the observed maximum** and well under the 165 s above |
+| `live`         | Heartbeat current, and — in session — an observation within 60 s            | The complement                                                                                                                                     |
+
+**`stale` is gated on the market being open, and the gate is already shipped.**
+Out of hours the same socket is legitimately silent for **76 minutes** on bar
+channels (§6.6), so a 60 s rule would report a healthy overnight feed as stale
+every minute of every night. The market clock that gates it is Story 2.5's and
+has been in the chrome since then.
+
+**A socket deliberately closed overnight would render `disconnected`, which is
+technically true and product-wrong — and the question does not arise**, because
+§9.3 chose to **hold the socket always**. Recorded because the task asked, and
+because it becomes live again the day that answer reverses.
+
+**No heartbeat of our own is needed.** §6.3 measured the server's at 53.96–54.85 s
+on a socket subscribed to nothing and on one subscribed to all 518 — it is a
+property of the connection rather than of the subscription, and it is the clock
+§8.8 says the one silent fault requires. Adding ours would be a second timer
+measuring the same thing.
+
+**And staleness is keyed on the observation's timestamp, never on "a frame
+arrived".** §6.7 measured `dailyBars` re-sending a **byte-identical** aggregate
+every minute out of hours: a rule keyed on arrival would call that liveness.
+
+#### The security scale — no threshold, because the measurement forbids one
+
+**The gap between one security's consecutive bars, measured across the regular
+session — 128,878 gaps across 518 symbols:**
+
+|               | p50 | p75 | p90 | p95 | p99 | p99.9 | max       |
+| ------------- | --- | --- | --- | --- | --- | ----- | --------- |
+| Gap (minutes) | 1.0 | 1.0 | 3.0 | 4.0 | 9.0 | 20.0  | **187.0** |
+
+**Per-symbol p95 gap:** the median symbol (`MSI`) is **4 minutes**. `ERIE` is
+**187 minutes**; `AIZ` is 146; `FDS` 35; `L` 33.
+
+> **So there is no threshold that works.** One that spares the median symbol must
+> be under ~4 minutes, and marks `ERIE` and `AIZ` stale for essentially the whole
+> session while they are working perfectly. One that spares `ERIE` is **187
+> minutes**, which is most of a trading day and tells a reader nothing. The
+> distribution is not long-tailed, it is **bimodal across securities**, and a
+> single number cannot describe it.
+
+**Chosen: a security carries the age of its observation and no verdict about
+it.** The surface renders _when this price is from_; it does not render `STALE`.
+
+**That is `PROVENANCE.md`'s rule rather than a dodge.** _A claim about data
+requires data._ The age is a **fact** we hold. The word `stale` is a **judgement**
+that requires a baseline — _how long is too long for this security_ — and this
+product does not have one. Rendering a judgement we cannot support is the same
+class of defect as a provenance record about zero bars.
+
+> **Reversal trigger, as a condition:** the first time this product holds a
+> **per-security baseline of expected inter-bar interval**. That is not
+> hypothetical — **Epic 5's anomaly detection computes exactly this kind of
+> baseline** (`PRODUCT_SPEC.md` §11's volume anomaly compares against "the
+> historical median volume for the same approximate time of day"). The day that
+> exists, _unusually quiet for this security_ becomes a supportable claim and
+> this decision should be re-taken.
+
+#### The fourth state is an absence, not a word
+
+§10.3 creates a security state that is none of the three: **we have never
+observed this security in this process's lifetime.** Every deploy produces it for
+the whole universe at once.
+
+**It is not a fourth word, because the security scale has no words at all.** It
+is omission from the snapshot (§11.1) and a vacancy on screen — the treatment
+Epic 2 already built for _no bars stored for this window_. The three-word
+vocabulary describes the **feed** and only the feed, and `FEED_STATUSES` stays at
+three members.
+
+### 11.3 Decision 6 — the grid, in words, with every string's home named
+
+**`LIVE` means the feed is healthy** (§9.4), and this is what the chrome reads in
+each combination. The feed cell and the connection cell are **two cells** — Task
+1.12.4's argument applied a fourth time — and the market clock is a third.
+
+| Feed configured | Connection   | Market | Feed cell                       | Connection cell | Clock    |
+| --------------- | ------------ | ------ | ------------------------------- | --------------- | -------- |
+| `iex`           | live         | open   | `IEX` + its sentence            | **`LIVE`**      | `OPEN`   |
+| `iex`           | live         | shut   | `IEX` + its sentence            | **`LIVE`**      | `CLOSED` |
+| `iex`           | stale        | open   | `IEX` + its sentence            | `STALE`         | `OPEN`   |
+| `iex`           | disconnected | either | `IEX` + its sentence            | `DISCONNECTED`  | either   |
+| `replay`        | live         | shut   | `REPLAY` + its sentence         | **`REPLAYING`** | `CLOSED` |
+| `synthetic`     | live         | either | `SIMULATED` + its sentence      | `LIVE`          | either   |
+| none            | —            | either | `NOT CONFIGURED` + its sentence | —               | either   |
+
+**The row that looks wrong and is correct: `IEX` / `LIVE` / `CLOSED`.** Our
+connection to the market is healthy; the market is shut. Three regions, three
+facts, none collapsing into the others — which is ADR 0030 decision 4's argument
+arriving from the other direction.
+
+**`sip` never appears on a live cell.** `PRODUCT_SPEC.md` §7.1 and invariant 6:
+stored history is the consolidated tape and the live stream is IEX only, and
+Epic 2's `All US exchanges` on a live tail would be the coverage implication §7.1
+forbids. That is not a new rule; it is the one Epic 2's close recorded as
+becoming false the first time an IEX tail is stitched on.
+
+**Every string's home, and none of them is a component:**
+
+| String                          | Home                                                                     | State                                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| The feed words and sentences    | `MARKET_FEED_DESCRIPTIONS` in `packages/shared/src/market-provenance.ts` | Shipped for `iex`, `sip`, `synthetic`                                                                                                        |
+| **`replay`'s words**            | The same record                                                          | **Specified in ADR 0030 §3, NOT yet in `MARKET_FEEDS`** — the union still holds three. Owner: whichever story implements the replay provider |
+| `live \| stale \| disconnected` | `FEED_STATUSES` in `packages/shared/src/feed-status.ts`                  | Shipped, and amended by this task — see below                                                                                                |
+| The connection sentence         | A new record beside `FEED_STATUSES`, same `satisfies` guard              | **Unwritten.** Story 3.3                                                                                                                     |
+
+**`feed-status.ts` gets a dated amendment rather than a rewrite**, per the ADR
+rule, because one of its sentences is not observable. Its doc glosses `stale` as
+_"still connected, but the last update is older than it should be"_ — and **"still
+connected" is not a thing a client can see**: §6.4 held `readyState === OPEN` for
+**4 h 21 min** on a socket that had died. The only observable is _when the last
+inbound frame arrived_.
+
+> **Reversal trigger for the grid, as a condition:** the first feed added to
+> `MARKET_FEEDS` — which `replay` already is in ADR 0030 and is not yet in the
+> union. The `satisfies` guard makes that a compile error rather than a missing
+> row, which is the mechanism doing the work this grid otherwise has to do by
+> hand.
+
+### 11.4 What Story 3.3 can now start against
+
+All three decisions exist, and each names its executor:
+
+| Decision                                  | Executed by                                                                                  |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 2 — the browser protocol                  | Story 3.2 for the seam, Story 3.3 for the browser half                                       |
+| 5 — the feed thresholds; the security age | Story 3.3 for the chrome, Story 3.10 for the degraded states, Story 3.6 for 518 ages at once |
+| 6 — the words and the grid                | Story 3.3, from `MARKET_FEED_DESCRIPTIONS`                                                   |
+
 ---
 
 ## What this document deliberately does not decide
