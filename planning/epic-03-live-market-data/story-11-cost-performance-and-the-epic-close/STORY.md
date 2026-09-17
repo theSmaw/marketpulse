@@ -157,3 +157,43 @@ until the last feature story has shipped.
 ## What this story hands forward
 
 A live application, and an epic whose figures can be re-taken rather than cited.
+
+## Handed here by Task 3.1.6 — 2026-09-17, and the premise halved
+
+**This story owns the only real cost measurement anybody will ever take**, and
+the estimate it is measuring against changed by a factor of two on 2026-09-17.
+
+[`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md)
+§9.1–§9.2: ADR 0011 put a live-feed replica at the **active** vCPU rate through
+every session — **$19.04/month**. Measured against a real 7.77-hour capture, a
+**bars-only** subscription to all 518 symbols averages **550.6 B/s** against the
+1,000 B/s condition and crosses it for **397 seconds a day**. The blended total
+is **$9.26** — five cents above a replica doing nothing.
+
+**The error was a premise rather than a calculation**: minute bars arrive as a
+**burst once a minute** — 243 ms of traffic, 59 seconds of silence — and a
+per-second threshold barely notices that. ADR 0011 carries a dated amendment and
+its tables are untouched.
+
+**What this story is therefore measuring against is $9.26, not $19.04**, and
+three things follow:
+
+- **The budget was left unchanged deliberately** (§9.6). `marketpulse-monthly`,
+  $20, alerts at 50/80/100%. At $9.26 the 50% alert at $10 sits eight percent
+  above the measured total, so it is already primed. **The reversal trigger is
+  the first month whose actual bill exceeds $12** — above §9.2's realistic worst
+  case, so reaching it means an assumption in §9.2 is wrong.
+- **The envelope is inbound-from-Alpaca only.** It does not cost the fan-out to
+  browsers, and §9.5's answer makes that the **whole universe** — 38 kB/min per
+  browser. Whether Azure's condition counts egress, and what concurrent browsers
+  add, is **this story's to measure** and nobody else's.
+- **It is n=1** — one Wednesday in September — and it is arithmetic over a rate
+  card. Epic 1 could read no bill at all; both billing APIs refused the
+  subscription. **This story is the first that can read one.**
+
+**And §28's performance target is in the same position.** §7.4 measured the
+provider's own share of the 250 ms budget at **901 ms p95 corrected** — but from
+Asia/Singapore, over a 271–311 ms round trip production does not have. That does
+not falsify §28; it makes it **unevaluable until the same figure is taken from
+`eastus2`**. The condition is **the first time a real socket runs in the deployed
+backend**, and that is this story's too.

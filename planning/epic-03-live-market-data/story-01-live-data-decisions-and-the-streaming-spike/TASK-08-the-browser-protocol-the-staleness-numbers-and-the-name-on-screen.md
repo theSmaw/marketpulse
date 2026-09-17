@@ -134,6 +134,37 @@ lands directly on decision 6's four-cell grid:
 > being dead, and §8.8's asymmetry is exactly the _feed stale_ versus _security
 > quiet_ distinction this task already owes.
 
+> **Added 2026-09-17 by Task 3.1.6 — decision 6 is answered, decision 5 has
+> become load-bearing, and decision 2 lost a requirement.**
+>
+> **Decision 6 is ANSWERED and must not be re-opened**
+> ([`LIVE-DATA.md`](LIVE-DATA.md) §9.4): **`LIVE` means the feed is healthy —
+> authenticated, subscribed, and the 54-second heartbeat current.** _Data is
+> arriving_ was rejected on a measurement rather than a preference: §7.6 found a
+> median symbol producing a bar in 65.1% of minutes and `ERIE` in **2.1%**, so a
+> data-keyed light reports a working feed as dark for a third of the universe.
+> This task executes that into words and a surface.
+>
+> **Which makes decision 5 load-bearing rather than merely owed.** `LIVE` now
+> carries **no claim about how old any number is**, so a **per-security
+> staleness mark is required**: without it, `LIVE` over a four-minute-old price
+> is true and misleading at once. That is the obligation §9.4 accepted on this
+> task's behalf, and it is written there as a reversal trigger — _the first
+> surface asked_is this number current\_ with no staleness mark beside it_.
+>
+> **One rendering that looks wrong and is correct**, so this task does not
+> "fix" it: at 03:00 the chrome reads **`LIVE`** beside a market clock reading
+> **`CLOSED`**. Two different facts, two cells that already exist — _our
+> connection to the market is healthy; the market is shut_.
+>
+> **Decision 2 loses a requirement and gains an argument.** §9.5's answer is the
+> **whole universe**, so there is no per-viewport subscription mechanism to
+> design — the browser does not tell the server what it can see, and nothing
+> changes on scroll. What remains is the snapshot, which is now **518 entries**,
+> and the coalescing question, whose real argument is **frames per burst rather
+> than bytes per month**: 332 bars in 243 ms, once a minute, against a payload of
+> under 1 kB/s.
+
 **Decision 2 — the browser transport's message protocol.** Settle, with
 alternatives:
 

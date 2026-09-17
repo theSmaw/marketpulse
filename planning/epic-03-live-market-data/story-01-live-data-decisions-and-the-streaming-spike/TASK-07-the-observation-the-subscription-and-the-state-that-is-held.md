@@ -106,6 +106,36 @@ the 30-symbol cap makes that a real design space rather than an all-or-nothing.
 > object and the subscription set come back by two different mechanisms and can
 > disagree while they do.
 
+> **Added 2026-09-17 by Task 3.1.6 — the person has answered, and one
+> instruction below is already discharged.**
+> [`LIVE-DATA.md`](LIVE-DATA.md) §9.5: **a browser subscribes to the whole
+> universe, all 518.** Decision 3 executes that; it does not re-open it.
+>
+> **The sizing this task was told to do is done.** Decision 3's Work says to
+> state the per-minute payload _for the whole universe even if the answer is not
+> the whole universe_. It is measured: **38.8 kB/min at the open, 32.8 at
+> midday, 52.9 at the close**, 38.4 mean across the session — under 1 kB/s at
+> the worst. **Do not re-take it**; quote §9.5.
+>
+> **And the reframing matters more than the number.** The payload objection this
+> decision was written to weigh **does not survive measurement** — the
+> constraint is **render cost**, not bandwidth: 332 bars land inside a **243 ms**
+> burst, once a minute (§7.4). A decision 3 that spends its argument on bytes is
+> arguing about the term that was never binding.
+>
+> **Two consequences reach the other two decisions on this task:**
+>
+> - **Decision 4** must hold state for **all 518**, not for a visible subset —
+>   a browser subscribed to everything needs a snapshot of everything on
+>   connect, which is Task 3.1.8's decision 2. The memory arithmetic this task
+>   already owes is therefore against the full universe rather than a window
+>   onto it.
+> - **Decision 1** gains a cost input it did not have. §9.1 measured that
+>   **trades for ten symbols cost 2.9× the bars for 518** — 18.9 MB against
+>   15.4 MB. So the _trades for a small set_ option this task is told to keep
+>   open or close is **expensive relative to bars**, and that is a measured
+>   statement rather than an intuition about volume.
+
 **Decision 3 — what the browser is subscribed to.** Execute the person's answer
 into a design: what the browser asks for, what happens when it asks for
 something outside the universe, what happens when a second browser asks for the
