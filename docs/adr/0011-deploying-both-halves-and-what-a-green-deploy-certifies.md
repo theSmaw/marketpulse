@@ -843,10 +843,40 @@ true at the time of writing.
 So the question stays open with an owner: **Epic 2 re-reads it**, before adding a
 database, and Epic 3 must re-take it regardless — a replica holding a live feed
 bills at the **active** rate through every market session, which is the $19.04
-column, and the free grant is 3.6× exceeded either way. The budget
-(`marketpulse-monthly`, **$20**, alerts at 50/80/100% to the account owner) is in
-place and was re-read; note that the active-rate total sits just **under** it,
-so the budget would not fire on the exact change that matters most.
+column, and the free grant is 3.6× exceeded either way.
+
+> **Amended 2026-09-17 by Task 3.1.6 — the sentence above is wrong, and the
+> arithmetic in this section is not.** Epic 3 re-took it, as instructed, and
+> measured the in-session byte rate a live feed actually produces. **A
+> bars-only subscription to all 518 symbols averages 550.6 B/s and crosses the
+> 1,000 B/s condition for 397 seconds a day — 6.6 minutes, 1.4% of a hold.** The
+> blended monthly total is **$9.26**, not $19.04: five cents above a replica
+> doing nothing.
+>
+> **The error was a premise rather than a calculation**, which is why the tables
+> above stand unaltered. _Bills at the active rate through every market session_
+> assumes the rate is **continuous**. It is not: the market is open 136.5 of 720
+> hours in a month, and inside a session minute bars arrive as a **burst once a
+> minute** — 243 ms of traffic and 59 seconds of silence — so a per-second
+> threshold is crossed for a fraction of even that. **A once-a-minute burst
+> cannot hold a per-second condition.**
+>
+> Two consequences. **The $19.04 column is reachable only by a subscription this
+> product is not going to have** — the capture that produces it is 2.9× the
+> bars-only rate and almost all of the excess is ten symbols' trades. And **the
+> budget defect this section records — that the active-rate total sits just
+> under the $20 ceiling — does not arise**, because the real total is $9.26 and
+> the existing 50% alert at $10 sits eight percent above it. Task 3.1.6 left the
+> budget unchanged for that reason.
+>
+> It remains an **estimate over a rate card**. No bill has been read yet, by
+> anybody, and **Story 3.11 still owns the measurement**. The working is in
+> [`LIVE-DATA.md`](../../planning/epic-03-live-market-data/story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md)
+> §9.2, and it reproduces this section's own $4.21 and $14.04 to the cent before
+> varying one input. The budget
+> (`marketpulse-monthly`, **$20**, alerts at 50/80/100% to the account owner) is in
+> place and was re-read; note that the active-rate total sits just **under** it,
+> so the budget would not fire on the exact change that matters most.
 
 ### Image retention: deferred, with the arithmetic that makes deferring correct
 
