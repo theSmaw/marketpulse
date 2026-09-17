@@ -165,6 +165,28 @@ lands directly on decision 6's four-cell grid:
 > than bytes per month**: 332 bars in 243 ms, once a minute, against a payload of
 > under 1 kB/s.
 
+> **Added 2026-09-17 by Task 3.1.7 — the snapshot is now a known object, and it
+> has to be able to say nothing.**
+>
+> §10.3 settles what the backend holds: **the last bar per security**, a
+> `Map<symbol, Bar>` measured at **0.2 MB**. §10.2 settles that a browser
+> receives **all 518**. So decision 2's snapshot is not a new construction — **it
+> is that object serialised**, and the two should not be allowed to drift into
+> different shapes.
+>
+> **What the snapshot must be able to express is absence.** The map is
+> legitimately empty after a restart and partial for a long time afterwards
+> (§10.3), so _I have no observation for this symbol_ is an ordinary payload
+> rather than an error — and a protocol that can only send prices will send 518
+> entries it does not have.
+>
+> **And one rule from §10.3 reaches the envelope directly:** every entry carries
+> its own `startsAt`, and **no reader may render a price without reading it**. So
+> the wire type carries the instant; `staleSeconds` computed server-side would be
+> a clock read wearing a different name, and §10.4 records that ADR 0017 binds it
+> — _`packages/shared` may not read the wall clock_. **§10.4 explicitly hands the
+> naming of that type to this decision.**
+
 **Decision 2 — the browser transport's message protocol.** Settle, with
 alternatives:
 
@@ -186,6 +208,34 @@ alternatives:
 - **What the browser is told when the upstream feed is down** but the browser's
   own connection is fine. Two sockets, two states, and conflating them is the
   defect Story 3.10 would otherwise inherit.
+
+> **Added 2026-09-17 by Task 3.1.7 — decision 5 has a FOURTH state it did not
+> know about, and it is the one that will be met first.**
+>
+> [`LIVE-DATA.md`](LIVE-DATA.md) §10.3: the backend's current-state object comes
+> back **legitimately empty** after a restart and **refills unevenly** — within a
+> minute for a liquid name, possibly hours for `ERIE` at 2.1% coverage. So there
+> is a security state that is **not** `live`, **not** `stale` and **not**
+> `disconnected`: _we have never observed this security in this process's
+> lifetime_. The feed is healthy, the connection is up, nothing is wrong, and
+> there is no price.
+>
+> **It is not a rare edge.** Every deploy produces it for the whole universe at
+> once, and it persists for the thin tail of the universe for a long time
+> afterwards. A vocabulary of three words renders it as one of the three and
+> every one of them is a lie: `stale` implies we had something, `disconnected`
+> implies the feed is down, `live` implies a price.
+>
+> **Whether it is a fourth word or an absence rendered by each surface in its own
+> way is this decision's to make** — but it must be made rather than discovered
+> in Story 3.6 with 518 rows on screen.
+>
+> **And §10.1 gives this decision the sentence its thresholds have to satisfy**:
+> _a live price is at most about a minute old for a liquid security, may
+> legitimately be hours old for a thin one, and both of those are the feed
+> working correctly._ Per-symbol coverage is in §7.6 — **65.1% median, 2.1%
+> worst** — which is the distribution a per-security threshold has to survive,
+> and it is sharper than `ALPACA.md` §5.2's stored figures quoted below.
 
 **Decision 5 — the staleness vocabulary, in numbers.** `live | stale |
 disconnected` with no thresholds is three words. Set them, against the

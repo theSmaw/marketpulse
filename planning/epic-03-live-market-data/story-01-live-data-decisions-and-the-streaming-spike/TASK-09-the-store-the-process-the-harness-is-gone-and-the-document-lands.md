@@ -99,6 +99,24 @@ epic builds in from the start. Say that plainly when reporting the close.
 > because a reader in six weeks will see 518 shared prices and assume the
 > question was never asked.
 
+> **Added 2026-09-17 by Task 3.1.7 — one fact for each decision.**
+>
+> **Decision 7's walk gets sharper, not easier.** §10.3 settles that the
+> current-state object has **exactly one writer — the socket — and many
+> readers**. That is now a measured property of the design rather than an
+> expectation, and it cuts toward _no store_: this task's own rule is that two
+> readers is prop-drilling and two **writers** is a store. Walk it anyway,
+> because §10.2's whole-universe answer puts 518 live prices in front of three
+> surfaces, and record which side it landed on.
+>
+> **Decision 8 gains its reconnect path, and it is trivial.** §10.2: the upstream
+> subscription is a **constant** — always the same 518 — because §8.7 measured
+> that the server remembers nothing across a reconnect. So the reconnect path
+> re-sends a constant; **there is no subscription state to restore**, and the
+> only check afterwards is _does the `bars` key hold 518 entries?_ A decision 8
+> that designs a resubscription protocol is designing for a problem this epic
+> does not have.
+
 **Decision 7 — whether the frontend gains a store.** Answer it with the
 condition in hand. The question is not _will this epic be annoying without one_;
 it is **does a trigger fire**. Walk the three explicitly against what
