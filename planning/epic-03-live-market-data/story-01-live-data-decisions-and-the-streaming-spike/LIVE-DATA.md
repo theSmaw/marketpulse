@@ -241,6 +241,8 @@ product question rather than confirming it.
 
 ### 2.1 What a live observation is
 
+> **ANSWERED 2026-09-17 — §10.1: a minute bar, all 518, and nothing else on the live path.** Trades cannot reach 518 at all (the cap is 30) and cost 2.9× for ten. The alternatives below are the record of what was weighed.
+
 > **Amended 2026-09-17 by §7.11's second decision, and this is a premise change
 > rather than a detail.** The product subscribes `updatedBars`, so **a live
 > observation can be superseded by a later, corrected one for the same minute**
@@ -337,6 +339,8 @@ forbids.
 
 ### 2.3 What the browser is subscribed to
 
+> **ANSWERED 2026-09-17 — §10.2: the whole universe, implicitly, with the browser naming no symbols.** Three of this question's four sub-questions dissolve rather than being answered, and the upstream subscription becomes a **constant**. The alternatives below are the record of what was weighed.
+
 **The question.** The whole universe, the rows currently visible, or the one
 security on screen. **518 × one bar a minute is a different payload from one.**
 
@@ -372,6 +376,8 @@ implementation), 3.6 (which is affordable or not depending on it) and Epic 4.
 ---
 
 ### 2.4 Where the current market state lives, and how much of it
+
+> **ANSWERED 2026-09-17 — §10.3: the last bar per security, 0.2 MB, in a backend module with one writer.** Today's bars are measured at **55.6 MB** — 10.9% of the replica — and come from the store plus the live tail instead. The alternatives below are the record of what was weighed.
 
 **The question.** The backend holds something between two extremes, and they are
 different objects with different costs.
@@ -2404,6 +2410,185 @@ designs:
 **None of the four may be re-asked.** A question already answered and asked
 again is how a decision gets reversed by accident, which is this story's premise
 applied to a person.
+---
+
+## 10. Decisions 1, 3 and 4 (2026-09-17, Task 3.1.7)
+
+**A live observation is a minute bar; a browser is subscribed to all 518 of
+them; and what the backend holds is the last one per security.** The three are
+one arithmetic seen from three places, and taken together they are much smaller
+than any of them looked taken apart.
+
+### 10.1 Decision 1 — a live observation is a minute bar
+
+**Chosen: minute bars, all 518, and nothing else on the live path.**
+
+| Alternative                                                | Verdict                                                                                                                                             |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Minute bars for the universe**                           | **Chosen.** Exempt from the 30-symbol cap (§1.4), 15.4 MB a session, and the only option that can describe 518 securities at once                   |
+| Trades for the universe                                    | **Impossible**, not merely expensive — `ALPACA.md` §1 measured the cap at **30 symbols** for `trades`. There is no version of this that reaches 518 |
+| Bars for the universe **plus** trades for a focused subset | **A real design space, deliberately left open and not built** — see below                                                                           |
+
+**The cap decides the mechanism and the measurements decide the rest.** Trades
+for **ten** symbols cost **18.9 MB** against bars for **518** at 15.4 MB (§9.1) —
+2.9× the data for 1.9% of the universe. Quotes are worse by another order of
+magnitude: 66,204 messages in **120 seconds** for ten symbols (§7.2).
+
+> **The product consequence, in a sentence Stories 3.4 and 3.10 can quote:**
+> **a live price is at most about a minute old for a liquid security, may
+> legitimately be hours old for a thin one, and both of those are the feed
+> working correctly.**
+>
+> The two halves are separately measured and the second is the one that
+> surprises. A bar arrives ~**0.5 s after its minute closes** (§7.4), so the
+> ceiling for a security that trades every minute is a minute. But IEX coverage
+> is **65.1% of minutes for a median symbol and 2.1% for `ERIE`** (§7.6), and a
+> quiet minute produces **no frame at all** rather than a zero-volume bar
+> (§7.2) — so for a thin name the last observation can be hours old with nothing
+> wrong anywhere.
+
+**What the product loses, said plainly.** There is no intra-minute price
+movement on any screen in this epic. A number ticks **once a minute** or less,
+not continuously. Story 3.4's motion vocabulary is designed against that and not
+against a streaming tape; a design that assumes continuous movement will look
+correct in a mock and dead in production.
+
+**Trades for a focused subset: open, unbuilt, and unowned.** The 30-symbol cap
+makes _one symbol under the pointer_ a genuine possibility rather than an
+all-or-nothing, and `PRODUCT_SPEC.md` §7.1 names trades among the product's
+initial data. **But no story in Epic 3 delivers them** — §7.1's list is not a
+schedule, and Story 3.8 is the _tape column_ on `market_bars`, a schema change,
+rather than the trade tape. Recorded so that a later reader does not find "the
+tape on the bar" in the roadmap and conclude this was covered.
+
+> **Reversal trigger, as a condition:** the first surface that has to show
+> **intra-minute** movement for a single security — a live tape beside a chart,
+> or an anomaly whose evidence is the shape of a minute rather than its close.
+> At that point the cap is the design constraint rather than the blocker, and
+> the cost is ~1.9 MB a session for one symbol.
+
+### 10.2 Decision 3 — the browser subscribes to the whole universe, implicitly
+
+**Chosen: a browser receives all 518 bar streams, and names no symbols to get
+them.** §9.5 is the person's answer; this is the design.
+
+**Three of this decision's four questions dissolve, and saying so is the
+decision.** The task was written to ask what happens when a browser asks for
+something outside the universe, when a second browser asks for the same thing,
+and when a browser asks for nothing. **A browser that names no symbols cannot
+ask for the wrong one**:
+
+- **Outside the universe** — unreachable on the bar stream. §4.4's measured trap
+  (Alpaca **accepts** a symbol that does not exist and echoes it back as held, so
+  an acknowledgement is not evidence a symbol is real) is a hazard for a
+  _dynamic_ subscription and this is not one. It returns the moment any per-symbol
+  channel exists, and §4.4's rule stands for that day: **validate against our own
+  universe before the frame is sent.**
+- **A second browser** — receives the same stream. There is one upstream
+  subscription and an N-way fan-out, so browsers do not interact at all.
+- **A browser that asks for nothing** — not reachable. §4.4's other trap, that an
+  **empty symbol list is a `400`**, cannot be produced by a design where the
+  symbol list is a constant.
+
+**The upstream subscription is a constant, and that is the largest simplification
+in this epic.** §8.7 measured that the server remembers nothing across a
+reconnect, so the subscription set is ours to re-assert — and with the
+whole-universe answer, **what we re-assert is always the same 518**. There is no
+diffing, no incremental subscribe, no unsubscribe path, and §4.4's reconciliation
+rule (the acknowledgement is the full current state, and §6.8's warning that it
+carries channels nobody asked for) reduces to a single check after each
+reconnect: **does the `bars` key hold 518 entries?**
+
+> **Story 3.5 is named _subscription management_ and, for bars, has almost
+> nothing to manage.** What it manages is the browser fan-out and the
+> current-state object of §10.3. Recorded here so that story does not go looking
+> for a dynamic subscription model that this decision deliberately does not
+> create.
+
+**The payload, measured** (§9.5, not re-taken): **38.8 kB/min at the open, 32.8
+at midday, 52.9 at the close**, 38.4 mean — under **1 kB/s** at the worst. The
+chosen scope and the whole universe are the same number, because they are the
+same thing.
+
+> **Reversal trigger, as a condition:** the first browser surface that must
+> receive something **no other browser receives** — a per-user watchlist, a
+> focused trade tape, a replay session bounded to one client. That is the point
+> at which a subscription becomes state rather than a constant, and every
+> question this section dissolved comes back at once.
+
+### 10.3 Decision 4 — the backend holds the last bar per security, and nothing more
+
+**Chosen: one `Map<symbol, Bar>` — the latest observation per security — held in
+a backend module. Today's bars are NOT held in memory.**
+
+**The arithmetic, measured rather than described.** 518 securities × 390
+regular-session minutes, built as the `Bar` shape Story 3.2 normalises to, on
+Node 24 after two forced collections:
+
+| Object                                | Bars    | Heap        | Per bar |
+| ------------------------------------- | ------- | ----------- | ------- |
+| **Last bar per security (518 × 1)**   | 518     | **0.2 MB**  | 420 B   |
+| Today's bars per security (518 × 390) | 202,020 | **55.6 MB** | 288 B   |
+
+The replica has **512 MB**. Today's bars would be **10.9% of the whole
+replica's memory** to hold a thing that Story 3.9 is about to store durably
+anyway — which is the argument, rather than the raw size.
+
+**Where it lives and who reads it.** A module in the backend, with **one
+writer** — the socket — and many readers. §10.1's three outside consumers are
+the reason it exists at all: Epic 4's overview, Epic 5's anomaly scores and
+Epic 7's analytical tools all want _the latest observation per security_ and
+none of them wants to open a socket to get it.
+
+**Today's bars come from the store plus the live tail, which is a mechanism this
+product already has.** Epic 2 built `GET /market-data/bars` and a read-time
+stitch of stored bars with a live tail (§1.11); Story 3.7's chart uses it, and
+Story 3.9 stores the live session so that it can. **Decision 4 and Story 3.9's
+scope are one decision seen twice** — this half says _not in memory_, and that
+obliges Story 3.9's half to say _durably in the store_, on the same day.
+
+**Restart: the map comes back empty and fills unevenly, and that is ordinary.**
+It is a **cache of the socket rather than a source of truth**. After a restart a
+liquid security reappears within a minute and `ERIE` may not reappear for hours
+(§7.6) — so **every reader must treat _no current observation for this symbol_ as
+a normal answer**, which is the same shape §7.2 established for a quiet minute.
+A reader that renders absence as an error will render it constantly.
+
+**The session lifecycle, which is the part that gets skipped.** At 15:59 on a
+Friday the map holds Friday's bars. At 09:31 on the Monday **it still holds
+Friday's bars**, because nothing has arrived to replace them and nothing clears
+it. That is correct and it is only safe because of one rule:
+
+> **Every entry carries its own `startsAt`, and no reader may render a price
+> without reading it.** A "last price" with no instant beside it is the trap this
+> whole product spent Epic 2 avoiding — it is `PROVENANCE.md`'s _a claim about
+> data requires data_ applied to time. The map is not cleared on a session
+> boundary because clearing it would replace a true-but-old answer with no
+> answer, and the honest rendering of Monday 09:31 is **Friday's close, labelled
+> Friday's**.
+
+> **Reversal trigger, as a condition:** the first reader that needs more than the
+> latest bar and **cannot** get it from the store — a computation over today's
+> intraday series that runs per-request and is too slow against Postgres. That is
+> a measurement, not a preference, and it belongs to whichever story first takes
+> it.
+
+### 10.4 What this does to `packages/shared` — recorded, not decided
+
+A live observation is a **`Bar` with a `BarSource`**, which is the shape Story
+3.2 normalises to and a shape this repository already has. So the live path
+introduces **no new domain type**, and that is worth stating because it is the
+cheapest possible answer and was not guaranteed.
+
+What it may need is a name for _the latest observation per security_ as a
+transported thing — §10.3's map, seen from the wire. If that type is added, ADR
+0017 binds it: **`packages/shared` may not read the wall clock**, so a type
+carrying _how old is this_ must carry an **instant** and let the reader do the
+arithmetic. A `staleSeconds` field computed in shared would be a clock read with
+a different name.
+
+**Not decided here.** Task 3.1.8's decision 2 settles the wire protocol and that
+is where the type, if any, is named.
 ---
 
 ## What this document deliberately does not decide

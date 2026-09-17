@@ -146,3 +146,30 @@ extended-hours bars are **rendered and marked**, so this table's cells inherit
 Story 3.4's mark outside 09:30–16:00; and the product **subscribes
 `updatedBars`**, so a cell's value can be corrected about thirty seconds after
 it appeared.
+
+---
+
+## Handed here by Task 3.1.7 — 2026-09-17, and this story meets the empty cell first
+
+**518 rows is where _we have no price for this_ stops being a theoretical state.**
+[`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §10.3: the backend's current-state object comes back
+**legitimately empty after every restart** and refills unevenly — within a minute
+for a liquid name, possibly hours for `ERIE` at 2.1% coverage (§7.6). **Every
+deploy produces an empty table, and the thin tail of the universe stays empty for
+a long time afterwards.**
+
+**That state is none of `live`, `stale` or `disconnected`** — the feed is
+healthy, the connection is up, nothing is wrong, and there is no price. Task
+3.1.8's decision 5 owns whether it gets a word of its own or is rendered as an
+absence; **this story is the surface that will show 518 of them at once**, so
+whatever that decision produces has to work at that scale rather than in a
+single cell.
+
+**A reader that renders absence as an error will render errors constantly.**
+That is §10.3's rule and it is the same shape §7.2 established for a quiet
+minute: a bar that does not exist produces **no frame at all**, not a zero.
+
+**And the rows tick once a minute, not continuously** (§10.1) — about **332 bars
+landing inside a 243 ms burst**, once a minute (§7.4). The difficulty in this
+story is **render cost rather than payload**: the whole universe is 38 kB/min
+(§9.5), which is nothing, and the burst is the thing to design against.
