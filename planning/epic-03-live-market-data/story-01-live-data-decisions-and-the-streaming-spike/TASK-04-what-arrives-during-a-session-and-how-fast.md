@@ -1,6 +1,6 @@
 # Task 3.1.4 — What arrives during a live session, how fast, and which end of the minute `t` marks
 
-**Status:** Instrument built, dry-run and recorded (2026-09-16). **The capture itself is outstanding** — it needs a live session on a machine that stays awake, and the window has not been given to it yet. See _Where this stands_ at the foot of this file.
+**Status:** **Complete — the capture was taken on Wednesday 2026-09-16 and is written into [`LIVE-DATA.md`](LIVE-DATA.md) §7.** Figures 1, 2, 4, 5, 6, 7, 8, 12, 13 and the remaining half of 15 are struck from §3's register. **Two product decisions it forces are open and named in §7.11** — whether the charts show extended-hours bars, and whether the product subscribes `updatedBars`. See _What the capture found_ at the foot of this file.
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
 **Depends on:** 3.1.2 for the instrument. **Amended 2026-09-15:** 3.1.3's
 _short_ windows should be taken first where the calendar allows, exactly as
@@ -214,7 +214,10 @@ because 391 > 390 is impossible. Read the numbers.
 
 ---
 
-## Where this stands — 2026-09-16
+## Where this stood before the capture — 2026-09-16, morning
+
+_Left standing: it is the record of what the instrument cost before it was
+pointed at anything, and §7 is only legible against it._
 
 **Nothing in `LIVE-DATA.md` §3's register is struck by this entry.** Figures 1,
 2, 4, 5, 6, 7, 8, 12 and 13 do not exist, the `t` question is unanswered, and
@@ -306,11 +309,74 @@ times behind a trigger that was a calendar.
 
 ---
 
+## What the capture found — 2026-09-16
+
+**Taken 08:43:44 → 16:30:03 ET, one connection, 150,334 frames, ended by the
+window closing rather than by the watchdog.** Every figure is in
+[`LIVE-DATA.md`](LIVE-DATA.md) §7 with its instrument and its date; this is the
+index and the disposition.
+
+| Done-when                                | Where      | Answer                                                                              |
+| ---------------------------------------- | ---------- | ----------------------------------------------------------------------------------- |
+| Every message type, verbatim             | §7.2       | Seven types; one bar field set across 129,481 frames                                |
+| Rate at open/midday/close, msg **and** B | §7.5       | Open p50 9 / p95 419 msg/s; 6,838 B/s mean against ADR 0011's 1,000                 |
+| p50/p95 arrival gap, both ways           | §7.4       | 491 / 684 ms raw, **708 / 901 ms corrected** (+217.165 ms, NTP spread 0.661 ms)     |
+| `t`, with a control                      | §7.3       | **START** — agrees with `ALPACA.md` §5.3, ten pairs identical unshifted             |
+| Live IEX coverage vs 82.8% / 43.1%       | §7.6       | 321 of 518 p50 per minute; **65.1% median per-symbol**, all 518 produced a bar      |
+| Unmeasured, with reasons                 | §7.10      | Seven, in `ALPACA.md` §10's shape                                                   |
+| Open boundary to the second              | §7.6, §7.7 | First bar covering 09:30 arrived **09:31:00 ET**                                    |
+| Extended hours, with frames              | §7.7       | 37 pre-market bar minutes, **no field distinguishes them** → decision open in §7.11 |
+| Close boundary + 16:00–16:30             | §7.7       | Last regular bar `t=15:59` at 16:00:01; after-hours to 16:30:00; close `1006`       |
+
+### The three things worth knowing if you read nothing else
+
+- **§28 cannot currently be evaluated.** The provider's own share of the 250 ms
+  budget is **901 ms p95 corrected** — more than triple the whole budget before
+  any of our code runs. It is an upper bound from Asia/Singapore over a 271–311 ms
+  round trip the production path does not have, so it does not falsify §28; it
+  makes it unevaluable until Story 3.11 re-takes it from `eastus2`.
+- **The feed is thinner live than stored history suggested.** 65.1% median
+  per-symbol coverage against `ALPACA.md` §5.2's 82.8%. Story 3.6's table will
+  have roughly 320 of 518 rows moving in any given minute.
+- **A bar can be revised about thirty seconds after it is delivered** (§7.8),
+  and nobody had this on the register. Fourteen restatements, **all fourteen
+  changed the bar**, three changed the close price.
+
+### What this capture did not get, and it is one thing
+
+**The pre-market window is short by 1h43m.** The task asked for a 07:00 ET start;
+the first attempt connected at 08:16:59 and its socket died at 08:38:41 — the
+§6.4 failure for the third time — and the hold that produced everything above
+began at 08:43:44. The extended-hours _shape_ question is fully answered; the
+pre-market _rate_ is not, and §7.1 says so rather than letting the analyser's
+`pre-market 07:00-09:30` row be quoted, which would understate it threefold.
+
+### The instrument grew a supervisor, and it is why the session survived
+
+After the third silent death, `supervise-session.sh` was added beside the
+harness: it relaunches `session.mjs` whenever a segment ends before the window
+closes, with backoff, and refuses to race a capture that is already holding the
+socket. **It was never needed** — the second hold ran the full 7.77 hours — and
+it is recorded because the failure it guards has now happened three times and
+will happen a fourth. It does not touch the instrument: the watchdog still bounds
+every segment at its last inbound instant.
+
+`finish.sh` became segment-aware in the same change. It read the _newest_ capture
+file, which is correct for one file and silently half a measurement once there
+are seams — on a night with three, the newest file is the twenty minutes after
+the close.
+
+---
+
 ## What this task did, for somebody who does not read code
 
-**Short version: we built the measuring instrument, proved it works, and found
-out that the thing we were about to measure with would have lied to us. The
-measurement itself still needs a live trading day.**
+**Short version: we listened to the live market for a whole trading day and
+wrote down what came out. Three things we found change what the product can
+honestly promise, and two of them need a decision from you.**
+
+_The section below was written before the measurement, when only the instrument
+existed. It is left standing because it explains why the instrument was worth
+building; the answers start at **What we actually heard**._
 
 MarketPulse is a tool for spotting unusual behaviour in the US stock market and
 investigating it against real evidence. Everything shipped so far is
@@ -382,3 +448,82 @@ same part of the world our servers live in — and the owner chose not to. So th
 instrument sits ready, it takes one command, and it will survive the machine
 dying halfway through: whatever it has captured by that point is kept and clearly
 labelled as a partial day. The product remains, today, a historical explorer.
+
+---
+
+## What we actually heard — Wednesday 2026-09-16
+
+**We listened from before the opening bell to half an hour after the closing
+one — seven and three-quarter hours, about 150,000 messages.** The recorder did
+what it was built to do. Here is what it heard, in plain terms.
+
+**1. The data arrives fast, but "fast" is measured from the wrong place, and
+that matters.** A minute's worth of trading reaches us about **seven-tenths of a
+second** after that minute ends. Our own performance promise is that a change
+reaches your screen within a quarter of a second — and that promise was always
+written to exclude the time our data provider takes. It now turns out the
+provider alone takes nearly three times our entire budget.
+
+That sounds alarming and mostly is not, because we measured from **Singapore**
+and our servers are in **Virginia**. We are adding most of a trip around the
+world that the real product does not have. The honest position is not "we are
+too slow" but "**we cannot yet say**, and we will not know until we measure from
+the same place our servers live". That measurement now has an owner and a
+trigger rather than being an assumption nobody wrote down.
+
+**2. The free data feed is thinner than we thought, and the product has to be
+honest about it.** We track 518 companies. In any given minute, only about
+**320 of them actually produce a price** — the others simply did not trade on
+the exchange our free plan can see. Every one of the 518 traded at _some_ point
+in the day, so nothing is broken, but a screen showing 518 live numbers would
+have roughly 200 of them sitting still at any moment.
+
+We had a previous estimate from stored historical data suggesting this would be
+better — about 83% coverage rather than the 65% we actually measured. The live
+feed is worse than the historical record implied. **This is a product problem
+with a product answer, not a bug**: the screens we build next have to make "this
+company has not traded for eleven minutes" look like a fact rather than a fault.
+
+**3. A price can quietly change after we have already shown it.** This one was
+not on anybody's list — we found it by reading the raw messages rather than the
+summary. About thirty seconds after the market tells us a minute's closing
+price, it sometimes **sends a correction**. In our day it did this fourteen
+times, and **every single correction changed something**; three of them changed
+the price itself, by a few cents.
+
+It is rare — about one bar in three hundred — but "rare and invisible" is the
+worst combination for a tool whose entire purpose is helping somebody trust what
+they are looking at. If we ignore corrections, we will occasionally show a price
+that the market has already revised, with no way of knowing which one.
+
+### The two things we need you to decide
+
+Neither is a technical question and both get much more expensive after the
+charts are built on them.
+
+**Should the charts show trading that happens outside normal hours?** Prices do
+trade before 09:30 and after 16:00, and the feed sends them to us **without any
+marking at all** — nothing in the message says "this one is out of hours". Left
+alone, every chart grows a thin, sparse tail at each end. We can show them, hide
+them, or show them marked as different. Showing them marked is the most honest
+and the most work, and it needs a visual language we have not designed yet.
+
+**Should we subscribe to the corrections?** They cost essentially nothing to
+receive. The trade-off is uncomfortable either way: take them, and a number can
+change under a reader's eye half a minute after it appeared; refuse them, and we
+are quietly wrong about one bar in three hundred, for ever.
+
+### What this unlocks
+
+The next several pieces of work stop being arguments and become
+implementations. We now know how stale a "live" price honestly is, how much data
+a browser would have to swallow (at the opening bell, a burst of about 320
+messages inside a quarter of a second, once a minute), what to say when a
+thinly-traded company has simply not traded, and how to tell a genuinely dead
+connection from a quiet market — a distinction that has now cost us three
+captures and is the difference between the product saying "live" honestly and
+saying it wrongly at three in the morning.
+
+**The product is still, today, a historical explorer.** Nothing on screen
+changed. What changed is that the people building the next part are no longer
+guessing.
