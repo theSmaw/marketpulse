@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
-**Depends on:** 3.1.8
+**Depends on:** 3.1.8. **Carries two measurements handed here by Task 3.1.5 on 2026-09-16**, both of which need a live session the shut-market fault pass could not have — see _Two session measurements inherited from 3.1.5_ under Work.
 
 ## Objective
 
@@ -41,7 +41,31 @@ epic builds in from the start. Say that plainly when reporting the close.
   executes that answer; it does not re-open it.
 - **`deploy.yml` rolls the backend**, and Task 3.1.5 measured what a duplicate
   connection does on a one-connection plan. Whatever that measurement said is
-  binding on decision 8.
+  binding on decision 8. **It said this, on 2026-09-16 —
+  [`LIVE-DATA.md`](LIVE-DATA.md) §8.2: the INCUMBENT wins.** The arriving
+  connection is told `{"T":"error","code":406,"msg":"connection limit exceeded"}`
+  233 ms after authenticating and is closed 9,964 ms later; the incumbent keeps
+  its socket **and all 518 subscriptions** and does not notice.
+
+  So decision 8 is not choosing a policy against an unknown — it is executing
+  against a **guaranteed, every-deploy behaviour**: the newly-rolled replica has
+  no feed until the outgoing one's socket is actually gone. Three things follow
+  and decision 8 owns the first two:
+
+  - **What the starting process does when refused.** Retry with what cadence,
+    for how long, and what it reports meanwhile. §8.7 measured that reconnecting
+    immediately is not penalised, so the cadence is a politeness decision rather
+    than a penalty-avoidance one — say so, because a backoff justified by a
+    penalty that does not exist is a number nobody can revisit.
+  - **What the stopping process does with its socket**, and whether it closes it
+    deliberately on `SIGTERM` rather than letting the replica's death close it.
+    §6.4 and §8.8 are the reason this matters more than it looks: a **half-open**
+    socket holds the one permitted connection with nothing alive behind it, so a
+    process that dies without closing can lock its own successor out for as long
+    as the upstream takes to notice — which §6.4 measured at over four hours.
+  - **Whether the overlap window is bounded at all** is Story 3.11's, and it is
+    named there rather than here.
+
 - **One logging decision reverses here.** Task 1.12.6 declined `ignore:
 "reqId,pid"` on pino-pretty after measuring 51 adjacent request pairs, and
   named its reversal trigger as **this epic's socket, or anything else that puts
@@ -161,6 +185,36 @@ naming the pino reversal above, which fires here.
 - **`pnpm verify` passes**, which for a story that changes no application code
   means the `links` and `invariants` steps over the new document.
 
+### Two session measurements inherited from 3.1.5 — added 2026-09-16
+
+Task 3.1.5 produced its fault taxonomy against a **shut** market, which is the
+right place to inject faults and the wrong place to observe bars. Two of its
+items need bars flowing, and the owner chose on 2026-09-17 to hand them here
+rather than spend a second night on them. **This task already needs a window for
+the weekend hold, so they cost it a subscription rather than a night.**
+
+- **What is missed while away.** Reconnect after a gap of known length **during a
+  session** and establish whether the bars for those minutes are ever delivered,
+  replayed, or simply gone. [`LIVE-DATA.md`](LIVE-DATA.md) §8.7 establishes the
+  server holds **no** subscription state across a reconnect, which makes _gone_
+  overwhelmingly likely — **and overwhelmingly likely is not measured.** Story
+  3.10's gap-filling scope is written from the answer: if the bars are gone, the
+  repair is an HTTP backfill rather than a socket feature, and that is a
+  different story from one that can ask the socket to catch up.
+- **The `updatedBars` revision rate at 518 symbols.** §7.11's **reversal trigger
+  on a decision the owner has already taken** — the product subscribes
+  `updatedBars`, on a rate of 0.36% measured on ten liquid names. Subscribe `u`
+  for the whole universe for one session-length window and record the per-symbol
+  rate, the fraction that change the close rather than only volume, and the lag
+  against 3.1.4's +28.6–29.8 s. **State the trigger as fired or not fired**, in
+  those words, because a trigger quietly not evaluated is a decision nobody
+  revisited.
+
+**If this task's window cannot produce a session either, neither item may be
+dropped silently** — record each as unmeasured with a named owner in
+`ALPACA.md` §10's shape, which is the same constraint this task already carries
+for the weekend window.
+
 ## Done when
 
 - Decisions 7 and 8 are settled in `LIVE-DATA.md` with the trigger walk shown.
@@ -174,6 +228,10 @@ naming the pino reversal above, which fires here.
 - The upward sweep ran, with a list of what was corrected and what was found
   already true.
 - Canvas reachability is answered yes or no and recorded for Story 3.4.
+- **3.1.5's two inherited session measurements are taken, or each is recorded as
+  unmeasured with a named owner** — what is missed while away, and the
+  `updatedBars` revision rate at 518. Where the second is taken, §7.11's
+  reversal trigger is **stated as fired or not fired** in those words.
 - `pnpm verify` passes.
 
 ## Notes

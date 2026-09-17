@@ -107,6 +107,33 @@ lands directly on decision 6's four-cell grid:
 
 ## Work
 
+> **Added 2026-09-16 by Task 3.1.5 — three measured inputs this task did not
+> have, and the first one removes an option rather than informing one.**
+>
+> **1. `LIVE` cannot be keyed off an open socket** ([`LIVE-DATA.md`](LIVE-DATA.md)
+> §8.4). Every authentication failure leaves the connection OPEN for ever, so
+> `onopen` and `readyState` both report healthy on a socket that will never
+> carry a bar. §4.5 saw this shape once and called it one endpoint's quirk; §8.4
+> shows it is how this server refuses **everything**. Decision 6 must define the
+> word against _data arriving_, and decision 5's `disconnected` cannot mean
+> _the socket object is gone_.
+>
+> **2. The close code is useless; the close LATENCY is the discriminator**
+> (§8.5). Five distinct causes all produce `1006` with an empty reason, and they
+> are **1 ms, ~240 ms, ~6 s, ~10 s and ~30 s** apart. Decision 5's thresholds
+> cannot be written against a code, and a client that times its own close can
+> tell a live socket from a corpse — which is the distinction `stale` versus
+> `disconnected` is actually reaching for.
+>
+> **3. Exactly one fault is silent, and it needs a clock rather than a handler**
+> (§8.8). Everything else announces itself within six seconds; the half-open
+> connection announces nothing, ever, and is detectable only as an **absent
+> heartbeat**. The harness already uses **165 s — three missed 54 s
+> heartbeats** — and that is a measured starting point for decision 5 rather
+> than an invented one. Note what it is _not_: it is a threshold for **the feed**
+> being dead, and §8.8's asymmetry is exactly the _feed stale_ versus _security
+> quiet_ distinction this task already owes.
+
 **Decision 2 — the browser transport's message protocol.** Settle, with
 alternatives:
 

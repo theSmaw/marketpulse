@@ -699,20 +699,32 @@ before it may quote 901 ms as _the_ number.**
 
 ### 3.4 Silence, and being unhappy
 
-| #   | Figure                                                                                                                                                                                                                                                                            | Sized against it                                                             | Task         |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------ |
-| 14  | What the socket says pre-market, after hours, overnight, at a weekend and on a holiday. **PART-STRUCK 2026-09-15 — §6.2, §6.7: early pre-market is silent on nine channels; after hours `dailyBars` rebroadcasts every minute. Weekend → 3.1.9, holiday → unmeasured (§6.9)**     | §2.8, §2.5, 3.10                                                             | 3.1.3        |
-| 15  | ~~**The longest legitimate silence**, inside a session and outside one~~ **STRUCK 2026-09-16 — §6.6 outside (≥76 min on bar channels, 60.1 s with `dailyBars`, 54.85 s of any frame) and §7.9 inside (8.6 s of any frame; 54.0 s across the whole hold, which is the heartbeat)** | §2.5's two numbers, directly                                                 | 3.1.3, 3.1.4 |
-| 16  | ~~Whether the server sends keepalives or pings, and at what interval~~ **STRUCK 2026-09-15 — §6.3: a server-initiated WebSocket ping every 53.96–54.85 s, on a socket subscribed to nothing and on one subscribed to all 518**                                                    | 3.2's liveness detection; §2.5's disconnected threshold                      | 3.1.3        |
-| 17  | The duplicate-connection frame and code, verbatim — the free plan allows **one**                                                                                                                                                                                                  | 3.2, and every developer running `pnpm dev` against a live deployment (§1.6) | 3.1.5        |
-| 18  | The bad-credential frame and code, verbatim                                                                                                                                                                                                                                       | 3.2's error mapping                                                          | 3.1.5        |
-| 19  | What a server-side close looks like, and whether an idle connection is closed at all                                                                                                                                                                                              | 3.10's reconnection                                                          | 3.1.5        |
-| 20  | **Whether a resubscribe replays missed bars** — almost certainly not, and _almost certainly_ is not a measurement                                                                                                                                                                 | 3.10's gap-filling, which is a different story if the answer is yes          | 3.1.5        |
+| #   | Figure                                                                                                                                                                                                                                                                                 | Sized against it                                                             | Task         |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------ |
+| 14  | What the socket says pre-market, after hours, overnight, at a weekend and on a holiday. **PART-STRUCK 2026-09-15 — §6.2, §6.7: early pre-market is silent on nine channels; after hours `dailyBars` rebroadcasts every minute. Weekend → 3.1.9, holiday → unmeasured (§6.9)**          | §2.8, §2.5, 3.10                                                             | 3.1.3        |
+| 15  | ~~**The longest legitimate silence**, inside a session and outside one~~ **STRUCK 2026-09-16 — §6.6 outside (≥76 min on bar channels, 60.1 s with `dailyBars`, 54.85 s of any frame) and §7.9 inside (8.6 s of any frame; 54.0 s across the whole hold, which is the heartbeat)**      | §2.5's two numbers, directly                                                 | 3.1.3, 3.1.4 |
+| 16  | ~~Whether the server sends keepalives or pings, and at what interval~~ **STRUCK 2026-09-15 — §6.3: a server-initiated WebSocket ping every 53.96–54.85 s, on a socket subscribed to nothing and on one subscribed to all 518**                                                         | 3.2's liveness detection; §2.5's disconnected threshold                      | 3.1.3        |
+| 17  | ~~The duplicate-connection frame and code~~ **STRUCK 2026-09-16 — §8.2: `{"T":"error","code":406,"msg":"connection limit exceeded"}` to the NEWCOMER, closed 9,964 ms later. The incumbent is undisturbed, which makes this a fact about every deploy**                                | 3.2, and every developer running `pnpm dev` against a live deployment (§1.6) | 3.1.5        |
+| 18  | ~~The bad-credential frame and code~~ **STRUCK 2026-09-16 — §8.3: `402 auth failed`, BYTE-IDENTICAL for wrong key, wrong secret and no credential; `400 invalid syntax` for a malformed frame. The socket stays OPEN in all four (§8.4)**                                              | 3.2's error mapping                                                          | 3.1.5        |
+| 19  | ~~What a server-side close looks like, and whether an idle connection is closed at all~~ **STRUCK 2026-09-16 — §6.3 (a polite idle socket is never closed) and §8.6 (a RUDE one is closed 5,999 ms after ONE unanswered ping). Every close is `1006`; §8.5 is the discriminator**      | 3.10's reconnection                                                          | 3.1.5        |
+| 20  | **Whether a resubscribe replays missed bars** — **PART-STRUCK 2026-09-16 — §8.7: the server remembers NO subscriptions across a reconnect, so a replay would have nothing to replay against. Whether the bars themselves are delivered needs a session and is handed to 3.1.9 (§8.9)** | 3.10's gap-filling, which is a different story if the answer is yes          | 3.1.5, 3.1.9 |
 
 **Why these are captured verbatim rather than mapped from documentation.**
 `ALPACA.md` §9b records three things a documentation-based mapping got wrong on
 the HTTP API — including a future range answering `403` where a `200` was
 expected. The stream has had no such pass at all.
+
+**It has now, and the pass earned its keep twice — 2026-09-16, §8.** Neither of
+these was on this register, because a register lists figures and both are
+_shapes_ a reasonable reader would have assumed differently:
+
+- **A refused socket stays OPEN** (§8.4). All four authentication failures leave
+  the connection up for ever. Any client reporting health from `onopen` or
+  `readyState` reports healthy on a socket that will never carry a bar.
+- **The close code is useless and the close LATENCY is not** (§8.5). Five
+  distinct causes all produce `1006` with an empty reason; they are 1 ms,
+  ~240 ms, ~6 s, ~10 s and ~30 s apart. A state machine branching on the code
+  branches on nothing.
 
 ### 3.5 Downstream of the socket, and unmeasured for a different reason
 
@@ -1156,6 +1168,20 @@ its own first-frame latency; `finish.sh` prints the segment count at the head of
 its report for that reason, and became segment-aware in the same change after it
 was found to read only the **newest** capture file, which is right for one file
 and silently a fifth of a measurement once there are seams.
+
+**Task 3.1.5 added one script and one harness option** (2026-09-16):
+`faults.mjs`, which produces §8's seven faults sequentially with a gap after
+each — the free plan allows one connection, so a probe that overlapped its
+predecessor would be measuring itself — and `socketOptions` on `Capture`, which
+exists for exactly one of them.
+
+**That option is `autoPong: false`, and it is the instrument rather than a
+convenience.** `ws@8` answers a server ping automatically and silently, so every
+capture in this story before 3.1.5 was a **polite client by construction** and
+nothing had measured what this server does to a rude one. The control is
+checkable in the capture itself: zero outbound `pong` frames beside inbound
+`ping` frames is what makes §8.6 a measurement, and a run that recorded a pong
+would have had to be discarded.
 
 **And it added a watchdog, after §6.4.** `harness.mjs` records the instant of
 every inbound frame and exposes `silentForMs()`; a hold ends, names the last
@@ -1980,6 +2006,192 @@ with §2.1's definition of a live observation and with Story 3.10's gap-filling,
 and it is the kind of decision that is very expensive to reverse once a chart
 has been built on it.
 
+---
+
+## 8. What the socket does when it is unhappy (2026-09-16, Task 3.1.5)
+
+**Every fault this connection can have announces itself except the one that
+matters, and the close code never tells you which you got.** Seven faults were
+produced deliberately against `wss://stream.data.alpaca.markets/v2/iex` on the
+evening of Wednesday 2026-09-16, market shut, one connection at a time. Six were
+loud. The seventh — a socket that is dead while `readyState` says `OPEN` — is
+the one §6.4 already found by accident and the one nothing here can make louder.
+
+**The headline for Story 3.2 is a library decision rather than a state
+machine.** A client built on Node's built-in `WebSocket` can neither see a ping
+nor send a pong (§4.6). **Alpaca closes a client that misses one ping, six
+seconds later.** So that client would be disconnected roughly every 61 seconds,
+for ever, and no amount of reconnection logic would fix it.
+
+### 8.1 The taxonomy
+
+Every row produced, every frame verbatim, every timing from the capture's own
+offsets.
+
+| Fault                       | How it was produced                                                             | What the server said                                                  | How our side finds out                                       | Time to detection                            |
+| --------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| **Duplicate connection**    | A authenticated and holding 518 bar subscriptions; B connects and authenticates | `{"T":"error","code":406,"msg":"connection limit exceeded"}` to **B** | A frame on B's data channel, then a close **9,964 ms later** | **233 ms** to the frame                      |
+| **Wrong key**               | A well-formed key that is not ours                                              | `{"T":"error","code":402,"msg":"auth failed"}`                        | A frame. **The socket stays OPEN**                           | ~240 ms                                      |
+| **Wrong secret**            | Our key, a bad secret                                                           | `{"T":"error","code":402,"msg":"auth failed"}` — **byte-identical**   | A frame. Socket stays OPEN                                   | ~240 ms                                      |
+| **Absent credential**       | `auth` with no key and no secret                                                | `{"T":"error","code":402,"msg":"auth failed"}` — **byte-identical**   | A frame. Socket stays OPEN                                   | ~240 ms                                      |
+| **Malformed action**        | `{"action":"authenticate"}` instead of `auth`                                   | `{"T":"error","code":400,"msg":"invalid syntax"}`                     | A frame. Socket stays OPEN                                   | ~240 ms                                      |
+| **Rude client**             | `autoPong: false`, authenticated and subscribed                                 | Nothing. A **close, `1006`**                                          | A close event                                                | **5,999 ms after the first unanswered ping** |
+| **Link destroyed under us** | `socket._socket.destroy()` on a live authenticated socket                       | Nothing — there is no server in this one                              | A close event, `1006`                                        | **1.06 ms**                                  |
+| **Half-open connection**    | Not produced — observed twice (§6.4, §7.1)                                      | **Nothing at all**                                                    | **Only the absent heartbeat**                                | §6.4: 4 h 21 min, and only because we asked  |
+
+### 8.2 The incumbent wins, and that is a fact about every deploy
+
+**B is refused; A is undisturbed.** A kept its socket, kept its 518
+subscriptions, and took the server's next 54 s ping at 55.4 s as if nothing had
+happened. B got `406` 233 ms after authenticating and was closed ten seconds
+later.
+
+**This is the deploy, not an edge case.** A rolling replica replacement has two
+processes alive at once by design (ADR 0011's `minReplicas: 1` guarantees the
+old one is still there), and the arriving replica is **B**. So on every single
+deploy the new replica is refused its feed, and it stays refused until the old
+replica's socket actually goes away.
+
+Three consequences, and they belong to three different stories:
+
+- **Story 3.2** must treat `406` as _wait and retry_, not as a fatal error. A
+  client that maps "the server refused me" to "stop" will have no feed after
+  every deploy until it is restarted by hand.
+- **Story 3.10** inherits a degraded state with a cause that is entirely
+  internal: the feed is down **because we are deploying**, which is not a market
+  fault, not a network fault, and not something to tell a user about in those
+  terms.
+- **Story 3.11** inherits the question of whether the overlap window is bounded
+  at all. Nothing here measures how long the old replica's socket survives its
+  own termination signal, and a half-open socket (§6.4) could hold the single
+  permitted connection long after the process that opened it is gone.
+
+### 8.3 Three authentication failures are one frame
+
+`402 auth failed` is returned **byte-identical** for a wrong key, a wrong secret
+and no credential at all. Task 3.1.5 was written to let Story 3.2's
+operator-facing log tell _you typed it wrong_ apart from _your account changed_.
+
+**It cannot, and that is the answer rather than a gap in the probe.** The
+distinction is not on the wire. An operator log that claims to make it is
+inventing it, and the honest sentence names the class: _the feed would not
+accept our credentials_.
+
+**`400 invalid syntax` is genuinely distinct**, and it is the one an operator
+can act on differently: it means our frame was wrong, not our identity.
+
+### 8.4 A refused socket stays open, and this is the trap with the widest blast radius
+
+**Every one of the four authentication failures left the socket OPEN.** The
+server says `402`, and then simply waits. `readyState` remains `OPEN`, no close
+arrives, and nothing further ever will.
+
+§4.5 found this shape at the `sip` refusal and called it a one-endpoint quirk
+worth watching. It is not a quirk — **it is how this server refuses everything**.
+A client that reports "connected" off `onopen`, or off `readyState`, reports
+healthy for ever on a connection that will never deliver a single bar.
+
+**Story 3.3's chrome must key `LIVE` off an authenticated, subscribed, receiving
+socket — never off an open one.** That is the same sentence §2.6 is deciding
+under a different name, and this is the measurement that says the weak version
+is not merely imprecise but actively wrong.
+
+### 8.5 The close code carries nothing. The close **latency** carries everything
+
+§4.2 established that every close observes as `1006` with an empty reason
+because Alpaca never echoes a close frame. This task adds the discriminator that
+does work, and it is a **stopwatch rather than a field**:
+
+| How long the close took             | What actually happened                                   | Where measured                            |
+| ----------------------------------- | -------------------------------------------------------- | ----------------------------------------- |
+| **~1 ms**                           | Our own link was destroyed under us                      | §8.1, this task                           |
+| **~235–243 ms**                     | A live socket answering the close we asked for           | 234.7 ms this task; 243 ms §6.4's control |
+| **~6,000 ms after a ping**          | The server closing us for not ponging                    | §8.1, this task                           |
+| **~10,000 ms after an error frame** | The server closing a refused duplicate                   | §8.1, this task                           |
+| **~30,000 ms**                      | `ws@8`'s close **timeout** — the socket was already dead | §6.4                                      |
+
+**All five are `1006`.** A state machine that branches on the code branches on
+nothing; one that measures how long its own close took can tell a live socket
+from a corpse, which is the question Story 3.10 actually has.
+
+### 8.6 The rude-client probe, and what it costs Story 3.2
+
+**The server closed after exactly one unanswered ping**, and the control held:
+zero pongs were sent, so this is a measurement of a rude client rather than of a
+polite one.
+
+```text
+    1,218 ms   subscription acknowledged
+   55,574 ms   ping  (the first, and the only one)
+   61,572 ms   close 1006     — 5,998.6 ms after the ping
+```
+
+**This decides a library rather than a policy.** §4.6 recorded that Node's
+built-in `WebSocket` can neither observe a ping nor send a pong; §4.6 read that
+as a liveness-detection problem. It is worse than that: such a client is not
+merely blind, it is **rude by construction**, and this server disconnects a rude
+client after 61 seconds. **Story 3.2 cannot use the built-in `WebSocket`** — not
+as a preference, as a fact.
+
+### 8.7 Subscriptions are ours, and reconnecting is free
+
+**The server remembers nothing.** A connection subscribed to five symbols, closed
+and reconnected; the new connection authenticated, waited 60 s without
+subscribing, then subscribed to **one** symbol to read the acknowledgement back.
+It returned `{"T":"subscription","bars":["F"]}` — the previous five are gone.
+
+**So Story 3.5's subscription model is authoritative state we re-assert**, not a
+thing we believe the server holds. That was the expected answer and it is now
+the measured one.
+
+**And reconnecting immediately is not penalised.** Five reconnections back to
+back with no delay: **717, 709, 709, 722, 694 ms**, every one authenticating
+successfully. There is no rate limit to discover here and no backoff is being
+demanded of us.
+
+> **Story 3.2's backoff is therefore about being a good citizen and about not
+> hammering a server that is down — it is not paying off a measured penalty.**
+> Say so when writing it, because a backoff justified by a penalty that does not
+> exist is a number nobody can ever revisit.
+
+### 8.8 Which faults are silent — the set that needs a timer rather than a handler
+
+**One, and it is the one that has cost this story three captures.**
+
+- **A half-open TCP connection.** No frame, no close, no error, no reset.
+  `readyState` says `OPEN`. The only signal is the **absent heartbeat**, and
+  §6.4 measured 4 h 21 min of it going uncollected.
+
+Everything else in §8.1 announces itself within six seconds. **That asymmetry is
+the whole design instruction for Story 3.10**: handlers are sufficient for every
+loud fault, and the single silent one needs a clock. The 165 s watchdog this
+story's harness grew (§5) is that clock, and three missed 54 s heartbeats is the
+threshold it uses.
+
+**A network partition is the same fault wearing different clothes.** §8.1's
+1.06 ms detection is honest about what it measured — a socket destroyed
+**locally**, where our own TCP stack knows instantly — and is **not** evidence
+about a link that goes away upstream. A real partition produces exactly the
+half-open socket above, which is why it is one row rather than two.
+
+### 8.9 What this task could not take, and who has it
+
+Two items on Task 3.1.5's list need **bars flowing** and the market was shut.
+**Both are handed to [Task 3.1.9](TASK-09-the-store-the-process-the-harness-is-gone-and-the-document-lands.md)
+by name**, which is the story's last task and already carries a session's worth
+of work in deleting the harness:
+
+- **What is missed while away** — reconnect after a gap of known length during a
+  session and establish whether those minutes are ever delivered, replayed, or
+  simply gone. §8.7 establishes the server holds no subscription state across a
+  reconnect, which makes _gone_ overwhelmingly likely; **overwhelmingly likely is
+  not measured**, and Story 3.10's gap-filling scope is written from the answer.
+- **The `updatedBars` revision rate at 518 symbols** — §7.11's reversal trigger
+  on a decision already taken. Ten liquid names gave 0.36%; thin names are
+  unmeasured.
+
+**Neither is dropped and neither is a new task**, which is the distinction that
+matters: a trigger with no owner never fires, and this story has the scar.
 ---
 
 ## What this document deliberately does not decide

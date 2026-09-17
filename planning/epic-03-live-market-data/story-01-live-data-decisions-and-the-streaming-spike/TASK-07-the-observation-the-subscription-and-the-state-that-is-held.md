@@ -88,6 +88,24 @@ the product loses — and note whether trades for a **small** set (a focused
 symbol, the thing under the pointer) is a later option or a closed door, because
 the 30-symbol cap makes that a real design space rather than an all-or-nothing.
 
+> **Added 2026-09-16 by Task 3.1.5 — one measured fact reaches both decision 3
+> and decision 4.** [`LIVE-DATA.md`](LIVE-DATA.md) §8.7: **the upstream server
+> remembers no subscriptions across a reconnect.** Five were held, the socket
+> was closed and reopened, and the acknowledgement came back naming only the one
+> symbol newly asked for.
+>
+> For **decision 3** that settles a question this task would otherwise have had
+> to guess: the upstream subscription set is **authoritative state we hold and
+> re-assert**, never a thing the server keeps for us. A browser's subscription
+> and the upstream subscription are therefore two different objects with two
+> different lifetimes, and the mapping between them is ours.
+>
+> For **decision 4** it reaches the restart lifecycle directly — _what happens
+> to it on restart_ is not only a question about our own memory. After any
+> reconnect the upstream set is **empty** until we re-send it, so the state
+> object and the subscription set come back by two different mechanisms and can
+> disagree while they do.
+
 **Decision 3 — what the browser is subscribed to.** Execute the person's answer
 into a design: what the browser asks for, what happens when it asks for
 something outside the universe, what happens when a second browser asks for the

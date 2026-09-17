@@ -219,3 +219,39 @@ what was decided.
 **`t` marks the START of the interval on the stream** — confirmed with an HTTP
 control in §7.3, agreeing with `ALPACA.md` §5.3. The state machine's frames are
 in §4.1–§4.2 and the 54 s heartbeat in §6.3.
+
+## Handed here by Task 3.1.5 — 2026-09-16, and the first one decides a dependency
+
+**This story cannot use Node's built-in `WebSocket`.** Not a preference, a
+measurement: [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md)
+§4.6 established that the built-in client can neither observe a server ping nor
+send a pong, and §8.6 measured what this server does about that — **it closes a
+client that misses one ping, 5,999 ms later.** A client built on the built-in
+would therefore be disconnected roughly **every 61 seconds, for ever**. `ws@8`
+is the dependency, and the reason is in the capture rather than in a preference.
+
+**`406 connection limit exceeded` is _wait and retry_, never fatal** (§8.2). The
+free plan allows one connection and **the incumbent wins**: an arriving
+connection is refused 233 ms after authenticating and closed ten seconds later,
+while the incumbent keeps its socket and its subscriptions. A rolling replica
+replacement has two processes alive by design and the arriving one is this
+client — so a client that maps _the server refused me_ to _stop_ has no feed
+after **every deploy** until somebody restarts it by hand.
+
+**Every error is a frame, not a closure, and a refused socket stays OPEN**
+(§4.2, §8.4). All four authentication failures leave the connection up
+indefinitely; `402 auth failed` is byte-identical for a wrong key, a wrong secret
+and no credential at all, so an operator log cannot distinguish them and must not
+claim to. `400 invalid syntax` is genuinely distinct and is the one an operator
+can act on differently.
+
+**The close code carries nothing; the close latency carries everything** (§8.5).
+Five distinct causes all produce `1006` with an empty reason — 1 ms, ~240 ms,
+~6 s, ~10 s and ~30 s apart. A state machine branching on the code branches on
+nothing.
+
+**Subscriptions are ours to re-assert** (§8.7) — the server remembers none
+across a reconnect — and **reconnecting immediately is not penalised**
+(717/709/709/722/694 ms, all authenticating). The backoff this story writes is
+about being a good citizen and about not hammering a server that is down; it is
+**not** paying off a measured penalty, and it should say so.
