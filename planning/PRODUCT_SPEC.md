@@ -297,6 +297,8 @@ Alpaca provides HTTP historical-market-data APIs as well as WebSocket streams fo
 | **Historical bars** | **SIP** — the full US consolidated tape | Not the most recent ~15 minutes, which the plan refuses outright |
 | **Live stream**     | **IEX only**                            | A SIP stream is refused, `409 insufficient subscription`         |
 
+**The live half of that table was re-taken first-hand on 2026-09-15** (Task 3.1.2, `LIVE-DATA.md` §4.5), and the refusal is real but is **not shaped like an HTTP refusal**: the socket to `/v2/sip` **opens**, the server greets the client exactly as the working endpoint does, and the `409` arrives at **authentication, as a frame**, after which the server leaves the socket open. A client whose connected state keys off the socket being open would report a healthy SIP connection indefinitely. Connection state is driven by the **authenticated** frame, never by `onopen`.
+
 MarketPulse must therefore display provenance explicitly, and **per series rather than once for the product**: there is no single true answer to "which feed is this?", and a chart stitched from stored bars and a live stream carries two.
 
 The requirement is that a reader is not misled about coverage — which is a stronger thing than printing an acronym, and is not satisfied by printing one:

@@ -272,9 +272,37 @@ could not take a real reading at all (both billing APIs refused, then answered
 `[]` and `429`), so **this is a re-measurement rather than a confirmation**, and
 the budget threshold should be re-decided against what it reads.
 
+**Re-measured 2026-09-17 by Task 3.1.6, and the premise above is false — the
+paragraph stands as the prediction it was, and this is the reading.**
+`LIVE-DATA.md` §9.1–§9.2. The condition is a **rate**, not a state, and a
+bars-only feed for all 518 securities does not hold it: measured against a real
+7.77-hour session capture the replica is above 1,000 B/s for **6.6 minutes a
+day** — the minute-bar flush is a burst, and between bursts the socket is quiet
+enough to bill idle. The blended monthly total is **$9.26**, five cents above a
+replica doing nothing at all, rather than $19.04. **So the re-decision this
+paragraph asks for was taken and the answer is to leave the budget exactly as it
+is** (§9.6): the defect it was worried about — the $20 ceiling sitting above the
+active-rate total — does not arise, because at $9.26 the **50% alert at $10**
+sits eight percent above the real spend and is the tightest live tripwire this
+environment has. ADR 0011 carries the dated amendment.
+
+**Two things that survive the correction**, because they were never the
+arithmetic: the $19.04 column is still reachable by a feed that adds **trades or
+quotes**, and `minReplicas: 1` is still a required setting rather than a tuning
+knob.
+
 **One logging decision reverses here.** Task 1.12.6 declined `ignore: "reqId,pid"`
 on pino-pretty after measuring that 51 request pairs across two windows were
 every one adjacent — two requests a minute per tab does not interleave. The
 stated reversal trigger is **this epic's socket, or anything else that puts more
 than one request in the backend's log at a time**. The lever is worth 156 → 101
 columns on the record itself.
+
+**Evaluated 2026-09-17 by Task 3.1.9 and it does NOT fire yet — recorded because
+"we checked and it did not" is a different state from "nobody looked".** A
+socket is not a request: the Alpaca connection is opened once by the process and
+writes no `reqId`, so holding it interleaves nothing in the log that was not
+interleaving before. The trigger is unchanged and is handed to **Story 3.2**,
+which is the first story that puts a second concurrent source of log lines
+beside the HTTP requests — reconnection attempts, close diagnostics and the
+subscribe round trip all land while requests are being served.

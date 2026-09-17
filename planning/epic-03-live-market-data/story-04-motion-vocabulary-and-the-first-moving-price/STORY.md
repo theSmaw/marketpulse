@@ -253,3 +253,36 @@ step feel alive rather than animating a continuum that does not exist.
 **Plus the burst shape, which is the rate this story is actually designing
 against**: about **332 bars land inside 243 ms**, once a minute (§7.4) — not a
 smooth arrival.
+
+---
+
+## The design canvas is NOT reachable — checked 2026-09-17 by Task 3.1.9
+
+`EPIC.md` warned that the `Component library for MarketPulse` canvas was not
+reachable from the session that planned this epic, and asked for the question to
+be answered rather than assumed. **It was answered, and the answer is no.**
+
+`DesignSync` lists two design-system projects on this account and **neither is
+it**: one is an unrelated deck, the other is empty.
+
+**This is a broken link in a chain the product depends on.**
+[ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)
+makes that canvas **the source of truth for the design language** — canvas →
+`VISUAL-LANGUAGE.md` → `tokens.css` → components — so the first link is
+currently unavailable.
+
+**This story is the next thing that needs it**, and needs it for work that does
+not exist in the canvas anyway: a motion vocabulary, an **extended-hours mark**
+([`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §7.11) and a **_this corrected_ treatment** distinct from
+_this moved_ (§7.8).
+
+**Two honest options, and the second needs saying out loud rather than
+drifting into:**
+
+- **Restore access** to the canvas before designing, which is what ADR 0026's
+  chain assumes.
+- **Design forward from `VISUAL-LANGUAGE.md`** and record the divergence. ADR
+  0026 is explicit that the document is **downstream** of the canvas, so
+  designing from it is a **deliberate exception** — and an exception recorded
+  beside the work is a very different thing from a chain that quietly stopped
+  being followed.

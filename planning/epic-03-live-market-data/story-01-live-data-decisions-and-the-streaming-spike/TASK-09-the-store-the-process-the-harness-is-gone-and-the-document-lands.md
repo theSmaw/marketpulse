@@ -1,6 +1,6 @@
 # Task 3.1.9 — Decisions 7 and 8, the harness is gone, and the document becomes the epic's
 
-**Status:** Not started
+**Status:** **Open on one line — 2026-09-17.** Decisions 7 and 8 are settled, the document is finished and named in `CLAUDE.md`, the credential checks ran clean, the sweep ran and the hand-offs are delivered. **What is deliberately not done is the deletion**, and the owner chose that on 2026-09-17: `~/marketpulse-live-spike/` survives until the weekend hold (Friday 2026-09-18 20:00 ET → Monday 2026-09-21 04:00 ET) and until tonight's session capture answers 3.1.5's two inherited measurements. **Two of the three owed measurements were taken on 2026-09-17** (§14) and **one remains — the weekend hold** — see _What is still open_ at the foot.
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
 **Depends on:** 3.1.8. **Carries two measurements handed here by Task 3.1.5 on 2026-09-16**, both of which need a live session the shut-market fault pass could not have — see _Two session measurements inherited from 3.1.5_ under Work.
 
@@ -320,3 +320,245 @@ happened here before — for a day, `ALPACA.md` and ADR 0019 both recorded that
 invariant 6 went on asserting it.
 
 ---
+
+## What was found — the index
+
+Every figure is in [`LIVE-DATA.md`](LIVE-DATA.md); this is the map, not a second
+copy of it.
+
+| Finding                                                                                    | Where |
+| ------------------------------------------------------------------------------------------ | ----- |
+| **Decision 7 — the frontend gains NO store**, with the three triggers walked one at a time | §12.1 |
+| The walk's three facts: one writer, one message handler, age is derived rather than held   | §12.1 |
+| **Decision 8 — the socket's lifecycle IS the process's**, opened at boot, never scheduled  | §12.2 |
+| The deliberate `SIGTERM` close, and why it is the whole repair                             | §12.2 |
+| Why the pino `ignore: "reqId,pid"` trigger does **not** fire, and who re-checks it         | §12.2 |
+| The opening summary, for a reader who reads one section                                    | §0    |
+| **What was NOT measured, and why** — including the n=1 caveat on every rate figure         | §13   |
+| The design canvas is **NOT reachable**                                                     | §13.5 |
+| **The `updatedBars` revision rate at 518 — the trigger is NOT FIRED**, 0.064% vs 0.36%     | §14.1 |
+| Revisions are rarer but matter more: 35.3% change the close, and **none changed nothing**  | §14.1 |
+| The revision window is bounded at **29.1–30.1 s** after the bar it corrects                | §14.1 |
+| **What is missed while away is GONE** — 15 existed over HTTP, 0 delivered                  | §14.2 |
+| The flushed-vs-stamped trap that made a first pass report 343 phantom recoveries           | §14.2 |
+
+## The upward sweep — what was corrected, and what was found already true
+
+**Corrected**, each as a dated amendment beside the original rather than a
+rewrite of it:
+
+- **`planning/PRODUCT_SPEC.md` §7.1** — the table's `409 insufficient
+subscription` is true and its **shape** was misleading. The socket to `/v2/sip`
+  opens, the server greets the client identically, and the refusal arrives at
+  **authentication as a frame**, after which the server leaves the socket open.
+  A note now says so, because a reader who takes "refused" to mean the
+  connection fails writes exactly the client §4.5 warns about.
+- **`ALPACA.md` §10** — its 2026-09-15 amendment ended _"still unmeasured: a bar
+  consumed from the socket, and every reconnection behaviour — Tasks 3.1.3 to
+  3.1.5."_ All three are now taken; a second dated amendment points at
+  `LIVE-DATA.md` §6, §7 and §8 and restates that **no streaming figure belongs in
+  that document**.
+- **`planning/epic-03-live-market-data/EPIC.md`** — two live claims. Its cost
+  paragraph asserted this epic moves the replica to the active rate all session
+  ($19.04) and that the $20 budget would not fire; Task 3.1.6 measured **6.6
+  minutes a day** above the threshold and **$9.26/month**, and the re-decision
+  the paragraph asked for was taken (leave the budget alone). And its pino
+  paragraph named a trigger that this task evaluated and found **does not fire**.
+- **`HOSTING.md`** — the same falsified consequence, in the document
+  `CLAUDE.md` sends a reader to for cost. Its second consequence (the offer
+  expiring around 2027-09-03) is untouched.
+- **`docs/adr/0011`** — already amended by Task 3.1.6 on the same day; checked
+  rather than re-amended.
+
+**Found already true, and that is worth recording because "we looked" is a
+different state from "nobody looked":**
+
+- **`PRODUCT_SPEC.md` line 264 already carries the 30-symbol cap** and already
+  scopes it to trades and quotes. Nothing to correct.
+- **Story 3.11 already holds the latency re-measure as a condition** — _the
+  first time a real socket runs in the deployed backend_ — rather than as a
+  story number, and already measures against **$9.26 rather than $19.04**.
+- **Every other `$19.04` in the tree is a historical record** — Epic 1 and Epic 2
+  task files and `STORY.md`s recording what was true when they were written.
+  `CLAUDE.md`'s rule is explicit that correcting those destroys the record, and
+  they are left standing.
+
+## The hand-offs delivered
+
+- **Story 3.2 has all five constraints in one place**, appended to its
+  `STORY.md`: the 54 s heartbeat, `ws@8` over the built-in `WebSocket` with §8.6's
+  measured cost of not ponging (closed after 5,999 ms, so **every 61 seconds for
+  ever**), the close code carrying nothing while the close **latency** carries
+  everything, the socket that held `OPEN` for 4 h 21 min while dead and the
+  165 s watchdog it owes, and `dailyBars` re-sending an unchanged aggregate every
+  minute out of hours. Plus the one thing that is Story 3.2's to **build**:
+  `replay` is a `ProviderId` and a `MarketFeed` in ADR 0030 §3 and neither union
+  holds it.
+- **Story 3.4 has the canvas answer**, appended to its `STORY.md` with the two
+  honest options — restore access, or design forward from `VISUAL-LANGUAGE.md`
+  and record the divergence as ADR 0026's deliberate exception rather than let
+  the chain quietly stop being followed.
+
+## What is still open — three measurements, owned here
+
+**This task is deliberately not closed**, and the reason is the constraint it has
+carried since Task 3.1.3 wrote it: the harness may not be deleted until the
+weekend hold is taken or recorded as unmeasured with an owner. The owner chose on
+2026-09-17 to **take it** rather than record it, so `~/marketpulse-live-spike/`
+stands.
+
+1. **The weekend hold** — Friday 2026-09-18 20:00 ET → Monday 2026-09-21 04:00 ET.
+   Unattended; the capture writes to disk every sixty seconds. It costs a command
+   on Saturday morning, not a morning.
+2. ~~**What is missed while away**~~ — **TAKEN 2026-09-17, [`LIVE-DATA.md`](LIVE-DATA.md) §14.2.**
+   **It is gone.** Fifteen bars existed over HTTP across a deliberate 3-minute
+   disconnection and **zero** were delivered on the socket, then or later.
+   Story 3.10 has it, and it narrows that story: gap-filling is an HTTP backfill
+   and cannot be a socket feature.
+3. ~~**The `updatedBars` revision rate at 518 symbols**~~ — **TAKEN 2026-09-17,
+   §14.1. The trigger is NOT FIRED**, in those words. **0.064%** at universe
+   scale against the 0.36% that set it — an order of magnitude below, not above.
+   The decision to subscribe `updatedBars` stands and is cheaper than the
+   argument that took it assumed.
+
+**Items 2 and 3 are done. One remains: the weekend hold.** The capture ran
+09:25–15:30 ET on 2026-09-17 — 113,398 bars, 518 symbols, one connection,
+6 h 5 min, with `{"bars":518,"updatedBars":518}` acknowledged before and after
+the gap. **The deletion, and this task's close, now wait on the weekend hold
+alone.**
+
+## For a stakeholder — what this task actually did, in plain terms
+
+**Two questions, and then the tidying-up that stops a fortnight of measurement
+from evaporating.**
+
+**The first question was whether the front end needs a "store".** In a web
+application a store is a central box that every part of the screen reads from and
+writes to. It is a genuinely useful thing and it is also a well-known way to add a
+large amount of machinery you never needed. We had written down, months ago, the
+exact condition under which we would add one: **when two different parts of the
+screen both need to change the same piece of information.** Not _read_ it —
+change it. Reading is easy to pass around; two things writing to one place is what
+gets tangled.
+
+We walked the condition rather than argued about it, and the answer is **no
+store**. Live prices have exactly one thing that writes them — the connection to
+the market — and any number of things that read them. And the one piece of
+information that looked most like shared state, _how old is this price_, turns out
+not to be state at all: it is worked out on the spot from the price's own
+timestamp and the clock. You cannot disagree about a number nobody is storing.
+**So we are not adding the machinery, and we have written down the walk**, so that
+in six weeks somebody who sees 518 shared prices does not assume the question was
+never asked.
+
+**The second question was what happens to the market connection when the server
+restarts** — which happens every time we deploy. The market provider's free plan
+allows exactly **one** connection, and we had already measured what happens when a
+second one arrives: the **existing** connection wins and the new one is turned
+away. So on every deploy, the new server has no market data until the old one's
+connection is genuinely gone. The dangerous version of this is the one we measured
+in an earlier task: a connection can die **without anything noticing** — we watched
+one sit there looking perfectly healthy for **four hours and twenty-one minutes**
+with nothing behind it. A server that vanishes without hanging up could therefore
+lock its own replacement out for hours.
+
+**The fix is small and it is the whole point:** the server now hangs up
+deliberately on its way out. That turns a potential multi-hour outage on every
+deploy into one bounded by a shutdown limit we already have — five seconds.
+
+**The rest of the task is the unglamorous half, and it is the half that usually
+gets skipped.** We finished the record so it can be read by somebody who was not
+here, checked — rather than assumed — that no credential ever reached the
+repository, and swept **upward**: when a measurement proves that something written
+down elsewhere is wrong, the correction has to travel to wherever that wrong thing
+is still being asserted. That caught four documents still repeating a monthly cost
+we had already disproved, and the plan's own specification describing a rejection
+in a way that would lead a developer to write the wrong code. We also handed the
+next story its **five** inherited constraints in one place, so it meets them in a
+hand-over rather than discovering them at 3am.
+
+**One honest yes/no we owed and can now answer: the design canvas is not
+reachable.** That is a broken link in a chain the product depends on, it is
+written down where the story that needs it will see it, and it has two clearly
+stated options rather than a silent workaround.
+
+**What a user can see today: nothing.** The application is still a historical
+explorer. **Story 3.3 is the payoff and it is two stories away** — and that is the
+shape this epic was planned to have, not a slip.
+
+**And the task is deliberately left open on one line.** The harness that took
+every measurement in this story is not deleted yet, because one window has not
+happened: the market closes on Friday night and reopens on Monday, and nobody has
+watched what the connection does across that. Deleting the instrument first would
+mean rebuilding it to ask. Three measurements are owed, they are named, they have
+this task's name on them, and two of them are already scheduled.
+
+---
+
+## For a stakeholder — the overnight measurement, 2026-09-17
+
+**We left an instrument connected to the live market for six hours yesterday to
+answer two questions we could not answer with the market shut.** It ran from
+09:25 to 15:30 New York time, watching all 518 companies we track, and recorded
+**113,398 price bars**.
+
+**Question one: how often does the market data provider correct a price after
+it has already sent it?**
+
+This matters because we had already decided to accept those corrections, and
+that decision costs us something: a number can change on screen about thirty
+seconds after a person first sees it. We took that cost deliberately, on the
+grounds that **being quietly wrong is worse than being visibly corrected** —
+but we wrote down a condition under which we would revisit it: _if corrections
+turn out to be common at full scale, then "the occasional correction" is the
+wrong description and the whole display decision changes._
+
+**They are not common. They are ten times rarer than our earlier estimate** —
+0.064% of bars rather than 0.36%. The earlier figure came from ten of the
+busiest stocks on the market, and corrections track how busy a stock is, so that
+number was always an upper bound rather than a sample. **The condition did not
+trigger, and the decision stands unchanged and cheaper than we thought.**
+
+**One finding went the other way and we have not buried it.** When a correction
+does happen, it is now **more** likely to matter: a third of them changed the
+closing price, against a fifth before — and **not a single correction was
+cosmetic.** Every one carried a real change. So the picture is _rarer, but more
+significant when it happens_, which strengthens rather than weakens the reason we
+accept them in the first place. We also now know corrections always arrive
+**within about thirty seconds**, which gives the design work a fixed window to
+plan around instead of an open-ended one.
+
+**Question two: if we lose the connection for a few minutes, do we get those
+minutes back?**
+
+We deliberately cut the connection for three minutes in the middle of the
+session, then checked — company by company, against the provider's separate
+historical service — whether the bars from those three minutes ever arrived.
+
+**They never did.** Fifteen bars existed; **none** of them were delivered on the
+live connection, not at reconnection and not later. The feed simply resumes from
+the present.
+
+**That is the answer we expected, and having it changes what a later piece of
+work has to build.** Recovering from an outage cannot be a feature of the live
+connection, because there is nothing to ask it for — it must fetch the missing
+minutes from the provider's historical service instead. That is a materially
+different piece of work, and we now know which one to plan before anyone starts
+it. It also matters because outages are **not** hypothetical: we already know
+every deployment of our software creates one, and we have separately watched a
+connection die silently for over four hours.
+
+**One honest note about how we read the result.** Our first automated pass
+reported that 343 bars _had_ been recovered, which would have been a surprising
+and important finding. It was wrong, and the cause is a genuine subtlety: a
+price bar is stamped with the time its minute **began**, but it is not actually
+sent until that minute has **finished**. So a bar stamped during the outage can
+easily be one that was sent normally afterwards. We checked the actual delivery
+times frame by frame before writing anything down, and we have recorded the trap
+in the document, because the next person to reconcile a gap will meet exactly
+the same thing.
+
+**What a user can see: still nothing.** This was measurement, not construction.
+**One item now stands between this piece of work and being finished** — a hold
+across the weekend, to check the connection survives the two days the market is
+shut. It needs somebody to run one command on Saturday morning.

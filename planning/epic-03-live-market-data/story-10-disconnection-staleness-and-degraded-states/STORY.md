@@ -198,3 +198,40 @@ message** carrying the status and the instant of the last upstream observation.
 _Our socket is fine and the market feed behind it is dead_ is a real state and
 needs a way to be said — conflating them is the defect this story exists to
 prevent.
+
+---
+
+## What is missed while away is GONE — measured 2026-09-17 by Task 3.1.9
+
+This story's gap-filling scope was written from an unanswered question. **It is
+answered**, in [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §14.2, and the answer narrows this story
+rather than widening it.
+
+A deliberate 3-minute disconnection during a live session, with five liquid
+control symbols checked frame by frame against the HTTP API over the same
+window: **fifteen bars existed over HTTP and zero were delivered on the socket**
+— then or later. No replay, no catch-up, no backfill frame, and no `u` standing
+in for a missed `b`. The subscription resumed cleanly at 518 and carried on from
+the present.
+
+**Three consequences, and the first is the scope decision:**
+
+1. **Gap-filling is an HTTP backfill and cannot be a socket feature.** There is
+   nothing to ask the socket for. This is the third independent route to that
+   conclusion — §8.2's every-deploy overlap and §6.4's half-open death already
+   created gaps no replay could fill.
+2. **The gap's extent is arithmetic, not a diff.** A bar's `t` is its interval
+   **start** and the flush is +60 s, so _what am I missing_ is computable from
+   the disconnection instants alone. No reconciliation query against the vendor
+   is needed to know **what** to ask for.
+3. **A revision is not a gap, and the window is bounded.** §14.1 measured every
+   revision arriving **29.1–30.1 s** after the bar it corrects, so a bar is not
+   final for thirty seconds. Gap-filling that runs inside that window will see a
+   bar it is about to be sent a correction for.
+
+**The trap this story will meet, recorded because the analyser walked into it
+first.** The question _was this bar missed?_ keys on when the bar was
+**flushed**, never on its own timestamp. A naive `gapStart <= t < gapEnd` test
+counts a normally-delivered bar as recovered: one stamped `15:03:00Z` begins
+inside the gap and is flushed at `15:04:00Z`, after the reconnection. A first
+pass over this capture reported 343 "recovered" bars on exactly that error.

@@ -2258,6 +2258,23 @@ Epic 3 putting the replica on the active rate all session. And it will need
 raising around **2027-09-03**, when the offer expires and the floor becomes
 $25.30; that is a calendar item, not a threshold to pre-empt.
 
+**Amended 2026-09-17 — the first of those two consequences was measured by Epic
+3 and does not arise.** Task 3.1.6 took the reading this document could not
+(`LIVE-DATA.md` §9.1–§9.2). The 1,000 B/s condition is a **rate**, not a state,
+and a bars-only feed for all 518 securities does not break it for the session:
+the replica is above the threshold for **6.6 minutes a day**, because the
+minute-bar flush is a burst and the socket is quiet between bursts. The blended
+total is **$9.26/month**, five cents above a replica doing nothing — so the
+change that matters most is not a change, **the $20 ceiling is not sitting above
+the real spend, and the 50% alert at $10 is a live tripwire eight percent above
+it.** The recommendation to leave the budget at $20 therefore stands, now on a
+measurement rather than on the argument above. **The $19.04 column has not been
+withdrawn** — it is what a feed carrying trades or quotes would cost, and
+nothing here has measured one. ADR 0011 carries the same amendment.
+
+**The second consequence is untouched**: the offer still expires around
+2027-09-03 and the floor still becomes $25.30 when it does.
+
 ### The `az containerapp update` refusal did NOT reproduce, and that unblocked two measurements
 
 Tasks 2.1.6 and 2.1.7 both recorded `az` mutations **refused by this environment's
