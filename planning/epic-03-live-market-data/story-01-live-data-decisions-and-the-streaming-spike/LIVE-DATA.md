@@ -38,6 +38,41 @@ document that keeps only its conclusions cannot be argued with.
 
 ---
 
+## 0. If you read one section
+
+**This document is what Epic 3 is built against, and it exists because nothing
+in this repository had ever opened Alpaca's WebSocket.** Nine tasks between
+2026-09-15 and 2026-09-17 opened it, held it across a full session, broke it
+seven ways on purpose, and settled eight decisions. Everything below is dated
+and names the instrument that produced it.
+
+**The ten things a later story most needs, with where they live:**
+
+|                                                                                                                                           | Where       |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| **A live observation is a minute bar**, all 518. Trades cannot reach 518 at all — the cap is 30                                           | §10.1       |
+| **A live price is at most ~1 minute old for a liquid security and may be hours old for a thin one — both are the feed working correctly** | §10.1       |
+| **`t` marks the START of the interval**, confirmed against the HTTP API with a control                                                    | §7.3        |
+| **A quiet minute is ABSENT** — no frame at all, never a zero-volume bar                                                                   | §7.2        |
+| **Live IEX coverage is 65.1% of minutes for a median symbol, 2.1% for the worst** — thinner than stored history implied                   | §7.6        |
+| **A bar can be REVISED ~30 s after delivery**, and the product subscribes those corrections                                               | §7.8, §7.11 |
+| **`disconnected` at 165 s, `stale` at 60 s in session. A SECURITY gets an age, not a verdict**                                            | §11.2       |
+| **`LIVE` means the feed is healthy** — never that the socket is open, which a rejected connection also is, for ever                       | §9.4, §8.4  |
+| **The incumbent wins a duplicate connection** — so every deploy refuses the arriving replica                                              | §8.2        |
+| **A dead socket is indistinguishable from a quiet one except by the absent heartbeat**                                                    | §6.4, §8.8  |
+
+**Three numbers that size later work:** a minute's bars land within **243 ms**
+(§7.4); the whole universe costs a browser **38 kB/min** (§9.5); and the replica
+costs **$9.26/month**, not the $19.04 ADR 0011 assumed (§9.2).
+
+**Two warnings about how to read this.** Every rate figure is **n=1** — one
+Wednesday in September. And every latency figure was taken from
+**Asia/Singapore** against an `eastus2` deployment, so the provider's share of
+`PRODUCT_SPEC.md` §28 is an **upper bound** rather than a number; Story 3.11 owns
+the re-measure. §13 lists everything that was not measured and why.
+
+---
+
 ## 1. What this epic inherits
 
 **Written for a reader who has not read Epic 2.** Each of these would otherwise
@@ -546,6 +581,8 @@ and Story 3.10, which produces the rest of the grid.
 
 ### 2.7 Whether the frontend gains a store
 
+> **ANSWERED 2026-09-17 — §12.1: no store.** Not one piece of live state has two writers: the socket's message handler writes everything, the age is derived rather than held, and the browser's subscription does not exist as an object. `FRONTEND-STATE.md` §1's other two triggers are Epic 11's. The alternatives below are the record of what was weighed.
+
 **The question.**
 [`FRONTEND-STATE.md`](../../epic-02-security-universe-historical-data/story-10-frontend-market-data-layer/FRONTEND-STATE.md)
 §1 declined a store with **three reversal triggers, written as conditions**, and
@@ -589,6 +626,8 @@ prevent.
 ---
 
 ### 2.8 The socket's relationship to the process
+
+> **ANSWERED 2026-09-17 — §12.2: the socket's lifecycle is the process's, and the deliberate close on `SIGTERM` is the load-bearing half.** It bounds the every-deploy feed outage at the existing **5 s** shutdown ceiling instead of at §6.4's measured **4 h 21 min** of half-open socket. The alternatives below are the record of what was weighed.
 
 **The question.** One replica, one socket, `minReplicas: 1` (§1.6). What is open
 is **whether the socket is held open outside market hours**, and it is a cost
@@ -2818,6 +2857,239 @@ All three decisions exist, and each names its executor:
 | 5 — the feed thresholds; the security age | Story 3.3 for the chrome, Story 3.10 for the degraded states, Story 3.6 for 518 ages at once |
 | 6 — the words and the grid                | Story 3.3, from `MARKET_FEED_DESCRIPTIONS`                                                   |
 
+---
+
+## 12. Decisions 7 and 8 (2026-09-17, Task 3.1.9)
+
+**No store, and one socket whose lifecycle is the process's.** Both answers were
+close to forced by the time they were reached, which is what the preceding eight
+tasks were for.
+
+### 12.1 Decision 7 — the frontend does not gain a store
+
+**Chosen: no store.** The walk, against
+[`FRONTEND-STATE.md`](../../epic-02-security-universe-historical-data/story-10-frontend-market-data-layer/FRONTEND-STATE.md)
+§1's three triggers, each of which is a **condition** rather than a feeling.
+
+**Trigger 1 — the first piece of state two sibling surfaces both WRITE.** Walked
+against what Stories 3.3–3.7 actually do:
+
+| State                      | Writers                                                                                    | Readers                                     | Verdict          |
+| -------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------- | ---------------- |
+| The connection state       | **One** — the socket client's message handler                                              | The chrome                                  | Prop-drilling    |
+| Live prices, 518 of them   | **One** — the same handler (§11.1: a snapshot then deltas, applied in one place)           | 3.6's table, 3.7's chart, Epic 6's topology | Prop-drilling    |
+| A security's age           | **None — it is derived** from the observation's instant and the reader's own clock (§11.2) | Every surface showing a price               | Not state at all |
+| The browser's subscription | **None — there is no such object** (§10.2: the browser names no symbols)                   | —                                           | Dissolved        |
+
+**Not one of them has two writers.** The rule this task insists on is that **two
+readers is prop-drilling and two writers is a store**, and every row is the first
+kind. That is not an accident of today's tree: §10.3 settled that the
+current-state object has exactly one writer by design, and §11.1's
+snapshot-then-deltas protocol means the frontend applies everything through a
+single handler.
+
+**Trigger 2 — the first `WorkspaceCommand` applied to state no URL can carry.**
+Not fired. `WorkspaceCommand` is Epic 11's, and `PRODUCT_SPEC.md` §18 is where it
+arrives.
+
+**Trigger 3 — the first requirement for undo, redo or a replayable command log.**
+Not fired. `PRODUCT_SPEC.md` §19 is Epic 11's too.
+
+> **Said plainly rather than apologetically: the expectation was already _no
+> store_ before the walk, and the walk confirms it.** Three separate
+> measurements pushed the same way — one writer by design (§10.3), one handler by
+> protocol (§11.1), and an age that is derived rather than held (§11.2).
+
+**What this costs, stated so Story 3.6 does not re-take it.** 518 live prices
+reach a table, a chart and eventually a topology by being passed down. **That
+will be annoying**, and `FRONTEND-STATE.md` is explicit that annoying is **not a
+trigger** — neither is bundle size, a third hook, nor a tree deep enough to
+irritate. The bundle arithmetic is already measured and is not the argument:
+RTK + react-redux is **+8.43 kB** gzipped, which is cheap; what is expensive is a
+data-fetching layer bolted to it (RTK Query **+25.27 kB**).
+
+**The mechanism, so the answer is constructive rather than merely negative.**
+A module holding the map, with a subscribe function, read through React 19's
+built-in **`useSyncExternalStore`** — which is exactly the API React provides for
+_an external store with one writer and many readers_, and is zero dependencies.
+That is the same shape `FRONTEND-STATE.md` already describes for Epic 2's state:
+a module, a plain value, a pure transition. **A store arriving later is a
+re-wiring rather than a rewrite**, which is what makes answering _no_ here
+honest rather than stubborn.
+
+> **Reversal trigger, as a condition — unchanged, and that is the point:**
+> `FRONTEND-STATE.md` §1's three. This decision adds none of its own and
+> retires none. The one most likely to fire in this epic is the first, and it
+> would take a **second writer** — a surface that mutates live prices rather
+> than reading them, which nothing in Stories 3.3–3.7 does.
+
+### 12.2 Decision 8 — one socket, opened at boot, closed on `SIGTERM`
+
+**Chosen: the socket's lifecycle is the process's lifecycle**, and the closing
+half is the load-bearing one.
+
+**Where it sits relative to `index.ts`.** The socket opens after the server is
+listening and is **closed deliberately in the existing shutdown sequence**, ahead
+of the pool, inside the **5,000 ms** ceiling `SHUTDOWN_TIMEOUT_MS` already
+enforces. `index.ts` remains the only thing that exits.
+
+**Why the deliberate close is the whole decision.** §9.3 chose to hold the
+socket always, so it is never closed for any other reason — and §8.2 measured
+that on a one-connection plan **the incumbent wins**: an arriving replica is
+refused `406 connection limit exceeded` and closed ten seconds later, while the
+incumbent keeps its socket and all 518 subscriptions.
+
+A rolling deploy therefore has the **outgoing** replica holding the only
+permitted connection while the **incoming** one is refused. Two ways that ends:
+
+| The stopping process               | The overlap lasts           | Because                                                                                |
+| ---------------------------------- | --------------------------- | -------------------------------------------------------------------------------------- |
+| **Closes its socket on `SIGTERM`** | **≤ 5 s**                   | Bounded by `SHUTDOWN_TIMEOUT_MS`, which already exists                                 |
+| Dies without closing               | **Unbounded — up to hours** | §6.4 measured a **half-open** socket surviving 4 h 21 min with nothing alive behind it |
+
+**So the close is not politeness, it is what bounds the outage.** A process that
+exits without closing can lock its own successor out of the market feed for as
+long as Alpaca takes to notice — and §6.4 says that can be most of a trading day.
+
+**What the starting process does when refused.** Retry on `406`, never treat it
+as fatal. §8.7 measured that **immediate reconnection is not penalised** —
+717/709/709/722/694 ms across five back-to-back attempts, every one
+authenticating — so the cadence is a **politeness decision rather than a
+penalty-avoidance one**, and it should say so where it is written. A few seconds
+between attempts, for as long as the refusal persists; with a deliberate close
+upstream, that is at most the shutdown ceiling.
+
+**The reconnect path has nothing to restore.** §10.2: the upstream subscription
+is a **constant** — always the same 518 — because §8.7 measured that the server
+remembers nothing across a reconnect. So reconnection re-sends a constant and
+checks one thing: **does the `bars` key hold 518 entries?** A resubscription
+protocol would be designing for a problem this epic does not have.
+
+**What a shutdown owes a connected browser.** A **`feed` message** (§11.1) saying
+the feed is going away, then a close. The alternative — dropping the browser's
+socket silently — leaves it to infer a state from an absence, which is exactly
+the ambiguity §11.2's thresholds exist to remove. One message costs nothing and
+turns a guess into a fact.
+
+**How the socket's state is observable.** Two audiences, **one state with two
+renderings** rather than two states:
+
+- **To a user**, through the `feed` message and §11.2's numbers — `disconnected`
+  at 165 s, `stale` at 60 s in session.
+- **To an operator**, through the log: connect, authenticate, subscribe with its
+  count, every state change, and every reconnect with its cause.
+
+> **The pino reversal trigger was evaluated and it does NOT fire — checked
+> rather than assumed.** Task 1.12.6 measured 51 adjacent request pairs, declined
+> `ignore: "reqId,pid"`, and re-stated the trigger as **"Epic 3's socket, or
+> anything that puts more than one _request_ in the backend's log at a time"**.
+>
+> **A socket is not a request.** It carries no `reqId`, and interleaving socket
+> lines between a request's two lines does not make that request ambiguous —
+> `reqId` exists to tell **concurrent requests** apart, and this epic creates
+> none. So the named condition is not met by the socket's existence.
+>
+> **What the socket does change is the log's texture** rather than its
+> ambiguity, and that cannot be judged before the socket exists. **Owner: the
+> first story that runs the pair with a live socket — Story 3.2.** Re-measure the
+> way 1.12.6 did: read `reqId` on adjacent pairs rather than judging by eye. The
+> lever remains worth **156 → 101 columns**.
+
+> **Reversal trigger for the socket's lifecycle, as a condition:** the first
+> deployment topology with **more than one replica**. `minReplicas: 1` is
+> required today (ADR 0011) and a second replica would make the single permitted
+> connection a contended resource between peers rather than between generations —
+> a different problem, and one this decision does not solve.
+
+---
+
+## 13. What was NOT measured, and why (2026-09-17, Task 3.1.9)
+
+In `ALPACA.md` §10's shape — **stated rather than quietly omitted**, because an
+absence that looks like a measurement is worse than a gap that names itself.
+
+### 13.1 Caveats on everything above
+
+- **n = 1, on every rate figure.** One Wednesday in September. Not a Friday, not
+  a December, not a half-day, not a day with a halt in it. The **shapes** are
+  the durable part — that the open is burstier than midday, that `t` opens the
+  interval, that coverage is thin — and the **numbers** are a sighting.
+- **The vantage is wrong for `PRODUCT_SPEC.md` §28.** Every latency here was
+  taken from **Asia/Singapore** over a 271–311 ms round trip (§4.6) against an
+  `eastus2` deployment. The provider's share of §28 is an **upper bound**, and
+  §7.4's 901 ms p95 means §28 is **unevaluable** rather than missed. **Owner:
+  Story 3.11. Condition: the first time a real socket runs in the deployed
+  backend.**
+- **Alpaca's own clock could not be pinned down** (§4.7). Its `Date` header is
+  one-second granular against a 769–1,288 ms round trip, which bounds the offset
+  between −570 ms and +420 ms and measures nothing. **If the vendor's bar
+  timestamps are not NTP-accurate, no instrument in this story can tell**, and
+  figure 8 carries that as residual risk rather than a clean denominator.
+- **One free-plan paper account.** Anything account-scoped is n=1 and this spike
+  inherits that without fixing it.
+- **The cost envelope is inbound-only** (§9.2). It does not cost the fan-out to
+  browsers, and §9.5 makes that the whole universe. **Owner: Story 3.11.**
+
+### 13.2 Windows the calendar did not give
+
+- **The pre-market window is short by 1h43m.** The capture asked for 07:00 ET
+  and connected at 08:43:44, because its first attempt died silently at 08:38:41
+  (§7.1). The extended-hours **shape** question is fully answered; the pre-market
+  **rate** is not, and §7.1 flags the analyser row that would mislead anyone who
+  quoted it.
+- **A holiday.** Figure 14 was part-struck for pre-market, after hours and
+  overnight; a holiday session was never available. **Owner: Epic 3**, condition:
+  the first holiday that falls while this epic is in progress.
+
+### 13.3 Shapes that need an event nobody can schedule
+
+- **`corrections` and `cancelErrors`.** Both attach to a `trades` subscription
+  unrequested (§6.8) and neither emitted a frame. **Absence is not evidence** —
+  their shapes need a real correction or cancellation to occur.
+- **`statuses`.** Subscribed for ten names; no frame arrived. A session with no
+  halt says nothing about what a halt looks like.
+- **An unprovoked server-side close.** §8.1 produced six faults deliberately;
+  the one that matters most to Story 3.10 is the one nothing can schedule. What
+  was observed instead is three **silent deaths** (§6.4, §7.1), which is a
+  different fault and is measured.
+
+### 13.4 Measurements this story holds open, with owners
+
+**Recorded here rather than dropped, because a measurement without an owner is a
+measurement nobody takes.**
+
+- **The weekend hold.** The longest successful hold this story ever achieved is
+  **7.77 hours** (§7). §9.3 chose to hold the socket **always**, which across a
+  weekend is **56+ hours** — so _always_ is currently validated to less than a
+  seventh of the interval it claims. Whether Alpaca tolerates a multi-day idle
+  connection, keeps heartbeating across it, or drops it, is **unmeasured**.
+  **Owner: Task 3.1.9**, which holds the harness until it is taken.
+- **The `updatedBars` revision rate at 518 symbols.** §7.11's reversal trigger on
+  a decision already taken, measured so far at 0.36% on **ten liquid names**.
+  **Owner: Task 3.1.9.**
+- **What is missed while away.** §8.7 makes _gone_ overwhelmingly likely and
+  overwhelmingly likely is not measured. **Owner: Task 3.1.9.** Note the repair
+  is an HTTP backfill **either way**, because §8.2's deploy overlap and §6.4's
+  half-open death both create gaps no socket replay could fill — so this refines
+  Story 3.10's scope rather than deciding it.
+
+### 13.5 One thing that is not a measurement but is missing
+
+**The `Component library for MarketPulse` design canvas is NOT reachable** —
+checked 2026-09-17 with `DesignSync`. The account holds two design-system
+projects and neither is it: one is an unrelated deck, the other is empty.
+
+**That matters more than a missing file**, because [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)
+makes that canvas **the source of truth for the design language**, with the chain
+**canvas → `VISUAL-LANGUAGE.md` → `tokens.css` → components**. The first link is
+currently broken from this account.
+
+**Story 3.4 is the next thing that needs it**, and it needs it for work that does
+not exist yet: a motion vocabulary, an extended-hours mark (§7.11) and a
+_this corrected_ treatment (§7.8). **Owner: Story 3.4**, and the honest options
+are to restore access, or to design forward from `VISUAL-LANGUAGE.md` and record
+the divergence — ADR 0026 says the document is downstream, so designing from it
+is a **deliberate exception** rather than a silent one.
 ---
 
 ## What this document deliberately does not decide

@@ -255,3 +255,44 @@ across a reconnect — and **reconnecting immediately is not penalised**
 (717/709/709/722/694 ms, all authenticating). The backoff this story writes is
 about being a good citizen and about not hammering a server that is down; it is
 **not** paying off a measured penalty, and it should say so.
+
+---
+
+## The five constraints Story 3.1 measured and does not own — 2026-09-17, Task 3.1.9's close
+
+**These are not decisions; they are properties of the vendor.** All five are in
+[`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md), and they are gathered here so this story meets them in a
+hand-off rather than in a debugging session.
+
+1. **The server heartbeats every 54 seconds** (§6.3) — 53.96–54.85 s across 82
+   intervals, on a socket subscribed to nothing as much as on one subscribed to
+   all 518. It is a property of the **connection**, not of the subscription. **So
+   this product needs no keepalive of its own**, and that heartbeat is the only
+   thing that tells a quiet feed from a dead one.
+2. **Node's built-in `WebSocket` cannot see a ping or send a pong** (§4.6), and
+   that decides the library rather than being trivia. §8.6 measured what this
+   server does to a client that does not pong: **it closes 5,999 ms after the
+   first unanswered ping.** A client on the global would drop roughly **every 61
+   seconds, for ever**. Use `ws@8`.
+3. **The close code carries no intent** (§4.2) — a clean close reads `1006`, the
+   same as a dropped link. §8.5 supplies the discriminator that does work, and it
+   is a **stopwatch rather than a field**: ~1 ms means our own link went,
+   ~240 ms a live socket answering, ~6 s the server closing a rude client, ~10 s
+   a refused duplicate, ~30 s `ws@8` timing out on a corpse.
+4. **A connection can die with no event at all, and `readyState` will not say
+   so** (§6.4). A capture held `OPEN` for **4 h 21 min** on a dead socket — no
+   error, no close, no reset — and the close it eventually requested took
+   **30,016 ms** against **243 ms** for a live one. **So this client owes a
+   liveness watchdog on inbound frames** — not on `readyState`, and not on data,
+   which is legitimately absent for hours — firing at **165 s**. And
+   `FeedStatus.live` must never be derived from _the socket object is open_.
+5. **`dailyBars` re-sends an unchanged aggregate every minute out of hours**
+   (§6.7) — both a cost trap at universe scale and the reason a staleness rule
+   must key on the **observation's own timestamp** rather than on a frame having
+   arrived.
+
+**And one that is this story's to build rather than to know:** `replay` is a
+`ProviderId` **and** a `MarketFeed` in ADR 0030 §3, and **neither union holds
+it** — `PROVIDER_IDS` is `["fixture", "alpaca"]`, `MARKET_FEEDS` is
+`["iex", "sip", "synthetic"]`. Adding them is this story's, and the `satisfies`
+guard makes a feed added without words a compile error naming the omission.

@@ -743,6 +743,17 @@ exceeded` on 2026-09-15, and 518 bar symbols are accepted 518 of 518. Still unme
   that date: a bar consumed from the socket, and every reconnection behaviour — Tasks 3.1.3
   to 3.1.5.
 
+  **Amended again 2026-09-17 — those three are now taken, and this entry has nothing left
+  outstanding.** `LIVE-DATA.md` §6 holds the socket with the market shut (the 54 s server
+  heartbeat; a dead connection that reads `OPEN` for 4 h 21 min; `dailyBars` re-sending an
+  unchanged aggregate every minute out of hours), §7 holds a real session with bars consumed
+  from the socket (`t` marks the start of the interval on the stream too, with a control; the
+  arrival gap; and a bar **revised** after delivery, which was on nobody's register), and §8
+  holds the seven fault probes (the incumbent wins a duplicate connection; a refused socket
+  stays open; the close code carries nothing while the close **latency** carries everything;
+  a client that does not pong is closed after 5,999 ms). **Nothing about the stream belongs in
+  this document** — it is Epic 3's, and this pointer is the whole of what is owed here.
+
 - **A second account.** Every figure is from one free-plan paper account, so anything
   account-scoped (the rate limit especially) is n=1.
 
