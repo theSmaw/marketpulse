@@ -1,6 +1,6 @@
 # Task 3.1.9 — Decisions 7 and 8, the harness is gone, and the document becomes the epic's
 
-**Status:** **Open on one line — 2026-09-17.** Decisions 7 and 8 are settled, the document is finished and named in `CLAUDE.md`, the credential checks ran clean, the sweep ran and the hand-offs are delivered. **What is deliberately not done is the deletion**, and the owner chose that on 2026-09-17: `~/marketpulse-live-spike/` survives until the weekend hold (Friday 2026-09-18 20:00 ET → Monday 2026-09-21 04:00 ET) and until tonight's session capture answers 3.1.5's two inherited measurements. **Three measurements are owed and this task owns them** — see _What is still open_ at the foot.
+**Status:** **Open on one line — 2026-09-17.** Decisions 7 and 8 are settled, the document is finished and named in `CLAUDE.md`, the credential checks ran clean, the sweep ran and the hand-offs are delivered. **What is deliberately not done is the deletion**, and the owner chose that on 2026-09-17: `~/marketpulse-live-spike/` survives until the weekend hold (Friday 2026-09-18 20:00 ET → Monday 2026-09-21 04:00 ET) and until tonight's session capture answers 3.1.5's two inherited measurements. **Two of the three owed measurements were taken on 2026-09-17** (§14) and **one remains — the weekend hold** — see _What is still open_ at the foot.
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
 **Depends on:** 3.1.8. **Carries two measurements handed here by Task 3.1.5 on 2026-09-16**, both of which need a live session the shut-market fault pass could not have — see _Two session measurements inherited from 3.1.5_ under Work.
 
@@ -336,6 +336,11 @@ copy of it.
 | The opening summary, for a reader who reads one section                                    | §0    |
 | **What was NOT measured, and why** — including the n=1 caveat on every rate figure         | §13   |
 | The design canvas is **NOT reachable**                                                     | §13.5 |
+| **The `updatedBars` revision rate at 518 — the trigger is NOT FIRED**, 0.064% vs 0.36%     | §14.1 |
+| Revisions are rarer but matter more: 35.3% change the close, and **none changed nothing**  | §14.1 |
+| The revision window is bounded at **29.1–30.1 s** after the bar it corrects                | §14.1 |
+| **What is missed while away is GONE** — 15 existed over HTTP, 0 delivered                  | §14.2 |
+| The flushed-vs-stamped trap that made a first pass report 343 phantom recoveries           | §14.2 |
 
 ## The upward sweep — what was corrected, and what was found already true
 
@@ -405,15 +410,22 @@ stands.
 1. **The weekend hold** — Friday 2026-09-18 20:00 ET → Monday 2026-09-21 04:00 ET.
    Unattended; the capture writes to disk every sixty seconds. It costs a command
    on Saturday morning, not a morning.
-2. **What is missed while away** — a reconnect after a gap of known length
-   **during a session**, to establish whether those minutes' bars are ever
-   delivered. Story 3.10's gap-filling scope is written from the answer.
-3. **The `updatedBars` revision rate at 518 symbols** — §7.11's reversal trigger,
-   to be **stated as fired or not fired** in those words.
+2. ~~**What is missed while away**~~ — **TAKEN 2026-09-17, [`LIVE-DATA.md`](LIVE-DATA.md) §14.2.**
+   **It is gone.** Fifteen bars existed over HTTP across a deliberate 3-minute
+   disconnection and **zero** were delivered on the socket, then or later.
+   Story 3.10 has it, and it narrows that story: gap-filling is an HTTP backfill
+   and cannot be a socket feature.
+3. ~~**The `updatedBars` revision rate at 518 symbols**~~ — **TAKEN 2026-09-17,
+   §14.1. The trigger is NOT FIRED**, in those words. **0.064%** at universe
+   scale against the 0.36% that set it — an order of magnitude below, not above.
+   The decision to subscribe `updatedBars` stands and is cheaper than the
+   argument that took it assumed.
 
-Items 2 and 3 are in flight: a capture is scheduled for 09:25–15:30 ET with a
-deliberate 3-minute gap at 11:00 ET. **The deletion, and this task's close, wait
-on all three.**
+**Items 2 and 3 are done. One remains: the weekend hold.** The capture ran
+09:25–15:30 ET on 2026-09-17 — 113,398 bars, 518 symbols, one connection,
+6 h 5 min, with `{"bars":518,"updatedBars":518}` acknowledged before and after
+the gap. **The deletion, and this task's close, now wait on the weekend hold
+alone.**
 
 ## For a stakeholder — what this task actually did, in plain terms
 
@@ -480,3 +492,73 @@ happened: the market closes on Friday night and reopens on Monday, and nobody ha
 watched what the connection does across that. Deleting the instrument first would
 mean rebuilding it to ask. Three measurements are owed, they are named, they have
 this task's name on them, and two of them are already scheduled.
+
+---
+
+## For a stakeholder — the overnight measurement, 2026-09-17
+
+**We left an instrument connected to the live market for six hours yesterday to
+answer two questions we could not answer with the market shut.** It ran from
+09:25 to 15:30 New York time, watching all 518 companies we track, and recorded
+**113,398 price bars**.
+
+**Question one: how often does the market data provider correct a price after
+it has already sent it?**
+
+This matters because we had already decided to accept those corrections, and
+that decision costs us something: a number can change on screen about thirty
+seconds after a person first sees it. We took that cost deliberately, on the
+grounds that **being quietly wrong is worse than being visibly corrected** —
+but we wrote down a condition under which we would revisit it: _if corrections
+turn out to be common at full scale, then "the occasional correction" is the
+wrong description and the whole display decision changes._
+
+**They are not common. They are ten times rarer than our earlier estimate** —
+0.064% of bars rather than 0.36%. The earlier figure came from ten of the
+busiest stocks on the market, and corrections track how busy a stock is, so that
+number was always an upper bound rather than a sample. **The condition did not
+trigger, and the decision stands unchanged and cheaper than we thought.**
+
+**One finding went the other way and we have not buried it.** When a correction
+does happen, it is now **more** likely to matter: a third of them changed the
+closing price, against a fifth before — and **not a single correction was
+cosmetic.** Every one carried a real change. So the picture is _rarer, but more
+significant when it happens_, which strengthens rather than weakens the reason we
+accept them in the first place. We also now know corrections always arrive
+**within about thirty seconds**, which gives the design work a fixed window to
+plan around instead of an open-ended one.
+
+**Question two: if we lose the connection for a few minutes, do we get those
+minutes back?**
+
+We deliberately cut the connection for three minutes in the middle of the
+session, then checked — company by company, against the provider's separate
+historical service — whether the bars from those three minutes ever arrived.
+
+**They never did.** Fifteen bars existed; **none** of them were delivered on the
+live connection, not at reconnection and not later. The feed simply resumes from
+the present.
+
+**That is the answer we expected, and having it changes what a later piece of
+work has to build.** Recovering from an outage cannot be a feature of the live
+connection, because there is nothing to ask it for — it must fetch the missing
+minutes from the provider's historical service instead. That is a materially
+different piece of work, and we now know which one to plan before anyone starts
+it. It also matters because outages are **not** hypothetical: we already know
+every deployment of our software creates one, and we have separately watched a
+connection die silently for over four hours.
+
+**One honest note about how we read the result.** Our first automated pass
+reported that 343 bars _had_ been recovered, which would have been a surprising
+and important finding. It was wrong, and the cause is a genuine subtlety: a
+price bar is stamped with the time its minute **began**, but it is not actually
+sent until that minute has **finished**. So a bar stamped during the outage can
+easily be one that was sent normally afterwards. We checked the actual delivery
+times frame by frame before writing anything down, and we have recorded the trap
+in the document, because the next person to reconcile a gap will meet exactly
+the same thing.
+
+**What a user can see: still nothing.** This was measurement, not construction.
+**One item now stands between this piece of work and being finished** — a hold
+across the weekend, to check the connection survives the two days the market is
+shut. It needs somebody to run one command on Saturday morning.

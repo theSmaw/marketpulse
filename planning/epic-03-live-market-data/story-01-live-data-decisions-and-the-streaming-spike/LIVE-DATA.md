@@ -2031,6 +2031,15 @@ measurement.
 > by name rather than dropping it. **A trigger nobody owns is a trigger that
 > never fires**, which this repository has recorded happening to the fourth
 > design test seven times over.
+>
+> **STATED 2026-09-17: the trigger is NOT FIRED.** 3.1.5's calendar denied it a
+> session and it was handed to Task 3.1.9 by name, exactly as written above.
+> 3.1.9 took it on 2026-09-17, 09:25–15:30 ET, `updatedBars` for all 518.
+> **0.064%** at universe scale against the 0.36% that set the trigger — an order
+> of magnitude **below** it, not above. _Rare correction_ survives as the
+> description, and **the decision to subscribe `updatedBars` stands and is
+> cheaper than the argument that took it assumed.** §14.1 holds the figures,
+> including the one that moved the other way.
 
 Both belong beside the measurement rather than in the story that trips over
 them, and both are the owner's.
@@ -3101,3 +3110,118 @@ is a **deliberate exception** rather than a silent one.
 - **The schema change** — Story 3.8.
 - **The bill** — Story 3.11. This story estimates an envelope from a measured
   message rate; only a month of billing reads the real number.
+
+---
+
+## 14. The two measurements 3.1.5 could not take (2026-09-17, Task 3.1.9)
+
+Task 3.1.5 produced its fault taxonomy against a **shut** market — the right
+place to inject faults and the wrong place to observe bars. Two of its items
+needed bars flowing and were handed here by name. **One window answered both**:
+09:25–15:30 ET on Wednesday 2026-09-17, all 518 symbols on both `bars` and
+`updatedBars`, with a deliberate 3-minute disconnection at 11:00 ET.
+
+**The subscription was acknowledged at 518 on both channels, before and after
+the gap** — `{"bars":518,"updatedBars":518}` twice. That is the precondition
+rather than a detail: a partial `updatedBars` subscription would have produced a
+rate over an unknown denominator, which is a number and not a measurement.
+
+**113,398 bars, 518 symbols, 73 revisions**, one connection, 6 h 5 min.
+
+### 14.1 The `updatedBars` revision rate at 518 symbols — the trigger is NOT FIRED
+
+§7.11's reversal trigger reads: _the first measurement showing the revision rate
+at universe scale is **materially above** the 0.36% measured on ten liquid
+names_. It is not above. It is an order of magnitude below.
+
+|                                      | **3.1.4** — 10 liquid names | **3.1.9** — all 518                |
+| ------------------------------------ | --------------------------- | ---------------------------------- |
+| Revision rate                        | 0.36%                       | **0.064%** (73 of 113,398)         |
+| Symbols revised                      | —                           | 63 of 518                          |
+| Revisions that changed the **close** | 3 of 14 (21.4%)             | **24 of 68 (35.3%)**               |
+| Revisions that changed **nothing**   | —                           | **0**                              |
+| Lag after the original bar           | +28.6 to +29.8 s            | **p50 29.6 s, p95 30.0, max 30.1** |
+
+**Why the rate fell rather than rose, which is the part worth understanding.**
+3.1.4's ten names were chosen for liquidity, and revision tracks activity: the
+most-revised symbols here are the same kind of name — `MU` 3, `NVDA` 3, `INTC` 2,
+`MSFT` 2, `AMZN` 2, `TSLA` 2. A universe of 518 is mostly quieter than that, so
+the liquid-name figure was an **upper bound on the whole universe all along**
+rather than a sample of it. The honest reading is that 0.36% was never the
+universe's rate, and nothing has changed about the feed.
+
+**One figure moved the other way and it must not be buried.** The share of
+revisions that change the **close price** rose from 21.4% to **35.3%**, and
+**not one revision changed nothing at all** — every `u` frame carried a real
+correction. So revisions are rarer than assumed and, when they happen, they
+matter **more** often. That does not fire the trigger, which keys on rate; it
+strengthens the decision the trigger guards. A product that ignored `u` would be
+silently wrong less often than §7.11 feared, and would be wrong about the
+**close** in a third of those cases rather than a fifth.
+
+**The lag is tighter than 3.1.4's and the ceiling is real**: 29.1 s minimum,
+30.1 s maximum, across 68 matched revisions. A revision arrives in the **thirty
+seconds after** the bar it corrects, and nothing in this capture arrived later
+than that. Story 3.4's _this corrected_ treatment has a bounded window to work
+in, and Story 3.10's gap-filling has a bounded interval in which a bar is not
+yet final.
+
+**Five of the 73 were orphans** — a `u` for a bar whose original `b` this capture
+never saw. All five are at the head of the window, before the subscription had a
+full minute behind it. Not a finding; recorded so the arithmetic of 73 against
+68 is not read as a discrepancy.
+
+### 14.2 What is missed while away — it is gone, and nothing is replayed
+
+§8.7 established that the server holds **no** subscription state across a
+reconnect, which made _gone_ overwhelmingly likely. **Overwhelmingly likely is
+now measured.** The socket was disconnected deliberately at 11:00:05 ET and
+reconnected at 11:03:08 ET, and five liquid control symbols — `QQQ`, `AVGO`,
+`GOOGL`, `SPY`, `AAPL` — were checked frame by frame against the HTTP API over
+the same window.
+
+```text
+b AAPL/SPY/GOOGL/AVGO/QQQ  t=14:59:00Z   arrived 15:00:00Z   <- last flush before the cut
+       (disconnected 15:00:05Z)
+   t=15:00:00Z   NOT DELIVERED, any symbol
+   t=15:01:00Z   NOT DELIVERED, any symbol
+   t=15:02:00Z   NOT DELIVERED, any symbol
+       (reconnected 15:03:08Z)
+b AAPL/SPY/GOOGL/AVGO/QQQ  t=15:03:00Z   arrived 15:04:00Z   <- first flush after
+```
+
+**Fifteen bars existed over HTTP for those five symbols across those three
+minutes. Zero were delivered on the socket, then or later.** No replay, no
+catch-up, no backfill frame, and no `u` standing in for a missed `b`. The
+subscription resumed cleanly at 518 and simply carried on from the present.
+
+**A trap in reading this, which the analyser walked into and is worth recording
+because the next person will too.** A first pass reported _343 bars delivered
+whose own `t` falls inside the gap_ and flagged it as unexpected. It is an
+artefact of the window, not a replay: **`t` marks the START of the interval**
+(§7.3, §1.5) and a minute bar is flushed about sixty seconds after its own
+stamp. A bar stamped `15:03:00Z` begins five seconds before the reconnection and
+is flushed at `15:04:00Z`, when we were already back — so it is a normally
+delivered bar that a naive `gapStart <= t < gapEnd` test counts as recovered.
+**The question _was this bar missed?_ keys on when the bar was FLUSHED, never on
+its own timestamp.** Anything in Story 3.10 that reconciles a gap against stored
+bars has the same trap in front of it.
+
+**What this settles for Story 3.10.** Gap-filling is an **HTTP backfill** and
+cannot be a socket feature — there is nothing to ask the socket for. The gap's
+extent is computable exactly, because a bar's `t` is its interval start and the
+flush is +60 s, so _what am I missing_ is arithmetic over the disconnection
+instants rather than a diff against the vendor. And this is the third
+independent route to the same conclusion: §8.2's every-deploy overlap and §6.4's
+half-open death already created gaps no replay could fill.
+
+### 14.3 What this window does NOT answer
+
+- **It is one 3-minute gap on one Wednesday.** Whether a _longer_ absence
+  behaves differently — an hour, a session, the 4 h 21 min of §6.4 — is
+  untested, though there is no mechanism in view by which it would.
+- **The gap was OUR disconnection**, clean and deliberate. A half-open death
+  (§6.4) or a `406` eviction (§8.2) may leave the server believing it still has
+  a subscriber; nothing here probes that.
+- **n=1 on the revision rate** — one session, one account. Every rate figure in
+  this document carries that caveat and §13.1 states it once.
