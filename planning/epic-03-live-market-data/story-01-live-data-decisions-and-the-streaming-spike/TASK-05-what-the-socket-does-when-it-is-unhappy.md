@@ -1,6 +1,6 @@
 # Task 3.1.5 — What the socket does when it is unhappy
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-16.** Seven faults produced deliberately against a shut market and written into [`LIVE-DATA.md`](LIVE-DATA.md) §8; figures 17, 18 and 19 struck from §3's register and 20 part-struck. **Two items needed bars flowing and are handed to [Task 3.1.9](TASK-09-the-store-the-process-the-harness-is-gone-and-the-document-lands.md) by name** (§8.9), by the owner's decision on 2026-09-17. **The headline is a library decision rather than a state machine** — see below.
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
 **Depends on:** 3.1.4. **Also carries one measurement that is not a fault** — the `updatedBars` revision rate at 518 symbols, added 2026-09-17 as the reversal trigger on a decision already taken (`LIVE-DATA.md` §7.11). It is here because it needs a socket and not a session, which is this task's shape.
 
@@ -175,6 +175,60 @@ are the ones that need a timer rather than a handler.
   a decision nobody revisited.**
 - `pnpm verify` passes. No credential written, and every capture swept.
 
+## What the faults turned out to be — 2026-09-16
+
+Seven produced deliberately, market shut, one connection at a time. Every figure
+is in [`LIVE-DATA.md`](LIVE-DATA.md) §8 with its capture; this is the index.
+
+| Fault                          | Answer                                                                                                 | Where |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------ | ----- |
+| Duplicate connection           | **The incumbent wins.** Newcomer gets `406 connection limit exceeded` in 233 ms, closed 9,964 ms later | §8.2  |
+| Bad credential                 | `402 auth failed`, **byte-identical** for wrong key, wrong secret and absent                           | §8.3  |
+| Malformed frame                | `400 invalid syntax` — the one an operator can act on differently                                      | §8.3  |
+| Any auth failure               | **The socket stays OPEN**, for ever                                                                    | §8.4  |
+| Rude client                    | Closed **5,999 ms after ONE unanswered ping**                                                          | §8.6  |
+| Link destroyed locally         | `1006` in **1.06 ms**                                                                                  | §8.1  |
+| Subscriptions across reconnect | **Remembered: none.** Ours to re-assert                                                                | §8.7  |
+| Reconnecting immediately       | **Not penalised** — 717/709/709/722/694 ms, all authenticated                                          | §8.7  |
+| Silent faults                  | **One**: the half-open connection. Everything else announces itself in ≤6 s                            | §8.8  |
+
+### The three that change a decision rather than informing one
+
+- **Story 3.2 cannot use Node's built-in `WebSocket`, and this is a fact rather
+  than a preference.** §4.6 recorded that it can neither see a ping nor send a
+  pong, and read that as a liveness-detection problem. §8.6 makes it fatal: such
+  a client is **rude by construction**, and this server disconnects a rude
+  client 6 s after its first unanswered ping — so it would drop roughly every 61
+  seconds, for ever.
+- **The duplicate-connection result is a fact about every deploy.** A rolling
+  replica replacement has two processes alive by design and the arriving one is
+  the **loser**. Story 3.2 must treat `406` as _wait and retry_ rather than
+  fatal; Story 3.10 inherits a degraded state whose cause is entirely internal;
+  Story 3.11 inherits whether the overlap window is bounded at all, since a
+  half-open socket could hold the one permitted connection after its process is
+  gone.
+- **`LIVE` must never be keyed off an open socket.** Every authentication
+  failure leaves the connection OPEN, so `onopen` and `readyState` both report
+  healthy on a socket that will never carry a bar. §2.6 is deciding this under a
+  different name; §8.4 is the measurement that says the weak version is actively
+  wrong rather than merely imprecise.
+
+### And one the register could not have listed
+
+**The close code carries nothing; the close _latency_ carries everything**
+(§8.5). Five distinct causes all produce `1006` with an empty reason — and they
+are 1 ms, ~240 ms, ~6 s, ~10 s and ~30 s apart. A state machine branching on the
+code branches on nothing; one that times its own close can tell a live socket
+from a corpse, which is the question Story 3.10 actually has.
+
+### What was not taken, and who has it
+
+**Two items, both needing bars to flow**, handed to Task 3.1.9 by the owner's
+decision on 2026-09-17 rather than spending a second night: **what is missed
+while away**, and **the `updatedBars` revision rate at 518 symbols**. Both are
+written into 3.1.9's Work and its Done-when, with the instruction that neither
+may be dropped silently. §8.9.
+
 ## Notes
 
 Fault injection against a third party is the part of this story most likely to
@@ -184,3 +238,122 @@ until production. The three things the HTTP mapping got wrong were all
 produces. Budget the session time for it.
 
 ---
+
+---
+
+## What this task did, for somebody who does not read code
+
+**Short version: we spent an evening deliberately breaking our own connection to
+the stock market, seven different ways, to find out what it looks like from our
+side when something goes wrong. One of the seven changes a decision we had
+already half-made, and one of them is a problem that will happen every single
+time we release an update.**
+
+### Why break things on purpose
+
+MarketPulse is going to hold a permanently-open connection to our market-data
+provider. That connection will fail — networks fail, providers restart, laptops
+sleep. The product spec is explicit that failures are **normal product states**
+rather than exceptions: when the feed drops, the screen should say
+_"Live feed disconnected — displaying data through 10:42:17"_ and everything else
+should keep working, rather than the whole page collapsing into an error.
+
+You cannot write that sentence honestly unless you know what a failure actually
+looks like. Guessing is not cheap: our own records show that when we last wrote
+code from a provider's documentation instead of from measurement, **three things
+were wrong**, and every one of them was wrong in a way a careful reader would
+have got wrong too.
+
+So we broke it on purpose, in the evening, with the market shut — which is the
+right time, because there was no real data to corrupt.
+
+### The one that will happen on every release
+
+When we release an update, the way modern hosting works is that the **new**
+version of our software starts up before the **old** one shuts down, so there is
+never a gap. For a few seconds, both are running.
+
+Our data plan allows exactly **one** connection. So we tested what happens when a
+second one arrives — and found that **the newcomer is refused and the old one
+carries on undisturbed.** The new version of our software is told _"connection
+limit exceeded"_ and is disconnected ten seconds later.
+
+That means on **every single release**, the newly-started software has no market
+feed until the old one has finished shutting down. If we had not tested this, we
+would have written software that treats a refusal as fatal — and the product
+would have silently had no live data after every update until somebody noticed
+and restarted it by hand.
+
+### The one that decides a technical choice for us
+
+Our provider sends a small "are you still there?" signal roughly every 54
+seconds, and expects an automatic reply. We had already discovered that one of
+the two obvious tools for building this — the one built into our server platform
+— **cannot see that signal or reply to it**. We had filed that as "makes it
+harder to detect problems".
+
+It is worse than that. We tested what happens to a connection that does not
+reply, and **the provider disconnects it six seconds later.** So software built
+on that tool would be thrown off roughly **every sixty seconds, for ever**. That
+is not a subtle degradation, it is a product that does not work — and we now know
+it before writing the code rather than after.
+
+### The one that could have made us lie to users
+
+When we send the wrong password, the provider tells us so — and then **leaves the
+connection open**. Nothing closes. From the software's point of view the
+connection looks perfectly healthy, and would go on looking healthy for ever,
+while never delivering a single price.
+
+This matters because the screen is going to have a little indicator that says
+**LIVE**. The obvious way to build it is "is the connection open?" — and that
+would have displayed **LIVE**, indefinitely, on a connection that was rejected at
+the door. We now know the indicator has to mean _data is actually arriving_, not
+_a connection exists_.
+
+### The uncomfortable one
+
+Every failure we produced announced itself within six seconds — except one, and
+it is the one that has now cost us three separate recordings.
+
+A connection can **die without telling anybody**. No error, no disconnection
+message, nothing. Everything our software can inspect says the connection is
+fine. The only clue is that the "are you still there?" signal stops arriving —
+and in one earlier case, it stopped for **four hours and twenty-one minutes**
+while our recorder sat there believing all was well.
+
+There is no clever fix for this. It needs a stopwatch: if nothing at all has
+arrived for about three missed signals, assume the connection is dead. That is
+already built into our recording tool, and it is why last night's full-day
+recording succeeded where earlier ones did not.
+
+We also found a small trick worth keeping: when a connection closes, the reason
+code is **always the same and always useless**. But _how long the closing takes_
+tells you what actually happened — about a thousandth of a second if our own
+network went, a quarter of a second if the connection was alive and we asked it
+to stop, thirty seconds if it had already been dead for hours. Same code, five
+different stories, and the stopwatch tells them apart.
+
+### What this unlocks
+
+The next piece of work builds the actual connection to the market, and it is now
+an implementation rather than a set of guesses: we know which tool we can use,
+what every error means, which failures need a handler and which need a timer,
+that our list of subscribed companies is **ours** to remember rather than the
+provider's, and that reconnecting immediately is not penalised — so our retry
+policy can be about being a good citizen rather than about paying a fine that
+does not exist.
+
+### What still cannot be done
+
+Two things needed the market to actually be open, and it was not. We deliberately
+did **not** spend another overnight session on them — they have been handed, by
+name and in writing, to the last task in this story, which needs a session
+anyway. They are: what happens to the prices you miss while briefly
+disconnected, and whether the price-correction behaviour we found last night
+holds across all 518 companies rather than just the ten busiest.
+
+**The product remains, today, a historical explorer.** Nothing on screen has
+changed. What has changed is that the people building the live version next are
+no longer guessing about what happens when it breaks — and one of the things
+they would have guessed is a release process that silently loses its data feed.
