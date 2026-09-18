@@ -246,6 +246,88 @@ const freshnessSchema = {
   },
 };
 
+/**
+ * What an operator, and `check-deployed.mjs`, can learn about the market feed.
+ *
+ * ## Three questions, deliberately not collapsed into one
+ *
+ * `LIVE-DATA.md` §11.2 requires that *our socket is fine and the market feed
+ * behind it is dead* be sayable, and a single "is it working" boolean cannot say
+ * it. So this reports:
+ *
+ * - **what this deployment is CONFIGURED to serve** (`provider`, `feed`) — a
+ *   standing fact, true before a single frame arrives;
+ * - **what the connection is DOING** (`status`) — `live | stale | disconnected`;
+ * - **when the newest observation was TRUE IN THE MARKET** (`observedAt`) — not
+ *   when a frame arrived, because §6.7 measured `dailyBars` re-sending a
+ *   byte-identical aggregate every minute out of hours and an arrival-keyed
+ *   reading would call that liveness.
+ *
+ * ## What it does NOT carry, and that is the security half
+ *
+ * No credential, no endpoint, no thrown message. `CLAUDE.md`: a 5xx never
+ * carries the thrown message, and **a message written for a developer is
+ * internal detail too.** The vendor's hostname is not reported either — it is
+ * not a secret, but it is not an operator's question, and a diagnostic that
+ * drifts into describing our upstream is how one eventually reports a key.
+ * There is a test.
+ *
+ * ## Why `marketOpen` is here
+ *
+ * So `check-deployed.mjs` can apply the rule ADR 0030 §7c needs — *the deployed
+ * feed must be a connected `iex` while the market is open* — **without keeping
+ * its own copy of the trading calendar.** One fact, one home: the server already
+ * has Story 2.5's calendar and the check does not.
+ */
+export interface FeedDiagnostic {
+  /** The configured provider — `none` when this deployment serves no feed. */
+  provider: string;
+  /** The configured feed, or `null` when there is no stream. */
+  feed: string | null;
+  /** `live | stale | disconnected`, or `null` when no stream is configured. */
+  status: string | null;
+  /**
+   * When the newest observation was true in the market, as an ISO 8601 instant.
+   *
+   * `null` means *nothing has arrived*, and it must survive as `null` —
+   * `["string", "null"]` below rather than bare `"string"`, because
+   * `fast-json-stringify` turns a `null` under `"string"` into `""` on the
+   * wire, and an empty instant reads as a formatting bug rather than as an
+   * absence.
+   */
+  observedAt: string | null;
+  /** Whether the market is open by our own calendar, at `checkedAt`. */
+  marketOpen: boolean;
+  /** When this was computed, as an ISO 8601 instant. */
+  checkedAt: string;
+}
+
+const feedProperties = {
+  provider: { type: "string" },
+  feed: { type: ["string", "null"] },
+  status: { type: ["string", "null"] },
+  observedAt: { type: ["string", "null"] },
+  marketOpen: { type: "boolean" },
+  checkedAt: { type: "string" },
+} satisfies Record<keyof FeedDiagnostic, JsonSchemaProperty>;
+
+const feedSchema = {
+  response: {
+    200: {
+      type: "object",
+      properties: feedProperties,
+      required: Object.keys(feedProperties),
+    },
+    500: apiErrorSchema,
+  },
+};
+
+/**
+ * Reads the feed's state. A function, so this file never learns there is a
+ * socket — the same reason `CoverageReadFn` exists.
+ */
+export type FeedReadFn = () => FeedDiagnostic;
+
 /** Reads the coverage ledger. A function, so this file never learns there is a driver. */
 export type CoverageReadFn = () => Promise<readonly CoverageRow[]>;
 
@@ -272,8 +354,15 @@ export type CoverageReadFn = () => Promise<readonly CoverageRow[]>;
 export function createDiagnosticsRoutes(
   checkDatabase: DatabaseCheckFn,
   readCoverage: CoverageReadFn,
+  readFeed: FeedReadFn,
 ): FastifyPluginCallback {
   return (app, _options, done) => {
+    // **The runtime half of "what must not rot"** (ADR 0030 §8). `verify` has
+    // no credentials and no network by design, so a claim about what a
+    // DEPLOYMENT is actually serving can only be made at runtime — which is
+    // why this is a route rather than a check.
+    app.get("/diagnostics/feed", { schema: feedSchema }, () => readFeed());
+
     app.get(
       "/diagnostics/database",
       { schema: diagnosticSchema },

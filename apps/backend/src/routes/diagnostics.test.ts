@@ -17,6 +17,7 @@ import type { DatabaseCheck, DatabaseCheckFn } from "../database.js";
 import type { CoverageRow } from "../store-freshness.js";
 import { toTimeRange } from "@marketpulse/shared";
 import { buildServer } from "../server.js";
+import type { FeedDiagnostic } from "./diagnostics.js";
 import { createDiagnosticsRoutes } from "./diagnostics.js";
 
 const PATH = "/diagnostics/database";
@@ -28,9 +29,20 @@ afterEach(async () => {
   app = undefined;
 });
 
+/** What `GET /diagnostics/feed` reports when nothing has configured a stream. */
+const NO_FEED: FeedDiagnostic = {
+  provider: "none",
+  feed: null,
+  status: null,
+  observedAt: null,
+  marketOpen: false,
+  checkedAt: "2026-09-18T00:00:00.000Z",
+};
+
 async function serverWith(
   check: DatabaseCheckFn,
   coverage: readonly CoverageRow[] = [],
+  feed: FeedDiagnostic = NO_FEED,
 ): Promise<FastifyInstance> {
   const instance = buildServer({
     logLevel: "silent",
@@ -42,7 +54,11 @@ async function serverWith(
   // it — so this test drives the arrangement that ships rather than a
   // convenient one.
   instance.register(
-    createDiagnosticsRoutes(check, () => Promise.resolve(coverage)),
+    createDiagnosticsRoutes(
+      check,
+      () => Promise.resolve(coverage),
+      () => feed,
+    ),
   );
 
   await instance.ready();
@@ -188,6 +204,7 @@ describe("GET /diagnostics/database", () => {
       createDiagnosticsRoutes(
         () => Promise.resolve(reachable),
         () => Promise.resolve([]),
+        () => NO_FEED,
       ),
     );
     await instance.ready();

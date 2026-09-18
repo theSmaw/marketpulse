@@ -310,6 +310,16 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
 
    **Owner: Story 3.11**, already the story that runs a real socket in the deployed backend. **Trigger: the first deploy that rolls a replica while the feed is connected.** Re-measure: observe whether the arriving replica is refused `406`, and for how long — one observation settles it.
 
+9. **That production is serving the real market rather than a replay.** Added 2026-09-18 by Task 3.2.8.
+
+   **Nothing in `pnpm verify` can check this, and that is structural rather than an omission**: `verify` has no credentials and no network by design, and pointing it at a live origin would fork the definition of "verified". So the claim lives in two runtime checks and neither is preventive.
+
+   `GET /diagnostics/feed` reports the **configured** provider, the feed identity, the connection state and the newest observation's own instant. `check-deployed.mjs` fails on it after a merge — **unconditionally if the provider or feed is `replay`**, and, **while the market is open by the server's own calendar**, if the feed is not a connected `iex`. `.github/workflows/probe-deployed.yml` runs the same script daily at 13:00 UTC, because `deploy.yml` has no `schedule:` and **nothing in this repository looks at production between merges** — a hand-edited environment variable on a quiet Tuesday is otherwise invisible for days.
+
+   **What that leaves uncovered, stated plainly.** Both are **detective**: by the time either goes red, the wrong state has already served traffic. What they bound is its **duration** — to a merge and to a day respectively. The only preventive mechanism is `deploy.yml`'s provider read (ADR 0030 §7b), and it fires only when a deploy runs. **Re-measure:** `E2E_DEPLOYED_BACKEND_ORIGIN=… E2E_DEPLOYED_BASE_URL=… node scripts/check-deployed.mjs`, and read the `feed` line.
+
+   **Not made mechanical because it cannot be**, which is this list's residue by design: a runtime claim about a deployment is exactly what a credential-free `verify` cannot make.
+
 **One entry left this list on 2026-09-12 by being made mechanical, and the route is worth knowing.** _"The scheduled backfill fills every timeframe the application reads"_ was never written here — it was a defect first: the nightly job filled `1m` only for eight days, every run green, while `routes/securities.ts` read its last close at `1d` (`BARS.md` §8.18). It is now `pnpm coverage:check`, a `verify` step. **That is the migration this list wants** — a prose entry with a re-measure command is a check nobody runs, and a `verify` step is one that cannot be skipped. An entry that can be made mechanical should be; what stays here is the residue that genuinely cannot, which is the breaks a human has to perform and the claims only a browser or a live store can see.
 
 Its runtime half is deliberately **neither** here nor in `verify`: `GET /diagnostics/freshness` answers _how many trading sessions behind is the store_, computed on request so it has no schedule to miss, and `check-deployed.mjs` fails on it after a merge. `verify` has no credentials and no database by design, and pointing it at a live store would fork the definition of "verified".

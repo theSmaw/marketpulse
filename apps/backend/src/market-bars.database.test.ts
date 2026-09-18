@@ -1754,6 +1754,91 @@ describe("the ledger's provenance vocabulary, and the checks that back it", () =
   });
 });
 
+describe("a replayed series never reaches the store", () => {
+  afterEach(clearStore);
+
+  // **This closes the window migration `0009` deliberately opened.** Task 3.2.7
+  // added `replay` to `PROVIDER_IDS`, which widened `schema.ts`'s insert types —
+  // so the COMPILER stopped preventing this write at the same moment the
+  // database's check constraint started PERMITTING the value. Neither end
+  // refuses it; this does.
+  it.each([
+    ["the provider", "replay" as const, "iex" as const],
+    ["the feed", "alpaca" as const, "replay" as const],
+    ["both", "replay" as const, "replay" as const],
+  ])(
+    "refuses a series whose provenance names replay in %s",
+    async (_which, provider, feed) => {
+      const [session] = sessions(1);
+      if (session === undefined) throw new Error("no session");
+
+      const requested = toTimeRange(session.open, session.close);
+
+      await expect(
+        repository().recordSeries(
+          toBarSeries({
+            symbol,
+            timeframe: "1m",
+            bars: sessionBars(session, 3),
+            provenance: toSeriesProvenance("raw", {
+              provider,
+              feed,
+              retrievedAt: session.close.toISOString(),
+              barCount: 3,
+            }),
+            coverage: { requested, covered: requested },
+          }),
+        ),
+      ).rejects.toThrow(/Refusing to store a replayed series/);
+    },
+  );
+
+  it("refuses BEFORE opening a transaction, so nothing is written", async () => {
+    // The guard sits beside `singleSourceOf` for the same reason that one does:
+    // before the transaction, so no round trip is spent on a series that must
+    // never be stored and no partial state can exist.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    const requested = toTimeRange(session.open, session.close);
+    const series = toBarSeries({
+      symbol,
+      timeframe: "1m",
+      bars: sessionBars(session, 3),
+      provenance: toSeriesProvenance("raw", {
+        provider: "replay",
+        feed: "replay",
+        retrievedAt: session.close.toISOString(),
+        barCount: 3,
+      }),
+      coverage: { requested, covered: requested },
+    });
+
+    await expect(repository().recordSeries(series)).rejects.toThrow();
+
+    // Nothing at all — not the bars, not a ledger row.
+    expect(await repository().readBars(symbol, "1m", requested)).toHaveLength(
+      0,
+    );
+  });
+
+  it("the DATABASE still permits the value, which is why the guard is runtime", async () => {
+    // Stated as an assertion rather than a comment, because it is the whole
+    // reason `ReplayedSeriesError` exists. `market-bars.database.test.ts` ties
+    // the check constraint to `PROVIDER_IDS` and asserts SET EQUALITY, so the
+    // constraint MUST permit `replay` — a vocabulary the application knows and
+    // the database refuses fails a required check and buys nothing.
+    const result = await db().query<{ definition: string }>(
+      `select pg_get_constraintdef(oid) as definition
+         from pg_constraint
+        where conrelid = 'bar_coverage'::regclass
+          and conname = 'bar_coverage_provider_check'`,
+    );
+
+    expect(result.rows[0]?.definition).toContain("replay");
+  });
+});
+
 describe("the source the ledger stores, and the writer that keeps it true", () => {
   afterEach(clearStore);
 

@@ -447,6 +447,16 @@ describe("the response-schema declaration", () => {
               checkedAt: 0,
             }),
           () => Promise.resolve([]),
+          // Task 3.2.8's third reader. A stub, for the same reason the two
+          // above are: this file proves the route TABLE, not a feed.
+          () => ({
+            provider: "none",
+            feed: null,
+            status: null,
+            observedAt: null,
+            marketOpen: false,
+            checkedAt: "2026-09-18T00:00:00.000Z",
+          }),
         ),
       );
       app.register(

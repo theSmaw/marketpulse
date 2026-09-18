@@ -518,6 +518,55 @@ export const STORED_BAR_ADJUSTMENT: Adjustment = "raw";
  * invented prices, and appending them to a window already filled from a real
  * feed would put both under one label.
  */
+/**
+ * A replayed series was offered to the store.
+ *
+ * **A RUNTIME guard, and it has to be** — which is the whole reason this class
+ * exists rather than a type. Task 3.2.7 added `replay` to `PROVIDER_IDS`, and
+ * `schema.ts`'s insert types are derived from it, so **the compiler stopped
+ * preventing this write at the same moment `0009` made the database check start
+ * permitting the value.** Migration `0009` says so in its own comment and names
+ * this task as what closes the window.
+ *
+ * ## Why the database's `check` constraint is not the place for this
+ *
+ * The constraint permits `replay` deliberately, because
+ * `market-bars.database.test.ts` ties it to `PROVIDER_IDS` and asserts **set
+ * equality** — a vocabulary the application knows and the database refuses
+ * fails a required check and buys nothing. And the policy is **never write
+ * one**, not *this column may not hold one*: a constraint would report the
+ * failure from inside a transaction, after a round trip, as a driver error
+ * naming a constraint. This reports it before the transaction opens, naming the
+ * provenance and the story that put it there.
+ *
+ * ## Why a throw rather than a result
+ *
+ * `PROVIDER.md` §8.5's line: a result says what happened to a request, a throw
+ * says the program is wrong. **Offering the store a replayed bar is the program
+ * being wrong** — ADR 0030 decision 7 is that a replay is a development
+ * instrument and nothing may persist from it. A result here would be something
+ * a caller could log and carry on from, and the whole point is that it cannot
+ * be.
+ */
+export class ReplayedSeriesError extends Error {
+  readonly provider: ProviderId;
+  readonly feed: MarketFeed;
+
+  constructor(symbol: Ticker, timeframe: Timeframe, source: SeriesSource) {
+    super(
+      `Refusing to store a replayed series for ${symbol} (${timeframe}): ` +
+        `provenance names provider="${source.provider}" feed="${source.feed}". ` +
+        "A replay is a development instrument (ADR 0030 decision 7) and nothing " +
+        "it produces may reach `market_bars` — the bars are real but their " +
+        "instants have been re-stamped onto the wall clock, so storing one " +
+        "would put a price in the record at a time it did not happen.",
+    );
+    this.name = "ReplayedSeriesError";
+    this.provider = source.provider;
+    this.feed = source.feed;
+  }
+}
+
 export class ForeignSourceError extends Error {
   readonly provider: ProviderId;
   readonly feed: MarketFeed;
@@ -1115,6 +1164,15 @@ export function createMarketBarsRepository(
       // source per `(security, timeframe)` window, so a series naming two
       // cannot be recorded as one — see `ForeignSourceError`.
       const source = singleSourceOf(series);
+
+      // **The replay refusal, and it sits here for the same reason the line
+      // above does**: before the transaction, so nothing is written and no
+      // round trip is spent on a series that must never be stored. See
+      // {@link ReplayedSeriesError} for why this is a runtime guard rather than
+      // a type, and `pnpm break replayed-series-refused-by-the-store`.
+      if (source.provider === "replay" || source.feed === "replay") {
+        throw new ReplayedSeriesError(symbol, timeframe, source);
+      }
 
       return db.transaction().execute(async (trx) => {
         const security = await trx

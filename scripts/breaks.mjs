@@ -79,6 +79,31 @@ export const BREAKS = [
     build: true,
   },
   {
+    name: "replayed-series-refused-by-the-store",
+    proves:
+      "A replayed bar can be written to `market_bars`. Its prices are real but " +
+      "its instants were re-stamped onto the wall clock, so storing one puts a " +
+      "price in the permanent record at a time it did not happen — and nothing " +
+      "downstream could ever tell.",
+    file: "apps/backend/src/market-bars.ts",
+    find: '      if (source.provider === "replay" || source.feed === "replay") {',
+    replace: "      if (false) {",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "refuses a series whose provenance names replay",
+    // **The guard has to be RUNTIME and this break is why that is not an
+    // opinion.** Task 3.2.7 widened `PROVIDER_IDS`, which widened `schema.ts`'s
+    // insert types — so the compiler stopped preventing this write at the same
+    // moment migration `0009` made the database check start permitting the
+    // value. Neither end refuses it. Removing this one line is all it takes.
+    build: true,
+  },
+  {
     name: "replay-refuses-during-a-session",
     proves:
       "A developer who left MARKET_DATA_PROVIDER=replay in their .env can " +
@@ -86,8 +111,14 @@ export const BREAKS = [
       "are on the real feed — and a replay already running does not stop when " +
       "the bell rings. ADR 0030 §7f is the only guard that reaches that case.",
     file: "apps/backend/src/replay-stream.ts",
-    find: 'const marketIsOpen = (at: Date): boolean =>\n  marketSessionStateAt(at).status === "open";',
-    replace: "const marketIsOpen = (_at: Date): boolean => false;",
+    // **Repointed 2026-09-18 after the guard gained a try/catch**, and the
+    // harness caught the drift rather than passing: it refuses when a break
+    // does not land exactly where its entry says, because a green run against a
+    // substitution that never happened proves nothing. That is `CLAUDE.md`'s
+    // "when you touch a file an entry names, check the entry", enforced rather
+    // than remembered.
+    find: '    return marketSessionStateAt(at).status === "open";',
+    replace: "    return false;",
     command: [
       "pnpm",
       "--filter",
