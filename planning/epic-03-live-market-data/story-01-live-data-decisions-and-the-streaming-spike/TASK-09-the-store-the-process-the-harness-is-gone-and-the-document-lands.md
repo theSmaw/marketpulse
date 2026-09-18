@@ -1,6 +1,6 @@
 # Task 3.1.9 — Decisions 7 and 8, the harness is gone, and the document becomes the epic's
 
-**Status:** **Open on one line — 2026-09-17.** Decisions 7 and 8 are settled, the document is finished and named in `CLAUDE.md`, the credential checks ran clean, the sweep ran and the hand-offs are delivered. **What is deliberately not done is the deletion**, and the owner chose that on 2026-09-17: `~/marketpulse-live-spike/` survives until the weekend hold (Friday 2026-09-18 20:00 ET → Monday 2026-09-21 04:00 ET) and until tonight's session capture answers 3.1.5's two inherited measurements. **Two of the three owed measurements were taken on 2026-09-17** (§14) and **one remains — the weekend hold** — see _What is still open_ at the foot.
+**Status:** **Complete — 2026-09-18.** Decisions 7 and 8 are settled, the document is finished and named in `CLAUDE.md`, both credential checks ran clean, the upward sweep corrected four documents, and the hand-offs are delivered. **The harness is deleted** — 24 scripts, 31 captures and 6 sidecars, 180 MB — and the tree is verified byte-identical outside `planning/`. Of the three measurements this task held, **two were taken** on 2026-09-17 (§14) and **the weekend hold was deliberately not taken**: the instrument was built and proved, the owner weighed 56 hours of an awake laptop against what the answer changes, and **handed it to Story 3.11** on 2026-09-18, where a deployed socket makes it free. Recorded in §13.4 with the reasoning and the risk it leaves standing.
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
 **Depends on:** 3.1.8. **Carries two measurements handed here by Task 3.1.5 on 2026-09-16**, both of which need a live session the shut-market fault pass could not have — see _Two session measurements inherited from 3.1.5_ under Work.
 
@@ -335,7 +335,7 @@ copy of it.
 | Why the pino `ignore: "reqId,pid"` trigger does **not** fire, and who re-checks it         | §12.2 |
 | The opening summary, for a reader who reads one section                                    | §0    |
 | **What was NOT measured, and why** — including the n=1 caveat on every rate figure         | §13   |
-| The design canvas is **NOT reachable**                                                     | §13.5 |
+| The design canvas is **NOT reachable**                                                     | §13.6 |
 | **The `updatedBars` revision rate at 518 — the trigger is NOT FIRED**, 0.064% vs 0.36%     | §14.1 |
 | Revisions are rarer but matter more: 35.3% change the close, and **none changed nothing**  | §14.1 |
 | The revision window is bounded at **29.1–30.1 s** after the bar it corrects                | §14.1 |
@@ -399,17 +399,20 @@ different state from "nobody looked":**
   and record the divergence as ADR 0026's deliberate exception rather than let
   the chain quietly stop being followed.
 
-## What is still open — three measurements, owned here
+## How the three owed measurements were discharged
 
-**This task is deliberately not closed**, and the reason is the constraint it has
-carried since Task 3.1.3 wrote it: the harness may not be deleted until the
-weekend hold is taken or recorded as unmeasured with an owner. The owner chose on
-2026-09-17 to **take it** rather than record it, so `~/marketpulse-live-spike/`
-stands.
+**RESOLVED 2026-09-18 — this section is the record of how, not an open item.**
+The constraint Task 3.1.3 wrote was that the harness may not be deleted until the
+weekend hold is **either taken or recorded as unmeasured with a named owner**.
+The owner first chose to take it (2026-09-17), then — having seen what it cost
+and what it changes — chose the second branch on 2026-09-18. **Both were always
+permitted; the constraint exists so that neither happens silently.** The harness
+is deleted.
 
-1. **The weekend hold** — Friday 2026-09-18 20:00 ET → Monday 2026-09-21 04:00 ET.
-   Unattended; the capture writes to disk every sixty seconds. It costs a command
-   on Saturday morning, not a morning.
+1. ~~**The weekend hold**~~ — **NOT TAKEN, and handed to Story 3.11 on
+   2026-09-18.** The instrument was built and proved; what it needed was 56 hours
+   of an awake laptop. See the paragraphs below for the trade as it was put, and
+   [`LIVE-DATA.md`](LIVE-DATA.md) §13.4 for the reasoning and the residual risk.
 2. ~~**What is missed while away**~~ — **TAKEN 2026-09-17, [`LIVE-DATA.md`](LIVE-DATA.md) §14.2.**
    **It is gone.** Fifteen bars existed over HTTP across a deliberate 3-minute
    disconnection and **zero** were delivered on the socket, then or later.
@@ -421,13 +424,38 @@ stands.
    The decision to subscribe `updatedBars` stands and is cheaper than the
    argument that took it assumed.
 
-**Items 2 and 3 are done. One remains: the weekend hold.** The capture ran
-09:25–15:30 ET on 2026-09-17 — 113,398 bars, 518 symbols, one connection,
-6 h 5 min, with `{"bars":518,"updatedBars":518}` acknowledged before and after
-the gap. **The deletion, and this task's close, now wait on the weekend hold
-alone.**
+**All three are now discharged — two by measurement, one by a recorded decision.**
+The capture ran 09:25–15:30 ET on 2026-09-17 — 113,398 bars, 518 symbols, one
+connection, 6 h 5 min, with `{"bars":518,"updatedBars":518}` acknowledged before
+and after the gap.
 
-## For a stakeholder — what this task actually did, in plain terms
+**The weekend hold was NOT taken, and that is a decision rather than a lapse.**
+`weekend.mjs` was built and **proved against a real socket** — 518 acknowledged
+on both production channels, the server heartbeat caught at **54.03 s** inside
+§6.3's band, with two sentinels designed so a sleeping laptop could never be
+reported as a vendor finding. What it then needed was **56 hours of an awake
+laptop**, and `caffeinate` cannot hold a closed lid. Put to the owner with the
+trade stated — Story 3.2 builds the watchdog and reconnect **regardless**, for
+three already-measured reasons that have nothing to do with weekends, so the
+measurement is informative rather than decision-changing — the owner declined it
+on 2026-09-18.
+
+**Handed to Story 3.11**, which is the better owner rather than the next one
+along: §7.4's latency re-measure is already parked there on the condition _the
+first time a real socket runs in the deployed backend_, and a weekend hold there
+costs a container that is running anyway. §13.4 carries the reasoning and, stated
+rather than pretended away, **the risk it leaves standing**: a drop that also
+holds the connection slot would open Monday's pre-market with no feed and no
+obvious cause.
+
+## For a stakeholder — what this task actually did, in plain terms (written 2026-09-17)
+
+> **Superseded in one respect by the 2026-09-18 section at the foot, and left
+> standing rather than corrected** — `CLAUDE.md`'s rule is that a story file
+> records what was true when it was written, and editing that destroys the
+> record. Its last paragraph says the task is open on the weekend hold and that
+> the measurements are scheduled. That was true on 2026-09-17. **Two of the three
+> were then taken and the weekend hold went to Story 3.11.**
 
 **Two questions, and then the tidying-up that stops a fortnight of measurement
 from evaporating.**
@@ -562,3 +590,58 @@ the same thing.
 **One item now stands between this piece of work and being finished** — a hold
 across the weekend, to check the connection survives the two days the market is
 shut. It needs somebody to run one command on Saturday morning.
+
+---
+
+## For a stakeholder — closing the task, 2026-09-18
+
+**The last thing this piece of work owed was a test we chose not to run, and the
+choice is worth explaining rather than burying.**
+
+The plan is for the connection to the market to be held open permanently — never
+deliberately closed, so there is no schedule that can go wrong at a half-day or a
+public holiday. We had proved that connection stays healthy for **about eight
+hours**. Over a weekend, when the market is shut from Friday evening to Monday
+morning, it would need to stay healthy for **fifty-six**. Nobody had ever checked
+that.
+
+**We built the instrument, proved it worked against the real market, and then
+did not use it.** It connected, subscribed to all 518 companies exactly as the
+real product will, and caught the provider's own heartbeat at the expected
+interval. It also had two safeguards we designed deliberately, because the test
+would have run on a laptop: one that detects the machine going to sleep, and one
+that checks our own internet connection at the moment anything goes wrong.
+**Without those, a closed lid would have looked exactly like the provider
+dropping us**, and we would have written down a finding about someone else's
+service that was actually about our own.
+
+**What it needed was a laptop left awake and plugged in for two and a half
+days.** So before asking for that, we worked out what the answer would actually
+change — and the honest answer is: **very little.** The software we are building
+next already has to detect and recover from a lost connection, for three reasons
+we have already measured that have nothing to do with weekends. If the
+connection drops on a Saturday, machinery we are building anyway picks it up.
+
+**We did not pretend the risk away.** There is one outcome that would have
+mattered: if the connection dies _and_ the provider keeps our slot occupied —
+and we have watched a dead connection hold a slot for over four hours — then
+Monday morning opens with no market data and no obvious explanation. That is a
+real incident shape, and it is written down rather than quietly dropped.
+
+**So we moved the test rather than cancelling it.** It now belongs to a later
+piece of work that will already be running this connection on a real server in
+the cloud. There, holding it open across a weekend costs nothing at all — no
+laptop, nobody's weekend — and it is a more honest test anyway, because it
+happens in the place the software will actually live.
+
+**That closes this task.** The measuring equipment has been deleted, as planned
+from the start: 24 programs and 31 recordings, about 180 MB. We checked twice —
+by two independent methods, across both the current code and its entire
+history — that no password or key ever ended up in the repository. The findings
+survive in a single document; the equipment does not, which is deliberate, and
+it is why every figure in that document is written with the date it was taken
+and the method that took it, so it can be re-measured rather than trusted.
+
+**What a user can see: still nothing.** This whole piece of work was measurement
+and decision-making. **The next story starts building**, and the one after that
+is the first time a price moves on screen.

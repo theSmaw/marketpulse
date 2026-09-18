@@ -3067,12 +3067,41 @@ absence that looks like a measurement is worse than a gap that names itself.
 **Recorded here rather than dropped, because a measurement without an owner is a
 measurement nobody takes.**
 
-- **The weekend hold.** The longest successful hold this story ever achieved is
-  **7.77 hours** (§7). §9.3 chose to hold the socket **always**, which across a
-  weekend is **56+ hours** — so _always_ is currently validated to less than a
-  seventh of the interval it claims. Whether Alpaca tolerates a multi-day idle
-  connection, keeps heartbeating across it, or drops it, is **unmeasured**.
-  **Owner: Task 3.1.9**, which holds the harness until it is taken.
+- **The weekend hold — NOT TAKEN, and the owner moved on 2026-09-18.** The
+  longest successful hold this story ever achieved is **7.77 hours** (§7). §9.3
+  chose to hold the socket **always**, which across a weekend is **56+ hours** —
+  so _always_ is validated to less than a seventh of the interval it claims.
+  Whether Alpaca tolerates a multi-day idle connection, keeps heartbeating
+  across it, or drops it, is **unmeasured**.
+
+  **The instrument was built and proved, and then deliberately not run.**
+  `weekend.mjs` held a real socket, acknowledged 518 on both production
+  channels and caught the server heartbeat at **54.03 s** — inside §6.3's
+  53.96–54.85 s band — with two sentinels designed to stop a sleeping laptop
+  being reported as a vendor finding. It works. **What it needed was 56 hours
+  of an awake laptop**, and the owner weighed that against what the answer
+  changes and declined it on 2026-09-18.
+
+  **Why declining is defensible rather than a corner cut**, stated so it can be
+  argued with: Story 3.2 builds a liveness watchdog and a reconnect path
+  **regardless**, for three reasons that are already measured and have nothing
+  to do with weekends — §6.4's half-open death, §8.2's every-deploy eviction and
+  §8.8's silent faults. A weekend drop is handled by machinery that exists
+  either way, so the measurement is informative rather than decision-changing.
+
+  **What it would still have caught, stated so the risk is not pretended away:**
+  a drop that also **holds the connection slot**. §6.4 measured a dead socket
+  occupying the single permitted connection for **4 h 21 min**. If a weekend
+  drop leaves the slot held, Monday's pre-market opens with **no feed and no
+  obvious cause**, and that is an incident shape rather than a curiosity.
+
+  **Owner: Story 3.11**, and the reason is that it is the better owner rather
+  than the next one along — §7.4's latency re-measure is already parked there on
+  the condition **the first time a real socket runs in the deployed backend**,
+  and a weekend hold in that environment costs a container that is running
+  anyway instead of somebody's laptop. The 56-hour question is genuinely better
+  answered deployed than on a machine that can close its lid.
+
 - **The `updatedBars` revision rate at 518 symbols.** §7.11's reversal trigger on
   a decision already taken, measured so far at 0.36% on **ten liquid names**.
   **Owner: Task 3.1.9.**
@@ -3082,7 +3111,43 @@ measurement nobody takes.**
   half-open death both create gaps no socket replay could fill — so this refines
   Story 3.10's scope rather than deciding it.
 
-### 13.5 One thing that is not a measurement but is missing
+### 13.5 The harness, and what went with it — deleted 2026-09-18
+
+**Recorded because the instrument is gone and the figures are not.** Every
+measurement in this document was taken by a throwaway harness outside the tree —
+the shape `ALPACA.md` §11 used, and the shape Tasks 1.13.1 and 1.13.4 used before
+it: run it, record the findings here, delete it. **The tree was left
+byte-identical outside `planning/`** — verified rather than asserted, by walking
+every commit this story made: no file under `apps/`, `packages/`, `e2e/` or
+`scripts/` was touched, and the one amendment to `packages/shared/src/feed-status.ts`
+is **28 added lines with zero non-comment changes**.
+
+At deletion it was **24 scripts, 31 captures and 6 frame sidecars — 179 MB**,
+against `wss://stream.data.alpaca.markets/v2/{iex,sip}` and
+`https://data.alpaca.markets`.
+
+**The credential never touched a file in the repository, checked twice rather
+than assumed.** `verify-captures.mjs` sweeps every capture independently of the
+writer and reported **31 captures + 6 sidecars, 0 problems** — the writer
+_refuses_ on a match rather than redacting, so a frame the redactor missed stops
+the capture instead of leaking. Separately, **ten forms of two secrets** — raw,
+base64, URL-encoded, lower-cased and a 12-character prefix of each — were
+swept against the **tracked tree and the full `git log -p --all` history**, both
+**CLEAN**. The credential lived in an env file outside the tree and went with
+the harness.
+
+**What was lost on purpose, and what is not recoverable.** The captures are the
+raw evidence behind every figure here, and they are gone; this document is what
+survives, which is why every figure carries its date, its instrument and its
+control. **A figure in here is re-taken rather than cited** — that is the
+standing rule for a dated observation of a third party and it applies to this
+document exactly as it applies to `ALPACA.md`.
+
+**One instrument was built, proved and never run**: `weekend.mjs`, for §13.4's
+weekend hold. Its design is recorded in Story 3.11's `STORY.md` rather than lost,
+because that story now owns the measurement.
+
+### 13.6 One thing that is not a measurement but is missing
 
 **The `Component library for MarketPulse` design canvas is NOT reachable** —
 checked 2026-09-17 with `DesignSync`. The account holds two design-system
