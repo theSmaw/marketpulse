@@ -91,6 +91,21 @@ export function createMarketDataProvider(
       return undefined;
     case "fixture":
       return withRetry(createFixtureProvider());
+    case "replay":
+      // **`undefined` is the specified answer rather than a gap** (ADR 0030
+      // §3): `replay` resolves to no **historical** provider, exactly as `none`
+      // does, and `serve-series.ts` already reads that as *serves stored
+      // history and no tail*. A replay is a `MarketDataStream` — a sibling
+      // interface this function knows nothing about (`PROVIDER.md` §12) — so
+      // returning a historical provider here would answer a question nobody
+      // asked, and would put a second source of stored bars beside the store
+      // the replay is reading from.
+      //
+      // **It fired for the third time in this function's life** (Task 3.2.7),
+      // before a line of it had been edited. The sentence in the doc comment
+      // above stays in the present tense because it describes what will happen
+      // to the *next* member too.
+      return undefined;
     case "alpaca": {
       // **The credential is required and its absence is a THROW, which is a
       // narrower claim than it looks** (Task 2.7.3). It is not a runtime check

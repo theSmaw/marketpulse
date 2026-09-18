@@ -93,7 +93,7 @@
  *    be possible at all. **That is the opposite of a leak.** The figure and its
  *    reading are amended where Task 2.6.8 recorded them.
  */
-export const PROVIDER_IDS = ["fixture", "alpaca"] as const;
+export const PROVIDER_IDS = ["fixture", "alpaca", "replay"] as const;
 
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
@@ -128,6 +128,21 @@ export const PROVIDER_SERVES: Record<
 > = {
   fixture: "not-the-live-market",
   alpaca: "the-live-market",
+  // **The doc comment above predicted this member and argued its answer before
+  // it existed**, and both held (Task 3.2.7): *"`fixture` invents prices and a
+  // replay of stored bars would not, and both answer `not-the-live-market` for
+  // the same reason: neither is what is happening in the market now, which is
+  // the only claim this product's screens make about a price."*
+  //
+  // A replay's bars are **real** — our own stored consolidated-tape minutes —
+  // and realness is not the question this record asks.
+  //
+  // **What the one word buys is ADR 0030 §7a-bis, already built**: `config.ts`
+  // refuses to start any deployment whose provider is marked
+  // `not-the-live-market` unless `NON_LIVE_MARKET_DATA=permitted` is granted by
+  // name, and production has never granted it. So the replay inherits the
+  // refusal by being spelled here rather than by anything this epic writes.
+  replay: "not-the-live-market",
 };
 
 /**

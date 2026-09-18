@@ -15,6 +15,8 @@
 
 import { describe, expect, it } from "vitest";
 
+import { PROVIDER_IDS, PROVIDER_SERVES } from "@marketpulse/shared";
+
 import {
   CONFIG_VARIABLES,
   ConfigError,
@@ -476,6 +478,38 @@ describe("loadConfig and the Alpaca credential", () => {
   // deployment that does not work. `fixture` invents prices; it is a member of
   // the documented vocabulary and is one edit to a container app away. Before
   // this refusal, nothing in this repository would have noticed.
+  it("refuses EVERY provider PROVIDER_SERVES marks not-the-live-market", () => {
+    // **Derived from the record rather than listed**, which is the half a
+    // hand-written list cannot hold: a provider added to `PROVIDER_IDS` with a
+    // `not-the-live-market` answer is covered here the day it is added, with no
+    // test to remember to extend.
+    //
+    // Verified for `replay` on 2026-09-18 (Task 3.2.7) — it inherited the
+    // refusal from being spelled in `PROVIDER_SERVES` with **no code written
+    // for it**, which is ADR 0030 §7a-bis's fourth mechanism turning out to be
+    // already built. The task said to check that rather than assume it, and
+    // this is the check made permanent.
+    const nonLive = PROVIDER_IDS.filter(
+      (provider) => PROVIDER_SERVES[provider] === "not-the-live-market",
+    );
+
+    expect(nonLive.length).toBeGreaterThan(0);
+
+    for (const provider of nonLive) {
+      let message = "";
+      try {
+        loadConfig({ MARKET_DATA_PROVIDER: provider });
+      } catch (error) {
+        if (error instanceof ConfigError) message = error.message;
+      }
+
+      expect(message, provider).toContain(
+        `MARKET_DATA_PROVIDER is ${provider}`,
+      );
+      expect(message, provider).toContain("NON_LIVE_MARKET_DATA");
+    }
+  });
+
   it("refuses a provider that does not serve the live market unless it is permitted by name", () => {
     let message = "";
     try {

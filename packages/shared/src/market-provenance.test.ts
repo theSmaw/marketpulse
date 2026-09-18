@@ -38,7 +38,20 @@ describe("the provenance vocabulary", () => {
   // the opposite of a leak, and Task 2.6.8's recorded code-only grep figure is
   // amended from zero to one where it stands.
   it("ships a member only for a provider something can produce", () => {
-    expect(PROVIDER_IDS).toEqual(["fixture", "alpaca"]);
+    // **Amended 2026-09-18 by Task 3.2.7, and the rule is what held rather
+    // than the count.** `replay` was deliberately NOT added by Task 3.2.1,
+    // which widened `MARKET_FEEDS` alone: a feed is a label vocabulary and no
+    // wrong state is reachable by adding one, while `PROVIDER_IDS` is
+    // **operator-settable configuration** — `MarketDataProviderSelection`
+    // derives from it, so adding a member early would have made
+    // `MARKET_DATA_PROVIDER=replay` a value that validates at startup and that
+    // nothing could honour.
+    //
+    // It arrives here now beside `createReplayStream` in `replay-stream.ts`,
+    // which is the same rule `alpaca` followed when it arrived beside
+    // `alpaca-provider.ts` — and the same rule `SECURITY_STATUSES`' `delisted`
+    // is still waiting on.
+    expect(PROVIDER_IDS).toEqual(["fixture", "alpaca", "replay"]);
   });
 
   it("ships exactly two adjustment modes", () => {
