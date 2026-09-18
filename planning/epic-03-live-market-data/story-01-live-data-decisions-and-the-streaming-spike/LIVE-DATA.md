@@ -502,7 +502,7 @@ especially 3.10, which treats the degraded states as a set.
 
 ### 2.6 What the live feed is called on screen
 
-> **ANSWERED 2026-09-17 — §11.3: the grid in words, every string homed in `MARKET_FEED_DESCRIPTIONS`.** `LIVE` means the feed is healthy (§9.4). `replay`'s words are specified in ADR 0030 and **not yet in `MARKET_FEEDS`**, which §11.3 names as outstanding with an owner.
+> **ANSWERED 2026-09-17 — §11.3: the grid in words, every string homed in `MARKET_FEED_DESCRIPTIONS`.** `LIVE` means the feed is healthy (§9.4). `replay`'s words were specified in ADR 0030 and **are in `MARKET_FEEDS` since 2026-09-18** (Task 3.2.1), transcribed verbatim. The connection word `REPLAYING` is **not** — its home is unwritten and is Story 3.3's; see §11.3.
 
 **The question.** The words. `PRODUCT_SPEC.md` §7.1 is explicit that three
 letters teach a non-specialist nothing and that we must not imply IEX represents
@@ -2828,12 +2828,12 @@ becoming false the first time an IEX tail is stitched on.
 
 **Every string's home, and none of them is a component:**
 
-| String                          | Home                                                                     | State                                                                                                                                                            |
-| ------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The feed words and sentences    | `MARKET_FEED_DESCRIPTIONS` in `packages/shared/src/market-provenance.ts` | Shipped for `iex`, `sip`, `synthetic`                                                                                                                            |
-| **`replay`'s words**            | The same record                                                          | **SHIPPED 2026-09-18 by Task 3.2.1.** `MARKET_FEEDS` holds four and `PROVIDER_IDS` holds three; the words are ADR 0030 §3's, transcribed rather than re-composed |
-| `live \| stale \| disconnected` | `FEED_STATUSES` in `packages/shared/src/feed-status.ts`                  | Shipped, and amended by this task — see below                                                                                                                    |
-| The connection sentence         | A new record beside `FEED_STATUSES`, same `satisfies` guard              | **Unwritten.** Story 3.3                                                                                                                                         |
+| String                          | Home                                                                     | State                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The feed words and sentences    | `MARKET_FEED_DESCRIPTIONS` in `packages/shared/src/market-provenance.ts` | Shipped for `iex`, `sip`, `synthetic`                                                                                                                                                                                                                                                                                              |
+| **`replay`'s words**            | The same record                                                          | **SHIPPED 2026-09-18 by Task 3.2.1** — the words are ADR 0030 §3's, transcribed rather than re-composed. `MARKET_FEEDS` holds four. **`PROVIDER_IDS` still holds two**, deliberately: a provider id is a member only when something can produce it, and `createReplayStream` does not exist until Task 3.2.7, which owns that half |
+| `live \| stale \| disconnected` | `FEED_STATUSES` in `packages/shared/src/feed-status.ts`                  | Shipped, and amended by this task — see below                                                                                                                                                                                                                                                                                      |
+| The connection sentence         | A new record beside `FEED_STATUSES`, same `satisfies` guard              | **Unwritten.** Story 3.3                                                                                                                                                                                                                                                                                                           |
 
 **`feed-status.ts` gets a dated amendment rather than a rewrite**, per the ADR
 rule, because one of its sentences is not observable. Its doc glosses `stale` as
@@ -2848,13 +2848,22 @@ inbound frame arrived_.
 > in `apps/backend/src/`, and `config.ts` had never heard of it.
 >
 > **The reversal trigger has FIRED — 2026-09-18, Task 3.2.1.** It read: _the
-> first feed added to `MARKET_FEEDS`_. `replay` was added to both unions, and
-> **the `satisfies` guard did exactly the work this paragraph predicted**: the
-> widening produced **four compile errors at three sites**, each one naming a
-> place that had to answer for the new member —
-> `PROVIDER_SERVES`, `MARKET_FEED_DESCRIPTIONS` and
-> `createMarketDataProvider`'s exhaustive switch. Not one of them was found by
-> reading; every one was named by the compiler.
+> first feed added to `MARKET_FEEDS`_, and `replay` is that feed.
+>
+> **The `satisfies` guard did exactly the work this paragraph predicted.** Task
+> 3.2.1 first widened **both** unions, which produced **four compile errors at
+> three sites** — `PROVIDER_SERVES`, `MARKET_FEED_DESCRIPTIONS` and
+> `createMarketDataProvider`'s exhaustive switch. Not one was found by reading;
+> every one was named by the compiler.
+>
+> **Only the `MARKET_FEEDS` half was kept.** `market-provenance.test.ts` holds a
+> standing rule — _a provider id is a member only when something can produce
+> it_, with `SECURITY_STATUSES`' `delisted` as the live precedent — and nothing
+> produces a replay bar until Task 3.2.7. Since
+> `MarketDataProviderSelection` derives from `PROVIDER_IDS`, adding it early
+> would make `MARKET_DATA_PROVIDER=replay` a value that validates at startup and
+> that nothing can honour. **So `PROVIDER_IDS` still holds two**, and the three
+> errors that came from it will fire again in 3.2.7, beside the producer.
 >
 > **Two things the grid above must now be read with:**
 >

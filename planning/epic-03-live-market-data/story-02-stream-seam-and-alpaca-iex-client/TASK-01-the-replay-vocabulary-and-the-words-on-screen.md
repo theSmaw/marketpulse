@@ -163,10 +163,14 @@ and the migration says so in its own comment.
   and both answer `not-the-live-market` for the same reason"_. When 3.2.7 adds
   the provider, the answer is already argued.
 - **ADR 0030 §7's "second opt-in key that production has never had" already
-  exists.** `config.ts` refuses to start a deployment whose provider is marked
-  `not-the-live-market` unless `NON_LIVE_MARKET_DATA=permitted` is granted by
-  name. `replay` inherits it by being spelled in `PROVIDER_SERVES` — so that
-  mechanism is **not** something this epic must build.
+  exists, and the ADR already said it would cover `replay`** — §7 names the
+  classification as holding "for providers nobody has thought of yet — `replay`
+  included, when Story 3.2 adds it." `config.ts` refuses to start a deployment
+  whose provider is marked `not-the-live-market` unless
+  `NON_LIVE_MARKET_DATA=permitted` is granted by name. **Verified against the
+  code rather than taken from the document**, which is the only thing that
+  separates a mechanism from a belief. Nothing to build; 3.2.7 should still
+  prove it fires.
 - **`pnpm invariants` holds at 12**, and `pnpm break feed-words-in-a-renderer`
   still goes red with the new member present — the one-home guard was re-proven
   rather than assumed.
@@ -217,12 +221,15 @@ working — and this particular rail is one of several standing between a develo
 tool and a real user seeing fake prices. The task's own instructions said, in
 advance, not to weaken the guard to make the change quieter. It held.
 
-**A pleasant discovery worth passing on.** We had assumed we would need to build
-a safety mechanism for this epic: a special permission a deployment must be
-granted before it can serve anything other than the real live market. It turns
-out **we built that months ago**, and the replay inherits it automatically. One
-less thing to build, and it was found by reading rather than by being surprised
-later.
+**One thing confirmed rather than discovered, and the distinction matters.**
+There is a safety mechanism this epic depends on: a special permission a
+deployment must be granted by name before it can serve anything other than the
+real live market. **It was built months ago, and our own design record already
+said so** — the decision document for the replay states plainly that the
+protection extends to the replay "when Story 3.2 adds it". So this is not a
+happy accident; it is a plan working. What this task actually did was **check it
+against the code rather than trust the document**, which is the standard here:
+a mechanism nobody has verified is a belief.
 
 **How this unlocks progress.** Small as it is, this is the first line of code in
 the story that makes the live market feed possible. The next tasks build the
