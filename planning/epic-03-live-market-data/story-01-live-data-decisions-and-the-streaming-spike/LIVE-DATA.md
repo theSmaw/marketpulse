@@ -1498,6 +1498,25 @@ produces bars on `b`, and whether anything marks them as extended-hours.
 Three numbers, and **conflating any two of them is a defect Story 3.10 would
 inherit.**
 
+> **The warning fired on 2026-09-18, one story earlier than it predicted, and it
+> was needed.** Task 3.2.2 wrote a unit test asserting that 76 minutes of
+> out-of-hours silence still reports `live` — **citing this section while making
+> the exact error its first sentence warns about.** It read the 76-minute row as
+> a silence of _frames_; it is a silence of **data**, with the 54.85 s heartbeat
+> arriving throughout. The implementation was right and correctly reported
+> `disconnected`; the test was wrong and failed.
+>
+> **Two things worth keeping from that.** The row labels — _of data_ against _of
+> any inbound frame_ — are load-bearing rather than pedantic, and nothing here
+> should be amended to read more smoothly at their expense. And the conflation
+> was caught by a **test written against a pure reducer with no socket**, in
+> milliseconds, rather than by a feed that looked healthy at 3am — which is the
+> case for Task 3.2.2 having built the state machine before the client.
+>
+> It is recorded against Story **3.2** rather than 3.10 because that is where it
+> actually happened. The warning's owner is unchanged: 3.10 still inherits this
+> if it keys a degraded state on the wrong silence.
+
 | Silence                                             | Longest observed | From        | To          |
 | --------------------------------------------------- | ---------------- | ----------- | ----------- |
 | **Of data**, market shut, bar channels, two holds   | **≥ 76 min**     | 04:14:56 ET | 05:31:07 ET |
