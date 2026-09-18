@@ -841,4 +841,43 @@ describe("the database pool", () => {
     expect(closed).toBeGreaterThan(drained);
     expect(complete).toBeGreaterThan(closed);
   });
+
+  it("closes the market stream on SIGTERM, ahead of the pool", async () => {
+    // **The outage this asserts is measured rather than hypothetical.**
+    // `LIVE-DATA.md` §12.2: the free plan allows ONE connection and §8.2
+    // measured that the incumbent wins, so a rolling deploy has the outgoing
+    // replica holding the only permitted connection while the incoming one is
+    // refused `406`. If the stopping process exits without closing, §6.4
+    // measured how long the half-open socket can survive: **4 h 21 min**. The
+    // deliberate close is what turns that into `SHUTDOWN_TIMEOUT_MS`.
+    //
+    // The ordering matters for the same reason the pool's does: a closer that
+    // ran after the pool would still be inside the ceiling, but the record
+    // travels with the step, so moving the close moves this assertion.
+    const port = await probeFreePort();
+    const databasePort = await probeFreePort();
+    const server = startServer(port, {
+      DATABASE_PORT: String(databasePort),
+      LOG_LEVEL: "debug",
+    });
+
+    await waitForReady(server);
+    server.child.kill("SIGTERM");
+
+    const exit = await waitForExit(server);
+    expect(exit.code).toBe(0);
+
+    const messages = server.records().map((record) => record.msg);
+    const drained = messages.indexOf("http drained");
+    const stream = messages.indexOf("market stream closed");
+    const pool = messages.indexOf("database pool closed");
+
+    // No stream is registered in this environment — nothing configures a live
+    // provider in a test — so the closer is a no-op. **The record still fires,
+    // and that is deliberate**: it proves the shutdown path REACHES the close
+    // rather than proving a socket existed. A test that only passed when a
+    // socket was open could not run in `verify`, which has no credentials.
+    expect(stream).toBeGreaterThan(drained);
+    expect(pool).toBeGreaterThan(stream);
+  });
 });
