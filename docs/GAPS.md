@@ -322,6 +322,14 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
 
    **Not made mechanical because it cannot be**, which is this list's residue by design: a runtime claim about a deployment is exactly what a credential-free `verify` cannot make.
 
+10. **That what we built is reachable at all.** Added 2026-09-18 by Task 3.2.9, which existed because it was not.
+
+Story 3.2 shipped **three implementations of `MarketDataStream` and constructed none of them**. Every implementation had tests, every guard had a passing `pnpm break`, and `pnpm verify` was green throughout — **the absence of a construction site is not a shape any test has.** Alongside it, Task 3.2.5's deliberate `SIGTERM` close had no caller, so the mechanism that bounds the every-deploy outage at `SHUTDOWN_TIMEOUT_MS` instead of `LIVE-DATA.md` §6.4's **4 h 21 min** was hanging up a connection that was never opened — and its process test passed, because it asserts the shutdown path _reaches_ the close, which it did.
+
+**It cannot be made mechanical, and that is argued rather than assumed.** A factory built one story ahead of its caller is a state this repository uses deliberately — `MarketDataStream` was legitimately unimplemented for a whole task by design (Task 3.2.2), which is the point of writing an interface first. A rule firing on _exported and never called_ would fire on correct work more often than on a defect.
+
+**Re-measure:** for each exported factory, route or registration a story adds, `grep -rn 'theName(' --include='*.ts' apps packages | grep -v '\.test\.'` and expect a call site or a **written** disposition naming the story that will call it. Then **start the built server and read what it says** — the grep proves a call exists; only running it proves the call works.
+
 **One entry left this list on 2026-09-12 by being made mechanical, and the route is worth knowing.** _"The scheduled backfill fills every timeframe the application reads"_ was never written here — it was a defect first: the nightly job filled `1m` only for eight days, every run green, while `routes/securities.ts` read its last close at `1d` (`BARS.md` §8.18). It is now `pnpm coverage:check`, a `verify` step. **That is the migration this list wants** — a prose entry with a re-measure command is a check nobody runs, and a `verify` step is one that cannot be skipped. An entry that can be made mechanical should be; what stays here is the residue that genuinely cannot, which is the breaks a human has to perform and the claims only a browser or a live store can see.
 
 Its runtime half is deliberately **neither** here nor in `verify`: `GET /diagnostics/freshness` answers _how many trading sessions behind is the store_, computed on request so it has no schedule to miss, and `check-deployed.mjs` fails on it after a merge. `verify` has no credentials and no database by design, and pointing it at a live store would fork the definition of "verified".

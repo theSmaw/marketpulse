@@ -86,6 +86,49 @@ market _now_. Say that plainly when reporting the close.
   across that boundary, which is why this has to be an enumeration with a count
   rather than a reminder to be thorough.
 
+- **AUDIT EVERY CONSTRUCTION SITE — added 2026-09-18 after Task 3.2.9, and it is
+  a different audit from the one above.** That one checks a **document** reached
+  the story that owns it. This checks that **code reached a caller**.
+
+  **The evidence, so this is a repair rather than a precaution.** Task 3.2.9 had
+  to be added to this story because it shipped **three implementations of
+  `MarketDataStream` and constructed none of them**. Every implementation was
+  tested, every guard was proven with a `pnpm break`, and `pnpm verify` was green
+  throughout — **because the absence of a construction site is not a shape any
+  test has.** It was found by grepping for `createAlpacaStream(` and getting zero
+  matches outside tests, and that grep only happened because a sweep asked what
+  had changed.
+
+  **Do it by enumeration, the same way:**
+
+  - **List every exported factory, route and registration this story added** —
+    `createAlpacaStream`, `createFixtureStream`, `createReplayStream`,
+    `createMarketStream`, `createStoredReplaySource`, `registerMarketStreamCloser`,
+    `readFeedDiagnostic`, `GET /diagnostics/feed`, `probeFeed` — and build the
+    list before grepping. A list derived from the diff is checkable; a list from
+    memory is not.
+  - **For each, grep for a call site outside `*.test.ts`.** Zero matches is
+    either a defect or a deliberate deferral, and **the two must be told apart in
+    writing** — `MarketDataStream` itself was legitimately unimplemented for one
+    task by design, and that is different from unreachable at the close.
+  - **Record the count of things with no caller**, and for each survivor name the
+    story that will call it. Zero is a result worth stating.
+  - **Then run the built server and read `GET /diagnostics/feed`**, because the
+    grep proves a call exists and only running it proves the call works. Task
+    3.2.9 did exactly this and it is what turned _the code looks wired_ into _the
+    feed reports `synthetic`/`live`_.
+
+  **Note what this is not.** It cannot be a `verify` step: a factory built one
+  story ahead of its caller is a legitimate state this repository uses
+  deliberately, so a mechanical rule would fire on correct work. It is an
+  enumeration with a written disposition, which is the residue `docs/GAPS.md`
+  exists for.
+
+- **Walk the acceptance criteria against a RUNNING system, not only the suite.**
+  Task 3.2.9 is the proof this matters: every criterion in
+  [`STORY.md`](STORY.md) could be read as satisfied while nothing ran. Start the
+  built server under each configured provider and read what it says.
+
 - **Check the epic's own open items.** Story 3.4 still owes a design decision on
   the **unreachable canvas**, and the extended-hours mark and _this corrected_
   treatment it now owes. This story does not resolve those; it should confirm
@@ -106,7 +149,11 @@ market _now_. Say that plainly when reporting the close.
   of how many were missing recorded** — zero is a result worth stating, and
   anything above zero is the repair this task made. Extended one hop to
   `ALPACA.md` §10, `PROVIDER.md` §12 and ADR 0030
-- Every acceptance criterion in [`STORY.md`](STORY.md) is walked and marked
+- Every acceptance criterion in [`STORY.md`](STORY.md) is walked and marked,
+  **against a running server rather than only the suite**
+- **Every exported factory, route and registration this story added has a call
+  site outside a test, or a written disposition naming the story that will call
+  it**, with the count of survivors recorded
 - `pnpm verify` and `pnpm e2e` pass
 
 ## Notes
