@@ -79,6 +79,30 @@ export const BREAKS = [
     build: true,
   },
   {
+    name: "replay-refuses-during-a-session",
+    proves:
+      "A developer who left MARKET_DATA_PROVIDER=replay in their .env can " +
+      "build against a recording during a live session while believing they " +
+      "are on the real feed — and a replay already running does not stop when " +
+      "the bell rings. ADR 0030 §7f is the only guard that reaches that case.",
+    file: "apps/backend/src/replay-stream.ts",
+    find: 'const marketIsOpen = (at: Date): boolean =>\n  marketSessionStateAt(at).status === "open";',
+    replace: "const marketIsOpen = (_at: Date): boolean => false;",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/replay-stream.test.ts",
+    ],
+    expect: "REFUSES to start while the market is open",
+    // The guard is developer-side rather than production-side, which is exactly
+    // why it needs a break: nothing about a deployed environment would ever
+    // exercise it, so a version that silently stopped working would go
+    // unnoticed until somebody spent a session building against a recording.
+    build: true,
+  },
+  {
     name: "market-data-default-is-none",
     proves:
       "Forgetting to configure a market-data provider yields INVENTED PRICES " +
