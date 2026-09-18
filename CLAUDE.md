@@ -286,6 +286,22 @@ were the edit. Each of these cost real time that session.
 
 **A measurement that falsifies a governing document is swept the same day, not at the story close.** Falsification travels **upward**: a task measures a vendor or the tree, and what it invalidates is a premise in an ADR, an invariant in this file, or `PRODUCT_SPEC.md` — and nothing sweeps upward, because a story close sweeps that story's own documents. Note also that **recording a correction and propagating it are two obligations**, and the mechanism that defers the first — "Task N is the deadline" — routinely covers only the product decision the measurement forces, not the document that was wrong. Grep for the claim, correct the live sites, give an ADR a dated amendment rather than a rewrite, and leave the historical records standing. This has happened: for a day, `ALPACA.md` and ADR 0019 both recorded that `PRODUCT_SPEC.md` §7.1's feed claim was false while §7.1 itself, `README.md`, two other ADRs and invariant 6 here went on asserting it.
 
+**A hand-off sweeps SIDEWAYS, and a story close does not reach it.** The same
+blind spot with the arrow turned: a close sweeps the documents the story
+**wrote**, and a constraint one story measured for another lives in a document
+the **owning** story does not own. Nothing about a close naturally crosses that
+boundary. So a story that measures something for a sibling must write the
+constraint **into the sibling's `STORY.md`, in words that story can act on** —
+never a link back, because a pointer is what a reader follows when they already
+know to look, and the whole failure is that they do not. **Enumerate by grepping
+the subject document for every `Story N.M` and `Owner:` line, then check each
+against that story's own file, and record the count that were missing.** This has
+happened: Epic 3's spike close gathered five constraints for one story, the
+canvas answer for another and two more besides — and missed a story its own
+findings document named in as many words, having written down, in that same
+close, that this is _"exactly how a measured constraint gets lost"_. It was found
+two stories later, by accident, by somebody implementing an unrelated mapper.
+
 **Renumbering a story means remapping every reference in the same change.** A sequence whose numbers do not reflect its order is a trap for every future reader. The technique matters, because the obvious implementation corrupts data: replace only where a `Story`/`Stories` prefix puts it beyond doubt (allowing for the prefix being separated by a newline and a comment marker), **exclude every applied migration**, then read the residue by hand. A blind substitution turns `jiti@2.7.0` into a version that does not exist and `eastus2.5.azurestaticapps.net` into a different hostname.
 
 ## The UI bar
