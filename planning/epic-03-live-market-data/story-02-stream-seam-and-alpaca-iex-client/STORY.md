@@ -1,6 +1,6 @@
 # Story 3.2 — The Market-Data Stream Seam & the Alpaca IEX Client
 
-**Status:** Not started
+**Status:** Not started — **split into nine tasks 2026-09-18**, see _Tasks_ at the foot
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.1
 **Epic scope covered:** Alpaca WebSocket ingestion, market-data normalization
@@ -296,3 +296,51 @@ hand-off rather than in a debugging session.
 it** — `PROVIDER_IDS` is `["fixture", "alpaca"]`, `MARKET_FEEDS` is
 `["iex", "sip", "synthetic"]`. Adding them is this story's, and the `satisfies`
 guard makes a feed added without words a compile error naming the omission.
+
+---
+
+## Tasks
+
+Nine, sequential, each self-contained. **The ordering is load-bearing in three
+places** and those three are the reason this is not a flat list:
+
+| #     | Task                                                                                                            | Why it sits here                                                                                  |
+| ----- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| 3.2.1 | [`replay` enters the two unions](TASK-01-the-replay-vocabulary-and-the-words-on-screen.md)                      | **First**, so every later task's provenance stamping is a compile error rather than a surprise    |
+| 3.2.2 | [`MarketDataStream`, written before anything implements it](TASK-02-the-interface-written-before-the-client.md) | **Before the client** — `PROVIDER.md`'s own test of whether a seam is real                        |
+| 3.2.3 | [The recorded frame corpus](TASK-03-the-recorded-frame-corpus.md)                                               | Nothing below can be tested without it, and the captures are gone                                 |
+| 3.2.4 | [The pure mapping, and the revision case](TASK-04-the-pure-mapping-and-the-revision-case.md)                    | Pure before transport, the `alpaca-mapping.ts` arrangement                                        |
+| 3.2.5 | [The Alpaca client and the watchdog](TASK-05-the-alpaca-client-and-the-liveness-watchdog.md)                    | **Before the replay** — "a convenience built first becomes the thing everything is shaped around" |
+| 3.2.6 | [The fixture stream](TASK-06-the-fixture-stream.md)                                                             | The second implementation, which is where a fake seam falls over                                  |
+| 3.2.7 | [The replay stream over our own bars](TASK-07-the-replay-stream-over-our-own-bars.md)                           | Third, guarded, and the instrument Story 3.4 needs                                                |
+| 3.2.8 | [The guards that stop it rotting](TASK-08-the-guards-that-stop-it-rotting.md)                                   | The runtime half, which a credential-free `verify` cannot make                                    |
+| 3.2.9 | [Verify, document, and the close](TASK-09-verify-document-and-the-story-close.md)                               | The sweep and the hand-offs                                                                       |
+
+**The three orderings that are decisions rather than convenience:**
+
+1. **3.2.1 before everything.** Widening `PROVIDER_IDS` is what lets later tasks
+   stamp `replay` at all — and it is also what silently widens `schema.ts`'s
+   insert types, which is why 3.2.8 must close that window with a **runtime**
+   guard. Doing the vocabulary last means every intermediate task carries a
+   `// TODO` the compiler cannot see.
+2. **3.2.2 before 3.2.5.** An interface extracted from a working client is a
+   description of that client.
+3. **3.2.5 before 3.2.7.** The story's own "what must not rot" item 3. If 3.2.5
+   slips, **let it slip** rather than building the replay first.
+
+### A note on visible progress, because this story has none
+
+**Eight of these nine tasks put nothing on a screen, and that is the story's
+design rather than a shortfall.** The epic was sequenced so the payoff is close:
+**Story 3.3 is next, and it is the first time the product says something true
+about the market _now_.** Pulling any of it forward is the scaffolding
+`CLAUDE.md` forbids, and the story's _Out of scope_ names Story 3.3 as the owner
+of anything reaching a browser.
+
+**The one thing here that produces visible movement is 3.2.7**, and it is for a
+**developer** rather than a user: `pnpm dev` outside a session replays real
+stored bars, which is the instrument **Story 3.4 needs** to settle the motion
+vocabulary against real moving numbers. Invented prices cannot settle it.
+
+**So the honest way to serve the stakeholder interest here is to keep this story
+tight**, so 3.3 lands sooner — not to widen it.
