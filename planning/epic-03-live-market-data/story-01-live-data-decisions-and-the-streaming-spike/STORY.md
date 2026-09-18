@@ -1,6 +1,6 @@
 # Story 3.1 — Live-Data Decisions & the Streaming Spike
 
-**Status:** In progress — 3.1.1, 3.1.2 and 3.1.3 complete. **3.1.4's instrument is built, dry-run and recorded (2026-09-16); its capture is outstanding and needs a session.** It must start at 07:00 ET with the machine kept awake and its lid open, and nothing else may hold the socket while it runs — and it owns the open boundary, liquid pre-market, after hours and the close boundary, none of which move again
+**Status:** **Complete — 2026-09-18. All nine tasks done.** All eight decisions are taken and recorded in [`LIVE-DATA.md`](LIVE-DATA.md) with alternatives, a measurement where one exists and a condition-shaped reversal trigger; the three that needed a person were put to the owner together and answered with their reasoning (3.1.6); the harness is deleted and the tree verified byte-identical outside `planning/`; both credential checks ran clean over the tracked tree **and** the full git history. **No application code changed** — the one amendment to `packages/shared/src/feed-status.ts` is 28 added lines with zero non-comment changes. Two of the three measurements this story held open to the last were taken on 2026-09-17 (§14); the **weekend hold was deliberately not taken** and went to **Story 3.11**, where a deployed socket makes it free — §13.4 carries the reasoning and the risk it leaves standing.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** Epic 2 (2.6, 2.7, 2.9, 2.10)
 **Epic scope covered:** the decisions under every other story in this epic, and the half of _Alpaca WebSocket ingestion_ that is a measurement rather than a client
@@ -132,6 +132,31 @@ sized against numbers that do not exist yet.
 
 ## Open decisions — settle with the user
 
+> **ALL THREE ANSWERED 2026-09-17 by Task 3.1.6**, put to the owner together as
+> this section asked rather than one at a time, and recorded in
+> [`LIVE-DATA.md`](LIVE-DATA.md) §9.3–§9.6 **with the reasoning and a
+> condition-shaped reversal trigger each** — which is acceptance criterion 5,
+> and it is met by the reasoning being there rather than by the outcome being
+> there.
+>
+> 1. **The socket is held open, always** (§9.3) — one connection, opened at
+>    boot, never deliberately closed. **Not** on cost, which was measured away
+>    twice: both alternatives buy a **calendar-driven scheduled transition**, and
+>    `CALENDAR.md`'s exception table exists because that is where half-days and
+>    holidays break. And `LIVE` means **the feed is healthy**, not that data
+>    arrived (§9.4) — the distinction this section flagged at 3am is real, and
+>    the discriminator is the server's 54 s heartbeat rather than the data.
+> 2. **A browser subscribes to the whole universe** (§9.5), so Epic 4's landing
+>    page does not have to re-take it — which is the failure this bullet
+>    predicted and it was avoided rather than survived.
+> 3. **The budget is left exactly as it is** (§9.6) — and the premise under this
+>    bullet turned out to be **false**. The active-rate total is **$9.26/month**,
+>    not $19.04: the 1,000 B/s condition is a _rate_ and a bars-only feed for 518
+>    exceeds it for **6.6 minutes a day**. So the defect this bullet describes —
+>    the alert that matters not firing — **does not arise**, and the 50% alert at
+>    $10 is a live tripwire eight percent above real spend. ADR 0011, `HOSTING.md`
+>    and this epic's `EPIC.md` all carry dated amendments.
+
 The eight above are the story's work rather than its blockers, and six of them
 are settled by measurement. **Three need a person**, and they should be put
 together rather than one at a time:
@@ -164,10 +189,68 @@ together rather than one at a time:
 6. `pnpm verify` passes — which for a story that changes no code means the
    `links` and `invariants` steps over the new document
 
+## Amended a fourth time, 2026-09-18, after Task 3.1.9 — the weekend's disposition
+
+**The constraint discharged correctly, and how it discharged is the point.**
+The weekend was parked on 3.1.9 as a _condition on the deletion_ rather than as
+a tenth task, because a task triggered by a date never fires — this repository's
+scar being the fourth design test, deferred seven times on a calendar trigger.
+
+**It fired.** 3.1.9 could not complete without discharging it, and the
+constraint offered exactly two exits: take the hold, or record it as unmeasured
+with a named owner. The owner took the first (2026-09-17), the instrument was
+built and **proved against a real socket** — 518 acknowledged on both production
+channels, the heartbeat caught at 54.03 s inside §6.3's band — and then, seeing
+that it cost **56 hours of an awake laptop** and changed very little (Story 3.2
+builds the watchdog and reconnect regardless, for three already-measured reasons
+unrelated to weekends), the owner took the second exit instead on 2026-09-18.
+
+**Both were always permitted. The constraint exists so that neither happens
+silently, and neither did.** It went to **Story 3.11**, which is the better
+owner rather than the next one along: §7.4's latency re-measure is already parked
+there on the condition _the first time a real socket runs in the deployed
+backend_, and a weekend hold there costs a container that is running anyway.
+
+**The residual risk is written down rather than pretended away** — a drop that
+_also_ holds the connection slot (§6.4 measured 4 h 21 min) would open Monday's
+pre-market with no feed and no obvious cause, so 3.11 must measure whether a
+fresh connection is accepted afterwards, not only whether the socket died.
+
+**A holiday is still unmeasured** — the next closure is Thanksgiving,
+2026-11-26, with the 13:00 ET half day after it — and it keeps the owner
+Task 3.1.3 gave it.
+
+## The close — every acceptance criterion, 2026-09-18
+
+| #   | Criterion                                                                       |                                                                                                                                                                                                     |
+| --- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | All eight decisions, with alternatives, measurement and a **condition** trigger | **Met** — `LIVE-DATA.md` §9–§12; §0 is the one-section summary                                                                                                                                      |
+| 2   | Every figure dated and naming its instrument                                    | **Met** — and §13 states what was _not_ measured, in `ALPACA.md` §10's shape                                                                                                                        |
+| 3   | Captures recorded and **the harness gone**                                      | **Met** — 24 scripts, 31 captures, 6 sidecars, 180 MB deleted; tree verified byte-identical outside `planning/`                                                                                     |
+| 4   | No credential anywhere, **checked rather than assumed**                         | **Met twice over** — `verify-captures.mjs` over 31 captures + 6 sidecars, 0 problems; and ten forms of two secrets against the tracked tree **and the full `git log -p --all` history**, both clean |
+| 5   | The three person-decisions put to a person, **with the reasoning**              | **Met** — §9.3–§9.6, each with a condition-shaped reversal trigger                                                                                                                                  |
+| 6   | `pnpm verify` passes                                                            | **Met**                                                                                                                                                                                             |
+
+**And two things this story did that were not on the list.** It swept **upward**
+when its measurements falsified governing documents — `PRODUCT_SPEC.md` §7.1's
+description of the SIP refusal, `ALPACA.md` §10, this epic's `EPIC.md` and
+`HOSTING.md` — which `CLAUDE.md` names as the half most likely to be skipped.
+And it **measured three proposed features away** rather than building them:
+server-side coalescing (Alpaca already batches), per-security staleness
+thresholds (the distribution is bimodal), and the $19.04 cost premise.
+
 ## What this story hands forward
 
 The file the next ten stories cite instead of re-deciding, and the first real
 numbers this product has about its own live feed.
+
+**Delivered by name rather than left to be found**: Story 3.2 has all five
+measured constraints plus the `replay` union gap; Story 3.4 has the canvas
+answer (**not reachable**) with two honest options, and the extended-hours mark
+and _this corrected_ treatment it now owes; Story 3.10 has _what is missed while
+away is gone_, which makes gap-filling an HTTP backfill rather than a socket
+feature; Story 3.11 has the weekend hold, the deployed latency re-measure and
+the real bill.
 
 ## Tasks
 
@@ -206,7 +289,8 @@ close boundary went to 3.1.4**, whose capture now runs to 16:30 ET rather than
 stopping at the bell and gets them for half an hour rather than a window; and
 **the weekend went to 3.1.9** as a constraint on when it may delete the harness,
 rather than as a tenth task, because a task triggered by a date is a task that
-never fires. **A holiday is out of reach and is recorded as unmeasured** — the
+never fires. **(Discharged 2026-09-18 — see the fourth amendment below. The
+mechanism worked: it was neither taken silently nor dropped silently.)** **A holiday is out of reach and is recorded as unmeasured** — the
 next closure is Thanksgiving, 2026-11-26, with the 13:00 ET half day after it.
 The single-connection constraint is now a scheduling hazard rather than a note,
 and 3.1.4 and 3.1.5 each carry a line saying to check nothing else is holding

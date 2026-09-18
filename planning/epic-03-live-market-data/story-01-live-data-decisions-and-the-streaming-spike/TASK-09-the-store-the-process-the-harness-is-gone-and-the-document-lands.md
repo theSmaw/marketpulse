@@ -409,9 +409,10 @@ and what it changes — chose the second branch on 2026-09-18. **Both were alway
 permitted; the constraint exists so that neither happens silently.** The harness
 is deleted.
 
-1. **The weekend hold** — Friday 2026-09-18 20:00 ET → Monday 2026-09-21 04:00 ET.
-   Unattended; the capture writes to disk every sixty seconds. It costs a command
-   on Saturday morning, not a morning.
+1. ~~**The weekend hold**~~ — **NOT TAKEN, and handed to Story 3.11 on
+   2026-09-18.** The instrument was built and proved; what it needed was 56 hours
+   of an awake laptop. See the paragraphs below for the trade as it was put, and
+   [`LIVE-DATA.md`](LIVE-DATA.md) §13.4 for the reasoning and the residual risk.
 2. ~~**What is missed while away**~~ — **TAKEN 2026-09-17, [`LIVE-DATA.md`](LIVE-DATA.md) §14.2.**
    **It is gone.** Fifteen bars existed over HTTP across a deliberate 3-minute
    disconnection and **zero** were delivered on the socket, then or later.
@@ -447,7 +448,14 @@ rather than pretended away, **the risk it leaves standing**: a drop that also
 holds the connection slot would open Monday's pre-market with no feed and no
 obvious cause.
 
-## For a stakeholder — what this task actually did, in plain terms
+## For a stakeholder — what this task actually did, in plain terms (written 2026-09-17)
+
+> **Superseded in one respect by the 2026-09-18 section at the foot, and left
+> standing rather than corrected** — `CLAUDE.md`'s rule is that a story file
+> records what was true when it was written, and editing that destroys the
+> record. Its last paragraph says the task is open on the weekend hold and that
+> the measurements are scheduled. That was true on 2026-09-17. **Two of the three
+> were then taken and the weekend hold went to Story 3.11.**
 
 **Two questions, and then the tidying-up that stops a fortnight of measurement
 from evaporating.**
