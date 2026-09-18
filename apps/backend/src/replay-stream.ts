@@ -110,9 +110,27 @@ export class ReplayDuringSessionError extends Error {
   }
 }
 
-/** Is the market open by our own calendar? Story 2.5's, already shipped. */
-const marketIsOpen = (at: Date): boolean =>
-  marketSessionStateAt(at).status === "open";
+/**
+ * Is the market open by our own calendar? Story 2.5's, already shipped.
+ *
+ * **Returns `true` if the calendar cannot answer, and that direction is the
+ * decision.** `market-calendar.ts` holds a checked-in exception table covering
+ * 2024–2028 and **throws outside it** — measured 2026-09-18: a probe at
+ * 2029-03-01 threw _"outside the trading calendar"_. A replay still running when
+ * that horizon passes must **stop** rather than keep playing, so an
+ * unanswerable calendar reads as *the market is open* and the guard closes.
+ *
+ * The alternative is worse in both directions: letting the throw escape makes
+ * an unhandled rejection in `pump()`'s async path, and defaulting to *shut*
+ * would leave a replay running for ever past the last date anybody checked.
+ */
+const marketIsOpen = (at: Date): boolean => {
+  try {
+    return marketSessionStateAt(at).status === "open";
+  } catch {
+    return true;
+  }
+};
 
 export function createReplayStream(
   options: ReplayStreamOptions,

@@ -2409,6 +2409,36 @@ where that logic breaks, and the failure would be a socket that connects at
 and §8.7's measurement that immediate reconnection is not penalised means the
 recovery path is equally simple.
 
+> **One calendar-driven transition WAS accepted, elsewhere, and it is recorded
+> here so the next reader does not mistake it for this decision being ignored —
+> added 2026-09-18 after Task 3.2.7 built it.**
+>
+> ADR 0030 §7f's replay guard **stops the replay when the market opens**, which
+> is exactly the shape this section rejects. Three things make it a different
+> decision rather than the same one taken twice:
+>
+> - **It is a developer instrument, never deployed.** The failure this section
+>   fears — a socket connecting at 09:30 on a day that closed at 13:00 — costs a
+>   user a feed. The replay's equivalent costs a developer a restart.
+> - **It asks the calendar rather than comparing times.** The named failure mode
+>   is _hard-coded_ session bounds; `marketSessionStateAt` is the module whose
+>   whole purpose is the exception table. **Measured 2026-09-18** against the
+>   edges this section names: the 2026-11-27 half-day reads `after_close` at
+>   13:00 ET and `open` at 12:30 ET, and Thanksgiving reads `holiday`. The
+>   failure §9.3 predicts does not occur **because the guard uses the right
+>   instrument**, which is the useful half of the lesson rather than _never do
+>   this_.
+> - **It fails closed past the table's horizon.** `market-calendar.ts` covers
+>   2024–2028 and **throws** outside it — a 2029 probe threw _"outside the
+>   trading calendar"_. So an unanswerable calendar reads as _the market is
+>   open_ and the replay refuses: a replay still running when that horizon
+>   passes must stop rather than keep playing, and letting the throw escape
+>   would have been an unhandled rejection in an async pump.
+>
+> **So this section's rule is narrower than it reads**: a calendar-driven
+> transition is rejected for **the thing users depend on**, and is acceptable
+> for a developer instrument that asks the calendar module and fails closed.
+
 > **Reversal trigger, as a condition:** the first month of real billing showing
 > the replica above the idle rate for materially more than the measured 6.6
 > minutes a day. That is Story 3.11's reading, and it is the only instrument

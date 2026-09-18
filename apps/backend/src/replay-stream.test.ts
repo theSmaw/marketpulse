@@ -145,6 +145,45 @@ describe("the open-market refusal — ADR 0030 §7f", () => {
   });
 });
 
+describe("the calendar edges the guard depends on", () => {
+  // **Measured 2026-09-18 rather than reasoned about.** §9.3 rejected
+  // calendar-driven transitions for the live socket precisely because
+  // "half-days and holidays are where that logic breaks" — and this guard IS a
+  // calendar-driven transition. It survives them only because it asks Story
+  // 2.5's calendar rather than comparing hard-coded times.
+  it.each([
+    [
+      "a half-day after its 13:00 ET close",
+      Date.parse("2026-11-27T18:00:00Z"),
+      false,
+    ],
+    [
+      "a half-day still open at 12:30 ET",
+      Date.parse("2026-11-27T17:30:00Z"),
+      true,
+    ],
+    ["Thanksgiving", Date.parse("2026-11-26T15:00:00Z"), false],
+  ])("treats %s correctly", (_label, wall, shouldRefuse) => {
+    const h = harness(wall);
+
+    if (shouldRefuse) {
+      expect(() => h.subscribe()).toThrow(ReplayDuringSessionError);
+    } else {
+      expect(() => h.subscribe()).not.toThrow();
+    }
+  });
+
+  it("REFUSES past the calendar's horizon rather than crashing", () => {
+    // `market-calendar.ts` covers 2024-2028 and throws outside it. A replay
+    // still running when that passes must STOP rather than keep playing, and a
+    // throw escaping `pump()`'s async path would be an unhandled rejection.
+    // Unanswerable reads as "open", so the guard closes.
+    const h = harness(Date.parse("2029-03-01T15:00:00Z"));
+
+    expect(() => h.subscribe()).toThrow(ReplayDuringSessionError);
+  });
+});
+
 describe("nothing is emitted ahead of the replay's own clock", () => {
   it("delivers only what the elapsed wall clock has reached", async () => {
     // Invariant 4 in miniature, and PRODUCT_SPEC.md §22's requirement that it
