@@ -2792,6 +2792,36 @@ a real state and needs a way to be said.
 | `stale`        | Heartbeat current, but **no observation for 60 s while the market is open** | §7.9 measured the longest in-session silence of any inbound frame at **8.6 s**. 60 s is **7× the observed maximum** and well under the 165 s above |
 | `live`         | Heartbeat current, and — in session — an observation within 60 s            | The complement                                                                                                                                     |
 
+> **The two thresholds are measured on two DIFFERENT clocks, and this section
+> did not say so — added 2026-09-18 after Task 3.2.6 found the defect that
+> follows from leaving it unsaid.**
+>
+> | Threshold | What it measures                            | Clock                                                                                                                                                        |
+> | --------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+> | **165 s** | Elapsed time since _any_ frame arrived      | **Monotonic** (`performance.now()`) — it must not move when the machine sleeps or NTP corrects the clock, or a suspended laptop manufactures a disconnection |
+> | **60 s**  | How old an **observation's own instant** is | **Wall clock** (`Date.now()`) — an instant carried on a bar only has meaning against a calendar                                                              |
+>
+> **What happens if one clock is used for both:** a monotonic reading is near
+> zero and an epoch millisecond is about `1.76e12`, so subtracting the second
+> from the first is hugely negative and the 60 s comparison **can never fire**.
+> The feed reports `live` or `disconnected` for ever and **never `stale`** —
+> silently, with every test green. That shipped in Task 3.2.5 and was found by
+> Task 3.2.6's fixture stream, which was the first implementation to generate an
+> observation against a real calendar while reporting a synthetic monotonic
+> clock.
+>
+> **The sharp part, and the reason this is worth writing down rather than just
+> fixing:** this document **already knew**. §4.8 records the harness's own
+> `offsetMs` as _"monotonic from the run's start (`performance.now()`), so burst
+> shape and inter-arrival gaps survive a wall-clock adjustment mid-run."_ The
+> distinction was made correctly for the **instrument** and never carried across
+> to the section specifying the **product's** thresholds. A fact can be in a
+> document and still not be where the reader who needs it will look.
+>
+> **It applies to the security scale below too**, and there it is the only
+> option: an age computed from an observation's instant is wall-clock by
+> construction. Story 3.6 computes 518 of them.
+
 **`stale` is gated on the market being open, and the gate is already shipped.**
 Out of hours the same socket is legitimately silent for **76 minutes** on bar
 channels (§6.6), so a 60 s rule would report a healthy overnight feed as stale

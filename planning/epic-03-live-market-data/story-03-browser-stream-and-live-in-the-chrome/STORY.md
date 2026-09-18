@@ -201,3 +201,28 @@ same `satisfies` guard `MARKET_FEED_DESCRIPTIONS` uses. §11.3 names it as
 unwritten and names this story as its owner. **Not a string in a component.**
 
 `feed-status.ts` already carries the thresholds as a dated amendment.
+
+---
+
+## The two thresholds are on two different clocks — delivered 2026-09-18 by Task 3.2.6
+
+**A constraint this story consumes, written here rather than left in
+[`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §11.2, because a pointer is what a reader follows when they
+already know to look.**
+
+| Threshold                  | What it measures                            | Clock                                                                                                                                                       |
+| -------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **165 s** — `disconnected` | Elapsed time since _any_ frame arrived      | **Monotonic** (`performance.now()`). It must not move when the machine sleeps or NTP corrects the clock, or a suspended laptop manufactures a disconnection |
+| **60 s** — `stale`         | How old an **observation's own instant** is | **Wall clock** (`Date.now()`). An instant carried on a bar only has meaning against a calendar                                                              |
+
+**Using one clock for both is not a simplification, it is a silent failure.** A
+monotonic reading is near zero and an epoch millisecond is about `1.76e12`, so
+the subtraction is hugely negative and the 60 s comparison **can never fire**:
+the feed reports `live` or `disconnected` for ever and **never `stale`**, with
+every test green. That shipped in Task 3.2.5 and was caught by 3.2.6's fixture
+stream — the first implementation to generate an observation against a real
+calendar while reporting a synthetic monotonic clock.
+
+**`FeedStatusInputs` already carries both** (`now` and `wallNow`) and the
+compiler names every call site that forgets one. **Anything in this story that
+computes a status or an age takes both rather than reading either.**
