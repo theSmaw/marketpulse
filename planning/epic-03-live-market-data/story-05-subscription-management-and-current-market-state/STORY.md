@@ -167,3 +167,84 @@ symbol_ is an ordinary answer rather than an error. And it is **not cleared on a
 session boundary**: at 09:31 on Monday it still holds Friday's bars, which is
 correct, and is only safe because every entry carries its own `startsAt` and no
 reader may render a price without reading it.
+
+---
+
+## The five things Story 3.1 measured that change this story's shape — delivered 2026-09-18
+
+**These were measured in Story 3.1 and never handed here, which is the gap this
+section closes.** Task 3.1.9's close delivered five constraints to Story 3.2, the
+canvas answer to Story 3.4, the gap finding to Story 3.10 and the weekend hold to
+Story 3.11 — **and missed this story**, even though [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §4.4
+says in as many words that two of its findings _"change Story 3.5's shape rather
+than informing it"_. Found on 2026-09-18 by Task 3.2.4, which hit the
+symbol-validation question while writing the mapping and had to decide where it
+belonged.
+
+**That is exactly the failure 3.1.9 named when it gathered Story 3.2's
+constraints: none of them is one of the eight decisions, _which is how a measured
+constraint gets lost_.** It was right about the mechanism and missed a story.
+
+### 1. Alpaca does NOT validate symbols, so we must — and before the frame is sent
+
+§4.4: `bars:["ZZQQTESTX"]` was **silently accepted** and echoed back as held.
+So **a subscription acknowledgement is not evidence that a symbol exists**, and a
+security that never produces a bar is indistinguishable from a typo.
+
+**Validation against our own universe is the only thing that can tell them
+apart, and it has to happen BEFORE the subscribe frame is sent.** Task 3.2.4
+placed a **format** check in the mapping — which rejects `ZZQQTESTX` because nine
+characters fails the ticker pattern — and deliberately stopped there: a
+well-formed invention like `ZZQQT` passes a format check and is still in nobody's
+universe, and a pure mapping function that reads the universe is no longer pure.
+**The universe check is this story's.**
+
+### 2. An empty subscription list is a `400`, so a subscription manager must never send one
+
+§4.4: `bars:[]` returns `[{"T":"error","code":400,"msg":"invalid syntax"}]`.
+
+**That is exactly the frame a filter that matched nothing produces.** _"Send
+whatever the selection resolves to"_ is a bug on the empty selection, and it is
+the easy one to write.
+
+### 3. The acknowledgement is the FULL CURRENT STATE, not a delta
+
+§4.2's third finding, called there **the single most useful finding for Story
+3.5**: subscribing to `["RIVN"]` while already holding `["ZZQQTESTX"]` came back
+with **both**. The server is authoritative about what we hold, so a subscription
+manager should **reconcile against the acknowledgement** rather than maintain its
+own count and hope.
+
+**And an empty subscription is not an empty list — the key is ABSENT.**
+Unsubscribing from everything returns `[{"T":"subscription"}]` with no `bars`
+key at all. A parser reading `bars` unconditionally breaks there; the fixture
+that catches it is `subscription-ack-empty.json`.
+
+### 4. For bars, this story has almost nothing to manage — and that is deliberate
+
+§10.2's note, recorded so this story does not go looking for something that was
+decided not to exist: the upstream subscription is a **constant** — always the
+same 518 — because §8.7 measured that the server remembers **nothing** across a
+reconnect. So the reconnect path re-sends a constant, **there is no subscription
+state to restore**, and the only check afterwards is _does the `bars` key hold
+518 entries?_
+
+**What this story actually manages is the browser fan-out and the current-state
+object of §10.3.** A dynamic subscription model is not required and building one
+would be designing for a problem this epic does not have.
+
+**Reversal trigger, as a condition:** the first browser surface that must receive
+something **no other browser receives** — a per-user watchlist, or a filter
+applied upstream rather than in the browser.
+
+### 5. This story owns where a revision is APPLIED
+
+Task 3.2.4's mapping labels every `u` frame as superseding a
+`(symbol, minute)` — `LiveObservation.supersedes` — and deliberately does not act
+on it, because acting requires state and the state is this story's.
+
+**The measured shape**: 0.064% of bars at universe scale, arriving
+**29.1–30.1 s** after the bar they correct, **35.3%** changing the close, and
+**none** changing nothing at all (§14.1, n=68). So the current-state object must
+replace by `(symbol, minute)` rather than append — **and a bar is not final for
+thirty seconds**, which is the window Story 3.10's gap-filling also has to respect.
