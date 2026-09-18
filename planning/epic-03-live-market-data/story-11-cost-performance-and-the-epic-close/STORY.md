@@ -251,3 +251,53 @@ monotonic-vs-wall-clock tick that makes a machine suspension a recorded fact
 with a duration, and a DNS + HTTPS reachability probe fired at the moment of
 death, because a death with a clean network and no clock jump is the finding and
 anything else is an artefact.**
+
+---
+
+## Does a half-open socket lock out its successor? — handed here 2026-09-18 by Task 3.2.5
+
+**One observation settles a claim the epic currently leans on, and this story is
+the only one positioned to take it.**
+
+**The claim.** [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §12.2 justifies closing the market socket
+deliberately on `SIGTERM` with: _a process that exits without closing can lock
+its own successor out of the market feed for as long as Alpaca takes to notice,
+and §6.4 says that can be most of a trading day._
+
+**Why it needs taking.** §6.4 measured **our client's** view — `readyState`
+reporting `OPEN` for **4 h 21 min** with nothing behind it — and is scrupulous
+that _"what killed it is not determined"_. **Nobody has measured Alpaca's slot
+accounting**: whether a new connection is refused while a half-open one sits
+unacknowledged. The justification is a reasonable inference resting on a
+measurement of the other end of the problem.
+
+**The decision is not in question** — closing deliberately is free, correct, and
+the fastest path to releasing the slot. What is in question is what it should be
+**credited with**, and there are two ways the answer changes this epic's story
+about itself:
+
+- **A crashing process still sends `FIN`.** On a healthy network path the slot
+  frees at process exit whether or not we closed deliberately — so the deliberate
+  close would be an optimisation rather than the thing bounding the outage, and
+  the genuinely unbounded case is a **broken network path** rather than a skipped
+  close.
+- **In §6.4's own scenario the deliberate close bounds nothing.** A close frame
+  on a dead socket reaches nobody — §6.4 watched one time out after
+  **30,016 ms**. So what limits exposure there is Task 3.2.5's **165 s
+  watchdog**, not the shutdown path.
+
+**The measurement, and it is cheap.** **Trigger, as a condition: the first deploy
+that rolls a replica while the feed is connected.** Observe whether the arriving
+replica is refused `406 connection limit exceeded`, and **for how long** before
+it authenticates. That is one log read on a deploy this story will be doing
+anyway.
+
+**What each outcome means**, so the reading is decided before the data arrives:
+
+| Observation                                                   | Reading                                                                                                                                                                                                                                |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Arriving replica authenticates immediately                    | The outgoing replica's close (or its `FIN`) released the slot promptly — §12.2's mechanism works, and the deliberate close is doing its job                                                                                            |
+| Refused `406`, then authenticates within the shutdown ceiling | Exactly as §12.2 predicts. The bound is real                                                                                                                                                                                           |
+| Refused `406` for materially longer than the ceiling          | **The interesting one.** The slot is not freed by our close, and §12.2's ≤ 5 s row is wrong — which makes every deploy a feed outage of unknown length and is a finding for Story 3.10's reconnection policy as much as for this story |
+
+Also recorded in `docs/GAPS.md` as entry 8.
