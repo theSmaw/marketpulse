@@ -93,6 +93,12 @@ export interface AlpacaStreamOptions {
    * {@link createAlpacaStream}'s note on why that is not a detail.
    */
   readonly now?: () => number;
+  /**
+   * Wall-clock now, epoch milliseconds. **Separate from {@link now} because the
+   * two thresholds measure different things** — see `FeedStatusInputs`. This one
+   * is only ever compared against an observation's own instant.
+   */
+  readonly wallNow?: () => number;
   /** Injected so a test can drive the watchdog without waiting 165 s. */
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
   readonly clearTimer?: (timer: NodeJS.Timeout) => void;
@@ -154,6 +160,7 @@ export function createAlpacaStream(
     symbols,
     url = ALPACA_STREAM_URL,
     now = () => performance.now(),
+    wallNow = () => Date.now(),
     setTimer = (fn, ms) => setTimeout(fn, ms),
     clearTimer = (timer) => {
       clearTimeout(timer);
@@ -208,7 +215,7 @@ export function createAlpacaStream(
   const handleMessage = (raw: string): void => {
     const at = now();
     const parsed: unknown = safeParse(raw);
-    const frames = toMappedFrames(parsed, new Date().toISOString());
+    const frames = toMappedFrames(parsed, new Date(wallNow()).toISOString());
 
     // Drive the state machine from what the frames MEAN, not from the socket.
     for (const item of Array.isArray(parsed) ? parsed : []) {
