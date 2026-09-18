@@ -226,3 +226,35 @@ calendar while reporting a synthetic monotonic clock.
 **`FeedStatusInputs` already carries both** (`now` and `wallNow`) and the
 compiler names every call site that forgets one. **Anything in this story that
 computes a status or an age takes both rather than reading either.**
+
+---
+
+## One capture this story is now the owner of — handed here 2026-09-18 by Task 3.2.9
+
+**`docs/GAPS.md` entry 7: no verbatim `updatedBars` frame exists in this
+repository**, so the two `u` fixtures in `src/fixtures/alpaca-stream/` carry an
+**inferred envelope** — their field values come from `LIVE-DATA.md` §7.8's
+measured table, but nobody has seen those exact bytes on a wire.
+
+**The risk is bounded to one thing**: whether a `u` frame carries the same field
+set as a `b`. The _semantics_ are measured and not in doubt — a revision
+supersedes a `(symbol, minute)`, arrives 29.1–30.1 s later, changes the close
+35.3% of the time and changes nothing 0% of the time (§14.1, n=68). If the
+envelope differs, Task 3.2.4's mapper is wrong about `u` and right about
+everything else.
+
+**Why it is yours.** It has been re-pointed twice — Task 3.2.5 built the client
+but nothing constructed one, and Task 3.2.9 started the stream at 06:10 ET with
+the market `before_open`. **An owner that is a finished task never fires.** This
+story is the first that will be developed against a running feed _during_
+sessions, so the trigger is something you will meet rather than something to
+remember to go and do.
+
+**Trigger, as a condition: the first `u` frame observed in a live session.**
+Record it verbatim, replace both fixtures, and re-tier them to `transcribed` in
+`MANIFEST.json`.
+
+**It is cheap now and was impossible before.** Until 3.2.9 nothing in this
+repository opened a socket against the live market at all; today
+`MARKET_DATA_PROVIDER=alpaca` with a credential does, and a session is the only
+other ingredient.

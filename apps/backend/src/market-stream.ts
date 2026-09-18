@@ -1,0 +1,188 @@
+import { toTicker } from "@marketpulse/shared";
+import type { Ticker } from "@marketpulse/shared";
+
+import { createAlpacaStream } from "./alpaca-stream.js";
+import type { Config, MarketDataProviderSelection } from "./config.js";
+import { createFixtureStream } from "./fixture-stream.js";
+import type { MarketDataStream } from "./market-data-stream.js";
+import { createStoredReplaySource } from "./replay-bar-source.js";
+import type { MarketBarsRepository } from "./market-bars.js";
+import { createReplayStream } from "./replay-stream.js";
+
+/**
+ * The live stream the configuration selects, or `undefined` when it selects
+ * none (Task 3.2.9).
+ *
+ * ## Why this file exists at all
+ *
+ * Story 3.2 built three implementations of {@link MarketDataStream} and, until
+ * this task, **constructed none of them**. Every one was tested, every guard was
+ * proven with a `pnpm break`, and `pnpm verify` was green throughout — because
+ * *an interface with no construction site* is not a shape any test can fail on.
+ * It took a grep for a call site to find.
+ *
+ * ## The `switch` is exhaustive against {@link MarketDataProviderSelection}
+ *
+ * The same mechanism `createMarketDataProvider` uses one layer over, and for the
+ * same reason: **a provider id added without a stream fails the build here**,
+ * naming this function, rather than shipping a configuration value an operator
+ * can set and nothing can honour. That check has now fired three times in this
+ * repository's life and it has been right every time.
+ *
+ * ## What a failure to start does, and the two answers differ ON PURPOSE
+ *
+ * This is the decision this file is most likely to be read for:
+ *
+ * - **A replay refused during a session THROWS**, and the process does not
+ *   start. `ReplayDuringSessionError` is deliberate (ADR 0030 §7f): the case it
+ *   catches is a developer who left `MARKET_DATA_PROVIDER=replay` in their
+ *   `.env` and is about to build against a recording while believing they are
+ *   on the live feed. **Failing visibly is the entire point** — a replay that
+ *   quietly did not start would leave them in exactly that state.
+ * - **An Alpaca socket that cannot connect or authenticate does NOT throw**, and
+ *   the process starts anyway. `LIVE-DATA.md` §8.4 measured that a refused
+ *   socket **stays open** and that every error is a **frame** rather than a
+ *   closure, and §8.2 that `406 connection limit exceeded` is *wait and retry* —
+ *   it happens on **every deploy** by design, because a rolling replacement has
+ *   two processes alive and the arriving one is us. **A process that exited on a
+ *   refused socket would fail to start on every deploy**, and `deploy.yml`
+ *   already fails a rollout whose container restarted, so it would turn a
+ *   routine overlap into a failed release.
+ *
+ * The asymmetry reads oddly until you say what each protects: the first protects
+ * a **developer from being misled**, the second protects a **deployment from a
+ * condition that is normal**. Neither is a preference.
+ */
+
+/**
+ * The handful this story subscribes.
+ *
+ * **Deliberately not the universe.** Story 3.5 owns subscription at 518, and
+ * §10.2 settles that the upstream set is a **constant** — so scaling it later is
+ * changing this array rather than designing a protocol. Liquid names, so a
+ * developer watching `pnpm dev` during a session sees something move: §7.6
+ * measured IEX coverage at 65.1% of minutes for a median symbol and **2.1% for
+ * `ERIE`**, so a thin name would look broken while working perfectly.
+ */
+export const STREAM_SYMBOLS: readonly Ticker[] = [
+  "AAPL",
+  "MSFT",
+  "NVDA",
+  "SPY",
+  "QQQ",
+].map(toTicker);
+
+export interface MarketStreamDependencies {
+  /** Needed only by the replay, and only then read. */
+  readonly bars: MarketBarsRepository;
+  /** Where a replay starts in the recording. */
+  readonly replayFrom?: Date;
+  /**
+   * Wall clock, injected.
+   *
+   * **Added because a test caught this module reading one implicitly**, which
+   * made whether it threw depend on what time the suite ran. Every other module
+   * in this story already takes its clock as an argument, and this was the one
+   * that did not — so a test of *the replay refuses during a session* passed
+   * outside market hours and failed inside them, for reasons having nothing to
+   * do with the code under test.
+   */
+  readonly wallNow?: () => number;
+}
+
+export function createMarketStream(
+  config: Config,
+  dependencies: MarketStreamDependencies,
+): MarketDataStream | undefined {
+  const selection: MarketDataProviderSelection = config.marketDataProvider;
+
+  switch (selection) {
+    case "none":
+      // **The default, and it serves nothing.** `PROVIDER.md` §5.3: invented
+      // prices must never be reachable by forgetting to configure something,
+      // and `pnpm break market-data-default-is-none` proves the default holds.
+      return undefined;
+
+    case "fixture":
+      // Generated, `synthetic`, no credential and no database. `config.ts` has
+      // already refused this selection unless `NON_LIVE_MARKET_DATA=permitted`
+      // was granted by name.
+      return createFixtureStream({ symbols: STREAM_SYMBOLS });
+
+    case "replay": {
+      // Real stored bars, re-stamped onto the wall clock. Refuses to start —
+      // by throwing — while the market is open.
+      const from =
+        dependencies.replayFrom ??
+        defaultReplayStart(new Date(dependencies.wallNow?.() ?? Date.now()));
+      return createReplayStream({
+        source: createStoredReplaySource({
+          repository: dependencies.bars,
+          symbols: STREAM_SYMBOLS,
+          until: new Date(from.getTime() + 6.5 * 60 * 60 * 1000),
+        }),
+        symbols: STREAM_SYMBOLS,
+        from,
+        ...(dependencies.wallNow === undefined
+          ? {}
+          : { wallNow: dependencies.wallNow }),
+      });
+    }
+
+    case "alpaca": {
+      // **The throw is unreachable from a started process**, for
+      // `createMarketDataProvider`'s reason: `config.ts` refuses at startup when
+      // `MARKET_DATA_PROVIDER=alpaca` and the credential pair is not set, so
+      // reaching this line means the configuration said one thing and the object
+      // handed here says another — a fact about our code rather than the world,
+      // which is `PROVIDER.md` §8.5's line for when a throw is correct.
+      if (config.alpaca === undefined) {
+        throw new Error(
+          "MARKET_DATA_PROVIDER is alpaca but no Alpaca credential reached " +
+            "createMarketStream. config.ts refuses that combination at startup, " +
+            "so this is a caller that read the selection without the credential " +
+            "beside it.",
+        );
+      }
+      return createAlpacaStream({
+        keyId: config.alpaca.keyId,
+        secretKey: config.alpaca.secretKey,
+        symbols: STREAM_SYMBOLS,
+      });
+    }
+
+    default: {
+      const unhandled: never = selection satisfies never;
+      return unhandled;
+    }
+  }
+}
+
+/**
+ * Where a replay starts when nothing says otherwise: **the most recent session
+ * whose bars we are confident we hold**.
+ *
+ * Seven days back and at 09:30 ET's UTC equivalent rather than "yesterday",
+ * because a Monday's yesterday is a Sunday and a replay of a weekend is an empty
+ * one. A week is far enough back that the nightly backfill has certainly run and
+ * near enough that the bars are recognisable.
+ *
+ * **Approximate on purpose.** This picks a starting point for a developer
+ * instrument; `marketSessionStateAt` is what decides whether the replay may run
+ * at all, and `readBars` returning nothing for a chosen window is a quiet
+ * replay rather than a wrong one.
+ */
+function defaultReplayStart(now: Date): Date {
+  const week = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  return new Date(
+    Date.UTC(
+      week.getUTCFullYear(),
+      week.getUTCMonth(),
+      week.getUTCDate(),
+      13,
+      30,
+      0,
+      0,
+    ),
+  );
+}

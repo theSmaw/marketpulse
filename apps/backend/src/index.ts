@@ -20,6 +20,9 @@ import {
   pingDatabase,
 } from "./database.js";
 import { readFeedDiagnostic } from "./feed-diagnostic.js";
+import type { MarketDataStream } from "./market-data-stream.js";
+import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
+import { ReplayDuringSessionError } from "./replay-stream.js";
 import { resolveMarketData } from "./market-data.js";
 import { createMarketBarsRepository } from "./market-bars.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
@@ -91,6 +94,17 @@ const database = createDatabasePool(config.database, app.log);
 // DIAGNOSTIC_CACHE_TTL_MS and one in-flight query whatever the caller count,
 // which is what makes a public unauthenticated endpoint safe to point at a
 // 35-connection ceiling with no PgBouncer under it.
+/**
+ * The market stream, once one is started below.
+ *
+ * **Declared here rather than beside its construction**, because
+ * `/diagnostics/feed` is registered above and its closure has to be able to see
+ * it. `undefined` until the socket is opened after `listen()`, and `undefined`
+ * for ever when the configuration selects `none` — which
+ * `readFeedDiagnostic` reports as `null` rather than as a healthy default.
+ */
+let marketStream: MarketDataStream | undefined;
+
 app.register(
   createDiagnosticsRoutes(
     createCachedDatabaseCheck(database),
@@ -109,7 +123,7 @@ app.register(
     // at ANY hour if the deployed feed is `replay`, which is answerable from the
     // configuration alone. The connection half becomes real when Story 3.3
     // registers a stream, and this shape does not change when it does.
-    () => readFeedDiagnostic(config, new Date()),
+    () => readFeedDiagnostic(config, new Date(), marketStream),
   ),
 );
 
@@ -526,5 +540,82 @@ if (ping.ok) {
       ssl: config.database.ssl,
     },
     "database unreachable, continuing without it",
+  );
+}
+
+// ---------------------------------------------------------------- the feed
+//
+// **The market stream, started after the server is listening** (Task 3.2.9,
+// `LIVE-DATA.md` §12.2: the socket's lifecycle is the process's).
+//
+// After `listen()` for the same reason the database ping is: a socket dialled
+// before the port is bound puts a network round trip in front of the moment
+// `/health` starts answering, which is what the platform's startup probe waits
+// for. Nothing here blocks the server from serving.
+//
+// **A failure to start is not a failure to run, except once — and the exception
+// is the interesting half.** `createMarketStream` throws for a replay refused
+// during a session (ADR 0030 §7f), because a developer who left
+// `MARKET_DATA_PROVIDER=replay` in their `.env` must find out rather than
+// quietly build against a recording. Everything else is caught here: §8.4
+// measured that a refused Alpaca socket stays OPEN and that every error is a
+// FRAME rather than a closure, and §8.2 that `406 connection limit exceeded`
+// happens on EVERY deploy by design. A process that exited on a refused socket
+// would fail to start on every rollout — and `deploy.yml` fails a rollout whose
+// container restarted, so it would turn a routine overlap into a failed
+// release.
+try {
+  marketStream = createMarketStream(config, {
+    bars: createMarketBarsRepository(database),
+  });
+} catch (error) {
+  if (error instanceof ReplayDuringSessionError) {
+    // The one case that stops the process, and it stops it LOUDLY. Exit 1 like
+    // every other refusal here; the message names the guard and the ADR.
+    app.log.fatal(
+      { err: error },
+      "refusing to start a replay during a session",
+    );
+    process.exit(1);
+  }
+  throw error;
+}
+
+if (marketStream === undefined) {
+  // `none`, the default. Serves nothing, says so, and does not pretend the
+  // absence is a failure — `PROVIDER.md` §5.3's rule that invented prices must
+  // never be reachable by forgetting to configure something.
+  app.log.info(
+    { provider: config.marketDataProvider },
+    "no market stream configured",
+  );
+} else {
+  const stream = marketStream;
+
+  const unsubscribe = stream.subscribe(STREAM_SYMBOLS, {
+    // **Nothing consumes observations yet, and that is a scope line rather than
+    // an oversight.** Story 3.3 builds the browser fan-out and Story 3.5 the
+    // current-state model. What this subscription buys today is the connection
+    // itself: the handshake runs, the 165 s watchdog arms, and
+    // `GET /diagnostics/feed` reports something true.
+    onObservations: () => undefined,
+    onConnectionChange: (connection) => {
+      app.log.debug(
+        { phase: connection.phase, symbols: connection.subscribedSymbols },
+        "market stream connection changed",
+      );
+    },
+  });
+
+  // **The closer the shutdown sequence has been waiting for since Task 3.2.5.**
+  // Until this line, `index.ts` called a registered closer that nothing ever
+  // registered — the deliberate `SIGTERM` close was dead code, and its process
+  // test passed because it asserts the shutdown path REACHES the close, which
+  // it did, with nothing behind it.
+  registerMarketStreamCloser(unsubscribe);
+
+  app.log.info(
+    { provider: stream.id, feed: stream.feed, symbols: STREAM_SYMBOLS.length },
+    "market stream started",
   );
 }
