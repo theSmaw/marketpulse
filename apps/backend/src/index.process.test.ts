@@ -872,12 +872,71 @@ describe("the database pool", () => {
     const stream = messages.indexOf("market stream closed");
     const pool = messages.indexOf("database pool closed");
 
-    // No stream is registered in this environment — nothing configures a live
-    // provider in a test — so the closer is a no-op. **The record still fires,
-    // and that is deliberate**: it proves the shutdown path REACHES the close
-    // rather than proving a socket existed. A test that only passed when a
-    // socket was open could not run in `verify`, which has no credentials.
+    // No stream is registered in THIS case, so the closer is a no-op and the
+    // record proves only that the shutdown path reaches the close. The case
+    // below is the one that proves it closes something.
     expect(stream).toBeGreaterThan(drained);
     expect(pool).toBeGreaterThan(stream);
+  });
+
+  it("closes a REGISTERED stream on SIGTERM, in order", async () => {
+    // **Task 3.2.9, and it is why the assertion above was not enough.** Until a
+    // stream was constructed, `registerMarketStreamCloser` had no caller: the
+    // deliberate `SIGTERM` close was dead code and the test above passed
+    // against nothing. `LIVE-DATA.md` §12.2 makes that close the mechanism that
+    // bounds the every-deploy outage at `SHUTDOWN_TIMEOUT_MS` instead of
+    // §6.4's **4 h 21 min**, so a close with nothing behind it bounds nothing.
+    //
+    // `fixture` rather than `alpaca`, because `verify` has no credential and no
+    // network — the point here is that a closer is REGISTERED and RUNS, which
+    // is true of any stream.
+    const port = await probeFreePort();
+    const databasePort = await probeFreePort();
+    const server = startServer(port, {
+      DATABASE_PORT: String(databasePort),
+      LOG_LEVEL: "debug",
+      MARKET_DATA_PROVIDER: "fixture",
+      NON_LIVE_MARKET_DATA: "permitted",
+    });
+
+    await waitForReady(server);
+    server.child.kill("SIGTERM");
+
+    const exit = await waitForExit(server);
+    expect(exit.code).toBe(0);
+
+    const messages = server.records().map((record) => record.msg);
+
+    // A stream really started…
+    expect(messages).toContain("market stream started");
+
+    // …and the ordering holds against a closer that has something to close.
+    const drained = messages.indexOf("http drained");
+    const stream = messages.indexOf("market stream closed");
+    const pool = messages.indexOf("database pool closed");
+
+    expect(drained).toBeGreaterThanOrEqual(0);
+    expect(stream).toBeGreaterThan(drained);
+    expect(pool).toBeGreaterThan(stream);
+  });
+
+  it("starts no stream when nothing is configured", async () => {
+    // The default is `none` and it must stay reachable-by-omission only in the
+    // direction that serves NOTHING — `PROVIDER.md` §5.3.
+    const port = await probeFreePort();
+    const databasePort = await probeFreePort();
+    const server = startServer(port, {
+      DATABASE_PORT: String(databasePort),
+      LOG_LEVEL: "debug",
+    });
+
+    await waitForReady(server);
+    server.child.kill("SIGTERM");
+    await waitForExit(server);
+
+    const messages = server.records().map((record) => record.msg);
+
+    expect(messages).toContain("no market stream configured");
+    expect(messages).not.toContain("market stream started");
   });
 });
