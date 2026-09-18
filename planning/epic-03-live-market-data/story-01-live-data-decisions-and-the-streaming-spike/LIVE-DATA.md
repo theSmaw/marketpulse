@@ -1940,6 +1940,19 @@ set to a regular-session bar** — one field set across all 129,481 frames
 **14 frames, every one of which changed the bar it restated**, at a strikingly
 consistent **+28.6 to +29.8 seconds** after the original `b`.
 
+> **This section recorded the reading and not the bytes, and that cost something
+> — noted 2026-09-18 by Task 3.2.3.** The table below is a complete account of
+> what the revisions _did_; **it quotes no frame**, and the captures that held
+> them were deleted on 2026-09-18. So when the fixture corpus needed a `u`
+> frame, there was none in the repository to transcribe, and its two revision
+> fixtures carry an **inferred envelope** rather than a transcribed one.
+>
+> **Nothing here is wrong and nothing needs correcting** — the finding, the rate,
+> the lag and the field-level detail all survived and were confirmed at universe
+> scale in §14.1. What was lost is only the shape of the message that carried
+> them. §13.5 draws the general lesson; `docs/GAPS.md` entry 7 owns the repair,
+> and Task 3.2.5 discharges it from a live session.
+
 | Symbol      | Bar `t` (UTC) | Lag   | What changed                                 |
 | ----------- | ------------- | ----- | -------------------------------------------- |
 | SPY         | 13:44:00      | 29.8s | **`c` 758.85 → 758.81**, `v` 6688 → 6788     |
@@ -3180,6 +3193,33 @@ survives, which is why every figure carries its date, its instrument and its
 control. **A figure in here is re-taken rather than cited** — that is the
 standing rule for a dated observation of a third party and it applies to this
 document exactly as it applies to `ALPACA.md`.
+
+**The sufficiency of this document was MEASURED on 2026-09-18, one day later,
+and the score is 12 out of 14.** Task 3.2.3 built the socket's fixture corpus
+from this document, because the captures no longer exist. Twelve of the fourteen
+frames it needed were quoted here verbatim and transcribed character for
+character. **Two were not, and the shortfall is precise: no verbatim `u` frame
+exists anywhere in this repository.** §7.8 recorded what the fourteen
+`updatedBars` revisions _changed_ — symbol, bar timestamp, lag, which fields —
+and never quoted one, so those two fixtures carry an inferred **envelope** and
+are tiered below the rest. `docs/GAPS.md` entry 7 owns it; Task 3.2.5 replaces
+them from a live session.
+
+> **The lesson, and it is the one to carry to the next throwaway instrument
+> rather than to this one.** _Run it, record the findings, delete it_ is sound
+> and is not being withdrawn — 86% of what a downstream story needed was here a
+> fortnight later, which is a good result for a deleted instrument. What it
+> needs beside it is narrower:
+>
+> **A findings section that records a BEHAVIOUR must quote at least one frame of
+> it verbatim.** §7.8 is an excellent section — it found something nobody had
+> listed, measured the rate, the lag and what changed — and it is the one that
+> cost something, precisely because it recorded the _reading_ and not the
+> _bytes_. Every other section that quoted a frame survived deletion intact.
+>
+> The failure is invisible at the time: the finding is complete, the argument is
+> sound, and nothing is missing **until somebody needs the evidence rather than
+> the conclusion**. By then the instrument is gone.
 
 **One instrument was built, proved and never run**: `weekend.mjs`, for §13.4's
 weekend hold. Its design is recorded in Story 3.11's `STORY.md` rather than lost,

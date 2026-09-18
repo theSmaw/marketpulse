@@ -1,0 +1,147 @@
+{
+  "corpus": "alpaca-stream",
+  "subject": "wss://stream.data.alpaca.markets/v2/iex",
+  "builtBy": "Task 3.2.3, 2026-09-18",
+  "readThisFirst": [
+    "THESE ARE NOT RAW VENDOR BODIES. `src/fixtures/alpaca/` holds recorded HTTP",
+    "responses, byte-for-byte as the vendor sent them. This corpus does not, and the",
+    "two must never be read as equivalent evidence.",
+    "Story 3.1's 31 socket captures were deleted on 2026-09-18 with the harness that",
+    "took them — always the plan (ALPACA.md §11: run it, record the findings, delete",
+    "it). What survives is LIVE-DATA.md, which recorded the frames in prose.",
+    "So every fixture here carries a `provenance` tier saying how far it is from the",
+    "wire. Trust them in that order and no further."
+  ],
+  "provenanceTiers": {
+    "raw": "Bytes the vendor sent, stored unaltered. NOTHING in this corpus is raw.",
+    "transcribed": "Copied character-for-character out of a LIVE-DATA.md section that quoted the frame verbatim. The bytes are the vendor's; the chain of custody is a document rather than a capture file.",
+    "reconstructed": "The frame's SHAPE is inferred from a transcribed frame and its FIELD VALUES from a measured table. Nobody has seen these exact bytes on a wire. See `knownWeakness` below."
+  },
+  "frames": [
+    {
+      "file": "greeting.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §4.1",
+      "observed": "2026-09-15",
+      "what": "The server's unsolicited greeting, 2 ms after the upgrade. The ONLY unsolicited frame in the whole handshake capture — every other frame is a reply, checked with a three-second quiet window as the control."
+    },
+    {
+      "file": "authenticated.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §4.1",
+      "observed": "2026-09-15",
+      "what": "Reply to `auth`, +273 ms. THIS, not `onopen`, is what connected state is driven by (§4.5)."
+    },
+    {
+      "file": "subscription-ack-three.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §4.1",
+      "observed": "2026-09-15",
+      "what": "Reply to subscribe, +261 ms. The server echoes the FULL held state, not the delta."
+    },
+    {
+      "file": "subscription-ack-empty.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §4.1",
+      "observed": "2026-09-15",
+      "what": "Reply to unsubscribe-everything, +256 ms. An acknowledgement with no `bars` key at all — a parser reading `bars` unconditionally breaks here."
+    },
+    {
+      "file": "subscription-ack-unknown-symbol-accepted.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §4.4",
+      "observed": "2026-09-15",
+      "what": "`ZZQQTESTX` SILENTLY ACCEPTED and echoed as held. Alpaca does not validate symbols, so an acknowledgement is NOT evidence a symbol exists — validation against our own universe must happen before the frame is sent."
+    },
+    {
+      "file": "subscription-ack-full-state.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §4.4",
+      "observed": "2026-09-15",
+      "what": "Two symbols held after a second subscribe. Also the answer to an unsubscribe of a symbol never held: accepted, state unchanged."
+    },
+    {
+      "file": "error-400-invalid-syntax.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §4.4",
+      "observed": "2026-09-15",
+      "what": "FIVE distinct causes produce this one frame: an empty symbol list, a subscribe with no channel, an unknown channel, a real channel on the wrong stream, and an unknown action. The empty-list case is the one a filter matching nothing produces. §8.3: this is the one error an operator can act on differently, because it means our frame was wrong rather than our identity."
+    },
+    {
+      "file": "error-405-symbol-limit-exceeded.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §4.4",
+      "observed": "2026-09-15",
+      "what": "60 trade symbols refused. THE CONTROL for the whole cap measurement — it is what proves the instrument could see a cap at all, which is why bars being exempt is a finding rather than an absence."
+    },
+    {
+      "file": "error-409-insufficient-subscription.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §4.5",
+      "observed": "2026-09-15",
+      "what": "The `sip` refusal, arriving at AUTHENTICATION as a frame, +255 ms — after which the server leaves the socket OPEN and silent. A client keying connected state off `onopen` reports a healthy SIP connection indefinitely."
+    },
+    {
+      "file": "error-406-connection-limit-exceeded.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §8.2",
+      "observed": "2026-09-16",
+      "what": "Sent to the NEWCOMER 233 ms after it authenticates; it is closed 9,964 ms later while the incumbent keeps its socket and all 518 subscriptions. A rolling deploy has two processes alive by design and the arriving one is ours, so this is a fact about EVERY deploy. Wait and retry, never fatal."
+    },
+    {
+      "file": "error-402-auth-failed.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §8.3",
+      "observed": "2026-09-16",
+      "what": "BYTE-IDENTICAL for a wrong key, a wrong secret and no credential at all. An operator log cannot distinguish them and must not claim to; the honest sentence names the class. The socket stays OPEN after it (§8.4)."
+    },
+    {
+      "file": "bar-nvda.json",
+      "provenance": "transcribed",
+      "from": "LIVE-DATA.md §7.3",
+      "observed": "2026-09-16",
+      "what": "A real minute bar. `t` marks the START of the interval — confirmed against an HTTP control in §7.3 rather than assumed, and a stream that disagreed would put every live bar a minute out on every surface at once."
+    },
+    {
+      "file": "bar-nvda-revision-volume-only.json",
+      "provenance": "reconstructed",
+      "from": "envelope: LIVE-DATA.md §7.3 (verbatim). Field values: §7.8's measured table.",
+      "observed": "the BEHAVIOUR was observed 2026-09-16; these exact bytes were not",
+      "what": "An `updatedBars` revision of the bar above, changing `v` and `n` only — §7.8's measured majority case (11 of 14). Revisions arrive 29.1-30.1 s after the bar they correct (§14.1, n=68).",
+      "inferred": [
+        "That a `u` frame carries the same field set as a `b` frame. LIVE-DATA.md records what `u` frames CHANGED, never their bytes.",
+        "The specific `v`, `n` and `vw` values."
+      ]
+    },
+    {
+      "file": "bar-nvda-revision-close-changed.json",
+      "provenance": "reconstructed",
+      "from": "envelope: LIVE-DATA.md §7.3 (verbatim). Delta modelled on §7.8's SPY row (c 758.85 -> 758.81).",
+      "observed": "the BEHAVIOUR was observed 2026-09-16; these exact bytes were not",
+      "what": "A revision that moves the CLOSE — the case that matters, measured at 35.3% of revisions at universe scale (§14.1), where NONE changed nothing at all. This is the frame that makes ignoring `u` mean being quietly wrong by a few cents for ever.",
+      "inferred": [
+        "That a `u` frame carries the same field set as a `b` frame.",
+        "The specific `c`, `v`, `n` and `vw` values."
+      ]
+    }
+  ],
+  "notFrames": {
+    "heartbeat": {
+      "what": "The server's 54 s ping is a WebSocket CONTROL frame, not a JSON payload, so it cannot be a file in this corpus. `ws@8` surfaces it as a `ping` event and Node's built-in WebSocket cannot see it at all (§4.6) — which is what decides the library.",
+      "measured": "53.96-54.85 s across 82 intervals, on a socket subscribed to nothing as much as on one subscribed to all 518 (§6.3). A property of the CONNECTION, not the subscription.",
+      "testedBy": "stream-connection.test.ts, which takes a `heartbeat` event rather than a frame."
+    },
+    "close": {
+      "what": "A close is an event, not a payload. All five observed causes produce code 1006 with an empty reason (§8.5), so there is nothing to store.",
+      "discriminator": "The close LATENCY: ~1 ms our own link went, ~240 ms a live socket answering, ~6 s the server closing a rude client, ~10 s a refused duplicate, ~30 s ws@8 timing out on a corpse."
+    }
+  },
+  "knownWeakness": {
+    "what": "NO VERBATIM `u` FRAME EXISTS ANYWHERE IN THIS REPOSITORY.",
+    "why": "LIVE-DATA.md §7.8 recorded what the 14 revisions CHANGED — symbol, bar timestamp, lag, fields — and never quoted a frame. The captures that held the bytes were deleted with the harness on 2026-09-18, and a `u` frame only occurs during a live session, so it could not be re-recorded on the day this corpus was built (02:28 ET, market shut).",
+    "riskIfWrong": "Only the ENVELOPE is at risk, and it is bounded: if a real `u` carries a different field set, 3.2.4's mapper is wrong about `u` and right about everything else. The SEMANTICS the fixtures encode — a revision supersedes a (symbol, minute) rather than adding to it — are measured and are not in doubt.",
+    "owner": "Task 3.2.5, which is the first task that opens a real socket.",
+    "trigger": "The first `u` frame 3.2.5 observes during a live session. Record it verbatim, replace both reconstructed fixtures, and re-tier them to `transcribed`.",
+    "alsoRecordedIn": "docs/GAPS.md"
+  }
+}
