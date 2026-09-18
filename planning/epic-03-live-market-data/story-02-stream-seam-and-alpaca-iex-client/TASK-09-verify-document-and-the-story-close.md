@@ -45,6 +45,47 @@ market _now_. Say that plainly when reporting the close.
   3.5's current-state model; reconnection policy and the gap it leaves are
   3.10's, informed by §14.2 — **what is missed while away is gone**, so
   gap-filling is an HTTP backfill and cannot be a socket feature.
+- **AUDIT EVERY HAND-OFF `LIVE-DATA.md` NAMES, against the story that owns it —
+  added 2026-09-18, and it is not optional.** Do not trust Story 3.1's close on
+  this; it is already known to have been incomplete.
+
+  **The evidence, so this is a repair rather than a precaution.** On 2026-09-18
+  Task 3.2.4 found that `LIVE-DATA.md` §4.4 says in as many words _"Two of these
+  change **Story 3.5's** shape rather than informing it"_ — and Story 3.5's
+  `STORY.md` carried **nothing**. Task 3.1.9's close gathered five constraints
+  for Story 3.2, the canvas answer for 3.4, the gap finding for 3.10 and the
+  weekend hold for 3.11, and **missed 3.5 entirely**. Worse, 3.1.9's own stated
+  reason for gathering Story 3.2's five was that a measured constraint which is
+  not one of the eight decisions _"is exactly how a measured constraint gets
+  lost"_. **It named the failure mode and then suffered it**, which is the whole
+  argument for making this mechanical rather than attentive.
+
+  It was also found **by accident** — 3.2.4 hit the symbol-validation question
+  while writing a mapper and had to decide where it belonged. Nothing was looking
+  for a missing hand-off, and nothing would have.
+
+  **So do it by enumeration rather than by reading:**
+
+  - **Grep `LIVE-DATA.md` for every `Story 3.N` mention**, and for the
+    `Owner:` lines, and build the list before opening anything. A list you
+    derived is checkable; a list you remembered is not.
+  - **For each one, open that story's `STORY.md` and confirm the constraint is
+    actually there**, in words that story can act on — **not** a link back to
+    `LIVE-DATA.md`. A pointer is what a reader follows when they already know to
+    look, and the whole failure is that they do not.
+  - **Repair what is missing, in the owning story's file**, and record in this
+    task's findings **how many were missing** — that count is the honest measure
+    of how well the close worked, and it is the number a future epic close should
+    expect to beat.
+  - **Then extend it one hop**: `ALPACA.md` §10, `PROVIDER.md` §12 and
+    ADR 0030 also name owners. Same treatment.
+
+  **Note the shape of the bug, because it generalises past this epic:** a close
+  sweeps the documents the story _wrote_, and a hand-off lives in a document the
+  story _does not own_. Nothing about a story-close checklist naturally reaches
+  across that boundary, which is why this has to be an enumeration with a count
+  rather than a reminder to be thorough.
+
 - **Check the epic's own open items.** Story 3.4 still owes a design decision on
   the **unreachable canvas**, and the extended-hours mark and _this corrected_
   treatment it now owes. This story does not resolve those; it should confirm
@@ -60,6 +101,11 @@ market _now_. Say that plainly when reporting the close.
 - What a green suite does not certify is in `docs/GAPS.md` with a re-measure
 - Stories 3.3, 3.5 and 3.10 have their hand-offs **in their own `STORY.md`
   files**, not only here
+- **Every `Story 3.N` mention and every `Owner:` line in `LIVE-DATA.md` has been
+  enumerated and checked against that story's own `STORY.md`**, with **the count
+  of how many were missing recorded** — zero is a result worth stating, and
+  anything above zero is the repair this task made. Extended one hop to
+  `ALPACA.md` §10, `PROVIDER.md` §12 and ADR 0030
 - Every acceptance criterion in [`STORY.md`](STORY.md) is walked and marked
 - `pnpm verify` and `pnpm e2e` pass
 

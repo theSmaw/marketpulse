@@ -959,6 +959,21 @@ socket down for one.
 
 **Two of these change Story 3.5's shape rather than informing it.**
 
+> **DELIVERED 2026-09-18, and it should have been delivered at Story 3.1's
+> close.** Task 3.1.9 gathered five constraints for Story 3.2, the canvas answer
+> for 3.4, the gap finding for 3.10 and the weekend hold for 3.11 — **and missed
+> Story 3.5**, despite this sentence naming it. The constraints now sit in
+> [Story 3.5's `STORY.md`](../story-05-subscription-management-and-current-market-state/STORY.md),
+> together with §4.2's full-state acknowledgement, §10.2's _almost nothing to
+> manage_, and where a `u` revision is applied.
+>
+> **Found by Task 3.2.4**, which hit the symbol-validation question while
+> writing the mapping and had to decide where it belonged — not by anything that
+> was looking for a missing hand-off. **3.1.9 was right about the mechanism and
+> still missed a story**: its own words were that a measured constraint which is
+> not one of the eight decisions _"is exactly how a measured constraint gets
+> lost"_. Naming the failure mode is not the same as having a list.
+
 - **Alpaca does not validate symbols, so we must.** `ZZQQTESTX` was accepted and
   echoed back as held. A subscription acknowledgement is therefore **not**
   evidence that a symbol exists, and a security that silently never produces a
@@ -1804,6 +1819,21 @@ The arithmetic agrees independently: a bar stamped `14:01:00Z` arrives at
 is emitted when it closes. **A stream that marked the END would have put every
 live bar a minute out, silently, on a chart that looked plausible** — which is
 why this was a control and not an assertion.
+
+> **The stream's bar fields are the HTTP API's bar fields — noted 2026-09-18
+> by Task 3.2.4, which found it by implementing rather than by measuring.**
+> `AlpacaBar`, the shape this repository already parsed from
+> `GET /v2/stocks/bars`, is exactly `{t,o,h,l,c,v}` — and the frame above
+> carries those same six keys under those same names, plus `T`, `S`, `n` and
+> `vw`. **A streamed bar therefore _is_ an `AlpacaBar` with two extra keys.**
+>
+> It is worth having in the vendor record rather than only in a mapping file,
+> because of what it bought: the stream's mapping **reuses** `toBar` rather than
+> reimplementing it, which turns _a streamed bar maps to the same `Bar` a fetched
+> bar maps to_ from a claim two implementations must keep agreeing on into a
+> property of there being one implementation. **A vendor that had spelled the
+> stream differently would have cost a second mapper and a permanent
+> reconciliation risk**, and nothing before this had checked which it was.
 
 ### 7.4 The arrival gap — figure 8, the number this task exists for
 

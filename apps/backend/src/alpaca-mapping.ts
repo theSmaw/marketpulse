@@ -377,7 +377,19 @@ export function toAlpacaInclusiveEnd(end: Date): Date {
  *
  * Eight fields are sent and six are taken — see {@link toBar}.
  */
-interface AlpacaBar {
+/**
+ * One bar as the vendor spells it.
+ *
+ * **Exported since 2026-09-18 (Task 3.2.4), and the reason is a finding rather
+ * than a convenience.** The WebSocket's `b` frame carries these same six field
+ * names — `{"T":"b","S":"NVDA","o":…,"h":…,"l":…,"c":…,"v":…,"t":…}` — so a
+ * streamed bar *is* an `AlpacaBar` with two extra keys. That makes the stream's
+ * mapping able to reuse {@link toBar} rather than reimplement it, which turns
+ * acceptance criterion 3 — *a streamed bar maps to the same `Bar` a fetched bar
+ * maps to* — from a claim two implementations have to keep agreeing on into a
+ * property of there being **one** implementation.
+ */
+export interface AlpacaBar {
   readonly t: string;
   readonly o: number;
   readonly h: number;
@@ -541,7 +553,7 @@ function describeType(value: unknown): string {
  * response. Do not widen `Bar` here: that is a decision with an owner, not a
  * convenience taken while writing a mapping.
  */
-function toBar(bar: AlpacaBar): Bar {
+export function toBar(bar: AlpacaBar): Bar {
   return {
     startsAt: new Date(bar.t),
     open: bar.o,
