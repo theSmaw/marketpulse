@@ -2828,12 +2828,12 @@ becoming false the first time an IEX tail is stitched on.
 
 **Every string's home, and none of them is a component:**
 
-| String                          | Home                                                                     | State                                                                                                                                                                                                           |
-| ------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The feed words and sentences    | `MARKET_FEED_DESCRIPTIONS` in `packages/shared/src/market-provenance.ts` | Shipped for `iex`, `sip`, `synthetic`                                                                                                                                                                           |
-| **`replay`'s words**            | The same record                                                          | **Specified in ADR 0030 §3, NOT yet in `MARKET_FEEDS`** — the union still holds three, and `PROVIDER_IDS` still holds two. **Owner: Story 3.2**, which builds the replay stream and therefore adds both members |
-| `live \| stale \| disconnected` | `FEED_STATUSES` in `packages/shared/src/feed-status.ts`                  | Shipped, and amended by this task — see below                                                                                                                                                                   |
-| The connection sentence         | A new record beside `FEED_STATUSES`, same `satisfies` guard              | **Unwritten.** Story 3.3                                                                                                                                                                                        |
+| String                          | Home                                                                     | State                                                                                                                                                            |
+| ------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The feed words and sentences    | `MARKET_FEED_DESCRIPTIONS` in `packages/shared/src/market-provenance.ts` | Shipped for `iex`, `sip`, `synthetic`                                                                                                                            |
+| **`replay`'s words**            | The same record                                                          | **SHIPPED 2026-09-18 by Task 3.2.1.** `MARKET_FEEDS` holds four and `PROVIDER_IDS` holds three; the words are ADR 0030 §3's, transcribed rather than re-composed |
+| `live \| stale \| disconnected` | `FEED_STATUSES` in `packages/shared/src/feed-status.ts`                  | Shipped, and amended by this task — see below                                                                                                                    |
+| The connection sentence         | A new record beside `FEED_STATUSES`, same `satisfies` guard              | **Unwritten.** Story 3.3                                                                                                                                         |
 
 **`feed-status.ts` gets a dated amendment rather than a rewrite**, per the ADR
 rule, because one of its sentences is not observable. Its doc glosses `stale` as
@@ -2842,19 +2842,29 @@ connected" is not a thing a client can see**: §6.4 held `readyState === OPEN` f
 **4 h 21 min** on a socket that had died. The only observable is _when the last
 inbound frame arrived_.
 
-> **ADR 0030 is decision-only, and that was checked rather than assumed.**
-> `PROVIDER_IDS` is `["fixture", "alpaca"]`, `MARKET_FEEDS` is
-> `["iex", "sip", "synthetic"]`, there is no replay provider in
-> `apps/backend/src/`, and `config.ts` has never heard of it. So the fifth cell
-> in the grid above is **specified and unbuilt** — which is the correct state
-> for an ADR whose implementer is a story ahead, and is recorded as such rather
-> than left for a reader to discover the union is short.
+> **ADR 0030 was decision-only when this was written, and that was checked
+> rather than assumed.** `PROVIDER_IDS` was `["fixture", "alpaca"]`,
+> `MARKET_FEEDS` was `["iex", "sip", "synthetic"]`, there was no replay provider
+> in `apps/backend/src/`, and `config.ts` had never heard of it.
 >
-> **Reversal trigger for the grid, as a condition:** the first feed added to
-> `MARKET_FEEDS` — which `replay` already is in ADR 0030 and is not yet in the
-> union. The `satisfies` guard makes that a compile error rather than a missing
-> row, which is the mechanism doing the work this grid otherwise has to do by
-> hand.
+> **The reversal trigger has FIRED — 2026-09-18, Task 3.2.1.** It read: _the
+> first feed added to `MARKET_FEEDS`_. `replay` was added to both unions, and
+> **the `satisfies` guard did exactly the work this paragraph predicted**: the
+> widening produced **four compile errors at three sites**, each one naming a
+> place that had to answer for the new member —
+> `PROVIDER_SERVES`, `MARKET_FEED_DESCRIPTIONS` and
+> `createMarketDataProvider`'s exhaustive switch. Not one of them was found by
+> reading; every one was named by the compiler.
+>
+> **Two things the grid above must now be read with:**
+>
+> - **The feed cell is built. The connection cell is not.** `REPLAYING` is a
+>   **rendering of the `live` connection state when the feed identity is
+>   `replay`** — it is _not_ a fourth `FeedStatus`. `FEED_STATUSES` still holds
+>   three members, deliberately, and the record that turns a `FeedStatus` into a
+>   word is still **unwritten and still Story 3.3's**, exactly as the table above
+>   says. Task 3.2.1 stopped at that line rather than crossing it.
+> - **A fifth member would fire this again**, and the trigger stays as written.
 
 ### 11.4 What Story 3.3 can now start against
 
