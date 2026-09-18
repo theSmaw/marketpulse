@@ -188,6 +188,33 @@ const SHUTDOWN_TIMEOUT_MS = 5000;
 
 let shuttingDown = false;
 
+/**
+ * How the market socket is closed on the way out (Task 3.2.5).
+ *
+ * **A registered closer rather than a module-level stream handle**, because
+ * `index.ts` is the process: whatever opens the socket registers how to shut
+ * it, and this file stays the only thing that decides *when*.
+ *
+ * `LIVE-DATA.md` §12.2 is why it exists at all. The socket's lifecycle is the
+ * process's — opened at boot, never scheduled — and the closing half is the
+ * load-bearing one:
+ *
+ * | The stopping process | The overlap lasts | Because |
+ * | --- | --- | --- |
+ * | Closes its socket on `SIGTERM` | **<= 5 s** | Bounded by `SHUTDOWN_TIMEOUT_MS` |
+ * | Dies without closing | **Unbounded, up to hours** | §6.4 measured a half-open socket surviving **4 h 21 min** |
+ *
+ * The free plan allows **one** connection and §8.2 measured that **the
+ * incumbent wins** — so a rolling deploy has the outgoing replica holding the
+ * only permitted connection while the incoming one is refused `406`. **The
+ * close is not politeness; it is what bounds the outage.**
+ */
+let closeMarketStream: (() => void) | undefined;
+
+export function registerMarketStreamCloser(close: () => void): void {
+  closeMarketStream = close;
+}
+
 async function shutdown(signal: NodeJS.Signals): Promise<never> {
   // A second signal means "I meant it" — the conventional Ctrl-C behaviour.
   // Exit immediately and non-zero, because work in flight was dropped and a
@@ -237,6 +264,29 @@ async function shutdown(signal: NodeJS.Signals): Promise<never> {
   // stayed green. Two records bounding the step are what make the position
   // observable.
   app.log.debug("http drained");
+
+  // **The market socket closes here — ahead of the pool and inside the
+  // ceiling**, which is where `LIVE-DATA.md` §12.2 puts it.
+  //
+  // Synchronous, and inside a `try`, on purpose. `ws`'s `close()` starts a
+  // handshake rather than finishing one, and §8.5 measured what finishing
+  // costs: **~240 ms** against a live socket and **~30 s** against one already
+  // dead. Awaiting it would let a corpse consume six times the whole shutdown
+  // ceiling — so the request is what bounds the outage, and the ceiling above
+  // covers the rest. A socket that throws on close is already gone.
+  //
+  // **What a connected browser is owed — a `feed` message saying the feed is
+  // going away, then a close (§12.2) — is NOT here**, and that is a scope line
+  // rather than an omission: no browser can reach this feed until Story 3.3
+  // builds the fan-out. That story owns the message.
+  try {
+    closeMarketStream?.();
+    // Beside the step it marks, for the reason the records below give: a marker
+    // that does not travel with its step is not a marker.
+    app.log.debug("market stream closed");
+  } catch (error) {
+    app.log.warn({ err: error }, "error while closing the market stream");
+  }
 
   // The pool closes **after** `app.close()` has resolved, and the ordering is
   // the decision rather than an implementation detail: `app.close()` stops the

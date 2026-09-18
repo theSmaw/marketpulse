@@ -3041,6 +3041,39 @@ permitted connection while the **incoming** one is refused. Two ways that ends:
 exits without closing can lock its own successor out of the market feed for as
 long as Alpaca takes to notice — and §6.4 says that can be most of a trading day.
 
+> **Amended 2026-09-18 by Task 3.2.5, which implemented this and found the
+> justification reaches further than the measurement.** The **decision** is
+> unchanged and still right: closing deliberately is free, correct, and the
+> fastest path to releasing the slot. What needs narrowing is the sentence above.
+>
+> **§6.4 measured OUR client's view, not Alpaca's slot accounting.** It
+> established that `readyState` reported `OPEN` for 4 h 21 min with nothing
+> behind it, and §6.4 is scrupulous that _"what killed it is not determined"_.
+> **Nobody has measured whether a NEW connection is refused while a half-open
+> one sits unacknowledged** — which is precisely the claim the table's second
+> row makes. It is a reasonable inference and it is an inference.
+>
+> **Two consequences, and the second is the uncomfortable one:**
+>
+> - **A process that crashes still sends `FIN`.** The OS closes its sockets on
+>   exit, so on a healthy network path the slot frees at process exit whether or
+>   not we closed deliberately. On that path the deliberate close is a small
+>   optimisation rather than the thing that bounds the outage. The row that is
+>   genuinely unbounded is the one where **the network path itself is broken** —
+>   which is a different discriminator from _closed deliberately vs died_.
+> - **In exactly §6.4's scenario, the deliberate close bounds nothing.** If our
+>   socket is already half-open and dead, the close frame reaches nobody — §6.4
+>   watched one take 30,016 ms and time out rather than complete. So a process
+>   holding a dead socket cannot release the slot by asking politely, and what
+>   limits our exposure there is **the 165 s watchdog** (Task 3.2.5) noticing and
+>   tearing the connection down, not the shutdown path.
+>
+> **Owner: Story 3.11**, which is already the story that runs a real socket in
+> the deployed backend. **Trigger, as a condition: the first deploy that rolls a
+> replica while the feed is connected** — observe whether the arriving replica is
+> refused `406`, and for how long. That single observation settles it. Recorded
+> in `docs/GAPS.md`.
+
 **What the starting process does when refused.** Retry on `406`, never treat it
 as fatal. §8.7 measured that **immediate reconnection is not penalised** —
 717/709/709/722/694 ms across five back-to-back attempts, every one
