@@ -301,20 +301,21 @@ guard makes a feed added without words a compile error naming the omission.
 
 ## Tasks
 
-Nine, sequential, each self-contained. **The ordering is load-bearing in three
+Ten, sequential, each self-contained. **The ordering is load-bearing in three
 places** and those three are the reason this is not a flat list:
 
-| #     | Task                                                                                                            | Why it sits here                                                                                  |
-| ----- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 3.2.1 | [`replay` enters the two unions](TASK-01-the-replay-vocabulary-and-the-words-on-screen.md)                      | **First**, so every later task's provenance stamping is a compile error rather than a surprise    |
-| 3.2.2 | [`MarketDataStream`, written before anything implements it](TASK-02-the-interface-written-before-the-client.md) | **Before the client** — `PROVIDER.md`'s own test of whether a seam is real                        |
-| 3.2.3 | [The recorded frame corpus](TASK-03-the-recorded-frame-corpus.md)                                               | Nothing below can be tested without it, and the captures are gone                                 |
-| 3.2.4 | [The pure mapping, and the revision case](TASK-04-the-pure-mapping-and-the-revision-case.md)                    | Pure before transport, the `alpaca-mapping.ts` arrangement                                        |
-| 3.2.5 | [The Alpaca client and the watchdog](TASK-05-the-alpaca-client-and-the-liveness-watchdog.md)                    | **Before the replay** — "a convenience built first becomes the thing everything is shaped around" |
-| 3.2.6 | [The fixture stream](TASK-06-the-fixture-stream.md)                                                             | The second implementation, which is where a fake seam falls over                                  |
-| 3.2.7 | [The replay stream over our own bars](TASK-07-the-replay-stream-over-our-own-bars.md)                           | Third, guarded, and the instrument Story 3.4 needs                                                |
-| 3.2.8 | [The guards that stop it rotting](TASK-08-the-guards-that-stop-it-rotting.md)                                   | The runtime half, which a credential-free `verify` cannot make                                    |
-| 3.2.9 | [Verify, document, and the close](TASK-09-verify-document-and-the-story-close.md)                               | The sweep and the hand-offs                                                                       |
+| #      | Task                                                                                                            | Why it sits here                                                                                  |
+| ------ | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| 3.2.1  | [`replay` enters the two unions](TASK-01-the-replay-vocabulary-and-the-words-on-screen.md)                      | **First**, so every later task's provenance stamping is a compile error rather than a surprise    |
+| 3.2.2  | [`MarketDataStream`, written before anything implements it](TASK-02-the-interface-written-before-the-client.md) | **Before the client** — `PROVIDER.md`'s own test of whether a seam is real                        |
+| 3.2.3  | [The recorded frame corpus](TASK-03-the-recorded-frame-corpus.md)                                               | Nothing below can be tested without it, and the captures are gone                                 |
+| 3.2.4  | [The pure mapping, and the revision case](TASK-04-the-pure-mapping-and-the-revision-case.md)                    | Pure before transport, the `alpaca-mapping.ts` arrangement                                        |
+| 3.2.5  | [The Alpaca client and the watchdog](TASK-05-the-alpaca-client-and-the-liveness-watchdog.md)                    | **Before the replay** — "a convenience built first becomes the thing everything is shaped around" |
+| 3.2.6  | [The fixture stream](TASK-06-the-fixture-stream.md)                                                             | The second implementation, which is where a fake seam falls over                                  |
+| 3.2.7  | [The replay stream over our own bars](TASK-07-the-replay-stream-over-our-own-bars.md)                           | Third, guarded, and the instrument Story 3.4 needs                                                |
+| 3.2.8  | [The guards that stop it rotting](TASK-08-the-guards-that-stop-it-rotting.md)                                   | The runtime half, which a credential-free `verify` cannot make                                    |
+| 3.2.9  | [Start the stream in the process](TASK-09-start-the-stream-in-the-process.md)                                   | **Added 2026-09-18**: three implementations existed and nothing ran one — see below               |
+| 3.2.10 | [Verify, document, and the close](TASK-10-verify-document-and-the-story-close.md)                               | The sweep and the hand-offs                                                                       |
 
 **The three orderings that are decisions rather than convenience:**
 
@@ -339,6 +340,36 @@ places** and those three are the reason this is not a flat list:
    description of that client.
 3. **3.2.5 before 3.2.7.** The story's own "what must not rot" item 3. If 3.2.5
    slips, **let it slip** rather than building the replay first.
+
+### A task was ADDED on 2026-09-18, and the gap it fills is the kind no test can fail on
+
+**Task 3.2.9 exists because the story ships three implementations of
+`MarketDataStream` and starts none of them.** Found by grepping for a call site
+after 3.2.8: `createAlpacaStream(`, `createReplayStream(`, `createFixtureStream(`
+and `registerMarketStreamCloser(` have **zero matches outside tests**.
+
+Two consequences, both load-bearing:
+
+- **_What this story hands forward_ — "a live feed inside the process" — is false
+  today.** There are three things that could be one, and nothing runs any of them.
+- **Task 3.2.5's deliberate `SIGTERM` close is dead code.** `index.ts` calls a
+  registered closer ahead of the pool; nothing registers one. Its process test
+  passes precisely because it asserts the shutdown path _reaches_ the close —
+  which it does, with nothing behind it.
+
+**And ADR 0030 §7f's central claim depends on it**: _the deployed site now
+connects to the real IEX socket during every session_. True only once something
+connects.
+
+**It is a task rather than an item on the close**, because starting a socket in
+the process is implementation with its own acceptance criteria, and folding
+implementation into a close is how closes get skipped.
+
+**The shape of the miss is worth keeping.** Every implementation was tested,
+every guard was proven with a `pnpm break`, and `pnpm verify` was green
+throughout. **Three implementations of an interface and no construction site is
+not a shape any test can fail on** — it took a grep for a call site, and the grep
+only happened because a sweep asked what had changed.
 
 ### A note on visible progress, because this story has none
 
