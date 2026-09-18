@@ -1,8 +1,8 @@
-# Task 3.2.9 — Verify, document, and hand Story 3.3 a feed it can render
+# Task 3.2.10 — Verify, document, and hand Story 3.3 a feed it can render
 
 **Status:** Not started
 **Story:** [3.2 The Market-Data Stream Seam & the Alpaca IEX Client](STORY.md)
-**Depends on:** 3.2.8
+**Depends on:** 3.2.9
 
 ## Objective
 

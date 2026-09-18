@@ -19,6 +19,7 @@ import {
   createDatabasePool,
   pingDatabase,
 } from "./database.js";
+import { readFeedDiagnostic } from "./feed-diagnostic.js";
 import { resolveMarketData } from "./market-data.js";
 import { createMarketBarsRepository } from "./market-bars.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
@@ -91,11 +92,24 @@ const database = createDatabasePool(config.database, app.log);
 // which is what makes a public unauthenticated endpoint safe to point at a
 // 35-connection ceiling with no PgBouncer under it.
 app.register(
-  createDiagnosticsRoutes(createCachedDatabaseCheck(database), () =>
-    // The ledger and not the bars. `bar_coverage` is a few hundred rows however
-    // many bars exist; `max(observed_at) group by security_id` is ~345k rows at
-    // `1d` and fifty million at `1m`. `store-freshness.ts` carries the argument.
-    createMarketBarsRepository(database).listCoverage(),
+  createDiagnosticsRoutes(
+    createCachedDatabaseCheck(database),
+    () =>
+      // The ledger and not the bars. `bar_coverage` is a few hundred rows however
+      // many bars exist; `max(observed_at) group by security_id` is ~345k rows at
+      // `1d` and fifty million at `1m`. `store-freshness.ts` carries the argument.
+      createMarketBarsRepository(database).listCoverage(),
+    // **What this deployment is CONFIGURED to serve, reported whether or not a
+    // stream exists** (Task 3.2.8, ADR 0030 §8). Epic 3 has no stream running in
+    // the process yet — Story 3.3 starts one — so `status`, `feed` and
+    // `observedAt` are `null` today and the configured `provider` is the half
+    // that already means something.
+    //
+    // **And that half is the half `check-deployed.mjs` needs first**: §7c fails
+    // at ANY hour if the deployed feed is `replay`, which is answerable from the
+    // configuration alone. The connection half becomes real when Story 3.3
+    // registers a stream, and this shape does not change when it does.
+    () => readFeedDiagnostic(config, new Date()),
   ),
 );
 

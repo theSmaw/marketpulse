@@ -231,6 +231,101 @@ async function probeFreshness(backendOrigin) {
  * matter are the hashed script and stylesheet under `/assets/`, and a real HTML
  * parser would be a dependency bought to read two attributes.
  */
+/**
+ * Is the deployed feed telling the truth? (Task 3.2.8, ADR 0030 §7c.)
+ *
+ * **Two conditions, and the first is unconditional on the hour.**
+ *
+ *  1. **`replay` fails at ANY hour, in the provider or the feed.** Production
+ *     has real users and must only ever tell the absolute truth about the real
+ *     market. There is no time of day at which a deployed replay is acceptable,
+ *     so there is no clause here that could be argued into one.
+ *  2. **While the market is open, the feed must be a connected `iex`.** Outside
+ *     a session a feed that is not delivering is the honest state — ADR 0030
+ *     §7a: *a still page that is true beats a moving page that needs a caption
+ *     to be true.*
+ *
+ * **The market clock comes from the SERVER rather than from here**, which is one
+ * fact with one home: the backend already has Story 2.5's calendar and its
+ * exception table, and a copy in this script would be a second answer to *is
+ * today a half-day* that nothing reconciles.
+ *
+ * **This is detective rather than preventive and that is stated rather than
+ * apologised for** (ADR 0030 §7c): it runs after the rollout, so by the time it
+ * goes red the thing it objects to has already served traffic. What it bounds is
+ * the DURATION of a wrong state, not its existence. `deploy.yml`'s provider read
+ * (§7b) is the preventive one.
+ */
+async function probeFeed(backendOrigin) {
+  const result = await get(`${backendOrigin}/diagnostics/feed`);
+
+  if (!result.ok) return { ok: false, detail: result.reason };
+
+  // **A 404 is a different failure from a wrong feed, and saying so is worth a
+  // branch.** It means the running revision predates this endpoint — which is
+  // the expected state for exactly one deploy, the one that first ships it. A
+  // check whose message misdiagnoses is worse than a terse one: an operator
+  // reading "the feed is not telling the truth" would go looking at
+  // `MARKET_DATA_PROVIDER` when the answer is that the route does not exist yet.
+  if (result.status === 404) {
+    return {
+      ok: false,
+      missing: true,
+      detail:
+        "404 — the running revision predates /diagnostics/feed. Expected for " +
+        "the first deploy that ships it; anything later means the rollout did " +
+        "not take.",
+    };
+  }
+
+  if (result.status !== 200) {
+    return { ok: false, detail: `HTTP ${String(result.status)}` };
+  }
+
+  let body;
+  try {
+    body = await result.response.json();
+  } catch {
+    return { ok: false, detail: "200 with a body that is not JSON" };
+  }
+
+  if (typeof body !== "object" || body === null) {
+    return { ok: false, detail: "200 with a body that is not the contract" };
+  }
+
+  const { provider, feed, status, marketOpen } = body;
+
+  // Condition 1. Unconditional.
+  if (provider === "replay" || feed === "replay") {
+    return {
+      ok: false,
+      detail:
+        `the deployed feed is REPLAYING (provider=${String(provider)} ` +
+        `feed=${String(feed)}) — production must only ever serve the real ` +
+        "market, at any hour (ADR 0030 §7a)",
+    };
+  }
+
+  // Condition 2. Gated on the server's own calendar.
+  if (marketOpen === true) {
+    if (feed !== "iex" || status !== "live") {
+      return {
+        ok: false,
+        detail:
+          `the market is open and the feed is not a connected iex ` +
+          `(provider=${String(provider)} feed=${String(feed)} ` +
+          `status=${String(status)})`,
+      };
+    }
+    return { ok: true, detail: "live on iex, market open" };
+  }
+
+  return {
+    ok: true,
+    detail: `market closed; provider=${String(provider)} status=${String(status)}`,
+  };
+}
+
 async function probeFrontend(frontendOrigin) {
   const document = await get(`${frontendOrigin}/`);
 
@@ -292,6 +387,7 @@ export async function checkDeployed({ backendOrigin, frontendOrigin }) {
   let backend;
   let frontend;
   let freshness;
+  let feed;
 
   for (;;) {
     // Sequentially rather than in parallel, unlike `check-ready.mjs`. Two
@@ -308,11 +404,22 @@ export async function checkDeployed({ backendOrigin, frontendOrigin }) {
     // when the other two agree, and its result ends the loop either way.
     if (backend.ok && frontend.ok) {
       freshness = await probeFreshness(backendOrigin);
-      return { ok: freshness.ok, backend, frontend, freshness };
+      // **Both, always, and the result is the AND.** A deployment that is fresh
+      // and replaying is not acceptable, and one that is live on `iex` with a
+      // stale store is not either — so neither probe may short-circuit the
+      // other, and a reader of the output sees both lines whichever failed.
+      feed = await probeFeed(backendOrigin);
+      return {
+        ok: freshness.ok && feed.ok,
+        backend,
+        frontend,
+        freshness,
+        feed,
+      };
     }
 
     if (Date.now() >= deadline)
-      return { ok: false, backend, frontend, freshness };
+      return { ok: false, backend, frontend, freshness, feed };
 
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
@@ -320,7 +427,7 @@ export async function checkDeployed({ backendOrigin, frontendOrigin }) {
 
 /** Render the result, including the control's diagnosis. */
 export function reportDeployed(
-  { ok, backend, frontend, freshness },
+  { ok, backend, frontend, freshness, feed },
   addresses,
 ) {
   const line = (mark, label, url, detail) =>
@@ -355,11 +462,40 @@ export function reportDeployed(
         : freshness.detail,
     ),
   );
+  // Same "not reached" treatment, for the same reason: a check that did not run
+  // must not look like one that passed.
+  console.log(
+    line(
+      feed === undefined ? "·" : feed.ok ? "✓" : "✗",
+      "feed",
+      `${addresses.backendOrigin}/diagnostics/feed`,
+      feed === undefined ? "not reached — the pair never came up" : feed.detail,
+    ),
+  );
   console.log("");
 
   if (ok) {
     console.log("The deployed pair is up and the artefact is coherent.\n");
     return;
+  }
+
+  if (feed !== undefined && !feed.ok && feed.missing === true) {
+    console.error(
+      "The deployed backend has no /diagnostics/feed endpoint.\n\n" +
+        "That is EXPECTED for the single deploy that first ships it, and a\n" +
+        "problem on any later one — it would mean the rollout did not take.\n",
+    );
+  } else if (feed !== undefined && !feed.ok) {
+    console.error(
+      "The deployed FEED is not telling the truth about the market.\n\n" +
+        "This is a rollback decision rather than a gate — it runs after the rollout,\n" +
+        "so what it objects to has already served traffic. What it bounds is how LONG\n" +
+        "a wrong state lasts (ADR 0030 §7c).\n\n" +
+        "If it says REPLAYING: production is serving recorded prices re-stamped onto\n" +
+        "the wall clock. There is no hour at which that is acceptable. Check\n" +
+        "MARKET_DATA_PROVIDER on the container app — it is set out of band rather than\n" +
+        "by the deploy, so a hand edit between deploys is exactly how this happens.\n",
+    );
   }
 
   if (!backend.ok && !frontend.ok) {

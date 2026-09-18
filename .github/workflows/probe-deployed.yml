@@ -1,0 +1,95 @@
+# Look at production between merges (Task 3.2.8, ADR 0030 §7d).
+#
+# ## Why this exists, and it is a gap rather than a preference
+#
+# `deploy.yml` triggers on `workflow_run` of `verify` and on `workflow_dispatch`
+# and **has no `schedule:`** — so between merges **nothing in this repository
+# looks at the deployed app at all**. A hand-edited environment variable on a
+# quiet Tuesday is therefore invisible until the next merge, which on this
+# project can be days.
+#
+# That matters because the one mechanism `deploy.yml` provides is `7b`'s
+# provider read, and it only fires when a deploy runs. An environment variable
+# changed by hand on the container app creates a new revision and restarts the
+# app **with no workflow running at all**, so nothing in the deploy path sees
+# it.
+#
+# ## What it is, and what it is not
+#
+# **Detective, not preventive**, and ADR 0030 §7c says so plainly: by the time
+# this goes red, the thing it objects to has already served traffic. What it
+# bounds is the **duration** of a wrong state. Paired with `check-deployed`
+# after a merge, the two together bound it at a day.
+#
+# **It runs the same script as `check-deployed`**, by name, for the reason
+# `verify.yml` runs `pnpm verify` by name: the moment a workflow re-lists the
+# conditions, there are two definitions of "the deployment is telling the
+# truth".
+#
+# ## The cadence, and why it is what it is
+#
+# **Daily, at 13:00 UTC — 09:00 ET, half an hour before the opening bell.**
+#
+# - **Daily rather than hourly**: this is a poll against production and its own
+#   traffic is a cost. The gap it closes is *days*, and a day's resolution
+#   closes it; an hourly poll would be 24× the traffic for a distinction nobody
+#   would act on differently.
+# - **Before the open rather than after it**: the expensive wrong state is one
+#   that persists through a session, so the useful time to notice is *before*
+#   the session rather than after. A run at 09:00 ET that finds `replay`
+#   configured leaves half an hour to fix it before anybody could see a fake
+#   price.
+# - **Not weekdays-only**: a run when the market is shut costs nothing — the
+#   feed probe's second condition is gated on the server's own calendar, so a
+#   Saturday run checks the unconditional half (`replay` at any hour) and
+#   passes. Restricting the cron would be a second copy of the trading calendar
+#   in a place that cannot see the exception table.
+name: probe-deployed
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 13 * * *"
+
+# Read-only. This workflow deploys nothing and needs no Azure credential: it
+# asks two public endpoints the same questions a browser could.
+permissions:
+  contents: read
+
+concurrency:
+  group: probe-deployed
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: probe
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node from .nvmrc
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The same script `check-deployed` runs, by name. Its exit code is this
+      # job's result, and a red run is a rollback decision rather than a gate —
+      # nothing is being held back by it, because the thing it objects to is
+      # already live.
+      - name: Is the deployed pair still telling the truth?
+        # The same two variable NAMES `check-deployed.mjs` already reads, and the
+        # same two addresses `deploy.yml` defines. Restated here because a
+        # workflow cannot import another's `env:` block — and that duplication is
+        # named rather than hidden: if either address moves, both files change,
+        # and `pnpm links` cannot see it because these are not Markdown links.
+        env:
+          E2E_DEPLOYED_BACKEND_ORIGIN: https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io
+          E2E_DEPLOYED_BASE_URL: https://red-smoke-029583a0f.5.azurestaticapps.net
+        run: node scripts/check-deployed.mjs
