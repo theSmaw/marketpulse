@@ -197,3 +197,57 @@ Asia/Singapore, over a 271–311 ms round trip production does not have. That do
 not falsify §28; it makes it **unevaluable until the same figure is taken from
 `eastus2`**. The condition is **the first time a real socket runs in the deployed
 backend**, and that is this story's too.
+
+---
+
+## The weekend hold — handed here 2026-09-18 by Task 3.1.9
+
+**This story owns a measurement Story 3.1 built the instrument for and chose not
+to run.** [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md)
+§13.4 has the full account; this is what this story has to do about it.
+
+**The question.** §9.3 decided the socket is held **always** — one connection,
+opened at boot, never deliberately closed. The longest hold ever achieved is
+**7.77 hours**. A weekend is **56+**. So _always_ is validated to less than a
+seventh of the interval it claims, and whether Alpaca tolerates a multi-day idle
+connection, keeps heartbeating across it, or drops it, is **unmeasured**.
+
+**Why it is yours rather than 3.1's.** It needs 56 hours of a machine that
+cannot close its lid, and this story is **already the one that runs a real
+socket in the deployed backend** — §7.4's latency re-measure is parked here on
+exactly that condition. There, the hold costs a container that is running
+anyway. The same trigger serves both: **the first time a real socket runs in the
+deployed backend.**
+
+**What to watch for, so this is a measurement rather than an observation:**
+
+- **The heartbeat, not the data.** `b` is legitimately silent for 56 hours with
+  the market shut (§6.2), so anything keying on data reports a healthy socket as
+  dead. The server's **54 s** ping (§6.3) is the only liveness signal.
+- **Do NOT subscribe `dailyBars`.** §6.7 measured it re-sending an unchanged
+  aggregate every minute out of hours, which would keep the connection warm and
+  answer a different question. Production's real subscription is `bars` +
+  `updatedBars` for the 518 (§10.2), and that is what should be held.
+- **The elapsed time at death, the close code and the close latency.** §8.5 is
+  the discriminator: ~1 ms means our own link went, ~6 s the server closing a
+  rude client, ~30 s `ws@8` timing out on a corpse.
+
+**The outcome that actually matters, and it is not "did it survive".** A drop is
+handled by machinery this epic builds anyway — Story 3.2's watchdog and
+reconnect exist for §6.4, §8.2 and §8.8 regardless. **The incident shape is a
+drop that also holds the connection slot.** §6.4 measured a dead socket
+occupying the single permitted connection for **4 h 21 min** with `readyState`
+reporting `OPEN`. If a weekend drop leaves the slot held, **Monday's pre-market
+opens with no feed and no obvious cause** — so the thing to measure is not only
+whether the socket dies but **whether a fresh connection is accepted
+immediately afterwards**.
+
+**The instrument existed and was proved before it was retired.** `weekend.mjs`
+held a real socket, acknowledged 518 on both production channels and caught the
+heartbeat at **54.03 s**, with sentinels that distinguish a suspended laptop and
+a dropped local link from a vendor drop. It went with the harness; the design is
+recorded here so it does not have to be re-derived — **two sentinels: a
+monotonic-vs-wall-clock tick that makes a machine suspension a recorded fact
+with a duration, and a DNS + HTTPS reachability probe fired at the moment of
+death, because a death with a clean network and no clock jump is the finding and
+anything else is an artefact.**
