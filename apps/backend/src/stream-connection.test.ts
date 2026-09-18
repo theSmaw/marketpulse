@@ -12,6 +12,10 @@ import {
 
 // Every instant here is a number the reducer is TOLD. Nothing reads a clock,
 // which is what lets a 4h21m silence be tested in microseconds.
+// One scale for both clocks. This suite constructs its own observations, so
+// the epoch and the monotonic reading can be the same number here — which is
+// exactly what production cannot do, and is why `FeedStatusInputs` has two
+// fields. See its two-clocks note.
 const T0 = 1_757_000_000_000;
 
 const walk = (events: readonly StreamEvent[]): StreamConnection =>
@@ -55,9 +59,13 @@ describe("the handshake, as the spike recorded it", () => {
     expect(refused.lastErrorCode).toBe(409);
     // Still live: an error frame is inbound traffic, so it is evidence the
     // connection works even though the subscription does not.
-    expect(feedStatusOf(refused, { now: T0 + 300, marketOpen: false })).toBe(
-      "live",
-    );
+    expect(
+      feedStatusOf(refused, {
+        now: T0 + 300,
+        wallNow: T0 + 300,
+        marketOpen: false,
+      }),
+    ).toBe("live");
   });
 });
 
@@ -79,9 +87,13 @@ describe("the four authentication failures, which are frames rather than closure
 
     expect(state.phase).toBe("refused");
     expect(state.lastCloseElapsedMs).toBeUndefined();
-    expect(feedStatusOf(state, { now: T0 + 251, marketOpen: true })).not.toBe(
-      "disconnected",
-    );
+    expect(
+      feedStatusOf(state, {
+        now: T0 + 251,
+        wallNow: T0 + 251,
+        marketOpen: true,
+      }),
+    ).not.toBe("disconnected");
   });
 
   it("carries the error code, because unlike a close code it discriminates", () => {
@@ -161,12 +173,14 @@ describe("the silent death — the fault with no event at all", () => {
     expect(
       feedStatusOf(state, {
         now: lastFrame + DISCONNECTED_AFTER_MS - 1,
+        wallNow: lastFrame + DISCONNECTED_AFTER_MS - 1,
         marketOpen: true,
       }),
     ).not.toBe("disconnected");
     expect(
       feedStatusOf(state, {
         now: lastFrame + DISCONNECTED_AFTER_MS,
+        wallNow: lastFrame + DISCONNECTED_AFTER_MS,
         marketOpen: true,
       }),
     ).toBe("disconnected");
@@ -177,7 +191,11 @@ describe("the silent death — the fault with no event at all", () => {
     const fourHours21 = 4 * 3_600_000 + 21 * 60_000;
 
     expect(
-      feedStatusOf(state, { now: T0 + fourHours21, marketOpen: false }),
+      feedStatusOf(state, {
+        now: T0 + fourHours21,
+        wallNow: T0 + fourHours21,
+        marketOpen: false,
+      }),
     ).toBe("disconnected");
   });
 
@@ -193,9 +211,13 @@ describe("the silent death — the fault with no event at all", () => {
       { kind: "heartbeat", at: T0 + 108_000 },
     ]);
 
-    expect(feedStatusOf(state, { now: T0 + 130_000, marketOpen: false })).toBe(
-      "live",
-    );
+    expect(
+      feedStatusOf(state, {
+        now: T0 + 130_000,
+        wallNow: T0 + 130_000,
+        marketOpen: false,
+      }),
+    ).toBe("live");
   });
 });
 
@@ -217,6 +239,7 @@ describe("stale — our socket is fine and the feed behind it is dead", () => {
     expect(
       feedStatusOf(state, {
         now: subscribedAt + STALE_AFTER_MS,
+        wallNow: subscribedAt + STALE_AFTER_MS,
         marketOpen: true,
       }),
     ).toBe("stale");
@@ -246,6 +269,7 @@ describe("stale — our socket is fine and the feed behind it is dead", () => {
     expect(
       feedStatusOf(state, {
         now: subscribedAt + seventySixMinutes,
+        wallNow: subscribedAt + seventySixMinutes,
         marketOpen: false,
       }),
     ).toBe("live");
@@ -263,6 +287,7 @@ describe("stale — our socket is fine and the feed behind it is dead", () => {
     expect(
       feedStatusOf(state, {
         now: subscribedAt + 54_000 + DISCONNECTED_AFTER_MS,
+        wallNow: subscribedAt + 54_000 + DISCONNECTED_AFTER_MS,
         marketOpen: false,
       }),
     ).toBe("disconnected");
@@ -279,7 +304,9 @@ describe("stale — our socket is fine and the feed behind it is dead", () => {
     ]);
 
     expect(state.lastInboundAt).toBe(now);
-    expect(feedStatusOf(state, { now, marketOpen: true })).toBe("stale");
+    expect(feedStatusOf(state, { now, wallNow: now, marketOpen: true })).toBe(
+      "stale",
+    );
   });
 
   it("takes the newest observation when frames arrive out of order", () => {
@@ -297,9 +324,64 @@ describe("stale — our socket is fine and the feed behind it is dead", () => {
     expect(
       feedStatusOf(withObservation(observedAt), {
         now: observedAt + STALE_AFTER_MS - 1,
+        wallNow: observedAt + STALE_AFTER_MS - 1,
         marketOpen: true,
       }),
     ).toBe("live");
+  });
+});
+
+describe("the two clocks — the defect Task 3.2.6 found", () => {
+  // **This is a regression guard on a bug that shipped in 3.2.5 and could never
+  // have been caught by that task's own tests**, because they controlled both
+  // numbers and kept them on one scale. The seam's SECOND implementation found
+  // it, which is exactly what a second implementation is for.
+  //
+  // `lastInboundAt` is a MONOTONIC reading (`performance.now()`, near zero);
+  // an observation's instant is EPOCH (~1.76e12). Subtracting an epoch from a
+  // monotonic value is hugely negative, so the staleness comparison could never
+  // reach its threshold: the feed would have reported `live` or `disconnected`
+  // for ever and **never `stale`**, silently, in production — and §11.2 exists
+  // to make precisely that state sayable.
+  const monotonic = 42_000;
+  const observationInstant = Date.parse("2026-09-16T14:01:00Z");
+
+  const liveSocketWithOldObservation: StreamConnection = {
+    ...initialStreamConnection,
+    phase: "subscribed",
+    lastInboundAt: monotonic,
+    lastObservationAt: observationInstant,
+  };
+
+  it("reports stale when the observation is old, however small `now` is", () => {
+    expect(
+      feedStatusOf(liveSocketWithOldObservation, {
+        // A monotonic reading a second after the last frame: the socket is
+        // demonstrably alive.
+        now: monotonic + 1_000,
+        // An hour after the observation's own instant.
+        wallNow: observationInstant + 3_600_000,
+        marketOpen: true,
+      }),
+    ).toBe("stale");
+  });
+
+  it("would have reported live if one clock were used for both", () => {
+    // The shape of the bug, asserted so the fix cannot be quietly undone: with
+    // the monotonic value standing in for the wall clock, the subtraction is
+    // negative and `stale` is unreachable.
+    expect(observationInstant - monotonic).toBeGreaterThan(STALE_AFTER_MS);
+    expect(monotonic - observationInstant).toBeLessThan(0);
+  });
+
+  it("still reports disconnected on monotonic silence, whatever the wall says", () => {
+    expect(
+      feedStatusOf(liveSocketWithOldObservation, {
+        now: monotonic + DISCONNECTED_AFTER_MS,
+        wallNow: observationInstant,
+        marketOpen: true,
+      }),
+    ).toBe("disconnected");
   });
 });
 
@@ -319,7 +401,11 @@ describe("what the reducer refuses to do", () => {
 
   it("reports disconnected before anything has ever arrived", () => {
     expect(
-      feedStatusOf(initialStreamConnection, { now: T0, marketOpen: true }),
+      feedStatusOf(initialStreamConnection, {
+        now: T0,
+        wallNow: T0,
+        marketOpen: true,
+      }),
     ).toBe("disconnected");
   });
 

@@ -79,6 +79,38 @@ export const BREAKS = [
     build: true,
   },
   {
+    name: "market-data-default-is-none",
+    proves:
+      "Forgetting to configure a market-data provider yields INVENTED PRICES " +
+      "rather than no feed at all. The default is the last thing standing " +
+      "between a misconfiguration and fabricated data on a real screen.",
+    file: "apps/backend/src/config.ts",
+    find: 'const DEFAULT_MARKET_DATA_PROVIDER: MarketDataProviderSelection = "none";',
+    replace:
+      'const DEFAULT_MARKET_DATA_PROVIDER: MarketDataProviderSelection = "fixture";',
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/config.test.ts",
+    ],
+    expect: "does not fire on the default, which serves no market data at all",
+    // **The assertion existed since Story 2.6; the break did not, and that is
+    // the gap Task 3.2.6 closed.** `PROVIDER.md` §5.3 calls this the most
+    // important line in the fixture work — *invented prices must never be
+    // reachable by forgetting to configure something* — and until now nothing
+    // had ever proved the test that guards it goes red. A default that has
+    // never been tested by breaking it is a default nobody has checked.
+    //
+    // Note it is a DIFFERENT guard from `non-live-data-refused-at-startup`
+    // above, which proves the `NON_LIVE_MARKET_DATA` refusal. That one stops a
+    // deployment that NAMES a non-live provider; this one stops a deployment
+    // that names nothing at all. Two ways to reach fabricated prices, two
+    // breaks.
+    build: true,
+  },
+  {
     name: "fixture-in-the-bundle",
     proves:
       "A recorded market body imported by a shipped source file reaches every " +

@@ -135,6 +135,18 @@ const handshake = (h: Harness): void => {
   h.socket.deliver("subscription-ack-three");
 };
 
+/**
+ * The wall clock these tests reason with.
+ *
+ * **Separate from the monotonic clock on purpose.** Observations carry an EPOCH
+ * instant — a bar's `t` — while the liveness watchdog counts monotonic elapsed
+ * time, and `FeedStatusInputs` keeps them apart because subtracting one from the
+ * other is the defect Task 3.2.6 found: it made `stale` unreachable in
+ * production. A minute after the newest bar, so staleness is the thing under
+ * test rather than an accident of how far apart the two scales are.
+ */
+const WALL_NOW = Date.parse("2026-09-16T14:02:00Z") + 60_000;
+
 describe("the handshake", () => {
   it("waits for the server's greeting before authenticating", () => {
     // §4.1: the greeting is the ONLY unsolicited frame, and a client that
@@ -172,9 +184,9 @@ describe("the handshake", () => {
 
     expect(h.stream.connection().phase).toBe("socket-open");
     expect(h.stream.connection().phase).not.toBe("authenticated");
-    expect(h.stream.status({ now: h.clock(), marketOpen: true })).not.toBe(
-      "live",
-    );
+    expect(
+      h.stream.status({ now: h.clock(), wallNow: WALL_NOW, marketOpen: true }),
+    ).not.toBe("live");
   });
 
   it("subscribes to bars AND updatedBars once authenticated", () => {
@@ -322,7 +334,9 @@ describe("the liveness watchdog", () => {
     expect(h.logs.some((l) => l.kind === "liveness-watchdog-fired")).toBe(
       false,
     );
-    expect(h.stream.status({ now: h.clock(), marketOpen: false })).toBe("live");
+    expect(
+      h.stream.status({ now: h.clock(), wallNow: WALL_NOW, marketOpen: false }),
+    ).toBe("live");
   });
 
   it("is restarted by an ERROR frame, which is still evidence of life", () => {
@@ -428,9 +442,9 @@ describe("closing", () => {
     handshake(h);
     h.socket.emit("close");
 
-    expect(h.stream.status({ now: h.clock(), marketOpen: true })).toBe(
-      "disconnected",
-    );
+    expect(
+      h.stream.status({ now: h.clock(), wallNow: WALL_NOW, marketOpen: true }),
+    ).toBe("disconnected");
   });
 
   it("is idempotent", () => {
@@ -456,7 +470,9 @@ describe("what the client declares", () => {
     const h = harness();
 
     expect(() => h.stream.connection()).not.toThrow();
-    expect(() => h.stream.status({ now: 0, marketOpen: false })).not.toThrow();
+    expect(() =>
+      h.stream.status({ now: 0, wallNow: WALL_NOW, marketOpen: false }),
+    ).not.toThrow();
   });
 });
 
