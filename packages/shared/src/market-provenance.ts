@@ -150,7 +150,7 @@ export const PROVIDER_SERVES: Record<
  * particular data vendor existed. This sentence is here so that criterion 1's
  * grep does not produce a false positive somebody then "fixes".
  */
-export const MARKET_FEEDS = ["iex", "sip", "synthetic"] as const;
+export const MARKET_FEEDS = ["iex", "sip", "synthetic", "replay"] as const;
 
 export type MarketFeed = (typeof MARKET_FEEDS)[number];
 
@@ -257,6 +257,23 @@ export const MARKET_FEED_DESCRIPTIONS: Record<
   synthetic: {
     label: "Simulated",
     sentence: "Generated test data. Not a market feed.",
+  },
+  replay: {
+    // **The words are ADR 0030 §3's, transcribed rather than composed**, and
+    // the ADR argues there why neither existing member could be reused: `sip`
+    // is the recording's real tape, and printing it beside a live-looking
+    // screen is exactly the coverage implication `PRODUCT_SPEC.md` §7.1
+    // forbids; `synthetic`'s *"Generated test data"* invites a viewer to
+    // dismiss numbers that are **real**.
+    //
+    // So this is the one feed whose sentence has to correct an over-reading in
+    // BOTH directions — it is not invented, and it is not now. The rule in
+    // {@link MarketFeedDescription.sentence} is met the usual way: the label
+    // cannot stand alone, because "Replay" says nothing about whose bars these
+    // are or how old they are.
+    label: "Replay",
+    sentence:
+      "Real bars from a past US session, replayed. Not the live market.",
   },
 };
 

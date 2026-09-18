@@ -56,8 +56,30 @@ thing being designed against.
   running once the bell rings is the same defect.
 - **Re-stamp onto the wall clock; keep `occurredAt`.** Two instants, both real,
   neither invented. This is where invariant 4 becomes code.
-- **Stamp `replay` as both provider and feed** — which 3.2.1 made possible and
-  the compiler now requires.
+- **Add `replay` to `PROVIDER_IDS` — moved here from 3.2.1 on 2026-09-18, and
+  the reason is a rule rather than a preference.** `market-provenance.test.ts`
+  holds that _a provider id is a member only when something can produce it_
+  (precedent: `SECURITY_STATUSES`' `delisted`), and `createReplayStream` is that
+  something. Expect **three compile errors at two sites**, measured in 3.2.1 by
+  doing it and reverting: `PROVIDER_SERVES` (whose doc comment already argues
+  the answer — `not-the-live-market`) and `createMarketDataProvider`'s
+  exhaustive switch, where the specified return is **`undefined`**, because
+  `replay` resolves to no **historical** provider exactly as `none` does
+  (ADR 0030 §3).
+- **A migration widening `bar_coverage_provider_check`**, for the same
+  set-equality coupling `0008` documents. **This is the moment the window opens**
+  — widening `PROVIDER_IDS` widens `schema.ts`'s insert types, so the compiler
+  stops preventing a replayed write as the database starts permitting the value.
+  3.2.8 closes it; say so in the migration.
+- **`MARKET_FEEDS` already holds `replay` and its words are already written**
+  (3.2.1, ADR 0030 §3's sentence verbatim). Stamp the feed; do not re-decide the
+  words.
+- **`NON_LIVE_MARKET_DATA=permitted` already gates this.** Spelling `replay` in
+  `PROVIDER_SERVES` as `not-the-live-market` makes `config.ts` refuse to start
+  any deployment selecting it without that key granted by name — which is ADR
+  0030 §7's fourth mechanism, **already built**. Verify it fires rather than
+  assuming it; that verification is cheap and is the difference between a
+  mechanism and a belief.
 - **The `pnpm break` entry** proving the open-market guard goes red. `CLAUDE.md`:
   a break that does not go red is equally evidence the break did not land —
   verify the substitution.

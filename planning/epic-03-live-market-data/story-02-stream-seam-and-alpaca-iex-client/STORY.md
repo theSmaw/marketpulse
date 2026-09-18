@@ -318,11 +318,23 @@ places** and those three are the reason this is not a flat list:
 
 **The three orderings that are decisions rather than convenience:**
 
-1. **3.2.1 before everything.** Widening `PROVIDER_IDS` is what lets later tasks
-   stamp `replay` at all — and it is also what silently widens `schema.ts`'s
-   insert types, which is why 3.2.8 must close that window with a **runtime**
-   guard. Doing the vocabulary last means every intermediate task carries a
-   `// TODO` the compiler cannot see.
+1. **3.2.1 before everything — and it is now HALF the size this said, amended
+   2026-09-18 after implementing it.** The claim was that widening
+   `PROVIDER_IDS` here is what lets later tasks stamp `replay`. **That was
+   wrong in a way the implementation caught**: `market-provenance.test.ts` holds
+   a standing rule — _a provider id is a member only when something can produce
+   it_ — and nothing produces a replay bar until 3.2.7. Since
+   `MarketDataProviderSelection` derives from that union, adding it here ships
+   `MARKET_DATA_PROVIDER=replay` as a setting that validates and that nothing
+   honours.
+
+   **So the split is by kind rather than by convenience.** `MARKET_FEEDS` is a
+   **label vocabulary** — no wrong state is reachable, and it lands in 3.2.1 so
+   the words exist before anything can render them wrong. `PROVIDER_IDS` is
+   **operator-settable configuration** and lands in **3.2.7**, beside the
+   producer, which is also where it silently widens `schema.ts`'s insert types —
+   **so the window 3.2.8 closes with a runtime guard opens in 3.2.7, not here.**
+
 2. **3.2.2 before 3.2.5.** An interface extracted from a working client is a
    description of that client.
 3. **3.2.5 before 3.2.7.** The story's own "what must not rot" item 3. If 3.2.5
