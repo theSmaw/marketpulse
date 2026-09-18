@@ -53,6 +53,17 @@ node_modules/
 # is that a real error body is not JSON.
 apps/backend/src/fixtures/alpaca/
 
+# Recorded socket frames (Task 3.2.3). Excluded for a RELATED BUT DIFFERENT
+# reason, and the difference is worth stating rather than copying the block
+# above. These are not raw vendor bytes — the captures that held those were
+# deleted with Story 3.1's harness, so each frame here is transcribed
+# character-for-character out of a `LIVE-DATA.md` section that quoted it.
+# That transcription IS the provenance claim, and it is checkable only while
+# the file still matches the document. Prettier would expand every one-line
+# wire frame into a multi-line object, which breaks the one property that makes
+# these auditable at all. MANIFEST.json says which tier each file is.
+apps/backend/src/fixtures/alpaca-stream/
+
 # `apps/frontend/src/fixtures/bar-series/` is deliberately NOT listed, and that
 # is a decision rather than an omission (Task 2.10.6). Those bodies are recorded
 # too, but they are recordings of OUR OWN contract: JSON by construction, and

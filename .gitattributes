@@ -28,3 +28,8 @@ pnpm-lock.yaml linguist-generated=true -diff
 # being the bytes the vendor sent, which is the ONE property these files exist
 # to have. Marked `-text` so git stores them verbatim in both directions.
 apps/backend/src/fixtures/alpaca/** -text
+
+# Socket frames (Task 3.2.3). Same treatment, same reason one step removed: a
+# frame transcribed verbatim from `LIVE-DATA.md` stops being verbatim the moment
+# a checkout rewrites its line endings.
+apps/backend/src/fixtures/alpaca-stream/** -text
