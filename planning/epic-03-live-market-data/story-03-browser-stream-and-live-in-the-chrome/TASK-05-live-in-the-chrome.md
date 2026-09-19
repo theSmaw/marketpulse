@@ -84,6 +84,7 @@ Put it to them **out loud** rather than deciding it in this file.
   result is looked at rather than assumed
 - The render count is measured against the `useMarketClock` baseline
 - **No datum on any screen changed** — asserted, not assumed
-- The instant decision is **answered by the owner** and recorded with its
-  reasoning
+- **`LIVE` shows no instant; `stale` and `disconnected` do**, and the instant
+  never appears without the word that explains why it is there
+- The reversal trigger is recorded where the words live, as a **condition**
 - `pnpm verify` passes

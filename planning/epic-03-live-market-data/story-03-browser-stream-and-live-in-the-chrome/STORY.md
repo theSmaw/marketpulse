@@ -124,9 +124,29 @@ that number current_.
    is written for the degraded case, and a timestamp that is always on screen is
    either reassuring or noise depending on a judgement no document has taken.
 
-   **STILL OPEN, and owned by [Task 3.3.5](TASK-05-live-in-the-chrome.md)**,
-   which must put it to the owner **out loud** rather than deciding it in a task
-   file. It is a product judgement rather than a measurement.
+   **ANSWERED by the owner on 2026-09-19: only when degraded.** Not to be
+   re-asked — this repository's own rule is that a question already answered and
+   asked again is how a decision gets reversed by accident.
+
+   **The reasoning, recorded because the outcome alone is not the decision.**
+   It matches `PRODUCT_SPEC.md` §36's own framing — its example sentence,
+   _"Live feed disconnected — displaying data through 10:42:17"_, exists to
+   qualify a **broken** state — and it matches this product's established habit:
+   `PROVENANCE.md`'s rule that **a surface that owns nothing defers**, and that
+   a clause renders **only when its own data is present**. A timestamp on a
+   healthy feed qualifies nothing.
+
+   **The cost, stated rather than discovered later:** silence now means
+   _current_, and a reader has to learn that. The mitigation is that the
+   degraded case is **loud** — when the instant appears, it appears with a word
+   that explains why.
+
+   **Reversal trigger, as a condition:** the first time a user or a reviewer
+   reads a healthy feed as unqualified rather than current — i.e. asks _how old
+   is this?_ of a region showing `LIVE`. At that point silence has stopped
+   communicating and the always-on version is the answer.
+
+   **Owner: [Task 3.3.5](TASK-05-live-in-the-chrome.md)**, which implements it.
 
 ## The design bar
 
