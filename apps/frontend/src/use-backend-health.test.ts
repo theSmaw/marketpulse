@@ -303,3 +303,90 @@ describe("visibility", () => {
     });
   });
 });
+
+describe("recheckOn — the prompt, not the answer (Task 3.3.6)", () => {
+  it("checks immediately when the value changes, without waiting out the interval", async () => {
+    // **The defect this closes**: a socket notices a dead backend in the same
+    // tick and this poll takes up to thirty seconds, so the strip read
+    // `feed · disconnected` beside `backend · healthy` — each cell honest, the
+    // pair pointing at the wrong subject.
+    //
+    // A long interval, so a second call cannot be the timer.
+    stub(() => json(200, HEALTHY_BODY));
+
+    const { result, rerender } = renderHook(
+      ({ reachable }: { reachable: boolean }) =>
+        useBackendHealth({
+          intervalMs: 60_000,
+          timeoutMs: 20,
+          recheckOn: reachable,
+        }),
+      { initialProps: { reachable: true } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("healthy");
+    });
+    expect(calls).toHaveLength(1);
+
+    rerender({ reachable: false });
+
+    await waitFor(() => {
+      expect(calls).toHaveLength(2);
+    });
+  });
+
+  it("does NOT re-check when the value is unchanged", async () => {
+    // A render is not an event. Without this the hook would poll on every
+    // parent render, which is the opposite defect and a far more expensive one.
+    stub(() => json(200, HEALTHY_BODY));
+
+    const { result, rerender } = renderHook(
+      ({ reachable }: { reachable: boolean }) =>
+        useBackendHealth({
+          intervalMs: 60_000,
+          timeoutMs: 20,
+          recheckOn: reachable,
+        }),
+      { initialProps: { reachable: true } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("healthy");
+    });
+
+    rerender({ reachable: true });
+    rerender({ reachable: true });
+
+    expect(calls).toHaveLength(1);
+  });
+
+  it("reports what the CHECK found, never what prompted it", async () => {
+    // The whole design in one assertion. The socket says *unreachable* and the
+    // backend answers 200 — a real case, since the socket and the HTTP route
+    // are two connections. One indicator may tell another when to look; it may
+    // not tell it what it sees.
+    stub(() => json(200, HEALTHY_BODY));
+
+    const { result, rerender } = renderHook(
+      ({ reachable }: { reachable: boolean }) =>
+        useBackendHealth({
+          intervalMs: 60_000,
+          timeoutMs: 20,
+          recheckOn: reachable,
+        }),
+      { initialProps: { reachable: true } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("healthy");
+    });
+
+    rerender({ reachable: false });
+
+    await waitFor(() => {
+      expect(calls).toHaveLength(2);
+    });
+    expect(result.current.status).toBe("healthy");
+  });
+});

@@ -84,12 +84,24 @@ const FEED_WORDS = [
 ];
 
 /**
- * The words this region rendered for six stories and must never render again.
+ * The connection words.
  *
- * `FeedStatus` is about a **live connection**, which is Epic 3's and does not
- * exist. This is the assertion that goes red if somebody puts an invented
- * status back into the chrome — the defect this task exists to remove, which no
- * other level can see, because a component handed the prop renders it happily.
+ * **Amended 2026-09-19 by Task 3.3.6, and the amendment is the point.** This
+ * list was *"the words this region rendered for six stories and must never
+ * render again"* — `FeedStatus` was about a live connection that did not exist,
+ * and the assertion caught an invented status being put back.
+ *
+ * Task 3.3.5 put them back **on purpose and with a true value**, so the old
+ * claim became false. It did not go red, because a deployment with no provider
+ * renders no connection word at all and CI has no credential — **a spec passing
+ * for a reason unrelated to what it says it checks**, which is the failure mode
+ * this repository keeps finding in its own suite.
+ *
+ * What is true now, and is what the assertion below holds: on a deployment with
+ * **no provider configured**, the connection cell is §11.3's `—` and none of
+ * these appears. `market-feed-degrades.spec.ts` owns the other direction — that
+ * `disconnected` *does* appear the moment our own socket dies, whatever the
+ * feed identity.
  */
 const CONNECTION_WORDS = ["disconnected", "live", "stale"];
 
@@ -115,7 +127,11 @@ test("the chrome reads its market feed from the backend rather than a literal", 
   // the cell beside it.
   await expect(region.getByText("checking")).toHaveCount(0);
 
-  // And the invented value is gone.
+  // And with no provider configured there is no connection word: §11.3 gives
+  // that row a `—`, because `DISCONNECTED` there would claim a feed broke when
+  // none was ever asked for. **This is no longer "the invented value is gone"**
+  // — the words are real since Task 3.3.5 — it is the unconfigured row of the
+  // grid, asserted where the grid can be observed.
   for (const word of CONNECTION_WORDS) {
     await expect(region.getByText(word, { exact: true })).toHaveCount(0);
   }
