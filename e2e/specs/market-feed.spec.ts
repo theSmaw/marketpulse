@@ -99,7 +99,7 @@ const FEED_WORDS = [
  *
  * What is true now, and is what the assertion below holds: on a deployment with
  * **no provider configured**, the connection cell is §11.3's `—` and none of
- * these appears. `market-feed-degrades.spec.ts` owns the other direction — that
+ * these appears. `market-connection.spec.ts` owns the other direction — that
  * `disconnected` *does* appear the moment our own socket dies, whatever the
  * feed identity.
  */

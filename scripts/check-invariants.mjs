@@ -783,6 +783,88 @@ const INVARIANTS = [
     },
   },
   {
+    id: "every-spec-named-in-the-suite-exists",
+    claim:
+      "A browser spec named in the suite's own prose or comments is a file " +
+      "that exists.",
+    check() {
+      // **A rename breaks this graph silently, and it did** (Task 3.3.6). The
+      // e2e package cross-references itself heavily — one spec explaining what
+      // another owns is how `e2e/README.md`'s "one failure, one surface" rule
+      // stays legible — and **31 distinct spec filenames** are named across it
+      // with nothing resolving any of them. Renaming
+      // `market-feed-degrades.spec.ts` to `market-connection.spec.ts` left a
+      // comment pointing at a file that no longer existed, and every check in
+      // this repository stayed green.
+      //
+      // `pnpm links` is the precedent and deliberately not the answer: it
+      // resolves relative **Markdown links**, and these are backticked
+      // filenames in TypeScript comments.
+      //
+      // **Scoped to `e2e/` on purpose.** A task file under `planning/` records
+      // what was true when it was written, and `CLAUDE.md` is explicit that
+      // correcting those destroys the record — so a check that forced a rename
+      // through history would be worse than the defect. This directory is code
+      // and its own README: both describe the tree as it is now.
+      const SPEC_DIRECTORIES = ["e2e/specs", "e2e/specs-deployed"];
+
+      const shipped = new Set(
+        SPEC_DIRECTORIES.flatMap((directory) =>
+          readdirSync(resolve(REPO_ROOT, directory)).filter((name) =>
+            name.endsWith(".spec.ts"),
+          ),
+        ),
+      );
+
+      if (shipped.size === 0) {
+        throw new InvariantFailure(
+          `No specs under ${SPEC_DIRECTORIES.join(" or ")} — have they moved? ` +
+            "A check that finds nothing to check looks exactly like one that " +
+            "passes.",
+        );
+      }
+
+      const named = [];
+
+      const walk = (path) => {
+        for (const entry of readdirSync(path, { withFileTypes: true })) {
+          const child = resolve(path, entry.name);
+          if (entry.name === "test-results" || entry.name === "node_modules") {
+            continue;
+          }
+          if (entry.isDirectory()) {
+            walk(child);
+            continue;
+          }
+          if (!/\.(?:tsx?|md)$/u.test(entry.name)) continue;
+
+          const text = readFileSync(child, "utf8");
+          for (const [, name] of text.matchAll(
+            /`(?:[a-z0-9-]+\/)?([a-z0-9-]+\.spec\.ts)`/gu,
+          )) {
+            named.push({ name, in: relative(REPO_ROOT, child) });
+          }
+        }
+      };
+
+      walk(resolve(REPO_ROOT, "e2e"));
+
+      const missing = named.filter(({ name }) => !shipped.has(name));
+
+      if (missing.length > 0) {
+        throw new InvariantFailure(
+          "Named in the suite and not on disk:\n      " +
+            missing
+              .map(({ name, in: where }) => `${name} — named in ${where}`)
+              .join("\n      ") +
+            "\n      A spec that explains what another one owns is how this " +
+            "suite stays legible, and a rename that leaves the reference " +
+            "behind is invisible to every other check here.",
+        );
+      }
+    },
+  },
+  {
     id: "one-home-for-the-socket",
     claim:
       "One module in the frontend opens the market socket and knows its " +

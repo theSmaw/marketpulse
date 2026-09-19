@@ -1,6 +1,6 @@
 # Task 3.3.6 — Closing the backend, and the test that proves the page survives it
 
-**Status:** **Complete — 2026-09-19.** `market-feed-degrades.spec.ts`, two tests, **2.9 s**. The design pass found a defect first: for up to thirty seconds the strip **pointed away from the fault**, and the repair is a prompt rather than an answer. A spec Task 3.3.5 had silently invalidated was also corrected. `pnpm verify` green; the full suite is **127 passed, 0 failed** against CI's store.
+**Status:** **Complete — 2026-09-19.** `market-connection.spec.ts`, **five tests**, under six seconds. The design pass found a defect first: for up to thirty seconds the strip **pointed away from the fault**, and the repair is a prompt rather than an answer. The sweep then found three more — **no browser test had ever seen `LIVE`**, a teardown race in Task 3.3.4's hook, and Task 3.3.5 breaking `pnpm test`'s no-network contract while the suite exited 0 for two days. Two stale specs corrected. `pnpm verify` green; **127 passed, 0 failed** against CI's store, and 129 passed locally beside the one known store-dependent failure.
 **Story:** [3.3 The Browser Stream & `LIVE` in the Chrome](STORY.md)
 **Depends on:** 3.3.5
 
@@ -336,6 +336,39 @@ instrument, which matters more since Task 3.3.6 coupled the two indicators by a
 prompt: a spec that killed everything could not tell the coupling working from
 the coupling being a collapse.
 
+### And the sweep's own rename left a dangling reference, which is now mechanical
+
+**A fourth instance of the same class, produced by the fix for the third.**
+Renaming `market-feed-degrades.spec.ts` to `market-connection.spec.ts` left a
+comment in `market-feed.spec.ts` pointing at a file that no longer existed —
+and `pnpm verify`, `pnpm links` and the whole browser suite stayed green.
+
+**`pnpm links` is the precedent and deliberately not the answer**: it resolves
+relative _Markdown links_, and these are backticked filenames in TypeScript
+comments. The e2e package cross-references itself heavily — one spec explaining
+what another owns is how `e2e/README.md`'s one-failure-one-surface rule stays
+legible — and **31 distinct spec filenames are named across it** with nothing
+resolving any of them.
+
+So `every-spec-named-in-the-suite-exists` is a new `pnpm invariants` entry, and
+**it went red on its first run** on the real reference rather than on a
+contrived one.
+
+**It is scoped to `e2e/` on purpose, and that is the interesting constraint.** A
+task file under `planning/` records what was true when it was written, and
+`CLAUDE.md` is explicit that correcting those destroys the record — so a check
+that forced a rename through history would be worse than the defect it prevents.
+`e2e/` is code and its own README: both describe the tree as it is now, so both
+can be held to it.
+
+```text
+✓ a-renamed-spec-leaves-a-dangling-name  broken → red → restored byte-identical
+```
+
+**This task's own status line was the other half of it** — it still named the
+old file, two tests and 127 passing. Corrected, because the line at the top of a
+task is a live claim a reader trusts, while the body below it is a record.
+
 ## For a stakeholder — a status report, 2026-09-19
 
 **Where the product is.** A user can explore 518 US companies and their
@@ -420,6 +453,20 @@ usable network socket at all, so it cannot happen again by accident.
 embarrassment: a rule everybody agreed on, written down, and enforced by nothing
 — so it expired without anyone noticing. Both traps behind it are now recorded
 where the next person will hit them.
+
+**And then a fourth one, caused by fixing the third.** Renaming a test file left
+another test file's note pointing at something that no longer existed — and
+every automated check stayed green, because our checks verify links between
+_documents_, not filenames mentioned inside _code_. Our test suite refers to
+itself in thirty-one places this way, and nothing had ever checked any of them.
+
+That one we did make mechanical, because it can be: there is now a check that
+every test file named anywhere in the suite actually exists, and **it failed the
+moment we switched it on** — on the real broken reference, not a contrived one.
+We deliberately limited it to the test suite rather than the project's written
+history, because old planning documents are supposed to record what was true
+when they were written; a check that forced us to rewrite them would destroy the
+record in order to tidy it.
 
 **Two smaller pieces of housekeeping, because both were quiet too.**
 

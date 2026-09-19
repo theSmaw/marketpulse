@@ -139,6 +139,18 @@ inside the browser**, which needs no CI change. What is not answered is whether
 anything should stop the next one: a spec asserting `toHaveCount(0)` against a
 vocabulary the runner cannot produce is indistinguishable from one that works.
 
+**One member of the class HAS been mechanised, which narrows the question
+rather than answering it.** A rename left a spec naming a file that no longer
+existed and every check stayed green, so
+`every-spec-named-in-the-suite-exists` now resolves the 31 cross-references in
+`e2e/` — and went red on its first run. **The reason it was mechanisable is the
+useful part**: `e2e/` is code and its own README, both describing the tree as it
+is _now_, whereas a task file under `planning/` records what was true when it
+was written. So the close's question is sharper than _can this be automated_:
+
+> **Which of these claims are about the tree as it is, and which are history?**
+> Only the first kind can be held to a check without destroying the record.
+
 - **Sweep upward**, and expect to find something: this story is the first to put
   a live claim on a screen, and `PROVENANCE.md`, `VISUAL-LANGUAGE.md` and
   `CLAUDE.md`'s _What a user can see today_ all describe a product that cannot
