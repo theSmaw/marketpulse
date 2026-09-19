@@ -79,7 +79,6 @@ export const Rising: Story = {
     direction: "positive",
     band: "elevated",
     bandExplanation: BAND_EXPLANATION.elevated,
-    status: "live",
   },
 };
 
@@ -107,15 +106,10 @@ export const Unchanged: Story = {
   },
 };
 
-// Not an error. The figures are still shown and still correct as of a stated
-// time — the row degrades locally, which is the whole of PRODUCT_SPEC.md §36.
-export const StaleFeed: Story = {
-  args: { ...Rising.args, status: "stale" },
-};
-
-export const DisconnectedFeed: Story = {
-  args: { ...Rising.args, status: "disconnected" },
-};
+// The two feed-state rows came off on 2026-09-19 with the column itself —
+// §11.2 forbids a per-security status word, and the three renderings they
+// demonstrated are reviewed where they now belong, in `FeedIndicator`'s own
+// grid against views the application can reach.
 
 // The tabular column under the widest and narrowest digits it will ever carry.
 // Task 1.4.3 measured a 14.3 px spread across these three strings without
@@ -132,7 +126,6 @@ export const NumericExtremes: Story = {
         direction="positive"
         band="normal"
         bandExplanation={BAND_EXPLANATION.normal}
-        status="live"
       />
       <SecurityRow
         ticker={toTicker("NVDA")}
@@ -141,7 +134,6 @@ export const NumericExtremes: Story = {
         direction="negative"
         band="extreme"
         bandExplanation={BAND_EXPLANATION.extreme}
-        status="live"
       />
       <SecurityRow
         ticker={toTicker("GOOGL")}
@@ -150,7 +142,6 @@ export const NumericExtremes: Story = {
         direction="unchanged"
         band="unusual"
         bandExplanation={BAND_EXPLANATION.unusual}
-        status="live"
       />
     </>
   ),
@@ -171,7 +162,6 @@ export const AllPermutations: Story = {
               direction={direction}
               band={band}
               bandExplanation={BAND_EXPLANATION[band]}
-              status={status}
             />
           )),
         ),

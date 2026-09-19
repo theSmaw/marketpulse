@@ -3,9 +3,9 @@ import {
   FEED_STATUSES,
   toTicker,
   type AnomalyBand,
-  type FeedStatus,
 } from "@marketpulse/shared";
 
+import type { LiveFeedView } from "../market/index.js";
 import { AnomalyBadge } from "../components/AnomalyBadge/AnomalyBadge.js";
 import { FeedIndicator } from "../components/FeedIndicator/FeedIndicator.js";
 import { Region } from "../components/Region/Region.js";
@@ -58,11 +58,24 @@ const BAND_MEANING: Readonly<Record<AnomalyBand, string>> = {
 
 // PRODUCT_SPEC.md §36's wording, near enough: data that is still shown, still
 // correct as of a stated time, and no longer live.
-const FEED_DETAIL: Readonly<Record<FeedStatus, string>> = {
-  live: "Updating",
-  stale: "Last update 10:41:58 — slower than expected",
-  disconnected: "Displaying data through 10:42:17",
-};
+// The three connection states, as views rather than as invented strings
+// (rewritten 2026-09-19 by Task 3.3.5).
+//
+// **Every sentence here used to be one this product does not own** — `Updating`,
+// `Last update 10:41:58 — slower than expected`. They were written in Story 1.4
+// when the vocabulary did not exist; it does now, in
+// `packages/shared/src/feed-words.ts`, and a render check typing its own words
+// is a second home for a string the build is meant to keep to one.
+//
+// The instant is §7.3's measured frame rather than a plausible-looking time,
+// and it is fixed so that a visual diff of this page is not a clock.
+const FEED_SAMPLES: readonly LiveFeedView[] = FEED_STATUSES.map((status) => ({
+  status,
+  feed: "iex",
+  backendReachable: true,
+  observedAt: Date.parse("2026-09-16T14:01:00Z"),
+  unreadable: 0,
+}));
 
 // Not market data. The three `last` values are the same digit count made of
 // glyphs with different natural widths — with tabular figures their decimal
@@ -75,7 +88,6 @@ const rows = [
     change: "+12.40",
     direction: "positive",
     band: "elevated",
-    status: "live",
   },
   {
     ticker: toTicker("NVDA"),
@@ -83,7 +95,6 @@ const rows = [
     change: "−34.02",
     direction: "negative",
     band: "extreme",
-    status: "stale",
   },
   {
     ticker: toTicker("KO"),
@@ -91,7 +102,6 @@ const rows = [
     change: "0.00",
     direction: "unchanged",
     band: "normal",
-    status: "disconnected",
   },
 ] as const;
 
@@ -137,7 +147,6 @@ export function MarketOverview() {
                       Change
                     </th>
                     <th scope="col">Anomaly</th>
-                    <th scope="col">Feed</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -150,7 +159,6 @@ export function MarketOverview() {
                       direction={row.direction}
                       band={row.band}
                       bandExplanation={BAND_MEANING[row.band]}
-                      status={row.status}
                     />
                   ))}
                 </tbody>
@@ -189,12 +197,9 @@ export function MarketOverview() {
               </p>
 
               <ul className={styles.feedList}>
-                {FEED_STATUSES.map((status) => (
-                  <li className={styles.feedRow} key={status}>
-                    <FeedIndicator
-                      status={status}
-                      detail={FEED_DETAIL[status]}
-                    />
+                {FEED_SAMPLES.map((view) => (
+                  <li className={styles.feedRow} key={view.status}>
+                    <FeedIndicator view={view} />
                   </li>
                 ))}
               </ul>

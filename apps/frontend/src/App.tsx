@@ -10,6 +10,7 @@ import { NotFound } from "./routes/NotFound.js";
 import { PATHS, ROUTE_PATTERNS } from "./routes/paths.js";
 import { SecurityExplorer } from "./routes/SecurityExplorer.js";
 import { useBackendHealth } from "./use-backend-health.js";
+import { useLiveFeed } from "./market/index.js";
 import { useMarketFeed } from "./use-market-feed.js";
 import styles from "./App.module.css";
 
@@ -135,6 +136,31 @@ export function App() {
   // is not fired.
   const marketFeed = useMarketFeed();
 
+  // Is data arriving right now (Task 3.3.5) — the fourth status word in this
+  // chrome and the first one about the **present tense**.
+  //
+  // ## Called here rather than in `AppHeader`, which departs from the task's
+  // own note and does so on this file's stated rule
+  //
+  // The rule above is *a hook that makes a network request is called in `App`;
+  // a hook that does not is called where it renders*, and `AppHeader` spells
+  // out what the test is: **acquiring a dependency on a network loop — state,
+  // failure states, a thing a story would have to construct.** `useLiveFeed`
+  // is all three, so it lands on this side of the line without argument.
+  //
+  // **The task said `AppHeader`, and that was written from the RENDER-RATE
+  // argument** — the one that put `useMarketClock` there, after lifting it to
+  // `App` re-rendered the landing route 40 times in 20 s against 0. That
+  // argument no longer applies: Task 3.3.4's `sameLiveFeedView` sets state only
+  // when the derived **word** changes, which is a handful of times a day rather
+  // than once a second. The keepalive arriving every 120 s costs nothing.
+  //
+  // And the cell it feeds is in `AppFooter`, which is rendered here — siting
+  // the hook in the header would mean lifting the value back up anyway, and
+  // `AppHeader` sits inside its own `ErrorBoundary`, so a header that threw
+  // would take the socket down with it.
+  const liveFeed = useLiveFeed();
+
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <div className={styles.page}>
@@ -257,6 +283,7 @@ export function App() {
         >
           <AppFooter
             marketFeed={marketFeed}
+            liveFeed={liveFeed}
             backendStatus={backend.status}
             backendDegradedCause={backend.degradedCause}
             backendLastSuccessAt={backend.lastSuccessAt}

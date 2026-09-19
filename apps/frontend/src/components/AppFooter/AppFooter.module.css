@@ -98,4 +98,36 @@
   .cell + .cell {
     margin-top: var(--space-4);
   }
+
+  /*
+   * --- The two state words stay together; the prose goes last ---
+   *
+   * **Found by looking at 390 rather than by any test** (Task 3.3.5). With the
+   * feed cell carrying two indicators, the wrap put the provenance's sentence
+   * between them and produced a line reading
+   *
+   *     Generated test data. Not a market feed.  ● LIVE
+   *
+   * which invites exactly the wrong reading: the connection word looks like a
+   * continuation of a sentence that has just said *not a market feed*. The two
+   * facts are independent and the layout was implying one qualified the other.
+   *
+   * `order` on the sentences moves both details past both states, so the cell
+   * reads `SIMULATED · LIVE` and then explains itself:
+   *
+   *     Market feed  ■ SIMULATED  ● LIVE
+   *     Generated test data. Not a market feed.
+   *
+   * **Positional rather than by class, and that is the one thing to know before
+   * editing either component.** `display: contents` above dissolves both
+   * indicators, so their children are this row's flex items directly and no
+   * class of theirs is reachable from here. Both render the same three in the
+   * same order — marker, label, detail — which each file states as its own
+   * convention, so the third child is the sentence in both. A component that
+   * changed that order would need this rule changed with it, which is why the
+   * two are named here.
+   */
+  .cell > :is(span, div):not(.microLabel) > :nth-child(3) {
+    order: 1;
+  }
 }

@@ -11,6 +11,7 @@ import {
   within,
 } from "@testing-library/react";
 import { toTicker } from "@marketpulse/shared";
+import { CONNECTION_DESCRIPTIONS, FEED_STATUSES } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
 import { SecurityRow } from "./SecurityRow.js";
@@ -30,7 +31,6 @@ function renderRow() {
           direction="negative"
           band="extreme"
           bandExplanation="Far outside the historical distribution"
-          status="stale"
         />
       </tbody>
     </table>,
@@ -48,7 +48,13 @@ describe("SecurityRow", () => {
     expect(header.getAttribute("scope")).toBe("row");
   });
 
-  it("carries all four encodings in one row", () => {
+  // **Three encodings since 2026-09-19, not four.** The feed column came off
+  // with Task 3.3.5: §11.2 forbids a per-security status word, because the gap
+  // between one security's bars has a p50 of one minute and a maximum of 187,
+  // so no threshold separates a quiet security from a broken one. What survives
+  // is the property the row exists to prove — every value pairs its colour with
+  // a second channel.
+  it("carries all three encodings in one row", () => {
     renderRow();
 
     const row = screen.getByRole("row");
@@ -56,7 +62,19 @@ describe("SecurityRow", () => {
     // The direction word, not the colour.
     expect(within(row).getByText(/down/u)).toBeDefined();
     expect(within(row).getByText("extreme")).toBeDefined();
-    expect(within(row).getByText("stale")).toBeDefined();
+  });
+
+  it("puts no connection word beside a price", () => {
+    // The rule, asserted rather than left to the absence of a line of JSX.
+    renderRow();
+
+    for (const status of FEED_STATUSES) {
+      expect(
+        within(screen.getByRole("row")).queryByText(
+          CONNECTION_DESCRIPTIONS[status].label,
+        ),
+      ).toBeNull();
+    }
   });
 
   // §11 makes every score carry its explanation, and Task 1.4.5 found that a
