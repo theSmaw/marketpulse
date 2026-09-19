@@ -252,6 +252,44 @@ backend**, and that is this story's too.
 > fired at any failure, because over HTTP _this observer's own network dying_
 > looks exactly like the thing it is watching for.
 >
+> **THE INCIDENT SHAPE, OBSERVED — 2026-09-19 10:00 ET.** This section
+> predicted it and named it _the outcome that actually matters_:
+>
+> > _"The incident shape is a drop that **also holds the connection slot**. If a
+> > weekend drop leaves the slot held, Monday's pre-market opens with no feed
+> > and no obvious cause."_
+>
+> **Both halves were observed within four minutes of starting the watch**, and
+> they are independent measurements:
+>
+> ```text
+> the backend's own view   {"provider":"alpaca","feed":"iex","status":"disconnected",…}
+> a fresh connection       [{"T":"error","code":406,"msg":"connection limit exceeded"}]
+> ```
+>
+> **The backend believes it has no feed, and Alpaca refuses a new connection
+> because the single slot is occupied.** §6.4 measured exactly this: a dead
+> socket holding the slot for **4 h 21 min** with `readyState` reporting `OPEN`.
+>
+> **The alternative explanation was ruled out rather than assumed.** If the
+> socket were healthy and the _status_ were lying, the cause would be the
+> heartbeat not reaching the watchdog — §6.3's ping is a **WebSocket control
+> frame**, which `ws` answers automatically and which a naive client never sees.
+> `alpaca-stream.ts` handles it: `opened.on("ping", …)` feeds a `heartbeat`
+> event to the state machine _"so the heartbeat reaches the state machine as
+> evidence of life."_ A healthy socket would therefore read `live`. It does not.
+>
+> **What is not yet distinguished**, and needs the deployed logs rather than a
+> probe: whether the socket died and was never retried (there is **no
+> reconnection policy beyond `406`** — Story 3.10 owns backoff), or whether a
+> **rolling deploy** left a previous replica holding the slot while the new one
+> was refused. The second is the more interesting: the client _does_ retry on
+> `406`, so a backend stuck reporting `disconnected` while something else holds
+> the slot is a race between two of our own replicas.
+>
+> **Either way the consequence is the one this section feared**, and it is live
+> now rather than hypothetical.
+>
 > **And the first sample is already a finding.** At 09:54 ET on a Saturday the
 > deployed feed reported **`status: "disconnected"`** — no inbound frame of any
 > kind for 165 s (§11.2). With the market shut, `b` frames are legitimately
