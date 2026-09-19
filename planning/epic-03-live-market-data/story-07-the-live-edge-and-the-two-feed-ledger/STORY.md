@@ -184,3 +184,48 @@ help from the feed.
 - **The product subscribes `updatedBars`.** The bar at the live edge is the one
   most likely to be corrected — a correction arrives about thirty seconds after
   the bar, which is while that bar is still the edge.
+
+---
+
+## An ordering question this story and §10.3 answer differently — raised 2026-09-18 by Task 3.2.10's audit
+
+**Not resolved here, because it is an epic-ordering decision rather than this
+story's to take.** Recorded in both files so neither proceeds unaware.
+
+**What this story says**, above: _Before Story 3.9, deliberately._ Storing live
+bars would make today available on a cold load and would make this story's ledger
+come out of the **database** rather than out of the **stitch** — _"the read-time
+stitch is the case the provenance design was built against and it is worth
+producing once, honestly, before the store gets involved."_
+
+**What [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §10.3 says**, decided later during the spike:
+the backend holds **one `Map<symbol, Bar>` — the latest observation per security.
+Today's bars are NOT held in memory.** And it draws the consequence explicitly:
+
+> Story 3.7's chart uses it, and **Story 3.9 stores the live session so that it
+> can.** Decision 4 and Story 3.9's scope are **one decision seen twice** — this
+> half says _not in memory_, and that obliges Story 3.9's half to say _durably in
+> the store_, **on the same day**.
+
+Its rejected alternative said the same thing from the other side: choosing _last
+observation only_ means _"Story 3.9 — storing the live session — is a
+**dependency of Story 3.7** rather than a story after it."_
+
+**The epic table has neither.** 3.7 depends on 3.6; 3.9 depends on 3.5 and 3.8.
+So the dependency §10.3 names was decided and never propagated.
+
+**The real question, stated so it can be answered rather than re-derived:** with
+today's bars not in memory, **where does this story's chart get the minutes
+between the session open and the latest observation?** Three answers, and they
+are genuinely different stories:
+
+1. **From Story 3.9's store** — which makes 3.9 a dependency and re-orders the
+   epic.
+2. **From the current-state map alone** — a chart with one live bar on the end of
+   stored history, and a visible hole for today's earlier minutes.
+3. **From a read of the vendor's HTTP API** — which is Story 3.10's gap-filling
+   arriving early, and §14.2 already establishes that shape.
+
+**This story's argument for going first is about the LEDGER and is untouched by
+any of them** — producing the two-feed stitch honestly, once, before the store is
+involved. What is in question is only where today's _shape_ comes from.

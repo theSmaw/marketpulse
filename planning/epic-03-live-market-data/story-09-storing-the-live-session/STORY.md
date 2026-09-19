@@ -178,3 +178,31 @@ backfilled historical bar is final and a live one is not; `observed_at` versus
 **Extended-hours bars are kept**, per §7.11: they arrive on the same channel with
 nothing distinguishing them (§7.7), and a store that filtered them by market time
 would be discarding real data on a boundary the feed does not assert.
+
+---
+
+## Story 3.7 may depend on this story — raised 2026-09-18 by Task 3.2.10's audit
+
+**[`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §10.3 names this story as the other half of a decision it
+took**, and the epic table does not reflect it:
+
+> Story 3.7's chart uses it, and **Story 3.9 stores the live session so that it
+> can.** Decision 4 and Story 3.9's scope are **one decision seen twice** — this
+> half says _not in memory_, and that obliges Story 3.9's half to say _durably in
+> the store_, **on the same day**.
+
+§10.3 chose to hold **only the latest observation per security** in the backend,
+not today's 390 bars — so any surface wanting today's _shape_ reads it from
+somewhere else, and §10.3's rejected alternative says that somewhere is this
+store: _"Story 3.9 — storing the live session — is a **dependency of Story 3.7**
+rather than a story after it."_
+
+**Story 3.7's own file argues the opposite ordering** and for a different reason
+— it wants its two-feed ledger produced from the read-time **stitch** rather than
+from the database, once, honestly. **Both arguments are good and they are about
+different things**: one about where today's bars come from, one about where the
+ledger comes from.
+
+**Unresolved on purpose, and named in both files.** Whoever schedules 3.7 should
+settle it rather than discover it. The full statement of the question is in
+[Story 3.7's `STORY.md`](../story-07-the-live-edge-and-the-two-feed-ledger/STORY.md).
