@@ -258,6 +258,50 @@ minimal by default.
    the market open before the browser suite ran
 9. `pnpm verify` passes
 
+## Tasks
+
+Eight, sequential, each self-contained. **Four put something on a screen**, and
+the second one is visible — which is unusually early and is deliberate.
+
+| #     | Task                                                                                                                                             | Visible?                 |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
+| 3.4.1 | [The observation store, and the gate that would have stopped it](TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md)       | No                       |
+| 3.4.2 | [**The first price that moves, with no vocabulary yet**](TASK-02-the-first-price-that-moves-with-no-vocabulary-yet.md)                           | **YES**                  |
+| 3.4.3 | [Three treatments on a real screen, and the decision](TASK-03-three-treatments-on-a-real-screen.md)                                              | **YES** — the instrument |
+| 3.4.4 | [**The vocabulary, as tokens and as rules**](TASK-04-the-vocabulary-as-tokens-and-rules.md)                                                      | **YES**                  |
+| 3.4.5 | [The two marks this story acquired](TASK-05-the-two-marks-this-story-acquired.md)                                                                | **YES**                  |
+| 3.4.6 | [What a listener hears, and what survives the motion being removed](TASK-06-what-a-listener-hears-and-what-survives-the-motion-being-removed.md) | No                       |
+| 3.4.7 | [The measurements this story owes](TASK-07-the-measurements-this-story-owes.md)                                                                  | No                       |
+| 3.4.8 | [The live rehearsal, the sweep, and the close](TASK-08-the-rehearsal-the-sweep-and-the-close.md)                                                 | No                       |
+
+### The ordering, and the one place it is load-bearing
+
+**The moving number ships BEFORE the vocabulary, and that is the whole shape of
+the split.**
+
+Open decision 1 says _static mock-ups cannot settle a motion decision_, and the
+same sentence rules out settling it against a number that does not move yet. So
+3.4.2 puts a deliberately undesigned price on screen — digits swapping, nothing
+else — and 3.4.3 takes the decision against **that**, running, at 1×.
+
+It has a second effect worth stating: **the undesigned version is a real
+candidate rather than a control.** The story says the correct answer may be very
+small, and shipping the smallest possible version first means any treatment has
+to beat it on purpose rather than by default.
+
+**Everything before the decision is reversible and everything after it is
+inherited by five stories**, which is why the two measurement tasks are late:
+measuring a treatment nobody has chosen is measuring the wrong thing.
+
+### What this split does NOT do
+
+- **It does not design in the story file.** 3.4.3 is where the treatment is
+  decided, with the owner, in front of a running screen — and the rejected
+  options travel to 3.4.4 rather than being lost between them.
+- **It does not accept against the instrument it designed with.** 3.4.8's
+  rehearsal is a real session, because the replay is our own stored bars and
+  agrees with our own assumptions by construction.
+
 ## What this story hands forward
 
 The vocabulary every remaining story in this epic uses, and the first answer to
@@ -331,6 +375,23 @@ smooth arrival.
 ---
 
 ## The design canvas is NOT reachable — checked 2026-09-17 by Task 3.1.9
+
+> **SUPERSEDED 2026-09-19 — the canvas is reachable and has been written to
+> twice.** Tasks 3.3.5 and 3.3.6 reached
+> `Component library for MarketPulse` through `DesignSync` and added
+> `Live in the chrome.dc.html` to it. **The section below is a correct record of
+> what was true on 2026-09-17 and is no longer a description of the tree** — it
+> is kept because the two options it names are the ones that would apply if the
+> link broke again, and because ADR 0026 records the reason it was hard to find:
+> the canvas is a `PROJECT_TYPE_PROJECT` and `DesignSync`'s `list_projects`
+> filters to design-system projects, so it **does not appear in the listing**. A
+> reader who goes looking there finds an empty result and concludes it was never
+> created, which is the wrong conclusion and an easy one to reach. Its id is in
+> ADR 0026.
+>
+> **So Task 3.4.3 designs on the canvas first**, which is ADR 0026's chain the
+> right way round — and the motion row's standing debt is discharged there
+> rather than recorded a second time.
 
 `EPIC.md` warned that the `Component library for MarketPulse` canvas was not
 reachable from the session that planned this epic, and asked for the question to

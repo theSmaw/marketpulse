@@ -158,6 +158,32 @@ until the last feature story has shipped.
 
 A live application, and an epic whose figures can be re-taken rather than cited.
 
+## Handed here by Story 3.3's close — 2026-09-19: should CI hold a credential?
+
+Nothing in this epic has asked, and Story 3.3 is where the cost of not asking
+became visible.
+
+CI has no credential, so `MARKET_DATA_PROVIDER` is `none` and **the live states
+never appear on a runner**. Two consequences, both measured rather than
+supposed:
+
+- **A spec asserting an ABSENCE passes for free.** `market-feed.spec.ts` held a
+  list of words that _"must never render again"_ for four days after Task 3.3.5
+  deliberately made them real, and it did not go red — because those words
+  happen not to appear on an unconfigured deployment.
+- **`market-connection.spec.ts` closed the instance by furnishing the states
+  from inside the browser**, which needs no credential and is the right answer
+  for a page-level assertion. **It is not the same claim as _the product works
+  against Alpaca_.** No browser test here has ever watched a real vendor frame
+  reach a screen.
+
+**The decision is yours because it is a cost decision as much as a testing
+one**, and because the epic's close is the first place the whole picture is
+visible: a credential in CI is quota spent on every push, against a free plan
+whose **single connection is already contended** between the deployment and any
+developer trying to capture a frame (`docs/GAPS.md` entry 7, now Story 3.10's).
+Decide it, or record that it stays as it is and why.
+
 ## Handed here by Task 3.1.6 — 2026-09-17, and the premise halved
 
 **This story owns the only real cost measurement anybody will ever take**, and

@@ -47,10 +47,20 @@ is precisely what the Epic 2 pass found when it finally looked at them together.
 
 ## Scope
 
-- **Reconnection**, with backoff, against a vendor that allows **one concurrent
+- **Reconnection — the UPSTREAM one, and that narrowing happened on 2026-09-19
+  at this story's own close.** This bullet used to mean both sockets. The
+  browser's reconnection **moved to Story 3.5**, because it shares none of the
+  constraints below — no vendor limit, no embargo, no rate limiter — and because
+  the snapshot that lets a browser catch up is 3.5's. Leaving it here scheduled
+  a cheap fix seven stories after the defect it fixes: **every backend deploy
+  leaves every open tab reading `DISCONNECTED` until somebody reloads.**
+
+  What stays here is the socket this bullet's measurements are actually about,
+  with backoff, against a vendor that allows **one concurrent
   connection** — so a reconnect racing a connection that has not finished dying
   is a real failure mode rather than a hypothetical, and the spike recorded what
   a duplicate connection actually does.
+
 - **The gap.** A reconnection leaves a hole between the last observation and the
   first new one. Filling it is a **historical** fetch against a fifteen-minute
   embargo and a rate limiter that is a refilling bucket at ~3.3/s with **no
@@ -149,6 +159,45 @@ An epic whose feature work is complete, and a set of states Epic 4's overview
 and Epic 5's scores inherit rather than re-invent.
 
 ---
+
+## Handed here by Story 3.3's close — 2026-09-19, and one of these is now yours to decide rather than build
+
+**The hand-off audit found this file mentioning Story 3.3 zero times**, which is
+the shape `CLAUDE.md` warns about: a constraint one story measured for another
+lives in a document the owning story does not own, and a close sweeps only the
+documents the story wrote.
+
+**1. There is deliberately no reconnection anywhere, and it says so in the
+code.** `market-stream-client.ts` reports a closed socket honestly and stops,
+with a comment naming this story — because _a transport is exactly where
+somebody adds a retry loop without noticing it is a policy_. Two measured facts
+are waiting for you and neither is actionable until there is a policy to hang
+them on: **§8.2's `406 connection limit exceeded`** on a duplicate connection,
+and **§8.7's measurement that an immediate reconnect carries no penalty.**
+
+**2. The thresholds moved, and a third consumer is the test of whether that was
+right.** §11.2's 165 s and 60 s now live in
+`packages/shared/src/feed-liveness.ts` with the rule that applies them, because
+two sockets ask it (ADR 0031, decision 2). Adding a reconnection policy means a
+third reader of the same numbers — **if that costs anything, decision 2 was
+wrong and this is where it shows.**
+
+**3. The two indicators are coupled by a PROMPT and must stay that way.** A lost
+socket makes the health check **run**; what it reports is its own HTTP result
+(ADR 0031, decision 3). A reconnection policy is the obvious place to start
+telling the backend indicator what to think — _one indicator may tell another
+when to look; it may not tell it what it sees._
+
+**4. `docs/GAPS.md` entry 7 is now yours, and it is a DECISION rather than a
+wait.** The `updatedBars` capture has been re-pointed three times on the
+assumption that it needed a trading session. Task 3.3.7 found the real blocker:
+**the free plan allows one connection, the deployed backend runs
+`provider: alpaca`, and §9.3 chose to hold the socket always** — so a clean
+developer machine is refused `406` at any hour. `node scripts/capture-u-frame.mjs`
+exists and its handshake path is proven; what it needs is somebody deciding
+which of the two consumers gives up the connection. **You own it because you are
+the first story that has to reason about that single connection as a contended
+resource rather than as a given.**
 
 ## Handed here by Task 3.1.4 — 2026-09-17
 

@@ -6,7 +6,6 @@ import {
   NOT_CONFIGURED_DESCRIPTION,
   REPLAYING_DESCRIPTION,
   connectionWordFor,
-  feedWordFor,
 } from "./feed-words.js";
 import { MARKET_FEEDS } from "./market-provenance.js";
 
@@ -110,9 +109,8 @@ describe("the unconfigured deployment", () => {
   });
 
   it("says not configured in the feed cell, with its sentence", () => {
-    expect(feedWordFor(null)).toBe(NOT_CONFIGURED_DESCRIPTION);
-    expect(feedWordFor(null).label).toBe("not configured");
-    expect(feedWordFor(null).sentence).toBeTruthy();
+    expect(NOT_CONFIGURED_DESCRIPTION.label).toBe("not configured");
+    expect(NOT_CONFIGURED_DESCRIPTION.sentence).toBeTruthy();
   });
 
   it("does not describe itself as an error or a failure", () => {
@@ -133,23 +131,6 @@ describe("the unconfigured deployment", () => {
     // on a bar.
     expect(MARKET_FEEDS).not.toContain("none");
     expect(MARKET_FEEDS).not.toContain("not-configured");
-  });
-});
-
-describe("the feed cell", () => {
-  it("returns the shipped description for every real feed", () => {
-    for (const feed of MARKET_FEEDS) {
-      expect(feedWordFor(feed).label).toBeTruthy();
-    }
-  });
-
-  it("keeps `synthetic` and `replay` distinguishable", () => {
-    // ADR 0030 §3: neither existing member was honest for a replay —
-    // `synthetic`'s "Generated test data" invites a viewer to dismiss numbers
-    // that are REAL, and `sip` would be the coverage implication §7.1 forbids.
-    expect(feedWordFor("synthetic").label).not.toBe(
-      feedWordFor("replay").label,
-    );
   });
 });
 

@@ -1,6 +1,6 @@
 # Task 3.3.7 — Verify, document, the capture this story owns, and the close
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-19. Story 3.3 is closed.** ADR 0031, `STREAM-SEAM.md` §8 extended rather than a second document, three `docs/GAPS.md` entries, and the casing rule moved into the design language. **The capture was not taken and the reason is not the one anybody expected** — the deployed backend holds the free plan's only connection, so a developer machine is refused at any hour. Both audits ran; the construction-site audit deleted an export.
 **Story:** [3.3 The Browser Stream & `LIVE` in the Chrome](STORY.md)
 **Depends on:** 3.3.6
 
@@ -199,3 +199,233 @@ was written. So the close's question is sharper than _can this be automated_:
 **This is the first close in the epic with a user-visible thing behind it**, so
 the sweep matters more than usual: every document that says this product cannot
 speak about the present became false in 3.3.5, and none of them knows yet.
+
+---
+
+## What was found
+
+### The capture: the blocker was never the market's hours
+
+**It has been re-pointed twice on the assumption that it needed a trading
+session**, and this task could not run it either — the story closed at 23:26 ET
+on a Friday. So the intention became a command rather than a third promise:
+`scripts/capture-u-frame.mjs`, which refuses out of hours, refuses if a local
+process holds the connection, and stops at the first `u`.
+
+**Then the handshake was run against the real vendor, from a clean machine, and
+refused:**
+
+```text
+greeted; authenticating
+ERROR FRAME: [{"T":"error","code":406,"msg":"connection limit exceeded"}]
+```
+
+No local process held a connection — verified with `lsof` against the resolved
+address, which found **none**. The deployed backend answers:
+
+```json
+{
+  "provider": "alpaca",
+  "feed": "iex",
+  "status": "disconnected",
+  "marketOpen": false
+}
+```
+
+**The free plan allows ONE connection, and §9.3 chose to hold the socket
+always** — so production holds it out of hours too. **A developer machine cannot
+take an Alpaca capture at all while the deployment is running, at any hour**,
+and no amount of waiting for Monday changes that.
+
+`LIVE-DATA.md` §8.2 blamed a stale local dry-run, which was true on 2026-09-18
+and is no longer the thing to check first. Amended. The one connection is a
+**contended resource with exactly one other consumer, and that consumer never
+sleeps** — so the disposition is a choice rather than a date: stand the
+deployment down, capture **from** production, or stop sharing. **Handed to Story
+3.10** in its own file, because it is the first story that has to reason about
+that connection as contended rather than as a given.
+
+**Three things the instrument proved on the night it was written**, which is the
+point of writing it rather than a note:
+
+- the out-of-hours refusal fires, through `@marketpulse/shared`'s market-time
+  module — **the lint rule forced that**, refusing a second timezone converter
+  in a throwaway tool, which is the rule paying for itself;
+- the process scan passes without a false positive, after a first draft matched
+  **the shell that invoked it** and refused to run at all. A pre-flight that
+  always fails is worse than none, because the next person deletes it;
+- the socket path reaches authentication, which is how the 406 was seen at all.
+
+### The subject document: §8 of `STREAM-SEAM.md`, argued rather than assumed
+
+The alternative was `BROWSER-STREAM.md` beside it. **Rejected on that file's own
+section title**: it is _how a live observation reaches this process_, and the
+browser is **the next hop of the same journey** rather than a second subject. A
+reader following an observation from a venue to a screen should not change
+documents halfway.
+
+So §8 gained the browser's own end, the two connections, what the strip says
+when it breaks, and what a green browser suite does not certify.
+**`CLAUDE.md`'s table row was widened to match**, because a row describing half
+a document sends a reader to the wrong half.
+
+### ADR 0031, and it is three decisions rather than the two the split anticipated
+
+The task named two candidates and asked whether they were one ADR or two. **They
+are one**, because they are the same sentence at two layers: _a guarantee you
+inherited from a framework is not a guarantee once you leave the framework._
+
+1. **An HTTP schema buys TWO guarantees and only one of them is the type.**
+   Exhaustiveness is the type; **stripping is the serialiser**. A transport
+   without a serialiser has to rebuild the second — and the failure **inverts**,
+   because an absence is a bug somebody notices and a leak is a bug nobody does.
+2. **A rule about a connection's health lives with the vocabulary it produces**,
+   not with either socket that asks it.
+3. **One indicator may tell another when to look; it may not tell it what it
+   sees** — the third was not in the brief and came out of 3.3.6.
+
+**Epic 10 is the reason it exists**: §33's event stream has the same shape and
+the same hazard, and its `EPIC.md` knew nothing about either mechanism.
+
+### Both audits, with counts
+
+**Hand-offs — three stories were named and did not know it.**
+
+| Story    | Mentions of 3.3 in its own file, before | After                                                        |
+| -------- | --------------------------------------- | ------------------------------------------------------------ |
+| 3.4      | 8                                       | 8 — already carried 3.3.4's and 3.3.5's                      |
+| 3.5      | 2                                       | 2 — adequate; it owns fan-out and this story built none      |
+| **3.10** | **0**                                   | **a section, and it is the biggest inheritance in the epic** |
+| **3.11** | **0**                                   | **a section: should CI hold a credential?**                  |
+| 3.6–3.9  | 0                                       | 0 — nothing in this story is theirs                          |
+
+**Counting citations measures citation, not delivery**, which is the false
+positive Story 3.2's close produced. Story 3.10 is cited **twenty times** in
+`LIVE-DATA.md` and its own file said nothing about the story that had just built
+the transport it inherits.
+
+**Construction sites — 12 exports, 11 with a caller, 1 without.**
+
+`feedWordFor` had no consumer outside its own module and its test. Written
+speculatively in 3.3.3; `FeedProvenance` reads `NOT_CONFIGURED_DESCRIPTION`
+directly and never needed it. **Deleted**, which is the audit doing exactly what
+Story 3.2's close established it for — that story shipped three implementations
+with no construction site and a green `verify` throughout.
+
+### The criteria, walked
+
+Six had their evidence already and the close checked rather than re-produced
+them. **Criterion 3 was the one to look at, and it was half-asserted**: the live
+spec named the venue and not §7.1's sentence — which is precisely the half §7.1
+forbids, since _MarketPulse must not imply that IEX represents every US
+exchange_ and three letters teach a non-specialist nothing. Now both.
+
+### What the close swept upward
+
+- **`CLAUDE.md`'s _What a user can see today_** described a product that cannot
+  speak about the present. Corrected.
+- **`PROVENANCE.md`'s closing sentence** said _there is no live data, and the
+  two-feed sentence has no producer until there is._ **Half of that is now
+  false and the half that survives is the interesting one** — the connection is
+  live; the **ledger still has no producer**, because all sixteen recorded
+  bodies carry `sip`. Those were one sentence when written and are two now.
+- **`VISUAL-LANGUAGE.md` gained the casing rule**, which had been living in
+  three files that were all about one strip while governing ten components.
+
+### The epic sweep: no story added, deleted or re-ordered — and one live defect found
+
+Asked after the close, and it found something the story-level sweeps could not,
+because it is a question about the **sequence** rather than about this story.
+
+**"Reconnection" is two reconnections and they share nothing.** Story 3.10 owns
+it and argues it against a vendor that allows one concurrent connection, a
+fifteen-minute embargo and a rate limiter with no `Retry-After`. **Every one of
+those is a fact about the backend's socket to Alpaca.** The browser's socket to
+our own gateway has none of them, and the gap it leaves is filled by a snapshot
+rather than by a historical fetch.
+
+**The cost is already being paid.** The browser does not reconnect, so **every
+backend deploy leaves every open tab reading `DISCONNECTED` until somebody
+reloads** — and deploys happen on every merge to `main`. The gateway even sends
+`1001 going away` (§12.2), so the browser is told the difference between a
+deploy and a broken network and does nothing with it.
+
+**The conflation was in my own code comment**, which is how it was found:
+`market-stream-client.ts` deferred to Story 3.10 _citing §8.2's `406` and
+§8.7_ — two measurements about a socket this file does not open. Corrected
+there as well as in the stories.
+
+**So the browser's half moved to Story 3.5**, which already owns the snapshot a
+reconnecting browser needs and depends only on 3.3. Story 3.10 keeps the
+upstream half. **No story was added**: the work existed and was in the wrong
+one.
+
+**And the single connection is an EPIC-level constraint, not one story's.** Five
+remaining stories — 3.5, 3.6, 3.7, 3.8, 3.9 — would want to be developed against
+a real feed and cannot be while the deployment runs. That is now in `EPIC.md`
+rather than only in the two stories that inherit pieces of it.
+
+## For a stakeholder — a status report, 2026-09-19
+
+**Story 3.3 is closed.** The product can now say, on every screen, whether the
+market data behind it is arriving — and say it honestly when it is not. That is
+the first thing this phase of work has put in front of a person.
+
+**What this final task did: wrote down what outlives the story, and tried to
+collect a piece of evidence we have owed ourselves for a fortnight.**
+
+**The evidence we did not get, and why it is worth reporting as a finding rather
+than a failure.**
+
+We have been carrying a small known weakness: two of our test fixtures describe
+a kind of message from our market-data supplier that **nobody here has ever
+actually seen**. We inferred its shape. The plan was always "capture a real one
+during trading hours", and it had slipped twice.
+
+It slipped a third time — but this time we found out **why**, and the reason was
+not the one written down. Our supplier's free plan allows **exactly one
+connection at a time**, and our deployed application holds it permanently and
+deliberately. So a developer cannot capture anything, at any hour of any day,
+while the live site is running. Waiting for Monday morning would not have
+helped.
+
+**That is a much more useful thing to know than "we missed the window."** It
+turns a recurring slip into a decision somebody has to make: take the live site
+down briefly, capture the message from the live site itself, or stop sharing one
+connection between two things. We handed it to the story that owns reconnection,
+because it is the first one that has to treat that single connection as
+something being competed for rather than something we simply have.
+
+And we left behind a **command** rather than another note — a script that
+refuses to run out of hours, refuses if something else is holding the
+connection, and stops the moment it sees what we are after. We proved everything
+about it except the final wait, on the Friday night it was written.
+
+**Three things were written down permanently**, because they are true beyond
+this story:
+
+- **A safety net you inherit from a framework stops protecting you the moment
+  you leave the framework.** Our normal web requests automatically strip
+  anything undeclared before it reaches a browser; a live connection does not.
+  We rebuilt that protection and recorded why, because the next piece of work
+  that opens a new kind of connection — the AI investigation stream — has the
+  same hazard and would otherwise re-learn it.
+- **A rule about whether a connection is healthy belongs with the words it
+  produces**, not with either connection that asks.
+- **One status indicator may tell another when to look, but never what to
+  think.**
+
+**And a small piece of housekeeping with a moral.** We audit every new piece of
+code for whether anything actually _uses_ it. One function did not — written in
+anticipation, never wired up. Deleted. That audit exists because an earlier
+story shipped three unused implementations while every automated check stayed
+green.
+
+**How this unlocks progress.** Everything is in place and nothing moves yet. The
+application announces it is live and then demonstrates nothing — which is honest
+and is exactly the shape of a slice done properly.
+
+**The next story is the one that moves a number**, and it inherits a written
+constraint rather than a blank page: movement in this product means _work in
+progress_ and nothing else may borrow it, so the first price that changes has to
+earn its own way of showing it.
