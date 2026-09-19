@@ -69,6 +69,15 @@ limit exceeded` **by a stale process of our own** — a dry-run that never
   type, stripping is the serialiser, and a transport without a serialiser has to
   rebuild the second._
 
+- **`VISUAL-LANGUAGE.md` owes the casing rule, found by Task 3.3.3.** _The
+  stored word is the union's own member; `.microLabel` supplies the capitals._
+  It is currently written in three places that are all about **this strip** —
+  `feed-words.ts`, `LIVE-DATA.md` §11.3 and Task 3.3.5 — and it governs **every
+  consumer of `microLabel`**, of which there are ten. It is a language rule
+  living in a feature's documents, which is the shape that goes missing. Note
+  the half that makes it more than tidiness: **a screen reader is handed the DOM
+  text rather than the transform**, so this belongs beside the language's other
+  accessibility findings rather than in a status-strip file.
 - **Sweep upward**, and expect to find something: this story is the first to put
   a live claim on a screen, and `PROVENANCE.md`, `VISUAL-LANGUAGE.md` and
   `CLAUDE.md`'s _What a user can see today_ all describe a product that cannot

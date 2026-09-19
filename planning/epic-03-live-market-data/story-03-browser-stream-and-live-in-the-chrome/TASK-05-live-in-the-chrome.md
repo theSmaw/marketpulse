@@ -80,6 +80,13 @@ into a vocabulary that is otherwise entirely about **a connection**, and
 **Assert it.** A deployment with no provider showing `DISCONNECTED` is a screen
 claiming a feed broke when none was ever asked for.
 
+**The `—` is already mechanised — Task 3.3.3, 2026-09-19.**
+`connectionWordFor(status, feed)` returns **`null`** for `feed === null`, and
+`feedWordFor(null)` returns `NOT CONFIGURED`. **So this row is a render of two
+function results and not a branch a component writes**; a `feed === null` test
+in a renderer is a second home for the rule and the thing the new break exists
+to catch.
+
 ## Work
 
 - **Wire `FeedIndicator` to the hook**, in the market-feed cell, on all five
@@ -127,8 +134,10 @@ always-on version is the answer.
 - The region shows venue **and** state on all five routes, read from the running
   system — **not hard-coded**, which is the defect it shipped with from Story
   1.5 to Story 2.6
-- The words come from 3.3.3's record; `pnpm break feed-words-in-a-renderer`
-  passes
+- The words come from 3.3.3's record, and **both** breaks pass —
+  `pnpm break feed-words-in-a-renderer` **and**
+  `pnpm break connection-words-in-a-renderer`, which Task 3.3.3 added for
+  the connection half
 - `pnpm probe` was run at four widths **before** the browser suite, and the 390
   result is looked at rather than assumed
 - The render count is measured against the `useMarketClock` baseline

@@ -53,6 +53,25 @@ address**, and a hook above it holding domain state. No component changes.
 
   **Do not let them silently be the same variable.**
 
+### `feed: null` is a THIRD thing, and the hook is where it stops being confusable — added 2026-09-19 after Task 3.3.3
+
+`connectionWordFor(status, feed)` returns **`null`** when the feed identity is
+`null`, because §11.3's grid gives the unconfigured row a `—` in the connection
+cell rather than a word. **That rule is already written and this task must not
+re-derive it** — but it lands two obligations here:
+
+- **A `feed: null` state has no connection to age.** Do not run §11.2's 60 s and
+  165 s thresholds over a deployment that was never asked to connect to
+  anything: a staleness threshold applied to a feed that does not exist produces
+  a transition between two states that are both _nothing is configured_.
+- **`the server has no provider` and `we lost the server` are two different
+  facts and both arrive as `disconnected`.** The first is what the gateway sends
+  (3.3.2); the second is this hook noticing its own socket is gone. **They are
+  distinguishable here and nowhere above here** — once the hook has collapsed
+  them into one `FeedStatus`, no component can tell them apart. See the open
+  question in [`STORY.md`](STORY.md); **do not settle it by accident in a
+  reducer.**
+
 - **There is no store** (§12.1, ADR 0023). Live state has **one writer** — the
   message handler — and many readers, and **age is derived rather than held**.
   The walk is recorded; do not re-take it because prop-drilling chafes.
