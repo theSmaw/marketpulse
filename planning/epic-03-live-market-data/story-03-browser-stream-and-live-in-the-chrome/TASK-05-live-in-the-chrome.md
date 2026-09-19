@@ -59,19 +59,33 @@ then demonstrates nothing**, which is honest and is the point of a slice. Story
 - **Measure the render count against the `useMarketClock` baseline** and record
   it. §28: no routine main-thread task over 50 ms.
 
-### The open decision this task owns — **ask the user, do not choose quietly**
+### The instant: shown ONLY when degraded — answered 2026-09-19, do not re-open
 
-**Whether the region shows the last observation's instant ALWAYS, or only when
-it is not now.**
+**`LIVE` carries no timestamp. `stale` and `disconnected` do.**
 
-`PRODUCT_SPEC.md` §36's own example — _"Live feed disconnected — displaying data
-through 10:42:17"_ — is written for the **degraded** case. **A timestamp always
-on screen is either reassuring or noise**, and no document has taken that
-judgement. Story 3.1 settled the other open decision (§9.4: `LIVE` means the
-feed is healthy) and did **not** settle this one.
+The owner's answer, with its reasoning, so this is implemented rather than
+re-litigated — and in the product's own terms rather than as a preference:
 
-**It is a product judgement rather than a measurement**, so it is the owner's.
-Put it to them **out loud** rather than deciding it in this file.
+- **`PRODUCT_SPEC.md` §36 frames it that way.** Its example sentence — _"Live
+  feed disconnected — displaying data through 10:42:17"_ — exists to **qualify a
+  broken state**. A healthy feed has nothing to qualify.
+- **It is `PROVENANCE.md`'s existing rule rather than a new one**: a surface that
+  owns nothing **defers**, and a clause renders **only when its own data is
+  present**. This product already refuses to print a fully-formed provenance
+  record about zero bars, on the grounds that it is a false impression rather
+  than a courtesy. A timestamp beside `LIVE` is the same shape.
+- **The strip is dense and the masthead already clips at 390.** A permanent
+  timestamp is the cheapest thing to add and the hardest to remove.
+
+**The cost, stated rather than discovered later:** silence now means _current_,
+and a reader has to learn that. **So the degraded case must be loud** — when the
+instant appears it appears **with the word that explains why it is there**, never
+as a bare timestamp a reader has to interpret.
+
+**Reversal trigger, as a condition:** the first time a user or a reviewer reads a
+healthy feed as **unqualified** rather than current — asks _how old is this?_ of
+a region showing `LIVE`. At that point silence has stopped communicating and the
+always-on version is the answer.
 
 ## Done when
 
