@@ -33,6 +33,7 @@
 //   - **It asserts no timings.** See above.
 //   - **It does not run in `pnpm test`.** See `vitest.process.config.ts`.
 
+import WsWebSocket from "ws";
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import fs from "node:fs";
@@ -918,6 +919,76 @@ describe("the database pool", () => {
     expect(drained).toBeGreaterThanOrEqual(0);
     expect(stream).toBeGreaterThan(drained);
     expect(pool).toBeGreaterThan(stream);
+  });
+
+  it("says goodbye to a browser BEFORE closing its socket", async () => {
+    // **§12.2's obligation, and the ordering it needs was found by measurement
+    // rather than reasoning.** A shutdown owes a connected browser a `feed`
+    // message saying the feed is going away and THEN a close — dropping the
+    // socket silently leaves the browser inferring a state from an absence,
+    // which is the ambiguity §11.2's thresholds exist to remove.
+    //
+    // The gateway's closer was originally placed AFTER `app.close()` and the
+    // browser received **nothing at all** — no goodbye, no close. Fastify
+    // forces upgraded connections shut during its own close (a bare
+    // `server.close()` does not, probed directly), so by then there was nothing
+    // left to speak to. This test is what stops that ordering regressing.
+    const port = await probeFreePort();
+    const databasePort = await probeFreePort();
+    const server = startServer(port, {
+      DATABASE_PORT: String(databasePort),
+      LOG_LEVEL: "debug",
+      MARKET_DATA_PROVIDER: "fixture",
+      NON_LIVE_MARKET_DATA: "permitted",
+    });
+
+    await waitForReady(server);
+
+    const received: { type: string; status?: string }[] = [];
+    const closeCode = await new Promise<number>((resolve, reject) => {
+      const socket = new WsWebSocket(
+        `ws://127.0.0.1:${String(port)}/market-stream`,
+      );
+      socket.on("message", (data: Buffer) => {
+        const message = JSON.parse(data.toString("utf8")) as {
+          type: string;
+          feed?: { status: string };
+        };
+        received.push({
+          type: message.type,
+          ...(message.feed === undefined
+            ? {}
+            : { status: message.feed.status }),
+        });
+        // The snapshot has arrived, so the browser is genuinely attached.
+        if (received.length === 1) server.child.kill("SIGTERM");
+      });
+      socket.on("close", (code: number) => {
+        resolve(code);
+      });
+      socket.on("error", reject);
+    });
+
+    await waitForExit(server);
+
+    // The snapshot, then the goodbye, then a close — in that order.
+    expect(received[0]?.type).toBe("snapshot");
+    expect(
+      received.some((m) => m.type === "feed" && m.status === "disconnected"),
+    ).toBe(true);
+    // 1001 "going away" is the honest code for a shutdown, and it is not 1006:
+    // §8.5 measured that an abnormal close carries no intent, and a browser
+    // that saw one could not tell a deploy from a network failure.
+    expect(closeCode).toBe(1001);
+
+    const messages = server.records().map((record) => record.msg);
+    const gateway = messages.indexOf("market gateway closed");
+    const drained = messages.indexOf("http drained");
+
+    // **Gateway before the drain**, which is the ordering the measurement
+    // forced. A marker travels with its step, so moving the close moves this.
+    expect(gateway).toBeGreaterThanOrEqual(0);
+    expect(drained).toBeGreaterThan(gateway);
   });
 
   it("starts no stream when nothing is configured", async () => {

@@ -1,0 +1,254 @@
+import type { FastifyInstance } from "fastify";
+import { WebSocketServer, type WebSocket } from "ws";
+
+import {
+  MARKET_STREAM_PROTOCOL_VERSION,
+  encodeMarketStreamMessage,
+  toWireObservation,
+  type WireFeedState,
+  type WireObservation,
+} from "@marketpulse/shared";
+
+import type {
+  LiveObservation,
+  MarketDataStream,
+} from "./market-data-stream.js";
+
+/**
+ * The browser's end of the market feed (Task 3.3.2).
+ *
+ * One WebSocket endpoint. A browser connects, receives a **snapshot**, then one
+ * message per upstream frame — §11.1's shape exactly, and it is implemented
+ * here rather than re-decided.
+ *
+ * ## Why `ws` directly rather than `@fastify/websocket`
+ *
+ * **`ws@8` is already a dependency** — Task 3.2.5 added it for the Alpaca
+ * client, on a measurement rather than a preference (§4.6, §8.6), and this
+ * repository has its behaviour written down in detail. `@fastify/websocket` is
+ * a wrapper over the same library whose own behaviour nobody here has measured,
+ * and `CLAUDE.md`'s standing rule is to resist adding libraries before
+ * complexity demonstrates the need.
+ *
+ * The cost is ~15 lines of upgrade handling and the fact that this endpoint
+ * does **not** appear in Fastify's route table — so `server.test.ts`'s walk
+ * does not see it, exactly as `/diagnostics/*` is not seen for its own reason.
+ * Stated rather than hidden, because a reader looking for every route will not
+ * find this one there.
+ *
+ * ## The keepalive, which is the inverse of the Alpaca client's situation
+ *
+ * **The Alpaca client needs no keepalive of its own** — §6.3 measured Alpaca
+ * heartbeating every 54 s, and `LIVE-DATA.md` says in as many words that adding
+ * ours would be a second timer measuring the same thing.
+ *
+ * **Here we are the server, so the obligation inverts.** `HOSTING.md` already
+ * measured the constraint and it is not a guess: Azure Container Apps' ingress
+ * has a **240-second IDLE request timeout** — named as *idle* in the premium
+ * settings table, so it is a ceiling on **silence** rather than on connection
+ * age. A browser socket is **inbound**, so unlike the Alpaca socket it is
+ * squarely inside that limit.
+ *
+ * **Without a keepalive this story's `LIVE` would be a lie overnight.** §6.6
+ * measured the feed legitimately silent for **76 minutes** out of hours, so a
+ * gateway that only forwarded observations would be cut every four minutes all
+ * night and the browser would show `disconnected` about a feed that was
+ * working perfectly.
+ *
+ * So the gateway emits a `feed` message at least every
+ * {@link KEEPALIVE_INTERVAL_MS}. **An application message rather than a
+ * WebSocket ping frame**, deliberately: whether the ingress counts a control
+ * frame as activity is not documented and cannot be measured from here, while a
+ * data frame unambiguously is traffic. The cost is ~30 messages an hour.
+ */
+
+/**
+ * At most this long between messages to a browser.
+ *
+ * **Half the 240 s ceiling**, so a single lost or delayed message cannot reach
+ * it — the same reasoning as the 165 s watchdog's *three missed heartbeats*,
+ * which is why neither number is the raw limit.
+ */
+export const KEEPALIVE_INTERVAL_MS = 120_000;
+
+/** Where a browser connects. */
+export const MARKET_STREAM_PATH = "/market-stream";
+
+/** What the gateway needs. Functions rather than objects, for the usual reason. */
+export interface MarketGatewayOptions {
+  /** The current state, as the snapshot. Story 3.5 owns where this lives. */
+  readonly snapshot: () => ReadonlyMap<string, WireObservation>;
+  /** The feed's state, for the snapshot and for every `feed` message. */
+  readonly feedState: () => WireFeedState;
+  /** The upstream stream, or `undefined` when none is configured. */
+  readonly stream?: MarketDataStream | undefined;
+  readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
+  readonly clearTimer?: (timer: NodeJS.Timeout) => void;
+}
+
+export interface MarketGateway {
+  /** Attach to a running Fastify instance's HTTP server. */
+  readonly close: () => Promise<void>;
+  /** How many browsers are attached. For the diagnostics route and tests. */
+  readonly clientCount: () => number;
+}
+
+const observationsToWire = (
+  observations: readonly LiveObservation[],
+): Record<string, WireObservation> => {
+  const wire: Record<string, WireObservation> = {};
+  for (const observation of observations) {
+    wire[observation.symbol] = toWireObservation(observation.bar);
+  }
+  return wire;
+};
+
+export function registerMarketGateway(
+  app: FastifyInstance,
+  options: MarketGatewayOptions,
+): MarketGateway {
+  const {
+    snapshot,
+    feedState,
+    stream,
+    setTimer = (fn, ms) => setInterval(fn, ms),
+    clearTimer = (timer) => {
+      clearInterval(timer);
+    },
+  } = options;
+
+  // `noServer: true` and an explicit `upgrade` handler, so this owns the path
+  // check rather than letting the library claim every upgrade on the server.
+  const wss = new WebSocketServer({ noServer: true });
+  const clients = new Set<WebSocket>();
+  let unsubscribe: (() => void) | undefined;
+
+  const send = (socket: WebSocket, payload: string): void => {
+    // `readyState === OPEN` is checked because a socket can close between the
+    // broadcast starting and this line — and §6.4's lesson applies in reverse
+    // here: `OPEN` is not proof of liveness, but NOT-open IS proof there is no
+    // point writing.
+    if (socket.readyState !== socket.OPEN) return;
+    try {
+      socket.send(payload);
+    } catch {
+      // A socket that throws on send is gone. Nothing to do and nothing that
+      // justifies taking the process down: `PROVIDER.md` §8.5 — a throw would
+      // say OUR program is wrong, and a browser closing mid-write is not that.
+    }
+  };
+
+  const broadcast = (payload: string): void => {
+    for (const socket of clients) send(socket, payload);
+  };
+
+  const feedMessage = (): string =>
+    encodeMarketStreamMessage({
+      type: "feed",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      feed: feedState(),
+    });
+
+  app.server.on("upgrade", (request, socket, head) => {
+    // Path-matched here rather than by the library, so an upgrade to any other
+    // path is refused rather than silently accepted. `request.url` includes a
+    // query string; only the path decides.
+    const path = (request.url ?? "").split("?")[0];
+    if (path !== MARKET_STREAM_PATH) {
+      socket.destroy();
+      return;
+    }
+
+    wss.handleUpgrade(request, socket, head, (client) => {
+      clients.add(client);
+
+      const observations: Record<string, WireObservation> = {};
+      for (const [symbol, observation] of snapshot()) {
+        observations[symbol] = observation;
+      }
+
+      // **The snapshot, on connect.** §11.1: a browser connecting under
+      // deltas-only sees NOTHING until each symbol's next bar — a median of a
+      // minute and, for `ERIE`, 187. The snapshot is what makes the first paint
+      // honest, and `{}` after a restart is the TRUE answer rather than a
+      // degraded one.
+      send(
+        client,
+        encodeMarketStreamMessage({
+          type: "snapshot",
+          version: MARKET_STREAM_PROTOCOL_VERSION,
+          observations,
+          feed: feedState(),
+        }),
+      );
+
+      client.on("close", () => clients.delete(client));
+      client.on("error", () => clients.delete(client));
+
+      app.log.debug({ clients: clients.size }, "browser attached to the feed");
+    });
+  });
+
+  // **Forward observations AND connection state, as different messages.**
+  // §11.2 requires *our socket is fine and the market feed behind it is dead*
+  // to be sayable, and a browser that only ever received observations could not
+  // tell a quiet feed from a dead one — which is the whole distinction the
+  // thresholds exist to draw.
+  if (stream !== undefined) {
+    unsubscribe = stream.subscribe([], {
+      onObservations: (batch) => {
+        if (batch.length === 0) return;
+        broadcast(
+          encodeMarketStreamMessage({
+            type: "bars",
+            version: MARKET_STREAM_PROTOCOL_VERSION,
+            observations: observationsToWire(batch),
+          }),
+        );
+      },
+      onConnectionChange: () => {
+        broadcast(feedMessage());
+      },
+    });
+  }
+
+  const keepalive = setTimer(() => {
+    // Only when somebody is listening. An idle deployment with no browser
+    // attached has no socket to keep alive, and a timer that broadcasts to
+    // nobody is a wake-up the Consumption plan bills for — §9.1's idle-rate
+    // condition is a rate, and this is exactly the kind of thing that erodes it.
+    if (clients.size > 0) broadcast(feedMessage());
+  }, KEEPALIVE_INTERVAL_MS);
+
+  return {
+    clientCount: () => clients.size,
+
+    async close() {
+      clearTimer(keepalive);
+      unsubscribe?.();
+
+      // **Goodbye before the close** (§12.2). Dropping the socket silently
+      // leaves the browser inferring a state from an absence, which is exactly
+      // the ambiguity §11.2's thresholds exist to remove — and a browser that
+      // has to guess will guess `disconnected` for a deploy that took five
+      // seconds.
+      const farewell = encodeMarketStreamMessage({
+        type: "feed",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        feed: { ...feedState(), status: "disconnected" },
+      });
+
+      for (const socket of clients) {
+        send(socket, farewell);
+        socket.close(1001); // 1001 "going away" — the honest code for a shutdown.
+      }
+      clients.clear();
+
+      await new Promise<void>((resolve) => {
+        wss.close(() => {
+          resolve();
+        });
+      });
+    },
+  };
+}
