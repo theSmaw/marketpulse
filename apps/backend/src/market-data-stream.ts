@@ -2,15 +2,13 @@ import type {
   Bar,
   BarSource,
   FeedStatus,
+  FeedStatusInputs,
   MarketFeed,
   ProviderId,
   Ticker,
 } from "@marketpulse/shared";
 
-import type {
-  FeedStatusInputs,
-  StreamConnection,
-} from "./stream-connection.js";
+import type { StreamConnection } from "./stream-connection.js";
 
 /**
  * The seam every **live** market-data source is read through (Task 3.2.2).

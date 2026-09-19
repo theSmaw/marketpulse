@@ -6,7 +6,9 @@ import {
   type WireObservation,
 } from "@marketpulse/shared";
 
-import { KEEPALIVE_INTERVAL_MS, MARKET_STREAM_PATH } from "./market-gateway.js";
+import { MARKET_STREAM_PATH } from "@marketpulse/shared";
+
+import { KEEPALIVE_INTERVAL_MS } from "./market-gateway.js";
 
 const OBSERVATION: WireObservation = {
   startsAt: "2026-09-16T14:01:00.000Z",

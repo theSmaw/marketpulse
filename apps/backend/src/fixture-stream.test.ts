@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { toTicker } from "@marketpulse/shared";
+import {
+  DISCONNECTED_AFTER_MS,
+  OBSERVATION_INTERVAL_MS,
+  STALE_AFTER_MS,
+  toTicker,
+} from "@marketpulse/shared";
 
 import { createFixtureStream } from "./fixture-stream.js";
 import type {
   LiveObservation,
   MarketDataStream,
 } from "./market-data-stream.js";
-import { DISCONNECTED_AFTER_MS } from "./stream-connection.js";
 
 const SYMBOLS = ["AAPL", "NVDA", "SPY"].map(toTicker);
 
@@ -181,10 +185,14 @@ describe("the unhappy states, reachable with no socket", () => {
     // and it is only expressible because the two clocks are separate.
     stream.inject({ kind: "heartbeat", at: 60_000 });
 
+    // **The wall clock runs past the observation's INTERVAL, not its opening
+    // instant** — Task 3.3.4's correction. §7.3 measured that a bar's `t` opens
+    // the minute it describes, so the observation is not late until that minute
+    // has closed and the 60 s of silence §11.2 specifies begins there.
     expect(
       stream.status({
         now: 61_000,
-        wallNow: FIRST_BAR + 60_000,
+        wallNow: FIRST_BAR + OBSERVATION_INTERVAL_MS + STALE_AFTER_MS,
         marketOpen: true,
       }),
     ).toBe("stale");

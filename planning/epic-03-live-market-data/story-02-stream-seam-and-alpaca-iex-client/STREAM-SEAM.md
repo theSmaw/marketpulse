@@ -58,10 +58,21 @@ The shape of this interface is mostly the shape of things it refuses to have:
 **This is the most transferable thing in this document, and it shipped broken
 once.**
 
-| Threshold                  | Measures                                    | Clock                               |
-| -------------------------- | ------------------------------------------- | ----------------------------------- |
-| **165 s** → `disconnected` | Elapsed since **any** frame                 | **Monotonic** (`performance.now()`) |
-| **60 s** → `stale`         | How old an **observation's own instant** is | **Wall** (`Date.now()`)             |
+| Threshold                  | Measures                                     | Clock                               |
+| -------------------------- | -------------------------------------------- | ----------------------------------- |
+| **165 s** → `disconnected` | Elapsed since **any** frame                  | **Monotonic** (`performance.now()`) |
+| **60 s** → `stale`         | How old an **observation's own INTERVAL** is | **Wall** (`Date.now()`)             |
+
+> **AMENDED 2026-09-19, Task 3.3.4.** The word `INTERVAL` above was `instant`
+> until today, and the difference was a shipped defect: §7.3 measured that a
+> bar's `t` marks the **start** of the minute it describes and that the frame
+> arrives when that minute closes, so the freshest observation this feed can
+> hold is **60.5 s old on arrival** and a threshold applied to the opening
+> instant fired on every healthy delivery — `live` was unreachable in session.
+> `LIVE-DATA.md` §11.2 carries the full account. **The rule also moved to
+> `packages/shared/src/feed-liveness.ts`** when the browser became the second
+> thing applying it; what stays in `stream-connection.ts` is the adapter that
+> collapses a vendor handshake phase into one boolean.
 
 **What happens if one is used for both.** A monotonic reading is near zero and an
 epoch millisecond is about `1.76e12`, so subtracting the second from the first is

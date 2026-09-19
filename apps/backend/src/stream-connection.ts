@@ -1,4 +1,5 @@
-import type { FeedStatus } from "@marketpulse/shared";
+import { type FeedStatus, feedStatusFrom } from "@marketpulse/shared";
+import type { FeedStatusInputs } from "@marketpulse/shared";
 
 /**
  * The live connection, as a pure function of what has been observed.
@@ -199,122 +200,33 @@ export function advanceStreamConnection(
 }
 
 /**
- * No inbound frame of ANY kind for this long means the connection is dead.
+ * The three words the product says about a connection — **the rule itself now
+ * lives in `packages/shared/src/feed-liveness.ts`**, and this is the adapter
+ * that hands it what it needs.
  *
- * Three missed heartbeats, from §6.3's measured 53.96–54.85 s across 82
- * intervals. §8.8 confirms it is the **only** signal available for a half-open
- * socket, which is the fault with no event at all.
- */
-export const DISCONNECTED_AFTER_MS = 165_000;
-
-/**
- * Heartbeat current but no **observation** for this long, **while the market is
- * open**, means the feed behind a healthy socket has stopped.
+ * **Moved 2026-09-19 by Task 3.3.4**, when the browser became the second thing
+ * applying §11.2's thresholds. Two copies of 60 s and 165 s would have been
+ * exactly the defect `pnpm break feed-words-in-a-renderer` exists to catch one
+ * vocabulary over. The doc comment here predicted the move and the design
+ * survived it unchanged: every input was already an argument rather than a
+ * reading, so nothing had to be rewritten to satisfy ADR 0017.
  *
- * §7.9 measured the longest in-session silence of any inbound frame at 8.6 s;
- * 60 s is 7× that and well under the 165 s above.
- */
-export const STALE_AFTER_MS = 60_000;
-
-/**
- * What {@link feedStatusOf} needs from the world, passed in rather than read.
- *
- * ## Two clocks, because the two thresholds measure different things
- *
- * **This was one field until 2026-09-18, and it was wrong.** Task 3.2.6's
- * fixture stream — the seam's second implementation — produced a bar whose
- * `observedAt` was an epoch instant while `lastInboundAt` was a monotonic
- * reading, and the single `now` was subtracted from both. Since an epoch
- * millisecond is about `1.76e12` and a monotonic one starts near zero, the
- * staleness comparison was **hugely negative and could never fire**: the feed
- * would have reported `live` or `disconnected` for ever and **never `stale`**,
- * silently, in production. §11.2 exists to make exactly that state sayable.
- *
- * The two are not interchangeable and merging them was the error:
- *
- * - **Liveness is elapsed time since a frame arrived.** It must not move when
- *   the machine is suspended or when NTP corrects the clock, or a quiet laptop
- *   manufactures a disconnection. **Monotonic.**
- * - **Staleness is how old an observation's own instant is.** §11.2 is explicit
- *   that it keys on the observation's timestamp rather than on a frame having
- *   arrived — §6.7 measured `dailyBars` re-sending a byte-identical aggregate
- *   every minute, and arrival-keyed staleness would call that liveness. An
- *   instant only has meaning against the **wall clock**.
- */
-export interface FeedStatusInputs {
-  /**
-   * Monotonic now, on the same scale as {@link StreamConnection.lastInboundAt}
-   * — `performance.now()` in production.
-   *
-   * **An argument rather than a reading**, which is what makes 165 s testable
-   * without waiting 165 real seconds, and what would let this module move into
-   * `packages/shared`, where reading the wall clock is a lint error (ADR 0017),
-   * without changing a line.
-   */
-  readonly now: number;
-  /**
-   * Wall-clock now as epoch milliseconds, on the same scale as an observation's
-   * own timestamp — `Date.now()` in production.
-   */
-  readonly wallNow: number;
-  /**
-   * Whether the market is open, from Story 2.5's calendar.
-   *
-   * **`stale` is gated on it and the gate is not optional** (§11.2): out of
-   * hours the same socket is legitimately silent for **76 minutes** on bar
-   * channels (§6.6), so an ungated 60 s rule would report a healthy overnight
-   * feed as stale every minute of every night.
-   */
-  readonly marketOpen: boolean;
-}
-
-/**
- * The three words the product says about a connection — `packages/shared`'s
- * {@link FeedStatus}, derived rather than stored.
- *
- * **Derived is the point.** §6.4 is the reason this function exists at all: a
- * socket object reported `OPEN` for 4 h 21 min while dead, so `live` can never
- * be a flag something sets on connect. It is a conclusion drawn from *when a
- * frame last arrived*, every time it is asked.
- *
- * **The two questions §11.2 requires be separately sayable** both fall out of
- * this without a fourth word:
- *
- *  - *connected but nothing has arrived for 165 s* → `disconnected`, because
- *    inbound silence is the only thing that distinguishes a dead socket.
- *  - *our socket is fine and the market feed behind it is dead* → `stale`, with
- *    the heartbeat current and no observation inside the session.
+ * **What stays here is the mapping, and it is the whole reason this is an
+ * adapter rather than a re-export:** `phase` is a *vendor handshake* concept —
+ * `greeted`, `authenticated`, `refused` are Alpaca's frames and mean nothing to
+ * a browser — and collapsing it to one boolean is this file's business rather
+ * than the rule's.
  */
 export function feedStatusOf(
   state: StreamConnection,
-  { now, wallNow, marketOpen }: FeedStatusInputs,
+  inputs: FeedStatusInputs,
 ): FeedStatus {
-  // Nothing has ever arrived, or the socket is closed: there is no evidence of
-  // a live connection, and absence of evidence is exactly what this word means.
-  if (state.phase === "closed" || state.lastInboundAt === undefined) {
-    return "disconnected";
-  }
-
-  if (now - state.lastInboundAt >= DISCONNECTED_AFTER_MS) {
-    return "disconnected";
-  }
-
-  // Out of hours a silent feed is a working feed (§6.6). No gate, no `stale`.
-  if (!marketOpen) {
-    return "live";
-  }
-
-  // Keyed on the OBSERVATION's own instant, never on a frame having arrived —
-  // §6.7 measured `dailyBars` re-sending a byte-identical aggregate every
-  // minute out of hours, and arrival-keyed staleness would call that liveness.
-  // **`wallNow`, not `now`** — see the two-clocks note on {@link FeedStatusInputs}.
-  // An observation carries an instant; only the wall clock can say how old it is.
-  if (
-    state.lastObservationAt === undefined ||
-    wallNow - state.lastObservationAt >= STALE_AFTER_MS
-  ) {
-    return "stale";
-  }
-
-  return "live";
+  return feedStatusFrom(
+    {
+      closed: state.phase === "closed",
+      lastInboundAt: state.lastInboundAt,
+      lastObservationAt: state.lastObservationAt,
+    },
+    inputs,
+  );
 }

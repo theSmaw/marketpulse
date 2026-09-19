@@ -395,6 +395,30 @@ export const BREAKS = [
   },
 
   {
+    name: "a-second-socket-in-the-frontend",
+    proves:
+      "A second place in the frontend that opens the market socket is a " +
+      "connection nothing above it holds state for — and a second place that " +
+      "knows the address is a second place that can be pointed at the wrong " +
+      "one. `api-client.ts` is the only file that calls `fetch` for the same " +
+      "reason, and the invariant catches the socket's version of it.",
+    // The break is the plausible one rather than a synthetic edit: the hook
+    // that holds the feed's state reaching for a socket of its own, which is
+    // exactly the draft `one-home-for-the-socket` went red on when it was
+    // first run.
+    file: "apps/frontend/src/market/use-live-feed.ts",
+    find: "export function useLiveFeed(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "const RECONNECT = (url: string): WebSocket => new WebSocket(url);\n" +
+      "void RECONNECT;\n" +
+      "\n" +
+      "export function useLiveFeed(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-socket",
+  },
+
+  {
     name: "connection-words-in-a-renderer",
     proves:
       "A renderer writing its own sentence about the connection is a second " +

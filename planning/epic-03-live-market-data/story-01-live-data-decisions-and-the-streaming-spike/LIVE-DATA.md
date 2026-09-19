@@ -2891,6 +2891,41 @@ a real state and needs a way to be said.
 > option: an age computed from an observation's instant is wall-clock by
 > construction. Story 3.6 computes 518 of them.
 
+> **AMENDED 2026-09-19, Task 3.3.4 — the 60 s is measured from the interval's
+> END, and until today it was not. `live` was UNREACHABLE in session.**
+>
+> This is 3.2.6's defect in a mirror, produced by the same section failing to
+> read two of its own facts against each other:
+>
+> - The row above justifies 60 s with **§7.9's 8.6 s longest in-session silence
+>   of any inbound frame** — a fact about **arrival**.
+> - The rule it specifies is applied to **an observation's own instant**, and
+>   **§7.3 measured that `t` marks the START of the interval**, with a control
+>   and a verbatim frame: _"a bar stamped `14:01:00Z` arrives at
+>   `14:02:00.5Z`"_.
+>
+> So the newest observation a minute-bar feed can possibly hold is **60.5 s old
+> at the instant it arrives**, and `wallNow - lastObservationAt >= 60_000` was
+> therefore **true on every healthy delivery**. The shipped feed reported
+> `stale` continuously during a session and `live` could not be reached at all.
+>
+> **Nothing caught it**, and the reason is worth keeping: every test supplied
+> round numbers for the pair _(bar instant, arrival)_, and the defect only
+> appears when the two are a minute apart — which is to say, when they are
+> realistic. §7.3's measured pair is now in three test files by name.
+>
+> **The repair keeps this section's sentence and fixes its arithmetic.** An
+> observation describes an interval and is not _late_ until that interval has
+> closed, so the age is measured from the end and §11.2's 60 s of silence
+> begins there. `OBSERVATION_INTERVAL_MS` in
+> `packages/shared/src/feed-liveness.ts` holds the duration, and its reversal
+> trigger is **a second timeframe on this feed**, at which point it belongs on
+> the observation rather than in a module constant.
+>
+> **The rule itself moved to `packages/shared` in the same change**, because the
+> browser became the second thing applying these two numbers and two copies of
+> either is the defect one vocabulary over that `pnpm break` already guards.
+
 **`stale` is gated on the market being open, and the gate is already shipped.**
 Out of hours the same socket is legitimately silent for **76 minutes** on bar
 channels (§6.6), so a 60 s rule would report a healthy overnight feed as stale

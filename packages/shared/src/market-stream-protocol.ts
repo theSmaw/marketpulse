@@ -73,6 +73,20 @@ import {
  * conversation this product has not had. Bump it when a message's shape changes
  * in a way an older client cannot read.
  */
+/**
+ * Where a browser connects.
+ *
+ * **In the protocol rather than in the server** (moved here 2026-09-19 by Task
+ * 3.3.4): the path is the one part of the address both halves must agree on,
+ * and the frontend cannot import from `apps/backend`. Leaving it on the server
+ * would have meant the browser spelling it a second time — the shape this
+ * repository already refuses for the feed's words.
+ *
+ * The **origin** is not here and must not be: it is a build-time fact about a
+ * deployment (`api-base-url.ts`), not a fact about the protocol.
+ */
+export const MARKET_STREAM_PATH = "/market-stream";
+
 export const MARKET_STREAM_PROTOCOL_VERSION = 1;
 
 /** The three message types, closed. */

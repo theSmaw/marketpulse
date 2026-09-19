@@ -119,10 +119,37 @@ export const REPLAYING_DESCRIPTION: ProvenanceDescription = {
  * not one of them — so this function is what turns the wire's shape back into
  * the grid's.
  */
+export interface ConnectionWordInputs {
+  /**
+   * Can this browser still hear the backend?
+   *
+   * **The argument that completes §11.3's grid rather than re-reading it**, and
+   * it is required rather than defaulted so that every call site decides.
+   *
+   * The grid was written about the **server's** feed, before a browser socket
+   * existed, so it has no row for *we lost the server*. Both that and *the
+   * server has no provider* arrive as `disconnected` with `feed: null`, and
+   * they are different facts: the first is a broken connection §36 requires be
+   * labelled, the second is a deployment behaving exactly as configured.
+   *
+   * The `—` belongs to the second only. See `STORY.md`'s open decision 3,
+   * answered by the owner on 2026-09-19.
+   */
+  readonly backendReachable: boolean;
+}
+
 export function connectionWordFor(
   status: FeedStatus,
   feed: MarketFeed | null,
+  { backendReachable }: ConnectionWordInputs,
 ): ProvenanceDescription | null {
+  // **Our own connection outranks the feed's identity.** A browser that cannot
+  // hear the backend has a connection fact to report whatever the deployment
+  // was configured with, and reporting nothing would leave a reader inferring a
+  // dropped socket from an absence — which is exactly what §36 forbids and what
+  // §11.2's thresholds exist to remove.
+  if (!backendReachable) return CONNECTION_DESCRIPTIONS.disconnected;
+
   if (feed === null) return null;
   if (feed === "replay" && status === "live") return REPLAYING_DESCRIPTION;
   return CONNECTION_DESCRIPTIONS[status];

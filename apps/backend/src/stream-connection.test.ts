@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   DISCONNECTED_AFTER_MS,
+  OBSERVATION_INTERVAL_MS,
   STALE_AFTER_MS,
+} from "@marketpulse/shared";
+
+import {
   advanceStreamConnection,
   feedStatusOf,
   initialStreamConnection,
@@ -236,13 +240,51 @@ describe("stale — our socket is fine and the feed behind it is dead", () => {
       { kind: "heartbeat", at: subscribedAt + 54_000 },
     ]);
 
+    // **`+ OBSERVATION_INTERVAL_MS` is the correction Task 3.3.4 made**, not
+    // padding. §7.3 measured that a bar's `t` opens the interval it describes,
+    // so an observation is not *late* until its own minute has closed — and a
+    // threshold applied to the opening instant fired on every healthy delivery.
+    const observationClosedAt = subscribedAt + OBSERVATION_INTERVAL_MS;
+
     expect(
       feedStatusOf(state, {
-        now: subscribedAt + STALE_AFTER_MS,
-        wallNow: subscribedAt + STALE_AFTER_MS,
+        now: observationClosedAt + STALE_AFTER_MS,
+        wallNow: observationClosedAt + STALE_AFTER_MS,
         marketOpen: true,
       }),
     ).toBe("stale");
+  });
+
+  it("does NOT call a healthy feed stale at the moment a bar arrives", () => {
+    // **The regression this test exists for, found 2026-09-19 by Task 3.3.4 and
+    // fixed the same day.** §7.3 records it with a control and a verbatim
+    // frame: *"a bar stamped `14:01:00Z` arrives at `14:02:00.5Z`"*. So the
+    // freshest observation a minute-bar feed can ever hold is **60.5 s old at
+    // the instant it arrives** — and the shipped rule subtracted 60 s from the
+    // *opening* instant, so `stale` fired on every healthy delivery and `live`
+    // was unreachable during a session.
+    //
+    // This is 3.2.6's defect in a mirror. That one made `stale` unreachable by
+    // merging two clocks; this one made `live` unreachable by measuring from
+    // the wrong end of an interval. Both were invisible to every test because
+    // no test supplied a realistic pair of *bar instant* and *arrival*.
+    const barStart = Date.parse("2026-09-16T14:01:00Z");
+    const arrivedAt = Date.parse("2026-09-16T14:02:00.5Z");
+
+    expect(arrivedAt - barStart).toBe(60_500);
+
+    const state = walk([
+      ...handshake,
+      { kind: "observations", observedAt: barStart, at: 60_500 },
+    ]);
+
+    expect(
+      feedStatusOf(state, {
+        now: 60_500,
+        wallNow: arrivedAt,
+        marketOpen: true,
+      }),
+    ).toBe("live");
   });
 
   it("is NOT reported out of hours, however long the DATA silence", () => {

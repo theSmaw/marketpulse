@@ -1,6 +1,7 @@
 import { WebSocket } from "ws";
 
-import type { FeedStatus, Ticker } from "@marketpulse/shared";
+import { DISCONNECTED_AFTER_MS } from "@marketpulse/shared";
+import type { FeedStatus, FeedStatusInputs, Ticker } from "@marketpulse/shared";
 
 import {
   ALPACA_STREAM_FEED,
@@ -14,11 +15,9 @@ import type {
   Unsubscribe,
 } from "./market-data-stream.js";
 import {
-  DISCONNECTED_AFTER_MS,
   advanceStreamConnection,
   feedStatusOf,
   initialStreamConnection,
-  type FeedStatusInputs,
   type StreamConnection,
   type StreamEvent,
 } from "./stream-connection.js";
