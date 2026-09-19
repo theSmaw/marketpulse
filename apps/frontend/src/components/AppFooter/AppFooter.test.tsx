@@ -6,6 +6,7 @@
 // they sit beside each other is here now.
 
 import { screen, within } from "@testing-library/react";
+import { CONNECTION_DESCRIPTIONS } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
 import { renderWithContext } from "../../test-render.js";
@@ -24,6 +25,13 @@ const LAST_SUCCESS = new Date(2026, 8, 4, 10, 42, 17);
 function props(overrides: Partial<AppFooterProps> = {}): AppFooterProps {
   return {
     marketFeed: { state: "configured", feed: "iex" },
+    liveFeed: {
+      status: "live",
+      feed: "iex",
+      backendReachable: true,
+      observedAt: Date.parse("2026-09-16T14:01:00Z"),
+      unreadable: 0,
+    },
     backendStatus: "healthy",
     backendDegradedCause: null,
     backendLastSuccessAt: LAST_SUCCESS,
@@ -67,12 +75,41 @@ describe("AppFooter", () => {
   // thing Task 2.6.7 exists to remove, and this is what would go red if a
   // future change put a connection state back into this bar without a
   // connection behind it.
-  it("renders no invented connection state", () => {
+  // **This test asserted the opposite until 2026-09-19**, and the change is the
+  // whole of Task 3.3.5: the connection word was absent because the only value
+  // available for it was invented, and the chrome rendered a hard-coded
+  // `disconnected` from Story 1.5 to Story 2.6. It is now read from the running
+  // system, so what has to be guarded is that it comes from the shipped record
+  // rather than from a string in this component.
+  it("renders the connection state, from the shipped vocabulary", () => {
     renderWithContext(<AppFooter {...props()} />);
 
-    for (const invented of ["disconnected", "live", "stale"]) {
-      expect(screen.queryByText(invented)).toBeNull();
-    }
+    expect(screen.getByText(CONNECTION_DESCRIPTIONS.live.label)).toBeDefined();
+  });
+
+  it("renders NO connection word where §11.3's grid draws a dash", () => {
+    // A deployment with no provider. `DISCONNECTED` here would claim a feed
+    // broke when none was ever asked for — and the wire cannot tell the two
+    // apart on the status alone, which is why the feed identity decides.
+    renderWithContext(
+      <AppFooter
+        {...props({
+          marketFeed: { state: "not-configured" },
+          liveFeed: {
+            status: "disconnected",
+            feed: null,
+            backendReachable: true,
+            observedAt: undefined,
+            unreadable: 0,
+          },
+        })}
+      />,
+    );
+
+    expect(
+      screen.queryByText(CONNECTION_DESCRIPTIONS.disconnected.label),
+    ).toBeNull();
+    expect(screen.getByText("not configured")).toBeDefined();
   });
 
   // The default deployment, and the state a correct first run shows.

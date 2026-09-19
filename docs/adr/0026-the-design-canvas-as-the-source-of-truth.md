@@ -102,6 +102,27 @@ has held since Story 1.4**: where `VISUAL-LANGUAGE.md` and the canvas disagree,
 the document is wrong. Downstream the old rule is unchanged — a component still
 may not diverge from the document.
 
+#### Amended 2026-09-19 by Task 3.3.5 — **the canvas is twelve files, and the count stops being written down**
+
+The amendment below predicted its own expiry and was right within a day; every
+one since has been the same sentence with a bigger number. Task 3.3.5 added
+**`Live in the chrome.dc.html`** as the twelfth, by the same route and for the
+same mechanical reason, and **this is the last amendment that states a count** —
+a number in a present-tense sentence that has been wrong four times is not a
+fact, it is a maintenance task. `DesignSync`'s `list_files` answers it in one
+call and cannot go stale.
+
+What is worth recording instead is the thing this task confirmed about the
+arrangement: **reading the existing files before drawing changed two decisions**
+— the position for _does it feel alive_ was already reserved by name in
+`Failure and partial states.dc.html`, and that file also carries the rule that
+settled this story's most tempting choice (_motion means work in progress and
+nothing else may borrow it_). The cost the four-file amendment named — that the
+language can no longer be read top to bottom in one place — is real and was paid
+here as two `get_file` calls before a line was drawn. **That is the price of the
+arrangement, and it is worth paying; what it needs is a reader who knows to
+pay it**, which is why it is stated here rather than left to be rediscovered.
+
 #### Amended 2026-09-12 by Task 2.12.4 — **the canvas is four files**
 
 The amendment above predicted its own expiry and named the mechanism: a count in

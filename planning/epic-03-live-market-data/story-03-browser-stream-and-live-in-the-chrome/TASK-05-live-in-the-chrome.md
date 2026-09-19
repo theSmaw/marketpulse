@@ -1,6 +1,6 @@
 # Task 3.3.5 — `LIVE` in the chrome, on every route, and it is true
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-19.** **`LIVE` is on the screen, on every route, and it is true.** A canvas file, `Live in the chrome.dc.html`, was added first. Two defects were removed on the way: a per-security connection word §11.2 forbids, and a wrap at 390 that made the new word read as part of another sentence. 996 frontend tests, `pnpm verify` green.
 **Story:** [3.3 The Browser Stream & `LIVE` in the Chrome](STORY.md)
 **Depends on:** 3.3.4
 
@@ -190,3 +190,289 @@ always-on version is the answer.
   never appears without the word that explains why it is there
 - The reversal trigger is recorded where the words live, as a **condition**
 - `pnpm verify` passes
+
+---
+
+## What was found
+
+### The design went to the canvas first, and the canvas had already reserved this position
+
+`Live in the chrome.dc.html` is the twelfth file in the
+`Component library for MarketPulse` project (ADR 0026's arrangement: a new file
+rather than a section, because the main canvas is past `get_file`'s 256 KiB
+cap).
+
+**Reading the existing files before drawing anything changed two decisions**,
+which is the whole argument for the canvas being upstream:
+
+- **`Failure and partial states.dc.html` had already named this task.** Its
+  fourth-test panel reads: _"the position stays reserved for Epic 3's live
+  feed, where **displaying data through 10:42:17** is a failure sentence that
+  changes while somebody watches."_ Seven deferrals of _does it feel alive_ and
+  the eighth was already addressed to this story.
+- **It also carries the rule that settles the pulse question**, and it is
+  stronger than the task's own wording: _"Motion in this product means work in
+  progress and nothing else may borrow it."_ A `LIVE` chip that breathes is not
+  merely defaulted — it spends a vocabulary this product has already allocated,
+  on a page where **no number moves**.
+
+The marker idiom, the strip's geometry and the type scale were taken verbatim
+from the 2.14 file rather than re-typed, and **the design needs no new token and
+no new component**: `--feed-live` / `--feed-stale` / `--feed-disconnected` have
+been in `market.css` since Story 1.12, and `FeedIndicator` has shipped since
+Story 1.5 waiting for a true value.
+
+### The word goes last in the feed cell, not in the masthead where §9 drew it
+
+`PRODUCT_SPEC.md` §9's mock puts `LIVE` beside the clock. **That mock predates
+this chrome by an epic** — provenance moved to the footer on 2026-09-16 — and
+following it would group the connection with the **market's** state because the
+two happen to change at a similar rate.
+
+One subject, two facts: the venue and the connection both describe _the market
+feed_. The clock describes the market; the cell opposite describes us. And
+within the cell the connection goes **last**, because `AppFooter`'s own rule is
+that the deliberate question takes the reading edge and the changing one goes
+toward the corner of the eye.
+
+### Two defects removed, and both were found by looking rather than by a test
+
+**1. A per-security connection word, which §11.2 forbids.** `SecurityRow` has
+carried a `FeedIndicator` since Story 1.4, when the component was a render check
+and `FeedStatus` meant nothing. It means something now — and §11.2 measured the
+gap between one security's consecutive bars at a p50 of **one minute** and a
+**maximum of 187**, so no threshold separates a quiet security from a broken
+one. This task's own brief says it: _nothing here may put `STALE` beside a
+price._ **The epic's first real vocabulary would otherwise have rendered, on the
+landing route, a claim the same epic had already decided it cannot make.** The
+column is gone, and a test now asserts its absence rather than leaving it to the
+absence of a line of JSX.
+
+Adapting it would have been **more** work than deleting it, which is worth
+recording: the cheap path and the correct one were the same path.
+
+**2. A wrap at 390 that changed what the words meant.** `pnpm probe` at four
+widths, before the browser suite, exactly as the story requires. At 390 the
+cell wrapped like this:
+
+```text
+MARKET FEED  ■ SIMULATED
+Generated test data. Not a market feed.  ● LIVE
+```
+
+**The connection word reads as a continuation of a sentence that has just said
+_not a market feed_.** Two independent facts, laid out so that one appears to
+qualify the other. Repaired with `order` on the two sentences, so the states
+stay together and the prose follows:
+
+```text
+MARKET FEED  ■ SIMULATED  ● LIVE
+Generated test data. Not a market feed.
+```
+
+**Nothing below `pnpm e2e` could have seen either of these**, and the browser
+suite would not have either: jsdom computes no layout, and no spec asserts what
+a sentence sits next to.
+
+### `useMarketFeed` stays, and the socket's feed identity is used for one thing
+
+Two sources now answer _which venues are in these numbers_. The HTTP one keeps
+the cell: **provenance is true whether or not anything is connected**, which is
+`use-market-feed.ts`'s own argument, and a feed cell fed by the socket goes
+blank when the socket does — the coupling the two-indicators argument exists to
+prevent. `LiveFeedView.feed` is read **only** by `connectionWordFor`, to tell a
+replay from a live venue and a configured deployment from an unconfigured one.
+
+### The hook is in `App`, which departs from this task's own bullet
+
+The bullet said `AppHeader` and named a measurement: lifting `useMarketClock`
+there re-rendered the landing route **40 times in 20 s against 0**. **That is a
+render-rate argument and it no longer applies** — Task 3.3.4's
+`sameLiveFeedView` sets state only when the derived word changes, which is a
+handful of times a day.
+
+What does apply is the rule `App.tsx` states and `AppHeader.tsx` elaborates: _a
+hook that makes a network request is called in `App`_, where the test is
+**acquiring a dependency on a network loop — state, failure states, a thing a
+story would have to construct.** `useLiveFeed` is all three. And `AppHeader`
+sits inside its own `ErrorBoundary`, so a header that threw would take the
+socket down with it — while the cell it feeds is in `AppFooter`, which `App`
+renders anyway.
+
+**Recorded rather than quietly taken**, because the bullet said not to re-take
+it.
+
+### Seen running, in three states, before any suite
+
+| State                                | How it was produced                    | What the strip said                                                                 |
+| ------------------------------------ | -------------------------------------- | ----------------------------------------------------------------------------------- |
+| `NOT CONFIGURED`, no connection word | the default deployment                 | §11.3's `—`, and nothing collapsed                                                  |
+| `SIMULATED · LIVE`                   | `MARKET_DATA_PROVIDER=fixture`         | the masthead said `CLOSED` beside it — the grid's row that looks wrong and is right |
+| `UNKNOWN · DISCONNECTED`             | the backend killed under a loaded page | both sentences, one row, **every region intact**                                    |
+
+The third is §36's own requirement met on a real screen for the first time: one
+outage, six surfaces each naming its own subject, no global error screen. It is
+also a preview of Task 3.3.6, which asserts it.
+
+**And `NON_LIVE_MARKET_DATA` refused the first attempt**, which is ADR 0030's
+guard doing its job: a deployment serving generated prices has to ask for it by
+name.
+
+### The footer's measured heights, before and after
+
+| Width          | Before           | After                      |
+| -------------- | ---------------- | -------------------------- |
+| 1440           | 1440×33, one row | 1440×33, unchanged         |
+| 1024           | 1024×33          | 1024×33, unchanged         |
+| 390            | two rows         | two rows                   |
+| 1440, degraded | —                | 1440×**35**, still one row |
+
+**The word cost two pixels in the worst case and nothing in the normal one.**
+
+### What the live hook costs the tree — measured, and it costs nothing
+
+**Owed by criterion 6 and not taken in the first pass**, which is recorded
+because a criterion quietly skipped is how a published target stops being true.
+Taken afterwards with a throwaway instrument, using **Task 1.12.6's and Task
+2.5.5's proxy unchanged** so the figures are comparable: `longtask` entries, and
+DOM mutations inside the status bar.
+
+**Sixty seconds, production bundle, live feed, `/securities/NVDA` at 1440:**
+
+```json
+{ "longtasks": [], "mutations": 0 }
+```
+
+and one distinct status-bar text throughout, verbatim:
+
+```text
+Market feedSimulatedGenerated test data. Not a market feed.liveBackend servicehealthy
+```
+
+**Twelve ticks of the 5 s timer and the strip did not change once.** That is
+`useMarketClock`'s own figure — 0 `longtask` entries over 60 s — matched rather
+than degraded, and it is Task 3.3.4's `sameLiveFeedView` gate proven **in a
+browser** rather than in a unit test.
+
+**Two things about the measurement that would have produced a wrong number:**
+
+- **A development build is not the product, and the gap is two orders of
+  magnitude.** The same instrument against `pnpm dev` reported long tasks of
+  **141 ms, twice**, with the same zero mutations — Vite's unminified React and
+  its HMR client, not this feature. §28's figures were taken on production
+  builds and a dev-mode number is not comparable to them. Anything measuring
+  main-thread cost in this repository has to build first.
+- **`buffered: true` on a `longtask` observer measures the COLD LOAD**, not
+  steady state. The first run returned `[76, 118, 117, 120]` and every one of
+  them predated the observer — the known 518-row universe breach Epic 14 owns,
+  arriving in a measurement about something else entirely.
+
+### The reversal trigger lives beside the word, not beside the renderer
+
+Criterion 8 asks for it _where the words live_, and the first pass put it in
+`FeedIndicator`. Moved to `CONNECTION_DESCRIPTIONS.live` in `feed-words.ts`,
+which turned out to be the better home for a reason rather than for compliance:
+**the argument for `live` having no _sentence_ and the argument for it carrying
+no _instant_ are the same argument**, and they were four files apart. The
+component's table is now the implementation and says so.
+
+### Two browser specs fail locally, on `main`, for a reason worth recording
+
+`pnpm e2e` reported 123 passed and **2 failed** — `pressing a window does not
+move the chart` at tablet and at phone. **Reproduced on `main` in a clean
+worktree**, so they are not this task's.
+
+The cause is the inverse of this repository's recorded habit. CI's store has
+**zero bars**, so the answer that lands is a correct `empty` and the plot does
+not move; a developer's store holds bars, the newer answer is taller, and the
+plot moves **90 px**. The habit says _before asserting on a number, ask whether
+CI has the data_. This is the case it does not cover: **an assertion CI can
+satisfy because it has no data**, which the suite reports identically to a real
+regression. Added to `docs/GAPS.md` with a re-measure and an owner.
+
+## For a stakeholder — a status report, 2026-09-19
+
+**Where the product is.** A user can explore 518 US companies and their
+historical charts — and as of today, **the screen tells them whether the market
+data behind it is arriving right now.** That is the first thing this epic has
+put in front of a person, and the first time the product has said anything at
+all about the present moment.
+
+**What you can see: one word, in the corner of the status bar.**
+
+```text
+MARKET FEED   IEX   Trades reported by the IEX exchange only   LIVE
+```
+
+It sounds small. It is the question a market product exists to answer, and until
+today the screen could answer three others — _where did these numbers come
+from_, _is the service up_, _is the market open_ — and not that one.
+
+**The design was drawn before it was built, and reading the existing drawings
+changed two decisions.**
+
+This product keeps its visual language in a shared design project rather than in
+the code, so that a new screen is reconciled against what already exists instead
+of inventing beside it. Two things came out of reading it:
+
+- **The design work from a previous epic had already reserved this spot by
+  name** — it recorded that the question _does this product feel alive?_ was
+  being deferred specifically to this feature.
+- **And it carried the rule that settled the most tempting decision here.**
+
+**The tempting decision: a pulsing green `LIVE` badge.** It is the single most
+common element in market software. We did not build it, for three reasons that
+are all this product's own rules: **green already means "price up" here**;
+**movement already means "something is in progress"** and nothing else is
+allowed to borrow it; and most importantly, **nothing on the screen is moving
+yet**. A word that animates over a page of yesterday's closing prices is
+decoration pretending to be information. The honest version of _alive_ is a
+number that changes, and that is the next story.
+
+**Two real defects were found by looking at the screen rather than by any
+test.**
+
+**The first was a claim we had already decided we could not make.** A table on
+the landing page has carried a per-company feed indicator since early in the
+project, from when the component was a placeholder with a made-up value. It is
+not made-up any more — and we measured, during the research phase, that the gap
+between one company's price updates is typically a minute but can legitimately
+be **over three hours** for a quiet stock. So there is no threshold that could
+honestly label a single company's feed as "stalled". We removed the column. Left
+alone, this feature's first genuine vocabulary would have gone live rendering,
+on the front page, exactly the claim the same body of work had ruled out.
+
+**The second was a line break.** At phone width the words wrapped so that the
+screen read:
+
+> _Generated test data. Not a market feed._ **LIVE**
+
+Two independent facts, arranged so one looked like it was qualifying the other.
+Nothing automated could have caught it — the page's structure was correct, only
+its _arrangement_ was misleading — and it was fixed by keeping the two state
+words together and letting the explanation follow.
+
+**What happens when it goes wrong, which we checked by breaking it.**
+
+We shut the backend down under a loaded page. The result is the thing this whole
+approach has been building toward: **the page did not collapse.** Every region
+stayed on screen and each one reported its own situation in its own words — the
+feed said it was disconnected and that the prices shown are the last known, the
+chart said the service did not answer and offered to retry, the clock kept
+ticking. No error page, no modal, nothing red.
+
+**One deliberate restraint worth reporting.** `LIVE` carries **no timestamp**. A
+time appears only when something is wrong, and always inside the sentence
+explaining why it is there. The cost is stated rather than discovered later:
+silence now means _current_, and a reader has to learn that. We wrote down the
+condition that would reverse it — the first time anyone asks "how old is this?"
+of a screen showing `LIVE`.
+
+**How this unlocks progress.** Every piece is now on screen: the language, the
+connection, the words, and the state. **What a user still cannot do is watch a
+single number change** — the prices are the last stored close, exactly as
+yesterday. The application announces it is live and then demonstrates nothing,
+which is honest and is the shape of a thin slice done properly.
+
+**The next story is the one that moves a number**, and it inherits the
+constraint this one wrote down rather than a blank page.

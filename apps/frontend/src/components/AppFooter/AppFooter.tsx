@@ -4,7 +4,9 @@ import { useEffect, useRef } from "react";
 
 import { cx } from "../../cx.js";
 import { BackendIndicator } from "../BackendIndicator/BackendIndicator.js";
+import { FeedIndicator } from "../FeedIndicator/FeedIndicator.js";
 import { FeedProvenance } from "../FeedProvenance/FeedProvenance.js";
+import type { LiveFeedView } from "../../market/index.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
 import styles from "./AppFooter.module.css";
 
@@ -100,10 +102,25 @@ export interface AppFooterProps {
    * uninteresting `unreachable` — see `BackendIndicator`.
    */
   readonly backendHasChecked: boolean;
+
+  /**
+   * Is data arriving right now (Task 3.3.5).
+   *
+   * **A second fact in the same cell, not a third cell**, and the reason is the
+   * subject: the venue and the connection both describe *the market feed*,
+   * while the clock describes the market and the cell opposite describes us.
+   * Grouping the connection with the clock — which is where
+   * `PRODUCT_SPEC.md` §9's mock drew it, an epic before this chrome existed —
+   * would put it with the wrong subject because it happens to change at a
+   * similar rate, and would leave a reader assembling two facts four inches
+   * apart.
+   */
+  readonly liveFeed: LiveFeedView;
 }
 
 export function AppFooter({
   marketFeed,
+  liveFeed,
   backendStatus,
   backendDegradedCause,
   backendLastSuccessAt,
@@ -123,7 +140,28 @@ export function AppFooter({
       */}
       <div className={cx(styles.cell, styles.feedCell)}>
         <p className={styles.microLabel}>Market feed</p>
+        {/*
+          Provenance first, the connection last. The cell already reads
+          *subject → provenance → qualifier*, and the strip's own rule puts the
+          deliberate question at the reading edge and the changing one toward
+          the corner of the eye.
+
+          **`FeedIndicator` renders nothing at all** on a deployment with no
+          provider and before the first message lands — §11.3's `—`. Nothing
+          collapses, because `FeedProvenance` beside it is saying `not
+          configured` or `checking`; that is the difference from
+          `BackendIndicator`, whose cell would be empty without a placeholder.
+
+          When the connection is degraded the cell carries **two** sentences and
+          the bar grows to a second row. That is deliberate and it is the
+          cheaper of the two answers: suppressing the venue's sentence to keep
+          one row would make a coverage claim conditional on a socket's health,
+          which is exactly when a reader is most likely to misread numbers they
+          are still looking at. `useStickyFooterHeight` publishes whatever the
+          bar measures, so the page's padding follows without being told.
+        */}
         <FeedProvenance view={marketFeed} />
+        <FeedIndicator view={liveFeed} />
       </div>
 
       <div className={cx(styles.cell, styles.serviceCell)}>

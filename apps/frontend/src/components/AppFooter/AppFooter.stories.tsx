@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import gridStyles from "../stories.module.css";
 import { AppFooter } from "./AppFooter.js";
+import type { LiveFeedView } from "../../market/index.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
 
 // The status bar, and **this file is `AppHeader`'s status-strip half, moved**
@@ -47,12 +48,85 @@ const FEED = {
 // `BackendIndicator`'s own stories, deliberately.
 const LAST_SUCCESS = new Date(2026, 8, 4, 10, 42, 17);
 
+// The observation instant the degraded connection states qualify themselves
+// with. Fixed for the same reason as the figure above, and taken from §7.3's
+// measured frame — `14:01:00Z` is the bar; the screen shows the market's wall
+// clock for it.
+const OBSERVED_AT = Date.parse("2026-09-16T14:01:00Z");
+
+/**
+ * The connection states, as views the application can actually reach.
+ *
+ * Hand-built rather than driven through `advanceLiveFeed`, unlike the bar
+ * fixtures: these are five fields with no transition worth preserving, and a
+ * socket in a story is the one thing the workshop cannot have.
+ */
+const LIVE = {
+  live: {
+    status: "live",
+    feed: "iex",
+    backendReachable: true,
+    observedAt: OBSERVED_AT,
+    unreadable: 0,
+  },
+  stale: {
+    status: "stale",
+    feed: "iex",
+    backendReachable: true,
+    observedAt: OBSERVED_AT,
+    unreadable: 0,
+  },
+  disconnected: {
+    status: "disconnected",
+    feed: "iex",
+    backendReachable: true,
+    observedAt: OBSERVED_AT,
+    unreadable: 0,
+  },
+  replaying: {
+    status: "live",
+    feed: "replay",
+    backendReachable: true,
+    observedAt: OBSERVED_AT,
+    unreadable: 0,
+  },
+  /** Our own socket is gone. `STORY.md` open decision 3: this says so. */
+  lost: {
+    status: "disconnected",
+    feed: "iex",
+    backendReachable: false,
+    observedAt: OBSERVED_AT,
+    unreadable: 0,
+  },
+  /** The first paint. No word, and nothing collapses — see the cell beside it. */
+  connecting: {
+    status: "disconnected",
+    feed: null,
+    backendReachable: true,
+    observedAt: undefined,
+    unreadable: 0,
+  },
+  /** No provider: the grid's `—`, and the indicator renders nothing at all. */
+  none: {
+    status: "disconnected",
+    feed: null,
+    backendReachable: true,
+    observedAt: undefined,
+    unreadable: 0,
+  },
+} satisfies Record<string, LiveFeedView>;
+
 const meta = {
   title: "Chrome/AppFooter",
   component: AppFooter,
   parameters: { layout: "padded" },
   args: {
     marketFeed: FEED.iex,
+    // A live connection is the default so the feed stories below are about the
+    // feed. The connection's own six renderings are reviewed in
+    // `FeedIndicator`'s stories, and the two that change this bar's HEIGHT —
+    // the ones carrying a second sentence — are at the bottom of this file.
+    liveFeed: LIVE.live,
     // The healthy backend is the default so that the feed stories below are
     // about the feed. The states of the second indicator are reviewed in its
     // own stories and in the chosen rows at the bottom of this file.
@@ -111,6 +185,9 @@ export const BackendNotYetChecked: Story = {
 export const BackendUnreachable: Story = {
   args: {
     marketFeed: FEED.unknown,
+    // Our socket is gone too, and the connection cell says so rather than
+    // staying silent — `STORY.md` open decision 3.
+    liveFeed: LIVE.lost,
     backendStatus: "unreachable",
   },
 };
@@ -167,6 +244,7 @@ export const AllPermutations: Story = {
         </span>
         <AppFooter
           marketFeed={FEED.notConfigured}
+          liveFeed={LIVE.none}
           backendStatus="healthy"
           backendDegradedCause={null}
           backendLastSuccessAt={LAST_SUCCESS}
@@ -180,6 +258,7 @@ export const AllPermutations: Story = {
         </span>
         <AppFooter
           marketFeed={FEED.sip}
+          liveFeed={LIVE.live}
           backendStatus="healthy"
           backendDegradedCause={null}
           backendLastSuccessAt={LAST_SUCCESS}
@@ -193,6 +272,7 @@ export const AllPermutations: Story = {
         </span>
         <AppFooter
           marketFeed={FEED.unknown}
+          liveFeed={LIVE.lost}
           backendStatus="unreachable"
           backendDegradedCause={null}
           backendLastSuccessAt={null}
@@ -206,6 +286,7 @@ export const AllPermutations: Story = {
         </span>
         <AppFooter
           marketFeed={FEED.checking}
+          liveFeed={LIVE.connecting}
           backendStatus="unreachable"
           backendDegradedCause={null}
           backendLastSuccessAt={null}
@@ -219,6 +300,7 @@ export const AllPermutations: Story = {
         </span>
         <AppFooter
           marketFeed={FEED.synthetic}
+          liveFeed={LIVE.stale}
           backendStatus="degraded"
           backendDegradedCause="unreadable-body"
           backendLastSuccessAt={LAST_SUCCESS}

@@ -1,5 +1,8 @@
 import type { FeedStatus } from "@marketpulse/shared";
+import { connectionWordFor } from "@marketpulse/shared";
 
+import { formatBarInstant } from "../../market/index.js";
+import type { LiveFeedView } from "../../market/index.js";
 import { cx } from "../../cx.js";
 import { Marker } from "../Marker/Marker.js";
 import type { MarkerShape } from "../Marker/Marker.js";
@@ -24,26 +27,51 @@ import styles from "./FeedIndicator.module.css";
 // SIP — and that is a caller's string, not a status.
 //
 // **Task 2.6.7 built it, as `components/FeedProvenance`**, and this component
-// is no longer in the chrome: the header rendered a hard-coded `disconnected`
+// was no longer in the chrome: the header rendered a hard-coded `disconnected`
 // here from Story 1.5 to Story 2.6, and an invented status beside a truthful
-// provenance line would have been keeping the invented value. This still ships
-// and still has a consumer — the landing route's render check — and **Epic 3
-// brings it back to the strip BESIDE provenance rather than instead of it**,
-// because "which venues are in the numbers" and "is data arriving right now"
-// are two facts that fail independently. That is Task 1.12.4's
-// two-indicators argument, and it applies here for the third time.
+// provenance line would have been keeping the invented value.
+//
+// ## It came back on 2026-09-19, with a true value (Task 3.3.5)
+//
+// **Beside provenance rather than instead of it**, because "which venues are in
+// the numbers" and "is data arriving right now" are two facts that fail
+// independently — Task 1.12.4's two-indicators argument, applied for the fifth
+// time. The two markers are the cost of that, and they are told apart by
+// default silhouette: provenance is a ring, a connection is a disc.
+//
+// ## It takes the VIEW rather than a status, and that is the null case
+//
+// §11.3's grid gives a deployment with no provider a **`—`** in this cell, and
+// `connectionWordFor` returns `null` for it. Something has to render nothing,
+// and doing it here rather than in `AppFooter` keeps the crossing to **one call
+// site** — a component writing `status === "live" && feed === "replay"` for
+// itself is what `pnpm break connection-words-in-a-renderer` goes red for.
+//
+// It also means a story holds a state the application can actually reach,
+// rather than a combination somebody typed.
 
 export interface FeedIndicatorProps {
-  readonly status: FeedStatus;
-
-  /**
-   * The half of the message §36 actually specifies: "displaying data through
-   * 10:42:17". Optional, because a dense row has no space for it and a chrome
-   * strip does — but a `disconnected` state without one is a component telling
-   * the user less than the spec asks for.
-   */
-  readonly detail?: string;
+  /** Everything the browser knows about the feed — `useLiveFeed`'s answer. */
+  readonly view: LiveFeedView;
 }
+
+/**
+ * Which states carry the observation's instant.
+ *
+ * **`LIVE` carries none**, and the decision, its cost and its reversal trigger
+ * are recorded **beside the word** — `CONNECTION_DESCRIPTIONS.live` in
+ * `packages/shared/src/feed-words.ts`, where the argument for `live` having no
+ * *sentence* already lives, because it is the same argument. This table is the
+ * implementation of it and deliberately not a second copy.
+ *
+ * In one line: §36's example exists to **qualify a broken state**, and a
+ * healthy feed has nothing to qualify.
+ */
+const QUALIFIES_WITH_AN_INSTANT: Readonly<Record<FeedStatus, boolean>> = {
+  live: false,
+  stale: true,
+  disconnected: true,
+};
 
 const STATUS_CLASS: Readonly<Record<FeedStatus, string | undefined>> = {
   live: styles.live,
@@ -65,12 +93,33 @@ const STATUS_SHAPE: Readonly<Record<FeedStatus, MarkerShape>> = {
   disconnected: "ring",
 };
 
-export function FeedIndicator({ status, detail }: FeedIndicatorProps) {
+export function FeedIndicator({ view }: FeedIndicatorProps) {
+  // The one crossing of the two vocabularies, called rather than re-derived.
+  const word = connectionWordFor(view.status, view.feed, {
+    backendReachable: view.backendReachable,
+  });
+
+  // §11.3's `—`: a deployment with no provider has no connection to describe,
+  // and `DISCONNECTED` there would claim a feed broke when none was asked for.
+  // **Nothing collapses** — the provenance cell beside this one is saying
+  // `not configured` or `checking`, so the region keeps its height.
+  if (word === null) return null;
+
+  const through =
+    QUALIFIES_WITH_AN_INSTANT[view.status] && view.observedAt !== undefined
+      ? `Showing data through ${formatBarInstant(new Date(view.observedAt), "1m")}.`
+      : undefined;
+
+  // One string rather than two nodes: the sentence and the instant are one
+  // statement, and a screen reader handed them as separate text nodes would
+  // pause between them.
+  const detail = [word.sentence, through].filter(Boolean).join(" ");
+
   return (
-    <span className={cx(styles.indicator, STATUS_CLASS[status])}>
-      <Marker shape={STATUS_SHAPE[status]} />
-      <span className={styles.label}>{status}</span>
-      {detail !== undefined && <span className={styles.detail}>{detail}</span>}
+    <span className={cx(styles.indicator, STATUS_CLASS[view.status])}>
+      <Marker shape={STATUS_SHAPE[view.status]} />
+      <span className={styles.label}>{word.label}</span>
+      {detail !== "" && <span className={styles.detail}>{detail}</span>}
     </span>
   );
 }

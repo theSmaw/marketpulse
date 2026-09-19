@@ -148,6 +148,43 @@ against motion and designing against a toy:
    and a static one during a quiet minute — and also the difference between a
    calm screen and a twitching one.
 
+## Handed here by Task 3.3.5 — 2026-09-19: the motion vocabulary already has one rule, and it is not yours to re-take
+
+**`LIVE` is on the screen as of today, and it does not move.** That was the
+decision this story inherits, and it came from the canvas rather than from a
+preference — `Failure and partial states.dc.html` states it as a language rule:
+
+> **Motion in this product means work in progress and nothing else may borrow
+> it.**
+
+It has already governed a shipped decision once: the settled states of the
+chart's rail are static and only _refreshing_'s hairline travels, because a
+state that moved while saying something had finished was the defect that nearly
+shipped in Task 2.14.5.
+
+**So the vocabulary you are designing is not a blank page. Three constraints
+arrive with it:**
+
+1. **Motion means work in progress.** A price that has _changed_ has finished
+   changing — so whatever marks it is a different thing from the hairline that
+   marks a request in flight, and the two must be distinguishable at a glance or
+   one of them is lying.
+2. **Green means price-positive.** The identity accent is crimson and scoped to
+   four positions in the chrome; green is spent. A motion that arrives in a
+   colour has to answer what that colour already means here.
+3. **`LIVE` stays still, and that is the standing answer rather than a
+   placeholder.** It is a statement of fact about a connection. If this story
+   concludes the word itself should acquire motion, that is a **reversal of a
+   decision taken with its reasoning written down** — `Live in the chrome.dc.html`
+   §07 — and it wants the same treatment rather than a quiet edit.
+
+**The fourth design test — _does it feel alive_ — is now eight deferrals old and
+this is the story that pays it.** Task 3.3.5 could not: the honest version of
+aliveness is a number that changes, and it shipped none. You will have the first
+one. Read `Live in the chrome.dc.html` before drawing, for the same reason 3.3.5
+read `Failure and partial states.dc.html` before drawing — it reserved this
+position by name, and that reservation is now yours.
+
 ## Handed here by Task 3.3.4 — 2026-09-19, and one of the three is a trap
 
 Story 3.3 built the browser's end of the socket and **deliberately stopped
