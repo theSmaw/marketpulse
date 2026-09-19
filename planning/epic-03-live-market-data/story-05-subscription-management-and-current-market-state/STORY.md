@@ -63,6 +63,22 @@ perfectly for one security.
   them, or let the chart assemble them from what has arrived since the page
   opened plus what the store already serves. Story 3.9 changes the answer by
   making the store hold today, which is a reason to prefer the cheap option now.
+- **The browser's reconnection — moved here from Story 3.10 on 2026-09-19 by
+  that story's close, and it is a live defect rather than a tidy-up.** Story 3.3
+  shipped the browser's socket with no retry, so **every backend deploy leaves
+  every open tab reading `DISCONNECTED` until somebody reloads**, and deploys
+  happen on every merge to `main`. It belongs here rather than at 3.10 for two
+  reasons: **this story owns the snapshot**, which is exactly what a
+  reconnecting browser needs to catch up with what it missed; and the browser's
+  socket shares **none** of the constraints 3.10 argues reconnection against —
+  no vendor connection limit, no fifteen-minute embargo, no rate limiter. Those
+  are facts about the **upstream** socket, which stays 3.10's.
+
+  Note the gateway already sends **`1001 going away`** on shutdown (§12.2), so
+  a browser can tell a deploy from a network failure before deciding how eagerly
+  to retry — and §8.5 measured that an abnormal close carries no such
+  information. The signal exists and nothing reads it yet.
+
 - **Fan-out downstream.** One socket in, N browsers out, and the two rates are
   not the same: a browser that has subscribed to eight securities must not be
   sent 518. Decide coalescing here — several observations for one security

@@ -47,10 +47,20 @@ is precisely what the Epic 2 pass found when it finally looked at them together.
 
 ## Scope
 
-- **Reconnection**, with backoff, against a vendor that allows **one concurrent
+- **Reconnection — the UPSTREAM one, and that narrowing happened on 2026-09-19
+  at this story's own close.** This bullet used to mean both sockets. The
+  browser's reconnection **moved to Story 3.5**, because it shares none of the
+  constraints below — no vendor limit, no embargo, no rate limiter — and because
+  the snapshot that lets a browser catch up is 3.5's. Leaving it here scheduled
+  a cheap fix seven stories after the defect it fixes: **every backend deploy
+  leaves every open tab reading `DISCONNECTED` until somebody reloads.**
+
+  What stays here is the socket this bullet's measurements are actually about,
+  with backoff, against a vendor that allows **one concurrent
   connection** — so a reconnect racing a connection that has not finished dying
   is a real failure mode rather than a hypothetical, and the spike recorded what
   a duplicate connection actually does.
+
 - **The gap.** A reconnection leaves a hole between the last observation and the
   first new one. Filling it is a **historical** fetch against a fifteen-minute
   embargo and a rate limiter that is a refilling bucket at ~3.3/s with **no

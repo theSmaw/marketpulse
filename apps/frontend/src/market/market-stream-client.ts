@@ -17,11 +17,27 @@ import type { LiveFeedEvent } from "./live-feed.js";
 //
 // ## What this file does not do
 //
-// **It does not reconnect.** Story 3.10 owns retry and backoff, and a transport
-// is exactly where somebody adds a loop without noticing it is a policy — one
-// with a measured hazard behind it, since §8.2 recorded a duplicate connection
-// being refused `406` and §8.7 measured that an immediate reconnect carries no
-// penalty. Neither fact is actionable until there is a policy to hang it on.
+// **It does not reconnect, and that is a defect with a date on it rather than a
+// permanent arrangement.** A transport is exactly where somebody adds a loop
+// without noticing it is a policy — so there is none here.
+//
+// **The owner changed on 2026-09-19 and the reason is worth keeping.** This
+// comment used to defer to Story 3.10 citing §8.2's `406 connection limit
+// exceeded` and §8.7's measurement that an immediate reconnect carries no
+// penalty. **Both of those are facts about the ALPACA socket**, which is
+// outbound, vendor-limited and rate-limited. This socket is none of those
+// things: it is inbound to our own gateway, and the gap a reconnection leaves
+// is filled by a snapshot rather than by a historical fetch against a
+// fifteen-minute embargo.
+//
+// Citing the wrong socket's constraints scheduled a cheap fix with an expensive
+// one, and the cost is live: **every backend deploy leaves every open tab
+// reading `DISCONNECTED` until somebody reloads.** The gateway even sends
+// `1001 going away` (§12.2) — a browser can tell a deploy from a broken network
+// before choosing how eagerly to retry, and nothing reads that yet.
+//
+// **Story 3.5 owns it**, because it owns the snapshot a reconnecting browser
+// needs. Story 3.10 keeps the upstream half, where those measurements apply.
 //
 // **It does not interpret.** Every message becomes a `LiveFeedEvent` and goes
 // up. The one judgement made here is `unreadable`, and it is not a judgement

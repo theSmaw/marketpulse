@@ -332,6 +332,39 @@ exchange_ and three letters teach a non-specialist nothing. Now both.
 - **`VISUAL-LANGUAGE.md` gained the casing rule**, which had been living in
   three files that were all about one strip while governing ten components.
 
+### The epic sweep: no story added, deleted or re-ordered — and one live defect found
+
+Asked after the close, and it found something the story-level sweeps could not,
+because it is a question about the **sequence** rather than about this story.
+
+**"Reconnection" is two reconnections and they share nothing.** Story 3.10 owns
+it and argues it against a vendor that allows one concurrent connection, a
+fifteen-minute embargo and a rate limiter with no `Retry-After`. **Every one of
+those is a fact about the backend's socket to Alpaca.** The browser's socket to
+our own gateway has none of them, and the gap it leaves is filled by a snapshot
+rather than by a historical fetch.
+
+**The cost is already being paid.** The browser does not reconnect, so **every
+backend deploy leaves every open tab reading `DISCONNECTED` until somebody
+reloads** — and deploys happen on every merge to `main`. The gateway even sends
+`1001 going away` (§12.2), so the browser is told the difference between a
+deploy and a broken network and does nothing with it.
+
+**The conflation was in my own code comment**, which is how it was found:
+`market-stream-client.ts` deferred to Story 3.10 _citing §8.2's `406` and
+§8.7_ — two measurements about a socket this file does not open. Corrected
+there as well as in the stories.
+
+**So the browser's half moved to Story 3.5**, which already owns the snapshot a
+reconnecting browser needs and depends only on 3.3. Story 3.10 keeps the
+upstream half. **No story was added**: the work existed and was in the wrong
+one.
+
+**And the single connection is an EPIC-level constraint, not one story's.** Five
+remaining stories — 3.5, 3.6, 3.7, 3.8, 3.9 — would want to be developed against
+a real feed and cannot be while the deployment runs. That is now in `EPIC.md`
+rather than only in the two stories that inherit pieces of it.
+
 ## For a stakeholder — a status report, 2026-09-19
 
 **Story 3.3 is closed.** The product can now say, on every screen, whether the

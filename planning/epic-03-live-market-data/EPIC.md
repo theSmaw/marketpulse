@@ -86,6 +86,50 @@ schema and nothing 3.3–3.7 touch. It is placed late because its deadline is
 _the first stored live bar_ (Story 3.9) rather than the first streamed one, and
 early because nothing in 3.9 can start until it lands.
 
+## Two epic-level findings from Story 3.3's close — 2026-09-19
+
+Neither changes the story list. Both change what two of the remaining stories
+contain, and the first one is a live defect rather than a planning nicety.
+
+### 1. "Reconnection" is TWO reconnections and they share nothing
+
+Story 3.10 owns reconnection, and its scope argues it against **a vendor that
+allows one concurrent connection**, a fifteen-minute embargo and a rate limiter
+with no `Retry-After`. Every one of those is a fact about **the backend's socket
+to Alpaca**.
+
+**Story 3.3 shipped a second socket — the browser's, to our own gateway — and
+it has none of those constraints.** No vendor limit, no embargo, no rate
+limiter, and the gap it leaves is filled by a snapshot rather than by a
+historical fetch.
+
+Conflating them scheduled the cheap half with the expensive half, and the cost
+is already being paid: **the browser does not reconnect, so every backend deploy
+leaves every open tab reading `DISCONNECTED` until somebody reloads.** Deploys
+happen on every merge to `main`. The gateway even sends `1001 going away`
+(§12.2) — the browser is told the difference between _this is a deploy_ and _the
+network broke_ and does nothing with it.
+
+**So the browser's half moves to Story 3.5**, which already owns the **snapshot**
+— the thing a reconnecting browser needs in order to catch up — and depends only
+on 3.3. Story 3.10 keeps the upstream half, where its measurements actually
+apply.
+
+### 2. The free plan's ONE connection is contended, and production always wins
+
+`docs/GAPS.md` entry 7 was re-pointed three times on the assumption it needed a
+trading session. Task 3.3.7 found the real blocker: **the deployed backend runs
+`provider: alpaca` and §9.3 chose to hold the socket always**, so a clean
+developer machine is refused `406 connection limit exceeded` **at any hour**.
+
+This is an epic-level constraint rather than one story's problem. **Five
+remaining stories would want to be developed against a real feed** — 3.5, 3.6,
+3.7, 3.8 and 3.9 — and none of them can be, while the deployment is running.
+Nobody has costed that. The disposition belongs to **Story 3.10** (which is the
+first story that must treat the connection as contended) with the credential
+question at **Story 3.11**; what this section records is that it is an _epic_
+constraint and not a footnote in one story.
+
 ## Why the slice is Story 3.3 and not Story 3.6
 
 **The connection is visible before any number moves, and that ordering is the
