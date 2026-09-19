@@ -1,0 +1,178 @@
+import { FEED_STATUSES, type FeedStatus } from "./feed-status.js";
+import {
+  MARKET_FEED_DESCRIPTIONS,
+  type MarketFeed,
+  type ProvenanceDescription,
+} from "./market-provenance.js";
+
+/**
+ * What the chrome says about a **connection** (Task 3.3.3).
+ *
+ * `LIVE-DATA.md` §11.3 names this record as unwritten and names Story 3.3 as
+ * its owner, and is explicit that it is **not a string in a component**. The
+ * feed's words have lived in `MARKET_FEED_DESCRIPTIONS` since Story 2.6 and
+ * `pnpm break feed-words-in-a-renderer` proves a second spelling goes red; this
+ * is the same arrangement for the other half of the status strip.
+ *
+ * ## Two vocabularies because two facts fail independently
+ *
+ * *Which venues are in these numbers* and *is data arriving right now* are
+ * different questions — Task 1.12.4's two-indicators argument, applied a fourth
+ * time. `MARKET_FEED_DESCRIPTIONS` answers the first; this answers the second.
+ *
+ * ## `LIVE` means the feed is HEALTHY, not that data arrived
+ *
+ * §9.4, and the intuitive definition is the wrong one for this feed: §7.6
+ * measured a median symbol producing a bar in **65.1%** of minutes and `ERIE`
+ * in **2.1%**, so a definition keyed on data would report a correctly-working
+ * feed as not-live for most of the day.
+ *
+ * **The consequence is the grid row that looks wrong and is correct** —
+ * `IEX` / `LIVE` / `CLOSED` at 03:00. Our connection is healthy; the market is
+ * shut. Three regions, three facts, none collapsing into the others.
+ *
+ * ## §11.3's capitals are the STYLESHEET's, not the string's
+ *
+ * The grid writes every cell in capitals and these labels are lower case, and
+ * that is deliberate rather than a transcription slip. `type.module.css`'s
+ * `.microLabel` carries `text-transform: uppercase`, and every cell of the
+ * status strip composes it — so the capitals in the grid are what a reader
+ * sees, produced by the stylesheet, and a label spelled `LIVE` here would be
+ * asking for them twice.
+ *
+ * Two things already in the tree say the same:
+ *
+ * - `MARKET_FEED_DESCRIPTIONS` ships `"Simulated"`, `"Replay"` and
+ *   `"All US exchanges"`. Only `"IEX"` is capitals, because the acronym is.
+ * - `BackendIndicator`'s `STATUS_WORD` — the **other cell of this same strip** —
+ *   ships `healthy` / `degraded` / `unreachable` on a stated rule: *the words
+ *   are the union's own members, so the screen and the type share one
+ *   vocabulary.* This record keeps that rule.
+ *
+ * It also makes Task 3.3.5 a substitution rather than a change: `FeedIndicator`
+ * renders the raw `FeedStatus` today, so pointing it at this record alters no
+ * pixel and no browser assertion.
+ */
+export const CONNECTION_DESCRIPTIONS: Record<
+  FeedStatus,
+  ProvenanceDescription
+> = {
+  live: {
+    // **No sentence**, and the rule is `MarketFeedDescription.sentence`'s
+    // rather than a new one: *a sentence appears when the label cannot stand
+    // alone, and not otherwise.* `LIVE` beside a named venue and a market
+    // clock is not ambiguous, and padding in a status strip is worse than
+    // silence — it teaches a reader the second line is not worth reading.
+    label: "live",
+  },
+  stale: {
+    // The one that cannot stand alone. `STALE` invites *the price is wrong*,
+    // and the true statement is narrower: the connection is fine and nothing
+    // has arrived. §11.2 puts the threshold at 60 s with the market open.
+    label: "stale",
+    sentence: "Connected, but no new data has arrived.",
+  },
+  disconnected: {
+    // §36's own example is written for this state — *"Live feed disconnected
+    // — displaying data through 10:42:17"* — and Story 3.3's owner decided on
+    // 2026-09-19 that the instant appears **only** here and in `stale`, never
+    // beside `LIVE`. The sentence therefore has to carry what is still true,
+    // because it is the only place a reader learns the numbers did not vanish.
+    label: "disconnected",
+    sentence:
+      "The live feed is not connected. Prices shown are the last known.",
+  },
+};
+
+/**
+ * The word for a connection that is live **on a replay**.
+ *
+ * ADR 0030 decision 4: **`LIVE` must never render while the feed is `replay`.**
+ * `FeedStatus.live` is a claim about a **connection**; `LIVE` in the chrome
+ * reads as a claim about the **market**, and with a replay running on a
+ * Saturday afternoon those two diverge completely.
+ *
+ * **It is not a fourth `FeedStatus`** (§11.2 keeps that union at three), and it
+ * is not a feed word either — it is a **rendering of `live` when the feed
+ * identity is `replay`**, which makes it the one string in this product that
+ * crosses the two vocabularies. {@link connectionWordFor} is where that
+ * crossing happens, once.
+ */
+export const REPLAYING_DESCRIPTION: ProvenanceDescription = {
+  label: "replaying",
+  sentence: "Replaying a past session. Not the live market.",
+};
+
+/**
+ * The connection cell, given both facts.
+ *
+ * **The crossing lives here rather than in a renderer**, which is the whole
+ * point: a component writing `status === "live" && feed === "replay"` for
+ * itself is a second place the rule can be got wrong, and `pnpm break
+ * feed-words-in-a-renderer` exists because that has happened before with the
+ * feed's own words.
+ *
+ * **`null` means there is nothing to say.** A deployment with no provider
+ * configured has no connection to describe, and §11.3's grid gives that row a
+ * `—` in this column rather than a word. The gateway sends `disconnected` with
+ * `feed: null` because `FeedStatus` has three members and *not configured* is
+ * not one of them — so this function is what turns the wire's shape back into
+ * the grid's.
+ */
+export function connectionWordFor(
+  status: FeedStatus,
+  feed: MarketFeed | null,
+): ProvenanceDescription | null {
+  if (feed === null) return null;
+  if (feed === "replay" && status === "live") return REPLAYING_DESCRIPTION;
+  return CONNECTION_DESCRIPTIONS[status];
+}
+
+/**
+ * The feed cell's words when **no provider is configured**.
+ *
+ * ## Why it is here rather than in `MARKET_FEED_DESCRIPTIONS`
+ *
+ * That record is `Record<MarketFeed, …>` and **`none` is a `ProviderId`, not a
+ * `MarketFeed`** — widening `MARKET_FEEDS` to hold it would be inventing a feed
+ * to describe the absence of one, and every consumer of that union would then
+ * have to handle a member that can never be stamped on a bar.
+ *
+ * ## Why it is here rather than in the component, where it currently lives
+ *
+ * `FeedProvenance.tsx` holds this string today, grouped with `checking` and
+ * `unknown` under a comment saying they are *"the states that are about **us**
+ * rather than about a venue"*. **That grouping is right about two of the three
+ * and wrong about this one**, which is the finding Task 3.3.3 acted on:
+ *
+ * | State | Whose fact | Server knows it? |
+ * | --- | --- | --- |
+ * | `checking` | This browser's first request has not returned | **No** |
+ * | `unknown` | This browser could not read an answer | **No** |
+ * | `not configured` | **The deployment's configuration** | **Yes — it sends `feed: null`** |
+ *
+ * `checking` and `unknown` genuinely cannot be server vocabulary: the server
+ * always knows its own state, and both describe the **client's** ignorance. But
+ * *no provider is configured* is a fact the server holds and transmits, so it
+ * belongs where the other transmitted words are.
+ */
+export const NOT_CONFIGURED_DESCRIPTION: ProvenanceDescription = {
+  label: "not configured",
+  sentence: "No market-data provider is configured.",
+};
+
+/**
+ * The feed cell, given what the wire said.
+ *
+ * `null` is not an error and not a degraded state — it is a deployment that
+ * serves no market data, which `PROVIDER.md` §5.3 makes the **default** so that
+ * invented prices are never reachable by forgetting to configure something.
+ */
+export function feedWordFor(feed: MarketFeed | null): ProvenanceDescription {
+  return feed === null
+    ? NOT_CONFIGURED_DESCRIPTION
+    : MARKET_FEED_DESCRIPTIONS[feed];
+}
+
+/** Every connection word, for a permutation grid or a test that walks them. */
+export const CONNECTION_STATUSES = FEED_STATUSES;

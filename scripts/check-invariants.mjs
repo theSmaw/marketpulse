@@ -785,8 +785,8 @@ const INVARIANTS = [
   {
     id: "one-home-for-the-feed-words",
     claim:
-      "The words for a market feed are written once, in the shipped " +
-      "vocabulary, and never in a renderer.",
+      "The words for a market feed, and for the connection behind it, are " +
+      "written once in the shipped vocabulary and never in a renderer.",
     check() {
       // **`PRODUCT_SPEC.md` §7.1 and invariant 6, as a grep** — and it guards
       // both directions of Story 2.14's acceptance criterion 2, which is why
@@ -809,11 +809,46 @@ const INVARIANTS = [
       // files discuss these words at length in prose — `BarSeriesPanel` and
       // `chart-alternative` both name them in doc comments, correctly — and a
       // check a comment can trip is a check nobody can keep green.
-      const VOCABULARY = "packages/shared/src/market-provenance.ts";
+      const FEED_VOCABULARY = "packages/shared/src/market-provenance.ts";
+
+      // **The connection words joined this check in Task 3.3.3**, and they are
+      // a second home rather than an extension of the first: *which venues are
+      // in these numbers* and *is data arriving right now* are two facts that
+      // fail independently, so they are two records — Task 1.12.4's
+      // two-indicators argument, applied a fourth time.
+      //
+      // What is guarded is the **sentences** and the one multi-word label. The
+      // connection labels themselves are `live` / `stale` / `disconnected`,
+      // which are the union's own members and appear legitimately in every
+      // file that switches on a `FeedStatus`; a grep for those would be a check
+      // nobody can keep green, and a renderer writing `live` has not invented a
+      // claim the way a renderer writing a sentence has.
+      const CONNECTION_VOCABULARY = "packages/shared/src/feed-words.ts";
 
       const LITERALS = [
-        "All US exchanges",
-        "Trades reported by the IEX exchange only",
+        { literal: "All US exchanges", home: FEED_VOCABULARY },
+        {
+          literal: "Trades reported by the IEX exchange only",
+          home: FEED_VOCABULARY,
+        },
+        { literal: "not configured", home: CONNECTION_VOCABULARY },
+        {
+          literal: "No market-data provider is configured.",
+          home: CONNECTION_VOCABULARY,
+        },
+        {
+          literal: "Connected, but no new data has arrived.",
+          home: CONNECTION_VOCABULARY,
+        },
+        {
+          literal:
+            "The live feed is not connected. Prices shown are the last known.",
+          home: CONNECTION_VOCABULARY,
+        },
+        {
+          literal: "Replaying a past session. Not the live market.",
+          home: CONNECTION_VOCABULARY,
+        },
       ];
 
       const shipped = [
@@ -826,7 +861,7 @@ const INVARIANTS = [
           .map(({ path, text }) => ({ path, text: withoutComments(text) })),
       );
 
-      for (const literal of LITERALS) {
+      for (const { literal, home: VOCABULARY } of LITERALS) {
         const homes = shipped
           .filter(({ text }) => text.includes(literal))
           .map(({ path }) => relative(REPO_ROOT, path));

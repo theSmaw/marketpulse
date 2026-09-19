@@ -1,4 +1,7 @@
-import { MARKET_FEED_DESCRIPTIONS } from "@marketpulse/shared";
+import {
+  MARKET_FEED_DESCRIPTIONS,
+  NOT_CONFIGURED_DESCRIPTION,
+} from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
 import { Marker } from "../Marker/Marker.js";
@@ -132,7 +135,13 @@ const STATE_CLASS: Readonly<
  */
 const OWN_SENTENCE: Readonly<Partial<Record<MarketFeedView["state"], string>>> =
   {
-    "not-configured": "No market-data provider is configured.",
+    // **`not-configured` was removed from here on 2026-09-19 (Task 3.3.3), and
+    // the reason is that the comment above was right about two of the three.**
+    // `checking` and `unknown` genuinely cannot be server vocabulary — the
+    // server always knows its own state, and both describe THIS CLIENT's
+    // ignorance. But *no provider is configured* is a fact the server holds and
+    // transmits (`feed: null` on the socket), so it belongs where the other
+    // transmitted words are: `NOT_CONFIGURED_DESCRIPTION` in `packages/shared`.
     unknown: "The market feed could not be read.",
   };
 
@@ -151,7 +160,10 @@ function word(view: MarketFeedView): string {
     case "checking":
       return "checking";
     case "not-configured":
-      return "not configured";
+      // The shared string rather than a literal — Task 3.3.3. §11.3's grid
+      // names this cell and `pnpm break feed-words-in-a-renderer` exists
+      // because a second spelling of a feed word has drifted before.
+      return NOT_CONFIGURED_DESCRIPTION.label;
     case "configured":
       return MARKET_FEED_DESCRIPTIONS[view.feed].label;
     case "unknown":
@@ -161,9 +173,13 @@ function word(view: MarketFeedView): string {
 
 /** The sentence under the word, or nothing while the first answer is pending. */
 function sentence(view: MarketFeedView): string | undefined {
-  return view.state === "configured"
-    ? MARKET_FEED_DESCRIPTIONS[view.feed].sentence
-    : OWN_SENTENCE[view.state];
+  if (view.state === "configured") {
+    return MARKET_FEED_DESCRIPTIONS[view.feed].sentence;
+  }
+  if (view.state === "not-configured") {
+    return NOT_CONFIGURED_DESCRIPTION.sentence;
+  }
+  return OWN_SENTENCE[view.state];
 }
 
 export function FeedProvenance({ view }: FeedProvenanceProps) {

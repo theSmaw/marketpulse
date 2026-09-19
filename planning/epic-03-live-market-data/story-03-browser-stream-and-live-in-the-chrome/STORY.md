@@ -148,6 +148,88 @@ that number current_.
 
    **Owner: [Task 3.3.5](TASK-05-live-in-the-chrome.md)**, which implements it.
 
+3. **When WE lose the backend on a deployment that never had a provider, does
+   the chrome say so?** — **raised 2026-09-19 by Task 3.3.3, unanswered.**
+
+   §11.3's grid gives the unconfigured row a `—` in the connection cell, and
+   Task 3.3.3 mechanised it: `connectionWordFor` returns **`null`** when the
+   feed identity is `null`. That grid was written about the **server's** feed,
+   before a browser socket existed — and the browser socket introduces a fact
+   the grid has no row for.
+
+   **Two different facts arrive as the same `disconnected`:**
+
+   | What happened                     | Feed identity | Whose connection |
+   | --------------------------------- | ------------- | ---------------- |
+   | The deployment has no provider    | `null`        | The server's     |
+   | **This browser lost the backend** | `null` still  | **Ours**         |
+
+   **The consequence is concrete and it lands on criterion 2.** On CI — and on
+   any deployment with no credential — the region renders `NOT CONFIGURED` and
+   no connection word, and if the second row stays silent too, **the region is
+   identical either side of killing the backend**. Criterion 2 says that
+   transition must be visible without a refresh, and §36 is explicit that a
+   dropped connection must be labelled rather than inferred from an absence.
+
+   **ANSWERED by the owner on 2026-09-19: `DISCONNECTED`, once our own socket
+   dies, whatever the feed identity.** Not to be re-asked.
+
+   ```text
+   Before the kill:  Market feed  NOT CONFIGURED
+   After the kill:   Market feed  NOT CONFIGURED · DISCONNECTED
+   ```
+
+   **What this changes in the code, and it is not just a word.**
+   `connectionWordFor` returns `null` for `feed === null` **unconditionally**
+   today, which is the grid read literally. That is now only correct for the
+   state **the server reported**. The `—` belongs to _the server has no
+   provider_; it does not belong to _we cannot reach the server_, and those are
+   the two facts that were collapsing.
+
+   So the hook must keep them apart and the word function must be told which it
+   is holding — **and it must be an argument rather than a second code path**,
+   because the whole reason 3.3.3 put the crossing in one function is that a
+   renderer deciding this for itself is the defect
+   `pnpm break connection-words-in-a-renderer` goes red for.
+
+   **Why this shape rather than the other two.** Silence would make criterion 2
+   unobservable wherever no provider is configured — including CI — and §36 is
+   explicit that a dropped connection is labelled rather than inferred from an
+   absence. Handing it to `BackendIndicator` is a real argument and was
+   rejected on cost: that cell answers _is the server reachable_ over HTTP
+   polling, and a socket this product holds open is a sharper signal arriving
+   sooner, so the feed cell would be silent while it already knew.
+
+   **The cost, stated rather than discovered later:** on a deployment that never
+   had a provider, `NOT CONFIGURED · DISCONNECTED` can read as _a feed broke_
+   when none was ever asked for. The mitigation is that the two words are in
+   **two cells** and say two different things — the venue cell still says
+   plainly that nothing is configured.
+
+   **Reversal trigger, as a condition:** the first time a reader takes
+   `DISCONNECTED` on an unconfigured deployment as a report about a market feed
+   rather than about our own connection.
+
+   **The shapes that were available**, kept because the rejected ones are the
+   record:
+
+   - **Stay silent** — the grid as literally written. Cheapest, and makes
+     criterion 2 unobservable wherever no provider is configured.
+   - **Say `DISCONNECTED` once our own socket dies**, whatever the feed
+     identity. Honest about our connection; risks reading as _a feed broke_ on a
+     deployment that never had one.
+   - **A distinct word for _we cannot reach the backend_**, which is a claim
+     about the application rather than about a feed — and is arguably
+     `BackendIndicator`'s cell rather than this one, since that component
+     already owns _is the server reachable_.
+
+   **Owner: [Task 3.3.4](TASK-04-the-frontend-transport.md)**, which is the last
+   place the two facts are distinguishable — above the hook they have collapsed
+   into one `FeedStatus` and no component can tell them apart — with
+   [Task 3.3.5](TASK-05-live-in-the-chrome.md) rendering it and
+   [Task 3.3.6](TASK-06-the-degraded-state-and-the-browser-test.md) asserting
+   the transition.
+
 ## The design bar
 
 **Four tests, and this screen is at risk on two of them.**

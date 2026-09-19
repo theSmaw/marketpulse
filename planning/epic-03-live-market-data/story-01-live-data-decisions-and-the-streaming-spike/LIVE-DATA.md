@@ -2989,12 +2989,32 @@ becoming false the first time an IEX tail is stitched on.
 
 **Every string's home, and none of them is a component:**
 
-| String                          | Home                                                                     | State                                                                                                                                                                                                                                                                                                                              |
-| ------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The feed words and sentences    | `MARKET_FEED_DESCRIPTIONS` in `packages/shared/src/market-provenance.ts` | Shipped for `iex`, `sip`, `synthetic`                                                                                                                                                                                                                                                                                              |
-| **`replay`'s words**            | The same record                                                          | **SHIPPED 2026-09-18 by Task 3.2.1** — the words are ADR 0030 §3's, transcribed rather than re-composed. `MARKET_FEEDS` holds four. **`PROVIDER_IDS` still holds two**, deliberately: a provider id is a member only when something can produce it, and `createReplayStream` does not exist until Task 3.2.7, which owns that half |
-| `live \| stale \| disconnected` | `FEED_STATUSES` in `packages/shared/src/feed-status.ts`                  | Shipped, and amended by this task — see below                                                                                                                                                                                                                                                                                      |
-| The connection sentence         | A new record beside `FEED_STATUSES`, same `satisfies` guard              | **Unwritten.** Story 3.3                                                                                                                                                                                                                                                                                                           |
+| String                             | Home                                                                     | State                                                                                                                                                                                                                                                                                                                              |
+| ---------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The feed words and sentences       | `MARKET_FEED_DESCRIPTIONS` in `packages/shared/src/market-provenance.ts` | Shipped for `iex`, `sip`, `synthetic`                                                                                                                                                                                                                                                                                              |
+| **`replay`'s words**               | The same record                                                          | **SHIPPED 2026-09-18 by Task 3.2.1** — the words are ADR 0030 §3's, transcribed rather than re-composed. `MARKET_FEEDS` holds four. **`PROVIDER_IDS` still holds two**, deliberately: a provider id is a member only when something can produce it, and `createReplayStream` does not exist until Task 3.2.7, which owns that half |
+| `live \| stale \| disconnected`    | `FEED_STATUSES` in `packages/shared/src/feed-status.ts`                  | Shipped, and amended by this task — see below                                                                                                                                                                                                                                                                                      |
+| The connection words and sentences | `CONNECTION_DESCRIPTIONS` in `packages/shared/src/feed-words.ts`         | **SHIPPED 2026-09-19 by Task 3.3.3**, with `REPLAYING` and `NOT CONFIGURED` beside it and `connectionWordFor` / `feedWordFor` as the only crossings. **The capitals in the grid above are the STYLESHEET's** — see the amendment below                                                                                             |
+
+> **AMENDED 2026-09-19, Task 3.3.3 — the capitals above are a naming
+> convention, not a spelling.** The grid writes every cell in capitals and the
+> shipped strings are lower case, and that is not a transcription slip in either
+> direction. `styles/type.module.css`'s `.microLabel` carries
+> `text-transform: uppercase` and **every cell of the status strip composes
+> it**, so the capitals are what a reader sees, produced by the stylesheet. The
+> vocabulary already said so and nobody had read it that way:
+> `MARKET_FEED_DESCRIPTIONS` ships `"Simulated"`, `"Replay"` and
+> `"All US exchanges"`, of which only `"IEX"` is capitals **because the acronym
+> is** — so this grid's `SIMULATED` ships as `Simulated`. The decisive precedent
+> is the **other cell of this same strip**: `BackendIndicator`'s `STATUS_WORD`
+> ships `healthy` / `degraded` / `unreachable` on a stated rule — _the words are
+> the union's own members, so the screen and the type share one vocabulary._
+>
+> **Two consequences.** A screen reader is handed the **DOM text** rather than
+> the transform, so the stored case is a decision about the spoken rendering and
+> not a cosmetic one. And because `FeedIndicator` renders the raw `FeedStatus`
+> today, a record whose labels **are** the union's members makes Task 3.3.5 a
+> substitution: no pixel moves and no browser assertion changes.
 
 **`feed-status.ts` gets a dated amendment rather than a rewrite**, per the ADR
 rule, because one of its sentences is not observable. Its doc glosses `stale` as
