@@ -14,6 +14,31 @@ export { ANOMALY_BANDS } from "./anomaly.js";
 export type { AnomalyBand } from "./anomaly.js";
 export { FEED_STATUSES } from "./feed-status.js";
 export type { FeedStatus } from "./feed-status.js";
+// The browser protocol (Task 3.3.1). Named exports rather than a star, matching
+// this file's habit — and the serialiser is exported beside the messages
+// deliberately: it is the mechanism that makes a socket message as safe as an
+// HTTP response, and hiding it would invite the next protocol to use
+// `JSON.stringify`.
+export {
+  MARKET_STREAM_MESSAGE_TYPES,
+  MARKET_STREAM_PROTOCOL_VERSION,
+  decodeMarketStreamMessage,
+  encodeMarketStreamMessage,
+  toWireObservation,
+  toWireObservations,
+} from "./market-stream-protocol.js";
+export type {
+  BarsMessage,
+  DecodedMessage,
+  FeedMessage,
+  MarketStreamMessage,
+  MarketStreamMessageType,
+  SnapshotMessage,
+  WireFeedState,
+  WireObservation,
+} from "./market-stream-protocol.js";
+export { asInstant, asIs, toWire } from "./wire-serialiser.js";
+export type { JsonValue, WireFields } from "./wire-serialiser.js";
 // What a security IS in this product, and every vocabulary that describes one
 // (Task 2.3.2, completing what Task 2.2.4 started with SECURITY_KINDS alone).
 // Here rather than in apps/backend for two reasons that are not the same one:
