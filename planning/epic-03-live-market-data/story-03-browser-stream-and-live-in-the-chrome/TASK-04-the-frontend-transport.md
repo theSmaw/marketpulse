@@ -26,9 +26,33 @@ address**, and a hook above it holding domain state. No component changes.
   `disconnected` at 165 s is **monotonic**; `stale` at 60 s is **wall clock**.
   Using one for both makes `stale` **unreachable** — it shipped that way once.
   Anything here computing a status or an age takes **both**.
-- **`stale` is gated on the market being open** (§11.2), and the market clock
-  that gates it is Story 2.5's and already in the chrome. Out of hours the same
+- **`stale` is gated on the market being open** (§11.2). Out of hours the same
   socket is legitimately silent for **76 minutes**.
+
+  **AMENDED 2026-09-19 after Task 3.3.1, and this is now a decision this task
+  owes rather than an inherited fact.** That task put `marketOpen` on the wire
+  in `WireFeedState`, **so the browser now has two answers** to _is the market
+  open_:
+
+  | Answer                     | Whose clock      | What it is about                                    |
+  | -------------------------- | ---------------- | --------------------------------------------------- |
+  | `WireFeedState.marketOpen` | The **server's** | What the feed's own gate actually used              |
+  | `useMarketClock`           | The **viewer's** | What this person's machine says the market is doing |
+
+  **They can disagree, and the disagreement is the point rather than a bug.**
+  `marketSessionStateAt` takes an instant (ADR 0017), so it is only as good as
+  the clock supplied — a viewer an hour out would compute a different session
+  state from the server's, and gating on theirs would suppress or invent a
+  staleness warning about a feed the server can see perfectly well.
+
+  **Decide which drives the status, and say why in the code.** The likely answer
+  is the **server's**, because the status describes the server's feed — but
+  `MarketClock` must keep rendering the **viewer's**, because that region is a
+  timezone claim about the person reading it, and this story's `Out of scope`
+  explicitly refuses to turn it into a synchronisation claim.
+
+  **Do not let them silently be the same variable.**
+
 - **There is no store** (§12.1, ADR 0023). Live state has **one writer** — the
   message handler — and many readers, and **age is derived rather than held**.
   The walk is recorded; do not re-take it because prop-drilling chafes.
@@ -46,6 +70,14 @@ address**, and a hook above it holding domain state. No component changes.
 - **A closed socket is a state, not an error boundary.** §36 forbids collapsing
   to a global error screen, and this is the first place in the frontend where
   that is testable.
+- **Handle the `unreadable` decode, which Task 3.3.1 made a value rather than a
+  throw.** `decodeMarketStreamMessage` returns
+  `{ kind: "unreadable", reason }` for a malformed message, **and something has
+  to do something with it.** The transport must not crash — that is the whole
+  reason it is a value — but a message the browser cannot read is also not
+  nothing: dropping it silently means a protocol mismatch after a deploy looks
+  identical to a quiet feed. **Decide whether it is logged, counted, or surfaced,
+  and record which.**
 - **No reconnection policy** — Story 3.10's. Report `disconnected` honestly and
   stop. **Say so in the code**, because a transport is exactly where somebody
   adds a retry loop without noticing it is a policy.
@@ -57,5 +89,8 @@ address**, and a hook above it holding domain state. No component changes.
 - Both clocks are taken, and a test proves `stale` is reachable — the regression
   that made it unreachable is the reason this is an acceptance criterion
 - A closed socket produces a state, not a thrown render
+- **An `unreadable` message has a decided disposition** — not dropped by default
+- **Which `marketOpen` gates the status is decided and argued in the code**, and
+  `MarketClock` still renders the viewer's clock
 - **No component consumes the hook yet**
 - `pnpm verify` passes

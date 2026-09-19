@@ -48,8 +48,27 @@ limit exceeded` **by a stale process of our own** — a dry-run that never
   simply want _and how it reaches a browser_. **Add it to `CLAUDE.md`'s table if
   it is new; do not create a second home if it is not.**
 - **An ADR if a decision outlives the story**, and **argue the absence if not**.
-  The likely candidate is the protocol guard from 3.3.1 — what plays
-  `satisfies`'s role on a socket is a decision Epic 10's event stream inherits.
+  **The candidate is stronger than the split anticipated — checked 2026-09-19
+  after 3.3.1 built it.**
+
+  `wire-serialiser.ts` is **not specific to this protocol**. It is the general
+  answer to _what replaces `fast-json-stringify`'s stripping when there is no
+  `fast-json-stringify`_, and `PRODUCT_SPEC.md` §33's investigation event stream
+  has **exactly the same shape and exactly the same hazard**: typed events, a
+  server that holds rich internal objects, and no schema layer between them and
+  the client.
+
+  **Epic 10's `EPIC.md` currently knows nothing about it** — zero mentions of
+  the guard, of `WireFields`, or of the stripping it replaces. So either this
+  close writes the ADR, or it hands Epic 10 the mechanism by name. **Doing
+  neither is how the next protocol reaches for `JSON.stringify`** and re-learns
+  the leak.
+
+  **And the general rule is worth stating wherever it lands:** _an HTTP schema
+  buys two guarantees and only one of them is the type — exhaustiveness is the
+  type, stripping is the serialiser, and a transport without a serialiser has to
+  rebuild the second._
+
 - **Sweep upward**, and expect to find something: this story is the first to put
   a live claim on a screen, and `PROVENANCE.md`, `VISUAL-LANGUAGE.md` and
   `CLAUDE.md`'s _What a user can see today_ all describe a product that cannot

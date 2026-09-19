@@ -116,12 +116,34 @@ export interface WireFeedState {
   /** Which venues are in the numbers — about the DATA. `null` when none. */
   readonly feed: MarketFeed | null;
   /**
-   * Whether the market is open by the server's own calendar.
+   * Whether the market is open **by the server's clock**.
    *
-   * On the wire so the browser does not keep a second copy of the trading
-   * calendar's exception table. One fact, one home — and `stale` is gated on it
-   * (§11.2), because out of hours the same socket is legitimately silent for
-   * **76 minutes**.
+   * ## The reason this is on the wire, corrected 2026-09-19
+   *
+   * **It is NOT that the browser lacks the calendar.** A first draft of this
+   * comment said so and was wrong: `packages/shared` exports
+   * `marketSessionStateAt`, the frontend imports it, and
+   * `use-market-clock.ts` **already calls it**. The browser keeps no second
+   * copy of the exception table and never would.
+   *
+   * **The real reason is whose clock decides.** `marketSessionStateAt` takes an
+   * instant (ADR 0017 — `packages/shared` may not read a clock), so the answer
+   * is only as good as the clock supplied. A viewer whose machine is an hour
+   * out would compute a different session state from the server's, and §11.2
+   * **gates `stale` on this** — so a skewed browser clock would suppress or
+   * invent a staleness warning about a feed the server can see perfectly well.
+   *
+   * **This is not the same as `staleSeconds`, which §11.1 refuses.** That is an
+   * age the browser can compute from an instant we already send, and sending it
+   * would be a clock read wearing a different name. This is a fact about **the
+   * server's** view that the browser cannot derive, because it does not have
+   * the server's clock.
+   *
+   * **The cost, stated:** the browser now has two answers to *is the market
+   * open* — this one and `useMarketClock`'s — and they can disagree. They are
+   * about different things (what the feed's gate used, versus what this viewer's
+   * clock says) and **Task 3.3.4 must decide which drives the status**, rather
+   * than discovering the divergence.
    */
   readonly marketOpen: boolean;
 }
