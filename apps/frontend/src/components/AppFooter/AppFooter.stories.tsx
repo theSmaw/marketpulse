@@ -5,6 +5,9 @@ import { AppFooter } from "./AppFooter.js";
 import type { LiveFeedView } from "../../market/index.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
 
+/** Nothing observed. §11.1: absence is the answer, and `{}` is the true one. */
+const NO_OBSERVATIONS = new Map();
+
 // The status bar, and **this file is `AppHeader`'s status-strip half, moved**
 // (2026-09-16). Every story below was one of its stories; what changed is the
 // component they are rendered against and, in one case worth looking at twice,
@@ -68,6 +71,7 @@ const LIVE = {
     backendReachable: true,
     observedAt: OBSERVED_AT,
     unreadable: 0,
+    observations: NO_OBSERVATIONS,
   },
   stale: {
     status: "stale",
@@ -75,6 +79,7 @@ const LIVE = {
     backendReachable: true,
     observedAt: OBSERVED_AT,
     unreadable: 0,
+    observations: NO_OBSERVATIONS,
   },
   disconnected: {
     status: "disconnected",
@@ -82,6 +87,7 @@ const LIVE = {
     backendReachable: true,
     observedAt: OBSERVED_AT,
     unreadable: 0,
+    observations: NO_OBSERVATIONS,
   },
   replaying: {
     status: "live",
@@ -89,6 +95,7 @@ const LIVE = {
     backendReachable: true,
     observedAt: OBSERVED_AT,
     unreadable: 0,
+    observations: NO_OBSERVATIONS,
   },
   /** Our own socket is gone. `STORY.md` open decision 3: this says so. */
   lost: {
@@ -97,6 +104,7 @@ const LIVE = {
     backendReachable: false,
     observedAt: OBSERVED_AT,
     unreadable: 0,
+    observations: NO_OBSERVATIONS,
   },
   /** The first paint. No word, and nothing collapses — see the cell beside it. */
   connecting: {
@@ -105,6 +113,7 @@ const LIVE = {
     backendReachable: true,
     observedAt: undefined,
     unreadable: 0,
+    observations: NO_OBSERVATIONS,
   },
   /** No provider: the grid's `—`, and the indicator renders nothing at all. */
   none: {
@@ -113,6 +122,7 @@ const LIVE = {
     backendReachable: true,
     observedAt: undefined,
     unreadable: 0,
+    observations: NO_OBSERVATIONS,
   },
 } satisfies Record<string, LiveFeedView>;
 

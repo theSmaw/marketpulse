@@ -330,3 +330,104 @@ describe("teardown", () => {
     expect(first.closed).toBeGreaterThan(0);
   });
 });
+
+describe("a new price reaches the screen", () => {
+  const barsMessage = (close: number): MarketStreamMessage => ({
+    type: "bars",
+    version: MARKET_STREAM_PROTOCOL_VERSION,
+    observations: {
+      NVDA: {
+        startsAt: "2026-09-16T14:01:00Z",
+        open: 1,
+        high: 1,
+        low: 1,
+        close,
+        volume: 1,
+      },
+    },
+  });
+
+  it("renders when a price changes, and holds it on the view", () => {
+    // **The assertion Task 3.4.1 exists for**, at the level where the defect
+    // would actually bite. `sameLiveFeedView` is upstream of the reducer, so a
+    // Map added without extending it updates correctly while the hook never
+    // sets state — the Map is right and the screen is still.
+    vi.useFakeTimers();
+    let renders = 0;
+    const socket = new FakeSocket();
+
+    const hook = renderHook(() => {
+      renders += 1;
+      return useLiveFeed({
+        now: () => 60_500,
+        wallNow: () => BAR_ARRIVED,
+        open: () => socket as unknown as WebSocket,
+      });
+    });
+
+    socket.emit("message", {
+      data: encodeMarketStreamMessage(snapshotWith(feedState())),
+    });
+
+    const afterSnapshot = renders;
+    // The snapshot already carries a price — §11.1's whole argument for having
+    // one, since a browser opening at 11:20 would otherwise see nothing until
+    // each security's next bar, which §11.2 measured at up to three hours.
+    expect(hook.result.current.observations.get("NVDA")?.close).toBe(1);
+
+    socket.emit("message", {
+      data: encodeMarketStreamMessage(barsMessage(218.29)),
+    });
+
+    expect(renders).toBeGreaterThan(afterSnapshot);
+    expect(hook.result.current.observations.get("NVDA")?.close).toBe(218.29);
+
+    // And again, because one render could be the snapshot settling rather than
+    // the price arriving.
+    const afterFirstPrice = renders;
+    socket.emit("message", {
+      data: encodeMarketStreamMessage(barsMessage(219.5)),
+    });
+
+    expect(renders).toBeGreaterThan(afterFirstPrice);
+    expect(hook.result.current.observations.get("NVDA")?.close).toBe(219.5);
+  });
+
+  it("does not render when a keepalive carries no price", () => {
+    // The property this must not cost: thirty keepalives an hour redrawing an
+    // identical screen is the defect that produced 40 renders in 20 s.
+    vi.useFakeTimers();
+    let renders = 0;
+    const socket = new FakeSocket();
+
+    renderHook(() => {
+      renders += 1;
+      return useLiveFeed({
+        now: () => 60_500,
+        wallNow: () => BAR_ARRIVED,
+        open: () => socket as unknown as WebSocket,
+      });
+    });
+
+    socket.emit("message", {
+      data: encodeMarketStreamMessage(snapshotWith(feedState())),
+    });
+    socket.emit("message", {
+      data: encodeMarketStreamMessage(barsMessage(218.29)),
+    });
+
+    const settled = renders;
+
+    for (let i = 0; i < 3; i += 1) {
+      socket.emit("message", {
+        data: encodeMarketStreamMessage({
+          type: "feed",
+          version: MARKET_STREAM_PROTOCOL_VERSION,
+          feed: feedState(),
+        }),
+      });
+    }
+
+    expect(renders - settled).toBeLessThanOrEqual(1);
+  });
+});

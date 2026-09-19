@@ -1,9 +1,11 @@
 import {
+  type Bar,
   type FeedStatus,
   type MarketFeed,
   type MarketStreamMessage,
   type WireFeedState,
   feedStatusFrom,
+  fromWireObservation,
   worseFeedStatus,
 } from "@marketpulse/shared";
 
@@ -100,6 +102,34 @@ export interface LiveFeedConnection {
   readonly lastInboundAt: number | undefined;
   /** The newest observation's own instant, epoch ms — the START of its minute (§7.3). */
   readonly lastObservationAt: number | undefined;
+  /**
+   * The latest observation per security. **One Map, newest only** (§10.3).
+   *
+   * Not a history and not a buffer: a history is Story 3.9's and a chart series
+   * is Story 3.7's. This is the browser's half of a decision the backend
+   * already took, and it inherits that decision's three rules rather than
+   * restating them:
+   *
+   * - **It is a cache of the socket rather than a source of truth.** After a
+   *   reconnect it comes back empty and fills unevenly — a liquid security
+   *   reappears within a minute, `ERIE` may not reappear for hours (§7.6) — so
+   *   **every reader must treat *no observation for this symbol* as a normal
+   *   answer.** A reader that renders absence as an error will render it
+   *   constantly.
+   * - **Nothing clears it on a session boundary.** At 09:31 on Monday it still
+   *   holds Friday's bars, because clearing would replace a true-but-old answer
+   *   with no answer at all, and the honest rendering of Monday 09:31 is
+   *   Friday's close **labelled Friday's**.
+   * - **Which is only safe because every entry carries its own `startsAt`**, and
+   *   no reader may render a price without reading it. That is
+   *   `PROVENANCE.md`'s *a claim about data requires data* applied to time, and
+   *   it is why this holds domain `Bar`s rather than wire objects: a `Date` is
+   *   an instant, and a string is text a renderer can print without reading.
+   *
+   * **The reference is the change signal**, which is what makes the render gate
+   * below cheap — see {@link sameLiveFeedView}.
+   */
+  readonly observations: ReadonlyMap<string, Bar>;
   /** The server's last word about its own feed, or `undefined` before the snapshot. */
   readonly server: WireFeedState | undefined;
   /**
@@ -127,6 +157,7 @@ export function startedLiveFeed(at: number): LiveFeedConnection {
 export const initialLiveFeed: LiveFeedConnection = {
   socket: "connecting",
   since: 0,
+  observations: new Map(),
   lastInboundAt: undefined,
   lastObservationAt: undefined,
   server: undefined,
@@ -134,28 +165,72 @@ export const initialLiveFeed: LiveFeedConnection = {
   lastUnreadableReason: undefined,
 };
 
-/**
- * The newest observation instant in a message, or `undefined` if it carries
- * none.
- *
- * **A malformed instant is skipped rather than poisoning the maximum.**
- * `Date.parse` returns `NaN` for anything it cannot read, and `Math.max` with
- * one `NaN` is `NaN` — which would make the feed permanently stale from one bad
- * string. That is `alpaca-stream-mapping.ts`'s rule about `Number.isFinite`,
- * arriving at the same hazard from the other end of the wire.
- */
-function newestObservationIn(message: MarketStreamMessage): number | undefined {
-  if (message.type === "feed") return undefined;
+/** What one message added: the bars it carried, and the newest instant among them. */
+interface Observed {
+  readonly bars: ReadonlyMap<string, Bar>;
+  readonly newest: number | undefined;
+}
 
+const NOTHING_OBSERVED: Observed = { bars: new Map(), newest: undefined };
+
+/**
+ * Read a message's observations, once.
+ *
+ * **One pass rather than two**, which is not a micro-optimisation: the previous
+ * shape parsed each `startsAt` to find the newest instant, and a second parse
+ * for the Map would be a **second place the malformed-instant rule could be got
+ * wrong**. Now an observation that cannot be dated is skipped exactly once, and
+ * it is skipped for both purposes by construction.
+ *
+ * **A malformed instant is skipped rather than poisoning anything.**
+ * `Date.parse` returns `NaN` for what it cannot read; `Math.max` with one `NaN`
+ * is `NaN`, which would make the feed permanently stale from one bad string,
+ * and `new Date(NaN)` is an `Invalid Date` that **formats without complaining**
+ * and reaches a price row as those two words. `fromWireObservation` owns that
+ * check so the two ends of the wire cannot disagree about it.
+ */
+function observedIn(message: MarketStreamMessage): Observed {
+  if (message.type === "feed") return NOTHING_OBSERVED;
+
+  const bars = new Map<string, Bar>();
   let newest: number | undefined;
 
-  for (const observation of Object.values(message.observations)) {
-    const instant = Date.parse(observation.startsAt);
-    if (!Number.isFinite(instant)) continue;
+  for (const [symbol, observation] of Object.entries(message.observations)) {
+    const bar = fromWireObservation(observation);
+    if (bar === undefined) continue;
+
+    bars.set(symbol, bar);
+
+    const instant = bar.startsAt.getTime();
     if (newest === undefined || instant > newest) newest = instant;
   }
 
-  return newest;
+  return { bars, newest };
+}
+
+/**
+ * Fold a message's bars into what is already held.
+ *
+ * **A new Map only when something actually arrived**, and the same reference
+ * back otherwise. That is the whole mechanism behind {@link sameLiveFeedView}'s
+ * observation check: a reference that has not changed means nothing observed
+ * has changed, and a keepalive therefore costs a comparison rather than a
+ * render.
+ *
+ * **Newest wins, and a revision is a newer observation for the same symbol**
+ * (§7.8) — `updatedBars` replaces the entry for the minute it corrects. Telling
+ * a correction apart from a movement is Task 3.4.5's and is deliberately not
+ * done here: this decides what is *held*, and that decides what is *said*.
+ */
+function withObservations(
+  held: ReadonlyMap<string, Bar>,
+  arrived: ReadonlyMap<string, Bar>,
+): ReadonlyMap<string, Bar> {
+  if (arrived.size === 0) return held;
+
+  const next = new Map(held);
+  for (const [symbol, bar] of arrived) next.set(symbol, bar);
+  return next;
 }
 
 /**
@@ -190,17 +265,18 @@ export function advanceLiveFeed(
       return { ...inbound, socket: "closed" };
 
     case "message": {
-      const observedAt = newestObservationIn(event.message);
+      const { bars, newest } = observedIn(event.message);
 
       return {
         ...inbound,
         socket: "open",
         server:
           event.message.type === "bars" ? state.server : event.message.feed,
+        observations: withObservations(state.observations, bars),
         lastObservationAt:
-          observedAt === undefined
+          newest === undefined
             ? state.lastObservationAt
-            : Math.max(state.lastObservationAt ?? observedAt, observedAt),
+            : Math.max(state.lastObservationAt ?? newest, newest),
       };
     }
 
@@ -233,6 +309,22 @@ export interface LiveFeedView {
   readonly backendReachable: boolean;
   /** The newest observation's own instant, for §36's *displaying data through …*. */
   readonly observedAt: number | undefined;
+  /**
+   * The latest observation per security — **the same Map the connection holds,
+   * not a copy.**
+   *
+   * A copy per message would be a second allocation of up to 518 entries every
+   * minute to produce an object indistinguishable from the one it copied, and
+   * it would **destroy the render gate**: `sameLiveFeedView` compares this by
+   * reference, so a fresh copy on every derivation would report a change on
+   * every keepalive. The reducer already creates a new Map exactly when
+   * something arrived, so the reference is the signal and copying here would
+   * throw it away.
+   *
+   * It is `ReadonlyMap` so that handing the connection's own Map out is safe:
+   * a consumer cannot write into the state through it.
+   */
+  readonly observations: ReadonlyMap<string, Bar>;
   /** Messages this browser could not read. Zero on every healthy deployment. */
   readonly unreadable: number;
 }
@@ -307,6 +399,12 @@ export function liveFeedView(
     backendReachable,
     observedAt: state.lastObservationAt,
     unreadable: state.unreadable,
+    // **Carried into every branch, including the degraded ones.** A feed that
+    // has stopped still holds the last prices it saw, and §36's whole point is
+    // that they stay on screen — *displaying data through 10:42:17*. Blanking
+    // the Map on `disconnected` would be the product removing true information
+    // because a socket died.
+    observations: state.observations,
   } as const;
 
   // We cannot hear the backend, so nothing it last said is evidence of
@@ -370,6 +468,19 @@ export function sameLiveFeedView(a: LiveFeedView, b: LiveFeedView): boolean {
     a.feed === b.feed &&
     a.backendReachable === b.backendReachable &&
     a.observedAt === b.observedAt &&
-    a.unreadable === b.unreadable
+    a.unreadable === b.unreadable &&
+    // **Added with the Map itself, in one change, and that is the whole reason
+    // Task 3.4.1 exists as its own task.** This gate is upstream of the
+    // reducer, so a Map added without it updates correctly while the screen
+    // never changes — a first moving price that does not move, with every test
+    // green, because the reducer is right and nothing renders. The test that
+    // catches it asserts the **negative**: a new price causes a render.
+    //
+    // **By reference, and that is sound rather than lucky.** `withObservations`
+    // returns a new Map exactly when something arrived and the same reference
+    // otherwise, so the reference IS the change signal. A deep comparison would
+    // be up to 518 entries every keepalive to answer a question an identity
+    // check already answered.
+    a.observations === b.observations
   );
 }

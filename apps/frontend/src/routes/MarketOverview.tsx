@@ -14,6 +14,9 @@ import rowStyles from "../components/SecurityRow/SecurityRow.module.css";
 import { Placeholder } from "./Placeholder.js";
 import styles from "./MarketOverview.module.css";
 
+/** Nothing observed. §11.1: absence is the answer, and `{}` is the true one. */
+const NO_OBSERVATIONS = new Map();
+
 // PRODUCT_SPEC.md §8.1 — "What is happening?", and the spec's landing screen,
 // which is why it is the route at `/`.
 //
@@ -75,6 +78,7 @@ const FEED_SAMPLES: readonly LiveFeedView[] = FEED_STATUSES.map((status) => ({
   backendReachable: true,
   observedAt: Date.parse("2026-09-16T14:01:00Z"),
   unreadable: 0,
+  observations: NO_OBSERVATIONS,
 }));
 
 // Not market data. The three `last` values are the same digit count made of
