@@ -1,5 +1,7 @@
 import { marketSessionStateAt } from "@marketpulse/shared";
 
+import type { FeedStatus, MarketFeed } from "@marketpulse/shared";
+
 import type { Config } from "./config.js";
 import type { FeedDiagnostic } from "./routes/diagnostics.js";
 import type { MarketDataStream } from "./market-data-stream.js";
@@ -20,16 +22,29 @@ import type { MarketDataStream } from "./market-data-stream.js";
  * The stream is therefore optional, and its absence is reported as `null`
  * rather than as a healthy-looking default.
  */
-export function readFeedDiagnostic(
+/**
+ * The feed's state in **domain types**, which is what the socket wants.
+ *
+ * **Split out on 2026-09-19 (Task 3.3.2) because the two consumers need
+ * different things and one of them was widening.** `FeedDiagnostic` types
+ * `status` as `string | null` — correct for an HTTP response schema, where the
+ * shape is what `fast-json-stringify` declares — but the gateway's
+ * `WireFeedState` wants `FeedStatus`, and going through the HTTP shape would
+ * have meant a cast back from `string`.
+ *
+ * A cast would have compiled and been wrong in the way that matters: it would
+ * have let a future widening of the diagnostic reach the socket unchecked. So
+ * the domain answer is computed once, here, and **`readFeedDiagnostic` derives
+ * its wire strings from it** rather than the other way round.
+ */
+export function readFeedState(
   config: Pick<Config, "marketDataProvider">,
   at: Date,
   stream?: MarketDataStream,
-): FeedDiagnostic {
+): { status: FeedStatus | null; feed: MarketFeed | null; marketOpen: boolean } {
   const marketOpen = isMarketOpen(at);
-  const connection = stream?.connection();
 
   return {
-    provider: config.marketDataProvider,
     feed: stream?.feed ?? null,
     status:
       stream === undefined
@@ -42,11 +57,27 @@ export function readFeedDiagnostic(
             wallNow: at.getTime(),
             marketOpen,
           }),
+    marketOpen,
+  };
+}
+
+export function readFeedDiagnostic(
+  config: Pick<Config, "marketDataProvider">,
+  at: Date,
+  stream?: MarketDataStream,
+): FeedDiagnostic {
+  const state = readFeedState(config, at, stream);
+  const connection = stream?.connection();
+
+  return {
+    provider: config.marketDataProvider,
+    feed: state.feed,
+    status: state.status,
     observedAt:
       connection?.lastObservationAt === undefined
         ? null
         : new Date(connection.lastObservationAt).toISOString(),
-    marketOpen,
+    marketOpen: state.marketOpen,
     checkedAt: at.toISOString(),
   };
 }

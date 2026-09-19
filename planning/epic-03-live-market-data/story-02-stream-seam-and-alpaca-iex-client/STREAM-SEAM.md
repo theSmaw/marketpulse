@@ -132,3 +132,74 @@ from a condition that is normal.**
   first deploy that rolls a replica while the feed is connected. §12.2's outage
   bound rests on an inference, not a measurement.
 - **The weekend hold** — Story 3.11.
+
+---
+
+## 8. And how it reaches a browser (2026-09-19, Task 3.3.2)
+
+**The gateway is `/market-stream`**, a WebSocket on the Fastify server. A
+browser connects, receives a **snapshot**, then one message per upstream frame.
+The protocol is `packages/shared`'s; the wire guard is `wire-serialiser.ts`'s.
+
+### The keepalive obligation INVERTS at this boundary, and that is the finding
+
+|                | The Alpaca socket                                  | The browser socket               |
+| -------------- | -------------------------------------------------- | -------------------------------- |
+| Direction      | **Outbound** — we dial                             | **Inbound** — a browser dials us |
+| Who heartbeats | **Alpaca**, every 54 s (§6.3)                      | **We must**                      |
+| Our keepalive  | **None** — a second timer measuring the same thing | **Required**                     |
+| The ceiling    | No ingress limit applies                           | **240 s of SILENCE**             |
+
+**`HOSTING.md` had already measured the number and named it correctly**: Azure
+Container Apps' ingress has a **240-second idle request timeout** — _idle_ in
+the premium settings table, so it is a ceiling on **silence** rather than on
+connection age. That document drew the consequence for **Epic 10's SSE stream**
+and not for this one, because this one did not exist yet.
+
+**Without a keepalive, `LIVE` would be a lie overnight.** §6.6 measured the feed
+legitimately silent for **76 minutes** out of hours — so a gateway that only
+forwarded observations would be cut every four minutes all night, and the
+chrome would report `disconnected` about a feed that was working perfectly.
+
+**So the gateway emits a `feed` message at least every 120 s** — half the
+ceiling, for the same reason the watchdog is three missed heartbeats rather than
+one. **An application message rather than a WebSocket ping frame**, because
+whether the ingress counts a control frame as activity is undocumented and
+cannot be measured from here, while a data frame unambiguously is traffic. It
+broadcasts **only when a browser is attached**, so an idle deployment does not
+wake itself.
+
+### The goodbye must happen BEFORE `app.close()`, and that was measured
+
+§12.2 says a shutdown owes a connected browser a `feed` message saying the feed
+is going away and **then** a close. The closer was first placed _after_
+`app.close()`, and **the browser received nothing at all** — no goodbye, no
+close, just a socket that stopped.
+
+**The cause is Fastify rather than Node.** A bare `server.close()` does **not**
+destroy an upgraded socket — probed directly, it leaves `readyState` at `OPEN`
+and does not even resolve while one is attached — but `app.close()` resolves, so
+Fastify forces those connections shut. A closer placed after it had nothing left
+to speak to.
+
+The shutdown order is now:
+
+```text
+market gateway closed → http drained → market stream closed → database pool closed
+```
+
+and a process test asserts the browser sees `snapshot` → `feed: disconnected` →
+close **1001** _(going away)_. **Not 1006**: §8.5 measured that an abnormal
+close carries no intent, and a browser seeing one could not tell a deploy from a
+network failure.
+
+### Two scope lines
+
+- **The snapshot is empty**, because Story 3.5 owns the current-state model.
+  §11.1 is explicit that `{}` is the **true** answer rather than a degraded one,
+  so this is not a placeholder — it is what the deployment currently knows.
+- **The gateway is registered whether or not a stream exists.** A browser
+  connecting to `MARKET_DATA_PROVIDER=none` gets an honest snapshot saying
+  _nothing observed, no feed_ rather than a refused upgrade — **a refused
+  connection is indistinguishable from a broken one**, which is the ambiguity
+  §11.2 exists to remove.

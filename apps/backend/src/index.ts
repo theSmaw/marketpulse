@@ -19,7 +19,8 @@ import {
   createDatabasePool,
   pingDatabase,
 } from "./database.js";
-import { readFeedDiagnostic } from "./feed-diagnostic.js";
+import { readFeedDiagnostic, readFeedState } from "./feed-diagnostic.js";
+import { MARKET_STREAM_PATH, registerMarketGateway } from "./market-gateway.js";
 import type { MarketDataStream } from "./market-data-stream.js";
 import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
 import { ReplayDuringSessionError } from "./replay-stream.js";
@@ -239,6 +240,21 @@ let shuttingDown = false;
  */
 let closeMarketStream: (() => void) | undefined;
 
+/**
+ * How the browser gateway is closed (Task 3.3.2).
+ *
+ * Separate from the stream's closer because they close **different things in a
+ * decided order**: the gateway says goodbye to browsers and stops accepting
+ * them; the stream hangs up on Alpaca. Doing the gateway first means a browser
+ * is told the feed is going away by a process that still has a feed, rather
+ * than inferring it from a socket that vanished.
+ */
+let closeMarketGateway: (() => Promise<void>) | undefined;
+
+export function registerMarketGatewayCloser(close: () => Promise<void>): void {
+  closeMarketGateway = close;
+}
+
 export function registerMarketStreamCloser(close: () => void): void {
   closeMarketStream = close;
 }
@@ -269,6 +285,30 @@ async function shutdown(signal: NodeJS.Signals): Promise<never> {
     );
     process.exit(1);
   }, SHUTDOWN_TIMEOUT_MS);
+
+  // **The browser gateway closes BEFORE the drain, and that ordering is a
+  // measurement rather than a preference** (Task 3.3.2).
+  //
+  // §12.2 says a shutdown owes a connected browser a `feed` message saying the
+  // feed is going away and **then** a close — and a message can only be sent
+  // down a socket that is still alive. It was placed after `app.close()`
+  // first, and **the browser received nothing at all**: no goodbye, no close,
+  // just a socket that stopped. Measured against the built server.
+  //
+  // The cause is Fastify rather than Node. A bare `server.close()` does **not**
+  // destroy an upgraded socket — probed directly, it leaves `readyState` at
+  // `OPEN` and does not even resolve while one is attached — but `app.close()`
+  // resolves, so Fastify is forcing those connections shut. By the time a
+  // closer placed after it ran, there was nothing left to speak to.
+  //
+  // So: goodbye first, while the process is entirely alive, and the drain
+  // afterwards has fewer connections to wait for.
+  try {
+    await closeMarketGateway?.();
+    app.log.debug("market gateway closed");
+  } catch (error) {
+    app.log.warn({ err: error }, "error while closing the market gateway");
+  }
 
   try {
     // Fastify's own close stops the listener and drains in-flight requests.
@@ -619,3 +659,36 @@ if (marketStream === undefined) {
     "market stream started",
   );
 }
+
+// ------------------------------------------------------------- the gateway
+//
+// **Registered whether or not a stream exists** (Task 3.3.2), and that is the
+// decision rather than an oversight: a browser connecting to a deployment with
+// `MARKET_DATA_PROVIDER=none` must receive an honest `snapshot` saying *nothing
+// observed, no feed* rather than a refused upgrade. A refused connection is
+// indistinguishable from a broken one, which is the ambiguity §11.2 exists to
+// remove — and §36 forbids a surface that collapses rather than degrading.
+//
+// **The snapshot is empty for now**, and that is a scope line: Story 3.5 owns
+// the current-state model. §11.1 is explicit that `{}` is the TRUE answer after
+// a restart rather than a degraded one, so an empty map is not a placeholder —
+// it is what this deployment currently knows.
+const gateway = registerMarketGateway(app, {
+  snapshot: () => new Map(),
+  feedState: () => {
+    const state = readFeedState(config, new Date(), marketStream);
+    // `null` — no stream configured — reads as `disconnected` on the wire,
+    // because the browser's vocabulary has three words and *not configured* is
+    // not one of them. The `feed: null` beside it is what says which of the two
+    // it is, and the chrome renders that distinction (Story 3.3's own grid).
+    return { ...state, status: state.status ?? "disconnected" };
+  },
+  stream: marketStream,
+});
+
+registerMarketGatewayCloser(() => gateway.close());
+
+app.log.info(
+  { path: MARKET_STREAM_PATH },
+  "market gateway listening for browsers",
+);
