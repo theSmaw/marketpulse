@@ -228,6 +228,78 @@ backend**, and that is this story's too.
 
 ## The weekend hold — handed here 2026-09-18 by Task 3.1.9
 
+> **THE TRIGGER FIRED, AND THE RUN IS UNDER WAY — started 2026-09-19 09:56 ET.**
+>
+> The condition was _the first time a real socket runs in the deployed
+> backend_. It has: the deployment answers
+> `{"provider":"alpaca","feed":"iex",…}`, which is also why a developer machine
+> is refused `406` (`docs/GAPS.md` entry 7). `scripts/weekend-watch.mjs` is
+> polling `/diagnostics/feed` every 60 s through to Monday's open.
+>
+> **It is a different instrument from the retired `weekend.mjs`, and the
+> difference bounds the conclusion.** That one **held** the socket; this
+> **watches the one production already holds**, over HTTP — which is the only
+> reason it can run at all, since the single permitted connection is taken. So
+> it can see **whether the hold survives 56 hours and when it breaks**, to
+> within one poll plus §11.2's 165 s. It **cannot** see the close code, the
+> close latency (§8.5's discriminator) or the error frame, and a write-up must
+> not imply otherwise. It **can** see one thing the held version could not:
+> whether the backend recovers on its own, because it watches across a death
+> rather than dying with it.
+>
+> Both of `weekend.mjs`'s sentinels are kept — a monotonic-vs-wall tick so a
+> suspended laptop is a recorded fact with a duration, and a reachability probe
+> fired at any failure, because over HTTP _this observer's own network dying_
+> looks exactly like the thing it is watching for.
+>
+> **THE INCIDENT SHAPE, OBSERVED — 2026-09-19 10:00 ET.** This section
+> predicted it and named it _the outcome that actually matters_:
+>
+> > _"The incident shape is a drop that **also holds the connection slot**. If a
+> > weekend drop leaves the slot held, Monday's pre-market opens with no feed
+> > and no obvious cause."_
+>
+> **Both halves were observed within four minutes of starting the watch**, and
+> they are independent measurements:
+>
+> ```text
+> the backend's own view   {"provider":"alpaca","feed":"iex","status":"disconnected",…}
+> a fresh connection       [{"T":"error","code":406,"msg":"connection limit exceeded"}]
+> ```
+>
+> **The backend believes it has no feed, and Alpaca refuses a new connection
+> because the single slot is occupied.** §6.4 measured exactly this: a dead
+> socket holding the slot for **4 h 21 min** with `readyState` reporting `OPEN`.
+>
+> **The alternative explanation was ruled out rather than assumed.** If the
+> socket were healthy and the _status_ were lying, the cause would be the
+> heartbeat not reaching the watchdog — §6.3's ping is a **WebSocket control
+> frame**, which `ws` answers automatically and which a naive client never sees.
+> `alpaca-stream.ts` handles it: `opened.on("ping", …)` feeds a `heartbeat`
+> event to the state machine _"so the heartbeat reaches the state machine as
+> evidence of life."_ A healthy socket would therefore read `live`. It does not.
+>
+> **What is not yet distinguished**, and needs the deployed logs rather than a
+> probe: whether the socket died and was never retried (there is **no
+> reconnection policy beyond `406`** — Story 3.10 owns backoff), or whether a
+> **rolling deploy** left a previous replica holding the slot while the new one
+> was refused. The second is the more interesting: the client _does_ retry on
+> `406`, so a backend stuck reporting `disconnected` while something else holds
+> the slot is a race between two of our own replicas.
+>
+> **Either way the consequence is the one this section feared**, and it is live
+> now rather than hypothetical.
+>
+> **And the first sample is already a finding.** At 09:54 ET on a Saturday the
+> deployed feed reported **`status: "disconnected"`** — no inbound frame of any
+> kind for 165 s (§11.2). With the market shut, `b` frames are legitimately
+> absent for 56 hours (§6.2), but the **54 s heartbeat is not** (§6.3), so this
+> says the socket is not there rather than that the market is quiet. Whether it
+> never re-established after a deploy, died overnight, or lost a race with the
+> `406` a capture attempt provoked at 23:30 ET, is what the run is for. **§9.3
+> claims the socket is held always; the first observation of a weekend says it
+> is not.**
+
 **This story owns a measurement Story 3.1 built the instrument for and chose not
 to run.** [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md)
 §13.4 has the full account; this is what this story has to do about it.

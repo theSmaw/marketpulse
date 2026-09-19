@@ -44,6 +44,7 @@ export {
   MARKET_STREAM_PROTOCOL_VERSION,
   decodeMarketStreamMessage,
   encodeMarketStreamMessage,
+  fromWireObservation,
   toWireObservation,
   toWireObservations,
 } from "./market-stream-protocol.js";

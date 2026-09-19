@@ -320,3 +320,228 @@ describe("what a keepalive must not cost", () => {
     expect(sameLiveFeedView(a, b)).toBe(false);
   });
 });
+
+describe("the observation store (§10.3, one Map, newest only)", () => {
+  const bars = (
+    symbol: string,
+    startsAt: string,
+    close: number,
+  ): MarketStreamMessage => ({
+    type: "bars",
+    version: MARKET_STREAM_PROTOCOL_VERSION,
+    observations: {
+      [symbol]: { startsAt, open: 1, high: 1, low: 1, close, volume: 1 },
+    },
+  });
+
+  it("holds the latest observation per security, as a domain Bar", () => {
+    // A `Date` rather than the wire's string, because §10.3's rule is that
+    // every entry carries its own instant and **no reader may render a price
+    // without reading it**. A string is text a renderer can print unread.
+    const state = walk([
+      { kind: "opened", at: 0 },
+      {
+        kind: "message",
+        at: 100,
+        message: snapshot(feedState(), {
+          NVDA: { startsAt: "2026-09-16T14:01:00Z" },
+          AAPL: { startsAt: "2026-09-16T14:00:00Z" },
+        }),
+      },
+    ]);
+
+    expect([...state.observations.keys()].sort()).toEqual(["AAPL", "NVDA"]);
+    expect(state.observations.get("NVDA")?.startsAt).toEqual(
+      new Date(BAR_START),
+    );
+  });
+
+  it("replaces a symbol's entry rather than accumulating a history", () => {
+    // Not a history and not a buffer — a history is Story 3.9's and a chart
+    // series is Story 3.7's.
+    const state = walk([
+      { kind: "opened", at: 0 },
+      {
+        kind: "message",
+        at: 100,
+        message: bars("NVDA", "2026-09-16T14:01:00Z", 218.29),
+      },
+      {
+        kind: "message",
+        at: 200,
+        message: bars("NVDA", "2026-09-16T14:02:00Z", 219.5),
+      },
+    ]);
+
+    expect(state.observations.size).toBe(1);
+    expect(state.observations.get("NVDA")?.close).toBe(219.5);
+  });
+
+  it("lets a revision replace the minute it corrects", () => {
+    // §7.8: `updatedBars` re-sends a bar for a minute already seen, about
+    // thirty seconds later. Holding the newer one is this task's job; telling
+    // a correction apart from a movement is Task 3.4.5's.
+    const state = walk([
+      { kind: "opened", at: 0 },
+      {
+        kind: "message",
+        at: 100,
+        message: bars("NVDA", "2026-09-16T14:01:00Z", 218.29),
+      },
+      {
+        kind: "message",
+        at: 30_000,
+        message: bars("NVDA", "2026-09-16T14:01:00Z", 218.31),
+      },
+    ]);
+
+    expect(state.observations.size).toBe(1);
+    expect(state.observations.get("NVDA")?.close).toBe(218.31);
+  });
+
+  it("does not store an observation whose instant cannot be read", () => {
+    // `new Date(NaN)` is an `Invalid Date` that **formats without
+    // complaining** — it would reach a price row as those two words. And
+    // §10.3's rule is that every entry carries its instant, so an entry that
+    // cannot is not an entry: absence is §11.1's answer.
+    const state = walk([
+      { kind: "opened", at: 0 },
+      {
+        kind: "message",
+        at: 100,
+        message: snapshot(feedState(), {
+          NVDA: { startsAt: "2026-09-16T14:01:00Z" },
+          WAT: { startsAt: "not an instant" },
+        }),
+      },
+    ]);
+
+    expect([...state.observations.keys()]).toEqual(["NVDA"]);
+    expect(state.lastObservationAt).toBe(BAR_START);
+  });
+
+  it("is a cache of the socket: a symbol nobody has sent is simply absent", () => {
+    // §10.3: after a reconnect it fills unevenly — a liquid security reappears
+    // within a minute, `ERIE` may not for hours (§7.6). A reader that renders
+    // absence as an error renders it constantly.
+    const state = walk([
+      { kind: "opened", at: 0 },
+      {
+        kind: "message",
+        at: 100,
+        message: bars("NVDA", "2026-09-16T14:01:00Z", 218.29),
+      },
+    ]);
+
+    expect(state.observations.has("ERIE")).toBe(false);
+    expect(state.observations.get("ERIE")).toBeUndefined();
+  });
+
+  it("keeps the prices when the feed degrades — §36's whole point", () => {
+    // *Displaying data through 10:42:17.* Blanking the Map on `disconnected`
+    // would be the product removing true information because a socket died.
+    const connected = walk([
+      { kind: "opened", at: 0 },
+      {
+        kind: "message",
+        at: 100,
+        message: bars("NVDA", "2026-09-16T14:01:00Z", 218.29),
+      },
+    ]);
+    const closed = advanceLiveFeed(connected, { kind: "closed", at: 200 });
+
+    const view = liveFeedView(closed, { now: 200, wallNow: BAR_ARRIVED });
+
+    expect(view.status).toBe("disconnected");
+    expect(view.observations.get("NVDA")?.close).toBe(218.29);
+  });
+
+  it("hands out the connection's own Map rather than a copy", () => {
+    // A copy per derivation would allocate up to 518 entries every keepalive to
+    // produce an object indistinguishable from the one it copied — and would
+    // destroy the render gate below, which compares by reference.
+    const state = walk([
+      { kind: "opened", at: 0 },
+      {
+        kind: "message",
+        at: 100,
+        message: bars("NVDA", "2026-09-16T14:01:00Z", 218.29),
+      },
+    ]);
+
+    expect(
+      liveFeedView(state, { now: 100, wallNow: BAR_ARRIVED }).observations,
+    ).toBe(state.observations);
+  });
+});
+
+describe("the gate that would have stopped the prices moving", () => {
+  const bars = (startsAt: string, close: number): MarketStreamMessage => ({
+    type: "bars",
+    version: MARKET_STREAM_PROTOCOL_VERSION,
+    observations: {
+      NVDA: { startsAt, open: 1, high: 1, low: 1, close, volume: 1 },
+    },
+  });
+
+  const at = (state: LiveFeedConnection, now: number) =>
+    liveFeedView(state, { now, wallNow: BAR_ARRIVED });
+
+  it("reports a NEW PRICE as a change — the negative this task exists for", () => {
+    // **Without the observation check in `sameLiveFeedView` this passes the
+    // Map and fails the screen.** The reducer would be right, the Map would
+    // update, and nothing would render — a first moving price that does not
+    // move, with every test green.
+    //
+    // Note the two views below have the same `status`, `feed`,
+    // `backendReachable` and `unreadable`, so **every other field the gate
+    // compares is identical**: this asserts the field that was added, and
+    // nothing else could make it pass.
+    const before = walk([
+      { kind: "opened", at: 0 },
+      {
+        kind: "message",
+        at: 100,
+        message: bars("2026-09-16T14:01:00Z", 218.29),
+      },
+    ]);
+    const after = advanceLiveFeed(before, {
+      kind: "message",
+      at: 200,
+      message: bars("2026-09-16T14:01:00Z", 219.5),
+    });
+
+    const a = at(before, 100);
+    const b = at(after, 200);
+
+    expect(a.status).toBe(b.status);
+    expect(a.observedAt).toBe(b.observedAt);
+    expect(sameLiveFeedView(a, b)).toBe(false);
+  });
+
+  it("still reports a keepalive carrying nothing new as NO change", () => {
+    // The property Task 3.3.2's 120 s keepalive bought, unbroken by the new
+    // field: a message with no observations returns the same Map reference.
+    // The snapshot first, so the server's state is already known — otherwise
+    // the `feed` message below changes the status from *we have been told
+    // nothing* to `live`, and the gate would be reporting that rather than the
+    // observations. The fixture, not the rule.
+    const before = walk([
+      { kind: "opened", at: 0 },
+      { kind: "message", at: 50, message: snapshot(feedState()) },
+      {
+        kind: "message",
+        at: 100,
+        message: bars("2026-09-16T14:01:00Z", 218.29),
+      },
+    ]);
+    const after = advanceLiveFeed(before, {
+      kind: "message",
+      at: 120_000,
+      message: { type: "feed", version: 1, feed: feedState() },
+    });
+
+    expect(after.observations).toBe(before.observations);
+    expect(sameLiveFeedView(at(before, 100), at(after, 120_000))).toBe(true);
+  });
+});

@@ -208,6 +208,45 @@ export function toWireObservation(bar: Bar): WireObservation {
   };
 }
 
+/**
+ * A wire observation back to a domain `Bar` — the inverse of
+ * {@link toWireObservation}, and **`undefined` when the instant cannot be
+ * read**.
+ *
+ * ## Why it returns a value rather than throwing, and why it can return nothing
+ *
+ * `Date.parse` answers `NaN` for anything it cannot read, and a `Date` built
+ * from `NaN` is an `Invalid Date` that **formats without complaining** — it
+ * renders as the string `Invalid Date` on a price row, which is a defect that
+ * reaches a screen rather than a log.
+ *
+ * And §10.3 is the reason there is no lenient branch: the rule the current-state
+ * map exists under is that **every entry carries its own `startsAt`, and no
+ * reader may render a price without reading it**. An observation whose instant
+ * cannot be read cannot honour that rule, so it is **not an entry** — absence is
+ * §11.1's answer and there is no second spelling of it.
+ *
+ * `decodeMarketStreamMessage` has already checked the prices with
+ * `Number.isFinite` by the time anything calls this, which is why the instant is
+ * the only thing left to fail on.
+ */
+export function fromWireObservation(
+  observation: WireObservation,
+): Bar | undefined {
+  const startsAt = Date.parse(observation.startsAt);
+
+  if (!Number.isFinite(startsAt)) return undefined;
+
+  return {
+    startsAt: new Date(startsAt),
+    open: observation.open,
+    high: observation.high,
+    low: observation.low,
+    close: observation.close,
+    volume: observation.volume,
+  };
+}
+
 const feedStateFields: WireFields<WireFeedState> = {
   status: asIs,
   feed: asIs,

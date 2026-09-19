@@ -12,7 +12,7 @@ modifications to it as necessary) so that you understand how things fit and look
 
 Do we need to amend, add, delete or re-order any stories in
 @planning/epic-03-live-market-data based on our implementation of
-@planning/epic-03-live-market-data/story-03-browser-stream-and-live-in-the-chrome?
+@planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price?
 
 
 Like we did with other stories in @planning,
@@ -23,12 +23,12 @@ stakeholders want to see as much incremental progress as possible on the UI.
 
 
 Using our Claude Design project, I want to create design artifacts (if we don't have them
-  already), or modify those that do exist if required, for the work required in @planning/epic-03-live-market-data/story-03-browser-stream-and-live-in-the-chrome/TASK-06-the-degraded-state-and-the-browser-test.md.
+  already), or modify those that do exist if required, for the work required in @planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md.
 Make sure you have a consistent design language - prefer to reuse rather than reinvent. Do continually assess and improve
 and reimplement where necessary where user-experience and information architecture can be improved.
   Once these are ready,
 
-let's implement @planning/epic-03-live-market-data/story-03-browser-stream-and-live-in-the-chrome/TASK-06-the-degraded-state-and-the-browser-test.md
+let's implement @planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md
 Be sure to reference @planning/PRODUCT_SPEC.md so you understand the product that we are building.
 When you are done with the task, add to that task's documentation a layman's, non-technical description of the work you
 did and how it contributed to the product we are building. Let that layman know why you made the decisions that you did.
@@ -37,7 +37,7 @@ unlocks progress towards a user-facing product.
 
 
 
-Let's implement @planning/epic-03-live-market-data/story-03-browser-stream-and-live-in-the-chrome/TASK-06-the-degraded-state-and-the-browser-test.md
+Let's implement @planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md
 Be pragmatic about what you remeasure - I don't want this task to take hours.
 
 
@@ -46,9 +46,9 @@ required for @planning/epic-02-security-universe-historical-data/story-11-securi
 in a .md file in the same directory.
 
 Do we need to amend, add, delete or re-order any tasks in
-@planning/epic-03-live-market-data/story-03-browser-stream-and-live-in-the-chrome
+@planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price
  based on our implementation of
-@planning/epic-03-live-market-data/story-03-browser-stream-and-live-in-the-chrome/TASK-06-the-degraded-state-and-the-browser-test.md?
+@planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md?
 
 
 

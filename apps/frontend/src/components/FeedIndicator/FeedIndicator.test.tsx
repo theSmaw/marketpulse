@@ -16,6 +16,9 @@ import { describe, expect, it } from "vitest";
 import type { LiveFeedView } from "../../market/index.js";
 import { FeedIndicator } from "./FeedIndicator.js";
 
+/** Nothing observed. §11.1: absence is the answer, and `{}` is the true one. */
+const NO_OBSERVATIONS = new Map();
+
 // §7.3's measured frame: a bar stamped `14:01:00Z`, which is 10:01 in New York.
 const OBSERVED_AT = Date.parse("2026-09-16T14:01:00Z");
 
@@ -39,6 +42,7 @@ const view = (over: Partial<LiveFeedView> = {}): LiveFeedView => ({
   backendReachable: true,
   observedAt: OBSERVED_AT,
   unreadable: 0,
+  observations: NO_OBSERVATIONS,
   ...over,
 });
 

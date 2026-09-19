@@ -12,6 +12,9 @@ import { describe, expect, it } from "vitest";
 import { renderWithContext } from "../../test-render.js";
 import { AppFooter, type AppFooterProps } from "./AppFooter.js";
 
+/** Nothing observed. §11.1: absence is the answer, and `{}` is the true one. */
+const NO_OBSERVATIONS = new Map();
+
 // A file-local helper rather than a module: this package is `noEmit`, so a
 // helper module would be legitimate here — but this one describes *these
 // tests'* defaults rather than the application's context, and
@@ -31,6 +34,7 @@ function props(overrides: Partial<AppFooterProps> = {}): AppFooterProps {
       backendReachable: true,
       observedAt: Date.parse("2026-09-16T14:01:00Z"),
       unreadable: 0,
+      observations: NO_OBSERVATIONS,
     },
     backendStatus: "healthy",
     backendDegradedCause: null,
@@ -101,6 +105,7 @@ describe("AppFooter", () => {
             backendReachable: true,
             observedAt: undefined,
             unreadable: 0,
+            observations: NO_OBSERVATIONS,
           },
         })}
       />,
