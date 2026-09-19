@@ -118,6 +118,39 @@ limit exceeded` **by a stale process of our own** — a dry-run that never
   records, and the close should check whether the pair of them now justifies a
   mechanical answer — `pnpm store:bare` exists and nothing makes the suite say
   which store it ran against.
+
+### Three defects in three tasks were found by AUDITING rather than by running — and the close owes a disposition on that
+
+Task 3.3.6's sweep found: a browser suite that had never seen `LIVE`, a teardown
+race in 3.3.4's hook, and 3.3.5 breaking `pnpm test`'s no-network contract while
+the suite **exited 0 for two days**. Task 3.3.5's sweep found an unmeasured
+criterion and a spec passing for the wrong reason. **None of the five was caught
+by a check.**
+
+They share one shape, and the close should say whether it is mechanisable or
+goes in `docs/GAPS.md` with an owner:
+
+> **An assertion about an absence passes for free on a deployment that cannot
+> produce the thing** — and CI is exactly such a deployment for this epic, since
+> it has no credential and therefore no live feed.
+
+`market-connection.spec.ts` closed the instance by **furnishing the state from
+inside the browser**, which needs no CI change. What is not answered is whether
+anything should stop the next one: a spec asserting `toHaveCount(0)` against a
+vocabulary the runner cannot produce is indistinguishable from one that works.
+
+**One member of the class HAS been mechanised, which narrows the question
+rather than answering it.** A rename left a spec naming a file that no longer
+existed and every check stayed green, so
+`every-spec-named-in-the-suite-exists` now resolves the 31 cross-references in
+`e2e/` — and went red on its first run. **The reason it was mechanisable is the
+useful part**: `e2e/` is code and its own README, both describing the tree as it
+is _now_, whereas a task file under `planning/` records what was true when it
+was written. So the close's question is sharper than _can this be automated_:
+
+> **Which of these claims are about the tree as it is, and which are history?**
+> Only the first kind can be held to a check without destroying the record.
+
 - **Sweep upward**, and expect to find something: this story is the first to put
   a live claim on a screen, and `PROVENANCE.md`, `VISUAL-LANGUAGE.md` and
   `CLAUDE.md`'s _What a user can see today_ all describe a product that cannot
@@ -134,7 +167,16 @@ limit exceeded` **by a stale process of our own** — a dry-run that never
     3.3.5 that wires the words but not the hook would leave exactly the shape
     Story 3.2 shipped three times. **Story 3.2 shipped three
     implementations with no construction site and a green `verify` throughout.**
-- **Walk the acceptance criteria against a RUNNING system**, not only the suite.
+- **Walk the acceptance criteria against a RUNNING system**, not only the
+  suite. **Six of the seven already have their evidence** and the close's job is
+  to check rather than produce it: criterion 1 and 7 in 3.3.5 (`pnpm probe` at
+  four widths, and the 390 defect it found), criterion 6 in 3.3.5's sweep (0
+  `longtask`, 0 mutations over 60 s on a **production** build — a dev build
+  reports 141 ms twice and is not comparable), criteria 2, 4 and 5 in 3.3.6's
+  spec. **Criterion 3 is the one to look at**: the live label naming a single
+  venue is now asserted in a browser for the first time by
+  `market-connection.spec.ts`, and it is worth confirming that assertion is
+  about what §7.1 requires rather than about an acronym.
 - **`pnpm verify`, `pnpm e2e`, `pnpm probe`**, and every gate this story can
   break.
 

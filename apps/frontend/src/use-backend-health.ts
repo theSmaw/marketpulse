@@ -243,6 +243,44 @@ export interface UseBackendHealthOptions {
    * keep.
    */
   readonly timeoutMs?: number;
+
+  /**
+   * Check **now** whenever this value changes (Task 3.3.6).
+   *
+   * ## Why it exists: the strip pointed away from the fault for thirty seconds
+   *
+   * Since Task 3.3.5 the chrome holds a live socket, and a socket notices a
+   * dead backend **in the same tick** while this poll takes up to
+   * {@link HEALTH_POLL_INTERVAL_MS}. Measured on a running page: kill the
+   * backend and the strip reads `market feed · disconnected` beside
+   * `backend service · healthy` — each cell honest about its own subject, and
+   * the pair **actively misleading**, because it says the feed broke and the
+   * service is fine when the service is what died. Pointing a reader at the
+   * wrong subject is worse than saying nothing.
+   *
+   * **This is the first surface in this chrome that is faster than its
+   * neighbours**, which is why the defect could not exist before.
+   *
+   * ## It is a PROMPT, never an answer, and the distinction is the design
+   *
+   * Passing the socket's state *into* this hook would make one indicator's word
+   * depend on another's evidence and collapse two facts that fail
+   * independently — Task 1.12.4's argument, refused here for the sixth time.
+   * This only makes the check **run**; what it then reports is its own HTTP
+   * result, which either answers or does not.
+   *
+   * **One indicator may tell another when to look. It may not tell it what it
+   * sees.**
+   *
+   * ## It is also this hook's own existing rule, with a second trigger
+   *
+   * The loop already polls immediately when a hidden tab becomes visible rather
+   * than waiting out the interval — *"so a returning user does not read a stale
+   * state"*. A socket that has just died is that sentence with a different
+   * cause, so this reuses the mount path rather than adding a second one: the
+   * value is an effect dependency, and a change restarts the loop, which polls.
+   */
+  readonly recheckOn?: unknown;
 }
 
 /**
@@ -278,6 +316,7 @@ export function useBackendHealth(
 ): BackendHealth {
   const intervalMs = options.intervalMs ?? HEALTH_POLL_INTERVAL_MS;
   const timeoutMs = options.timeoutMs ?? API_TIMEOUT_MS;
+  const { recheckOn } = options;
   const [health, setHealth] = useState<BackendHealth>(INITIAL);
 
   useEffect(() => {
@@ -367,7 +406,11 @@ export function useBackendHealth(
       // the designed behaviour rather than something to suppress.
       controller.abort();
     };
-  }, [intervalMs, timeoutMs]);
+    // `recheckOn` is a dependency rather than a ref read, which is what makes
+    // *check now* the mount path rather than a second code path: a change tears
+    // the loop down and builds it again, and building it polls. The abort it
+    // costs is a request to a server we have just been told is gone.
+  }, [intervalMs, timeoutMs, recheckOn]);
 
   return health;
 }

@@ -395,6 +395,22 @@ export const BREAKS = [
   },
 
   {
+    name: "a-renamed-spec-leaves-a-dangling-name",
+    proves:
+      "A browser spec renamed without its references is invisible to every " +
+      "other check here — `pnpm links` resolves Markdown links and these are " +
+      "backticked filenames in TypeScript comments. It happened on " +
+      "2026-09-19, and the invariant catches it.",
+    // The break is the thing that actually occurred rather than a synthetic
+    // edit: a comment in one spec naming another that has been renamed away.
+    file: "e2e/specs/market-feed.spec.ts",
+    find: "`market-connection.spec.ts` owns the other direction",
+    replace: "`market-feed-degrades.spec.ts` owns the other direction",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "every-spec-named-in-the-suite-exists",
+  },
+
+  {
     name: "a-second-socket-in-the-frontend",
     proves:
       "A second place in the frontend that opens the market socket is a " +

@@ -1,6 +1,6 @@
 # Task 3.3.6 — Closing the backend, and the test that proves the page survives it
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-19.** `market-connection.spec.ts`, **five tests**, under six seconds. The design pass found a defect first: for up to thirty seconds the strip **pointed away from the fault**, and the repair is a prompt rather than an answer. The sweep then found three more — **no browser test had ever seen `LIVE`**, a teardown race in Task 3.3.4's hook, and Task 3.3.5 breaking `pnpm test`'s no-network contract while the suite exited 0 for two days. Two stale specs corrected. `pnpm verify` green; **127 passed, 0 failed** against CI's store, and 129 passed locally beside the one known store-dependent failure.
 **Story:** [3.3 The Browser Stream & `LIVE` in the Chrome](STORY.md)
 **Depends on:** 3.3.5
 
@@ -129,3 +129,363 @@ could pass on the wrong one.
   reproduced them on `main` in a clean worktree. **Check them against that entry
   before reading either as your own**, because the suite reports a
   store-dependent failure and a real regression identically.
+
+---
+
+## What was found
+
+### The state the task recorded was the wrong one, and producing the right one found a defect
+
+The brief carried a screenshot of the degraded strip. **It was a cold load with
+the backend already down** — not criterion 2's _degrade without a refresh_, which
+is a different state. Producing the real one first, by loading a page and then
+killing the backend under it:
+
+```text
+BEFORE  Market feed · Simulated · Generated test data. Not a market feed. · live
+        Backend service · healthy
+
+AFTER   Market feed · Simulated · Generated test data. Not a market feed. ·
+        disconnected · The live feed is not connected. Prices shown are the last known.
+        Backend service · healthy
+```
+
+Two things fall out, and the second is the task's real finding.
+
+**The venue is retained**, which is Task 3.3.5's decision paying off visibly: a
+feed cell fed by the socket would have gone blank at exactly the moment a reader
+most needs to know what the numbers on the screen are. And the price was
+unchanged — `218.29` → `218.29`.
+
+**But `Backend service · healthy` is on that second line, and the backend is
+dead.**
+
+### The defect: for thirty seconds the strip pointed away from the fault
+
+Each cell is honest about its own subject. The **pair** says _the market feed
+broke and the service is fine_, when the service is what died — and pointing a
+reader at the wrong subject is worse than saying nothing.
+
+**It exists because the live feed is the first surface in this chrome that is
+faster than its neighbours.** The socket notices in the same tick; the health
+check is a 30-second poll. Until today every indicator here learned things at the
+same rate, so _reading the set as a set_ meant reading it at one instant. **That
+is what the old wording missed**, and the canvas now says it: a surface added to
+this strip is reviewed against the others **at the rates they learn things**.
+
+**The repair is a prompt, not an answer.** A lost socket makes the health check
+**run now**; what it then reports is its own HTTP result. So the two indicators
+stay independent — Task 1.12.4's argument, refused here for the sixth time —
+and only the staleness is removed.
+
+> **One indicator may tell another when to look. It may not tell it what it
+> sees.**
+
+And it is `useBackendHealth`'s **own existing rule with a second trigger**: the
+loop already polls immediately when a hidden tab becomes visible rather than
+waiting out the interval, recorded there as _"so a returning user does not read
+a stale state."_ `recheckOn` is that sentence with a different cause, and it
+reuses the mount path rather than adding a second one.
+
+**Three unit tests hold it**, and the third is the design in one assertion: the
+socket says unreachable, the backend answers 200, and the cell **stays healthy**
+— because it is.
+
+### The spec, and why it runs in 2.9 s
+
+`routeWebSocket` closes **this page's** market socket and touches nothing else —
+the same choice `backend-recovery.spec.ts` made for HTTP, for the same reason
+(the pair is shared with every spec in the run). It is also the sharper
+instrument: killing the whole backend degrades two indicators at once and cannot
+tell you which one the page reacted to.
+
+**No `waitForTimeout`, and that is load-bearing.** The transport reports a closed
+socket in the same tick; §11.2's 165 s is for a socket that goes _silent_, not
+one that goes away. A spec that waited it out would be asserting the wrong
+mechanism at 165× the cost.
+
+**The two cells are asserted moving independently**, which is what goes red if
+they are ever collapsed — the venue must still say what it said.
+
+### It was proven to go red, by breaking the rule it tests
+
+`pnpm break` is not the instrument here: its entries run `node`-level checks with
+no servers, and this needs a running pair. So the substitution was performed by
+hand and the tree checked after:
+
+```text
+connectionWordFor: `if (!backendReachable) return null`   →  2 failed
+restored                                                  →  2 passed, no diff
+```
+
+### A race in my own spec, found by running it beside another
+
+It passed alone and failed in a pair. Not the product: **the figures were
+captured before the page had finished acquiring them**, so under a loaded backend
+a late answer changed a number between the two reads. `waitUntil: "networkidle"`
+is the fix, and the comparison is only meaningful once the page has stopped
+acquiring numbers.
+
+### A spec Task 3.3.5 invalidated and did not notice
+
+`market-feed.spec.ts` carried a list described as _"the words this region
+rendered for six stories and **must never render again**"_ — `disconnected`,
+`live`, `stale`. Task 3.3.5 put them back **on purpose and with a true value**,
+so the claim became false.
+
+**It did not go red.** A deployment with no provider renders no connection word
+at all and CI has no credential, so the assertion held for a reason entirely
+unrelated to what it said it was checking. Corrected to the claim that is now
+true — _the unconfigured row of §11.3's grid has no connection word_ — with the
+other direction owned by the new spec.
+
+**This is the second time in two tasks that a green suite has hidden a stale
+claim**, and both were found by reading rather than by running.
+
+### What CI can answer, checked before the suite as the task demanded
+
+`pnpm store:bare`, then the whole suite against it:
+
+```text
+127 passed, 0 failed, 15 skipped
+```
+
+**Including the two specs that fail on my own store.** That confirms
+`docs/GAPS.md`'s entry from the other direction — they are **store-dependent
+rather than flaky**, which is a sharper claim than the worktree reproduction
+alone supported, and the entry now says so.
+
+### The sweep found more than the task did, and two of them were mine
+
+**Writing the spec was the smallest part of this task.** Auditing it afterwards
+produced three defects, and the first two were introduced by the two tasks
+before it.
+
+#### 1. No browser test had ever seen `LIVE`
+
+CI has no credential, so `MARKET_DATA_PROVIDER` is `none` and **the word this
+epic exists to put on a screen was asserted only by unit tests.** The two specs
+above reach `disconnected`, which appears precisely _because_ nothing is
+configured.
+
+That is the general form of the defect this task already found once: **a spec
+that asserts an absence passes for free on a deployment that cannot produce the
+thing.** It needed no CI change to close — the venue arrives over HTTP and the
+connection over the socket, and this suite can furnish both from inside the
+browser. Three tests now do:
+
+| State                          | How it is produced                   | What it guards                                                      |
+| ------------------------------ | ------------------------------------ | ------------------------------------------------------------------- |
+| `IEX` + `LIVE`, clock `CLOSED` | `marketOpen: false`, no observations | §11.3's row that looks wrong and is correct                         |
+| `LIVE` in session              | a bar 30 s old                       | **Task 3.3.4's interval repair, in a browser** — `stale` without it |
+| `STALE` + its instant          | a bar 3 minutes old                  | §11.2's second sayable state, seen for the first time               |
+
+The file is now `market-connection.spec.ts` — it covers the cell's two
+directions rather than only its degradation.
+
+**And the first attempt failed because the fixture was wrong and the product was
+right.** An empty snapshot with the market **open** is correctly `stale`: §11.1
+makes `{}` the true answer after a restart, and §11.2 has no observation to age.
+
+#### 2. A teardown race in Task 3.3.4's hook, found through `StrictMode`
+
+The debug run showed the socket route hit **twice** — React's development
+double-invoke — and the page settled on `disconnected` with a snapshot waiting
+for it.
+
+**A closed socket fires `close` after the effect has torn down**, and the
+listener closes over the ref the _next_ mount is already using. So the first
+mount's teardown wrote `socket: "closed"` into a connection that had just been
+created, and the feed sat permanently disconnected **on a developer's own
+screen**. Production does not double-invoke; what is left there is the same race
+against any real unmount.
+
+It is the _"resolved after unmount"_ bug `use-backend-health.ts` closes
+deliberately, arriving on a socket instead of a request — and the repair is that
+file's, read through a function for its stated narrowing reason. A unit test now
+holds it.
+
+#### 3. Task 3.3.5 broke `pnpm test`'s no-network contract, and verify said nothing
+
+`CLAUDE.md` states the fast suite has **no socket and no network**. Until 3.3.5
+nothing in the application opened one, so that held by there being nothing to
+hold. `App` then gained `useLiveFeed`, and **every test rendering `App` dialled
+`localhost:3000` for real.**
+
+**It passed for two tasks.** Vitest reported `Unhandled Errors`, attributed them
+to whichever test was running when they landed, and **exited 0** — until a
+timing change in this task made the same errors fail the run. A contract nothing
+enforces expires quietly, and an unhandled error is not a failed assertion.
+
+The contract is now **structural**: `test-setup.ts` installs a `WebSocket` that
+cannot reach anything, so a test that wants one passes its own through
+`useLiveFeed`'s `open` seam. **And the first draft of that was wrong in an
+instructive way** — `vi.stubGlobal` puts the stub in Vitest's registry, and
+every suite here that stubs `fetch` cleans up with `vi.unstubAllGlobals()`,
+which empties the _whole_ registry and hands the real `WebSocket` back to every
+test after it. A global the suite relies on is assigned directly. Both traps are
+now in `CLAUDE.md`.
+
+### `e2e/README.md` gained a second thing to intercept
+
+Its rule read _"every failure state in this suite is produced by intercepting
+the health request"_ — complete until the chrome acquired a socket. The rule
+itself is unchanged: `routeWebSocket` closes **this page's** socket and touches
+nothing the other workers share. Amended with why it is also the sharper
+instrument, which matters more since Task 3.3.6 coupled the two indicators by a
+prompt: a spec that killed everything could not tell the coupling working from
+the coupling being a collapse.
+
+### And the sweep's own rename left a dangling reference, which is now mechanical
+
+**A fourth instance of the same class, produced by the fix for the third.**
+Renaming `market-feed-degrades.spec.ts` to `market-connection.spec.ts` left a
+comment in `market-feed.spec.ts` pointing at a file that no longer existed —
+and `pnpm verify`, `pnpm links` and the whole browser suite stayed green.
+
+**`pnpm links` is the precedent and deliberately not the answer**: it resolves
+relative _Markdown links_, and these are backticked filenames in TypeScript
+comments. The e2e package cross-references itself heavily — one spec explaining
+what another owns is how `e2e/README.md`'s one-failure-one-surface rule stays
+legible — and **31 distinct spec filenames are named across it** with nothing
+resolving any of them.
+
+So `every-spec-named-in-the-suite-exists` is a new `pnpm invariants` entry, and
+**it went red on its first run** on the real reference rather than on a
+contrived one.
+
+**It is scoped to `e2e/` on purpose, and that is the interesting constraint.** A
+task file under `planning/` records what was true when it was written, and
+`CLAUDE.md` is explicit that correcting those destroys the record — so a check
+that forced a rename through history would be worse than the defect it prevents.
+`e2e/` is code and its own README: both describe the tree as it is now, so both
+can be held to it.
+
+```text
+✓ a-renamed-spec-leaves-a-dangling-name  broken → red → restored byte-identical
+```
+
+**This task's own status line was the other half of it** — it still named the
+old file, two tests and 127 passing. Corrected, because the line at the top of a
+task is a live claim a reader trusts, while the body below it is a record.
+
+## For a stakeholder — a status report, 2026-09-19
+
+**Where the product is.** A user can explore 518 US companies and their
+historical charts, and the screen now tells them whether the market data behind
+it is arriving. This task was about what happens **when it stops** — the sixth of
+seven in this story, and the one that turns last task's promise into something a
+machine checks on every change.
+
+**What this task guarantees: the page does not fall over.**
+
+Pull the plug on the connection and the feed region says so, immediately, without
+the page reloading — and **everything else stays exactly as it was**. The prices
+on screen do not move, no region disappears, nothing turns red, and there is no
+error page. That is now an automated test that runs in **under three seconds** on
+every change, rather than something someone once checked by hand.
+
+**But the design review found a real problem first, and it is worth explaining
+because it is the kind nothing automatic could have caught.**
+
+Our status bar has two indicators side by side: one for the market feed, one for
+the backend service. Kill the backend and this is what a reader saw:
+
+> **Market feed: disconnected** · **Backend service: healthy**
+
+Both statements were _individually_ true at that instant. Together they said
+something false and unhelpful: _the market feed broke, the service is fine_ —
+when the service was the thing that had died. **It pointed the reader at the
+wrong culprit.**
+
+**Why it happened is the interesting part.** The live connection notices a
+problem **instantly**. The service check is a poll that runs **every thirty
+seconds**. Until this week every indicator on that bar learned things at the same
+speed, so reviewing them "as a set" meant looking at them at one moment. The live
+feed is the first thing on the screen that is faster than its neighbours — so a
+thirty-second window opened in which the bar told a misleading story.
+
+**The fix, and the principle we did not break to get it.** The obvious shortcut
+would be to let the feed tell the service indicator that things are bad. We did
+not do that, because it would let one indicator put words in another's mouth —
+and the whole reason there are two is that they can fail independently and must
+be able to disagree.
+
+Instead, losing the connection now makes the service check **run immediately**
+rather than waiting for its next scheduled turn. It still reports whatever it
+finds. In one line:
+
+> **One indicator may tell another when to look. It may not tell it what it
+> sees.**
+
+There is a test for exactly the case that proves the distinction: the connection
+drops but the service is genuinely fine, and the service indicator correctly says
+so.
+
+**Three more problems turned up when we audited our own work, and two of them
+we had caused ourselves in the previous two days.**
+
+**The first: no automated browser test had ever seen the word `LIVE`.** Our
+build server has no market-data credentials, so the live states simply never
+appear there — every check of the product's central word was a lower-level test.
+We closed it without needing any change to the build server: the test now
+_supplies_ a live feed to the page itself. Three new checks cover a healthy
+feed, a healthy feed out of trading hours, and a feed that has stopped
+delivering — the last two of which had never been seen by a browser test before.
+
+**The second: a subtle timing bug in the connection code from two days ago.** In
+development, React deliberately starts everything twice to catch exactly this
+class of mistake. It caught this one: the first connection's shutdown was
+writing into the _second_ connection's state, leaving the feed showing
+"disconnected" on a developer's screen even though it was fine. Harmless to
+users today, and a real race waiting to happen.
+
+**The third: our fast test suite had started making real network connections.**
+We have a standing rule that it must not — it is meant to run in seconds with no
+servers. When the live connection was added to the application shell, every test
+that renders the app began quietly dialling a server that was not there. It did
+not fail anything; the test runner reported the errors and _still passed_, for
+two days, until an unrelated timing change made it fail. We have made the rule
+structural rather than a convention: in the test environment there is now no
+usable network socket at all, so it cannot happen again by accident.
+
+**That last one is worth dwelling on**, because it is the useful kind of
+embarrassment: a rule everybody agreed on, written down, and enforced by nothing
+— so it expired without anyone noticing. Both traps behind it are now recorded
+where the next person will hit them.
+
+**And then a fourth one, caused by fixing the third.** Renaming a test file left
+another test file's note pointing at something that no longer existed — and
+every automated check stayed green, because our checks verify links between
+_documents_, not filenames mentioned inside _code_. Our test suite refers to
+itself in thirty-one places this way, and nothing had ever checked any of them.
+
+That one we did make mechanical, because it can be: there is now a check that
+every test file named anywhere in the suite actually exists, and **it failed the
+moment we switched it on** — on the real broken reference, not a contrived one.
+We deliberately limited it to the test suite rather than the project's written
+history, because old planning documents are supposed to record what was true
+when they were written; a check that forced us to rewrite them would destroy the
+record in order to tidy it.
+
+**Two smaller pieces of housekeeping, because both were quiet too.**
+
+An existing automated test said certain words "must never appear" on the screen.
+Last task deliberately made them appear — and the test **did not fail**, because
+our development machines have no market-data provider configured, so those words
+happen not to show up there. It was passing for a reason that had nothing to do
+with what it claimed to check. Corrected.
+
+And we verified the new test against a copy of the exact database our build
+server uses, before running anything — **127 tests passed, none failed**. That
+also settled a question left open last task: two unrelated tests that fail on a
+developer's machine and pass on the build server are **data-dependent, not
+unreliable**, which is a much more useful thing to know.
+
+**How this unlocks progress.** The honest-degradation promise is now mechanical.
+**One task remains in this story** — verification, documentation, and a piece of
+market-data evidence we have been waiting for a live trading session to capture.
+Then the next story makes a number move for the first time.
+
+**What a user can see today: nothing new**, and that is the point of this one —
+it protects what landed yesterday.

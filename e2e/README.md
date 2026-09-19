@@ -374,8 +374,26 @@ names that state.
 
 ## Why no spec stops the backend
 
-**Every failure state in this suite is produced by intercepting the health
-request in the browser.** Nothing stops, restarts or reconfigures the pair.
+**Every failure state in this suite is produced by intercepting the connection
+in the browser.** Nothing stops, restarts or reconfigures the pair.
+
+> **Amended 2026-09-19 by Task 3.3.6 — there are now TWO things to intercept.**
+> This section said _"intercepting the health request"_, and that was a complete
+> description until the chrome acquired a **WebSocket**. `page.routeWebSocket()`
+> is the socket's equivalent of `page.route()` and the rule above is unchanged
+> by it: the route closes **this page's** market socket and touches nothing the
+> other workers are sharing.
+>
+> **It is also the sharper instrument, which is a reason rather than a
+> convenience.** Stopping the whole backend degrades two indicators at once and
+> cannot tell you which one the page was reacting to — and since Task 3.3.6 the
+> two are deliberately coupled by a _prompt_, so a spec that killed everything
+> could not distinguish the coupling working from the coupling being a
+> collapse. `market-connection.spec.ts` asserts them moving independently, and
+> that assertion is only available because the outage is surgical.
+>
+> **A socket route is installed before `goto()`**, for the same reason an HTTP
+> route is: it cannot intercept a connection that has already been made.
 
 That is also the answer to "how are specs that mutate the shared pair kept from
 running underneath specs that do not?" — **there are none, so the default worker

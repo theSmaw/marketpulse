@@ -116,26 +116,6 @@ export function App() {
   // trades one decision for a second one nothing checks. **The reversal trigger
   // is a second consumer, or a render rate that is no longer a poll** — which
   // is Epic 3, not this story.
-  const backend = useBackendHealth();
-
-  // Which market feed this deployment reads (Task 2.6.7), replacing a value
-  // that was hard-coded in this file from Story 1.5 to Story 2.6.
-  //
-  // **Called here rather than in `AppHeader`, and the rule is worth stating
-  // once rather than re-deriving per hook: a hook that makes a network request
-  // is called in `App`; a hook that does not is called where it renders.**
-  // `useMarketClock` is in the header because the argument there is render
-  // *rate* — 1 Hz through the whole tree — and it asks nothing of anybody. This
-  // one asks the backend, and the argument that put `useBackendHealth` here
-  // applies unchanged: `AppHeader` sits inside its own `ErrorBoundary`, so a
-  // header that throws would take the request down with it.
-  //
-  // It costs the tree exactly **two** renders — the mount and the settle — and
-  // then nothing, because it never polls. So Task 1.12.5's accepted per-poll
-  // re-render is not made worse by it, and the reversal trigger recorded there
-  // is not fired.
-  const marketFeed = useMarketFeed();
-
   // Is data arriving right now (Task 3.3.5) — the fourth status word in this
   // chrome and the first one about the **present tense**.
   //
@@ -160,6 +140,32 @@ export function App() {
   // `AppHeader` sits inside its own `ErrorBoundary`, so a header that threw
   // would take the socket down with it.
   const liveFeed = useLiveFeed();
+
+  // **`recheckOn` added 2026-09-19 by Task 3.3.6**, and it is why the live hook
+  // is called above rather than below this one. A socket notices a dead backend
+  // in the same tick and this poll takes up to thirty seconds, so the strip
+  // read `feed · disconnected` beside `backend · healthy` — each cell honest,
+  // the pair pointing at the wrong subject. The socket only makes the check
+  // **run**; what it reports is still its own HTTP result.
+  const backend = useBackendHealth({ recheckOn: liveFeed.backendReachable });
+
+  // Which market feed this deployment reads (Task 2.6.7), replacing a value
+  // that was hard-coded in this file from Story 1.5 to Story 2.6.
+  //
+  // **Called here rather than in `AppHeader`, and the rule is worth stating
+  // once rather than re-deriving per hook: a hook that makes a network request
+  // is called in `App`; a hook that does not is called where it renders.**
+  // `useMarketClock` is in the header because the argument there is render
+  // *rate* — 1 Hz through the whole tree — and it asks nothing of anybody. This
+  // one asks the backend, and the argument that put `useBackendHealth` here
+  // applies unchanged: `AppHeader` sits inside its own `ErrorBoundary`, so a
+  // header that throws would take the request down with it.
+  //
+  // It costs the tree exactly **two** renders — the mount and the settle — and
+  // then nothing, because it never polls. So Task 1.12.5's accepted per-poll
+  // re-render is not made worse by it, and the reversal trigger recorded there
+  // is not fired.
+  const marketFeed = useMarketFeed();
 
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
