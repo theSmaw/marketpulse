@@ -21,6 +21,17 @@ then demonstrates nothing**, which is honest and is the point of a slice. Story
 
 ## What is already decided and must not be re-taken
 
+- **The connection words are a SUBSTITUTION, not a change — decided 2026-09-19
+  by Task 3.3.3.** `FeedIndicator` renders the raw `FeedStatus` today, and
+  `CONNECTION_DESCRIPTIONS`' labels **are** the union's own members, so pointing
+  the component at the record moves no pixel and changes no browser assertion.
+  The capitals on screen come from `.microLabel`'s `text-transform: uppercase`,
+  **not** from the strings — do not re-introduce them into the data, because a
+  screen reader is handed the DOM text rather than the transform.
+- **The crossing is `connectionWordFor`, and no component re-derives it.**
+  `status === "live" && feed === "replay"` written in a renderer is the exact
+  defect `pnpm break connection-words-in-a-renderer` now goes red for.
+
 - **Beside provenance, never instead of it.** _Which venues are in these
   numbers_ and _is data arriving right now_ are two facts that fail
   independently — Task 1.12.4's two-indicators argument, applied a fourth time,
