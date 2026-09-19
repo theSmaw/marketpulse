@@ -329,6 +329,53 @@ name.
 
 **The word cost two pixels in the worst case and nothing in the normal one.**
 
+### What the live hook costs the tree — measured, and it costs nothing
+
+**Owed by criterion 6 and not taken in the first pass**, which is recorded
+because a criterion quietly skipped is how a published target stops being true.
+Taken afterwards with a throwaway instrument, using **Task 1.12.6's and Task
+2.5.5's proxy unchanged** so the figures are comparable: `longtask` entries, and
+DOM mutations inside the status bar.
+
+**Sixty seconds, production bundle, live feed, `/securities/NVDA` at 1440:**
+
+```json
+{ "longtasks": [], "mutations": 0 }
+```
+
+and one distinct status-bar text throughout, verbatim:
+
+```text
+Market feedSimulatedGenerated test data. Not a market feed.liveBackend servicehealthy
+```
+
+**Twelve ticks of the 5 s timer and the strip did not change once.** That is
+`useMarketClock`'s own figure — 0 `longtask` entries over 60 s — matched rather
+than degraded, and it is Task 3.3.4's `sameLiveFeedView` gate proven **in a
+browser** rather than in a unit test.
+
+**Two things about the measurement that would have produced a wrong number:**
+
+- **A development build is not the product, and the gap is two orders of
+  magnitude.** The same instrument against `pnpm dev` reported long tasks of
+  **141 ms, twice**, with the same zero mutations — Vite's unminified React and
+  its HMR client, not this feature. §28's figures were taken on production
+  builds and a dev-mode number is not comparable to them. Anything measuring
+  main-thread cost in this repository has to build first.
+- **`buffered: true` on a `longtask` observer measures the COLD LOAD**, not
+  steady state. The first run returned `[76, 118, 117, 120]` and every one of
+  them predated the observer — the known 518-row universe breach Epic 14 owns,
+  arriving in a measurement about something else entirely.
+
+### The reversal trigger lives beside the word, not beside the renderer
+
+Criterion 8 asks for it _where the words live_, and the first pass put it in
+`FeedIndicator`. Moved to `CONNECTION_DESCRIPTIONS.live` in `feed-words.ts`,
+which turned out to be the better home for a reason rather than for compliance:
+**the argument for `live` having no _sentence_ and the argument for it carrying
+no _instant_ are the same argument**, and they were four files apart. The
+component's table is now the implementation and says so.
+
 ### Two browser specs fail locally, on `main`, for a reason worth recording
 
 `pnpm e2e` reported 123 passed and **2 failed** — `pressing a window does not

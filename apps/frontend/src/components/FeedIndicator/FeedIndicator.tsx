@@ -58,20 +58,14 @@ export interface FeedIndicatorProps {
 /**
  * Which states carry the observation's instant.
  *
- * **`LIVE` carries none, and that was the owner's decision on 2026-09-19.**
- * §36's example sentence — *"Live feed disconnected — displaying data through
- * 10:42:17"* — exists to **qualify a broken state**, and a healthy feed has
- * nothing to qualify. It is `PROVENANCE.md`'s existing rule rather than a new
- * one: a clause renders only when its own data is present, and this product
- * already refuses to print a fully-formed provenance record about zero bars.
+ * **`LIVE` carries none**, and the decision, its cost and its reversal trigger
+ * are recorded **beside the word** — `CONNECTION_DESCRIPTIONS.live` in
+ * `packages/shared/src/feed-words.ts`, where the argument for `live` having no
+ * *sentence* already lives, because it is the same argument. This table is the
+ * implementation of it and deliberately not a second copy.
  *
- * **The cost is stated rather than discovered later:** silence now means
- * *current*, and a reader has to learn that. Which is why the instant never
- * appears alone — it arrives inside the sentence that explains why it is there.
- *
- * **Reversal trigger, as a condition:** the first time a reader asks *how old
- * is this?* of a region showing `LIVE`. At that point silence has stopped
- * communicating and the always-on version is the answer.
+ * In one line: §36's example exists to **qualify a broken state**, and a
+ * healthy feed has nothing to qualify.
  */
 const QUALIFIES_WITH_AN_INSTANT: Readonly<Record<FeedStatus, boolean>> = {
   live: false,

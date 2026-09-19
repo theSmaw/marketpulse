@@ -71,6 +71,38 @@ asserting the wrong mechanism at 165× the cost.
 **There is no reconnection** (Story 3.10 owns it), so the state is stable once
 reached — the assertion does not race a retry.
 
+### The state you are asserting has already been SEEN — Task 3.3.5, 2026-09-19
+
+Not as a design intent but on a running page, with the backend killed under a
+loaded Security Explorer at 1440. What the strip said, and what the rest of the
+page did:
+
+```text
+MARKET FEED  ◌ UNKNOWN  The market feed could not be read.
+             ○ DISCONNECTED  The live feed is not connected. Prices shown are the last known.
+                                      BACKEND SERVICE  ◌ UNREACHABLE  No response from the service.
+```
+
+Every region stayed on screen: the price panel said the service did not answer
+and offered its one retry, the volume region deferred to it, the identity block
+explained that the universe could not be read, and the clock kept ticking.
+**Write the spec against this rather than against an imagined screen** — and
+note the three surfaces above are three different sentences about three
+different subjects, so a spec asserting "the page says it is disconnected"
+could pass on the wrong one.
+
+**Two numbers the spec should not be surprised by:**
+
+- **The footer grows from 33 px to 35 px when the feed degrades.** Two sentences
+  in one cell take a taller line. `useStickyFooterHeight` publishes it and the
+  page's bottom padding follows, so content shifts by two pixels. That is not a
+  datum changing and criterion 4 is not about it — but a spec pinning an exact
+  offset would trip on it.
+- **There is no threshold to wait out.** The transport reports a closed socket
+  in the same tick; 165 s is for a socket that goes _silent_, not one that goes
+  away, and a spec that waits for it is asserting the wrong mechanism at 165×
+  the cost.
+
 ## Work
 
 - **Prove the degradation by causing it**, not by stubbing a state. A browser
@@ -91,4 +123,9 @@ reached — the assertion does not race a retry.
 - A browser test drives connected → disconnected **without a refresh**
 - The same test asserts every other region and every number is **unchanged**
 - What CI's store can answer was checked **before** the suite ran
-- `pnpm verify` and `pnpm e2e` pass
+- `pnpm verify` passes, and `pnpm e2e` passes **apart from the two specs
+  `docs/GAPS.md` records as failing on a developer's store and passing on CI** —
+  `pressing a window does not move the chart` at tablet and at phone. Task 3.3.5
+  reproduced them on `main` in a clean worktree. **Check them against that entry
+  before reading either as your own**, because the suite reports a
+  store-dependent failure and a real regression identically.

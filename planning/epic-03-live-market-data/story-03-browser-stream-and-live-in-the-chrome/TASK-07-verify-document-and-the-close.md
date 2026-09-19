@@ -41,6 +41,14 @@ limit exceeded` **by a stale process of our own** — a dry-run that never
   `transcribed` in `MANIFEST.json`, and **retire the GAPS entry** rather than
   re-pointing it.
 
+- **The canvas gained a file and ADR 0026 gained its last count.** Task 3.3.5
+  added `Live in the chrome.dc.html` to the
+  `Component library for MarketPulse` project and amended ADR 0026 to **stop
+  recording how many files it holds** — a number in a present-tense sentence
+  that had been wrong four times. **Nothing in the close should re-introduce
+  one**; `DesignSync`'s `list_files` answers it and cannot go stale. What the
+  amendment records instead is the finding: reading the existing files before
+  drawing changed two of this story's decisions.
 - **The subject document.** This story decides a protocol, a transport and a
   set of words. Decide deliberately whether that is a new document or a section
   of [`STREAM-SEAM.md`](../story-02-stream-seam-and-alpaca-iex-client/STREAM-SEAM.md)
@@ -104,6 +112,12 @@ limit exceeded` **by a stale process of our own** — a dry-run that never
   the half that makes it more than tidiness: **a screen reader is handed the DOM
   text rather than the transform**, so this belongs beside the language's other
   accessibility findings rather than in a status-strip file.
+- **`docs/GAPS.md` gained an entry from 3.3.5 as well as the one 3.3.4 owes.**
+  Two browser specs pass on CI **because** it has no data and fail on a
+  developer's store. It is the mirror of the habit this repository already
+  records, and the close should check whether the pair of them now justifies a
+  mechanical answer — `pnpm store:bare` exists and nothing makes the suite say
+  which store it ran against.
 - **Sweep upward**, and expect to find something: this story is the first to put
   a live claim on a screen, and `PROVENANCE.md`, `VISUAL-LANGUAGE.md` and
   `CLAUDE.md`'s _What a user can see today_ all describe a product that cannot

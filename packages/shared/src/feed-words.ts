@@ -63,6 +63,26 @@ export const CONNECTION_DESCRIPTIONS: Record<
     // alone, and not otherwise.* `LIVE` beside a named venue and a market
     // clock is not ambiguous, and padding in a status strip is worse than
     // silence — it teaches a reader the second line is not worth reading.
+    //
+    // **And no instant either — the same decision, taken by the owner on
+    // 2026-09-19 and recorded here because this is where the word lives.**
+    // §36's example sentence — *"Live feed disconnected — displaying data
+    // through 10:42:17"* — exists to **qualify a broken state**, and a healthy
+    // feed has nothing to qualify. It is `PROVENANCE.md`'s existing rule
+    // rather than a new one: a clause renders only when its own data is
+    // present, and this product already refuses to print a fully-formed
+    // provenance record about zero bars.
+    //
+    // **The cost, stated rather than discovered later:** silence now means
+    // *current*, and a reader has to learn that. Which is why the degraded
+    // states are loud — the instant arrives inside the sentence that explains
+    // why it is there, never on its own.
+    //
+    // **Reversal trigger, as a condition:** the first time a user or a
+    // reviewer reads a healthy feed as *unqualified* rather than current — asks
+    // *how old is this?* of a region showing `LIVE`. At that point silence has
+    // stopped communicating and the always-on version is the answer.
+    // `FeedIndicator`'s `QUALIFIES_WITH_AN_INSTANT` is what implements it.
     label: "live",
   },
   stale: {
