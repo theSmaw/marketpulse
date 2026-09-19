@@ -301,3 +301,39 @@ anyway.
 | Refused `406` for materially longer than the ceiling          | **The interesting one.** The slot is not freed by our close, and §12.2's ≤ 5 s row is wrong — which makes every deploy a feed outage of unknown length and is a finding for Story 3.10's reconnection policy as much as for this story |
 
 Also recorded in `docs/GAPS.md` as entry 8.
+
+---
+
+## What holds the slot — the same question as the overlap window, asked twice (2026-09-19)
+
+**[`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §8.2's duplicate-connection behaviour reproduced
+unplanned on 2026-09-18**, and the incumbent was a **stale process of our own**:
+a two-minute dry-run that never exited, still holding a TLS connection to Alpaca
+**thirty-four hours later**, having outlived the directory containing its own
+source.
+
+Measured without anyone trying to produce it: **1,149 ms to the `406`, 9,498 ms
+to the close** — against §8.2's 233 ms and ~9,964 ms, and landing exactly where
+§8.5 puts _a refused duplicate_.
+
+**Why it is yours, and why it is one measurement rather than two.** This story
+already owns _whether a half-open socket locks out its successor_ (added
+2026-09-18 by Task 3.2.5) and _whether the overlap window is bounded at all_
+(§8.2's third consequence). **Both are the same question — what holds the slot,
+and for how long** — and the reproduction above supplies a third instance of it:
+a process that is alive but forgotten.
+
+**Three occupants, one slot, and the deployed measurement answers all three:**
+
+| Occupant                                    | How long it holds                                                      | Status                      |
+| ------------------------------------------- | ---------------------------------------------------------------------- | --------------------------- |
+| A stopping replica that closed deliberately | ≤ `SHUTDOWN_TIMEOUT_MS`                                                | §12.2's claim, **inferred** |
+| A half-open socket behind a dead process    | §6.4 measured **4 h 21 min** from _our_ side; Alpaca's view unmeasured | **Open**                    |
+| A live process nobody remembered            | Indefinitely                                                           | Observed 2026-09-18         |
+
+**The practical repair, which is not a measurement.** Anything that opens this
+socket should **first establish that nothing else already holds one, and refuse
+rather than wait**. The spike's `supervise-session.sh` had exactly that check
+and never hit this; the dry-run that caused it did not. **A one-connection plan
+makes every instrument a potential incumbent**, and a process that forgets to
+exit is indistinguishable from a deploy.

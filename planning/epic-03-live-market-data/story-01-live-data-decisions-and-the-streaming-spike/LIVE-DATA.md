@@ -2196,6 +2196,45 @@ Three consequences, and they belong to three different stories:
   own termination signal, and a half-open socket (§6.4) could hold the single
   permitted connection long after the process that opened it is gone.
 
+> **Reproduced UNPLANNED on 2026-09-18, and the victim was our own measurement —
+> added 2026-09-19.**
+>
+> A capture written to answer `docs/GAPS.md` entry 7 waited for the open, dialled
+> at 13:31:00.900Z, and got:
+>
+> ```text
+> 13:31:02.049Z  {"T":"error","code":406,"msg":"connection limit exceeded"}
+> 13:31:11.547Z  closed 1006 — 0 frames captured, 0 pings
+> ```
+>
+> **1,149 ms to the refusal and 9,498 ms to the close**, against this section's
+> 233 ms and ~9,964 ms. The close latency lands where §8.5's table predicts
+> ~10 s for _a refused duplicate_, and it did so with nobody trying to produce
+> it. **This section describes something that happens, not something a probe can
+> arrange.**
+>
+> **The incumbent was a stale process of our own.** A two-minute dry-run of
+> `weekend.mjs`, launched 07:21 the previous morning to prove the instrument
+> worked, **never exited** — and it outlived the directory containing its own
+> source, which was deleted with the harness a day earlier. It was holding an
+> established TLS connection to Alpaca thirty-four hours later.
+>
+> **This repository had already named this exact failure.** Commit `f9a91d0`,
+> _"A stale process from a finished task is the duplicate-connection hazard
+> nobody looked for"_ — written three days before it happened again, by the
+> same hand.
+>
+> **The lesson is not "be careful", because that was already tried.** The
+> practical repair is a **pre-flight check**: anything that opens this socket
+> should first establish that nothing else already holds one, and refuse rather
+> than wait. `supervise-session.sh` had one and it is the reason that script
+> never hit this; the dry-run did not. **A one-connection plan makes every
+> instrument a potential incumbent, and a process that forgets to exit is
+> indistinguishable from a deploy.**
+>
+> **Owner: Story 3.11**, beside the question above — the overlap window and _what
+> holds the slot_ are the same measurement asked twice.
+
 ### 8.3 Three authentication failures are one frame
 
 `402 auth failed` is returned **byte-identical** for a wrong key, a wrong secret
