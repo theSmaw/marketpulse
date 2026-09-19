@@ -6,6 +6,7 @@ import {
   type MarketStreamMessage,
   type WireFeedState,
 } from "@marketpulse/shared";
+import { connectionWordFor } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -16,6 +17,7 @@ import {
   initialLiveFeed,
   liveFeedView,
   sameLiveFeedView,
+  startedLiveFeed,
 } from "./live-feed.js";
 
 // The browser's feed state, decided with no socket (Task 3.3.4).
@@ -229,6 +231,39 @@ describe("the status a browser reports", () => {
 
     expect(at(opened, 0, BAR_ARRIVED).status).toBe("disconnected");
     expect(at(opened, 0, BAR_ARRIVED).feed).toBeNull();
+  });
+
+  it("does NOT claim we lost the backend before we have finished asking", () => {
+    // **The defect the 3.3.4 sweep found**, and it would have flashed
+    // `DISCONNECTED` in the chrome on every page load: reachability was
+    // measured from *nothing has ever arrived*, which is true of a connection
+    // that is merely young. `BackendIndicator`'s `checking` and
+    // `MarketFeedView`'s `checking` both exist to prevent exactly this, and
+    // Task 1.12.1 named it — reporting a client's own ignorance as a fact
+    // about the server is the opposite of §36.
+    const opened = walk([{ kind: "opened", at: 0 }]);
+
+    expect(at(opened, 0, BAR_ARRIVED).backendReachable).toBe(true);
+    expect(
+      connectionWordFor("disconnected", null, {
+        backendReachable: at(opened, 0, BAR_ARRIVED).backendReachable,
+      }),
+    ).toBeNull();
+  });
+
+  it("still fails honestly if the connection simply HANGS", () => {
+    // The other half, and the reason `since` exists rather than a boolean: a
+    // TCP connect that hangs produces no open, no error and no close, so
+    // without an instant to count from the browser would report a reachable
+    // backend for ever.
+    const never = startedLiveFeed(0);
+
+    expect(
+      at(never, DISCONNECTED_AFTER_MS - 1, BAR_ARRIVED).backendReachable,
+    ).toBe(true);
+    expect(at(never, DISCONNECTED_AFTER_MS, BAR_ARRIVED).backendReachable).toBe(
+      false,
+    );
   });
 });
 

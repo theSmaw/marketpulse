@@ -5,9 +5,9 @@ import {
   type LiveFeedView,
   advanceLiveFeed,
   firstUnreadable,
-  initialLiveFeed,
   liveFeedView,
   sameLiveFeedView,
+  startedLiveFeed,
 } from "./live-feed.js";
 import { connectMarketStream } from "./market-stream-client.js";
 import type { MarketStreamOptions } from "./market-stream-client.js";
@@ -92,9 +92,15 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
     open,
   } = options;
 
-  const connection = useRef(initialLiveFeed);
+  // **One evaluation, held two ways.** `useState`'s lazy initialiser rather
+  // than a second `startedLiveFeed(now())` call: two calls would stamp two
+  // different instants on what is one connection, and reading the ref here to
+  // avoid that is what the React Compiler's `refs` rule forbids — correctly,
+  // since a ref read during render is a value React cannot see change.
+  const [started] = useState(() => startedLiveFeed(now()));
+  const connection = useRef(started);
   const [view, setView] = useState<LiveFeedView>(() =>
-    liveFeedView(initialLiveFeed, { now: now(), wallNow: wallNow() }),
+    liveFeedView(started, { now: now(), wallNow: wallNow() }),
   );
 
   // **Captured for the life of the connection, and that is the semantics
@@ -113,10 +119,20 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
   const seams = useRef({ now, wallNow, open });
 
   useEffect(() => {
+    // Read once, at the top, into locals the cleanup can close over — a
+    // `seams.current` read inside a cleanup is a read at teardown time rather
+    // than at setup time, which `react-hooks/exhaustive-deps` warns about and
+    // is right to.
+    const {
+      now: readNow,
+      wallNow: readWallNow,
+      open: openSocket,
+    } = seams.current;
+
     const read = (): void => {
       const next = liveFeedView(connection.current, {
-        now: seams.current.now(),
-        wallNow: seams.current.wallNow(),
+        now: readNow(),
+        wallNow: readWallNow(),
       });
 
       // The whole no-render guarantee, in one line: React bails out of a
@@ -147,9 +163,9 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
       // `undefined`* are different types and the transport's own default only
       // applies to the first. Branching is the setting behaving correctly
       // rather than friction to route around.
-      seams.current.open === undefined
-        ? { now: seams.current.now }
-        : { now: seams.current.now, open: seams.current.open },
+      openSocket === undefined
+        ? { now: readNow }
+        : { now: readNow, open: openSocket },
     );
 
     const ticking = setInterval(read, tickMs);
@@ -157,7 +173,7 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
     return () => {
       clearInterval(ticking);
       disconnect();
-      connection.current = initialLiveFeed;
+      connection.current = startedLiveFeed(readNow());
     };
   }, [tickMs]);
 

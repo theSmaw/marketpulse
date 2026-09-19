@@ -78,6 +78,15 @@ export type LiveFeedEvent =
 export interface LiveFeedConnection {
   readonly socket: "connecting" | "open" | "closed";
   /**
+   * When this connection was started, on the **monotonic** clock.
+   *
+   * **It exists so that *we have not connected yet* is not measured as
+   * *nothing has arrived for 165 s*.** Without it a socket whose TCP connect
+   * simply hangs — no open, no error, no close — would be reported as
+   * reachable for ever, because the watchdog had no instant to count from.
+   */
+  readonly since: number;
+  /**
    * When ANY message last arrived, on the **monotonic** clock.
    *
    * **The gateway's 120 s keepalive is what makes this meaningful on this side,
@@ -109,9 +118,15 @@ export interface LiveFeedConnection {
   readonly lastUnreadableReason: string | undefined;
 }
 
+/** A browser that has been told nothing yet, as of a given monotonic instant. */
+export function startedLiveFeed(at: number): LiveFeedConnection {
+  return { ...initialLiveFeed, since: at };
+}
+
 /** A browser that has been told nothing yet. */
 export const initialLiveFeed: LiveFeedConnection = {
   socket: "connecting",
+  since: 0,
   lastInboundAt: undefined,
   lastObservationAt: undefined,
   server: undefined,
@@ -265,11 +280,24 @@ export function liveFeedView(
   // precisely what `marketOpen: false` means to the shared rule. Spelled this
   // way rather than re-writing the 165 s comparison here, so there is one
   // implementation of *has anything arrived recently enough*.
+  //
+  // **`?? state.since` is the correction, and it is not a detail.** The first
+  // draft passed `lastInboundAt` straight through, so before the snapshot
+  // arrived the rule saw *nothing has ever arrived* and returned
+  // `disconnected` — and the chrome would have flashed `DISCONNECTED` on
+  // **every page load**, claiming a broken feed before it had finished asking.
+  //
+  // That is the defect `BackendIndicator`'s `checking` and `MarketFeedView`'s
+  // `checking` both exist to prevent, and Task 1.12.1 named it: reporting a
+  // client's own ignorance as a fact about the server is the opposite of §36.
+  // **We have not connected yet is not we lost the backend** — counting from
+  // the moment we started asking is what tells them apart, and it still fails
+  // honestly if a connect simply hangs.
   const backendReachable =
     feedStatusFrom(
       {
         closed: state.socket === "closed",
-        lastInboundAt: state.lastInboundAt,
+        lastInboundAt: state.lastInboundAt ?? state.since,
         lastObservationAt: undefined,
       },
       { now, wallNow, marketOpen: false },

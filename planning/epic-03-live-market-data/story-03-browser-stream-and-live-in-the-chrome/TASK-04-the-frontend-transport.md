@@ -314,6 +314,48 @@ build-time fact about a deployment, not a fact about the protocol.
 ✓ a-second-socket-in-the-frontend  broken → red → restored byte-identical
 ```
 
+### Found by its own sweep: the chrome would have flashed `DISCONNECTED` on every page load
+
+**The task's own sweep caught a defect in what it had just shipped**, which is
+the argument for doing the sweep at all rather than at the story close.
+
+Reachability was derived from the shared rule with `lastInboundAt` passed
+straight through — and before the snapshot arrives that is `undefined`, which
+the rule correctly reads as _nothing has ever arrived_ and reports as
+`disconnected`. Fed to `connectionWordFor`, that renders the word:
+
+```text
+backendReachable: false | word: disconnected
+```
+
+**On every page load, for the moment before the socket answers.** That is the
+defect `BackendIndicator`'s `checking` and `MarketFeedView`'s `checking` both
+exist to prevent, and Task 1.12.1 named it in as many words: reporting a
+client's own ignorance as a fact about the server is the opposite of §36.
+
+**We have not connected yet is not we lost the backend**, and the repair is a
+`since` on the connection — reachability counts from the moment we started
+asking. It is an instant rather than a boolean **so that the honest failure
+survives**: a TCP connect that simply hangs produces no open, no error and no
+close, and a boolean would report a reachable backend for ever. Both halves are
+asserted.
+
+**The rendering half is 3.3.5's and is handed forward**, because _no word_ and
+_a placeholder_ are both defensible and there is a measured precedent on each
+side — `BackendIndicator` draws a placeholder rather than collapsing its region,
+and §11.3's grid already gives a row a `—`. `pnpm probe` is what answers it.
+
+### The React Compiler fired twice more, on the repair
+
+Both on the same change and both correct: reading a ref in the `useState`
+initialiser, and reading `seams.current` in an effect **cleanup** — a read at
+teardown time rather than at setup time. The first is now one `useState` lazy
+initialiser held two ways, which also fixed a real sloppiness (two
+`startedLiveFeed(now())` calls would stamp two different instants on one
+connection); the second is three locals destructured at the top of the effect.
+
+Five firings, five repairs, none of them larger than what it replaced.
+
 ### What was deliberately not built
 
 - **No reconnection.** Story 3.10's. `disconnected` is reported honestly and

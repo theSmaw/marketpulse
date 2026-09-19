@@ -227,6 +227,7 @@ export {
   initialLiveFeed,
   liveFeedView,
   sameLiveFeedView,
+  startedLiveFeed,
 } from "./live-feed.js";
 export type {
   LiveFeedConnection,
