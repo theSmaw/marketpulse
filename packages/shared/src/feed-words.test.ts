@@ -10,6 +10,9 @@ import {
 } from "./feed-words.js";
 import { MARKET_FEEDS } from "./market-provenance.js";
 
+/** Every row of §11.3's grid is about a browser that can hear the server. */
+const REACHABLE = { backendReachable: true } as const;
+
 describe("the connection words", () => {
   it("covers every FeedStatus, so a fourth without words is a compile error", () => {
     // The `Record<FeedStatus, …>` annotation is the guard; this holds the half
@@ -55,17 +58,23 @@ describe("REPLAYING, the one string that crosses both vocabularies", () => {
     // `FeedStatus.live` is a claim about a CONNECTION; `LIVE` in the chrome
     // reads as a claim about the MARKET, and on a Saturday afternoon those
     // diverge completely.
-    expect(connectionWordFor("live", "replay")).toBe(REPLAYING_DESCRIPTION);
-    expect(connectionWordFor("live", "replay")?.label).toBe("replaying");
-    expect(connectionWordFor("live", "iex")?.label).toBe("live");
+    expect(connectionWordFor("live", "replay", REACHABLE)).toBe(
+      REPLAYING_DESCRIPTION,
+    );
+    expect(connectionWordFor("live", "replay", REACHABLE)?.label).toBe(
+      "replaying",
+    );
+    expect(connectionWordFor("live", "iex", REACHABLE)?.label).toBe("live");
   });
 
   it("does NOT replace the degraded words, which are about the connection", () => {
     // A replay whose own connection is stale or disconnected is stale or
     // disconnected — the substitution is only for `live`, because only `LIVE`
     // is the word that would be read as a claim about the market.
-    expect(connectionWordFor("stale", "replay")?.label).toBe("stale");
-    expect(connectionWordFor("disconnected", "replay")?.label).toBe(
+    expect(connectionWordFor("stale", "replay", REACHABLE)?.label).toBe(
+      "stale",
+    );
+    expect(connectionWordFor("disconnected", "replay", REACHABLE)?.label).toBe(
       "disconnected",
     );
   });
@@ -83,7 +92,7 @@ describe("REPLAYING, the one string that crosses both vocabularies", () => {
     // `pnpm break feed-words-in-a-renderer` exists to catch for the feed's own
     // words. Every feed goes through the same function.
     for (const feed of MARKET_FEEDS) {
-      const word = connectionWordFor("live", feed);
+      const word = connectionWordFor("live", feed, REACHABLE);
       expect(word?.label).toBe(feed === "replay" ? "replaying" : "live");
     }
   });
@@ -96,7 +105,7 @@ describe("the unconfigured deployment", () => {
     // because `FeedStatus` has three members and *not configured* is not one —
     // so this is where the wire's shape becomes the grid's.
     for (const status of FEED_STATUSES) {
-      expect(connectionWordFor(status, null)).toBeNull();
+      expect(connectionWordFor(status, null, REACHABLE)).toBeNull();
     }
   });
 
@@ -167,6 +176,42 @@ describe("the casing", () => {
     // the raw `FeedStatus` today, so pointing it here changes no pixel.
     for (const status of FEED_STATUSES) {
       expect(CONNECTION_DESCRIPTIONS[status].label).toBe(status);
+    }
+  });
+});
+
+describe("losing the backend, which §11.3's grid has no row for", () => {
+  const UNREACHABLE = { backendReachable: false } as const;
+
+  it("says disconnected even where the grid draws a dash", () => {
+    // `STORY.md` open decision 3, answered by the owner 2026-09-19. A
+    // deployment with no provider and a browser that has lost the backend both
+    // arrive as `disconnected` with `feed: null`, and they are different facts.
+    // The `—` belongs to *the server has no provider*; it does not belong to
+    // *we cannot reach the server*, which §36 requires be labelled rather than
+    // inferred from an absence.
+    expect(connectionWordFor("disconnected", null, REACHABLE)).toBeNull();
+    expect(connectionWordFor("disconnected", null, UNREACHABLE)?.label).toBe(
+      "disconnected",
+    );
+  });
+
+  it("outranks the replay rendering, because a replay we cannot hear is not running", () => {
+    expect(connectionWordFor("live", "replay", REACHABLE)?.label).toBe(
+      "replaying",
+    );
+    expect(connectionWordFor("live", "replay", UNREACHABLE)?.label).toBe(
+      "disconnected",
+    );
+  });
+
+  it("never renders a healthy word about a server we cannot hear", () => {
+    for (const status of FEED_STATUSES) {
+      for (const feed of [...MARKET_FEEDS, null]) {
+        expect(connectionWordFor(status, feed, UNREACHABLE)?.label).toBe(
+          "disconnected",
+        );
+      }
     }
   });
 });

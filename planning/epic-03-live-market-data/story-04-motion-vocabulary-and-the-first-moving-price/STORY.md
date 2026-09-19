@@ -148,6 +148,43 @@ against motion and designing against a toy:
    and a static one during a quiet minute — and also the difference between a
    calm screen and a twitching one.
 
+## Handed here by Task 3.3.4 — 2026-09-19, and one of the three is a trap
+
+Story 3.3 built the browser's end of the socket and **deliberately stopped
+short of holding prices**. Three things follow, written here rather than left in
+3.3's task files, because a story close sweeps the documents the story wrote and
+this is not one of them.
+
+**1. The observation store is yours, and the shape is already decided.**
+`useLiveFeed` keeps the newest observation's **instant** — staleness needs it —
+and **not the observations themselves**. What to add is §10.3's **one Map,
+latest observation only**, with §11.1's omission semantics: an entry for every
+security observed and **no entry at all** for the rest, so _present but empty_
+is unspellable. It goes into `advanceLiveFeed` in
+`apps/frontend/src/market/live-feed.ts`, which is additive — the reducer, its
+event union and the transport all already carry the whole message.
+
+**2. The trap: `sameLiveFeedView` will silently stop your prices moving.**
+`use-live-feed.ts` only sets state when the derived view **differs**, because
+Task 3.3.2's gateway re-sends the feed state every 120 s and a hook that
+notified on every message would re-render the application thirty times an hour
+to redraw an identical word. That gate compares five named fields. **Add
+observations to the connection and forget the comparison, and the Map will
+update while the screen never does** — a first moving price that does not move,
+with every test green, because the reducer is right and the gate is upstream of
+it. Extend `sameLiveFeedView` in the same change, and assert the negative: _a
+new price causes a render._
+
+**3. `OBSERVATION_INTERVAL_MS` is a minute because §10.1 chose minute bars.**
+Task 3.3.4 found that §11.2's staleness rule measured an observation's age from
+the instant that **opens** its interval, so `live` was unreachable in session;
+the repair adds the interval's duration. **Nothing checks that the subscribed
+timeframe is actually a minute.** If this story or any after it subscribes to a
+second timeframe, that constant is silently wrong in the same invisible way —
+and the duration then belongs on the observation rather than in a module
+constant. That is the constant's stated reversal trigger, and this is the story
+most likely to fire it.
+
 ## The design bar
 
 **This is the story where test 4 is finally answered, and the answer has to be

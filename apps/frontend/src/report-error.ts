@@ -105,3 +105,29 @@ export function reportRenderError(
     componentStack ?? "(no component stack)",
   );
 }
+
+/**
+ * A message from the market socket this bundle could not read (Task 3.3.4).
+ *
+ * **Here rather than in the hook, because this file is the one place this
+ * application reports anything** — the argument in the header is unchanged: a
+ * browser has the console and nothing else until something on the server is
+ * listening, and when there is a destination there should be one function to
+ * change rather than several call sites.
+ *
+ * **`warn` rather than `error`, deliberately.** Everything above is a render
+ * failure — the user is looking at a fallback or a blank page. This is not
+ * that: the page is fine, the feed is fine, and one message was not
+ * understood. Reporting it at the same level as a broken render would teach a
+ * reader that the level means nothing.
+ *
+ * **Called once per connection, not once per message.** A protocol mismatch
+ * after a deploy produces the same reason on every message; the hook keeps
+ * counting either way, so the count is the measurement and this is the notice.
+ */
+export function reportUnreadableMessage(reason: string): void {
+  console.warn(
+    `[marketpulse] a market-stream message could not be read: ${reason}. ` +
+      "Further unreadable messages on this connection are counted rather than logged.",
+  );
+}

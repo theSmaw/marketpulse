@@ -32,6 +32,48 @@ then demonstrates nothing**, which is honest and is the point of a slice. Story
   `status === "live" && feed === "replay"` written in a renderer is the exact
   defect `pnpm break connection-words-in-a-renderer` now goes red for.
 
+### Two sources now carry the FEED IDENTITY, and this task must pick one — found 2026-09-19 after Task 3.3.4
+
+**`useMarketFeed()` and `useLiveFeed()` both answer _which venues are in these
+numbers_**, and nothing has said which drives the cell:
+
+| Source                                | Where from                         | When it is true                                   |
+| ------------------------------------- | ---------------------------------- | ------------------------------------------------- |
+| `useMarketFeed()` → `MarketFeedView`  | HTTP `/market-data`, once on mount | **Always** — it is the deployment's configuration |
+| `useLiveFeed()` → `LiveFeedView.feed` | The socket's `WireFeedState`       | Only once connected                               |
+
+**The recommendation, with the reason, because the cheap answer is wrong.**
+Keep `useMarketFeed` for the **feed cell** and use `LiveFeedView.feed` only
+where Task 3.3.3 already uses it — inside `connectionWordFor`, to tell a replay
+from a live venue and a configured deployment from an unconfigured one.
+Provenance is a fact about the deployment that is **true whether or not
+anything is connected**, which is `use-market-feed.ts`'s own argument and the
+reason the hook exists; a feed cell fed by the socket goes blank when the socket
+does, which is precisely the coupling the two-indicators argument forbids.
+
+**If this task decides otherwise, delete `useMarketFeed` in the same change.**
+Two hooks answering one question, with one of them unread, is the shape that
+rots.
+
+### The first paint says NOTHING, and the placeholder question is this task's
+
+**Task 3.3.4 fixed the half that was a defect** — reachability is measured from
+when we started asking rather than from _nothing has ever arrived_, so the
+chrome no longer flashes `DISCONNECTED` on every page load. Before the snapshot
+lands `connectionWordFor` returns **`null`**: no connection word at all.
+
+**What it does not decide is whether nothing is what should be drawn**, and
+there is a measured precedent on each side:
+
+- `BackendIndicator` renders a **`checking` placeholder** rather than nothing,
+  on a stated reason: _"rendering nothing would collapse the region and shift
+  the whole chrome when the first result lands."_
+- §11.3's grid already gives the unconfigured row a **`—`**, so the cell must
+  tolerate emptiness anyway.
+
+**`pnpm probe` answers it** — the strip is measured at four widths in this task
+regardless, and whether the cell collapses is visible there and nowhere else.
+
 - **Beside provenance, never instead of it.** _Which venues are in these
   numbers_ and _is data arriving right now_ are two facts that fail
   independently — Task 1.12.4's two-indicators argument, applied a fourth time,

@@ -20,7 +20,9 @@ import {
   pingDatabase,
 } from "./database.js";
 import { readFeedDiagnostic, readFeedState } from "./feed-diagnostic.js";
-import { MARKET_STREAM_PATH, registerMarketGateway } from "./market-gateway.js";
+import { MARKET_STREAM_PATH } from "@marketpulse/shared";
+
+import { registerMarketGateway } from "./market-gateway.js";
 import type { MarketDataStream } from "./market-data-stream.js";
 import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
 import { ReplayDuringSessionError } from "./replay-stream.js";

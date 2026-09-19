@@ -58,6 +58,19 @@ answer against `pnpm store:bare` plus `MARKET_DATA_PROVIDER=none` rather than
 against a local machine that has a credential. This repository has already paid
 a six-minute round trip for asserting something CI could not produce.
 
+### What killing the backend actually produces — Task 3.3.4, so the spec can be written against it
+
+The transport reports a closed socket **immediately**; there is no timer to wait
+out. `WebSocket` fires `close` (or `error`, which this transport treats
+identically because only one of them is actionable), the reducer records it, and
+the derived view flips in the same tick. **So the spec does not need
+`waitForTimeout` and must not use one** — the 165 s threshold is for a socket
+that goes _silent_, not one that goes away, and a spec that waits for it is
+asserting the wrong mechanism at 165× the cost.
+
+**There is no reconnection** (Story 3.10 owns it), so the state is stable once
+reached — the assertion does not race a retry.
+
 ## Work
 
 - **Prove the degradation by causing it**, not by stubbing a state. A browser

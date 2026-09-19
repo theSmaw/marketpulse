@@ -213,3 +213,27 @@ export { clearBarSeriesCache } from "./series-cache.js";
 // type predates the module.
 export { barSeriesQuery } from "../bar-series-query.js";
 export type { BarSeriesRequest, SeriesWindow } from "../bar-series-query.js";
+
+// The live market feed (Task 3.3.4). **The transport is deliberately NOT
+// exported**: nothing outside this module should be able to open a socket, which
+// is the same rule that keeps `series-cache.ts` private — every read comes with
+// a request, and here every connection comes with the state that interprets it.
+//
+// The pure halves are exported because they are what a test and a story hold: a
+// view a component can render without a socket existing.
+export {
+  advanceLiveFeed,
+  firstUnreadable,
+  initialLiveFeed,
+  liveFeedView,
+  sameLiveFeedView,
+  startedLiveFeed,
+} from "./live-feed.js";
+export type {
+  LiveFeedConnection,
+  LiveFeedEvent,
+  LiveFeedInputs,
+  LiveFeedView,
+} from "./live-feed.js";
+export { LIVE_FEED_TICK_MS, useLiveFeed } from "./use-live-feed.js";
+export type { UseLiveFeedOptions } from "./use-live-feed.js";

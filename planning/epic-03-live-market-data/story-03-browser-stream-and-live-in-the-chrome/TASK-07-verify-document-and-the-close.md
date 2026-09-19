@@ -69,6 +69,32 @@ limit exceeded` **by a stale process of our own** — a dry-run that never
   type, stripping is the serialiser, and a transport without a serialiser has to
   rebuild the second._
 
+- **`docs/GAPS.md` owes an entry `OBSERVATION_INTERVAL_MS` earned, and it is a
+  claim rather than a check.** Task 3.3.4 fixed a rule that measured an
+  observation's age from the instant that **opens** its interval; the repair
+  adds the interval's duration, and **that duration is a hard-coded minute
+  because §10.1 chose minute bars.** Nothing anywhere checks that the stream's
+  subscribed timeframe is actually a minute, so a second timeframe makes the
+  constant silently wrong in the same invisible way the original defect was.
+  The reversal trigger is written beside the constant; what is missing is the
+  entry saying a green `verify` does not certify it. **Re-measure:** compare the
+  channel `market-stream.ts` subscribes to against
+  `OBSERVATION_INTERVAL_MS`.
+- **The `wire-serialiser` ADR now has a second candidate beside it.** Task 3.3.4
+  moved §11.2's thresholds and their rule into
+  `packages/shared/src/feed-liveness.ts`, because **two sockets apply them** —
+  and the general shape is not specific to this feed: _a rule about a
+  connection's health belongs with the vocabulary it produces, not with either
+  socket that asks it._ Decide with the serialiser whether that is one ADR, two,
+  or a paragraph arguing neither.
+- **The defect class is worth one sentence wherever the ADR lands, because it
+  has now fired twice in three days.** Both of Story 3.2/3.3's silent
+  status-rule defects were **arithmetic between two documented facts that were
+  never read against each other**, and both were invisible to a full green
+  suite because **every test used round numbers for a pair the vendor delivers a
+  minute apart**. The habit that catches it is in the tests now — §7.3's
+  measured pair by name, in three files — and the habit is the thing worth
+  recording.
 - **`VISUAL-LANGUAGE.md` owes the casing rule, found by Task 3.3.3.** _The
   stored word is the union's own member; `.microLabel` supplies the capitals._
   It is currently written in three places that are all about **this strip** —
@@ -89,7 +115,10 @@ limit exceeded` **by a stale process of our own** — a dry-run that never
     words it can act on. **Counting citations measures citation, not delivery** —
     Story 3.2's close produced a false positive doing exactly that.
   - **Construction sites**: every exported factory, route and hook this story
-    adds, grepped for a caller outside a test. **Story 3.2 shipped three
+    adds, grepped for a caller outside a test. **`useLiveFeed` is the one to
+    check first** — it was written in 3.3.4 with no consumer by design, and a
+    3.3.5 that wires the words but not the hook would leave exactly the shape
+    Story 3.2 shipped three times. **Story 3.2 shipped three
     implementations with no construction site and a green `verify` throughout.**
 - **Walk the acceptance criteria against a RUNNING system**, not only the suite.
 - **`pnpm verify`, `pnpm e2e`, `pnpm probe`**, and every gate this story can

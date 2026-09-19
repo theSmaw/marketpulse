@@ -1,4 +1,10 @@
-import type { Bar, BarSource, MarketFeed, Ticker } from "@marketpulse/shared";
+import type {
+  Bar,
+  BarSource,
+  FeedStatusInputs,
+  MarketFeed,
+  Ticker,
+} from "@marketpulse/shared";
 
 import type {
   LiveObservation,
@@ -10,7 +16,6 @@ import {
   advanceStreamConnection,
   feedStatusOf,
   initialStreamConnection,
-  type FeedStatusInputs,
   type StreamConnection,
   type StreamEvent,
 } from "./stream-connection.js";

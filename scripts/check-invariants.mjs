@@ -783,6 +783,59 @@ const INVARIANTS = [
     },
   },
   {
+    id: "one-home-for-the-socket",
+    claim:
+      "One module in the frontend opens the market socket and knows its " +
+      "address; nothing else in the application does either.",
+    check() {
+      // **`api-client.ts` is the only file that calls `fetch`, and a socket is
+      // a second network boundary** (Task 3.3.4). The rule is the same and so
+      // is the reason: a second place that knows the address is a second place
+      // that can be pointed at the wrong one, and a second place that opens a
+      // socket is a connection nothing above it is holding state for.
+      //
+      // Two literals, because there are two ways to break it — spelling the
+      // address, and constructing the socket.
+      const TRANSPORT = "apps/frontend/src/market/market-stream-client.ts";
+
+      const LITERALS = ["MARKET_STREAM_PATH", "new WebSocket("];
+
+      // **Through `withoutComments`, for the reason the feed words are**: this
+      // repository discusses its own seams at length in prose, and a check a
+      // doc comment can trip is a check nobody can keep green.
+      const shipped = sourceFilesUnder(resolve(REPO_ROOT, "apps/frontend/src"))
+        .filter(({ path }) => !/\.(?:test|stories)\.tsx?$/u.test(path))
+        .map(({ path, text }) => ({ path, text: withoutComments(text) }));
+
+      for (const literal of LITERALS) {
+        const homes = shipped
+          .filter(({ text }) => text.includes(literal))
+          .map(({ path }) => relative(REPO_ROOT, path));
+
+        if (homes.length === 0) {
+          throw new InvariantFailure(
+            `No shipped frontend file contains ${JSON.stringify(literal)}. ` +
+              `The market socket's transport is ${TRANSPORT}; if it moved, ` +
+              "move this check with it — a grep that matches nothing looks " +
+              "exactly like a grep that passes.",
+          );
+        }
+
+        if (homes.length !== 1 || homes[0] !== TRANSPORT) {
+          throw new InvariantFailure(
+            `${JSON.stringify(literal)} should appear only in ${TRANSPORT}, ` +
+              "and is in:\n      " +
+              homes.join("\n      ") +
+              "\n      A second place that knows the socket's address is a " +
+              "second place that can be pointed at the wrong one, and a " +
+              "second place that opens one is a connection nothing above it " +
+              "holds state for.",
+          );
+        }
+      }
+    },
+  },
+  {
     id: "one-home-for-the-feed-words",
     claim:
       "The words for a market feed, and for the connection behind it, are " +

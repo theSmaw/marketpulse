@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { WebSocketServer, type WebSocket } from "ws";
 
 import {
+  MARKET_STREAM_PATH,
   MARKET_STREAM_PROTOCOL_VERSION,
   encodeMarketStreamMessage,
   toWireObservation,
@@ -70,9 +71,6 @@ import type {
  * which is why neither number is the raw limit.
  */
 export const KEEPALIVE_INTERVAL_MS = 120_000;
-
-/** Where a browser connects. */
-export const MARKET_STREAM_PATH = "/market-stream";
 
 /** What the gateway needs. Functions rather than objects, for the usual reason. */
 export interface MarketGatewayOptions {
