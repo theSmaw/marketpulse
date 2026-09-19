@@ -68,9 +68,21 @@ re-derive it** — but it lands two obligations here:
   facts and both arrive as `disconnected`.** The first is what the gateway sends
   (3.3.2); the second is this hook noticing its own socket is gone. **They are
   distinguishable here and nowhere above here** — once the hook has collapsed
-  them into one `FeedStatus`, no component can tell them apart. See the open
-  question in [`STORY.md`](STORY.md); **do not settle it by accident in a
-  reducer.**
+  them into one `FeedStatus`, no component can tell them apart.
+
+  **SETTLED by the owner on 2026-09-19** (`STORY.md` open decision 3): the
+  chrome says **`DISCONNECTED` once our own socket dies, whatever the feed
+  identity**, so the cell reads `NOT CONFIGURED · DISCONNECTED`. The `—` in
+  §11.3's grid belongs to _the server has no provider_ and **not** to _we cannot
+  reach the server_.
+
+  **So this hook must carry the distinction outward, and it must be an argument
+  to `connectionWordFor` rather than a second code path** — that function exists
+  precisely so one place decides, and `pnpm break
+connection-words-in-a-renderer` goes red for the alternative.
+  `connectionWordFor`'s unconditional `null` on `feed === null` is the grid read
+  literally and is now **half a rule**; completing it is this task's, and the
+  test that proves it belongs beside the pure reducer's.
 
 - **There is no store** (§12.1, ADR 0023). Live state has **one writer** — the
   message handler — and many readers, and **age is derived rather than held**.
