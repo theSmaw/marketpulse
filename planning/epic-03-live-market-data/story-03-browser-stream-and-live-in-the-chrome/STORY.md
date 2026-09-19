@@ -2,7 +2,7 @@
 
 **The first vertical slice of this epic.**
 
-**Status:** Not started
+**Status:** Not started — **split into seven tasks 2026-09-19**, see _Tasks_ at the foot
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.2
 **Epic scope covered:** backend-to-browser streaming, live connection state, market timestamp / `LIVE` indicator, the live feed's own honest label
@@ -112,13 +112,21 @@ that number current_.
 
 ## Open decisions — settle with the user
 
-1. **What `LIVE` means out of hours**, if Story 3.1 did not already settle it
-   with the socket-lifetime question. A socket that is up at 3am on a Sunday is
-   connected and nothing is arriving, and those are different sentences.
+1. ~~**What `LIVE` means out of hours**~~ — **SETTLED by Story 3.1, §9.4.**
+   `LIVE` means the feed is **healthy**: authenticated, subscribed, heartbeat
+   current. Not _data is arriving_, which is the intuitive definition and the
+   wrong one here — §7.6 measured a median symbol producing a bar in 65.1% of
+   minutes and `ERIE` in **2.1%**, so a data-keyed definition would report a
+   correctly-working feed as not-live for most of the day. §11.3's grid carries
+   the consequence: **`IEX` / `LIVE` / `CLOSED`** at 03:00 is correct.
 2. **Whether the region shows the last observation's instant always, or only
    when it is not now.** §36's own example — _displaying data through 10:42:17_ —
    is written for the degraded case, and a timestamp that is always on screen is
    either reassuring or noise depending on a judgement no document has taken.
+
+   **STILL OPEN, and owned by [Task 3.3.5](TASK-05-live-in-the-chrome.md)**,
+   which must put it to the owner **out loud** rather than deciding it in a task
+   file. It is a product judgement rather than a measurement.
 
 ## The design bar
 
@@ -258,3 +266,50 @@ Record it verbatim, replace both fixtures, and re-tier them to `transcribed` in
 repository opened a socket against the live market at all; today
 `MARKET_DATA_PROVIDER=alpaca` with a credential does, and a session is the only
 other ingredient.
+
+---
+
+## Tasks
+
+Seven, sequential, each self-contained. **This story is a vertical slice, so the
+ordering is bottom-up through the layers and then one task that is visible.**
+
+| #     | Task                                                                                                                   | Visible? |
+| ----- | ---------------------------------------------------------------------------------------------------------------------- | -------- |
+| 3.3.1 | [The protocol, and the guard that replaces `satisfies`](TASK-01-the-protocol-and-the-guard-that-replaces-satisfies.md) | No       |
+| 3.3.2 | [The gateway](TASK-02-the-gateway.md)                                                                                  | No       |
+| 3.3.3 | [The connection words](TASK-03-the-connection-words.md)                                                                | No       |
+| 3.3.4 | [The frontend transport](TASK-04-the-frontend-transport.md)                                                            | No       |
+| 3.3.5 | [**`LIVE` in the chrome, on every route**](TASK-05-live-in-the-chrome.md)                                              | **YES**  |
+| 3.3.6 | [Closing the backend, and the test that proves the page survives](TASK-06-the-degraded-state-and-the-browser-test.md)  | **YES**  |
+| 3.3.7 | [Verify, document, the capture, and the close](TASK-07-verify-document-and-the-close.md)                               | No       |
+
+**Two of seven put something on a screen, and that is a deliberate improvement
+on the story before it.** Story 3.2 was ten tasks and none of them was visible.
+Here the visible one is **fifth of seven**, and it is reachable early because
+the four before it are genuinely thin — a protocol, an endpoint, a record of
+words and a hook.
+
+**Why not visible sooner?** Because the thing being shown is _a connection
+state_, and there is no honest way to render one before a connection exists. A
+`LIVE` chip wired to a placeholder would be the defect this region already
+shipped with **from Story 1.5 to Story 2.6** — hard-coded, and criterion 1
+exists to forbid it.
+
+### The ordering, and the two places it is load-bearing
+
+1. **3.3.1 before 3.3.2.** The protocol is `packages/shared`'s and both halves
+   of the wire import one definition. A gateway written first would make the
+   protocol a description of that gateway — `PROVIDER.md`'s test, one layer up,
+   and Story 3.2 has just demonstrated it working twice.
+2. **3.3.5 before 3.3.6.** The degraded state cannot be tested before there is a
+   state to degrade, and 3.3.6 is where §36's _never collapse to a global error
+   screen_ becomes testable for the first time in this product.
+
+### What this story must not do, and it is one line
+
+**No datum may move.** That is acceptance criterion 4, it is asserted rather
+than assumed, and it is **the boundary Story 3.4 depends on**: a moving price
+here would settle the motion vocabulary by accident, in tasks that were about a
+transport. `VISUAL-LANGUAGE.md` has deferred that vocabulary for seven stories
+and Story 3.4 owns it.
