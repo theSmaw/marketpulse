@@ -255,6 +255,87 @@ claim**, and both were found by reading rather than by running.
 rather than flaky**, which is a sharper claim than the worktree reproduction
 alone supported, and the entry now says so.
 
+### The sweep found more than the task did, and two of them were mine
+
+**Writing the spec was the smallest part of this task.** Auditing it afterwards
+produced three defects, and the first two were introduced by the two tasks
+before it.
+
+#### 1. No browser test had ever seen `LIVE`
+
+CI has no credential, so `MARKET_DATA_PROVIDER` is `none` and **the word this
+epic exists to put on a screen was asserted only by unit tests.** The two specs
+above reach `disconnected`, which appears precisely _because_ nothing is
+configured.
+
+That is the general form of the defect this task already found once: **a spec
+that asserts an absence passes for free on a deployment that cannot produce the
+thing.** It needed no CI change to close — the venue arrives over HTTP and the
+connection over the socket, and this suite can furnish both from inside the
+browser. Three tests now do:
+
+| State                          | How it is produced                   | What it guards                                                      |
+| ------------------------------ | ------------------------------------ | ------------------------------------------------------------------- |
+| `IEX` + `LIVE`, clock `CLOSED` | `marketOpen: false`, no observations | §11.3's row that looks wrong and is correct                         |
+| `LIVE` in session              | a bar 30 s old                       | **Task 3.3.4's interval repair, in a browser** — `stale` without it |
+| `STALE` + its instant          | a bar 3 minutes old                  | §11.2's second sayable state, seen for the first time               |
+
+The file is now `market-connection.spec.ts` — it covers the cell's two
+directions rather than only its degradation.
+
+**And the first attempt failed because the fixture was wrong and the product was
+right.** An empty snapshot with the market **open** is correctly `stale`: §11.1
+makes `{}` the true answer after a restart, and §11.2 has no observation to age.
+
+#### 2. A teardown race in Task 3.3.4's hook, found through `StrictMode`
+
+The debug run showed the socket route hit **twice** — React's development
+double-invoke — and the page settled on `disconnected` with a snapshot waiting
+for it.
+
+**A closed socket fires `close` after the effect has torn down**, and the
+listener closes over the ref the _next_ mount is already using. So the first
+mount's teardown wrote `socket: "closed"` into a connection that had just been
+created, and the feed sat permanently disconnected **on a developer's own
+screen**. Production does not double-invoke; what is left there is the same race
+against any real unmount.
+
+It is the _"resolved after unmount"_ bug `use-backend-health.ts` closes
+deliberately, arriving on a socket instead of a request — and the repair is that
+file's, read through a function for its stated narrowing reason. A unit test now
+holds it.
+
+#### 3. Task 3.3.5 broke `pnpm test`'s no-network contract, and verify said nothing
+
+`CLAUDE.md` states the fast suite has **no socket and no network**. Until 3.3.5
+nothing in the application opened one, so that held by there being nothing to
+hold. `App` then gained `useLiveFeed`, and **every test rendering `App` dialled
+`localhost:3000` for real.**
+
+**It passed for two tasks.** Vitest reported `Unhandled Errors`, attributed them
+to whichever test was running when they landed, and **exited 0** — until a
+timing change in this task made the same errors fail the run. A contract nothing
+enforces expires quietly, and an unhandled error is not a failed assertion.
+
+The contract is now **structural**: `test-setup.ts` installs a `WebSocket` that
+cannot reach anything, so a test that wants one passes its own through
+`useLiveFeed`'s `open` seam. **And the first draft of that was wrong in an
+instructive way** — `vi.stubGlobal` puts the stub in Vitest's registry, and
+every suite here that stubs `fetch` cleans up with `vi.unstubAllGlobals()`,
+which empties the _whole_ registry and hands the real `WebSocket` back to every
+test after it. A global the suite relies on is assigned directly. Both traps are
+now in `CLAUDE.md`.
+
+### `e2e/README.md` gained a second thing to intercept
+
+Its rule read _"every failure state in this suite is produced by intercepting
+the health request"_ — complete until the chrome acquired a socket. The rule
+itself is unchanged: `routeWebSocket` closes **this page's** socket and touches
+nothing the other workers share. Amended with why it is also the sharper
+instrument, which matters more since Task 3.3.6 coupled the two indicators by a
+prompt: a spec that killed everything could not tell the coupling working from
+the coupling being a collapse.
+
 ## For a stakeholder — a status report, 2026-09-19
 
 **Where the product is.** A user can explore 518 US companies and their
@@ -308,7 +389,39 @@ There is a test for exactly the case that proves the distinction: the connection
 drops but the service is genuinely fine, and the service indicator correctly says
 so.
 
-**Two pieces of housekeeping worth reporting, because both were quiet.**
+**Three more problems turned up when we audited our own work, and two of them
+we had caused ourselves in the previous two days.**
+
+**The first: no automated browser test had ever seen the word `LIVE`.** Our
+build server has no market-data credentials, so the live states simply never
+appear there — every check of the product's central word was a lower-level test.
+We closed it without needing any change to the build server: the test now
+_supplies_ a live feed to the page itself. Three new checks cover a healthy
+feed, a healthy feed out of trading hours, and a feed that has stopped
+delivering — the last two of which had never been seen by a browser test before.
+
+**The second: a subtle timing bug in the connection code from two days ago.** In
+development, React deliberately starts everything twice to catch exactly this
+class of mistake. It caught this one: the first connection's shutdown was
+writing into the _second_ connection's state, leaving the feed showing
+"disconnected" on a developer's screen even though it was fine. Harmless to
+users today, and a real race waiting to happen.
+
+**The third: our fast test suite had started making real network connections.**
+We have a standing rule that it must not — it is meant to run in seconds with no
+servers. When the live connection was added to the application shell, every test
+that renders the app began quietly dialling a server that was not there. It did
+not fail anything; the test runner reported the errors and _still passed_, for
+two days, until an unrelated timing change made it fail. We have made the rule
+structural rather than a convention: in the test environment there is now no
+usable network socket at all, so it cannot happen again by accident.
+
+**That last one is worth dwelling on**, because it is the useful kind of
+embarrassment: a rule everybody agreed on, written down, and enforced by nothing
+— so it expired without anyone noticing. Both traps behind it are now recorded
+where the next person will hit them.
+
+**Two smaller pieces of housekeeping, because both were quiet too.**
 
 An existing automated test said certain words "must never appear" on the screen.
 Last task deliberately made them appear — and the test **did not fail**, because

@@ -1,10 +1,20 @@
-import { CONNECTION_DESCRIPTIONS } from "@marketpulse/shared";
+import {
+  CONNECTION_DESCRIPTIONS,
+  MARKET_FEED_DESCRIPTIONS,
+  MARKET_STREAM_PROTOCOL_VERSION,
+  encodeMarketStreamMessage,
+} from "@marketpulse/shared";
+import type { WireFeedState, WireObservation } from "@marketpulse/shared";
 import { expect, test } from "@playwright/test";
 import type { Page, WebSocketRoute } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
+import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
 
-// **Acceptance criterion 2, which is the one with teeth** (Task 3.3.6).
+// **The connection cell, in a browser** — both directions (Task 3.3.6).
+//
+// **Acceptance criterion 2 is the one with teeth**, and it is the second test
+// here.
 //
 // Closing the backend turns the feed region to `disconnected` **without a
 // refresh**, and leaves every other region and every number on the page
@@ -187,6 +197,152 @@ test("losing the socket does not make the backend cell lie about itself", async 
   // Still healthy, because it still is. The prompt fired, the check ran, and
   // the backend answered.
   await expect(backend.getByText("healthy", { exact: true })).toBeVisible();
+
+  await expectNothingFailedToRender(page);
+});
+
+/**
+ * Answer the socket entirely from the test, with one snapshot.
+ *
+ * **Not connected to the server**, unlike the two tests above: this is what lets
+ * a runner with no provider produce states only a configured one could reach.
+ * Built with the shipped encoder rather than typed as JSON, so a protocol change
+ * breaks this at the compiler instead of at an assertion.
+ */
+async function serveSnapshot(
+  page: Page,
+  feed: WireFeedState,
+  observations: Readonly<Record<string, WireObservation>> = {},
+): Promise<void> {
+  await page.route(MARKET_DATA_ROUTE_PATTERN, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ feed: feed.feed }),
+    }),
+  );
+
+  await page.routeWebSocket(/\/market-stream$/u, (ws) => {
+    ws.send(
+      encodeMarketStreamMessage({
+        type: "snapshot",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        observations,
+        feed,
+      }),
+    );
+  });
+}
+
+/** A bar whose own minute closed `agoMs` ago — §7.3's instant, not an arrival. */
+function barFrom(agoMs: number): WireObservation {
+  return {
+    startsAt: new Date(Date.now() - agoMs).toISOString(),
+    open: 1,
+    high: 1,
+    low: 1,
+    close: 1,
+    volume: 1,
+  };
+}
+
+// **The gap these three close, found by Task 3.3.6's sweep and not by a
+// failure.**
+//
+// CI has no credential, so `MARKET_DATA_PROVIDER` is `none` and **no browser
+// test in this repository had ever seen `LIVE`** — the word this epic exists to
+// put on a screen. Every assertion about it was a unit test, and the two tests
+// above only reach `disconnected`, which appears precisely *because* nothing is
+// configured.
+//
+// That is the general form of the defect this task found twice: **a spec that
+// asserts an absence passes for free on a deployment that cannot produce the
+// thing.** `market-feed.spec.ts` held one for four days after the words it
+// forbade became real.
+//
+// It needs no CI change, which is why it is here rather than handed on.
+
+test("out of hours a healthy feed says LIVE, beside a clock saying CLOSED", async ({
+  page,
+}) => {
+  // §11.3's row that looks wrong and is correct: `IEX` / `LIVE` / `CLOSED`. Our
+  // connection is healthy and the market is shut, and the two regions are about
+  // different subjects. **`LIVE` means the feed is HEALTHY, not that data
+  // arrived** — §7.6 measured a median symbol producing a bar in 65.1% of
+  // minutes, so a definition keyed on data would report a working feed as
+  // not-live for most of the day.
+  await serveSnapshot(page, { status: "live", feed: "iex", marketOpen: false });
+
+  await page.goto(EXPLORER);
+
+  const region = feedRegion(page);
+
+  // The venue, and §7.1's sentence beside it — three letters teach a
+  // non-specialist nothing, which is this story's criterion 3.
+  await expect(
+    region.getByText(MARKET_FEED_DESCRIPTIONS.iex.label, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    region.getByText(CONNECTION_DESCRIPTIONS.live.label, { exact: true }),
+  ).toBeVisible();
+
+  // **`LIVE` carries no instant.** §36's sentence qualifies a broken state and a
+  // healthy feed has nothing to qualify; this goes red if a timestamp is ever
+  // attached to the healthy case.
+  await expect(region.getByText(/Showing data through/u)).toHaveCount(0);
+
+  await expectNothingFailedToRender(page);
+});
+
+test("in session, a bar that has just arrived is LIVE", async ({ page }) => {
+  // **The browser's first sight of Task 3.3.4's repair.** §11.2's staleness is
+  // measured from the end of the interval a bar describes, not from the instant
+  // that opens it — §7.3 measured a bar stamped `14:01:00Z` arriving at
+  // `14:02:00.5Z`, so a rule keyed on the opening instant fired on every healthy
+  // delivery and `live` was unreachable in session. Thirty seconds old here is
+  // a bar mid-minute: comfortably live under the repair, and `stale` without it.
+  await serveSnapshot(
+    page,
+    { status: "live", feed: "iex", marketOpen: true },
+    { NVDA: barFrom(30_000) },
+  );
+
+  await page.goto(EXPLORER);
+
+  const region = feedRegion(page);
+
+  await expect(
+    region.getByText(CONNECTION_DESCRIPTIONS.live.label, { exact: true }),
+  ).toBeVisible();
+  await expect(region.getByText(/Showing data through/u)).toHaveCount(0);
+
+  await expectNothingFailedToRender(page);
+});
+
+test("in session, a feed that has stopped delivering is STALE, with its instant", async ({
+  page,
+}) => {
+  // The state §11.2 exists to make sayable — *our socket is fine and the market
+  // feed behind it is dead* — and **the first time any browser test has seen
+  // it**. Three minutes past the bar's own minute is well past the 60 s of
+  // silence the threshold specifies.
+  await serveSnapshot(
+    page,
+    { status: "live", feed: "iex", marketOpen: true },
+    { NVDA: barFrom(3 * 60_000) },
+  );
+
+  await page.goto(EXPLORER);
+
+  const region = feedRegion(page);
+
+  await expect(
+    region.getByText(CONNECTION_DESCRIPTIONS.stale.label, { exact: true }),
+  ).toBeVisible();
+
+  // **And the instant, inside the sentence that explains why it is there** —
+  // never as a bare timestamp a reader has to interpret.
+  await expect(region.getByText(/Showing data through/u)).toBeVisible();
 
   await expectNothingFailedToRender(page);
 });

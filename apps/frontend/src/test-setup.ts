@@ -36,10 +36,56 @@
 // would protect the next test and leave the last one's entries alive for
 // whatever runs after the file.
 
+// The third thing here is a **contract**, not a collision, and it arrived with
+// the live feed (Task 3.3.6).
+//
+// `CLAUDE.md` states `pnpm test` is "fast by contract: no build, no socket, no
+// database, no network". Until Task 3.3.5 nothing in the application opened a
+// socket, so that held by there being nothing to hold. `App` now calls
+// `useLiveFeed`, and **every test that renders `App` dialled `localhost:3000`
+// for real** — Node's `undici` obliged, the connection failed asynchronously,
+// and the failure surfaced as two `Unhandled Errors` attributed to whichever
+// test happened to be running when they landed.
+//
+// **It went unnoticed for two tasks**, which is the part worth recording: an
+// unhandled error is not a failed assertion, so the suite reported it and
+// still exited 0 until a later change altered the timing enough to fail the
+// run. A contract nothing enforces is a contract that expires quietly.
+//
+// So the contract is now **structural**: the fast suite has no `WebSocket` that
+// can reach anything. A test that needs one passes its own through
+// `useLiveFeed`'s `open` seam, which is what that seam is for and what
+// `market/use-live-feed.test.ts` already does — this stub is never the thing
+// under test, it is the thing that makes reaching for the real one impossible.
+//
+// It is deliberately not `undefined`: the application constructs a `WebSocket`
+// unconditionally, and a missing global would turn "no network in this suite"
+// into a `TypeError` in every test that renders the chrome.
+class UnreachableWebSocket {
+  addEventListener(): void {
+    // A socket that never opens, never messages and never closes. The hook's
+    // reducer therefore stays on its initial state, which is the honest
+    // rendering of *we have not connected yet* — and is what these tests are
+    // about when they are about the chrome at all.
+  }
+
+  close(): void {
+    // Nothing to close.
+  }
+}
+
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
 import { clearBarSeriesCache } from "./market/index.js";
+
+// **Assigned rather than `vi.stubGlobal`, and that is a repair rather than a
+// preference.** Several suites here stub `fetch` and clean up with
+// `vi.unstubAllGlobals()`, which removes *every* stub including one this file
+// installed — so the first draft held for the tests before that teardown and
+// handed the real `WebSocket` back to every test after it. A plain assignment
+// is outside Vitest's stub registry and cannot be unstubbed by accident.
+globalThis.WebSocket = UnreachableWebSocket as unknown as typeof WebSocket;
 
 afterEach(() => {
   cleanup();

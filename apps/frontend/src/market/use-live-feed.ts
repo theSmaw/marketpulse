@@ -129,6 +129,26 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
       open: openSocket,
     } = seams.current;
 
+    // **A closed socket fires its `close` event AFTER this effect has torn
+    // down**, and the listener below closes over the ref the *next* mount is
+    // already using — so without this guard a teardown writes `socket:
+    // "closed"` into a connection that has just been created.
+    //
+    // **Found in a browser on 2026-09-19 by Task 3.3.6**, through React's
+    // `StrictMode` double-invoke: two sockets are opened on every mount in
+    // development, the first is closed immediately, and its close landed on the
+    // second's state — leaving the feed permanently `disconnected` on the
+    // developer's own screen. Production does not double-invoke, so what is
+    // left there is the same race against any real unmount.
+    //
+    // It is the *"resolved after unmount"* bug `use-backend-health.ts` closes
+    // deliberately, arriving on a socket instead of a request — and read
+    // through a function for that file's stated reason: TypeScript narrows a
+    // `let` from an enclosing scope and does not widen it again, so a direct
+    // `if (stopped)` is `no-unnecessary-condition` at error.
+    let stopped = false;
+    const hasStopped = (): boolean => stopped;
+
     const read = (): void => {
       const next = liveFeedView(connection.current, {
         now: readNow(),
@@ -145,6 +165,8 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
 
     const disconnect = connectMarketStream(
       (event) => {
+        if (hasStopped()) return;
+
         const before = connection.current;
         const after = advanceLiveFeed(before, event);
         connection.current = after;
@@ -171,6 +193,8 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
     const ticking = setInterval(read, tickMs);
 
     return () => {
+      // Set first, so nothing the disconnect provokes can write.
+      stopped = true;
       clearInterval(ticking);
       disconnect();
       connection.current = startedLiveFeed(readNow());

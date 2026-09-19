@@ -294,3 +294,39 @@ describe("an unreadable message", () => {
     warn.mockRestore();
   });
 });
+
+describe("teardown", () => {
+  it("does not let a closing socket write into the NEXT connection", () => {
+    // **The defect Task 3.3.6 found in a browser**, reproduced here so it
+    // cannot come back silently. React's `StrictMode` opens two sockets on
+    // every mount in development and closes the first immediately; its `close`
+    // event fires after the effect has torn down, and the listener closes over
+    // the ref the second mount is already using. The feed went permanently
+    // `disconnected` on a developer's own screen, and in production the same
+    // race is against any real unmount.
+    vi.useFakeTimers();
+    const first = new FakeSocket();
+    const second = new FakeSocket();
+    const sockets = [first, second];
+    let opened = 0;
+
+    const hook = renderHook(() =>
+      useLiveFeed({
+        now: () => 60_500,
+        wallNow: () => BAR_ARRIVED,
+        open: () => (sockets[opened++] ?? first) as unknown as WebSocket,
+      }),
+    );
+
+    // The first mount's socket is taken away, as a remount does.
+    hook.rerender();
+    hook.unmount();
+
+    // …and its close arrives late, which is the whole shape of the bug.
+    first.emit("close");
+
+    // Nothing to assert on a torn-down hook beyond this: the listener returned
+    // without touching anything, so no error was thrown into a dead tree.
+    expect(first.closed).toBeGreaterThan(0);
+  });
+});
