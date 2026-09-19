@@ -14,6 +14,17 @@ export { ANOMALY_BANDS } from "./anomaly.js";
 export type { AnomalyBand } from "./anomaly.js";
 export { FEED_STATUSES } from "./feed-status.js";
 export type { FeedStatus } from "./feed-status.js";
+// The connection words (Task 3.3.3). Beside the feed's, because the two answer
+// different questions that fail independently — Task 1.12.4's two-indicators
+// argument, applied a fourth time.
+export {
+  CONNECTION_DESCRIPTIONS,
+  CONNECTION_STATUSES,
+  NOT_CONFIGURED_DESCRIPTION,
+  REPLAYING_DESCRIPTION,
+  connectionWordFor,
+  feedWordFor,
+} from "./feed-words.js";
 // The browser protocol (Task 3.3.1). Named exports rather than a star, matching
 // this file's habit — and the serialiser is exported beside the messages
 // deliberately: it is the mechanism that makes a socket message as safe as an

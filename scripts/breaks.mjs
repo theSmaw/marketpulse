@@ -395,6 +395,28 @@ export const BREAKS = [
   },
 
   {
+    name: "connection-words-in-a-renderer",
+    proves:
+      "A renderer writing its own sentence about the connection is a second " +
+      "spelling of a claim the vocabulary decided — `LIVE-DATA.md` §11.3 is " +
+      "explicit that these are a record rather than a string in a component " +
+      "— and the invariant catches it.",
+    // The break is the plausible one: the component that renders the feed cell
+    // growing its own sentence for the deployment where nothing is configured.
+    // It reads as helpful and it is the exact duplicate §11.3 forbids.
+    file: "apps/frontend/src/components/FeedProvenance/FeedProvenance.tsx",
+    find: "export function FeedProvenance(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      'const FALLBACK = "No market-data provider is configured.";\n' +
+      "void FALLBACK;\n" +
+      "\n" +
+      "export function FeedProvenance(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-feed-words",
+  },
+
+  {
     name: "straight-apostrophe-on-screen",
     proves:
       "A straight apostrophe in a rendered sentence sets one screen in two " +
