@@ -78,6 +78,29 @@ address**, and a hook above it holding domain state. No component changes.
   nothing: dropping it silently means a protocol mismatch after a deploy looks
   identical to a quiet feed. **Decide whether it is logged, counted, or surfaced,
   and record which.**
+- **A `feed` message arrives every 120 s whether or not anything changed —
+  added 2026-09-19 after Task 3.3.2.** The gateway keeps the socket alive
+  against Azure's **240-second idle** ingress timeout, because §6.6 measured our
+  own feed legitimately silent for **76 minutes** out of hours and an
+  unkeepalived socket would be cut every four minutes all night.
+
+  **Two consequences for this hook, and the second is the subtle one:**
+
+  1. **An unchanged state must not cause a render.** Story 3.3's criterion 6
+     measures the render count against `useMarketClock`'s baseline — lifting
+     that hook to `App` produced **40 re-renders in 20 s against 0**. Thirty
+     keepalives an hour is not that, but a hook that notifies on every message
+     rather than on every _change_ is the same defect at a lower rate, and it is
+     free to avoid.
+  2. **The keepalive is ALSO the browser's liveness signal, and that is a
+     stronger position than the backend's.** Story 3.2's client watches inbound
+     frames because the vendor's 54 s heartbeat is the only thing distinguishing
+     a quiet feed from a dead one. Here the gateway's 120 s keepalive plays the
+     same role — **so a browser that has heard nothing for 165 s has genuinely
+     lost the socket**, rather than merely watching a quiet market. Say so where
+     the threshold is applied, because it is the reason the same number means
+     something different on this side.
+
 - **No reconnection policy** — Story 3.10's. Report `disconnected` honestly and
   stop. **Say so in the code**, because a transport is exactly where somebody
   adds a retry loop without noticing it is a policy.
@@ -90,6 +113,7 @@ address**, and a hook above it holding domain state. No component changes.
   that made it unreachable is the reason this is an acceptance criterion
 - A closed socket produces a state, not a thrown render
 - **An `unreadable` message has a decided disposition** — not dropped by default
+- **A keepalive `feed` message carrying an unchanged state causes no render**
 - **Which `marketOpen` gates the status is decided and argued in the code**, and
   `MarketClock` still renders the viewer's clock
 - **No component consumes the hook yet**

@@ -33,6 +33,31 @@ The **one string this story owes and nobody has written**: what
 - **`FEED_STATUSES` has three members and gains none.** Both sentences §11.2
   requires be sayable already fall out of three.
 
+### It owes a SECOND string, found 2026-09-19 after Task 3.3.2
+
+**`NOT CONFIGURED` exists nowhere in the shipped vocabulary** — not in
+`market-provenance.ts`, not in `FeedProvenance.tsx`. It is specified **only** in
+§11.3's grid, on the row for a deployment with no provider:
+
+```text
+| none | — | either | `NOT CONFIGURED` + its sentence | — | either |
+```
+
+**And it does not obviously belong in either existing record**, which is why it
+needs deciding rather than dropping into one:
+
+- It is a **feed-cell** word, so `MARKET_FEED_DESCRIPTIONS` is the instinct —
+  but that record is `Record<MarketFeed, …>` and **`none` is a `ProviderId`,
+  not a `MarketFeed`**. Widening `MARKET_FEEDS` to hold it would be inventing a
+  feed to describe the absence of one.
+- It is not a **connection** word either. The grid's connection cell for that
+  row is **`—`**, not a word.
+
+**Decide where it lives and say why**, the same way the story's other
+vocabularies argue their homes. The likely shape is a third small record keyed
+on _what the chrome is being asked to render_ rather than on either union — but
+take it deliberately.
+
 ## Work
 
 - **The record**, beside `FEED_STATUSES` in `packages/shared`, using
@@ -55,6 +80,8 @@ The **one string this story owes and nobody has written**: what
 
 - The record exists with the `satisfies` guard, so a fourth `FeedStatus` without
   words is a compile error
+- **`NOT CONFIGURED` and its sentence exist, with a decided home and the reason
+  written where they live**
 - Every sentence is defensible against §11.3's grid, including the `LIVE` /
   `CLOSED` row
 - `REPLAYING` has a decided home and the decision is argued where it lives

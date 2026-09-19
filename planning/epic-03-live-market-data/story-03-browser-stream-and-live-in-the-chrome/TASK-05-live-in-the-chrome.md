@@ -45,6 +45,30 @@ then demonstrates nothing**, which is honest and is the point of a slice. Story
 - **A security gets no status word** (§11.2). Nothing in this task may put
   `STALE` beside a price.
 
+### The `none` row, and the wire deliberately cannot say it — found 2026-09-19
+
+**Task 3.3.2's gateway sends `status: "disconnected"` when no provider is
+configured**, because `FeedStatus` has three members and _not configured_ is not
+one of them. **§11.3's grid says the connection cell for that row is `—`, not a
+word:**
+
+```text
+| none | — | either | `NOT CONFIGURED` + its sentence | — | either |
+```
+
+**So the chrome must NOT render `DISCONNECTED` there**, and the thing that tells
+it apart is **`feed: null` on the same message**. A deployment with no provider
+and a deployment whose socket died both arrive as `disconnected`; only the feed
+identity separates them.
+
+**Why the wire is shaped that way rather than gaining a fourth word:** a fourth
+`FeedStatus` would put _not configured_ — a fact about **our configuration** —
+into a vocabulary that is otherwise entirely about **a connection**, and
+`FEED_STATUSES` has three members deliberately (§11.2).
+
+**Assert it.** A deployment with no provider showing `DISCONNECTED` is a screen
+claiming a feed broke when none was ever asked for.
+
 ## Work
 
 - **Wire `FeedIndicator` to the hook**, in the market-feed cell, on all five
@@ -98,6 +122,8 @@ always-on version is the answer.
   result is looked at rather than assumed
 - The render count is measured against the `useMarketClock` baseline
 - **No datum on any screen changed** — asserted, not assumed
+- **A deployment with no provider renders `NOT CONFIGURED` and NO connection
+  word**, per §11.3's grid — not `DISCONNECTED`
 - **`LIVE` shows no instant; `stale` and `disconnected` do**, and the instant
   never appears without the word that explains why it is there
 - The reversal trigger is recorded where the words live, as a **condition**
