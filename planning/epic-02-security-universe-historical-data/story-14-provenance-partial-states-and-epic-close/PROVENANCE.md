@@ -963,6 +963,23 @@ pile is built.
 **What a user still cannot do:** watch a price move. There is no live data, and
 the two-feed sentence §2 settles has no producer until there is.
 
+> **AMENDED 2026-09-19 by Task 3.3.7 — half of that is now false, and the half
+> that survives is the interesting one.** Story 3.3 put a **live connection** in
+> the chrome: the status strip reads the venue **and** whether data is arriving,
+> from the running system, on every route. So _there is no live data_ has
+> stopped being true of the **connection**.
+>
+> **What is unchanged is the sentence this paragraph is actually about.** No
+> price on any screen moves yet — Story 3.4 is the first one that does — and the
+> **two-feed ledger still has no producer**, because all sixteen recorded
+> bar-series bodies carry `sip` and nothing has yet stitched an IEX tail onto
+> stored history. §2's sentence is still waiting for Epic 3 to produce the state
+> it describes, which is Story 3.7's.
+>
+> The distinction matters for this document specifically: **the product can now
+> make a claim about the present, and it still makes no claim about a stitched
+> series.** Those were one sentence when this was written and are two now.
+
 ---
 
 ## 11. The coverage-honesty pass — 2026-09-15, by Task 2.14.5

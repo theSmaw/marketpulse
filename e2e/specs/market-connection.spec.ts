@@ -277,11 +277,16 @@ test("out of hours a healthy feed says LIVE, beside a clock saying CLOSED", asyn
 
   const region = feedRegion(page);
 
-  // The venue, and §7.1's sentence beside it — three letters teach a
-  // non-specialist nothing, which is this story's criterion 3.
-  await expect(
-    region.getByText(MARKET_FEED_DESCRIPTIONS.iex.label, { exact: true }),
-  ).toBeVisible();
+  // **Criterion 3, on the live state**: the label names a single venue AND the
+  // sentence §7.1 requires is beside it. The acronym alone is the thing §7.1
+  // refuses — *MarketPulse must not imply that IEX represents every US
+  // exchange*, and three letters teach a non-specialist nothing. Asserting the
+  // label without the sentence would be asserting the half the spec forbids.
+  const { label, sentence } = MARKET_FEED_DESCRIPTIONS.iex;
+
+  await expect(region.getByText(label, { exact: true })).toBeVisible();
+  expect(sentence).toBeDefined();
+  await expect(region.getByText(sentence ?? "")).toBeVisible();
   await expect(
     region.getByText(CONNECTION_DESCRIPTIONS.live.label, { exact: true }),
   ).toBeVisible();

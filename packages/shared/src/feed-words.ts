@@ -1,9 +1,5 @@
 import { FEED_STATUSES, type FeedStatus } from "./feed-status.js";
-import {
-  MARKET_FEED_DESCRIPTIONS,
-  type MarketFeed,
-  type ProvenanceDescription,
-} from "./market-provenance.js";
+import type { MarketFeed, ProvenanceDescription } from "./market-provenance.js";
 
 /**
  * What the chrome says about a **connection** (Task 3.3.3).
@@ -187,7 +183,7 @@ export function connectionWordFor(
  *
  * ## Why it is here rather than in the component, where it currently lives
  *
- * `FeedProvenance.tsx` holds this string today, grouped with `checking` and
+ * `FeedProvenance.tsx` held this string until Task 3.3.3, grouped with `checking` and
  * `unknown` under a comment saying they are *"the states that are about **us**
  * rather than about a venue"*. **That grouping is right about two of the three
  * and wrong about this one**, which is the finding Task 3.3.3 acted on:
@@ -207,19 +203,6 @@ export const NOT_CONFIGURED_DESCRIPTION: ProvenanceDescription = {
   label: "not configured",
   sentence: "No market-data provider is configured.",
 };
-
-/**
- * The feed cell, given what the wire said.
- *
- * `null` is not an error and not a degraded state — it is a deployment that
- * serves no market data, which `PROVIDER.md` §5.3 makes the **default** so that
- * invented prices are never reachable by forgetting to configure something.
- */
-export function feedWordFor(feed: MarketFeed | null): ProvenanceDescription {
-  return feed === null
-    ? NOT_CONFIGURED_DESCRIPTION
-    : MARKET_FEED_DESCRIPTIONS[feed];
-}
 
 /** Every connection word, for a permutation grid or a test that walks them. */
 export const CONNECTION_STATUSES = FEED_STATUSES;

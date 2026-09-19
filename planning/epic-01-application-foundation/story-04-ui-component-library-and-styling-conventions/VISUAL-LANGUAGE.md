@@ -228,6 +228,39 @@ _2026-09-10:_ **reversed.** Tabular figures make a column _align_; a monospaced 
 
 Numeric columns are **right-aligned**, always. A right-aligned tabular column aligns decimal points for free.
 
+## The capitals belong to the stylesheet, not to the string — added 2026-09-19 by Task 3.3.7
+
+**A status word is stored in the case the product writes it in, and
+`.microLabel`'s `text-transform: uppercase` is what a reader sees.** Ten
+components compose that class; none of them stores a capitalised string.
+
+The rule was found the hard way in Task 3.3.3, which transcribed a
+specification's ALL-CAPS grid into the shipped vocabulary and turned three tests
+red. The grid's capitals are **the grid's own convention for naming cells**, and
+the tree already said so where nobody had read it:
+`MARKET_FEED_DESCRIPTIONS` ships `"Simulated"`, `"Replay"` and
+`"All US exchanges"`, of which only `"IEX"` is capitals **because the acronym
+is** — so the grid's `SIMULATED` ships as `Simulated`. `BackendIndicator`'s
+`STATUS_WORD` states the rule outright: _the words are the union's own members,
+so the screen and the type share one vocabulary._
+
+**This is more than tidiness, and the half that makes it so belongs beside the
+language's other accessibility findings.** A screen reader is handed the **DOM
+text**, not the transform. Storing `DISCONNECTED` is therefore a decision about
+how the product _sounds_ — some assistive technologies read a run of capitals
+as an initialism, letter by letter — and it is not a decision to take by
+transcribing a table.
+
+**It is also what keeps a substitution a substitution.** `FeedIndicator`
+rendered the raw union member for six stories; pointing it at the shipped record
+in Task 3.3.5 moved no pixel and changed no browser assertion, because the
+stored words **are** the union's members.
+
+**Where it can go wrong without anything going red:** a component that does not
+compose `microLabel` and stores its own capitals looks correct on screen and
+sounds different. Nothing checks this — jsdom applies no stylesheet, so no test
+below a browser can see a `text-transform` at all.
+
 ## Structural idioms
 
 These are what a screenshot shows and a stylesheet does not. They are the identity, and the refresh kept every one of them.

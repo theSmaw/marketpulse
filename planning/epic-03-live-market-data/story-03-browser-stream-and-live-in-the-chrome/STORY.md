@@ -1,5 +1,7 @@
 # Story 3.3 — The Browser Stream & `LIVE` in the Chrome
 
+**Status:** **Closed — 2026-09-19.** Seven tasks. `LIVE` is on every route and it is true; closing the backend degrades the cell without a refresh and moves nothing else. [ADR 0031](../../../docs/adr/0031-what-a-transport-without-a-schema-layer-owes.md) is what outlives it; [`STREAM-SEAM.md`](../story-02-stream-seam-and-alpaca-iex-client/STREAM-SEAM.md) §8 is the subject document. **The `updatedBars` capture was not taken** — the deployed backend holds the free plan's only connection, which is Story 3.10's to decide.
+
 **The first vertical slice of this epic.**
 
 **Status:** Not started — **split into seven tasks 2026-09-19**, see _Tasks_ at the foot

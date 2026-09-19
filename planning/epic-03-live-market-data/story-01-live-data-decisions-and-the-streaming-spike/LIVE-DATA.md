@@ -2171,6 +2171,31 @@ offsets.
 
 ### 8.2 The incumbent wins, and that is a fact about every deploy
 
+> **AMENDED 2026-09-19 by Task 3.3.7 — the standing cause is PRODUCTION, and
+> that is a different problem from the one recorded below.**
+>
+> This section blames a stale local dry-run, and on 2026-09-18 that was true. It
+> is no longer the thing to check first. `scripts/capture-u-frame.mjs` was run
+> from a clean machine at 23:30 ET on 2026-09-19 — no local process held a
+> connection, verified with `lsof` against the resolved address — and the
+> handshake was still refused:
+>
+> ```text
+> greeted; authenticating
+> ERROR FRAME: [{"T":"error","code":406,"msg":"connection limit exceeded"}]
+> ```
+>
+> **The deployed backend holds the plan's single connection.** It reports
+> `{"provider":"alpaca","feed":"iex",…}` and §9.3 chose to **hold the socket
+> always**, so it holds it out of hours too. That decision is right and is not
+> being reopened — what it means is that **a developer machine cannot take an
+> Alpaca capture at all while the deployment is running**, at any hour, and no
+> amount of waiting for a trading session changes it.
+>
+> The free plan's one connection is a **shared resource with exactly one other
+> consumer, and that consumer never sleeps.** Every future capture has to say
+> which of the two is giving it up.
+
 **B is refused; A is undisturbed.** A kept its socket, kept its 518
 subscriptions, and took the server's next 54 s ping at 55.4 s as if nothing had
 happened. B got `406` 233 ms after authenticating and was closed ten seconds
@@ -3029,7 +3054,7 @@ becoming false the first time an IEX tail is stitched on.
 | The feed words and sentences       | `MARKET_FEED_DESCRIPTIONS` in `packages/shared/src/market-provenance.ts` | Shipped for `iex`, `sip`, `synthetic`                                                                                                                                                                                                                                                                                              |
 | **`replay`'s words**               | The same record                                                          | **SHIPPED 2026-09-18 by Task 3.2.1** — the words are ADR 0030 §3's, transcribed rather than re-composed. `MARKET_FEEDS` holds four. **`PROVIDER_IDS` still holds two**, deliberately: a provider id is a member only when something can produce it, and `createReplayStream` does not exist until Task 3.2.7, which owns that half |
 | `live \| stale \| disconnected`    | `FEED_STATUSES` in `packages/shared/src/feed-status.ts`                  | Shipped, and amended by this task — see below                                                                                                                                                                                                                                                                                      |
-| The connection words and sentences | `CONNECTION_DESCRIPTIONS` in `packages/shared/src/feed-words.ts`         | **SHIPPED 2026-09-19 by Task 3.3.3**, with `REPLAYING` and `NOT CONFIGURED` beside it and `connectionWordFor` / `feedWordFor` as the only crossings. **The capitals in the grid above are the STYLESHEET's** — see the amendment below                                                                                             |
+| The connection words and sentences | `CONNECTION_DESCRIPTIONS` in `packages/shared/src/feed-words.ts`         | **SHIPPED 2026-09-19 by Task 3.3.3**, with `REPLAYING` and `NOT CONFIGURED` beside it and `connectionWordFor` as the only crossing — a `feedWordFor` beside it was removed by Story 3.3's close for having no caller. **The capitals in the grid above are the STYLESHEET's** — see the amendment below                            |
 
 > **AMENDED 2026-09-19, Task 3.3.3 — the capitals above are a naming
 > convention, not a spelling.** The grid writes every cell in capitals and the

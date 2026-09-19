@@ -146,7 +146,16 @@ from a condition that is normal.**
 
 ---
 
-## 8. And how it reaches a browser (2026-09-19, Task 3.3.2)
+## 8. And how it reaches a browser (2026-09-19, Tasks 3.3.2 to 3.3.7)
+
+> **Story 3.3 decided this is its home rather than writing a second document**
+> (Task 3.3.7). The alternative was `BROWSER-STREAM.md` beside this one, and it
+> was rejected on the section title: this file is _how a live observation
+> reaches this process_ and the browser is **the next hop of the same journey**,
+> not a second subject. A reader following an observation from the venue to a
+> screen should not change documents halfway. What the story decided that
+> **outlives** it is in [ADR 0031](../../../docs/adr/0031-what-a-transport-without-a-schema-layer-owes.md);
+> what a reader needs in order to follow the journey is here.
 
 **The gateway is `/market-stream`**, a WebSocket on the Fastify server. A
 browser connects, receives a **snapshot**, then one message per upstream frame.
@@ -214,3 +223,66 @@ network failure.
   _nothing observed, no feed_ rather than a refused upgrade — **a refused
   connection is indistinguishable from a broken one**, which is the ambiguity
   §11.2 exists to remove.
+
+### 8.6 The browser's own end, and the second connection (Tasks 3.3.4 to 3.3.6)
+
+**There are TWO connections between a venue and a reader**, and the browser is
+downstream of both:
+
+| Link                  | Who watches it                          |
+| --------------------- | --------------------------------------- |
+| Alpaca → our backend  | `apps/backend/src/stream-connection.ts` |
+| our backend → browser | `apps/frontend/src/market/live-feed.ts` |
+
+Either fails while the other is perfect, and the chrome shows **one** word, so
+the two answers are combined with `worseFeedStatus` — a chain is as live as its
+weakest link.
+
+**The browser derives rather than trusting the transmitted status**, and the
+reason has a number in it: the keepalive above is the rate at which an unchanged
+feed state is re-sent, so **the server's word can be 120 s old**. A feed that
+went stale a second after a `feed` message would be reported live for nearly two
+minutes.
+
+**One module opens the socket and knows the address** —
+`market/market-stream-client.ts`, held there by `pnpm invariants`'
+`one-home-for-the-socket`, which is `api-client.ts`'s rule applied to the second
+network boundary. The **path** is in `packages/shared` so the two halves cannot
+drift; the **origin** is a build-time fact about a deployment and stays in
+`api-base-url.ts`.
+
+**`MARKET_STREAM_PATH` aside, nothing above the transport knows a URL exists.**
+The hook holds a connection record in a ref and only the derived _view_ in
+state, so Task 3.3.2's 120 s keepalive costs a bounded one-off render rather
+than thirty an hour — measured on a production build at **0 `longtask` entries
+and 0 DOM mutations over 60 s**, with the strip's text byte-identical
+throughout.
+
+### 8.7 What the strip says when it breaks, and the rate at which it learns
+
+Three states, all produced on a running page rather than drawn:
+
+| What happened                           | Feed cell                                | Backend cell  |
+| --------------------------------------- | ---------------------------------------- | ------------- |
+| No provider configured                  | `NOT CONFIGURED`, **no connection word** | `healthy`     |
+| Backend dies under a loaded page        | venue **retained** · `DISCONNECTED`      | `unreachable` |
+| Cold load with the backend already down | `UNKNOWN` · `DISCONNECTED`               | `unreachable` |
+
+**The venue is retained in the second row and that is the design**: provenance
+is a fact about the deployment and is true whether or not anything is connected,
+so the feed cell is fed by the HTTP answer and never by the socket.
+
+**And the defect the set found** — for up to 30 s the strip read
+`feed · disconnected` beside `backend · healthy`, each cell honest and the pair
+pointing away from the fault, because **the live feed is the first surface in
+this chrome faster than its neighbours**. The repair is a prompt rather than an
+answer (ADR 0031, decision 3).
+
+### 8.8 What a green browser suite certifies about this, and what it does not
+
+`market-connection.spec.ts` drives the connection cell in both directions and
+covers `LIVE`, `STALE` and `DISCONNECTED`. **It does that by furnishing the
+states from inside the browser**, because CI has no credential and therefore no
+live feed — which is also the standing limit: **no browser test here has ever
+watched a real Alpaca frame reach a screen.** The suite certifies that the page
+renders what the protocol says, not that the vendor says it.

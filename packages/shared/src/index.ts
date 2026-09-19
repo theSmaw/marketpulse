@@ -31,7 +31,6 @@ export {
   NOT_CONFIGURED_DESCRIPTION,
   REPLAYING_DESCRIPTION,
   connectionWordFor,
-  feedWordFor,
 } from "./feed-words.js";
 export type { ConnectionWordInputs } from "./feed-words.js";
 // The browser protocol (Task 3.3.1). Named exports rather than a star, matching
