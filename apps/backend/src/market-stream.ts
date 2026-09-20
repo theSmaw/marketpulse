@@ -88,6 +88,20 @@ export interface MarketStreamDependencies {
    * do with the code under test.
    */
   readonly wallNow?: () => number;
+  /**
+   * The timer both self-driving streams arm, injected.
+   *
+   * **A test seam in the same place as `replayFrom` and `wallNow`, and for the
+   * same reason**: Task 3.4.3's missing assertion is *a stream left alone in a
+   * process produces an observation*, and a test that had to wait a real minute
+   * for the fixture — or a real second for the replay — would either be slow or
+   * be a race. It is read by the `fixture` and `replay` branches and by nothing
+   * in production, where the default is the platform's own.
+   */
+  readonly timers?: {
+    readonly setTimer: (fn: () => void, ms: number) => NodeJS.Timeout;
+    readonly clearTimer: (timer: NodeJS.Timeout) => void;
+  };
 }
 
 export function createMarketStream(
@@ -107,7 +121,10 @@ export function createMarketStream(
       // Generated, `synthetic`, no credential and no database. `config.ts` has
       // already refused this selection unless `NON_LIVE_MARKET_DATA=permitted`
       // was granted by name.
-      return createFixtureStream({ symbols: STREAM_SYMBOLS });
+      return createFixtureStream({
+        symbols: STREAM_SYMBOLS,
+        ...(dependencies.timers ?? {}),
+      });
 
     case "replay": {
       // Real stored bars, re-stamped onto the wall clock. Refuses to start —
@@ -126,6 +143,7 @@ export function createMarketStream(
         ...(dependencies.wallNow === undefined
           ? {}
           : { wallNow: dependencies.wallNow }),
+        ...(dependencies.timers ?? {}),
       });
     }
 
@@ -162,15 +180,27 @@ export function createMarketStream(
  * Where a replay starts when nothing says otherwise: **the most recent session
  * whose bars we are confident we hold**.
  *
- * Seven days back and at 09:30 ET's UTC equivalent rather than "yesterday",
- * because a Monday's yesterday is a Sunday and a replay of a weekend is an empty
- * one. A week is far enough back that the nightly backfill has certainly run and
- * near enough that the bars are recognisable.
+ * Seven days back rather than "yesterday", because a Monday's yesterday is a
+ * Sunday and a replay of a weekend is an empty one. A week is far enough back
+ * that the nightly backfill has certainly run and near enough that the bars are
+ * recognisable — then it walks back to a session the market actually held and
+ * returns **that session's own open instant**.
  *
- * **Approximate on purpose.** This picks a starting point for a developer
- * instrument; `marketSessionStateAt` is what decides whether the replay may run
- * at all, and `readBars` returning nothing for a chosen window is a quiet
- * replay rather than a wrong one.
+ * ## It returns `session.open` rather than a UTC 13:30, and that is the repair
+ *
+ * Task 3.4.2 added the calendar walk and Task 3.4.3 found it **still landed on
+ * a Saturday**, because the walk validated one date and stamped another: it
+ * asked `marketSessionOn(marketDateAt(day))` — the candidate's **market** date
+ * — and then built the instant from the candidate's **UTC** calendar fields.
+ * Those agree at midday and disagree before about 04:00 UTC, which is where the
+ * default resolved on 2026-09-20 at 03:36 UTC: the market date read Friday
+ * 2026-09-11 and the instant read **Saturday 2026-09-12T13:30Z**, a day the
+ * store holds nothing for.
+ *
+ * **Reading a session's own `open` closes the whole class**, and a second bug
+ * with it: `13:30Z` is 09:30 **EDT** only, so every replay defaulted between
+ * November and March would have started an hour before the bell. The calendar
+ * already knows both, and now nothing here converts anything.
  */
 /** Exported for its test: the calendar walk is the part worth asserting. */
 export const defaultReplayStartForTest = (now: Date): Date =>
@@ -179,41 +209,20 @@ export const defaultReplayStartForTest = (now: Date): Date =>
 function defaultReplayStart(now: Date): Date {
   const week = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const atOpen = (day: Date): Date =>
-    new Date(
-      Date.UTC(
-        day.getUTCFullYear(),
-        day.getUTCMonth(),
-        day.getUTCDate(),
-        13,
-        30,
-        0,
-        0,
-      ),
-    );
-
-  // **Walk back to a session the market actually held** (Task 3.4.2).
-  //
-  // This was `now - 7 days` at 09:30 and nothing else, which lands on whatever
-  // weekday the subtraction produces — **and on a weekend that is another
-  // weekend.** Found by running it: on 2026-09-20 the default resolved to
-  // Sunday 2026-09-13, the store holds no bars for a day the market was shut,
-  // and the replay reported `live` while emitting nothing.
-  //
-  // **The failure is silent in the worst way.** ADR 0030 added the replay
-  // precisely so this epic's design work could run *at any hour* — and the
-  // hours it most needs to serve are the ones the market is closed, which is
-  // exactly when the naive subtraction lands on a closed day. A replay that
-  // says `live` and produces nothing is indistinguishable from a broken feed.
-  //
   // Ten days covers any run of holidays this calendar contains. Outside its
-  // 2024-2028 range `marketSessionOn` has no answer, and returning the
-  // candidate unchanged there is the same answer the old code gave.
+  // 2024-2028 range `marketSessionOn` has no answer at all, which is a loud
+  // failure rather than a quiet one: a replay is a developer instrument, and
+  // ADR 0030 §7f's line is that failing visibly is the entire point.
   for (let back = 0; back < 10; back += 1) {
     const day = new Date(week.getTime() - back * 24 * 60 * 60 * 1000);
 
-    if (marketSessionOn(marketDateAt(day)) !== undefined) return atOpen(day);
+    const session = marketSessionOn(marketDateAt(day));
+    if (session !== undefined) return session.open;
   }
 
-  return atOpen(week);
+  throw new Error(
+    `No trading session in the ten days before ${week.toISOString()}. ` +
+      "A replay has no honest place to start, and starting somewhere anyway " +
+      "is how a replay reports `live` while emitting nothing.",
+  );
 }

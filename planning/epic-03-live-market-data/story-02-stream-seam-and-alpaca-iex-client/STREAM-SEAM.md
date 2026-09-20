@@ -120,6 +120,8 @@ and that the process starts, subscribes and closes deliberately.
   entry 7, owned by Story 3.3.
 - **That anything is reachable.** `GAPS.md` entry 10 — this story shipped three
   implementations with **no construction site** and a green `verify` throughout.
+- ~~**That a stream left alone in a process produces anything.**~~ **Closed
+  2026-09-20 by Task 3.4.3** — see §9.
 - **That production is serving the real market.** `GAPS.md` entry 9; `verify` has
   no credentials by design, so that is a runtime check and both are **detective**.
 
@@ -286,3 +288,81 @@ states from inside the browser**, because CI has no credential and therefore no
 live feed — which is also the standing limit: **no browser test here has ever
 watched a real Alpaca frame reach a screen.** The suite certifies that the page
 renders what the protocol says, not that the vendor says it.
+
+---
+
+## 9. A stream that drives itself (2026-09-20, Task 3.4.3)
+
+**This is §5's list one level further out, and it cost a task.** Story 3.2
+shipped three implementations that **nothing constructed**; Task 3.2.9
+constructed them; and for two stories after that, **none of them delivered an
+observation into a running process** while `pnpm verify` stayed green.
+
+The reason is one sentence: **every test drove them by hand.** A test calls
+`tick()`, or injects a `StreamEvent`, so the thing a process actually depends on
+— _time passing is enough_ — was asserted nowhere.
+
+> The repair is not finished when a number moves. It is finished when something
+> would go red if it stopped.
+
+### 9.1 Two faults, and the one that was expected was innocent
+
+Task 3.4.2 handed this task a suspect by name: `createStoredReplaySource`, with
+three of four candidate causes ruled out. **It was the wrong suspect**, and an
+instrument settled it in ninety-one milliseconds — the source, driven directly
+against the real store, returned the 13:30 slice with five symbols in it.
+
+| Where                  | Fault                                                           |
+| ---------------------- | --------------------------------------------------------------- |
+| `market-stream.ts`     | `defaultReplayStart` **validated one date and stamped another** |
+| `fixture-stream.ts`    | **no clock at all** — `tick()` was the only way a minute passed |
+| `replay-bar-source.ts` | none. It was already correct                                    |
+
+**The replay's default start is the finding worth carrying.** Task 3.4.2 added a
+calendar walk to stop it landing on a weekend, and the walk asked
+`marketSessionOn(marketDateAt(day))` — the candidate's **market** date — then
+built the instant from that candidate's **UTC** calendar fields. Those two agree
+at midday and disagree before about 04:00 UTC. Measured on 2026-09-20 at
+**03:36 UTC**: the market date read Friday **2026-09-11**, a session; the instant
+read Saturday **2026-09-12T13:30Z**, a day the store holds nothing for.
+
+**The test could not see it, because the test made the same conversion the code
+did.** All four of its cases ran at `12:00:00Z`, and its assertion —
+`marketSessionOn(marketDateAt(from))` — converted the answer back along the axis
+that was wrong. A check written in the same units as the thing it checks cannot
+see a units error.
+
+The repair is that the walk now returns the session's **own `open` instant**,
+which closes a second latent bug with it: a hard-coded `13:30Z` is 09:30 **EDT**
+only, so every default taken between November and March would have started an
+hour before the bell.
+
+### 9.2 Which implementations are meant to drive themselves, and which is not
+
+|           | Driven by                                    | Self-driving                |
+| --------- | -------------------------------------------- | --------------------------- |
+| `replay`  | its own poll timer, against the replay clock | **yes**                     |
+| `fixture` | a timer at **60 s**, §10.1's grain           | **yes, since this task**    |
+| `alpaca`  | **frames arriving on a socket**              | **no, and that is correct** |
+
+**A timer on the Alpaca client would be a defect rather than a feature**: a
+client that invented minutes the vendor had not sent would be manufacturing
+prices. Its equivalent claim — _a frame produces an observation_ — is what
+`alpaca-stream.test.ts` already asserts.
+
+**The fixture's timer runs at the product's cadence and not faster.** A
+generator emitting every second because a developer is impatient produces a
+motion vocabulary designed for a market that does not exist, which is Story
+3.4's own warning one level down. A test shortens it by injecting the timer.
+
+### 9.3 What is now asserted, and what proves the assertion
+
+`self-driving-streams.test.ts` starts each self-driving stream **through
+`createMarketStream`** — the construction site, not the file — advances an
+injected timer, and asserts an observation arrived. **Nothing in it calls
+`tick()`**, and that absence is the test.
+
+Two `pnpm break` entries hold it, both restoring the tree exactly as it shipped:
+
+- `pnpm break fixture-stream-drives-itself`
+- `pnpm break replay-start-is-a-real-session`

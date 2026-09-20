@@ -156,15 +156,39 @@ describe("the replay's default start (Task 3.4.2)", () => {
   // emitting nothing. ADR 0030 added the replay so this epic's design work
   // could run at ANY hour, and the hours it most needs to serve are exactly
   // the ones where the naive subtraction fails.
+  //
+  // **Amended by Task 3.4.3, which found it still landed on a Saturday.** The
+  // four original cases were all at `12:00:00Z`, where a UTC date and a market
+  // date agree — and the defect was precisely that they can disagree: the walk
+  // validated `marketDateAt(day)` and then built the instant from `day`'s UTC
+  // calendar fields. Measured on 2026-09-20 at 03:36Z, the market date read
+  // Friday 2026-09-11 and the instant read **Saturday 2026-09-12T13:30Z**.
+  //
+  // The test could not see it because **the test made the same conversion the
+  // code did**. So the times of day now straddle the ET offset, and the
+  // assertions are on an axis the code does not convert on: the instant must be
+  // a session's own `open`, and its UTC day must be a weekday.
   it.each([
     ["a Sunday", "2026-09-20T12:00:00Z"],
     ["a Saturday", "2026-09-19T12:00:00Z"],
     ["a Monday", "2026-09-21T12:00:00Z"],
     ["a Friday", "2026-09-18T12:00:00Z"],
+    ["a Sunday before dawn UTC", "2026-09-20T03:36:00Z"],
+    ["a Monday before dawn UTC", "2026-09-21T00:20:00Z"],
+    ["a Wednesday before dawn UTC", "2026-09-23T02:00:00Z"],
+    ["a winter Tuesday, when the offset is EST", "2026-12-15T02:00:00Z"],
   ])("lands on a real trading session when today is %s", (_name, today) => {
     const from = defaultReplayStartForTest(new Date(today));
+    const session = marketSessionOn(marketDateAt(from));
 
-    expect(marketSessionOn(marketDateAt(from))).toBeDefined();
+    expect(session).toBeDefined();
+    // **The instant IS the session's open**, rather than a UTC time that
+    // happens to convert to one. A hard-coded `13:30Z` is 09:30 EDT only, so
+    // every winter default would have started an hour before the bell.
+    expect(from.getTime()).toBe(session?.open.getTime());
+    // An axis nothing in `defaultReplayStart` converts on. Saturday is 6.
+    expect(from.getUTCDay()).toBeGreaterThanOrEqual(1);
+    expect(from.getUTCDay()).toBeLessThanOrEqual(5);
   });
 
   it("is at least a week back, which is what the embargo bought", () => {

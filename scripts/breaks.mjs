@@ -498,4 +498,69 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "search-and-the-universe-share-no-words",
   },
+
+  // **Task 3.4.3's two, and they prove the assertion that did not exist.**
+  //
+  // Story 3.2 shipped three implementations of `MarketDataStream` that nothing
+  // constructed. This story found the same shape one level out: three that were
+  // constructed and **none of which drove itself**. Both breaks restore the tree
+  // as it actually shipped, which is the strongest kind — the check is proved
+  // against the defect it was written for rather than a synthetic one.
+  {
+    name: "fixture-stream-drives-itself",
+    proves:
+      "A stream a running process constructs reports a healthy connection and " +
+      "emits nothing for ever, because the only thing that advances it is a " +
+      "test calling tick(). Every other suite drives it by hand, so nothing " +
+      "else in the repository can see this.",
+    file: "apps/backend/src/fixture-stream.ts",
+    find: "      timer = setTimer(() => {\n        stream.tick();\n      }, tickEveryMs);",
+    replace:
+      "      // pnpm break: reverted automatically — the tree as it shipped\n" +
+      "      // until 2026-09-20, with no clock at all.",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "self-driving",
+    ],
+    expect: "produces a minute with nothing but time passing",
+  },
+
+  {
+    name: "replay-start-is-a-real-session",
+    proves:
+      "The replay's default start validates one date and stamps another — the " +
+      "candidate's MARKET date against the calendar, the candidate's UTC date " +
+      "onto the instant — so before about 04:00 UTC it lands on a day the " +
+      "market was shut and the replay reports `live` while emitting nothing.",
+    // The tree as it shipped from Task 3.4.2 to Task 3.4.3. The original tests
+    // could not see it because every case ran at 12:00:00Z, where the two dates
+    // agree — and because they made the same conversion the code did.
+    file: "apps/backend/src/market-stream.ts",
+    find: "    if (session !== undefined) return session.open;",
+    replace:
+      "    if (session !== undefined)\n" +
+      "      // pnpm break: reverted automatically\n" +
+      "      return new Date(\n" +
+      "        Date.UTC(\n" +
+      "          day.getUTCFullYear(),\n" +
+      "          day.getUTCMonth(),\n" +
+      "          day.getUTCDate(),\n" +
+      "          13,\n" +
+      "          30,\n" +
+      "          0,\n" +
+      "          0,\n" +
+      "        ),\n" +
+      "      );",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "market-stream",
+    ],
+    expect: "lands on a real trading session",
+  },
 ];

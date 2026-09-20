@@ -288,6 +288,17 @@ have nothing to do with each other or with the screen.
 **And the split keeps the record honest.** 3.4.2's deliverable is _unmet_ rather
 than _done_, and a task that absorbed the fix would have made that disappear.
 
+**Closed 2026-09-20, and the suspect 3.4.2 named was innocent.**
+`createStoredReplaySource` was correct all along — an instrument proved it in
+91 ms. The faults were `defaultReplayStart` **validating one date and stamping
+another** (it checked the candidate's _market_ date and returned its _UTC_ one,
+which lands on a Saturday before about 04:00 UTC) and the fixture having no
+clock. Both are now break-verified. The finding that outlives them: **3.4.2's
+four tests of that walk all ran at `12:00:00Z`, the one time of day where the
+two dates cannot disagree, and asserted by performing the same conversion the
+code did.** A check written in the same units as the thing it checks cannot see
+a units error.
+
 **The finding it carries is bigger than the fix.** Story 3.2's close found three
 implementations with **no construction site**; this is that one level further
 out — **three implementations that are constructed and none of which drives
