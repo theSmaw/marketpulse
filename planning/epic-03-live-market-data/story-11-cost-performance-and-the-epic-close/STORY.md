@@ -290,6 +290,40 @@ backend**, and that is this story's too.
 > **Either way the consequence is the one this section feared**, and it is live
 > now rather than hypothetical.
 >
+> **INTERIM RESULT — 10.5 hours, 85 samples, 2026-09-19 10:00 → 2026-09-19
+> 20:26 ET.**
+>
+> |                     |       |
+> | ------------------- | ----- |
+> | `live`              | **0** |
+> | `disconnected`      | 82    |
+> | poll failed         | 3     |
+> | machine suspensions | 0     |
+>
+> **Not one `live` sample in ten and a half hours.** The socket has not
+> recovered on its own, which confirms in production what the client says about
+> itself: _no reconnection policy beyond `406`_. A drop that is not a `406` is
+> permanent until the container restarts.
+>
+> **The three gaps were neither the feed nor the observer's network, and the
+> sentinel is what says so.** A reachability probe fired at each failure:
+>
+> ```text
+> TimeoutError  probe={"alpaca": 401, "azure": 404}
+> ```
+>
+> Both hosts **answered** — 401 and 404 are HTTP responses, so DNS resolved,
+> TLS completed and the servers replied. The local link was fine and Alpaca was
+> fine. What failed was **the deployed backend not answering its own
+> `/diagnostics/feed` within 20 s**, three times in ten hours, each an isolated
+> single sample.
+>
+> That is a third finding rather than noise, and it is worth pairing with the
+> rolling-deploy hypothesis above: a replica being recycled would look exactly
+> like this. **What it does not explain is why the feed never returns** — a
+> restarted replica connects at boot, so a restart should produce either `live`
+> or a `406` it then retries out of.
+>
 > **And the first sample is already a finding.** At 09:54 ET on a Saturday the
 > deployed feed reported **`status: "disconnected"`** — no inbound frame of any
 > kind for 165 s (§11.2). With the market shut, `b` frames are legitimately
