@@ -1,8 +1,8 @@
-# Task 3.4.7 — The measurements this story owes
+# Task 3.4.8 — The measurements this story owes
 
 **Status:** Not started
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
-**Depends on:** 3.4.6
+**Depends on:** 3.4.7
 
 ## Objective
 

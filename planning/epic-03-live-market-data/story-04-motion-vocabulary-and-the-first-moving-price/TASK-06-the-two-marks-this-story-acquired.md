@@ -1,8 +1,8 @@
-# Task 3.4.5 — The two marks this story acquired after it was written
+# Task 3.4.6 — The two marks this story acquired after it was written
 
 **Status:** Not started
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
-**Depends on:** 3.4.4
+**Depends on:** 3.4.5
 
 ## Objective
 

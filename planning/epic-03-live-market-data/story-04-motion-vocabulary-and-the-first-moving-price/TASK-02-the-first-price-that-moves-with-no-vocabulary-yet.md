@@ -191,10 +191,14 @@ frontend tests pass, and the product cannot show a moving number.
 
 ### What this blocks
 
-**Task 3.4.3 cannot start.** Its whole method is _two or three treatments shown
-at 1× against the replay_, and there is nothing to show them against. **The
-replay's stored source is now this story's critical path**, ahead of any design
-work.
+**Task 3.4.4 cannot start.** Its whole method is _two or three treatments shown
+at 1× against the replay_, and there is nothing to show them against.
+
+**So [Task 3.4.3](TASK-03-a-stream-that-drives-itself.md) was inserted on
+2026-09-20** and the rest of the story renumbered behind it. It owns the fix,
+**and the assertion that was missing** — because a repair that makes a number
+move without leaving something that would go red if it stopped is the same gap
+again, one story later.
 
 ## For a stakeholder — a status report, 2026-09-20
 

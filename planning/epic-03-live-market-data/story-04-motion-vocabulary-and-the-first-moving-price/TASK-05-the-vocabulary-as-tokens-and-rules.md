@@ -1,8 +1,8 @@
-# Task 3.4.4 — The vocabulary, as tokens and as rules
+# Task 3.4.5 — The vocabulary, as tokens and as rules
 
 **Status:** Not started
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
-**Depends on:** 3.4.3
+**Depends on:** 3.4.4
 
 ## Objective
 
@@ -17,7 +17,7 @@ Every remaining story in the epic inherits it.
 
 ## What is already decided and must not be re-taken
 
-- **The treatment itself** — Task 3.4.3, with the owner. This task implements
+- **The treatment itself** — Task 3.4.4, with the owner. This task implements
   and does not revisit.
 - **Every duration is a token; no component hard-codes one.** Three exist —
   `quick` 120 ms, `settle` 240 ms, `pulse` 1400 ms — and `VISUAL-LANGUAGE.md` is
@@ -45,7 +45,7 @@ at one number, where it is cheap.**
 
 - **`VISUAL-LANGUAGE.md` carries the vocabulary** with its rationale, its
   **rejected alternatives** and a **reversal trigger as a condition**. The
-  rejected options are Task 3.4.3's and must not be lost between the two tasks.
+  rejected options are Task 3.4.4's and must not be lost between the two tasks.
 - **`tokens.css` carries the durations**, and the component reads them.
 - **The canvas carries it too** — ADR 0026's chain, the right way round for the
   first time on this row.

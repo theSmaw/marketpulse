@@ -1,8 +1,8 @@
-# Task 3.4.3 — Three treatments on a real screen, and the decision
+# Task 3.4.4 — Three treatments on a real screen, and the decision
 
 **Status:** Not started
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
-**Depends on:** 3.4.2
+**Depends on:** 3.4.3
 
 ## Objective
 
@@ -16,38 +16,17 @@ decision.
 the workshop, or the same screen reloaded three ways. Not a deliverable; the
 instrument the decision is taken with.
 
-## BLOCKED — nothing makes a number move yet (Task 3.4.2, 2026-09-20)
+## Task 3.4.3 unblocks this, and it exists because of what 3.4.2 found
 
 **This task's whole method is _two or three treatments shown at 1× against the
-replay_, and there is nothing to show them against.** Task 3.4.2 shipped the
-screen and could not demonstrate it: **none of the three stream implementations
-delivers an observation into a running process.**
+replay_.** Task 3.4.2 discovered there was nothing to show them against — none
+of the three stream implementations delivers an observation into a running
+process — so **Task 3.4.3 was inserted** to make a number move before anybody
+designs how it should move.
 
-| Provider  | State                                                            |
-| --------- | ---------------------------------------------------------------- |
-| `replay`  | calendar fault **fixed**; the stored source still yields nothing |
-| `fixture` | **has no timer** — it emits only when a test calls `tick()`      |
-| `alpaca`  | **`406`** — the deployment holds the plan's single connection    |
-
-**Three of the four candidate causes for the replay are ruled out**: `from` now
-resolves to Friday 2026-09-11 13:30Z, the store holds **390 minute bars per
-symbol in exactly that window** for all five, and the engine's ceiling
-arithmetic makes the first slice due immediately. **What is left is
-`createStoredReplaySource`.**
-
-**So the first work here is not design.** Fix the source — or give the fixture
-stream a timer, which is the cheaper route to _a number that moves_ and is
-enough to take a motion decision against, provided the cadence is the product's
-own (§2.1: one observation per symbol per minute) rather than a generator's
-convenience.
-
-**And the shape underneath is worth carrying into whatever fix is chosen.**
-Story 3.2's close found three implementations with no construction site.
-This is that one level further out: **three implementations that are
-constructed, and none of which drives itself.** Every test drives them by hand,
-so nothing has ever asserted that a stream left alone in a process produces
-anything. Whatever is repaired here should leave behind the assertion that was
-missing.
+**Do not start until a price is actually changing on screen.** A treatment
+chosen against a static number is the defect this story exists to prevent,
+arriving through the back door.
 
 ## What is already decided and must not be re-taken
 
@@ -115,4 +94,4 @@ position by name, and it carries the three constraints below.
 - **The owner decided**, and the rejected options are written down with why
 - Open decision 2 is answered
 - Every candidate was checked in **greyscale**
-- Nothing is shipped yet — Task 3.4.4 implements the answer
+- Nothing is shipped yet — Task 3.4.5 implements the answer

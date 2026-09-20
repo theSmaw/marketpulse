@@ -23,12 +23,12 @@ stakeholders want to see as much incremental progress as possible on the UI.
 
 
 Using our Claude Design project, I want to create design artifacts (if we don't have them
-  already), or modify those that do exist if required, for the work required in @planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md.
+  already), or modify those that do exist if required, for the work required in @planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-02-the-first-price-that-moves-with-no-vocabulary-yet.md.
 Make sure you have a consistent design language - prefer to reuse rather than reinvent. Do continually assess and improve
 and reimplement where necessary where user-experience and information architecture can be improved.
   Once these are ready,
 
-let's implement @planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md
+let's implement @planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-02-the-first-price-that-moves-with-no-vocabulary-yet.md
 Be sure to reference @planning/PRODUCT_SPEC.md so you understand the product that we are building.
 When you are done with the task, add to that task's documentation a layman's, non-technical description of the work you
 did and how it contributed to the product we are building. Let that layman know why you made the decisions that you did.
@@ -37,7 +37,7 @@ unlocks progress towards a user-facing product.
 
 
 
-Let's implement @planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md
+Let's implement @planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-02-the-first-price-that-moves-with-no-vocabulary-yet.md
 Be pragmatic about what you remeasure - I don't want this task to take hours.
 
 
@@ -48,7 +48,7 @@ in a .md file in the same directory.
 Do we need to amend, add, delete or re-order any tasks in
 @planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price
  based on our implementation of
-@planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md?
+@planning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price/TASK-02-the-first-price-that-moves-with-no-vocabulary-yet.md?
 
 
 
