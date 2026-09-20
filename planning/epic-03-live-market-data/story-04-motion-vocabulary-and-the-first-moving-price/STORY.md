@@ -260,29 +260,53 @@ minimal by default.
 
 ## Tasks
 
-Eight, sequential, each self-contained. **Four put something on a screen**, and
-the second one is visible — which is unusually early and is deliberate.
+**Nine, sequential, each self-contained** — eight when this story was split, and
+**Task 3.4.3 was inserted on 2026-09-20** because Task 3.4.2 found that no
+stream implementation delivers an observation into a running process. Four put
+something on a screen.
 
-| #     | Task                                                                                                                                             | Visible?                 |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
-| 3.4.1 | [The observation store, and the gate that would have stopped it](TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md)       | No                       |
-| 3.4.2 | [**The first price that moves, with no vocabulary yet**](TASK-02-the-first-price-that-moves-with-no-vocabulary-yet.md)                           | **YES**                  |
-| 3.4.3 | [Three treatments on a real screen, and the decision](TASK-03-three-treatments-on-a-real-screen.md)                                              | **YES** — the instrument |
-| 3.4.4 | [**The vocabulary, as tokens and as rules**](TASK-04-the-vocabulary-as-tokens-and-rules.md)                                                      | **YES**                  |
-| 3.4.5 | [The two marks this story acquired](TASK-05-the-two-marks-this-story-acquired.md)                                                                | **YES**                  |
-| 3.4.6 | [What a listener hears, and what survives the motion being removed](TASK-06-what-a-listener-hears-and-what-survives-the-motion-being-removed.md) | No                       |
-| 3.4.7 | [The measurements this story owes](TASK-07-the-measurements-this-story-owes.md)                                                                  | No                       |
-| 3.4.8 | [The live rehearsal, the sweep, and the close](TASK-08-the-rehearsal-the-sweep-and-the-close.md)                                                 | No                       |
+| #     | Task                                                                                                                                             | Visible?                           |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| 3.4.1 | [The observation store, and the gate that would have stopped it](TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md)       | No                                 |
+| 3.4.2 | [The first price that moves, with no vocabulary yet](TASK-02-the-first-price-that-moves-with-no-vocabulary-yet.md)                               | **the screen**                     |
+| 3.4.3 | [**A stream that drives itself**, and the assertion that was missing](TASK-03-a-stream-that-drives-itself.md)                                    | **YES — the number finally moves** |
+| 3.4.4 | [Three treatments on a real screen, and the decision](TASK-04-three-treatments-on-a-real-screen.md)                                              | **YES** — the instrument           |
+| 3.4.5 | [**The vocabulary, as tokens and as rules**](TASK-05-the-vocabulary-as-tokens-and-rules.md)                                                      | **YES**                            |
+| 3.4.6 | [The two marks this story acquired](TASK-06-the-two-marks-this-story-acquired.md)                                                                | **YES**                            |
+| 3.4.7 | [What a listener hears, and what survives the motion being removed](TASK-07-what-a-listener-hears-and-what-survives-the-motion-being-removed.md) | No                                 |
+| 3.4.8 | [The measurements this story owes](TASK-08-the-measurements-this-story-owes.md)                                                                  | No                                 |
+| 3.4.9 | [The live rehearsal, the sweep, and the close](TASK-09-the-rehearsal-the-sweep-and-the-close.md)                                                 | No                                 |
+
+### Why 3.4.3 was inserted rather than folded into 3.4.2
+
+**Because it is not the same work.** 3.4.2 wired a component and took a design
+decision about what a block says; 3.4.3 is a backend defect in the seam
+underneath, and its three faults — a replay source that yields nothing, a
+fixture stream with no timer, and an Alpaca connection held by production —
+have nothing to do with each other or with the screen.
+
+**And the split keeps the record honest.** 3.4.2's deliverable is _unmet_ rather
+than _done_, and a task that absorbed the fix would have made that disappear.
+
+**The finding it carries is bigger than the fix.** Story 3.2's close found three
+implementations with **no construction site**; this is that one level further
+out — **three implementations that are constructed and none of which drives
+itself.** Every test drives them by hand, so nothing has ever asserted that a
+stream left alone in a process produces anything, and `pnpm verify` was green
+throughout. **3.4.3 is finished when something would go red if a stream stopped
+driving itself**, not when a number moves.
 
 ### The ordering, and the one place it is load-bearing
 
 **The moving number ships BEFORE the vocabulary, and that is the whole shape of
-the split.**
+the split** — which 3.4.3's insertion protects rather than disturbs: the
+decision still waits for a screen with a changing number on it, and now there
+is a task whose job is to produce one.
 
 Open decision 1 says _static mock-ups cannot settle a motion decision_, and the
 same sentence rules out settling it against a number that does not move yet. So
 3.4.2 puts a deliberately undesigned price on screen — digits swapping, nothing
-else — and 3.4.3 takes the decision against **that**, running, at 1×.
+else — and 3.4.4 takes the decision against **that**, running, at 1×.
 
 It has a second effect worth stating: **the undesigned version is a real
 candidate rather than a control.** The story says the correct answer may be very
@@ -295,10 +319,10 @@ measuring a treatment nobody has chosen is measuring the wrong thing.
 
 ### What this split does NOT do
 
-- **It does not design in the story file.** 3.4.3 is where the treatment is
+- **It does not design in the story file.** 3.4.4 is where the treatment is
   decided, with the owner, in front of a running screen — and the rejected
-  options travel to 3.4.4 rather than being lost between them.
-- **It does not accept against the instrument it designed with.** 3.4.8's
+  options travel to 3.4.5 rather than being lost between them.
+- **It does not accept against the instrument it designed with.** 3.4.9's
   rehearsal is a real session, because the replay is our own stored bars and
   agrees with our own assumptions by construction.
 
@@ -389,7 +413,7 @@ smooth arrival.
 > created, which is the wrong conclusion and an easy one to reach. Its id is in
 > ADR 0026.
 >
-> **So Task 3.4.3 designs on the canvas first**, which is ADR 0026's chain the
+> **So Task 3.4.4 designs on the canvas first**, which is ADR 0026's chain the
 > right way round — and the motion row's standing debt is discharged there
 > rather than recorded a second time.
 

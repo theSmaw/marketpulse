@@ -142,3 +142,90 @@ describe("SecurityIdentity", () => {
     expect(container.querySelector("[aria-live]")).toBeNull();
   });
 });
+
+describe("a live price (Task 3.4.2)", () => {
+  const bar = (close: number, startsAt = "2026-09-16T18:01:00Z") => ({
+    startsAt: new Date(startsAt),
+    open: close,
+    high: close,
+    low: close,
+    close,
+    volume: 1,
+  });
+
+  it("changes the label, the figure and the qualifier together", () => {
+    // **All three lines move, which is what makes this a STATED substitution
+    // rather than a silent one.** A live price is not a newer version of a
+    // session close — it is a different number, measured from a different
+    // thing, true at a different time.
+    render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5)}
+      />,
+    );
+
+    expect(screen.getByText("Latest price")).toBeDefined();
+    expect(screen.queryByText("Last session close")).toBeNull();
+    expect(screen.getByText("219.50")).toBeDefined();
+  });
+
+  it("names the close it is measured from rather than deleting it", () => {
+    // The displaced fact becomes the stated reference. *Change from the
+    // previous close* was always true; it is now from a close with a date.
+    render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5)}
+      />,
+    );
+
+    expect(screen.getByText(/change from .*'s close/u)).toBeDefined();
+  });
+
+  it("says WHEN, because a live price may legitimately be hours old", () => {
+    // §10.3: every entry carries its own instant and no reader may render a
+    // price without reading it. §7.6 measured `ERIE` producing a bar in 2.1%
+    // of minutes — hours-old is the feed working, and only the instant tells
+    // that apart from a minute-old one.
+    render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5)}
+      />,
+    );
+
+    expect(screen.getByText(/14:01/u)).toBeDefined();
+  });
+
+  it("never puts a status word beside a price", () => {
+    // §11.2: a security gets NO status word. The gap between one security's
+    // bars has a p50 of one minute and a maximum of 187, so no threshold
+    // separates a quiet security from a broken one.
+    render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5)}
+      />,
+    );
+
+    for (const word of ["live", "stale", "disconnected"]) {
+      expect(screen.queryByText(word, { exact: true })).toBeNull();
+    }
+  });
+
+  it("leaves the block alone when there is no live price", () => {
+    // The ordinary case: no provider, not connected, or this security has not
+    // traded since we connected. Absence is not a failure.
+    render(
+      <SecurityIdentity symbol="NVDA" view={securitiesFixtureView("full")} />,
+    );
+
+    expect(screen.getByText("Last session close")).toBeDefined();
+    expect(screen.queryByText("Latest price")).toBeNull();
+  });
+});

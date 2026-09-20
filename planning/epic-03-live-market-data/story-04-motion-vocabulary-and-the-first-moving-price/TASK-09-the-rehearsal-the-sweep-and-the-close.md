@@ -1,8 +1,8 @@
-# Task 3.4.8 — The live rehearsal, the sweep, and the close
+# Task 3.4.9 — The live rehearsal, the sweep, and the close
 
 **Status:** Not started
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
-**Depends on:** 3.4.7
+**Depends on:** 3.4.8
 
 ## Objective
 

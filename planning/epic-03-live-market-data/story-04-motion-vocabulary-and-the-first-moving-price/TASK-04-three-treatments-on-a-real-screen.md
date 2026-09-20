@@ -1,8 +1,8 @@
-# Task 3.4.3 — Three treatments on a real screen, and the decision
+# Task 3.4.4 — Three treatments on a real screen, and the decision
 
 **Status:** Not started
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
-**Depends on:** 3.4.2
+**Depends on:** 3.4.3
 
 ## Objective
 
@@ -15,6 +15,18 @@ decision.
 **Two or three prices moving, side by side, differently** — a comparison page in
 the workshop, or the same screen reloaded three ways. Not a deliverable; the
 instrument the decision is taken with.
+
+## Task 3.4.3 unblocks this, and it exists because of what 3.4.2 found
+
+**This task's whole method is _two or three treatments shown at 1× against the
+replay_.** Task 3.4.2 discovered there was nothing to show them against — none
+of the three stream implementations delivers an observation into a running
+process — so **Task 3.4.3 was inserted** to make a number move before anybody
+designs how it should move.
+
+**Do not start until a price is actually changing on screen.** A treatment
+chosen against a static number is the defect this story exists to prevent,
+arriving through the back door.
 
 ## What is already decided and must not be re-taken
 
@@ -82,4 +94,4 @@ position by name, and it carries the three constraints below.
 - **The owner decided**, and the rejected options are written down with why
 - Open decision 2 is answered
 - Every candidate was checked in **greyscale**
-- Nothing is shipped yet — Task 3.4.4 implements the answer
+- Nothing is shipped yet — Task 3.4.5 implements the answer

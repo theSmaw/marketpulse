@@ -163,7 +163,7 @@ fixture testing a state the product cannot reach.
   durably.
 - **No correction/movement distinction.** A revision replaces the minute it
   corrects — §7.8 — and that is all this task decides. **What is held decides
-  what can be said; it does not decide what is said**, and Task 3.4.5 owns the
+  what can be said; it does not decide what is said**, and Task 3.4.6 owns the
   saying.
 - **Nothing clears the Map**, on a session boundary or on a degraded feed. The
   prices stay through `disconnected`, which is §36's whole point — _displaying

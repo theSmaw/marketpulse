@@ -1,8 +1,8 @@
-# Task 3.4.6 — What a listener hears, and what survives the motion being removed
+# Task 3.4.7 — What a listener hears, and what survives the motion being removed
 
 **Status:** Not started
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
-**Depends on:** 3.4.5
+**Depends on:** 3.4.6
 
 ## Objective
 
