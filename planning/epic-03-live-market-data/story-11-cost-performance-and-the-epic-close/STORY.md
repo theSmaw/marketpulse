@@ -228,6 +228,172 @@ backend**, and that is this story's too.
 
 ## The weekend hold — handed here 2026-09-18 by Task 3.1.9
 
+> **THE TRIGGER FIRED, AND THE RUN IS UNDER WAY — started 2026-09-19 09:56 ET.**
+>
+> The condition was _the first time a real socket runs in the deployed
+> backend_. It has: the deployment answers
+> `{"provider":"alpaca","feed":"iex",…}`, which is also why a developer machine
+> is refused `406` (`docs/GAPS.md` entry 7). `scripts/weekend-watch.mjs` is
+> polling `/diagnostics/feed` every 60 s through to Monday's open.
+>
+> **It is a different instrument from the retired `weekend.mjs`, and the
+> difference bounds the conclusion.** That one **held** the socket; this
+> **watches the one production already holds**, over HTTP — which is the only
+> reason it can run at all, since the single permitted connection is taken. So
+> it can see **whether the hold survives 56 hours and when it breaks**, to
+> within one poll plus §11.2's 165 s. It **cannot** see the close code, the
+> close latency (§8.5's discriminator) or the error frame, and a write-up must
+> not imply otherwise. It **can** see one thing the held version could not:
+> whether the backend recovers on its own, because it watches across a death
+> rather than dying with it.
+>
+> Both of `weekend.mjs`'s sentinels are kept — a monotonic-vs-wall tick so a
+> suspended laptop is a recorded fact with a duration, and a reachability probe
+> fired at any failure, because over HTTP _this observer's own network dying_
+> looks exactly like the thing it is watching for.
+>
+> **THE INCIDENT SHAPE, OBSERVED — 2026-09-19 10:00 ET.** This section
+> predicted it and named it _the outcome that actually matters_:
+>
+> > _"The incident shape is a drop that **also holds the connection slot**. If a
+> > weekend drop leaves the slot held, Monday's pre-market opens with no feed
+> > and no obvious cause."_
+>
+> **Both halves were observed within four minutes of starting the watch**, and
+> they are independent measurements:
+>
+> ```text
+> the backend's own view   {"provider":"alpaca","feed":"iex","status":"disconnected",…}
+> a fresh connection       [{"T":"error","code":406,"msg":"connection limit exceeded"}]
+> ```
+>
+> **The backend believes it has no feed, and Alpaca refuses a new connection
+> because the single slot is occupied.** §6.4 measured exactly this: a dead
+> socket holding the slot for **4 h 21 min** with `readyState` reporting `OPEN`.
+>
+> **The alternative explanation was ruled out rather than assumed.** If the
+> socket were healthy and the _status_ were lying, the cause would be the
+> heartbeat not reaching the watchdog — §6.3's ping is a **WebSocket control
+> frame**, which `ws` answers automatically and which a naive client never sees.
+> `alpaca-stream.ts` handles it: `opened.on("ping", …)` feeds a `heartbeat`
+> event to the state machine _"so the heartbeat reaches the state machine as
+> evidence of life."_ A healthy socket would therefore read `live`. It does not.
+>
+> **What is not yet distinguished**, and needs the deployed logs rather than a
+> probe: whether the socket died and was never retried (there is **no
+> reconnection policy beyond `406`** — Story 3.10 owns backoff), or whether a
+> **rolling deploy** left a previous replica holding the slot while the new one
+> was refused. The second is the more interesting: the client _does_ retry on
+> `406`, so a backend stuck reporting `disconnected` while something else holds
+> the slot is a race between two of our own replicas.
+>
+> **Either way the consequence is the one this section feared**, and it is live
+> now rather than hypothetical.
+>
+> ## THE WEEKEND HOLD FOUND A LIVE PRODUCTION OUTAGE — 2026-09-20, and the restart did not fix it
+>
+> The measurement was supposed to answer _does a 56-hour idle socket survive_.
+> **It never got to ask**, because the deployed feed was already dead when the
+> watch started, and the investigation found why.
+>
+> ### 1. Six fatal crashes, and the error names the bug
+>
+> ```text
+> {"level":60,…,"err":{"type":"Error","message":"WebSocket is not open: readyState 0 (CONNECTING)"}}
+> ```
+>
+> **`level: 60` is fatal** — the process died. Six times between 02:00Z and
+> 06:00Z on 2026-09-19, each followed by a Container Apps restart backing off
+> 12 s → 21 s → 41 s → 81 s. **Something calls `send()` before the socket has
+> opened**, and `ws` throws synchronously when `readyState` is `CONNECTING`.
+> None since 05:48Z, so the process stabilised — with no feed.
+>
+> ### 2. The feed has been dead for nineteen hours with no log line about it
+>
+> 85 samples over 10.5 hours: **zero `live`**. And the reason nobody could have
+> known is the finding that matters most:
+>
+> **`market-stream.ts` never references `onLog`.** The Alpaca client emits
+> **eight** diagnostic events — `authenticated`, `subscribed`,
+> `credentials-refused`, `frame-rejected`, **`connection-limit`**,
+> `unexpected-error-frame`, **`liveness-watchdog-fired`**, `closed` — and **not
+> one of them is logged in production.** A socket that authenticates, a
+> credential that is refused, a watchdog that fires, a `406` retried every
+> `REFUSED_RETRY_MS = 3_000` for nineteen hours: all silent.
+>
+> **That is why this was found by probing from outside rather than by reading a
+> log**, and it is why a green `check-deployed` says nothing about it.
+>
+> ### 3. The restart was clean and changed nothing
+>
+> `az containerapp revision restart` at 01:26:08Z. New replica up, old one
+> `SIGTERM`ed and `shutdown complete` at 01:26:15Z, **no fatal this time** — and
+> **still `disconnected` eight minutes later**, with no logs at all after
+> `market stream started`.
+>
+> **And the connection slot is still held**: an independent handshake is refused
+> `406 connection limit exceeded` after the restart, exactly as before it. So
+> the backend is almost certainly in a **silent three-second 406 retry loop**
+> against a slot held by something that is serving nobody — §6.4's dead socket
+> holding the slot, at nineteen hours rather than 4 h 21 min.
+>
+> ### What this means for the epic
+>
+> - **§9.3's _hold the socket always_ is not what production does**, and the gap
+>   is not the vendor's tolerance of a long idle — it is our own client.
+> - **The observability defect outranks the crash.** A product whose market feed
+>   can be dead for nineteen hours without emitting a line is one where every
+>   future incident costs what this one did.
+> - **Monday's open is still at risk**, and the restart is not the remedy.
+>
+> **Owner: Story 3.10** for the crash and the retry, **this story** for the
+> logging — it is a cost-and-operability finding and the epic close is where the
+> deployed backend is meant to be run in anger.
+>
+> **INTERIM RESULT — 10.5 hours, 85 samples, 2026-09-19 10:00 → 2026-09-19
+> 20:26 ET.**
+>
+> |                     |       |
+> | ------------------- | ----- |
+> | `live`              | **0** |
+> | `disconnected`      | 82    |
+> | poll failed         | 3     |
+> | machine suspensions | 0     |
+>
+> **Not one `live` sample in ten and a half hours.** The socket has not
+> recovered on its own, which confirms in production what the client says about
+> itself: _no reconnection policy beyond `406`_. A drop that is not a `406` is
+> permanent until the container restarts.
+>
+> **The three gaps were neither the feed nor the observer's network, and the
+> sentinel is what says so.** A reachability probe fired at each failure:
+>
+> ```text
+> TimeoutError  probe={"alpaca": 401, "azure": 404}
+> ```
+>
+> Both hosts **answered** — 401 and 404 are HTTP responses, so DNS resolved,
+> TLS completed and the servers replied. The local link was fine and Alpaca was
+> fine. What failed was **the deployed backend not answering its own
+> `/diagnostics/feed` within 20 s**, three times in ten hours, each an isolated
+> single sample.
+>
+> That is a third finding rather than noise, and it is worth pairing with the
+> rolling-deploy hypothesis above: a replica being recycled would look exactly
+> like this. **What it does not explain is why the feed never returns** — a
+> restarted replica connects at boot, so a restart should produce either `live`
+> or a `406` it then retries out of.
+>
+> **And the first sample is already a finding.** At 09:54 ET on a Saturday the
+> deployed feed reported **`status: "disconnected"`** — no inbound frame of any
+> kind for 165 s (§11.2). With the market shut, `b` frames are legitimately
+> absent for 56 hours (§6.2), but the **54 s heartbeat is not** (§6.3), so this
+> says the socket is not there rather than that the market is quiet. Whether it
+> never re-established after a deploy, died overnight, or lost a race with the
+> `406` a capture attempt provoked at 23:30 ET, is what the run is for. **§9.3
+> claims the socket is held always; the first observation of a weekend says it
+> is not.**
+
 **This story owns a measurement Story 3.1 built the instrument for and chose not
 to run.** [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md)
 §13.4 has the full account; this is what this story has to do about it.

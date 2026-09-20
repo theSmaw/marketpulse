@@ -94,7 +94,15 @@ function refuseIfSomethingElseHoldsIt() {
     // none, because the next person deletes it.
     .filter(({ command }) => /^\S*node(?:$|\s)/u.test(command))
     .filter(({ command }) =>
-      /capture-u-frame|weekend|alpaca-stream|stream-probe/u.test(command),
+      // **Socket HOLDERS only.** `weekend` used to be enough — the retired
+      // `weekend.mjs` held one — but `weekend-watch.mjs` polls
+      // `/diagnostics/feed` over HTTP and holds nothing, and matching it
+      // refused a capture for no reason. That is the second time this scan has
+      // blocked something harmless, and a pre-flight that cries wolf is one the
+      // next person deletes. Name the file, not the word.
+      /capture-u-frame\.mjs|weekend\.mjs|alpaca-stream|stream-probe/u.test(
+        command,
+      ),
     )
     .filter(({ pid }) => pid !== mine);
 

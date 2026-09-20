@@ -5,6 +5,9 @@ import type { LiveFeedView } from "../../market/index.js";
 import gridStyles from "../stories.module.css";
 import { FeedIndicator } from "./FeedIndicator.js";
 
+/** Nothing observed. §11.1: absence is the answer, and `{}` is the true one. */
+const NO_OBSERVATIONS = new Map();
+
 // The six renderings this cell can reach, and they are **views rather than
 // prop combinations** (Task 3.3.5).
 //
@@ -29,6 +32,7 @@ const base = {
   backendReachable: true,
   observedAt: OBSERVED_AT,
   unreadable: 0,
+  observations: NO_OBSERVATIONS,
 } satisfies Omit<LiveFeedView, "status">;
 
 const VIEWS = {
