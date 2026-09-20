@@ -63,6 +63,36 @@ export function changePercent(close: SecurityLastClose): number | null {
 }
 
 /**
+ * The move from a session's close to a price arriving now, as a signed
+ * percentage (Task 3.4.2).
+ *
+ * **A different basis from {@link changePercent}, and that is the whole
+ * reason it is a second function rather than a parameter.** That one is
+ * close-against-previous-close — a completed session's move, which never
+ * changes once the session has closed. This is live-against-the-last-close,
+ * which is what every market screen means by *today* and which moves while
+ * somebody watches it.
+ *
+ * **Keeping one function with a flag would have been the defect**: a version
+ * that showed a live price beside a percentage still measured between two old
+ * closes would show a figure that never moved beside a number that did, and
+ * nothing about it would look wrong.
+ *
+ * `null` when there is no stored close to measure from — a security we hold no
+ * daily bar for. §36's partial answer, rendered as an **absence rather than a
+ * zero**: `0.00%` there would claim the price has not moved, which is not what
+ * *we cannot say* means. The zero-close branch is {@link changePercent}'s and
+ * exists for its reason.
+ */
+export function changeFromClose(
+  live: number,
+  close: SecurityLastClose | undefined,
+): number | null {
+  if (close === undefined || close.close === 0) return null;
+  return ((live - close.close) / close.close) * 100;
+}
+
+/**
  * The session every close in this response belongs to, or `null` when they
  * disagree.
  *

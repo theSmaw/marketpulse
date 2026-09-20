@@ -240,7 +240,12 @@ export function App() {
                   for a value that cannot change without a deploy. */}
               <Route
                 path={PATHS.securities}
-                element={<SecurityExplorer marketFeed={marketFeed} />}
+                element={
+                  <SecurityExplorer
+                    marketFeed={marketFeed}
+                    liveFeed={liveFeed}
+                  />
+                }
               />
               {/* The same screen for one named security (Task 2.10.7). A
                   sibling rather than a nested `<Route>` with an `<Outlet>`,
@@ -252,7 +257,12 @@ export function App() {
                   destination; that file carries the argument. */}
               <Route
                 path={ROUTE_PATTERNS.security}
-                element={<SecurityExplorer marketFeed={marketFeed} />}
+                element={
+                  <SecurityExplorer
+                    marketFeed={marketFeed}
+                    liveFeed={liveFeed}
+                  />
+                }
               />
               <Route path={PATHS.replay} element={<MarketReplay />} />
               {/* Everything else. `*` is not in PATHS because it is not an

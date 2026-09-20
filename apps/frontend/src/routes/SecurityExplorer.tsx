@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router";
 
+import type { LiveFeedView } from "../market/index.js";
+
 import { BarSeriesPanel } from "../components/BarSeriesPanel/BarSeriesPanel.js";
 import { ChartAxis } from "../components/PriceChart/ChartAxis.js";
 import { PageHeader } from "../components/PageHeader/PageHeader.js";
@@ -69,9 +71,24 @@ export interface SecurityExplorerProps {
    * a feed the masthead is already naming correctly (`PROVENANCE.md` §1.3).
    */
   readonly marketFeed: MarketFeedView;
+
+  /**
+   * What the live feed is currently holding (Task 3.4.2).
+   *
+   * **A prop from `App` rather than a second `useLiveFeed()` call**, which
+   * would open a second socket — and rather than a context, which
+   * `FRONTEND-STATE.md` §1 reserves for *the first piece of state two features
+   * must agree about that neither owns*. **That trigger has not fired**: this
+   * route's element is constructed in `App`, exactly as `marketFeed` above
+   * already is, so the value reaches it by the path that is already here.
+   */
+  readonly liveFeed: LiveFeedView;
 }
 
-export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
+export function SecurityExplorer({
+  marketFeed,
+  liveFeed,
+}: SecurityExplorerProps) {
   // The hooks are called here rather than inside the regions, so a component
   // that throws hits `Region`'s own boundary and leaves the request that
   // produced it alone — the same argument `App` makes for calling
@@ -143,6 +160,13 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
     timeframe: timeframeForSessions(sessions),
     window: seriesWindowFor(sessions),
   });
+
+  // **The observation for the security on screen, and absence is ordinary.**
+  // §7.6 measured IEX covering 65.1% of minutes for a median symbol and 2.1%
+  // for `ERIE`, and §7.2 measured a quiet minute producing no frame at all — so
+  // a page open on a thin security legitimately has nothing here for hours, and
+  // that is the feed working.
+  const live = liveFeed.observations.get(symbol);
 
   return (
     <div className={page.page}>
@@ -249,7 +273,11 @@ export function SecurityExplorer({ marketFeed }: SecurityExplorerProps) {
        * exactly the moment the other two do). The decision is recorded there
        * rather than left as a consequence of a layout.
        */}
-      <SecurityIdentity symbol={symbol} view={view} />
+      <SecurityIdentity
+        symbol={symbol}
+        view={view}
+        {...(live === undefined ? {} : { live })}
+      />
 
       {/*
        * **The grid PRODUCT_SPEC.md §8.3's seven contents sit on**, decided once

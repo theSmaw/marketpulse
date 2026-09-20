@@ -16,6 +16,39 @@ decision.
 the workshop, or the same screen reloaded three ways. Not a deliverable; the
 instrument the decision is taken with.
 
+## BLOCKED — nothing makes a number move yet (Task 3.4.2, 2026-09-20)
+
+**This task's whole method is _two or three treatments shown at 1× against the
+replay_, and there is nothing to show them against.** Task 3.4.2 shipped the
+screen and could not demonstrate it: **none of the three stream implementations
+delivers an observation into a running process.**
+
+| Provider  | State                                                            |
+| --------- | ---------------------------------------------------------------- |
+| `replay`  | calendar fault **fixed**; the stored source still yields nothing |
+| `fixture` | **has no timer** — it emits only when a test calls `tick()`      |
+| `alpaca`  | **`406`** — the deployment holds the plan's single connection    |
+
+**Three of the four candidate causes for the replay are ruled out**: `from` now
+resolves to Friday 2026-09-11 13:30Z, the store holds **390 minute bars per
+symbol in exactly that window** for all five, and the engine's ceiling
+arithmetic makes the first slice due immediately. **What is left is
+`createStoredReplaySource`.**
+
+**So the first work here is not design.** Fix the source — or give the fixture
+stream a timer, which is the cheaper route to _a number that moves_ and is
+enough to take a motion decision against, provided the cadence is the product's
+own (§2.1: one observation per symbol per minute) rather than a generator's
+convenience.
+
+**And the shape underneath is worth carrying into whatever fix is chosen.**
+Story 3.2's close found three implementations with no construction site.
+This is that one level further out: **three implementations that are
+constructed, and none of which drives itself.** Every test drives them by hand,
+so nothing has ever asserted that a stream left alone in a process produces
+anything. Whatever is repaired here should leave behind the assertion that was
+missing.
+
 ## What is already decided and must not be re-taken
 
 **The canvas comes first, and it is reachable.** ADR 0026's chain is canvas →

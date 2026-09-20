@@ -1,4 +1,4 @@
-import type { Security, SecurityLastClose } from "@marketpulse/shared";
+import type { Bar, Security, SecurityLastClose } from "@marketpulse/shared";
 import { SECTOR_LABELS } from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
@@ -6,9 +6,10 @@ import type { SecuritiesView } from "../../use-securities.js";
 import { Badge } from "../Badge/Badge.js";
 import { Marker } from "../Marker/Marker.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
-import { changePercent } from "../UniverseTable/last-close.js";
+import { changeFromClose, changePercent } from "../UniverseTable/last-close.js";
 import {
   directionOf,
+  formatBarInstant,
   formatChangePercent,
   formatPrice,
 } from "../../market/index.js";
@@ -83,6 +84,18 @@ export interface SecurityIdentityProps {
 
   /** The tracked universe, in whatever state it is in. */
   readonly view: SecuritiesView;
+
+  /**
+   * The latest observation for this security, when the live feed has sent one
+   * (Task 3.4.2).
+   *
+   * **`undefined` is the ordinary answer, not a failure.** A deployment with no
+   * provider never has one; a connected one fills unevenly, because §7.6
+   * measured IEX covering **65.1% of minutes for a median symbol and 2.1% for
+   * `ERIE`**, and §7.2 measured a quiet minute producing **no frame at all**.
+   * A surface that rendered absence as an error would render it constantly.
+   */
+  readonly live?: Bar;
 }
 
 /**
@@ -97,7 +110,11 @@ const KIND_WORDS: Readonly<Record<Security["kind"], string>> = {
   index_etf: "ETF",
 };
 
-export function SecurityIdentity({ symbol, view }: SecurityIdentityProps) {
+export function SecurityIdentity({
+  symbol,
+  view,
+  live,
+}: SecurityIdentityProps) {
   const found =
     view.state === "loaded"
       ? view.securities.find((security) => security.symbol === symbol)
@@ -142,7 +159,7 @@ export function SecurityIdentity({ symbol, view }: SecurityIdentityProps) {
           {classificationOf(found).join(" · ")}
         </p>
       </div>
-      <Close lastClose={lastClose} />
+      <Close lastClose={lastClose} live={live} />
     </div>
   );
 }
@@ -202,9 +219,61 @@ export function SecurityIdentity({ symbol, view }: SecurityIdentityProps) {
  */
 function Close({
   lastClose,
+  live,
 }: {
   readonly lastClose: SecurityLastClose | undefined;
+  readonly live: Bar | undefined;
 }) {
+  // **A live price changes the SUBJECT of this block, and all three lines move
+  // together** (Task 3.4.2). That is what makes it a stated substitution rather
+  // than a silent one: a live price is not a newer version of a session close,
+  // it is a different number measured from a different thing and true at a
+  // different time.
+  if (live !== undefined) {
+    const percent = changeFromClose(live.close, lastClose);
+
+    return (
+      <div className={cx(styles.close)}>
+        {/*
+          **Not `LIVE`.** §11.2: a security gets no status word — the gap
+          between one security's bars has a p50 of one minute and a maximum of
+          **187**, so no threshold separates a quiet security from a broken one,
+          and this product has already refused to make that claim per security.
+          **Not `Last trade`** either: this is a minute bar's close, and the last
+          trade is a different thing we do not have.
+        */}
+        <p className={cx(styles.closeLabel)}>Latest price</p>
+        <p className={cx(styles.figure)}>
+          <span className={cx(styles.price)}>{formatPrice(live.close)}</span>
+          {percent === null ? undefined : (
+            <PriceChange
+              change={formatChangePercent(percent)}
+              direction={directionOf(percent)}
+            />
+          )}
+        </p>
+        {/*
+          **The instant takes the first slot**, which is §10.3's rule applied:
+          every entry carries its own instant and no reader may render a price
+          without reading it. A live price is at most about a minute old for a
+          liquid security and **may legitimately be hours old** for a thin one —
+          both are the feed working, and the instant is the only thing that
+          tells them apart.
+
+          **And the displaced close is NAMED rather than deleted.** The change
+          was always *from the previous close*; it is now from a close with a
+          date on it, which is the difference between replacing a claim and
+          superseding one.
+        */}
+        <p className={cx(styles.qualifier)}>
+          {percent === null
+            ? formatBarInstant(live.startsAt, "1m")
+            : `${formatBarInstant(live.startsAt, "1m")} · change from ${lastClose?.session ?? ""}'s close`}
+        </p>
+      </div>
+    );
+  }
+
   if (lastClose === undefined) {
     return (
       <div className={cx(styles.close)}>

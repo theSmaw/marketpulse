@@ -1,6 +1,11 @@
+import { marketDateAt, marketSessionOn } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
-import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
+import {
+  STREAM_SYMBOLS,
+  createMarketStream,
+  defaultReplayStartForTest,
+} from "./market-stream.js";
 import type { Config } from "./config.js";
 import type { MarketBarsRepository } from "./market-bars.js";
 import { ReplayDuringSessionError } from "./replay-stream.js";
@@ -141,5 +146,35 @@ describe("the symbols", () => {
     // 2.1% for `ERIE`. A thin name would look broken while working perfectly.
     expect(STREAM_SYMBOLS).toContain("SPY");
     expect(STREAM_SYMBOLS).toContain("NVDA");
+  });
+});
+
+describe("the replay's default start (Task 3.4.2)", () => {
+  // **Found by running it on a Sunday.** `now - 7 days` lands on whatever
+  // weekday the subtraction produces, and on a weekend that is another
+  // weekend — so the store holds no bars, and the replay reports `live` while
+  // emitting nothing. ADR 0030 added the replay so this epic's design work
+  // could run at ANY hour, and the hours it most needs to serve are exactly
+  // the ones where the naive subtraction fails.
+  it.each([
+    ["a Sunday", "2026-09-20T12:00:00Z"],
+    ["a Saturday", "2026-09-19T12:00:00Z"],
+    ["a Monday", "2026-09-21T12:00:00Z"],
+    ["a Friday", "2026-09-18T12:00:00Z"],
+  ])("lands on a real trading session when today is %s", (_name, today) => {
+    const from = defaultReplayStartForTest(new Date(today));
+
+    expect(marketSessionOn(marketDateAt(from))).toBeDefined();
+  });
+
+  it("is at least a week back, which is what the embargo bought", () => {
+    // The 15-minute embargo and the nightly backfill are why this does not
+    // replay yesterday. Walking back to a session must not walk FORWARD.
+    const today = new Date("2026-09-20T12:00:00Z");
+    const from = defaultReplayStartForTest(today);
+
+    expect(from.getTime()).toBeLessThanOrEqual(
+      today.getTime() - 7 * 24 * 60 * 60 * 1000,
+    );
   });
 });

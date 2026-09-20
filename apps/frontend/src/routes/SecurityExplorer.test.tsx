@@ -11,6 +11,19 @@ import { DEFAULT_WINDOW_SESSIONS } from "../market/index.js";
 import { PATHS, ROUTE_PATTERNS } from "./paths.js";
 import { SecurityExplorer } from "./SecurityExplorer.js";
 
+/**
+ * Nothing observed — what every deployment without a provider has, and what
+ * these tests are about, since none of them is about the live feed.
+ */
+const NO_LIVE_FEED = {
+  status: "disconnected",
+  feed: null,
+  backendReachable: true,
+  observedAt: undefined,
+  unreadable: 0,
+  observations: new Map(),
+} as const;
+
 // The route's tests drive the real component against a stubbed `fetch`, so the
 // hook, the client and the shared predicate are all in the path — which is what
 // makes this an assertion about the read path rather than about a table
@@ -79,9 +92,12 @@ const json = (status: number, body: unknown) =>
 const MARKET_FEED = { state: "configured", feed: "sip" } as const;
 
 const render = () =>
-  renderWithContext(<SecurityExplorer marketFeed={MARKET_FEED} />, {
-    at: PATHS.securities,
-  });
+  renderWithContext(
+    <SecurityExplorer marketFeed={MARKET_FEED} liveFeed={NO_LIVE_FEED} />,
+    {
+      at: PATHS.securities,
+    },
+  );
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -350,11 +366,21 @@ describe("the market-data region", () => {
       <Routes>
         <Route
           path={PATHS.securities}
-          element={<SecurityExplorer marketFeed={MARKET_FEED} />}
+          element={
+            <SecurityExplorer
+              marketFeed={MARKET_FEED}
+              liveFeed={NO_LIVE_FEED}
+            />
+          }
         />
         <Route
           path={ROUTE_PATTERNS.security}
-          element={<SecurityExplorer marketFeed={MARKET_FEED} />}
+          element={
+            <SecurityExplorer
+              marketFeed={MARKET_FEED}
+              liveFeed={NO_LIVE_FEED}
+            />
+          }
         />
       </Routes>,
       { at: address },
@@ -671,7 +697,12 @@ describe("the Security Explorer shell", () => {
       <Routes>
         <Route
           path={ROUTE_PATTERNS.security}
-          element={<SecurityExplorer marketFeed={MARKET_FEED} />}
+          element={
+            <SecurityExplorer
+              marketFeed={MARKET_FEED}
+              liveFeed={NO_LIVE_FEED}
+            />
+          }
         />
       </Routes>,
       { at: "/securities/SPY" },

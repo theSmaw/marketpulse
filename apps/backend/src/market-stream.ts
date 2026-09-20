@@ -1,4 +1,4 @@
-import { toTicker } from "@marketpulse/shared";
+import { marketDateAt, marketSessionOn, toTicker } from "@marketpulse/shared";
 import type { Ticker } from "@marketpulse/shared";
 
 import { createAlpacaStream } from "./alpaca-stream.js";
@@ -172,17 +172,48 @@ export function createMarketStream(
  * at all, and `readBars` returning nothing for a chosen window is a quiet
  * replay rather than a wrong one.
  */
+/** Exported for its test: the calendar walk is the part worth asserting. */
+export const defaultReplayStartForTest = (now: Date): Date =>
+  defaultReplayStart(now);
+
 function defaultReplayStart(now: Date): Date {
   const week = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  return new Date(
-    Date.UTC(
-      week.getUTCFullYear(),
-      week.getUTCMonth(),
-      week.getUTCDate(),
-      13,
-      30,
-      0,
-      0,
-    ),
-  );
+
+  const atOpen = (day: Date): Date =>
+    new Date(
+      Date.UTC(
+        day.getUTCFullYear(),
+        day.getUTCMonth(),
+        day.getUTCDate(),
+        13,
+        30,
+        0,
+        0,
+      ),
+    );
+
+  // **Walk back to a session the market actually held** (Task 3.4.2).
+  //
+  // This was `now - 7 days` at 09:30 and nothing else, which lands on whatever
+  // weekday the subtraction produces — **and on a weekend that is another
+  // weekend.** Found by running it: on 2026-09-20 the default resolved to
+  // Sunday 2026-09-13, the store holds no bars for a day the market was shut,
+  // and the replay reported `live` while emitting nothing.
+  //
+  // **The failure is silent in the worst way.** ADR 0030 added the replay
+  // precisely so this epic's design work could run *at any hour* — and the
+  // hours it most needs to serve are the ones the market is closed, which is
+  // exactly when the naive subtraction lands on a closed day. A replay that
+  // says `live` and produces nothing is indistinguishable from a broken feed.
+  //
+  // Ten days covers any run of holidays this calendar contains. Outside its
+  // 2024-2028 range `marketSessionOn` has no answer, and returning the
+  // candidate unchanged there is the same answer the old code gave.
+  for (let back = 0; back < 10; back += 1) {
+    const day = new Date(week.getTime() - back * 24 * 60 * 60 * 1000);
+
+    if (marketSessionOn(marketDateAt(day)) !== undefined) return atOpen(day);
+  }
+
+  return atOpen(week);
 }
