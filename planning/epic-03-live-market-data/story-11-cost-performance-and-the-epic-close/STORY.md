@@ -290,6 +290,66 @@ backend**, and that is this story's too.
 > **Either way the consequence is the one this section feared**, and it is live
 > now rather than hypothetical.
 >
+> ## THE WEEKEND HOLD FOUND A LIVE PRODUCTION OUTAGE — 2026-09-20, and the restart did not fix it
+>
+> The measurement was supposed to answer _does a 56-hour idle socket survive_.
+> **It never got to ask**, because the deployed feed was already dead when the
+> watch started, and the investigation found why.
+>
+> ### 1. Six fatal crashes, and the error names the bug
+>
+> ```text
+> {"level":60,…,"err":{"type":"Error","message":"WebSocket is not open: readyState 0 (CONNECTING)"}}
+> ```
+>
+> **`level: 60` is fatal** — the process died. Six times between 02:00Z and
+> 06:00Z on 2026-09-19, each followed by a Container Apps restart backing off
+> 12 s → 21 s → 41 s → 81 s. **Something calls `send()` before the socket has
+> opened**, and `ws` throws synchronously when `readyState` is `CONNECTING`.
+> None since 05:48Z, so the process stabilised — with no feed.
+>
+> ### 2. The feed has been dead for nineteen hours with no log line about it
+>
+> 85 samples over 10.5 hours: **zero `live`**. And the reason nobody could have
+> known is the finding that matters most:
+>
+> **`market-stream.ts` never references `onLog`.** The Alpaca client emits
+> **eight** diagnostic events — `authenticated`, `subscribed`,
+> `credentials-refused`, `frame-rejected`, **`connection-limit`**,
+> `unexpected-error-frame`, **`liveness-watchdog-fired`**, `closed` — and **not
+> one of them is logged in production.** A socket that authenticates, a
+> credential that is refused, a watchdog that fires, a `406` retried every
+> `REFUSED_RETRY_MS = 3_000` for nineteen hours: all silent.
+>
+> **That is why this was found by probing from outside rather than by reading a
+> log**, and it is why a green `check-deployed` says nothing about it.
+>
+> ### 3. The restart was clean and changed nothing
+>
+> `az containerapp revision restart` at 01:26:08Z. New replica up, old one
+> `SIGTERM`ed and `shutdown complete` at 01:26:15Z, **no fatal this time** — and
+> **still `disconnected` eight minutes later**, with no logs at all after
+> `market stream started`.
+>
+> **And the connection slot is still held**: an independent handshake is refused
+> `406 connection limit exceeded` after the restart, exactly as before it. So
+> the backend is almost certainly in a **silent three-second 406 retry loop**
+> against a slot held by something that is serving nobody — §6.4's dead socket
+> holding the slot, at nineteen hours rather than 4 h 21 min.
+>
+> ### What this means for the epic
+>
+> - **§9.3's _hold the socket always_ is not what production does**, and the gap
+>   is not the vendor's tolerance of a long idle — it is our own client.
+> - **The observability defect outranks the crash.** A product whose market feed
+>   can be dead for nineteen hours without emitting a line is one where every
+>   future incident costs what this one did.
+> - **Monday's open is still at risk**, and the restart is not the remedy.
+>
+> **Owner: Story 3.10** for the crash and the retry, **this story** for the
+> logging — it is a cost-and-operability finding and the epic close is where the
+> deployed backend is meant to be run in anger.
+>
 > **INTERIM RESULT — 10.5 hours, 85 samples, 2026-09-19 10:00 → 2026-09-19
 > 20:26 ET.**
 >
