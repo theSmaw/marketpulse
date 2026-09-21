@@ -919,6 +919,19 @@ describe("the database pool", () => {
     expect(drained).toBeGreaterThanOrEqual(0);
     expect(stream).toBeGreaterThan(drained);
     expect(pool).toBeGreaterThan(stream);
+
+    // **The gateway closes before the stream, and since Task 3.5.2 that is a
+    // statement about two different things rather than a race.** Until then
+    // there were TWO subscriptions on one socket — this file's and one inside
+    // `market-gateway.ts` — with a closer each, and *which subscriber owns the
+    // upstream connection* had no answer but *whichever was registered first*.
+    //
+    // The order matters in the direction asserted: a browser should be told
+    // the feed is going away by a process that **still has a feed**, rather
+    // than inferring it from a socket that vanished.
+    const gateway = messages.indexOf("market gateway closed");
+    expect(gateway).toBeGreaterThanOrEqual(0);
+    expect(stream).toBeGreaterThan(gateway);
   });
 
   it("says goodbye to a browser BEFORE closing its socket", async () => {

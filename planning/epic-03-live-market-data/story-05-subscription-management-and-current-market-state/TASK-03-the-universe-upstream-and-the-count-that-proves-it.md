@@ -132,3 +132,33 @@ state. Both callers then read one definition.
 **The `status` filter is therefore not new work here**, and the criterion-1
 counting, the empty-list refusal and the acknowledgement reconciliation are what
 this task is actually about.
+
+---
+
+## Amended by Task 3.5.2 — 2026-09-21: this task opens a window, deliberately
+
+**After 3.5.2 there is exactly one path from the socket to a browser**, and it
+is `gateway.publishObservations(...)` → `broadcast(...)` → **every attached
+client**. There is still no per-client filter; Task 3.5.6 builds it.
+
+**So scaling the upstream set from five symbols to 518 means every attached
+browser receives the whole universe every minute**, and discards all but the
+one or two it is showing. Each task merges and deploys, so this is a real
+deployed state rather than a moment on a branch.
+
+**That is accepted rather than overlooked**, on these grounds:
+
+- The cost is bounded and small: ~518 observations a minute, on the order of
+  **50 KB/min per attached browser**, against a deployment whose realistic
+  audience is a handful of tabs. Take the real figure in Task 3.5.8 rather than
+  carrying this estimate.
+- **Nothing renders wrongly.** Story 3.4's arrival mark fires per security on
+  the security actually displayed, so the surplus is discarded silently.
+- The alternative is building the browser's subscribe protocol **before** the
+  thing that motivates it, which is scaffolding ahead of the step.
+
+**Task 3.5.6 closes the window, and it should not drift later than that.**
+
+**Reversal trigger, as a condition:** the first time more than a handful of
+browsers are attached at once, or the first measurement showing the surplus is
+material. Either makes the filter urgent rather than tidy.

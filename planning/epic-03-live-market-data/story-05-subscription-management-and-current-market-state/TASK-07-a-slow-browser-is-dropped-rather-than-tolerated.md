@@ -76,3 +76,19 @@ Two decisions this task owes, both with their reasoning recorded:
 low-priority background tab, an agent consuming the stream at its own pace.
 At that point _drop_ stops being the only correct answer and a per-client rate
 becomes the question.
+
+---
+
+## Amended by Task 3.5.2 — 2026-09-21: where the drop goes has moved
+
+The gateway no longer subscribes to the stream. Observations now enter through
+**`publishObservations`**, and every outbound write still passes through the
+`send` helper inside `broadcast`.
+
+So the threshold check belongs beside **`send`**, which is the one place a
+payload meets a socket — and after Task 3.5.6 it is also where the per-client
+filter sits, so both decisions about _should this client get this message_ end
+up in one place rather than two.
+
+Nothing else in this task changes. The measurement, the close code and the
+interaction with Task 3.5.5's reconnect are unaffected.

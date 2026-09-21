@@ -68,8 +68,20 @@ export interface CurrentObservation {
 }
 
 export interface CurrentMarketState {
-  /** Apply a batch from the stream. The only writer. */
-  observe: (observations: readonly LiveObservation[]) => void;
+  /**
+   * Apply a batch from the stream. The only writer.
+   *
+   * **Returns what it actually applied**, which is what makes the browser's
+   * view single-sourced *by construction rather than by agreement* (Task
+   * 3.5.2). Before that task, `market-gateway.ts` broadcast the raw batch
+   * while this object quietly dropped a revision for a minute already passed —
+   * two policies over one stream, which disagree the moment anything reads
+   * both. A caller that broadcasts the **return value** cannot send a browser
+   * something this object rejected.
+   */
+  observe: (
+    observations: readonly LiveObservation[],
+  ) => readonly LiveObservation[];
   /**
    * One security, or `undefined` for **nothing observed** — an ordinary
    * answer rather than an error, for property 1's reason.
@@ -131,6 +143,8 @@ export function createCurrentMarketState(
 
   return {
     observe(observations) {
+      const applied: LiveObservation[] = [];
+
       for (const observation of observations) {
         // The `status` filter, and the only gate on the write path. A symbol
         // outside the tracked universe is not an error — Task 3.5.3 keeps the
@@ -162,7 +176,10 @@ export function createCurrentMarketState(
           continue;
 
         latest.set(observation.symbol, observation);
+        applied.push(observation);
       }
+
+      return applied;
     },
 
     read(symbol) {

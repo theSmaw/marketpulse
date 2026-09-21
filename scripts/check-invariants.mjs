@@ -1062,6 +1062,10 @@ const INVARIANTS = [
       // The current market state is the fourth candidate: a module with a full
       // unit suite that passes whether or not the process ever calls it. So
       // the check is on the WIRING rather than on the object.
+      // **Updated by Task 3.5.2 rather than deleted.** That task collapsed two
+      // subscriptions into one and moved the wiring inside this same file, so
+      // the grep still holds — but the expression it looks for changed shape,
+      // and a check whose subject moved must be re-read rather than assumed.
       if (!text.includes("currentMarketState.observe(")) {
         throw new InvariantFailure(
           "index.ts does not feed the market stream into the current market " +
@@ -1075,6 +1079,62 @@ const INVARIANTS = [
       if (/onObservations:\s*\(\)\s*=>\s*undefined/.test(text)) {
         throw new InvariantFailure(
           "index.ts is discarding live observations again.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "one-subscriber-on-the-upstream-socket",
+    claim: "Shipped serving code subscribes to the market stream exactly once.",
+    check() {
+      // **Two subscribers is not untidy, it is two policies** (Task 3.5.2).
+      // `market-gateway.ts` used to subscribe alongside `index.ts` and
+      // broadcast the RAW batch, while the current market state drops a
+      // revision for a minute already passed so the latest observation never
+      // walks backwards. They disagreed about what had happened and nothing
+      // said which was authoritative — invisible until something read both.
+      //
+      // The free plan also allows ONE connection, so "how many things think
+      // they own this socket" is a question with a real bill attached.
+      const sources = [];
+
+      const walk = (dir) => {
+        for (const child of readdirSync(dir)) {
+          const path = resolve(dir, child);
+          if (statSync(path).isDirectory()) {
+            if (child !== "fixtures") walk(path);
+            continue;
+          }
+          if (!child.endsWith(".ts")) continue;
+          if (child.endsWith(".test.ts")) continue;
+          sources.push({ path, text: readFileSync(path, "utf8") });
+        }
+      };
+
+      walk(resolve(REPO_ROOT, "apps/backend/src"));
+
+      // **Count CALL SITES, not files.** Counting files was the first version
+      // and `pnpm break a-second-subscriber-on-the-upstream-socket` caught it
+      // immediately: a second subscription added to the file that already had
+      // one left the count at 1 and the check green. That is the likeliest
+      // shape of the real regression, too — somebody adds a subscriber next to
+      // the existing one rather than in a new module.
+      const sites = [];
+
+      for (const source of sources) {
+        const matches =
+          source.text.match(/\.subscribe\(\s*(?:STREAM_SYMBOLS|\[)/g) ?? [];
+        for (let i = 0; i < matches.length; i += 1) {
+          sites.push(relative(REPO_ROOT, source.path));
+        }
+      }
+
+      if (sites.length !== 1) {
+        throw new InvariantFailure(
+          `${String(sites.length)} call sites subscribe to the market stream, ` +
+            "expected exactly 1:\n      " +
+            sites.join("\n      "),
         );
       }
     },

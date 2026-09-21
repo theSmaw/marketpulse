@@ -690,6 +690,27 @@ export const BREAKS = [
   // days** — the strongest kind, because the check is proved against the defect
   // it was written for rather than a synthetic one.
   {
+    name: "a-second-subscriber-on-the-upstream-socket",
+    proves:
+      "Two things subscribe to one market socket \u2014 the defect Task 3.5.2 " +
+      "removed. It is not untidy, it is TWO POLICIES: the gateway broadcast " +
+      "the raw batch while the current market state drops a revision for a " +
+      "minute already passed, so they disagreed about what had happened and " +
+      "nothing said which was authoritative. The free plan also allows ONE " +
+      "connection, so the count has a bill attached.",
+    file: "apps/backend/src/index.ts",
+    find: "  registerMarketStreamCloser(unsubscribe);",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  stream.subscribe([], {\n" +
+      "    onObservations: (batch) => void batch,\n" +
+      "    onConnectionChange: (connection) => void connection,\n" +
+      "  });\n" +
+      "  registerMarketStreamCloser(unsubscribe);",
+    command: ["pnpm", "invariants"],
+    expect: "subscribe to the market stream",
+  },
+  {
     name: "the-live-stream-loses-its-consumer",
     proves:
       "The process discards every live observation again \u2014 the state this " +
@@ -698,10 +719,16 @@ export const BREAKS = [
       "family have shipped with `pnpm verify` green: something that exists in " +
       "one layer and cannot be reached from the next.",
     file: "apps/backend/src/index.ts",
-    find: "      currentMarketState.observe(observations);",
+    // **Re-anchored by Task 3.5.2**, which restructured this line. The old
+    // `find` no longer matched and `pnpm break` said so rather than passing —
+    // which is the entry doing its job: a break that cannot land is a check
+    // nobody is testing. The new form is also a better regression than the old
+    // one: it broadcasts the RAW batch instead of what the state applied,
+    // which is precisely the divergence this task removed.
+    find: "      gateway.publishObservations(currentMarketState.observe(observations));",
     replace:
       "      // pnpm break: reverted automatically\n" +
-      "      void observations;",
+      "      gateway.publishObservations(observations);",
     command: ["pnpm", "invariants"],
     expect: "does not feed the market stream",
   },

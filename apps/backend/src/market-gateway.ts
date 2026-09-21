@@ -10,10 +10,7 @@ import {
   type WireObservation,
 } from "@marketpulse/shared";
 
-import type {
-  LiveObservation,
-  MarketDataStream,
-} from "./market-data-stream.js";
+import type { LiveObservation } from "./market-data-stream.js";
 
 /**
  * The browser's end of the market feed (Task 3.3.2).
@@ -78,8 +75,6 @@ export interface MarketGatewayOptions {
   readonly snapshot: () => ReadonlyMap<string, WireObservation>;
   /** The feed's state, for the snapshot and for every `feed` message. */
   readonly feedState: () => WireFeedState;
-  /** The upstream stream, or `undefined` when none is configured. */
-  readonly stream?: MarketDataStream | undefined;
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
   readonly clearTimer?: (timer: NodeJS.Timeout) => void;
 }
@@ -89,6 +84,28 @@ export interface MarketGateway {
   readonly close: () => Promise<void>;
   /** How many browsers are attached. For the diagnostics route and tests. */
   readonly clientCount: () => number;
+  /**
+   * Forward observations to every attached browser (Task 3.5.2).
+   *
+   * **This gateway used to subscribe to the stream itself**, which made two
+   * subscribers over one socket with two different policies — it broadcast the
+   * raw batch while `currentMarketState` dropped a revision for a minute
+   * already passed. The caller now owns the single subscription and hands over
+   * **what the current market state applied**, so a browser cannot be sent
+   * something this process rejected.
+   */
+  readonly publishObservations: (
+    observations: readonly LiveObservation[],
+  ) => void;
+  /**
+   * Tell every attached browser the feed's state changed.
+   *
+   * §11.2 requires *our socket is fine and the market feed behind it is dead*
+   * to be sayable, and a browser that only ever received observations could
+   * not tell a quiet feed from a dead one — which is the whole distinction the
+   * thresholds exist to draw.
+   */
+  readonly publishFeedState: () => void;
 }
 
 const observationsToWire = (
@@ -108,7 +125,6 @@ export function registerMarketGateway(
   const {
     snapshot,
     feedState,
-    stream,
     setTimer = (fn, ms) => setInterval(fn, ms),
     clearTimer = (timer) => {
       clearInterval(timer);
@@ -119,7 +135,6 @@ export function registerMarketGateway(
   // check rather than letting the library claim every upgrade on the server.
   const wss = new WebSocketServer({ noServer: true });
   const clients = new Set<WebSocket>();
-  let unsubscribe: (() => void) | undefined;
 
   const send = (socket: WebSocket, payload: string): void => {
     // `readyState === OPEN` is checked because a socket can close between the
@@ -187,29 +202,6 @@ export function registerMarketGateway(
     });
   });
 
-  // **Forward observations AND connection state, as different messages.**
-  // §11.2 requires *our socket is fine and the market feed behind it is dead*
-  // to be sayable, and a browser that only ever received observations could not
-  // tell a quiet feed from a dead one — which is the whole distinction the
-  // thresholds exist to draw.
-  if (stream !== undefined) {
-    unsubscribe = stream.subscribe([], {
-      onObservations: (batch) => {
-        if (batch.length === 0) return;
-        broadcast(
-          encodeMarketStreamMessage({
-            type: "bars",
-            version: MARKET_STREAM_PROTOCOL_VERSION,
-            observations: observationsToWire(batch),
-          }),
-        );
-      },
-      onConnectionChange: () => {
-        broadcast(feedMessage());
-      },
-    });
-  }
-
   const keepalive = setTimer(() => {
     // Only when somebody is listening. An idle deployment with no browser
     // attached has no socket to keep alive, and a timer that broadcasts to
@@ -221,9 +213,23 @@ export function registerMarketGateway(
   return {
     clientCount: () => clients.size,
 
+    publishObservations(observations) {
+      if (observations.length === 0) return;
+      broadcast(
+        encodeMarketStreamMessage({
+          type: "bars",
+          version: MARKET_STREAM_PROTOCOL_VERSION,
+          observations: observationsToWire(observations),
+        }),
+      );
+    },
+
+    publishFeedState() {
+      broadcast(feedMessage());
+    },
+
     async close() {
       clearTimer(keepalive);
-      unsubscribe?.();
 
       // **Goodbye before the close** (§12.2). Dropping the socket silently
       // leaves the browser inferring a state from an absence, which is exactly

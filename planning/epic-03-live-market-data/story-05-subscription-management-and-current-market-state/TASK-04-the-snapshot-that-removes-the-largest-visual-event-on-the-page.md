@@ -130,3 +130,43 @@ first, both come from one object and cannot disagree.
 **The arrival-mark assertion this task owes is unchanged and is still the one
 most likely to be missing rather than wrong**: nothing has ever produced a
 non-empty snapshot, so no test has exercised it.
+
+---
+
+## Amended by Task 3.5.2 — 2026-09-21: the divergence is gone, and a coverage hole is now yours
+
+### The reason this depended on 3.5.2 is discharged
+
+3.5.2 collapsed the two subscriptions, and `currentMarketState.observe()` now
+**returns what it applied** — which is the only thing the gateway publishes.
+There is no path from the socket to a browser that bypasses the state, so the
+snapshot and the ticks after it **cannot disagree**. Fill the snapshot without
+re-checking that.
+
+The gateway's hook is `snapshot: () => new Map()` in `index.ts`, and the source
+is `currentMarketState.all()`.
+
+### The hole: nothing tests that a published observation reaches a browser
+
+**Found during 3.5.2's sweep and not closed by it.** `market-gateway.test.ts`
+tests the **codec** — it encodes and decodes message shapes — and never
+constructs a gateway or attaches a socket. The process suite attaches a browser
+but asserts only the **snapshot** and the shutdown **farewell**. The browser
+spec `security-price-motion.spec.ts` serves the socket **from the test**, so it
+exercises the frontend and not this gateway.
+
+**So the backend's observation → browser path is asserted at no level at all**,
+and 3.5.2 turned it into a public method (`publishObservations`) with no direct
+caller in any test.
+
+This is the same family as the four already recorded — _something that exists
+in one layer and cannot be reached from the next_ — and it is this task's to
+close because this task is the first one that attaches a browser and asserts
+what it receives.
+
+**Add to Done when:**
+
+7. An observation published to the gateway **arrives at an attached browser**,
+   asserted against a real socket rather than through the codec — and a bar
+   arriving **after** the snapshot is distinguishable from one carried **in**
+   it, which is what the arrival-mark assertion above actually rests on

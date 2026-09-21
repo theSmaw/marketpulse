@@ -174,11 +174,16 @@ latest observation never walks backwards. Those disagree, invisibly today and
 **Where the tree is, read on 2026-09-21 rather than inferred:**
 
 - **`currentMarketState` exists and is fed** — `index.ts` no longer discards
-  observations, and `pnpm invariants`' fifteenth check keeps it that way
+  observations, and `pnpm invariants` keeps it that way
+- **One subscription, and one version of the truth.** `market-gateway.ts` no
+  longer subscribes; `observe()` returns what it applied and that is the only
+  thing published, so no path from the socket to a browser bypasses the state
 - `STREAM_SYMBOLS` is still **five hard-coded symbols**, not 518 (3.5.3)
-- `market-gateway.ts` still holds its **own** subscription and `broadcast()`s to
-  every client with no per-client filter (3.5.2, 3.5.6)
+- `broadcast()` still goes to **every** client with no per-client filter
+  (3.5.6) — and 3.5.3 knowingly widens that to 518 before 3.5.6 narrows it
 - `snapshot: () => new Map()` is still a literal (3.5.4)
+- **Nothing at any level asserts that a published observation reaches an
+  attached browser** — found in 3.5.2's sweep, and Task 3.5.4 owns closing it
 
 ## What this story hands forward
 
