@@ -639,6 +639,52 @@ _"NVDA: holding 1,438 bars…"_ and _"The tracked universe loaded. 518
 securities…"_ are each complete out of context, in either order, which is what
 makes the queue order stop mattering.
 
+### Decision 2026-09-21 by Task 3.4.7 — a price that changes on its own announces NOTHING
+
+Story 3.4 put the product's first **self-changing** number on a screen. Every
+live region before it announced the result of something **a user did** — a fetch
+they triggered, a search they typed. A price arriving is the first thing that
+would announce itself **unprompted, and for as long as the page is open**.
+
+**It does not, and that is decided rather than left out.** The identity block
+has no region, the arrival mark is `aria-hidden`, and the qualifier is plain
+text. A listener gets the change by **reading the block**, which is navigable
+and complete out of context.
+
+**Four reasons, and three of them are measurements:**
+
+- **The page already has three `role="status"` regions** — counted on
+  `/securities/NVDA` on 2026-09-21, one of them deliberately empty. A price
+  region would be the **fourth** on one screen, which is the shape the clause
+  above exists to prevent.
+- **§11.2 measured a security's gap between bars at a p50 of one minute and a
+  maximum of 187.** A region announcing every arrival speaks **about once a
+  minute, indefinitely**, against a pacing floor this repository has already
+  measured at **1,500 ms**. That is a screen reader talking over its user
+  roughly sixty times an hour about a number nobody asked for.
+- **The rule this page's third region was spent on does not transfer.** Search
+  speaks 400 ms after a keystroke, which is an argument from _the user just did
+  something_; the identity block fills at the moment two other regions do, which
+  is the queueing case §7 exists for.
+- **The information is not lost, only unprompted.** The block reads as a
+  sentence and the direction is already a **word** — `PriceChange` hides its
+  glyph from the tree and exposes _up_ / _down_ — so a listener who goes and
+  reads gets more than a sighted reader glancing does.
+
+**Reversal trigger, as a condition:** the first surface where a price change is
+**the answer to something the user asked for** — an anomaly they subscribed to,
+an investigation they started. Announcing is an interruption when it is
+unprompted and an answer when it is not, and the same words become correct the
+moment the second is true.
+
+**What nobody has heard**, and the honest limit on all of the above: the block's
+spoken string is **10 words** and its three lines are three `<p>` elements, so
+`textContent` runs them together — _"…close218.29down −0.03%2026-09-11 · …"_ —
+while a screen reader pauses between blocks. **Which of those two a listener
+actually gets is readable from neither the DOM nor a timing**, and neither is
+how the `·` separator is spoken now that the qualifier can carry three clauses.
+That is in `CLAUDE.md`'s listening backlog, named.
+
 Two alternatives, both rejected with reasons the next surface should read:
 
 - **One region for the page.** It makes one component the owner of another's

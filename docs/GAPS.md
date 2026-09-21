@@ -350,7 +350,9 @@ The arrival mark shipped that way for a few hours: `.arrival` declared no base `
 
 **The claim that is now unguarded:** every animated element in this product has a base state that is correct when its animation does not run. It is true of the four that exist today; nothing stops the fifth.
 
-**Re-measure:** for each `@keyframes` in `apps/frontend/src/**`, check that the property it animates is also declared on the rule that runs it. Then, in a browser with reduced motion emulated, trigger the treatment and read the computed value. **Owner: Task 3.4.7**, which owns what survives the motion being removed and whose browser suite can set `reducedMotion: "reduce"`.
+**Re-measure:** for each `@keyframes` in `apps/frontend/src/**`, check that the property it animates is also declared on the rule that runs it. Then, in a browser with reduced motion emulated, trigger the treatment and read the computed value.
+
+**PARTLY MECHANICAL SINCE 2026-09-21, by Task 3.4.7** — and the split is the point, because it is exactly the residue this list is for. `e2e/specs/security-price-motion.spec.ts` emulates the preference and asserts the arrival mark's computed `opacity` is `0` and its `animation-duration` is `0s`, with a control asserting it runs at `0.9s` when nobody asked for less; `pnpm break the-mark-does-not-outlive-its-motion` restores the tree as Task 3.4.5 shipped it and proves the check goes red. **That covers the one element that has the defect and nothing else.** What stays here is the general claim — _every animated element in this product has a base state that is correct when its animation does not run_ — which is true of the four that exist today and is guarded for one of them. The grep above is still the re-measure for the other three and for the fifth.
 
 Two of these have caught real defects, so treat the list as live: a stated invariant quietly stopped being true for two stories, and a broken link shipped.
 

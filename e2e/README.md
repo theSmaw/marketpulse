@@ -590,6 +590,30 @@ words come from `MARKET_SESSION_STATUSES`, with `unknown` added the way
 `support/app.ts` adds `checking`, because both are renderings the shared
 vocabulary deliberately excludes.
 
+## The first spec that emulates a **media preference**
+
+`specs/security-price-motion.spec.ts` (Task 3.4.7) calls
+`page.emulateMedia({ reducedMotion })`, and it is the only spec in this suite
+that does. Worth knowing before the second one is written, because it makes a
+claim no other level in this repository can:
+
+**No stylesheet is applied in the component tests** — `getTokens()` throws there
+by design — so **a computed opacity is not a question that level can ask**. And
+`prefers-reduced-motion` is a media query, which only a real engine evaluates.
+Both halves have to be true at once for the assertion to exist at all.
+
+**It is paired rather than single**, and that is the shape to copy. One test
+asserts the mark is invisible under the preference; a second asserts it _runs_
+without it. Alone, the first would pass just as well against a mark that never
+worked — which is this suite's own recorded hazard, _an assertion about an
+absence passes for free on a deployment that cannot produce the thing_.
+
+**Assert the animation, not a sampled opacity.** The decay lasts 900 ms, so
+reading an opacity at an arbitrary moment is a race; `animation-duration` is
+`0s` or `0.9s` and neither is timing-dependent. And **match a `@keyframes` name
+with a regex** — CSS Modules scope and hash it, so the computed value is
+`_arrival-decays_14tpr_1` and asserting the literal is asserting the bundler.
+
 ## Waits come from the constants, never from a number that passes
 
 `support/poll-timings.ts` holds `HEALTH_POLL_INTERVAL_MS` and `API_TIMEOUT_MS`,
