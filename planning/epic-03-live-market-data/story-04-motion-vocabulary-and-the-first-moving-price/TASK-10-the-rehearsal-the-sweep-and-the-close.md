@@ -1,6 +1,6 @@
 # Task 3.4.10 — The live rehearsal, the sweep, and the close
 
-**Status:** Not started
+**Status:** **BLOCKED on the rehearsal — everything else complete, 2026-09-21.** The sweep, both audits (with counts), the ADR decision and the acceptance walk are done and are below. **The story does not close**, because two acceptance criteria cannot be met tonight and neither is a matter of effort: criterion 5 is **unmeasurable** without a protocol change (`docs/GAPS.md` entry 12), and criterion 8's _with the market open_ needs a session — the market is shut and the deployed backend still holds the plan's **one** Alpaca connection, verified at 23:06 EDT.
 **Amended:** 2026-09-21 after Task 3.4.7 — the ADR question is now **two decisions**, and the second one reaches past this epic.
 **Amended:** 2026-09-21 after Task 3.4.9 — the construction-site audit now has **two forms**, because the export grep would not have caught a published row nothing could reach.
 **Amended:** 2026-09-21 after Task 3.4.8 — **§28's p95 is half-measured and the rehearsal cannot close it**, because no wire message carries a server instant. Do not record it as met.
@@ -168,3 +168,233 @@ nobody finds out — so note the answer either way, in the vendor's own document
 - Every acceptance criterion in [`STORY.md`](STORY.md) is walked against a
   running system, with the market open
 - `pnpm verify` and `pnpm e2e` pass
+
+---
+
+## What was found
+
+### The rehearsal did not happen, and both reasons are measured rather than excuses
+
+**It is 2026-09-21, 23:06 EDT on a Sunday.** `marketSessionStateAt` answers
+`weekend`; the next session opens Monday at 09:30 EDT and pre-market at 04:00.
+
+**And even then, a local rehearsal is refused.** Measured, not assumed:
+
+```text
+$ node scripts/capture-u-frame.mjs --handshake
+socket open on wss://stream.data.alpaca.markets/v2/iex — waiting for the greeting
+greeted; authenticating
+
+ERROR FRAME: [{"T":"error","code":406,"msg":"connection limit exceeded"}]
+```
+
+**The free plan allows ONE connection and the deployment has it** — §8.2's
+`406`, and `docs/GAPS.md` entry 10's standing blocker, unchanged. So the
+rehearsal needs **two things this task cannot grant itself**: a session, and the
+connection released.
+
+**This is not a task that can be finished by trying harder**, and recording it
+that way rather than running the replay again is the whole point of the
+instruction _it cannot be skipped by running the replay again_ — the replay is
+our own stored bars and agrees with our own assumptions by construction.
+
+### What the rehearsal still owes, in one place
+
+| Needs                                     | Window                        | Why nothing else can produce it                                                                                |
+| ----------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **the extended-hours mark on a real bar** | 04:00–09:30 or 16:00–20:00 ET | the replay re-stamps onto the wall clock, so out of hours every bar lands on a **weekend** and carries no mark |
+| **a genuinely quiet minute**              | 09:30–16:00 ET                | §7.2's _no frame at all_; only a real session has one                                                          |
+| **a real correction**                     | 09:30–16:00 ET                | §7.8's fourteen; confirm **both halves** — the mark fires, the instant does **not** advance                    |
+| **`pnpm probe` with the market open**     | 09:30–16:00 ET                | criterion 8                                                                                                    |
+| **one vendor glance**                     | any live frame                | does a frame ever arrive stamped outside a trading day? Task 3.4.6 **assumed** not                             |
+
+### The upward sweep — two sentences were false and both are corrected
+
+- **`VISUAL-LANGUAGE.md`'s _"nothing here yet says what happens when a price
+  changes"_** was true for five months and is false. The deferral is **kept as
+  the record of why it was made** with a closing note above it, rather than
+  rewritten — and its reasoning turned out to be right: a vocabulary settled
+  against a table that arrives once _would_ have been designed for the easy
+  case, and what made the hard case answerable was a number that moved.
+- **`CLAUDE.md`'s _what a user can see today_** now carries the mark, the
+  extended-hours word and the reduced-motion answer. The **fourth design test**
+  entry was closed on 2026-09-21 rather than extended, which is the eighth
+  deferral ending.
+
+### Audit 1 — hand-offs, by enumeration, with the count
+
+**Six stories are named by this story's files. Three had nothing actionable in
+their own.**
+
+| Named          | Times | In its own file?                                                            |
+| -------------- | ----- | --------------------------------------------------------------------------- |
+| Story 3.6      | 11    | **yes** — 8.63 marks/second, and 3.4.8's figures narrowing what the cost is |
+| Story 3.7      | 5     | **yes** — its own file already names the vocabulary and the mark            |
+| Story 3.11     | 2     | **yes** — §28's unmeasurable half                                           |
+| **Story 3.5**  | 2     | **NO** — and the count concealed it                                         |
+| **Story 3.9**  | 3     | **no**                                                                      |
+| **Story 3.10** | 3     | **no**                                                                      |
+
+**Story 3.5 is the one worth reporting**, because it is the exact failure this
+audit's own wording warns about: _counting citations measures citation, not
+delivery_. Its file had two references to Story 3.4 and **both were its own
+authoring** — _"the screens are exactly Story 3.4's"_ — not a constraint handed
+to it. The constraint that was missing is the largest one this story found:
+**the empty snapshot makes the whole identity block change its claim on every
+page load**, up to a minute in, which is a bigger visual event than any price
+tick and which the motion vocabulary has no word for.
+
+All three now carry a constraint in **words they can act on**:
+
+- **3.5** — the snapshot event, §11.1's omission semantics, and _the arrival
+  mark must not fire on a snapshot_.
+- **3.9** — the extended-hours mark is **derived and must not become a stored
+  field**; a stored observation keeps its instant exactly; and a replay of the
+  store must not fire the arrival mark, because re-reading is not an arrival.
+- **3.10** — _a still price is now three different things_, only one of which is
+  a fault; nothing clears the prices; the mark simply **stops** and there is no
+  fourth behaviour for that; and a reduced-motion reader never saw it anyway, so
+  the instant that stops advancing is the signal.
+
+### Audit 2 — construction sites, in both forms
+
+**The export form: 10 exports, 1 with no non-test caller, and it is correct.**
+
+`defaultReplayStartForTest` is called only from `market-stream.test.ts` — which
+is what it is named for. It exposes a private calendar walk so the walk can be
+asserted, and that walk is where Task 3.4.3 found a Saturday. The other nine —
+`fromWireObservation`, `changeFromClose`, `extendedHoursAt`,
+`EXTENDED_HOURS_WORDS`, `FEED_SERVES`, `REPLAY_FEED`, `worseFeedStatus`,
+`observationIdentity`, `useArrival` — all have shipped callers.
+
+**The reachability form: every published row walked from its producers.**
+
+| Row                              | Producer                      | Reachable                            |
+| -------------------------------- | ----------------------------- | ------------------------------------ |
+| `--motion-duration-quick`        | 5 component stylesheets       | yes                                  |
+| `--motion-duration-settle`       | 5 component stylesheets       | yes                                  |
+| `--motion-duration-pulse`        | `ChartPending.module.css`     | yes                                  |
+| `--motion-duration-decay`        | `SecurityIdentity.module.css` | yes                                  |
+| `Live in the chrome` §11's pairs | `MarketDataProviderSelection` | walked by `market-feed-grid.test.ts` |
+
+**Nothing unreachable, which is the first time this form has been run** — and
+the reason it exists is that Task 3.4.9's defect had a caller, so the export
+form returned clean while a documented row sat unreachable for four days.
+
+### The open item this story fired: a sibling, not a widening
+
+`CLAUDE.md`'s _nothing checks that a named region says something when its
+subject is missing_ met its harder form. It is recorded as a **sibling** rather
+than a widening, and the argument is that **the repairs differ**: the original
+wants a region to **speak**; this one wants two speakers to **agree**, which is
+checked by walking the **producers** rather than by rendering a state.
+
+### The ADR question: ONE, and the absence of the second is argued
+
+**[ADR 0032](../../../docs/adr/0032-a-value-that-changes-on-its-own-announces-nothing.md)
+— _a value that changes on its own announces nothing_.** Written because it
+reaches **past this epic**: `PRODUCT_SPEC.md` §11's anomaly scores change on
+their own and §33's investigation stream pushes events for as long as an
+investigation runs. Neither epic's file knows this decision exists, and the
+natural thing to reach for — _it changes, so announce it_ — is what it decides
+against. Its full statement is in `FRONTEND-STATE.md` §7; the ADR exists because
+an author asking _should my anomaly score announce itself?_ will never look in
+_how the frontend holds state and fetches_.
+
+**The motion vocabulary deliberately gets no ADR**, and that is the more
+interesting half. Its home is the **design canvas** by ADR 0026, with
+`VISUAL-LANGUAGE.md` below it — and that document is read by **every story that
+builds a screen**, which is exactly the audience. **A second home for it in an
+ADR would be the duplication this repository fails a build over.** The one-line
+version is in ADR 0032's _what this does not decide_, for a reader who arrived
+at the wrong document.
+
+So: **the two decisions differ in where their readers are**, not in importance,
+and that is what decided one ADR rather than two.
+
+### The acceptance walk — 7 of 9, and the two outstanding are not effort
+
+|     | Criterion                                                             |                                                                                                                             |
+| --- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 1   | vocabulary, alternatives, trigger, canvas                             | **met** (3.4.5)                                                                                                             |
+| 2   | every duration a token, proved by grep                                | **met** (3.4.5)                                                                                                             |
+| 3   | reduced motion — a change still perceivable                           | **met**, asserted in a browser (3.4.7)                                                                                      |
+| 4   | direction never by hue alone, in greyscale                            | **met**, and now a check rather than a screenshot                                                                           |
+| 5   | **250 ms p95 server-received → application state**                    | **NOT MET — unmeasurable.** Half taken at p95 **52 ms**; no wire message carries a server instant. GAPS 12, Story 3.11 owns |
+| 6   | two changes inside one animation                                      | **met** — restart, stated and asserted                                                                                      |
+| 7   | no task over 50 ms, no layout thrash                                  | **met** — **zero** long-task entries across 6,640 observations                                                              |
+| 8   | probe at four viewports, **and a person looked with the market open** | **HALF MET** — probed many times, including both block heights; the market-open half is the rehearsal                       |
+| 9   | `pnpm verify`                                                         | **met** — 299 / 896 / 1031 / 19, 14 invariants                                                                              |
+
+### Both block heights, at four widths — and the second exists at ONE width only
+
+Task 3.4.6 measured 88 px against 72 px **at 390** and the record has said _the
+block has two heights_ ever since. Photographed at all four:
+
+| Width   | pre-market | regular    | after-hours |
+| ------- | ---------- | ---------- | ----------- |
+| 1440    | 415×**72** | 331×72     | 422×**72**  |
+| 1024    | 415×**72** | 331×72     | 422×**72**  |
+| 768     | 415×**72** | 331×72     | 422×**72**  |
+| **390** | 358×**88** | 331×**72** | 358×**88**  |
+
+**Above 390 the word costs nothing at all** — the qualifier still fits on one
+line. The second height is a phone-width fact rather than a property of the
+state, which is narrower than the record implied and is the useful correction.
+
+## For a stakeholder — a status report, 2026-09-21
+
+**This task is the story's closing act, and it is the one task in this story
+that could not be finished.** Everything that does not need the live market is
+done; the part that does is waiting on two things, and neither is effort.
+
+**The first is the clock.** Closing this story requires watching the product
+against the **real market**, not against our recording of a past day — because a
+recording agrees with our own assumptions by construction, so a successful
+rehearsal against it would prove nothing. It is Sunday evening in New York. The
+market opens tomorrow.
+
+**The second is our own deployment.** Our data provider's free plan allows
+**one** live connection, and the deployed site holds it. We checked rather than
+assumed — the connection was refused, in as many words. So even when the market
+opens, running this rehearsal means standing the deployed site's feed down for
+the duration, which is a decision rather than a task.
+
+**We wrote down exactly what the rehearsal still owes**, so it is a
+half-hour's work when the window opens rather than a rediscovery: the
+before-the-bell mark on a real price, a genuinely quiet minute, a real
+correction, a look at four screen sizes during trading, and one glance at
+whether our data provider ever sends a price stamped outside a trading day —
+something we currently **assume** it does not.
+
+**What did get done, and two things in it are worth reporting.**
+
+**We audited what this story handed to other pieces of work, and found three
+gaps.** One of them is the kind this project has been caught by before: a story
+that _mentions_ another story is not the same as a story that **tells** it
+something. One piece of upcoming work referenced this one twice and had been
+told nothing — and what was missing was the biggest visual finding we made: on
+**every page load**, the price block changes its entire claim about a minute in,
+and that is a larger event than any price tick. All three now carry instructions
+in their own notes, in words they can act on.
+
+**And we wrote one architecture record, not two, for a reason worth explaining.**
+Two decisions from this story outlive it. The first — how a changing price
+looks — already lives in the design system that every screen-building task
+reads, and copying it into a second document is exactly the duplication this
+project fails a build over. The second — **a value that changes on its own does
+not announce itself to a screen reader** — reaches well past this phase into
+work nobody has started, and the people who will need it would never think to
+look where it currently lives. So that one got the record, with the condition
+under which we would change our minds written into it.
+
+**Two of nine acceptance criteria are outstanding, and we are naming them rather
+than rounding up.** One is the market-open observation above. The other is a
+speed target we **cannot currently measure**: our figure covers the browser's
+half of the journey and is a fifth of the budget, but the message arriving from
+our server carries no timestamp, so there is nothing to subtract from. That is a
+decision about our own protocol and it belongs to a later piece of work —
+recorded honestly rather than quietly counted as passed.
+
+**What a user can see today: nothing new.** The story's visible work shipped
+over the preceding days; this task is the part that makes it defensible.

@@ -309,3 +309,40 @@ calendar while reporting a synthetic monotonic clock.
 **`FeedStatusInputs` already carries both** (`now` and `wallNow`) and the
 compiler names every call site that forgets one. **Anything in this story that
 computes a status or an age takes both rather than reading either.**
+
+---
+
+## Handed here by Story 3.4's close — 2026-09-21: a still price is now two different things, and one of them is yours
+
+**Story 3.4 put a moving price on the screen, and in doing so it made _stillness_
+ambiguous in a way it was not before.**
+
+A price that is not changing now means either:
+
+- **the market is shut**, which Story 3.4 stubbed honestly and named as your
+  subject; or
+- **the feed is degraded**, which is the rest of your subject; or
+- **the security is simply quiet** — §7.6 measured IEX covering **65.1% of
+  minutes for a median symbol and 2.1% for `ERIE`**, and §11.2 measured a p50
+  gap of one minute with a **maximum of 187**.
+
+**The third is the feed working correctly and must not be dressed as a fault.**
+§11.2's refusal to give a security a status word is the standing decision, and
+Story 3.4 respected it: the arrival mark makes **no threshold judgement**, it
+marks an event and says nothing about what silence means.
+
+**Three things you inherit rather than decide:**
+
+- **Nothing clears the prices on a degraded feed.** §36's _displaying data
+  through 10:42:17_ is your sentence, and Story 3.4 deliberately keeps the
+  numbers on screen through `disconnected` — blanking them would be the product
+  removing true information because a socket died.
+- **The arrival mark simply stops.** There is no _stopped_ state in the
+  vocabulary and there should not be one: the chrome's connection word already
+  owns _is data arriving_, and a fourth motion behaviour would cost the set the
+  legibility that is its whole value (`VISUAL-LANGUAGE.md`'s Motion section).
+- **A reader with `prefers-reduced-motion` never saw the mark anyway**, so
+  whatever you do about degradation must be legible **without** it. Story 3.4's
+  answer for a quiet minute was the qualifier's own instant, asserted in
+  `security-price-motion.spec.ts`; a degraded feed is the case where that
+  instant **stops advancing**, which is information you can use.

@@ -206,3 +206,37 @@ ledger comes from.
 **Unresolved on purpose, and named in both files.** Whoever schedules 3.7 should
 settle it rather than discover it. The full statement of the question is in
 [Story 3.7's `STORY.md`](../story-07-the-live-edge-and-the-two-feed-ledger/STORY.md).
+
+---
+
+## Handed here by Story 3.4's close — 2026-09-21: what a stored observation has to keep, and what it must not make fire
+
+**Story 3.4 shipped two marks that are derived rather than stored**, and both
+constrain what this story writes down.
+
+**1. The extended-hours mark is derived from the bar's own instant.** §7.7
+measured that **nothing on the frame distinguishes** a pre-market bar from a
+regular-session one, so `extendedHoursAt` takes the instant and asks Story 2.5's
+calendar. **It is not a field on the wire and must not become one in the
+store.** A stored observation therefore has to keep its instant **exactly** — a
+bar re-read tomorrow must produce the same word it produced live, and a stored
+`pre_market` boolean would be a second home for a fact the calendar already
+owns. Stories 3.6 and 3.7 consume the same mark from the same derivation.
+
+**2. The arrival mark must not fire on a replay of your own store.** It means
+**a bar arrived for this security** — an event — and re-reading a stored session
+is not one. Story 3.4's vocabulary is _work in progress loops, a state persists,
+**a fact arriving decays**_, and a mark that fired while a user scrolled through
+yesterday would be the vocabulary's own sentence made false.
+
+**The mechanism to check rather than rebuild**: the mark keys on the
+observation's **content**, and `SecurityIdentity` remembers the instant it
+mounted with so a first paint marks nothing. Whether that still holds when the
+prices come from a store rather than a socket is this story's to confirm — and
+it is the one thing that would be invisible until somebody watched it.
+
+**And §10.3's Map is deliberately not a history.** Story 3.4 held **the latest
+observation per symbol and nothing else**, on the arithmetic that 518 × 390 bars
+is **55.6 MB** against 518 × 1 at **0.2 MB** — _to hold a thing the store is
+about to hold durably_. That store is yours; the browser's Map is not where a
+history goes.

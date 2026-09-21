@@ -264,3 +264,39 @@ on it, because acting requires state and the state is this story's.
 **none** changing nothing at all (§14.1, n=68). So the current-state object must
 replace by `(symbol, minute)` rather than append — **and a bar is not final for
 thirty seconds**, which is the window Story 3.10's gap-filling also has to respect.
+
+---
+
+## Handed here by Story 3.4's close — 2026-09-21: the empty snapshot is the largest visual event on the page
+
+**`market-gateway.ts` sends `snapshot: {}` on connect**, which §11.1 makes the
+**true** answer after a restart rather than a degraded one, and which this story
+owns replacing with a current-state model.
+
+**Story 3.4 found what that costs on a screen, and it is not what anybody
+expected.** With the snapshot empty, every page load renders
+`LAST SESSION CLOSE · 218.29` and then — **up to a minute later** — the identity
+block changes **all three of its lines at once**: the label, the figure, the
+basis and the colour, together.
+
+> **That is the biggest visual change on the page, it happens on every single
+> visit, and nobody designed it.** It is far larger than any subsequent price
+> tick, and Story 3.4's motion vocabulary — which names _a bar arrived_ — has no
+> word for _this block now answers a different question_.
+
+**What you are actually deciding, therefore, is not only a data question.**
+Filling the snapshot makes the block correct on the first frame and **the event
+disappears**. Leaving it empty keeps an undesigned one-per-visit transition that
+the vocabulary does not cover.
+
+**Two constraints if you fill it:**
+
+- **§11.1's omission semantics survive.** An entry for every security observed
+  and **no entry at all** for the rest — _present but empty_ stays unspellable,
+  which is what `WireObservation`'s all-required fields already enforce.
+- **The arrival mark must not fire on the snapshot.** It means _a bar arrived
+  for this security_, and a snapshot is _what we already held when you
+  connected_. `SecurityIdentity` remembers the instant it mounted with for
+  exactly this reason — check that still holds once a snapshot carries prices,
+  because it is the difference between a mark that means something and one that
+  fires on every page load.

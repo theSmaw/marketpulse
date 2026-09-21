@@ -390,6 +390,8 @@ One easing, and it is asymmetric on purpose: fast out of the gate and slow into 
 
 ### What is deliberately not decided here
 
+> **CLOSED 2026-09-21 by Story 3.4. The section below is the deferral, kept as the record of why it was made — everything it defers is now decided above.** _Nothing here yet says what happens when a **price** changes_ was true for five months and is false: a changing price is marked by a **decay**, the set is three shapes rather than four durations, and the three alternatives that lost are recorded with it. The one sentence to carry forward is the deferral's own reasoning, which turned out to be right — a vocabulary settled against a table that arrives once and then sits still **would** have been a vocabulary designed for the easy case, and the thing that made the hard case answerable was a number that moved on its own.
+
 **Epic 3 owns the full vocabulary**, and waiting is the decision rather than a deferral. The hard question in this product is what should happen when a **price** changes on screen, and that has to be answered against real moving numbers. A vocabulary settled against the first screen that needed any — a table that arrives once and then sits still — would be a vocabulary designed for the easy case and then inherited by the hard one.
 
 So: nothing here about a value updating, nothing about a row entering or leaving a live list, nothing about a chart redrawing, and no third duration. Add those against something that actually moves.
