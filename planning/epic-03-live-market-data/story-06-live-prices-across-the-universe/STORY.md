@@ -259,3 +259,53 @@ multiplication. Three things follow, and none of them is "decide it differently"
 **persists**, a fact arriving **decays**. That is what lets this mark and the
 status bar's disc be the same glyph without colliding, and a fourth behaviour
 added to that set is a change to the vocabulary rather than to a component.
+
+## Handed here by Task 3.5.6 — 2026-09-21: you are the first screen that has to ask for anything
+
+**A browser now receives only what it asked for, and asking is your job.**
+
+Until 2026-09-21 the gateway broadcast every observation to every attached
+browser — all 518, **56.9 KiB a minute**, of which a security page used one.
+Task 3.5.6 made the fan-out per-client, and the consequence for this story is
+direct: **a screen that asks for nothing receives nothing.** That is an
+ordinary state rather than an error, and it is what every browser is in for the
+first moments of every connection.
+
+### How a screen asks
+
+`useLiveFeed` is called once, in `App`, and takes a `symbols` list. **The page
+declares what it needs** — `SecurityExplorer` passes `onLiveSymbols([symbol])`
+on mount and withdraws with `[]` on unmount.
+
+**This was not the original plan and the reason matters to you.** The task
+intended to derive the subscription from the address; that was abandoned
+because `App` **renders** `<BrowserRouter>` rather than living inside one and
+cannot read the location. The mechanism you inherit therefore has no opinion
+about URLs — which is precisely what makes it work for a screen showing the
+whole universe, where no address names 518 securities.
+
+### Three properties you inherit rather than build
+
+- **Changing a subscription does not reopen the socket.** The hook keys the
+  socket effect on its tick and the subscription on a **primitive** derived
+  from the list, so navigating is a message rather than a reconnect. Passing a
+  fresh array literal every render is safe; passing one that changes _content_
+  every render is not.
+- **The subscription is re-asserted on every socket**, including each reconnect
+  (Task 3.5.5). You do not have to re-send it yourself.
+- **A subscribe is answered with a `snapshot`, never `bars`** — because a
+  snapshot sets the arrival mark's baseline and `bars` fires it. Subscribing to
+  518 securities therefore fills the screen **without 518 marks firing**, which
+  is the difference between a screen that populates and one that flashes.
+
+### The cost you are the first to pay
+
+**The 56.9 KiB a minute is now yours alone.** It was every browser's this
+morning and is now only paid by a screen that asks for the universe. Task
+3.5.8 owes the measurement; what you owe is noticing if it stops being small —
+the reversal trigger is the first time a reader can tell.
+
+And **Task 3.5.7's backpressure is sized against you**: the worst case for a
+browser that stops reading is one on this screen, not one on a security page,
+because each client now accumulates its **own** encoded payload rather than
+sharing a broadcast.

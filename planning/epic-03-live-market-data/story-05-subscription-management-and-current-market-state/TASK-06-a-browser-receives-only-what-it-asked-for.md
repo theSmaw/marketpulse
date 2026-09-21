@@ -371,13 +371,42 @@ same test.
 - A browser assertion that the page **re-sends its subscription on every
   reconnect** — the only level that can check it
 - `pnpm verify` green: 16 invariants, 921 backend, 1050 frontend, **29** process
+- `pnpm e2e` green **twice** against CI's own store (`DATABASE_NAME=marketpulse_bare`), 140 passed
+- `pnpm test:database` green: 170 tests
 
-**One honest caveat about the browser suite.** A full local `pnpm e2e` failed
-2–5 specs per run, **with a different set each time** and durations of 12–40 s
-against a normal 1–8 s — the signature of load on this machine rather than a
-defect. Each failing spec passes in isolation, and the 21 specs this change
-could plausibly affect all pass together. CI's run on a dedicated runner is the
-arbiter.
+### The caveat this record first carried, and why it was wrong
+
+**This section originally said the browser-suite failures were "the signature
+of load on this machine" and that "CI's run is the arbiter". Both were wrong,
+and the second was not mine to say.**
+
+A full local `pnpm e2e` failed 2–5 specs per run with a different set each
+time. That looked like contention. It was not:
+
+**My own store holds bars only to 2026-09-11, and the date was the 21st.** So a
+`5D` window is **empty** and a `1M` window **has data** — the readout strip is
+absent in one state and present in the other, and the chart moves **90 px**
+between them. Which specs tripped over that boundary varied with ordering,
+which is what made it look random.
+
+`CLAUDE.md` names this exact trap — _before asserting on a number in a browser
+spec, ask whether CI has the data_ — and ships `pnpm store:bare` to reproduce
+CI's store locally. **I had not used it.**
+
+Against that store, on this branch:
+
+```
+pnpm e2e   140 passed (2.6m)
+pnpm e2e   140 passed (3.0m)
+```
+
+**Two corrections fall out of it.** I briefly concluded by bisect that Task
+3.5.5 had introduced a 90 px layout defect, because the test passed on `main`
+and failed here — that was a **lucky `main` run**, and re-running it
+instrumented showed `main` failing identically (`WASAT 188 → AFTER 278`). There
+was never a defect in 3.5.5. And a suite that fails "a different set each time"
+is not a passing suite: deferring that judgement to CI moves the cost onto
+whoever looks next, with less context than I had at the moment I saw it.
 
 ---
 

@@ -124,3 +124,38 @@ _dropped for backpressure_ and stop rather than retry.
 whose connection improves should recover without a reload — but it should be
 **decided and written down** rather than inherited from whichever code is
 convenient.
+
+---
+
+## Amended by Task 3.5.6 — 2026-09-21: the per-client fan-out changes what a slow client costs
+
+### Where the drop goes, now that it exists
+
+`clients` is a **`Map<WebSocket, Set<string>>`** rather than a `Set`, and
+dropping one is `clients.delete(client)` — the same call the `close` and
+`error` handlers already make. `send` is still the one place a payload meets a
+socket, so the threshold check belongs there and will sit beside the per-client
+filter rather than in a second place.
+
+### What got worse, and it is the reason this task matters more than it did
+
+**Every client now gets its own encoded message**, because the payloads
+genuinely differ. Before 3.5.6 one `broadcast()` string was shared by every
+socket; a slow client's outbound buffer grew by a **shared** payload.
+
+Now each slow client accumulates **its own**. The memory a stalled browser can
+cost is no longer bounded by one message per tick — it is one message **per
+stalled client** per tick, and they do not share.
+
+**Measure that rather than assume the old shape still holds.** A subscription
+of one security is a few hundred bytes a minute; a subscription of the whole
+universe is **56.9 KiB** a minute, and Story 3.6's overview asks for exactly
+that. The worst case this task is protecting against is **a browser on the
+overview that stops reading**, not a security page.
+
+### And a size the threshold should be chosen against
+
+The old single-payload figure is no longer the right denominator. Pick the
+threshold from a measured buffer under a subscription that is **large**, since
+that is the case that can hurt — and record the measurement beside the number,
+because a tolerance is measured rather than argued.

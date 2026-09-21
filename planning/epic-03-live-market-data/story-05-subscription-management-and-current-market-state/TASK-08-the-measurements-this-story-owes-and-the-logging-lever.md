@@ -162,3 +162,35 @@ its wording twice over inside a single story.
 **Still to measure here:** the per-minute fan-out cost at a realistic client
 count, and whether the 56.9 KiB figure holds late in a session when every one of
 the 518 has been observed.
+
+---
+
+## Amended by Task 3.5.6 — 2026-09-21: what the 56.9 KiB figure now means
+
+**It is no longer what a browser receives. It is the ceiling of what one
+_could_.**
+
+Before 3.5.6 every attached browser received all 518 observations a minute.
+Since it, a browser receives only what it asked for — and the only screen that
+asks for anything today is the security page, which asks for **one**. So the
+per-browser figure this story has corrected twice is now the **overview's**
+figure rather than everybody's, and Story 3.6 is the first thing that will pay
+it.
+
+**What this task should measure instead:**
+
+- **The per-client encode cost.** 3.5.6 encodes one message per client
+  deliberately — a shared encode would be a cache keyed on the subscription,
+  which is a mechanism with no measured problem behind it. _Measure the problem
+  before anybody adds the mechanism_: N clients × 518 symbols, at a client
+  count worth defending.
+- **What a security page actually receives now**, against the 56.9 KiB it
+  received this morning. That is the number this story delivered, and nothing
+  has read it off the wire yet.
+- **The reconnect's cost**, which Task 3.5.5 added and nothing has sized: a
+  reconnect sends a snapshot **and** a subscribe, and the browser retries on a
+  backoff that never gives up.
+
+**And a method note this task should not repeat.** The snapshot figure was
+wrong twice by reasoning about a shape and right once by reading a message off
+the wire. Read the message.
