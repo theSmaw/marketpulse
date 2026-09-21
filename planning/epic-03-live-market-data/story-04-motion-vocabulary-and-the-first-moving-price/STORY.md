@@ -151,6 +151,36 @@ judgement. The argument, the three rejected options and the reversal trigger are
 in `The motion vocabulary.dc.html` §05 and in
 [Task 3.4.4](TASK-04-three-treatments-on-a-real-screen.md).
 
+**The sweep that followed amended four tasks and added none**, which is worth
+recording because one of the four was a contradiction rather than a tidy-up:
+
+- **3.4.5** gained the trap the decision creates. _Fires on arrival, not on
+  change_ is silently reversed by the obvious implementation — a renderer that
+  compares closes — and **every test stays green**, because the two only
+  disagree on the quiet minute. The assertion is the negative: _a bar arriving
+  with an unchanged close still fires the mark._ It also gained the fourth
+  token, the loop/persist/decay rule, and the disposal of 3.4.4's instrument.
+- **3.4.6's §2 premise is STALE and was corrected rather than deleted.** It was
+  written against a _"price moved" animation_ that no longer exists: the mark
+  claims only _a bar arrived_, and a correction **is** a bar arrival, so the lie
+  it was written to prevent cannot be told by the mark. Left unamended it would
+  have invented a second motion treatment the vocabulary had just decided it
+  does not need. What survives is narrower and is about the **figure**, not the
+  mark — and a decided absence is now the stronger starting position.
+- **3.4.7** gained the one state where criterion 3 actually bites. On a minute
+  the price **moved**, the digits carry it with the motion removed. On a
+  **quiet** minute the mark is the _sole_ signal — and reduced motion erases
+  exactly that one. The qualifier's instant may already be the survivor, which
+  is the first thing to check rather than the last.
+- **3.4.8** keeps a figure instead of re-deriving it (0 layout shift at four
+  widths, taken in the workshop; only the production re-take is owed) and gains
+  one: **the mark's firing rate**, because the reversal trigger's second clause
+  is a number and Story 3.6 needs something to compare 518 rows against.
+
+**Nothing was added, deleted or re-ordered.** The decision is fully specified,
+its one genuinely new obligation lives inside 3.4.7, and the scale question is
+Story 3.6's and was handed over in that story's own words.
+
 The original wording stands below, because it is what the decision was taken
 against.
 

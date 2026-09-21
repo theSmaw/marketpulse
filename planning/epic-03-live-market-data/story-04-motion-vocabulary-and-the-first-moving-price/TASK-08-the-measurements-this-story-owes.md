@@ -1,6 +1,7 @@
 # Task 3.4.8 — The measurements this story owes
 
 **Status:** Not started
+**Amended:** 2026-09-21 after Task 3.4.4 — the layout figure is already taken and only needs a production re-take; the mark's firing RATE is a new measurement, because the reversal trigger's second clause is a number.
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
 **Depends on:** 3.4.7
 
@@ -25,6 +26,19 @@ existing check produces.
 - **A value that changes width must not move anything around it.** The numerals
   are tabular for this reason and **the reason is now load-bearing** rather than
   typographic.
+- **Amended 2026-09-21 by Task 3.4.4 — one figure is already taken and this
+  task CONFIRMS rather than derives it.** The mark sits in space the figure's own
+  box already occupies, and was measured at **0 layout shift and no horizontal
+  overflow at 1440, 1024, 768 and 390**, with 26 px of room to the left of the
+  digits at the narrowest. That was taken in the workshop against a development
+  build, so **the production re-take is the only part still owed** — the
+  arithmetic does not need redoing.
+- **And there is now a rate to measure rather than assume.** The mark fires on
+  **every bar arrival**, so on this surface that is once a minute per security —
+  but the reversal trigger's second clause is a **measurable**: _the first
+  surface where it fires more than once a second._ Record the rate this story
+  produces, so Story 3.6 has a figure to compare 518 rows against rather than an
+  argument.
 
 ## Two ways to take these figures wrong, both already paid for once
 
@@ -56,7 +70,10 @@ existing check produces.
   with its conditions
 - **No routine main-thread task over 50 ms** attributable to this story, on a
   production build
-- **No layout thrash**: the price's neighbours do not move when it changes,
-  asserted in a browser because nothing below one can see it
+- **No layout thrash**: the price's neighbours do not move when it changes **or
+  when the mark fires**, asserted in a browser because nothing below one can see
+  it — confirming Task 3.4.4's figure on a production build
+- **The mark's rate is recorded**, so the reversal trigger's second clause has a
+  number behind it rather than an argument
 - Every figure carries what it was taken against
 - `pnpm verify` passes

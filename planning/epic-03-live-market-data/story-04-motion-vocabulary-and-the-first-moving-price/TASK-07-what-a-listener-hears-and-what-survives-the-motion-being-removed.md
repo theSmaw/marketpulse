@@ -1,6 +1,7 @@
 # Task 3.4.7 — What a listener hears, and what survives the motion being removed
 
 **Status:** Not started
+**Amended:** 2026-09-21 after Task 3.4.4 — the quiet minute is the one state where the mark is the SOLE signal, and reduced motion erases exactly that one. Check the qualifier's instant first; it may already be the survivor.
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
 **Depends on:** 3.4.6
 
@@ -21,6 +22,28 @@ entirely in what a _different_ reader gets.
   flash that is the **only** signal of a change is a change **invisible** to
   that reader — so whatever carries direction must survive the motion being
   removed. Criterion 3 is that sentence.
+
+> **AMENDED 2026-09-21 — Task 3.4.4's decision creates exactly one state where
+> that sentence bites, and it was not foreseeable before the decision.**
+
+**On a minute where the price MOVED, criterion 3 is satisfied without doing
+anything**: the digits are different, the percentage is different and the
+arrow may be different, all of them present with the motion removed. The mark
+only says _look_.
+
+**On a QUIET minute it is not.** The owner chose to fire the mark on **every bar
+arrival**, including one that changes nothing — and on that minute the mark is
+the **only** signal, because by definition no digit moved. Under reduced motion
+the mark does not run. **So a reader who asked for less motion gets nothing at
+all on precisely the minute the mark exists to report.**
+
+**Check the qualifier before designing anything**, because the survivor may
+already be there: the line carries the bar's own instant, and on a real arrival
+that instant **advances** whether or not the price did. If it does, criterion 3
+is met by a fact already on the screen and this task's answer is to **say so and
+assert it** rather than to invent a static fallback. If it does not, the hole is
+real and it is this task's to fill.
+
 - **Colour is never the sole encoding of anything**, and criterion 4 says it is
   checked in **greyscale rather than argued**. The price palette differs by
   1.04:1 in greyscale, so hue is the entire difference.
@@ -55,15 +78,18 @@ a shortfall.
   (announce nothing) and what would change it.
 - **Make direction survive `prefers-reduced-motion`**, and assert it — a test
   that only exercises the default preference is a test that cannot see this.
-- **Check the whole set in greyscale**: a tick up, a tick down, an unchanged
-  tick if one draws, an extended-hours mark and a correction. Five states, one
-  screenshot.
+- **Check the whole set in greyscale**: a tick up, a tick down, **an unchanged
+  tick — which DOES draw**, settled by Task 3.4.4 rather than left conditional —
+  an extended-hours mark and a correction. Five states, one screenshot.
 - **Add the listening entry** to the open list, naming what nobody has heard.
 
 ## Done when
 
 - Under `prefers-reduced-motion` a price change is **still perceivable** and
   direction survives — asserted rather than argued
+- **Under `prefers-reduced-motion`, an UNCHANGED tick is still perceivable** —
+  the state where the mark is the sole signal, asserted separately because the
+  moved case passes without it
 - Direction is never carried by hue alone, **checked in greyscale**
 - The live-region decision is written down with its default and its trigger
 - The listening backlog names this surface
