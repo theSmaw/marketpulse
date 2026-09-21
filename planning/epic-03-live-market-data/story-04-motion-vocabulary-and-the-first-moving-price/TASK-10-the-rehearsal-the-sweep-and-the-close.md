@@ -2,6 +2,7 @@
 
 **Status:** Not started
 **Amended:** 2026-09-21 after Task 3.4.7 — the ADR question is now **two decisions**, and the second one reaches past this epic.
+**Amended:** 2026-09-21 after Task 3.4.8 — **§28's p95 is half-measured and the rehearsal cannot close it**, because no wire message carries a server instant. Do not record it as met.
 **Amended:** 2026-09-21 after Task 3.4.6 — the rehearsal is **two sittings or one that straddles the bell**, because the extended-hours mark cannot be seen with the market open and no fixture or replay can stand in for it.
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
 **Depends on:** 3.4.9
@@ -107,6 +108,21 @@ nobody finds out — so note the answer either way, in the vendor's own document
   One ADR, two, or none with a paragraph — but decide it against both, not
   against the motion half alone.
 
+- **Do NOT expect the rehearsal to close §28's p95**, and do not let the sweep
+  record it as met. Task 3.4.8 measured _frame delivered → price on screen_ at
+  **p95 52 ms** on a production build; §28's clock starts at
+  **server-received**, and **no message on the wire carries a server-side
+  instant** — so there is nothing to subtract from and a real session supplies
+  latency without supplying a way to measure it. `docs/GAPS.md` entry 12 holds
+  the whole state and **Story 3.11 owns the decision**, which is a protocol
+  change rather than a missing test. What this sweep owes is only that the
+  browser half is never quoted as the whole.
+- **The production-bundle recipe, if any criterion needs one** — Task 3.4.8's,
+  and it is four lines rather than a rediscovery: `pnpm build`, then
+  `CORS_ORIGIN=http://localhost:4173 pnpm --filter @marketpulse/backend start`,
+  then `pnpm --filter @marketpulse/frontend preview`, then
+  `E2E_BASE_URL=http://localhost:4173` in front of Playwright. The six-test
+  motion spec passes against it as well as against `pnpm dev`.
 - **Walk the acceptance criteria against a running system**, and `pnpm probe` at
   four viewports **with the market open**, which criterion 8 requires and which
   only this task can satisfy. **Probe the extended-hours case too, out of

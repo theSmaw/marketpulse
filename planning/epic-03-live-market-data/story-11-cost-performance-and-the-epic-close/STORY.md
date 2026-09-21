@@ -529,3 +529,47 @@ rather than wait**. The spike's `supervise-session.sh` had exactly that check
 and never hit this; the dry-run that caused it did not. **A one-connection plan
 makes every instrument a potential incumbent**, and a process that forgets to
 exit is indistinguishable from a deploy.
+
+---
+
+## Handed here by Task 3.4.8 — 2026-09-21: §28's headline figure has never been taken, and today it cannot be
+
+**`PRODUCT_SPEC.md` §28 publishes _event → application state under 250 ms p95_,
+and its clock is explicit about both ends: server-received → application
+state.** Story 3.4 measured **one of them**.
+
+On a production build, under §7.4's real burst shape — **20 bursts of 332 bars,
+6,640 observations** — _frame delivered to the page → price on screen_ came out
+at **p95 52 ms and 51.7 ms** across two runs, with **zero** long-task entries at
+any length. That is a genuine figure and **it is not the figure §28 publishes**:
+the gateway, the socket and the network are not in it.
+
+### The other half is not missing through neglect — it is unmeasurable
+
+**No message on the market-stream wire carries a server-side instant.**
+`WireObservation` carries the bar's own `startsAt`, which is §7.3's **interval
+start** — a fact about the market, not about when we sent anything — and
+`WireFeedState` carries `status`, `feed` and `marketOpen`. **There is nothing to
+subtract from**, so a browser cannot time a journey whose start was never
+stamped.
+
+**And the rehearsal cannot close it either.** Story 3.4's live rehearsal watches
+a real session against the real feed, which supplies real latency and still no
+timestamp to measure it against.
+
+### What this story owes, and the cost that comes with it
+
+- **Decide whether §28's own figure is worth a field on the wire.** It is a
+  protocol change rather than a test somebody forgot: a stamp the gateway writes
+  and the browser subtracts, on **332 frames a minute**. Cheap per frame,
+  unbounded in aggregate, and this story's subject is exactly that trade.
+- **If yes, take the whole figure and publish it with both ends named.** If no,
+  **amend §28** to say which half this product measures, rather than leaving a
+  target that reads as met.
+- **Either way, stop the browser half being quoted as the whole.** 52 ms against
+  250 ms reads as _a fifth of the budget_ to anybody who does not have this
+  paragraph — `docs/GAPS.md` entry 12 exists so it travels with the number.
+
+**The good news the figure does buy you**: the half this product controls
+end-to-end has **200 ms of headroom**, so whatever the other half costs, it is
+not competing with a browser that is already busy.

@@ -281,6 +281,36 @@ the rehearsal:
   elsewhere and **nowhere end to end in a browser**, which is the sentence to
   keep rather than the reassurance.
 
+### 3.4.8's sweep — 2026-09-21, and the finding is a figure that cannot be taken
+
+**One task amended, one gap recorded, one constraint handed to another story.
+Nothing added, deleted or re-ordered.**
+
+**`PRODUCT_SPEC.md` §28's headline figure has never been measured, and today it
+cannot be.** Task 3.4.8 took _frame delivered to the page → price on screen_ —
+**p95 52 ms** on a production build under the real burst shape — and then asked
+whether the other half was obtainable. It is not: §28's clock starts at
+**server-received**, and **no message on the market-stream wire carries a
+server-side instant**. `WireObservation` has the bar's own `startsAt`, which is
+§7.3's interval **start** and a fact about the market rather than about when we
+sent anything. **There is nothing to subtract from.**
+
+That matters because the number is good: _52 ms against 250 ms_ reads as a fifth
+of the budget to anybody who does not know it is half a journey. So:
+
+- **`docs/GAPS.md` entry 12** holds the whole state and the re-measure, and it
+  is deliberately **not** made mechanical — the instrument does not exist, and
+  building it is a **protocol change** rather than a test somebody forgot.
+- **Story 3.11 owns the decision**, in its own file and in words it can act on:
+  whether §28's figure is worth a stamp on **332 frames a minute**, or whether
+  §28 should be amended to say which half this product measures. Either way,
+  stop the browser half being quoted as the whole.
+- **3.4.10 was told not to expect the rehearsal to close it.** A real session
+  supplies real latency and still no timestamp to measure it against, and a
+  close that recorded §28 as met would be exactly the shape this repository
+  keeps catching. It also inherited Task 3.4.8's four-line production-bundle
+  recipe, since it is the one task that might need it.
+
 The original wording stands below, because it is what the decision was taken
 against.
 
