@@ -117,7 +117,28 @@ export const CONNECTION_DESCRIPTIONS: Record<
  */
 export const REPLAYING_DESCRIPTION: ProvenanceDescription = {
   label: "replaying",
-  sentence: "Replaying a past session. Not the live market.",
+
+  // **No sentence, and that is `Live in the chrome` §05's rule rather than an
+  // omission** (Task 3.4.9). *A clause renders only when its own data is
+  // present*, and a **healthy** connection has nothing to qualify — which is
+  // why `LIVE` carries no instant while `STALE` and `DISCONNECTED` do.
+  // `REPLAYING` is the replay's healthy state and is the exact analogue.
+  //
+  // It had one, and it produced the defect this task exists for the moment the
+  // feed cell beside it became reachable:
+  //
+  //   REPLAY      Real bars from a past US session, replayed. Not the live market.
+  //   REPLAYING   Replaying a past session. Not the live market.
+  //
+  // **A shared four-word run**, three words apart — which is exactly what
+  // `Live in the chrome` §04 checked the other pair against and what
+  // `search-and-the-universe-share-no-words` exists to stop. The clause that
+  // survives is the one in the half that **owns** the subject: `Not the live
+  // market` is a coverage claim, invariant 6 puts those in the provenance
+  // half, and ADR 0029's rule is that everything else points once and stops.
+  //
+  // The canvas drew it this way — `Live in the chrome` §03's replay row has no
+  // sentence after `replaying` — and the code had not caught up.
 };
 
 /**

@@ -980,10 +980,19 @@ const INVARIANTS = [
             "The live feed is not connected. Prices shown are the last known.",
           home: CONNECTION_VOCABULARY,
         },
-        {
-          literal: "Replaying a past session. Not the live market.",
-          home: CONNECTION_VOCABULARY,
-        },
+        // **`Replaying a past session. Not the live market.` left this list on
+        // 2026-09-21 by ceasing to exist** (Task 3.4.9), and the check is what
+        // made that deliberate rather than quiet: deleting the string turned
+        // this invariant red with *no shipped source file writes it*.
+        //
+        // It was removed because the moment the feed cell beside it became
+        // reachable, the pair read `Real bars from a past US session,
+        // replayed. Not the live market.` three words from `Replaying a past
+        // session. Not the live market.` — **a shared four-word run**, which
+        // is the defect `search-and-the-universe-share-no-words` guards one
+        // surface over. `REPLAYING` now carries no sentence, which is what
+        // `LIVE` does and what the canvas drew.
+
         // **Task 3.4.6's two, and they are the same hazard one surface in.**
         // `pre-market` and `after-hours` are claims about *when a price is
         // from*, derived from the bar's own instant against the calendar —

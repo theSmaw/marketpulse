@@ -680,3 +680,49 @@ export function distinctSeriesFeeds(
 ): readonly MarketFeed[] {
   return [...new Set(provenance.sources.map((source) => source.feed))];
 }
+
+/**
+ * Whether a **feed** is the live market, or is not (Task 3.4.9).
+ *
+ * ## Why this exists beside {@link PROVIDER_SERVES} rather than instead of it
+ *
+ * They answer the same question about two different things, and the chrome
+ * needs the **feed's** answer rather than the provider's. `PROVIDER_SERVES` is
+ * keyed by `ProviderId` and is read by `config.ts`'s startup refusal — a fact
+ * about *what a deployment was configured to run*. This is keyed by
+ * {@link MARKET_FEEDS} and is read by a renderer deciding a **silhouette** — a
+ * fact about *what the numbers on this screen are*.
+ *
+ * The two cannot be collapsed: `replay` is a `MarketFeed` and **not** a
+ * `ProviderId` that produces a historical provider (ADR 0030 §3), so a chrome
+ * reading the provider record would have nothing to look up.
+ *
+ * ## What it is for, and the defect it closes
+ *
+ * `FeedProvenance` drew the **square and the amber** for `synthetic` alone, by
+ * comparing to that one literal. So a replay — **real bars from a past
+ * session, which are emphatically not the live market** — rendered as a *disc*,
+ * the silhouette this product uses for a real market feed.
+ *
+ * That is invariant 6 read backwards: *market-data provenance is displayed,
+ * never implied*, and a disc **implied** live market data about numbers that
+ * are a recording. `PROVIDER_SERVES` had said `not-the-live-market` about the
+ * replay since Task 3.2.1 and no renderer could reach the fact.
+ *
+ * **Total over `MarketFeed`**, so a feed added without deciding this fails the
+ * build — the same mechanism, and the same reason, as the record above.
+ */
+export const FEED_SERVES: Record<
+  MarketFeed,
+  "the-live-market" | "not-the-live-market"
+> = {
+  // A single venue, and the consolidated tape. Both are the market.
+  iex: "the-live-market",
+  sip: "the-live-market",
+
+  // Invented, and recorded. Neither is what is happening in the market now,
+  // which is the only claim this product's screens make about a price —
+  // `PROVIDER_SERVES`' own words, applied to the other key.
+  synthetic: "not-the-live-market",
+  replay: "not-the-live-market",
+};
