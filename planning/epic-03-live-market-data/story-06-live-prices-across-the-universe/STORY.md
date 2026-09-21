@@ -122,6 +122,36 @@ encoding. A number must not get harder to read because it is moving.
    live session before the suite ran
 8. `pnpm verify` passes
 
+## Tasks
+
+**Seven, and the first one is the whole headline.** This story's visible payoff
+— 518 prices moving on their own — lands in **Task 3.6.1**, deliberately
+undesigned, and everything after it is a measurement, a decision or a repair.
+
+**The design pass comes second rather than first, and that is Story 3.4's
+precedent rather than an oversight.** Task 3.4.2 shipped the undesigned moving
+price and Task 3.4.4 then discovered the worry was backwards — the change was
+_nearly invisible_ rather than distracting, which is not a thing a static mock
+could have said. A density rule argued before 518 rows have ever moved is a rule
+argued about nothing.
+
+| #     | Task                                                                                                                                 | Depends on   | Visible?    |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ----------- |
+| 3.6.1 | [**The universe subscribes, and 518 prices move**](TASK-01-the-universe-subscribes-and-518-prices-move.md)                           | 3.5          | **Yes**     |
+| 3.6.2 | [**The design pass at universe scale: the mark at 518, and the row that has nothing**](TASK-02-the-design-pass-at-universe-scale.md) | 3.6.1        | **Yes**     |
+| 3.6.3 | [Which rows are live, and whether they move — the two open decisions](TASK-03-which-rows-are-live-and-whether-they-move.md)          | 3.6.2        | Maybe       |
+| 3.6.4 | [The instant the wire does not carry, and §28's p95](TASK-04-the-instant-the-wire-does-not-carry.md)                                 | 3.6.1        | No          |
+| 3.6.5 | [§28's cold load, `Expand all`, and Epic 14's trigger](TASK-05-the-cold-load-expand-all-and-epic-14s-trigger.md)                     | 3.6.2, 3.6.3 | If it fired |
+| 3.6.6 | [A live update asserted in a browser](TASK-06-a-live-update-asserted-in-a-browser.md)                                                | 3.6.3        | No          |
+| 3.6.7 | [The rehearsal, the sweep, the hand-offs and the close](TASK-07-the-rehearsal-the-sweep-and-the-close.md)                            | 3.6.6        | No          |
+
+**Where the two open decisions live.** Both are Task 3.6.3's, and neither is
+taken before Task 3.6.2 has measured what 518 moving rows actually cost — the
+figures decide them, not a preference. **Task 3.6.4 is new to this story since
+2026-09-21**: §28's p95 was unmeasurable and owned by Story 3.11, and Story
+3.5's close moved the repair here because three stories were carrying one
+criterion none of them owned.
+
 ## What this story hands forward
 
 A live market on screen, the data Epic 4's overview aggregates, and a
