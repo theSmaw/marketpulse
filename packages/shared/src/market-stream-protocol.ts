@@ -219,6 +219,38 @@ export type MarketStreamClientMessage = SubscribeMessage;
 /** The client message types, closed. */
 export const MARKET_STREAM_CLIENT_MESSAGE_TYPES = ["subscribe"] as const;
 
+/**
+ * **The close codes this product's own gateway sends, and the browser reads.**
+ *
+ * One fact with two ends, so it lives here rather than once in each — a
+ * backend that picked a code and a browser that interpreted a different one
+ * would be a protocol disagreement no test on either side could see.
+ *
+ * **This does not reopen §8.5.** That measured the *upstream* socket, where
+ * five different causes all produced `1006` with an empty reason — a code
+ * carrying no intent. These are ours, chosen deliberately, and a browser can
+ * act on them.
+ */
+export const MARKET_STREAM_CLOSE = {
+  /**
+   * `1001 going away` — the gateway is shutting down (§12.2).
+   *
+   * The browser reads this as *coming straight back* and retries quickly.
+   */
+  goingAway: 1001,
+
+  /**
+   * `1013 try again later` — this browser was not reading (Task 3.5.7).
+   *
+   * **Deliberately not `goingAway`.** A slow client told *we are coming
+   * straight back* returns in half a second, is still slow, and is dropped
+   * again — the pair then spends the afternoon doing that. `1013` is the
+   * registered code for *terminating due to a temporary condition*, which is
+   * exactly what a full outbound buffer is, and the browser backs off.
+   */
+  slowClient: 1013,
+} as const;
+
 export function encodeMarketStreamClientMessage(
   message: MarketStreamClientMessage,
 ): string {

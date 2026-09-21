@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { WebSocketServer, type WebSocket } from "ws";
 
 import {
+  MARKET_STREAM_CLOSE,
   MARKET_STREAM_PATH,
   decodeMarketStreamClientMessage,
   MARKET_STREAM_PROTOCOL_VERSION,
@@ -69,6 +70,57 @@ import type { LiveObservation } from "./market-data-stream.js";
  * which is why neither number is the raw limit.
  */
 export const KEEPALIVE_INTERVAL_MS = 120_000;
+
+/**
+ * **How much unsent data a browser may owe before it is dropped** (Task 3.5.7).
+ *
+ * `PRODUCT_SPEC.md` §36 wants incremental degradation, not a process that grows
+ * without bound because somebody's train went into a tunnel with a tab open.
+ * The failure this prevents is the hardest kind to find later: a memory leak
+ * that only appears on a slow connection during a busy session.
+ *
+ * ## Measured on 2026-09-21, against a client that stops reading
+ *
+ * A paused client, subscribed to the whole universe, published to repeatedly:
+ *
+ * | Batches published | Peak `bufferedAmount` |
+ * | ----------------- | --------------------- |
+ * | 100               | 5.1 MB                |
+ * | 600               | **33.6 MB**           |
+ *
+ * **Linear and unbounded** — one payload per batch once the kernel stops
+ * absorbing, with the universe payload measured at **57,024 bytes**.
+ *
+ * **The number that decides this constant is the other one in that run: the
+ * kernel absorbed ~557 KiB before `bufferedAmount` moved at all.** A threshold
+ * below that would never fire on loopback, which is exactly the shape of a
+ * check that silently does nothing — and this repository has shipped one of
+ * those before.
+ *
+ * So: **1 MiB**, about eighteen universe payloads, comfortably clear of the
+ * kernel's own absorption so a momentarily slow reader is not punished for it.
+ * Reached after ~28 batches, which in production is ~28 minutes of a stalled
+ * tab, because bars arrive once a minute.
+ */
+export const MAX_BUFFERED_BYTES = 1_048_576;
+
+/**
+ * The close code a dropped browser is sent — **`1013 try again later`**, and
+ * it lives in `MARKET_STREAM_CLOSE` because it is one fact with two ends.
+ *
+ * **Not `goingAway`**, and that is a policy decision rather than a detail.
+ * `reconnect-policy.ts` reads the code: `1001` means *we are redeploying* and
+ * retries in **500 ms**, so dropping a slow client with it produces a tight
+ * loop — back in half a second, still slow, dropped again.
+ *
+ * **And the browser is deliberately NOT told to stop.** A client dropped for
+ * being slow comes back as slow as it was, so backoff bounds the rate without
+ * changing the outcome — but §36 wants a reader whose connection improves to
+ * recover **without a reload**, and a browser that gave up could not. Cycling
+ * at the 30 s ceiling is the degraded state, and it is chosen rather than
+ * inherited from whichever code was convenient.
+ */
+export const SLOW_CLIENT_CLOSE_CODE = MARKET_STREAM_CLOSE.slowClient;
 
 /** What the gateway needs. Functions rather than objects, for the usual reason. */
 export interface MarketGatewayOptions {
@@ -142,12 +194,50 @@ export function registerMarketGateway(
    */
   const clients = new Map<WebSocket, Set<string>>();
 
+  /**
+   * Stop serving a browser that is not reading (Task 3.5.7).
+   *
+   * **Removed from `clients` FIRST**, so nothing in the rest of this tick
+   * writes to it again — deleting during the iteration in
+   * `publishObservations` is safe, and skipping the entry is the intent.
+   */
+  const drop = (socket: WebSocket, bufferedBytes: number): void => {
+    clients.delete(socket);
+
+    // **The count travels with it**, so an operator reads a pattern rather
+    // than an incident: one slow browser on a train is noise, and five at once
+    // is the deployment.
+    app.log.warn(
+      { bufferedBytes, clients: clients.size },
+      "dropped a browser that stopped reading",
+    );
+
+    try {
+      socket.close(SLOW_CLIENT_CLOSE_CODE);
+    } catch {
+      // Already gone. Nothing to do, and nothing that justifies a throw.
+    }
+  };
+
   const send = (socket: WebSocket, payload: string): void => {
     // `readyState === OPEN` is checked because a socket can close between the
     // broadcast starting and this line — and §6.4's lesson applies in reverse
     // here: `OPEN` is not proof of liveness, but NOT-open IS proof there is no
     // point writing.
     if (socket.readyState !== socket.OPEN) return;
+
+    // **Backpressure, checked before the write rather than after** (Task
+    // 3.5.7). `bufferedAmount` is the only honest signal a gateway has: a
+    // socket that is slow and one that is dead look identical at the API until
+    // the buffer says otherwise, which is §6.4's lesson arriving downstream.
+    //
+    // Measured against a client that stops reading, this grows by **one
+    // payload per batch, without bound** — 33.6 MB in 600 batches.
+    if (socket.bufferedAmount > MAX_BUFFERED_BYTES) {
+      drop(socket, socket.bufferedAmount);
+      return;
+    }
+
     try {
       socket.send(payload);
     } catch {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { MARKET_STREAM_CLOSE } from "@marketpulse/shared";
+
 import {
   ABNORMAL_FIRST_MS,
   GOING_AWAY,
@@ -48,5 +50,25 @@ describe("when to dial again", () => {
     // delay of 0 would be a busy loop against a server that is down.
     expect(reconnectDelayMs(0, GOING_AWAY)).toBe(GOING_AWAY_FIRST_MS);
     expect(reconnectDelayMs(-5)).toBe(ABNORMAL_FIRST_MS);
+  });
+});
+
+describe("the code a dropped-for-being-slow browser is sent (Task 3.5.7)", () => {
+  it("backs off rather than returning straight away", () => {
+    // **The other end of the gateway's decision.** A slow client told *we are
+    // coming straight back* would return in 500 ms, still be slow, and be
+    // dropped again — the pair then spends the afternoon doing that.
+    expect(reconnectDelayMs(1, MARKET_STREAM_CLOSE.slowClient)).toBeGreaterThan(
+      reconnectDelayMs(1, MARKET_STREAM_CLOSE.goingAway),
+    );
+  });
+
+  it("still comes back, because a connection that improves should recover", () => {
+    // §36 wants a reader whose connection improves to recover **without a
+    // reload**. Cycling at the ceiling is the degraded state; giving up is not
+    // a state this product has.
+    expect(reconnectDelayMs(50, MARKET_STREAM_CLOSE.slowClient)).toBe(
+      RECONNECT_CEILING_MS,
+    );
   });
 });

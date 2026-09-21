@@ -690,6 +690,28 @@ export const BREAKS = [
   // days** — the strongest kind, because the check is proved against the defect
   // it was written for rather than a synthetic one.
   {
+    name: "a-slow-browser-grows-a-queue-forever",
+    proves:
+      "A browser that stops reading grows an unbounded queue inside the " +
+      "backend \u2014 measured on 2026-09-21 at 5.1 MB after 100 universe " +
+      "batches and 33.6 MB after 600, linear and with no ceiling. It is the " +
+      "failure `PRODUCT_SPEC.md` \u00a736 exists to prevent and the hardest kind " +
+      "to find later: it appears only on a slow connection during a busy " +
+      "session.",
+    file: "apps/backend/src/market-gateway.ts",
+    find: "    if (socket.bufferedAmount > MAX_BUFFERED_BYTES) {",
+    replace: "    // pnpm break: reverted automatically\n" + "    if (false) {",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "run",
+      "test:process",
+      "src/market-gateway.process.test.ts",
+    ],
+    expect: "stops reading",
+  },
+  {
     name: "every-browser-gets-the-whole-universe",
     proves:
       "The fan-out ignores what a browser asked for and sends everything to " +
