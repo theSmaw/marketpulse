@@ -3036,6 +3036,31 @@ each combination. The feed cell and the connection cell are **two cells** — Ta
 | `synthetic`     | live         | either | `SIMULATED` + its sentence      | `LIVE`          | either   |
 | none            | —            | either | `NOT CONFIGURED` + its sentence | —               | either   |
 
+> **AMENDED 2026-09-21 by Task 3.4.9 — the `replay` row above was written on
+> 2026-09-17 and NOTHING COULD PRODUCE IT until today.** It is a grid, so it
+> looked complete; what it had never been asked is whether each row is
+> **reachable**.
+>
+> A deployment running the replay showed `NOT CONFIGURED` + its sentence,
+> three words from its own `REPLAYING` + a sentence that repeated it — because
+> `GET /market-data` derived the feed from a **historical provider**, and
+> ADR 0030 §3 makes a replay produce none **on purpose**. Two true halves, one
+> contradiction, at every width.
+>
+> Three divergences from the row as written, all in the same direction, and all
+> now closed: the wire reports `replay`; the silhouette is the **square** the
+> grid's own `REPLAY` implies rather than the disc a real market feed gets; and
+> `REPLAYING` carries **no sentence**, because the one it had shared a
+> four-word run with the feed cell's — _Not the live market._ — which is
+> exactly what §11.3's neighbouring rule forbids elsewhere.
+>
+> **The rule this grid was missing, now a check:** _a deployment whose chrome
+> can say a connection word must also be able to say a feed word._
+> `market-feed-grid.test.ts` walks the **selections** rather than the
+> renderings, because a row nothing can reach is not a shape any renderer test
+> has — and `pnpm break a-stream-without-a-feed-word` restores the four days it
+> shipped for.
+
 **The row that looks wrong and is correct: `IEX` / `LIVE` / `CLOSED`.** Our
 connection to the market is healthy; the market is shut. Three regions, three
 facts, none collapsing into the others — which is ADR 0030 decision 4's argument

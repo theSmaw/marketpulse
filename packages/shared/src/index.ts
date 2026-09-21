@@ -33,6 +33,7 @@ export {
   connectionWordFor,
 } from "./feed-words.js";
 export { EXTENDED_HOURS_WORDS } from "./feed-words.js";
+export { FEED_SERVES } from "./market-provenance.js";
 export type { ConnectionWordInputs } from "./feed-words.js";
 // The browser protocol (Task 3.3.1). Named exports rather than a star, matching
 // this file's habit — and the serialiser is exported beside the messages

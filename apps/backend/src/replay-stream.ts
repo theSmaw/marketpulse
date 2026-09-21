@@ -63,8 +63,16 @@ import {
  * would be without it, not less.**
  */
 
-/** Its own words, shipped by Task 3.2.1 from ADR 0030 §3. Do not re-decide them. */
-const REPLAY_FEED = "replay" as const satisfies MarketFeed;
+/**
+ * Its own words, shipped by Task 3.2.1 from ADR 0030 §3. Do not re-decide them.
+ *
+ * **Exported since Task 3.4.9**, so `GET /market-data` names the same feed this
+ * stream stamps rather than a second literal. It reads it because a replay
+ * produces **no historical provider** — ADR 0030 §3, deliberately — and the
+ * route's `feed` used to come only from one, which is how the chrome ended up
+ * saying *no market-data provider is configured* beside its own `REPLAYING`.
+ */
+export const REPLAY_FEED = "replay" as const satisfies MarketFeed;
 
 /** Narrowed for the reason `StreamBarSource` is: a wide field is where a lie fits. */
 export type ReplayBarSourceStamp = BarSource & {

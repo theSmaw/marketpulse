@@ -1,4 +1,5 @@
 import {
+  FEED_SERVES,
   MARKET_FEED_DESCRIPTIONS,
   NOT_CONFIGURED_DESCRIPTION,
 } from "@marketpulse/shared";
@@ -186,22 +187,36 @@ export function FeedProvenance({ view }: FeedProvenanceProps) {
   // The amber is a property of the *feed* rather than of the state, so it is
   // not in `STATE_CLASS`: `configured` is grey for a real market feed and amber
   // for generated data, which is the whole of §5.4's mechanism.
-  const syntheticClass =
-    view.state === "configured" && view.feed === "synthetic"
+  //
+  // **`FEED_SERVES` rather than a comparison to `"synthetic"`** (Task 3.4.9),
+  // and the difference is a shipped defect rather than a tidy-up: a **replay**
+  // is real bars from a past session and is emphatically **not the live
+  // market**, and comparing to one literal drew it as a *disc* — the silhouette
+  // this product uses for a real market feed. That is invariant 6 read
+  // backwards, *provenance is displayed, never implied*, with the implication
+  // going the wrong way. The domain had said so since Task 3.2.1 and no
+  // renderer could reach it.
+  const notTheLiveMarket =
+    view.state === "configured" &&
+    FEED_SERVES[view.feed] === "not-the-live-market"
       ? styles.synthetic
       : undefined;
 
-  // Likewise the shape: `configured` is a disc for a real feed and the one
-  // square in this region for generated data, so the amber is never the only
-  // thing marking it.
+  // Likewise the shape: `configured` is a disc for a real feed and a square for
+  // anything that is not the live market, so the amber is never the only thing
+  // marking it — which is the rule that survives greyscale.
   const shape: MarkerShape =
-    syntheticClass === undefined ? SHAPE[view.state] : "square";
+    notTheLiveMarket === undefined ? SHAPE[view.state] : "square";
 
   const detail = sentence(view);
 
   return (
     <span
-      className={cx(styles.provenance, STATE_CLASS[view.state], syntheticClass)}
+      className={cx(
+        styles.provenance,
+        STATE_CLASS[view.state],
+        notTheLiveMarket,
+      )}
     >
       <Marker shape={shape} />
       <span className={styles.label}>{word(view)}</span>

@@ -126,3 +126,47 @@ describe("FeedProvenance", () => {
     }
   });
 });
+
+describe("a feed that is not the live market (Task 3.4.9)", () => {
+  // **`FEED_SERVES` rather than a comparison to one literal**, and the
+  // difference was a shipped defect: a replay is real bars from a past session
+  // and is emphatically not the live market, and comparing to `"synthetic"`
+  // alone drew it as a **disc** — the silhouette this product uses for a real
+  // market feed. Invariant 6 read backwards: *provenance is displayed, never
+  // implied*, with the implication going the wrong way.
+  //
+  // Nothing below a browser can see the SHAPE, and that is fine: what this
+  // level can see is the **class**, which is what carries both the square and
+  // the amber, and which is the thing that was absent.
+
+  const classesFor = (feed: "iex" | "sip" | "synthetic" | "replay"): string => {
+    const { container } = render(
+      <FeedProvenance view={{ state: "configured", feed }} />,
+    );
+    return container.firstElementChild?.className ?? "";
+  };
+
+  it("marks a replay the way it marks generated data", () => {
+    // The same treatment, because they answer `not-the-live-market` for the
+    // same reason — neither is what is happening in the market now.
+    expect(classesFor("replay")).toBe(classesFor("synthetic"));
+  });
+
+  it("does NOT mark a real market feed that way", () => {
+    // The promise this task made: nothing about a configured deployment's
+    // chrome changes. `iex` and `sip` keep the disc they have always had.
+    expect(classesFor("iex")).not.toBe(classesFor("synthetic"));
+    expect(classesFor("sip")).not.toBe(classesFor("synthetic"));
+    expect(classesFor("iex")).toBe(classesFor("sip"));
+  });
+
+  it("says its sentence once — the connection half no longer repeats it", () => {
+    // `REPLAYING` lost its sentence on 2026-09-21. The pair used to read
+    // `…Not the live market.` three words from `…Not the live market.`, a
+    // shared four-word run, which is what `search-and-the-universe-share-no-
+    // words` guards one surface over.
+    render(<FeedProvenance view={{ state: "configured", feed: "replay" }} />);
+
+    expect(screen.getAllByText(/Not the live market/)).toHaveLength(1);
+  });
+});

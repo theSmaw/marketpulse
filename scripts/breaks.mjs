@@ -685,4 +685,32 @@ export const BREAKS = [
     command: ["pnpm", "e2e", "security-price-motion.spec.ts", "--anyway"],
     expect: "an arrival moves nothing around the price",
   },
+
+  // **Task 3.4.9's, and it restores the tree exactly as it shipped for four
+  // days** — the strongest kind, because the check is proved against the defect
+  // it was written for rather than a synthetic one.
+  {
+    name: "a-stream-without-a-feed-word",
+    proves:
+      "A deployment whose chrome can say a CONNECTION word says `no " +
+      "market-data provider is configured` three words from it, because the " +
+      "feed on the wire comes only from a historical provider and ADR 0030 " +
+      "makes a replay produce none. §11.3's grid has had the correct row " +
+      "since 2026-09-17 and nothing could reach it.",
+    file: "apps/backend/src/routes/market-data.ts",
+    find:
+      "    feed:\n" +
+      "      marketData.provider?.feed ?? feedWithoutAProvider(marketData.selection),",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    feed: marketData.provider?.feed ?? null,",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "market-feed-grid",
+    ],
+    expect: "also reports a feed",
+  },
 ];

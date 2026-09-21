@@ -63,6 +63,7 @@ import type {
   BarSeriesResponse,
   BarSource,
   MarketDataResponse,
+  MarketFeed,
   SecurityStatus,
   SeriesCoverage,
   SeriesCoveragePayload,
@@ -76,7 +77,9 @@ import { apiErrorSchema } from "../errors.js";
 import { installResponseValidator } from "../http-cache.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
 import type { MarketBarsRepository } from "../market-bars.js";
+import type { MarketDataProviderSelection } from "../config.js";
 import type { MarketData } from "../market-data.js";
+import { REPLAY_FEED } from "../replay-stream.js";
 import type { SecuritiesRepository } from "../securities.js";
 import { createSeriesCache, seriesCacheControl } from "../series-cache.js";
 import type { SeriesCache } from "../series-cache.js";
@@ -503,6 +506,46 @@ function unknownSecurityMessage(symbol: string): string {
  * registrations of one namespace in `index.ts` and give the schema in this file
  * a reader in another.
  */
+/**
+ * The feed a selection reads when it produces **no historical provider**.
+ *
+ * **An exhaustive switch rather than a record with three unused entries**, and
+ * for the reason that mechanism is used three times already in this tree: a
+ * provider added without deciding this fails the build **here**, naming this
+ * function, rather than shipping a deployment whose chrome says nothing is
+ * configured while a stream feeds it.
+ *
+ * That is the defect it was written for. Task 3.4.9.
+ */
+function feedWithoutAProvider(
+  selection: MarketDataProviderSelection,
+): MarketFeed | null {
+  switch (selection) {
+    // ADR 0030 §3: a replay IS a feed — `MARKET_FEEDS` has held its words since
+    // Task 3.2.1 — and it is deliberately not a historical provider, because
+    // returning one would put a second source of stored bars beside the store
+    // the replay is reading from.
+    case "replay":
+      return REPLAY_FEED;
+
+    case "none":
+      return null;
+
+    // **Unreachable, and stated rather than omitted.** Both produce a provider,
+    // so `?? ` never evaluates for them and their feed stays the provider's own
+    // — which is what keeps `alpaca` reporting `sip` and this task's promise
+    // that nothing about the deployed site's chrome changed.
+    case "fixture":
+    case "alpaca":
+      return null;
+
+    default: {
+      const unhandled: never = selection satisfies never;
+      return unhandled;
+    }
+  }
+}
+
 export function createMarketDataRoutes(
   dependencies: MarketDataRouteDependencies,
 ): FastifyPluginCallback {
@@ -520,9 +563,19 @@ export function createMarketDataRoutes(
   const body: MarketDataResponse = {
     // `undefined` — no provider configured — becomes `null` on the wire, which
     // is the one place this route makes a judgement. `feed === null` is how the
-    // contract spells *"no market-data provider is configured"*, and it is
-    // exact because every provider declares a feed.
-    feed: marketData.provider?.feed ?? null,
+    // contract spells *"no market-data provider is configured"*.
+    //
+    // **`?? feedWithoutAProvider` since Task 3.4.9, and the fallback is the
+    // whole of that task.** `every provider declares a feed` was true when this
+    // was written and stopped being true when ADR 0030 §3 made a replay a
+    // `MarketDataStream` rather than a provider: `createMarketDataProvider`
+    // returns `undefined` for it **on purpose**, so this line reported `null`
+    // and the chrome said *no market-data provider is configured* three words
+    // from its own `REPLAYING`. §11.3's grid has had the correct row —
+    // `replay | live | shut | REPLAY + its sentence | REPLAYING` — since
+    // 2026-09-17, and nothing could produce it.
+    feed:
+      marketData.provider?.feed ?? feedWithoutAProvider(marketData.selection),
   };
 
   return (app, _options, done) => {

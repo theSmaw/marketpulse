@@ -2,6 +2,7 @@
 
 **Status:** Not started
 **Amended:** 2026-09-21 after Task 3.4.7 — the ADR question is now **two decisions**, and the second one reaches past this epic.
+**Amended:** 2026-09-21 after Task 3.4.9 — the construction-site audit now has **two forms**, because the export grep would not have caught a published row nothing could reach.
 **Amended:** 2026-09-21 after Task 3.4.8 — **§28's p95 is half-measured and the rehearsal cannot close it**, because no wire message carries a server instant. Do not record it as met.
 **Amended:** 2026-09-21 after Task 3.4.6 — the rehearsal is **two sittings or one that straddles the bell**, because the extended-hours mark cannot be seen with the market open and no fixture or replay can stand in for it.
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
@@ -91,8 +92,24 @@ nobody finds out — so note the answer either way, in the vendor's own document
     backlog nobody picks up. **Counting citations measures citation, not
     delivery** — Story 3.3's close found Story 3.10 cited twenty times with
     nothing in its own file.
-  - **Construction sites**: every export this story adds, grepped for a caller
-    outside a test. Story 3.3's close deleted one this way.
+  - **Construction sites, and since 2026-09-21 in TWO forms** — because the
+    first form would not have caught Task 3.4.9.
+    - **The export form**: every export this story adds, grepped for a caller
+      outside a test. Story 3.3's close deleted one this way.
+    - **The REACHABILITY form**, which is new: every row of every state grid
+      this story published, walked from its **producers** rather than its
+      renderers. Task 3.4.9's defect had a caller — what had no implementation
+      was the **decision**, so an export grep returns clean while a documented
+      row sits on a screen-in-a-document for four days. `docs/GAPS.md` entry 13
+      carries the family; this story published rows in `VISUAL-LANGUAGE.md`'s
+      motion set and in `Live in the chrome` §11, and neither has been walked.
+  - **And the open item this story fired.** `CLAUDE.md` carries _nothing checks
+    that a named region says something when its subject is missing_, owned by
+    _the next story that adds a region_. Task 3.4.9 met its **harder form** —
+    _nothing checks that a named region says something coherent when it has two
+    subjects_ — and answered it for one cell. **Decide whether that entry
+    widens or gains a sibling**, rather than leaving a fired trigger reading as
+    unfired.
 - **An ADR if a decision outlives the story.** A motion vocabulary that five
   stories inherit is a strong candidate; argue the absence if not. **The case
   got stronger on 2026-09-21 and it is now TWO decisions rather than one**, and
@@ -108,6 +125,11 @@ nobody finds out — so note the answer either way, in the vendor's own document
   One ADR, two, or none with a paragraph — but decide it against both, not
   against the motion half alone.
 
+- **Confirm the deployed chrome really is unchanged.** Task 3.4.9 promised it
+  and verified it with a unit test over every selection — `alpaca` still reports
+  `sip`, `fixture` `synthetic`, `none` `null`. **The rehearsal is the first time
+  a person sees the production path**, and criterion 8's walk with the market
+  open is where that promise stops being a test and becomes an observation.
 - **Do NOT expect the rehearsal to close §28's p95**, and do not let the sweep
   record it as met. Task 3.4.8 measured _frame delivered → price on screen_ at
   **p95 52 ms** on a production build; §28's clock starts at
