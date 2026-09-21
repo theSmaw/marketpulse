@@ -18,6 +18,7 @@ import {
   formatBarInstant,
   formatChangePercent,
   formatPrice,
+  observationIdentity,
 } from "../../market/index.js";
 import styles from "./SecurityIdentity.module.css";
 
@@ -183,34 +184,13 @@ function useArrival(
   return observation;
 }
 
-/**
- * What makes one observation a different observation from the last.
- *
- * **Not the instant, and Task 3.4.6 changed it for a reason worth keeping.**
- * Task 3.4.5 keyed the arrival on `startsAt`, which is right for a new minute
- * and wrong for a **revision**: the product subscribes `updatedBars`, and a
- * corrected bar carries the minute it corrects (§7.3 — `t` marks the interval's
- * start), so a correction arriving thirty seconds later left the instant
- * unchanged and **drew no mark at all**.
- *
- * That produced the one state the vocabulary had no word for: §7.8 measured 14
- * revisions in one session and **three of them changed the close**, so a reader
- * could watch the **figure move with nothing marking it** — the exact inverse
- * of what the mark was decided to mean.
- *
- * So the identity is the observation's **content**. A revision that changed
- * something is a different observation and fires the mark; one that changed
- * nothing is not, and does not — which is correct rather than a limitation,
- * because nothing was corrected.
- *
- * `volume` is in it as well as `close` deliberately: a revision that adjusted
- * only the volume still corrected the bar, and a reader who is told *a bar
- * arrived* has been told the truth.
+/*
+ * `observationIdentity` moved to `market/arrival.ts` on 2026-09-21, when Task
+ * 3.6.2 gave the arrival mark a second consumer. Two implementations of *what
+ * counts as an arrival* is the shape Task 3.5.2 removed from the subscription:
+ * two policies that agree today, disagree invisibly, and nothing saying which
+ * is authoritative. The rule and its whole argument are in that file.
  */
-const observationIdentity = (bar: Bar | undefined): string | undefined =>
-  bar === undefined
-    ? undefined
-    : `${String(bar.startsAt.getTime())}:${String(bar.close)}:${String(bar.volume)}`;
 
 /**
  * Three schema kinds, two words. The `sector_etf`/`index_etf` split is real and

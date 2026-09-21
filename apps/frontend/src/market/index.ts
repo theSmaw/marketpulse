@@ -235,5 +235,8 @@ export type {
   LiveFeedInputs,
   LiveFeedView,
 } from "./live-feed.js";
+// What counts as an arrival — one home, two surfaces (Task 3.6.2).
+export { arrivalKey, observationIdentity } from "./arrival.js";
+
 export { LIVE_FEED_TICK_MS, useLiveFeed } from "./use-live-feed.js";
 export type { UseLiveFeedOptions } from "./use-live-feed.js";

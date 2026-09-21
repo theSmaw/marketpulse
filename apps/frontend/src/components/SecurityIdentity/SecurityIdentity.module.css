@@ -193,66 +193,21 @@
  * checked at 1440, 1024, 768 and 390.
  */
 .arrival {
+  /*
+   * **Appearance and behaviour come from the shared motion layer** since
+   * 2026-09-21 — the disc, the ink, the `opacity: 0` base and the 900ms decay
+   * are `styles/motion.module.css`'s, because Task 3.6.2 gave them a second
+   * consumer and two copies of a vocabulary is two places for it to drift.
+   *
+   * What stays here is **position**, which is genuinely this surface's: the
+   * mark hangs off the digits rather than the paragraph, and the universe
+   * table hangs its own off a table cell.
+   */
+  composes: arrivalMark from "../../styles/motion.module.css";
   position: absolute;
   right: calc(100% + var(--space-8));
   top: 50%;
-  /* `--space-8`, the same box `Marker` uses — this is the chrome's own glyph
-     at the chrome's own size, told apart by behaviour rather than by shape. */
-  width: var(--space-8);
-  height: var(--space-8);
   margin-top: calc(var(--space-8) / -2);
-  border-radius: 50%;
-  background: var(--ink-primary);
-
-  /*
-   * **`opacity: 0` is the base state, and leaving it out was a real defect —
-   * found by setting the token to `0ms` and looking, on 2026-09-21.**
-   *
-   * Reduced motion resolves `--motion-duration-decay` to `0ms`, and an
-   * animation of zero duration applies **no keyframe styles at all**. With no
-   * base opacity the element therefore rendered at the initial value — `1` —
-   * and the mark **stayed on screen for ever**. A reader who asked for less
-   * motion got a permanent dot beside the price: not merely a degraded
-   * treatment but the **opposite** of the vocabulary this story just shipped,
-   * because a mark that persists reads as *a state* rather than as *a fact
-   * that arrived*.
-   *
-   * Nothing in `pnpm verify` can see this. No stylesheet is applied in the
-   * component tests, so `getTokens()` throws there by design and computed
-   * opacity is not a thing that level can ask about. **Owner: Task 3.4.7**,
-   * which owns what survives the motion being removed, and whose browser suite
-   * can emulate the preference — `docs/GAPS.md` carries it until then.
-   */
-  opacity: 0;
-
-  /*
-   * **Decays rather than loops**, and that distinction is the vocabulary
-   * rather than a detail: work in progress loops, a state persists, a fact
-   * arriving decays. It is what lets this and the status bar's static disc be
-   * the same glyph two inches apart without colliding.
-   *
-   * `fill-mode` is deliberately left at `none`, which is what returns the
-   * element to the base above when the animation ends.
-   */
-  animation: arrival-decays var(--motion-duration-decay) linear;
-}
-
-/*
- * Held, then gone. The hold is what makes it catchable by somebody who was
- * looking elsewhere; the fade is what stops it reading as a state.
- *
- * `from { opacity: 0 }` would make the mark **appear** rather than **be
- * there**, which is a second gesture nobody asked for.
- */
-@keyframes arrival-decays {
-  0%,
-  33% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-  }
 }
 
 /*

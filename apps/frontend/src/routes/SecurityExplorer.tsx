@@ -600,6 +600,7 @@ export function SecurityExplorer({
                 view={view}
                 onRetry={retry}
                 observations={liveFeed.observations}
+                fromSnapshot={liveFeed.fromSnapshot}
               />
             </Region>
           </div>

@@ -85,3 +85,41 @@ has to be given in this task, in writing, either way.**
 3. Whatever the verdict implies is done, including the upward sweep if the
    figures falsify a published claim
 4. `pnpm verify` passes
+
+---
+
+## Handed here by Task 3.6.2 — 2026-09-21: §28 is already breached on this page, and it is not the cold load
+
+**Measured on the running table, against a live fixture feed, with a
+`PerformanceObserver` on `longtask` and `buffered: false`** — so this is not
+Epic 14's known 50–76 ms cold-load task arriving inside a measurement about
+something else. It is the **steady state**, repeating every tick.
+
+| Arm                              | Long tasks recorded (ms)   |
+| -------------------------------- | -------------------------- |
+| Arrival mark rendered            | **249, 265, 98, 117**      |
+| Mark element not rendered at all | **216, 83, 102, 196, 195** |
+
+**Attributed from both ends on the same machine, the same feed, minutes
+apart** — which is this repository's standard and the only thing that could
+have told these two apart. **The mark is not the cost.** The cost is
+re-rendering 518 rows on every tick, which arrived with Task 3.6.1 and which no
+measurement had yet covered: 3.6.1 was verified for correctness, not for what
+it costs once a minute forever.
+
+### What this task now owes that it did not before
+
+- **Re-take both arms on a production build.** These are **dev-build** figures
+  — unminified, with a profiler attached — and this canvas already carries the
+  same caveat against the virtualisation numbers. They are a **pessimistic
+  bound**, not a verdict.
+- **But do not treat the question as open.** Something on this page exceeds
+  50 ms on a repeating schedule, and the disposition is this task's whichever
+  way the production figure falls.
+- **Evaluate Epic 14's trigger against this rather than only against the
+  markup.** The trigger is _the first time a second surface on that page
+  renders per-row markup at universe scale_. Task 3.6.2 added a mark element
+  per live row — which is per-row markup at universe scale — **and measured
+  that it is not what costs.** That is the awkward case the trigger did not
+  anticipate: the condition arguably fired, and the thing it was written to
+  catch is not the thing that is slow. **Say which, in writing.**

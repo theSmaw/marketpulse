@@ -38,6 +38,7 @@ import {
 } from "./coverage.js";
 import { changeFromClose, changePercent, commonSession } from "./last-close.js";
 import {
+  arrivalKey,
   directionOf,
   formatChangePercent,
   formatPrice,
@@ -412,6 +413,7 @@ function SecurityTableRow({
   coverage,
   lastClose,
   live,
+  arrival,
   reserveSession,
   session,
 }: {
@@ -430,6 +432,12 @@ function SecurityTableRow({
    * underneath: a quiet minute produces **no frame at all**, not a zero.
    */
   readonly live: Bar | undefined;
+  /**
+   * What this row's arrival mark is keyed on, or `undefined` for no mark
+   * (Task 3.6.2). See `market/arrival.ts` — it is a pure function because a
+   * table row is keyed by its symbol and needs no state to survive.
+   */
+  readonly arrival: string | undefined;
   /** See {@link UniverseRows}: only while a stored row is drawing one. */
   readonly reserveSession: boolean;
   /**
@@ -505,6 +513,7 @@ function SecurityTableRow({
       <LastCloseCell
         lastClose={lastClose}
         live={live}
+        arrival={arrival}
         reserveSession={reserveSession}
         session={session}
       />
@@ -550,12 +559,15 @@ function SecurityTableRow({
 function LastCloseCell({
   lastClose,
   live,
+  arrival,
   reserveSession,
   session,
 }: {
   readonly lastClose: SecurityLastClose | undefined;
   /** See {@link SecurityTableRow}: absent is the ordinary case. */
   readonly live: Bar | undefined;
+  /** See {@link SecurityTableRow}. */
+  readonly arrival: string | undefined;
   /** See {@link UniverseRows}: only while a stored row is drawing one. */
   readonly reserveSession: boolean;
   readonly session: MarketDate | null;
@@ -577,7 +589,34 @@ function LastCloseCell({
      */
     return (
       <td className={cx(styles.cell, styles.numeric)}>
-        <span className={styles.price}>{formatPrice(live.close)}</span>
+        <span className={styles.price}>
+          {arrival === undefined ? undefined : (
+            /*
+             * **The arrival mark, and `key` is the mechanism rather than a
+             * detail** (Task 3.4.5's argument, at 518 times the size).
+             *
+             * A CSS animation runs once when an element mounts. Keying the
+             * element on the observation's identity replaces it — and so
+             * replays the decay — when, and only when, a different observation
+             * arrives. Without the key a row would mark once, on its first
+             * bar, and never again.
+             *
+             * **It is a child of the price rather than of the cell**, which is
+             * geometry rather than tidiness: this column is right-aligned, so
+             * the price's left edge moves with the width of the number.
+             * Anchored to the cell, the mark would drift away from short
+             * figures and collide with long ones.
+             *
+             * `aria-hidden`, and that is the same call the identity block
+             * makes: the information is the figure, which is already on screen
+             * and already spoken. The mark only says *look*, and a listener
+             * who cannot see it has lost nothing — which is also what makes
+             * the reduced-motion answer honest rather than a degradation.
+             */
+            <span key={arrival} className={styles.arrival} aria-hidden="true" />
+          )}
+          {formatPrice(live.close)}
+        </span>
         <span className={styles.visuallyHidden}>Live price</span>
         {/*
          * **The line this cell does not draw, reserved so arriving costs no
@@ -812,12 +851,14 @@ function UniverseRows({
   coverage,
   lastCloses,
   observations,
+  fromSnapshot,
   initiallyCollapsed,
 }: {
   readonly securities: readonly Security[];
   readonly coverage: ReadonlyMap<string, SecurityCoverage>;
   readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
   readonly observations: ReadonlyMap<string, Bar>;
+  readonly fromSnapshot: ReadonlySet<string>;
   readonly initiallyCollapsed: readonly string[];
 }) {
   const groups = groupUniverse(securities);
@@ -1188,6 +1229,10 @@ function UniverseRows({
                       coverage={coverage.get(security.symbol)}
                       lastClose={lastCloses.get(security.symbol)}
                       live={observations.get(security.symbol)}
+                      arrival={arrivalKey(
+                        observations.get(security.symbol),
+                        fromSnapshot.has(security.symbol),
+                      )}
                       reserveSession={reserveSession}
                       session={session}
                     />
@@ -1917,6 +1962,7 @@ export function UniverseTable({
   view,
   onRetry,
   observations = NO_OBSERVATIONS,
+  fromSnapshot = NO_SNAPSHOT,
   initiallyCollapsed = NOTHING_COLLAPSED,
 }: UniverseTableProps) {
   return (
@@ -1926,6 +1972,7 @@ export function UniverseTable({
         view={view}
         onRetry={onRetry}
         observations={observations}
+        fromSnapshot={fromSnapshot}
         initiallyCollapsed={initiallyCollapsed}
       />
     </>
@@ -1944,6 +1991,18 @@ export function UniverseTable({
  * the populated one rather than by a branch, so it cannot drift.
  */
 const NO_OBSERVATIONS: ReadonlyMap<string, Bar> = new Map();
+
+/**
+ * Nothing came from a snapshot — the default, and, like {@link NO_OBSERVATIONS},
+ * **a legitimate runtime value rather than a placeholder.**
+ *
+ * Note which way round the safety falls: an empty set means *nothing is
+ * suppressed*, so a table given observations and no snapshot flags **marks
+ * everything**. That is the right default for a component whose other
+ * consumers are stories, and it is the wrong one for the route — which is why
+ * the route passes the real set rather than relying on this.
+ */
+const NO_SNAPSHOT: ReadonlySet<string> = new Set();
 
 /**
  * The default: every band open.
@@ -2009,12 +2068,24 @@ export interface UniverseTableProps {
    * re-renders in 20 s where the same hook in `App` gives **40**.
    */
   readonly observations?: ReadonlyMap<string, Bar>;
+
+  /**
+   * The symbols whose observation came from a **snapshot** rather than from a
+   * `bars` message — so the arrival mark does not fire for them (Task 3.6.2).
+   *
+   * **This is what stops 518 marks on first paint**, which is the failure Task
+   * 3.5.4 removed from the security page arriving at 518 times the size. A
+   * snapshot is *what we already held when you connected*; marking it would
+   * announce as news the thing the reader has just asked to see.
+   */
+  readonly fromSnapshot?: ReadonlySet<string>;
 }
 
 function StateBody({
   view,
   onRetry,
   observations = NO_OBSERVATIONS,
+  fromSnapshot = NO_SNAPSHOT,
   initiallyCollapsed = NOTHING_COLLAPSED,
 }: UniverseTableProps) {
   switch (view.state) {
@@ -2028,6 +2099,7 @@ function StateBody({
           coverage={view.coverage}
           lastCloses={view.lastCloses}
           observations={observations}
+          fromSnapshot={fromSnapshot}
           initiallyCollapsed={initiallyCollapsed}
         />
       );
