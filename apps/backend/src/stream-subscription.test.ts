@@ -67,17 +67,12 @@ describe("the symbols this backend subscribes to", () => {
     // The predicate moved here from `current-market-state.ts` in Task 3.5.3
     // rather than being copied. §12.2: one invisible predicate is a design and
     // two is a bug waiting for whoever forgets.
+    const template = UNIVERSE[0];
+    if (template === undefined) throw new Error("the universe is empty");
+
     const universe: readonly Security[] = [
-      {
-        ...(UNIVERSE[0] as Security),
-        symbol: toTicker("AAA"),
-        status: "active",
-      },
-      {
-        ...(UNIVERSE[0] as Security),
-        symbol: toTicker("BBB"),
-        status: "delisted",
-      },
+      { ...template, symbol: toTicker("AAA"), status: "active" },
+      { ...template, symbol: toTicker("BBB"), status: "untracked" },
     ];
 
     expect(trackedTickers(universe)).toEqual([toTicker("AAA")]);
