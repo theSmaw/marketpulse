@@ -157,7 +157,17 @@ in one line here and argued in full where the table below points:
   words against a 1,500 ms pacing floor, and whether a region changing every
   477 ms queues or replaces is readable from neither the DOM nor a timing nor by
   an agent. The repair is designed and unshipped. Owner: a person with a screen
-  reader, before Epic 11 hands this surface to an agent.
+  reader, before Epic 11 hands this surface to an agent. **Two entries added
+  2026-09-21 by Task 3.4.7, both on the security page's identity block**, and
+  both the same kind of unanswerable: its spoken string is **10 words** across
+  **three `<p>` elements**, so `textContent` runs them together while a screen
+  reader pauses between blocks — _which of those a listener gets cannot be read
+  from a DOM_; and the qualifier can now carry **three clauses**
+  (`07:42 EDT · pre-market · change from …`), so **how the `·` is spoken**, or
+  whether it is spoken at all, changes the sentence and differs by reader. The
+  block deliberately has **no live region** — that decision, its four reasons
+  and its reversal trigger are in `FRONTEND-STATE.md` §7 — so nothing here is
+  announced; what is open is whether it is pleasant to **go and read**.
 - ~~**The security page spends 50–66 ms of main thread on a cold load**~~ —
   **owned since 2026-09-15 rather than open.** The breach is real and unchanged:
   every cold load of `/securities` and `/securities/:symbol` spends one task of

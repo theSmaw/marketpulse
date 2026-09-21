@@ -641,4 +641,24 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "one-home-for-the-feed-words",
   },
+
+  // **Task 3.4.7's, and it is `docs/GAPS.md` entry 11 becoming mechanical.**
+  // The defect shipped for a few hours on 2026-09-21 and nothing below a
+  // browser could see it: no stylesheet is applied in the component tests, so
+  // a computed opacity is not a question that level can ask.
+  {
+    name: "the-mark-does-not-outlive-its-motion",
+    proves:
+      "An animation of ZERO duration applies no keyframe styles at all, so an " +
+      "element whose visible state lives only in its keyframes falls back to " +
+      "the CSS initial value. Without a base `opacity`, reduced motion turns " +
+      "the arrival mark into a PERMANENT dot — the opposite of the vocabulary " +
+      "it belongs to, because a mark that persists reads as a state.",
+    file: "apps/frontend/src/components/SecurityIdentity/SecurityIdentity.module.css",
+    find: "  opacity: 0;\n\n  /*\n   * **Decays rather than loops**",
+    replace:
+      "  /* pnpm break: reverted automatically — the tree as 3.4.5 shipped it */\n\n  /*\n   * **Decays rather than loops**",
+    command: ["pnpm", "e2e", "security-price-motion.spec.ts", "--anyway"],
+    expect: "the mark is INVISIBLE under reduced motion",
+  },
 ];

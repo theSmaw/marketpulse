@@ -1,6 +1,7 @@
 # Task 3.4.10 — The live rehearsal, the sweep, and the close
 
 **Status:** Not started
+**Amended:** 2026-09-21 after Task 3.4.7 — the ADR question is now **two decisions**, and the second one reaches past this epic.
 **Amended:** 2026-09-21 after Task 3.4.6 — the rehearsal is **two sittings or one that straddles the bell**, because the extended-hours mark cannot be seen with the market open and no fixture or replay can stand in for it.
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
 **Depends on:** 3.4.9
@@ -82,13 +83,30 @@ nobody finds out — so note the answer either way, in the vendor's own document
   established and both of which have caught something every time:
   - **Hand-offs**: grep `LIVE-DATA.md` and this story's own file for every
     `Story 3.N`, and confirm each constraint is in the owning story's **own**
-    file in words it can act on. **Counting citations measures citation, not
+    file in words it can act on. **`CLAUDE.md`'s listening backlog grew by two
+    entries on 2026-09-21** and its owner is _a person with a screen reader_
+    rather than a story — check it reads as one item with four entries rather
+    than as four items, because a backlog nobody can hold in their head is a
+    backlog nobody picks up. **Counting citations measures citation, not
     delivery** — Story 3.3's close found Story 3.10 cited twenty times with
     nothing in its own file.
   - **Construction sites**: every export this story adds, grepped for a caller
     outside a test. Story 3.3's close deleted one this way.
 - **An ADR if a decision outlives the story.** A motion vocabulary that five
-  stories inherit is a strong candidate; argue the absence if not.
+  stories inherit is a strong candidate; argue the absence if not. **The case
+  got stronger on 2026-09-21 and it is now TWO decisions rather than one**, and
+  they are different in kind, which is the thing to weigh:
+  - **the motion vocabulary** — _work in progress loops, a state persists, a
+    fact arriving decays_ — which Stories 3.6, 3.7 and 3.9 inherit, and which
+    already governs a glyph the chrome also uses;
+  - **a self-changing value announces nothing**, in `FRONTEND-STATE.md` §7 with
+    four reasons and a trigger. That one reaches past this epic entirely: Epic 5
+    has anomaly scores that change on their own and Epic 10 an agent event
+    stream, and **both will meet the trigger rather than the decision**.
+
+  One ADR, two, or none with a paragraph — but decide it against both, not
+  against the motion half alone.
+
 - **Walk the acceptance criteria against a running system**, and `pnpm probe` at
   four viewports **with the market open**, which criterion 8 requires and which
   only this task can satisfy. **Probe the extended-hours case too, out of
