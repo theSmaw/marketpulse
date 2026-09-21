@@ -178,9 +178,11 @@ latest observation never walks backwards. Those disagree, invisibly today and
 - **One subscription, and one version of the truth.** `market-gateway.ts` no
   longer subscribes; `observe()` returns what it applied and that is the only
   thing published, so no path from the socket to a browser bypasses the state
-- `STREAM_SYMBOLS` is still **five hard-coded symbols**, not 518 (3.5.3)
-- `broadcast()` still goes to **every** client with no per-client filter
-  (3.5.6) — and 3.5.3 knowingly widens that to 518 before 3.5.6 narrows it
+- **The upstream set is the tracked universe** — 518 securities, `active`
+  only, through one definition in `universe.ts` that the current market state
+  reads too
+- `broadcast()` still goes to **every** client with no per-client filter, and
+  that is now **70.2 KiB a minute per attached browser** (3.5.6 closes it)
 - `snapshot: () => new Map()` is still a literal (3.5.4)
 - **Nothing at any level asserts that a published observation reaches an
   attached browser** — found in 3.5.2's sweep, and Task 3.5.4 owns closing it
