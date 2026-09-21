@@ -35,9 +35,15 @@ check.
   as such.
 - **`What was wrong` is the column that earns this file.** A rehearsal with
   nothing in that column for six stories running is a rehearsal nobody did.
-- **Story 3.11 cannot close with a missing row**, and that is checkable rather
-  than promised: `pnpm invariants` asserts every story marked complete in
-  `EPIC.md` has a row here.
+- **Story 3.11 cannot close with a missing row**, and since **2026-09-21** that
+  is checkable rather than promised:
+  `pnpm invariants` — `the-epic-close-cannot-outrun-the-rehearsal-ledger` —
+  fails if Story 3.11's `STORY.md` says complete while any row here is still
+  empty. **It was promised and not checked for three days**, and the sentence
+  that promised it named `EPIC.md`'s completion marking, which does not exist:
+  that table marks _visibility_. Found by Story 3.5's close grepping for the
+  mechanism rather than reading the sentence, which is the only way this class
+  is found. Break: `pnpm break the-close-outruns-the-rehearsal`.
 - **A replay-only observation is not a rehearsal** and must not be recorded as
   one. If the surface was watched against the replay, say so in a note beneath
   the table rather than in a row.
@@ -48,15 +54,31 @@ check.
 | ----- | ---- | ---------------------- | ------- | ------------- | -------------- |
 | 3.3   | —    | —                      | —       | —             | —              |
 | 3.4   | —    | —                      | —       | —             | —              |
+| 3.5   | —    | —                      | —       | —             | —              |
 | 3.6   | —    | —                      | —       | —             | —              |
 | 3.7   | —    | —                      | —       | —             | —              |
 | 3.9   | —    | —                      | —       | —             | —              |
 | 3.10  | —    | —                      | —       | —             | —              |
 
-**Six rows, and the list is the six stories that change something a stranger can
-see.** 3.1, 3.2, 3.5, 3.8 and 3.11 are not here: the first two produce no
-surface, 3.5 and 3.8 are backend-only by their own scope, and 3.11 is the close
-that checks this file rather than a story that fills it.
+**Seven rows, and the list is the stories that change something a stranger can
+see.** 3.1, 3.2, 3.8 and 3.11 are not here: the first two produce no surface,
+3.8 is backend-only by its own scope, and 3.11 is the close that checks this
+file rather than a story that fills it.
+
+**3.5 was on that exempt list until 2026-09-21 and should not have been.** Its
+own scope says _nothing new visible_ and its `EPIC.md` row says `No`, both of
+which are true about **capability** — and two of its nine tasks nonetheless
+changed what a reader sees, because both were **repairs** rather than features.
+Task 3.5.4 deleted the three-line flash on every page load of a security, and
+Task 3.5.5 stopped every backend deploy stranding every open tab on
+`DISCONNECTED`. A story exempted on the strength of its scope line is exempted
+on the strength of what it _meant_ to change, and a repair is exactly the thing
+that changes a surface without appearing in a scope.
+
+**The row is empty and the rehearsal is owed rather than waived.** The market is
+shut — it next opens **Monday 2026-09-22 09:30 ET** — and three of 3.5.4's and
+3.5.5's five rehearsal items can be taken against the **deployed** site rather
+than a local session, which is where Task 3.4.10's blocked list already sits.
 
 ## What a full ledger does not certify
 

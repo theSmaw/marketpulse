@@ -944,4 +944,19 @@ export const BREAKS = [
     ],
     expect: "also reports a feed",
   },
+  {
+    name: "the-close-outruns-the-rehearsal",
+    proves:
+      "`LIVE-REHEARSAL.md` says Story 3.11 cannot close with a missing row, " +
+      "and for three days nothing asserted it — the sentence named a " +
+      "completion marking in `EPIC.md` that does not exist. A claim about a " +
+      "mechanism reads identically whether the mechanism is there or not.",
+    file:
+      "planning/epic-03-live-market-data/" +
+      "story-11-cost-performance-and-the-epic-close/STORY.md",
+    find: "**Status:** Not started",
+    replace: "**Status:** Complete <!-- pnpm break: reverted automatically -->",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "rehearsal rows",
+  },
 ];

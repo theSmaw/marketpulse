@@ -240,3 +240,40 @@ observation per symbol and nothing else**, on the arithmetic that 518 × 390 bar
 is **55.6 MB** against 518 × 1 at **0.2 MB** — _to hold a thing the store is
 about to hold durably_. That store is yours; the browser's Map is not where a
 history goes.
+
+## Handed here by Story 3.5's close — 2026-09-21: a correction the live path throws away
+
+**Task 3.5.1 decided that the current market state ignores a revision for a
+minute already passed**, and the reasoning is sound: applying it would make the
+latest observation _older than the one it replaced_, and every reader would
+watch the price jump backwards for no reason a user could understand.
+
+**The consequence is yours, and nothing else can pick it up.**
+
+> A revision for a **superseded** minute is discarded by the live path
+> entirely. §14.1 measured revisions at **0.064%** of bars, **35.3% of them
+> changing the close** — so these are materially wrong numbers rather than
+> noise. The only place they can be applied is the **store**.
+>
+> **If Story 3.9 does not apply them, this product's stored history is
+> permanently and knowably wrong for a small fraction of bars — and nothing
+> will ever report it**, because the frame that would have corrected it was
+> dropped a story earlier.
+
+**A revision for the minute currently held IS applied** and reaches a browser,
+so the case you inherit is specifically the late one: §14.1 measured revisions
+arriving **29.1–30.1 s** after their bar, which is usually inside the same
+minute but not always.
+
+### And the `status` asymmetry is deliberate — do not "fix" it
+
+`currentMarketState` filters on `status` to `active` only, through
+`trackedSymbols()` in `universe.ts`. **Your read path deliberately does not.**
+
+`UNIVERSE.md` §12.2's rule: filter when computing over _the market we track
+now_, never when showing or replaying something we **stored**. A security we
+stopped tracking today was tracked when its bars were written.
+
+**A reader who makes the two agree breaks one of them**, and which one depends
+on which way they made them agree. The reason is written beside the filter in
+`current-market-state.ts` for exactly this.

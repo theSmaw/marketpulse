@@ -1,6 +1,6 @@
 # Task 3.5.9 — The sweep, the hand-offs and the close
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-21.**
 **Story:** [3.5 Subscription Management & the Current Market State](STORY.md)
 **Depends on:** 3.5.8
 
@@ -200,3 +200,283 @@ as a pointer — which is what this task's own enumeration exists to force.
 **Still to check at the close:** every `Story N.M` and `Owner:` line in this
 story's documents against that story's own file, with the missing count
 recorded.
+
+---
+
+## What was done — 2026-09-21
+
+### 1. The hand-off enumeration, run mechanically, and the count
+
+Every `Story N.M` and `Owner:` line in this story's nine task files and its
+`STORY.md` was grepped, the recipients tallied, and **each one checked against
+that story's own file** rather than against the tally.
+
+| Recipient  | Times named in 3.5's documents | Carried the constraint beforehand?                                  |
+| ---------- | ------------------------------ | ------------------------------------------------------------------- |
+| Story 3.6  | 8                              | **Yes** — written by Task 3.5.6                                     |
+| Story 3.7  | 3                              | **No** — 0 mentions                                                 |
+| Story 3.9  | 10                             | **Partial** — 2 pre-existing lines, neither the revision constraint |
+| Story 3.10 | 8                              | **Partial** — 1 line                                                |
+| Story 3.11 | 3                              | **No** — 0 mentions                                                 |
+| Epic 4     | named in `STORY.md`'s opening  | **No** — 0 mentions                                                 |
+| Epic 5     | named in `STORY.md`'s opening  | **No** — 0 mentions                                                 |
+| Epic 7     | named in `STORY.md`'s opening  | **No** — 0 mentions                                                 |
+
+**Seven of eight recipients were missing their constraint** — four of the five
+siblings inside this epic, and **all three** of the epics outside it.
+
+**The three outside were the ones this task warned about in advance**, and they
+were missing by the widest margin: zero mentions each, in the three epics that
+are _the reason the current market state exists at all_. `STORY.md`'s second
+paragraph says so in as many words — _Epic 4's overview, Epic 5's anomaly
+scores and Epic 7's analytical tools all want the latest observation per
+security, and none of them wants to subscribe to a socket to get it_ — and none
+of those three files knew. **A recipient outside the epic's own table is not
+merely likelier to be missed; in this sweep it was missed every time.**
+
+What was written, in each recipient's own file and in words it can act on:
+
+- **3.7** — _the live edge has no series to draw_: the state is latest-only, so
+  today's session must be assembled from the store plus the socket. 3.7 is also
+  the surface that fires Task 3.5.5's reversal trigger for gap-filling.
+- **3.9** — _a correction the live path throws away_: a revision for a
+  superseded minute is discarded entirely (0.064% of bars, **35.3% changing the
+  close**); the store is the only place it can be applied. Plus the `status`
+  filter asymmetry, which must not be "fixed".
+- **3.10** — the gap a reconnect leaves and why it is deliberately unfilled; the
+  close code is now load-bearing and `1001` is forbidden for backpressure; and
+  a dropped-for-backpressure client **cycling at the 30 s ceiling** is a chosen
+  degraded state rather than an inherited one.
+- **3.11** — §28's p95 is still unmeasurable and needs a **protocol** change;
+  the logging lever was measured and deliberately not pulled, with the figures,
+  so 3.11 must not re-open it blind; `market-stream.ts` still never references
+  `onLog`.
+- **Epics 4, 5 and 7** — the five properties of the object that shape what is
+  built on it (latest-only, `status`-filtered, absence is normal at 65.1%
+  median coverage, empty after a restart is a _legitimate_ value, and it never
+  walks backwards), plus the IEX-versus-consolidated provenance split, and one
+  paragraph each on what bites that epic specifically: the **denominator** for
+  breadth (4), **how much of the window was observed** inside every score (5),
+  and `UNKNOWN` as a correct tool outcome (7).
+
+### 2. The eight criteria, with evidence
+
+| #   | Criterion                                                                                | Verdict | Evidence                                                                                                                                                                                                                                                                                                                                                         |
+| --- | ---------------------------------------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Universe subscribed, **accepted list counted**                                           | **Met** | `alpaca-stream.ts` reconciles the ack per channel; `alpaca-stream.test.ts` — _reports a shortfall when the server holds fewer than we asked for_ and _refuses to send an EMPTY subscription rather than asking the vendor_. Break: `pnpm break the-upstream-set-stops-being-the-universe`                                                                        |
+| 2   | Current state readable by symbol, with instant, source and age                           | **Met** | `current-market-state.test.ts` — _reads a price and its instant in the same call_, _says how old an observation is, computed on read rather than stored_, _answers `nothing observed` for a symbol it has not seen_                                                                                                                                              |
+| 3   | A browser receives only what it asked for, **at a size where the difference is visible** | **Met** | `market-gateway.process.test.ts` — _sends one client its symbol while another gets the universe, at once_, over a **real socket** at **200 symbols**. Deliberately not three: a three-symbol test passes against a `broadcast()` that ignores the filter entirely                                                                                                |
+| 4   | A slow browser grows no queue and is dropped                                             | **Met** | `market-gateway.process.test.ts` — _drops a client that stops reading_, _leaves a HEALTHY client on the same process untouched_, _closes with a code that is NOT `going away`_, _has a threshold clear of what the kernel absorbs on its own_. The threshold is 1 MiB against a measured **33.6 MB after 600 batches**, with the kernel absorbing ~557 KiB first |
+| 5   | `SIGTERM` closes the socket and the process exits inside the ceiling                     | **Met** | `index.process.test.ts` asserts the exit for both signals; `registerMarketStreamCloser` is what makes the socket part of it. Asserted by the suite rather than by a log line, as the criterion requires                                                                                                                                                          |
+| 6   | `status` is filtered here                                                                | **Met** | `current-market-state.test.ts` — _holds nothing for a symbol outside the tracked universe_, _defaults to the tracked universe rather than to everything_; one definition in `universe.ts` read by both ends. Break: `pnpm break the-current-state-holds-an-untracked-security`. The asymmetry with Story 3.9's read path is now **written into 3.9's own file**  |
+| 7   | Rates and memory measured at universe scale, **difference explained rather than noted**  | **Met** | Task 3.5.8. Every figure either re-read off the wire or confirmed with a date, and the differences argued — including the snapshot figure, which was wrong **twice by computation** before being right once by reading a message. The one thing it could **not** measure (§28's p95) is stated as unmeasurable with the reason, not noted                        |
+| 8   | `pnpm verify` passes                                                                     | **Met** | Green on this branch, 17 invariants                                                                                                                                                                                                                                                                                                                              |
+
+**Eight verdicts, none of them _probably_**, and none of them _not met_ — which
+is itself worth flagging rather than celebrating: this story's two hardest
+criteria (3 and 7) were the two most likely to be claimed, and both were
+answered by a task that went and produced a number.
+
+### 3. The sweep, and the claim it falsified
+
+`LIVE-DATA.md` and `STREAM-SEAM.md` were swept for claims this story falsified.
+Nothing in either needed correcting: this story **spent** their measurements
+rather than contradicting them, and where a figure moved (the snapshot size) it
+moved inside this story's own documents, which Task 3.5.8 already settled.
+
+**What the sweep did falsify was in a third file, and it was a claim about a
+mechanism.** `LIVE-REHEARSAL.md`'s rules said:
+
+> **Story 3.11 cannot close with a missing row**, and that is checkable rather
+> than promised: `pnpm invariants` asserts every story marked complete in
+> `EPIC.md` has a row here.
+
+**Nothing asserted anything.** `grep -i rehearsal scripts/` returns nothing, and
+the sentence names a **completion marking in `EPIC.md` that does not exist** —
+that table's fourth column marks _visibility_.
+
+This is the sharpest shape on the list, because **a claim about a mechanism
+reads exactly the same whether the mechanism is there or not**, and this one was
+more convincing than prose would have been: it named the command. It was found
+by grepping for the subject rather than by reading the sentence, which is the
+only way this class is ever found.
+
+**Made true rather than corrected**, per `CLAUDE.md`'s rule that an entry which
+can be made mechanical should be. `pnpm invariants` gained
+`the-epic-close-cannot-outrun-the-rehearsal-ledger`, and it owes and has a
+break: `pnpm break the-close-outruns-the-rehearsal`, verified red and restored
+byte-identical.
+
+**The check is narrowed to what the file can actually support**, and the
+narrowing is the honest part. A per-story check would go red **today** on Story
+3.3, which closed on 2026-09-19 with an empty row for a reason the epic
+accepted — the deployed backend holds the free plan's one Alpaca connection, so
+no developer machine can watch a live session at all. **A check that goes red on
+a constraint nobody can clear is a check that gets deleted.** So it keys on the
+**epic close**, which is where the file itself puts the deadline.
+
+### 4. `LIVE-REHEARSAL.md` owes this story a row after all
+
+The task asked this to be confirmed rather than assumed, and the assumption was
+wrong. **3.5 was on the exempt list and should not have been.**
+
+Its scope says _nothing new visible_ and its `EPIC.md` row says `No`. Both are
+true about **capability** — and two of its nine tasks changed what a reader
+sees, because both were **repairs** rather than features: 3.5.4 deleted the
+three-line flash on every security page load, and 3.5.5 stopped every deploy
+stranding every open tab.
+
+**A story exempted on the strength of its scope line is exempted on the
+strength of what it meant to change**, and a repair is precisely the thing that
+changes a surface without appearing in a scope. The ledger is now seven rows.
+
+**The row is empty and the rehearsal is owed rather than waived.** The market
+next opens **Monday 2026-09-22 09:30 ET**, and three of the five items can be
+taken against the **deployed** site — which is where Task 3.4.10's blocked list
+already sits, so the two rehearsals are one sitting.
+
+### 5. `docs/GAPS.md` gained three entries
+
+All three were drafted in this file by the tasks that produced them, so the
+decision here was **whether to keep them** rather than what to write. All three
+kept, verbatim in substance:
+
+1. **An empty default that is also a true answer hides a design event until the
+   day it stops being empty** — `snapshot: () => new Map()` was _correct_ and
+   was simultaneously the cause of the largest undesigned visual change in the
+   product, for four days. Nothing was wrong with the code, so nothing could
+   have flagged it.
+2. **The identity block being correct on first paint is guarded by nothing** —
+   verified by a person watching a page load, which is still the only thing that
+   can see it. CI's store has zero bars.
+3. **A developer's own store can make a browser spec fail as a product defect,
+   with a screenshot** — mis-diagnosed three times in one session, twice
+   confidently.
+
+### 6. What this story did NOT do, stated plainly
+
+- **The rehearsal.** Blocked on a session, dated above.
+- **§28's 250 ms p95.** Still unmeasurable; `docs/GAPS.md` entry 12 stands and
+  3.11 now knows why.
+- **The replay's one-query-per-symbol read.** Left alone with the figures
+  (2.193 ms × 518 sequential against 335.5 ms for one query), because ADR 0030
+  makes the replay a development instrument that never runs in production.
+- **The logging lever.** Measured and deliberately not pulled.
+
+---
+
+## For the stakeholders — what this task actually did, in plain words
+
+**Short version: this was the tidying-up job at the end of a big piece of
+plumbing work, and it found one thing that genuinely mattered.**
+
+### What the last few weeks built, and what you can see of it
+
+Story 3.5 rebuilt the part of MarketPulse that receives live prices. Before it,
+the system watched five companies and pushed everything it heard at every open
+browser tab. Now it watches **all 518 companies we track**, keeps a running
+picture of _the latest price for each one_, and sends each open tab only the
+handful it is actually showing.
+
+**Almost none of that is visible**, and we said so up front. It is the engine
+room for the next story, which puts live prices for the whole market on screen.
+
+**Two things are visible, and both are repairs rather than features:**
+
+1. **Open a company's page and the price is simply right.** It used to flicker
+   through three different states in the first second — "no live price", then
+   yesterday's number, then today's — with a little "something arrived" marker
+   firing on a company that had done nothing at all. Gone.
+2. **Deploying an update no longer breaks every open tab.** Anyone with the site
+   open used to be left staring at `DISCONNECTED` until they reloaded, every
+   time we shipped. Now the browser quietly reconnects — fast when it can tell
+   we were deploying, more cautiously when it cannot tell why the connection
+   went.
+
+### What this particular task was for
+
+Two jobs, both unglamorous and both about the work not leaking away.
+
+**The first: prove it, rather than remember it.** This story made eight
+promises. This task walked all eight and wrote down, beside each, the specific
+test or measurement that proves it — **eight verdicts, none of them "probably"**.
+Two were flagged in advance as the ones most likely to be _claimed_ rather than
+_done_, and both held up: the filtering is proven against 200 companies over a
+real connection, not three companies in a simulation, because a three-company
+test passes even if the filtering is broken.
+
+**The second: push what we learned sideways, into the teams that will need it.**
+
+This is the part that keeps costing us, so it is worth explaining. When one
+piece of work measures something that constrains a _different_ piece of work,
+that finding lives in the first team's notes — and the second team never reads
+them, because they do not know to look. We have lost findings this way twice
+already in this epic.
+
+So this task went looking mechanically rather than from memory: it listed every
+other part of the product our notes referred to, then checked each of those
+parts' _own_ files to see whether the constraint had actually arrived.
+
+**Seven of the eight had not.** And the three that were missing by the widest
+margin — nothing at all — were the three furthest away: the Market Overview, the
+Anomaly Detection and the Investigation Engine. **Those three are the reason
+this whole piece of plumbing exists.** Our own story document says so in its
+second paragraph. They just did not know.
+
+All seven have now been written into, in their own files, in words they can act
+on — not a link back, because a link is something you follow once you already
+know to look, and not knowing is the entire problem.
+
+### The one real find
+
+`LIVE-REHEARSAL.md` is a small file whose whole purpose is to stop us shipping a
+live-data feature that nobody ever watched working live. It said, confidently,
+that this was **automatically enforced** — that our checks would refuse to let
+the epic finish with a missing entry.
+
+**They did not. Nothing was checking anything.** The sentence named a mechanism
+that had never been built, and it named a specific command, which made it _more_
+convincing than a vague promise would have been.
+
+This is a nasty category, and worth stakeholders understanding: **a written
+claim that something is automatically checked reads exactly the same whether it
+is true or not.** You cannot spot it by reading carefully. It was found only by
+going and looking for the machinery and finding an empty room.
+
+**We built the check rather than softening the sentence**, and we then
+deliberately broke it to confirm it goes red — because a check that has never
+failed has never been tested.
+
+We also narrowed it honestly. The obvious version would fail _today_, on an
+earlier story that closed with a blank entry for a reason we accepted: our free
+market-data plan allows exactly one connection at a time, our live site holds
+it, and so no developer machine can watch a live session at all right now. **A
+check that fails on something nobody can fix is a check somebody deletes.** So
+it fires at the end of the epic, where the problem has to be solved or
+consciously waived.
+
+### What we are still honest about not having
+
+- **Nobody has yet watched this work during real trading hours.** The market
+  next opens Monday morning. This task found that Story 3.5 had been _wrongly
+  excused_ from that obligation — excused because its plan said "nothing
+  visible", when two of its nine pieces of work changed the screen anyway. Both
+  were repairs, and **a repair is exactly the thing that changes what people see
+  without ever appearing in a plan.** The obligation has been put back.
+- **We still cannot measure one of our published speed targets** (price arrives
+  → on screen within a quarter of a second). Our own messages do not carry a
+  server timestamp, so there is nothing to measure _from_. That is a deliberate
+  change to the message format, not a measurement, and it has been handed to the
+  epic that owns cost and performance — with the reasoning, so nobody spends a
+  day rediscovering the dead end.
+- **We chose not to pull one tuning lever** that would have made our logs
+  narrower, because we measured it and the assumption behind it turned out to be
+  backwards. Recorded with the numbers, so it is not re-litigated blind.
+
+### Why this matters commercially
+
+None of this adds a feature. What it does is stop the next three months of work
+being built on things we believe rather than things we know — and it closes a
+gap where **seven of eight** downstream teams were about to start work without a
+constraint that had already been measured for them. That is the difference
+between paying for a measurement once and paying for it three times.

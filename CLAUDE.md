@@ -118,6 +118,18 @@ session, derived from the bar's own instant because §7.7 measured that nothing
 on the frame distinguishes one. Under `prefers-reduced-motion` the mark does not
 run and the qualifier's instant is what survives, asserted in a browser.
 
+**And since 2026-09-21 the model underneath it is the whole universe rather
+than whatever a page asked for.** Nothing on screen says so, and two repairs
+inside that work are the only visible difference: **the three-line flash on
+every security page load is gone** — the block paints the live figure in its
+first frame, because the snapshot a browser is answered with is the backend's
+own current market state rather than an empty map — and **a backend deploy no
+longer strands every open tab on `DISCONNECTED`**, because the browser now
+reads the close code and comes back in 500 ms on `1001 going away` against 2 s
+doubling to a 30 s ceiling on anything else. One socket upstream carries 518
+securities; downstream a browser receives only the symbols it subscribed to,
+and one that stops reading is dropped at 1 MiB of buffer rather than queued for.
+
 **What they still cannot do:** watch a price move **on the deployed site**. The
 demonstration is a developer's, out of hours, against ADR 0030's replay of our
 own stored bars — production serves only the real IEX socket and that socket has

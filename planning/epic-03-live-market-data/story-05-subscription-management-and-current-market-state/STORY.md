@@ -1,6 +1,16 @@
 # Story 3.5 — Subscription Management & the Current Market State
 
-**Status:** Not started
+**Status:** **Everything but the rehearsal — 2026-09-21.** Nine tasks, eight
+criteria, eight verdicts and no _probably_. The universe is subscribed and its
+acknowledgement **counted**; one process holds one socket and one version of the
+truth; a browser receives only what it asked for and a slow one is dropped
+rather than queued for; the identity block is correct on first paint and a tab
+survives a deploy. **The story does not close**: `LIVE-REHEARSAL.md` owes it a
+row it was wrongly exempted from — two of its tasks changed a visible surface
+because both were repairs — and the market next opens Monday 2026-09-22 09:30 ET.
+[Task 3.5.9](TASK-09-the-sweep-the-handoffs-and-the-close.md) carries the
+verdicts, the hand-off count (**seven of eight recipients were missing their
+constraint**) and what was deliberately left undone.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.3
 **Epic scope covered:** backend subscription management, current market-state model
@@ -167,9 +177,9 @@ latest observation never walks backwards. Those disagree, invisibly today and
 | 3.5.4 | [**The snapshot that removes the largest visual event on the page**](TASK-04-the-snapshot-that-removes-the-largest-visual-event-on-the-page.md) | 3.5.1, 3.5.3        | **Yes — done** |
 | 3.5.5 | [**The browser reconnects, and a deploy stops stranding every tab**](TASK-05-the-browser-reconnects-and-a-deploy-stops-stranding-every-tab.md)  | 3.5.4               | **Yes — done** |
 | 3.5.6 | [A browser receives only what it asked for](TASK-06-a-browser-receives-only-what-it-asked-for.md)                                               | 3.5.3, 3.5.4        | No — **done**  |
-| 3.5.7 | [A slow browser is dropped rather than tolerated](TASK-07-a-slow-browser-is-dropped-rather-than-tolerated.md)                                   | 3.5.6               | No             |
-| 3.5.8 | [The measurements this story owes, and the logging lever](TASK-08-the-measurements-this-story-owes-and-the-logging-lever.md)                    | 3.5.2, 3.5.6, 3.5.7 | No             |
-| 3.5.9 | [The sweep, the hand-offs and the close](TASK-09-the-sweep-the-handoffs-and-the-close.md)                                                       | 3.5.8               | No             |
+| 3.5.7 | [A slow browser is dropped rather than tolerated](TASK-07-a-slow-browser-is-dropped-rather-than-tolerated.md)                                   | 3.5.6               | No — **done**  |
+| 3.5.8 | [The measurements this story owes, and the logging lever](TASK-08-the-measurements-this-story-owes-and-the-logging-lever.md)                    | 3.5.2, 3.5.6, 3.5.7 | No — **done**  |
+| 3.5.9 | [The sweep, the hand-offs and the close](TASK-09-the-sweep-the-handoffs-and-the-close.md)                                                       | 3.5.8               | No — **done**  |
 
 **Where the tree is, read on 2026-09-21 rather than inferred:**
 
