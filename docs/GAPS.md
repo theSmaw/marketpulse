@@ -389,3 +389,34 @@ Each is _something that exists in one layer and cannot be reached from the next_
 Two of these have caught real defects, so treat the list as live: a stated invariant quietly stopped being true for two stories, and a broken link shipped.
 
 **RE-POINTED A THIRD TIME ON 2026-09-19 BY TASK 3.3.7, AND THE REASON IS NOT THE ONE ANYBODY EXPECTED.** The trigger has been _wait for a trading session_ twice and both owners were finished tasks, which is why it never fired. It is now a **command** — `node scripts/capture-u-frame.mjs`, which refuses out of hours, refuses if a local process holds the connection, and stops at the first `u`. Its handshake path was proven against the real vendor the night it was written. **But the standing blocker is not the market's hours: it is our own deployment.** The free plan allows **one** connection, the deployed backend runs `provider: alpaca`, and §9.3 chose to hold the socket **always** — so it holds it out of hours too. A clean machine with no local process connected was refused `406 connection limit exceeded` at 23:30 ET, verified with `lsof` against the resolved address. **A developer machine cannot take an Alpaca capture at all while the deployment is running, at any hour.** So the disposition is a choice somebody has to make rather than a date: stand the deployment down for the capture, take the capture **from** production by logging the frame there, or stop sharing one connection between two consumers. **Owner: Story 3.10**, which owns reconnection and is the first story that has to reason about the single connection as a contended resource rather than as a given. Re-measure: `node scripts/capture-u-frame.mjs --handshake` — a `406` means the deployment still has it.
+
+## `e2e/specs/` and `e2e/specs-deployed/` are two directories, and a grep over one finds neither the other's copy of a locator nor the fact that there is one
+
+**This has now cost the same file twice, and the second time it reported a repair as a regression.**
+
+`two-halves.spec.ts` already carried a comment about the first occasion: on 2026-09-16 the market feed and the backend service moved out of the masthead into `AppFooter`, `e2e/specs/market-feed.spec.ts` was rescoped from `banner` to `contentinfo` in the same change, and the deployed copy was missed. The deployed check caught it — after the merge, which is where it runs and what it is for.
+
+**The second occasion, 2026-09-21.** Story 3.3 shipped `LIVE` / `STALE` / `DISCONNECTED` into that same cell on 2026-09-19. The deployed spec had a loop asserting `disconnected`, `live` and `stale` were **absent**, calling them _"the invented value"_ — written before those words existed. It did not fail, because:
+
+- the strings in the DOM are **lower case**; the capitals a reader sees are `.microLabel`'s `text-transform`, which `feed-words.ts` states deliberately — so a reviewer comparing the shipped `LIVE` against the asserted `live` sees two different tokens; and
+- **the deployed feed had never reached any of those states.** The backend's socket was crash-looping on a `406` retry, so the cell had no connection word at all.
+
+So the assertion held only while the product was broken, and fired the moment the feed was repaired — `Expected: 0, Received: 1`, on a page that was finally correct. **An assertion that only passes while the product is broken is worse than no assertion.**
+
+**What makes this class invisible:** the two directories share `e2e/support/` but not their specs, and nothing relates a shipped constant to a spec that names its value as a string literal. A grep for `contentinfo`, or for `live`, over the directory a person is editing returns a complete-looking answer.
+
+**Re-measure, and it is two greps rather than one:**
+
+```sh
+# 1. A literal in the deployed suite that is also a shipped word.
+grep -rnoE '"(live|stale|disconnected|healthy|degraded|unreachable)"' e2e/specs-deployed/
+
+# 2. A role or locator that exists in both suites and agrees in neither.
+grep -rhoE 'getByRole\("[a-z]+"\)' e2e/specs e2e/specs-deployed | sort | uniq -c
+```
+
+Then read each hit against `packages/shared/src/feed-status.ts` and `feed-words.ts`.
+
+**This entry is a candidate to become mechanical and has not been made so yet.** The check that would do it — _no string literal in `e2e/specs-deployed/` asserted absent may equal a member of an exported shipped-word set_ — is a real `pnpm invariants` grep, and it owes a `pnpm break` entry. It is left as prose deliberately: the rule needs the **asserted-absent** half to be legible to a grep, and today the absence is spelled `toHaveCount(0)` several lines away from the literal. **Owner: the next story that adds a word to a status cell** — a condition, not a story number.
+
+**Re-measure the narrower claim too:** that the deployed suite's assertions still describe a working deployment rather than a broken one. `pnpm e2e:deployed` with the feed genuinely live is the only thing that can tell, and before 2026-09-21 that had never once been true.

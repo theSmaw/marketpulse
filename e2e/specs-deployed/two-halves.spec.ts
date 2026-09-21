@@ -1,5 +1,6 @@
 import {
   BACKEND_STATUSES,
+  CONNECTION_STATUSES,
   isHealthResponse,
   MARKET_FEED_DESCRIPTIONS,
   MARKET_FEEDS,
@@ -225,10 +226,33 @@ test("the deployed chrome makes a real claim about the market feed", async ({
     region.getByText(new RegExp(`^(${words.join("|")})$`)),
   ).toBeVisible();
 
-  // The invented value, asserted absent on the public site.
-  for (const invented of ["disconnected", "live", "stale"]) {
-    await expect(region.getByText(invented, { exact: true })).toHaveCount(0);
-  }
+  // **These three were asserted ABSENT here until 2026-09-21, as "the invented
+  // value".** They are not invented. They are `CONNECTION_STATUSES` — the
+  // shipped connection words Story 3.3 put in this very cell on 2026-09-19 —
+  // and the capitals a reader sees are `.microLabel`'s `text-transform` rather
+  // than the string's, which `feed-words.ts` states in as many words.
+  //
+  // **It passed for two days because the deployed feed had never reached any
+  // of them.** The backend's socket was crash-looping on a 406 retry, so the
+  // cell had no connection word to show; repairing the feed is what made this
+  // fire. An assertion that only holds while the product is broken is worse
+  // than no assertion, because it reports the repair as the regression.
+  //
+  // What it was FOR is still worth having, so it is inverted rather than
+  // deleted: **the cell must never show two connection words at once.** That
+  // is the same class of defect Task 3.4.9 repaired in this cell four days
+  // ago — two true halves saying incompatible things — and it is the one thing
+  // a reader cannot recover from, unlike a word they simply do not recognise.
+  const shown = await Promise.all(
+    CONNECTION_STATUSES.map((status) =>
+      region.getByText(status, { exact: true }).count(),
+    ),
+  );
+  const total = shown.reduce((count, next) => count + next, 0);
+
+  // Zero is legal and is §11.3's own row: a deployment with no provider renders
+  // `\u2014` rather than a claim that something broke. Two is the contradiction.
+  expect(total).toBeLessThanOrEqual(1);
 
   // And if a feed is claimed, the words §7.1 requires are beside it — the whole
   // reason this is not a caption. Read off the rendered word rather than
