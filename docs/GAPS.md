@@ -423,6 +423,16 @@ grep -rhoE 'getByRole\("[a-z]+"\)' e2e/specs e2e/specs-deployed | sort | uniq -c
 
 Then read each hit against `packages/shared/src/feed-status.ts` and `feed-words.ts`.
 
+**THIRD OCCASION, 2026-09-21, and it is a new variant: the local twin could not have caught it either.**
+
+Task 3.6.1 made the universe table's column heading read `Last` once any row holds a live price, and `Last close` otherwise — the heading is a claim about every cell under it, and during a session two cells in three are not closes. **Both** suites assert that heading, and only the deployed one went red.
+
+**The local suite is structurally incapable of catching it.** `pnpm e2e` runs against `marketpulse_bare` — 518 securities, zero bars — and CI has **no credential and no upstream socket**, so nothing is ever live there and the heading is _always_ `Last close`. A green local run is not weak evidence here; it is **no evidence**, and it cannot become evidence until a spec drives a fixture stream.
+
+**What made it worse than a missed grep:** the assertion was a literal for a value that depends on **whether the market is open**. It passed every CI run and failed the first time a real deployment was doing its job — which is the mirror of the second occasion, where an assertion passed only while the product was broken. **Both spellings are now matched as a shape**, in both suites, and the comment says why.
+
+**The general rule this earns:** a deployed spec must not assert a state that depends on the market being open, the feed having delivered, or the store having been backfilled. Those are properties of _when the suite ran_, and a gate keyed on them reports the clock as a defect.
+
 **This entry is a candidate to become mechanical and has not been made so yet.** The check that would do it — _no string literal in `e2e/specs-deployed/` asserted absent may equal a member of an exported shipped-word set_ — is a real `pnpm invariants` grep, and it owes a `pnpm break` entry. It is left as prose deliberately: the rule needs the **asserted-absent** half to be legible to a grep, and today the absence is spelled `toHaveCount(0)` several lines away from the literal. **Owner: the next story that adds a word to a status cell** — a condition, not a story number.
 
 **Re-measure the narrower claim too:** that the deployed suite's assertions still describe a working deployment rather than a broken one. `pnpm e2e:deployed` with the feed genuinely live is the only thing that can tell, and before 2026-09-21 that had never once been true.

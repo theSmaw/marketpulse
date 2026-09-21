@@ -437,3 +437,55 @@ be backwards — it was too _subtle_ to notice, not too distracting.
 
 **Still not possible:** seeing today's session drawn on a chart, and reloading
 the page without losing today. Those are the next two stories, in that order.
+
+---
+
+## Amended 2026-09-21: this task turned the deployed check red, and the local suite could not have warned
+
+**`check-deployed` failed on the merge of Task 3.6.2** — on an assertion this
+task's change falsified, in a spec this task did not look at.
+
+```
+Expected  - /^Last close( \d{4}-\d{2}-\d{2})?$/
+Received  + "Last"
+```
+
+**The product was right and the gate was wrong.** The market opened, production
+reported `provider: alpaca · feed: iex · status: live · marketOpen: true`, rows
+went live, and the heading correctly stopped claiming `close` over a column
+that is two-thirds live prices — which is exactly what this task shipped and
+what its canvas page argues.
+
+### Two reasons it was missed, and the second is the one worth keeping
+
+**1. The assertion lives in two directories.** `e2e/specs/` and
+`e2e/specs-deployed/` do not share their specs, and this task updated the local
+suite's expectations without grepping the deployed one. `docs/GAPS.md` records
+this trap and this is its **third** occasion.
+
+**2. The local suite is structurally incapable of catching it**, and that is
+new. `pnpm e2e` runs against `marketpulse_bare` — 518 securities, **zero
+bars** — and CI has no credential and no socket, so `anyLive` is **always
+false** there and the heading is **always** `Last close`. The local run was not
+weak evidence; it was **no evidence**, and no amount of care with it would have
+helped.
+
+**That is Task 3.6.6's whole subject arriving early**: _this assertion is about
+a fixture stream or it is about nothing_. Until a spec drives one, every
+browser assertion about live behaviour is an assertion about a state CI cannot
+reach.
+
+### The repair, and the rule it earns
+
+Both suites now match **the shape the code can produce** rather than a literal:
+`Last`, `Last close`, or `Last close YYYY-MM-DD`.
+
+**The literal was an assertion about whether the market was open.** It passed
+every CI run and failed the first time a real deployment was doing its job —
+the mirror of the occasion where an assertion passed only while the product was
+broken. **A deployed spec must not assert a state that depends on the market
+being open, the feed having delivered, or the store having been backfilled.**
+
+Verified against the live deployment with the market open — the full deployed
+suite, **18 passed** — and against `marketpulse_bare`, which is the state that
+made the literal look safe.
