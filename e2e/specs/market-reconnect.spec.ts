@@ -52,6 +52,11 @@ const LIVE_FEED: WireFeedState = {
 const LIVE = CONNECTION_DESCRIPTIONS.live.label;
 const DISCONNECTED = CONNECTION_DESCRIPTIONS.disconnected.label;
 
+/** The identity block's figure and its qualifier, by the label above them. */
+function identityBlock(page: Page) {
+  return page.getByText("Latest price", { exact: true }).locator("..");
+}
+
 const bar = (close: number): WireObservation => ({
   startsAt: "2026-09-16T14:01:00Z",
   open: close,
@@ -171,7 +176,13 @@ test("the price stays on screen for the whole outage", async ({ page }) => {
   const feed = await serveDroppableFeed(page, { NVDA: bar(219.5) });
 
   await page.goto("/securities/NVDA");
-  const price = page.getByText("219.50", { exact: true });
+  // **Scoped to the identity block since Task 3.6.1, and the reason is that
+  // the figure is now correctly on the page TWICE**: this security's own
+  // block, and its row in the tracked-universe table below, which went live in
+  // the same task. An unscoped `getByText` was right when one surface showed a
+  // live price and is a strict-mode violation now — the spec asserting the
+  // product got better.
+  const price = identityBlock(page).getByText("219.50", { exact: true });
   await expect(price).toBeVisible();
 
   feed.drop();
@@ -222,7 +233,13 @@ test("the page re-sends its subscription on every reconnect", async ({
   await expect
     .poll(() => feed.subscriptions().length, { timeout: 10_000 })
     .toBeGreaterThan(0);
-  expect(feed.subscriptions().at(-1)).toEqual(["NVDA"]);
+  // **`toContain` rather than `toEqual` since Task 3.6.1.** This screen renders
+  // the tracked universe below the panel on both of its routes, so it asks for
+  // every row it draws as well as the security on show — against CI's store
+  // that is 518 symbols. What this test is about is that the subscription
+  // survives a socket the page replaced, and the security on show is the part
+  // of it worth naming.
+  expect(feed.subscriptions().at(-1)).toContain("NVDA");
 
   const before = feed.subscriptions().length;
   feed.drop();
@@ -235,5 +252,10 @@ test("the page re-sends its subscription on every reconnect", async ({
   await expect
     .poll(() => feed.subscriptions().length, { timeout: 10_000 })
     .toBeGreaterThan(before);
-  expect(feed.subscriptions().at(-1)).toEqual(["NVDA"]);
+  // The same subscription, on the new socket. **The security on show leads it**
+  // — the screen asks for its own symbol and then for every row of the
+  // universe table below, which against CI's store is 518 in all.
+  const resent = feed.subscriptions().at(-1) ?? [];
+  expect(resent[0]).toBe("NVDA");
+  expect(resent).toHaveLength(518);
 });

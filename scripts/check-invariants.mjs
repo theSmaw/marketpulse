@@ -1226,6 +1226,62 @@ const INVARIANTS = [
       }
     },
   },
+
+  {
+    id: "one-caller-of-the-live-feed-hook",
+    claim:
+      "Shipped frontend code calls `useLiveFeed` exactly once, so a screen " +
+      "showing 518 securities holds one subscription rather than 518.",
+    check() {
+      // **The naive wiring for a live table is one subscription per row**, and
+      // this repository has already produced the counterfactual for exactly
+      // that choice: `useMarketClock` placed in `AppHeader` gives **0**
+      // whole-route re-renders in 20 s where the same hook in `App` gives
+      // **40**. At 518 rows that is not a wasted render, it is 518 sockets'
+      // worth of subscription bookkeeping behind one socket.
+      //
+      // Task 3.6.1's done-when asks for this check by name. It is on the
+      // CALL SITES rather than on the files, because the defect it guards
+      // against is a second `useLiveFeed()` inside a row component — which
+      // would live in one file and could be called 518 times from it.
+      //
+      // `UniverseTable` takes its observations as a **prop** for the same
+      // reason it takes everything else as one: a component that subscribes is
+      // a component the workshop cannot render, and every state of that table
+      // is reviewable with no backend running precisely because it does not.
+      const shipped = sourceFilesUnder(resolve(REPO_ROOT, "apps/frontend/src"))
+        .filter(({ path }) => !/\.(?:test|stories)\.tsx?$/u.test(path))
+        .map(({ path, text }) => ({ path, text: withoutComments(text) }));
+
+      // The hook's own module defines it; every other mention is a call.
+      const DEFINITION = "apps/frontend/src/market/use-live-feed.ts";
+
+      const sites = [];
+
+      for (const { path, text } of shipped) {
+        const where = relative(REPO_ROOT, path);
+        if (where === DEFINITION) continue;
+
+        for (const match of text.matchAll(/\buseLiveFeed\s*\(/gu)) {
+          sites.push(`${where} (offset ${String(match.index)})`);
+        }
+      }
+
+      if (sites.length !== 1) {
+        throw new InvariantFailure(
+          `${String(sites.length)} shipped call sites use \`useLiveFeed\`, ` +
+            "expected exactly 1:\n      " +
+            (sites.length === 0
+              ? "(none — if the hook was renamed, rename it here too: a grep " +
+                "that matches nothing looks exactly like a grep that passes)"
+              : sites.join("\n      ")) +
+            "\n    One subscription lives in `App` and every screen declares " +
+            "what it needs through `onLiveSymbols`. A second caller is a " +
+            "second socket's worth of state that nothing above it is holding.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

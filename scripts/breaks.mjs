@@ -959,4 +959,21 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "rehearsal rows",
   },
+  {
+    name: "a-second-caller-of-the-live-feed-hook",
+    proves:
+      "A live table's obvious wiring is one subscription per row. This " +
+      "repository has the counterfactual already — `useMarketClock` in " +
+      "`AppHeader` gives 0 whole-route re-renders in 20 s where the same " +
+      "hook in `App` gives 40 — and at 518 rows that is 518 subscriptions " +
+      "behind one socket.",
+    file: "apps/frontend/src/routes/SecurityExplorer.tsx",
+    find: "  const liveSymbols = useMemo(() => {",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  useLiveFeed({ symbols: [] });\n" +
+      "  const liveSymbols = useMemo(() => {",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "call sites use",
+  },
 ];

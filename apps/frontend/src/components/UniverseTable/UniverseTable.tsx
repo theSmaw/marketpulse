@@ -1,5 +1,6 @@
 import { SECTOR_ETFS, SECTOR_LABELS, SECTORS } from "@marketpulse/shared";
 import type {
+  Bar,
   MarketDate,
   Sector,
   Security,
@@ -35,7 +36,7 @@ import {
   formatDepth,
   summariseCoverage,
 } from "./coverage.js";
-import { changePercent, commonSession } from "./last-close.js";
+import { changeFromClose, changePercent, commonSession } from "./last-close.js";
 import {
   directionOf,
   formatChangePercent,
@@ -410,11 +411,27 @@ function SecurityTableRow({
   security,
   coverage,
   lastClose,
+  live,
+  reserveSession,
   session,
 }: {
   readonly security: Security;
   readonly coverage: SecurityCoverage | undefined;
   readonly lastClose: SecurityLastClose | undefined;
+  /**
+   * This security's latest live observation, or `undefined` — **and
+   * `undefined` is the ordinary case rather than a fault** (Task 3.6.1).
+   *
+   * §7.6 measured the live IEX feed covering **65.1%** of minutes for a median
+   * symbol and **2.1%** for `ERIE`, and §11.2 measured a gap of **187
+   * minutes** between one security's consecutive bars. So on a given minute
+   * roughly 200 of 518 rows legitimately have nothing, and after a restart
+   * every row does until the feed refills unevenly. §7.2 is the rule
+   * underneath: a quiet minute produces **no frame at all**, not a zero.
+   */
+  readonly live: Bar | undefined;
+  /** See {@link UniverseRows}: only while a stored row is drawing one. */
+  readonly reserveSession: boolean;
   /**
    * The session every close on this page shares, or `null` when they disagree.
    * A row whose own session differs from it says so; see {@link LastCloseCell}.
@@ -485,8 +502,13 @@ function SecurityTableRow({
       <td className={cx(styles.cell, styles.kind)}>
         {KIND_LABELS[security.kind]}
       </td>
-      <LastCloseCell lastClose={lastClose} session={session} />
-      <ChangeCell lastClose={lastClose} />
+      <LastCloseCell
+        lastClose={lastClose}
+        live={live}
+        reserveSession={reserveSession}
+        session={session}
+      />
+      <ChangeCell lastClose={lastClose} live={live} />
       <HistoryCell coverage={coverage} />
     </tr>
   );
@@ -527,11 +549,53 @@ function SecurityTableRow({
  */
 function LastCloseCell({
   lastClose,
+  live,
+  reserveSession,
   session,
 }: {
   readonly lastClose: SecurityLastClose | undefined;
+  /** See {@link SecurityTableRow}: absent is the ordinary case. */
+  readonly live: Bar | undefined;
+  /** See {@link UniverseRows}: only while a stored row is drawing one. */
+  readonly reserveSession: boolean;
   readonly session: MarketDate | null;
 }) {
+  if (live !== undefined) {
+    /*
+     * **A live price, and it carries no date** (Task 3.6.1).
+     *
+     * The stored rows are the ones that need one: their number is from a past
+     * session and this one is from this minute. That is the same asymmetry the
+     * heading makes — a shared claim is made only while it is true of
+     * everything — turned onto the rows, and it means the set carrying a date
+     * is exactly the set whose number is not current.
+     *
+     * **The spoken half is the point.** The figure alone is six glyphs that
+     * look identical to a close, so a listener gets the word instead: without
+     * it a screen reader user cannot tell the two kinds of number apart at
+     * all, and `PROVENANCE.md`'s rule is that a claim about data requires data.
+     */
+    return (
+      <td className={cx(styles.cell, styles.numeric)}>
+        <span className={styles.price}>{formatPrice(live.close)}</span>
+        <span className={styles.visuallyHidden}>Live price</span>
+        {/*
+         * **The line this cell does not draw, reserved so arriving costs no
+         * height.** Every stored row in this column carries a session date
+         * once anything is live, so without this a row would shrink the first
+         * time an observation reached it — a table reflowing under a reader as
+         * a thin name finally trades. `aria-hidden`, because there is nothing
+         * to say: the spoken half of this cell is `Live price` above.
+         */}
+        {reserveSession && (
+          <span className={styles.sessionReserved} aria-hidden="true">
+            &nbsp;
+          </span>
+        )}
+      </td>
+    );
+  }
+
   if (lastClose === undefined) {
     return (
       <td className={cx(styles.cell, styles.numeric)}>
@@ -595,10 +659,29 @@ function LastCloseCell({
  */
 function ChangeCell({
   lastClose,
+  live,
 }: {
   readonly lastClose: SecurityLastClose | undefined;
+  /** See {@link SecurityTableRow}: absent is the ordinary case. */
+  readonly live: Bar | undefined;
 }) {
-  const percent = lastClose === undefined ? null : changePercent(lastClose);
+  /*
+   * **Two different questions, and the second one is not a variant of the
+   * first** (Task 3.6.1).
+   *
+   * A stored row shows a completed session's move, which never changes again.
+   * A live row shows the move since a close, which changes while somebody
+   * watches it. `changeFromClose` picks **which** close — and the case it
+   * exists for is the one where the backfill has already written today, so the
+   * stored close and the live bar share a session and measuring against it
+   * would report ≈0.00% down the whole column.
+   */
+  const percent =
+    live !== undefined
+      ? changeFromClose(live, lastClose).percent
+      : lastClose === undefined
+        ? null
+        : changePercent(lastClose);
 
   if (percent === null) {
     return (
@@ -728,18 +811,65 @@ function UniverseRows({
   securities,
   coverage,
   lastCloses,
+  observations,
   initiallyCollapsed,
 }: {
   readonly securities: readonly Security[];
   readonly coverage: ReadonlyMap<string, SecurityCoverage>;
   readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
+  readonly observations: ReadonlyMap<string, Bar>;
   readonly initiallyCollapsed: readonly string[];
 }) {
   const groups = groupUniverse(securities);
 
+  /*
+   * **The column's shared claim, and Task 3.6.1 is where it can stop being
+   * true.**
+   *
+   * Since Task 2.9.7 every cell in this column has been the same kind of
+   * number — the close of a stored session, from the consolidated tape — and
+   * 518 of 518 shared one session, which is why the date is stated once in the
+   * heading rather than 518 times.
+   *
+   * A live price is **not** a close and **not** the same feed: stored history
+   * is SIP, the live stream is IEX only, and invariant 6 is explicit that we
+   * must not imply one venue is every US exchange. So the moment any row is
+   * live the heading stops asserting a session over all of them — which is the
+   * mechanism `commonSession` already has, pointed at a second reason.
+   *
+   * The canvas argues it: `The column that stops being one kind of number`.
+   * With no observations this resolves to exactly today's behaviour, which is
+   * what a deployment with no provider and every CI run actually renders.
+   */
+  const anyLive = observations.size > 0;
+
+  /*
+   * **Whether a live cell has to reserve the session line it does not draw.**
+   *
+   * Only when some row is showing one. Reserving it unconditionally costs 19px
+   * on every row of a 518-row table for a line nothing draws — which is the
+   * state late in a session, because the current market state keeps the latest
+   * observation per security and never expires it, so coverage *accumulates*
+   * and the mixture is a morning rather than a steady state.
+   *
+   * The three states, and all three are ordinary:
+   *
+   * | Rows                | Dates drawn | Reserved |
+   * | ------------------- | ----------- | -------- |
+   * | Nothing live        | none — the heading carries the one shared session | no |
+   * | Some live, some not | the stored rows | **yes** |
+   * | Everything live     | none — there is no stored row left to date | no |
+   */
+  const reserveSession =
+    anyLive &&
+    securities.some(
+      (security) =>
+        !observations.has(security.symbol) && lastCloses.has(security.symbol),
+    );
+
   // Computed once for the whole table rather than per row: it is a fact about
   // the response, and the heading and every cell have to agree about it.
-  const session = commonSession(lastCloses);
+  const session = anyLive ? null : commonSession(lastCloses);
 
   /*
    * Which bands are shut (Task 2.11.8).
@@ -890,7 +1020,18 @@ function UniverseRows({
                 // element outside the `<th>` would leave the announcement as a
                 // bare "Last close".
               >
-                Last close
+                {/*
+                 * **`Last close` while every cell IS one; `Last` once any is
+                 * not** (Task 3.6.1). A heading is a claim about every cell
+                 * under it, and during a session about two rows in three hold a
+                 * live price rather than a close. Renaming is the cheapest
+                 * honest answer and it costs one word — the alternatives were a
+                 * second, mostly-blank column, or a per-row feed mark that
+                 * would be ~321 glyphs saying the same thing. The canvas page
+                 * `The column that stops being one kind of number` argues all
+                 * three.
+                 */}
+                {anyLive ? "Last" : "Last close"}
                 {session !== null && (
                   <>
                     {/*
@@ -1046,6 +1187,8 @@ function UniverseRows({
                       security={security}
                       coverage={coverage.get(security.symbol)}
                       lastClose={lastCloses.get(security.symbol)}
+                      live={observations.get(security.symbol)}
+                      reserveSession={reserveSession}
                       session={session}
                     />
                   ))}
@@ -1773,6 +1916,7 @@ function describeHistory(withHistory: number, rows: number): string {
 export function UniverseTable({
   view,
   onRetry,
+  observations = NO_OBSERVATIONS,
   initiallyCollapsed = NOTHING_COLLAPSED,
 }: UniverseTableProps) {
   return (
@@ -1781,11 +1925,25 @@ export function UniverseTable({
       <StateBody
         view={view}
         onRetry={onRetry}
+        observations={observations}
         initiallyCollapsed={initiallyCollapsed}
       />
     </>
   );
 }
+
+/**
+ * No live observations — the default, and **a legitimate runtime value rather
+ * than a placeholder** (Task 3.6.1).
+ *
+ * It is what this table holds before a subscription is answered, on a
+ * deployment with no provider configured, and in CI. `docs/GAPS.md` carries the
+ * general shape of the trap underneath it: an empty default that is *also* a
+ * true answer hides a design event until the day it stops being empty. The
+ * defence here is that the empty case is **rendered by the same code path** as
+ * the populated one rather than by a branch, so it cannot drift.
+ */
+const NO_OBSERVATIONS: ReadonlyMap<string, Bar> = new Map();
 
 /**
  * The default: every band open.
@@ -1834,11 +1992,29 @@ export interface UniverseTableProps {
    * prop still names it.
    */
   readonly initiallyCollapsed?: readonly string[];
+
+  /**
+   * The latest live observation per symbol, or an empty map (Task 3.6.1).
+   *
+   * **Taken as a prop rather than read from a hook, and that is load-bearing
+   * rather than stylistic.** This component has no `fetch` and no socket in it,
+   * which is what makes every one of its states reviewable in the workshop with
+   * no backend running — the property Task 2.10.2 established and the reason
+   * the table moved out of the route in the first place. A component that
+   * subscribed would be a component the workshop cannot render.
+   *
+   * **One map, once per tick, for the whole table.** Not one subscription per
+   * row: the counterfactual for exactly that choice is already recorded in this
+   * repository — `useMarketClock` in `AppHeader` gives **0** whole-route
+   * re-renders in 20 s where the same hook in `App` gives **40**.
+   */
+  readonly observations?: ReadonlyMap<string, Bar>;
 }
 
 function StateBody({
   view,
   onRetry,
+  observations = NO_OBSERVATIONS,
   initiallyCollapsed = NOTHING_COLLAPSED,
 }: UniverseTableProps) {
   switch (view.state) {
@@ -1851,6 +2027,7 @@ function StateBody({
           securities={view.securities}
           coverage={view.coverage}
           lastCloses={view.lastCloses}
+          observations={observations}
           initiallyCollapsed={initiallyCollapsed}
         />
       );

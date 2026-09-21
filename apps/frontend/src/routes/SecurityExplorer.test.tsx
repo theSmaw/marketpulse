@@ -275,7 +275,16 @@ describe("SecurityExplorer", () => {
     await waitFor(() => {
       expect(screen.getByRole("table")).toBeTruthy();
     });
-    expect(screen.getByText(/Epic 3/)).toBeTruthy();
+    // **This assertion named `Epic 3` until 2026-09-21, and Task 3.6.1 is
+    // Epic 3 arriving.** The sentence it was reading promised that live prices
+    // would turn up with the market feed *later*; they turn up now, so the
+    // promise became a description and the test had to follow it. That is the
+    // family `docs/GAPS.md` records as the sharpest kind of stale assertion —
+    // one that passes only while the product is unfinished — caught here by
+    // the sentence changing rather than by anything mechanical.
+    expect(
+      screen.getByText(/A row shows a live price where one has arrived/),
+    ).toBeTruthy();
   });
 
   it("shows a loading state before the first response settles", () => {
