@@ -379,7 +379,7 @@ One easing, and it is asymmetric on purpose: fast out of the gate and slow into 
 
 1400ms rather than something snappier, because a loop is the one kind of motion a reader is not meant to watch: it says _this is not the answer_ and then gets out of the way, and anything under about a second reads as urgency — which is a claim about the data rather than about the wait.
 
-**It originated in code rather than on the design canvas**, which is [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)'s chain run backwards and is recorded rather than tidied away. The `Component library for MarketPulse` project was not reachable from the session that added it, and the canvas has no loading treatment of any kind to adopt. **It owes a sync back**, and until it gets one this row is the only place the value is argued. `VOLUME-AND-WINDOW.md` §80.2 has what it is for.
+**It originated in code rather than on the design canvas**, which is [ADR 0026](../../../docs/adr/0026-the-design-canvas-as-the-source-of-truth.md)'s chain run backwards and is recorded rather than tidied away. The `Component library for MarketPulse` project was not reachable from the session that added it, and the canvas has no loading treatment of any kind to adopt. **It owes a sync back**, and until it gets one this row is the only place the value is argued. **Discharged 2026-09-21 by Task 3.4.4**: the canvas was reachable, `The motion vocabulary.dc.html` now carries the whole set — including this row — and the fourth member was decided there **first** and travelled down, which is the chain running the right way round for the first time in this section's life. `VOLUME-AND-WINDOW.md` §80.2 has what it is for.
 
 ### Two rules, and the second is the one that will be argued with
 
@@ -394,6 +394,16 @@ One easing, and it is asymmetric on purpose: fast out of the gate and slow into 
 So: nothing here about a value updating, nothing about a row entering or leaving a live list, nothing about a chart redrawing, and no third duration. Add those against something that actually moves.
 
 **Amended 2026-09-14: there is now a third duration, and it is the exception that keeps the rule.** `--motion-duration-pulse` was added against something that does move — a wait, drawn as a panel over a plot — and it is deliberately about the **absence** of a number rather than about one changing. Everything this section defers is still deferred: nothing here yet says what happens when a **price** changes, and that is still Epic 3's against real moving numbers.
+
+**Amended 2026-09-21 by Task 3.4.4 — the deferral is over, and the answer is a SHAPE rather than a duration.** Decided on the canvas, in front of four treatments running against the real component at 1×: **a small disc appears beside a changed figure and decays**, and it fires when a **bar arrives** rather than when the price **changes** — so it says _a bar arrived for this security_ rather than _this price moved_, which `PriceChange` already says with a glyph, a sign and a hue.
+
+What belongs in this section rather than in that task is the rule underneath it, because it governs everything added here afterwards:
+
+> **Work in progress LOOPS. A state PERSISTS. A fact arriving DECAYS.**
+
+Three behaviours, three meanings, and a reader tells them apart without being taught — which is what lets the status bar's static disc and this story's decaying one be the same glyph without colliding. It is also how _motion means work in progress and nothing else may borrow it_ survives a moving price: a price that has **changed** has **finished** changing, and a decay is what finished looks like.
+
+**The fourth duration is Task 3.4.5's**, and it is the first member of this set whose whole point is that it ends by **disappearing** rather than by arriving somewhere — which is why it is not `settle` with a different number.
 
 ## The chart — added 2026-09-11 by Task 2.12.2
 

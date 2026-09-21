@@ -1,0 +1,208 @@
+/*
+ * The instrument Task 3.4.4 takes its decision with. NOT a shipped treatment.
+ *
+ * Four candidates, drawn against the REAL component, the REAL tokens and the
+ * REAL type — which is the whole reason this exists beside a design canvas that
+ * already runs them. The canvas is the source of truth for the argument; this is
+ * the only place the candidates can be seen against `tokens.css` rather than
+ * against a hex somebody typed, and it is where greyscale is checked.
+ *
+ * Task 3.4.5 promotes exactly one of these into the component and deletes the
+ * file. Until then nothing imports it but the story.
+ *
+ * ## Every candidate obeys rule A by construction
+ *
+ * *Motion must never make a number harder to read.* So no candidate touches the
+ * digits' colour, weight, position or opacity — each is a mark placed NEXT TO a
+ * figure that stays at full contrast for the whole of its life. That rules out
+ * the treatment market software reaches for first, the panel that flashes behind
+ * the number, because it drops the figure's contrast at the exact moment the
+ * figure is worth reading.
+ *
+ * ## And the durations come from the tokens, which is what honours reduced motion
+ *
+ * `--motion-duration-settle` is borrowed here rather than a new token being
+ * invented, because a duration argued before a shape is chosen is a duration
+ * argued about nothing — Task 3.4.5 takes the number. What matters for the
+ * comparison is that it resolves to `0ms` under `prefers-reduced-motion`, so
+ * these marks simply do not run for a reader who asked for that, and the new
+ * value and its arrow are on screen either way.
+ */
+
+.rig {
+  display: grid;
+  gap: 1px;
+  background: var(--rule-hairline);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 1100px) {
+  .rig {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.cell {
+  background: var(--surface-raised);
+  padding: 22px 26px 20px;
+  min-width: 0;
+}
+
+.head {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-disabled);
+}
+
+.name {
+  margin: 2px 0 18px;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.cost {
+  margin: 16px 0 0;
+  color: var(--ink-disabled);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Greyscale, thrown from the story's own control. Rule B's check. */
+.greyscale {
+  filter: grayscale(1);
+}
+
+/*
+ * The mark's life, shared by all three. **It DECAYS rather than LOOPING**, and
+ * that is the one line of vocabulary this file is confident about before the
+ * decision is taken: the chart rail's hairline travels for as long as a request
+ * is in flight and has no end, because motion in this product means work in
+ * progress. A price that has changed has FINISHED changing. Same rule, opposite
+ * shape.
+ *
+ * ## Two identical keyframes, and the duplication is the mechanism
+ *
+ * A CSS animation does not restart when the same animation is re-applied to the
+ * same element — the browser never sees the intermediate state, so a class
+ * removed and re-added inside one commit does nothing at all. **Alternating
+ * between two animations with different NAMES restarts it every time**, which is
+ * what makes the mark fire on every change including a revision that replaces a
+ * minute with the same close.
+ *
+ * The obvious alternative — remount the block with a `key` — is wrong here and
+ * finding that out is worth recording: `SecurityIdentity` has its own
+ * `identity-arrives` animation on mount, so a remount would replay *the block
+ * arriving* on every price change. A fading, sliding block is exactly what rule
+ * A forbids, and it would have been indistinguishable from a treatment.
+ */
+@keyframes decay-odd {
+  0% {
+    opacity: 1;
+  }
+  33% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes decay-even {
+  0% {
+    opacity: 1;
+  }
+  33% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/*
+ * Every mark hangs off `[data-live-price]` — the digits themselves — rather
+ * than off the figure's paragraph, which is full-width and right-aligned. A
+ * rule spanning the paragraph reads as a divider between regions; a rule
+ * spanning the digits reads as a mark on a number. Measured by looking at it:
+ * the first draft anchored to the paragraph and drew a 375px line.
+ */
+.host [data-live-price] {
+  position: relative;
+}
+
+.host [data-live-price]::before,
+.host [data-live-price]::after {
+  content: "";
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  animation-duration: calc(var(--motion-duration-settle) * 5);
+  animation-timing-function: linear;
+}
+
+.odd [data-live-price]::before,
+.odd [data-live-price]::after {
+  animation-name: decay-odd;
+}
+
+.even [data-live-price]::before,
+.even [data-live-price]::after {
+  animation-name: decay-even;
+}
+
+/* Nothing has arrived yet: a mark on the first paint would claim a price moved
+   when the page merely loaded. */
+.first [data-live-price]::before,
+.first [data-live-price]::after {
+  animation-name: none;
+}
+
+/* --- B — the direction rule. POSITION carries direction; hue is redundancy. */
+
+.ruleHost [data-live-price]::before {
+  left: 0;
+  right: 0;
+  height: 2px;
+}
+
+/*
+ * **Inside the digits' own box, not outside it** — measured rather than
+ * guessed. The label sits 4px above the figure and the qualifier 4px below, so
+ * a mark hung outside strikes through one of them; the first draft did exactly
+ * that at both ends. But a 30px monospace figure fills only about 21px of its
+ * 32px box, so there is unused room above the digit tops and below their
+ * baseline, and a 2px mark lives there with **nothing reserved and no layout
+ * shift at any width**. That is the finding: this treatment costs no space.
+ */
+.ruleHost.up [data-live-price]::before {
+  top: 2px;
+  background: var(--price-positive);
+}
+
+.ruleHost.down [data-live-price]::before {
+  bottom: 2px;
+  background: var(--price-negative);
+}
+
+/* --- C — the digits that changed. Carries no direction, so no hue to lose.
+   `2ch` is exact rather than approximate: the figures are tabular, so one
+   character is one digit and the mark cannot drift when the digits change. */
+
+.digitsHost [data-live-price]::after {
+  right: 0;
+  width: 2ch;
+  bottom: 2px;
+  height: 2px;
+  background: var(--ink-primary);
+}
+
+/* --- D — the arrival mark. Touches nothing inside the figure at all. */
+
+.arrivalHost [data-live-price]::before {
+  left: -17px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--ink-primary);
+}

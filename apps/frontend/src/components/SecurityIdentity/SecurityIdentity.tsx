@@ -243,8 +243,19 @@ function Close({
           trade is a different thing we do not have.
         */}
         <p className={cx(styles.closeLabel)}>Latest price</p>
-        <p className={cx(styles.figure)}>
-          <span className={cx(styles.price)}>{formatPrice(live.close)}</span>
+        {/*
+          **`data-live-figure` and `data-live-price` are hooks, not styling**
+          (Task 3.4.4). A motion treatment has to be positioned against the
+          figure and against the digits, and the instrument that compares
+          candidates cannot reach a CSS Module's generated class name from
+          outside the module. Two attributes cost nothing, render nothing, and
+          are what Task 3.4.5 attaches the chosen treatment to — so the
+          alternative was a hook invented twice.
+        */}
+        <p className={cx(styles.figure)} data-live-figure="">
+          <span className={cx(styles.price)} data-live-price="">
+            {formatPrice(live.close)}
+          </span>
           {percent === null ? undefined : (
             <PriceChange
               change={formatChangePercent(percent)}

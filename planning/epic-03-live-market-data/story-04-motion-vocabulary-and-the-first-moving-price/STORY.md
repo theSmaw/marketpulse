@@ -139,6 +139,21 @@ against motion and designing against a toy:
 
 ## Open decisions — settle with the user
 
+**Both were settled on 2026-09-21 by Task 3.4.4**, in front of four treatments
+running on the real component at 1×, and they were settled **together** because
+the second decides what the first means. **The mark is a small disc beside the
+figure that appears and decays, and it fires when a bar ARRIVES rather than when
+the price CHANGES** — so it does not say _this price moved_, which the `▲`
+already says. It says **a bar arrived for this security**, which is a claim
+about the feed that nothing else on the screen makes and that §11.2's refusal to
+give a security a status word does not forbid, because it makes no threshold
+judgement. The argument, the three rejected options and the reversal trigger are
+in `The motion vocabulary.dc.html` §05 and in
+[Task 3.4.4](TASK-04-three-treatments-on-a-real-screen.md).
+
+The original wording stands below, because it is what the decision was taken
+against.
+
 1. **The treatment itself.** This is a design decision with product weight and
    the user has a standing instruction about the bar; put two or three real
    options on a real screen and let them be looked at rather than described.
