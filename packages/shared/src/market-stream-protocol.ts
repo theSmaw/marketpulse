@@ -185,6 +185,102 @@ export interface FeedMessage {
 
 export type MarketStreamMessage = SnapshotMessage | BarsMessage | FeedMessage;
 
+/**
+ * **What a browser says to the gateway** (Task 3.5.6).
+ *
+ * ## A second union rather than a member of the first
+ *
+ * {@link MarketStreamMessage} is everything the **server** says. This is
+ * everything a **browser** says, and they are deliberately different types:
+ * a gateway that could receive a `snapshot`, or a browser that could decode a
+ * `subscribe`, is a category error the compiler should refuse rather than a
+ * case somebody has to remember not to write.
+ *
+ * The version field is shared, because a protocol mismatch after a deploy is
+ * one fact about one wire regardless of which end noticed it.
+ */
+export interface SubscribeMessage {
+  readonly type: "subscribe";
+  readonly version: number;
+  /**
+   * The securities this browser wants observations for.
+   *
+   * **An empty list is legal and means exactly what it says** — a browser that
+   * has not decided yet, or one on a screen that shows no prices. It receives
+   * nothing, which is an ordinary state rather than an error: §11.1's omission
+   * semantics applied to a subscription instead of to a snapshot.
+   */
+  readonly symbols: readonly string[];
+}
+
+/** Everything a browser can send. One member today, and a union on purpose. */
+export type MarketStreamClientMessage = SubscribeMessage;
+
+/** The client message types, closed. */
+export const MARKET_STREAM_CLIENT_MESSAGE_TYPES = ["subscribe"] as const;
+
+export function encodeMarketStreamClientMessage(
+  message: MarketStreamClientMessage,
+): string {
+  return JSON.stringify({
+    type: message.type,
+    version: message.version,
+    symbols: [...message.symbols],
+  });
+}
+
+/**
+ * Read what a browser sent.
+ *
+ * **A value rather than a throw**, for {@link decodeMarketStreamMessage}'s
+ * reason: one malformed frame from one browser must not take a gateway serving
+ * every other browser down, and §36 forbids collapsing rather than degrading.
+ */
+export function decodeMarketStreamClientMessage(raw: string): {
+  readonly kind: "message" | "unreadable";
+  readonly message?: MarketStreamClientMessage;
+  readonly reason?: string;
+} {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { kind: "unreadable", reason: "not JSON" };
+  }
+
+  if (!isRecord(parsed)) {
+    return { kind: "unreadable", reason: "not an object" };
+  }
+
+  if (parsed.version !== MARKET_STREAM_PROTOCOL_VERSION) {
+    return {
+      kind: "unreadable",
+      reason: `protocol version ${String(parsed.version)}, expected ${String(MARKET_STREAM_PROTOCOL_VERSION)}`,
+    };
+  }
+
+  if (parsed.type !== "subscribe") {
+    return {
+      kind: "unreadable",
+      reason: `unknown client message type ${JSON.stringify(parsed.type)}`,
+    };
+  }
+
+  const symbols = parsed.symbols;
+  if (!Array.isArray(symbols) || symbols.some((s) => typeof s !== "string")) {
+    return { kind: "unreadable", reason: "malformed subscribe" };
+  }
+
+  return {
+    kind: "message",
+    message: {
+      type: "subscribe",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      symbols: symbols as readonly string[],
+    },
+  };
+}
+
 // ---------------------------------------------------------------- serialising
 
 const observationFields: WireFields<WireObservation> = {

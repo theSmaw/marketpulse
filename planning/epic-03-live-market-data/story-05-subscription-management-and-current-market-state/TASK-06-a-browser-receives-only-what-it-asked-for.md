@@ -1,6 +1,6 @@
 # Task 3.5.6 — A browser receives only what it asked for
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-21.** A browser receives only what it asked for. The page **declares its own need** rather than the feed inferring it from an address — which is a change of approach from what the amendments assumed, and the reason is in the record. Five process tests at 200 symbols, one browser assertion that the subscription survives a reconnect, one `pnpm break`.
 **Story:** [3.5 Subscription Management & the Current Market State](STORY.md)
 **Depends on:** 3.5.3, 3.5.4
 
@@ -265,3 +265,204 @@ Unchanged and now doubly true: a reconnect's catch-up **is** a late subscribe.
 If the response to _here are my symbols_ is a `bars` message, every newly
 subscribed security marks — 3.5.4's defect arriving through a different door,
 on every reconnect rather than only on first load.
+
+---
+
+## What was built
+
+### A second protocol union, not a fourth message type
+
+`MarketStreamMessage` is everything the **server** says. `SubscribeMessage` is
+everything a **browser** says, and they are deliberately different types: a
+gateway that could receive a `snapshot`, or a browser that could decode a
+`subscribe`, is a category error the compiler should refuse rather than a case
+somebody has to remember not to write. The version field is shared, because a
+protocol mismatch after a deploy is one fact about one wire regardless of which
+end noticed it.
+
+**An empty `symbols` list is legal** and means exactly what it says — §11.1's
+omission semantics applied to a subscription. It is also the state every
+browser is in for the first moments of every connection, including each
+reconnect.
+
+### The gateway holds a map rather than a set
+
+`Set<WebSocket>` became `Map<WebSocket, Set<string>>`. `broadcast()` survives
+for the **feed** message, which every browser is owed; observations go through
+a per-client filter in `publishObservations`.
+
+**`scopedTo` returns `undefined` rather than an empty object**, so a client
+that wants none of this batch is sent **nothing**. An empty `bars` message
+would make a browser decide what _no observations_ means, and the answer is
+that it should never have been asked.
+
+**The message is encoded per client**, because the payloads genuinely differ. A
+shared encode would be a cache keyed on the subscription — a mechanism with no
+measured problem behind it.
+
+### A late subscribe is answered with a `snapshot`
+
+Task 3.5.4's rule, preserved on the door this task opens. A snapshot sets the
+arrival mark's baseline; `bars` fires it. Answering a subscribe with `bars`
+would mark every newly subscribed security — on every subscribe and, since Task
+3.5.5, **on every reconnect**.
+
+Without the reply at all, a browser that subscribes after connecting waits for
+each security's next bar: a median of a minute and **up to 187** for a thin one,
+which is exactly the wait the snapshot exists to remove.
+
+### The subscription is re-asserted on every socket
+
+Task 3.5.5's trap, closed. `connectMarketStream` now returns a connection
+rather than a disconnect, buffers the wanted symbols and sends them on `open`.
+A reconnect therefore re-subscribes without anybody asking — the same shape §8.7
+forced on the upstream client.
+
+**Changing the subscription does not reopen the socket.** The hook keeps the
+socket effect on `[tickMs]` and carries the subscription in refs, with a
+separate effect keyed on a **primitive** derived from the list. A dependency on
+the array itself would re-send on every render of every parent; tearing the
+socket down would make every navigation a reconnect, losing the snapshot and
+the `LIVE` word for as long as a dial takes.
+
+## The decision that changed mid-task
+
+**The amendments assumed the subscription would be derived from the address.** I
+wrote that module, tested it, and then deleted it — because the premise was
+false: `App` **renders** `<BrowserRouter>` rather than living inside one, so it
+cannot call `useLocation`.
+
+The options were to restructure a 322-line, heavily-argued `App` so the hooks
+sit inside the router, or to have the page declare what it needs. **The second
+is both cheaper and better architecture**: the page says what it wants, nothing
+couples the feed to a URL shape, and a screen that wants securities no address
+names is a prop rather than a redesign.
+
+`SecurityExplorer` declares `[symbol]` on mount and **withdraws on unmount**, so
+a reader who navigates away stops being sent a price nothing renders.
+
+## What scaling falsified — three of this file's own tests
+
+**All three were correct when written**, and all three encoded _everyone gets
+everything_, which is the contract this task ends.
+
+| Test                                | Why it broke                                                                |
+| ----------------------------------- | --------------------------------------------------------------------------- |
+| `delivers a bar down a real socket` | _attach and wait_ was the whole protocol; it now has to subscribe first     |
+| `sends the snapshot FIRST…`         | the **first** snapshot is now empty, because nothing has been asked for yet |
+| `omits an unobserved security…`     | same — the omission is now read off the answer to a subscribe               |
+
+**And one of my own new tests had a race that read as a broken filter.**
+`waitFor("snapshot")` matched the **initial** snapshot still in the buffer, so
+the test cleared and published before the server had processed the subscribe.
+The failure said _no bars within 5 s_, which looks exactly like a filter
+dropping everything. Fixed with a counting waiter, so _the next one_ is
+sayable — and the note is on the helper, because the next person will write the
+same test.
+
+## Evidence
+
+- `pnpm break every-browser-gets-the-whole-universe` — red, restored
+  byte-identical
+- 5 process tests at **200 symbols** — the task's own warning is that three
+  symbols passes against a `broadcast()` that ignores the filter entirely
+- Well-formed generated tickers, because `toTicker` validates the shape and
+  `SYM0` throws before it can test anything
+- A browser assertion that the page **re-sends its subscription on every
+  reconnect** — the only level that can check it
+- `pnpm verify` green: 16 invariants, 921 backend, 1050 frontend, **29** process
+
+**One honest caveat about the browser suite.** A full local `pnpm e2e` failed
+2–5 specs per run, **with a different set each time** and durations of 12–40 s
+against a normal 1–8 s — the signature of load on this machine rather than a
+defect. Each failing spec passes in isolation, and the 21 specs this change
+could plausibly affect all pass together. CI's run on a dedicated runner is the
+arbiter.
+
+---
+
+## For a stakeholder — a status report, 2026-09-21
+
+### What we did, in one sentence
+
+**A browser is now sent only the companies it is actually showing.**
+
+### What was wrong
+
+Since Friday the server has been watching all 518 companies we track — which is
+what the market overview, the anomaly detection and the AI investigation tools
+all need.
+
+It was also **sending all 518 to every open browser, every minute**. A page
+showing one company received 517 prices it had no use for and threw them away.
+We measured it on the wire: **57 KB a minute, per open tab**, and the same again
+every time a tab connects or reconnects.
+
+In absolute terms that is small, and it was an accepted temporary cost — we
+scaled the feed up deliberately before building the filter, because building
+the filter first would have meant designing for a problem we did not yet have.
+What makes it worth closing on schedule is that it scales with **browsers ×
+companies**, and both of those only ever grow.
+
+### How it works now
+
+The browser says what it wants. The server keeps a note of it per connection and
+sends each browser only its own securities.
+
+Three details were worth getting right rather than quickly:
+
+**A browser that has asked for nothing receives nothing.** That is a normal
+state, not an error — it is what every browser is doing for the first fraction
+of a second of every connection.
+
+**Asking later gets an immediate answer.** If a browser subscribes after
+connecting, the server replies at once with what it already holds. Without that,
+the browser would wait for each company's next price — typically a minute, and
+for a thinly traded company **up to three hours**.
+
+**And that reply is deliberately labelled as _here is what we already hold_**
+rather than _here is news_. Last week we added a small mark that appears when
+new data arrives. If the answer to _here is what I want_ were labelled as news,
+that mark would fire for every newly subscribed company — the exact problem we
+solved on Friday, arriving through a different door.
+
+### A decision I changed halfway through
+
+The plan, written three days ago, was for the application to work out which
+company a browser wanted **from the web address** — a security page's address
+already names its company.
+
+I built that, tested it, and then deleted it, because the plan rested on
+something untrue: the part of the application that owns the connection sits
+_outside_ the router and cannot see the address at all. The choice was to
+restructure a large, carefully-documented file so it could, or to let each
+screen say what it needs.
+
+**The second is cheaper and better.** Nothing is tied to the shape of a URL, and
+the first screen that wants companies no address names — a watchlist, a
+comparison a user assembles — becomes a small change rather than a redesign.
+Worth flagging because the plan said otherwise and the record now explains why
+it doesn't.
+
+### Something worth knowing about the tests
+
+**Three of our existing tests broke, and all three were correct when written.**
+They encoded the old contract — _connect and you receive everything_ — which is
+precisely what this work ends. That is the third time this week that scaling
+something has falsified a test that was right at the time, and it is a good
+sign: the tests were specific enough to notice.
+
+One of my _new_ tests also had a subtle flaw that made it look like the filter
+was broken — it checked its results a fraction too early and saw the server's
+previous reply. Worth mentioning because the failure message pointed at the
+product rather than the test, which is the kind of thing that costs an hour if
+you take it at face value.
+
+### What you would see today
+
+**Nothing on screen** — but the product is now doing roughly a five-hundredth
+of the work per browser that it was this morning.
+
+**Next:** protecting the server from a browser that stops reading, a round of
+measurements, and then the screen this whole run of work has been building
+towards — **live prices across all 518 companies at once**.

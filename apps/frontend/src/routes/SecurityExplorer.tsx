@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
 import type { LiveFeedView } from "../market/index.js";
@@ -83,11 +84,24 @@ export interface SecurityExplorerProps {
    * already is, so the value reaches it by the path that is already here.
    */
   readonly liveFeed: LiveFeedView;
+
+  /**
+   * Declare which securities this screen needs live observations for (Task
+   * 3.5.6).
+   *
+   * **The page says what it wants rather than the feed guessing.** `App` owns
+   * the socket and cannot read the address — it renders `<BrowserRouter>`
+   * rather than living inside one — so the alternative was inferring the
+   * subscription from a URL pattern, which couples the feed to a route shape
+   * and breaks for the first screen wanting something an address does not name.
+   */
+  readonly onLiveSymbols?: (symbols: readonly string[]) => void;
 }
 
 export function SecurityExplorer({
   marketFeed,
   liveFeed,
+  onLiveSymbols,
 }: SecurityExplorerProps) {
   // The hooks are called here rather than inside the regions, so a component
   // that throws hits `Region`'s own boundary and leaves the request that
@@ -171,6 +185,16 @@ export function SecurityExplorer({
   // own distinction — §11.1's `snapshot` and `bars` are two message types —
   // and this is where it reaches the block that marks an arrival.
   const liveFromSnapshot = liveFeed.fromSnapshot.has(symbol);
+
+  // **Declared on `symbol`, and withdrawn on unmount.** A screen that stops
+  // being shown stops asking, so a reader who navigates away is not still
+  // being sent a price nothing renders.
+  useEffect(() => {
+    onLiveSymbols?.([symbol]);
+    return () => {
+      onLiveSymbols?.([]);
+    };
+  }, [symbol, onLiveSymbols]);
 
   return (
     <div className={page.page}>

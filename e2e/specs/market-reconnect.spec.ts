@@ -1,6 +1,7 @@
 import {
   CONNECTION_DESCRIPTIONS,
   MARKET_STREAM_PROTOCOL_VERSION,
+  decodeMarketStreamClientMessage,
   encodeMarketStreamMessage,
 } from "@marketpulse/shared";
 import type { WireFeedState, WireObservation } from "@marketpulse/shared";
@@ -90,9 +91,18 @@ async function serveDroppableFeed(
 
   let connections = 0;
   let drop: (() => void) | undefined;
+  /** Every subscription the page sent, in order, across every connection. */
+  const subscriptions: string[][] = [];
 
   await page.routeWebSocket(/\/market-stream$/u, (ws) => {
     connections += 1;
+
+    ws.onMessage((raw) => {
+      const decoded = decodeMarketStreamClientMessage(String(raw));
+      if (decoded.kind === "message" && decoded.message !== undefined) {
+        subscriptions.push([...decoded.message.symbols]);
+      }
+    });
     drop = () => {
       // `1001 going away` — what the gateway sends on shutdown (§12.2), and
       // the signal that separates *we are redeploying* from *your network
@@ -114,6 +124,7 @@ async function serveDroppableFeed(
 
   return {
     connections: () => connections,
+    subscriptions: () => subscriptions,
     drop: () => {
       drop?.();
     },
@@ -190,4 +201,39 @@ test("the reconnect's snapshot fires no arrival mark", async ({ page }) => {
   // The mark decays over 900 ms, so this is read after the reconnect has
   // settled rather than racing it.
   await expect(markOf(page)).toHaveCount(0);
+});
+
+test("the page re-sends its subscription on every reconnect", async ({
+  page,
+}) => {
+  // **The trap Task 3.5.5 wrote down and Task 3.5.6 could finally fall into.**
+  // A reconnect is a NEW socket the gateway knows nothing about. A browser
+  // that sent its symbols once would come back connected, say `LIVE`, and
+  // receive **nothing** — which looks healthy and is worse than the
+  // `DISCONNECTED` it replaced.
+  //
+  // This is the only level that can check it: the subscription has to survive
+  // a socket the page replaced of its own accord.
+  const feed = await serveDroppableFeed(page, { NVDA: bar(219.5) });
+
+  await page.goto("/securities/NVDA");
+  await expect(feedCell(page).getByText(LIVE, { exact: true })).toBeVisible();
+
+  await expect
+    .poll(() => feed.subscriptions().length, { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  expect(feed.subscriptions().at(-1)).toEqual(["NVDA"]);
+
+  const before = feed.subscriptions().length;
+  feed.drop();
+
+  await expect(feedCell(page).getByText(LIVE, { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
+
+  // **Sent again, on the new socket, without anybody asking.**
+  await expect
+    .poll(() => feed.subscriptions().length, { timeout: 10_000 })
+    .toBeGreaterThan(before);
+  expect(feed.subscriptions().at(-1)).toEqual(["NVDA"]);
 });

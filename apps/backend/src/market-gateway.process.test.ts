@@ -1,5 +1,7 @@
 import {
   MARKET_STREAM_PATH,
+  MARKET_STREAM_PROTOCOL_VERSION,
+  encodeMarketStreamClientMessage,
   toTicker,
   toWireObservation,
 } from "@marketpulse/shared";
@@ -56,48 +58,38 @@ const observation = (startsAt: string, close: number): LiveObservation => ({
   supersedes: false,
 });
 
-interface Attached {
-  readonly app: FastifyInstance;
-  readonly gateway: MarketGateway;
+interface Client {
   readonly socket: WsWebSocket;
   readonly received: { type: string; observations?: Record<string, unknown> }[];
   waitFor: (type: string) => Promise<void>;
+  /** Wait for the Nth message of a type — see the note on the implementation. */
+  waitForCount: (type: string, count: number) => Promise<void>;
+}
+
+interface Attached extends Client {
+  readonly app: FastifyInstance;
+  readonly gateway: MarketGateway;
+  /** Attach another browser to the SAME gateway — Task 3.5.6 needs two. */
+  join: () => Promise<Client>;
 }
 
 let open: Attached | undefined;
+const extra: WsWebSocket[] = [];
 
 afterEach(async () => {
+  for (const socket of extra.splice(0)) socket.close();
   open?.socket.close();
   await open?.gateway.close();
   await open?.app.close();
   open = undefined;
 });
 
-/** A listening server, a registered gateway, and one attached browser. */
-async function attach(
-  snapshot: ReadonlyMap<string, WireObservation> = new Map(),
-): Promise<Attached> {
-  const app = buildServer({
-    logLevel: "silent",
-    logFormat: "json",
-    corsOrigin: "http://localhost:5173",
-  });
-
-  const gateway = registerMarketGateway(app, {
-    snapshot: () => snapshot,
-    feedState: () => ({ status: "live", feed: "iex", marketOpen: true }),
-  });
-
-  await app.listen({ port: 0, host: "127.0.0.1" });
-  const address = app.server.address();
-  if (address === null || typeof address === "string") {
-    throw new Error("the server did not bind a port");
-  }
-
+/** Connect one browser to a listening gateway and collect what it is sent. */
+async function connectClient(port: number): Promise<Client> {
   const received: { type: string; observations?: Record<string, unknown> }[] =
     [];
   const socket = new WsWebSocket(
-    `ws://127.0.0.1:${String(address.port)}${MARKET_STREAM_PATH}`,
+    `ws://127.0.0.1:${String(port)}${MARKET_STREAM_PATH}`,
   );
 
   socket.on("message", (data: Buffer) => {
@@ -108,6 +100,31 @@ async function attach(
       },
     );
   });
+
+  /**
+   * **Counts rather than checks presence**, and that is not a nicety.
+   *
+   * The first draft waited for *a* snapshot, which the INITIAL snapshot
+   * already satisfied — so a test that subscribed and then waited raced the
+   * server and published before the subscription had been processed. The
+   * failure read as a broken filter. Counting makes *the next one* sayable.
+   */
+  const waitForCount = async (type: string, count: number): Promise<void> => {
+    const deadline = Date.now() + 5_000;
+    for (;;) {
+      if (received.filter((message) => message.type === type).length >= count) {
+        return;
+      }
+      if (Date.now() > deadline) {
+        throw new Error(
+          `fewer than ${String(count)} ${type} messages within 5 s; got ${JSON.stringify(
+            received.map((message) => message.type),
+          )}`,
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  };
 
   const waitFor = async (type: string): Promise<void> => {
     const deadline = Date.now() + 5_000;
@@ -131,15 +148,66 @@ async function attach(
     socket.once("error", reject);
   });
 
-  const attached = { app, gateway, socket, received, waitFor };
+  return { socket, received, waitFor, waitForCount };
+}
+
+/** A listening server, a registered gateway, and one attached browser. */
+async function attach(
+  snapshot: ReadonlyMap<string, WireObservation> = new Map(),
+): Promise<Attached> {
+  const app = buildServer({
+    logLevel: "silent",
+    logFormat: "json",
+    corsOrigin: "http://localhost:5173",
+  });
+
+  const gateway = registerMarketGateway(app, {
+    snapshot: () => snapshot,
+    feedState: () => ({ status: "live", feed: "iex", marketOpen: true }),
+  });
+
+  await app.listen({ port: 0, host: "127.0.0.1" });
+  const address = app.server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("the server did not bind a port");
+  }
+  const { port } = address;
+
+  const first = await connectClient(port);
+
+  const attached: Attached = {
+    ...first,
+    app,
+    gateway,
+    join: async () => {
+      const client = await connectClient(port);
+      extra.push(client.socket);
+      return client;
+    },
+  };
+
   open = attached;
   return attached;
 }
 
 describe("an observation published to the gateway reaches an attached browser", () => {
   it("delivers a bar down a real socket", async () => {
+    // **This test needed a `subscribe` added by Task 3.5.6**, and it was not a
+    // bad test: until then a browser received everything without asking, so
+    // *attach and wait* was the whole protocol. Scoping the fan-out made
+    // "asked for nothing" mean "receives nothing" — which is the task — and
+    // this assertion encoded the old contract.
     const a = await attach();
     await a.waitFor("snapshot");
+
+    a.socket.send(
+      encodeMarketStreamClientMessage({
+        type: "subscribe",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        symbols: ["NVDA"],
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 60));
 
     a.gateway.publishObservations([
       observation("2026-09-16T14:01:00Z", 214.75),
@@ -162,9 +230,24 @@ describe("an observation published to the gateway reaches an attached browser", 
     );
     await a.waitFor("snapshot");
 
-    const first = a.received[0];
-    expect(first?.type).toBe("snapshot");
-    expect(Object.keys(first?.observations ?? {})).toEqual(["NVDA"]);
+    // **The FIRST snapshot is empty since Task 3.5.6**, because nothing has
+    // been asked for yet — §11.1's omission semantics applied to a
+    // subscription. This test was written before the fan-out was scoped, when
+    // *attach and wait* was the whole protocol; it was not a bad test, it
+    // encoded the contract of its day.
+    expect(a.received[0]?.type).toBe("snapshot");
+
+    a.socket.send(
+      encodeMarketStreamClientMessage({
+        type: "subscribe",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        symbols: ["NVDA"],
+      }),
+    );
+    await a.waitForCount("snapshot", 2);
+
+    const reply = a.received.filter((m) => m.type === "snapshot").at(-1);
+    expect(Object.keys(reply?.observations ?? {})).toEqual(["NVDA"]);
   });
 
   it("sends an EMPTY snapshot when the process has observed nothing", async () => {
@@ -200,5 +283,155 @@ describe("an observation published to the gateway reaches an attached browser", 
     await new Promise((resolve) => setTimeout(resolve, 60));
 
     expect(a.received.some((message) => message.type === "bars")).toBe(false);
+  });
+});
+
+describe("a browser receives only what it asked for (Task 3.5.6)", () => {
+  /**
+   * 200 well-formed tickers — a size where a filter shows.
+   *
+   * **The task's own warning made concrete:** every question here has a wrong
+   * answer that works perfectly for one security, and a test with three
+   * symbols passes against a `broadcast()` that ignores the filter entirely.
+   *
+   * Generated rather than typed, and **well-formed** rather than `SYM0`:
+   * `toTicker` validates the shape, so a made-up-looking symbol throws before
+   * it can test anything.
+   */
+  const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const MANY = Array.from({ length: 200 }, (_unused, i) => {
+    const first = LETTERS[Math.floor(i / 26) % 26] ?? "A";
+    const second = LETTERS[i % 26] ?? "A";
+    return `Z${first}${second}`;
+  });
+  const ONE_OF_MANY = MANY[7] ?? "ZAH";
+
+  const observationsFor = (symbols: readonly string[]) =>
+    symbols.map((symbol) => ({
+      symbol: toTicker(symbol),
+      bar: bar("2026-09-16T14:01:00Z", 100),
+      source: {
+        provider: "alpaca" as const,
+        feed: "iex" as const,
+        retrievedAt: "2026-09-16T14:02:00.000Z",
+        barCount: 1,
+      },
+      supersedes: false,
+    }));
+
+  const subscribe = (a: Client, symbols: readonly string[]): void => {
+    a.socket.send(
+      encodeMarketStreamClientMessage({
+        type: "subscribe",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        symbols,
+      }),
+    );
+  };
+
+  it("sends one client its symbol while another gets the universe, at once", async () => {
+    // **Criterion 1 and 2 together, and the size is the point.** The task's own
+    // warning: every question here has a wrong answer that works perfectly for
+    // one security, and a test with three symbols passes against a
+    // `broadcast()` that ignores the filter entirely. 200 is a size where the
+    // right answer and the wrong one are different bytes.
+    const narrow = await attach();
+    await narrow.waitFor("snapshot");
+    const wide = await narrow.join();
+    await wide.waitFor("snapshot");
+
+    subscribe(narrow, [ONE_OF_MANY]);
+    subscribe(wide, MANY);
+
+    // The SECOND snapshot each — the reply to the subscribe, not the empty one
+    // sent on connect. Publishing before that has landed races the server.
+    await narrow.waitForCount("snapshot", 2);
+    await wide.waitForCount("snapshot", 2);
+
+    narrow.received.length = 0;
+    wide.received.length = 0;
+
+    narrow.gateway.publishObservations(observationsFor(MANY));
+    await narrow.waitFor("bars");
+    await wide.waitFor("bars");
+
+    const narrowBars = narrow.received.find((m) => m.type === "bars");
+    const wideBars = wide.received.find((m) => m.type === "bars");
+
+    expect(Object.keys(narrowBars?.observations ?? {})).toEqual([ONE_OF_MANY]);
+    expect(Object.keys(wideBars?.observations ?? {})).toHaveLength(MANY.length);
+  });
+
+  it("sends a client that has asked for nothing NOTHING, and that is not an error", async () => {
+    // §11.1's omission semantics applied to a subscription. It is also the
+    // state every browser is in for the first moments of every connection,
+    // including each reconnect.
+    const a = await attach();
+    await a.waitFor("snapshot");
+    a.received.length = 0;
+
+    a.gateway.publishObservations(observationsFor(MANY));
+    await new Promise((resolve) => setTimeout(resolve, 80));
+
+    expect(a.received.some((m) => m.type === "bars")).toBe(false);
+    expect(a.socket.readyState).toBe(a.socket.OPEN);
+  });
+
+  it("answers a LATE subscribe with a snapshot rather than bars", async () => {
+    // **Task 3.5.4's rule, on the door this task opens.** A snapshot sets the
+    // arrival mark's baseline; `bars` fires it. Answering a subscribe with
+    // `bars` would mark every newly subscribed security — on every subscribe
+    // and, since Task 3.5.5, on every reconnect.
+    const a = await attach(
+      new Map([
+        ["ZAH", toWireObservation(bar("2026-09-16T14:01:00Z", 214.75))],
+      ]),
+    );
+    await a.waitFor("snapshot");
+    expect(a.received[0]?.observations).toEqual({});
+
+    subscribe(a, ["ZAH"]);
+    await a.waitForCount("snapshot", 2);
+
+    const reply = a.received.filter((m) => m.type === "snapshot").at(-1);
+    expect(reply?.type).toBe("snapshot");
+    expect(Object.keys(reply?.observations ?? {})).toEqual(["ZAH"]);
+  });
+
+  it("scopes the snapshot too, omitting what was not asked for", async () => {
+    const a = await attach(
+      new Map([
+        ["ZAH", toWireObservation(bar("2026-09-16T14:01:00Z", 1))],
+        ["ZAI", toWireObservation(bar("2026-09-16T14:01:00Z", 2))],
+      ]),
+    );
+    await a.waitFor("snapshot");
+
+    subscribe(a, ["ZAH"]);
+    await a.waitForCount("snapshot", 2);
+
+    const scoped = a.received.filter((m) => m.type === "snapshot").at(-1);
+    expect(Object.keys(scoped?.observations ?? {})).toEqual(["ZAH"]);
+  });
+
+  it("survives a malformed subscribe rather than dropping the browser", async () => {
+    // §36: one bad frame from one browser must not take down a gateway serving
+    // every other browser, and there is no honest reply to a message we could
+    // not read.
+    const a = await attach();
+    await a.waitFor("snapshot");
+
+    a.socket.send("{not json");
+    a.socket.send(JSON.stringify({ type: "subscribe", version: 99 }));
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(a.socket.readyState).toBe(a.socket.OPEN);
+
+    // And it still works afterwards.
+    subscribe(a, ["ZAH"]);
+    await a.waitForCount("snapshot", 2);
+    expect(
+      a.received.filter((m) => m.type === "snapshot").at(-1),
+    ).toBeDefined();
   });
 });

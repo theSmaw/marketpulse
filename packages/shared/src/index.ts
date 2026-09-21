@@ -41,10 +41,13 @@ export type { ConnectionWordInputs } from "./feed-words.js";
 // HTTP response, and hiding it would invite the next protocol to use
 // `JSON.stringify`.
 export {
+  MARKET_STREAM_CLIENT_MESSAGE_TYPES,
   MARKET_STREAM_MESSAGE_TYPES,
   MARKET_STREAM_PATH,
   MARKET_STREAM_PROTOCOL_VERSION,
+  decodeMarketStreamClientMessage,
   decodeMarketStreamMessage,
+  encodeMarketStreamClientMessage,
   encodeMarketStreamMessage,
   fromWireObservation,
   toWireObservation,
@@ -54,9 +57,11 @@ export type {
   BarsMessage,
   DecodedMessage,
   FeedMessage,
+  MarketStreamClientMessage,
   MarketStreamMessage,
   MarketStreamMessageType,
   SnapshotMessage,
+  SubscribeMessage,
   WireFeedState,
   WireObservation,
 } from "./market-stream-protocol.js";

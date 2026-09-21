@@ -690,6 +690,28 @@ export const BREAKS = [
   // days** — the strongest kind, because the check is proved against the defect
   // it was written for rather than a synthetic one.
   {
+    name: "every-browser-gets-the-whole-universe",
+    proves:
+      "The fan-out ignores what a browser asked for and sends everything to " +
+      "everybody \u2014 correct for five symbols and one page, and wrong at 518: " +
+      "a security page showing ONE symbol received the whole universe every " +
+      "minute, 56.9 KiB measured on the wire, and discarded 517 of them. The " +
+      "cost scales with browsers \u00d7 universe and both only grow.",
+    file: "apps/backend/src/market-gateway.ts",
+    find: "      if (!wanted.has(observation.symbol)) continue;",
+    replace:
+      "      // pnpm break: reverted automatically\n" + "      void wanted;",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "run",
+      "test:process",
+      "src/market-gateway.process.test.ts",
+    ],
+    expect: "only what it asked for",
+  },
+  {
     name: "a-deploy-strands-every-open-tab",
     proves:
       "The browser's socket never comes back, which is the state Story 3.3 " +

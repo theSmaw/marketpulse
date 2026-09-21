@@ -1,6 +1,8 @@
 import {
   MARKET_STREAM_PATH,
+  MARKET_STREAM_PROTOCOL_VERSION,
   decodeMarketStreamMessage,
+  encodeMarketStreamClientMessage,
 } from "@marketpulse/shared";
 
 import { apiBaseUrl } from "../api-base-url.js";
@@ -101,20 +103,56 @@ export interface MarketStreamOptions {
   readonly open?: (url: string) => WebSocket;
 }
 
+/** A live socket, from the caller's side. */
+export interface MarketStreamConnection {
+  /** Close it. **Sends no close code**: §8.5, and the gateway knows anyway. */
+  readonly close: () => void;
+  /**
+   * Tell the gateway which securities this browser wants (Task 3.5.6).
+   *
+   * **Safe to call before the socket opens** — it is buffered and sent on
+   * `open` — because a caller should not have to know the socket's state to
+   * express what it wants.
+   */
+  readonly subscribe: (symbols: readonly string[]) => void;
+}
+
 /**
  * Connect, and hand every message up as an event.
  *
- * Returns the disconnect. **It sends no close code**: §8.5 measured that a
+ * Returns the connection. **It sends no close code**: §8.5 measured that a
  * close code carries no information a receiver can act on, and the one this end
  * would send says nothing the gateway does not already know.
  */
 export function connectMarketStream(
   listen: LiveFeedListener,
   { now, open = OPEN_SOCKET }: MarketStreamOptions,
-): () => void {
+): MarketStreamConnection {
   const socket = open(marketStreamUrl(apiBaseUrl));
 
+  // **The subscription is re-asserted on every socket, not once per page.**
+  // A reconnect is a NEW socket the gateway knows nothing about (Task 3.5.5),
+  // so a browser that sent its symbols once would come back connected, say
+  // `LIVE`, and receive nothing — which looks healthy and is worse than the
+  // `DISCONNECTED` it replaced. It is the same shape §8.7 forced on the
+  // upstream client, which re-asserts its constant across every reconnect.
+  let wanted: readonly string[] | undefined;
+  let opened = false;
+
+  const sendSubscription = (): void => {
+    if (!opened || wanted === undefined) return;
+    socket.send(
+      encodeMarketStreamClientMessage({
+        type: "subscribe",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        symbols: wanted,
+      }),
+    );
+  };
+
   socket.addEventListener("open", () => {
+    opened = true;
+    sendSubscription();
     listen({ kind: "opened", at: now() });
   });
 
@@ -155,7 +193,13 @@ export function connectMarketStream(
     listen({ kind: "closed", at: now(), code: event.code });
   });
 
-  return () => {
-    socket.close();
+  return {
+    close: () => {
+      socket.close();
+    },
+    subscribe: (symbols) => {
+      wanted = symbols;
+      sendSubscription();
+    },
   };
 }
