@@ -16,7 +16,7 @@ Do we need to amend, add, delete or re-order any stories in
 
 
 Like we did with other stories in @planning,
-let's split @pplanning/epic-03-live-market-data/story-04-motion-vocabulary-and-the-first-moving-price
+let's split @planning/epic-03-live-market-data/story-05-subscription-management-and-current-market-state
 into small, self-contained tasks that we can implement sequentially to be able to comprehensively satisfy the story.
 Be sure to reference @planning/PRODUCT_SPEC.md so you understand the product that we are building. Remember that the
 stakeholders want to see as much incremental progress as possible on the UI.
