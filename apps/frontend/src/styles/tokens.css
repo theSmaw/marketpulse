@@ -596,6 +596,39 @@
   --motion-duration-pulse: 1400ms;
 
   /*
+   * A fourth duration, added 2026-09-21 by Task 3.4.5, and the first **decay**.
+   *
+   * The set now has three shapes rather than four durations, and the shapes are
+   * the vocabulary:
+   *
+   *   - **work in progress LOOPS** — `pulse`, and nothing else may borrow it
+   *   - **a state PERSISTS** — no duration at all; the chrome's markers
+   *   - **a fact arriving DECAYS** — this one
+   *
+   * It is what `SecurityIdentity`'s arrival mark runs on: a bar arrived for
+   * this security, said once and then gone. `quick` and `settle` both end by
+   * *arriving somewhere* and hold their final state; this is the only member
+   * whose point is that it ends by **disappearing**.
+   *
+   * **900ms, and the number is bounded by the two tokens either side of it
+   * rather than picked.** It must be longer than `settle` (240ms), which is
+   * deliberately short enough that *nobody waits for it* — a mark whose whole
+   * job is to be **caught** needs more than one whose job is to be unnoticed.
+   * And it must be shorter than `pulse` (1400ms), which is the duration chosen
+   * so a reader does **not** watch it: a mark that outlived the thing designed
+   * to be ignored would be asking for more attention than it has earned.
+   *
+   * The hold-then-fade shape lives in the keyframes rather than in a second
+   * token, because two tokens for one gesture is how a set stops being legible.
+   *
+   * **Reversal trigger, as a condition:** the first time a reader reports the
+   * mark as noise, or the first surface where it fires more than once a second.
+   * Story 3.6 puts 518 rows on one screen, which is 8.6 a second — the trigger
+   * is aimed at that story by name and the constraint is written into it.
+   */
+  --motion-duration-decay: 900ms;
+
+  /*
    * The plot's own geometry, including the stroke width, which is here rather
    * than beside the series ink above because a dark theme changes the colour
    * and not the weight.
@@ -708,5 +741,22 @@
      * static frame it would otherwise breathe from.
      */
     --motion-duration-pulse: 0ms;
+
+    /*
+     * Zero means the mark **does not run**, and the consequence has to be
+     * followed rather than noted (Task 3.4.7 owns asserting it).
+     *
+     * On a minute where the price **moved**, nothing is lost: the digits, the
+     * percentage and the arrow are all different and all present with the
+     * motion removed — the mark only ever said *look*.
+     *
+     * On a **quiet** minute the mark is the only thing that would have moved,
+     * because by definition no digit did. What survives for that reader is the
+     * qualifier's own instant, which advances on every real arrival whether or
+     * not the price changed. That is a fact already on the screen rather than a
+     * fallback invented here, and it is why this resolves to `0ms` like the
+     * rest instead of becoming a static exception.
+     */
+    --motion-duration-decay: 0ms;
   }
 }
