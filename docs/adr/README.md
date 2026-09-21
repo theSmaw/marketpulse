@@ -50,6 +50,7 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0029](0029-provenance-on-screen-the-partial-states-and-what-an-honest-empty-answer-certifies.md)          | Provenance on screen, the partial states, and what an honest empty answer certifies             | Accepted |
 | [0030](0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md)                  | Replaying our own bars, and the mechanisms that stop the live feed rotting behind it            | Accepted |
 | [0031](0031-what-a-transport-without-a-schema-layer-owes.md)                                               | What a transport without a schema layer owes, and where a rule about a connection lives         | Accepted |
+| [0032](0032-a-value-that-changes-on-its-own-announces-nothing.md)                                          | A value that changes on its own announces nothing, and what it costs                            | Accepted |
 
 **0024 was written on 2026-09-11, out of order, and the gap it filled is worth
 remembering.** It was reserved by Story 2.11 and three planning documents cited it by

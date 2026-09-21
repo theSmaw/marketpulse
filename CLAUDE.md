@@ -105,9 +105,18 @@ is a live one when a live one exists, and it says so in three lines that change
 together — `LATEST PRICE`, the figure, and `14:01 EDT · change from
 2026-09-11's close`. Measured at 1× against the replay: **one change a minute,
 one or two glyphs of a six-glyph number, and the leading digits did not move
-once in four minutes.** Nothing animates, flashes or transitions — deliberately,
-because Task 3.4.4 takes the motion decision in front of the real thing rather
-than a drawing.
+once in four minutes** — which is why the undesigned version turned out to be
+_nearly invisible_ rather than distracting, and why the decision that followed
+was about peripheral vision rather than volume.
+
+**Since 2026-09-21 it is marked.** A disc appears beside the figure and decays
+over **900 ms** — and it fires when a **bar arrives**, not when the price
+changes, so it says _a bar arrived for this security_ rather than _this price
+moved_, which the `▲` already says. A **word** beside the instant —
+`07:42 EDT · pre-market · …` — says when a price came from outside the regular
+session, derived from the bar's own instant because §7.7 measured that nothing
+on the frame distinguishes one. Under `prefers-reduced-motion` the mark does not
+run and the qualifier's instant is what survives, asserted in a browser.
 
 **What they still cannot do:** watch a price move **on the deployed site**. The
 demonstration is a developer's, out of hours, against ADR 0030's replay of our
@@ -153,7 +162,7 @@ in one line here and argued in full where the table below points:
 
 ### What is open, with a named owner rather than a story number
 
-- **A listening pass with a real screen reader.** The spoken bar sentence is 25
+- **A listening pass with a real screen reader — ONE item, four entries.** The spoken bar sentence is 25
   words against a 1,500 ms pacing floor, and whether a region changing every
   477 ms queues or replaces is readable from neither the DOM nor a timing nor by
   an agent. The repair is designed and unshipped. Owner: a person with a screen
@@ -209,7 +218,18 @@ in one line here and argued in full where the table below points:
   store — true while every bar is the consolidated tape, a single venue's silence
   reported as the whole market's the moment it is not.
 - **Nothing checks that a named region says something when its subject is
-  missing.** A region whose content is legitimately conditional looks identical
+  missing — and since 2026-09-21 a SIBLING rather than a widening.** Task 3.4.9
+  met the harder form: _nothing checks that a named region says something
+  **coherent** when it has **two subjects**_. The market-feed cell answered two
+  questions and said which for neither, reading `not configured` three words
+  from its own `REPLAYING` — **two true halves, one contradiction**, for four
+  days. It is a sibling rather than a widening because the repairs differ: the
+  original wants a region to **speak**, and this one wants two speakers to
+  **agree**, which is checked by walking the **producers** rather than by
+  rendering a state. Answered for that one cell by
+  `market-feed-grid.test.ts`; `docs/GAPS.md` entry 13 carries the rest and its
+  owner is a condition — **the next story that publishes a state grid**.
+  The original, unchanged: A region whose content is legitimately conditional looks identical
   to one whose content silently disappeared; one screen is covered by one browser
   test. **Owner: the next story that adds a region.** Beside it, two smaller
   findings from the same pass. The first is **closed since 2026-09-16, by the

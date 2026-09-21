@@ -1,6 +1,6 @@
 # Story 3.4 — The Motion Vocabulary & the First Price That Moves
 
-**Status:** Not started
+**Status:** **Everything but the rehearsal — 2026-09-21.** Nine of ten tasks complete; the vocabulary, both marks, the measurements and the chrome repair all shipped. **The story does not close**: criterion 5 is unmeasurable without a protocol change (`docs/GAPS.md` entry 12, Story 3.11 owns it) and criterion 8's _with the market open_ needs a live session — the market is shut and the deployment holds the plan's one Alpaca connection. [Task 3.4.10](TASK-10-the-rehearsal-the-sweep-and-the-close.md) records exactly what the rehearsal still owes.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.3
 **Epic scope covered:** the motion vocabulary (design test 4), live price updates in the UI — on one surface
