@@ -463,3 +463,59 @@ This list was written before Story 3.5 existed. Production is now running
 
 **None of this weakens the five items above**; it changes what a watcher should
 expect between them.
+
+---
+
+## Handed here by Task 3.5.8 — 2026-09-21: five figures you can confirm for almost nothing
+
+**Written into this file rather than left in 3.5.8's record**, because that task
+wrote _"handed to Task 3.4.10's rehearsal"_ in its own pages and nowhere else —
+which is the shape this epic has now lost a constraint to **twice**. A pointer
+is what a reader follows when they already know to look.
+
+### What 3.5.8 could not confirm, and why it is your blocker too
+
+Task 3.5.8 was asked to **confirm six recorded figures rather than re-derive
+them**. It confirmed one — `LIVE-DATA.md` §10.3's _0.2 MB_ current-state map,
+measured at **222.8 KiB**, within 9%.
+
+**The other five are observations of the vendor's socket**, and re-taking any of
+them needs exactly what you need: a live session **and** the plan's one
+connection, which the deployment holds (`docs/GAPS.md` entry 10).
+
+| Figure                                                                           | Source | What confirming it needs                                      |
+| -------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------- |
+| 1,500 symbols accepted in 305 ms                                                 | §4.3   | a subscribe frame against the real socket                     |
+| 65.1% median minute coverage, **2.1% for `ERIE`**                                | §7.6   | a session's worth of frames                                   |
+| p50 gap one minute, **maximum 187**                                              | §11.2  | a session's worth of frames                                   |
+| 332 bars in 243 ms                                                               | §7.4   | one open burst                                                |
+| Revisions **0.064%** of bars, **29.1–30.1 s** late, **35.3%** changing the close | §14.1  | a session, and it overlaps your _real correction_ row exactly |
+
+**They are currently recorded as _cited with their dates_ rather than
+re-confirmed** — deliberately, because letting a citation read as a
+confirmation is the failure `CLAUDE.md`'s _measure rather than cite_ exists to
+prevent.
+
+### Why this costs you almost nothing
+
+**Three of the five fall out of what you are already watching.** Your list
+already owes _a genuinely quiet minute_ (§11.2's gap), _a real correction_
+(§14.1's both halves) and _one vendor glance_. A session that produces those
+produces the evidence for §7.6, §11.2 and §14.1 as a by-product — the marginal
+cost is **writing the numbers down**, not gathering them.
+
+§4.3 and §7.4 need a little more: the accepted count on the acknowledgement,
+and the size of the open burst. Both are single readings, and Task 3.5.3
+already made the accepted count something the client **logs**.
+
+### What this does NOT ask of you
+
+**Not a re-derivation.** If a figure still looks right, say _confirmed_ with the
+date. If it has moved, that is the more valuable outcome and it sweeps
+**upward** — `LIVE-DATA.md` is Story 3.1's document, so a moved figure is
+corrected there rather than here, on the day it is found.
+
+**And not a blocker on your own close.** These are a bonus the same session
+buys. If the rehearsal happens and nobody writes the five down, the story still
+closes — they simply stay cited rather than confirmed, and the next person to
+need one pays the full cost of taking it.
