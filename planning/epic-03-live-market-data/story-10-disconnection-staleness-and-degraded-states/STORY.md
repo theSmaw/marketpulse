@@ -346,3 +346,91 @@ marks an event and says nothing about what silence means.
   answer for a quiet minute was the qualifier's own instant, asserted in
   `security-price-motion.spec.ts`; a degraded feed is the case where that
   instant **stops advancing**, which is information you can use.
+
+## The production crash loop — isolated AND fixed on 2026-09-21, before this story started
+
+**Read this as something you inherit working rather than something you owe.**
+It was taken out of sequence because it was blocking every deploy on `main`,
+not because it belonged to Task 3.4.10.
+
+### What was wrong
+
+Story 3.11's record names the symptom — `level: 60`,
+`WebSocket is not open: readyState 0 (CONNECTING)`, six fatal exits between
+02:00Z and 06:00Z on 2026-09-19 — and says only _something calls `send()`
+before the socket has opened_. It was the `406` retry path, and it took three
+facts in `apps/backend/src/alpaca-stream.ts` together:
+
+1. **`socket` was a single mutable reference.** `open()` did `socket = opened`,
+   the only assignment.
+2. **`scheduleRetry()` never closed the incumbent.** The `406` branch scheduled
+   and returned; 3 s later `open()` **overwrote** `socket` with a new,
+   `CONNECTING` one while the old socket was still live with its listeners
+   attached.
+3. **`authenticate()` and `subscribe()` wrote to `socket`, not to the socket
+   the frame arrived on.** `opened.on("message", …)` closed over `opened`, but
+   the handshake reached for the shared reference.
+
+So a frame delivered by socket **A** after `socket` had been repointed at **B**
+called `B.send()` at `readyState 0`, and `ws` throws **synchronously** — out of
+a `message` listener, past nothing, into the process crash handler. It
+reproduced every 3 s for as long as the `406` held, which is why the container
+sat in `CrashLoopBackOff` and the deploy step's own guard refused every rollout:
+
+```text
+marketpulse-backend--0000273 has a container that has already restarted; the rollout is failing
+restart 1: Container is waiting with reason: CrashLoopBackOff on legion.
+```
+
+**Three merges failed to reach production that way** — Tasks 3.4.8, 3.4.9 and
+3.4.10.
+
+### What was done
+
+- **The handshake writes to the socket that spoke.** `authenticate` and
+  `subscribe` take the socket as an argument, threaded from the `message`
+  listener through `handleMessage` and `toStreamEvent`. This alone removes the
+  crash.
+- **A retry closes the incumbent first.** The old behaviour was also a _cause_
+  of the `406` it retried: §8.2's limit is one connection and we held two — our
+  own refused socket competing with our own replacement.
+- **`sendTo` refuses a socket that is not `OPEN`, and swallows a throw.** The
+  same line `requestClose` already takes from `PROVIDER.md` §8.5 — nothing a
+  vendor's socket does justifies ending our process.
+
+`SOCKET_OPEN = 1` is spelled in the file rather than imported from `ws`,
+because the seam this client writes through is `WebSocketLike` and a test
+furnishes a plain object.
+
+### The break, verified
+
+Two tests in `alpaca-stream.test.ts`, and **`FakeSocket.send` now throws when
+`readyState !== 1`, with `ws`'s exact message** — a fake that swallowed the
+write could not have reproduced this. Both were proven red against the
+unrepaired file before being left green:
+
+```text
+× closes the refused socket before asking for its replacement
+× a frame on a SUPERSEDED socket does not write to its replacement
+  AssertionError: expected [Function] to not throw an error but
+  'Error: WebSocket is not open: readyState 0 (CONNECTING)' was thrown
+```
+
+### What is STILL yours, and it is the half that matters more
+
+**Nothing would have told anybody.** `market-stream.ts` never references
+`onLog`, so the Alpaca client's eight diagnostic events — `authenticated`,
+`subscribed`, `credentials-refused`, `frame-rejected`, **`connection-limit`**,
+`unexpected-error-frame`, **`liveness-watchdog-fired`**, `closed` — reach
+production nowhere. That is why a dead feed ran for nineteen hours unseen, and
+it is **Story 3.11's** by assignment. It is left undone deliberately: wiring it
+needs a logger threaded into `createMarketStream`, which is a design decision
+about level and shape rather than a repair.
+
+**Until it is wired, the only way to know whether this fix worked is to poll
+`GET /diagnostics/feed` and read `observedAt`.**
+
+### The trigger this leaves standing
+
+**A mutable reference driven by callbacks bound to a _previous_ instance of the
+thing it points at.** That is the shape, and it is not specific to sockets.
