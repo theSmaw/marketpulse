@@ -84,3 +84,46 @@ missing minutes is worse than one that plainly resumes.
 **Reversal trigger, as a condition:** the first surface where a gap in the
 middle of a series is visibly wrong rather than merely absent — a chart that
 draws a straight line across four missing minutes as though nothing happened.
+
+---
+
+## Amended by Task 3.5.4 — 2026-09-21: the hard half of this task is already done
+
+### The arrival mark on a reconnect is handled, and you inherit it
+
+This task's own work list says _the arrival mark must not fire on the reconnect
+snapshot — a reconnect is not 518 bars arriving._ **That is already true**, and
+not by luck.
+
+3.5.4 added the rule the whole vocabulary now rests on — **a snapshot is not an
+arrival** — and implemented it on **delivery rather than content**:
+`LiveFeedConnection.fromSnapshot` records which symbols are sitting on a
+snapshot baseline, and a `snapshot` message **replaces** that set wholesale.
+
+So a reconnect sends a snapshot, every symbol it carries becomes a baseline
+again, and nothing marks. **Verify it rather than assume it**, but expect to
+write an assertion rather than a mechanism.
+
+### What this task must NOT do to that rule
+
+- **Do not mark the reconnect itself.** The temptation is a one-off flourish
+  saying _we are back_. The chrome's connection word already owns _is data
+  arriving_ (§11.2), and a fourth motion behaviour costs the vocabulary the
+  legibility that is its whole value.
+- **Do not clear `observations` on disconnect.** §36's _displaying data through
+  10:42:17_ is the standing decision, and a reconnect that blanked first would
+  make the returning snapshot look like 518 arrivals however the rule is
+  written.
+- **Do not reconstruct the distinction from the observation.** _Ignore whichever
+  observation arrives first after a reconnect_ fails for the same reason 3.5.4
+  rejected it on first load: a thin security whose genuine first bar lands
+  moments after the reconnect is a real arrival. §7.6 measured **2.1%** minute
+  coverage for `ERIE`.
+
+### One thing to check that 3.5.4 could not
+
+A reconnect snapshot may carry **fewer** symbols than the previous one — the
+server may have restarted and observed less. The held observation for a dropped
+symbol survives in `observations` but leaves `fromSnapshot`, so the next bar for
+it **will** mark. That is believed correct and is **untested**, because nothing
+before this task could reconnect.

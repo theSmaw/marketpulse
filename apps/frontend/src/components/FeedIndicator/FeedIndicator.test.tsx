@@ -18,6 +18,8 @@ import { FeedIndicator } from "./FeedIndicator.js";
 
 /** Nothing observed. §11.1: absence is the answer, and `{}` is the true one. */
 const NO_OBSERVATIONS = new Map();
+/** Nothing was delivered by a snapshot — Task 3.5.4's baseline/arrival split. */
+const NO_SNAPSHOT = new Set<string>();
 
 // §7.3's measured frame: a bar stamped `14:01:00Z`, which is 10:01 in New York.
 const OBSERVED_AT = Date.parse("2026-09-16T14:01:00Z");
@@ -43,6 +45,7 @@ const view = (over: Partial<LiveFeedView> = {}): LiveFeedView => ({
   observedAt: OBSERVED_AT,
   unreadable: 0,
   observations: NO_OBSERVATIONS,
+  fromSnapshot: NO_SNAPSHOT,
   ...over,
 });
 

@@ -183,9 +183,13 @@ latest observation never walks backwards. Those disagree, invisibly today and
   reads too
 - `broadcast()` still goes to **every** client with no per-client filter, and
   that is now **70.2 KiB a minute per attached browser** (3.5.6 closes it)
-- `snapshot: () => new Map()` is still a literal (3.5.4)
-- **Nothing at any level asserts that a published observation reaches an
-  attached browser** — found in 3.5.2's sweep, and Task 3.5.4 owns closing it
+- **The snapshot is the current market state**, and the identity block is
+  correct on first paint — the three-line flash on every page load is gone
+- **A snapshot is not an arrival**, carried store → view → route → block, which
+  is what stopped the mark firing on 518 securities per page load
+- A published observation reaching an attached browser is asserted against a
+  **real socket** (`market-gateway.process.test.ts`), closing the hole 3.5.2's
+  sweep found
 
 ## What this story hands forward
 

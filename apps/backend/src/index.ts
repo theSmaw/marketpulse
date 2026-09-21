@@ -24,7 +24,10 @@ import { MARKET_STREAM_PATH } from "@marketpulse/shared";
 
 import { registerMarketGateway } from "./market-gateway.js";
 import type { MarketDataStream } from "./market-data-stream.js";
-import { createCurrentMarketState } from "./current-market-state.js";
+import {
+  createCurrentMarketState,
+  snapshotOf,
+} from "./current-market-state.js";
 import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
 import { ReplayDuringSessionError } from "./replay-stream.js";
 import { resolveMarketData } from "./market-data.js";
@@ -649,12 +652,17 @@ const currentMarketState = createCurrentMarketState();
 // instance of the thing it points at*. Ordering the construction is free;
 // late-binding a callback target is not.
 //
-// **The snapshot is empty for now**, and that is a scope line: Task 3.5.4 owns
-// filling it. §11.1 is explicit that `{}` is the TRUE answer after a restart
-// rather than a degraded one, so an empty map is not a placeholder — it is what
-// this deployment currently knows.
+// **The snapshot is the current market state since Task 3.5.4**, which deletes
+// the largest undesigned visual event in the product: before it, every page
+// load rendered `LAST SESSION CLOSE` and then — up to a minute later — the
+// identity block changed all three of its lines at once.
+//
+// §11.1's omission semantics are what keep this honest AND small: an entry
+// exists only for a security actually **observed**, so a freshly restarted
+// process sends almost nothing and `{}` stays the TRUE answer rather than a
+// degraded one. *Present but empty* is unspellable at the source.
 const gateway = registerMarketGateway(app, {
-  snapshot: () => new Map(),
+  snapshot: () => snapshotOf(currentMarketState),
   feedState: () => {
     const state = readFeedState(config, new Date(), marketStream);
     // `null` — no stream configured — reads as `disconnected` on the wire,

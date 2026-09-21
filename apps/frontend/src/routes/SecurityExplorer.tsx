@@ -167,6 +167,10 @@ export function SecurityExplorer({
   // a page open on a thin security legitimately has nothing here for hours, and
   // that is the feed working.
   const live = liveFeed.observations.get(symbol);
+  // **A snapshot is not an arrival** (Task 3.5.4). The store keeps the wire's
+  // own distinction — §11.1's `snapshot` and `bars` are two message types —
+  // and this is where it reaches the block that marks an arrival.
+  const liveFromSnapshot = liveFeed.fromSnapshot.has(symbol);
 
   return (
     <div className={page.page}>
@@ -276,6 +280,7 @@ export function SecurityExplorer({
       <SecurityIdentity
         symbol={symbol}
         view={view}
+        liveFromSnapshot={liveFromSnapshot}
         {...(live === undefined ? {} : { live })}
       />
 

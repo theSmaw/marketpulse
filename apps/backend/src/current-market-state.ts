@@ -1,6 +1,13 @@
+import { toWireObservation } from "@marketpulse/shared";
+
 import { trackedSymbols } from "./universe.js";
 
-import type { Bar, BarSource, Ticker } from "@marketpulse/shared";
+import type {
+  Bar,
+  BarSource,
+  Ticker,
+  WireObservation,
+} from "@marketpulse/shared";
 import type { LiveObservation } from "./market-data-stream.js";
 
 /**
@@ -195,3 +202,29 @@ export function createCurrentMarketState(
     size: () => latest.size,
   };
 }
+
+/**
+ * The current state as the gateway's snapshot (Task 3.5.4).
+ *
+ * **§11.1's omission semantics, carried from the map to the wire.** An entry
+ * exists for every security **observed** and **no entry at all** for the rest —
+ * *present but empty* is unspellable, which `WireObservation`'s all-required
+ * fields already enforce and which this must not weaken to make a map easier to
+ * build.
+ *
+ * An empty result is the **true** answer after a restart rather than a degraded
+ * one, so this has no error path: a process that has observed nothing returns
+ * an empty map and the browser renders the stored close, exactly as before.
+ *
+ * Keyed by `string` rather than `Ticker` because that is the gateway's own
+ * shape, and the seam between them is here rather than in the gateway.
+ */
+export const snapshotOf = (
+  state: CurrentMarketState,
+): ReadonlyMap<string, WireObservation> => {
+  const wire = new Map<string, WireObservation>();
+  for (const [symbol, held] of state.all()) {
+    wire.set(symbol, toWireObservation(held.bar));
+  }
+  return wire;
+};

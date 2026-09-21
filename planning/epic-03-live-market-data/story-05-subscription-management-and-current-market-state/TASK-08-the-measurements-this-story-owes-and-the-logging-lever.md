@@ -138,9 +138,27 @@ Fixing it is a change to the replay rather than to the subscription, and
 - **Re-measure rather than cite the table above.** These are dated observations
   of one machine's store
 
-### And one correction this task should carry forward
+### One measurement this task no longer owes, and a lesson it should record
 
-Task 3.5.2's sweep estimated the per-browser fan-out at **~50 KB/min**. Computed
-from the real `WireObservation` shape at 518 entries it is **70.2 KiB** — the
-estimate was **40% low**. Both figures above are constructed rather than
-observed on the wire; **take them from a real message.**
+**The snapshot size is done.** Task 3.5.4 read it off a real message rather than
+constructing one: **58,218 bytes — 56.9 KiB** for 518 securities, taken from a
+running gateway with an attached `ws` client.
+
+**The figure was wrong twice before that, in both directions:**
+
+| When          | Figure       | How it was arrived at                         | Error        |
+| ------------- | ------------ | --------------------------------------------- | ------------ |
+| 3.5.2's sweep | ~50 KB/min   | estimated                                     | **40% low**  |
+| 3.5.3's sweep | 70.2 KiB     | computed from a constructed `WireObservation` | **23% high** |
+| 3.5.4         | **56.9 KiB** | **read off the wire**                         | —            |
+
+The second was _more careful_ than the first and no more accurate, because both
+reasoned about a shape rather than reading one — the constructed version used
+five-character symbols and real tickers are shorter. **That is the entry worth
+carrying forward**: a computed figure is not a measured one however carefully it
+is computed, and `CLAUDE.md`'s _a tolerance is measured, never argued_ earned
+its wording twice over inside a single story.
+
+**Still to measure here:** the per-minute fan-out cost at a realistic client
+count, and whether the 56.9 KiB figure holds late in a session when every one of
+the 518 has been observed.

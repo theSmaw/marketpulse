@@ -130,6 +130,28 @@ export interface LiveFeedConnection {
    * below cheap — see {@link sameLiveFeedView}.
    */
   readonly observations: ReadonlyMap<string, Bar>;
+  /**
+   * The symbols whose **current** observation was delivered by a snapshot
+   * rather than by a bar (Task 3.5.4).
+   *
+   * **A snapshot is not an arrival**, and this is the only place that
+   * distinction survives. Story 3.4's mark means *a bar arrived for this
+   * security*; a snapshot is *what we already held when you connected*. The
+   * wire says which — §11.1 gives the gateway two message types — and before
+   * this field the store collapsed both into {@link observations} one layer
+   * later.
+   *
+   * It matters because the identity block **mounts before the socket delivers
+   * anything**. Without this, a snapshot changes the figure from *absent* to
+   * *a price*, which is indistinguishable from a bar arriving — so the mark
+   * would fire on every page load, on every security at once, announcing as
+   * news the thing the reader has just asked to see.
+   *
+   * **Delivery decides, not content**, which is also what makes it survive a
+   * reconnect: Task 3.5.5 sends a snapshot on every reconnection and none of
+   * them is 518 bars arriving.
+   */
+  readonly fromSnapshot: ReadonlySet<string>;
   /** The server's last word about its own feed, or `undefined` before the snapshot. */
   readonly server: WireFeedState | undefined;
   /**
@@ -158,6 +180,7 @@ export const initialLiveFeed: LiveFeedConnection = {
   socket: "connecting",
   since: 0,
   observations: new Map(),
+  fromSnapshot: new Set(),
   lastInboundAt: undefined,
   lastObservationAt: undefined,
   server: undefined,
@@ -189,6 +212,37 @@ const NOTHING_OBSERVED: Observed = { bars: new Map(), newest: undefined };
  * and reaches a price row as those two words. `fromWireObservation` owns that
  * check so the two ends of the wire cannot disagree about it.
  */
+/**
+ * Which symbols are currently sitting on a snapshot baseline (Task 3.5.4).
+ *
+ * A `snapshot` message makes every symbol it carries a baseline; a `bars`
+ * message removes exactly the symbols it carries, because those genuinely
+ * arrived. Symbols in neither are untouched — a snapshot for AAPL says nothing
+ * about whether NVDA's held price was a baseline or an arrival.
+ *
+ * Returns the **same set** when nothing changed, so the render gate below stays
+ * a reference comparison.
+ */
+function withDelivery(
+  current: ReadonlySet<string>,
+  bars: ReadonlyMap<string, Bar>,
+  type: MarketStreamMessage["type"],
+): ReadonlySet<string> {
+  // A `feed` message carries no observations, so it can never move a symbol
+  // between baseline and arrival — it returns here rather than being excluded
+  // by the caller, so a fourth message type cannot be forgotten.
+  if (bars.size === 0) return current;
+
+  if (type === "snapshot") return new Set(bars.keys());
+
+  const next = new Set(current);
+  let changed = false;
+  for (const symbol of bars.keys()) {
+    if (next.delete(symbol)) changed = true;
+  }
+  return changed ? next : current;
+}
+
 function observedIn(message: MarketStreamMessage): Observed {
   if (message.type === "feed") return NOTHING_OBSERVED;
 
@@ -273,6 +327,15 @@ export function advanceLiveFeed(
         server:
           event.message.type === "bars" ? state.server : event.message.feed,
         observations: withObservations(state.observations, bars),
+        // **A snapshot sets the baseline; a bar changes it.** A `bars` message
+        // clears the flag for exactly the symbols it carries, so the first
+        // real observation after a snapshot marks — and every other security
+        // stays on its snapshot baseline until its own bar arrives.
+        fromSnapshot: withDelivery(
+          state.fromSnapshot,
+          bars,
+          event.message.type,
+        ),
         lastObservationAt:
           newest === undefined
             ? state.lastObservationAt
@@ -325,6 +388,15 @@ export interface LiveFeedView {
    * a consumer cannot write into the state through it.
    */
   readonly observations: ReadonlyMap<string, Bar>;
+  /**
+   * Symbols whose current observation came from a snapshot (Task 3.5.4).
+   *
+   * **A snapshot is not an arrival.** A surface that marks *a bar arrived*
+   * must not mark what it was simply handed on connect — see
+   * {@link LiveFeedConnection.fromSnapshot} for why this cannot be
+   * reconstructed from the observation itself.
+   */
+  readonly fromSnapshot: ReadonlySet<string>;
   /** Messages this browser could not read. Zero on every healthy deployment. */
   readonly unreadable: number;
 }
@@ -405,6 +477,7 @@ export function liveFeedView(
     // the Map on `disconnected` would be the product removing true information
     // because a socket died.
     observations: state.observations,
+    fromSnapshot: state.fromSnapshot,
   } as const;
 
   // We cannot hear the backend, so nothing it last said is evidence of
@@ -481,6 +554,7 @@ export function sameLiveFeedView(a: LiveFeedView, b: LiveFeedView): boolean {
     // otherwise, so the reference IS the change signal. A deep comparison would
     // be up to 518 entries every keepalive to answer a question an identity
     // check already answered.
-    a.observations === b.observations
+    a.observations === b.observations &&
+    a.fromSnapshot === b.fromSnapshot
   );
 }

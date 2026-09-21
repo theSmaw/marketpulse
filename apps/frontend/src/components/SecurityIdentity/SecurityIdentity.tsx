@@ -92,6 +92,17 @@ export interface SecurityIdentityProps {
   readonly view: SecuritiesView;
 
   /**
+   * Whether {@link SecurityIdentityProps.live} was delivered by a **snapshot**
+   * rather than by a bar arriving (Task 3.5.4).
+   *
+   * **A snapshot is not an arrival.** Story 3.4's mark means *a bar arrived for
+   * this security*; a snapshot is *what we already held when you connected*.
+   * Defaults to `false`, which is the pre-3.5.4 behaviour and the right answer
+   * for every caller that has no snapshot to speak of.
+   */
+  readonly liveFromSnapshot?: boolean;
+
+  /**
    * The latest observation for this security, when the live feed has sent one
    * (Task 3.4.2).
    *
@@ -134,6 +145,7 @@ export interface SecurityIdentityProps {
 function useArrival(
   symbol: string,
   observation: string | undefined,
+  fromSnapshot: boolean,
 ): string | undefined {
   const [mounted, setMounted] = useState({ symbol, observation });
 
@@ -142,6 +154,26 @@ function useArrival(
     // pattern for state derived from props, and the only one that does not
     // paint a frame of the wrong answer first.
     setMounted({ symbol, observation });
+    return undefined;
+  }
+
+  // **A snapshot sets the baseline; a bar changes it** (Task 3.5.4).
+  //
+  // This block mounts BEFORE the socket delivers anything, so it mounts
+  // holding nothing. Once the snapshot carries prices, the figure changes from
+  // *absent* to *a price* — which is indistinguishable here from a bar
+  // arriving. Without this branch the mark would fire on **every page load**,
+  // announcing as news the thing the reader has just asked to see, and a mark
+  // that fires every visit means nothing.
+  //
+  // **Delivery decides rather than content**, which is why the flag comes down
+  // from the store rather than being inferred: *ignore whichever observation
+  // arrives first* would also suppress a genuine first bar for a thin security
+  // the server had never observed — §7.6 measured 2.1% minute coverage for
+  // `ERIE`, so that case is ordinary rather than hypothetical.
+  if (fromSnapshot) {
+    if (observation !== mounted.observation)
+      setMounted({ symbol, observation });
     return undefined;
   }
 
@@ -196,6 +228,7 @@ export function SecurityIdentity({
   symbol,
   view,
   live,
+  liveFromSnapshot = false,
 }: SecurityIdentityProps) {
   const found =
     view.state === "loaded"
@@ -241,7 +274,12 @@ export function SecurityIdentity({
           {classificationOf(found).join(" · ")}
         </p>
       </div>
-      <Close symbol={symbol} lastClose={lastClose} live={live} />
+      <Close
+        symbol={symbol}
+        lastClose={lastClose}
+        live={live}
+        liveFromSnapshot={liveFromSnapshot}
+      />
     </div>
   );
 }
@@ -303,17 +341,23 @@ function Close({
   symbol,
   lastClose,
   live,
+  liveFromSnapshot,
 }: {
   readonly symbol: string;
   readonly lastClose: SecurityLastClose | undefined;
   readonly live: Bar | undefined;
+  readonly liveFromSnapshot: boolean;
 }) {
   // **A live price changes the SUBJECT of this block, and all three lines move
   // together** (Task 3.4.2). That is what makes it a stated substitution rather
   // than a silent one: a live price is not a newer version of a session close,
   // it is a different number measured from a different thing and true at a
   // different time.
-  const arrival = useArrival(symbol, observationIdentity(live));
+  const arrival = useArrival(
+    symbol,
+    observationIdentity(live),
+    liveFromSnapshot,
+  );
 
   if (live !== undefined) {
     const percent = changeFromClose(live.close, lastClose);

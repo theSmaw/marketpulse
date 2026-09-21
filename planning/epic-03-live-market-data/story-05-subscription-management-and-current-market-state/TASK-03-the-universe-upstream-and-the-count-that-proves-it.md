@@ -148,13 +148,13 @@ deployed state rather than a moment on a branch.
 
 **That is accepted rather than overlooked**, on these grounds:
 
-- The cost is bounded and small: ~518 observations a minute, on the order of
-  ~~**50 KB/min per attached browser**~~ — **corrected 2026-09-21 to 70.2 KiB**,
-  computed from the real `WireObservation` shape at 518 entries rather than
-  estimated. The original figure was **40% low**, which is the reason
-  `CLAUDE.md` says a tolerance is measured rather than argued. Still bounded,
-  still small against a deployment whose realistic audience is a handful of
-  tabs; Task 3.5.8 takes it from a real message rather than a constructed one.
+- The cost is bounded and small: ~518 observations a minute. The figure has now
+  been wrong **twice** and is finally measured:
+  ~~50 KB/min~~ → ~~70.2 KiB~~ → **56.9 KiB** (58,218 bytes), read off a real
+  message on the wire by Task 3.5.4. The first estimate was **40% low**, the
+  second **23% high**, and both were arrived at by reasoning about a shape
+  rather than reading one. `CLAUDE.md`'s _a tolerance is measured, never
+  argued_ earned that wording twice over in one story.
 - **Nothing renders wrongly.** Story 3.4's arrival mark fires per security on
   the security actually displayed, so the surplus is discarded silently.
 - The alternative is building the browser's subscribe protocol **before** the
