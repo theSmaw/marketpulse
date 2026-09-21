@@ -100,10 +100,20 @@ all**, which is the grid's `—` rather than a claim that something broke. Close
 the backend under a loaded page and the cell says so without a refresh while
 every number, every region and the venue stay exactly as they were.
 
-**What they still cannot do:** watch a price move. Prices are the last stored
-close, exactly as yesterday — **the application announces it is live and then
-demonstrates nothing**, which is honest and is the shape of a thin slice. Story
-3.4 is the first one that moves a number.
+**And since 2026-09-20 a price moves on its own.** The identity block's figure
+is a live one when a live one exists, and it says so in three lines that change
+together — `LATEST PRICE`, the figure, and `14:01 EDT · change from
+2026-09-11's close`. Measured at 1× against the replay: **one change a minute,
+one or two glyphs of a six-glyph number, and the leading digits did not move
+once in four minutes.** Nothing animates, flashes or transitions — deliberately,
+because Task 3.4.4 takes the motion decision in front of the real thing rather
+than a drawing.
+
+**What they still cannot do:** watch a price move **on the deployed site**. The
+demonstration is a developer's, out of hours, against ADR 0030's replay of our
+own stored bars — production serves only the real IEX socket and that socket has
+been refused `406` since the deployed backend started holding the plan's single
+connection. Stories 3.10 and 3.11 own it.
 
 ### What is settled, and where the argument lives
 

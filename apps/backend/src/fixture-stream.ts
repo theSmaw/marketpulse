@@ -76,6 +76,20 @@ export interface FixtureStreamOptions {
   readonly startingMinute?: Date;
   /** Injected, for the same reason the real client injects it. */
   readonly now?: () => number;
+  /**
+   * How often a subscribed stream produces a minute **on its own**.
+   *
+   * **The product's own cadence, and the default is not negotiable downward for
+   * convenience.** §10.1 and §7.6: a bar is a minute, so a generator emitting
+   * faster would put movement on a screen at a rate the market never produces —
+   * and Story 3.4 exists because a vocabulary designed against the wrong
+   * cadence is a vocabulary designed for a market that does not exist. A test
+   * shortens it because a test also injects the timer.
+   */
+  readonly tickEveryMs?: number;
+  /** Injected so a test advances the stream without a real second passing. */
+  readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
+  readonly clearTimer?: (timer: NodeJS.Timeout) => void;
 }
 
 /**
@@ -96,17 +110,25 @@ function seeded(seed: number): () => number {
   };
 }
 
+/** §10.1's grain: a bar is a minute, and so is a generated one. */
+const ONE_MINUTE_MS = 60_000;
+
 /** Two decimal places, the grain a US equity price actually has. */
 const round2 = (value: number): number => Math.round(value * 100) / 100;
 
 export interface FixtureStream extends MarketDataStream {
   /**
-   * Deliver one generated bar per symbol for the next minute.
+   * Deliver one generated bar per symbol for the next minute, **now**.
    *
-   * **Driven rather than timed.** A generator on a real interval would make
-   * every test a race and `pnpm dev`'s behaviour depend on wall-clock timing;
-   * the caller decides when a minute passes, which is the same decision the
-   * real client's injected clock makes for the same reason.
+   * A subscribed stream calls this on its own every `tickEveryMs`; this is the
+   * same door, opened by hand. It stays public because a test asserting on a
+   * generated value must be able to say *when* a minute passed rather than wait
+   * for one — the same decision the real client's injected clock makes.
+   *
+   * **It is no longer the ONLY way a minute passes**, and that is Task 3.4.3's
+   * repair: until then this stream emitted only when a test asked it to, so a
+   * process that constructed it got a feed that reported itself healthy and
+   * produced nothing for ever.
    */
   tick(): readonly LiveObservation[];
   /**
@@ -130,6 +152,11 @@ export function createFixtureStream(
     startingPrice = 100,
     startingMinute = new Date("2026-09-16T13:30:00.000Z"),
     now = () => performance.now(),
+    tickEveryMs = ONE_MINUTE_MS,
+    setTimer = (fn, ms) => setInterval(fn, ms),
+    clearTimer = (timer) => {
+      clearInterval(timer);
+    },
   } = options;
 
   const random = seeded(seed);
@@ -139,6 +166,7 @@ export function createFixtureStream(
   let minute = startingMinute;
   let connection: StreamConnection = initialStreamConnection;
   let subscriber: StreamSubscriber | undefined;
+  let timer: NodeJS.Timeout | undefined;
 
   const apply = (event: StreamEvent): void => {
     connection = advanceStreamConnection(connection, event);
@@ -173,7 +201,7 @@ export function createFixtureStream(
     };
   };
 
-  return {
+  const stream: FixtureStream = {
     id: "fixture",
     feed: SYNTHETIC_FEED,
 
@@ -195,7 +223,18 @@ export function createFixtureStream(
         at,
       });
 
+      // **The clock this stream did not have** (Task 3.4.3). A
+      // `MarketDataStream` that only advances when a test calls `tick()` is not
+      // a stream — it reports a healthy connection and produces nothing, which
+      // is indistinguishable from a dead feed and is exactly how this survived
+      // two stories with `pnpm verify` green.
+      timer = setTimer(() => {
+        stream.tick();
+      }, tickEveryMs);
+
       return () => {
+        if (timer !== undefined) clearTimer(timer);
+        timer = undefined;
         apply({ kind: "closed", elapsedMs: 0, at: now() });
         subscriber = undefined;
       };
@@ -231,4 +270,6 @@ export function createFixtureStream(
       apply(event);
     },
   };
+
+  return stream;
 }
