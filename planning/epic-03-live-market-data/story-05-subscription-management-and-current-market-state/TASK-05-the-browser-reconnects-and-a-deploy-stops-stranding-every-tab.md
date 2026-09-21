@@ -1,8 +1,8 @@
-# Task 3.5.4 — The browser reconnects, and a deploy stops stranding every open tab
+# Task 3.5.5 — The browser reconnects, and a deploy stops stranding every open tab
 
 **Status:** Not started
 **Story:** [3.5 Subscription Management & the Current Market State](STORY.md)
-**Depends on:** 3.5.3
+**Depends on:** 3.5.4
 
 ## Objective
 
@@ -21,7 +21,7 @@ the application stops needing to be reloaded.**
 A tab left open across a deploy — which is every tab, on every merge — currently
 sits reading `DISCONNECTED` forever with stale numbers beside it. After this it
 goes away for a few seconds and comes back **with the prices it missed**,
-because the snapshot built in 3.5.3 is exactly the catch-up mechanism.
+because the snapshot built in 3.5.4 is exactly the catch-up mechanism.
 
 This is worth showing a stakeholder precisely because it is the failure they are
 most likely to have already hit by accident.
@@ -59,7 +59,7 @@ and a retry loop.
   **stay on screen** while the connection is gone
 - The chrome's connection word must move `DISCONNECTED` → `LIVE` **without a
   reload**, which is the assertion this task exists for
-- **The arrival mark must not fire on the reconnect snapshot**, for 3.5.3's
+- **The arrival mark must not fire on the reconnect snapshot**, for 3.5.4's
   reason — a reconnect is not 518 bars arriving
 
 ## Done when

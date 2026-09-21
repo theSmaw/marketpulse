@@ -690,6 +690,45 @@ export const BREAKS = [
   // days** — the strongest kind, because the check is proved against the defect
   // it was written for rather than a synthetic one.
   {
+    name: "the-live-stream-loses-its-consumer",
+    proves:
+      "The process discards every live observation again \u2014 the state this " +
+      "product was in until Task 3.5.1, where a unit suite over the " +
+      "current-state object passes either way. Three defects of this exact " +
+      "family have shipped with `pnpm verify` green: something that exists in " +
+      "one layer and cannot be reached from the next.",
+    file: "apps/backend/src/index.ts",
+    find: "      currentMarketState.observe(observations);",
+    replace:
+      "      // pnpm break: reverted automatically\n" +
+      "      void observations;",
+    command: ["pnpm", "invariants"],
+    expect: "does not feed the market stream",
+  },
+  {
+    name: "the-current-state-holds-an-untracked-security",
+    proves:
+      "`UNIVERSE.md` \u00a712.2 makes `status` an INVISIBLE PREDICATE \u2014 one " +
+      "invisible predicate is a design and two is a bug waiting for whoever " +
+      "forgets. The current market state is a computation over *the market we " +
+      "track now*, so it filters to `active`; Story 3.9's stored read path " +
+      "deliberately does not, and a reader who makes the two agree breaks one " +
+      "of them. Nothing but this test says so.",
+    file: "apps/backend/src/current-market-state.ts",
+    find: "        if (!tracked.has(observation.symbol)) continue;",
+    replace:
+      "        // pnpm break: reverted automatically\n" +
+      "        if (false) continue;",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "current-market-state",
+    ],
+    expect: "outside the tracked universe",
+  },
+  {
     name: "a-stream-without-a-feed-word",
     proves:
       "A deployment whose chrome can say a CONNECTION word says `no " +

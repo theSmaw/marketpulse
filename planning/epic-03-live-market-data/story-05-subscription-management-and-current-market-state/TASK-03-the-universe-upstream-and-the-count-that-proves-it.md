@@ -1,8 +1,8 @@
-# Task 3.5.2 — The universe upstream, and the count that proves it
+# Task 3.5.3 — The universe upstream, and the count that proves it
 
 **Status:** Not started
 **Story:** [3.5 Subscription Management & the Current Market State](STORY.md)
-**Depends on:** 3.5.1
+**Depends on:** 3.5.2
 
 ## Objective
 
@@ -107,3 +107,28 @@ not have.
 **Reversal trigger, as a condition:** the first browser surface that must
 receive something **no other browser receives** — a per-user watchlist, or a
 filter applied upstream rather than in the browser.
+
+---
+
+## Amended by Task 3.5.1 — 2026-09-21: the universe filter already exists, so reuse it
+
+3.5.1 needed the same predicate and built it:
+
+```ts
+export const trackedSymbols = (): ReadonlySet<string> =>
+  new Set(UNIVERSE.filter((s) => s.status === "active").map((s) => s.symbol));
+```
+
+It lives in `current-market-state.ts` because that is where it was first
+needed — **which is the wrong home once this task also wants it.** Two callers
+of one predicate, in two files, is how `status` quietly stops being filtered in
+one of them; §12.2 is explicit that one invisible predicate is a design and two
+is a bug waiting for whoever forgets.
+
+**So this task moves it rather than copying it**, and the test for where it
+belongs is _which module owns the idea_ — the tracked universe, not the current
+state. Both callers then read one definition.
+
+**The `status` filter is therefore not new work here**, and the criterion-1
+counting, the empty-list refusal and the acknowledgement reconciliation are what
+this task is actually about.

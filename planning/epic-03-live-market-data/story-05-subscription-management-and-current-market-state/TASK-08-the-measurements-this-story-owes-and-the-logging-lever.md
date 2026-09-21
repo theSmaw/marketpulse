@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Story:** [3.5 Subscription Management & the Current Market State](STORY.md)
-**Depends on:** 3.5.5, 3.5.6, 3.5.7
+**Depends on:** 3.5.2, 3.5.6, 3.5.7
 
 ## Objective
 

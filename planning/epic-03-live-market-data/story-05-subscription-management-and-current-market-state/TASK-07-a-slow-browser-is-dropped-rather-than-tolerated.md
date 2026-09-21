@@ -1,8 +1,8 @@
-# Task 3.5.6 — A slow browser is dropped rather than tolerated forever
+# Task 3.5.7 — A slow browser is dropped rather than tolerated forever
 
 **Status:** Not started
 **Story:** [3.5 Subscription Management & the Current Market State](STORY.md)
-**Depends on:** 3.5.5
+**Depends on:** 3.5.6
 
 ## Objective
 
@@ -22,7 +22,7 @@ somebody's train went into a tunnel with a tab open.
 
 ## Why it is its own task rather than part of the fan-out
 
-Because it is a different failure and a different test. Task 3.5.5 is about
+Because it is a different failure and a different test. Task 3.5.6 is about
 **correctness** — did the right client get the right symbol. This is about
 **liveness under an adversarial peer**, and the only way to test it is to build
 a client that deliberately stops reading, which is a piece of test apparatus
@@ -45,7 +45,7 @@ Two decisions this task owes, both with their reasoning recorded:
   than argued. A tolerance is measured, never argued — that rule has cost this
   repository a full suite run once already.
 - **What a dropped client is told.** A close code, and whether the browser's
-  reconnect from Task 3.5.4 should treat it as _back off_ rather than _we are
+  reconnect from Task 3.5.5 should treat it as _back off_ rather than _we are
   coming back_ — it is closer to the second, and getting it wrong produces a
   slow client that reconnects instantly and is dropped again in a loop.
 
@@ -64,7 +64,7 @@ Two decisions this task owes, both with their reasoning recorded:
 1. A client that stops reading is **dropped**, not queued, and the process's
    retained memory returns to its prior level
 2. The threshold is a measured figure with the measurement recorded beside it
-3. A dropped client's close code does not cause Task 3.5.4's reconnect to hot-loop
+3. A dropped client's close code does not cause Task 3.5.5's reconnect to hot-loop
 4. Healthy clients on the same process are unaffected throughout — asserted,
    because "we dropped everybody" also passes a naive version of criterion 1
 5. `pnpm break` proves the drop goes red when the threshold check is removed

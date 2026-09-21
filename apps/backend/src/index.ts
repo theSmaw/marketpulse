@@ -24,6 +24,7 @@ import { MARKET_STREAM_PATH } from "@marketpulse/shared";
 
 import { registerMarketGateway } from "./market-gateway.js";
 import type { MarketDataStream } from "./market-data-stream.js";
+import { createCurrentMarketState } from "./current-market-state.js";
 import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
 import { ReplayDuringSessionError } from "./replay-stream.js";
 import { resolveMarketData } from "./market-data.js";
@@ -623,6 +624,14 @@ try {
   throw error;
 }
 
+// ---------------------------------------------- what this backend knows now
+//
+// **Constructed whether or not a stream exists**, for the gateway's own reason
+// (Task 3.3.2): a deployment with `MARKET_DATA_PROVIDER=none` must be able to
+// answer *nothing observed* honestly rather than not answer at all. An empty
+// current state is the TRUE answer after a restart (§11.1), not a degraded one.
+const currentMarketState = createCurrentMarketState();
+
 if (marketStream === undefined) {
   // `none`, the default. Serves nothing, says so, and does not pretend the
   // absence is a failure — `PROVIDER.md` §5.3's rule that invented prices must
@@ -635,12 +644,19 @@ if (marketStream === undefined) {
   const stream = marketStream;
 
   const unsubscribe = stream.subscribe(STREAM_SYMBOLS, {
-    // **Nothing consumes observations yet, and that is a scope line rather than
-    // an oversight.** Story 3.3 builds the browser fan-out and Story 3.5 the
-    // current-state model. What this subscription buys today is the connection
-    // itself: the handshake runs, the 165 s watchdog arms, and
-    // `GET /diagnostics/feed` reports something true.
-    onObservations: () => undefined,
+    // **Observations are remembered since Task 3.5.1.** Until then this was
+    // `() => undefined` — every observation this product received was
+    // discarded, and a price reached a screen only because
+    // `market-gateway.ts` held a second subscription and re-broadcast each
+    // batch without keeping it. Nothing in this process could answer *what is
+    // NVDA's latest price* unless a browser was attached at that moment.
+    //
+    // The gateway's own subscription is deliberately left alone here: **Task
+    // 3.5.2 owns collapsing the two**, and doing it in the same change as
+    // building the object would be two tasks with one name.
+    onObservations: (observations) => {
+      currentMarketState.observe(observations);
+    },
     onConnectionChange: (connection) => {
       app.log.debug(
         { phase: connection.phase, symbols: connection.subscribedSymbols },

@@ -1,4 +1,4 @@
-# Task 3.5.7 — One process, one socket, and the second subscription nobody noticed
+# Task 3.5.2 — One process, one socket, and the second subscription nobody noticed
 
 **Status:** Not started
 **Story:** [3.5 Subscription Management & the Current Market State](STORY.md)
@@ -76,3 +76,59 @@ reading before touching this.
    does not move when the step does, and the break passes
 5. `pnpm break` behind the invariant
 6. `pnpm verify` passes
+
+---
+
+## Amended by Task 3.5.1 — 2026-09-21: this moved from seventh to second, and the reason is not tidiness
+
+**It was written as a clean-up and it is now a correctness problem**, because
+3.5.1 gave the two subscriptions **two different policies**.
+
+`market-gateway.ts` broadcasts the **raw** batch straight from the stream:
+
+```ts
+unsubscribe = stream.subscribe([], {
+  onObservations: (batch) => { broadcast(… observationsToWire(batch) …); },
+```
+
+while `currentMarketState` — fed by `index.ts`'s subscription — **deliberately
+ignores a revision for a minute already passed**, so that the latest observation
+never walks backwards in time.
+
+**So the two now disagree about what happened.** Today that is invisible,
+because nothing reads the state. It becomes **reachable the moment Task 3.5.4
+fills the snapshot**, at which point a browser assembles its view from two
+sources with different rules: the snapshot from the state, every subsequent tick
+from the raw stream. A browser could render a price the server's own current
+state rejected.
+
+**That is why this task now runs second.** Two further reasons reinforce it:
+
+- **Tasks 3.5.6 and 3.5.7 build the per-client fan-out and the backpressure on
+  top of the gateway's subscription.** Doing them first means building on a
+  topology this task then rewires underneath them — twice the work and a
+  re-test of both.
+- The collapse is **cheaper now than later**, while the gateway's subscriber is
+  four lines and nothing depends on its shape.
+
+### The shape the collapse should take
+
+**One subscription, in `index.ts`, which writes the state and then hands the
+batch on.** The gateway stops subscribing and gains a way to be told. That makes
+the browser's view single-sourced by construction rather than by agreement:
+snapshot and ticks both originate in the same object, so they cannot diverge.
+
+### An invariant this task inherits
+
+`pnpm invariants` gained a fifteenth check in 3.5.1 —
+**`the-live-stream-has-a-consumer`** — which greps `apps/backend/src/index.ts`
+for `currentMarketState.observe(` and for a re-introduced
+`onObservations: () => undefined`.
+
+**This task touches exactly that file.** `CLAUDE.md`'s rule applies directly:
+_when you touch a file an entry names, check the entry._ The check must be
+**updated to match the new wiring, never deleted** — it exists because this
+repository has four times built something correct that nothing called, and the
+collapse is precisely the change that could quietly orphan the state object
+again. `pnpm break the-live-stream-loses-its-consumer` must still go red
+afterwards.

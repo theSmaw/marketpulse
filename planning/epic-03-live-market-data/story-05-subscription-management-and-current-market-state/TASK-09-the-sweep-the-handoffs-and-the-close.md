@@ -13,8 +13,8 @@ sideways into the stories that will need them.**
 ## What the user can see when this lands
 
 **Nothing**, and the honest summary of the whole story is that a user sees two
-things from it: the identity block is correct on first paint (3.5.3), and a tab
-survives a deploy (3.5.4). Everything else is the model
+things from it: the identity block is correct on first paint (3.5.4), and a tab
+survives a deploy (3.5.5). Everything else is the model
 [3.6](../story-06-live-prices-across-the-universe/STORY.md) spends.
 
 ## The criteria, each checked against the tree
@@ -26,7 +26,7 @@ flagging in advance:
 - **Criterion 7's "explained rather than noted"** is the one most likely to be
   claimed rather than done
 - **Criterion 3's "at a size where the difference is visible"** is not satisfied
-  by a three-symbol test, for Task 3.5.5's reason
+  by a three-symbol test, for Task 3.5.6's reason
 
 ## The hand-offs, which are the part a close routinely misses
 
@@ -55,7 +55,7 @@ Known candidates, to be confirmed rather than trusted:
   the chart's shape depends on the answer
 - **Story 3.9** — that the current-state map is `status`-**filtered** and its own
   read path deliberately is not
-- **Story 3.10** — the gap a reconnect leaves, which Task 3.5.4 explicitly did
+- **Story 3.10** — the gap a reconnect leaves, which Task 3.5.5 explicitly did
   not fill, and the backpressure close code's interaction with retry
 - **Story 3.11** — anything Task 3.5.8 could not measure, especially §28's p95
   if it is still unmeasurable
@@ -71,11 +71,11 @@ Known candidates, to be confirmed rather than trusted:
 - Sweep `LIVE-DATA.md` and `STREAM-SEAM.md` for claims this story falsified
 - Add to `docs/GAPS.md` anything true, load-bearing and guarded by nothing — the
   candidate already identified is **an empty default that is also a true answer
-  hides a design event until the day it stops being empty** (Task 3.5.3)
+  hides a design event until the day it stops being empty** (Task 3.5.4)
 - Update `CLAUDE.md`'s _Current state_ — what a user can see, and what they
   still cannot
 - Confirm `LIVE-REHEARSAL.md` owes this story nothing, since it is an invisible
-  story; if 3.5.3 or 3.5.4 changed a visible surface, **it owes a dated row**
+  story; if 3.5.4 or 3.5.5 changed a visible surface, **it owes a dated row**
 
 ## Done when
 
@@ -84,3 +84,30 @@ Known candidates, to be confirmed rather than trusted:
 3. `CLAUDE.md` describes the tree as it now is
 4. `docs/GAPS.md` has gained whatever this story left standing
 5. `pnpm verify` passes, and `pnpm links` resolves every reference added
+
+---
+
+## Amended by Task 3.5.1 — 2026-09-21: one hand-off is now concrete rather than anticipated
+
+**Story 3.9 owns a correction this story deliberately drops.**
+
+3.5.1 decided that the current market state **ignores a revision for a minute
+already passed** — it does not change what the _latest_ observation is, and
+applying it would walk the object backwards in time. The reasoning is sound and
+the consequence must be written into the sibling that can act on it:
+
+> **A revision for a superseded minute is discarded by the live path entirely.**
+> §14.1 measured revisions at 0.064% of bars, **35.3% of them changing the
+> close**, so these are materially wrong numbers rather than noise. The only
+> place they can be applied is the **store**, and the store is Story 3.9's. If
+> 3.9 does not apply them, this product's stored history is permanently and
+> knowably wrong for a small fraction of bars — and nothing will ever report it,
+> because the frame that would have corrected it was dropped a story earlier.
+
+**Write that into `story-09-storing-the-live-session/STORY.md` in words that
+story can act on**, not as a link back. It is exactly the shape of constraint
+this epic has already lost twice.
+
+**Re-check the hand-off enumeration against the re-ordering.** Tasks 3.5.2–3.5.7
+were renumbered on 2026-09-21 after 3.5.1; a hand-off written against an old
+number is a pointer to the wrong task, which is worse than no pointer.

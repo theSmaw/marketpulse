@@ -1,8 +1,8 @@
-# Task 3.5.3 — The snapshot that removes the largest visual event on the page
+# Task 3.5.4 — The snapshot that removes the largest visual event on the page
 
 **Status:** Not started
 **Story:** [3.5 Subscription Management & the Current Market State](STORY.md)
-**Depends on:** 3.5.1, 3.5.2
+**Depends on:** 3.5.1, 3.5.3
 
 ## Objective
 
@@ -97,3 +97,36 @@ right, and the interesting part of the finding is the general one: **an empty
 default that is also a true answer hides a design event until the day it stops
 being empty.** That is worth a line in `docs/GAPS.md` if the sweep in 3.5.9
 agrees.
+
+---
+
+## Amended by Task 3.5.1 — 2026-09-21: the source now exists, and one thing got easier
+
+**`currentMarketState.all()` is the snapshot**, built and tested in 3.5.1. It
+returns a `ReadonlyMap<Ticker, CurrentObservation>` where every entry carries
+its `bar`, its `source` and its **age computed on read**.
+
+Two consequences:
+
+- **A mapping to `WireObservation` is the only work left** on the data side.
+  `observationsToWire` already exists for the live path; the snapshot needs the
+  same shape from a slightly different object.
+- **§11.1's omission semantics come for free.** The map holds an entry only for
+  a security actually observed, so _present but empty_ is unspellable at the
+  source rather than only on the wire. 3.5.1 asserts this directly.
+
+### What got harder, and it is why Task 3.5.2 now runs before this one
+
+This task was previously third and depended on 3.5.1 and the universe task. It
+now depends on **3.5.2**, the subscription collapse, because of a divergence
+3.5.1 created:
+
+**the state ignores a revision for a minute already passed; the gateway's raw
+broadcast does not.** Fill the snapshot while those are two separate
+subscriptions and a browser's view is assembled from two sources with different
+rules — snapshot from the state, ticks from the raw stream. With 3.5.2 landed
+first, both come from one object and cannot disagree.
+
+**The arrival-mark assertion this task owes is unchanged and is still the one
+most likely to be missing rather than wrong**: nothing has ever produced a
+non-empty snapshot, so no test has exercised it.

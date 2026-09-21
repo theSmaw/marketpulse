@@ -1,8 +1,8 @@
-# Task 3.5.5 — A browser receives only what it asked for
+# Task 3.5.6 — A browser receives only what it asked for
 
 **Status:** Not started
 **Story:** [3.5 Subscription Management & the Current Market State](STORY.md)
-**Depends on:** 3.5.2, 3.5.3
+**Depends on:** 3.5.3, 3.5.4
 
 ## Objective
 
@@ -23,7 +23,7 @@ the whole universe every minute and throws 517 of them away in the browser.
 
 **Upstream is a constant and downstream is not.** §10.2 settles that this
 backend always asks Alpaca for the same 518 — there is no diffing and no
-unsubscribe path, and Task 3.5.2 is explicit that building one would be
+unsubscribe path, and Task 3.5.3 is explicit that building one would be
 designing for a problem this epic does not have.
 
 **Downstream is the opposite.** Story 3.6's overview wants all 518. A security
@@ -84,3 +84,38 @@ security**, which is the story's own reason for existing. A test with three
 symbols and two clients passes against a `broadcast()` that ignores the filter
 entirely, because with three symbols the right answer and the wrong answer are
 the same bytes often enough. Size the assertion so they differ.
+
+---
+
+## Amended by Task 3.5.1 — 2026-09-21: one line of this task's coalescing rule is now wrong
+
+This task said revisions are **exempt from collapse** and must always reach the
+browser. **That is half right, and the half that is wrong would undo a decision
+3.5.1 took deliberately.**
+
+3.5.1 established that the current market state applies a revision by
+`(symbol, minute)` and **never walks backwards**: a correction for a minute
+already passed is ignored, because applying it would make the latest observation
+older than the one it replaced, and every reader would watch the price jump
+back in time for no reason a user could understand.
+
+**A fan-out that forwarded every revision unconditionally would put exactly that
+backwards jump on the screen** — the thing the state was built to prevent —
+because Story 3.4's arrival mark fires on observation **content**, so a stale
+correction would both move the number and mark it as news.
+
+### The corrected rule
+
+| Revision is for…                       | Forward to a subscribed browser?                                                                |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| the minute the browser currently holds | **Yes** — §14.1's 35.3% that change the close, and the whole reason `updatedBars` is subscribed |
+| a minute already superseded            | **No** — it is not news about _now_; Story 3.9's store is where it belongs                      |
+
+**This is the same rule as the state's, and after Task 3.5.2 it should be the
+same code** rather than a second implementation that agrees by coincidence.
+Once the gateway is fed from the state instead of from the raw stream, a
+superseded revision never reaches the fan-out at all, and this table describes
+what already happens rather than something to enforce again.
+
+**Check that before writing a filter**: if 3.5.2 landed properly, the work here
+may be zero.
