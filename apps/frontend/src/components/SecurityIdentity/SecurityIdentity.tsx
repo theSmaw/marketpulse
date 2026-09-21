@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import type { Bar, Security, SecurityLastClose } from "@marketpulse/shared";
 import { SECTOR_LABELS } from "@marketpulse/shared";
 
@@ -99,6 +101,51 @@ export interface SecurityIdentityProps {
 }
 
 /**
+ * Which arrival, if any, this render should mark — Task 3.4.5.
+ *
+ * **The mark fires when a bar ARRIVES, not when the price CHANGES**, and this
+ * function is the whole of that decision. A renderer that compared `close` to
+ * the previous `close` would implement *mark on change*: it is the natural
+ * thing to write, it looks correct, and **a test that ticks a different price
+ * passes against it**, because the two only disagree on the quiet minute.
+ *
+ * So the trigger is the observation's own **instant**. §10.3 already requires
+ * every entry to carry its own `startsAt`, and a bar for a new minute carries a
+ * new one — *something arrived* is therefore readable without looking at a
+ * price at all.
+ *
+ * ## Why the mounted instant is remembered
+ *
+ * A mark on the first paint would claim a bar arrived when the page merely
+ * loaded. The instant this component first saw is held in state and never
+ * advanced, so **any instant that is not that one is an arrival** — which is
+ * correct whether the first bar was in the connect-time snapshot (§11.1) or
+ * turned up a minute later.
+ *
+ * **Reset on a change of symbol**, because the route does not re-mount this
+ * component — Task 2.11.5 measured that — so without this, navigating to a
+ * security whose price we already hold would mark an arrival that happened
+ * while somebody was looking at a different company.
+ */
+function useArrival(
+  symbol: string,
+  instant: number | undefined,
+): number | undefined {
+  const [mounted, setMounted] = useState({ symbol, instant });
+
+  if (mounted.symbol !== symbol) {
+    // Adjusting state during render rather than in an effect: React's own
+    // pattern for state derived from props, and the only one that does not
+    // paint a frame of the wrong answer first.
+    setMounted({ symbol, instant });
+    return undefined;
+  }
+
+  if (instant === undefined || instant === mounted.instant) return undefined;
+  return instant;
+}
+
+/**
  * Three schema kinds, two words. The `sector_etf`/`index_etf` split is real and
  * is not the distinction a reader needs — it is `SecuritySearch`'s judgement,
  * reached independently there, and the two must agree or SPY reads as a
@@ -159,7 +206,7 @@ export function SecurityIdentity({
           {classificationOf(found).join(" · ")}
         </p>
       </div>
-      <Close lastClose={lastClose} live={live} />
+      <Close symbol={symbol} lastClose={lastClose} live={live} />
     </div>
   );
 }
@@ -218,9 +265,11 @@ export function SecurityIdentity({
  * table's column, and neither of them is pretending to be identity.
  */
 function Close({
+  symbol,
   lastClose,
   live,
 }: {
+  readonly symbol: string;
   readonly lastClose: SecurityLastClose | undefined;
   readonly live: Bar | undefined;
 }) {
@@ -229,6 +278,8 @@ function Close({
   // than a silent one: a live price is not a newer version of a session close,
   // it is a different number measured from a different thing and true at a
   // different time.
+  const arrival = useArrival(symbol, live?.startsAt.getTime());
+
   if (live !== undefined) {
     const percent = changeFromClose(live.close, lastClose);
 
@@ -244,16 +295,45 @@ function Close({
         */}
         <p className={cx(styles.closeLabel)}>Latest price</p>
         {/*
-          **`data-live-figure` and `data-live-price` are hooks, not styling**
-          (Task 3.4.4). A motion treatment has to be positioned against the
-          figure and against the digits, and the instrument that compares
-          candidates cannot reach a CSS Module's generated class name from
-          outside the module. Two attributes cost nothing, render nothing, and
-          are what Task 3.4.5 attaches the chosen treatment to — so the
-          alternative was a hook invented twice.
+          **Task 3.4.4's two `data-` hooks were removed here rather than kept.**
+          They existed so an instrument outside this module could position a
+          candidate against a CSS Module's generated class name; the instrument
+          is gone and the chosen mark lives inside the module, so `styles.price`
+          is the anchor and the attributes had no reader left. A hook nobody
+          reads is the exact shape Story 3.2 and Task 3.4.3 each spent a task
+          finding — this story is not adding a third.
         */}
-        <p className={cx(styles.figure)} data-live-figure="">
-          <span className={cx(styles.price)} data-live-price="">
+        <p className={cx(styles.figure)}>
+          <span className={cx(styles.price)}>
+            {/*
+              **The arrival mark.** `key` is the mechanism and not a detail: a
+              CSS animation does not restart when the same animation is
+              re-applied to the same element, so React replacing the node is
+              what makes it run again. That is also the answer to *two changes
+              inside one animation* — **restart, never queue or overlap** —
+              because there is only ever one node. §7.8 measured 14 revisions in
+              one session, three of which changed a close, so a corrected minute
+              arriving seconds after the first is a real second change rather
+              than a hypothetical one.
+
+              **Not a `key` on the block**, which is the obvious version and is
+              wrong: `.identity` animates its own arrival, so remounting replays
+              *the block arriving* on every price change — a fading, sliding
+              panel, which is the one thing `VISUAL-LANGUAGE.md`'s motion rule
+              forbids outright.
+
+              `aria-hidden`, because what a listener is handed is the DOM text
+              and the standing rule is **do not announce a price change by
+              default**. Task 3.4.7 takes the live-region decision.
+            */}
+            {arrival === undefined ? undefined : (
+              <span
+                key={arrival}
+                className={cx(styles.arrival)}
+                aria-hidden="true"
+                data-arrival={String(arrival)}
+              />
+            )}
             {formatPrice(live.close)}
           </span>
           {percent === null ? undefined : (

@@ -158,6 +158,77 @@
   line-height: var(--line-height-display);
   font-weight: var(--font-weight-strong);
   color: var(--ink-primary);
+
+  /* The arrival mark hangs off the digits, not off the paragraph. See below. */
+  position: relative;
+}
+
+/*
+ * **The arrival mark** — Story 3.4's whole subject, decided by Task 3.4.4 in
+ * front of four running candidates and shipped here.
+ *
+ * It fires when a **bar arrives** for this security, not when the **price
+ * changes**. That is the decision and it is the thing most likely to be
+ * quietly undone: a mark that fired only on a change would mean *this price
+ * moved*, which `PriceChange` already says with a glyph, a sign and a hue.
+ * Firing on arrival makes it a different claim, and one nothing else on the
+ * screen makes — **a bar arrived for this security**. `SecurityIdentity.tsx`
+ * carries the argument and the test that fails if it is reversed.
+ *
+ * ## Why a mark rather than something on the number itself
+ *
+ * *Motion must never make a number harder to read.* The mark therefore touches
+ * nothing inside the figure: no fade, no slide, no tint behind the digits, no
+ * count-up. The price is at full contrast for the whole of the mark's life,
+ * which is the rule applied rather than restated. Three alternatives that
+ * failed it, or failed on information, are recorded in `VISUAL-LANGUAGE.md`.
+ *
+ * ## The geometry is measured, not chosen
+ *
+ * It sits in the **left margin of the digits**. Task 3.4.4's first draft hung a
+ * mark above and below the figure and struck through the label and the
+ * qualifier — those gaps are **4px**, measured on the running page. At 390 the
+ * figure still has **26px** of room to its left, so `--space-16` plus the
+ * disc's own radius clears the gutter. Nothing is reserved and nothing shifts:
+ * checked at 1440, 1024, 768 and 390.
+ */
+.arrival {
+  position: absolute;
+  right: calc(100% + var(--space-8));
+  top: 50%;
+  /* `--space-8`, the same box `Marker` uses — this is the chrome's own glyph
+     at the chrome's own size, told apart by behaviour rather than by shape. */
+  width: var(--space-8);
+  height: var(--space-8);
+  margin-top: calc(var(--space-8) / -2);
+  border-radius: 50%;
+  background: var(--ink-primary);
+
+  /*
+   * **Decays rather than loops**, and that distinction is the vocabulary
+   * rather than a detail: work in progress loops, a state persists, a fact
+   * arriving decays. It is what lets this and the status bar's static disc be
+   * the same glyph two inches apart without colliding.
+   */
+  animation: arrival-decays var(--motion-duration-decay) linear;
+}
+
+/*
+ * Held, then gone. The hold is what makes it catchable by somebody who was
+ * looking elsewhere; the fade is what stops it reading as a state.
+ *
+ * `from { opacity: 0 }` would make the mark **appear** rather than **be
+ * there**, which is a second gesture nobody asked for.
+ */
+@keyframes arrival-decays {
+  0%,
+  33% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
 }
 
 /*

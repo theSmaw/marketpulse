@@ -563,4 +563,31 @@ export const BREAKS = [
     ],
     expect: "lands on a real trading session",
   },
+
+  // **Task 3.4.5's, and it is the smallest edit in this file.** The decision
+  // Story 3.4 took is that the mark fires when a bar ARRIVES, not when the
+  // price CHANGES — and the break is one argument, swapped for the one
+  // somebody would naturally reach for.
+  {
+    name: "the-mark-fires-on-arrival-not-on-change",
+    proves:
+      "A renderer that keys the arrival mark on the PRICE rather than on the " +
+      "observation's instant silently implements `mark on change`, which is " +
+      "the opposite of what was decided — and every test that ticks a " +
+      "DIFFERENT price passes against it, because the two implementations " +
+      "only disagree on the quiet minute.",
+    file: "apps/frontend/src/components/SecurityIdentity/SecurityIdentity.tsx",
+    find: "  const arrival = useArrival(symbol, live?.startsAt.getTime());",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  const arrival = useArrival(symbol, live?.close);",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "SecurityIdentity",
+    ],
+    expect: "fires when a bar arrives with an UNCHANGED close",
+  },
 ];

@@ -366,12 +366,13 @@ The measurement behind it, re-taken against the refreshed palette: under `graysc
 
 What is here is a **thin first cut**, not a system, and the restraint is the decision rather than a shortfall.
 
-| Token                      | Value                     | For                              |
-| -------------------------- | ------------------------- | -------------------------------- |
-| `--motion-duration-quick`  | 120ms                     | a state change under the pointer |
-| `--motion-duration-settle` | 240ms                     | content arriving                 |
-| `--motion-ease-standard`   | `cubic-bezier(0.2,0,0,1)` | both                             |
-| `--motion-duration-pulse`  | 1400ms                    | a wait, breathing                |
+| Token                      | Value                     | Shape     | For                              |
+| -------------------------- | ------------------------- | --------- | -------------------------------- |
+| `--motion-duration-quick`  | 120ms                     | once      | a state change under the pointer |
+| `--motion-duration-settle` | 240ms                     | once      | content arriving                 |
+| `--motion-ease-standard`   | `cubic-bezier(0.2,0,0,1)` | —         | both                             |
+| `--motion-duration-pulse`  | 1400ms                    | **loop**  | a wait, breathing                |
+| `--motion-duration-decay`  | 900ms                     | **decay** | a fact arriving, then receding   |
 
 One easing, and it is asymmetric on purpose: fast out of the gate and slow into rest, which reads as something coming to a stop rather than something being tweened.
 
@@ -403,7 +404,31 @@ What belongs in this section rather than in that task is the rule underneath it,
 
 Three behaviours, three meanings, and a reader tells them apart without being taught — which is what lets the status bar's static disc and this story's decaying one be the same glyph without colliding. It is also how _motion means work in progress and nothing else may borrow it_ survives a moving price: a price that has **changed** has **finished** changing, and a decay is what finished looks like.
 
-**The fourth duration is Task 3.4.5's**, and it is the first member of this set whose whole point is that it ends by **disappearing** rather than by arriving somewhere — which is why it is not `settle` with a different number.
+**Shipped 2026-09-21 by Task 3.4.5 — `--motion-duration-decay`, 900ms.** It is the first member of this set whose whole point is that it ends by **disappearing** rather than by arriving somewhere, which is why it is not `settle` with a different number.
+
+### The arrival mark, as a rule rather than as a component
+
+**A small disc, `--space-8`, in the left margin of the digits. It is there, then it is gone.** It fires **on arrival** — every bar this security receives, including one that changes nothing.
+
+**Say what it claims, because the pixels do not.** It is not _this price moved_; `PriceChange` says that with a glyph, a sign and a hue. It is **a bar arrived for this security**, which nothing else on any screen says — the chrome's connection word is about the whole feed, and §11.2 refuses to give a security a status word because the gap between one security's bars has a p50 of a minute and a **maximum of 187**, so no threshold separates a quiet one from a broken one. **The mark makes no threshold judgement**: it marks an event and says nothing about what silence means.
+
+**900ms is bounded by the tokens either side of it rather than picked.** Longer than `settle` (240ms), which is deliberately short enough that _nobody waits for it_ — a mark whose job is to be **caught** needs more than one whose job is to be unnoticed. Shorter than `pulse` (1400ms), which is the duration chosen so a reader does **not** watch it: a mark that outlived the thing designed to be ignored would be asking for more attention than it has earned. The hold-then-fade lives in the keyframes rather than in a second token, because two tokens for one gesture is how a set stops being legible.
+
+**Two changes inside one animation: RESTART.** Never queue, never overlap. It is not hypothetical — §7.8 measured **14 revisions in one session**, three of which changed a close, so a corrected minute lands seconds after the one it corrects. The mechanism is a `key` on the mark, so there is only ever one node; queueing would leave a mark pointing at a value already replaced, and overlapping is the smear.
+
+**The `key` goes on the MARK and never on the block.** `.identity` animates its own arrival, so remounting it replays _the block arriving_ on every price change — a fading, sliding panel, which is the one thing the rule above forbids outright. This is written down because it is the obvious implementation and it is wrong.
+
+#### Three alternatives, rejected on the running screen rather than on paper
+
+Task 3.4.4 built four and watched them at 1×. The rejected three are here rather than in that task's file, because a vocabulary that records only its answer invites the same argument again:
+
+- **Nothing at all** — a real candidate, and it lost on measurement: at 1× a minute of real movement changes **one or two glyphs of six** and the leading digits did not move once in four minutes. It is not distracting; it is nearly invisible.
+- **A direction rule** — a hairline above the figure for a rise and below it for a fall, so **position** carried direction and it survived greyscale by design. Rejected because it **says what is already said**, and a second encoding of one fact is a repetition.
+- **An underline under the digits that changed** — the most informative, rejected for what it would **become**: a minute moves the cents, so it would underline the same two glyphs nearly every time and settle into furniture. It also cannot mark a quiet minute at all, since there are no changed digits to underline.
+
+#### Reversal trigger, as a condition
+
+**The first time a reader reports the mark as noise, or the first surface where it fires more than once a second.** Story 3.6 puts 518 rows on one screen, which is **8.6 a second** — the trigger is aimed at that story by name and the constraint is written into its own file rather than linked back to here.
 
 ## The chart — added 2026-09-11 by Task 2.12.2
 

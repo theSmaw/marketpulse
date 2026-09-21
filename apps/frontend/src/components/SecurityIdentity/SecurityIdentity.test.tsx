@@ -229,3 +229,146 @@ describe("a live price (Task 3.4.2)", () => {
     expect(screen.queryByText("Latest price")).toBeNull();
   });
 });
+
+describe("the arrival mark (Task 3.4.5)", () => {
+  // **The decision this file exists to stop somebody quietly reversing.**
+  //
+  // The mark fires when a bar ARRIVES, not when the price CHANGES. A renderer
+  // that compared `close` to the previous `close` would implement *mark on
+  // change*: it is the natural thing to write, it looks correct, and every test
+  // that ticks a DIFFERENT price passes against it — because the two
+  // implementations only disagree on the quiet minute.
+  //
+  // So the assertion is the **negative**, in the first test below, and it is
+  // the one that fails against the wrong implementation.
+
+  const bar = (close: number, startsAt: string) => ({
+    startsAt: new Date(startsAt),
+    open: close,
+    high: close,
+    low: close,
+    close,
+    volume: 1,
+  });
+
+  const markOf = (container: HTMLElement): Element | null =>
+    container.querySelector("[data-arrival]");
+
+  it("fires when a bar arrives with an UNCHANGED close — the negative", () => {
+    // §11.2 measured one security's gap between bars at a p50 of a minute and a
+    // MAXIMUM of 187, so "the price did not move" and "nothing has arrived for
+    // three hours" are genuinely different and the screen showed them
+    // identically until this mark existed. THAT is what fires here.
+    const { container, rerender } = render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5, "2026-09-16T18:01:00Z")}
+      />,
+    );
+
+    // Nothing on the first paint: a mark there would claim a bar arrived when
+    // the page merely loaded.
+    expect(markOf(container)).toBeNull();
+
+    rerender(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        // The SAME close, one minute later. A price comparison sees nothing.
+        live={bar(219.5, "2026-09-16T18:02:00Z")}
+      />,
+    );
+
+    expect(markOf(container)).not.toBeNull();
+  });
+
+  it("fires again on the next arrival, and there is only ever ONE mark", () => {
+    // **Restart, never queue or overlap** — the stated answer to *two changes
+    // inside one animation*. It is not hypothetical: §7.8 measured 14 revisions
+    // in one session, three of which changed a close, so a corrected minute
+    // lands seconds after the one it corrects.
+    const { container, rerender } = render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5, "2026-09-16T18:01:00Z")}
+      />,
+    );
+
+    rerender(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.6, "2026-09-16T18:02:00Z")}
+      />,
+    );
+    const first = markOf(container)?.getAttribute("data-arrival");
+
+    rerender(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.7, "2026-09-16T18:03:00Z")}
+      />,
+    );
+
+    expect(container.querySelectorAll("[data-arrival]")).toHaveLength(1);
+    expect(markOf(container)?.getAttribute("data-arrival")).not.toBe(first);
+  });
+
+  it("does NOT fire on a change of symbol, which does not re-mount this block", () => {
+    // Task 2.11.5 measured that the route reconciles this same DOM node across
+    // a navigation. Without the reset, arriving at a security whose price is
+    // already held would mark an arrival that happened while somebody was
+    // looking at a different company.
+    const { container, rerender } = render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5, "2026-09-16T18:01:00Z")}
+      />,
+    );
+
+    rerender(
+      <SecurityIdentity
+        symbol="AAPL"
+        view={securitiesFixtureView("full")}
+        live={bar(327.5, "2026-09-16T18:02:00Z")}
+      />,
+    );
+
+    expect(markOf(container)).toBeNull();
+  });
+
+  it("marks nothing when there is no live price at all", () => {
+    const { container } = render(
+      <SecurityIdentity symbol="NVDA" view={securitiesFixtureView("full")} />,
+    );
+
+    expect(markOf(container)).toBeNull();
+  });
+
+  it("is hidden from a listener, because the DOM text is what is announced", () => {
+    // The standing rule is **do not announce a price change by default**, and
+    // Task 3.4.7 takes the live-region decision. What a mark must never do is
+    // reach the accessibility tree as an unlabelled element.
+    const { container, rerender } = render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5, "2026-09-16T18:01:00Z")}
+      />,
+    );
+
+    rerender(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5, "2026-09-16T18:02:00Z")}
+      />,
+    );
+
+    expect(markOf(container)?.getAttribute("aria-hidden")).toBe("true");
+  });
+});
