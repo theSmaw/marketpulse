@@ -167,7 +167,7 @@ as the thing that reads the bill.
    and **nothing on the frame distinguishes them from a regular-session bar** —
    one field set across all 129,481 frames in the capture. 37 pre-market bar
    minutes were observed in a window that was itself 1h43m short, so the real
-   number is higher. Left alone, every chart in Stories 3.6, 3.7 and 3.9
+   number is higher. Left alone, every chart in Stories 3.6, 3.8 and 3.9
    silently grows a thin, sparse tail before 09:30 and after 16:00; it is also
    what inflates `QQQ` to 105.6% coverage in §7.6, which is the tail showing up
    as arithmetic. **Epic 2's charts never met this** because stored bars were

@@ -357,8 +357,8 @@ describe("the observation store (§10.3, one Map, newest only)", () => {
   });
 
   it("replaces a symbol's entry rather than accumulating a history", () => {
-    // Not a history and not a buffer — a history is Story 3.9's and a chart
-    // series is Story 3.7's.
+    // Not a history and not a buffer — a history is Story 3.8's and a chart
+    // series is Story 3.9's.
     const state = walk([
       { kind: "opened", at: 0 },
       {

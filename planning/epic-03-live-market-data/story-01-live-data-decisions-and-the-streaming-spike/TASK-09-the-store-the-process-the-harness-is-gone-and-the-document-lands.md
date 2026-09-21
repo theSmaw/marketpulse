@@ -152,7 +152,7 @@ epic builds in from the start. Say that plainly when reporting the close.
 **Decision 7 — whether the frontend gains a store.** Answer it with the
 condition in hand. The question is not _will this epic be annoying without one_;
 it is **does a trigger fire**. Walk the three explicitly against what
-Stories 3.3–3.7 will actually do — a connection state read by the chrome, live
+Stories 3.3–3.6 and 3.9 will actually do — a connection state read by the chrome, live
 prices read by a table and a chart, a subscription the page declares — and say
 for each whether two surfaces **write** it or merely read it. Two readers is
 prop-drilling; two writers is a store. Record the answer either way, with the

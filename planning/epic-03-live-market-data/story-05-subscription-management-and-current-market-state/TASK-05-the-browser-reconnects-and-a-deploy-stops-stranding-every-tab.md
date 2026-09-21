@@ -77,7 +77,7 @@ and a retry loop.
 ## What this task must NOT do
 
 **Fill the gap.** What is missed while away is **gone** — measured 2026-09-17 by
-Task 3.1.9 — and recovering it needs the store, which is Story 3.9's, and a
+Task 3.1.9 — and recovering it needs the store, which is Story 3.8's, and a
 gap-fill policy, which is Story 3.10's. A reconnect that silently invents the
 missing minutes is worse than one that plainly resumes.
 

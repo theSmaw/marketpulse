@@ -149,8 +149,8 @@ exists to answer, and the answers are mechanical:
 - Reconnection policy, backoff and the gap a reconnection leaves — Story 3.10.
   This story reports `disconnected` honestly and does not yet retry
 - Anything reaching a browser — Story 3.3
-- Writing a bar to the database — Story 3.9, and it must not happen before
-  Story 3.8's migration
+- Writing a bar to the database — Story 3.8, and it must not happen before
+  Story 3.7's migration
 - Retry — and note it does not live here at all: `PROVIDER.md` §8.8 puts retry
   in a **wrapper implementing the same interface**, and a retry buried in a
   transport makes a caller's deadline a lie

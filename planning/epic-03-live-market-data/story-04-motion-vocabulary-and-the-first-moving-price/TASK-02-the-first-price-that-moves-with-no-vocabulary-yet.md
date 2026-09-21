@@ -35,7 +35,7 @@ because that already happened once.
 
 - **One surface: the identity block's last price** on the Security Explorer.
   **A vocabulary is a decision and three surfaces would make it three
-  decisions**; the universe table is Story 3.6 and the chart is Story 3.7.
+  decisions**; the universe table is Story 3.6 and the chart is Story 3.9.
 - **A number ticks ONCE A MINUTE or less, never continuously** (§10.1, §7.6).
   There is no intra-minute movement on any screen in this epic — trades cannot
   reach 518 symbols (§1.4's 30-symbol cap) and no story delivers them. **Do not

@@ -133,7 +133,7 @@ describe("the current market state", () => {
       // in time for no reason a user could understand.
       //
       // The correction is not lost to the product: a revision to a past minute
-      // belongs in Story 3.9's store. It is simply not news about *now*.
+      // belongs in Story 3.8's store. It is simply not news about *now*.
       const state = stateAt();
 
       const [recorded] = observationsFrom("bar-nvda");

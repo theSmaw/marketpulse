@@ -26,7 +26,7 @@ pre-market bar and a regular-session bar identically — so **the mark is entire
 ours to invent**, and it is derived from the bar's own instant against Story
 2.5's calendar rather than from anything the wire says.
 
-**Stories 3.6, 3.7 and 3.9 consume this mark**, so it is a vocabulary item
+**Stories 3.6, 3.8 and 3.9 consume this mark**, so it is a vocabulary item
 rather than a detail of one screen.
 
 ### 2. A correction is NOT a price movement

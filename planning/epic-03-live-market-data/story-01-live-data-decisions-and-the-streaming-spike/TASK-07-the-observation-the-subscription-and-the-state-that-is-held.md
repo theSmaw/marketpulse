@@ -18,7 +18,7 @@ scope, and the scope decides the size of the object the backend has to hold.
 ## What the user can see when this lands
 
 **Nothing.** The payoff is Story 3.3 for the first two and Story 3.5 for the
-third, and the specific thing this task buys is that Stories 3.5, 3.6 and 3.7 do
+third, and the specific thing this task buys is that Stories 3.5, 3.6 and 3.9 do
 not each size themselves differently.
 
 ## What is already decided and must not be re-taken
@@ -32,8 +32,8 @@ not each size themselves differently.
   want _the latest observation per security_, and none of them wants to
   subscribe to a socket to get it** (Story 3.5). The current-state object has
   three consumers outside this epic before it has one inside it.
-- **Story 3.7's chart needs today's bars unless the store provides them**, which
-  is Story 3.9. So decision 4 and Story 3.9's scope are one decision seen twice,
+- **Story 3.9's chart needs today's bars unless the store provides them**, which
+  is Story 3.8. So decision 4 and Story 3.8's scope are one decision seen twice,
   and whichever way it goes, both must say the same thing.
 - **The universe is 518**, and 518 × 390 is the number to reason with for a full
   session per security.
@@ -150,7 +150,7 @@ last bar per security is a small map; today's bars per security is a different
 object with a different cost. Decide which exists, where it lives in the backend,
 who may read it, and what happens to it on restart. Two things bind it and both
 are named above: the three later epics that want the latest-per-security map,
-and Story 3.9's store. Be explicit about the **memory arithmetic** at 518 × 390
+and Story 3.8's store. Be explicit about the **memory arithmetic** at 518 × 390
 rather than describing it as large, and about what the object does at 15:59 on a
 Friday versus 09:31 on a Monday — a per-session object has a lifecycle and the
 lifecycle is the part that gets skipped.
@@ -220,8 +220,8 @@ entries?_
 | Today's bars per security (518 × 390) | 202,020 | **55.6 MB** | 288 B   |
 
 Against a **512 MB** replica, today's bars would be **10.9% of the whole
-replica** to hold something Story 3.9 is about to store durably. That is the
-argument rather than the raw size — and it **obliges Story 3.9** to store the
+replica** to hold something Story 3.8 is about to store durably. That is the
+argument rather than the raw size — and it **obliges Story 3.8** to store the
 live session, because between them they are the only two places today's bars
 could live.
 
@@ -238,7 +238,7 @@ could live.
 
 ### One thing checked rather than assumed
 
-Story 3.8 is **"The Tape on the Bar"** and sounds like the trade tape. It is not
+Story 3.7 is **"The Tape on the Bar"** and sounds like the trade tape. It is not
 — it is a **tape column** on `market_bars`, a schema change for SIP-versus-IEX
 provenance. **So no story in Epic 3 delivers trades at all**, and §10.1 records
 that rather than letting a later reader find the title in the roadmap and

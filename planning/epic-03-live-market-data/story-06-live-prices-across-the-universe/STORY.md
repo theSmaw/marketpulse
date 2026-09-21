@@ -23,8 +23,8 @@ own, in Story 3.4's vocabulary, with the session's own arithmetic under them —
 a change measured from the **previous session's close** rather than from
 whatever the page happened to load with.
 
-What the user still cannot do: see today's session on a chart (Story 3.7),
-reload and still see today (Story 3.9), or be told properly what they are
+What the user still cannot do: see today's session on a chart (Story 3.9),
+reload and still see today (Story 3.8), or be told properly what they are
 looking at when the feed stops (Story 3.10).
 
 ## Why it sits here in the sequence
@@ -69,13 +69,13 @@ changes the shape of a drawing.
 
 ## Out of scope, and who owns it
 
-- The chart — Story 3.7
+- The chart — Story 3.9
 - Gainers, losers, breadth, sector performance and anything aggregated across
   the universe — **Epic 4**, which is what this story's data makes possible and
   must not be pre-empted by
 - Anomaly scores, which is what the `AnomalyBadge` component is already waiting
   for — Epic 5
-- Anything about persistence — Story 3.9
+- Anything about persistence — Story 3.8
 
 ## Open decisions — settle with the user
 
@@ -229,7 +229,7 @@ minute on one page**, and _calm_ and _twitching_ may not survive that
 multiplication. Three things follow, and none of them is "decide it differently":
 
 - **The vocabulary is not yours to re-take.** A vocabulary is one decision and
-  three surfaces would make it three; Stories 3.6 and 3.7 inherit it. What is
+  three surfaces would make it three; Stories 3.6 and 3.9 inherit it. What is
   open is **whether it applies unchanged at universe scale**, which is a
   different question from what the mark means.
 - **The reversal trigger is already written and one half of it is aimed at
@@ -309,3 +309,76 @@ And **Task 3.5.7's backpressure is sized against you**: the worst case for a
 browser that stops reading is one on this screen, not one on a security page,
 because each client now accumulates its **own** encoded payload rather than
 sharing a broadcast.
+
+---
+
+## Amended by Story 3.5's close — 2026-09-21: a cheaper decision, and a criterion this story now has to FIX rather than carry
+
+### 1. Open decision 1 — _every row live, or only the visible ones_ — now has a mechanism behind it
+
+**It was a hypothetical when it was written and it is a cheap option now.**
+Task 3.5.6 shipped a **per-client subscription**: a browser declares the symbols
+it wants, the gateway holds a `Map<WebSocket, Set<string>>`, and a subscribe is
+answered with a **scoped snapshot** rather than a firehose. The page declares
+its own need — today the security page asks for **one** — and the subscription
+is re-sent whenever the symbol list changes.
+
+So a viewport-scoped subscription is **`setLiveSymbols(visibleRows)`**, not a
+new mechanism, and it is asserted over a **real socket at 200 symbols**
+(`market-gateway.process.test.ts`).
+
+**What has NOT changed is the reason the decision is hard**, and it is a
+behaviour question rather than a cost one: a row scrolled past stops updating and
+then **jumps** when it returns. The figure that bears on it is that the whole
+universe is **56.9 KiB a minute** — the _ceiling_ of what one browser could
+receive, and small. **Cost is not the argument for scoping; render work is, and
+the jump is the price.**
+
+### 2. Acceptance criterion 5 is unmeasurable as written, and THIS STORY takes the repair
+
+> 5. Event → application state under **250 ms p95**, excluding provider latency,
+>    measured at universe scale rather than for one row
+
+**There is nothing to measure from.** Task 3.5.8 enumerated **every field on the
+wire**, and the only instant a browser receives is `WireObservation.startsAt` —
+**the minute the bar covers**, not when the server received it or sent it. The
+`subscribe` message Task 3.5.6 added carries no timestamp either. §28 excludes
+provider latency, so `startsAt` cannot substitute for it.
+
+**Story 3.4 already hit this wall**: its criterion 5 is the same sentence, and
+that story **did not close** because of it — `docs/GAPS.md` entry 12. Story
+3.11's criterion 4 is the same measurement a third time.
+
+**Three stories carrying one unmeasurable criterion is the shape `CLAUDE.md`
+records as a criterion that never gets met** — _does it feel alive_ was deferred
+seven times before Task 3.4.4 finally took it. And the deferrals here were each
+individually correct: changing the wire is a decision about the **protocol**
+rather than a measurement, and no single surface story owned it.
+
+**Settled with the owner on 2026-09-21: this story takes it.** The reasoning is
+that 3.6 is already opening the wire format for the table, it is the first story
+that needs the figure **at universe scale**, and one small change discharges
+three stories' worth of deferral at once.
+
+**What that means concretely:**
+
+- **A server-stamped instant is added to the wire** — the moment the backend
+  _sends_ the frame, from the backend's own clock, alongside `startsAt`.
+- **It is a new field rather than a re-purposed one.** `startsAt` is the bar's
+  own instant and is load-bearing in the identity block's qualifier, in the
+  revision rule that stops the state walking backwards, and in every stored row.
+  **It must not acquire a second meaning.**
+- **The two clocks do not become one.** `STREAM-SEAM.md` and Story 3.2's
+  measured defect stand: the **165 s** disconnection threshold is monotonic and
+  the **60 s** staleness threshold is wall-clock, and a server-stamped send
+  instant is a **third** reading used for measurement rather than for status. It
+  must not be wired into `feed-liveness.ts`.
+- **A server clock and a browser clock disagree**, so the figure this buys is
+  honest only as a _distribution_ against a large n, and a negative reading is a
+  clock-skew artefact rather than a negative latency. Say so beside the number.
+- **`docs/GAPS.md` entry 12 closes here**, and Stories 3.4 and 3.11 are told:
+  3.4's criterion 5 becomes measurable retroactively, and 3.11 re-takes the
+  figure at the close rather than inventing the mechanism.
+
+**This is an addition to this story's scope taken deliberately**, and it is the
+one place in the epic where the wire changes after Story 3.3 froze it.

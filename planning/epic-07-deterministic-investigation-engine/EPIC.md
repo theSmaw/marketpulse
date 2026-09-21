@@ -65,11 +65,11 @@ nothing.
 
 1. **It is LATEST-ONLY. There is no series in memory.** 518 latest values, not
    518 × 390 minute bars — decided in Story 3.5 as the cheap option because
-   Story 3.9 makes the **store** hold today's session. Anything wanting a series
+   Story 3.8 makes the **store** hold today's session. Anything wanting a series
    assembles it from the store plus what has arrived since.
 2. **It is `status`-filtered** to the 518 `active` securities
    (`UNIVERSE.md` §12.2 — a computation over _the market we track now_ filters;
-   a read of something we **stored** does not). Story 3.9's read path is
+   a read of something we **stored** does not). Story 3.8's read path is
    deliberately unfiltered, and that asymmetry must not be "fixed".
 3. **An absent entry is normal, not an error.** Median minute coverage on the
    IEX feed is **65.1%**, and `ERIE` is **2.1%** — a security can be legitimately

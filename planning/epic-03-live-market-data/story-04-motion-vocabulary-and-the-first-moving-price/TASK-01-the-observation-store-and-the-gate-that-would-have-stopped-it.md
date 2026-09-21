@@ -16,7 +16,7 @@ not the observations themselves; this adds §10.3's Map. **No component changes.
 ## What is already decided and must not be re-taken
 
 - **§10.3: one Map, latest observation only.** Not a history, not a buffer. A
-  history is Story 3.9's and a chart series is Story 3.7's.
+  history is Story 3.8's and a chart series is Story 3.9's.
 - **§11.1's omission semantics**: an entry for every security observed and **no
   entry at all** for the rest, so _present but empty_ is unspellable. That is
   already how `WireObservation` is typed — every field required — so the Map
@@ -157,8 +157,8 @@ fixture testing a state the product cannot reach.
 
 ### What was deliberately not built
 
-- **No history, no buffer.** A history is Story 3.9's and a chart series is
-  Story 3.7's. §10.3's arithmetic is the reason: 518 × 390 bars is **55.6 MB**
+- **No history, no buffer.** A history is Story 3.8's and a chart series is
+  Story 3.9's. §10.3's arithmetic is the reason: 518 × 390 bars is **55.6 MB**
   against 518 × 1 at **0.2 MB**, to hold a thing the store is about to hold
   durably.
 - **No correction/movement distinction.** A revision replaces the minute it
