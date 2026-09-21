@@ -119,3 +119,53 @@ what already happens rather than something to enforce again.
 
 **Check that before writing a filter**: if 3.5.2 landed properly, the work here
 may be zero.
+
+---
+
+## Amended by Task 3.5.2 — 2026-09-21: two thirds of this task turned out to be already done
+
+The previous amendment said _check before writing a filter; the work here may be
+zero._ It was checked. Two of the three pieces are gone, and one remains.
+
+### 1. The revision half IS zero — confirmed, not assumed
+
+3.5.2 made `gateway.publishObservations()` take **what the current market state
+applied**. A revision for a minute already superseded never reaches the gateway
+at all, so the two-row table above describes what **already happens** rather
+than something to enforce again.
+
+**Do not re-implement it, and do not add a second copy of the rule** — that was
+exactly 3.5.2's argument for returning the applied set rather than teaching the
+gateway the same policy.
+
+### 2. Intra-batch coalescing is mostly already done, by the wire format
+
+`observationsToWire` builds a `Record` keyed by symbol:
+
+```ts
+wire[observation.symbol] = toWireObservation(observation.bar);
+```
+
+So two observations for one symbol in a single batch **collapse to the later
+one before the message is built**. The _latest wins_ rule this task was going to
+implement is a property of the wire shape.
+
+**What is still worth asserting** is that this is deliberate rather than
+incidental, because it is invisible at the call site and a future change to the
+wire shape — a list instead of a map — would silently remove it.
+
+### 3. The per-client symbol filter is the whole of the remaining work
+
+`broadcast()` still sends the identical payload to **every** client in the
+`Set<WebSocket>`. That is the real subject of this task, and it is unchanged:
+
+- a **subscribe message** in the browser protocol, and a per-client symbol set
+- the filter belongs in **`publishObservations`**, which is now the single place
+  observations become a message — `market-gateway.ts` no longer subscribes to
+  anything
+- the snapshot on connect scoped to what the client asked for, which Task 3.5.4
+  will have just built unscoped
+
+**And it closes a window 3.5.3 opened deliberately**: with the universe
+subscribed and no filter, every attached browser receives all 518 observations a
+minute. That is accepted as temporary and **this task is what makes it stop**.
