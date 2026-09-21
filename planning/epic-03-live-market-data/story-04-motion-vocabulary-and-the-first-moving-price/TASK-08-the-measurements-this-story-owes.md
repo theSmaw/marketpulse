@@ -1,6 +1,6 @@
 # Task 3.4.8 — The measurements this story owes
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-21.** Every figure taken in **one pass** against a **production bundle**: p95 **52 ms** and **51.7 ms** across two runs, against §28's 250 ms; **zero** long tasks of any length across 6,640 observations; the two block heights confirmed at **72 px / 88 px**; the mark's rate recorded and handed to Story 3.6. The timing instrument is deleted; the layout assertion stays and is break-verified.
 **Amended:** 2026-09-21 after Task 3.4.7 — there is now an instrument that makes a price **arrive** inside a browser, which is what every figure here needed and nothing had.
 **Amended:** 2026-09-21 after Task 3.4.6 — the identity block now has **two heights** at 390 and only one has been photographed.
 **Amended:** 2026-09-21 after Task 3.4.4 — the layout figure is already taken and only needs a production re-take; the mark's firing RATE is a new measurement, because the reversal trigger's second clause is a number.
@@ -121,3 +121,203 @@ reach a state where a price exists at all, let alone **changes**.
   stories
 - Every figure carries what it was taken against
 - `pnpm verify` passes
+
+---
+
+## What was measured
+
+**Conditions, because a figure without them is not re-measurable.** Production
+build (`pnpm build`, minified React), frontend served by `vite preview` on
+`:4173`, backend `dist/index.js` on `:3000` with `CORS_ORIGIN` pointed at the
+preview origin. Chromium via Playwright, one worker, 1280×720 unless stated.
+Feed furnished from the test, **not** the gateway. macOS 14 / arm64,
+2026-09-21.
+
+### 1. Frame → price on screen, under the burst that actually happens
+
+**20 bursts of 332 bars each — 6,640 observations** — which is §7.4's measured
+shape rather than one observation at a time.
+
+|           | p50     | p95         | max     |
+| --------- | ------- | ----------- | ------- |
+| **run A** | 35 ms   | **52 ms**   | 52 ms   |
+| **run B** | 39.6 ms | **51.7 ms** | 51.7 ms |
+
+Run A's twenty samples, verbatim:
+
+```text
+30.4, 30.6, 32.5, 32.7, 33.2, 33.4, 33.4, 33.4, 33.7, 33.7,
+35, 35.4, 37.4, 38.1, 38.3, 38.8, 42.1, 45.6, 47.2, 52
+```
+
+**Against §28's 250 ms p95 this is a fifth of the budget** — and the figure is
+an **upper bound** twice over: the `evaluate` round trip that stamps the send
+sits on the _before_ side, and the whole thing is a cold-ish page under an
+automation driver.
+
+**Say which half it is.** §28's clock starts at **server-received**; this one
+starts at **frame delivered to the page**. The gateway, the socket and the
+network are **not in it**. What it does cover is the half this story built —
+decode, reduce, gate, render — and that half has **200 ms of headroom** before
+the other half needs to be cheap.
+
+### 2. Long tasks: none, at any length
+
+```text
+"longTasks": [], "longTasksOver50": []
+```
+
+**Zero entries** from an **unbuffered** `longtask` observer across the whole
+run. Not "none over 50 ms" — the observer's own floor is 50 ms, so an empty
+array is the strongest thing it can say. §28's _no routine main-thread task over
+50 ms_ is met and **this story adds no third exception** to the two Epic 14
+owns.
+
+**Unbuffered mattered.** Task 3.3.5's sweep recorded that `buffered: true`
+returns the cold load, and its first run reported `[76, 118, 117, 120]` — all of
+them Epic 14's known breach, arriving inside a measurement about something else.
+
+### 3. Layout: nothing moves, and it is now a test rather than a figure
+
+```text
+"price":     [1083, 183,  99, 32]
+"qualifier": [ 925, 219, 331, 16]
+"label":     [1176, 163,  80, 16]
+"block":     [ 925, 163, 331, 72]
+"markPresent": true
+```
+
+Task 3.4.4 measured 0 shift at four widths in the workshop; this confirms it on
+a production build with the mark **present**.
+
+**The figure was replaced by an assertion**, which is the part worth keeping:
+`an arrival moves nothing around the price` captures the four boxes, pushes a
+new price **and** a new minute **and** the mark together — the only version
+worth asserting, because that is what actually happens — and compares. A figure
+says what was true once; this says what stays true.
+
+### 4. Both block heights, on production
+
+| At 390          | Height    |
+| --------------- | --------- |
+| regular session | **72 px** |
+| extended hours  | **88 px** |
+
+**Identical to Task 3.4.6's workshop figures**, which is the useful outcome: the
+development build was not lying about this one.
+
+### 5. The mark's rate, and the number Story 3.6 needs
+
+**This surface: 1 mark per minute.** One security, one mark per bar arrival, and
+§10.1 makes a bar a minute. That is arithmetic rather than a measurement and it
+is recorded as such.
+
+**The reversal trigger's second clause is _the first surface where it fires more
+than once a second_.** Story 3.6 renders **518 rows**:
+
+```text
+518 rows × 1 arrival/minute ÷ 60 = 8.63 marks per second
+```
+
+**That is 8.6× past the trigger**, and it is now a number in that story's file
+rather than an argument.
+
+## Two things found while measuring, both worth more than the figures
+
+### `routeWebSocket` replaces the page's `WebSocket`, so you cannot wrap it
+
+The second draft of the instrument wrapped `window.WebSocket` from an
+`addInitScript` to stamp frame delivery. **It never fired** — `delivered: 0`
+beside `painted: 20`. Playwright's `routeWebSocket` installs its own
+`WebSocket` in the page, **after** init scripts run, so the wrap is replaced
+before the application constructs one.
+
+Recorded because the next person measuring a socket will reach for exactly that.
+
+### The layout break did NOT go red the first time
+
+`CLAUDE.md`'s rule catching itself: _a break that does not go red is not evidence
+the check works — it is equally evidence the break did not land._
+
+The first version swapped the mark's `position: absolute` for `static`, which
+leaves an **inline** `<span>` — and `width` and `height` **do not apply to a
+non-replaced inline box**, so the mark collapsed to nothing and shifted nothing.
+The test passed and proved nothing. `display: inline-block` is the version that
+actually takes the 8 px, and it goes red.
+
+## What was NOT re-measured, and why
+
+**The task said to be pragmatic.** Three figures were already taken and none was
+re-derived:
+
+- **0 layout shift at four widths** (Task 3.4.4, workshop) — confirmed on
+  production at one viewport plus the two 390 heights, rather than re-walked.
+- **142 px / 169–226 px clearance** (Tasks 3.4.5, 3.4.6) — arithmetic about an
+  absolutely-positioned box that cannot have changed, and the assertion now
+  covers the property those figures were evidence for.
+- **The animation's own cost** — the long-task run covers it. An `opacity`
+  animation on an 8 px composited element inside 6,640 observations that
+  produced **zero** long-task entries is the measurement; a separate one would
+  have been the same empty array with a different title.
+
+## For a stakeholder — a status report, 2026-09-21
+
+**Where the product is.** A price moves on its own, a dot says a fresh one
+landed, a word says when it came from outside trading hours, and the two readers
+who could have been excluded by all that are covered. **This task asked whether
+any of it is slow.** It is not.
+
+**The headline, in one line: we are using a fifth of our speed budget.**
+
+We set ourselves a target early on — from a price arriving to the screen showing
+it, under a quarter of a second. Measured against the **real production build**,
+under the heaviest realistic load, it is **52 milliseconds**. Two separate runs
+agreed.
+
+**"Heaviest realistic load" is the part that makes the number worth having.** A
+measurement taken with one price arriving at a time would have been a
+measurement of the situation that never happens. Our data provider sends about
+**332 prices in a quarter of a second, once a minute** — so that is what we sent
+it, twenty times over: **6,640 price updates**.
+
+**And the browser never stuttered once.** There is a standard way of asking a
+browser "did anything block you for more than a twentieth of a second?", and
+across the whole run the answer came back **completely empty**. Not "nothing
+serious" — **nothing at all**.
+
+**One honesty note we wrote into the record.** Our 52 milliseconds covers the
+browser's half of the journey: from the price arriving at the page to the number
+changing on screen. It does not include our server or the network. We said so
+explicitly rather than let a good number be quoted as if it covered more than it
+does — and the useful part is that the half we just built leaves **200
+milliseconds of room** for the half we have not measured yet.
+
+**We also stopped measuring something and started testing it instead.** We had a
+figure saying the layout does not jump when a price changes. A figure says what
+was true on a Monday. We replaced it with a test that pushes a new price, a new
+minute and the dot all at once — what actually happens — and fails if anything
+around the number moves by a pixel. That one is now permanent.
+
+**Two mistakes worth reporting, because both were caught rather than shipped.**
+
+The first: our first attempt at breaking the layout test on purpose — to check
+the test actually catches a problem — **did not break anything**, because of a
+quirk in how browsers size certain elements. A test that passes against a broken
+version is worse than no test, so we found the version that really does break
+it and confirmed the test goes red.
+
+The second: an attempt to measure the timing more precisely **silently recorded
+nothing at all** for a while, because our testing tool replaces a piece of
+browser machinery we were trying to listen to. We noticed because the number of
+recordings was zero, and wrote down why for whoever measures a live connection
+next.
+
+**One number handed forward.** The dot fires once a minute for one company. The
+next piece of work puts prices on a table of **518 companies** — which is
+**8.6 dots per second across one page**. We already had a written condition for
+changing our minds about the dot: _the first surface where it fires more than
+once a second_. That condition is now met with a number behind it, sitting in
+that story's own notes rather than in an argument.
+
+**What a user can see today: nothing new.** Numbers in a document, which is what
+this task said it would produce.

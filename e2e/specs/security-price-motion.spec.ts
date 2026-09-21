@@ -270,3 +270,54 @@ test("nothing on this block carries direction by hue alone", async ({
 
   await expectNothingFailedToRender(page);
 });
+
+test("an arrival moves nothing around the price", async ({ page }) => {
+  // **The layout half of Task 3.4.8's acceptance, and it is kept while that
+  // task's timing instrument was deleted** — because this one is a claim about
+  // the product that can go wrong later, and those were figures about a moment.
+  //
+  // `VISUAL-LANGUAGE.md`: *a value that changes width must not move anything
+  // around it*, which is why the numerals are tabular — and the reason became
+  // load-bearing rather than typographic the moment a number started changing
+  // on its own. The mark is absolutely positioned, so it should cost nothing
+  // either; **should** is what this replaces.
+  //
+  // Nothing below a browser can see it. jsdom computes no layout, so a block
+  // that jumps 16 px on every tick renders identically to one that does not.
+  const push = await serveFeed(page, { NVDA: bar(FIRST_MINUTE, 219.5) });
+  await page.goto(EXPLORER, { waitUntil: "networkidle" });
+  await expect(latestPrice(page)).toContainText("219.50");
+
+  const boxes = () =>
+    page.evaluate(() => {
+      const box = (selector: string): readonly number[] | null => {
+        const element = document.querySelector(selector);
+        if (element === null) return null;
+        const rect = element.getBoundingClientRect();
+        return [
+          Math.round(rect.x),
+          Math.round(rect.y),
+          Math.round(rect.width),
+          Math.round(rect.height),
+        ];
+      };
+      return {
+        label: box('[class*="_closeLabel_"]'),
+        price: box('[class*="_price_"]'),
+        qualifier: box('[class*="_qualifier_"]'),
+        block: box('[class*="_close_"]'),
+      };
+    });
+
+  const before = await boxes();
+
+  // A different price, a new minute, and the mark firing — all three at once,
+  // which is what actually happens and is the only version worth asserting.
+  push({ NVDA: bar(NEXT_MINUTE, 219.62) });
+  await expect(latestPrice(page)).toContainText("219.62");
+  await expect(page.locator("[data-arrival]")).toHaveCount(1);
+
+  expect(await boxes()).toEqual(before);
+
+  await expectNothingFailedToRender(page);
+});
