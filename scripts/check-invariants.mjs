@@ -1042,6 +1042,43 @@ const INVARIANTS = [
       }
     },
   },
+
+  {
+    id: "the-live-stream-has-a-consumer",
+    claim:
+      "The process feeds live observations into the current market state, " +
+      "rather than discarding them.",
+    check() {
+      const path = resolve(REPO_ROOT, "apps/backend/src/index.ts");
+      const text = readAnchored(path);
+
+      // **This repository has shipped this exact defect three times**, and
+      // every one had `pnpm verify` green throughout: Story 3.2's three
+      // implementations with no construction site, Task 3.4.3's three
+      // implementations constructed and none self-driving, Task 3.4.9's
+      // published grid row nothing could reach. Each is *something that exists
+      // in one layer and cannot be reached from the next*.
+      //
+      // The current market state is the fourth candidate: a module with a full
+      // unit suite that passes whether or not the process ever calls it. So
+      // the check is on the WIRING rather than on the object.
+      if (!text.includes("currentMarketState.observe(")) {
+        throw new InvariantFailure(
+          "index.ts does not feed the market stream into the current market " +
+            "state. Before Task 3.5.1 this line read `onObservations: () => " +
+            "undefined` and every observation was discarded — a unit suite " +
+            "over the state object passes either way, which is what makes " +
+            "this invisible.",
+        );
+      }
+
+      if (/onObservations:\s*\(\)\s*=>\s*undefined/.test(text)) {
+        throw new InvariantFailure(
+          "index.ts is discarding live observations again.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];
