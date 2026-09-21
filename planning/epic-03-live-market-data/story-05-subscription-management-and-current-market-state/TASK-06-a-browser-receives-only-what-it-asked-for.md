@@ -232,3 +232,36 @@ The fan-out this task closes is **56.9 KiB** per minute per attached browser
 (58,218 bytes, read off the wire at 518 securities by 3.5.4), plus the same
 again on every connect — and Task 3.5.5's reconnect makes connects more frequent
 than once per visit.
+
+---
+
+## Amended by Task 3.5.5 — 2026-09-21: the reconnect creates a trap this task must not fall into
+
+### A subscription must be re-sent on every reconnect
+
+The browser now **reconnects by itself** — and a reconnect is a **new socket**,
+about which the server knows nothing.
+
+Today that is harmless: a browser subscribes to nothing and receives everything,
+so a fresh socket is as good as the old one. **The moment this task gives the
+browser a subscription, that stops being true.** A reconnected tab that does not
+re-send its symbols is a tab that is connected, says `LIVE`, and receives
+**nothing** — which is worse than the `DISCONNECTED` state 3.5.5 removed,
+because it looks healthy.
+
+**Where it goes:** the subscribe must be sent from the socket's own `opened`
+path rather than once at mount, so _every_ connection carries it — the first and
+each retry alike. That is the same shape as the upstream client, which §8.7
+measured as remembering nothing across a reconnect and therefore re-asserts its
+constant every time.
+
+**Assert it against a real reconnect**, which `market-reconnect.spec.ts` can now
+do: drop the socket, let the page come back, and confirm the client still
+receives only what it asked for.
+
+### And the answer to a late subscribe is still a `snapshot`
+
+Unchanged and now doubly true: a reconnect's catch-up **is** a late subscribe.
+If the response to _here are my symbols_ is a `bars` message, every newly
+subscribed security marks — 3.5.4's defect arriving through a different door,
+on every reconnect rather than only on first load.

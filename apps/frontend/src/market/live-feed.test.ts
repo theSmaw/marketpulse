@@ -545,3 +545,114 @@ describe("the gate that would have stopped the prices moving", () => {
     expect(sameLiveFeedView(at(before, 100), at(after, 120_000))).toBe(true);
   });
 });
+
+describe("which symbols are sitting on a snapshot baseline (Task 3.5.4)", () => {
+  // **A snapshot is not an arrival**, and this is the store-level half of that
+  // rule. It had no direct test until Task 3.5.5's sweep: the behaviour was
+  // exercised only through `SecurityIdentity` and a browser spec, so a change
+  // here would have surfaced two layers away from its cause.
+
+  const bars = (
+    observations: Readonly<Record<string, { startsAt: string }>>,
+  ): MarketStreamMessage => ({
+    type: "bars",
+    version: MARKET_STREAM_PROTOCOL_VERSION,
+    observations: Object.fromEntries(
+      Object.entries(observations).map(([symbol, { startsAt }]) => [
+        symbol,
+        { startsAt, open: 1, high: 1, low: 1, close: 1, volume: 1 },
+      ]),
+    ),
+  });
+
+  const message = (m: MarketStreamMessage, at: number): LiveFeedEvent => ({
+    kind: "message",
+    message: m,
+    at,
+  });
+
+  it("marks every symbol a snapshot carries as a baseline", () => {
+    const state = walk([
+      message(
+        snapshot(feedState(), {
+          NVDA: { startsAt: "2026-09-16T14:01:00Z" },
+          AAPL: { startsAt: "2026-09-16T14:01:00Z" },
+        }),
+        BAR_ARRIVED,
+      ),
+    ]);
+
+    expect([...state.fromSnapshot].sort()).toEqual(["AAPL", "NVDA"]);
+  });
+
+  it("clears only the symbols a `bars` message carries", () => {
+    // A bar for NVDA says nothing about whether AAPL's held price was a
+    // baseline or an arrival, so AAPL must keep its flag.
+    const state = walk([
+      message(
+        snapshot(feedState(), {
+          NVDA: { startsAt: "2026-09-16T14:01:00Z" },
+          AAPL: { startsAt: "2026-09-16T14:01:00Z" },
+        }),
+        BAR_ARRIVED,
+      ),
+      message(
+        bars({ NVDA: { startsAt: "2026-09-16T14:02:00Z" } }),
+        BAR_ARRIVED,
+      ),
+    ]);
+
+    expect([...state.fromSnapshot]).toEqual(["AAPL"]);
+  });
+
+  it("a RECONNECT snapshot carrying fewer symbols drops the rest", () => {
+    // **The case Task 3.5.4 handed forward as believed-correct and untested**,
+    // because nothing before Task 3.5.5 could reconnect. The server may have
+    // restarted and observed less, so the second snapshot is smaller.
+    //
+    // The held observation for a dropped symbol SURVIVES — §36 keeps the last
+    // known prices on screen — but it leaves `fromSnapshot`, so the next bar
+    // for it is a genuine arrival and marks. That is the intended behaviour
+    // and this is the assertion that says so.
+    const state = walk([
+      message(
+        snapshot(feedState(), {
+          NVDA: { startsAt: "2026-09-16T14:01:00Z" },
+          AAPL: { startsAt: "2026-09-16T14:01:00Z" },
+        }),
+        BAR_ARRIVED,
+      ),
+      { kind: "closed", at: BAR_ARRIVED + 1_000 },
+      message(
+        snapshot(feedState(), { NVDA: { startsAt: "2026-09-16T14:03:00Z" } }),
+        BAR_ARRIVED + 5_000,
+      ),
+    ]);
+
+    expect([...state.fromSnapshot]).toEqual(["NVDA"]);
+    // AAPL's price is still on screen; it is simply no longer a baseline.
+    expect(state.observations.has("AAPL")).toBe(true);
+  });
+
+  it("is the same reference when nothing changed, so the render gate holds", () => {
+    // `sameLiveFeedView` compares this by reference. A new `Set` on every
+    // message would make every keepalive a re-render — the cost the whole
+    // no-render guarantee exists to avoid.
+    const first = walk([
+      message(
+        snapshot(feedState(), { NVDA: { startsAt: "2026-09-16T14:01:00Z" } }),
+        BAR_ARRIVED,
+      ),
+    ]);
+
+    const second = advanceLiveFeed(
+      first,
+      message(
+        bars({ AAPL: { startsAt: "2026-09-16T14:02:00Z" } }),
+        BAR_ARRIVED,
+      ),
+    );
+
+    expect(second.fromSnapshot).toBe(first.fromSnapshot);
+  });
+});

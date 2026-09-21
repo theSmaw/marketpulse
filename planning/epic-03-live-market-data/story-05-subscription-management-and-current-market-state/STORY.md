@@ -159,17 +159,17 @@ latest observation never walks backwards. Those disagree, invisibly today and
 **visibly the moment the snapshot is filled**. Collapsing first also stops
 3.5.6 and 3.5.7 being built on a topology that is about to be rewired.
 
-| #     | Task                                                                                                                                            | Depends on          | Visible?                 |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ------------------------ |
-| 3.5.1 | [The current market state, as an object nobody renders yet](TASK-01-the-current-state-object-nobody-renders-yet.md)                             | 3.4                 | No — **done 2026-09-21** |
-| 3.5.2 | [One process, one socket, and the subscription nobody noticed](TASK-02-one-process-one-socket-and-the-subscription-nobody-noticed.md)           | 3.5.1               | No                       |
-| 3.5.3 | [The universe upstream, and the count that proves it](TASK-03-the-universe-upstream-and-the-count-that-proves-it.md)                            | 3.5.2               | No                       |
-| 3.5.4 | [**The snapshot that removes the largest visual event on the page**](TASK-04-the-snapshot-that-removes-the-largest-visual-event-on-the-page.md) | 3.5.1, 3.5.3        | **Yes**                  |
-| 3.5.5 | [**The browser reconnects, and a deploy stops stranding every tab**](TASK-05-the-browser-reconnects-and-a-deploy-stops-stranding-every-tab.md)  | 3.5.4               | **Yes**                  |
-| 3.5.6 | [A browser receives only what it asked for](TASK-06-a-browser-receives-only-what-it-asked-for.md)                                               | 3.5.3, 3.5.4        | No                       |
-| 3.5.7 | [A slow browser is dropped rather than tolerated](TASK-07-a-slow-browser-is-dropped-rather-than-tolerated.md)                                   | 3.5.6               | No                       |
-| 3.5.8 | [The measurements this story owes, and the logging lever](TASK-08-the-measurements-this-story-owes-and-the-logging-lever.md)                    | 3.5.2, 3.5.6, 3.5.7 | No                       |
-| 3.5.9 | [The sweep, the hand-offs and the close](TASK-09-the-sweep-the-handoffs-and-the-close.md)                                                       | 3.5.8               | No                       |
+| #     | Task                                                                                                                                            | Depends on          | Visible?       |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------------- |
+| 3.5.1 | [The current market state, as an object nobody renders yet](TASK-01-the-current-state-object-nobody-renders-yet.md)                             | 3.4                 | No — **done**  |
+| 3.5.2 | [One process, one socket, and the subscription nobody noticed](TASK-02-one-process-one-socket-and-the-subscription-nobody-noticed.md)           | 3.5.1               | No — **done**  |
+| 3.5.3 | [The universe upstream, and the count that proves it](TASK-03-the-universe-upstream-and-the-count-that-proves-it.md)                            | 3.5.2               | No — **done**  |
+| 3.5.4 | [**The snapshot that removes the largest visual event on the page**](TASK-04-the-snapshot-that-removes-the-largest-visual-event-on-the-page.md) | 3.5.1, 3.5.3        | **Yes — done** |
+| 3.5.5 | [**The browser reconnects, and a deploy stops stranding every tab**](TASK-05-the-browser-reconnects-and-a-deploy-stops-stranding-every-tab.md)  | 3.5.4               | **Yes — done** |
+| 3.5.6 | [A browser receives only what it asked for](TASK-06-a-browser-receives-only-what-it-asked-for.md)                                               | 3.5.3, 3.5.4        | No             |
+| 3.5.7 | [A slow browser is dropped rather than tolerated](TASK-07-a-slow-browser-is-dropped-rather-than-tolerated.md)                                   | 3.5.6               | No             |
+| 3.5.8 | [The measurements this story owes, and the logging lever](TASK-08-the-measurements-this-story-owes-and-the-logging-lever.md)                    | 3.5.2, 3.5.6, 3.5.7 | No             |
+| 3.5.9 | [The sweep, the hand-offs and the close](TASK-09-the-sweep-the-handoffs-and-the-close.md)                                                       | 3.5.8               | No             |
 
 **Where the tree is, read on 2026-09-21 rather than inferred:**
 

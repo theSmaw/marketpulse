@@ -10,6 +10,7 @@ import {
   startedLiveFeed,
 } from "./live-feed.js";
 import { connectMarketStream } from "./market-stream-client.js";
+import { reconnectDelayMs } from "./reconnect-policy.js";
 import type { MarketStreamOptions } from "./market-stream-client.js";
 
 // The live feed, as one hook (Task 3.3.4).
@@ -67,6 +68,12 @@ export const LIVE_FEED_TICK_MS = 5_000;
  */
 const MONOTONIC_NOW = (): number => performance.now();
 const WALL_NOW = (): number => Date.now();
+const SET_TIMER = (fn: () => void, ms: number): number =>
+  window.setTimeout(fn, ms);
+const CLEAR_TIMER = (timer: number): void => {
+  window.clearTimeout(timer);
+};
+const IS_VISIBLE = (): boolean => document.visibilityState !== "hidden";
 
 /** What the hook needs that is not a global. Every field is a seam for a test. */
 export interface UseLiveFeedOptions extends Partial<MarketStreamOptions> {
@@ -74,6 +81,22 @@ export interface UseLiveFeedOptions extends Partial<MarketStreamOptions> {
   readonly wallNow?: () => number;
   /** How often to re-take the derived view. */
   readonly tickMs?: number;
+  /**
+   * How a retry is scheduled. `setTimeout` in production (Task 3.5.5).
+   *
+   * A seam for the same reason `now` is one: the backoff reaches 30 s, and a
+   * test that waited it out would be a test nobody runs.
+   */
+  readonly setTimer?: (fn: () => void, ms: number) => number;
+  readonly clearTimer?: (timer: number) => void;
+  /**
+   * Whether this tab is visible. `document.visibilityState` in production.
+   *
+   * **A hidden tab does not retry**, and resumes when it comes back — a
+   * backgrounded tab reconnecting on a schedule is a battery and a bill, and
+   * it is the same judgement `useBackendHealth` already makes about polling.
+   */
+  readonly isVisible?: () => boolean;
 }
 
 /**
@@ -89,6 +112,9 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
     now = MONOTONIC_NOW,
     wallNow = WALL_NOW,
     tickMs = LIVE_FEED_TICK_MS,
+    setTimer = SET_TIMER,
+    clearTimer = CLEAR_TIMER,
+    isVisible = IS_VISIBLE,
     open,
   } = options;
 
@@ -116,7 +142,14 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
   // literal, so a seam in the dependency list tears the socket down and rebuilds
   // it on every render — which this test suite caught by losing the snapshot
   // between a message and the assertion about it.
-  const seams = useRef({ now, wallNow, open });
+  const seams = useRef({
+    now,
+    wallNow,
+    open,
+    setTimer,
+    clearTimer,
+    isVisible,
+  });
 
   useEffect(() => {
     // Read once, at the top, into locals the cleanup can close over — a
@@ -127,6 +160,9 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
       now: readNow,
       wallNow: readWallNow,
       open: openSocket,
+      setTimer: schedule,
+      clearTimer: cancel,
+      isVisible: visible,
     } = seams.current;
 
     // **A closed socket fires its `close` event AFTER this effect has torn
@@ -163,40 +199,90 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
       );
     };
 
-    const disconnect = connectMarketStream(
-      (event) => {
-        if (hasStopped()) return;
+    // **The retry, and its whole state is these three** (Task 3.5.5). Story 3.3
+    // shipped this socket with none, so every backend deploy left every open
+    // tab reading `DISCONNECTED` until somebody reloaded — on every merge.
+    let disconnect: (() => void) | undefined;
+    let pending: number | undefined;
+    let attempt = 0;
 
-        const before = connection.current;
-        const after = advanceLiveFeed(before, event);
-        connection.current = after;
+    const dial = (): void => {
+      if (hasStopped()) return;
+      pending = undefined;
 
-        // **Reported once rather than per message.** A protocol mismatch after
-        // a deploy produces the same reason on every message, and a console
-        // filling at the feed's own rate is a log nobody reads. The count keeps
-        // rising in the state either way, so nothing is lost.
-        if (firstUnreadable(before, after) && after.lastUnreadableReason) {
-          reportUnreadableMessage(after.lastUnreadableReason);
-        }
+      disconnect = connectMarketStream(
+        (event) => {
+          if (hasStopped()) return;
 
-        read();
-      },
-      // **`exactOptionalPropertyTypes` is on**, so *absent* and *present as
-      // `undefined`* are different types and the transport's own default only
-      // applies to the first. Branching is the setting behaving correctly
-      // rather than friction to route around.
-      openSocket === undefined
-        ? { now: readNow }
-        : { now: readNow, open: openSocket },
-    );
+          const before = connection.current;
+          const after = advanceLiveFeed(before, event);
+          connection.current = after;
+
+          // **Reported once rather than per message.** A protocol mismatch
+          // after a deploy produces the same reason on every message, and a
+          // console filling at the feed's own rate is a log nobody reads. The
+          // count keeps rising in the state either way, so nothing is lost.
+          if (firstUnreadable(before, after) && after.lastUnreadableReason) {
+            reportUnreadableMessage(after.lastUnreadableReason);
+          }
+
+          // **A message means the connection works**, so the backoff resets
+          // here rather than on `opened`. A socket that opens and is closed
+          // immediately — a server refusing during a rollout — would otherwise
+          // reset the count every time and retry forever at 500 ms.
+          if (event.kind === "message") attempt = 0;
+
+          if (event.kind === "closed") scheduleRetry(event.code);
+
+          read();
+        },
+        // **`exactOptionalPropertyTypes` is on**, so *absent* and *present as
+        // `undefined`* are different types and the transport's own default only
+        // applies to the first. Branching is the setting behaving correctly
+        // rather than friction to route around.
+        openSocket === undefined
+          ? { now: readNow }
+          : { now: readNow, open: openSocket },
+      );
+    };
+
+    const scheduleRetry = (code?: number): void => {
+      if (hasStopped() || pending !== undefined) return;
+
+      // **A hidden tab does not retry.** It resumes on `visibilitychange`
+      // below, which is the same judgement `useBackendHealth` already makes
+      // about polling — a backgrounded tab reconnecting on a schedule is a
+      // battery and a bill.
+      if (!visible()) return;
+
+      attempt += 1;
+      pending = schedule(dial, reconnectDelayMs(attempt, code));
+    };
+
+    // Returning to a hidden tab retries **now** rather than waiting out a
+    // backoff that was never running. `useBackendHealth` polls immediately on
+    // becoming visible for the same stated reason: *so a returning user does
+    // not read a stale state.*
+    const onVisibility = (): void => {
+      if (hasStopped() || !visible()) return;
+      if (connection.current.socket === "closed" && pending === undefined) {
+        attempt = 0;
+        pending = schedule(dial, 0);
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    dial();
 
     const ticking = setInterval(read, tickMs);
 
     return () => {
       // Set first, so nothing the disconnect provokes can write.
       stopped = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (pending !== undefined) cancel(pending);
       clearInterval(ticking);
-      disconnect();
+      disconnect?.();
       connection.current = startedLiveFeed(readNow());
     };
   }, [tickMs]);

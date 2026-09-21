@@ -10,6 +10,7 @@ import {
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { RECONNECT_CEILING_MS } from "./reconnect-policy.js";
 import { LIVE_FEED_TICK_MS, useLiveFeed } from "./use-live-feed.js";
 
 // The hook (Task 3.3.4). **Nothing renders it yet** — Task 3.3.5 does — so
@@ -429,5 +430,175 @@ describe("a new price reaches the screen", () => {
     }
 
     expect(renders - settled).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("the reconnect (Task 3.5.5)", () => {
+  // **Story 3.3 shipped this socket with no retry**, so every backend deploy
+  // left every open tab reading `DISCONNECTED` until somebody reloaded — and
+  // deploys happen on every merge to `main`. These are the assertions that
+  // stop that regressing.
+  //
+  // Every timer here is a seam. The backoff reaches 30 s and a test that
+  // waited it out would be a test nobody runs.
+
+  interface Scheduled {
+    readonly fn: () => void;
+    readonly ms: number;
+  }
+
+  function reconnecting(visible = { now: true }) {
+    const sockets: FakeSocket[] = [];
+    const scheduled: Scheduled[] = [];
+    let nextTimer = 0;
+
+    const hook = renderHook(() =>
+      useLiveFeed({
+        now: () => 1_000,
+        wallNow: () => Date.parse("2026-09-16T14:02:00Z"),
+        open: () => {
+          const socket = new FakeSocket();
+          sockets.push(socket);
+          return socket as unknown as WebSocket;
+        },
+        setTimer: (fn, ms) => {
+          scheduled.push({ fn, ms });
+          nextTimer += 1;
+          return nextTimer;
+        },
+        clearTimer: () => undefined,
+        isVisible: () => visible.now,
+      }),
+    );
+
+    return {
+      hook,
+      sockets,
+      scheduled,
+      /** The socket currently attached. */
+      latest: (): FakeSocket => {
+        const socket = sockets.at(-1);
+        if (socket === undefined) throw new Error("no socket was opened");
+        return socket;
+      },
+      /** Run whatever retry is pending, as the browser's timer would. */
+      fire: (): void => {
+        const next = scheduled.pop();
+        if (next === undefined) throw new Error("nothing was scheduled");
+        act(() => {
+          next.fn();
+        });
+      },
+    };
+  }
+
+  it("dials again after the socket closes", () => {
+    // **Criterion 1's mechanism.** Before this, one socket was opened and that
+    // was the whole of the connection's life.
+    const h = reconnecting();
+    expect(h.sockets).toHaveLength(1);
+
+    h.latest().emit("close", { code: 1001 });
+    expect(h.scheduled).toHaveLength(1);
+
+    h.fire();
+    expect(h.sockets).toHaveLength(2);
+  });
+
+  it("comes back sooner after `1001 going away` than after a dead socket", () => {
+    // §12.2 has the gateway send `1001` on shutdown and §8.5 measured that an
+    // abnormal close carries no intent — so a deploy and a dead network are
+    // genuinely different, and the wire already said which.
+    const deploy = reconnecting();
+    deploy.latest().emit("close", { code: 1001 });
+    const afterDeploy = deploy.scheduled.at(-1)?.ms ?? 0;
+
+    const dead = reconnecting();
+    dead.latest().emit("close", { code: 1006 });
+    const afterDead = dead.scheduled.at(-1)?.ms ?? 0;
+
+    expect(afterDeploy).toBeLessThan(afterDead);
+  });
+
+  it("backs off across repeated failures, and stays bounded", () => {
+    const h = reconnecting();
+    const delays: number[] = [];
+
+    for (let round = 0; round < 8; round += 1) {
+      h.latest().emit("close", { code: 1006 });
+      delays.push(h.scheduled.at(-1)?.ms ?? 0);
+      h.fire();
+    }
+
+    // Rising…
+    expect(delays[1]).toBeGreaterThan(delays[0] ?? 0);
+    // …and capped, rather than growing without limit.
+    expect(Math.max(...delays)).toBeLessThanOrEqual(RECONNECT_CEILING_MS);
+  });
+
+  it("resets the backoff once a message actually arrives", () => {
+    // **Keyed on a message rather than on `opened`.** A socket that opens and
+    // is closed immediately — a server refusing during a rollout — would
+    // otherwise reset the count every time and retry forever at 500 ms.
+    const h = reconnecting();
+
+    h.latest().emit("close", { code: 1006 });
+    const first = h.scheduled.at(-1)?.ms ?? 0;
+    h.fire();
+    h.latest().emit("close", { code: 1006 });
+    const second = h.scheduled.at(-1)?.ms ?? 0;
+    expect(second).toBeGreaterThan(first);
+
+    h.fire();
+    h.latest().emit("message", {
+      data: encodeMarketStreamMessage(snapshotWith(feedState())),
+    });
+    h.latest().emit("close", { code: 1006 });
+
+    expect(h.scheduled.at(-1)?.ms).toBe(first);
+  });
+
+  it("does NOT retry while the tab is hidden", () => {
+    // A backgrounded tab reconnecting on a schedule is a battery and a bill,
+    // and it is the same judgement `useBackendHealth` already makes.
+    const visible = { now: false };
+    const h = reconnecting(visible);
+
+    h.latest().emit("close", { code: 1001 });
+
+    expect(h.scheduled).toHaveLength(0);
+    expect(h.sockets).toHaveLength(1);
+  });
+
+  it("retries IMMEDIATELY when a hidden tab comes back", () => {
+    // Waiting out a backoff that was never running would make a returning
+    // reader stare at `DISCONNECTED` for no reason.
+    const visible = { now: false };
+    const h = reconnecting(visible);
+
+    h.latest().emit("close", { code: 1001 });
+    expect(h.scheduled).toHaveLength(0);
+
+    visible.now = true;
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(h.scheduled.at(-1)?.ms).toBe(0);
+  });
+
+  it("stops dialling once the hook unmounts", () => {
+    // The teardown guard this file already documents, now with a timer behind
+    // it: a retry that outlived its component would open a socket nothing is
+    // listening to.
+    const h = reconnecting();
+    h.latest().emit("close", { code: 1001 });
+
+    h.hook.unmount();
+
+    expect(() => {
+      h.fire();
+    }).not.toThrow();
+    expect(h.sockets).toHaveLength(1);
   });
 });
