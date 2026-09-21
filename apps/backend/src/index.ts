@@ -632,6 +632,56 @@ try {
 // current state is the TRUE answer after a restart (§11.1), not a degraded one.
 const currentMarketState = createCurrentMarketState();
 
+// ------------------------------------------------------------- the gateway
+//
+// **Registered whether or not a stream exists** (Task 3.3.2), and that is the
+// decision rather than an oversight: a browser connecting to a deployment with
+// `MARKET_DATA_PROVIDER=none` must receive an honest `snapshot` saying *nothing
+// observed, no feed* rather than a refused upgrade. A refused connection is
+// indistinguishable from a broken one, which is the ambiguity §11.2 exists to
+// remove — and §36 forbids a surface that collapses rather than degrading.
+//
+// **It is registered BEFORE the subscription since Task 3.5.2**, because the
+// subscription now feeds it. The alternative — subscribe first and reach the
+// gateway through a mutable reference filled in later — is precisely the shape
+// that put the deployed backend into `CrashLoopBackOff` for two days on
+// 2026-09-19: *a mutable reference driven by callbacks bound to a previous
+// instance of the thing it points at*. Ordering the construction is free;
+// late-binding a callback target is not.
+//
+// **The snapshot is empty for now**, and that is a scope line: Task 3.5.4 owns
+// filling it. §11.1 is explicit that `{}` is the TRUE answer after a restart
+// rather than a degraded one, so an empty map is not a placeholder — it is what
+// this deployment currently knows.
+const gateway = registerMarketGateway(app, {
+  snapshot: () => new Map(),
+  feedState: () => {
+    const state = readFeedState(config, new Date(), marketStream);
+    // `null` — no stream configured — reads as `disconnected` on the wire,
+    // because the browser's vocabulary has three words and *not configured* is
+    // not one of them. The `feed: null` beside it is what says which of the two
+    // it is, and the chrome renders that distinction (Story 3.3's own grid).
+    return { ...state, status: state.status ?? "disconnected" };
+  },
+});
+
+registerMarketGatewayCloser(() => gateway.close());
+
+app.log.info(
+  { path: MARKET_STREAM_PATH },
+  "market gateway listening for browsers",
+);
+
+// ------------------------------------------------- the ONE stream subscriber
+//
+// **One subscription, owned by the process** (Task 3.5.2). There were two
+// until then — this one, discarding every observation, and a second inside
+// `market-gateway.ts` that broadcast the raw batch. Two subscribers over one
+// socket is not merely untidy: they held **different policies**, because the
+// current market state drops a revision for a minute already passed so the
+// latest observation never walks backwards, and the gateway's raw broadcast
+// did not. They disagreed about what had happened, and nothing said which was
+// authoritative.
 if (marketStream === undefined) {
   // `none`, the default. Serves nothing, says so, and does not pretend the
   // absence is a failure — `PROVIDER.md` §5.3's rule that invented prices must
@@ -644,32 +694,38 @@ if (marketStream === undefined) {
   const stream = marketStream;
 
   const unsubscribe = stream.subscribe(STREAM_SYMBOLS, {
-    // **Observations are remembered since Task 3.5.1.** Until then this was
-    // `() => undefined` — every observation this product received was
-    // discarded, and a price reached a screen only because
-    // `market-gateway.ts` held a second subscription and re-broadcast each
-    // batch without keeping it. Nothing in this process could answer *what is
-    // NVDA's latest price* unless a browser was attached at that moment.
+    // **The state writes first, and the gateway publishes what it applied.**
     //
-    // The gateway's own subscription is deliberately left alone here: **Task
-    // 3.5.2 owns collapsing the two**, and doing it in the same change as
-    // building the object would be two tasks with one name.
+    // Broadcasting `observations` rather than the return value would restore
+    // exactly the divergence this task exists to remove — the browser would
+    // receive a superseded revision that this process had just rejected, and
+    // Story 3.4's arrival mark fires on observation *content*, so the stale
+    // correction would both move the number and mark it as news.
+    //
+    // Single-sourced **by construction rather than by agreement**: there is no
+    // path from the socket to a browser that does not pass through the state.
     onObservations: (observations) => {
-      currentMarketState.observe(observations);
+      gateway.publishObservations(currentMarketState.observe(observations));
     },
     onConnectionChange: (connection) => {
       app.log.debug(
         { phase: connection.phase, symbols: connection.subscribedSymbols },
         "market stream connection changed",
       );
+      gateway.publishFeedState();
     },
   });
 
   // **The closer the shutdown sequence has been waiting for since Task 3.2.5.**
-  // Until this line, `index.ts` called a registered closer that nothing ever
+  // Until that line, `index.ts` called a registered closer that nothing ever
   // registered — the deliberate `SIGTERM` close was dead code, and its process
   // test passed because it asserts the shutdown path REACHES the close, which
   // it did, with nothing behind it.
+  //
+  // **It is now the only unsubscribe in the process.** The gateway no longer
+  // holds one, so the decided order in `shutdown()` — gateway first, then the
+  // stream — is a statement about two different things rather than a race
+  // between two handles on the same socket.
   registerMarketStreamCloser(unsubscribe);
 
   app.log.info(
@@ -677,36 +733,3 @@ if (marketStream === undefined) {
     "market stream started",
   );
 }
-
-// ------------------------------------------------------------- the gateway
-//
-// **Registered whether or not a stream exists** (Task 3.3.2), and that is the
-// decision rather than an oversight: a browser connecting to a deployment with
-// `MARKET_DATA_PROVIDER=none` must receive an honest `snapshot` saying *nothing
-// observed, no feed* rather than a refused upgrade. A refused connection is
-// indistinguishable from a broken one, which is the ambiguity §11.2 exists to
-// remove — and §36 forbids a surface that collapses rather than degrading.
-//
-// **The snapshot is empty for now**, and that is a scope line: Story 3.5 owns
-// the current-state model. §11.1 is explicit that `{}` is the TRUE answer after
-// a restart rather than a degraded one, so an empty map is not a placeholder —
-// it is what this deployment currently knows.
-const gateway = registerMarketGateway(app, {
-  snapshot: () => new Map(),
-  feedState: () => {
-    const state = readFeedState(config, new Date(), marketStream);
-    // `null` — no stream configured — reads as `disconnected` on the wire,
-    // because the browser's vocabulary has three words and *not configured* is
-    // not one of them. The `feed: null` beside it is what says which of the two
-    // it is, and the chrome renders that distinction (Story 3.3's own grid).
-    return { ...state, status: state.status ?? "disconnected" };
-  },
-  stream: marketStream,
-});
-
-registerMarketGatewayCloser(() => gateway.close());
-
-app.log.info(
-  { path: MARKET_STREAM_PATH },
-  "market gateway listening for browsers",
-);

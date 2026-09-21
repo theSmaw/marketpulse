@@ -1,6 +1,6 @@
 # Task 3.5.2 — One process, one socket, and the second subscription nobody noticed
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-21.** One subscription, one closer, and the browser's view is single-sourced **by construction**: `observe()` now returns what it applied, so there is no path from the socket to a browser that bypasses the current market state. A sixteenth invariant, and `pnpm break` caught that invariant counting the wrong thing.
 **Story:** [3.5 Subscription Management & the Current Market State](STORY.md)
 **Depends on:** 3.5.1
 
@@ -132,3 +132,172 @@ repository has four times built something correct that nothing called, and the
 collapse is precisely the change that could quietly orphan the state object
 again. `pnpm break the-live-stream-loses-its-consumer` must still go red
 afterwards.
+
+---
+
+## What was built
+
+### The collapse, and the one design decision inside it
+
+`market-gateway.ts` no longer subscribes. It gained two methods —
+`publishObservations` and `publishFeedState` — and lost its `stream` option
+entirely, because nothing else in the file used it. `index.ts` now holds the
+**only** subscription:
+
+```ts
+onObservations: (observations) => {
+  gateway.publishObservations(currentMarketState.observe(observations));
+},
+```
+
+**`observe()` was changed to return what it actually applied**, and that is the
+decision the task did not specify. The alternative — have the gateway publish
+the same `observations` the state was handed — would have left the two agreeing
+only _by convention_, which is what they were already failing to do. Returning
+the applied set makes the divergence **unrepresentable**: there is no path from
+the socket to a browser that does not pass through the state, so a browser
+cannot be sent a superseded revision this process rejected.
+
+That matters because Story 3.4's arrival mark fires on observation **content** —
+a stale correction would both move the number and mark it as news.
+
+### Construction order rather than late binding
+
+The gateway is now registered **before** the subscription, because the
+subscription feeds it. The alternative was a mutable reference filled in
+afterwards — and that is precisely the shape that put the deployed backend into
+`CrashLoopBackOff` for two days on 2026-09-19: _a mutable reference driven by
+callbacks bound to a previous instance of the thing it points at._ Ordering two
+constructions is free; late-binding a callback target is not.
+
+### The closers
+
+The decided order was already correct and documented — gateway first, so a
+browser is told the feed is going away by a process that **still has a feed** —
+but **only the gateway-before-drain half was asserted**. The process suite now
+asserts **gateway before stream** too. Both markers already travelled with their
+steps, which is why the assertion is a two-line addition rather than a
+refactor.
+
+## What the break caught, which is the finding worth keeping
+
+**The new invariant was wrong when first written, and `pnpm break` said so
+within a minute.**
+
+`one-subscriber-on-the-upstream-socket` counted **files** containing a
+subscribe, not **call sites**. The break adds a second subscription _to the file
+that already has one_ — so the file count stayed at 1 and the check went green
+against the exact defect it exists to catch.
+
+That is also the likeliest shape of the real regression: somebody adds a
+subscriber **next to** the existing one rather than in a new module. Fixed to
+count call sites; the break now goes red.
+
+**A second entry needed re-anchoring for the same reason.** This task
+restructured the line `the-live-stream-loses-its-consumer` was anchored to, so
+its `find` no longer matched — and the harness **refused rather than passing**,
+which is the entry doing its job. `CLAUDE.md`'s rule fired exactly as written:
+_when you touch a file an entry names, check the entry._ Re-anchored, and the
+new break is a better regression than the old one — it broadcasts the **raw**
+batch instead of the applied one, which is precisely the divergence this task
+removed.
+
+## Evidence
+
+- `pnpm break a-second-subscriber-on-the-upstream-socket` — red, restored
+  byte-identical
+- `pnpm break the-live-stream-loses-its-consumer` — re-anchored, red, restored
+- `pnpm break the-current-state-holds-an-untracked-security` — still red
+- Process suite asserts gateway-closed **before** stream-closed
+- `pnpm verify` green: **16 invariants**, 908 backend tests, 19 process tests
+
+---
+
+## For a stakeholder — a status report, 2026-09-21
+
+### What we did, in one sentence
+
+**We made sure there is exactly one thing listening to the stock market, and
+exactly one version of the truth.**
+
+### What was wrong
+
+The system had **two separate listeners** attached to the same live market
+connection. Both received every price update. Neither knew about the other.
+
+That sounds merely untidy. It had become something worse, because the two
+listeners had started to **disagree**.
+
+The piece we built yesterday — the system's memory — follows a careful rule
+about corrections. The exchange occasionally sends a revised version of a price
+a few seconds after the original. Usually that arrives before the next minute's
+price, so we simply apply it. Occasionally it arrives late, after we've already
+moved on. Applying it then would make the displayed price jump **backwards in
+time**, so the memory ignores it.
+
+The second listener — the one that feeds prices to your browser — had no such
+rule. It forwarded everything, immediately, exactly as it arrived.
+
+**So the server's own records and what a customer saw on screen could tell
+different stories about the same minute.** Nobody would have seen it yet,
+because the two paths don't overlap until the next piece of work. But it would
+have arrived as a price that visibly jumped backwards for no reason, on a screen
+that also marks new information with a visual flash — so the stale correction
+would have announced itself as news.
+
+### Why we fixed it now rather than later
+
+This work was originally scheduled **seventh** out of nine. We moved it to
+**second** after finishing the memory, for three reasons:
+
+1. The disagreement becomes visible to customers as soon as the _next_ task
+   ships, so fixing it afterwards means shipping a known defect first.
+2. Two later pieces of work build directly on top of the listener we were about
+   to replace. Doing them first would have meant building twice.
+3. It is cheapest now, while the code involved is four lines.
+
+Re-sequencing work when you learn something is cheaper than following a plan
+that has been overtaken — and the plan was only three days old.
+
+### The decisions worth explaining
+
+**We made the mistake impossible rather than agreeing not to make it.** The
+obvious fix was to give the second listener the same rule as the first. We
+didn't, because two copies of a rule is just a slower way of drifting apart.
+Instead, the memory now hands back exactly what it accepted, and that is the
+only thing that can be sent to a browser. There is no longer a route from the
+market to a customer's screen that bypasses the system's own records — not
+because we agreed there shouldn't be, but because one no longer exists.
+
+**We put the pieces together in the right order instead of wiring them up
+later.** There's a shortcut here that looks harmless: build things in any order
+and connect them afterwards with a placeholder. That exact shortcut is what
+caused the outage two days ago that stopped us deploying for two days. We
+ordered the construction instead. It costs nothing and removes a whole category
+of failure.
+
+**We added an automated check, and it was wrong, and we caught that.** We now
+check that only one thing listens to the market. The first version counted the
+wrong thing — it would have missed a second listener added right next to the
+first, which is exactly how this would realistically happen again. We only found
+out because we have a habit of deliberately breaking each new check to confirm
+it actually fires. **It didn't.** Ten minutes to find; it would have been a
+silent hole otherwise.
+
+That habit also flagged that an _older_ check had come loose from the code it
+was watching, because this task moved the line it was anchored to. It told us
+rather than quietly passing.
+
+### What you would see on screen today
+
+**Nothing** — this is the second and last invisible task in a row.
+
+**The next one is visible**, and it's a fix to something you can see going wrong
+right now: every page currently shows yesterday's closing price for about a
+second, then abruptly swaps four things at once when the first live price lands.
+That flicker happens on every single visit. The work of the last two days is
+what makes it possible to simply hand over the right price when the page opens,
+so the flicker stops existing rather than being smoothed over.
+
+After that: tabs surviving a deployment, and then the screen this whole run of
+work is for — **live prices across all 518 securities at once**.
