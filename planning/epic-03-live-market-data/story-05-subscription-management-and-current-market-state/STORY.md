@@ -144,6 +144,36 @@ idle or not.
    Story 3.1 took, with the difference explained rather than noted
 8. `pnpm verify` passes
 
+## Tasks
+
+**Nine, and the story's "nothing visible" label is not quite true.** Two of them
+change what a user sees, and both are repairs rather than features: 3.5.3
+deletes the largest undesigned visual event in the product, and 3.5.4 stops
+every deploy stranding every open tab. They are sequenced early for that reason.
+
+| #     | Task                                                                                                                                            | Depends on          | Visible? |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------- |
+| 3.5.1 | [The current market state, as an object nobody renders yet](TASK-01-the-current-state-object-nobody-renders-yet.md)                             | 3.4                 | No       |
+| 3.5.2 | [The universe upstream, and the count that proves it](TASK-02-the-universe-upstream-and-the-count-that-proves-it.md)                            | 3.5.1               | No       |
+| 3.5.3 | [**The snapshot that removes the largest visual event on the page**](TASK-03-the-snapshot-that-removes-the-largest-visual-event-on-the-page.md) | 3.5.1, 3.5.2        | **Yes**  |
+| 3.5.4 | [**The browser reconnects, and a deploy stops stranding every tab**](TASK-04-the-browser-reconnects-and-a-deploy-stops-stranding-every-tab.md)  | 3.5.3               | **Yes**  |
+| 3.5.5 | [A browser receives only what it asked for](TASK-05-a-browser-receives-only-what-it-asked-for.md)                                               | 3.5.2, 3.5.3        | No       |
+| 3.5.6 | [A slow browser is dropped rather than tolerated](TASK-06-a-slow-browser-is-dropped-rather-than-tolerated.md)                                   | 3.5.5               | No       |
+| 3.5.7 | [One process, one socket, and the subscription nobody noticed](TASK-07-one-process-one-socket-and-the-subscription-nobody-noticed.md)           | 3.5.1               | No       |
+| 3.5.8 | [The measurements this story owes, and the logging lever](TASK-08-the-measurements-this-story-owes-and-the-logging-lever.md)                    | 3.5.5, 3.5.6, 3.5.7 | No       |
+| 3.5.9 | [The sweep, the hand-offs and the close](TASK-09-the-sweep-the-handoffs-and-the-close.md)                                                       | 3.5.8               | No       |
+
+**Where the tree actually is, read on 2026-09-21 rather than inferred** — three
+of these are further from done than this file's prose suggests:
+
+- `STREAM_SYMBOLS` is **five hard-coded symbols**, not 518
+- `index.ts` subscribes with `onObservations: () => undefined`, so **every
+  observation is currently discarded**; the only reason a price moves is that
+  the gateway holds a _second_ subscription and re-broadcasts without
+  remembering
+- `market-gateway.ts` `broadcast()`s to **every** client with no per-client
+  filter, and `snapshot: () => new Map()` is a literal
+
 ## What this story hands forward
 
 The model Epic 4's overview and Epic 5's scores read, and the capacity Story 3.6
