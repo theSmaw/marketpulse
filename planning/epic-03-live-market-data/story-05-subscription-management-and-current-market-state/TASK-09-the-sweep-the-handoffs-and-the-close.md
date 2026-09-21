@@ -111,3 +111,50 @@ this epic has already lost twice.
 **Re-check the hand-off enumeration against the re-ordering.** Tasks 3.5.2–3.5.7
 were renumbered on 2026-09-21 after 3.5.1; a hand-off written against an old
 number is a pointer to the wrong task, which is worse than no pointer.
+
+---
+
+## Amended by Task 3.5.4 — 2026-09-21: two `docs/GAPS.md` entries, drafted rather than described
+
+3.5.4's own note asked this sweep to decide whether its finding deserved an
+entry. It does, and so does a second one the task produced. **Both are drafted
+here so the decision is whether to keep them rather than what to write.**
+
+### 1. An empty default that is also a true answer hides a design event
+
+`snapshot: () => new Map()` was **correct** — §11.1 makes `{}` the true answer
+after a restart rather than a degraded one — and it was also the cause of the
+largest undesigned visual change in the product, on every page load, for four
+days. Nothing was wrong with the code, so nothing could have flagged it.
+
+**The general shape:** a placeholder that is indistinguishable from a legitimate
+value **cannot be found by reading the code**, because there is nothing to find.
+It surfaces only when the value stops being empty — and by then whatever was
+built on top of it has a behaviour nobody chose.
+
+**Re-measure:** for each `() => new Map()`, `?? []`, `?? {}` or equivalent in a
+seam, ask _is this also a legitimate runtime value?_ If yes, the surface above
+it has a state nobody has designed. `grep -rn "() => new Map()\|?? \[\]\|?? {}" apps/*/src`
+and read each hit against the surface that consumes it.
+
+### 2. The flash being gone is guarded by nothing
+
+**It was verified by a person watching a page load, and that is still the only
+thing that can see it.** `pnpm verify` is green either way; the browser suite
+does not assert it, and cannot easily: CI's store has 518 securities and **zero
+bars**, and no live provider, so the identity block there is a correct `empty`.
+
+The mechanism is guarded — `pnpm break the-snapshot-marks-every-security-as-arriving`
+proves the arrival rule — but _the block is correct on first paint_ is not.
+
+**Re-measure:** run the pair against a stream that has observed
+(`MARKET_DATA_PROVIDER=fixture NON_LIVE_MARKET_DATA=permitted pnpm dev`), load
+`/securities/NVDA`, and read the first frame. It must say `LATEST PRICE` and
+carry no arrival disc. **Owner: the first story whose browser suite runs against
+a server with live observations** — a condition rather than a story number.
+
+### And re-check the hand-off enumeration
+
+Two figures were corrected across tasks during this story (the snapshot size,
+twice) and the task numbers moved once. A hand-off written against an old number
+or a stale figure is worse than none.

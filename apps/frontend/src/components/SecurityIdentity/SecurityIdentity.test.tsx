@@ -317,6 +317,82 @@ describe("the arrival mark (Task 3.4.5)", () => {
     expect(markOf(container)?.getAttribute("data-arrival")).not.toBe(first);
   });
 
+  it("does NOT fire on a SNAPSHOT, which is not an arrival (Task 3.5.4)", () => {
+    // **The assertion that was missing rather than wrong**, and it could not
+    // have existed before: nothing could produce a non-empty snapshot until
+    // Task 3.5.4, so no test had ever exercised the case.
+    //
+    // This block mounts BEFORE the socket delivers anything, so it mounts
+    // holding nothing. When the snapshot lands the figure changes from
+    // *absent* to *a price* — indistinguishable, here, from a bar arriving.
+    // Without the rule the mark fires on **every page load**, on every
+    // security at once, announcing as news the thing the reader has just
+    // asked to see.
+    const { container, rerender } = render(
+      <SecurityIdentity symbol="NVDA" view={securitiesFixtureView("full")} />,
+    );
+
+    expect(markOf(container)).toBeNull();
+
+    rerender(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5, "2026-09-16T18:01:00Z")}
+        liveFromSnapshot
+      />,
+    );
+
+    expect(markOf(container)).toBeNull();
+  });
+
+  it("DOES fire on the first bar after a snapshot", () => {
+    // The other half, and the one that stops the rule being implemented as
+    // *suppress the first observation*. A snapshot sets the baseline; the next
+    // bar changes it, and that is a real arrival.
+    const { container, rerender } = render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5, "2026-09-16T18:01:00Z")}
+        liveFromSnapshot
+      />,
+    );
+
+    expect(markOf(container)).toBeNull();
+
+    rerender(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.6, "2026-09-16T18:02:00Z")}
+      />,
+    );
+
+    expect(markOf(container)).not.toBeNull();
+  });
+
+  it("DOES fire on a first bar for a security the snapshot never carried", () => {
+    // **Why the flag comes from the store rather than being inferred.**
+    // *Ignore whichever observation arrives first* would also suppress this —
+    // a thin security the server had never observed, whose first bar genuinely
+    // arrives while the page is open. §7.6 measured 2.1% minute coverage for
+    // `ERIE`, so this is ordinary rather than hypothetical.
+    const { container, rerender } = render(
+      <SecurityIdentity symbol="NVDA" view={securitiesFixtureView("full")} />,
+    );
+
+    rerender(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={bar(219.5, "2026-09-16T18:01:00Z")}
+      />,
+    );
+
+    expect(markOf(container)).not.toBeNull();
+  });
+
   it("does NOT fire on a change of symbol, which does not re-mount this block", () => {
     // Task 2.11.5 measured that the route reconciles this same DOM node across
     // a navigation. Without the reset, arriving at a security whose price is

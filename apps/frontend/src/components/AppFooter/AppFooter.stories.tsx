@@ -7,6 +7,8 @@ import type { MarketFeedView } from "../../use-market-feed.js";
 
 /** Nothing observed. §11.1: absence is the answer, and `{}` is the true one. */
 const NO_OBSERVATIONS = new Map();
+/** Nothing was delivered by a snapshot — Task 3.5.4's baseline/arrival split. */
+const NO_SNAPSHOT = new Set<string>();
 
 // The status bar, and **this file is `AppHeader`'s status-strip half, moved**
 // (2026-09-16). Every story below was one of its stories; what changed is the
@@ -72,6 +74,7 @@ const LIVE = {
     observedAt: OBSERVED_AT,
     unreadable: 0,
     observations: NO_OBSERVATIONS,
+    fromSnapshot: NO_SNAPSHOT,
   },
   stale: {
     status: "stale",
@@ -80,6 +83,7 @@ const LIVE = {
     observedAt: OBSERVED_AT,
     unreadable: 0,
     observations: NO_OBSERVATIONS,
+    fromSnapshot: NO_SNAPSHOT,
   },
   disconnected: {
     status: "disconnected",
@@ -88,6 +92,7 @@ const LIVE = {
     observedAt: OBSERVED_AT,
     unreadable: 0,
     observations: NO_OBSERVATIONS,
+    fromSnapshot: NO_SNAPSHOT,
   },
   replaying: {
     status: "live",
@@ -96,6 +101,7 @@ const LIVE = {
     observedAt: OBSERVED_AT,
     unreadable: 0,
     observations: NO_OBSERVATIONS,
+    fromSnapshot: NO_SNAPSHOT,
   },
   /** Our own socket is gone. `STORY.md` open decision 3: this says so. */
   lost: {
@@ -105,6 +111,7 @@ const LIVE = {
     observedAt: OBSERVED_AT,
     unreadable: 0,
     observations: NO_OBSERVATIONS,
+    fromSnapshot: NO_SNAPSHOT,
   },
   /** The first paint. No word, and nothing collapses — see the cell beside it. */
   connecting: {
@@ -114,6 +121,7 @@ const LIVE = {
     observedAt: undefined,
     unreadable: 0,
     observations: NO_OBSERVATIONS,
+    fromSnapshot: NO_SNAPSHOT,
   },
   /** No provider: the grid's `—`, and the indicator renders nothing at all. */
   none: {
@@ -123,6 +131,7 @@ const LIVE = {
     observedAt: undefined,
     unreadable: 0,
     observations: NO_OBSERVATIONS,
+    fromSnapshot: NO_SNAPSHOT,
   },
 } satisfies Record<string, LiveFeedView>;
 

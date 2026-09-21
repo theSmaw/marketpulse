@@ -191,3 +191,44 @@ is that it scales with **browsers × universe**, and both of those only grow.
 3.5.4 builds it unscoped and leaves the seam open on purpose. A client that has
 asked for nothing yet receives nothing, which is an ordinary state rather than
 an error.
+
+---
+
+## Amended by Task 3.5.4 — 2026-09-21: the seam is open, and there is now a rule to preserve
+
+### The snapshot seam is genuinely filterable
+
+3.5.3's amendment asked 3.5.4 to leave scoping easy. It did, and the reason is
+worth stating precisely so this task does not go looking for a rewrite:
+
+**`market-gateway.ts` calls `snapshot()` inside the connection handler**, once
+per attached browser, and copies the result into a per-client `observations`
+object. Scoping is therefore a **filter inside that loop** — the
+`MarketGatewayOptions.snapshot` signature does not have to change and
+`snapshotOf` does not have to learn about clients.
+
+### The rule you must not break
+
+**A snapshot is not an arrival** (3.5.4). Scoping the snapshot must not turn a
+scoped one into something that marks:
+
+- A client that subscribes to eight securities receives a snapshot of **eight**,
+  and all eight are **baselines** — `withDelivery` replaces the set wholesale on
+  a `snapshot` message, so a smaller snapshot is still a snapshot.
+- **A late subscribe is the case to think about.** If a browser connects, gets
+  an empty snapshot because it has asked for nothing, and _then_ subscribes to
+  eight securities — what is sent in response? If it is a second `snapshot`
+  message, the rule holds by construction. If it is a `bars` message, **every
+  one of those eight marks**, which is the defect 3.5.4 exists to prevent
+  arriving through a different door.
+
+**Send it as a `snapshot`.** The type is not about ordering, it is about what
+the message _means_: _here is what we already hold_, which is exactly what a
+late subscribe asks for.
+
+### And the window, now measured rather than estimated
+
+The fan-out this task closes is **56.9 KiB** per minute per attached browser
+(58,218 bytes, read off the wire at 518 securities by 3.5.4), plus the same
+again on every connect — and Task 3.5.5's reconnect makes connects more frequent
+than once per visit.

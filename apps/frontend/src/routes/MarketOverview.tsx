@@ -16,6 +16,8 @@ import styles from "./MarketOverview.module.css";
 
 /** Nothing observed. §11.1: absence is the answer, and `{}` is the true one. */
 const NO_OBSERVATIONS = new Map();
+/** Nothing was delivered by a snapshot — Task 3.5.4's baseline/arrival split. */
+const NO_SNAPSHOT = new Set<string>();
 
 // PRODUCT_SPEC.md §8.1 — "What is happening?", and the spec's landing screen,
 // which is why it is the route at `/`.
@@ -79,6 +81,7 @@ const FEED_SAMPLES: readonly LiveFeedView[] = FEED_STATUSES.map((status) => ({
   observedAt: Date.parse("2026-09-16T14:01:00Z"),
   unreadable: 0,
   observations: NO_OBSERVATIONS,
+  fromSnapshot: NO_SNAPSHOT,
 }));
 
 // Not market data. The three `last` values are the same digit count made of

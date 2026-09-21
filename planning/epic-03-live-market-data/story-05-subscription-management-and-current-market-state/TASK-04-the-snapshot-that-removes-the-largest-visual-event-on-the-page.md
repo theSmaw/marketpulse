@@ -1,6 +1,6 @@
 # Task 3.5.4 — The snapshot that removes the largest visual event on the page
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-21.** The flash is gone, **watched rather than inferred**: first paint now reads `LATEST PRICE · 100.49 · Sep 16 · 09:30 EDT`. One new rule — **a snapshot is not an arrival** — without which the mark would have fired on every page load, on 518 securities at once.
 **Story:** [3.5 Subscription Management & the Current Market State](STORY.md)
 **Depends on:** 3.5.1, 3.5.3
 
@@ -218,3 +218,216 @@ replay.
 
 **Do not fix it here.** The repair is Task 3.5.8's to decide with the figures in
 front of it.
+
+---
+
+## Design artifact
+
+**`The snapshot and the first frame.dc.html`**, published to the canvas
+2026-09-21. New rather than an amendment, because
+`The first price that moves` §06 is a **dated record of Task 3.4.3's
+observation** — `CLAUDE.md`'s rule is to amend live claims and leave historical
+ones, and that section is history. It reuses the existing design language
+verbatim: same tokens, same panels, same block markup, **no new primitives**.
+
+It carries three decisions, one of which is new language:
+
+1. **A subtraction is the right answer.** The cheapest motion decision is the
+   one not taken — an event that stops happening needs no word, and the
+   vocabulary stays at three.
+2. **A snapshot is not an arrival** — the one rule this task adds, argued in
+   §02 below.
+3. **Monday holds Friday, and no new state is invented.** A three-day-old live
+   price is still the latest price we have, and the qualifier's instant already
+   says so.
+
+## What was built
+
+### The rule, and why it was not optional
+
+**Without it, filling the snapshot would have made the arrival mark fire on
+every page load.** `SecurityIdentity` mounts **before** the socket delivers
+anything, so it mounts holding nothing; when the snapshot lands, the figure goes
+from _absent_ to _a price_, which is indistinguishable in the component from a
+bar arriving.
+
+That is **worse than the flash it replaces**: a mark that fires on every visit
+means nothing, and it would have taken the rest of Story 3.4's vocabulary with
+it.
+
+**The wire already knew.** §11.1 gives the gateway two message types —
+`snapshot` and `bars` — and `live-feed.ts` collapsed both into one map **one
+layer later**. The repair is to stop discarding the distinction, not to
+reconstruct it:
+
+| Layer | What carries it                                                                                       |
+| ----- | ----------------------------------------------------------------------------------------------------- |
+| Store | `LiveFeedConnection.fromSnapshot` — symbols whose **current** observation came from a snapshot        |
+| View  | `LiveFeedView.fromSnapshot`, reference-compared in `sameLiveFeedView`                                 |
+| Route | `liveFeed.fromSnapshot.has(symbol)`                                                                   |
+| Block | `useArrival(symbol, identity, fromSnapshot)` — a snapshot **sets the baseline**, a bar **changes it** |
+
+**Delivery decides, not content**, and that is what rules out the tempting
+shortcut. _Ignore whichever observation arrives first_ also suppresses a
+**genuine** first bar for a thin security the server had never observed — §7.6
+measured 2.1% minute coverage for `ERIE`, so that case is ordinary. Three tests
+hold the distinction: the snapshot does not mark, the **first bar after** a
+snapshot does, and a first bar for a security the snapshot never carried does.
+
+It also survives Task 3.5.5 for free: a reconnect sends a snapshot, and no
+snapshot is 518 bars arriving.
+
+### The coverage hole, closed
+
+`market-gateway.process.test.ts` is new, and it is in the **process** suite
+because it opens a real socket — `pnpm test` is _no build, no socket, no
+database, no network_ by contract, and loopback is still a socket.
+
+Five assertions against a listening server and an attached `ws` client: a
+published bar arrives; the snapshot is **first** and carries what the process
+holds; an empty snapshot is still served; an unobserved security is **absent**
+rather than empty; and an empty batch publishes **nothing**.
+
+## What was measured, watched rather than inferred
+
+**The page, at 1440, against a live fixture stream** — because the flash was
+found by a person watching a load and nothing mechanical had ever seen it:
+
+```
+LATEST PRICE
+100.49  ▼ -53.96%
+Sep 16 · 09:30 EDT · change from 2026-09-11's close
+```
+
+`LATEST PRICE` on the **first frame**, no `LAST SESSION CLOSE`, **no disc**.
+The identity block measured **331 × 72** — the regular-session height, so the
+qualifier did not wrap. The date appears because the instant is not today, which
+is §03's previous-session case working.
+
+**And the snapshot's real size, which this task owed 3.5.8:**
+
+| Figure             | Value                 |
+| ------------------ | --------------------- |
+| Securities carried | **518**               |
+| Bytes on the wire  | **58,218 — 56.9 KiB** |
+
+**The 70.2 KiB carried into this task's own amendment was 23% high.** It was
+computed from a constructed `WireObservation` with five-character symbols;
+real tickers are shorter. That is the second time in this story an estimate has
+been corrected by a measurement, in both directions — which is the argument for
+`CLAUDE.md`'s _a tolerance is measured, never argued_ rather than a restatement
+of it.
+
+### Two environment artefacts, named so they are not read as defects
+
+The replay could not be used: `defaultReplayStart` targets the most recent
+session and the **local store stops at 2026-09-11**, so the window held no bars.
+The fixture stream was used instead. Its synthetic prices sit near 100 against a
+stored close near 218, which is why the change reads **−53.96%** — the
+arithmetic is right and the inputs are synthetic.
+
+## Evidence
+
+- `pnpm break the-snapshot-marks-every-security-as-arriving` — red, restored
+  byte-identical
+- `market-gateway.process.test.ts` — 5 assertions against a real socket
+- `snapshotOf` — 4 assertions including §11.1's omission semantics and the
+  empty-after-restart case
+- The page, watched at 1440
+- `pnpm verify` green: 16 invariants, **921** backend, **1034** frontend,
+  **24** process
+
+---
+
+## For a stakeholder — a status report, 2026-09-21
+
+### What we did, in one sentence
+
+**We stopped the page lurching a second after it loads.**
+
+### What was wrong
+
+Until today, every single visit to a security page did this: the price appeared,
+showing **yesterday's closing price**, and then — up to a minute later — four
+things changed at once. The heading changed, the number changed, the colour
+changed, and the explanation underneath changed.
+
+It happened on every visit, to every user, and **nobody had designed it**. It
+was simply what fell out of the server having nothing to say when a page
+connected: it waited for the next price to arrive naturally, which for a quiet
+company can take a minute or more.
+
+It was also, measurably, the largest visual change on the page — considerably
+bigger than an actual price moving, which changes one digit.
+
+### How we fixed it, and why the fix is a deletion
+
+The server has been remembering prices since Monday's work. So when a browser
+connects, it can simply **be handed what we already know** instead of waiting.
+The page is then correct on its very first frame, and the change never happens.
+
+That is worth being explicit about: we did not design a nicer transition, or
+soften it, or fade it. **We removed the event.** The best outcome for a piece of
+undesigned behaviour is usually that it stops occurring, and it costs nothing to
+maintain afterwards.
+
+### The decision that took the real work
+
+Last week we added a small mark — a dot that appears beside the price when new
+data arrives for that company, then fades. It is deliberately quiet, and its
+whole value is that it means _something just happened_.
+
+Handing a browser everything we know, the moment it connects, looks exactly like
+**518 companies all receiving news at once**. The dot would have fired on every
+page, on every load, for every company on screen.
+
+That would have been worse than the problem we set out to fix. A signal that
+fires every single time you open a page is not a signal — and it would have
+devalued the mark everywhere else it is used.
+
+So we drew a line, and it is the one new rule this piece of work adds: **being
+handed what we already knew is not the same as something arriving.** The
+difference already existed in the messages between server and browser; we had
+simply been throwing it away one step later. We stopped throwing it away.
+
+We were careful about _how_ we drew that line. The obvious shortcut — "ignore
+the first price after a page opens" — would have been wrong: for a thinly traded
+company the server may genuinely have nothing, and the first real price might
+arrive three minutes later while you watch. **That is a real event and should be
+marked.** So the rule is about where a price came from, not when it showed up.
+
+### What we verified, and how
+
+We **looked at it**. The original problem was found by a person watching a page
+load, and nothing automated had ever noticed it — so a passing test suite would
+not have been evidence that it was gone. We ran the application, loaded a
+security page, and confirmed the heading reads **LATEST PRICE** on the first
+frame with no dot and no lurch.
+
+We also closed a gap we had found earlier in the week: **nothing anywhere
+checked that a price sent by the server actually reaches a browser.** Every test
+we had checked the message _format_ rather than its _delivery_. There is now a
+test that starts a real server, attaches a real browser connection, and confirms
+prices arrive.
+
+One number we can now report properly rather than estimate: the batch of prices
+a browser receives on connect is **56.9 KB** for all 518 companies. We had
+estimated 70 KB; the estimate was 23% high. We had previously corrected the same
+figure in the other direction. Both corrections are the same lesson — measure it
+rather than reason about it.
+
+### What you would see today
+
+**A page that no longer jumps.** That is the whole visible change, and it is on
+every visit.
+
+One honest caveat: the flash is removed **where we have data**. A
+freshly-restarted server knows nothing for a few moments, and a company we have
+genuinely never seen trade still shows the stored closing price until its first
+real price arrives. It is now rare rather than universal, and designing around a
+server's first minute would be designing for the wrong thing.
+
+**Next:** browser tabs surviving a deployment — right now, every time we release
+an update, every open tab silently stops updating until someone reloads it. Then
+the screen this whole run of work is building towards: **live prices across all
+518 companies at once.**

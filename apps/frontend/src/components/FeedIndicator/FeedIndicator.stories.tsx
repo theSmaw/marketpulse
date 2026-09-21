@@ -7,6 +7,8 @@ import { FeedIndicator } from "./FeedIndicator.js";
 
 /** Nothing observed. §11.1: absence is the answer, and `{}` is the true one. */
 const NO_OBSERVATIONS = new Map();
+/** Nothing was delivered by a snapshot — Task 3.5.4's baseline/arrival split. */
+const NO_SNAPSHOT = new Set<string>();
 
 // The six renderings this cell can reach, and they are **views rather than
 // prop combinations** (Task 3.3.5).
@@ -33,6 +35,7 @@ const base = {
   observedAt: OBSERVED_AT,
   unreadable: 0,
   observations: NO_OBSERVATIONS,
+  fromSnapshot: NO_SNAPSHOT,
 } satisfies Omit<LiveFeedView, "status">;
 
 const VIEWS = {

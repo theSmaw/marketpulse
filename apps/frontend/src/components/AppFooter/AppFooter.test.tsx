@@ -14,6 +14,8 @@ import { AppFooter, type AppFooterProps } from "./AppFooter.js";
 
 /** Nothing observed. §11.1: absence is the answer, and `{}` is the true one. */
 const NO_OBSERVATIONS = new Map();
+/** Nothing was delivered by a snapshot — Task 3.5.4's baseline/arrival split. */
+const NO_SNAPSHOT = new Set<string>();
 
 // A file-local helper rather than a module: this package is `noEmit`, so a
 // helper module would be legitimate here — but this one describes *these
@@ -35,6 +37,7 @@ function props(overrides: Partial<AppFooterProps> = {}): AppFooterProps {
       observedAt: Date.parse("2026-09-16T14:01:00Z"),
       unreadable: 0,
       observations: NO_OBSERVATIONS,
+      fromSnapshot: NO_SNAPSHOT,
     },
     backendStatus: "healthy",
     backendDegradedCause: null,
@@ -106,6 +109,7 @@ describe("AppFooter", () => {
             observedAt: undefined,
             unreadable: 0,
             observations: NO_OBSERVATIONS,
+            fromSnapshot: NO_SNAPSHOT,
           },
         })}
       />,

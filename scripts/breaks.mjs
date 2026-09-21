@@ -690,6 +690,34 @@ export const BREAKS = [
   // days** — the strongest kind, because the check is proved against the defect
   // it was written for rather than a synthetic one.
   {
+    name: "the-snapshot-marks-every-security-as-arriving",
+    proves:
+      "The arrival mark fires on the snapshot, so every page load announces " +
+      "518 securities as news \u2014 the thing the reader has just asked to " +
+      "see. Story 3.4's disc means *a bar arrived for this security*; a " +
+      "snapshot is *what we already held when you connected*. The identity " +
+      "block mounts BEFORE the socket delivers, so without this branch the " +
+      "figure goes from absent to a price and that is indistinguishable from " +
+      "an arrival. A mark that fires every visit means nothing, and it would " +
+      "take the rest of the vocabulary with it.",
+    file: "apps/frontend/src/components/SecurityIdentity/SecurityIdentity.tsx",
+    find:
+      "  if (fromSnapshot) {\n" +
+      "    if (observation !== mounted.observation)\n" +
+      "      setMounted({ symbol, observation });\n" +
+      "    return undefined;\n" +
+      "  }",
+    replace: "  // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "SecurityIdentity",
+    ],
+    expect: "fire on a SNAPSHOT",
+  },
+  {
     name: "a-short-acknowledgement-goes-unreported",
     proves:
       "The server acknowledges fewer symbols than we asked for and nothing " +

@@ -4,7 +4,10 @@ import { join } from "node:path";
 import { toTicker } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
-import { createCurrentMarketState } from "./current-market-state.js";
+import {
+  createCurrentMarketState,
+  snapshotOf,
+} from "./current-market-state.js";
 import { createFixtureStream } from "./fixture-stream.js";
 import { observationsIn, toMappedFrames } from "./alpaca-stream-mapping.js";
 
@@ -209,5 +212,54 @@ describe("the current market state", () => {
     expect([...all.keys()]).toEqual([NVDA]);
     expect(all.get(NVDA)?.bar.close).toBe(214.75);
     expect(all.has(AAPL)).toBe(false);
+  });
+});
+
+describe("the snapshot the gateway sends (Task 3.5.4)", () => {
+  it("carries an entry for every security observed", () => {
+    const state = stateAt();
+    state.observe(observationsFrom("bar-nvda"));
+
+    const snapshot = snapshotOf(state);
+
+    expect([...snapshot.keys()]).toEqual(["NVDA"]);
+    expect(snapshot.get("NVDA")?.close).toBe(214.75);
+    expect(snapshot.get("NVDA")?.startsAt).toBe("2026-09-16T14:01:00.000Z");
+  });
+
+  it("omits a security entirely rather than sending it empty", () => {
+    // **§11.1's omission semantics**, and the rule this task must not weaken
+    // to make a map easier to build: an entry for every security OBSERVED and
+    // no entry at all for the rest. *Present but empty* is a false impression
+    // rather than a courtesy — `PROVENANCE.md`'s rule that a claim about data
+    // requires data.
+    const state = stateAt();
+    state.observe(observationsFrom("bar-nvda"));
+
+    const snapshot = snapshotOf(state);
+
+    expect(snapshot.has(AAPL)).toBe(false);
+    expect(snapshot.size).toBe(1);
+  });
+
+  it("is EMPTY after a restart, which is the true answer rather than a failure", () => {
+    // §11.1 is explicit that `{}` is true rather than degraded. A process that
+    // has observed nothing has nothing to say, and the browser renders the
+    // stored close exactly as it did before this task.
+    const snapshot = snapshotOf(stateAt());
+
+    expect(snapshot.size).toBe(0);
+    expect(() => snapshotOf(stateAt())).not.toThrow();
+  });
+
+  it("sends the REVISED bar when one has superseded the original", () => {
+    // The snapshot is the current state, so it inherits §14.1's rule rather
+    // than re-deciding it — a browser connecting after a revision is told the
+    // corrected close, not the one it replaced.
+    const state = stateAt();
+    state.observe(observationsFrom("bar-nvda"));
+    state.observe(observationsFrom("bar-nvda-revision-close-changed"));
+
+    expect(snapshotOf(state).get("NVDA")?.close).toBe(214.71);
   });
 });
