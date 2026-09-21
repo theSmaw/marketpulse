@@ -1,6 +1,6 @@
 # Task 3.6.2 — The design pass at universe scale: the mark at 518, and the row that has nothing
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-21.**
 **Story:** [3.6 Live Prices Across the Tracked Universe](STORY.md)
 **Depends on:** 3.6.1
 
@@ -181,3 +181,274 @@ canvas.
    be checked is named
 6. `pnpm verify` passes, and `pnpm probe` output is recorded rather than
    described
+
+---
+
+## What was done — 2026-09-21
+
+### Question 1 — the mark survives, and the arithmetic that said otherwise was wrong
+
+**Decided: candidate A, unchanged.** The same disc, the same 900 ms decay, the
+same rule — it fires when a bar arrives. The canvas page is
+`The mark multiplied by five hundred`.
+
+The task file said to **read the trigger as having fired unless you can show it
+has not**. Three things show it has not:
+
+**1. The rate was a division, not a measurement.** 518 rows × one bar a minute
+÷ 60 gives **8.6 a second**, which trips the trigger's words. But §7.4 measured
+the feed delivering **332 bars inside a 243 ms burst**, once a minute — so the
+page is **still for 59.7 seconds** and then everything that traded marks at
+once. The mark fires **once a minute**, not 8.6 times a second. A tolerance is
+measured, never argued, and 8.6 was argued.
+
+**2. The page is still almost all of the time, and that is measured.** On the
+running table against a fixture stream that marks **all 518 at once** — worse
+than the real feed's ~62% — any mark was visible in **2 of 39 sampled
+seconds**.
+
+**3. The mark is not the cost.** Measured **both ways on the same machine and
+the same feed**, minutes apart, with `PerformanceObserver` on `longtask` and
+`buffered: false`:
+
+| Arm                              | Long tasks (ms)            |
+| -------------------------------- | -------------------------- |
+| Mark rendered                    | **249, 265, 98, 117**      |
+| Mark element not rendered at all | **216, 83, 102, 196, 195** |
+
+**No difference that survives the noise.** So scoping the mark to the viewport
+— the candidate that sounds prudent — would buy nothing: a mark outside the
+viewport is not painted, and the noise a reader sees is the marks **in** the
+viewport, which is exactly what that candidate still draws.
+
+### And that third measurement found something this task was not looking for
+
+**Both arms breach §28's _no routine main-thread task > 50 ms_, during a live
+session, unbuffered** — so it is not Epic 14's known cold-load task arriving
+inside a measurement about something else.
+
+**The cost is re-rendering 518 rows on every tick**, which arrived with Task
+3.6.1 and which nothing had measured: 3.6.1 was verified for correctness, not
+for what it costs once a minute for ever.
+
+**Stated as a bound rather than a verdict** — this is a dev build, unminified,
+with a profiler attached, the same caveat the canvas already carries against
+the virtualisation figures. **Handed to Task 3.6.5** in its own file, with the
+awkward part named: Epic 14's trigger is _the first time a second surface on
+that page renders per-row markup at universe scale_, this task added exactly
+that, **and measured that it is not what costs**. The condition arguably fired
+and the thing it was written to catch is not the thing that is slow. 3.6.5 says
+which, in writing.
+
+### The risk that is accepted rather than disproved
+
+Everything above is about **rate and cost**. What no measurement settles is
+whether a **synchronised wave** reads as a market breathing or as a page
+flashing. Held at full density in the browser, the discs form a vertical column
+that reads more like furniture than like events — and that is the worst case,
+not the ordinary one.
+
+**Reversal trigger, condition-shaped:** the first rehearsal in which a reader
+describes the minute tick as a _flash_ rather than as a _pulse_, or the first
+surface where the burst stops being once a minute. `LIVE-REHEARSAL.md` has
+empty rows for 3.4, 3.5 and 3.6 and they are one visit.
+
+### Question 2 — three states read correctly, and a fourth has no word
+
+Checked against the tree rather than assumed:
+
+| The row holds                               | What it draws                            | Correct?                        |
+| ------------------------------------------- | ---------------------------------------- | ------------------------------- |
+| A live observation from this minute         | the figure, no date, `Live price` spoken | **Yes**                         |
+| Only a stored close                         | the figure **with its session date**     | **Yes**                         |
+| Nothing at all                              | an em dash, `No close yet` spoken        | **Yes**                         |
+| A live observation from **three hours ago** | the figure, no date, `Live price` spoken | **No — identical to the first** |
+
+**The fourth is ordinary**: `currentMarketState` never expires an observation,
+§11.2 measured a maximum gap of **187 minutes**, and §7.6 measured `ERIE` at
+**2.1%** coverage. **And the table is currently more careful about the day-old
+number than the three-hour-old one** — a consequence of Task 3.6.1's decision
+to date the stored rows, which was right for its own reason and has this as its
+shadow.
+
+**Not fixed here, and the reason is a refusal rather than a deferral.** The
+repair is a **threshold**, and §11.2 refused one with a measurement: no number
+of seconds separates a quiet security from a broken one. Choosing one on the
+surface that applies it 518 times, inside a design pass about a disc, would be
+taking the epic's hardest decision as a side effect. **Written into Story
+3.10's own file**, which already names _the table's 518 rows_ in its scope —
+together with what the mark does about it and exactly where the mark stops: **a
+reader who has just arrived sees no marks at all**, so it answers _is this row
+being fed_ for somebody watching and nothing for somebody who has just looked.
+
+### What was built, and the duplication it removed
+
+- **`market/arrival.ts`** — `observationIdentity` and `arrivalKey`, with the
+  revision rule and the snapshot rule. It was private to `SecurityIdentity`
+  from Task 3.4.5, which was right while one surface marked; **two
+  implementations of _what counts as an arrival_ is the shape Task 3.5.2
+  removed from the subscription.** One home, two surfaces.
+- **`styles/motion.module.css`** — the disc, the ink, the `opacity: 0` base and
+  the decay, `composes:`d by both marks. **Position stays with each consumer**,
+  because a figure and a table cell are genuinely different geometries.
+- **The table holds no arrival state at all.** `SecurityIdentity` needs a hook
+  because the route changes symbol underneath it without re-mounting; a table
+  row is keyed by its symbol, so the same rule reduces to a **pure function**
+  and a React `key`. That is 0 hooks across 518 rows rather than 518.
+- **The mark is a child of the price, not of the cell** — the column is
+  right-aligned, so the price's left edge moves with the width of the number.
+  Anchored to the cell it would drift from short figures and collide with long
+  ones.
+
+### Verified on the running page
+
+`MARKET_DATA_PROVIDER=fixture`, `/securities` in a real browser:
+
+- **0 marks on first paint with 518 live rows** — Task 3.5.4's rule holding at
+  518 times the size. The first reading of this was **518 marks**, and it was
+  measuring a tab that had been open long enough for a `bars` tick to land; a
+  fresh load reads 0 at 6.4 s.
+- Marks appear on the following tick and decay.
+
+### The canvas debt, cleared in part and named in full
+
+**Checked and clean:** `Universe navigation`, `Live in the chrome`,
+`Provenance and the empty answers` — none carries a story number in the 3.7–3.9
+range. The two Story 3.6 pages use the new numbering by construction.
+
+**Known stale and NOT remapped in place:** `The motion vocabulary.dc.html` says
+_the chart is Story 3.7_ and _Stories 3.6 and 3.7 inherit it_; both should read
+**3.9**. The remaining pages predate Epic 3 and were not individually checked.
+
+**Why it was not fixed in place, stated rather than glossed:** `DesignSync`
+writes whole files, so correcting two words means re-uploading the entire page
+from a copy held in this session — and a transcription error in a **source of
+truth** is a worse outcome than a stale story number. The mapping is instead
+recorded **on the canvas itself**, in §08 of the new page, so a canvas reader
+meeting _Story 3.7_ can resolve it without leaving the canvas.
+
+**Done-when 5 is therefore partly met and said so**: pages checked and named,
+the stale page and its exact strings identified, the remap not performed.
+
+### The criteria
+
+| #   | Criterion                                                                                      | Evidence                                                                                                        |
+| --- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 1   | The mark's behaviour at 518 decided in front of the running table, long-task figure unbuffered | Candidate A, with the duty cycle, the burst reframing and the two-arm attribution above                         |
+| 2   | The empty row is not a status word and does not read as an error                               | Three states verified correct; the fourth named, argued and handed to Story 3.10                                |
+| 3   | Two states implying different next actions do not read identically                             | `UniverseTable.test.tsx` — the stored row carries a date, the live row does not, the dataless row is an em dash |
+| 4   | Both decisions on the canvas with alternatives and a reversal trigger                          | `The mark multiplied by five hundred`, §03 and §06                                                              |
+| 5   | The canvas's stale numbers remapped, unchecked pages named                                     | **Partly** — see above                                                                                          |
+| 6   | `pnpm verify` passes, `pnpm probe` recorded                                                    | Green: 18 invariants, 2,300 tests. Browser suite against `marketpulse_bare`: **140 passed, 0 failed**           |
+
+**One honest note on the run.** The first `pnpm verify` after the measurement
+session failed one process test; the process suite spawns a real server and I
+had stopped the dev pair seconds earlier. A clean re-run passed, and the full
+verify was then taken again end to end and was green. Recorded because a suite
+that failed once and passed on a re-run is exactly the thing this repository
+refuses to wave through.
+
+---
+
+## For the stakeholders — what this actually did, in plain words
+
+**The short version: we decided the little dot stays, and while proving it we
+found something slow that nobody had measured.**
+
+### The question
+
+Last week we designed how a price should announce that it has changed: a small
+dot appears next to it and fades away over about a second. It says _a bar
+arrived for this company_ — not _the price moved_, which the arrow already
+says.
+
+That was decided while looking at **one** number. The list of every company we
+track has **518**. So the open question was simple to ask and impossible to
+settle by arguing: **does that work when it happens five hundred times?**
+
+### The arithmetic that nearly made the decision for us
+
+518 companies, one update a minute each, is 8.6 dots a second. When we designed
+the dot we wrote down in advance that if it ever fired more than once a second
+we should reconsider — so on that reading, the answer was already "no".
+
+**That arithmetic is wrong, and we had the measurement to prove it.** Market
+data does not trickle in evenly. We measured earlier in this project that a
+minute's worth of updates arrives in a **single burst lasting about a quarter
+of a second**. So the page is completely still for 59 seconds, and then
+everything that traded ticks at once.
+
+It is not a flicker. It is **one wave, once a minute** — and that is a
+different thing to judge.
+
+### What we measured rather than argued
+
+**How much of the time you actually see anything.** We ran the real table
+against a test feed that is deliberately harsher than reality — it updates
+_every_ company at once, where the real feed updates about two thirds. Result:
+in 39 sampled seconds, anything was visible in **two of them**. The screen is
+still for the other 37.
+
+**Whether the dots are expensive.** This is the part that matters, so we
+measured it **both ways on the same machine minutes apart**: once with the dots
+drawn, once with them removed entirely.
+
+They were the same. **The dots cost nothing measurable.**
+
+### The thing we were not looking for
+
+Both of those measurements were slow — in the same way, with or without the
+dots. Something on that page takes **up to a quarter of a second of the
+browser's attention, every minute**, and our own published performance target
+says nothing routine should take more than a twentieth of a second.
+
+**It is not the dots. It is redrawing 518 rows every time new prices arrive** —
+which arrived with last week's work, and which nobody had measured, because
+that work was checked for being _correct_ rather than for what it costs every
+minute forever.
+
+We have not fixed it here, deliberately: these numbers come from a development
+build, which is always slower than what a user gets, so they are a worst case
+rather than a verdict. It is handed to the task whose whole job is performance
+on this page, with the figures and the caveat.
+
+**The general point worth taking from this:** we only found it because we
+measured the thing we suspected _and_ the thing we did not. Had we only
+measured with the dots on, we would have blamed the dots, removed a good
+feature, and still had a slow page.
+
+### A state we found that has no honest answer yet
+
+While checking what a row says when it has no live price, we found a fourth
+case nobody had noticed.
+
+Our system remembers the last price it saw for each company and never forgets
+it. Thinly-traded companies can go **hours** without trading — we have measured
+gaps over three hours. So a row can be showing a price from three hours ago and
+look **exactly** like one from twenty seconds ago.
+
+And it is worse than that, in an ironic way: the table is currently _more_
+careful about a price from yesterday — which carries a date — than about one
+from three hours ago, which carries nothing.
+
+**We did not fix it, and that is a decision rather than an omission.** Fixing it
+means picking a cut-off — "older than X is stale" — and we established earlier,
+with measurements, that no such cut-off exists that can tell a quiet company
+from a broken feed. Picking one inside a design review about a dot would be
+making the hardest call in this phase of work as a side effect. It is written
+into the story that already owns exactly this question, in its own words, with
+everything we learned.
+
+### Where this leaves the product
+
+**Done:** 518 live prices, each announcing its own arrivals, with nothing added
+that the measurements could not justify.
+
+**Next:** whether every row stays live or only the ones on screen, and then the
+performance question above.
+
+**And one thing only a person can finish.** Everything here says the dots are
+cheap and rare. What no measurement can tell us is whether five hundred of them
+ticking together once a minute feels like a market breathing or like a page
+flashing. That needs somebody watching a real trading session — which we owe
+for three pieces of work now, and which is **one sitting**, Monday morning.

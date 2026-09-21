@@ -1357,3 +1357,88 @@ describe("the session line a live cell reserves", () => {
     expect(screen.getAllByText("Live price")).toHaveLength(2);
   });
 });
+
+describe("the arrival mark at universe scale", () => {
+  const marksIn = (container: HTMLElement) =>
+    container.querySelectorAll('tbody [class*="arrival"]');
+
+  // **The failure Task 3.5.4 removed from the security page, at 518 times the
+  // size.** A snapshot is *what we already held when you connected*; marking
+  // it would announce as news the thing the reader has just asked to see.
+  it("marks nothing when every observation came from the snapshot", () => {
+    const { container } = renderWithContext(
+      <UniverseTable
+        view={loaded(
+          [equity(), equity({ symbol: toTicker("AMD"), name: "AMD" })],
+          [],
+          [closeFor("NVDA"), closeFor("AMD", 142.06, 141.0)],
+        )}
+        onRetry={noop}
+        observations={
+          new Map([
+            ["NVDA", liveFor(241.5)],
+            ["AMD", liveFor(143.2)],
+          ])
+        }
+        fromSnapshot={new Set(["NVDA", "AMD"])}
+      />,
+    );
+
+    expect(marksIn(container)).toHaveLength(0);
+  });
+
+  it("marks a row whose observation arrived on a bars message", () => {
+    const { container } = renderWithContext(
+      <UniverseTable
+        view={loaded(
+          [equity(), equity({ symbol: toTicker("AMD"), name: "AMD" })],
+          [],
+          [closeFor("NVDA"), closeFor("AMD", 142.06, 141.0)],
+        )}
+        onRetry={noop}
+        observations={
+          new Map([
+            ["NVDA", liveFor(241.5)],
+            ["AMD", liveFor(143.2)],
+          ])
+        }
+        fromSnapshot={new Set(["AMD"])}
+      />,
+    );
+
+    // One of the two: the one the snapshot did not carry.
+    expect(marksIn(container)).toHaveLength(1);
+    const live = screen.getByRole("row", { name: /NVDA/ });
+    expect(live.querySelector('[class*="arrival"]')).toBeTruthy();
+  });
+
+  // The mark is decoration over information that is already on screen and
+  // already spoken, so a listener loses nothing — which is also what makes the
+  // reduced-motion answer honest rather than a degradation.
+  it("hides the mark from a listener", () => {
+    const { container } = renderWithContext(
+      <UniverseTable
+        view={loaded([equity()], [], [closeFor("NVDA")])}
+        onRetry={noop}
+        observations={new Map([["NVDA", liveFor(241.5)]])}
+      />,
+    );
+
+    const mark = container.querySelector('tbody [class*="arrival"]');
+    expect(mark?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  // A row with no observation has nothing to mark, and that is most of them:
+  // §7.6 measured 65.1% median minute coverage.
+  it("marks nothing for a row that has only a stored close", () => {
+    const { container } = renderWithContext(
+      <UniverseTable
+        view={loaded([equity()], [], [closeFor("NVDA")])}
+        onRetry={noop}
+        observations={new Map()}
+      />,
+    );
+
+    expect(marksIn(container)).toHaveLength(0);
+  });
+});

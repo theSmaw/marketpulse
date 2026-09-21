@@ -668,6 +668,10 @@ tbody:last-of-type .row:last-child {
 .price {
   composes: dataCell from "../../styles/type.module.css";
   color: var(--ink-primary);
+
+  /* The positioning context for the arrival mark — see `.arrival` at the foot
+     of this file for why the anchor is the price rather than the cell. */
+  position: relative;
 }
 
 /*
@@ -1021,4 +1025,32 @@ tbody:last-of-type .row:last-child {
   to {
     opacity: 0.45;
   }
+}
+
+/*
+ * **The arrival mark, at universe scale** (Task 3.6.2).
+ *
+ * Appearance and behaviour are the shared motion layer's — the disc, the ink,
+ * the `opacity: 0` base and the 900ms decay. Only **position** is this
+ * surface's, and it differs from the identity block's for a reason: there the
+ * mark hangs off a large figure with room to its left, and here it hangs off a
+ * right-aligned cell in a dense table.
+ *
+ * **It sits in the cell's own padding rather than reserving width.** The `Last`
+ * column is `text-align: right`, so the space to the left of a six-glyph price
+ * is already there — and taking layout width for a mark that is absent 98% of
+ * the time would push every price left by 8px for ever. Absolutely positioned
+ * against the cell, it costs **no layout at all**, which is what keeps 518 of
+ * them free of the reflow the column already had to be repaired for once.
+ *
+ * `top: 50%` rather than aligning to the text baseline: the cell can hold two
+ * lines when a stored row carries its session date, and a mark pinned to the
+ * first line would sit off-centre against half the column.
+ */
+.arrival {
+  composes: arrivalMark from "../../styles/motion.module.css";
+  position: absolute;
+  right: calc(100% + var(--space-4));
+  top: 50%;
+  margin-top: calc(var(--space-8) / -2);
 }

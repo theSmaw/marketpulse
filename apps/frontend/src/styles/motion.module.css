@@ -1,0 +1,74 @@
+/*
+ * The motion vocabulary's shapes, as classes two surfaces can share.
+ *
+ * `The motion vocabulary.dc.html` settled three behaviours and the whole value
+ * of the set is that a reader tells them apart without being taught:
+ *
+ *   work in progress LOOPS   a state PERSISTS   a fact arriving DECAYS
+ *
+ * A fourth behaviour is a change to the vocabulary rather than to a component,
+ * so the shapes live here rather than being re-declared per component — which
+ * is what stopped being theoretical on 2026-09-21, when Task 3.6.2 gave the
+ * arrival mark a second consumer. Two copies of a 900ms decay is two places
+ * for the vocabulary to drift.
+ *
+ * **What is here is appearance and behaviour; POSITION is the consumer's.**
+ * The identity block hangs its mark off a figure and the universe table hangs
+ * one off a table cell, and those are genuinely different geometries. What must
+ * not differ is what the mark looks like and how it behaves.
+ */
+
+/*
+ * A fact arriving: held, then gone.
+ *
+ * The hold is what makes it catchable by somebody who was looking elsewhere;
+ * the fade is what stops it reading as a state. `from { opacity: 0 }` would
+ * make the mark **appear** rather than **be there**, which is a second gesture
+ * nobody asked for.
+ */
+.arrivalMark {
+  /* `--space-8`, the same box `Marker` uses — the chrome's own glyph at the
+     chrome's own size, told apart from it by behaviour rather than by shape. */
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: 50%;
+
+  /*
+   * **The same ink as the figures, and never the identity accent.** No accent
+   * on a datum is a standing rule, and at universe scale it would be 518
+   * crimson discs — the loudest possible breach of a rule that scopes the
+   * accent to four positions in the chrome.
+   */
+  background: var(--ink-primary);
+
+  /*
+   * **`opacity: 0` is the base state, and leaving it out was a real defect.**
+   *
+   * Reduced motion resolves `--motion-duration-decay` to `0ms`, and an
+   * animation of zero duration applies **no keyframe styles at all** — so with
+   * no base opacity the element renders at the initial value, `1`, and the
+   * mark stays on screen for ever. A reader who asked for less motion would
+   * get a permanent dot: not a degraded treatment but the **opposite** of the
+   * vocabulary, because a mark that persists reads as a state.
+   *
+   * At 518 rows that failure is 518 permanent dots.
+   */
+  opacity: 0;
+
+  /*
+   * **Decays rather than loops.** `fill-mode` is deliberately left at `none`,
+   * which is what returns the element to the base above when it ends.
+   */
+  animation: arrival-decays var(--motion-duration-decay) linear;
+}
+
+@keyframes arrival-decays {
+  0%,
+  33% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}

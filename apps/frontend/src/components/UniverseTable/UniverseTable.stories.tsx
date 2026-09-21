@@ -649,3 +649,57 @@ export const StoreAlreadyHoldsToday: Story = {
     ),
   },
 };
+
+/**
+ * ## A burst, mid-session — the arrival mark on the rows that just received one
+ *
+ * **Three of five rows marked, two not**, which is the real shape rather than
+ * the worst case: §7.6 measured **65.1% median per-symbol minute coverage**, so
+ * about **321 of 518** rows mark in a given minute and the rest sit still.
+ *
+ * The mark fires when a **bar arrives**, not when the price changes — so a row
+ * whose figure is unchanged still marks, and that is the claim: *a bar arrived
+ * for this security*, which nothing else on the screen makes per security.
+ *
+ * **Static here, and that is a limitation worth naming rather than hiding.**
+ * The decay is 900 ms and a story is a still frame; what this reviews is
+ * **density and position** — where the discs sit against right-aligned figures,
+ * and how a column of them reads. Whether the synchronised wave feels like a
+ * market breathing or a page flashing is a judgement only a live session
+ * returns, and `The mark multiplied by five hundred` holds the running version.
+ */
+export const ABurstMidSession: Story = {
+  args: {
+    observations: new Map([
+      ["XLK", liveFor(188.04)],
+      ["AAPL", liveFor(317.42)],
+      ["NVDA", liveFor(241.5)],
+    ]),
+    // Nothing came from a snapshot, so all three mark.
+    fromSnapshot: new Set<string>(),
+  },
+};
+
+/**
+ * ## The same observations, delivered by a snapshot — and nothing marks
+ *
+ * **This is the state every browser is in for the first moments of every
+ * connection, and after every backend deploy.** The gateway answers a subscribe
+ * with a `snapshot` rather than with `bars`, and the store keeps that
+ * distinction all the way down to here.
+ *
+ * Put beside {@link ABurstMidSession} the difference is the whole of Task
+ * 3.5.4's rule at 518 times the size: without it, **every page load would fire
+ * a mark on every row it had a price for** — announcing as news the thing the
+ * reader has just asked to see, on 518 rows at once.
+ */
+export const JustSubscribedNothingMarks: Story = {
+  args: {
+    observations: new Map([
+      ["XLK", liveFor(188.04)],
+      ["AAPL", liveFor(317.42)],
+      ["NVDA", liveFor(241.5)],
+    ]),
+    fromSnapshot: new Set(["XLK", "AAPL", "NVDA"]),
+  },
+};

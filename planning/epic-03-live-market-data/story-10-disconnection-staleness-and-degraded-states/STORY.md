@@ -535,3 +535,64 @@ through a **paused socket** rather than through a fixture, and **nothing on
 screen says it is happening**. Whether it gets a word, or is deliberately silent,
 is this story's to decide; the decision to cycle rather than give up is recorded
 in the hand-off above.
+
+---
+
+## Handed here by Task 3.6.2 — 2026-09-21: the table now has a fourth state, and it is the one with no word
+
+**Your scope already names this in as many words** — _a price that was live and
+is now forty minutes old is not the same as a price that was never live. Every
+surface has to answer it: the table's 518 rows, the identity block, the chart's
+edge, and the source note._ Task 3.6.2 went looking for it deliberately and
+found that **Task 3.6.1 made it worse before you got here.**
+
+### The four states a row can be in, and only three of them read correctly
+
+| #   | The row holds                               | What it draws                                | Reads correctly?        |
+| --- | ------------------------------------------- | -------------------------------------------- | ----------------------- |
+| 1   | A live observation from this minute         | the figure, **no date**, `Live price` spoken | **Yes**                 |
+| 2   | Only a stored close                         | the figure **with its session date**         | **Yes**                 |
+| 3   | Nothing at all                              | an em dash, `No close yet` spoken            | **Yes**                 |
+| 4   | A live observation from **three hours ago** | the figure, **no date**, `Live price` spoken | **No — identical to 1** |
+
+**State 4 is ordinary rather than exotic.** `currentMarketState` keeps the
+latest observation per security and **never expires it**; §11.2 measured a gap
+between one security's consecutive bars with a p50 of one minute and a
+**maximum of 187**; §7.6 measured `ERIE` at **2.1%** minute coverage.
+
+**And the table is currently more careful about the day-old number than the
+three-hour-old one.** State 2 carries a date and state 4 carries nothing. That
+is the wrong way round, and it arrived with Task 3.6.1's decision to date the
+stored rows — which was right for the reason it was taken and has this as its
+shadow.
+
+### Why Task 3.6.2 did not fix it
+
+**Because the repair is a threshold, and §11.2 refused one with a
+measurement.** _Materially old_ needs a number of seconds, and no number
+separates a quiet security from a broken one when the ordinary maximum gap is
+187 minutes. Choosing one on the surface that has to apply it **518 times** —
+inside a design pass about a disc — would be taking this epic's hardest
+decision as a side effect.
+
+### What the arrival mark does about it, and exactly where it stops
+
+Task 3.6.2 kept the mark unchanged, and **it is the only per-security recency
+signal the product has**. A reader watching the page sees which rows are being
+fed — as an event, never as a judgement, which is what keeps it clear of
+§11.2's refusal.
+
+**Its limit is the part you need.** A reader who has _just arrived_ sees no
+marks at all, because nothing has arrived yet. The mark answers _is this row
+being fed_ for somebody watching, and says **nothing** to somebody who has just
+looked. **That gap is precisely state 4.**
+
+### And one figure that bears on whatever you choose
+
+Task 3.6.2 measured, on a running table with the feed going and the long-task
+observer **unbuffered**, that **§28's _no routine main-thread task > 50 ms_ is
+already breached on this page during a session** — and that it is the 518-row
+re-render rather than the mark, attributed by measuring with the mark rendered
+and not rendered on the same machine and feed. **Anything you add per row lands
+on top of that.** Task 3.6.5 owns the figure and re-takes it on a production
+build.
