@@ -33,6 +33,14 @@ class FakeSocket implements WebSocketLike {
   private readonly listeners = new Map<string, ((...a: never[]) => void)[]>();
 
   send(data: string): void {
+    // **`ws` throws SYNCHRONOUSLY when the socket is not `OPEN`**, with exactly
+    // this message. A fake that swallowed the write would be a fake that
+    // cannot reproduce the production crash, so it throws too.
+    if (this.readyState !== 1) {
+      throw new Error(
+        `WebSocket is not open: readyState ${String(this.readyState)} (CONNECTING)`,
+      );
+    }
     this.sent.push(data);
   }
   close(code?: number): void {
@@ -276,6 +284,51 @@ describe("error frames — messages about a request, on a socket that stays open
 
     h.advance(REFUSED_RETRY_MS);
     expect(h.sockets).toHaveLength(2);
+  });
+
+  it("closes the refused socket before asking for its replacement", () => {
+    // §8.2's limit is ONE connection. A retry that leaves the refused socket
+    // open is itself a cause of the `406` it is retrying — we would be the
+    // second connection competing with our own first, forever.
+    const h = harness();
+    h.socket.emit("open");
+    h.socket.deliver("greeting");
+    h.socket.deliver("error-406-connection-limit-exceeded");
+
+    expect(h.socket.closedWith).toBe(1000);
+  });
+
+  it("a frame on a SUPERSEDED socket does not write to its replacement", () => {
+    // **The production crash loop, as a test** — 2026-09-19, six fatal
+    // `level: 60` exits between 02:00Z and 06:00Z, `CrashLoopBackOff`, and
+    // every rollout refused for two days afterwards.
+    //
+    // `socket` was a single mutable reference and the handshake read it, while
+    // `opened.on("message", …)` closed over the socket that spoke. So a frame
+    // delivered by socket A after the retry had repointed `socket` at B called
+    // `B.send()` while B was still `CONNECTING`, and `ws` throws
+    // synchronously — out of a `message` listener, past nothing, into the
+    // process crash handler.
+    const h = harness();
+    h.socket.emit("open");
+    h.socket.deliver("greeting");
+    h.socket.deliver("error-406-connection-limit-exceeded");
+
+    h.advance(REFUSED_RETRY_MS);
+    const [first, second] = h.sockets;
+    if (first === undefined || second === undefined) {
+      throw new Error("expected a retry to have opened a second socket");
+    }
+
+    // The replacement is dialling. This is the window the crash lived in.
+    second.readyState = 0;
+
+    // A late frame from the socket that was superseded. It must not take the
+    // process down, and it must not write to a socket that has not opened.
+    expect(() => {
+      first.deliver("greeting");
+    }).not.toThrow();
+    expect(second.sent).toEqual([]);
   });
 
   it("does not retry after 402 or 400", () => {

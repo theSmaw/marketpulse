@@ -74,6 +74,16 @@ export const ALPACA_STREAM_URL = "wss://stream.data.alpaca.markets/v2/iex";
 export const REFUSED_RETRY_MS = 3_000;
 
 /**
+ * `WebSocket.OPEN`, spelled here rather than imported.
+ *
+ * The seam this client writes through is `WebSocketLike` — a test furnishes a
+ * plain object, so reaching for the `ws` class's static would couple the guard
+ * to the very dependency the seam exists to avoid. The value is fixed by the
+ * WHATWG standard and is the same in `ws` and in a browser.
+ */
+const SOCKET_OPEN = 1;
+
+/**
  * Three missed heartbeats. §6.3 measured 53.96–54.85 s across 82 intervals, and
  * §8.8 confirms inbound silence is the **only** signal for a half-open socket.
  * Re-exported so a caller configuring this client reads one number, not two.
@@ -211,14 +221,14 @@ export function createAlpacaStream(
     }
   };
 
-  const handleMessage = (raw: string): void => {
+  const handleMessage = (raw: string, from: WebSocketLike): void => {
     const at = now();
     const parsed: unknown = safeParse(raw);
     const frames = toMappedFrames(parsed, new Date(wallNow()).toISOString());
 
     // Drive the state machine from what the frames MEAN, not from the socket.
     for (const item of Array.isArray(parsed) ? parsed : []) {
-      apply(toStreamEvent(item, at));
+      apply(toStreamEvent(item, at, from));
       routeErrorFrame(item);
     }
 
@@ -257,6 +267,13 @@ export function createAlpacaStream(
 
   const scheduleRetry = (): void => {
     if (retry !== undefined) clearTimer(retry);
+
+    // **Close the incumbent before asking for its replacement.** §8.2's limit
+    // is ONE connection, so a retry that leaves the refused socket open is
+    // itself a cause of the `406` it is retrying — we would be the second
+    // connection competing with our own first.
+    requestClose();
+
     retry = setTimer(() => {
       if (!closedDeliberately) open();
     }, REFUSED_RETRY_MS);
@@ -274,7 +291,7 @@ export function createAlpacaStream(
     });
 
     opened.on("message", (data: unknown) => {
-      handleMessage(String(data));
+      handleMessage(String(data), opened);
     });
 
     // `ws` answers the server's ping automatically; this listener exists so the
@@ -298,37 +315,60 @@ export function createAlpacaStream(
     });
   };
 
-  const authenticate = (): void => {
-    socket?.send(
-      JSON.stringify({ action: "auth", key: keyId, secret: secretKey }),
-    );
+  /**
+   * Write to a socket only while it is `OPEN`.
+   *
+   * **The guard is the belt, and the argument is the braces.** A `send()` on a
+   * `CONNECTING` socket throws SYNCHRONOUSLY in `ws`, and both of this
+   * client's writes happen inside a `message` listener — so the throw escapes
+   * the listener, reaches the process crash handler and takes the process
+   * down. That is not a hypothesis: it ran six times in production between
+   * 02:00Z and 06:00Z on 2026-09-19 and put the container into
+   * `CrashLoopBackOff`, which then refused every rollout.
+   *
+   * Nothing a vendor's socket does justifies ending our process — the same
+   * reasoning `requestClose` already carries (`PROVIDER.md` §8.5).
+   */
+  const sendTo = (target: WebSocketLike, payload: object): void => {
+    if (target.readyState !== SOCKET_OPEN) return;
+    try {
+      target.send(JSON.stringify(payload));
+    } catch {
+      // A socket that throws on send is gone; the close handler reports it.
+    }
   };
 
-  const subscribe = (): void => {
+  const authenticate = (target: WebSocketLike): void => {
+    sendTo(target, { action: "auth", key: keyId, secret: secretKey });
+  };
+
+  const subscribe = (target: WebSocketLike): void => {
     // `bars` AND `updatedBars` — the product subscribes revisions (§7.11), and
     // §14.1's trigger was evaluated and not fired.
-    socket?.send(
-      JSON.stringify({
-        action: "subscribe",
-        bars: symbols,
-        updatedBars: symbols,
-      }),
-    );
+    sendTo(target, {
+      action: "subscribe",
+      bars: symbols,
+      updatedBars: symbols,
+    });
   };
 
   /** The greeting and the acknowledgements drive the handshake forward. */
-  const toStreamEvent = (frame: unknown, at: number): StreamEvent => {
+  const toStreamEvent = (
+    frame: unknown,
+    at: number,
+    from: WebSocketLike,
+  ): StreamEvent => {
     const record = asFrame(frame);
 
     if (record.T === "success" && record.msg === "connected") {
       // The server greets first (§4.1) — authenticating before it does is
       // writing into a socket that has not spoken.
-      authenticate();
+      authenticate(from);
       return { kind: "greeted", at };
     }
     if (record.T === "success" && record.msg === "authenticated") {
       onLog({ kind: "authenticated", symbols: symbols.length });
-      subscribe();
+      subscribe(from);
       return { kind: "authenticated", at };
     }
     if (record.T === "subscription") {

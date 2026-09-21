@@ -308,6 +308,18 @@ backend**, and that is this story's too.
 > opened**, and `ws` throws synchronously when `readyState` is `CONNECTING`.
 > None since 05:48Z, so the process stabilised — with no feed.
 >
+> #### AMENDED 2026-09-21 — the bug in §1 is found and fixed; §2 is still yours
+>
+> _Something calls `send()` before the socket has opened_ is now specific: the
+> `406` retry path overwrote a single mutable `socket` reference while the old
+> socket's listeners were still attached, and the handshake wrote to the shared
+> reference rather than to the socket the frame arrived on. Repaired in
+> `alpaca-stream.ts`, with two break-verified tests. **The full account is in
+> Story 3.10's `STORY.md`**, which owns retry.
+>
+> **Nothing below this line is repaired.** §2's finding is the reason the crash
+> ran unseen, and wiring `onLog` is still Story 3.11's.
+>
 > ### 2. The feed has been dead for nineteen hours with no log line about it
 >
 > 85 samples over 10.5 hours: **zero `live`**. And the reason nobody could have
