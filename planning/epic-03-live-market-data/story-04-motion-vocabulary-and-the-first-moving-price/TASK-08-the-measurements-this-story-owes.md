@@ -1,6 +1,7 @@
 # Task 3.4.8 — The measurements this story owes
 
 **Status:** Not started
+**Amended:** 2026-09-21 after Task 3.4.7 — there is now an instrument that makes a price **arrive** inside a browser, which is what every figure here needed and nothing had.
 **Amended:** 2026-09-21 after Task 3.4.6 — the identity block now has **two heights** at 390 and only one has been photographed.
 **Amended:** 2026-09-21 after Task 3.4.4 — the layout figure is already taken and only needs a production re-take; the mark's firing RATE is a new measurement, because the reversal trigger's second clause is a number.
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
@@ -59,6 +60,29 @@ existing check produces.
   sweep's first run returned `[76, 118, 117, 120]`, every one of them predating
   the observer and belonging to Epic 14's known breach — arriving inside a
   measurement about something else entirely.
+
+## The instrument you did not have until 2026-09-21
+
+**Task 3.4.7 built a way to make a price arrive inside a browser**, and it is
+the thing standing between this task and every figure it owes.
+
+`security-price-motion.spec.ts`'s `serveFeed` answers the market socket
+**entirely from the test** and hands back a `push` that sends a `bars` frame on
+demand. CI has no credential, so before it there was no way for a runner to
+reach a state where a price exists at all, let alone **changes**.
+
+**Copy it rather than re-derive it**, and copy the limits with it:
+
+- **It furnishes the wire, so it measures the browser's half and not the
+  server's.** §28's clock starts at _server-received_; this instrument starts at
+  _frame delivered to the page_. Say which half each figure is, because a number
+  labelled as §28's when it is missing a gateway and a socket is worse than no
+  number.
+- **The burst IS reachable through it** — §7.4's **332 bars inside 243 ms** is a
+  single `push` with 332 entries, which is the case that matters and the one a
+  figure taken against one observation at a time says nothing about.
+- **`[data-arrival]` is the handle** for the mark, and the mark's own cost is on
+  the list below.
 
 ## Work
 

@@ -255,6 +255,32 @@ the rehearsal:
   taken against only the regular case is a figure about one of the two states
   this surface has.
 
+### 3.4.7's sweep — 2026-09-21, and the useful part is an unlock rather than a warning
+
+**Two tasks amended and one suite document, none added, deleted or re-ordered.**
+
+- **3.4.8 got the instrument it did not have.** Task 3.4.7 built `serveFeed` —
+  a market socket answered **entirely from the test**, with a `push` that sends
+  a `bars` frame on demand. CI has no credential, so before it **a runner could
+  not reach a state where a price exists at all**, let alone changes, and every
+  figure that task owes needs an arrival. §7.4's burst — **332 bars in 243 ms**
+  — is reachable through it as a single `push`. Its limit travels with it:
+  it furnishes the **wire**, so it measures the browser's half and not the
+  server's, and §28's clock starts at _server-received_. **A number labelled as
+  §28's when it is missing a gateway and a socket is worse than no number.**
+- **3.4.10's ADR question is now two decisions rather than one**, and they are
+  different in kind. The motion vocabulary is inherited by three stories inside
+  this epic; **a self-changing value announces nothing** reaches past it
+  entirely — Epic 5's anomaly scores change on their own and Epic 10 streams
+  agent events, and **both will meet that decision's trigger rather than the
+  decision**. Decide against both or the answer is about half the question.
+- **`e2e/README.md` gained what the new spec does not certify.** Five green
+  tests say everything about what the browser does with an arrival and
+  **nothing about whether one arrives** — if the gateway stopped sending `bars`
+  for ever, all five would still pass. That chain is covered piecewise
+  elsewhere and **nowhere end to end in a browser**, which is the sentence to
+  keep rather than the reassurance.
+
 The original wording stands below, because it is what the decision was taken
 against.
 

@@ -717,6 +717,18 @@ In the same shape ADR 0010 states it for the tick.
   own list above.
 - **Not that the artefact it drove is the artefact that ships.** The dev server
   does not typecheck and does not bundle; `pnpm verify` is what covers that.
+- **Not that a feed a spec FURNISHES would ever have arrived.** Added
+  2026-09-21 by Task 3.4.7, and it is the price of the pattern rather than a
+  defect in it. `security-price-motion.spec.ts` answers the market socket
+  entirely from the test, because CI has no credential and could not otherwise
+  reach a state where a price exists at all — so its five green tests say
+  **everything about what the browser does with an arrival and nothing about
+  whether one arrives**. If the gateway stopped sending `bars` for ever, every
+  one of them would still pass. That chain is covered piecewise elsewhere —
+  `self-driving-streams.test.ts` asserts a stream left alone produces an
+  observation, `market-connection.spec.ts` has two tests that talk to the real
+  server — and **nowhere end to end in a browser**, which is the sentence to
+  keep rather than the reassurance.
 - **Not coverage, and not that a journey exists for a behaviour.** There are
   **seventeen** spec files and 135 tests (2026-09-13, re-counted at Story
   2.13's close — sixteen and 129 at Task 2.13.7, fifteen and 122 at Task

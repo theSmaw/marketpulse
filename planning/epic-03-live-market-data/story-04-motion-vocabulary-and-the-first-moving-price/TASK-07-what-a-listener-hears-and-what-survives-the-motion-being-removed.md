@@ -172,18 +172,18 @@ applied in the component tests — `getTokens()` throws there by design — so *
 computed opacity is not a question that level can ask**. And
 `prefers-reduced-motion` is a media query, which only a real engine evaluates.
 
-| | What it holds |
-| --- | --- |
-| the mark is **invisible** under the preference | `docs/GAPS.md` entry 11 — the defect Task 3.4.5 shipped |
-| and it **does** run without it | the control, without which the first passes against a mark that never worked |
-| a price that **moved** is still perceivable | criterion 3's easy half |
-| an **unchanged** tick is still perceivable | criterion 3's hard half, and the reason this task exists |
-| nothing carries direction by **hue alone** | criterion 4, as a check rather than a screenshot |
+|                                                | What it holds                                                                |
+| ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| the mark is **invisible** under the preference | `docs/GAPS.md` entry 11 — the defect Task 3.4.5 shipped                      |
+| and it **does** run without it                 | the control, without which the first passes against a mark that never worked |
+| a price that **moved** is still perceivable    | criterion 3's easy half                                                      |
+| an **unchanged** tick is still perceivable     | criterion 3's hard half, and the reason this task exists                     |
+| nothing carries direction by **hue alone**     | criterion 4, as a check rather than a screenshot                             |
 
 **The pair is the shape to copy.** The first test alone would pass just as well
 against a mark that never worked — which is this suite's own recorded hazard,
-*an assertion about an absence passes for free on a deployment that cannot
-produce the thing*, and it has already cost this epic four days once.
+_an assertion about an absence passes for free on a deployment that cannot
+produce the thing_, and it has already cost this epic four days once.
 
 **Two mechanical things learned and written into `e2e/README.md`**, because the
 next spec that emulates a preference will meet both. **Assert the animation, not
@@ -208,11 +208,11 @@ frame would have been the same pixels, and the assertion covers all five plus
 every state added after them.
 
 **The first draft of the check failed on the best encoding in the component.**
-It looked for `▲`/`▼` only and reported `PriceChange`'s visually-hidden *up* as
+It looked for `▲`/`▼` only and reported `PriceChange`'s visually-hidden _up_ as
 an offender — an element that carries direction **more** strongly than the glyph
 does, because it is what a listener is handed. A check written from a rule's
-letter rather than its point will do that; the rule is *direction is carried by
-something other than hue*, and a word qualifies.
+letter rather than its point will do that; the rule is _direction is carried by
+something other than hue_, and a word qualifies.
 
 ### The live-region decision: a price that changes on its own announces NOTHING
 
@@ -234,12 +234,12 @@ Four reasons, three of them measurements:
   **1,500 ms** pacing floor — a screen reader talking over its user roughly
   sixty times an hour about a number nobody asked for.
 - **The argument this page's third region was spent on does not transfer.**
-  Search speaks 400 ms after a keystroke, which is *the user just did
-  something*; this block fills when two other regions do.
+  Search speaks 400 ms after a keystroke, which is _the user just did
+  something_; this block fills when two other regions do.
 - **The information is not lost, only unprompted**, and a listener who goes and
   reads gets **more** than a sighted reader glancing does: direction is a
   **word**, because `PriceChange` hides its glyph from the tree and exposes
-  *up* / *down*.
+  _up_ / _down_.
 
 **Reversal trigger, as a condition:** the first surface where a price change is
 **the answer to something the user asked for**. Announcing is an interruption
@@ -251,7 +251,7 @@ Two entries added to `CLAUDE.md`'s listening backlog, and **adding them is
 success rather than a shortfall** — the story says so explicitly.
 
 - **The block's spoken string is 10 words across three `<p>` elements**, so
-  `textContent` runs them together — *"…close218.29down −0.03%2026-09-11 · …"* —
+  `textContent` runs them together — _"…close218.29down −0.03%2026-09-11 · …"_ —
   while a screen reader pauses between blocks. **Which of those a listener gets
   is readable from neither the DOM nor a timing.**
 - **The qualifier can now carry three clauses**
@@ -261,8 +261,8 @@ success rather than a shortfall** — the story says so explicitly.
 ### `docs/GAPS.md` entry 11 is now PARTLY mechanical, and the split is the point
 
 The browser suite covers **the one element that had the defect**. What stays on
-the list is the general claim — *every animated element has a base state that is
-correct when its animation does not run* — true of the four that exist today and
+the list is the general claim — _every animated element has a base state that is
+correct when its animation does not run_ — true of the four that exist today and
 guarded for one. That residue is exactly what the list is for, and turning half
 of an entry mechanical rather than pretending to close it is the honest move.
 
@@ -276,7 +276,7 @@ see the screen, and somebody who has asked their computer for less movement.
 
 **The second one first, because it had a real hole in it.**
 
-Operating systems let people say *reduce motion* — for motion sickness,
+Operating systems let people say _reduce motion_ — for motion sickness,
 migraine, or simple preference — and we honour it: our dot does not animate for
 them. But the dot is the **only** thing that moves on a minute where the price
 arrives unchanged. So for that reader, on that minute, we were at risk of
@@ -285,7 +285,7 @@ showing **nothing at all** on precisely the event the dot exists to report.
 **It turned out we already had the answer on the screen and had not noticed.**
 The small print under the price carries the time the price is from, and that
 time **advances every minute whether or not the price moved**. So the change is
-still visible without any movement — the dot was only ever saying *look*.
+still visible without any movement — the dot was only ever saying _look_.
 
 We did not design anything for this. We **proved** it, in a real browser with
 the preference switched on, and wrote the test that goes red if it ever stops
@@ -294,7 +294,7 @@ being true.
 **And we made sure the dot really is off, not just different.** A few days ago
 we shipped a version where, for exactly that reader, the dot appeared and then
 **never went away** — a permanent mark beside the price, which reads as a
-permanent *condition* rather than a fleeting event. We fixed it then; this task
+permanent _condition_ rather than a fleeting event. We fixed it then; this task
 is where it became impossible to bring back. We deliberately reintroduced the
 old code to confirm the new test catches it.
 
@@ -313,11 +313,11 @@ choice rather than an omission. Three reasons, and two are measurements:
 
 **The information is not hidden — it is just not shouted.** A screen-reader user
 who navigates to the price gets it as a sentence, and in fact gets **more** than
-a sighted user glancing at it: the direction is spoken as the word *up* or
-*down*, not left to a small coloured triangle.
+a sighted user glancing at it: the direction is spoken as the word _up_ or
+_down_, not left to a small coloured triangle.
 
 We also wrote down **what would change our minds**: the first time a price
-change is *the answer to something the user asked for* — an alert they signed up
+change is _the answer to something the user asked for_ — an alert they signed up
 for, an investigation they started. Interrupting is rude when it is unprompted
 and helpful when it is not.
 
