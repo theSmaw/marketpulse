@@ -158,3 +158,45 @@ a server with live observations** — a condition rather than a story number.
 Two figures were corrected across tasks during this story (the snapshot size,
 twice) and the task numbers moved once. A hand-off written against an old number
 or a stale figure is worse than none.
+
+---
+
+## Amended by Task 3.5.6 — 2026-09-21: a third GAPS entry, and one hand-off already written
+
+### 3. A developer's own store can make a browser spec fail as a product defect
+
+**Drafted like the other two, so the decision is whether to keep it.**
+
+`CLAUDE.md` already says _before asserting on a number in a browser spec, ask
+whether CI has the data_, and ships `pnpm store:bare`. What it does not say is
+the shape of the failure when you forget — and Task 3.5.6 produced it:
+
+A store ten days stale answers `5D` **empty** and `1M` **populated**. The
+readout strip is absent in one state and present in the other, so pressing a
+window moves the chart **90 px** — and `security-window-change.spec.ts` asserts
+it does not. The failure reads as a **layout defect in the product**, complete
+with a screenshot showing a chart in the wrong place.
+
+**It was mis-diagnosed three times in one session**: as machine load, then as a
+regression bisected to a specific task (on the strength of a `main` run that
+happened to pass), and only correctly on the third pass. A suite that fails a
+_different set each time_ looks like contention and is not.
+
+**Re-measure:** run any browser suite against `DATABASE_NAME=marketpulse_bare`
+before believing a failure that looks like layout or a missing figure. If it
+passes there and fails against your own store, the store is the subject.
+
+**Owner: a condition** — the first browser spec that asserts on a figure whose
+presence depends on a window having data.
+
+### And one hand-off is already written rather than listed
+
+**Story 3.6's `STORY.md` has it**, added 2026-09-21: it is the first screen that
+has to _ask_ for anything, the mechanism is a page-declared subscription rather
+than an address-derived one, and it inherits the three properties it does not
+have to build. Written into that file in words it can act on rather than left
+as a pointer — which is what this task's own enumeration exists to force.
+
+**Still to check at the close:** every `Story N.M` and `Owner:` line in this
+story's documents against that story's own file, with the missing count
+recorded.
