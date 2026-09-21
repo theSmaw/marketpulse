@@ -1,7 +1,11 @@
 import { useState } from "react";
 
 import type { Bar, Security, SecurityLastClose } from "@marketpulse/shared";
-import { SECTOR_LABELS } from "@marketpulse/shared";
+import {
+  EXTENDED_HOURS_WORDS,
+  SECTOR_LABELS,
+  extendedHoursAt,
+} from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
 import type { SecuritiesView } from "../../use-securities.js";
@@ -129,21 +133,52 @@ export interface SecurityIdentityProps {
  */
 function useArrival(
   symbol: string,
-  instant: number | undefined,
-): number | undefined {
-  const [mounted, setMounted] = useState({ symbol, instant });
+  observation: string | undefined,
+): string | undefined {
+  const [mounted, setMounted] = useState({ symbol, observation });
 
   if (mounted.symbol !== symbol) {
     // Adjusting state during render rather than in an effect: React's own
     // pattern for state derived from props, and the only one that does not
     // paint a frame of the wrong answer first.
-    setMounted({ symbol, instant });
+    setMounted({ symbol, observation });
     return undefined;
   }
 
-  if (instant === undefined || instant === mounted.instant) return undefined;
-  return instant;
+  if (observation === undefined || observation === mounted.observation) {
+    return undefined;
+  }
+  return observation;
 }
+
+/**
+ * What makes one observation a different observation from the last.
+ *
+ * **Not the instant, and Task 3.4.6 changed it for a reason worth keeping.**
+ * Task 3.4.5 keyed the arrival on `startsAt`, which is right for a new minute
+ * and wrong for a **revision**: the product subscribes `updatedBars`, and a
+ * corrected bar carries the minute it corrects (§7.3 — `t` marks the interval's
+ * start), so a correction arriving thirty seconds later left the instant
+ * unchanged and **drew no mark at all**.
+ *
+ * That produced the one state the vocabulary had no word for: §7.8 measured 14
+ * revisions in one session and **three of them changed the close**, so a reader
+ * could watch the **figure move with nothing marking it** — the exact inverse
+ * of what the mark was decided to mean.
+ *
+ * So the identity is the observation's **content**. A revision that changed
+ * something is a different observation and fires the mark; one that changed
+ * nothing is not, and does not — which is correct rather than a limitation,
+ * because nothing was corrected.
+ *
+ * `volume` is in it as well as `close` deliberately: a revision that adjusted
+ * only the volume still corrected the bar, and a reader who is told *a bar
+ * arrived* has been told the truth.
+ */
+const observationIdentity = (bar: Bar | undefined): string | undefined =>
+  bar === undefined
+    ? undefined
+    : `${String(bar.startsAt.getTime())}:${String(bar.close)}:${String(bar.volume)}`;
 
 /**
  * Three schema kinds, two words. The `sector_etf`/`index_etf` split is real and
@@ -278,10 +313,11 @@ function Close({
   // than a silent one: a live price is not a newer version of a session close,
   // it is a different number measured from a different thing and true at a
   // different time.
-  const arrival = useArrival(symbol, live?.startsAt.getTime());
+  const arrival = useArrival(symbol, observationIdentity(live));
 
   if (live !== undefined) {
     const percent = changeFromClose(live.close, lastClose);
+    const extendedHours = extendedHoursAt(live.startsAt);
 
     return (
       <div className={cx(styles.close)}>
@@ -331,7 +367,7 @@ function Close({
                 key={arrival}
                 className={cx(styles.arrival)}
                 aria-hidden="true"
-                data-arrival={String(arrival)}
+                data-arrival={arrival}
               />
             )}
             {formatPrice(live.close)}
@@ -357,9 +393,25 @@ function Close({
           superseding one.
         */}
         <p className={cx(styles.qualifier)}>
-          {percent === null
-            ? formatBarInstant(live.startsAt, "1m")
-            : `${formatBarInstant(live.startsAt, "1m")} · change from ${lastClose?.session ?? ""}'s close`}
+          {[
+            formatBarInstant(live.startsAt, "1m"),
+            // **The extended-hours mark, and it sits beside the instant
+            // because it IS the instant interpreted** (Task 3.4.6). Nothing on
+            // the wire distinguishes a pre-market bar — §7.7 — so this is
+            // derived from the bar's own instant against Story 2.5's calendar,
+            // and §7.11 settles that such bars are rendered and MARKED rather
+            // than filtered. Absent for a regular-session price: silence means
+            // the ordinary case, which is the same call the chrome makes for
+            // `LIVE` carrying no timestamp.
+            extendedHours === undefined
+              ? undefined
+              : EXTENDED_HOURS_WORDS[extendedHours],
+            percent === null
+              ? undefined
+              : `change from ${lastClose?.session ?? ""}'s close`,
+          ]
+            .filter((clause) => clause !== undefined)
+            .join(" · ")}
         </p>
       </div>
     );

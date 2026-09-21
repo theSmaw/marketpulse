@@ -1,4 +1,5 @@
 import { FEED_STATUSES, type FeedStatus } from "./feed-status.js";
+import type { ExtendedHours } from "./market-session.js";
 import type { MarketFeed, ProvenanceDescription } from "./market-provenance.js";
 
 /**
@@ -206,3 +207,44 @@ export const NOT_CONFIGURED_DESCRIPTION: ProvenanceDescription = {
 
 /** Every connection word, for a permutation grid or a test that walks them. */
 export const CONNECTION_STATUSES = FEED_STATUSES;
+
+/**
+ * What a reader is told when a price came from outside the regular session
+ * (Task 3.4.6).
+ *
+ * ## A word rather than a glyph, and the argument is this product's own
+ *
+ * `PRODUCT_SPEC.md` §7.1 makes it about IEX and it generalises: **three letters
+ * teach a non-specialist nothing**, and the fix there was a sentence rather
+ * than an acronym. A dot or a bar beside the figure would need a legend; a
+ * reader either knows what *pre-market* means or can look it up, and neither is
+ * true of a shape.
+ *
+ * Three more reasons, all of them constraints rather than taste:
+ *
+ * - **The left margin of the digits is already spent.** Story 3.4's arrival
+ *   mark lives there, and a second glyph in one position is two marks competing
+ *   at 390 — which is where this chrome already has a recorded clipping defect.
+ * - **Colour is never the sole encoding of anything**, and a word is the
+ *   strongest non-colour encoding there is. It survives greyscale by
+ *   construction rather than by a check.
+ * - **It costs no geometry.** The qualifier line already wraps, and this joins
+ *   it rather than reserving anything.
+ *
+ * ## And it sits beside the instant, because it qualifies the instant
+ *
+ * The line reads *when, then what kind of when, then what the change is
+ * measured from*. §10.3's rule is that every entry carries its own instant and
+ * no reader may render a price without reading it; **this word is that instant
+ * interpreted**, so putting it anywhere else would separate a fact from the
+ * thing that produces it.
+ *
+ * **Nothing renders for a regular-session price.** `PROVENANCE.md`'s rule that
+ * a clause renders only when its own data is present, and the same call the
+ * chrome makes for `LIVE`, which carries no timestamp: silence means *the
+ * ordinary case*, and the exceptional case is the one that speaks.
+ */
+export const EXTENDED_HOURS_WORDS = {
+  pre_market: "pre-market",
+  after_hours: "after-hours",
+} as const satisfies Record<ExtendedHours, string>;

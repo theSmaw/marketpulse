@@ -426,6 +426,40 @@ Task 3.4.4 built four and watched them at 1×. The rejected three are here rathe
 - **A direction rule** — a hairline above the figure for a rise and below it for a fall, so **position** carried direction and it survived greyscale by design. Rejected because it **says what is already said**, and a second encoding of one fact is a repetition.
 - **An underline under the digits that changed** — the most informative, rejected for what it would **become**: a minute moves the cents, so it would underline the same two glyphs nearly every time and settle into furniture. It also cannot mark a quiet minute at all, since there are no changed digits to underline.
 
+#### A revision fires it too — amended 2026-09-21 by Task 3.4.6
+
+**A correction is a bar arriving.** The product subscribes `updatedBars`, so a displayed minute can be replaced about thirty seconds later by a corrected one — §7.8 measured **14 revisions in one session, three of which changed the close**.
+
+Task 3.4.5 keyed the mark on the observation's **instant**, which is right for a new minute and wrong for a correction: a revised bar carries **the minute it corrects**, so the instant did not move and **no mark was drawn**. A reader could watch the figure change with nothing marking it — the exact inverse of what the mark means.
+
+**The identity is therefore the observation's content, not its minute.** A revision that changed something is a different observation and fires the mark; one that changed nothing is not, and does not, which is correct rather than a limitation — nothing was corrected.
+
+**And a correction gets no treatment of its own**, which is a decision rather than an omission. All three facts are already on the screen: the mark fires (_something arrived_), the figure may change (_the number is different_), and **the qualifier's instant does not advance** (_for the minute you were already looking at_). A fourth behaviour to say that again would cost this set the legibility that is its whole value.
+
+### The extended-hours mark — a word, not a glyph
+
+**A live price can come from outside the regular session**, and §7.11 settles that such bars are **rendered and marked** rather than filtered: a price is a price, and hiding one because of the hour would be removing a true fact.
+
+`07:42 EDT · pre-market · change from 2026-09-04's close`
+
+**It is derived, and that is a measurement rather than a preference.** §7.7: _nothing on the frame distinguishes an extended-hours bar_ — the vendor sends a 07:42 pre-market bar and a 10:42 regular-session bar identically. So the mark is entirely ours, taken from the bar's own instant against Story 2.5's calendar, and **never from a field on the wire**.
+
+**A word rather than a glyph**, for three reasons that are constraints rather than taste:
+
+- **`PRODUCT_SPEC.md` §7.1's own argument, generalised**: three letters teach a non-specialist nothing, and the fix there was a sentence rather than an acronym. A shape would need a legend; a word does not.
+- **The left margin of the digits is already spent** on the arrival mark, and a second glyph in one position is two marks competing at 390 — where this chrome has a recorded clipping defect.
+- **Colour is never the sole encoding**, and a word survives greyscale by construction rather than by a check.
+
+**It sits beside the instant because it is the instant interpreted.** §10.3's rule is that every entry carries its own instant and no reader may render a price without reading it; the line reads _when · what kind of when · what the change is measured from_.
+
+**Nothing renders for a regular-session price** — a clause renders only when its own data is present, and it is the same call the chrome makes for `LIVE` carrying no timestamp. Silence means the ordinary case.
+
+**Two states, not four.** `weekend` and `holiday` are deliberately unmarked: IEX trades on neither, so a live observation cannot carry such an instant. The only thing that produces one is ADR 0030's replay, which re-stamps recorded bars onto the wall clock — and the chrome already says `REPLAYING` for exactly that.
+
+**The cost, measured:** at **390** the word takes the qualifier to a second line — the identity block is **88px** against **72px** for a regular-session price. Nothing else moves, and the answer is the chrome's own: **let it wrap**.
+
+**The two marks do not compete**, which was checked rather than assumed. They are in different registers — **a glyph beside the figure is an event** and decays; **a word in the qualifier is a fact about the instant** and persists as long as the price does.
+
 #### Reversal trigger, as a condition
 
 **The first time a reader reports the mark as noise, or the first surface where it fires more than once a second.** Story 3.6 puts 518 rows on one screen, which is **8.6 a second** — the trigger is aimed at that story by name and the constraint is written into its own file rather than linked back to here.

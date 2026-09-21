@@ -570,3 +570,46 @@ export function lastMarketSessions(
 
   return sessions.reverse();
 }
+
+/**
+ * Which extended-hours stretch an observation's instant falls in, or
+ * `undefined` for one inside the regular session (Task 3.4.6).
+ *
+ * ## It is derived, and that is `LIVE-DATA.md` §7.7's finding rather than a
+ * preference
+ *
+ * **Nothing on the frame distinguishes an extended-hours bar.** The vendor
+ * sends a 07:42 pre-market bar and a 10:42 regular-session bar identically, so
+ * the distinction is **entirely ours to make** — from the bar's own instant,
+ * against this calendar, and never from a field on the wire. §7.11 settles that
+ * such bars are **rendered and marked** rather than filtered: a price is a
+ * price, and hiding one because of the hour would be removing a true fact.
+ *
+ * ## Two states, not four, and the two it leaves out cannot occur on the feed
+ *
+ * `weekend` and `holiday` are **deliberately not marked**. IEX does not trade
+ * on either, so a live observation cannot carry such an instant; the only way
+ * to produce one is ADR 0030's replay, which re-stamps recorded bars onto the
+ * wall clock — and the chrome already says `REPLAYING` for exactly that case.
+ * Marking them would be true and useless, and would put two more words in front
+ * of a reader to describe a situation another surface has already named.
+ *
+ * `before_open` and `after_close` are the two §7.11 names and the two a reader
+ * needs in order to read the price beside them.
+ */
+export function extendedHoursAt(instant: Date): ExtendedHours | undefined {
+  const state = marketSessionStateAt(instant);
+
+  if (state.status === "before_open") return "pre_market";
+  if (state.status === "after_close") return "after_hours";
+  return undefined;
+}
+
+/**
+ * The two stretches either side of a regular session.
+ *
+ * **Snake case here and hyphenated in the words**, which is the same split
+ * `MarketSessionStatus` already makes: this is the domain's name for a state,
+ * and what a reader sees is `feed-words.ts`'s to decide.
+ */
+export type ExtendedHours = "pre_market" | "after_hours";

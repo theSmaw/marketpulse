@@ -577,10 +577,13 @@ export const BREAKS = [
       "DIFFERENT price passes against it, because the two implementations " +
       "only disagree on the quiet minute.",
     file: "apps/frontend/src/components/SecurityIdentity/SecurityIdentity.tsx",
-    find: "  const arrival = useArrival(symbol, live?.startsAt.getTime());",
+    find: "  const arrival = useArrival(symbol, observationIdentity(live));",
     replace:
       "  // pnpm break: reverted automatically\n" +
-      "  const arrival = useArrival(symbol, live?.close);",
+      "  const arrival = useArrival(\n" +
+      "    symbol,\n" +
+      "    live === undefined ? undefined : String(live.close),\n" +
+      "  );",
     command: [
       "pnpm",
       "--filter",
@@ -589,5 +592,53 @@ export const BREAKS = [
       "SecurityIdentity",
     ],
     expect: "fires when a bar arrives with an UNCHANGED close",
+  },
+
+  // **Task 3.4.6's, and it restores the tree exactly as Task 3.4.5 shipped it**
+  // — which is the strongest kind of break: the check is proved against the
+  // defect it was written for rather than a synthetic one.
+  {
+    name: "a-revision-is-a-bar-arriving-too",
+    proves:
+      "Keying the arrival mark on the INSTANT leaves a correction unmarked, " +
+      "because a revised bar carries the minute it corrects. Three of the " +
+      "fourteen revisions measured in one session changed the close, so a " +
+      "reader watches the figure move with nothing marking it — the inverse " +
+      "of what the mark was decided to mean.",
+    file: "apps/frontend/src/components/SecurityIdentity/SecurityIdentity.tsx",
+    find: "  const arrival = useArrival(symbol, observationIdentity(live));",
+    replace:
+      "  // pnpm break: reverted automatically — the tree as 3.4.5 shipped it\n" +
+      "  const arrival = useArrival(\n" +
+      "    symbol,\n" +
+      "    live === undefined ? undefined : String(live.startsAt.getTime()),\n" +
+      "  );",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "SecurityIdentity",
+    ],
+    expect: "fires the mark when a corrected bar replaces the SAME minute",
+  },
+
+  // **And the words, which three later stories consume.**
+  {
+    name: "extended-hours-words-in-a-renderer",
+    proves:
+      "`pre-market` is a claim about WHEN a price is from, derived from the " +
+      "bar's own instant because nothing on the frame distinguishes an " +
+      "extended-hours bar. A renderer spelling it itself is a claim no " +
+      "vocabulary decided, on a word Stories 3.6, 3.7 and 3.9 all consume.",
+    file: "apps/frontend/src/components/SecurityIdentity/SecurityIdentity.tsx",
+    find: "              : EXTENDED_HOURS_WORDS[extendedHours],",
+    replace:
+      "              : // pnpm break: reverted automatically\n" +
+      '                extendedHours === "pre_market"\n' +
+      '                ? "pre-market"\n' +
+      '                : "after-hours",',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-feed-words",
   },
 ];

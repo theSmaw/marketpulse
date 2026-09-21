@@ -372,3 +372,169 @@ describe("the arrival mark (Task 3.4.5)", () => {
     expect(markOf(container)?.getAttribute("aria-hidden")).toBe("true");
   });
 });
+
+describe("the extended-hours mark (Task 3.4.6)", () => {
+  // §7.7: **nothing on the frame distinguishes an extended-hours bar** — the
+  // vendor sends a 07:42 pre-market bar and a 10:42 regular-session bar
+  // identically. So the mark is derived from the bar's own instant against
+  // Story 2.5's calendar, and these tests are about that derivation reaching
+  // the screen rather than about a field on the wire, which must never exist.
+
+  const at = (iso: string) => ({
+    startsAt: new Date(iso),
+    open: 219.5,
+    high: 219.5,
+    low: 219.5,
+    close: 219.5,
+    volume: 1,
+  });
+
+  const qualifier = (): string =>
+    screen.getByText(/change from|EDT|EST/).textContent;
+
+  it("says pre-market for a bar before the bell", () => {
+    // 2026-09-16 is a Wednesday; 11:42Z is 07:42 EDT, well before 09:30.
+    render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={at("2026-09-16T11:42:00Z")}
+      />,
+    );
+
+    expect(qualifier()).toContain("pre-market");
+  });
+
+  it("says after-hours for a bar past the close", () => {
+    // 21:18Z is 17:18 EDT, after the 16:00 bell.
+    render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={at("2026-09-16T21:18:00Z")}
+      />,
+    );
+
+    expect(qualifier()).toContain("after-hours");
+  });
+
+  it("says NOTHING inside the regular session", () => {
+    // `PROVENANCE.md`'s rule that a clause renders only when its own data is
+    // present, and the same call the chrome makes for `LIVE` carrying no
+    // timestamp: silence means the ordinary case.
+    render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={at("2026-09-16T18:01:00Z")}
+      />,
+    );
+
+    expect(qualifier()).not.toContain("pre-market");
+    expect(qualifier()).not.toContain("after-hours");
+  });
+
+  it("keeps the instant, the mark and the basis in one readable order", () => {
+    // The line reads *when · what kind of when · what the change is measured
+    // from*. A screen reader is handed the concatenation, so the order is the
+    // sentence rather than three independent clauses.
+    render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={at("2026-09-16T11:42:00Z")}
+      />,
+    );
+
+    const text = qualifier();
+    expect(text.indexOf("pre-market")).toBeGreaterThan(text.indexOf("EDT"));
+    expect(text.indexOf("change from")).toBeGreaterThan(
+      text.indexOf("pre-market"),
+    );
+  });
+});
+
+describe("a revision, which is a bar arriving too (Task 3.4.6)", () => {
+  // **The behaviour Task 3.4.5 shipped without deciding it.** The mark keyed on
+  // the instant, and a revision carries the minute it corrects (§7.3) — so a
+  // correction drew no mark, and since three of §7.8's fourteen revisions
+  // changed a close, a reader could watch the FIGURE move with nothing marking
+  // it. That is the inverse of what the mark was decided to mean.
+
+  const minute = (close: number, volume: number) => ({
+    startsAt: new Date("2026-09-16T18:01:00Z"),
+    open: close,
+    high: close,
+    low: close,
+    close,
+    volume,
+  });
+
+  const markOf = (container: HTMLElement): Element | null =>
+    container.querySelector("[data-arrival]");
+
+  it("fires the mark when a corrected bar replaces the SAME minute", () => {
+    const { container, rerender } = render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={minute(219.5, 1000)}
+      />,
+    );
+
+    expect(markOf(container)).toBeNull();
+
+    rerender(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        // Same minute, corrected close — §7.8's case, thirty seconds later.
+        live={minute(219.47, 1000)}
+      />,
+    );
+
+    expect(markOf(container)).not.toBeNull();
+  });
+
+  it("fires when only the VOLUME was corrected", () => {
+    // A revision that adjusted only the volume still corrected the bar, and a
+    // reader told *a bar arrived* has been told the truth.
+    const { container, rerender } = render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={minute(219.5, 1000)}
+      />,
+    );
+
+    rerender(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={minute(219.5, 1400)}
+      />,
+    );
+
+    expect(markOf(container)).not.toBeNull();
+  });
+
+  it("does NOT fire for an identical observation, because nothing was corrected", () => {
+    const { container, rerender } = render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={minute(219.5, 1000)}
+      />,
+    );
+
+    rerender(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        live={minute(219.5, 1000)}
+      />,
+    );
+
+    expect(markOf(container)).toBeNull();
+  });
+});
