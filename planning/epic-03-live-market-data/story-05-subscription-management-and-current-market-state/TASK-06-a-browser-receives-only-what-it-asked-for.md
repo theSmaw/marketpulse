@@ -169,3 +169,25 @@ wire shape — a list instead of a map — would silently remove it.
 **And it closes a window 3.5.3 opened deliberately**: with the universe
 subscribed and no filter, every attached browser receives all 518 observations a
 minute. That is accepted as temporary and **this task is what makes it stop**.
+
+---
+
+## Amended by Task 3.5.3 — 2026-09-21: the window this task closes is now open and sized
+
+3.5.3 scaled the upstream set to the tracked universe, so **every attached
+browser now receives all 518 observations a minute** and discards all but the
+one or two it is showing. That was accepted deliberately, with this task named
+as what stops it.
+
+**The size, computed from the real wire shape rather than estimated:
+70.2 KiB per minute per attached browser**, and the same again as the snapshot
+on every connect — which Task 3.5.5's reconnect makes more frequent than once
+per visit.
+
+That is still small in absolute terms. What makes it worth closing on schedule
+is that it scales with **browsers × universe**, and both of those only grow.
+
+**This task is also where the snapshot becomes scoped**, not just the ticks —
+3.5.4 builds it unscoped and leaves the seam open on purpose. A client that has
+asked for nothing yet receives nothing, which is an ordinary state rather than
+an error.

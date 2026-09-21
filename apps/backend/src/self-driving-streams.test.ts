@@ -96,9 +96,22 @@ const barsFor = (from: Date, minutes: number): MarketBarsRepository =>
       ),
   }) as unknown as MarketBarsRepository;
 
-/** Let every pending microtask settle: the replay's pump reads through await. */
+/**
+ * Let every pending microtask settle: the replay's pump reads through `await`.
+ *
+ * **Ten turns until Task 3.5.3, and that stopped being enough at 518.**
+ * `replay-bar-source.ts` reads the store **one symbol at a time** —
+ * `for (const symbol of symbols) { await repository.readBars(...) }` — so the
+ * number of microtask turns a fill needs is proportional to the size of the
+ * subscription. Scaling the upstream set from five symbols to the tracked
+ * universe turned this helper into a silent `expect(0).toBeGreaterThan(0)`.
+ *
+ * The turn count is therefore derived from the subscription rather than
+ * guessed, with headroom, so it cannot rot the same way again.
+ */
 const flush = async (): Promise<void> => {
-  for (let turn = 0; turn < 10; turn += 1) await Promise.resolve();
+  const turns = STREAM_SYMBOLS.length * 8 + 200;
+  for (let turn = 0; turn < turns; turn += 1) await Promise.resolve();
 };
 
 const configWith = (overrides: Partial<Config>): Config =>
@@ -189,7 +202,20 @@ describe("a stream a running process constructs drives ITSELF", () => {
     await flush();
 
     expect(received.length).toBeGreaterThan(0);
-    expect(received[0]?.symbol).toBe(toTicker("AAPL"));
+
+    // **`received[0]` was asserted to be `AAPL` until Task 3.5.3**, which was
+    // true only because the upstream set was five hard-coded names with
+    // `AAPL` first. The set is now the tracked universe in `UNIVERSE`'s own
+    // order — sector proxies, then index proxies, then equities — so the first
+    // observation in a slice is `XLK`, and the assertion was testing the
+    // ordering of a literal rather than anything about the replay.
+    //
+    // What it MEANS to assert is that the slice carries real subscribed
+    // symbols, which survives any future reordering of the universe.
+    const symbols = new Set(received.map((observation) => observation.symbol));
+    expect(symbols.has(toTicker("AAPL"))).toBe(true);
+    expect(symbols.size).toBe(STREAM_SYMBOLS.length);
+
     // Re-stamped onto the instant it is being SHOWN at, never the recorded one.
     expect(received[0]?.bar.startsAt.getTime()).toBeGreaterThan(from.getTime());
   });

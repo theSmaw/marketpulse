@@ -70,6 +70,7 @@ import {
   SECTOR_ETFS,
   SECTORS,
   toTicker,
+  type Ticker,
   type EquitySecurity,
   type IndexEtfSecurity,
   type Sector,
@@ -955,3 +956,43 @@ export const UNIVERSE_PROVENANCE: Record<
     checkedOn: "2026-09-08",
   },
 };
+
+/**
+ * **The market we track NOW** — `active` securities only (Task 3.5.3).
+ *
+ * `UNIVERSE.md` §12.2 makes `status` this schema's one **invisible
+ * predicate**, and states the rule for any reader not in its table: *filter
+ * when computing over the market we track now, and never when showing or
+ * replaying something we stored.* Both callers of this function are the
+ * former — the live subscription and the current market state.
+ *
+ * **It lives here because this module owns the idea.** It was first written
+ * inside `current-market-state.ts`, which is where it happened to be needed
+ * first, and Task 3.5.3 moved it rather than copying it: §12.2's own argument
+ * is that *one invisible predicate is a design and two is a bug waiting for
+ * whoever forgets*, and two callers reading two definitions is exactly how one
+ * of them quietly stops filtering.
+ *
+ * **Nothing here asserts a count**, for the reason {@link UNIVERSE} gives: a
+ * hard-coded number beside the list becomes a contract somebody reads.
+ */
+export const trackedSecurities = (
+  universe: readonly Security[] = UNIVERSE,
+): readonly Security[] =>
+  universe.filter((security) => security.status === "active");
+
+/** The tracked symbols as tickers, in {@link UNIVERSE}'s order. */
+export const trackedTickers = (
+  universe: readonly Security[] = UNIVERSE,
+): readonly Ticker[] =>
+  trackedSecurities(universe).map((security) => security.symbol);
+
+/**
+ * The tracked symbols as a set, for membership tests.
+ *
+ * A `Set` rather than an array because both callers ask *is this symbol one of
+ * ours?* per observation, at universe scale, on every frame.
+ */
+export const trackedSymbols = (
+  universe: readonly Security[] = UNIVERSE,
+): ReadonlySet<string> => new Set(trackedTickers(universe));

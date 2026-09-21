@@ -133,12 +133,17 @@ describe("the asymmetry between a refused replay and a refused socket", () => {
 });
 
 describe("the symbols", () => {
-  it("is a fixed handful, not the universe", () => {
-    // Story 3.5 owns 518, and §10.2 settles that the upstream set is a
-    // CONSTANT — so scaling it later changes this array rather than designing
-    // a subscription protocol.
-    expect(STREAM_SYMBOLS.length).toBeLessThan(10);
-    expect(STREAM_SYMBOLS.length).toBeGreaterThan(0);
+  it("is the tracked universe since Task 3.5.3, not a fixed handful", () => {
+    // **This assertion used to be its own inverse**, and the change is the
+    // task rather than a correction: it read `toBeLessThan(10)` while the set
+    // was five hard-coded liquid names, and §10.2 had already settled that the
+    // upstream set is a CONSTANT — so scaling it changes an array rather than
+    // designing a subscription protocol. That is what happened.
+    //
+    // The detailed assertions live in `stream-subscription.test.ts`; this one
+    // exists so the claim closest to `STREAM_SYMBOLS` is not left stating the
+    // opposite of what the tree does.
+    expect(STREAM_SYMBOLS.length).toBeGreaterThan(100);
   });
 
   it("is liquid names, so a developer sees movement rather than a broken feed", () => {

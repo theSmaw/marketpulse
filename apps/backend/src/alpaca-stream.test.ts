@@ -234,6 +234,128 @@ describe("the handshake", () => {
   });
 });
 
+describe("the acknowledgement, counted rather than assumed (Task 3.5.3)", () => {
+  it("reports a shortfall when the server holds fewer than we asked for", () => {
+    // **Criterion 1: count the accepted list rather than check for the absence
+    // of an error.** §4.2 measured that the acknowledgement is the FULL
+    // CURRENT STATE rather than a delta, so the server is authoritative about
+    // what we hold — which makes a shortfall a fact rather than an inference,
+    // and the control that made the original cap measurement mean anything.
+    //
+    // The harness asks for three; this acknowledgement holds two.
+    const h = harness();
+    h.socket.emit("open");
+    h.socket.deliver("greeting");
+    h.socket.deliver("authenticated");
+    h.socket.deliver("subscription-ack-full-state");
+
+    expect(h.logs).toContainEqual({
+      kind: "subscription-shortfall",
+      requested: 3,
+      acknowledged: 2,
+    });
+  });
+
+  it("says nothing when the acknowledgement holds everything we asked for", () => {
+    // A shortfall event on the happy path would be noise an operator learns to
+    // ignore, which is how a real one gets missed.
+    const h = harness();
+    handshake(h);
+
+    expect(h.logs).toContainEqual({ kind: "subscribed", acknowledged: 3 });
+    expect(
+      h.logs.some((event) => event.kind === "subscription-shortfall"),
+    ).toBe(false);
+  });
+
+  it("handles an acknowledgement with NO `bars` key at all", () => {
+    // §4.2's second trap, and the reason `subscription-ack-empty.json` exists:
+    // an empty subscription is **not an empty list — the key is ABSENT**.
+    // A parser reading `bars` unconditionally breaks here.
+    const h = harness();
+    h.socket.emit("open");
+    h.socket.deliver("greeting");
+    h.socket.deliver("authenticated");
+
+    expect(() => {
+      h.socket.deliver("subscription-ack-empty");
+    }).not.toThrow();
+
+    expect(h.logs).toContainEqual({ kind: "subscribed", acknowledged: 0 });
+    expect(h.logs).toContainEqual({
+      kind: "subscription-shortfall",
+      requested: 3,
+      acknowledged: 0,
+    });
+  });
+
+  it("ignores channels nobody asked for rather than calling them drift", () => {
+    // §6.8: the acknowledgement carries channels we did not request, so
+    // reconciling must be PER CHANNEL. Diffing the whole frame reports drift
+    // that is not ours — and an operator who sees a false shortfall every
+    // minute stops reading the log.
+    const h = harness();
+    h.socket.emit("open");
+    h.socket.deliver("greeting");
+    h.socket.deliver("authenticated");
+    h.socket.emit(
+      "message",
+      JSON.stringify([
+        { T: "subscription", bars: ["AAPL", "NVDA", "SPY"], quotes: ["TSLA"] },
+      ]),
+    );
+
+    expect(h.logs).toContainEqual({ kind: "subscribed", acknowledged: 3 });
+    expect(
+      h.logs.some((event) => event.kind === "subscription-shortfall"),
+    ).toBe(false);
+  });
+
+  it("refuses to send an EMPTY subscription rather than asking the vendor", () => {
+    // §4.4: `bars:[]` returns `[{"T":"error","code":400,"msg":"invalid
+    // syntax"}]` — and that is exactly the frame a `status` filter matching
+    // nothing, or a universe that failed to load, produces. *Send whatever the
+    // selection resolves to* is correct on every input except the one that
+    // eventually happens.
+    const sockets: FakeSocket[] = [];
+    const logs: StreamLogEvent[] = [];
+
+    const stream = createAlpacaStream({
+      keyId: "not-a-real-key",
+      secretKey: "not-a-real-secret",
+      symbols: [],
+      connect: () => {
+        const socket = new FakeSocket();
+        sockets.push(socket);
+        return socket;
+      },
+      onLog: (event) => logs.push(event),
+    });
+
+    const unsubscribe = stream.subscribe([], {
+      onObservations: () => undefined,
+      onConnectionChange: () => undefined,
+    });
+
+    const socket = sockets[0];
+    if (socket === undefined) throw new Error("no socket was opened");
+
+    socket.emit("open");
+    socket.deliver("greeting");
+    socket.deliver("authenticated");
+    unsubscribe();
+
+    expect(logs).toContainEqual({ kind: "subscription-refused-empty" });
+
+    // And the frame really did not go out. `auth` did; `subscribe` did not.
+    const actions = socket.sent.map(
+      (raw) => (JSON.parse(raw) as { action?: string }).action,
+    );
+    expect(actions).toContain("auth");
+    expect(actions).not.toContain("subscribe");
+  });
+});
+
 describe("error frames — messages about a request, on a socket that stays open", () => {
   it("names the CLASS for 402 and does not claim to know which cause", () => {
     // §8.3: byte-identical for a wrong key, a wrong secret and no credential.

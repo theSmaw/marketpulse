@@ -690,6 +690,76 @@ export const BREAKS = [
   // days** — the strongest kind, because the check is proved against the defect
   // it was written for rather than a synthetic one.
   {
+    name: "a-short-acknowledgement-goes-unreported",
+    proves:
+      "The server acknowledges fewer symbols than we asked for and nothing " +
+      "says so. \u00a74.2 measured that the acknowledgement is the FULL CURRENT " +
+      "STATE rather than a delta, so the server is authoritative about what " +
+      "we hold \u2014 which makes a shortfall a fact rather than an inference, " +
+      "and counting it is the control that made the original cap measurement " +
+      "mean anything.",
+    file: "apps/backend/src/alpaca-stream.ts",
+    find: "      if (symbolCount !== symbols.length) {",
+    replace:
+      "      // pnpm break: reverted automatically\n" + "      if (false) {",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "alpaca-stream.test",
+    ],
+    expect: "shortfall",
+  },
+
+  {
+    name: "an-empty-subscription-is-sent-to-the-vendor",
+    proves:
+      "An empty `bars` list reaches Alpaca, which \u00a74.4 measured returns " +
+      "`400 invalid syntax`. That is the frame a `status` filter matching " +
+      "nothing \u2014 or a universe that failed to load \u2014 produces, so the " +
+      "failure arrives looking like a protocol bug rather than like our own " +
+      "empty selection.",
+    file: "apps/backend/src/alpaca-stream.ts",
+    find: "    if (symbols.length === 0) {",
+    replace: "    // pnpm break: reverted automatically\n" + "    if (false) {",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "alpaca-stream.test",
+    ],
+    expect: "refused-empty",
+  },
+
+  {
+    name: "the-upstream-set-stops-being-the-universe",
+    proves:
+      "The live subscription goes back to a hard-coded literal, so the " +
+      "current market state fills with a handful of securities while every " +
+      "reader outside this epic \u2014 Epic 4's overview, Epic 5's scores, Epic " +
+      "7's tools \u2014 believes it holds the tracked market. Deriving the set " +
+      "from the universe is also what makes *a symbol outside the universe " +
+      "cannot reach the subscribe frame* true by construction.",
+    file: "apps/backend/src/market-stream.ts",
+    find: "export const STREAM_SYMBOLS: readonly Ticker[] = trackedTickers();",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export const STREAM_SYMBOLS: readonly Ticker[] = trackedTickers().slice(\n" +
+      "  0,\n" +
+      "  5,\n" +
+      ");",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "stream-subscription",
+    ],
+    expect: "tracked universe rather than a literal",
+  },
+  {
     name: "a-second-subscriber-on-the-upstream-socket",
     proves:
       "Two things subscribe to one market socket \u2014 the defect Task 3.5.2 " +
