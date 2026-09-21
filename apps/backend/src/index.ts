@@ -652,7 +652,7 @@ if (marketStream === undefined) {
     // NVDA's latest price* unless a browser was attached at that moment.
     //
     // The gateway's own subscription is deliberately left alone here: **Task
-    // 3.5.7 owns collapsing the two**, and doing it in the same change as
+    // 3.5.2 owns collapsing the two**, and doing it in the same change as
     // building the object would be two tasks with one name.
     onObservations: (observations) => {
       currentMarketState.observe(observations);

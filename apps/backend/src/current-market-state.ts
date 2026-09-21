@@ -75,7 +75,7 @@ export interface CurrentMarketState {
    * answer rather than an error, for property 1's reason.
    */
   read: (symbol: Ticker) => CurrentObservation | undefined;
-  /** Everything held. Task 3.5.3 turns this into the gateway's snapshot. */
+  /** Everything held. Task 3.5.4 turns this into the gateway's snapshot. */
   all: () => ReadonlyMap<Ticker, CurrentObservation>;
   /** How many securities have been observed at all. */
   size: () => number;
@@ -133,7 +133,7 @@ export function createCurrentMarketState(
     observe(observations) {
       for (const observation of observations) {
         // The `status` filter, and the only gate on the write path. A symbol
-        // outside the tracked universe is not an error — Task 3.5.2 keeps the
+        // outside the tracked universe is not an error — Task 3.5.3 keeps the
         // subscribe frame honest, and this is the belt to that brace.
         if (!tracked.has(observation.symbol)) continue;
 

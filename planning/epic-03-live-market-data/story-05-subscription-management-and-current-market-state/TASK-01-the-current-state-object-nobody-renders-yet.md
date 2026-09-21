@@ -29,7 +29,7 @@ first paint, or survive a deploy without reloading.
 ## Why this is a task rather than the whole story
 
 Because the object and its **consumers** are separate work with separate failure
-modes. This task builds a `Map` with one writer; Tasks 3.5.3–3.5.6 are about
+modes. This task builds a `Map` with one writer; Tasks 3.5.4–3.5.7 are about
 what happens when many readers and many browsers pull on it. Getting the object
 wrong is a correctness bug; getting the fan-out wrong is a memory leak on a slow
 connection during a busy session.
@@ -73,8 +73,8 @@ in [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE
   write the reason beside the filter so the next reader does not "fix" it.
 - Wire it as the stream's `onObservations` in `index.ts`, replacing the
   discard — and **leave the gateway's own subscription alone for now**, because
-  Task 3.5.7 owns collapsing the two.
-- A read for _everything currently held_, which Task 3.5.3 turns into the
+  Task 3.5.2 owns collapsing the two.
+- A read for _everything currently held_, which Task 3.5.4 turns into the
   snapshot.
 
 ## Done when

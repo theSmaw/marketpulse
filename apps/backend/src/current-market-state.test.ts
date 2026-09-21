@@ -197,7 +197,7 @@ describe("the current market state", () => {
   });
 
   it("exposes everything held, which is what the snapshot will be", () => {
-    // Task 3.5.3 turns this into the gateway's snapshot and, in doing so,
+    // Task 3.5.4 turns this into the gateway's snapshot and, in doing so,
     // deletes the three-line identity-block flash that happens on every page
     // load today. §11.1's omission semantics start here: a security observed
     // is present, a security not observed is ABSENT — never present-and-empty.
