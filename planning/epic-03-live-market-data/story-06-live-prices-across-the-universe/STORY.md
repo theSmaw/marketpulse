@@ -237,6 +237,18 @@ multiplication. Three things follow, and none of them is "decide it differently"
   surface where it fires more than once a second._ At 518 rows a minute that is
   **8.6 marks a second** across the page. Read that as the trigger having fired
   unless you can show it has not.
+
+  **Measured 2026-09-21 by Task 3.4.8, so the arithmetic has a floor under it
+  rather than being a worry.** On a production build, **20 bursts of 332 bars —
+  6,640 observations** — produced **p95 52 ms** frame-to-screen and **zero**
+  long-task entries at any length. So **the cost of 518 rows is not the
+  reducer**, which already carries that load with 200 ms of §28's budget
+  unspent; it is 518 **elements** each running a 900 ms animation, which is a
+  different question and is yours. Take the figure from `pnpm probe` and the
+  long-task observer **unbuffered** — buffered returns the cold load, which on
+  this exact page is Epic 14's known 50–76 ms breach arriving inside a
+  measurement about something else.
+
 - **If it needs a rule at scale, the rule is yours and it belongs on the
   canvas**, beside the decision it qualifies — not in a component. Candidates
   worth having on the table before you start: mark only rows in the viewport,

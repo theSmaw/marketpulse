@@ -661,4 +661,28 @@ export const BREAKS = [
     command: ["pnpm", "e2e", "security-price-motion.spec.ts", "--anyway"],
     expect: "the mark is INVISIBLE under reduced motion",
   },
+
+  // **Task 3.4.8's, and it is the layout half of that task's acceptance.**
+  // The timing figures were a throwaway instrument and are gone; this is the
+  // claim that can go wrong later, so it stays.
+  {
+    name: "an-arrival-moves-nothing",
+    proves:
+      "The arrival mark takes layout space, so every price update shifts the " +
+      "figure beside it. `a value that changes width must not move anything " +
+      "around it` is why the numerals are tabular, and nothing below a " +
+      "browser can see a block that jumps on every tick — jsdom computes no " +
+      "layout at all.",
+    file: "apps/frontend/src/components/SecurityIdentity/SecurityIdentity.module.css",
+    // **The first draft of this break did NOT go red**, which is the rule in
+    // `CLAUDE.md` catching itself: swapping `absolute` for `static` leaves an
+    // **inline** `<span>`, and `width`/`height` do not apply to a non-replaced
+    // inline box — so the mark collapsed to nothing and shifted nothing.
+    // `inline-block` is the version that actually takes the 8 px.
+    find: ".arrival {\n  position: absolute;",
+    replace:
+      "/* pnpm break: reverted automatically */\n.arrival {\n  display: inline-block;",
+    command: ["pnpm", "e2e", "security-price-motion.spec.ts", "--anyway"],
+    expect: "an arrival moves nothing around the price",
+  },
 ];
