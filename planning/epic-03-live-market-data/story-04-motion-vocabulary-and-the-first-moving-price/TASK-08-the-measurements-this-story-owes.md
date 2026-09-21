@@ -72,8 +72,15 @@ existing check produces.
   production build
 - **No layout thrash**: the price's neighbours do not move when it changes **or
   when the mark fires**, asserted in a browser because nothing below one can see
-  it — confirming Task 3.4.4's figure on a production build
+  it — confirming Task 3.4.4's figure on a production build. **`[data-arrival]`
+  is the handle**, and Task 3.4.5 measured the mark clearing the block's left
+  edge by **142px** at all four widths against a development build
 - **The mark's rate is recorded**, so the reversal trigger's second clause has a
   number behind it rather than an argument
+- **The animation's own cost is attributed**, on a production build. It is an
+  `opacity` animation on an absolutely-positioned 8px element, so the expected
+  answer is _nothing measurable_ — record it as a measurement rather than as an
+  assumption, because _expected to be free_ is how a cost gets inherited by five
+  stories
 - Every figure carries what it was taken against
 - `pnpm verify` passes

@@ -1,7 +1,8 @@
 # Task 3.4.6 — The two marks this story acquired after it was written
 
 **Status:** Not started
-**Amended:** 2026-09-21 after Task 3.4.4 — **§2's premise is stale**: there is no "price moved" animation, so a correction firing the mark is true rather than a lie, and the remaining question is narrower. A third decision was added: two marks now share one figure.
+**Amended:** 2026-09-21 after Task 3.4.4 — **§2's premise is stale**: there is no "price moved" animation, so a correction firing the mark would be true rather than a lie, and the remaining question is narrower. A third decision was added: two marks now share one figure.
+**Amended again:** 2026-09-21 after Task 3.4.5 shipped the mark — **a revision does not fire it**, because the mark keys on the instant and a correction carries the minute it corrects. Nobody decided that; this task is where it becomes a decision.
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
 **Depends on:** 3.4.5
 
@@ -49,8 +50,9 @@ moved`** — or a decided absence of one, argued.
 **There is no "price moved" animation.** The chosen treatment fires when a bar
 **arrives**, not when the price **changes**, and it claims only _a bar arrived
 for this security_. **A correction is a bar arrival.** So the mark firing on one
-is **true**, and the lie this section was written to prevent cannot be told by
-the mark.
+would be **true**, and the lie this section was written to prevent cannot be
+told by the mark. (**It turns out not to fire at all** — see the second
+amendment below, which is the live question.)
 
 **Do not invent a second motion treatment to distinguish a correction from a
 tick.** Doing so would reintroduce _the mark means the price moved_ through the
@@ -66,6 +68,37 @@ carries the bar's own instant; a correction replaces a minute **already shown**,
 so the instant does **not** advance, which may be the whole of the available
 signal and may be enough. **A decided, argued absence is now the more likely
 correct answer than it was when this was written.**
+
+> **AMENDED AGAIN 2026-09-21, after Task 3.4.5 shipped the mark: a revision does
+> not fire it, and nobody decided that.**
+
+The mark keys on the observation's **instant**, and a revision replaces a minute
+**already seen** — §7.3: `t` marks the interval's start, so a corrected 14:01
+bar carries `14:01:00Z` exactly as the first one did. `useArrival` therefore
+returns nothing and **no mark is drawn**.
+
+**That is a behaviour, not a decision**, and this task is where it becomes one:
+
+- **If it is right**, say why. The candidate argument: the mark means _a bar
+  arrived for this security_, one already did for that minute, and marking it
+  twice would claim two arrivals where the feed reports one observation and one
+  correction of it.
+- **If it is wrong**, the repair is small and it belongs here rather than in
+  3.4.5: three of fourteen revisions changed a close, so a reader can see **the
+  figure move with no mark at all** — the exact inverse of the decision's
+  intent, and a state the vocabulary currently has no word for.
+
+**And the detection lives in one place or it lives in two.** `useArrival` in
+`SecurityIdentity.tsx` already performs the comparison this task needs — _is
+this instant the one I last saw?_ — with the opposite outcome. A second copy of
+it somewhere else is how the two answers drift apart.
+
+**One constraint on how**: `WireObservation` carries **no `supersedes` field**.
+The backend's `LiveObservation` has one and it is dropped at the wire, so the
+browser can only infer a correction from an instant colliding with one it
+already holds. **Widening the wire is a protocol change** rather than a renderer
+change, and if this task wants it, it says so out loud rather than adding a
+field in passing.
 
 ### 3. Two marks on one figure, and they must not collide
 

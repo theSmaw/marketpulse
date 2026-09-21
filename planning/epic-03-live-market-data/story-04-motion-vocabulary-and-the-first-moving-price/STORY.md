@@ -181,6 +181,48 @@ recording because one of the four was a contradiction rather than a tidy-up:
 its one genuinely new obligation lives inside 3.4.7, and the scale question is
 Story 3.6's and was handed over in that story's own words.
 
+### 3.4.5's sweep — 2026-09-21, and it found a defect in its own merge
+
+**Three tasks amended, none added, deleted or re-ordered.** Two of the three
+come from the same thing: **the mark keys on the observation's instant**, which
+is what makes it fire on a quiet minute — and is also what makes it **not fire
+on a revision**, because a correction carries the minute it corrects (§7.3).
+
+- **3.4.6** owns that, and it is now a decision rather than a behaviour. It may
+  well be right — one bar already arrived for that minute — but three of
+  fourteen revisions changed a close, so the unargued version lets a reader
+  watch the **figure move with no mark at all**, which is the inverse of the
+  decision's intent. The detection is the **same comparison `useArrival`
+  already makes**, so a second copy of it is how the two answers drift apart;
+  and `WireObservation` carries **no `supersedes` field**, so widening the wire
+  is a protocol change rather than a renderer change.
+- **3.4.7** gained a concrete assertion in place of a general worry, and
+  `[data-arrival]` as its handle. The mark is already `aria-hidden`, asserted —
+  so the live-region decision is about the DOM text rather than about the
+  treatment.
+- **3.4.8** gained the animation's own cost as a **measurement rather than an
+  assumption**. It is an `opacity` animation on an 8px absolutely-positioned
+  element and the expected answer is _nothing measurable_; **expected to be
+  free** is how a cost gets inherited by five stories.
+
+**And 3.4.5's own record was corrected twice**, because both errors were mine
+and both would have misled somebody:
+
+- It claimed §7.8's fourteen revisions were a real case of _two changes inside
+  one animation_. **They are not** — a revision does not change the instant, so
+  it produces no second mark. The mechanism is right and the justification was
+  wrong, which is how a right mechanism gets removed later by somebody who
+  checks.
+- **It shipped a defect and the sweep found it by looking.** Under
+  `prefers-reduced-motion` the token resolves to `0ms`, an animation of zero
+  applies **no keyframe styles at all**, and `.arrival` declared no base
+  opacity — so the mark rendered at `1` and **stayed for ever**. A reader who
+  asked for less motion got a permanent dot: the opposite of the vocabulary that
+  task shipped, since a mark that persists reads as a **state**. Repaired with
+  `opacity: 0` as the base, verified on the running page both ways, and recorded
+  as `docs/GAPS.md` entry 11 because **nothing in `pnpm verify` can see a
+  computed opacity**.
+
 The original wording stands below, because it is what the decision was taken
 against.
 

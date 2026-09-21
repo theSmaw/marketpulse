@@ -66,6 +66,17 @@ same question.
 it would take, and what a listener is handed when the price changes — which is
 the **DOM text**, not the treatment.
 
+**Two things Task 3.4.5 left you, both concrete:**
+
+- **`[data-arrival]` is the handle.** The mark carries it and it is stable; the
+  two `data-` hooks that task was told to keep were deleted instead, because
+  once the treatment moved inside the module nothing read them. If a browser
+  assertion wants another handle it adds one **with a stated reason**.
+- **The mark is already `aria-hidden="true"`**, asserted in the component
+  suite — so the live-region decision here is about **the DOM text**, and the
+  default of announcing nothing is already what the tree does rather than
+  something this task has to impose.
+
 **What cannot be decided here:** whether the result is pleasant to listen to.
 That is owed by **a person with a screen reader**, is owned by them rather than
 by a story, and this task **adds to that backlog rather than discharging it** —
@@ -90,6 +101,10 @@ a shortfall.
 - **Under `prefers-reduced-motion`, an UNCHANGED tick is still perceivable** —
   the state where the mark is the sole signal, asserted separately because the
   moved case passes without it
+- **The mark is INVISIBLE under the preference rather than permanent** — the
+  defect Task 3.4.5 shipped and repaired, now `docs/GAPS.md` entry 11 and owned
+  here. Assert it in the browser with `reducedMotion: "reduce"`, because no
+  level below one can read a computed opacity
 - Direction is never carried by hue alone, **checked in greyscale**
 - The live-region decision is written down with its default and its trigger
 - The listening backlog names this surface

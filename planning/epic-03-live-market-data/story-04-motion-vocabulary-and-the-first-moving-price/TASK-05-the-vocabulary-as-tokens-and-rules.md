@@ -149,12 +149,12 @@ for one gesture is how a set of four stops being legible.
 
 ### The set is now three shapes, not four durations
 
-| Token | Value | Shape |
-| --- | --- | --- |
-| `--motion-duration-quick` | 120 ms | once |
-| `--motion-duration-settle` | 240 ms | once |
-| `--motion-duration-pulse` | 1400 ms | **loop** — work in progress |
-| `--motion-duration-decay` | **900 ms** | **decay** — a fact arriving |
+| Token                      | Value      | Shape                       |
+| -------------------------- | ---------- | --------------------------- |
+| `--motion-duration-quick`  | 120 ms     | once                        |
+| `--motion-duration-settle` | 240 ms     | once                        |
+| `--motion-duration-pulse`  | 1400 ms    | **loop** — work in progress |
+| `--motion-duration-decay`  | **900 ms** | **decay** — a fact arriving |
 
 > **Work in progress LOOPS. A state PERSISTS. A fact arriving DECAYS.**
 
@@ -199,8 +199,17 @@ outright.
 
 It is also the stated answer to **two changes inside one animation**:
 **restart, never queue or overlap.** There is only ever one mark node, so
-queueing cannot happen by construction — and §7.8's **14 revisions in one
-session** make that a real case rather than a hypothetical one.
+queueing cannot happen by construction.
+
+**Corrected the same day: §7.8's 14 revisions are NOT that case**, and the first
+draft of this section said they were. A revision replaces a minute **already
+seen**, so it carries the **same** `startsAt` (§7.3: `t` marks the interval's
+start) — and the mark keys on the instant, so **a revision does not fire it at
+all**. The real second-change case is two _different_ minutes landing inside
+900 ms for one symbol, which happens on a backlog flush after a reconnect and on
+a replay run faster than 1×. The mechanism is right; the justification was
+wrong, and a wrong justification for a right mechanism is how the mechanism gets
+removed later by somebody who checks.
 
 **2. The mounted instant is remembered, so the first paint marks nothing.** A
 mark on load would claim a bar arrived when the page merely opened. The instant
@@ -215,7 +224,7 @@ somebody was looking at a different company. Asserted.
 
 **And one line of the brief was reversed.** The amended task said to **keep**
 `data-live-figure` and `data-live-price`. They were **deleted**. They existed so
-an instrument *outside* the module could position a candidate against a CSS
+an instrument _outside_ the module could position a candidate against a CSS
 Module's generated class name; the instrument is gone and the shipped mark lives
 inside the module, where `styles.price` is the anchor. **A hook with no reader
 is the exact shape Story 3.2 and Task 3.4.3 each spent a task finding**, and
@@ -237,6 +246,38 @@ Sep 20 · 21:06 EDT · change from 2026-09-11's close
 nothing by construction, and `pnpm probe` returns the identity block at
 `1392×107`, `976×107`, `720×203` and `342×219`: **identical to the figures Task
 3.4.3 recorded before the mark existed.**
+
+### The defect this shipped, found by looking rather than by a check
+
+**`prefers-reduced-motion` made the mark permanent**, and it was in this task's
+own merge for a few hours.
+
+The token layer resolves `--motion-duration-decay` to `0ms` under the
+preference, and the reasoning recorded there is that _an animation of zero does
+not run_. **That is true and it is not the whole truth**: an animation of zero
+duration applies **no keyframe styles at all**, so an element whose visible
+state lives only in its keyframes falls back to the CSS **initial** value rather
+than to anything anybody chose.
+
+`.arrival` declared no base `opacity`. Measured on the running page by setting
+the token to `0ms` — which is exactly what the media query does:
+
+```text
+before:  {"observed":[{"op":"1","dur":"0s"}], "nowOpacity":"1", "inDom":true}
+after:   {"observed":[{"op":"0","dur":"0s"}], "nowOpacity":"0", "inDom":true}
+```
+
+So a reader who asked for less motion got a **permanent dot beside the price** —
+not a degraded treatment but the **opposite of the vocabulary this task
+shipped**, because a mark that persists reads as _a state_ rather than as _a
+fact that arrived_. Repaired with `opacity: 0` as the base and
+`animation-fill-mode` left at `none`, which is what returns the element there.
+
+**Nothing in `pnpm verify` could have caught it.** No stylesheet is applied in
+the component tests, so computed opacity is not a question that level can ask —
+`docs/GAPS.md` entry 11 records the claim and names **Task 3.4.7** as its owner,
+because that task owns what survives the motion being removed and its browser
+suite can emulate the preference.
 
 ### The instrument is gone
 
@@ -264,9 +305,9 @@ dot's life.
 
 **The one number worth explaining.** The dot lives for **nine-tenths of a
 second**, and that was not plucked out of the air. We already had two timings in
-the product: a quarter of a second for *content arriving*, chosen to be short
-enough that nobody waits for it, and one-point-four seconds for *a panel
-breathing while you wait*, chosen so that you specifically **do not** watch it.
+the product: a quarter of a second for _content arriving_, chosen to be short
+enough that nobody waits for it, and one-point-four seconds for _a panel
+breathing while you wait_, chosen so that you specifically **do not** watch it.
 A mark whose job is to be **caught** out of the corner of your eye has to last
 longer than the one nobody waits for, and less than the one designed to be
 ignored. Nine-tenths of a second sits between them, for that reason.
@@ -287,7 +328,7 @@ choosing from three meanings rather than inventing a fourth.
 is to compare the new price with the old one and show the dot when they differ.
 That would have been the **opposite** of what you decided — you chose to show it
 on every update, including one where the price is the same, because that is what
-makes it say *this company is being fed* rather than *this price moved*. The
+makes it say _this company is being fed_ rather than _this price moved_. The
 trap is that it looks correct, and **every ordinary test passes against it**,
 because the two versions only disagree on the quiet minute. So the test we wrote
 is that exact case, and we then deliberately broke the code in precisely that
@@ -302,7 +343,7 @@ third behind on purpose would have been indefensible, so they went too.
 **What a user can see today.** On the Security Explorer, out of market hours,
 against our own recorded data: a price that changes on its own and **a dot that
 tells you it is live**. That is the first answer this product has ever given to
-*does it feel alive* — a question that had been answered **not yet** eight times
+_does it feel alive_ — a question that had been answered **not yet** eight times
 since the beginning.
 
 **What is still to come in this story:** a mark for prices that arrive outside

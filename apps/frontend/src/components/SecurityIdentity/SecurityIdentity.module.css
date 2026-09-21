@@ -205,10 +205,34 @@
   background: var(--ink-primary);
 
   /*
+   * **`opacity: 0` is the base state, and leaving it out was a real defect —
+   * found by setting the token to `0ms` and looking, on 2026-09-21.**
+   *
+   * Reduced motion resolves `--motion-duration-decay` to `0ms`, and an
+   * animation of zero duration applies **no keyframe styles at all**. With no
+   * base opacity the element therefore rendered at the initial value — `1` —
+   * and the mark **stayed on screen for ever**. A reader who asked for less
+   * motion got a permanent dot beside the price: not merely a degraded
+   * treatment but the **opposite** of the vocabulary this story just shipped,
+   * because a mark that persists reads as *a state* rather than as *a fact
+   * that arrived*.
+   *
+   * Nothing in `pnpm verify` can see this. No stylesheet is applied in the
+   * component tests, so `getTokens()` throws there by design and computed
+   * opacity is not a thing that level can ask about. **Owner: Task 3.4.7**,
+   * which owns what survives the motion being removed, and whose browser suite
+   * can emulate the preference — `docs/GAPS.md` carries it until then.
+   */
+  opacity: 0;
+
+  /*
    * **Decays rather than loops**, and that distinction is the vocabulary
    * rather than a detail: work in progress loops, a state persists, a fact
    * arriving decays. It is what lets this and the status bar's static disc be
    * the same glyph two inches apart without colliding.
+   *
+   * `fill-mode` is deliberately left at `none`, which is what returns the
+   * element to the base above when the animation ends.
    */
   animation: arrival-decays var(--motion-duration-decay) linear;
 }
