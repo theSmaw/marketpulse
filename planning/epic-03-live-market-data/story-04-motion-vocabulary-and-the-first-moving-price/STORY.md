@@ -260,22 +260,25 @@ minimal by default.
 
 ## Tasks
 
-**Nine, sequential, each self-contained** — eight when this story was split, and
+**Ten, sequential, each self-contained** — eight when this story was split.
 **Task 3.4.3 was inserted on 2026-09-20** because Task 3.4.2 found that no
-stream implementation delivers an observation into a running process. Four put
-something on a screen.
+stream implementation delivers an observation into a running process, and
+**Task 3.4.9 on 2026-09-21** because 3.4.3's demonstration put two true and
+contradictory sentences in one cell of the chrome. Four put something on a
+screen; a fifth changes one only for a developer, and says so.
 
-| #     | Task                                                                                                                                             | Visible?                           |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
-| 3.4.1 | [The observation store, and the gate that would have stopped it](TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md)       | No                                 |
-| 3.4.2 | [The first price that moves, with no vocabulary yet](TASK-02-the-first-price-that-moves-with-no-vocabulary-yet.md)                               | **the screen**                     |
-| 3.4.3 | [**A stream that drives itself**, and the assertion that was missing](TASK-03-a-stream-that-drives-itself.md)                                    | **YES — the number finally moves** |
-| 3.4.4 | [Three treatments on a real screen, and the decision](TASK-04-three-treatments-on-a-real-screen.md)                                              | **YES** — the instrument           |
-| 3.4.5 | [**The vocabulary, as tokens and as rules**](TASK-05-the-vocabulary-as-tokens-and-rules.md)                                                      | **YES**                            |
-| 3.4.6 | [The two marks this story acquired](TASK-06-the-two-marks-this-story-acquired.md)                                                                | **YES**                            |
-| 3.4.7 | [What a listener hears, and what survives the motion being removed](TASK-07-what-a-listener-hears-and-what-survives-the-motion-being-removed.md) | No                                 |
-| 3.4.8 | [The measurements this story owes](TASK-08-the-measurements-this-story-owes.md)                                                                  | No                                 |
-| 3.4.9 | [The live rehearsal, the sweep, and the close](TASK-09-the-rehearsal-the-sweep-and-the-close.md)                                                 | No                                 |
+| #      | Task                                                                                                                                             | Visible?                           |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| 3.4.1  | [The observation store, and the gate that would have stopped it](TASK-01-the-observation-store-and-the-gate-that-would-have-stopped-it.md)       | No                                 |
+| 3.4.2  | [The first price that moves, with no vocabulary yet](TASK-02-the-first-price-that-moves-with-no-vocabulary-yet.md)                               | **the screen**                     |
+| 3.4.3  | [**A stream that drives itself**, and the assertion that was missing](TASK-03-a-stream-that-drives-itself.md)                                    | **YES — the number finally moves** |
+| 3.4.4  | [Three treatments on a real screen, and the decision](TASK-04-three-treatments-on-a-real-screen.md)                                              | **YES** — the instrument           |
+| 3.4.5  | [**The vocabulary, as tokens and as rules**](TASK-05-the-vocabulary-as-tokens-and-rules.md)                                                      | **YES**                            |
+| 3.4.6  | [The two marks this story acquired](TASK-06-the-two-marks-this-story-acquired.md)                                                                | **YES**                            |
+| 3.4.7  | [What a listener hears, and what survives the motion being removed](TASK-07-what-a-listener-hears-and-what-survives-the-motion-being-removed.md) | No                                 |
+| 3.4.8  | [The measurements this story owes](TASK-08-the-measurements-this-story-owes.md)                                                                  | No                                 |
+| 3.4.9  | [The cell that answers two questions, and says which for neither](TASK-09-the-cell-that-answers-two-questions.md)                                | **developer only**, and says so    |
+| 3.4.10 | [The live rehearsal, the sweep, and the close](TASK-10-the-rehearsal-the-sweep-and-the-close.md)                                                 | No                                 |
 
 ### Why 3.4.3 was inserted rather than folded into 3.4.2
 
@@ -298,6 +301,25 @@ four tests of that walk all ran at `12:00:00Z`, the one time of day where the
 two dates cannot disagree, and asserted by performing the same conversion the
 code did.** A check written in the same units as the thing it checks cannot see
 a units error.
+
+### Why 3.4.9 was added on 2026-09-21
+
+**Because a replay and a live connection had never been on one screen together
+before.** Task 3.4.3's demonstration put them there, and the market-feed cell
+said `NOT CONFIGURED … No market-data provider is configured.` three words from
+`REPLAYING … Replaying a past session.`
+
+**Both sentences are true and both were designed**: the first is the _stored
+series'_ provenance, the second the _live connection's_, and one environment
+variable selects both — so `replay` is a valid live selection and, by ADR 0030
+§3, deliberately no historical provider at all. Nothing is lying; §11.3's grid
+simply has **no cell for that pair**, which is why no test could fail on it and
+why it is invisible in production, where one provider answers both questions.
+
+**It is not folded into 3.4.4.** That task decides how a changing number looks;
+this one decides what a status cell says when it has two subjects. Putting them
+together would give one task two decisions and let the smaller one be settled
+by whoever happened to be editing the file.
 
 **The finding it carries is bigger than the fix.** Story 3.2's close found three
 implementations with **no construction site**; this is that one level further
@@ -333,7 +355,7 @@ measuring a treatment nobody has chosen is measuring the wrong thing.
 - **It does not design in the story file.** 3.4.4 is where the treatment is
   decided, with the owner, in front of a running screen — and the rejected
   options travel to 3.4.5 rather than being lost between them.
-- **It does not accept against the instrument it designed with.** 3.4.9's
+- **It does not accept against the instrument it designed with.** 3.4.10's
   rehearsal is a real session, because the replay is our own stored bars and
   agrees with our own assumptions by construction.
 

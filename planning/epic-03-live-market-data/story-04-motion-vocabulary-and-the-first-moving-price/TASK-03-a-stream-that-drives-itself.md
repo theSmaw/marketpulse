@@ -278,9 +278,12 @@ single _Market feed_ label a reader gets _nothing is configured_ and _we are
 replaying_ three words apart.
 
 **It is invisible in production**, where one provider answers both, and it is
-§11.3's grid rather than this story's. Recorded here because this was the first
+§11.3's grid rather than this task's. Recorded here because this was the first
 time a live feed and an unconfigured historical provider were ever on one screen
-together — and raised with the user rather than left in a task file.
+together — and **raised with the user rather than left in a task file**, which
+is how it became
+[Task 3.4.9](TASK-09-the-cell-that-answers-two-questions.md) on 2026-09-21
+rather than a line nobody would have read.
 
 ## For a stakeholder — a status report, 2026-09-20
 
