@@ -398,3 +398,68 @@ recorded honestly rather than quietly counted as passed.
 
 **What a user can see today: nothing new.** The story's visible work shipped
 over the preceding days; this task is the part that makes it defensible.
+
+---
+
+## Amended 2026-09-21 — the blocker halved, and the venue was wrong
+
+**Nothing here changes because of Task 3.4.7**; that sweep ran when 3.4.7 landed
+and its amendments are in 3.4.5, 3.4.8, this file and `STORY.md`. What changed
+is the world this task recorded as blocking it.
+
+### The deployed feed was dead when this was written, and is not now
+
+The blocker above reads _the deployment has the connection_, measured at 23:06
+EDT. True then, and it was the **lesser** half of the problem: at that moment
+the deployed backend was also in `CrashLoopBackOff`, reporting
+`{"status":"disconnected","observedAt":null}` — so production held the one
+connection **and could not use it**. Six fatal exits, and three merges that
+never reached production.
+
+That was repaired the same night (`alpaca-stream.ts`'s retry wrote the
+handshake into a socket that had not opened). Production now reads:
+
+```text
+{"provider":"alpaca","feed":"iex","status":"live","observedAt":null,"marketOpen":false}
+```
+
+`observedAt: null` is correct at 10:55Z on a Sunday — the market is shut and no
+bars flow. **What matters is `status: live`: the socket connects, authenticates
+and subscribes.**
+
+### So the rehearsal's venue is the DEPLOYED SITE, not a local pair
+
+This task framed the blocker as _a session, and the connection released_, which
+assumes a local rehearsal. **The epic's exit criterion does not**: it asks that
+every visible story has been _watched working against the real IEX socket,
+during a real session_. **Production is that socket**, and it needs nothing
+released.
+
+| What the rehearsal owes                                   | Deployed site alone?                                                                               |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| the extended-hours mark on a real bar                     | **Yes** — open it 04:00–09:30 ET                                                                   |
+| a genuinely quiet minute                                  | **Yes** — watch during a session                                                                   |
+| a real correction, both halves                            | **Yes** — the mark fires, the instant does not advance                                             |
+| `pnpm probe` with the market open                         | **No** — probe runs against a pair you started, so this still needs the connection or a substitute |
+| the vendor glance — a frame stamped outside a trading day | **No** — frame-level access, so the connection or **Story 3.11's logging**                         |
+
+**Three of five are unblocked by a browser and a Monday.** The remaining two are
+the honest residue, and the second is better answered by 3.11 wiring `onLog`
+than by standing the deployment down.
+
+### And what the rehearsal will SEE has changed underneath it
+
+This list was written before Story 3.5 existed. Production is now running
+`1a569e0`, which includes 3.5.1–3.5.6, so **do not read these as regressions**:
+
+- **The first-paint flash is gone** (3.5.4). The identity block is correct on
+  the first frame; it no longer shows `LAST SESSION CLOSE` and then changes all
+  three lines a minute later. That event was the thing 3.4.3 recorded as _the
+  biggest visual change on the page_ — its absence is the deliverable.
+- **A page subscribes to the one security it shows** (3.5.6), so the feed a
+  rehearsal watches is **scoped**, not the whole universe.
+- **A tab survives a deploy** (3.5.5) — worth confirming opportunistically if a
+  merge lands mid-session, since it is otherwise hard to arrange.
+
+**None of this weakens the five items above**; it changes what a watcher should
+expect between them.
