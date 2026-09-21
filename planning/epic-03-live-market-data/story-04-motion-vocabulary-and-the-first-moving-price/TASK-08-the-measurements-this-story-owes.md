@@ -1,6 +1,7 @@
 # Task 3.4.8 — The measurements this story owes
 
 **Status:** Not started
+**Amended:** 2026-09-21 after Task 3.4.6 — the identity block now has **two heights** at 390 and only one has been photographed.
 **Amended:** 2026-09-21 after Task 3.4.4 — the layout figure is already taken and only needs a production re-take; the mark's firing RATE is a new measurement, because the reversal trigger's second clause is a number.
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
 **Depends on:** 3.4.7
@@ -26,6 +27,14 @@ existing check produces.
 - **A value that changes width must not move anything around it.** The numerals
   are tabular for this reason and **the reason is now load-bearing** rather than
   typographic.
+- **Amended 2026-09-21 by Task 3.4.6 — the block now has TWO heights and the
+  difference is a session state rather than a size.** _A value that changes
+  width must not move anything around it_ is still true and still asserted; what
+  is new is that **the block itself is a line taller when the price came from
+  outside the session**, which is a legitimate wrap rather than thrash — the
+  chrome's own answer from `Live in the chrome` §04. Measure both; a figure
+  taken against only the regular-session case is a figure about one of the two
+  states this surface has.
 - **Amended 2026-09-21 by Task 3.4.4 — one figure is already taken and this
   task CONFIRMS rather than derives it.** The mark sits in space the figure's own
   box already occupies, and was measured at **0 layout shift and no horizontal
@@ -75,6 +84,10 @@ existing check produces.
   it — confirming Task 3.4.4's figure on a production build. **`[data-arrival]`
   is the handle**, and Task 3.4.5 measured the mark clearing the block's left
   edge by **142px** at all four widths against a development build
+- **Both block heights are photographed**: since Task 3.4.6 the identity block
+  is **88px** at 390 for an extended-hours price against **72px** for a
+  regular-session one, because the word takes the qualifier to a second line.
+  Only one of those has ever been through `pnpm probe`
 - **The mark's rate is recorded**, so the reversal trigger's second clause has a
   number behind it rather than an argument
 - **The animation's own cost is attributed**, on a production build. It is an

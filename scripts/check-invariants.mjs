@@ -984,6 +984,16 @@ const INVARIANTS = [
           literal: "Replaying a past session. Not the live market.",
           home: CONNECTION_VOCABULARY,
         },
+        // **Task 3.4.6's two, and they are the same hazard one surface in.**
+        // `pre-market` and `after-hours` are claims about *when a price is
+        // from*, derived from the bar's own instant against the calendar —
+        // §7.7 measured that **nothing on the frame distinguishes** an
+        // extended-hours bar, so the words are entirely ours and a renderer
+        // writing one is a claim no vocabulary decided. Stories 3.6, 3.7 and
+        // 3.9 consume them, which is what makes a second spelling expensive
+        // rather than untidy.
+        { literal: "pre-market", home: CONNECTION_VOCABULARY },
+        { literal: "after-hours", home: CONNECTION_VOCABULARY },
       ];
 
       const shipped = [

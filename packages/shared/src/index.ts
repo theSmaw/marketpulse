@@ -32,6 +32,7 @@ export {
   REPLAYING_DESCRIPTION,
   connectionWordFor,
 } from "./feed-words.js";
+export { EXTENDED_HOURS_WORDS } from "./feed-words.js";
 export type { ConnectionWordInputs } from "./feed-words.js";
 // The browser protocol (Task 3.3.1). Named exports rather than a star, matching
 // this file's habit — and the serialiser is exported beside the messages
@@ -243,6 +244,8 @@ export {
   nextMarketSession,
   previousMarketSession,
 } from "./market-session.js";
+export { extendedHoursAt } from "./market-session.js";
+export type { ExtendedHours } from "./market-session.js";
 export type {
   MarketSession,
   MarketSessionState,

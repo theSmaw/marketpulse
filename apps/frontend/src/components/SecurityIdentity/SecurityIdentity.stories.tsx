@@ -130,3 +130,58 @@ export const AllPermutations: Story = {
     </div>
   ),
 };
+
+/**
+ * **The three times of day a live price can come from** (Task 3.4.6), read as a
+ * set rather than one at a time — which is what the 2.14 pass established as
+ * the way to review states, and what found the defect in §04 of that pass.
+ *
+ * The replay cannot produce these on the running page: it re-stamps recorded
+ * bars onto the **wall clock**, so out of hours every one of them is a weekend
+ * and none carries a mark. This is where the three are comparable.
+ *
+ * **Silence is a member of the set.** A regular-session price says nothing
+ * about the hour, which is `PROVENANCE.md`'s rule that a clause renders only
+ * when its own data is present — and the same call the chrome makes for `LIVE`
+ * carrying no timestamp.
+ */
+export const ExtendedHours: Story = {
+  render: () => (
+    <div style={{ display: "grid", gap: "var(--space-40)" }}>
+      {(
+        [
+          ["pre-market — 07:42 ET", "2026-09-16T11:42:00Z"],
+          ["regular session — 14:01 ET", "2026-09-16T18:01:00Z"],
+          ["after-hours — 17:18 ET", "2026-09-16T21:18:00Z"],
+        ] as const
+      ).map(([label, startsAt]) => (
+        <div key={label}>
+          <p
+            style={{
+              margin: "0 0 var(--space-8)",
+              color: "var(--ink-secondary)",
+              fontSize: "var(--font-size-micro)",
+              lineHeight: "var(--line-height-micro)",
+              letterSpacing: "var(--letter-spacing-micro)",
+              textTransform: "uppercase",
+            }}
+          >
+            {label}
+          </p>
+          <SecurityIdentity
+            symbol="NVDA"
+            view={securitiesFixtureView("full")}
+            live={{
+              startsAt: new Date(startsAt),
+              open: 219.4,
+              high: 219.62,
+              low: 219.31,
+              close: 219.5,
+              volume: 482958,
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  ),
+};

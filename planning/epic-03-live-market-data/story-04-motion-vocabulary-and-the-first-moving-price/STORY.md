@@ -223,6 +223,38 @@ and both would have misled somebody:
   as `docs/GAPS.md` entry 11 because **nothing in `pnpm verify` can see a
   computed opacity**.
 
+### 3.4.6's sweep — 2026-09-21, and the rehearsal lost a window it never had
+
+**Three tasks amended, none added, deleted or re-ordered.** The important one is
+a **scheduling conflict** that would otherwise have been found on the morning of
+the rehearsal:
+
+- **3.4.10 is now two sittings, or one that straddles the bell.** The
+  extended-hours mark renders for `before_open` and `after_close` **only**, so
+  it **cannot be seen with the market open** — and that task's own criterion 8
+  requires the market open. Nothing can stand in for the out-of-hours window
+  either: the replay re-stamps onto the wall clock, so every bar it produces out
+  of hours lands on a **weekend** and carries no mark at all. **The mark is
+  shipped and has never been seen against a real bar.** The correction case
+  also gained a shipped behaviour to confirm rather than an event to look out
+  for — the mark fires, the instant does not advance — and one third-party
+  assumption got a line: _IEX trades on neither a weekend nor a holiday_ is an
+  assumption rather than a measurement, and the rehearsal is the one time real
+  frames are in front of somebody.
+- **3.4.7's subject changed rather than grew.** The spoken qualifier is now
+  **three clauses** — `07:42 EDT · pre-market · change from …` — on a surface
+  that changes once a minute, against a **1,500 ms** pacing floor. How the `·`
+  is spoken, whether the clause order survives being heard, and whether a
+  clause that only _sometimes_ appears has quietly acquired a region are all new
+  and none is decidable from a DOM. Three of its five greyscale states are
+  already checked, so it confirms rather than re-derives; the **correction** is
+  the one that has never been in a greyscale frame.
+- **3.4.8 gained a second height.** The identity block is **88 px at 390** for
+  an extended-hours price against **72 px** for a regular-session one. That is a
+  legitimate wrap rather than thrash — the chrome's own answer — but a figure
+  taken against only the regular case is a figure about one of the two states
+  this surface has.
+
 The original wording stands below, because it is what the decision was taken
 against.
 

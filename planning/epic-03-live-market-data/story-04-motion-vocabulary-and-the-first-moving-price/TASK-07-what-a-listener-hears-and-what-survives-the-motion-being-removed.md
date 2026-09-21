@@ -1,6 +1,7 @@
 # Task 3.4.7 — What a listener hears, and what survives the motion being removed
 
 **Status:** Not started
+**Amended:** 2026-09-21 after Task 3.4.6 — the spoken qualifier is now **three clauses**, and three of the five greyscale states are already checked.
 **Amended:** 2026-09-21 after Task 3.4.4 — the quiet minute is the one state where the mark is the SOLE signal, and reduced motion erases exactly that one. Check the qualifier's instant first; it may already be the survivor.
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
 **Depends on:** 3.4.6
@@ -66,6 +67,32 @@ same question.
 it would take, and what a listener is handed when the price changes — which is
 the **DOM text**, not the treatment.
 
+> **AMENDED 2026-09-21 after Task 3.4.6 — the DOM text got a third clause, and
+> that is a change to the thing this task is actually about.**
+
+The qualifier now reads **three clauses rather than two** when a price comes
+from outside the regular session:
+
+```text
+Sep 16 · 07:42 EDT · pre-market · change from 2026-09-04's close
+```
+
+**A listener is handed the concatenation**, so this is not a cosmetic addition —
+it is the spoken sentence getting longer, on a surface that changes **once a
+minute**, against a pacing floor this repository has already measured at
+**1,500 ms**. Three things follow and none of them is decidable from a DOM:
+
+- **How the `·` is spoken**, or whether it is spoken at all, differs by screen
+  reader. A separator that reads as _dot_ three times in one line is a different
+  sentence from one that reads as a pause.
+- **Whether the clause order survives being heard.** Task 3.4.6 asserted the
+  order — _when · what kind of when · what it is measured from_ — because it
+  reads as a sentence. That was checked as **text**, not as speech.
+- **Whether it is announced at all.** The default is that it is not, and the
+  qualifier is not a live region. **Check that is still true** now that it has
+  a clause that only appears sometimes: an element that appears and disappears
+  is the shape that gets a region added to it by accident.
+
 **Two things Task 3.4.5 left you, both concrete:**
 
 - **`[data-arrival]` is the handle.** The mark carries it and it is stable; the
@@ -92,6 +119,11 @@ a shortfall.
 - **Check the whole set in greyscale**: a tick up, a tick down, **an unchanged
   tick — which DOES draw**, settled by Task 3.4.4 rather than left conditional —
   an extended-hours mark and a correction. Five states, one screenshot.
+  **Three of the five are already done** (Task 3.4.6, on the running page: the
+  arrival mark is `--ink-primary`, the extended-hours word is text, and `▼`
+  still carries direction), so **confirm rather than re-derive** — what has
+  never been in a greyscale frame is the **correction**, and the workshop's
+  `ExtendedHours` story set is where the other two already are.
 - **Add the listening entry** to the open list, naming what nobody has heard.
 
 ## Done when
