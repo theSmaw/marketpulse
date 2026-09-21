@@ -170,3 +170,51 @@ what it receives.
    asserted against a real socket rather than through the codec — and a bar
    arriving **after** the snapshot is distinguishable from one carried **in**
    it, which is what the arrival-mark assertion above actually rests on
+
+---
+
+## Amended by Task 3.5.3 — 2026-09-21: the snapshot is now a 70 KiB message, and the replay is measurably slower
+
+### The snapshot has a size now
+
+The current market state fills with **518 securities** rather than five, so a
+snapshot sent to a browser that connects mid-session is **70.2 KiB** — computed
+from the real `WireObservation` shape at 518 entries, not estimated.
+
+Three things follow, none of them blocking:
+
+- **§11.1's omission semantics are what keep it honest AND small.** An entry
+  exists only for a security actually **observed**, so a freshly restarted
+  process sends almost nothing and the message grows through the session. The
+  70.2 KiB figure is the ceiling, reached late in a session, not the typical
+  first paint.
+- **Take the real figure rather than this one.** Task 3.5.8 owns measuring an
+  actual message; this is a constructed upper bound.
+- **Do not compress, batch or paginate it here.** One 70 KiB message on connect
+  is not a problem worth solving before it is measured, and solving it would
+  make Task 3.5.6's scoping harder rather than easier.
+
+### Leave the scoping seam open
+
+Task 3.5.6 scopes both the snapshot and the live ticks to what a client asked
+for. **Build the unscoped snapshot in a way that takes a filter later** — read
+the map, map to wire, send — rather than anything that bakes _everything_ into
+the shape. The delta 3.5.6 needs should be a filter on the map, not a rewrite.
+
+### The replay is slower, and it is fine
+
+Measured against the local store on 2026-09-21, which is what this task will
+demonstrate against out of hours:
+
+| Read pattern                                                                | Time                       |
+| --------------------------------------------------------------------------- | -------------------------- |
+| One symbol, 30-minute window — what the replay does, **518 times per fill** | **2.193 ms**               |
+| The same window across all symbols, **one query**                           | **335.5 ms** (14,685 bars) |
+
+So a fill costs roughly **1.1 s** at 518 symbols, against ~11 ms at five. It is
+a startup and window-boundary cost rather than a per-minute one, so **watching a
+page at 1× is unaffected** — which is the only thing this task needs from the
+replay.
+
+**Do not fix it here.** The repair is Task 3.5.8's to decide with the figures in
+front of it.

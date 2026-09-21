@@ -1,4 +1,4 @@
-import { UNIVERSE } from "./universe.js";
+import { trackedSymbols } from "./universe.js";
 
 import type { Bar, BarSource, Ticker } from "@marketpulse/shared";
 import type { LiveObservation } from "./market-data-stream.js";
@@ -106,27 +106,24 @@ export interface CurrentMarketStateOptions {
 }
 
 /**
- * The symbols this object accepts, and **the one place `status` is filtered**.
+ * `status` is filtered here, and {@link trackedSymbols} is **the one
+ * definition** of what that means.
  *
  * `UNIVERSE.md` §12.2 makes `status` an *invisible predicate* and states the
  * rule for any reader not in its table: **filter when computing over the market
  * we track now, and never when showing something we stored.** This object is
- * the former — it is literally named *the current market state* — so it holds
- * `active` securities only.
+ * the former — it is literally named *the current market state*.
  *
  * **Story 3.9's read path is deliberately NOT filtered**, and that asymmetry is
  * the point rather than an inconsistency: stored bars are history, and a
  * security we stopped tracking today was tracked when its bars were written.
  * A reader who "fixes" this by making both sides agree breaks one of them —
  * which one depends on which way they made them agree.
+ *
+ * The predicate moved to `universe.ts` in Task 3.5.3, when the live
+ * subscription became its second caller. Two callers reading two definitions is
+ * how one of them quietly stops filtering.
  */
-export const trackedSymbols = (): ReadonlySet<string> =>
-  new Set(
-    UNIVERSE.filter((security) => security.status === "active").map(
-      (security) => security.symbol,
-    ),
-  );
-
 export function createCurrentMarketState(
   options: CurrentMarketStateOptions = {},
 ): CurrentMarketState {

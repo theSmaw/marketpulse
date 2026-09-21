@@ -1,7 +1,8 @@
-import { marketDateAt, marketSessionOn, toTicker } from "@marketpulse/shared";
+import { marketDateAt, marketSessionOn } from "@marketpulse/shared";
 import type { Ticker } from "@marketpulse/shared";
 
 import { createAlpacaStream } from "./alpaca-stream.js";
+import { trackedTickers } from "./universe.js";
 import type { Config, MarketDataProviderSelection } from "./config.js";
 import { createFixtureStream } from "./fixture-stream.js";
 import type { MarketDataStream } from "./market-data-stream.js";
@@ -55,22 +56,30 @@ import { createReplayStream } from "./replay-stream.js";
  */
 
 /**
- * The handful this story subscribes.
+ * **The tracked universe, `active` only** — 518 securities since Task 3.5.3.
  *
- * **Deliberately not the universe.** Story 3.5 owns subscription at 518, and
- * §10.2 settles that the upstream set is a **constant** — so scaling it later is
- * changing this array rather than designing a protocol. Liquid names, so a
- * developer watching `pnpm dev` during a session sees something move: §7.6
- * measured IEX coverage at 65.1% of minutes for a median symbol and **2.1% for
- * `ERIE`**, so a thin name would look broken while working perfectly.
+ * It was five hard-coded liquid names until then, chosen so a developer
+ * watching `pnpm dev` saw something move; §7.6 measured IEX covering 65.1% of
+ * minutes for a median symbol and **2.1% for `ERIE`**, so a thin name looks
+ * broken while working perfectly. That comment also predicted this change
+ * exactly: §10.2 settled that the upstream set is a **constant**, so scaling it
+ * is *changing this array rather than designing a protocol*.
+ *
+ * **Capacity is not the risk and that was measured** — §4.3: 1,500 symbols
+ * accepted in **305 ms**, 5,000 in 867 ms, because minute-bar channels are
+ * exempt from the 30-symbol cap that applies to trades and quotes.
+ *
+ * **`status` is filtered through one definition** ({@link trackedTickers}),
+ * which is also what the current market state reads. `UNIVERSE.md` §12.2: one
+ * invisible predicate is a design, two is a bug waiting for whoever forgets.
+ *
+ * Deriving it from the universe is also what makes *a symbol outside the
+ * universe cannot reach the subscribe frame* true by **construction** rather
+ * than by a check — §4.4 measured that Alpaca **silently accepts** a symbol
+ * that does not exist and echoes it back as held, so the vendor will never tell
+ * us.
  */
-export const STREAM_SYMBOLS: readonly Ticker[] = [
-  "AAPL",
-  "MSFT",
-  "NVDA",
-  "SPY",
-  "QQQ",
-].map(toTicker);
+export const STREAM_SYMBOLS: readonly Ticker[] = trackedTickers();
 
 export interface MarketStreamDependencies {
   /** Needed only by the replay, and only then read. */

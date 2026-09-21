@@ -86,3 +86,61 @@ a reversal trigger and citing one.
 **Be pragmatic about what is re-measured.** The instruction on Task 3.4.8 was
 that a measurement task must not take hours, and it was honoured there by
 confirming three existing figures rather than re-deriving them. Same here.
+
+---
+
+## Handed here by Task 3.5.3 — 2026-09-21: the replay reads one symbol at a time
+
+**Written into this file rather than left in 3.5.3's record**, because a
+constraint one task measures for another lives in a file the owning task does
+not read. That failure has happened twice already in this epic.
+
+### What was measured
+
+`replay-bar-source.ts` fills its window with
+
+```ts
+for (const symbol of symbols) {
+  const bars = await repository.readBars(symbol, "1m", range);
+}
+```
+
+— **one query per symbol, sequentially.** At five symbols that was invisible.
+At 518 it is the dominant cost of a fill.
+
+Against the local store on 2026-09-21, 48.8 M bars, a 30-minute window:
+
+| Read pattern                                              | Time         | Rows   |
+| --------------------------------------------------------- | ------------ | ------ |
+| One symbol — what the replay does, **518 times per fill** | **2.193 ms** | —      |
+| The same window across all symbols, **one query**         | **335.5 ms** | 14,685 |
+
+So a fill is roughly **1.1 s** of query time at 518 symbols versus **335 ms**
+for the same data in one round trip — and the sequential figure excludes
+per-query pool overhead, so it is a floor rather than an estimate.
+
+### Why it was not fixed there
+
+ADR 0030 makes the replay a **development instrument that never runs in
+production** (7a–7d), so this is a `pnpm dev` cost and not a deployed one. It is
+a **startup and window-boundary** cost rather than a per-minute one, so watching
+a page at 1× is unaffected — which is all Tasks 3.5.4 and 3.5.5 need from it.
+
+Fixing it is a change to the replay rather than to the subscription, and
+3.5.3's scope was the subscription.
+
+### What this task owes it
+
+- **Decide** whether to batch the read — one query across symbols, grouped by
+  instant in memory, which is the shape `fill()` already builds anyway
+  (`byInstant`)
+- If it is left alone, say so with the figures rather than silently
+- **Re-measure rather than cite the table above.** These are dated observations
+  of one machine's store
+
+### And one correction this task should carry forward
+
+Task 3.5.2's sweep estimated the per-browser fan-out at **~50 KB/min**. Computed
+from the real `WireObservation` shape at 518 entries it is **70.2 KiB** — the
+estimate was **40% low**. Both figures above are constructed rather than
+observed on the wire; **take them from a real message.**
