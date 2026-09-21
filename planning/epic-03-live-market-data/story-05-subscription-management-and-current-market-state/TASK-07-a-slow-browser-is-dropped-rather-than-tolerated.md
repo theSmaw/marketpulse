@@ -92,3 +92,35 @@ up in one place rather than two.
 
 Nothing else in this task changes. The measurement, the close code and the
 interaction with Task 3.5.5's reconnect are unaffected.
+
+---
+
+## Amended by Task 3.5.5 — 2026-09-21: the close code you drop with is now load-bearing
+
+**A dropped client will reconnect.** That is new, and it turns the choice of
+close code from a detail into a policy decision.
+
+`reconnect-policy.ts` reads the code:
+
+| Close code        | First retry               | What the browser concludes                      |
+| ----------------- | ------------------------- | ----------------------------------------------- |
+| `1001` going away | **500 ms**                | _they are redeploying and coming straight back_ |
+| anything else     | **2 s**, doubling to 30 s | _no intent; back off_                           |
+
+**So dropping a slow client with `1001` produces a tight loop**: the browser
+returns in half a second, is still slow, is dropped again, and the pair spends
+the afternoon doing that. This task's earlier note asked that the close code
+"not cause the reconnect to hot-loop" — the concrete form of that is
+**do not use `1001`**, and prefer a code that means _this connection, not this
+server_.
+
+**The deeper question this task owes an answer to:** a client dropped for being
+slow will come back **as slow as it was**. Backoff bounds the rate but does not
+change the outcome, so the honest options are (a) accept a slow client cycling
+at the 30 s ceiling as the degraded state, or (b) have the browser recognise
+_dropped for backpressure_ and stop rather than retry.
+
+**(a) is probably right** — §36 wants incremental degradation, and a reader
+whose connection improves should recover without a reload — but it should be
+**decided and written down** rather than inherited from whichever code is
+convenient.

@@ -223,6 +223,29 @@ written as a value rather than as a callback.
 
 Neither was a product defect. Both would have been read as one.
 
+## What this task did NOT close, and the sweep closed afterwards
+
+**Task 3.5.4 handed this task one thing to check and it was not checked.** The
+amendment above says a reconnect snapshot may carry **fewer** symbols than the
+previous one, that the behaviour is _believed correct and untested_, and that
+nothing before this task could reconnect.
+
+The reconnect shipped without that assertion. Worse, the sweep then found that
+`fromSnapshot` had **no store-level test at all** — the rule was exercised only
+through `SecurityIdentity` and a browser spec, so a change to it would have
+surfaced two layers from its cause.
+
+**Closed in the sweep rather than handed on**, because it was this task's
+obligation rather than a future one's: four assertions in `live-feed.test.ts`
+covering the baseline set, the partial clear on a `bars` message, the
+fewer-symbols reconnect, and the reference-stability the render gate depends on.
+The fewer-symbols case behaves exactly as 3.5.4 predicted — the held price
+survives and the flag does not.
+
+**The lesson is the ordering.** An inherited _check this_ is easy to read as
+context rather than as work, especially when the amendment that carries it also
+says the mechanism is already correct.
+
 ## Evidence
 
 - `pnpm break a-deploy-strands-every-open-tab` — red, restored byte-identical
@@ -230,9 +253,10 @@ Neither was a product defect. Both would have been read as one.
   doubles and is bounded, resets on a message, hidden tabs do not retry,
   returning retries at once, unmount stops it
 - 5 policy tests, including that it never gives up and never returns zero
+- 4 store tests added by the sweep, closing 3.5.4's handed-forward case
 - 3 browser assertions in `market-reconnect.spec.ts` — **the only level that can
   lose a socket and then get another one**
-- `pnpm verify` green: 16 invariants, 921 backend, **1046** frontend, 24 process
+- `pnpm verify` green: 16 invariants, 921 backend, **1050** frontend, 24 process
 
 ---
 
