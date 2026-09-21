@@ -229,3 +229,38 @@ are genuinely different stories:
 **This story's argument for going first is about the LEDGER and is untouched by
 any of them** — producing the two-feed stitch honestly, once, before the store is
 involved. What is in question is only where today's _shape_ comes from.
+
+## Handed here by Story 3.5's close — 2026-09-21: the live edge has no series to draw
+
+**Story 3.5's open decision was _today's-bars-in-memory_, and it was settled the
+cheap way — which makes the consequence yours.**
+
+`currentMarketState` is a `Map<symbol, LiveObservation>`: **the latest
+observation per security and nothing else.** No history, no series, no today.
+Measured at **222.8 KiB** for 518 securities — 440 B each — precisely because it
+holds one bar apiece, and a full session of replacements leaves it still holding
+518 entries under 1 MiB.
+
+**So there is no in-memory series for your chart to reach for**, and that was a
+decision rather than an omission: 518 × 390 minute bars is a materially
+different object, and Story 3.9 changes the answer by making the store hold
+today — which is the reason to prefer the cheap option now rather than build a
+second home for the same bars.
+
+### What that leaves you, concretely
+
+**Assemble today's series from two sources**: what the store already serves, and
+what has arrived over the socket **since the page opened**. The second is in
+the browser, not the server — `LiveFeedConnection.observations` holds the
+latest per symbol, so a page that wants a _series_ has to accumulate it itself
+or wait for Story 3.9.
+
+**And the gap is real.** What is missed while the socket is away is **gone**
+(measured 2026-09-17), and Task 3.5.5's reconnect resumes rather than fills. A
+chart that draws a straight line across four missing minutes as though nothing
+happened is exactly the reversal trigger 3.5.5 recorded — **and you are the
+surface that fires it.**
+
+**Reversal trigger for the memory decision, as a condition:** the first reader
+that needs more than the latest bar per security from the _server_. If that is
+you, say so — the object was built knowing this question would come back.

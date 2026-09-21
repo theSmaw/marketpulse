@@ -420,3 +420,50 @@ Then read each hit against `packages/shared/src/feed-status.ts` and `feed-words.
 **This entry is a candidate to become mechanical and has not been made so yet.** The check that would do it — _no string literal in `e2e/specs-deployed/` asserted absent may equal a member of an exported shipped-word set_ — is a real `pnpm invariants` grep, and it owes a `pnpm break` entry. It is left as prose deliberately: the rule needs the **asserted-absent** half to be legible to a grep, and today the absence is spelled `toHaveCount(0)` several lines away from the literal. **Owner: the next story that adds a word to a status cell** — a condition, not a story number.
 
 **Re-measure the narrower claim too:** that the deployed suite's assertions still describe a working deployment rather than a broken one. `pnpm e2e:deployed` with the feed genuinely live is the only thing that can tell, and before 2026-09-21 that had never once been true.
+
+## An empty default that is also a true answer hides a design event until the day it stops being empty
+
+`snapshot: () => new Map()` stood in `index.ts` for four days. It was **correct** — `LIVE-DATA.md` §11.1 makes an empty snapshot the true answer after a restart rather than a degraded one — and it was simultaneously the cause of the largest undesigned visual change in the product, on **every page load**: the identity block painted `NO LIVE PRICE`, then the stored figure, then the live one, three lines changing in sequence with an arrival disc firing on a security that had merely been listed.
+
+**Nothing was wrong with the code, so nothing could have flagged it.** A placeholder indistinguishable from a legitimate runtime value **cannot be found by reading the code**, because there is nothing to find: no `TODO`, no throw, no unimplemented branch, and the construction-site audit — which greps an export for a caller outside a test — sees a seam that is wired. It surfaces only when the value stops being empty, and by then whatever was built on top of it has a behaviour nobody chose.
+
+**Re-measure:** for each `() => new Map()`, `?? []`, `?? {}` or equivalent standing in a seam, ask **is this also a legitimate runtime value?** If yes, the surface above it has a state nobody has designed.
+
+```sh
+grep -rn "() => new Map()\|?? \[\]\|?? {}" apps/*/src --include=*.ts --include=*.tsx
+```
+
+Read each hit against the surface that consumes it rather than against the seam. **Owner: a condition** — the first story that fills a seam which has been answering with an empty default.
+
+## The identity block being correct on first paint is guarded by nothing
+
+The three-line flash above is gone, and **it was verified by a person watching a page load, which is still the only thing that can see it.** `pnpm verify` is green either way.
+
+The browser suite does not assert it and cannot easily: **CI's store has 518 securities and zero bars**, and no live provider, so the identity block there is a correct `empty` with no figure to be right or wrong about.
+
+The **mechanism** is guarded — `pnpm break the-snapshot-marks-every-security-as-arriving` proves the arrival rule, and `market-gateway.process.test.ts` proves a subscribe is answered with a `snapshot` over a real socket. What is unguarded is the **rendering consequence**: that the first frame a reader sees carries the live figure and no disc.
+
+**Re-measure:** run the pair against a stream that has observed —
+
+```sh
+MARKET_DATA_PROVIDER=fixture NON_LIVE_MARKET_DATA=permitted pnpm dev
+```
+
+— load `/securities/NVDA` and read the **first** frame. It must say `LATEST PRICE`, carry the live figure, and show no arrival disc. **Owner: the first story whose browser suite runs against a server with live observations** — a condition rather than a story number.
+
+## A developer's own store can make a browser spec fail as a product defect, with a screenshot
+
+`CLAUDE.md` already says _before asserting on a number in a browser spec, ask whether CI has the data_, and ships `pnpm store:bare`. What it does not say is **the shape of the failure when you forget**, and Story 3.5 produced it.
+
+A store ten days stale answers `5D` **empty** and `1M` **populated**. The readout strip is absent in one state and present in the other, so pressing a window button moves the chart **90 px** — and `security-window-change.spec.ts` asserts that it does not. The run fails with a screenshot showing a chart in the wrong place: it reads as a **layout defect in the product**, which is the one diagnosis that is certainly wrong.
+
+**It was mis-diagnosed three times in one session**: first as machine load, then as a regression bisected to a specific task — on the strength of a `main` run that happened to pass — and only correctly on the third pass. **A suite that fails a different set each time looks like contention and is not**; what varies is which securities your store happens to cover.
+
+**Re-measure:** before believing any browser failure that looks like layout or a missing figure —
+
+```sh
+pnpm store:bare
+DATABASE_NAME=marketpulse_bare pnpm dev     # then run the spec against it
+```
+
+If it passes there and fails against your own store, **the store is the subject**. **Owner: a condition** — the first browser spec that asserts on a figure whose presence depends on a window having data.

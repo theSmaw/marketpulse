@@ -434,3 +434,56 @@ about level and shape rather than a repair.
 
 **A mutable reference driven by callbacks bound to a _previous_ instance of the
 thing it points at.** That is the shape, and it is not specific to sockets.
+
+## Handed here by Story 3.5's close — 2026-09-21: three things the reconnect left you
+
+The browser's reconnection moved to Story 3.5 and **shipped** there (Task
+3.5.5). Three consequences land here, and none is a pointer back.
+
+### 1. The gap a reconnect leaves is yours, and it is deliberately unfilled
+
+**A reconnect resumes; it does not fill.** What is missed while away is
+**gone** — measured 2026-09-17 — and recovering it needs the store (Story 3.9)
+plus a gap-fill **policy**, which is yours.
+
+3.5.5 refused to invent the missing minutes on the grounds that _a reconnect
+that silently invents them is worse than one that plainly resumes_. **The
+reversal trigger it recorded is a condition you will meet:** the first surface
+where a gap in the middle of a series is visibly wrong rather than merely
+absent — a chart drawing a straight line across four missing minutes. Story 3.7
+is that surface.
+
+### 2. The close code is now load-bearing, and one value is forbidden
+
+`reconnect-policy.ts` reads the code the gateway closes with:
+
+| Close code                             | First retry                             | What the browser concludes               |
+| -------------------------------------- | --------------------------------------- | ---------------------------------------- |
+| `MARKET_STREAM_CLOSE.goingAway` (1001) | **500 ms**                              | they are redeploying; come straight back |
+| anything else                          | **2 s**, doubling to a **30 s** ceiling | no intent; back off                      |
+
+**Both ends read `MARKET_STREAM_CLOSE` in `packages/shared`**, which exists
+because they were two literals in two packages — the shape of a protocol
+disagreement no test on either side could see.
+
+**So any new close code you add must not be `goingAway` unless you mean it.**
+Task 3.5.7 hit this: dropping a slow client with `1001` produces a tight loop —
+back in half a second, still slow, dropped again. It uses `1013` for that
+reason.
+
+### 3. A dropped-for-backpressure client cycles rather than gives up, and that was chosen
+
+**The browser never stops retrying.** A client dropped for being slow comes
+back as slow as it was, so backoff bounds the rate without changing the
+outcome — but §36 wants a reader whose connection **improves** to recover
+without a reload, and a browser that had given up could not.
+
+**Cycling at the 30 s ceiling is the degraded state**, chosen rather than
+inherited. If you decide that is wrong, the alternative is having the browser
+recognise _dropped for backpressure_ and stop — which buys a quieter log at the
+cost of a reader who must notice and refresh.
+
+**The threshold behind it:** 1 MiB of outbound buffer, measured against a
+client that stops reading — unbounded growth of one payload per tick, **33.6 MB
+after 600 batches**, and the kernel absorbs ~557 KiB before the figure moves at
+all.

@@ -1139,6 +1139,93 @@ const INVARIANTS = [
       }
     },
   },
+
+  {
+    id: "the-epic-close-cannot-outrun-the-rehearsal-ledger",
+    claim:
+      "Story 3.11 cannot be closed while a story in LIVE-REHEARSAL.md's " +
+      "ledger still has an empty row.",
+    check() {
+      // **This check exists because the file already claimed it.**
+      // `LIVE-REHEARSAL.md`'s rules said, in as many words, that the ledger is
+      // *"checkable rather than promised: `pnpm invariants` asserts every
+      // story marked complete in EPIC.md has a row here"* — and nothing
+      // asserted anything. Story 3.5's close found it by grepping for the
+      // subject rather than by reading the sentence, which is the only way
+      // this class is ever found: a claim about a mechanism reads exactly the
+      // same whether the mechanism exists or not.
+      //
+      // The claim is narrowed to what the file can actually support. `EPIC.md`
+      // marks *visibility*, not completion — there is no "complete" column to
+      // key on — and a per-story check would go red today on Story 3.3, which
+      // closed on 2026-09-19 with an empty row for a reason the epic accepted:
+      // the deployed backend holds the free plan's one Alpaca connection, so
+      // no developer machine can watch a live session at all. Going red on a
+      // constraint nobody can clear is how a check gets deleted.
+      //
+      // So it keys on the **epic close**, which is where the file puts the
+      // deadline and where the constraint must be cleared or consciously
+      // waived.
+      const ledgerPath = resolve(
+        REPO_ROOT,
+        "planning/epic-03-live-market-data/LIVE-REHEARSAL.md",
+      );
+      const ledger = readAnchored(ledgerPath);
+
+      // The anchor. A "must find nothing" assertion over a table passes
+      // vacuously the day the table moves or is reformatted, so the rows are
+      // counted and their shape asserted before anything is concluded from
+      // their contents.
+      const rows = ledger
+        .split("\n")
+        .filter((line) => /^\|\s*3\.\d+\s*\|/.test(line));
+
+      if (rows.length < 6) {
+        throw new InvariantFailure(
+          `LIVE-REHEARSAL.md's ledger has ${String(rows.length)} story rows; ` +
+            "it had 7 when this check was written and the list only grows. " +
+            "A reformatted or relocated table makes this check pass without " +
+            "reading anything.",
+        );
+      }
+
+      const closePath = resolve(
+        REPO_ROOT,
+        "planning/epic-03-live-market-data/" +
+          "story-11-cost-performance-and-the-epic-close/STORY.md",
+      );
+      const closeStatus = /^\*\*Status:\*\*(.*)$/m.exec(
+        readAnchored(closePath),
+      );
+
+      if (closeStatus === null) {
+        throw new InvariantFailure(
+          "Story 3.11's STORY.md has no `**Status:**` line, so there is no " +
+            "way to tell whether the epic has closed.",
+        );
+      }
+
+      if (!/\b(complete|closed)\b/i.test(closeStatus[1])) return;
+
+      const empty = rows.filter((row) =>
+        row
+          .split("|")
+          .slice(2, -1)
+          .every((cell) => cell.trim() === "" || cell.trim() === "\u2014"),
+      );
+
+      if (empty.length > 0) {
+        throw new InvariantFailure(
+          `Story 3.11 is closed and ${String(empty.length)} rehearsal rows ` +
+            "are still empty:\n      " +
+            empty.map((row) => row.trim()).join("\n      ") +
+            "\n    A row written retrospectively at the epic close is a row " +
+            "about a memory — the file says so. Either the rehearsal was " +
+            "done and the row is owed, or it was not and the close is early.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

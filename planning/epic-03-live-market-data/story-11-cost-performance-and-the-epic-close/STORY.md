@@ -585,3 +585,58 @@ timestamp to measure it against.
 **The good news the figure does buy you**: the half this product controls
 end-to-end has **200 ms of headroom**, so whatever the other half costs, it is
 not competing with a browser that is already busy.
+
+## Handed here by Story 3.5's close — 2026-09-21: two things measured, and one still unwired
+
+### 1. §28's 250 ms p95 is STILL unmeasurable, and Story 3.5 did not change it
+
+Task 3.5.8 checked this rather than assuming it, by enumerating **every field
+on the wire**. The only instant a browser receives is
+`WireObservation.startsAt` — **the minute the bar covers**, not when the server
+received or sent it. Task 3.5.6 added a `subscribe` message and it carries no
+timestamp either.
+
+`docs/GAPS.md` entry 12 **stands unchanged and is yours.** Making it measurable
+needs a **protocol change** — a server-stamped instant on the wire — which is a
+decision about the wire rather than a measurement, and nothing in Epic 3 has
+been willing to take it so far.
+
+**The browser half is already measured**: Task 3.4.8 took frame → price on
+screen at **52 ms p95**. What is missing is the server-side leg, and §28
+excludes upstream-provider latency, so `startsAt` cannot substitute for it.
+
+### 2. The logging lever was evaluated and NOT pulled — do not re-open it blind
+
+Task 1.12.6's `ignore: "reqId,pid"` reversal trigger was evaluated at universe
+scale by Task 3.5.8, **and the task had the trigger backwards**. 1.12.6 kept
+`reqId` _because_ interleaving was expected, and said to pull the lever only if
+it never arrived.
+
+Measured both ways:
+
+| What was run                               | Result                                               |
+| ------------------------------------------ | ---------------------------------------------------- |
+| 16 **sequential** requests, socket running | every `incoming`/`completed` pair **adjacent**       |
+| 12 **concurrent** requests                 | two opened, **ten others completed**, then those two |
+
+**An ordinary page load is concurrent**, so interleaving is real and `reqId` is
+doing exactly its job. The lever is worth **156 → 101 columns** and is not worth
+taking. `pid` alone is 8 of those 55.
+
+**The socket did not bring interleaving** — its records are a startup burst and
+then near-silence. If you re-open this, re-open it on _concurrency_, not on the
+feed.
+
+### 3. `market-stream.ts` still never references `onLog`
+
+**Unchanged, and still yours.** The Alpaca client emits eight diagnostic
+events — `authenticated`, `subscribed`, `credentials-refused`,
+`frame-rejected`, **`connection-limit`**, `unexpected-error-frame`,
+**`liveness-watchdog-fired`**, `closed` — and **not one reaches production**.
+
+That is why a dead feed ran for nineteen hours unseen on 2026-09-19, and it is
+why `GET /diagnostics/feed` is still the only instrument. Story 3.5 added a
+`subscription-shortfall` event to that list (Task 3.5.3) and a
+`dropped a browser that stopped reading` warning that **does** log (Task 3.5.7,
+through Fastify's logger rather than `onLog`) — so the split is now visible:
+**the gateway logs, the vendor client does not.**
