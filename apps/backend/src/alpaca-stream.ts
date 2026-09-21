@@ -134,6 +134,30 @@ export interface WebSocketLike {
 export type StreamLogEvent =
   | { readonly kind: "authenticated"; readonly symbols: number }
   | { readonly kind: "subscribed"; readonly acknowledged: number }
+  /**
+   * **The acknowledgement held fewer symbols than we asked for** (Task 3.5.3).
+   *
+   * §4.2 measured that the acknowledgement is the **full current state rather
+   * than a delta**, so the server is authoritative about what we hold — which
+   * makes a shortfall a fact rather than an inference. Criterion 1 asks that
+   * the accepted list be **counted** rather than checked for the absence of an
+   * error, and this is the event that makes a short one *visible* instead of
+   * silent.
+   */
+  | {
+      readonly kind: "subscription-shortfall";
+      readonly requested: number;
+      readonly acknowledged: number;
+    }
+  /**
+   * **Refused to send an empty `bars` list** (Task 3.5.3).
+   *
+   * §4.4: `bars:[]` returns `[{"T":"error","code":400,"msg":"invalid
+   * syntax"}]` — which is exactly the frame a filter matching nothing
+   * produces. Asking the vendor to tell us our own selection is empty turns a
+   * question we can answer into a `400` that looks like a protocol bug.
+   */
+  | { readonly kind: "subscription-refused-empty" }
   /** `402`. The honest sentence names the class and stops. */
   | { readonly kind: "credentials-refused" }
   /** `400`. Genuinely distinct, and the one an operator can act on. */
@@ -343,6 +367,16 @@ export function createAlpacaStream(
   };
 
   const subscribe = (target: WebSocketLike): void => {
+    // **Never send an empty list** (§4.4). `bars:[]` is a `400 invalid
+    // syntax`, and it is the frame a `status` filter that matched nothing —
+    // or a universe that failed to load — produces. *Send whatever the
+    // selection resolves to* is correct on every input except the one that
+    // eventually happens.
+    if (symbols.length === 0) {
+      onLog({ kind: "subscription-refused-empty" });
+      return;
+    }
+
     // `bars` AND `updatedBars` — the product subscribes revisions (§7.11), and
     // §14.1's trigger was evaluated and not fired.
     sendTo(target, {
@@ -377,6 +411,24 @@ export function createAlpacaStream(
       // `[]`, so this must not read `bars` unconditionally.
       const symbolCount = Array.isArray(bars) ? bars.length : 0;
       onLog({ kind: "subscribed", acknowledged: symbolCount });
+
+      // **Reconcile per channel, against the acknowledgement** (§4.2, §6.8).
+      //
+      // Only `bars` is compared: §6.8 measured the acknowledgement carrying
+      // channels nobody asked for, so diffing the whole frame reports drift
+      // that is not ours. And §4.4 measured that Alpaca **silently accepts** a
+      // symbol that does not exist — so a full count is not evidence the
+      // symbols are real, only that the server thinks it holds that many.
+      //
+      // A shortfall is the one thing the count can prove, and it is what made
+      // the original cap measurement mean anything.
+      if (symbolCount !== symbols.length) {
+        onLog({
+          kind: "subscription-shortfall",
+          requested: symbols.length,
+          acknowledged: symbolCount,
+        });
+      }
       return { kind: "subscription-acknowledged", symbolCount, at };
     }
     if (record.T === "error" && typeof record.code === "number") {
