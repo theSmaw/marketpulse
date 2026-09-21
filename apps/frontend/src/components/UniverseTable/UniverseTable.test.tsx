@@ -10,6 +10,7 @@ import { renderWithContext } from "../../test-render.js";
 import { groupUniverse, summarise, UniverseTable } from "./UniverseTable.js";
 import { toMarketDate, toTicker } from "@marketpulse/shared";
 import type {
+  Bar,
   EquitySecurity,
   IndexEtfSecurity,
   SectorEtfSecurity,
@@ -1160,5 +1161,199 @@ describe("the summary line, when rows are hidden", () => {
     fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
 
     expect(screen.getByRole("status").textContent).toBe(announced);
+  });
+});
+
+/**
+ * A live minute bar for one security (Task 3.6.1).
+ *
+ * `17:00Z` is 13:00 in New York on both sides of the DST boundary, so the date
+ * written here is the session it reads as without this file naming an offset —
+ * which `market-time.ts` is the only module allowed to do.
+ */
+function liveFor(close: number, session = "2026-09-07"): Bar {
+  return {
+    startsAt: new Date(`${session}T17:00:00.000Z`),
+    open: close,
+    high: close,
+    low: close,
+    close,
+    volume: 1_000,
+  };
+}
+
+describe("a live price in the table", () => {
+  // The whole point of the task: the column stops being one kind of number.
+  it("shows the live price instead of the stored close", () => {
+    renderWithContext(
+      <UniverseTable
+        view={loaded([equity()], [], [closeFor("NVDA", 230.36, 228.45)])}
+        onRetry={noop}
+        observations={new Map([["NVDA", liveFor(241.5)]])}
+      />,
+    );
+
+    expect(screen.getByText("241.50")).toBeTruthy();
+    expect(screen.queryByText("230.36")).toBeNull();
+  });
+
+  // **The heading is a claim about every cell under it.** Two rows in three
+  // hold a live price during a session, so `Last close` stops being true.
+  it("stops calling the column a close once any row is live", () => {
+    renderWithContext(
+      <UniverseTable
+        view={loaded([equity()], [], [closeFor("NVDA")])}
+        onRetry={noop}
+        observations={new Map([["NVDA", liveFor(241.5)]])}
+      />,
+    );
+
+    expect(screen.getByRole("columnheader", { name: "Last" })).toBeTruthy();
+    expect(
+      screen.queryByRole("columnheader", { name: /Last close/ }),
+    ).toBeNull();
+  });
+
+  // With nothing live this is the tree exactly as it was before the task —
+  // which is what a deployment with no provider renders, and what CI renders,
+  // because CI's store has 518 securities and zero bars.
+  it("keeps the close wording and the shared session when nothing is live", () => {
+    renderWithContext(
+      <UniverseTable
+        view={loaded([equity()], [], [closeFor("NVDA")])}
+        onRetry={noop}
+      />,
+    );
+
+    expect(
+      screen.getByRole("columnheader", { name: /Last close 2026-09-04/ }),
+    ).toBeTruthy();
+  });
+
+  // The rows that are NOT live are the ones whose number is not from this
+  // minute, so they are the set that carries a date. A live row carries none.
+  it("dates the stored rows and not the live one", () => {
+    renderWithContext(
+      <UniverseTable
+        view={loaded(
+          [equity(), equity({ symbol: toTicker("AMD"), name: "AMD" })],
+          [],
+          [closeFor("NVDA"), closeFor("AMD", 142.06, 141.0)],
+        )}
+        onRetry={noop}
+        observations={new Map([["NVDA", liveFor(241.5)]])}
+      />,
+    );
+
+    const live = screen.getByRole("row", { name: /NVDA/ });
+    const stored = screen.getByRole("row", { name: /AMD/ });
+
+    expect(within(stored).getByText("2026-09-04")).toBeTruthy();
+    expect(within(live).queryByText("2026-09-04")).toBeNull();
+  });
+
+  // A listener gets the word, because the figure alone is six glyphs that look
+  // exactly like a close.
+  it("says which kind of number a live cell is, for a listener", () => {
+    renderWithContext(
+      <UniverseTable
+        view={loaded([equity()], [], [closeFor("NVDA")])}
+        onRetry={noop}
+        observations={new Map([["NVDA", liveFor(241.5)]])}
+      />,
+    );
+
+    expect(screen.getByText("Live price")).toBeTruthy();
+  });
+
+  // **The defect this task exists to avoid**, asserted at the rendering layer
+  // as well as in `last-close.test.ts`: the backfill has written today, so the
+  // stored close and the live bar share a session. Measuring against the
+  // stored close would render `+0.00%` — a well-formed, correctly-coloured,
+  // entirely wrong number.
+  it("does not report a flat market when the store already holds today", () => {
+    renderWithContext(
+      <UniverseTable
+        view={loaded(
+          [equity()],
+          [],
+          [closeFor("NVDA", 229.1, 228.45, "2026-09-07")],
+        )}
+        onRetry={noop}
+        observations={new Map([["NVDA", liveFor(230.36, "2026-09-07")]])}
+      />,
+    );
+
+    expect(screen.getByText("+0.84%")).toBeTruthy();
+    expect(screen.queryByText("+0.00%")).toBeNull();
+  });
+
+  // Absence is ordinary: ~200 of 518 rows have nothing on a given minute, and
+  // every row has nothing after a restart. It must not read as a fault.
+  it("leaves a row with no observation showing its stored close", () => {
+    renderWithContext(
+      <UniverseTable
+        view={loaded(
+          [equity(), equity({ symbol: toTicker("AMD"), name: "AMD" })],
+          [],
+          [closeFor("NVDA"), closeFor("AMD", 142.06, 141.0)],
+        )}
+        onRetry={noop}
+        observations={new Map([["NVDA", liveFor(241.5)]])}
+      />,
+    );
+
+    const stored = screen.getByRole("row", { name: /AMD/ });
+    expect(within(stored).getByText("142.06")).toBeTruthy();
+    expect(within(stored).queryByText("Live price")).toBeNull();
+  });
+});
+
+describe("the session line a live cell reserves", () => {
+  // Mixed is the morning: some rows have been observed, some have not. The
+  // stored rows draw a date, so the live ones must hold the space or a row
+  // shrinks the first time an observation reaches it.
+  it("reserves the line while a stored row is drawing one", () => {
+    const { container } = renderWithContext(
+      <UniverseTable
+        view={loaded(
+          [equity(), equity({ symbol: toTicker("AMD"), name: "AMD" })],
+          [],
+          [closeFor("NVDA"), closeFor("AMD", 142.06, 141.0)],
+        )}
+        onRetry={noop}
+        observations={new Map([["NVDA", liveFor(241.5)]])}
+      />,
+    );
+
+    expect(
+      container.querySelectorAll("[aria-hidden='true']").length,
+    ).toBeGreaterThan(0);
+  });
+
+  // Late in a session every row has been observed — the current market state
+  // keeps the latest observation per security and never expires it, so
+  // coverage accumulates. No row draws a date, so none needs the space, and
+  // reserving it anyway would cost 19px on every row of a 518-row table.
+  it("reserves nothing when there is no stored row left to date", () => {
+    renderWithContext(
+      <UniverseTable
+        view={loaded(
+          [equity(), equity({ symbol: toTicker("AMD"), name: "AMD" })],
+          [],
+          [closeFor("NVDA"), closeFor("AMD", 142.06, 141.0)],
+        )}
+        onRetry={noop}
+        observations={
+          new Map([
+            ["NVDA", liveFor(241.5)],
+            ["AMD", liveFor(143.2)],
+          ])
+        }
+      />,
+    );
+
+    expect(screen.queryByText("2026-09-04")).toBeNull();
+    expect(screen.getAllByText("Live price")).toHaveLength(2);
   });
 });

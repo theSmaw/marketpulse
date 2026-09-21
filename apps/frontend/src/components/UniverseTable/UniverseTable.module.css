@@ -685,6 +685,28 @@ tbody:last-of-type .row:last-child {
   color: var(--ink-secondary);
 }
 
+/*
+ * **The same line, reserved rather than drawn** (Task 3.6.1).
+ *
+ * Before live prices, a row carried a session date only when its close
+ * disagreed with the page's — three of 518, a legible exception. Once any row
+ * is live the heading stops claiming a shared session and every *stored* row
+ * carries its own, which is the correct set: they are exactly the rows whose
+ * number is not from this minute.
+ *
+ * That makes the column's rows two different heights, and worse, **a row
+ * changes height the first time an observation arrives for it** — it loses the
+ * line. Measured with `pnpm probe` on `/securities`: rows sat at 35px and 53px
+ * against each other. A table that reflows under a reader as a thin name
+ * finally trades is the sort of thing this repository measures rather than
+ * argues about, and the repair is the cheap one — the live cell reserves the
+ * line it does not draw, so arriving costs no height at all.
+ */
+.sessionReserved {
+  composes: session;
+  visibility: hidden;
+}
+
 /* --- What we hold: the first column in this product about the market --- */
 
 /*

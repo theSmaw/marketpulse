@@ -136,8 +136,11 @@ nobody finds out — so note the answer either way, in the vendor's own document
   **server-received**, and **no message on the wire carries a server-side
   instant** — so there is nothing to subtract from and a real session supplies
   latency without supplying a way to measure it. `docs/GAPS.md` entry 12 holds
-  the whole state and **Story 3.11 owns the decision**, which is a protocol
-  change rather than a missing test. What this sweep owes is only that the
+  the whole state and the decision is a protocol change rather than a missing
+  test. **Owner re-assigned 2026-09-21, from Story 3.11 to Story 3.6 — Task
+  3.6.4** — because three stories were carrying the criterion and none owned
+  it; when that lands, this story's criterion 5 becomes measurable
+  retroactively. What this sweep owes is only that the
   browser half is never quoted as the whole.
 - **The production-bundle recipe, if any criterion needs one** — Task 3.4.8's,
   and it is four lines rather than a rediscovery: `pnpm build`, then
@@ -314,17 +317,17 @@ and that is what decided one ADR rather than two.
 
 ### The acceptance walk — 7 of 9, and the two outstanding are not effort
 
-|     | Criterion                                                             |                                                                                                                             |
-| --- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 1   | vocabulary, alternatives, trigger, canvas                             | **met** (3.4.5)                                                                                                             |
-| 2   | every duration a token, proved by grep                                | **met** (3.4.5)                                                                                                             |
-| 3   | reduced motion — a change still perceivable                           | **met**, asserted in a browser (3.4.7)                                                                                      |
-| 4   | direction never by hue alone, in greyscale                            | **met**, and now a check rather than a screenshot                                                                           |
-| 5   | **250 ms p95 server-received → application state**                    | **NOT MET — unmeasurable.** Half taken at p95 **52 ms**; no wire message carries a server instant. GAPS 12, Story 3.11 owns |
-| 6   | two changes inside one animation                                      | **met** — restart, stated and asserted                                                                                      |
-| 7   | no task over 50 ms, no layout thrash                                  | **met** — **zero** long-task entries across 6,640 observations                                                              |
-| 8   | probe at four viewports, **and a person looked with the market open** | **HALF MET** — probed many times, including both block heights; the market-open half is the rehearsal                       |
-| 9   | `pnpm verify`                                                         | **met** — 299 / 896 / 1031 / 19, 14 invariants                                                                              |
+|     | Criterion                                                             |                                                                                                                                                                                     |
+| --- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | vocabulary, alternatives, trigger, canvas                             | **met** (3.4.5)                                                                                                                                                                     |
+| 2   | every duration a token, proved by grep                                | **met** (3.4.5)                                                                                                                                                                     |
+| 3   | reduced motion — a change still perceivable                           | **met**, asserted in a browser (3.4.7)                                                                                                                                              |
+| 4   | direction never by hue alone, in greyscale                            | **met**, and now a check rather than a screenshot                                                                                                                                   |
+| 5   | **250 ms p95 server-received → application state**                    | **NOT MET — unmeasurable.** Half taken at p95 **52 ms**; no wire message carries a server instant. GAPS 12; **owner moved to Story 3.6 (Task 3.6.4) on 2026-09-21**, was Story 3.11 |
+| 6   | two changes inside one animation                                      | **met** — restart, stated and asserted                                                                                                                                              |
+| 7   | no task over 50 ms, no layout thrash                                  | **met** — **zero** long-task entries across 6,640 observations                                                                                                                      |
+| 8   | probe at four viewports, **and a person looked with the market open** | **HALF MET** — probed many times, including both block heights; the market-open half is the rehearsal                                                                               |
+| 9   | `pnpm verify`                                                         | **met** — 299 / 896 / 1031 / 19, 14 invariants                                                                                                                                      |
 
 ### Both block heights, at four widths — and the second exists at ONE width only
 
@@ -519,3 +522,52 @@ corrected there rather than here, on the day it is found.
 buys. If the rehearsal happens and nobody writes the five down, the story still
 closes — they simply stay cited rather than confirmed, and the next person to
 need one pays the full cost of taking it.
+
+---
+
+## Amended by Task 3.6.1 — 2026-09-21: what the rehearsal will see has changed again, and three stories can now be one sitting
+
+**This is the second time this task's blocked list has been overtaken by work
+done after it was written**, which is what happens to a rehearsal that waits on
+a calendar.
+
+### The surface grew
+
+The list above is about the **security page**. Since Task 3.6.1 the
+**tracked-universe table on `/securities` is live too** — 518 rows whose `Last`
+and `Change` columns move on their own — so the same sitting now has two
+surfaces to watch rather than one.
+
+**Two things on that table are worth a deliberate glance** and neither is
+checkable by anything mechanical:
+
+- **Does it read as calm or as a fairground?** Nothing marks an arrival yet
+  (Task 3.6.2 decides that in front of this running), so what a rehearsal sees
+  is the _floor_ — 518 figures changing with no decoration at all. **If that is
+  already too busy, Task 3.6.2's answer is decided before it starts.**
+- **Does a row with no live price read as a fact or as a fault?** Roughly 200 of
+  518 on a given minute, and they carry a session date where the live rows carry
+  none. That treatment is Task 3.6.1's and it has never been seen against a real
+  mixture — only against a fixture stream, where everything went live at once.
+
+### The rehearsal ledger now wants three rows, and they are one sitting
+
+`LIVE-REHEARSAL.md` has empty rows for **3.4** (this one), **3.5** — added at
+that story's close, which found it had been wrongly exempted — and **3.6**.
+
+**All three are watchable in one visit to the deployed site during a session**,
+because production runs the real IEX socket and the three surfaces are the
+chrome, the security page and the universe table. The file's own rule is that a
+rehearsal is **minutes, not an evening**; three of them are still minutes.
+
+**Do not record one row and infer the other two.** A row is added by the story
+it names, and `What was wrong` is the column that earns the file.
+
+### And one item on the list above has an answer now
+
+The list records `pnpm probe` with the market open as still needing the
+connection. **That is unchanged** — but Task 3.6.1 took `pnpm probe` against a
+**fixture** stream and found a real defect with it: rows at 35px and 53px, and a
+row changing height the first time an observation reached it. So the probe is
+worth running against whatever stream is available rather than waiting for a
+live one; it found a layout defect that every automated check was green through.

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 import type { LiveFeedView } from "../market/index.js";
@@ -186,15 +186,46 @@ export function SecurityExplorer({
   // and this is where it reaches the block that marks an arrival.
   const liveFromSnapshot = liveFeed.fromSnapshot.has(symbol);
 
-  // **Declared on `symbol`, and withdrawn on unmount.** A screen that stops
-  // being shown stops asking, so a reader who navigates away is not still
-  // being sent a price nothing renders.
+  /*
+   * **What this screen asks for: the security on show, and every row in the
+   * table under it** (Task 3.6.1).
+   *
+   * Until Task 3.5.6 the gateway broadcast all 518 observations to every
+   * attached browser and this screen used one of them. It now receives only
+   * what it asks for, so asking is the screen's job — and this screen renders
+   * the whole tracked universe below the panel on both of its routes, which is
+   * why the list is not just `[symbol]`.
+   *
+   * **Derived from the view rather than from the universe module**, because
+   * the table renders what the response returned: a security the response did
+   * not carry has no row to update, and one it did carry does even if the
+   * curated file has since changed. The backend subscribes upstream to
+   * `active` securities only, so an `untracked` row here simply never receives
+   * an observation — which is `UNIVERSE.md` §12.2 working rather than a gap.
+   *
+   * **Memoised, and that is a correctness requirement rather than a
+   * micro-optimisation.** `useLiveFeed` keys its subscription effect on a
+   * primitive derived from this list; a fresh array with the same contents is
+   * harmless, but a list whose *contents* change every render is 518 symbols
+   * re-subscribed on every render rather than a wasted one.
+   */
+  const liveSymbols = useMemo(() => {
+    const wanted = new Set<string>([symbol]);
+    if (view.state === "loaded") {
+      for (const security of view.securities) wanted.add(security.symbol);
+    }
+    return [...wanted];
+  }, [symbol, view]);
+
+  // **Declared here, and withdrawn on unmount.** A screen that stops being
+  // shown stops asking, so a reader who navigates away is not still being sent
+  // prices nothing renders.
   useEffect(() => {
-    onLiveSymbols?.([symbol]);
+    onLiveSymbols?.(liveSymbols);
     return () => {
       onLiveSymbols?.([]);
     };
-  }, [symbol, onLiveSymbols]);
+  }, [liveSymbols, onLiveSymbols]);
 
   return (
     <div className={page.page}>
@@ -555,7 +586,7 @@ export function SecurityExplorer({
           <div className={page.full}>
             <Region
               name="Tracked universe"
-              filledBy="The securities MarketPulse follows, with each one’s last stored close. Live prices arrive with the market feed in Epic 3."
+              filledBy="The securities MarketPulse follows. A row shows a live price where one has arrived, and its last stored close otherwise."
             >
               {/*
                * `retry` is passed down rather than the table asking for the
@@ -565,7 +596,11 @@ export function SecurityExplorer({
                * running precisely because the only thing it does with the network
                * is take a callback for it (Task 2.10.2).
                */}
-              <UniverseTable view={view} onRetry={retry} />
+              <UniverseTable
+                view={view}
+                onRetry={retry}
+                observations={liveFeed.observations}
+              />
             </Region>
           </div>
         </div>

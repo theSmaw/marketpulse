@@ -360,7 +360,7 @@ function Close({
   );
 
   if (live !== undefined) {
-    const percent = changeFromClose(live.close, lastClose);
+    const { percent, basis } = changeFromClose(live, lastClose);
     const extendedHours = extendedHoursAt(live.startsAt);
 
     return (
@@ -450,9 +450,18 @@ function Close({
             extendedHours === undefined
               ? undefined
               : EXTENDED_HOURS_WORDS[extendedHours],
+            // **The session the change was measured FROM, which is not
+            // always this row's `session`** (Task 3.6.1). Once the nightly
+            // backfill has written today, the stored close and the live bar
+            // share a session and the basis becomes `previousClose` — a price
+            // with no date beside it on the wire. `basis` says which happened,
+            // so this clause never names a session the figure was not measured
+            // against.
             percent === null
               ? undefined
-              : `change from ${lastClose?.session ?? ""}'s close`,
+              : basis === null
+                ? "change from the previous close"
+                : `change from ${basis}'s close`,
           ]
             .filter((clause) => clause !== undefined)
             .join(" · ")}

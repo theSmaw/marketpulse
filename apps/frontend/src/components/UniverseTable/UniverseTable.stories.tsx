@@ -1,5 +1,6 @@
 import { SECTORS, toMarketDate, toTicker } from "@marketpulse/shared";
 import type {
+  Bar,
   Security,
   SecurityCoverage,
   SecurityLastClose,
@@ -533,3 +534,118 @@ const PERMUTATIONS: readonly (readonly [string, SecuritiesView])[] = [
     },
   ],
 ];
+
+/**
+ * A live minute bar, for the stories below (Task 3.6.1).
+ *
+ * `17:00Z` is 13:00 in New York either side of the DST boundary, so the date
+ * written here reads as the session it belongs to without this file naming an
+ * offset — which `market-time.ts` is the only module allowed to do.
+ */
+function liveFor(close: number, session = "2026-09-07"): Bar {
+  return {
+    startsAt: new Date(`${session}T17:00:00.000Z`),
+    open: close,
+    high: close,
+    low: close,
+    close,
+    volume: 1_000,
+  };
+}
+
+/**
+ * ## Mid-session — about two thirds of the rows live, which is the real shape
+ *
+ * **Not every row moving**, because that is a state this product never has.
+ * §7.6 measured the live IEX feed at **65.1% median per-symbol minute
+ * coverage**, roughly **321 of 518** symbols producing a bar in a given
+ * minute, and `ERIE` at **2.1%** — so the ordinary screen is a mixture, and a
+ * story showing everything live would be reviewing a market that does not
+ * exist.
+ *
+ * Three of these five rows are live and two are not, and the two are the
+ * interesting half: **they are the ones carrying a session date**, because
+ * theirs is the number that is not from this minute. The heading has stopped
+ * saying `close` for the same reason — it is a claim about every cell under
+ * it, and it is no longer true of all of them.
+ */
+export const MidSession: Story = {
+  args: {
+    observations: new Map([
+      ["XLK", liveFor(188.04)],
+      ["AAPL", liveFor(317.42)],
+      ["NVDA", liveFor(241.5)],
+    ]),
+  },
+};
+
+/**
+ * ## Just subscribed — a snapshot, and nothing has arrived since
+ *
+ * What the screen holds in the first moments of every connection, and after
+ * every backend deploy: the gateway answers a subscribe with a **snapshot**
+ * rather than with `bars`, so the table fills **without anything reading as an
+ * arrival**. That distinction is Task 3.5.4's and it is the difference between
+ * a screen that populates and one that flashes.
+ *
+ * Visually this is indistinguishable from {@link MidSession}, and that is the
+ * point rather than a shortcoming: a snapshot and a burst of bars produce the
+ * same table. What differs is whether the arrival mark fires — and **nothing
+ * here marks anything**, because the mark at 518 is Task 3.6.2's and is
+ * deliberately not in this story.
+ */
+export const JustSubscribed: Story = {
+  args: {
+    observations: new Map(
+      LAST_CLOSES.map((record) => [record.symbol, liveFor(record.close)]),
+    ),
+  },
+};
+
+/**
+ * ## Nothing live — and this is what CI and an unconfigured deployment render
+ *
+ * The default, and **a legitimate answer rather than a placeholder**: no
+ * provider configured, no subscription answered yet, or a store with no bars
+ * in it. CI's is exactly this — 518 securities and **zero** bars — so every
+ * assertion a browser suite makes about this table is made against this state.
+ *
+ * It is byte-for-byte the table as it stood before Task 3.6.1: the heading
+ * says `Last close` and carries the one session every row shares.
+ */
+export const NothingLive: Story = {
+  args: { observations: new Map() },
+};
+
+/**
+ * ## The trap — the store already holds today
+ *
+ * Every row here is live, and every stored close is from **the same session as
+ * the live bar**: the nightly backfill has already written today. Measuring a
+ * live price against that close compares a price with itself, and the whole
+ * `Change` column would read **+0.00%** — 518 well-formed, correctly
+ * formatted, correctly coloured numbers saying the market did not move.
+ *
+ * **Nothing about that looks broken**, which is why it is a story rather than
+ * only a unit test. It is reachable in development every evening and on a cold
+ * load the morning after a deploy, and the figures below should be the real
+ * moves against the session *before* today's.
+ */
+export const StoreAlreadyHoldsToday: Story = {
+  args: {
+    view: loaded(
+      UNIVERSE,
+      COVERAGE,
+      LAST_CLOSES.map((record) => ({
+        ...record,
+        session: toMarketDate("2026-09-07"),
+      })),
+    ),
+    observations: new Map(
+      LAST_CLOSES.map((record) => [
+        record.symbol,
+        liveFor(record.close * 1.008, "2026-09-07"),
+      ]),
+    ),
+  },
+};

@@ -1,6 +1,6 @@
 # Story 3.4 — The Motion Vocabulary & the First Price That Moves
 
-**Status:** **Everything but the rehearsal — 2026-09-21.** Nine of ten tasks complete; the vocabulary, both marks, the measurements and the chrome repair all shipped. **The story does not close**: criterion 5 is unmeasurable without a protocol change (`docs/GAPS.md` entry 12, Story 3.11 owns it) and criterion 8's _with the market open_ needs a live session — the market is shut and the deployment holds the plan's one Alpaca connection. [Task 3.4.10](TASK-10-the-rehearsal-the-sweep-and-the-close.md) records exactly what the rehearsal still owes.
+**Status:** **Everything but the rehearsal — 2026-09-21.** Nine of ten tasks complete; the vocabulary, both marks, the measurements and the chrome repair all shipped. **The story does not close**: criterion 5 is unmeasurable without a protocol change (`docs/GAPS.md` entry 12 — **owned by Story 3.6 since 2026-09-21**, Task 3.6.4, moved from Story 3.11 at Story 3.5's close) and criterion 8's _with the market open_ needs a live session — the market is shut and the deployment holds the plan's one Alpaca connection. [Task 3.4.10](TASK-10-the-rehearsal-the-sweep-and-the-close.md) records exactly what the rehearsal still owes.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.3
 **Epic scope covered:** the motion vocabulary (design test 4), live price updates in the UI — on one surface
@@ -301,10 +301,21 @@ of the budget to anybody who does not know it is half a journey. So:
 - **`docs/GAPS.md` entry 12** holds the whole state and the re-measure, and it
   is deliberately **not** made mechanical — the instrument does not exist, and
   building it is a **protocol change** rather than a test somebody forgot.
-- **Story 3.11 owns the decision**, in its own file and in words it can act on:
-  whether §28's figure is worth a stamp on **332 frames a minute**, or whether
-  §28 should be amended to say which half this product measures. Either way,
-  stop the browser half being quoted as the whole.
+- ~~**Story 3.11 owns the decision**~~ — **re-assigned to Story 3.6 on
+  2026-09-21, and this story's criterion 5 is the reason.** The decision is
+  unchanged: whether §28's figure is worth a stamp on **332 frames a minute**,
+  or whether §28 should be amended to say which half this product measures.
+  Either way, stop the browser half being quoted as the whole.
+
+  **What changed is that three stories were carrying it and none owned it.**
+  Story 3.5's close found this story's criterion 5, Story 3.6's criterion 5 and
+  Story 3.11's criterion 4 to be the same unmeasurable sentence — the shape
+  `CLAUDE.md` records against _does it feel alive_, deferred seven times. It
+  moved to **Task 3.6.4**, which is the first story already opening the wire
+  format. **This story's criterion 5 becomes measurable retroactively when that
+  lands**, and `docs/GAPS.md` entry 12 carries the constraints that travel with
+  it.
+
 - **3.4.10 was told not to expect the rehearsal to close it.** A real session
   supplies real latency and still no timestamp to measure it against, and a
   close that recorded §28 as met would be exactly the shape this repository
