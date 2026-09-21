@@ -311,6 +311,43 @@ of the budget to anybody who does not know it is half a journey. So:
   keeps catching. It also inherited Task 3.4.8's four-line production-bundle
   recipe, since it is the one task that might need it.
 
+### 3.4.9's sweep — 2026-09-21, and the finding is that this story has a family
+
+**One task amended, one gap recorded. Nothing added, deleted or re-ordered** —
+there is only the close left, and it is the right home for all of it.
+
+**Three instances of one shape, in one epic**, and naming the family is worth
+more than any of the three fixes:
+
+| Found by          | The shape                                                     |
+| ----------------- | ------------------------------------------------------------- |
+| Story 3.2's close | three implementations with **no construction site**           |
+| Task 3.4.3        | three implementations **constructed, and none self-driving**  |
+| Task 3.4.9        | a published decision **specified and drawn, and unreachable** |
+
+Each is _something that exists in one layer and cannot be reached from the
+next_, and **all three had `pnpm verify` green throughout**.
+
+- **3.4.10's construction-site audit now has two forms**, because the first
+  would not have caught 3.4.9. The **export** form greps for a caller — and here
+  the export _had_ one; what had no implementation was the **decision**. The
+  new **reachability** form walks every published state grid from its
+  **producers** rather than its renderers. This story published rows in
+  `VISUAL-LANGUAGE.md`'s motion set and in `Live in the chrome` §11, and neither
+  has been walked.
+- **The close also has to dispose of an open item this story fired.**
+  `CLAUDE.md`'s _nothing checks that a named region says something when its
+  subject is missing_ met its harder form — _…something coherent when it has
+  two subjects_ — and was answered for one cell. Widen it or give it a sibling;
+  a fired trigger left reading as unfired is worse than either.
+- **And the deployed chrome's "nothing changed" promise gets its observation.**
+  3.4.9 verified it with a unit test over every selection; criterion 8's walk
+  with the market open is the first time a person sees the production path.
+- **`docs/GAPS.md` entry 13** carries the family, with one grid now mechanical
+  (`market-feed-grid.test.ts`) and the rest — `PROVENANCE.md`'s states,
+  `CHARTING.md`'s, and whatever the next story publishes — not. Owner is a
+  condition: **the next story that publishes a state grid**.
+
 The original wording stands below, because it is what the decision was taken
 against.
 

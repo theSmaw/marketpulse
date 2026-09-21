@@ -366,6 +366,26 @@ So the honest state is: **one half measured with 200 ms of headroom, the other h
 
 **Re-measure:** once a frame carries a server instant, subtract it in the browser at the same two ends and publish the whole figure. Until then, quote the browser half **with its ends named**. **Owner: Story 3.11**, `cost, performance and the epic close`, which is the first story whose subject is this question rather than a story that trips over it.
 
+13. **That a row of a published state grid is a row the product can actually reach.** Added 2026-09-21 by Task 3.4.9, which found one that had been on a screen-in-a-document and unreachable in the running product for four days.
+
+**This is the third instance of one family in one epic**, and the family is what makes it worth an entry rather than a fix:
+
+| Found by          | The shape                                                           |
+| ----------------- | ------------------------------------------------------------------- |
+| Story 3.2's close | three implementations of an interface with **no construction site** |
+| Task 3.4.3        | three implementations **constructed, and none self-driving**        |
+| Task 3.4.9        | a published decision **specified and drawn, and unreachable**       |
+
+Each is _something that exists in one layer and cannot be reached from the next_, and **every one of them had `pnpm verify` green throughout**.
+
+**A grid is the hardest of the three to see, because it looks complete.** `LIVE-DATA.md` §11.3's `replay` row was written on 2026-09-17 and `Live in the chrome.dc.html` §03 drew it on 2026-09-19; the shipped chrome said `NOT CONFIGURED` beside its own `REPLAYING` instead. **No renderer test could fail on it**: every test, component and browser assertion renders a combination somebody named, so a row nothing can produce is not a shape any of them has.
+
+**The construction-site audit does not catch it either**, which is the sharp part. That audit greps an export for a caller outside a test — and here the export _had_ a caller. What had no implementation was the **decision**.
+
+**One grid is now checked.** `apps/backend/src/routes/market-feed-grid.test.ts` walks `MarketDataProviderSelection` rather than the renderings and asserts the rule §11.3 embodies — _a deployment whose chrome can say a connection word must also be able to say a feed word_ — with `pnpm break a-stream-without-a-feed-word` behind it. **The others are not**: `PROVENANCE.md`'s failure and partial states, `CHARTING.md`'s chart states, and whatever the next story publishes.
+
+**Re-measure:** for each published state grid, take the **producers** rather than the renderers — the selections, configurations or store shapes a deployment can be in — and confirm every row is reachable from one of them, and that every reachable pair has a row. **Owner: the next story that publishes a state grid**, which is a condition rather than a story number.
+
 Two of these have caught real defects, so treat the list as live: a stated invariant quietly stopped being true for two stories, and a broken link shipped.
 
 **RE-POINTED A THIRD TIME ON 2026-09-19 BY TASK 3.3.7, AND THE REASON IS NOT THE ONE ANYBODY EXPECTED.** The trigger has been _wait for a trading session_ twice and both owners were finished tasks, which is why it never fired. It is now a **command** — `node scripts/capture-u-frame.mjs`, which refuses out of hours, refuses if a local process holds the connection, and stops at the first `u`. Its handshake path was proven against the real vendor the night it was written. **But the standing blocker is not the market's hours: it is our own deployment.** The free plan allows **one** connection, the deployed backend runs `provider: alpaca`, and §9.3 chose to hold the socket **always** — so it holds it out of hours too. A clean machine with no local process connected was refused `406 connection limit exceeded` at 23:30 ET, verified with `lsof` against the resolved address. **A developer machine cannot take an Alpaca capture at all while the deployment is running, at any hour.** So the disposition is a choice somebody has to make rather than a date: stand the deployment down for the capture, take the capture **from** production by logging the frame there, or stop sharing one connection between two consumers. **Owner: Story 3.10**, which owns reconnection and is the first story that has to reason about the single connection as a contended resource rather than as a given. Re-measure: `node scripts/capture-u-frame.mjs --handshake` — a `406` means the deployment still has it.
