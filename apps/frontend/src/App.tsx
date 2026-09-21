@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router";
 
 import { AppFooter } from "./components/AppFooter/AppFooter.js";
@@ -139,7 +140,18 @@ export function App() {
   // the hook in the header would mean lifting the value back up anyway, and
   // `AppHeader` sits inside its own `ErrorBoundary`, so a header that threw
   // would take the socket down with it.
-  const liveFeed = useLiveFeed();
+  // **The browser asks for what the screen it is on actually shows** (Task
+  // 3.5.6). Before this it asked for nothing and received everything — all 518
+  // securities, **56.9 KiB a minute**, of which a security page uses one.
+  //
+  // **The page declares its own need rather than this file inferring it.** The
+  // hook is called here, so the subscription has to live here; the alternative
+  // was deriving it from the address, which `App` cannot read — it *renders*
+  // `<BrowserRouter>` rather than living inside one — and which would have
+  // coupled the feed to a URL shape besides. A screen that wants securities no
+  // address names is then a prop rather than a redesign.
+  const [liveSymbols, setLiveSymbols] = useState<readonly string[]>([]);
+  const liveFeed = useLiveFeed({ symbols: liveSymbols });
 
   // **`recheckOn` added 2026-09-19 by Task 3.3.6**, and it is why the live hook
   // is called above rather than below this one. A socket notices a dead backend
@@ -244,6 +256,7 @@ export function App() {
                   <SecurityExplorer
                     marketFeed={marketFeed}
                     liveFeed={liveFeed}
+                    onLiveSymbols={setLiveSymbols}
                   />
                 }
               />
@@ -261,6 +274,7 @@ export function App() {
                   <SecurityExplorer
                     marketFeed={marketFeed}
                     liveFeed={liveFeed}
+                    onLiveSymbols={setLiveSymbols}
                   />
                 }
               />

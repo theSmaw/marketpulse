@@ -10,6 +10,7 @@ import {
   startedLiveFeed,
 } from "./live-feed.js";
 import { connectMarketStream } from "./market-stream-client.js";
+import type { MarketStreamConnection } from "./market-stream-client.js";
 import { reconnectDelayMs } from "./reconnect-policy.js";
 import type { MarketStreamOptions } from "./market-stream-client.js";
 
@@ -74,6 +75,8 @@ const CLEAR_TIMER = (timer: number): void => {
   window.clearTimeout(timer);
 };
 const IS_VISIBLE = (): boolean => document.visibilityState !== "hidden";
+/** Hoisted for the same reason the seams above are: one reference, every render. */
+const NO_SYMBOLS: readonly string[] = [];
 
 /** What the hook needs that is not a global. Every field is a seam for a test. */
 export interface UseLiveFeedOptions extends Partial<MarketStreamOptions> {
@@ -81,6 +84,19 @@ export interface UseLiveFeedOptions extends Partial<MarketStreamOptions> {
   readonly wallNow?: () => number;
   /** How often to re-take the derived view. */
   readonly tickMs?: number;
+  /**
+   * The securities this browser wants observations for (Task 3.5.6).
+   *
+   * **Changing it does NOT reopen the socket.** A subscription is a message on
+   * a live connection, and tearing the socket down to change one would make
+   * every navigation a reconnect — losing the snapshot and the `LIVE` word for
+   * as long as a dial takes.
+   *
+   * **The default is nothing**, which is an ordinary state rather than an
+   * error: a browser on a screen that shows no prices asks for none and
+   * receives none.
+   */
+  readonly symbols?: readonly string[];
   /**
    * How a retry is scheduled. `setTimeout` in production (Task 3.5.5).
    *
@@ -112,6 +128,7 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
     now = MONOTONIC_NOW,
     wallNow = WALL_NOW,
     tickMs = LIVE_FEED_TICK_MS,
+    symbols = NO_SYMBOLS,
     setTimer = SET_TIMER,
     clearTimer = CLEAR_TIMER,
     isVisible = IS_VISIBLE,
@@ -150,6 +167,31 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
     clearTimer,
     isVisible,
   });
+
+  /**
+   * The subscription, and the live socket's way of hearing about a change.
+   *
+   * **Two refs rather than a dependency**, because the socket effect must not
+   * re-run when the subscription changes: a navigation would otherwise close
+   * the connection and open a new one, losing the snapshot and the `LIVE` word
+   * for as long as a dial takes. The socket owns its lifetime; the
+   * subscription is a message on it.
+   */
+  const subscription = useRef<readonly string[]>(symbols);
+  const resubscribe = useRef<((next: readonly string[]) => void) | undefined>(
+    undefined,
+  );
+
+  // **A primitive dependency, derived from the list.** An array literal is a
+  // new reference on every render, so depending on `symbols` directly would
+  // re-send the subscription on every render of every parent.
+  const subscribedTo = symbols.join(",");
+
+  useEffect(() => {
+    const next = subscribedTo === "" ? [] : subscribedTo.split(",");
+    subscription.current = next;
+    resubscribe.current?.(next);
+  }, [subscribedTo]);
 
   useEffect(() => {
     // Read once, at the top, into locals the cleanup can close over — a
@@ -202,7 +244,7 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
     // **The retry, and its whole state is these three** (Task 3.5.5). Story 3.3
     // shipped this socket with none, so every backend deploy left every open
     // tab reading `DISCONNECTED` until somebody reloaded — on every merge.
-    let disconnect: (() => void) | undefined;
+    let connected: MarketStreamConnection | undefined;
     let pending: number | undefined;
     let attempt = 0;
 
@@ -210,7 +252,7 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
       if (hasStopped()) return;
       pending = undefined;
 
-      disconnect = connectMarketStream(
+      connected = connectMarketStream(
         (event) => {
           if (hasStopped()) return;
 
@@ -244,6 +286,10 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
           ? { now: readNow }
           : { now: readNow, open: openSocket },
       );
+
+      // **Re-asserted on every socket**, including each retry. The transport
+      // buffers it until `open`, so this does not have to know the state.
+      connected.subscribe(subscription.current);
     };
 
     const scheduleRetry = (code?: number): void => {
@@ -272,6 +318,9 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
     };
 
     document.addEventListener("visibilitychange", onVisibility);
+    resubscribe.current = (next) => {
+      connected?.subscribe(next);
+    };
     dial();
 
     const ticking = setInterval(read, tickMs);
@@ -280,9 +329,11 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
       // Set first, so nothing the disconnect provokes can write.
       stopped = true;
       document.removeEventListener("visibilitychange", onVisibility);
+      resubscribe.current = undefined;
       if (pending !== undefined) cancel(pending);
       clearInterval(ticking);
-      disconnect?.();
+      connected?.close();
+      connected = undefined;
       connection.current = startedLiveFeed(readNow());
     };
   }, [tickMs]);

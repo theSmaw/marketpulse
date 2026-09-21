@@ -38,12 +38,12 @@ const connect = () => {
   const events: LiveFeedEvent[] = [];
   let tick = 0;
 
-  const disconnect = connectMarketStream((event) => events.push(event), {
+  const connection = connectMarketStream((event) => events.push(event), {
     now: () => (tick += 100),
     open: () => socket as unknown as WebSocket,
   });
 
-  return { socket, events, disconnect };
+  return { socket, events, connection, disconnect: connection.close };
 };
 
 describe("the address", () => {

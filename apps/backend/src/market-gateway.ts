@@ -3,6 +3,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 
 import {
   MARKET_STREAM_PATH,
+  decodeMarketStreamClientMessage,
   MARKET_STREAM_PROTOCOL_VERSION,
   encodeMarketStreamMessage,
   toWireObservation,
@@ -108,16 +109,6 @@ export interface MarketGateway {
   readonly publishFeedState: () => void;
 }
 
-const observationsToWire = (
-  observations: readonly LiveObservation[],
-): Record<string, WireObservation> => {
-  const wire: Record<string, WireObservation> = {};
-  for (const observation of observations) {
-    wire[observation.symbol] = toWireObservation(observation.bar);
-  }
-  return wire;
-};
-
 export function registerMarketGateway(
   app: FastifyInstance,
   options: MarketGatewayOptions,
@@ -134,7 +125,22 @@ export function registerMarketGateway(
   // `noServer: true` and an explicit `upgrade` handler, so this owns the path
   // check rather than letting the library claim every upgrade on the server.
   const wss = new WebSocketServer({ noServer: true });
-  const clients = new Set<WebSocket>();
+
+  /**
+   * **Every attached browser, and what it asked for** (Task 3.5.6).
+   *
+   * A `Set<WebSocket>` until then, with one `broadcast()` sending the identical
+   * payload to all of them — correct for five symbols and one page, and wrong
+   * at 518: a security page showing one symbol received the whole universe
+   * every minute and discarded 517 of them, **56.9 KiB a minute** measured on
+   * the wire.
+   *
+   * **A browser that has asked for nothing receives nothing**, which is an
+   * ordinary state rather than an error — §11.1's omission semantics applied
+   * to a subscription. It is also the state every browser is in for the first
+   * moments of every connection, including each reconnect.
+   */
+  const clients = new Map<WebSocket, Set<string>>();
 
   const send = (socket: WebSocket, payload: string): void => {
     // `readyState === OPEN` is checked because a socket can close between the
@@ -151,8 +157,37 @@ export function registerMarketGateway(
     }
   };
 
+  /** Every attached browser. Used for what every browser is owed — the feed. */
   const broadcast = (payload: string): void => {
-    for (const socket of clients) send(socket, payload);
+    for (const socket of clients.keys()) send(socket, payload);
+  };
+
+  /**
+   * The observations one client asked for, or `undefined` if none of them.
+   *
+   * **Returning `undefined` rather than an empty object is the decision.** An
+   * empty `bars` message would make a browser decide what *no observations*
+   * means, and the answer is that it should never have been asked — the same
+   * call `publishObservations` already makes about an empty batch.
+   */
+  const scopedTo = (
+    wanted: ReadonlySet<string>,
+    observations: readonly LiveObservation[],
+  ): Record<string, WireObservation> | undefined => {
+    let wire: Record<string, WireObservation> | undefined;
+
+    for (const observation of observations) {
+      if (!wanted.has(observation.symbol)) continue;
+      wire ??= {};
+      // **Keyed by symbol, which is where *latest wins* comes from** (§11.1).
+      // Two observations for one symbol in one batch collapse to the later one
+      // before the message is built — a property of the wire shape rather than
+      // a rule anybody enforces, and one a change to a list would silently
+      // remove.
+      wire[observation.symbol] = toWireObservation(observation.bar);
+    }
+
+    return wire;
   };
 
   const feedMessage = (): string =>
@@ -173,27 +208,72 @@ export function registerMarketGateway(
     }
 
     wss.handleUpgrade(request, socket, head, (client) => {
-      clients.add(client);
+      // **Attached with an empty subscription**, which is every browser for the
+      // first moments of every connection including each reconnect. It receives
+      // the feed's state and no observations until it says what it wants.
+      clients.set(client, new Set());
 
-      const observations: Record<string, WireObservation> = {};
-      for (const [symbol, observation] of snapshot()) {
-        observations[symbol] = observation;
-      }
+      /**
+       * What we already hold, for whatever this client has asked for.
+       *
+       * **Always a `snapshot`, never `bars`** — the type is about what the
+       * message MEANS, *here is what we already hold*, and Task 3.5.4 made that
+       * load-bearing: a snapshot sets the arrival mark's baseline while `bars`
+       * fires it. Answering a subscribe with `bars` would mark every newly
+       * subscribed security, on every subscribe and every reconnect.
+       */
+      const sendSnapshot = (): void => {
+        const wanted = clients.get(client) ?? new Set<string>();
+        const observations: Record<string, WireObservation> = {};
+
+        for (const [symbol, observation] of snapshot()) {
+          // **§11.1's omission semantics survive the scoping.** An entry for
+          // every security this client asked for AND we have observed, and no
+          // entry at all for the rest — *present but empty* stays unspellable.
+          if (wanted.has(symbol)) observations[symbol] = observation;
+        }
+
+        send(
+          client,
+          encodeMarketStreamMessage({
+            type: "snapshot",
+            version: MARKET_STREAM_PROTOCOL_VERSION,
+            observations,
+            feed: feedState(),
+          }),
+        );
+      };
 
       // **The snapshot, on connect.** §11.1: a browser connecting under
       // deltas-only sees NOTHING until each symbol's next bar — a median of a
       // minute and, for `ERIE`, 187. The snapshot is what makes the first paint
       // honest, and `{}` after a restart is the TRUE answer rather than a
-      // degraded one.
-      send(
-        client,
-        encodeMarketStreamMessage({
-          type: "snapshot",
-          version: MARKET_STREAM_PROTOCOL_VERSION,
-          observations,
-          feed: feedState(),
-        }),
-      );
+      // degraded one. Empty here too, until this client subscribes.
+      sendSnapshot();
+
+      client.on("message", (raw: unknown) => {
+        const decoded = decodeMarketStreamClientMessage(String(raw));
+
+        if (decoded.kind !== "message" || decoded.message === undefined) {
+          // **Counted by nobody and fatal to nobody.** One malformed frame from
+          // one browser must not take down a gateway serving every other
+          // browser (§36), and there is no honest reply to a message we could
+          // not read.
+          app.log.debug(
+            { reason: decoded.reason },
+            "unreadable client message",
+          );
+          return;
+        }
+
+        clients.set(client, new Set(decoded.message.symbols));
+
+        // **A late subscribe is answered with what we already hold.** Without
+        // this, a browser that subscribes after connecting waits for each
+        // security's next bar — a median of a minute and up to 187 for a thin
+        // one — which is exactly the wait the snapshot exists to remove.
+        sendSnapshot();
+      });
 
       client.on("close", () => clients.delete(client));
       client.on("error", () => clients.delete(client));
@@ -215,13 +295,24 @@ export function registerMarketGateway(
 
     publishObservations(observations) {
       if (observations.length === 0) return;
-      broadcast(
-        encodeMarketStreamMessage({
-          type: "bars",
-          version: MARKET_STREAM_PROTOCOL_VERSION,
-          observations: observationsToWire(observations),
-        }),
-      );
+
+      // **One message per client rather than one for everybody** (Task 3.5.6).
+      // The encode happens per client because the payloads genuinely differ;
+      // a shared encode would be a cache keyed on the subscription, which is a
+      // mechanism with no measured problem behind it.
+      for (const [socket, wanted] of clients) {
+        const scoped = scopedTo(wanted, observations);
+        if (scoped === undefined) continue;
+
+        send(
+          socket,
+          encodeMarketStreamMessage({
+            type: "bars",
+            version: MARKET_STREAM_PROTOCOL_VERSION,
+            observations: scoped,
+          }),
+        );
+      }
     },
 
     publishFeedState() {
@@ -242,7 +333,7 @@ export function registerMarketGateway(
         feed: { ...feedState(), status: "disconnected" },
       });
 
-      for (const socket of clients) {
+      for (const socket of clients.keys()) {
         send(socket, farewell);
         socket.close(1001); // 1001 "going away" — the honest code for a shutdown.
       }
