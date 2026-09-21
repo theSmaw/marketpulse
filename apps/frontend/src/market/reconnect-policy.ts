@@ -1,3 +1,5 @@
+import { MARKET_STREAM_CLOSE } from "@marketpulse/shared";
+
 /**
  * When to dial again after the browser's socket closed (Task 3.5.5).
  *
@@ -21,8 +23,13 @@
  * enough for a deploy, which would hammer a server that is genuinely gone.
  */
 
-/** `1001 going away` — the gateway's shutdown code (§12.2). */
-export const GOING_AWAY = 1001;
+/**
+ * `1001 going away` — the gateway's shutdown code (§12.2).
+ *
+ * Read from `MARKET_STREAM_CLOSE` rather than spelled here, because it is one
+ * fact with two ends: the gateway picks it and this decides what it means.
+ */
+export const GOING_AWAY = MARKET_STREAM_CLOSE.goingAway;
 
 /**
  * First delay after a deploy.

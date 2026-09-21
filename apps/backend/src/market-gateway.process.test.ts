@@ -1,4 +1,5 @@
 import {
+  MARKET_STREAM_CLOSE,
   MARKET_STREAM_PATH,
   MARKET_STREAM_PROTOCOL_VERSION,
   encodeMarketStreamClientMessage,
@@ -8,7 +9,11 @@ import {
 import { WebSocket as WsWebSocket } from "ws";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { registerMarketGateway } from "./market-gateway.js";
+import {
+  MAX_BUFFERED_BYTES,
+  SLOW_CLIENT_CLOSE_CODE,
+  registerMarketGateway,
+} from "./market-gateway.js";
 import { buildServer } from "./server.js";
 
 import type { FastifyInstance } from "fastify";
@@ -77,8 +82,14 @@ let open: Attached | undefined;
 const extra: WsWebSocket[] = [];
 
 afterEach(async () => {
-  for (const socket of extra.splice(0)) socket.close();
-  open?.socket.close();
+  // **`terminate` rather than `close`, and that is the backpressure tests'
+  // doing.** A client whose socket has been paused never completes a graceful
+  // close — the handshake needs a read that is not happening — so a `close()`
+  // here hangs the hook for the full 30 s timeout and reports it as the test
+  // failing. `terminate` drops the TCP connection, which is what a torn-down
+  // fixture wants anyway.
+  for (const socket of extra.splice(0)) socket.terminate();
+  open?.socket.terminate();
   await open?.gateway.close();
   await open?.app.close();
   open = undefined;
@@ -433,5 +444,136 @@ describe("a browser receives only what it asked for (Task 3.5.6)", () => {
     expect(
       a.received.filter((m) => m.type === "snapshot").at(-1),
     ).toBeDefined();
+  });
+});
+
+describe("a slow browser is dropped rather than tolerated (Task 3.5.7)", () => {
+  // **The failure this prevents is the hardest kind to find later** — a memory
+  // leak that only appears on a slow connection during a busy session.
+  // Measured on 2026-09-21 against a client that stops reading: the outbound
+  // buffer grows by one payload per batch, WITHOUT BOUND — 5.1 MB at 100
+  // batches and 33.6 MB at 600.
+  //
+  // The apparatus is the test: a client that connects, subscribes and then
+  // stops reading. `pause()` on the underlying socket is what "stops reading"
+  // means in Node — the kernel receive buffer fills, TCP flow control stops
+  // the server, and the server's own buffer is what grows.
+
+  const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const UNIVERSE = Array.from({ length: 518 }, (_unused, i) => {
+    const first = LETTERS[Math.floor(i / 26) % 26] ?? "A";
+    const second = LETTERS[i % 26] ?? "A";
+    return `Z${first}${second}`;
+  });
+
+  const universeObservations = () =>
+    UNIVERSE.map((symbol) => ({
+      symbol: toTicker(symbol),
+      bar: bar("2026-09-16T14:01:00Z", 100),
+      source: {
+        provider: "alpaca" as const,
+        feed: "iex" as const,
+        retrievedAt: "2026-09-16T14:02:00.000Z",
+        barCount: 1,
+      },
+      supersedes: false,
+    }));
+
+  const subscribeAll = (client: Client): void => {
+    client.socket.send(
+      encodeMarketStreamClientMessage({
+        type: "subscribe",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        symbols: UNIVERSE,
+      }),
+    );
+  };
+
+  /** Stop reading, as a browser on a stalled connection does. */
+  const stopReading = (client: Client): void => {
+    const underlying = (
+      client.socket as unknown as { _socket?: { pause: () => void } }
+    )._socket;
+    if (underlying === undefined) throw new Error("no underlying socket");
+    underlying.pause();
+  };
+
+  it("drops a client that stops reading, rather than queueing for it", async () => {
+    const a = await attach();
+    await a.waitFor("snapshot");
+    subscribeAll(a);
+    await a.waitForCount("snapshot", 2);
+
+    stopReading(a);
+
+    // Publish until the threshold is crossed. The bound is generous rather
+    // than tight: what is asserted is that it stops, not how fast.
+    const observations = universeObservations();
+    for (
+      let batch = 0;
+      batch < 400 && a.gateway.clientCount() > 0;
+      batch += 1
+    ) {
+      a.gateway.publishObservations(observations);
+      if (batch % 25 === 0) await new Promise((r) => setTimeout(r, 5));
+    }
+
+    expect(a.gateway.clientCount()).toBe(0);
+  });
+
+  it("leaves a HEALTHY client on the same process untouched", async () => {
+    // **Criterion 4, and the reason it is separate.** *We dropped everybody*
+    // also satisfies a naive reading of "the slow one was dropped".
+    const slow = await attach();
+    await slow.waitFor("snapshot");
+    const healthy = await slow.join();
+    await healthy.waitFor("snapshot");
+
+    subscribeAll(slow);
+    subscribeAll(healthy);
+    await slow.waitForCount("snapshot", 2);
+    await healthy.waitForCount("snapshot", 2);
+
+    stopReading(slow);
+
+    const observations = universeObservations();
+    for (
+      let batch = 0;
+      batch < 400 && slow.gateway.clientCount() > 1;
+      batch += 1
+    ) {
+      slow.gateway.publishObservations(observations);
+      if (batch % 25 === 0) await new Promise((r) => setTimeout(r, 5));
+    }
+
+    // One attached, and it is the reader.
+    expect(slow.gateway.clientCount()).toBe(1);
+    expect(healthy.socket.readyState).toBe(healthy.socket.OPEN);
+
+    // And it is still being served — not merely still connected.
+    healthy.received.length = 0;
+    slow.gateway.publishObservations(observations);
+    await healthy.waitFor("bars");
+  });
+
+  it("closes with a code that is NOT `going away`", () => {
+    // **`goingAway` would produce a tight loop**: the browser reads it as
+    // *they are redeploying* and returns in 500 ms — still slow, dropped
+    // again, all afternoon.
+    //
+    // The other half of this — that the browser actually backs off on it —
+    // is asserted in `reconnect-policy.test.ts`, because that is where the
+    // interpretation lives. Both ends read `MARKET_STREAM_CLOSE`, which is
+    // what stops them disagreeing.
+    expect(SLOW_CLIENT_CLOSE_CODE).toBe(MARKET_STREAM_CLOSE.slowClient);
+    expect(SLOW_CLIENT_CLOSE_CODE).not.toBe(MARKET_STREAM_CLOSE.goingAway);
+  });
+
+  it("has a threshold clear of what the kernel absorbs on its own", () => {
+    // **The measurement that decides the constant.** The kernel absorbed
+    // ~557 KiB before `bufferedAmount` moved at all, so a threshold below that
+    // would never fire on loopback — a check that silently does nothing, which
+    // this repository has shipped before.
+    expect(MAX_BUFFERED_BYTES).toBeGreaterThan(600 * 1024);
   });
 });

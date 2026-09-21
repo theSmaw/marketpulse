@@ -42,6 +42,7 @@ export type { ConnectionWordInputs } from "./feed-words.js";
 // `JSON.stringify`.
 export {
   MARKET_STREAM_CLIENT_MESSAGE_TYPES,
+  MARKET_STREAM_CLOSE,
   MARKET_STREAM_MESSAGE_TYPES,
   MARKET_STREAM_PATH,
   MARKET_STREAM_PROTOCOL_VERSION,
