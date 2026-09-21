@@ -122,8 +122,8 @@ export interface LiveFeedConnection {
   /**
    * The latest observation per security. **One Map, newest only** (§10.3).
    *
-   * Not a history and not a buffer: a history is Story 3.9's and a chart series
-   * is Story 3.7's. This is the browser's half of a decision the backend
+   * Not a history and not a buffer: a history is Story 3.8's and a chart series
+   * is Story 3.9's. This is the browser's half of a decision the backend
    * already took, and it inherits that decision's three rules rather than
    * restating them:
    *

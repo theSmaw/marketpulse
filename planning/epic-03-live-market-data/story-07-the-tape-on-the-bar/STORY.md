@@ -1,4 +1,4 @@
-# Story 3.8 — The Tape on the Bar
+# Story 3.7 — The Tape on the Bar
 
 **Status:** Not started
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
@@ -21,11 +21,11 @@ after the cheap alternative was **measured false**.
 row describes the whole series as SIP; `mergeSeriesProvenance` is never called
 because there is only ever one provenance record to merge; and the series reports
 one feed with complete confidence and is **wrong**. The two-feed sentence
-Story 3.7 ships is true only because that stitch happens **at read time** and
+Story 3.9 ships is true only because that stitch happens **at read time** and
 touches nothing stored.
 
 So this is a schema change **before the first stored live bar**, and its deadline
-is Story 3.9 rather than any date. The roadmap's Epic 3 scope had no data-layer
+is Story 3.8 rather than any date. The roadmap's Epic 3 scope had no data-layer
 item at all until Epic 2's close found this.
 
 ## What the user can see when this story lands
@@ -33,7 +33,7 @@ item at all until Epic 2's close found this.
 **Nothing.** A column, and a read path that can distinguish two tapes inside one
 stored window.
 
-**The payoff is Story 3.9**, which is the next story, and through it Story 3.10
+**The payoff is Story 3.8**, which is the next story, and through it Story 3.10
 and every cold load of a page during a session.
 
 What the user still cannot do: anything they could not do before it. The store
@@ -42,11 +42,11 @@ holds exactly what it held.
 ## Why it sits here in the sequence
 
 **As late as it can be and as early as it must be.** It touches the schema and
-nothing Stories 3.3–3.7 touch, so it is the one place in this epic where
-parallel work is genuinely available — and it blocks Story 3.9 completely, so it
+nothing Stories 3.3–3.6 and 3.9 touch, so it is the one place in this epic where
+parallel work is genuinely available — and it blocks Story 3.8 completely, so it
 cannot slip past it.
 
-Taking it _after_ Story 3.7 also means it is designed against a ledger that has
+Taking it _after_ Story 3.9 also means it is designed against a ledger that has
 actually been produced once, rather than against a prediction of one.
 
 ## Scope
@@ -81,7 +81,7 @@ actually been produced once, rather than against a prediction of one.
 - **`recordSeries`'s existing refusal, re-examined.** It currently **refuses** a
   series whose source disagrees with the ledger row it would extend, or which
   names two sources for one window. That refusal is correct today and is
-  precisely what Story 3.9 has to write through, so this story decides what
+  precisely what Story 3.8 has to write through, so this story decides what
   replaces it rather than leaving 3.9 to weaken it in passing.
 - **`pnpm test:database`**, which is what holds the interface and the schema
   together: a column added to `schema.ts` and not to the migration typechecks,
@@ -90,8 +90,8 @@ actually been produced once, rather than against a prediction of one.
 
 ## Out of scope, and who owns it
 
-- Writing a live bar — Story 3.9
-- Anything the user sees — Stories 3.9 and 3.10
+- Writing a live bar — Story 3.8
+- Anything the user sees — Stories 3.8 and 3.10
 - Corporate actions, adjustment on read, and the split cliff — still Epic 13's
   and still out of V1's read path, which serves raw and says so
 
@@ -118,5 +118,22 @@ actually been produced once, rather than against a prediction of one.
 
 ## What this story hands forward
 
-A store that can tell two tapes apart, which is the precondition for Story 3.9
+A store that can tell two tapes apart, which is the precondition for Story 3.8
 writing to it at all.
+
+---
+
+## Re-numbered 2026-09-21: this story was 3.8 and is now 3.7
+
+**Nothing about this story changed. Its position did.**
+
+The epic re-ordered so that the store precedes the chart (Story 3.5 shipped a
+latest-only current-market-state, so the chart has no session to draw without
+the store). This story's deadline was never a number — it is **before the first
+stored live bar** — and that bar is now written by **Story 3.8**, immediately
+after this one.
+
+**So the deadline is tighter in sequence and identical in substance**, and the
+argument for placing it here is if anything stronger: it is still the one place
+in this epic where parallel work is genuinely available, because it touches the
+schema and nothing the screen stories touch.

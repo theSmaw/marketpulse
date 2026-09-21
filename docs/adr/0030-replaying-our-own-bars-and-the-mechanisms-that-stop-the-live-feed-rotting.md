@@ -21,7 +21,7 @@ three stories that have not started:
   the answer be taken "against real moving numbers" with "the market open". A
   design decision taken at 23:00, once, is how a criterion gets deferred an
   eighth time.
-- **Stories 3.6 and 3.7** put motion on the universe table and the chart's live
+- **Stories 3.6 and 3.9** put motion on the universe table and the chart's live
   edge, and **3.10** is the complete set of degraded states.
 
 **A second motive was proposed and rejected by the product owner, and it is
@@ -473,3 +473,12 @@ Conditions rather than story numbers:
 - [ADR 0011](0011-deploying-both-halves-and-what-a-green-deploy-certifies.md) — `minReplicas: 1`, which a long-lived in-process stream rests on
 - [`LIVE-DATA.md`](../../planning/epic-03-live-market-data/story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) — the subject document, §2.6 for the words and §6 for what a shut socket does
 - [`PROVIDER.md`](../../planning/epic-02-security-universe-historical-data/story-06-market-data-provider-abstraction/PROVIDER.md) §12 — the sibling-interface shape this does not reopen
+
+---
+
+**Dated amendment — 2026-09-21.** Epic 3 re-ordered three stories after Story
+3.5 shipped a latest-only current-market-state: the tape column became **3.7**
+(was 3.8), the store became **3.8** (was 3.9), and the live chart edge became
+**3.9** (was 3.7). **The decision in this ADR is unchanged**; the story numbers
+in its text were remapped in the same change so they name the same stories, per
+`CLAUDE.md`'s renumbering rule. Nothing here was rewritten.

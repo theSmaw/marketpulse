@@ -1,8 +1,8 @@
-# Story 3.9 — Storing the Live Session
+# Story 3.8 — Storing the Live Session
 
 **Status:** Not started
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
-**Depends on:** 3.5, 3.8
+**Depends on:** 3.5, 3.7
 **Epic scope covered:** market-data persistence for live observations, and the reconciliation between two tapes covering one session
 
 ## Description
@@ -39,7 +39,7 @@ honest account of what the feed did while they were away — Story 3.10.
 
 ## Why it sits here in the sequence
 
-**After the column exists** (Story 3.8), because writing an IEX bar into a store
+**After the column exists** (Story 3.7), because writing an IEX bar into a store
 that cannot say so is the defect that story was created to prevent. **After the
 current-state model** (Story 3.5), because that is what has the bars. And after
 the chart's live edge (3.7), because this story changes where that edge's data
@@ -52,7 +52,7 @@ before the store starts answering the same question.
   tape, and the ledger updated to match. Note the constraint that shaped
   Epic 2's read path and now has to be relaxed deliberately rather than by
   accident: **`recordSeries` refuses a series whose source disagrees with the
-  ledger row it would extend.** Story 3.8 decides what replaces it; this story
+  ledger row it would extend.** Story 3.7 decides what replaces it; this story
   writes through it.
 - **What happens tonight.** The backfill fetches the same session from the
   consolidated tape. Three shapes, none chosen, and this story must take it
@@ -160,7 +160,7 @@ half is now taken.** [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-st
 last bar per security** in memory — 0.2 MB — and **not** today's bars, which were
 measured at **55.6 MB**, 10.9% of the replica's entire memory.
 
-**So this story is obliged to store the live session durably.** Story 3.7's chart
+**So this story is obliged to store the live session durably.** Story 3.9's chart
 needs today's bars; §10.3 declines to hold them in memory precisely because this
 story is about to hold them in the store, and the read path already exists —
 Epic 2 built `GET /market-data/bars` and a read-time stitch of stored bars with a
@@ -181,23 +181,23 @@ would be discarding real data on a boundary the feed does not assert.
 
 ---
 
-## Story 3.7 may depend on this story — raised 2026-09-18 by Task 3.2.10's audit
+## Story 3.9 may depend on this story — raised 2026-09-18 by Task 3.2.10's audit
 
 **[`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) §10.3 names this story as the other half of a decision it
 took**, and the epic table does not reflect it:
 
-> Story 3.7's chart uses it, and **Story 3.9 stores the live session so that it
-> can.** Decision 4 and Story 3.9's scope are **one decision seen twice** — this
-> half says _not in memory_, and that obliges Story 3.9's half to say _durably in
+> Story 3.9's chart uses it, and **Story 3.8 stores the live session so that it
+> can.** Decision 4 and Story 3.8's scope are **one decision seen twice** — this
+> half says _not in memory_, and that obliges Story 3.8's half to say _durably in
 > the store_, **on the same day**.
 
 §10.3 chose to hold **only the latest observation per security** in the backend,
 not today's 390 bars — so any surface wanting today's _shape_ reads it from
 somewhere else, and §10.3's rejected alternative says that somewhere is this
-store: _"Story 3.9 — storing the live session — is a **dependency of Story 3.7**
+store: _"Story 3.8 — storing the live session — is a **dependency of Story 3.9**
 rather than a story after it."_
 
-**Story 3.7's own file argues the opposite ordering** and for a different reason
+**Story 3.9's own file argues the opposite ordering** and for a different reason
 — it wants its two-feed ledger produced from the read-time **stitch** rather than
 from the database, once, honestly. **Both arguments are good and they are about
 different things**: one about where today's bars come from, one about where the
@@ -205,7 +205,7 @@ ledger comes from.
 
 **Unresolved on purpose, and named in both files.** Whoever schedules 3.7 should
 settle it rather than discover it. The full statement of the question is in
-[Story 3.7's `STORY.md`](../story-07-the-live-edge-and-the-two-feed-ledger/STORY.md).
+[Story 3.9's `STORY.md`](../story-09-the-live-edge-and-the-two-feed-ledger/STORY.md).
 
 ---
 
@@ -221,7 +221,7 @@ calendar. **It is not a field on the wire and must not become one in the
 store.** A stored observation therefore has to keep its instant **exactly** — a
 bar re-read tomorrow must produce the same word it produced live, and a stored
 `pre_market` boolean would be a second home for a fact the calendar already
-owns. Stories 3.6 and 3.7 consume the same mark from the same derivation.
+owns. Stories 3.6 and 3.9 consume the same mark from the same derivation.
 
 **2. The arrival mark must not fire on a replay of your own store.** It means
 **a bar arrived for this security** — an event — and re-reading a stored session
@@ -255,7 +255,7 @@ watch the price jump backwards for no reason a user could understand.
 > changing the close** — so these are materially wrong numbers rather than
 > noise. The only place they can be applied is the **store**.
 >
-> **If Story 3.9 does not apply them, this product's stored history is
+> **If Story 3.8 does not apply them, this product's stored history is
 > permanently and knowably wrong for a small fraction of bars — and nothing
 > will ever report it**, because the frame that would have corrected it was
 > dropped a story earlier.
@@ -277,3 +277,31 @@ stopped tracking today was tracked when its bars were written.
 **A reader who makes the two agree breaks one of them**, and which one depends
 on which way they made them agree. The reason is written beside the filter in
 `current-market-state.ts` for exactly this.
+
+---
+
+## Re-ordered 2026-09-21: this story was 3.9 and now runs BEFORE the chart
+
+**You are now a dependency rather than a follow-up, and the thing depending on
+you is the live chart edge (Story 3.9).**
+
+`LIVE-DATA.md` §10.3 decided that the backend holds **one `Map<symbol, Bar>`**
+and that today's bars are **not** held in memory, and it drew the consequence in
+the same breath — _this half says not in memory, and that obliges this story's
+half to say **durably in the store**, on the same day._ **Story 3.5 built the
+first half** (Task 3.5.1, `currentMarketState`, latest-only, break-verified), so
+the obligation is now live rather than anticipated.
+
+**What changes for you:** the chart cannot draw today's session from anywhere
+else. A gap between the session open and the latest observation is not a
+cosmetic shortfall in a later story — it is a **hole in the first chart a user
+sees during a session**, and this story is the only thing that can close it.
+
+**What does NOT change:** your own scope, your three shapes, and both open
+decisions. The store's read path stays **unfiltered** on `status` while the live
+path filters — that asymmetry is deliberate and is argued in the section above.
+
+**And your dependency renumbered with you.** The tape column is **Story 3.7**
+now (it was 3.8). Its deadline was always _before the first stored live bar_,
+which is yours, and that is unchanged — it simply sits immediately before you in
+the sequence rather than two places back.

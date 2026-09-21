@@ -67,11 +67,11 @@ perfectly for one security.
 - **The current-state model**: the latest observation per security, its instant,
   its source, and **how old it is allowed to get before it stops being current**
   — which is `FeedStatus`'s `stale` with a number under it.
-- **Today's bars, or not.** Story 3.7's chart needs today's session as a
+- **Today's bars, or not.** Story 3.9's chart needs today's session as a
   _series_, not just a last value. 518 × 390 minute bars is a materially
   different object from 518 latest values, and this is where it is decided: hold
   them, or let the chart assemble them from what has arrived since the page
-  opened plus what the store already serves. Story 3.9 changes the answer by
+  opened plus what the store already serves. Story 3.8 changes the answer by
   making the store hold today, which is a reason to prefer the cheap option now.
 - **The browser's reconnection — moved here from Story 3.10 on 2026-09-19 by
   that story's close, and it is a live defect rather than a tidy-up.** Story 3.3
@@ -120,7 +120,7 @@ perfectly for one security.
 ## Out of scope, and who owns it
 
 - Any screen — Story 3.6 is the payoff
-- Persistence — Story 3.9. Everything here is in memory and is lost on restart,
+- Persistence — Story 3.8. Everything here is in memory and is lost on restart,
   which is correct until the store can hold it honestly
 - Reconnection, and the gap a reconnection leaves in the current state —
   Story 3.10
@@ -131,7 +131,7 @@ perfectly for one security.
 
 Expected to be none: Story 3.1 owns them. The one thing that may come back is
 **today's-bars-in-memory**, because it trades a few hundred megabytes of process
-memory against Story 3.7's shape, and memory bills the same whether the vCPU is
+memory against Story 3.9's shape, and memory bills the same whether the vCPU is
 idle or not.
 
 ## Acceptance criteria
@@ -148,7 +148,7 @@ idle or not.
 5. `SIGTERM` closes the upstream socket and the process exits within the
    existing ceiling — asserted by the process suite rather than by a log line
 6. `status` is filtered here — this is a computation over _the market we track
-   now_, which `UNIVERSE.md` §12.2 puts firmly on the filtering side. Story 3.9's
+   now_, which `UNIVERSE.md` §12.2 puts firmly on the filtering side. Story 3.8's
    read path is not, and that asymmetry is deliberate
 7. Message rates and memory measured at universe scale against the figures
    Story 3.1 took, with the difference explained rather than noted

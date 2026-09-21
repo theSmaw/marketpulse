@@ -1,8 +1,8 @@
-# Story 3.7 — The Live Edge on the Chart & the Two-Feed Ledger
+# Story 3.9 — The Live Edge on the Chart & the Two-Feed Ledger
 
 **Status:** Not started
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
-**Depends on:** 3.6
+**Depends on:** 3.6, 3.8
 **Epic scope covered:** live price updates in the UI (the chart), the two-feed ledger produced rather than simulated, the live feed's own honest label on a series
 
 ## Description
@@ -43,7 +43,7 @@ part and a single named venue for the live part, with the sentence that says
 what a single venue is. It is the first time a reader sees that sentence about
 real data rather than about a fixture.
 
-What the user still cannot do: reload the page and still have today (Story 3.9 —
+What the user still cannot do: reload the page and still have today (Story 3.8 —
 today's session is not stored, so a cold load starts from the sixteen-minute
 edge again), or see an honest account of a feed that has dropped mid-session
 (Story 3.10).
@@ -54,7 +54,7 @@ edge again), or see an honest account of a feed that has dropped mid-session
 because a chart redrawing is exactly what `VISUAL-LANGUAGE.md` refused to
 specify without a moving number.
 
-**Before Story 3.9, deliberately.** Storing live bars would make today available
+**Before Story 3.8, deliberately.** Storing live bars would make today available
 on a cold load and remove the sixteen-minute gap — and it would also make this
 story's ledger come out of the database instead of out of the stitch, which
 would answer a different question. The read-time stitch is the case the
@@ -108,10 +108,10 @@ before the store gets involved.
 
 ## Out of scope, and who owns it
 
-- Persistence of any of it — Story 3.9
+- Persistence of any of it — Story 3.8
 - The degraded states of a live chart — Story 3.10, which owns what the plot
   does when the feed stops mid-session with half a session drawn
-- The tape column on `market_bars` — Story 3.8. **Nothing here is stored**,
+- The tape column on `market_bars` — Story 3.7. **Nothing here is stored**,
   which is exactly why this story can precede that migration
 - Comparison series, anomaly marks and the filing lane — Epics 5, 8 and 9, each
   of which already has room reserved on this chart
@@ -164,7 +164,7 @@ keeps it from becoming a footnote pile is worth re-reading before adding to it.
 ## What this story hands forward
 
 The first honest two-feed series this product has ever served, and the reason
-Story 3.8's migration cannot be deferred any further.
+Story 3.7's migration cannot be deferred any further.
 
 ---
 
@@ -192,7 +192,7 @@ help from the feed.
 **Not resolved here, because it is an epic-ordering decision rather than this
 story's to take.** Recorded in both files so neither proceeds unaware.
 
-**What this story says**, above: _Before Story 3.9, deliberately._ Storing live
+**What this story says**, above: _Before Story 3.8, deliberately._ Storing live
 bars would make today available on a cold load and would make this story's ledger
 come out of the **database** rather than out of the **stitch** — _"the read-time
 stitch is the case the provenance design was built against and it is worth
@@ -202,14 +202,14 @@ producing once, honestly, before the store gets involved."_
 the backend holds **one `Map<symbol, Bar>` — the latest observation per security.
 Today's bars are NOT held in memory.** And it draws the consequence explicitly:
 
-> Story 3.7's chart uses it, and **Story 3.9 stores the live session so that it
-> can.** Decision 4 and Story 3.9's scope are **one decision seen twice** — this
-> half says _not in memory_, and that obliges Story 3.9's half to say _durably in
+> Story 3.9's chart uses it, and **Story 3.8 stores the live session so that it
+> can.** Decision 4 and Story 3.8's scope are **one decision seen twice** — this
+> half says _not in memory_, and that obliges Story 3.8's half to say _durably in
 > the store_, **on the same day**.
 
 Its rejected alternative said the same thing from the other side: choosing _last
-observation only_ means _"Story 3.9 — storing the live session — is a
-**dependency of Story 3.7** rather than a story after it."_
+observation only_ means _"Story 3.8 — storing the live session — is a
+**dependency of Story 3.9** rather than a story after it."_
 
 **The epic table has neither.** 3.7 depends on 3.6; 3.9 depends on 3.5 and 3.8.
 So the dependency §10.3 names was decided and never propagated.
@@ -219,7 +219,7 @@ today's bars not in memory, **where does this story's chart get the minutes
 between the session open and the latest observation?** Three answers, and they
 are genuinely different stories:
 
-1. **From Story 3.9's store** — which makes 3.9 a dependency and re-orders the
+1. **From Story 3.8's store** — which makes 3.9 a dependency and re-orders the
    epic.
 2. **From the current-state map alone** — a chart with one live bar on the end of
    stored history, and a visible hole for today's earlier minutes.
@@ -243,7 +243,7 @@ holds one bar apiece, and a full session of replacements leaves it still holding
 
 **So there is no in-memory series for your chart to reach for**, and that was a
 decision rather than an omission: 518 × 390 minute bars is a materially
-different object, and Story 3.9 changes the answer by making the store hold
+different object, and Story 3.8 changes the answer by making the store hold
 today — which is the reason to prefer the cheap option now rather than build a
 second home for the same bars.
 
@@ -253,7 +253,7 @@ second home for the same bars.
 what has arrived over the socket **since the page opened**. The second is in
 the browser, not the server — `LiveFeedConnection.observations` holds the
 latest per symbol, so a page that wants a _series_ has to accumulate it itself
-or wait for Story 3.9.
+or wait for Story 3.8.
 
 **And the gap is real.** What is missed while the socket is away is **gone**
 (measured 2026-09-17), and Task 3.5.5's reconnect resumes rather than fills. A
@@ -264,3 +264,58 @@ surface that fires it.**
 **Reversal trigger for the memory decision, as a condition:** the first reader
 that needs more than the latest bar per security from the _server_. If that is
 you, say so — the object was built knowing this question would come back.
+
+---
+
+## Re-ordered 2026-09-21: this story was 3.7 and now runs after the store
+
+**The question this file has carried since Story 3.2's close is answered, and
+the answer moved the story.**
+
+Section _Where does today's shape come from_ above lists three candidates.
+**Answer 1 was taken**: this story reads today's session from **Story 3.8's
+store**. So 3.8 is now a dependency rather than a later story, and the epic runs
+**3.6 → 3.7 (the tape) → 3.8 (the store) → 3.9 (this) → 3.10**.
+
+**What forced it was Story 3.5 shipping rather than any new argument.**
+`LIVE-DATA.md` §10.3's rejected alternative already said that choosing _last
+observation only_ makes the store _"a **dependency of** this story rather than a
+story after it"_ — and §10.3 was a decision on paper. Task 3.5.1 built it:
+`currentMarketState` is a `Map<Ticker, LiveObservation>` holding **one bar per
+security**, break-verified, with **no series in memory anywhere in the process**.
+The open question became a fact, and the epic table was the last place still
+carrying the old shape.
+
+### What this story LOSES by moving, stated plainly
+
+**Its own argument for going first.** This file said it, and it was a good
+argument:
+
+> the read-time stitch is the case the provenance design was built against and
+> it is worth producing once, honestly, before the store gets involved.
+
+**That is gone.** With the store holding today's session, this story's two-feed
+ledger comes out of the **database** rather than out of the read-time stitch, so
+the stitch is no longer exercised by the first surface that needs it. The cost
+is real and was accepted with the re-order rather than overlooked:
+
+- `mergeSeriesProvenance` and `twoFeedStitchView()` remain the only path to a
+  genuine two-feed sentence, and **nothing user-facing will exercise them**.
+- `CLAUDE.md`'s two shipped sentences that _"become false the first time an IEX
+  tail is stitched on"_ are still owed an answer, and this story still owes it —
+  it just gets the tail from a different place.
+
+**So this story acquires an obligation it did not have**: prove the read-time
+stitch **as well as** the stored path, because the stored path is now the one a
+user sees and the stitch is the one the provenance design was built for. If only
+one of them is exercised, the other is a claim nothing checks.
+
+### And the alternative that was rejected
+
+**Fetching today's earlier minutes over the vendor's HTTP API** (candidate 3) was
+declined: it is Story 3.10's gap-filling arriving early, against a fifteen-minute
+embargo and a rate limiter that is a refilling bucket at ~3.3/s with **no
+`Retry-After` on a `429`** — a policy this story does not own and should not
+invent. Drawing the hole (candidate 2) was declined because a chart that silently
+omits the first hours of a session is the false-impression family
+`PROVENANCE.md` exists to refuse.

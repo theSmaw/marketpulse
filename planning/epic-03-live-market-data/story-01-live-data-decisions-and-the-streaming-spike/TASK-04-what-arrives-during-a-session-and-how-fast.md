@@ -106,7 +106,7 @@ handed this task two things it did not previously carry —
   nine channels; **07:00–09:30 is where pre-market volume is** and it is
   unmeasured. Do pre-market bars arrive on `b`, and is anything on the frame
   marking them as extended-hours? If they arrive unmarked, every chart in
-  Stories 3.6, 3.7 and 3.9 silently gains a thin tail, and **that is a product
+  Stories 3.6, 3.8 and 3.9 silently gains a thin tail, and **that is a product
   decision that belongs beside this measurement rather than in the story that
   trips over it**.
 - **A dead socket looks exactly like a quiet market, and this task has the most
@@ -169,7 +169,7 @@ subscribed, and record:
   numbers or 300 moving and 218 sitting still — **which is a product problem
   with a product answer, not a bug**.
 - **What a bar for a symbol with no trades looks like** — absent, zero-volume,
-  or repeated. Three different answers, three different charts, and Story 3.7
+  or repeated. Three different answers, three different charts, and Story 3.9
   inherits whichever is true.
 
 Write all of it into `LIVE-DATA.md`, every figure dated and naming the
@@ -196,7 +196,7 @@ instrument, in the shape that lets it be re-taken.
 - **The extended-hours question is answered with frames**: whether `b` carries
   pre-market bars between 07:00 and 09:30 ET, whether anything on the frame
   distinguishes them from a regular-session bar, and what that means for the
-  charts in Stories 3.6, 3.7 and 3.9 — named, not left implied.
+  charts in Stories 3.6, 3.8 and 3.9 — named, not left implied.
 - **The close boundary is recorded to the second** — when traffic stops relative
   to 16:00 ET, by our clock with this capture's own offset applied — and the
   16:00–16:30 stretch is described. This is Task 3.1.3's fourth window,

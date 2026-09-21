@@ -115,7 +115,7 @@ nobody finds out — so note the answer either way, in the vendor's own document
   got stronger on 2026-09-21 and it is now TWO decisions rather than one**, and
   they are different in kind, which is the thing to weigh:
   - **the motion vocabulary** — _work in progress loops, a state persists, a
-    fact arriving decays_ — which Stories 3.6, 3.7 and 3.9 inherit, and which
+    fact arriving decays_ — which Stories 3.6, 3.8 and 3.9 inherit, and which
     already governs a glyph the chrome also uses;
   - **a self-changing value announces nothing**, in `FRONTEND-STATE.md` §7 with
     four reasons and a trigger. That one reaches past this epic entirely: Epic 5
@@ -229,10 +229,10 @@ their own.**
 | Named          | Times | In its own file?                                                            |
 | -------------- | ----- | --------------------------------------------------------------------------- |
 | Story 3.6      | 11    | **yes** — 8.63 marks/second, and 3.4.8's figures narrowing what the cost is |
-| Story 3.7      | 5     | **yes** — its own file already names the vocabulary and the mark            |
+| Story 3.9      | 5     | **yes** — its own file already names the vocabulary and the mark            |
 | Story 3.11     | 2     | **yes** — §28's unmeasurable half                                           |
 | **Story 3.5**  | 2     | **NO** — and the count concealed it                                         |
-| **Story 3.9**  | 3     | **no**                                                                      |
+| **Story 3.8**  | 3     | **no**                                                                      |
 | **Story 3.10** | 3     | **no**                                                                      |
 
 **Story 3.5 is the one worth reporting**, because it is the exact failure this
@@ -248,7 +248,7 @@ All three now carry a constraint in **words they can act on**:
 
 - **3.5** — the snapshot event, §11.1's omission semantics, and _the arrival
   mark must not fire on a snapshot_.
-- **3.9** — the extended-hours mark is **derived and must not become a stored
+- **3.8** — the extended-hours mark is **derived and must not become a stored
   field**; a stored observation keeps its instant exactly; and a replay of the
   store must not fire the arrival mark, because re-reading is not an arrival.
 - **3.10** — _a still price is now three different things_, only one of which is

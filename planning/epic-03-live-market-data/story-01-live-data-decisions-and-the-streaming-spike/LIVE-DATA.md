@@ -231,17 +231,17 @@ Recorded in [`EPIC.md`](../EPIC.md) and not re-argued here:
 - **`market_bars` has no column saying which tape a bar came from.** Provenance
   is one row per `(security, timeframe)` in `bar_coverage`. That is sufficient
   and honest while everything stored is SIP, and stops being either the day this
-  epic stores an IEX bar. Story 3.8, and it is a migration.
+  epic stores an IEX bar. Story 3.7, and it is a migration.
 - **The two-feed ledger has never been produced by a server this product runs.**
   All sixteen recorded bar-series bodies carry `sip`; the state is reached
   through `twoFeedStitchView()`, the recorded stitch with one field changed.
-  Story 3.7.
+  Story 3.9.
 - **`No shares changed hands anywhere in the window.`** is the only shipped
   sentence claiming something about **the market** rather than about our store.
   True while every bar is the consolidated tape; a single venue's silence
   reported as the whole market's the moment it is not — and an absent bar is
   **ordinary** on IEX (82.8% median minute coverage against 99.7% on SIP, worst
-  case 43.1%) and **notable** on SIP. Stories 3.7 and 3.10.
+  case 43.1%) and **notable** on SIP. Stories 3.9 and 3.10.
 
 ### 1.12 The design test this epic was handed by name
 
@@ -329,8 +329,8 @@ coverage of the `b` channel for 518 symbols, thin names included, and the
 message shapes of `t` and `q` recorded once even though they are almost
 certainly out of scope.
 
-**Consumed by** Stories 3.2 (normalization), 3.5 (the state model), 3.7 (what a
-chart may draw), 3.8 (the schema) and 3.9 (what is stored).
+**Consumed by** Stories 3.2 (normalization), 3.5 (the state model), 3.9 (what a
+chart may draw), 3.7 (the schema) and 3.8 (what is stored).
 
 ---
 
@@ -422,20 +422,20 @@ different objects with different costs.
 - **The last observation per security** — a map of 518 entries, a few hundred
   bytes each, rebuilt from nothing in one minute of streaming.
 - **Today's bars per security** — 518 × 390 at full session, which is ~202,000
-  bars in memory, and the thing Story 3.7's chart wants so that a live edge does
+  bars in memory, and the thing Story 3.9's chart wants so that a live edge does
   not re-query the store on every tick.
 
 **The alternatives.**
 
 1. **Last observation only.** Cheap, and every surface that wants today's shape
-   asks the database. Which means Story 3.9 — storing the live session — is a
-   dependency of Story 3.7 rather than a story after it.
+   asks the database. Which means Story 3.8 — storing the live session — is a
+   dependency of Story 3.9 rather than a story after it.
 2. **Today's bars in memory**, per security, discarded at the close. Fast reads,
    a real memory figure to justify, and a restart loses the session until the
    store has it.
 3. **Last observation in memory, today's bars from the store**, with the store
    written as bars arrive. The split that makes each surface read the thing that
-   is already shaped for it — and it makes Story 3.9 load-bearing rather than a
+   is already shaped for it — and it makes Story 3.8 load-bearing rather than a
    convenience.
 4. **Neither** — the socket fans out and the backend holds nothing. Every
    consumer then needs its own subscription, which Epic 4's overview, Epic 5's
@@ -447,7 +447,7 @@ figure ADR 0011's sizing has but this question has never been put to. Partly it
 is §2.1: if an observation is a trade rather than a bar, (2) is not 202,000
 objects, it is unbounded.
 
-**Consumed by** Stories 3.5 (it _is_ the current-market-state model), 3.7, 3.9,
+**Consumed by** Stories 3.5 (it _is_ the current-market-state model), 3.8, 3.9,
 and every later epic that reads _the latest observation per security_ without
 wanting to hold a socket.
 
@@ -495,7 +495,7 @@ one. A threshold is set from the measured tail of that distribution, not from a
 round number — `CLAUDE.md`'s _a tolerance is measured, never argued_, and the
 190-not-180 plot-gap ceiling is the local precedent.
 
-**Consumed by** Stories 3.3 (which first renders a status), 3.6, 3.7 and
+**Consumed by** Stories 3.3 (which first renders a status), 3.6, 3.9 and
 especially 3.10, which treats the degraded states as a set.
 
 ---
@@ -599,7 +599,7 @@ component tree deep enough that prop-drilling is annoying.
 are state that two surfaces _write_, or state that one thing writes and many
 read. A socket is a single writer by construction. If the table and the security
 page both read the same map and neither writes it, the first trigger has **not**
-fired however many components are involved. If Story 3.6's table and Story 3.7's
+fired however many components are involved. If Story 3.6's table and Story 3.9's
 chart both hold and mutate their own copy of today's session, it has.
 
 **The alternatives.**
@@ -620,7 +620,7 @@ condition fired or state that none did.** Answering it in whichever story first
 finds prop-drilling annoying is the failure mode the triggers were written to
 prevent.
 
-**Consumed by** Stories 3.4, 3.6 and 3.7, and by Epic 11, which is what
+**Consumed by** Stories 3.4, 3.6 and 3.9, and by Epic 11, which is what
 `FRONTEND-STATE.md` §1's argument is ultimately about.
 
 ---
@@ -1391,7 +1391,7 @@ because there is nothing in it. It says **nothing about 07:00–09:30 ET**, whic
 is where pre-market volume actually is, and that half of the question is
 **unanswered and owned** (§6.9). The task's real worry — that pre-market bars
 arrive on `b` indistinguishable from regular-session bars and silently grow a
-thin tail on every chart Stories 3.6 and 3.7 draw — is therefore **still open**,
+thin tail on every chart Stories 3.6 and 3.9 draw — is therefore **still open**,
 and it is open with a narrower question than it started with.
 
 ### 6.3 The server heartbeats every 54 seconds — figure 16 STRUCK
@@ -1647,7 +1647,7 @@ intention.
 - **Liquid pre-market (07:00–09:30 ET) and whether extended-hours bars are
   marked — owner: Task 3.1.4**, the same capture. This is a **product** question
   and not only a vendor one: if pre-market bars arrive on `b` with nothing
-  distinguishing them, every chart in Stories 3.6, 3.7 and 3.9 silently gains a
+  distinguishing them, every chart in Stories 3.6, 3.8 and 3.9 silently gains a
   thin tail, and the decision about whether to draw it belongs beside the
   measurement.
 - **After hours (16:00–20:00 ET) and the close boundary — owner: Task 3.1.4.**
@@ -1796,7 +1796,7 @@ settled by arithmetic rather than by preference:
 **Figure 5 is answered, and the answer is _absent_.** Zero of 129,481 bars
 carried `v: 0`, and zero `(symbol, t)` pairs arrived twice on `b`. A minute in
 which a symbol did not trade produces **no frame at all** — not a zero-volume
-bar, not a repeat. Story 3.7 inherits _absent_, and §2.5's staleness vocabulary
+bar, not a repeat. Story 3.9 inherits _absent_, and §2.5's staleness vocabulary
 has to distinguish _no bar_ from _no connection_ without help from the feed.
 
 ### 7.3 `t` marks the START of the interval — figure 4, with a control
@@ -2054,7 +2054,7 @@ measurement.
 >
 > **The cost is accepted and it is a new dependency rather than work:** marking
 > needs a visual vocabulary **Story 3.4 has not designed**, so 3.4 now owes one,
-> and Stories 3.6, 3.7 and 3.9 consume it. That dependency did not exist before
+> and Stories 3.6, 3.8 and 3.9 consume it. That dependency did not exist before
 > this decision and is recorded in each of those stories rather than here alone.
 >
 > **Reversal trigger, as a condition:** the first window whose marked tail is
@@ -2119,7 +2119,7 @@ them, and both are the owner's.
 
 **1. Do the charts show extended-hours bars?** Pre-market and after-hours bars
 arrive on `b` and are indistinguishable from session bars (§7.7). Left alone,
-every chart in Stories 3.6, 3.7 and 3.9 silently gains a thin tail before 09:30
+every chart in Stories 3.6, 3.8 and 3.9 silently gains a thin tail before 09:30
 and after 16:00 — which is also what inflates `QQQ` past 100% in §7.6. The three
 candidates: render them (honest, but the tail is thin and jagged and the
 session-ordinal axis has no vocabulary for it); filter them by market time at
@@ -2667,7 +2667,7 @@ correct in a mock and dead in production.
 makes _one symbol under the pointer_ a genuine possibility rather than an
 all-or-nothing, and `PRODUCT_SPEC.md` §7.1 names trades among the product's
 initial data. **But no story in Epic 3 delivers them** — §7.1's list is not a
-schedule, and Story 3.8 is the _tape column_ on `market_bars`, a schema change,
+schedule, and Story 3.7 is the _tape column_ on `market_bars`, a schema change,
 rather than the trade tape. Recorded so that a later reader does not find "the
 tape on the bar" in the roadmap and conclude this was covered.
 
@@ -2741,7 +2741,7 @@ Node 24 after two forced collections:
 | Today's bars per security (518 × 390) | 202,020 | **55.6 MB** | 288 B   |
 
 The replica has **512 MB**. Today's bars would be **10.9% of the whole
-replica's memory** to hold a thing that Story 3.9 is about to store durably
+replica's memory** to hold a thing that Story 3.8 is about to store durably
 anyway — which is the argument, rather than the raw size.
 
 **Where it lives and who reads it.** A module in the backend, with **one
@@ -2752,10 +2752,10 @@ none of them wants to open a socket to get it.
 
 **Today's bars come from the store plus the live tail, which is a mechanism this
 product already has.** Epic 2 built `GET /market-data/bars` and a read-time
-stitch of stored bars with a live tail (§1.11); Story 3.7's chart uses it, and
-Story 3.9 stores the live session so that it can. **Decision 4 and Story 3.9's
+stitch of stored bars with a live tail (§1.11); Story 3.9's chart uses it, and
+Story 3.8 stores the live session so that it can. **Decision 4 and Story 3.8's
 scope are one decision seen twice** — this half says _not in memory_, and that
-obliges Story 3.9's half to say _durably in the store_, on the same day.
+obliges Story 3.8's half to say _durably in the store_, on the same day.
 
 **Restart: the map comes back empty and fills unevenly, and that is ordinary.**
 It is a **cache of the socket rather than a source of truth**. After a restart a
@@ -3166,7 +3166,7 @@ tasks were for.
 §1's three triggers, each of which is a **condition** rather than a feeling.
 
 **Trigger 1 — the first piece of state two sibling surfaces both WRITE.** Walked
-against what Stories 3.3–3.7 actually do:
+against what Stories 3.3–3.6 and 3.9 actually do:
 
 | State                      | Writers                                                                                    | Readers                                     | Verdict          |
 | -------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------- | ---------------- |
@@ -3215,7 +3215,7 @@ honest rather than stubborn.
 > `FRONTEND-STATE.md` §1's three. This decision adds none of its own and
 > retires none. The one most likely to fire in this epic is the first, and it
 > would take a **second writer** — a surface that mutates live prices rather
-> than reading them, which nothing in Stories 3.3–3.7 does.
+> than reading them, which nothing in Stories 3.3–3.6 and 3.9 does.
 
 ### 12.2 Decision 8 — one socket, opened at boot, closed on `SIGTERM`
 
@@ -3517,7 +3517,7 @@ is a **deliberate exception** rather than a silent one.
 - **Anything on screen** — Story 3.3 onwards.
 - **The motion vocabulary** — Story 3.4, against a real moving number, which
   this story does not produce.
-- **The schema change** — Story 3.8.
+- **The schema change** — Story 3.7.
 - **The bill** — Story 3.11. This story estimates an envelope from a measured
   message rate; only a month of billing reads the real number.
 

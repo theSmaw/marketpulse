@@ -38,14 +38,14 @@ a decision rather than an omission), how long it lasts, and what a reader with
 `prefers-reduced-motion` gets instead.
 
 What the user still cannot do: watch the universe table move (Story 3.6), see
-the chart extend to now (Story 3.7), or reload the page and still see today
-(Story 3.9). And with the market shut they see a still price with an honest
+the chart extend to now (Story 3.9), or reload the page and still see today
+(Story 3.8). And with the market shut they see a still price with an honest
 sentence, which is Story 3.10's subject and is stubbed honestly here.
 
 ## Why it sits here in the sequence
 
 **Immediately after the first live value can reach a browser, and immediately
-before three surfaces would each need one.** Stories 3.6, 3.7 and 3.10 all put
+before three surfaces would each need one.** Stories 3.6, 3.9 and 3.10 all put
 changing values on screen; if this story ran after any of them, the vocabulary
 would be reverse-engineered from whatever the first of them happened to do.
 
@@ -130,7 +130,7 @@ against motion and designing against a toy:
 
 - The universe table — Story 3.6, which inherits this vocabulary and does not
   extend it
-- The chart — Story 3.7. A chart that animates its own first paint is decoration
+- The chart — Story 3.9. A chart that animates its own first paint is decoration
   rather than a market moving, and `VISUAL-LANGUAGE.md` already says so
 - The degraded states' own treatment — Story 3.10
 - A listening pass with a real screen reader. That is owed by this repository
@@ -586,7 +586,7 @@ written**.
 
 **1. An extended-hours mark.** Pre-market and after-hours bars are **rendered
 and marked** rather than filtered. Nothing on the frame distinguishes them
-(§7.7), so the mark is entirely ours to invent, and Stories 3.6, 3.7 and 3.9
+(§7.7), so the mark is entirely ours to invent, and Stories 3.6, 3.8 and 3.9
 consume it. This story owns the vocabulary; it did not previously owe one.
 
 **2. A treatment for _this corrected_ that is not the treatment for _this
@@ -628,7 +628,7 @@ step feel alive rather than animating a continuum that does not exist.
 
 - **An extended-hours mark.** Pre-market and after-hours bars are rendered and
   marked rather than filtered, and nothing on the frame distinguishes them
-  (§7.7) — so the mark is entirely ours to invent, and Stories 3.6, 3.7 and 3.9
+  (§7.7) — so the mark is entirely ours to invent, and Stories 3.6, 3.8 and 3.9
   consume it.
 - **A treatment for _this corrected_ that is not the treatment for _this
   moved_.** The product subscribes `updatedBars`, so a displayed number can be

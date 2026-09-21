@@ -38,8 +38,8 @@ a historical explorer on the day this story closes and on the day it ends.
 
 Because six of its eight questions are answered implicitly by whichever story
 touches them first, and five of those answers would be wrong. _What a live
-observation is_ decides the schema (3.8), the socket (3.2), the state model
-(3.5) and what a chart may draw (3.7); _which transport reaches the browser_
+observation is_ decides the schema (3.7), the socket (3.2), the state model
+(3.5) and what a chart may draw (3.9); _which transport reaches the browser_
 decides whether the frontend gains a second protocol or a second use of the
 first; and _what the browser is subscribed to_ is the difference between a
 payload of one security and a payload of 518.
@@ -99,8 +99,8 @@ sized against numbers that do not exist yet.
   is affordable at all.
 - **Decision 4 — where the current market state lives**, and how much of it.
   The last bar per security is a small map; _today's bars_ per security is
-  518 × 390 and is a different object with a different cost. Story 3.7's chart
-  needs the second unless the store provides it, which is Story 3.9.
+  518 × 390 and is a different object with a different cost. Story 3.9's chart
+  needs the second unless the store provides it, which is Story 3.8.
 - **Decision 5 — the staleness vocabulary, in numbers.** `FeedStatus` already
   ships `live | stale | disconnected` and says nothing about when one becomes
   the next. A threshold for a feed whose quietest legitimate interval is a
@@ -126,7 +126,7 @@ sized against numbers that do not exist yet.
 - Anything on screen — Story 3.3 onwards
 - The motion vocabulary — Story 3.4, against a real moving number, which this
   story does not produce
-- The schema change — Story 3.8
+- The schema change — Story 3.7
 - The cost measurement — Story 3.11. This story **estimates** the envelope from
   the measured message rate; only a month of billing reads it
 

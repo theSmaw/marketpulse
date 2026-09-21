@@ -56,14 +56,20 @@ check.
 | 3.4   | —    | —                      | —       | —             | —              |
 | 3.5   | —    | —                      | —       | —             | —              |
 | 3.6   | —    | —                      | —       | —             | —              |
-| 3.7   | —    | —                      | —       | —             | —              |
+| 3.8   | —    | —                      | —       | —             | —              |
 | 3.9   | —    | —                      | —       | —             | —              |
 | 3.10  | —    | —                      | —       | —             | —              |
 
 **Seven rows, and the list is the stories that change something a stranger can
-see.** 3.1, 3.2, 3.8 and 3.11 are not here: the first two produce no surface,
-3.8 is backend-only by its own scope, and 3.11 is the close that checks this
+see.** 3.1, 3.2, 3.7 and 3.11 are not here: the first two produce no surface,
+3.7 is backend-only by its own scope, and 3.11 is the close that checks this
 file rather than a story that fills it.
+
+**Re-numbered 2026-09-21 with the epic's re-order.** The two rows that moved are
+the same two stories: the store (**was 3.9, now 3.8**) and the live chart edge
+(**was 3.7, now 3.9**). Nothing was added or removed here by the re-order — a
+ledger keyed on numbers that have moved is exactly the trap `CLAUDE.md` names,
+so the mapping is written down rather than left to be inferred from the order.
 
 **3.5 was on that exempt list until 2026-09-21 and should not have been.** Its
 own scope says _nothing new visible_ and its `EPIC.md` row says `No`, both of
