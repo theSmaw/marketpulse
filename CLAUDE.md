@@ -180,9 +180,13 @@ in one line here and argued in full where the table below points:
   an agent. The repair is designed and unshipped. Owner: a person with a screen
   reader, before Epic 11 hands this surface to an agent. **Two entries added
   2026-09-21 by Task 3.4.7, both on the security page's identity block**, and
-  both the same kind of unanswerable: its spoken string is **10 words** across
-  **three `<p>` elements**, so `textContent` runs them together while a screen
-  reader pauses between blocks — _which of those a listener gets cannot be read
+  both the same kind of unanswerable: its spoken string is **10 or 11 words**
+  across **three `<p>` elements** — the second length arrived on 2026-09-21 with
+  Task 3.6.1's session-aware change basis, which gives the qualifier's last
+  clause two spellings (`change from 2026-09-04's close` against `change from
+the previous close`), so **the sentence's length now depends on the state of
+  the store rather than on anything on screen** — and `textContent` runs the
+  three together while a screen reader pauses between blocks — _which of those a listener gets cannot be read
   from a DOM_; and the qualifier can now carry **three clauses**
   (`07:42 EDT · pre-market · change from …`), so **how the `·` is spoken**, or
   whether it is spoken at all, changes the sentence and differs by reader. The

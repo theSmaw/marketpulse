@@ -270,3 +270,49 @@ of the design work.
 
 **What a user can see today: nothing new**, and one task from now that should
 change.
+
+---
+
+## Amended by Task 3.6.1 — 2026-09-21: the basis this task chose was wrong in one case, and the two qualifiers converged
+
+**`changeFromClose` shipped here and measured against `close.close` — the last
+session we hold a daily bar for.** Task 3.6.1 found the case where that is the
+wrong number, and it is not exotic: **the nightly backfill writes today**, so
+the stored close and the live bar share a session every evening in development
+and on a cold load the morning after a deploy.
+
+Measuring a live price against a close **from its own session** compares a price
+with itself. The whole column then reads **≈0.00%** — well-formed, correctly
+formatted, correctly coloured numbers reporting that nothing moved. The repair
+is a basis chosen by comparing sessions, using `previousClose`, which was
+already on the wire.
+
+### What that does to the table above
+
+|                                      | Label          | Figure                                 | Qualifier                                    |
+| ------------------------------------ | -------------- | -------------------------------------- | -------------------------------------------- |
+| **After**, ordinary case             | `LATEST PRICE` | live close, vs **the last close**      | `14:01 EDT · change from 2026-09-11's close` |
+| **After**, store already holds today | `LATEST PRICE` | live close, vs **the close before it** | `14:01 EDT · change from the previous close` |
+
+**The second row renders the exact third clause the `Before` state owns**, and
+that is worth writing down rather than leaving to be discovered: this task's
+argument was that the two states are distinguishable — _the displaced close is
+named rather than deleted_, which is the difference between replacing a claim
+and superseding one.
+
+**The argument survives, and the reason it survives is this task's own
+decision.** The discriminator is **the first slot**, not the third: the stored
+state opens with a **session date** (`2026-09-11 · …`) and the live state with
+an **instant** (`14:01 EDT · …`). That is why _the instant takes the
+qualifier's first slot_ was the right call, and it is now load-bearing rather
+than merely tidy — **the third clause has stopped telling the two apart.**
+
+**Why the clause says `the previous close` rather than naming a date:** there
+isn't one. `SecurityLastClose.previousClose` is a number with no session beside
+it on the wire, so naming a date would mean inventing one by arithmetic on a
+calendar — which is exactly what that field exists to avoid. The function
+returns **which** close it used so the component never re-derives it.
+
+**And this function had no unit tests when it shipped here.** Six were added by
+Task 3.6.1, including one that fails against this task's implementation rather
+than merely passing against the new one.

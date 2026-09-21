@@ -335,3 +335,30 @@ nothing missing.
 contradiction that only shows on a replay, and then the rehearsal against the
 real market — which, because of what we shipped yesterday, now has to straddle
 the opening bell.
+
+---
+
+## Amended by Task 3.6.1 — 2026-09-21: the spoken string has a second length
+
+**The first of the two backlog entries above says the block's spoken string is
+10 words. It is now 10 _or_ 11**, and which one depends on something a listener
+cannot see.
+
+Task 3.6.1 gave the change a session-aware basis, so the qualifier's third
+clause has two spellings:
+
+| When                                                            | The clause                       | Words |
+| --------------------------------------------------------------- | -------------------------------- | ----- |
+| The stored close is from an earlier session — the ordinary case | `change from 2026-09-04's close` | 4     |
+| The store already holds the live bar's own session              | `change from the previous close` | 5     |
+
+**Derived from the measured figure rather than re-measured**, and flagged as
+such: the 10 was counted on the block as it stood, and this adds one word to one
+branch of one clause.
+
+**It does not change what is open, and it sharpens why.** The question was never
+the count — it was _which of three `<p>` elements a listener actually gets, and
+how the `·` is spoken_. A string whose length changes with the state of the
+**store** rather than with anything on screen is one more reason that question
+cannot be answered from a DOM, a timing, or by an agent. **Owner is unchanged:
+a person with a screen reader.**

@@ -596,10 +596,27 @@ on the wire**. The only instant a browser receives is
 received or sent it. Task 3.5.6 added a `subscribe` message and it carries no
 timestamp either.
 
-`docs/GAPS.md` entry 12 **stands unchanged and is yours.** Making it measurable
+`docs/GAPS.md` entry 12 **stands unchanged** — but **it stopped being yours on
+2026-09-21, four days after this section was written.** Making it measurable
 needs a **protocol change** — a server-stamped instant on the wire — which is a
-decision about the wire rather than a measurement, and nothing in Epic 3 has
-been willing to take it so far.
+decision about the wire rather than a measurement, and nothing in Epic 3 had
+been willing to take it.
+
+**It moved to Story 3.6, Task 3.6.4**, because the sweep after Task 3.6.1 found
+that _three_ stories were carrying the same unmeasurable sentence — 3.4's
+criterion 5, 3.6's criterion 5 and **this story's criterion 4** — and none of
+them owned it. A criterion three stories cannot meet and none owns is the shape
+`CLAUDE.md` records against _does it feel alive_, deferred seven times. Story
+3.6 is already opening the wire format for the universe table, so it takes the
+stamp.
+
+**What this story keeps is the re-take, not the mechanism.** Criterion 4 asks
+for §28's figures with the feed running; by the time it runs, the instrument
+should exist. **If it does not, that is a finding rather than a reason to build
+it here** — and the constraints that travel with the stamp are in entry 12: a
+**new** field rather than a second meaning for `startsAt`, a **third** clock
+reading that must not reach `feed-liveness.ts`, and a figure that is honest only
+as a distribution because a server clock and a browser clock disagree.
 
 **The browser half is already measured**: Task 3.4.8 took frame → price on
 screen at **52 ms p95**. What is missing is the server-side leg, and §28
