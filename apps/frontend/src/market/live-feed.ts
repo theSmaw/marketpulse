@@ -73,8 +73,25 @@ export type LiveFeedEvent =
       readonly reason: string;
       readonly at: number;
     }
-  /** The socket closed. No code: §8.5 measured that a close code carries nothing. */
-  | { readonly kind: "closed"; readonly at: number };
+  /**
+   * The socket closed.
+   *
+   * **`code` was added by Task 3.5.5 and it is not a reversal of §8.5.** That
+   * measurement is about the *upstream* socket, where five causes all produced
+   * `1006` with an empty reason — a code carrying no intent. **Our own gateway
+   * is not a third party**: §12.2 has it send `1001 going away` on shutdown,
+   * deliberately, so a browser can tell *we are redeploying* from *your
+   * network died* before deciding how eagerly to retry.
+   *
+   * **Absent for an `error` event**, which fires without a close and therefore
+   * has no code to report. That is the shape rather than an omission: a
+   * transport failure is exactly the case with no intent behind it.
+   */
+  | {
+      readonly kind: "closed";
+      readonly at: number;
+      readonly code?: number;
+    };
 
 /** Everything this browser holds about the feed. Serialisable: no socket, no timers. */
 export interface LiveFeedConnection {

@@ -690,6 +690,29 @@ export const BREAKS = [
   // days** — the strongest kind, because the check is proved against the defect
   // it was written for rather than a synthetic one.
   {
+    name: "a-deploy-strands-every-open-tab",
+    proves:
+      "The browser's socket never comes back, which is the state Story 3.3 " +
+      "shipped and this product lived with: EVERY backend deploy left EVERY " +
+      "open tab reading `DISCONNECTED` until somebody reloaded, and deploys " +
+      "happen on every merge to `main`. The retry is a few lines and its " +
+      "absence is invisible until a socket dies \u2014 which nothing below a " +
+      "browser can make happen.",
+    file: "apps/frontend/src/market/use-live-feed.ts",
+    find: '          if (event.kind === "closed") scheduleRetry(event.code);',
+    replace:
+      "          // pnpm break: reverted automatically\n" +
+      "          void scheduleRetry;",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "use-live-feed",
+    ],
+    expect: "dials again after the socket closes",
+  },
+  {
     name: "the-snapshot-marks-every-security-as-arriving",
     proves:
       "The arrival mark fires on the snapshot, so every page load announces " +

@@ -147,8 +147,12 @@ export function connectMarketStream(
     listen({ kind: "closed", at: now() });
   });
 
-  socket.addEventListener("close", () => {
-    listen({ kind: "closed", at: now() });
+  // **The code travels since Task 3.5.5**, and only from `close`. §12.2 has the
+  // gateway send `1001 going away` on shutdown, which is the difference between
+  // *we are redeploying* and *your network died* — and the retry above reads it
+  // to decide how eagerly to come back.
+  socket.addEventListener("close", (event: CloseEvent) => {
+    listen({ kind: "closed", at: now(), code: event.code });
   });
 
   return () => {
