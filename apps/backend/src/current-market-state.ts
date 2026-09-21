@@ -121,7 +121,7 @@ export interface CurrentMarketStateOptions {
  * we track now, and never when showing something we stored.** This object is
  * the former — it is literally named *the current market state*.
  *
- * **Story 3.9's read path is deliberately NOT filtered**, and that asymmetry is
+ * **Story 3.8's read path is deliberately NOT filtered**, and that asymmetry is
  * the point rather than an inconsistency: stored bars are history, and a
  * security we stopped tracking today was tracked when its bars were written.
  * A reader who "fixes" this by making both sides agree breaks one of them —
@@ -173,7 +173,7 @@ export function createCurrentMarketState(
         // - an **older** minute does NOT replace it. A correction to a minute
         //   we have already moved past does not change what the *latest*
         //   observation is, and applying it would walk this object backwards
-        //   in time. The correction is not lost to the product — Story 3.9's
+        //   in time. The correction is not lost to the product — Story 3.8's
         //   store is where a revision to a past minute belongs — it is simply
         //   not news about *now*.
         if (held !== undefined && observation.bar.startsAt < held.bar.startsAt)

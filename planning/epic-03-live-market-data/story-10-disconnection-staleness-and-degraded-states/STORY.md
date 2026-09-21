@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
-**Depends on:** 3.7, 3.9
+**Depends on:** 3.8, 3.9
 **Epic scope covered:** reconnection handling, stale-data detection, live connection state — as a complete set rather than one state at a time
 
 ## Description
@@ -443,14 +443,14 @@ The browser's reconnection moved to Story 3.5 and **shipped** there (Task
 ### 1. The gap a reconnect leaves is yours, and it is deliberately unfilled
 
 **A reconnect resumes; it does not fill.** What is missed while away is
-**gone** — measured 2026-09-17 — and recovering it needs the store (Story 3.9)
+**gone** — measured 2026-09-17 — and recovering it needs the store (Story 3.8)
 plus a gap-fill **policy**, which is yours.
 
 3.5.5 refused to invent the missing minutes on the grounds that _a reconnect
 that silently invents them is worse than one that plainly resumes_. **The
 reversal trigger it recorded is a condition you will meet:** the first surface
 where a gap in the middle of a series is visibly wrong rather than merely
-absent — a chart drawing a straight line across four missing minutes. Story 3.7
+absent — a chart drawing a straight line across four missing minutes. Story 3.9
 is that surface.
 
 ### 2. The close code is now load-bearing, and one value is forbidden
@@ -487,3 +487,51 @@ cost of a reader who must notice and refresh.
 client that stops reading — unbounded growth of one payload per tick, **33.6 MB
 after 600 batches**, and the kernel absorbs ~557 KiB before the figure moves at
 all.
+
+---
+
+## Corrected 2026-09-21 by Story 3.5's close: this file's coverage figures are the wrong ones
+
+**Two live claims in the scope above are stale, and the correction has been
+sitting in a sibling's file since 2026-09-17.**
+
+The staleness bullet and criterion 6 reason from **median coverage 82.8%, worst
+case 43.1%**. Those are `ALPACA.md` §5.2's figures and they came from **stored
+history**. The **live stream** was measured by Task 3.1.4 and is worse:
+
+| Figure                            | This file said | `LIVE-DATA.md` §7.6, measured 2026-09-17 |
+| --------------------------------- | -------------- | ---------------------------------------- |
+| Median per-symbol minute coverage | 82.8%          | **65.1%**                                |
+| Worst case                        | 43.1%          | **2.1%** (`ERIE`)                        |
+| Longest observed gap              | —              | **187 minutes** (§11.2)                  |
+
+**Story 3.6's file carries the correction and this one does not**, which is the
+sideways-sweep failure with the arrow turned once more: Story 3.1's close wrote
+the constraint into the story that renders **rows** and not into the story that
+sets the **threshold** — which is the one the figure actually governs.
+
+**It sharpens this story's argument rather than weakening it.** A threshold tuned
+as if silence were alarming does not merely cry wolf on thin names: at 2.1%
+coverage `ERIE` is silent for most of the session, and a 187-minute gap is an
+**ordinary** observation on this feed. **Open decision 1 — whether the threshold
+differs by security — is now the likely answer rather than a caution**, and
+criterion 6's _nine minutes_ sits well inside the ordinary.
+
+**Re-measure rather than cite**: both sets are dated observations of a third
+party, and `LIVE-DATA.md`'s own header says to re-take them.
+
+---
+
+## Handed here by Story 3.5's close — 2026-09-21: a degraded state that did not exist when this file's set was written
+
+Criterion 1 asks for **every** state in the set, enumerated and photographed.
+**Task 3.5.7 added one after that sentence was written**, and it is invisible
+from any screen: a browser dropped for **backpressure** — 1 MiB of outbound
+buffer against a client that stopped reading — **reconnects, is still slow, and
+is dropped again**, cycling at the 30 s ceiling.
+
+It is a real degraded state with a real reader behind it, it is reachable only
+through a **paused socket** rather than through a fixture, and **nothing on
+screen says it is happening**. Whether it gets a word, or is deliberately silent,
+is this story's to decide; the decision to cycle rather than give up is recorded
+in the hand-off above.

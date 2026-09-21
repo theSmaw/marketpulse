@@ -51,9 +51,9 @@ Known candidates, to be confirmed rather than trusted:
 
 - **Story 3.6** — the fan-out shape and the per-client subscription protocol it
   is about to spend, and whatever Task 3.5.8 measured about fan-out cost
-- **Story 3.7** — whether today's bars are held in memory or assembled, because
+- **Story 3.9** — whether today's bars are held in memory or assembled, because
   the chart's shape depends on the answer
-- **Story 3.9** — that the current-state map is `status`-**filtered** and its own
+- **Story 3.8** — that the current-state map is `status`-**filtered** and its own
   read path deliberately is not
 - **Story 3.10** — the gap a reconnect leaves, which Task 3.5.5 explicitly did
   not fill, and the backpressure close code's interaction with retry
@@ -89,7 +89,7 @@ Known candidates, to be confirmed rather than trusted:
 
 ## Amended by Task 3.5.1 — 2026-09-21: one hand-off is now concrete rather than anticipated
 
-**Story 3.9 owns a correction this story deliberately drops.**
+**Story 3.8 owns a correction this story deliberately drops.**
 
 3.5.1 decided that the current market state **ignores a revision for a minute
 already passed** — it does not change what the _latest_ observation is, and
@@ -99,12 +99,12 @@ the consequence must be written into the sibling that can act on it:
 > **A revision for a superseded minute is discarded by the live path entirely.**
 > §14.1 measured revisions at 0.064% of bars, **35.3% of them changing the
 > close**, so these are materially wrong numbers rather than noise. The only
-> place they can be applied is the **store**, and the store is Story 3.9's. If
+> place they can be applied is the **store**, and the store is Story 3.8's. If
 > 3.9 does not apply them, this product's stored history is permanently and
 > knowably wrong for a small fraction of bars — and nothing will ever report it,
 > because the frame that would have corrected it was dropped a story earlier.
 
-**Write that into `story-09-storing-the-live-session/STORY.md` in words that
+**Write that into `story-08-storing-the-live-session/STORY.md` in words that
 story can act on**, not as a link back. It is exactly the shape of constraint
 this epic has already lost twice.
 
@@ -214,8 +214,8 @@ that story's own file** rather than against the tally.
 | Recipient  | Times named in 3.5's documents | Carried the constraint beforehand?                                  |
 | ---------- | ------------------------------ | ------------------------------------------------------------------- |
 | Story 3.6  | 8                              | **Yes** — written by Task 3.5.6                                     |
-| Story 3.7  | 3                              | **No** — 0 mentions                                                 |
-| Story 3.9  | 10                             | **Partial** — 2 pre-existing lines, neither the revision constraint |
+| Story 3.8  | 10                             | **Partial** — 2 pre-existing lines, neither the revision constraint |
+| Story 3.9  | 3                              | **No** — 0 mentions                                                 |
 | Story 3.10 | 8                              | **Partial** — 1 line                                                |
 | Story 3.11 | 3                              | **No** — 0 mentions                                                 |
 | Epic 4     | named in `STORY.md`'s opening  | **No** — 0 mentions                                                 |
@@ -236,10 +236,10 @@ merely likelier to be missed; in this sweep it was missed every time.**
 
 What was written, in each recipient's own file and in words it can act on:
 
-- **3.7** — _the live edge has no series to draw_: the state is latest-only, so
-  today's session must be assembled from the store plus the socket. 3.7 is also
+- **3.9** — _the live edge has no series to draw_: the state is latest-only, so
+  today's session must be assembled from the store plus the socket. 3.9 is also
   the surface that fires Task 3.5.5's reversal trigger for gap-filling.
-- **3.9** — _a correction the live path throws away_: a revision for a
+- **3.8** — _a correction the live path throws away_: a revision for a
   superseded minute is discarded entirely (0.064% of bars, **35.3% changing the
   close**); the store is the only place it can be applied. Plus the `status`
   filter asymmetry, which must not be "fixed".
@@ -268,7 +268,7 @@ What was written, in each recipient's own file and in words it can act on:
 | 3   | A browser receives only what it asked for, **at a size where the difference is visible** | **Met** | `market-gateway.process.test.ts` — _sends one client its symbol while another gets the universe, at once_, over a **real socket** at **200 symbols**. Deliberately not three: a three-symbol test passes against a `broadcast()` that ignores the filter entirely                                                                                                |
 | 4   | A slow browser grows no queue and is dropped                                             | **Met** | `market-gateway.process.test.ts` — _drops a client that stops reading_, _leaves a HEALTHY client on the same process untouched_, _closes with a code that is NOT `going away`_, _has a threshold clear of what the kernel absorbs on its own_. The threshold is 1 MiB against a measured **33.6 MB after 600 batches**, with the kernel absorbing ~557 KiB first |
 | 5   | `SIGTERM` closes the socket and the process exits inside the ceiling                     | **Met** | `index.process.test.ts` asserts the exit for both signals; `registerMarketStreamCloser` is what makes the socket part of it. Asserted by the suite rather than by a log line, as the criterion requires                                                                                                                                                          |
-| 6   | `status` is filtered here                                                                | **Met** | `current-market-state.test.ts` — _holds nothing for a symbol outside the tracked universe_, _defaults to the tracked universe rather than to everything_; one definition in `universe.ts` read by both ends. Break: `pnpm break the-current-state-holds-an-untracked-security`. The asymmetry with Story 3.9's read path is now **written into 3.9's own file**  |
+| 6   | `status` is filtered here                                                                | **Met** | `current-market-state.test.ts` — _holds nothing for a symbol outside the tracked universe_, _defaults to the tracked universe rather than to everything_; one definition in `universe.ts` read by both ends. Break: `pnpm break the-current-state-holds-an-untracked-security`. The asymmetry with Story 3.8's read path is now **written into 3.9's own file**  |
 | 7   | Rates and memory measured at universe scale, **difference explained rather than noted**  | **Met** | Task 3.5.8. Every figure either re-read off the wire or confirmed with a date, and the differences argued — including the snapshot figure, which was wrong **twice by computation** before being right once by reading a message. The one thing it could **not** measure (§28's p95) is stated as unmeasurable with the reason, not noted                        |
 | 8   | `pnpm verify` passes                                                                     | **Met** | Green on this branch, 17 invariants                                                                                                                                                                                                                                                                                                                              |
 
@@ -480,3 +480,24 @@ being built on things we believe rather than things we know — and it closes a
 gap where **seven of eight** downstream teams were about to start work without a
 constraint that had already been measured for them. That is the difference
 between paying for a measurement once and paying for it three times.
+
+---
+
+## Re-numbered by the sweep that followed this task — 2026-09-21
+
+**Every story number above refers to the epic as it was when this task ran.**
+The sweep that followed it re-ordered three stories, and the references in this
+file have been remapped in the same change rather than left pointing at the
+wrong story:
+
+| Story                                            | Was | Now     |
+| ------------------------------------------------ | --- | ------- |
+| The Tape on the Bar                              | 3.8 | **3.7** |
+| Storing the Live Session                         | 3.9 | **3.8** |
+| The Live Edge on the Chart & the Two-Feed Ledger | 3.7 | **3.9** |
+
+**The re-order is downstream of this story's own implementation**, which is why
+it is recorded here: Task 3.5.1 made `currentMarketState` **latest-only**, and
+the hand-off this task wrote into the live-edge story turned that from an open
+design question into a fact — with today's earlier minutes held nowhere, the
+chart has to read them from the store, so the store now precedes it.

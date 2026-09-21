@@ -974,7 +974,7 @@ the two-feed sentence §2 settles has no producer until there is.
 > **two-feed ledger still has no producer**, because all sixteen recorded
 > bar-series bodies carry `sip` and nothing has yet stitched an IEX tail onto
 > stored history. §2's sentence is still waiting for Epic 3 to produce the state
-> it describes, which is Story 3.7's.
+> it describes, which is Story 3.9's.
 >
 > The distinction matters for this document specifically: **the product can now
 > make a claim about the present, and it still makes no claim about a stitched

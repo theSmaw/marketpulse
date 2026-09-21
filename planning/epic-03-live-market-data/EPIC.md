@@ -66,25 +66,63 @@ broken rather than being masked. The rehearsals are minutes, not evenings.
 | 3.4  | [The Motion Vocabulary & the First Price That Moves](story-04-motion-vocabulary-and-the-first-moving-price/STORY.md)                | 3.3        | **Yes**               |
 | 3.5  | [Subscription Management & the Current Market State](story-05-subscription-management-and-current-market-state/STORY.md)            | 3.3        | No                    |
 | 3.6  | [Live Prices Across the Tracked Universe](story-06-live-prices-across-the-universe/STORY.md)                                        | 3.4, 3.5   | **Yes**               |
-| 3.7  | [The Live Edge on the Chart & the Two-Feed Ledger](story-07-the-live-edge-and-the-two-feed-ledger/STORY.md)                         | 3.6        | **Yes**               |
-| 3.8  | [The Tape on the Bar](story-08-the-tape-on-the-bar/STORY.md)                                                                        | 3.1        | No                    |
-| 3.9  | [Storing the Live Session](story-09-storing-the-live-session/STORY.md)                                                              | 3.5, 3.8   | **Yes — a cold load** |
-| 3.10 | [Disconnection, Staleness & Every Degraded State](story-10-disconnection-staleness-and-degraded-states/STORY.md)                    | 3.7, 3.9   | **Yes**               |
+| 3.7  | [The Tape on the Bar](story-07-the-tape-on-the-bar/STORY.md)                                                                        | 3.1        | No                    |
+| 3.8  | [Storing the Live Session](story-08-storing-the-live-session/STORY.md)                                                              | 3.5, 3.7   | **Yes — a cold load** |
+| 3.9  | [The Live Edge on the Chart & the Two-Feed Ledger](story-09-the-live-edge-and-the-two-feed-ledger/STORY.md)                         | 3.6, 3.8   | **Yes**               |
+| 3.10 | [Disconnection, Staleness & Every Degraded State](story-10-disconnection-staleness-and-degraded-states/STORY.md)                    | 3.8, 3.9   | **Yes**               |
 | 3.11 | [Cost, Performance, the Sweep & the Epic Close](story-11-cost-performance-and-the-epic-close/STORY.md)                              | 3.10       | No                    |
 
 **Three phases, and the shape is deliberately not Epic 2's.** **3.1–3.2** make a
-socket exist behind a seam; **3.3–3.7** put a live application on screen, one
-surface at a time; **3.8–3.11** make the store, the degraded states and the bill
-honest. Epic 2 was layered — seven stories and roughly fifty-five tasks before a
+socket exist behind a seam; **3.3–3.6** put a live application on screen, one
+surface at a time; **3.7–3.8** make the store able to hold a live session
+honestly and **3.9** draws from it; **3.10–3.11** make the degraded states and
+the bill honest. Epic 2 was layered — seven stories and roughly fifty-five tasks before a
 user could see anything, which is the defect Story 2.4 was inserted to repair.
 **This epic does not repeat it**: the third story is a thin end-to-end slice
 through every layer this epic adds, and every story after it changes something a
 stranger can see, with two exceptions that say so plainly.
 
-**The one place parallel work is genuinely available is 3.8**, which touches the
-schema and nothing 3.3–3.7 touch. It is placed late because its deadline is
-_the first stored live bar_ (Story 3.9) rather than the first streamed one, and
-early because nothing in 3.9 can start until it lands.
+**The one place parallel work is genuinely available is 3.7**, which touches the
+schema and nothing 3.3–3.6 or 3.9 touch. It is placed late because its deadline is
+_the first stored live bar_ (Story 3.8) rather than the first streamed one, and
+early because nothing in 3.8 can start until it lands.
+
+## Re-ordered 2026-09-21 by Story 3.5's close — the store now precedes the chart
+
+**Three stories swapped places, and one story's implementation is the reason.**
+
+| Story                                            | Was | Now     |
+| ------------------------------------------------ | --- | ------- |
+| The Tape on the Bar                              | 3.8 | **3.7** |
+| Storing the Live Session                         | 3.9 | **3.8** |
+| The Live Edge on the Chart & the Two-Feed Ledger | 3.7 | **3.9** |
+
+**The sequence is now 3.6 → the tape → the store → the chart → 3.10.**
+
+`LIVE-DATA.md` §10.3 decided during the spike that the backend holds **one
+`Map<symbol, Bar>`** and that today's bars are **not** held in memory, and its
+rejected alternative said the consequence outright: choosing _last observation
+only_ makes the store **a dependency of the chart rather than a story after it**.
+**That was a decision on paper and it was never propagated to this table.**
+
+**Task 3.5.1 built it.** `currentMarketState` is latest-only, break-verified,
+with no series in memory anywhere in the process — so the chart has no session to
+draw and the open question became a fact. The tape column moves with the store
+because its deadline was always _before the first stored live bar_, which is the
+store's.
+
+**What the re-order costs, recorded rather than glossed:** the chart story loses
+its own argument for going first — _produce the two-feed stitch honestly, once,
+before the store gets involved_ — because its ledger now comes out of the
+database rather than out of the read-time stitch. That story therefore acquires
+an obligation to exercise **both** paths; the argument is in its own file.
+
+**Every reference was remapped in the same change**, per `CLAUDE.md`'s rule: the
+`Story N.M` forms, the directory names, the dependency lines, this table, the
+rehearsal ledger and the contiguous ranges — `Stories 3.3–3.7` became
+`Stories 3.3–3.6 and 3.9`, which is the range that stopped being contiguous. The
+figures that merely _look_ like story numbers — `Volume 3.8× normal`, Prettier
+`3.9.6` — were deliberately left alone.
 
 ## Two epic-level findings from Story 3.3's close — 2026-09-19
 
@@ -143,7 +181,7 @@ So Story 3.3 renders a **connection state**, which is a state change rather than
 a number changing: `LIVE` appears in the chrome beside provenance, it says which
 single venue the stream is, and no datum on any screen moves. Story 3.4 then
 settles the vocabulary against the first price that does, on **one** surface,
-and Stories 3.6 and 3.7 inherit it rather than each inventing one.
+and Stories 3.6 and 3.9 inherit it rather than each inventing one.
 
 ## Every story states what the user will be able to see
 

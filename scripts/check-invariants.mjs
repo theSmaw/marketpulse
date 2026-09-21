@@ -998,7 +998,7 @@ const INVARIANTS = [
         // from*, derived from the bar's own instant against the calendar —
         // §7.7 measured that **nothing on the frame distinguishes** an
         // extended-hours bar, so the words are entirely ours and a renderer
-        // writing one is a claim no vocabulary decided. Stories 3.6, 3.7 and
+        // writing one is a claim no vocabulary decided. Stories 3.6, 3.8 and
         // 3.9 consume them, which is what makes a second spelling expensive
         // rather than untidy.
         { literal: "pre-market", home: CONNECTION_VOCABULARY },

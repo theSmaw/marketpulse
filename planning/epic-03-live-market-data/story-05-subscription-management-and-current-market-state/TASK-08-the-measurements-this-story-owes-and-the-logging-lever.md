@@ -339,7 +339,7 @@ per-query pool overhead, so they are floors.
 ADR 0030 keeps the replay out of production entirely; the cost is a startup and
 window-boundary cost rather than a per-minute one; and **batching means
 changing `MarketBarsRepository.readBars`, which is per-symbol by design and
-which Story 3.9 may change anyway for its own reasons.** Doing it now would be
+which Story 3.8 may change anyway for its own reasons.** Doing it now would be
 reworking a seam ahead of the story that owns it.
 
 **Reversal trigger, as a condition:** the first time a developer's replay

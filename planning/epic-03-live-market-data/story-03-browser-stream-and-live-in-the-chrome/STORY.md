@@ -57,9 +57,9 @@ of a slice — and it is what Story 3.4 fixes.
 
 Because a slice is worth most while the layers under it are still soft. The
 browser protocol, the gateway's shape and the frontend's transport hook are all
-decided in this story, and Stories 3.5, 3.6 and 3.7 each push real load through
+decided in this story, and Stories 3.5, 3.6 and 3.9 each push real load through
 them. Finding out here that the protocol is wrong costs one story; finding out
-in Story 3.7 costs four.
+in Story 3.9 costs four.
 
 It is also the only honest moment to ship the `LIVE` indicator: after it, the
 screen has moving prices and _is it connected_ stops being separable from _is

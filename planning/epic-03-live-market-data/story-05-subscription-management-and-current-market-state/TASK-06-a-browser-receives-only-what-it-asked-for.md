@@ -109,7 +109,7 @@ correction would both move the number and mark it as news.
 | Revision is for…                       | Forward to a subscribed browser?                                                                |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | the minute the browser currently holds | **Yes** — §14.1's 35.3% that change the close, and the whole reason `updatedBars` is subscribed |
-| a minute already superseded            | **No** — it is not news about _now_; Story 3.9's store is where it belongs                      |
+| a minute already superseded            | **No** — it is not news about _now_; Story 3.8's store is where it belongs                      |
 
 **This is the same rule as the state's, and after Task 3.5.2 it should be the
 same code** rather than a second implementation that agrees by coincidence.

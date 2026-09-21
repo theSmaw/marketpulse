@@ -69,7 +69,7 @@ in [`LIVE-DATA.md`](../story-01-live-data-decisions-and-the-streaming-spike/LIVE
   error.
 - **Filter on `status`** — criterion 6. This is a computation over _the market
   we track now_, which `UNIVERSE.md` §12.2 puts firmly on the filtering side.
-  Story 3.9's read path is **not** filtered, and that asymmetry is deliberate;
+  Story 3.8's read path is **not** filtered, and that asymmetry is deliberate;
   write the reason beside the filter so the next reader does not "fix" it.
 - Wire it as the stream's `onObservations` in `index.ts`, replacing the
   discard — and **leave the gateway's own subscription alone for now**, because
@@ -139,14 +139,14 @@ state. Three cases, and the third is the one that gets written wrong:
 old correction would make the latest observation _older than the one it
 replaced_, and every reader would see the price go back in time for no reason a
 user could understand. The correction is not lost to the product — a revision to
-a past minute belongs in Story 3.9's store — it is simply not news about _now_.
+a past minute belongs in Story 3.8's store — it is simply not news about _now_.
 
 ### 4. `status` is filtered, and the asymmetry is written beside the filter
 
 `UNIVERSE.md` §12.2 makes `status` an **invisible predicate**, and its rule for
 a reader not in its table is: filter when computing over _the market we track
 now_, never when showing something stored. This object is the former. Story
-3.9's read path is deliberately **not** filtered, and the reason sits in the
+3.8's read path is deliberately **not** filtered, and the reason sits in the
 code, because a reader who makes the two agree breaks one of them — and which
 one depends on which way they made them agree.
 

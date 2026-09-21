@@ -630,7 +630,7 @@ export const BREAKS = [
       "`pre-market` is a claim about WHEN a price is from, derived from the " +
       "bar's own instant because nothing on the frame distinguishes an " +
       "extended-hours bar. A renderer spelling it itself is a claim no " +
-      "vocabulary decided, on a word Stories 3.6, 3.7 and 3.9 all consume.",
+      "vocabulary decided, on a word Stories 3.6, 3.8 and 3.9 all consume.",
     file: "apps/frontend/src/components/SecurityIdentity/SecurityIdentity.tsx",
     find: "              : EXTENDED_HOURS_WORDS[extendedHours],",
     replace:
@@ -903,7 +903,7 @@ export const BREAKS = [
       "`UNIVERSE.md` \u00a712.2 makes `status` an INVISIBLE PREDICATE \u2014 one " +
       "invisible predicate is a design and two is a bug waiting for whoever " +
       "forgets. The current market state is a computation over *the market we " +
-      "track now*, so it filters to `active`; Story 3.9's stored read path " +
+      "track now*, so it filters to `active`; Story 3.8's stored read path " +
       "deliberately does not, and a reader who makes the two agree breaks one " +
       "of them. Nothing but this test says so.",
     file: "apps/backend/src/current-market-state.ts",

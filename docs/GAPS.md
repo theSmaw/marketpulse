@@ -364,7 +364,13 @@ So the honest state is: **one half measured with 200 ms of headroom, the other h
 
 **It is not made mechanical because the instrument does not exist yet.** Closing it is a **protocol change** — a stamp the gateway writes and the browser subtracts — which is a decision about the wire rather than a test somebody forgot to write, and it has a cost of its own: a field on every frame, 332 times a minute.
 
-**Re-measure:** once a frame carries a server instant, subtract it in the browser at the same two ends and publish the whole figure. Until then, quote the browser half **with its ends named**. **Owner: Story 3.11**, `cost, performance and the epic close`, which is the first story whose subject is this question rather than a story that trips over it.
+**Re-measure:** once a frame carries a server instant, subtract it in the browser at the same two ends and publish the whole figure. Until then, quote the browser half **with its ends named**.
+
+**OWNER RE-ASSIGNED 2026-09-21 by Story 3.5's close, from Story 3.11 to Story 3.6.** The original owner was chosen as _the first story whose subject is this question rather than a story that trips over it_ — and the sweep after Story 3.5 found that **three** stories were by then tripping over it: 3.4's criterion 5 (which stopped that story closing), 3.6's criterion 5, and 3.11's criterion 4, all the same sentence. Task 3.5.8 re-confirmed the mechanism had not changed: it enumerated every field on the wire again, including the `subscribe` message Task 3.5.6 had just added, and found no server-side instant anywhere.
+
+**A criterion three stories cannot meet and none owns is a criterion that never gets met** — the shape `CLAUDE.md` records against _does it feel alive_, deferred seven times. So it moved to the story that is **already opening the wire format** and is the first to need the figure at universe scale. Two constraints travel with it: the stamp is a **new field** rather than a second meaning for `startsAt`, which is load-bearing in the qualifier, the revision rule and every stored row; and it is a **third** clock reading used for measurement only — it must not reach `feed-liveness.ts`, whose 165 s monotonic and 60 s wall-clock split is a measured defect's repair.
+
+**The reading it produces is honest only as a distribution**: a server clock and a browser clock disagree, so a negative sample is skew rather than negative latency.
 
 13. **That a row of a published state grid is a row the product can actually reach.** Added 2026-09-21 by Task 3.4.9, which found one that had been on a screen-in-a-document and unreachable in the running product for four days.
 

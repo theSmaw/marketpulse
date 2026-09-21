@@ -69,7 +69,7 @@ Run the harness across the boundaries and record, per window, what arrived.
   own.
 - **Do extended-hours bars arrive on `b`, and are they marked?** If pre-market
   and after-hours bars come through the same channel with nothing distinguishing
-  them, that is a product decision landing in Story 3.6 and 3.7 — a chart that
+  them, that is a product decision landing in Story 3.6 and 3.9 — a chart that
   silently gains a thin pre-market tail is a different drawing — and it must be
   written down here rather than discovered there.
 - **The idle behaviour of a connection nobody is talking to.** Hold it open
@@ -97,7 +97,7 @@ window is an unmeasured case, and saying so is worth more than inferring it.
   holding it is how a window is never taken at all.
 - The longest observed silence is recorded with its instants.
 - The extended-hours question is answered, with frames, and its consequence for
-  Stories 3.6, 3.7 and 3.9 is named.
+  Stories 3.6, 3.8 and 3.9 is named.
 - The open and close boundary instants are recorded to the second.
 - `pnpm verify` passes. No code changed and no credential written.
 

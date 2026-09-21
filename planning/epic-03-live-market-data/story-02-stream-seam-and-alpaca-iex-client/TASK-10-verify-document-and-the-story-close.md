@@ -196,10 +196,10 @@ it. `STREAM-SEAM.md` §3 explains it where an implementer will meet it.
 ### Audit 1 — the hand-offs. One false positive, and the crude version lied
 
 **The enumeration**: ten stories named in `LIVE-DATA.md` — 3.2 (22×), 3.10 (20),
-3.11 (17), 3.3 and 3.4 (10), 3.5 (8), 3.6 (7), 3.7 and 3.9 (6), 3.8 (3).
+3.11 (17), 3.3 and 3.4 (10), 3.5 (8), 3.6 (7), 3.9 and 3.8 (6), 3.7 (3).
 
 **A first pass counted `LIVE-DATA` references in each story's own file and
-flagged Story 3.8 with zero.** That was a **false positive**: 3.8 carries its
+flagged Story 3.7 with zero.** That was a **false positive**: 3.8 carries its
 constraint — the `bar_coverage` provenance column and why it stops being
 sufficient the day an IEX bar is stored — in words it can act on, and simply does
 not cite the source document by name. **Which is the correct shape**, since the
@@ -220,26 +220,26 @@ expect to beat, and it is only zero because three earlier sweeps repaired Story
 **Two documents answer the same question differently, and both arguments are
 good.**
 
-- **Story 3.7's `STORY.md`**: _Before Story 3.9, deliberately_ — storing live
+- **Story 3.9's `STORY.md`**: _Before Story 3.8, deliberately_ — storing live
   bars would make its two-feed ledger come out of the database rather than out of
   the **stitch**, and the read-time stitch is the case the provenance design was
   built against.
 - **`LIVE-DATA.md` §10.3**, decided later: today's bars are **not** held in
-  memory, so _"Story 3.7's chart uses it, and **Story 3.9** stores the live
-  session so that it can… Decision 4 and Story 3.9's scope are **one decision
+  memory, so _"Story 3.9's chart uses it, and **Story 3.8** stores the live
+  session so that it can… Decision 4 and Story 3.8's scope are **one decision
   seen twice**."_ Its rejected alternative says it outright: _last observation
-  only_ makes 3.9 **a dependency of 3.7 rather than a story after it**.
+  only_ makes 3.8 **a dependency of 3.9 rather than a story after it**.
 
-**The epic table has neither** — 3.7 depends on 3.6, 3.9 on 3.5 and 3.8. So a
+**The epic table has neither** — 3.9 depends on 3.6, 3.8 on 3.5 and 3.8. So a
 dependency was decided in the spike and never propagated.
 
 **Deliberately not resolved here**, because it is an epic-ordering decision
 rather than this story's to take. **It is now in both stories' own files**, with
 the real question stated so it can be answered rather than re-derived: _with
-today's bars not in memory, where does 3.7's chart get the minutes between the
-session open and the latest observation?_ — from 3.9's store, from the
+today's bars not in memory, where does 3.9's chart get the minutes between the
+session open and the latest observation?_ — from 3.8's store, from the
 current-state map alone with a visible hole, or from an early HTTP read that is
-Story 3.10's gap-filling arriving sooner. **Story 3.7's argument for going first
+Story 3.10's gap-filling arriving sooner. **Story 3.9's argument for going first
 is about the LEDGER and survives all three**; only today's _shape_ is in question.
 
 ### Audit 2 — the construction sites. One survivor, and it is a deferral
