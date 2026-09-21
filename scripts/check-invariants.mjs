@@ -64,6 +64,7 @@
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import process from "node:process";
 
 const REPO_ROOT = resolve(import.meta.dirname, "..");
@@ -1282,13 +1283,114 @@ const INVARIANTS = [
       }
     },
   },
+
+  {
+    id: "every-break-can-still-land",
+    claim:
+      "Every entry in `scripts/breaks.mjs` substitutes text that still exists " +
+      "exactly once in the file it names.",
+    check() {
+      // **A break whose `find` no longer matches proves nothing, and nothing
+      // noticed for a day.**
+      //
+      // `pnpm break` refuses loudly when a substitution does not land — the
+      // harness is not the problem. The problem is that **breaks are not in
+      // `pnpm verify`**, deliberately: several of them run the browser suite or
+      // a database, and `verify` has neither. So an entry rots in silence and
+      // the first symptom is somebody running it months later and finding that
+      // the check it was written to prove has been unprovable since.
+      //
+      // Found on 2026-09-21 by Task 3.6.2's sweep: Task 3.4.5's and 3.4.6's
+      // entries both keyed on a single-line `useArrival(symbol, …)` call that
+      // Task 3.5.4 had given a third argument, which Prettier then wrapped. Two
+      // arrival-rule checks were unprovable and every run stayed green.
+      //
+      // **This asserts the cheap half — that the text is still there — which is
+      // the half that rots.** It cannot assert that the substitution still
+      // expresses the defect; that needs running the break, which is what
+      // `pnpm break` is for.
+      const registry = resolve(REPO_ROOT, "scripts/breaks.mjs");
+      const text = readAnchored(registry);
+
+      // The anchor: entries are objects with `name`, `file` and `find`, and a
+      // parse that silently found none would pass vacuously.
+      const names = [...text.matchAll(/^\s{4}name:\s*"([^"]+)"/gmu)];
+
+      if (names.length < 10) {
+        throw new InvariantFailure(
+          `scripts/breaks.mjs parsed to ${String(names.length)} entries; it ` +
+            "had far more when this check was written. If the registry's " +
+            "shape changed, change this check with it — a parse that finds " +
+            "nothing looks exactly like a parse that passes.",
+        );
+      }
+
+      // Import the registry rather than re-parsing its string literals: `find`
+      // is often a concatenation across several lines, and a regex over source
+      // would have to re-implement JavaScript to read one.
+      return import(pathToFileURL(registry).href).then(({ BREAKS }) => {
+        if (!Array.isArray(BREAKS) || BREAKS.length !== names.length) {
+          throw new InvariantFailure(
+            "scripts/breaks.mjs does not export a `BREAKS` array matching its " +
+              "own `name:` count. This check reads the export; if the module " +
+              "stopped providing one, it is asserting nothing.",
+          );
+        }
+
+        const rotted = [];
+
+        for (const entry of BREAKS) {
+          const target = resolve(REPO_ROOT, entry.file);
+          let body;
+
+          try {
+            body = readFileSync(target, "utf8");
+          } catch {
+            rotted.push(`${entry.name}: ${entry.file} is not there`);
+            continue;
+          }
+
+          const hits = body.split(entry.find).length - 1;
+          if (hits !== 1) {
+            rotted.push(
+              `${entry.name}: its \`find\` matches ${String(hits)} times in ` +
+                `${entry.file}, not once`,
+            );
+          }
+        }
+
+        if (rotted.length > 0) {
+          throw new InvariantFailure(
+            `${String(rotted.length)} break entries can no longer land:\n      ` +
+              rotted.join("\n      ") +
+              "\n    A break that cannot be applied proves nothing, and " +
+              "because breaks are not in `pnpm verify` nothing else will say " +
+              "so. Repoint the entry, then run `pnpm break <name>` — this " +
+              "check proves the text is still there, not that the " +
+              "substitution still expresses the defect.",
+          );
+        }
+      });
+    },
+  },
 ];
 
 const failures = [];
 
+// **`await`, and it is load-bearing rather than future-proofing.**
+//
+// The runner was synchronous until 2026-09-21, and a check that returned a
+// promise would have had its rejection escape as an unhandled rejection while
+// this loop recorded nothing and the run exited **0**. That is `CLAUDE.md`'s
+// own warning — *an unhandled error is not a failed assertion, and the run can
+// still exit 0* — which this repository has already paid for once, in a test
+// suite that passed for two tasks while dialling a real socket.
+//
+// Awaiting a non-promise is a no-op, so every synchronous check above is
+// unaffected.
 for (const invariant of INVARIANTS) {
   try {
-    invariant.check();
+    await invariant.check();
   } catch (error) {
     if (!(error instanceof InvariantFailure)) throw error;
     failures.push({ invariant, message: error.message });

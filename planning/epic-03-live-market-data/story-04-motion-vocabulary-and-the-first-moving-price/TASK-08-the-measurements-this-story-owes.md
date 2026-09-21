@@ -321,3 +321,62 @@ that story's own notes rather than in an argument.
 
 **What a user can see today: nothing new.** Numbers in a document, which is what
 this task said it would produce.
+
+---
+
+## Amended by Task 3.6.2 — 2026-09-21: §5's figure was arithmetic wearing a measurement's clothes
+
+**The number this task handed forward was wrong, and the way it was wrong is
+the thing worth keeping.**
+
+§5 said:
+
+> `518 rows × 1 arrival/minute ÷ 60 = 8.63 marks per second`
+>
+> **That is 8.6× past the trigger**, and it is now a number in that story's file
+> rather than an argument.
+
+**It is an argument.** The division assumes a minute's arrivals are spread
+across the minute, and they are not: **§7.4 measured 332 bars landing inside a
+243 ms burst**, once a minute. So at 518 rows the mark fires **once a minute**
+and paints for 900 ms of it — the page is **still for 59.7 seconds** and then
+everything that traded marks together.
+
+Task 3.6.2 took the duty cycle on the running table against a fixture stream
+that marks **all 518 at once**, which is harsher than the real feed's ~62%: any
+mark visible in **2 of 39 sampled seconds**.
+
+### Why this task could not have caught it, and what it could have caught
+
+**The arithmetic is not the error.** 518 arrivals a minute really is 8.63 a
+second _on average_, and this task only ever had one row to watch — it could
+not have seen the burst on its own surface.
+
+**What it could have done is not called it a number.** The sentence that ages
+worst is _it is now a number in that story's file rather than an argument_: a
+division over a measured input is still a derivation, and this file's own
+opening warns twice about figures taken the wrong way. **A derived figure
+carries the assumptions of its denominator**, and the denominator here — _per
+second_ — was the assumption that did the damage.
+
+**The downstream cost was almost exactly what it was meant to prevent.** The
+figure arrived in Story 3.6 as a written instruction to _read the trigger as
+having fired unless you can show it has not_ — so the design pass started from
+a presumption of guilt built on a division. It survived only because 3.6.2 went
+back to §7.4 rather than to this line.
+
+### What is unchanged, and it is most of the file
+
+Every **measured** figure here stands: p95 **52 ms** and **51.7 ms** across two
+production runs, **zero** long tasks across 6,640 observations, the block
+heights at **72 px / 88 px**. §5's first sentence — _this surface: 1 mark per
+minute_ — is also correct and is labelled as arithmetic, which is how §5's
+second half should have been labelled too.
+
+**One inference from those figures does not travel, and Task 3.6.2 found that
+the hard way.** _Zero long tasks across 6,640 observations_ was taken on the
+**security page**, which renders **one** row. On the universe table, with the
+same reducer and 518 rows, Task 3.6.2 measured long tasks of **249, 265, 98,
+117 ms** — and, with the mark not rendered at all, **216, 83, 102, 196,
+195 ms**. The reducer is still not the cost; **the rendering is**, and that is a
+property of the surface rather than of the stream.

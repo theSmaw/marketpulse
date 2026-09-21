@@ -682,6 +682,18 @@ here:
 - **Every check owes a break.** `pnpm break` performs the documented breaks,
   proves the check goes red, and restores the tree; `scripts/breaks.mjs` is the
   registry. Add an entry there with any check you add.
+- **And a break rots silently, which is why it now has a check of its own.**
+  Breaks are deliberately **outside `pnpm verify`** — several need a browser or
+  a database and `verify` has neither — so an entry whose `find` stops matching
+  the file goes unnoticed, and the check it was written to prove is
+  **unprovable** until somebody runs it by hand. Four rotted this way, found
+  2026-09-21: two arrival-rule entries when a call gained a third argument and
+  Prettier wrapped it, and two more an hour before they were found, when the
+  CSS they targeted moved into a shared layer. **Every run was green
+  throughout.** `pnpm invariants` now carries `every-break-can-still-land`,
+  which asserts the half that rots — that the text is still there, **not** that
+  the substitution still expresses the defect. **When you move or reformat
+  anything a break names, run the break.**
 
 Its runtime half is deliberately **neither** in the list nor in `verify`:
 `GET /diagnostics/freshness` answers _how many trading sessions behind is the
