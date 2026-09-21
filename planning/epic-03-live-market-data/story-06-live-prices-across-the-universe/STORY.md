@@ -198,3 +198,52 @@ calendar while reporting a synthetic monotonic clock.
 **`FeedStatusInputs` already carries both** (`now` and `wallNow`) and the
 compiler names every call site that forgets one. **Anything in this story that
 computes a status or an age takes both rather than reading either.**
+
+---
+
+## Handed here by Task 3.4.4 — 2026-09-21: the motion vocabulary is decided, and its one open cost is yours
+
+**Story 3.4 settled what a changing price does, on one number, and you inherit
+it.** The decision is on the design canvas — `The motion vocabulary.dc.html` §05
+— and the short version is:
+
+> **A small disc appears beside the figure and decays.** It fires **when a bar
+> arrives**, not when the price changes — so it does not say _this price moved_,
+> which the `▲` already says. It says **a bar arrived for this security**.
+
+**That is a claim about the feed rather than about the price**, and it is the
+only thing on the screen that makes it per security. It does not breach §11.2's
+refusal to give a security a status word, because it makes **no threshold
+judgement**: it marks an event that happened and says nothing about what silence
+means.
+
+### The cost this story has to act on rather than rediscover
+
+**It fires once a minute for every security it is applied to, for ever** —
+through a completely flat afternoon, with nothing to report. That was put as an
+objection when the decision was taken and was overruled deliberately, **on one
+number**.
+
+**You have 518.** The same rule on the universe table is **up to 518 marks a
+minute on one page**, and _calm_ and _twitching_ may not survive that
+multiplication. Three things follow, and none of them is "decide it differently":
+
+- **The vocabulary is not yours to re-take.** A vocabulary is one decision and
+  three surfaces would make it three; Stories 3.6 and 3.7 inherit it. What is
+  open is **whether it applies unchanged at universe scale**, which is a
+  different question from what the mark means.
+- **The reversal trigger is already written and one half of it is aimed at
+  you**: _the first time a reader reports the mark as noise, or the first
+  surface where it fires more than once a second._ At 518 rows a minute that is
+  **8.6 marks a second** across the page. Read that as the trigger having fired
+  unless you can show it has not.
+- **If it needs a rule at scale, the rule is yours and it belongs on the
+  canvas**, beside the decision it qualifies — not in a component. Candidates
+  worth having on the table before you start: mark only rows in the viewport,
+  mark only rows whose value changed, or mark nothing per row and let the
+  chrome's connection word carry it.
+
+**And the shape rule travels with it**: work in progress **loops**, a state
+**persists**, a fact arriving **decays**. That is what lets this mark and the
+status bar's disc be the same glyph without colliding, and a fourth behaviour
+added to that set is a change to the vocabulary rather than to a component.

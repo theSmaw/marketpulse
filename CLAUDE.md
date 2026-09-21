@@ -170,8 +170,19 @@ in one line here and argued in full where the table below points:
   `SEARCH-AND-SELECTION.md` §10 holds all three datings. **The trigger is
   unchanged and outranks the epic: the first time a second surface on this page
   renders per-row markup at universe scale.**
-- **The fourth design test, _does it feel alive_, has now been answered "not yet"
-  seven times**, the seventh at Epic 2's close. Seven deferrals of one criterion
+- ~~**The fourth design test, _does it feel alive_, has now been answered "not
+  yet" seven times**~~ — **answered on 2026-09-21 rather than open.** Task 3.4.4
+  took it in front of four treatments running on the real component at 1×
+  against real replayed bars: **a small disc appears beside a changed figure and
+  decays**, firing when a **bar arrives** rather than when the price
+  **changes** — so it says _a bar arrived for this security_ rather than _this
+  price moved_. The rule underneath it is the part that governs everything
+  added afterwards: **work in progress LOOPS, a state PERSISTS, a fact arriving
+  DECAYS.** The argument and the three rejected options are on the canvas
+  (`The motion vocabulary.dc.html` §05) and in Task 3.4.4; the token is Task
+  3.4.5's and **nothing is on screen yet**. The history below is left standing
+  because it is why the deferral finally had to end:
+  The criterion was answered "not yet" **seven times**, the seventh at Epic 2's close. Seven deferrals of one criterion
   is not caution, it is the shape of a criterion that never gets met — and its
   trigger is the **calendar** rather than a condition, so nothing fires. It is
   deferred by name to Epic 3's motion vocabulary against real moving numbers, and
