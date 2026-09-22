@@ -72,6 +72,49 @@ tapes produces the list it needs; the first time a user reads it is Story
   back as one source, unchanged from today; a window whose two stretches
   disagree on adjustment is **refused** by the merge, which is the assertion
   that proves the merge was used.
+
+  > **AMENDED 2026-09-22 by Task 3.7.4 — how the two-tape window is built,
+  > what it cannot contain yet, and where the refused case has to live.**
+  >
+  > **Build it through the shipped writer, not by hand.** Since 3.7.4
+  > `recordSeries` accepts a second tape extending a held window
+  > contiguously, so a SIP-then-IEX window is two `recordSeries` calls with
+  > `seriesFor(symbol, session, { source: { provider: "alpaca", feed: "iex" } })`
+  > on the second — the test suite already does exactly that in _accepts a
+  > second tape extending a held window contiguously_. The reverse order is
+  > the same two calls the other way round. No raw `insertBar` is needed for
+  > the happy paths, which means the test proves the read against rows the
+  > product can actually write.
+  >
+  > **Stretches never interleave until Story 3.8 lifts the overlap refusal.**
+  > A second tape can only extend the window at an edge, so every tape's
+  > bars form one contiguous run and `min(observed_at)` per tape is a total
+  > order. State that as the premise the query rests on: the day 3.8 lets an
+  > IEX afternoon be corrected by SIP bar-by-bar, a tape can occur in two
+  > runs, and _contribution order_ needs a definition (first instant, or one
+  > source per run). Write the premise into the query's comment and hand the
+  > question to 3.8 (Task 3.7.7's list).
+  >
+  > **The refused-adjustment case cannot come from the store.** Every stored
+  > row is `raw` (`STORED_BAR_ADJUSTMENT`) and the adjustment is attached
+  > on the read side, so two stretches read from `market_bars` can never
+  > disagree on it. The assertion that proves the merge was used is
+  > therefore a **unit test** on the read-side assembly with two hand-built
+  > `BarSource`s that disagree — the merge refuses — plus the database test
+  > that a stored two-tape window produces a `sources` array of length two,
+  > which no hand-built path in `market-bars.ts` may construct (grep it).
+  >
+  > **And narrow `BarCoverage.source` to the provider.** `readCoverage` still
+  > answers `source.feed` — the opening tape, a withdrawn fact — and 3.7.4's
+  > own test asserts it only as _the opening tape_. Once this task derives a
+  > window's sources from the rows, `toStoredSeries` stops reading
+  > `held.source.feed` and nothing in the domain should carry it: make
+  > `BarCoverage.source` `{ provider }` (or a `provider` field), drop
+  > `bar_coverage.feed` from `readCoverageRow`'s select, and leave the column
+  > written by `extendCoverage` alone (required on insert, so the default
+  > stays unreachable). That is what makes Task 3.7.6's invariant — _the
+  > ledger's `feed` is read by nothing_ — a grep rather than a judgement.
+
 - **Trace it to the wire**: `GET /market-data/bars` for such a window carries
   both sources in `provenance.sources`, asserted with `app.inject()` over a
   stubbed repository — the serialiser's `satisfies` guard is what stops a

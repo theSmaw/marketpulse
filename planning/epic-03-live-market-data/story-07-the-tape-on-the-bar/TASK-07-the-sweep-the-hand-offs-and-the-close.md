@@ -39,6 +39,13 @@ four documents that are **live claims** today:
 - **`PROVENANCE.md`** §on the two-feed sentence, and the `e2e/README.md` and
   `docs/GAPS.md` entries that say the two-tape state is unreachable on any
   server.
+- **`MARKET-DATA-API.md` §_What the ledger's one row can and cannot say_ and
+  Story 3.8's scope bullet** — both said `recordSeries` refuses a series
+  whose source disagrees with the ledger row. **Amended 2026-09-22 by Task
+  3.7.4's sweep, the same day**, with a dated note at each: the refusal is
+  now three named reasons (`stitched`, `provider`, `overlap`) and a second
+  tape extends a window. Check at the close that nothing else repeats the
+  old sentence (`grep -rn "source disagrees"`).
 
 ## The hand-offs, enumerated rather than remembered
 
@@ -55,9 +62,22 @@ Known candidates:
   correction changes that type **on purpose**; the overlap refusal 3.7.4
   leaves standing is the one 3.8 lifts; and `BAR_COLUMNS` sizes the
   multi-row chunk, so a column the socket writer adds goes in that list or
-  the chunk-boundary test goes red (it did, in 3.7.3)
+  the chunk-boundary test goes red (it did, in 3.7.3). **Since 3.7.4, in the
+  same words**: what 3.8 lifts is `ForeignSourceError`'s `overlap` reason
+  and nothing else — `stitched` and `provider` stand; `reason` is a
+  discriminant its tests can assert; lifting the overlap is two decisions,
+  the per-row conflict rule (`TAPE.md` §6) and what _contribution order_
+  means once a tape can occur in two runs (`TAPE.md` §7, 3.7.5's premise);
+  and a socket bar is written through `recordSeries` with `alpaca`/`iex`
+  provenance, which the store accepts as a contiguous extension of the SIP
+  window today — the test _accepts a second tape extending a held window
+  contiguously_ is the shape 3.8's write path lands on
 - **Story 3.9** — the ledger comes out of the store now; `twoFeedStitchView()`
-  has a real sibling; the read-path cost of the grouping
+  has a real sibling; the read-path cost of the grouping. **Since 3.7.4**:
+  every stretch of a stored window carries the ledger row's one `provider`,
+  so the source note's two-feed sentence names two tapes and one supplier —
+  which is the plan's shape, and the day it is not (`fixture` stitched onto
+  `alpaca`) the write is refused, not mislabelled
 - **Story 3.10** — nothing this story changes about a degraded state, said
   rather than assumed
 - **Story 3.11** — the deferred validation, if any, as a thing the close checks
