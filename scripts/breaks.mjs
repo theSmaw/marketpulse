@@ -124,6 +124,30 @@ export const BREAKS = [
     expect: "does not know the column exists",
   },
   {
+    name: "the-writer-stamps-a-constant",
+    proves:
+      "The writer takes each bar's tape from the series' own provenance and " +
+      "not from a literal. A constant `sip` is true of every bar the backfill " +
+      "writes today and false of the fixture provider's `synthetic` series " +
+      "and of Story 3.8's `iex` \u2014 the row would carry the wrong tape " +
+      "with nothing else wrong (Task 3.7.3, criterion 1). Needs a database, " +
+      "so it lives outside `verify`.",
+    file: "apps/backend/src/market-bars.ts",
+    find: "            batch,\n            source.feed,\n          );",
+    replace:
+      "            batch,\n" +
+      '            "sip", // pnpm break: reverted automatically\n' +
+      "          );",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "reads back with `synthetic` on every bar",
+  },
+  {
     name: "replayed-series-refused-by-the-store",
     proves:
       "A replayed bar can be written to `market_bars`. Its prices are real but " +

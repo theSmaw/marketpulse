@@ -136,6 +136,13 @@ and its window; it stops being the only place the tape is written.
 - Whether `Bar` itself grows a field and reaches the wire — Task 3.7.3, and
   ADR 0033's constraint 4 (one per frame, never one per observation) is the
   precedent that argues it should not.
+
+  > **Decided 2026-09-22 by Task 3.7.3: it does not.** `readBars` answers
+  > `StoredBar { bar, feed }` — the tape **beside** the bar — so `Bar` and
+  > every `WireObservation` are unchanged, and the replay source drops the
+  > tape on the way to the engine, whose emission is labelled `replay`.
+  > `TAPE.md` §6.
+
 - What happens when a SIP bar and an IEX bar for the same minute meet — the
   unique key is unchanged, the conflict is Story 3.8's three shapes.
 - Whether validation ever runs. If a writer that bypasses the type ever exists,

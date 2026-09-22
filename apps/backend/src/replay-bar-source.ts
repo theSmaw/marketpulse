@@ -65,8 +65,11 @@ export function createStoredReplaySource(
     const byInstant = new Map<number, Map<Ticker, Bar>>();
 
     for (const symbol of symbols) {
-      const bars = await repository.readBars(symbol, "1m", range);
-      for (const bar of bars) {
+      const stored = await repository.readBars(symbol, "1m", range);
+      // The tape each row carries (`StoredBar.feed`) is deliberately dropped
+      // here: what a replay emits is labelled `replay` by the engine, whatever
+      // tape the bar was observed on, and that word is the engine's to say.
+      for (const { bar } of stored) {
         const key = bar.startsAt.getTime();
         const slice = byInstant.get(key) ?? new Map<Ticker, Bar>();
         slice.set(symbol, bar);
