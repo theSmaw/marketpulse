@@ -96,7 +96,12 @@ against 10 MiB/s before it is written.
 - **A window's sources** are derived from the bars — per tape, first
   `observed_at` for order, `count(*)` for the bar count, the stretch's
   `recorded_at` for `retrievedAt` — and joined through `mergeSeriesProvenance`
-  (Task 3.7.5). The ledger's `provider`/`feed` are not consulted for it.
+  (Task 3.7.5). The ledger's `feed` is not consulted for it; **each stretch's
+  `provider` is the ledger row's**, because the row carries the tape and
+  nothing else and a window has one provider (§7, Task 3.7.4).
+- **The ledger row** claims the window, the count and the provider (§7). Its
+  `feed` column is the tape the window was **opened** with and claims nothing
+  else since Task 3.7.4.
 
 ## 4. What a green `pnpm test:database` certifies about this, and what it does not
 
@@ -111,12 +116,19 @@ against 10 MiB/s before it is written.
   `iex` row reads back `iex` beside its bar, the shipped backfill command
   driven by the fixture provider leaves `synthetic` and nothing else in the
   table (`backfill.database.test.ts`), and a re-store of the same instant from
-  another tape leaves the row's tape in both branches (§6); and, as it lands,
-  that a two-tape window produces two sources in order (3.7.5). Three breaks
+  another tape leaves the row's tape in both branches (§6); **since 3.7.4**,
+  that a second tape extending a held window contiguously is accepted and
+  reads back as both tapes in order, that a second provider is refused and
+  writes nothing, that a second tape **overlapping** stored bars is refused
+  and leaves every row's numbers and tape as they were, and that a same-tape
+  overlap is still the re-run and the correction (§7); and, as it lands,
+  that a two-tape window produces two sources in order (3.7.5). Five breaks
   prove the load-bearing clauses: `pnpm break the-tape-check-gets-validated`,
-  `pnpm break the-tape-default-lies-about-the-past` and
+  `pnpm break the-tape-default-lies-about-the-past`,
   `pnpm break the-writer-stamps-a-constant` (a literal `sip` in the writer
-  reddens the `synthetic` read-back).
+  reddens the `synthetic` read-back), `pnpm break
+a-second-tape-overwrites-the-first` and `pnpm break
+a-second-provider-is-relabelled`.
 - **It does not certify** that the deployed migration finished inside 120 s —
   the figure above is a laptop's, and Task 3.7.6 owns the tier's; that the
   `NOT VALID` check was ever validated — it is not meant to be; or that the
@@ -193,7 +205,9 @@ ledger row it would extend (`ForeignSourceError`) before a row is touched —
 and Story 3.8's three shapes are about exactly that refusal, so this task
 kept the behaviour and asserted it (`market-bars.database.test.ts`, _a
 re-store of the same instant from another tape_) rather than deciding it in
-passing. `MarketBarsTable.feed`'s update type is `never`, which makes _the
+passing. **Since Task 3.7.4 the refusal that keeps it unreachable is
+narrower and named** — the `overlap` reason in §7 — and it reads the tapes
+in the overlapping rows rather than the ledger. `MarketBarsTable.feed`'s update type is `never`, which makes _the
 tape does not move on a correction_ a compile-time rule; whichever shape 3.8
 takes has to change that type on purpose.
 
@@ -208,3 +222,64 @@ chunk boundary_, which is the test doing the job the derivation cannot: the
 derivation is only as good as the list, and the test is what checks the list
 against the statement. The chunk is now **7,281 rows** (nine columns), from
 8,191.
+
+## 7. The ledger — what a row claims now, and what it no longer claims (Task 3.7.4, 2026-09-22)
+
+**Candidate 1, narrowed by what 3.7.3 shipped.** `bar_coverage` keeps one row
+per `(security, timeframe)` and three of its four facts:
+
+| Column                        | Claims                                                    | Read by                                                           | Enforced by                                 |
+| ----------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------- |
+| `covered_start`/`covered_end` | The one contiguous window we hold                         | `readSeries`, the backfill's resume point, `MissingCoverageError` | `CoverageGapError` — unchanged              |
+| `bar_count`                   | How many bars inside it                                   | `readCoverage`, the freshness diagnostic                          | extended per batch — unchanged              |
+| `provider`                    | **The window's one provider**                             | `readSeries`, and 3.7.5's per-stretch `BarSource.provider`        | `ForeignSourceError`, reason **`provider`** |
+| `feed`                        | **The tape the window was opened with, and nothing else** | `readSeries` only, until 3.7.5 derives sources from the rows      | nothing — withdrawn                         |
+
+**Why `provider` stays a read and a rule.** The row on `market_bars` carries
+the tape and nothing else — ADR 0034's reversal trigger is _the first per-bar
+field beyond the tape_ — and a `BarSource` needs a provider as well as a
+feed. The ledger is therefore the only place a window's provider is written,
+and a window has one: the plan's `sip` and `iex` are both Alpaca, and the
+fixture's `synthetic` is never stitched onto either. So a series naming
+another provider is refused before a row is touched, and a series naming
+another **tape** from the same provider is accepted.
+
+**Why `feed` is withdrawn rather than dropped.** A window may now hold two
+tapes and one column cannot say so; the truth is per row. The column stays
+because a contract is a second deploy (`migrations/README.md`, expand then
+contract) and dropping a column from a live ledger is not this story's to
+do. It is still **required on insert** so the database default stays
+unreachable, it is written with the first series' tape so it is never blank,
+the write path neither reads nor updates it (`schema.ts` keeps update
+`never`), and `readSeries` is its last reader — the series-level `feed` it
+reports is honest while no shipped writer sends a second tape, and Task
+3.7.5 replaces it with sources derived from the rows. Task 3.7.6 owes the
+invariant that nothing else reads it.
+
+**The three refusals that stand, each named** (`ForeignSourceReason`):
+
+- **`stitched`** — a series naming two sources is still one write too many:
+  the ledger names one provider and a source says how many bars it has but
+  not which. Unchanged since Task 2.8.4.
+- **`provider`** — above.
+- **`overlap`** — a series whose window overlaps the held one is refused
+  **if the stored bars in the overlap carry another tape**, read from the
+  rows with one indexed `select distinct feed` and never from the ledger.
+  This is the guard in front of §6's conflict rule: the unique key does not
+  include the tape, so writing through would give the existing row the new
+  numbers under the old label, and that is Story 3.8's decision. A same-tape
+  overlap is what it always was — the idempotent re-run, or a correction.
+
+**What a stakeholder-visible writer can now do that it could not**: extend a
+SIP window with an IEX session. The window grows to the union, the count to
+the sum, `readBars` answers `sip, sip, sip, iex, iex` in contribution order,
+and the ledger's `provider` is the one both series named. That is the
+store's side of Story 3.8's cold load; what 3.8 still has to decide is the
+overlap.
+
+**What was measured.** The overlap check is one extra indexed query per
+write, and only when the windows intersect — the backfill's nightly walk
+never does (it extends from one end), so the shipped writer pays nothing.
+`pnpm test:database` 184/184; two breaks — `a-second-tape-overwrites-the-first`
+(the guard inverted) and `a-second-provider-is-relabelled` (the provider
+check disabled) — each reddened their own test and restored the file.

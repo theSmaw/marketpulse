@@ -2121,12 +2121,17 @@ describe("the source the ledger stores, and the writer that keeps it true", () =
     expect(source.feed).toBe("synthetic");
   });
 
-  it("refuses a second source for a series it already holds, writing nothing", async () => {
-    // **`0004_market_bars.sql`'s trigger, fired.** One ledger row describes one
-    // source, and `market_bars` stores none per row — so appending a second
-    // feed to a window a first one filled would put both under one label with
-    // nothing able to tell them apart. That is invariant 6 failing with nothing
-    // going red, and this is the mechanism that makes it go red instead.
+  // **What replaced `0004_market_bars.sql`'s trigger (Task 3.7.4).** Until
+  // Story 3.7 the test here was *refuses a second source for a series it
+  // already holds, writing nothing* — one ledger row described one source and
+  // `market_bars` stored none per row. Every bar now carries its own tape, so
+  // a second TAPE extending the window is what the column exists for and is
+  // accepted; a second PROVIDER is still refused (the ledger is the only place
+  // a window's provider is written); and an OVERLAP from another tape is
+  // refused until Story 3.8 decides what two tapes on one minute mean. The
+  // four below are those rules, and `TAPE.md` §7 is the record.
+
+  it("accepts a second tape extending a held window contiguously — the trigger's payoff", async () => {
     const [session, next] = sessions(2);
     if (session === undefined || next === undefined) {
       throw new Error("no sessions");
@@ -2134,36 +2139,150 @@ describe("the source the ledger stores, and the writer that keeps it true", () =
 
     await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
 
-    const requested = toTimeRange(next.open, next.close);
-    const live = sessionBars(next, 2);
-    const iex = toBarSeries({
-      symbol,
-      timeframe: "1m",
-      bars: live,
-      provenance: toSeriesProvenance("raw", {
-        // Epic 3's stream, against this story's stored SIP history.
-        provider: "alpaca",
-        feed: "iex",
-        retrievedAt: "2026-09-08T00:00:00.000Z",
-        barCount: live.length,
+    // Epic 3's stream, against this story's stored SIP history: the next
+    // session, from the IEX tape, from the same provider.
+    const written = await repository().recordSeries(
+      seriesFor(symbol, next, {
+        count: 2,
+        source: { provider: "alpaca", feed: "iex" },
       }),
-      coverage: { requested, covered: requested },
+    );
+
+    expect(written).toMatchObject({ inserted: 2, corrected: 0, unchanged: 0 });
+
+    // The window grew to the union, the count to the sum, and the ledger's
+    // provider is the one both series named.
+    const held = await repository().readCoverage(symbol, "1m");
+    expect(held?.covered.start.getTime()).toBe(session.open.getTime());
+    expect(held?.covered.end.getTime()).toBe(next.close.getTime());
+    expect(held?.barCount).toBe(5);
+    expect(held?.source.provider).toBe("alpaca");
+
+    // The bars carry both tapes, in contribution order, read from the rows.
+    const stored = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(session.open, next.close),
+    );
+    expect(stored.map((entry) => entry.feed)).toEqual([
+      "sip",
+      "sip",
+      "sip",
+      "iex",
+      "iex",
+    ]);
+
+    // And the ledger's `feed` is the tape the window was OPENED with, not
+    // relabelled and not the truth about the window — `TAPE.md` §7 says why
+    // it is still there and who reads it until Task 3.7.5.
+    expect(held?.source.feed).toBe("sip");
+  });
+
+  it("still refuses a second tape that leaves a session unfetched — the refusal that stands is contiguity", async () => {
+    const walked = sessions(3);
+    const [oldest, , newest] = walked;
+    if (oldest === undefined || newest === undefined) {
+      throw new Error("no sessions");
+    }
+
+    await repository().recordSeries(seriesFor(symbol, oldest, { count: 2 }));
+
+    await expect(
+      repository().recordSeries(
+        seriesFor(symbol, newest, {
+          count: 2,
+          source: { provider: "alpaca", feed: "iex" },
+        }),
+      ),
+    ).rejects.toThrow(CoverageGapError);
+  });
+
+  it("refuses a second provider for a series it already holds, writing nothing", async () => {
+    // The row carries the tape and nothing else, so the ledger is the only
+    // place a window's provider is written, and it names one. A series from
+    // another provider — here the fixture's, against Alpaca's history — is
+    // refused before a row is touched.
+    const [session, next] = sessions(2);
+    if (session === undefined || next === undefined) {
+      throw new Error("no sessions");
+    }
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+    const before = await fingerprint("market_bars", BARS_FINGERPRINT);
+
+    const refused = repository().recordSeries(
+      seriesFor(symbol, next, {
+        count: 2,
+        source: { provider: "fixture", feed: "synthetic" },
+      }),
+    );
+    await expect(refused).rejects.toThrow(ForeignSourceError);
+    await expect(refused).rejects.toMatchObject({
+      reason: { kind: "provider", held: "alpaca" },
     });
 
-    await expect(repository().recordSeries(iex)).rejects.toThrow(
-      ForeignSourceError,
-    );
-
-    // Nothing of the refused series landed, and the ledger still says what it
-    // said. A refusal that had written half the bars would be worse than the
-    // mislabelling it exists to prevent.
-    const stored = await db().query<{ count: string }>(
-      "select count(*) as count from market_bars",
-    );
-    expect(stored.rows[0]?.count).toBe("3");
-
+    expect(await fingerprint("market_bars", BARS_FINGERPRINT)).toBe(before);
     const held = await repository().readCoverage(symbol, "1m");
     expect(held?.source).toEqual(STORED_SOURCE);
+    expect(held?.barCount).toBe(3);
+  });
+
+  it("refuses a second tape OVERLAPPING stored bars, and leaves every row's tape as it was — Story 3.8's to lift", async () => {
+    // The unique key does not include the tape, so an IEX series re-stored
+    // over SIP bars would meet the per-row conflict rule Task 3.7.3 kept as
+    // Story 3.8's decision — the existing row keeps its label and takes the
+    // new numbers. This guard stands in front of that until 3.8 decides.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+    const before = await fingerprint("market_bars", BARS_FINGERPRINT);
+
+    // Same session, other tape, DIFFERENT numbers — the overwrite that must
+    // not happen in passing.
+    const refused = repository().recordSeries(
+      seriesFor(symbol, session, {
+        count: 3,
+        nudge: 1,
+        source: { provider: "alpaca", feed: "iex" },
+      }),
+    );
+    await expect(refused).rejects.toThrow(ForeignSourceError);
+    await expect(refused).rejects.toMatchObject({
+      reason: { kind: "overlap", heldTapes: ["sip"] },
+    });
+
+    // Numbers, tapes and the ledger exactly as they were.
+    expect(await fingerprint("market_bars", BARS_FINGERPRINT)).toBe(before);
+    const stored = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(session.open, session.close),
+    );
+    expect(stored.map((entry) => entry.feed)).toEqual(["sip", "sip", "sip"]);
+    expect(barsOf(stored)).toEqual(sessionBars(session, 3));
+    expect((await repository().readCoverage(symbol, "1m"))?.barCount).toBe(3);
+  });
+
+  it("still accepts a same-tape overlap — the idempotent re-run and the correction are unchanged", async () => {
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+
+    const rerun = await repository().recordSeries(
+      seriesFor(symbol, session, { count: 3 }),
+    );
+    expect(rerun).toMatchObject({ inserted: 0, corrected: 0, unchanged: 3 });
+
+    const corrected = await repository().recordSeries(
+      seriesFor(symbol, session, { count: 3, nudge: 1 }),
+    );
+    expect(corrected).toMatchObject({
+      inserted: 0,
+      corrected: 3,
+      unchanged: 0,
+    });
   });
 
   it("refuses a stitched series, which names two sources for one window", async () => {
@@ -2199,9 +2318,11 @@ describe("the source the ledger stores, and the writer that keeps it true", () =
       coverage: { requested, covered: requested },
     });
 
-    await expect(repository().recordSeries(series)).rejects.toThrow(
-      ForeignSourceError,
-    );
+    const refused = repository().recordSeries(series);
+    await expect(refused).rejects.toThrow(ForeignSourceError);
+    await expect(refused).rejects.toMatchObject({
+      reason: { kind: "stitched" },
+    });
 
     const stored = await db().query<{ count: string }>(
       "select count(*) as count from market_bars",

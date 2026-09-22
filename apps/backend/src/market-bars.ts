@@ -182,14 +182,18 @@ export interface BarCoverage {
   readonly covered: TimeRange;
 
   /**
-   * Who sold us the bars in {@link covered}, and which venues are in them
-   * (`0007_bar_coverage_provenance.sql`).
+   * Who sold us the bars in {@link covered} — and, until Task 3.7.5, the tape
+   * the window was **opened** with (`0007_bar_coverage_provenance.sql`).
    *
-   * **The fact `market_bars` deliberately does not store, held once per series
-   * instead of once per row.** It is what lets {@link toStoredSeries} build a
-   * `BarSeries` out of stored rows at all, and it is a stored fact rather than
-   * an assertion at the read boundary — which matters because a store holding
-   * `fixture`/`synthetic` bars is something this repository creates on purpose.
+   * **Half of this is withdrawn since Task 3.7.4.** `provider` is the window's
+   * one provider and is enforced by `recordSeries`. `feed` was *the fact
+   * `market_bars` deliberately does not store, held once per series* — and
+   * since `0010_market_bars_feed.sql` every row stores it, a window may hold
+   * two tapes, and this field can name only the first. It is still what
+   * {@link toStoredSeries} puts on a served series' provenance, which is
+   * honest while no shipped writer sends a second tape (Story 3.8 is the
+   * first) and is what Task 3.7.5 replaces with sources derived from the rows.
+   * Nothing on the write path reads it.
    *
    * Not a `BarSource`: that type also carries `retrievedAt` and `barCount`, and
    * both are answers about a *served window* rather than about the ledger's.
@@ -605,35 +609,97 @@ export class ReplayedSeriesError extends Error {
   }
 }
 
+/**
+ * Why a series was refused on account of where it came from — the three
+ * refusals that survive Task 3.7.4, each named so a caller and a test can tell
+ * them apart, and each with its own reason to exist:
+ *
+ * - **`stitched`** — the series itself names more than one source. The ledger
+ *   holds one provider per window and a `BarSource` says how many bars each
+ *   part has but not which, so the honest way to store a stitch is to record
+ *   each part against the window it actually covers. Unchanged since Task
+ *   2.8.4.
+ * - **`provider`** — the series names a different **provider** from the
+ *   ledger row it would extend. The row carries the tape and nothing else
+ *   (ADR 0034's reversal trigger is the first per-bar field beyond it), so
+ *   a stretch's provider can only come from the ledger, and the ledger can
+ *   only say one. A series has one provider even when it has two tapes — the
+ *   plan's `sip` and `iex` are both Alpaca — so this refuses nothing the
+ *   product needs to store.
+ * - **`overlap`** — the series' window overlaps the held one and the bars in
+ *   the overlap carry **another tape**. The unique key on `market_bars` does
+ *   not include the tape, so writing through would reach the conflict rule
+ *   Task 3.7.3 pinned as **Story 3.8's decision** — the existing row's tape
+ *   wins, and different numbers move the numbers and leave the label. Until
+ *   3.8 lifts this, an IEX series re-stored over SIP bars is refused before
+ *   a row is touched rather than written under a `sip` label.
+ */
+export type ForeignSourceReason =
+  | { readonly kind: "stitched" }
+  | { readonly kind: "provider"; readonly held: ProviderId }
+  | {
+      readonly kind: "overlap";
+      readonly overlap: TimeRange;
+      readonly heldTapes: readonly MarketFeed[];
+    };
+
 export class ForeignSourceError extends Error {
   readonly provider: ProviderId;
   readonly feed: MarketFeed;
+  readonly reason: ForeignSourceReason;
 
   constructor(
     symbol: Ticker,
     timeframe: Timeframe,
     provider: ProviderId,
     feed: MarketFeed,
-    held: SeriesSource | "itself",
+    reason: ForeignSourceReason,
   ) {
-    super(
-      held === "itself"
-        ? `This ${symbol} ${timeframe} series names more than one source, and ` +
-            `one of them is ${provider}/${feed}. The ledger holds one source ` +
-            `per security and timeframe, so a stitched series cannot be ` +
-            `stored as one window — record each part against the window it ` +
-            `actually covers.`
-        : `This ${symbol} ${timeframe} series came from ${provider}/${feed} ` +
-            `and the store already holds ${held.provider}/${held.feed} for the ` +
-            `same series. \`market_bars\` stores no per-bar provenance, so the ` +
-            `two would be indistinguishable afterwards and every bar in the ` +
-            `window would be served under one label. If a second feed now ` +
-            `writes here, this is the trigger \`0004_market_bars.sql\` records ` +
-            `for a per-bar feed column.`,
-    );
+    super(describeForeignSource(symbol, timeframe, provider, feed, reason));
     this.name = "ForeignSourceError";
     this.provider = provider;
     this.feed = feed;
+    this.reason = reason;
+  }
+}
+
+function describeForeignSource(
+  symbol: Ticker,
+  timeframe: Timeframe,
+  provider: ProviderId,
+  feed: MarketFeed,
+  reason: ForeignSourceReason,
+): string {
+  const series = `This ${symbol} ${timeframe} series`;
+  switch (reason.kind) {
+    case "stitched":
+      return (
+        `${series} names more than one source, and one of them is ` +
+        `${provider}/${feed}. The ledger holds one provider per security and ` +
+        `timeframe and a source says how many bars it covers but not which, ` +
+        `so a stitched series cannot be stored as one window — record each ` +
+        `part against the window it actually covers.`
+      );
+    case "provider":
+      return (
+        `${series} came from provider ${provider} and the store already ` +
+        `holds this series from ${reason.held}. A bar carries its tape ` +
+        `(\`market_bars.feed\`) and not its provider, so the ledger row is ` +
+        `the only place a window's provider is written, and it can name one. ` +
+        `A second tape from the SAME provider is accepted; a second provider ` +
+        `is not.`
+      );
+    case "overlap":
+      return (
+        `${series} came from the ${feed} tape and overlaps stored bars from ` +
+        `${reason.heldTapes.join(", ")} between ` +
+        `${reason.overlap.start.toISOString()} and ` +
+        `${reason.overlap.end.toISOString()}. Writing through would meet ` +
+        `the per-row conflict rule as it stands — the existing row keeps its ` +
+        `tape and takes the new numbers — and what happens when two tapes ` +
+        `meet on one minute is Story 3.8's decision, not this writer's. ` +
+        `Extend the window from another tape; do not overwrite it.`
+      );
   }
 }
 
@@ -655,7 +721,7 @@ function singleSourceOf(series: BarSeries): SeriesSource {
         series.timeframe,
         other.provider,
         other.feed,
-        "itself",
+        { kind: "stitched" },
       );
     }
   }
@@ -821,7 +887,10 @@ export function toStoredSeries(input: StoredSeriesInput): BarSeries {
   const provenance = toSeriesProvenance(STORED_BAR_ADJUSTMENT, {
     // From the ledger, which is where `0007_bar_coverage_provenance.sql` put
     // it. The constant is reached only when there is no ledger row at all,
-    // which is an answer holding no bars — see `SOURCE_OF_NOTHING`.
+    // which is an answer holding no bars — see `SOURCE_OF_NOTHING`. Since
+    // Task 3.7.4 the ledger's `feed` is the tape the window was opened with
+    // and a window may hold a second (`market_bars.feed`); this is the last
+    // reader of that column, and Task 3.7.5 derives the sources from the rows.
     ...(held?.source ?? SOURCE_OF_NOTHING),
     retrievedAt: (earliestRecordedAt(rows) ?? now).toISOString(),
     barCount: bars.length,
@@ -1237,9 +1306,13 @@ export function createMarketBarsRepository(
         // because the update is expressed in terms of the stored row rather
         // than a value computed here. The backfill is serial by design
         // (Task 2.8.6), so that window is not one anything walks into.
+        // `feed` is deliberately not selected: since Task 3.7.4 the ledger's
+        // tape column is the tape the window was OPENED with and nothing
+        // here decides on it — the bars carry their own (`market_bars.feed`),
+        // and the overlap check below reads those.
         const held = await trx
           .selectFrom("bar_coverage")
-          .select(["covered_start", "covered_end", "provider", "feed"])
+          .select(["covered_start", "covered_end", "provider"])
           .where("security_id", "=", securityId)
           .where("timeframe", "=", timeframe)
           .forUpdate()
@@ -1279,19 +1352,62 @@ export function createMarketBarsRepository(
             );
           }
 
-          // **`0004_market_bars.sql`'s trigger, as a mechanism.** That
-          // migration stores no per-bar provenance and names its reversal
-          // condition as a second feed writing into this table; this row can
-          // describe one source, so appending a second to the same series would
-          // put both under one label with nothing able to tell them apart.
-          if (held.provider !== source.provider || held.feed !== source.feed) {
+          // **What replaced `0004_market_bars.sql`'s trigger (Task 3.7.4).**
+          // Until Story 3.7 this refused any series whose provider OR feed
+          // differed from the ledger row's, because the bars stored no tape
+          // and a second one would have been indistinguishable afterwards.
+          // Every bar now carries its own tape, so a second TAPE extending
+          // the window is exactly what the column was added for and is
+          // accepted. Two refusals stand, each for its own reason — see
+          // {@link ForeignSourceReason}:
+          //
+          // A second **provider** is still refused. The ledger is the only
+          // place a window's provider is written (the row carries the tape
+          // and nothing else), and it names one.
+          if (held.provider !== source.provider) {
             throw new ForeignSourceError(
               symbol,
               timeframe,
               source.provider,
               source.feed,
-              held,
+              { kind: "provider", held: held.provider },
             );
+          }
+
+          // And a series that **overlaps** the held window is refused if the
+          // stored bars in the overlap carry another tape — read from the
+          // rows, never from the ledger's `feed`. This is the guard in front
+          // of the per-row conflict rule Task 3.7.3 kept as Story 3.8's to
+          // decide; a same-tape overlap is the idempotent re-run or a
+          // correction, as it always was. `pnpm break
+          // a-second-tape-overwrites-the-first`.
+          const overlapStart = later(arriving.start, held.covered_start);
+          const overlapEnd = earlier(arriving.end, held.covered_end);
+          if (overlapStart < overlapEnd) {
+            const foreign = await trx
+              .selectFrom("market_bars")
+              .select("feed")
+              .distinct()
+              .where("security_id", "=", securityId)
+              .where("timeframe", "=", timeframe)
+              .where("observed_at", ">=", overlapStart)
+              .where("observed_at", "<", overlapEnd)
+              .where("feed", "!=", source.feed)
+              .execute();
+
+            if (foreign.length > 0) {
+              throw new ForeignSourceError(
+                symbol,
+                timeframe,
+                source.provider,
+                source.feed,
+                {
+                  kind: "overlap",
+                  overlap: toTimeRange(overlapStart, overlapEnd),
+                  heldTapes: foreign.map((row) => row.feed),
+                },
+              );
+            }
           }
         }
 
@@ -1692,6 +1808,16 @@ async function extendCoverage(
       // migrate step and its code roll (`0007_bar_coverage_provenance.sql`);
       // `schema.ts` types them as required on insert so no shipped writer can
       // reach it.
+      //
+      // Since Task 3.7.4 the two columns mean different things. `provider`
+      // is the window's one provider and is enforced above (a series from
+      // another provider is refused). `feed` is **the tape the window was
+      // opened with and no more** — a window extended from a second tape
+      // keeps it, the bars carry the truth per row (`market_bars.feed`), and
+      // `readSeries` is its last reader until Task 3.7.5 derives a window's
+      // sources from the rows. It stays required on insert so the database
+      // default stays unreachable; it is written here so the column is never
+      // blank, not because anything decides on it.
       provider: source.provider,
       feed: source.feed,
       bar_count: inserted,
@@ -1703,10 +1829,11 @@ async function extendCoverage(
           covered_start: sql<Date>`least(bar_coverage.covered_start, excluded.covered_start)`,
           covered_end: sql<Date>`greatest(bar_coverage.covered_end, excluded.covered_end)`,
           bar_count: sql<string>`bar_coverage.bar_count + excluded.bar_count`,
-          // `provider` and `feed` are deliberately absent. The source of a
-          // window does not change; a series claiming a different one is
-          // refused above rather than relabelled here, and `schema.ts` makes
-          // updating either a compile error.
+          // `provider` and `feed` are deliberately absent. The provider of a
+          // window does not change — a series claiming a different one is
+          // refused above rather than relabelled here — and the tape column
+          // is the one the window was opened with, meaning withdrawn since
+          // Task 3.7.4; `schema.ts` makes updating either a compile error.
           updated_at: sql<Date>`now()`,
         }))
         .where(

@@ -253,6 +253,13 @@ export interface ServedSeries extends StoredSeries {
  * Epic 3's decision, and the metered request is bounded in front of the store
  * by Task 2.9.8's cache rather than inside it.
  *
+ * **Amended 2026-09-22 by Task 3.7.4.** The trigger fired and the column
+ * exists (`0010_market_bars_feed.sql`), so the refusal above is narrower than
+ * it was: a stitched series is still refused as one write (reason
+ * `stitched`), but a second **tape** may now extend a window contiguously.
+ * What still keeps this tail out of the store is that it *overlaps* nothing
+ * and *stitches* two sources — and that storing it is Story 3.8's decision.
+ *
  * `now` is injected rather than read from the clock, as `readSeries`' is: the
  * session bound is a function of it, and a bound that can only be exercised by
  * waiting for the market to open is a bound nobody exercises.

@@ -1,6 +1,6 @@
 # Task 3.7.4 — What replaces the ledger's refusal of a second source
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-22.** Candidate 1, narrowed as the 3.7.3 amendment asked: the ledger keeps its window, count and **provider**, and withdraws its `feed`. `ForeignSourceError` survives with three named reasons — `stitched`, `provider`, `overlap` — and the refusal of a second **tape** is gone: a SIP window extended by an IEX session is accepted and reads back as both tapes in order. Five tests, two breaks red and restored, `pnpm test:database` 184/184, `pnpm verify` green.
 **Story:** [3.7 The Tape on the Bar](STORY.md)
 **Depends on:** 3.7.3
 
@@ -111,3 +111,158 @@ instants are not (ADR 0030 decision 7).
    the refusal that stands is the one about contiguity
 2. The ledger's columns have one stated meaning, in `schema.ts` and `TAPE.md`
 3. `pnpm test:database` passes; `pnpm verify` passes
+
+---
+
+## What was done — 2026-09-22
+
+### 1. The decision: candidate 1, with `provider` kept as a read
+
+The ledger row now claims **the window, the count and the provider**, and
+its `feed` column claims only the tape the window was opened with. That is
+candidate 1 narrowed by the thing 3.7.3's row forces: `market_bars` carries
+the tape and nothing else (ADR 0034's reversal trigger is the first per-bar
+field beyond it), and a `BarSource` needs a provider, so the ledger is the
+only place a window's provider can be written without a constant — and a
+window has one provider even with two tapes, since the plan's `sip` and
+`iex` are both Alpaca. `TAPE.md` §7 carries the four-column table: what each
+claims, who reads it, what enforces it.
+
+Candidates 2 and 3 were not taken, for the reasons the task file gave: a
+dominant tape is two sources of truth that agree most of the time, and a row
+per tape is 3.7.1's window-grain candidate, which 3.7.1 did not choose.
+
+### 2. The refusals that stand, and the one that went
+
+`ForeignSourceError` survives, because two of its cases still need it and a
+third was added — but it now carries a **`reason`** discriminant so a caller
+and a test can tell them apart, and each message is written against the tree
+as it is rather than saying _`market_bars` stores no per-bar provenance_:
+
+- **`stitched`** — a series naming two sources is still refused as one
+  write. A source says how many bars it has but not which, so the honest
+  store of a stitch is each part against the window it covers. Unchanged.
+- **`provider`** — a series naming a different provider from the ledger
+  row's is refused before a row is touched. New as a named case; it was half
+  of the old refusal.
+- **`overlap`** — a series whose window overlaps the held one is refused if
+  the stored bars **in the overlap** carry another tape. The check is one
+  indexed `select distinct feed` over the overlapping range, read from the
+  rows and never from the ledger's `feed`. It is the guard in front of the
+  per-row conflict rule 3.7.3 kept as Story 3.8's decision: without it an
+  IEX series re-stored over SIP bars would give every row IEX's numbers
+  under a `sip` label. A same-tape overlap is what it always was.
+
+**What went:** the refusal of a second tape. A SIP window extended by an IEX
+session from the same provider is accepted — the window grows to the union,
+the count to the sum, and `readBars` answers `sip, sip, sip, iex, iex`.
+
+The `held` read in `recordSeries` no longer selects the ledger's `feed`; the
+provider check reads `provider` alone; `extendCoverage` still writes `feed`
+on insert (required, so the default stays unreachable; never blank) and
+still leaves both columns out of the `on conflict` set — the comment there
+was re-read against the new meaning, as the task asked, and says _withdrawn_
+rather than _does not change_.
+
+### 3. The ledger's columns have one stated meaning, in three places
+
+`schema.ts`'s `BarCoverageTable` comment is rewritten: `provider` is a read
+and a rule; `feed` is withdrawn from every decision, holds the opening tape,
+is read by `readSeries` only until 3.7.5, and stays because a contract is a
+second deploy. `BarCoverage.source`'s domain comment says the same in the
+repository's words, and `toStoredSeries`'s comment names itself as the
+column's last reader. `serve-series.ts`'s header — a live claim that
+`recordSeries` refuses a stitched tail because the store holds one source
+per window — gained a dated amendment: still refused, for the `stitched`
+reason, and what keeps the tail out is now that it overlaps nothing and is
+Story 3.8's to store.
+
+### 4. Tests — five, replacing one
+
+_Refuses a second source for a series it already holds_ became five, all in
+`market-bars.database.test.ts`:
+
+- **accepts a second tape extending a held window contiguously** — the
+  trigger's payoff: `inserted: 2`, window = union, count = 5, provider
+  `alpaca`, tapes `sip ×3, iex ×2` in order through `readBars`, and the
+  ledger's `feed` still `sip` — asserted as _the opening tape_, not the
+  truth about the window;
+- **still refuses a second tape that leaves a session unfetched** —
+  `CoverageGapError`, the refusal that stands is contiguity;
+- **refuses a second provider, writing nothing** — reason `provider`, held
+  `alpaca`; the bars' fingerprint, the ledger's source and its count
+  unchanged;
+- **refuses a second tape OVERLAPPING stored bars, and leaves every row's
+  tape as it was** — reason `overlap`, `heldTapes: ["sip"]`; the fingerprint
+  unchanged, every tape `sip`, every number the original;
+- **still accepts a same-tape overlap** — the re-run reports `unchanged: 3`
+  and the nudged re-run `corrected: 3`.
+
+The stitched test now also asserts `reason: { kind: "stitched" }`.
+
+### 5. Two breaks, both red
+
+| Break                                | What it changes                         | Test that went red                              |
+| ------------------------------------ | --------------------------------------- | ----------------------------------------------- |
+| `a-second-tape-overwrites-the-first` | the overlap guard's `> 0` becomes `< 0` | _refuses a second tape OVERLAPPING stored bars_ |
+| `a-second-provider-is-relabelled`    | the provider check gains `&& false`     | _refuses a second provider_                     |
+
+Both need a database and live outside `verify`.
+
+### 6. Gates
+
+`tsc -b` clean; `pnpm test:database` **184/184**; both breaks red and
+restored; `pnpm verify` green; `pnpm links` 0 broken. No browser spec is in
+reach: nothing on the wire changed and no shipped writer sends a second tape
+yet.
+
+## For a stakeholder — a status report, 2026-09-22
+
+**Where the product is.** Every stored price now says which tape it came
+from (the previous task). This task makes the store **willing to hold two
+tapes for one security** — the thing it used to refuse outright, and the
+thing the next story needs before a page reloaded during the trading day can
+show today's prices from the live feed on top of yesterday's from the
+consolidated tape.
+
+**What was built.** The store's ledger — a one-line summary per security of
+what we hold — used to insist that everything for a security came from one
+tape, and rejected anything else. That was the right rule when the prices
+themselves could not say where they came from. Now that each price can, the
+rule is replaced with three narrower ones:
+
+- **Two tapes, one supplier: accepted.** Yesterday's consolidated-tape prices
+  followed by today's from the IEX exchange are stored side by side, and
+  reading them back gives each price with its own label.
+- **A different supplier: still refused.** The ledger is the one place that
+  records who supplied a security's history, and it records one name. This
+  costs nothing today, because our two tapes both come from the same
+  supplier.
+- **Overwriting one tape's prices with another's for the same minutes: still
+  refused, deliberately.** What should happen when the live feed and the
+  consolidated tape both have a price for 10:31 is a real product decision —
+  the next story's — and a rule that quietly kept one tape's label on the
+  other tape's numbers would have made it in passing. So the store refuses
+  that write, says exactly why in the error, and leaves the stored prices
+  untouched.
+
+**Why these decisions.** Each one follows from a fact rather than a
+preference: the price row records its tape but not its supplier, so the
+supplier has to live in the ledger; the database key for a price does not
+include the tape, so two tapes on one minute collide, and a collision is a
+decision rather than a default. We wrote the decision down as the next
+story's, and put a test in front of it so nobody takes it by accident.
+
+**What we checked rather than trusted.** Five automated tests against a real
+database: the accepted case reads back both tapes in the right order; the
+two refusals leave the database byte-for-byte as it was; the ordinary nightly
+re-run and correction behave exactly as before. And we deliberately broke
+each new rule in the code to prove its test goes red, then restored the code
+automatically.
+
+**What a user can see today: nothing.** The store accepts something it used
+to refuse, and nothing yet sends it. What this unlocks: the next task makes
+a chart's source note able to say, from real stored data, _the first 390
+bars are the consolidated tape and the last 12 are IEX_ — and the story
+after that is the first one a user can feel, a page reloaded mid-session
+that still shows today.

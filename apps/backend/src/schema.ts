@@ -416,30 +416,44 @@ export interface BarCoverageTable {
   covered_end: Date;
 
   /**
-   * Who sold us the bars in that window, and which venues are in them. See
-   * `../migrations/0007_bar_coverage_provenance.sql`.
+   * Who sold us the bars in that window — and, since Task 3.7.4, **only
+   * that**: the tape column beside it is the tape the window was opened
+   * with and no more. See `../migrations/0007_bar_coverage_provenance.sql`
+   * for the shape and `TAPE.md` §7 for what each column means now.
    *
    * **The unions rather than `string`**, backed by `bar_coverage_provider_check`
    * and `bar_coverage_feed_check`, exactly as {@link timeframe} is.
    *
-   * **Plain rather than `ColumnType`, and that is the load-bearing half of the
-   * decision the migration takes.** Both columns carry a database default, which
-   * `0002_securities.sql` refused for `profile_source` on the argument that a
-   * default silently attributes one source's data to another. The default here
-   * exists only so the *previous* backfill survives the window between the
-   * deploy's migrate step and its code roll. What stops it becoming that
-   * failure is this line: written plainly, both are **required on insert**, so
-   * a writer that omits one is a compile error and the database's default is
-   * unreachable from any shipped writer.
+   * **`provider` is a read and a rule.** A window has one provider — the row
+   * on {@link MarketBarsTable} carries the tape and nothing else (ADR 0034's
+   * reversal trigger is the first per-bar field beyond it), so this is the
+   * only place a window's provider is written and the only place a served
+   * series can take it from. `recordSeries` refuses a series naming a
+   * different one (`ForeignSourceError`, reason `provider`).
    *
-   * **Update is `never`**, which is `SecuritiesTable.recorded_at`'s idiom used
-   * for a different fact: the ledger row is *extended* by every session the
-   * backfill adds, and the source of the window it covers does not change while
-   * that happens. A series arriving from somewhere else is refused rather than
-   * relabelled — `market-bars.ts` throws `ForeignSourceError`, which is
-   * `0004_market_bars.sql`'s trigger for a per-bar `feed` column firing per
-   * series — so an `update` touching either column is a bug, and here it is a
-   * compile error. The database would happily allow it.
+   * **`feed` is withdrawn from every decision.** Until Story 3.7 it was the
+   * one tape of the whole window and a series naming another was refused;
+   * since `0010_market_bars_feed.sql` every bar carries its own and a window
+   * may hold two, which this column cannot say. It holds the tape the window
+   * was **opened** with, the write path neither reads nor updates it, and
+   * `readSeries` is its last reader until Task 3.7.5 derives a window's
+   * sources from the rows. It stays here because a contract is a second
+   * deploy (`../migrations/README.md`, expand then contract) and because
+   * dropping a column from a live ledger is not this story's to do.
+   *
+   * **Plain rather than `ColumnType` on the insert side, and that is still
+   * load-bearing.** Both columns carry a database default, which
+   * `0002_securities.sql` refused for `profile_source` on the argument that a
+   * default silently attributes one source's data to another. The default
+   * exists only so the *previous* backfill survives the window between the
+   * deploy's migrate step and its code roll. Both are **required on insert**,
+   * so a writer that omits one is a compile error and the database's default
+   * is unreachable from any shipped writer.
+   *
+   * **Update is `never`** on both. The provider of a window does not change,
+   * and the tape column is not relabelled when a second tape extends the
+   * window — that is what *withdrawn* means — so an `update` touching either
+   * is a bug, and here it is a compile error. The database would allow it.
    */
   provider: ColumnType<ProviderId, ProviderId, never>;
   feed: ColumnType<MarketFeed, MarketFeed, never>;
