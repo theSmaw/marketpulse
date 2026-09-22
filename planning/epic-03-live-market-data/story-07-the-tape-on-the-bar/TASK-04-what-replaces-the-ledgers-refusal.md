@@ -45,6 +45,48 @@ because the ledger is still what makes _we have nothing here_ sayable; and
 `ReplayedSeriesError` is untouched, because a replay's bars are real and its
 instants are not (ADR 0030 decision 7).
 
+> **AMENDED 2026-09-22 by Task 3.7.3 — two things the row that shipped
+> forces on candidate 1, and both narrow it rather than reopen it.**
+>
+> **The ledger keeps its `provider` as a READ, and withdraws only its
+> `feed`.** The row carries the tape and nothing else — ADR 0034's reversal
+> trigger is _the first per-bar field beyond the tape_, so a per-bar
+> `provider` is not on the table — and a `BarSource` needs a provider as well
+> as a feed. The only place a stretch's provider can come from without a
+> constant is the ledger row, which is fine because a series has one
+> provider even when it has two tapes (the plan's `sip` and `iex` are both
+> Alpaca; the fixture's `synthetic` is never stitched onto either). So the
+> refusal that stands is narrower than _contiguity only_: **a series naming a
+> different `provider` from the ledger row is still refused**, a series
+> naming a different `feed` is what this task starts accepting, and `TAPE.md`
+> §on the ledger says the columns mean _the window, the count, the provider_
+> and that `feed` is read by nothing. Task 3.7.5 takes the provider per
+> stretch from here.
+>
+> **An OVERLAPPING series from another tape is refused until Story 3.8, on
+> purpose.** Today an overlapping series is the idempotent re-run
+> (`recordSeries` checks for a gap, never for an overlap) and
+> `ForeignSourceError` is the only thing standing between a second tape and
+> the bar-level conflict. 3.7.3 kept that conflict's rule as it was and
+> asserted it — _the existing row's tape wins, and different numbers move
+> the numbers and leave the tape_ — as **Story 3.8's decision**, with the
+> `never` update type on `MarketBarsTable.feed` making it a compile-time
+> rule. Dropping the whole refusal here would make that branch reachable
+> from the shipped writer one story early: an IEX series re-stored over SIP
+> bars would move the numbers under a `sip` label. So the accepted case is a
+> **contiguous extension** from another tape — the window grows, the count
+> grows, `readBars` answers both tapes — and an extension that overlaps the
+> held window from a different tape keeps a refusal (a narrowed
+> `ForeignSourceError`, or a sibling named for overlap) whose message says
+> it is Story 3.8's to lift. Add the test: _an IEX series overlapping SIP
+> bars is refused, and the refused write leaves every row's tape as it was_.
+>
+> **And the error's own message is false since 3.7.3.** `ForeignSourceError`
+> says _`market_bars` stores no per-bar provenance, so the two would be
+> indistinguishable afterwards_ — the column exists and the read
+> distinguishes them. Whatever survives of the class gets a message written
+> against the tree as it is.
+
 ## Work
 
 - Replace `ForeignSourceError`'s two refusals with the chosen rule; keep the
@@ -53,8 +95,12 @@ instants are not (ADR 0030 decision 7).
   extension under the chosen candidate, and a comment on `BarCoverageTable`
   saying what the columns now mean
 - `market-bars.database.test.ts`: a SIP window extended by an IEX series is
-  **accepted**, the window and count update, the bars carry both tapes; a
-  non-contiguous extension is still refused by whatever rule replaces it
+  **accepted**, the window and count update, the bars carry both tapes (read
+  back through `readBars`, whose `StoredBar.feed` is the per-row tape since
+  3.7.3); a non-contiguous extension is still refused by whatever rule
+  replaces it; an extension naming a different **provider** is still refused;
+  an **overlapping** series from another tape is still refused and touches no
+  row (the amendment above)
 - The `on conflict` clause on `bar_coverage` (`market-bars.ts` line ~45's
   comment) re-read against the new meaning
 - `TAPE.md` §on the ledger: what a row claims now, and what it no longer claims

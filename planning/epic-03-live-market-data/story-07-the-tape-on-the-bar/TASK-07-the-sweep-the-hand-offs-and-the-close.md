@@ -48,7 +48,14 @@ Known candidates:
 
 - **Story 3.8** — what replaced the refusal (3.7.4), the conflict rule as it
   stands and that it is 3.8's to change, the write path's shape for a socket
-  bar, and the three overnight shapes now that both tapes can coexist
+  bar, and the three overnight shapes now that both tapes can coexist.
+  **Since 3.7.3, in words 3.8 can act on**: `writeBatch` takes the tape as
+  its fifth argument from the series' provenance; `MarketBarsTable.feed`'s
+  update type is `never`, so whichever overnight shape moves a tape on a
+  correction changes that type **on purpose**; the overlap refusal 3.7.4
+  leaves standing is the one 3.8 lifts; and `BAR_COLUMNS` sizes the
+  multi-row chunk, so a column the socket writer adds goes in that list or
+  the chunk-boundary test goes red (it did, in 3.7.3)
 - **Story 3.9** — the ledger comes out of the store now; `twoFeedStitchView()`
   has a real sibling; the read-path cost of the grouping
 - **Story 3.10** — nothing this story changes about a degraded state, said
@@ -57,7 +64,11 @@ Known candidates:
   was run; the bytes-a-row figure for the bill
 - **Epic 13** — replay reads bars that now carry a tape, and _what was knowable
   at 11:07_ is the IEX bar rather than the SIP correction; the `status`
-  predicate rule still applies
+  predicate rule still applies. **Since 3.7.3**: the tape reaches the replay
+  source on `StoredBar.feed` and is **dropped on purpose** in
+  `replay-bar-source.ts`, with a comment saying the engine's emission is
+  labelled `replay` — that line is where Epic 13 picks it up if _what was
+  knowable_ needs the tape rather than the numbers
 - **Epic 14** — the row size moved, and the index nobody reads is still there
 
 ## Work
