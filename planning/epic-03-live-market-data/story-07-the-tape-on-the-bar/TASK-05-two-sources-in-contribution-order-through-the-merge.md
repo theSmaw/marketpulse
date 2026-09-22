@@ -36,6 +36,17 @@ tapes produces the list it needs; the first time a user reads it is Story
   the real figure here against the cap-sized window (9,750 bars) and the
   default (390), and say what the read path's p95 became against Story 2.9's
   recorded figures.
+
+  > **AMENDED 2026-09-22 by Task 3.7.1 — the figures exist and the shape of
+  > the query is settled.** `group by feed` with `min(observed_at)` for
+  > contribution order and `count(*)` for the bar count ran in **0.478 ms** for
+  > a session (390 bars, index scan) and **9.964 ms** for 10,140 bars (bitmap
+  > heap scan, 143 heap blocks), on the index the table already has. What this
+  > task re-takes is the **shipped** query through the repository — the
+  > `retrievedAt` per stretch (`min(recorded_at)` in the same aggregate) is the
+  > one thing 3.7.1's query carried but did not assert — and the p95 of
+  > `GET /market-data/bars` against Story 2.9's figures, not the raw SQL again.
+
 - **`market-bars.database.test.ts`**: a window with a SIP stretch followed by
   an IEX stretch reads back as two sources in that order with the right
   counts; the reverse order reads back reversed; a window with one tape reads
