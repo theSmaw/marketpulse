@@ -130,11 +130,27 @@ doubling to a 30 s ceiling on anything else. One socket upstream carries 518
 securities; downstream a browser receives only the symbols it subscribed to,
 and one that stops reading is dropped at 1 MiB of buffer rather than queued for.
 
-**What they still cannot do:** watch a price move **on the deployed site**. The
-demonstration is a developer's, out of hours, against ADR 0030's replay of our
-own stored bars — production serves only the real IEX socket and that socket has
-been refused `406` since the deployed backend started holding the plan's single
-connection. Stories 3.10 and 3.11 own it.
+**And since 2026-09-21 the securities table is a market.** All 518 rows on
+`/securities` carry a live price where one has arrived and the last stored
+close otherwise, the change measured from the previous session's close, each
+arrival marked with the same disc the identity block uses — firing **once a
+minute as one burst**, because that is the shape the feed delivers, and still
+for the 59 seconds between. The table never re-orders under live data (chosen,
+and asserted), every row stays subscribed rather than only the visible ones
+(measured: scoping bought a third of a cost it did not clear), and a tick costs
+**37–40 ms of script on a production build with every row changing** after the
+table's first memo boundaries — §28's _routine_ line met, with the cold load
+still Epic 14's. §28's p95 has a figure at last: **68 ms** from the gateway's
+send to the table repainted, at 518 subscribed, because every frame now carries
+`sentAt`. A browser spec asserts a bar landing in a row against a store with
+zero bars.
+
+**What they still cannot do:** have a person **vouch** for it during a session.
+The deployed backend reads `live` on IEX again since 2026-09-21 — the `406`
+this paragraph used to describe is gone — but `LIVE-REHEARSAL.md`'s rows for
+3.4, 3.5 and 3.6 are empty until somebody opens the deployed site while the
+market is open, which is one sitting. Story 3.10 owns what the page says when
+the feed stops, and Story 3.11 owns the deployed re-take of every figure above.
 
 ### What is settled, and where the argument lives
 

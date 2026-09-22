@@ -1,6 +1,6 @@
 # Story 3.6 — Live Prices Across the Tracked Universe
 
-**Status:** Not started
+**Status:** **Everything but the rehearsal — 2026-09-22.** Seven tasks complete; criteria 1–6 and 8 met with evidence, criterion 7 half met — probed at four widths, and the _person looked during a live session_ half is owed to the deployed site's next session, recorded beneath `LIVE-REHEARSAL.md`'s table. [Task 3.6.7](TASK-07-the-rehearsal-the-sweep-and-the-close.md) holds the walk, the hand-off count (four of seven missing, all written) and the upward sweep.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.4, 3.5
 **Epic scope covered:** live price updates in the UI, at the size the product is for

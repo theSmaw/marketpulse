@@ -305,3 +305,30 @@ path filters — that asymmetry is deliberate and is argued in the section above
 now (it was 3.8). Its deadline was always _before the first stored live bar_,
 which is yours, and that is unchanged — it simply sits immediately before you in
 the sequence rather than two places back.
+
+---
+
+## Handed here by Story 3.6's close — 2026-09-22: a dating rule you will blur
+
+**The universe table dates a stored close and does not date a live price**
+(Task 3.6.1). Every cell in the `Last` column used to be one kind of number —
+a close from the consolidated tape, all from one session, so the date was
+stated once in the heading. A live price is a different kind of number from a
+different feed, so once any row is live the heading withdraws its shared claim
+and **each stored row carries its own session date**, while a live row carries
+none and is spoken as `Live price`. Measured on the local store: the exception
+set went from 3 of 518 to about 197, and it is the correct set.
+
+**Storing the live session blurs the line the rule draws.** After you, a
+reload shows today's bars as _stored_; a row that was live before the reload
+and is stored after it should not change what it claims. Decide, in your
+file, what a stored bar from **today's** session says in that cell and
+whether it is dated — and keep the two things the table already guards: the
+spoken word tells the two kinds apart, and a claim about a session is made
+only while it is true of the whole column.
+
+**Two more facts about the surface you will feed:** the current-state map
+never expires an observation, so a "live" price can be hours old (Task 3.6.2
+handed that state to Story 3.10, not to you); and the table is memoised on
+the observation's identity (Task 3.6.5), so a stored bar handed to it under a
+new object for the same minute is a re-render of that row.

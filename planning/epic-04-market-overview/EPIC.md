@@ -118,3 +118,37 @@ breadth percentage computed over "everything in the map" is computed over
 whatever happened to be observed, which is roughly two-thirds of the universe on
 a median minute. **The denominator is a decision this epic has to take and
 state on screen**, not an implementation detail.
+
+---
+
+## Handed here by Story 3.6's close — 2026-09-22: the data the overview aggregates, and two decisions that bound it
+
+**The universe table never re-orders under live data, and that is chosen
+rather than inherited** (Task 3.6.3). Its order is `SECTORS`, then the
+sector's own ETF, then equities in query order, and nothing in it reads a
+price — because a row that moves while it is being read is a row that cannot
+be read. **Anything _ranked_ by a live value is yours**: gainers, losers,
+breadth, sector performance. A ranked view is a different surface with a
+different promise, not that table sorted differently; the reversal trigger on
+the table is _the first sort control whose key is a live value_, and it should
+not fire from here.
+
+**What you have to aggregate over.** The browser holds one `Map` of the
+latest observation per security (`LiveFeedView.observations`), filled by a
+snapshot on connect and one `bars` frame a minute, with §7.6's coverage: about
+332 of 518 securities in a given minute, 65.1% median per symbol, and every
+observation carrying its own `startsAt` — the current-state map never expires
+one, so a breadth denominator has to decide what _current_ means rather than
+count the map. A change is measured against the **previous session's close**
+by `changeFromClose` (Task 3.6.1), which lives in `components/UniverseTable/last-close.ts`
+and is the one place that arithmetic is written.
+
+**The render cost is a measured constraint, not a worry.** Re-rendering 518
+rows once a minute on a production build cost 46–49 ms of script per tick and
+40 ms every 30 s from an unmemoised route (Task 3.6.5), against §28's 50 ms
+_routine_ line; two memo boundaries took it to 37–40 ms with every row
+changing. **A second universe-scale surface on one page is Epic 14's own
+reversal trigger**, and the overview is that page by design: size each
+region's per-row work against 518 from the first line, and read
+[Task 3.6.5](../epic-03-live-market-data/story-06-live-prices-across-the-universe/TASK-05-the-cold-load-expand-all-and-epic-14s-trigger.md)
+for the instrument that names what a tick spends.

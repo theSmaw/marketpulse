@@ -319,3 +319,44 @@ embargo and a rate limiter that is a refilling bucket at ~3.3/s with **no
 invent. Drawing the hole (candidate 2) was declined because a chart that silently
 omits the first hours of a session is the false-impression family
 `PROVENANCE.md` exists to refuse.
+
+---
+
+## Handed here by Story 3.6's close — 2026-09-22: what the table settled that the chart inherits
+
+**You are the second surface to apply the motion vocabulary at scale, and the
+first decision is already taken: it applies unchanged.** Task 3.6.2 measured
+the mark at 518 rows — rendered and not rendered, same machine, same feed —
+and found no difference that survives the noise; the mark is not the cost.
+The rate that looked like 8.6 marks a second was a division: §7.4's burst
+lands a minute's bars inside ~243 ms, so the mark fires **once a minute** and
+the page is still for the rest of it. A live edge that redraws on every bar
+inherits that shape: one burst, one redraw, not a stream.
+
+**The handle is shared.** The identity block's mark and the table's row marks
+both carry `[data-arrival]`, and a page-wide count on `/securities/:symbol`
+already counts two. If the chart's live edge marks, it is the same attribute
+and the same `composes:`d rule (`styles/motion.module.css`), and any spec
+counting marks scopes to its own region.
+
+**§28's word _routine_ is the rule you are measured against, and Task 3.6.5
+paid for learning it.** The table re-rendered 518 rows once a minute for ever
+and crossed 50 ms on three frames in seven on a production build; the cold
+load, once per visit, was allowed to stand. A chart edge that redraws every
+tick is routine in exactly that sense. The lever there was render work — memo
+boundaries so a tick touches only what changed — and the instrument is a
+`long-animation-frame` observer naming the invoker; both are in
+[Task 3.6.5](../story-06-live-prices-across-the-universe/TASK-05-the-cold-load-expand-all-and-epic-14s-trigger.md).
+
+**The reading in which a live price and a stored close meet is yours.** The
+table dates a stored close and does not date a live price, and its heading
+stops claiming one session over the column the moment any row is live — a
+shared claim is made only while it is true of everything (Task 3.6.1). The
+reversal trigger written there names you: _the first surface that has to
+compare a live price and a stored close in the same reading_. A chart with a
+stored tail and a live edge is that surface, and the two-feed ledger is where
+the two provenances are said.
+
+**And the gateway's `sentAt`** (Task 3.6.4, ADR 0033) is on every frame you
+will receive: a measurement field, never a clock for staleness, honest only as
+a distribution.
