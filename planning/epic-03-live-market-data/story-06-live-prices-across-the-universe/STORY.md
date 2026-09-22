@@ -420,3 +420,43 @@ three stories' worth of deferral at once.
 
 **This is an addition to this story's scope taken deliberately**, and it is the
 one place in the epic where the wire changes after Story 3.3 froze it.
+
+---
+
+## Amended by Task 3.6.4 — 2026-09-22: criterion 5 has a figure, and the wire has its one new field
+
+**The stamp is on the wire.** Every `snapshot`, `bars` and `feed` frame carries
+`sentAt`, the gateway's own clock at the send
+([ADR 0033](../../../docs/adr/0033-a-send-instant-on-the-wire-for-measurement-only.md)),
+and the four constraints above were honoured: a new field, never `startsAt`'s
+second meaning; a third clock reading that `pnpm invariants` holds out of
+`feed-liveness.ts` and both adapters over it; a figure published as a
+distribution with n; one instant per frame, **36 bytes** read off the wire
+against a 58,187-byte universe frame.
+
+**Criterion 5, taken on this story's own surface — `/securities` at 518
+subscribed securities, production build, 60 frames each carrying all 518:**
+
+| Leg                                     | p95         |
+| --------------------------------------- | ----------- |
+| gateway send → frame in the page        | **6 ms**    |
+| gateway send → universe table repainted | **68.1 ms** |
+
+**Against §28's 250 ms the whole journey is 27% of the budget**,
+and the second row is past §28's own end — _repainted_ rather than
+_application state_ — so it bounds the target's figure from above. The
+distribution, its per-page agreement, its verbatim samples and its conditions
+are in [`TASK-04`](TASK-04-the-instant-the-wire-does-not-carry.md).
+
+**What the figure is not, stated for Task 3.6.7 so the close does not quote it
+as more.** It was taken on loopback against the fixture stream — the replay had
+no session to start from on the measuring machine's store — so the network leg
+is a loopback socket and the clocks are one machine's. **Criterion 5 is met as
+written**; the re-take against the deployed gateway during a session is Story
+3.11's criterion 4, which now has an instrument and a recipe rather than a
+mechanism to invent.
+
+**One finding handed to Task 3.6.5.** On the production build a 518-row
+repaint on `bars` arrival is a long task of **51–63 ms on 7 of 60 frames** — just
+over §28's 50 ms line, not the 127–265 ms the development-build readings in
+Tasks 3.6.2 and 3.6.3 showed. The problem is real and smaller than it looked.

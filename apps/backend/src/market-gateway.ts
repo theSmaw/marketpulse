@@ -130,6 +130,22 @@ export interface MarketGatewayOptions {
   readonly feedState: () => WireFeedState;
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
   readonly clearTimer?: (timer: NodeJS.Timeout) => void;
+  /**
+   * Wall clock, epoch milliseconds — `Date.now()` in production (Task 3.6.4).
+   *
+   * **What it stamps and what it must not.** Every frame this gateway sends
+   * carries `sentAt`, read from this clock at the moment of the send, so a
+   * browser can time `PRODUCT_SPEC.md` §28's leg — the one that starts here
+   * and ends in application state. It is a **third** clock reading beside the
+   * two `STREAM-SEAM.md` §3 keeps apart, and it is used for **measurement
+   * only**: nothing about liveness or staleness reads it, and
+   * `pnpm invariants` holds that line.
+   *
+   * A seam rather than a reading, for the reason every other clock in this
+   * story is: the process test asserts the stamp came from *this* clock, which
+   * is only assertable if the test owns it.
+   */
+  readonly wallNow?: () => number;
 }
 
 export interface MarketGateway {
@@ -172,7 +188,22 @@ export function registerMarketGateway(
     clearTimer = (timer) => {
       clearInterval(timer);
     },
+    wallNow = () => Date.now(),
   } = options;
+
+  /**
+   * The send instant, taken **at the send** rather than once per publish.
+   *
+   * `publishObservations` encodes one payload per client, so this is read per
+   * client — the stamp is about when *this* frame left for *this* browser,
+   * which is the start of the leg §28 names. One reading shared across the
+   * loop would put every client after the first on a stamp that predates its
+   * own send by however long the earlier encodes took.
+   *
+   * `pnpm break the-gateway-stamps-nothing` replaces this with a constant and
+   * proves the process suite notices.
+   */
+  const sentAt = (): string => new Date(wallNow()).toISOString();
 
   // `noServer: true` and an explicit `upgrade` handler, so this owns the path
   // check rather than letting the library claim every upgrade on the server.
@@ -284,6 +315,7 @@ export function registerMarketGateway(
     encodeMarketStreamMessage({
       type: "feed",
       version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: sentAt(),
       feed: feedState(),
     });
 
@@ -328,6 +360,7 @@ export function registerMarketGateway(
           encodeMarketStreamMessage({
             type: "snapshot",
             version: MARKET_STREAM_PROTOCOL_VERSION,
+            sentAt: sentAt(),
             observations,
             feed: feedState(),
           }),
@@ -399,6 +432,7 @@ export function registerMarketGateway(
           encodeMarketStreamMessage({
             type: "bars",
             version: MARKET_STREAM_PROTOCOL_VERSION,
+            sentAt: sentAt(),
             observations: scoped,
           }),
         );
@@ -420,6 +454,7 @@ export function registerMarketGateway(
       const farewell = encodeMarketStreamMessage({
         type: "feed",
         version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: sentAt(),
         feed: { ...feedState(), status: "disconnected" },
       });
 

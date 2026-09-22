@@ -11,6 +11,9 @@ import type { Page } from "@playwright/test";
 import { expectNothingFailedToRender } from "../support/app.js";
 import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
 
+/** When the gateway sent the frame (Task 3.6.4). Any instant; only its presence is load-bearing here. */
+const SENT_AT = "2026-09-16T14:02:00.512Z";
+
 // **A tab survives a deploy** (Task 3.5.5).
 //
 // Story 3.3 shipped the browser's socket with **no retry**, so every backend
@@ -121,6 +124,7 @@ async function serveDroppableFeed(
       encodeMarketStreamMessage({
         type: "snapshot",
         version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
         observations,
         feed: LIVE_FEED,
       }),

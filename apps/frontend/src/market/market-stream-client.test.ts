@@ -12,6 +12,9 @@ import {
   marketStreamUrl,
 } from "./market-stream-client.js";
 
+/** When the gateway sent the frame (Task 3.6.4). Any instant; only its presence is load-bearing here. */
+const SENT_AT = "2026-09-16T14:02:00.512Z";
+
 // The transport (Task 3.3.4). jsdom has no WebSocket server, so the socket is a
 // seam — the same call `api-client.ts` makes about `fetch`, for the same reason.
 
@@ -85,6 +88,7 @@ describe("what reaches the state above", () => {
       data: encodeMarketStreamMessage({
         type: "feed",
         version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
         feed: { status: "live", feed: "iex", marketOpen: true },
       }),
     });

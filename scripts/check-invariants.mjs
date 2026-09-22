@@ -919,6 +919,53 @@ const INVARIANTS = [
     },
   },
   {
+    id: "the-send-instant-is-not-a-clock",
+    claim:
+      "The wire's `sentAt` is read by no liveness or staleness rule, on " +
+      "either side of the socket. It is a third clock reading, for " +
+      "measurement only.",
+    check() {
+      // **Task 3.6.4 put a server-stamped instant on every frame** so that
+      // `PRODUCT_SPEC.md` §28's p95 could be taken at all, and the constraint
+      // that travelled with it (`docs/GAPS.md` entry 12, ADR 0033) is that it
+      // must never reach `feed-liveness.ts`.
+      //
+      // The reason is a measured defect rather than a taste: `STREAM-SEAM.md`
+      // §3 records that the 165 s disconnection threshold is monotonic and
+      // the 60 s staleness threshold is wall clock, and that using one for
+      // both made `stale` unreachable — silently, with every test green. A
+      // server's wall clock read on a browser's machine is a THIRD reading,
+      // and it is worse than either for a threshold: it is skew as readily as
+      // latency, so a rule keyed on it fires on a viewer whose clock is a
+      // minute out and never on a feed that has stopped.
+      //
+      // Three files, because the rule has one home and two adapters — the
+      // shared rule, the backend's collapse of a vendor handshake into it,
+      // and the browser's derivation of the chrome's word from it. Read
+      // through `withoutComments`, because the field is discussed in prose in
+      // at least one of them.
+      const GUARDED = [
+        "packages/shared/src/feed-liveness.ts",
+        "apps/backend/src/stream-connection.ts",
+        "apps/frontend/src/market/live-feed.ts",
+      ];
+
+      for (const path of GUARDED) {
+        const text = withoutComments(
+          readFileSync(resolve(REPO_ROOT, path), "utf8"),
+        );
+        if (text.includes("sentAt")) {
+          throw new InvariantFailure(
+            `${path} reads the send instant. \`sentAt\` is a measurement ` +
+              "field on the wire and must not become a clock a status is " +
+              "derived from — `STREAM-SEAM.md` §3 is what happened last " +
+              "time two clocks were merged (ADR 0033).",
+          );
+        }
+      }
+    },
+  },
+  {
     id: "one-home-for-the-feed-words",
     claim:
       "The words for a market feed, and for the connection behind it, are " +

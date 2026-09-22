@@ -162,9 +162,46 @@ export interface WireFeedState {
   readonly marketOpen: boolean;
 }
 
+/**
+ * **When the gateway sent this frame, by the gateway's own clock** — ISO 8601,
+ * on every server message (Task 3.6.4, ADR 0033).
+ *
+ * ## The one field added after Story 3.3 froze the wire, and why
+ *
+ * `PRODUCT_SPEC.md` §28 publishes *server-received event → application state
+ * under 250 ms p95*, and for four days three stories carried that sentence as
+ * an acceptance criterion none of them could meet: the only instant a browser
+ * received was {@link WireObservation.startsAt} — the minute the bar covers,
+ * a fact about the **market** — so a browser could not time a journey whose
+ * start was never stamped (`docs/GAPS.md` entry 12). This is the stamp.
+ *
+ * ## Four constraints, each of which is somebody's measured defect
+ *
+ * 1. **A new field, never a second meaning for `startsAt`.** That field is
+ *    load-bearing in the identity block's qualifier, in the revision rule that
+ *    stops the current market state walking backwards, and in every stored
+ *    row. One name, one meaning.
+ * 2. **A third clock reading, for measurement only.** The 165 s disconnection
+ *    threshold is monotonic and the 60 s staleness threshold is wall clock,
+ *    and `STREAM-SEAM.md` §3 records what merging them did. This reading
+ *    joins neither: `pnpm invariants` asserts it never reaches
+ *    `feed-liveness.ts`, `stream-connection.ts` or `live-feed.ts`.
+ * 3. **Honest only as a distribution.** A server clock and a browser clock
+ *    disagree, so one reading is skew as readily as latency and a negative one
+ *    is skew by definition. Publish p50/p95 with n and the two ends named.
+ * 4. **One per frame, not one per observation.** A frame carries up to 518
+ *    securities; stamping each would be 518 copies of one instant. Measured
+ *    on the wire: **36 bytes** a frame against a 58 KiB universe snapshot.
+ *
+ * **Stamped where the gateway SENDS**, per client, rather than where the
+ * observation was made — so it is the start of the leg §28 names and not the
+ * provider's, which §28 excludes.
+ */
 export interface SnapshotMessage {
   readonly type: "snapshot";
   readonly version: number;
+  /** See the note above {@link SnapshotMessage}. */
+  readonly sentAt: string;
   /** Observed securities only. An absent key means **nothing observed**. */
   readonly observations: Readonly<Record<string, WireObservation>>;
   readonly feed: WireFeedState;
@@ -173,6 +210,8 @@ export interface SnapshotMessage {
 export interface BarsMessage {
   readonly type: "bars";
   readonly version: number;
+  /** See the note above {@link SnapshotMessage}. */
+  readonly sentAt: string;
   /** One upstream frame's worth. Batched because the vendor batches (§7.2). */
   readonly observations: Readonly<Record<string, WireObservation>>;
 }
@@ -180,6 +219,8 @@ export interface BarsMessage {
 export interface FeedMessage {
   readonly type: "feed";
   readonly version: number;
+  /** See the note above {@link SnapshotMessage}. */
+  readonly sentAt: string;
   readonly feed: WireFeedState;
 }
 
@@ -394,6 +435,7 @@ const encodeObservations = (
 const snapshotFields: WireFields<SnapshotMessage> = {
   type: asIs,
   version: asIs,
+  sentAt: asIs,
   observations: encodeObservations,
   feed: (feed) => toWire(feedStateFields, feed),
 };
@@ -401,12 +443,14 @@ const snapshotFields: WireFields<SnapshotMessage> = {
 const barsFields: WireFields<BarsMessage> = {
   type: asIs,
   version: asIs,
+  sentAt: asIs,
   observations: encodeObservations,
 };
 
 const feedFields: WireFields<FeedMessage> = {
   type: asIs,
   version: asIs,
+  sentAt: asIs,
   feed: (feed) => toWire(feedStateFields, feed),
 };
 
@@ -532,8 +576,25 @@ export function decodeMarketStreamMessage(raw: string): DecodedMessage {
     };
   }
 
+  // **A frame without a send instant is unreadable, whatever else it
+  // carries.** The only thing that produces this protocol is our own gateway,
+  // which stamps every frame; a frame with no stamp is a shape this product
+  // does not send, and admitting it would make the field optional in every
+  // reader — which is how a measurement-only field quietly becomes one that
+  // is sometimes there. The check is the one `startsAt` gets: a string, and
+  // whether it parses is the instrument's business rather than the reader's.
+  //
+  // Checked inside each known type rather than before the dispatch, so an
+  // unknown type is still reported as an unknown type.
+  const sentAt = typeof parsed.sentAt === "string" ? parsed.sentAt : undefined;
+  const NO_SEND_INSTANT: DecodedMessage = {
+    kind: "unreadable",
+    reason: "no send instant",
+  };
+
   switch (parsed.type) {
     case "snapshot": {
+      if (sentAt === undefined) return NO_SEND_INSTANT;
       const observations = readObservations(parsed.observations);
       const feed = readFeedState(parsed.feed);
       if (observations === undefined || feed === undefined) {
@@ -544,12 +605,14 @@ export function decodeMarketStreamMessage(raw: string): DecodedMessage {
         message: {
           type: "snapshot",
           version: MARKET_STREAM_PROTOCOL_VERSION,
+          sentAt,
           observations,
           feed,
         },
       };
     }
     case "bars": {
+      if (sentAt === undefined) return NO_SEND_INSTANT;
       const observations = readObservations(parsed.observations);
       if (observations === undefined) {
         return { kind: "unreadable", reason: "malformed bars" };
@@ -559,11 +622,13 @@ export function decodeMarketStreamMessage(raw: string): DecodedMessage {
         message: {
           type: "bars",
           version: MARKET_STREAM_PROTOCOL_VERSION,
+          sentAt,
           observations,
         },
       };
     }
     case "feed": {
+      if (sentAt === undefined) return NO_SEND_INSTANT;
       const feed = readFeedState(parsed.feed);
       if (feed === undefined) {
         return { kind: "unreadable", reason: "malformed feed" };
@@ -573,6 +638,7 @@ export function decodeMarketStreamMessage(raw: string): DecodedMessage {
         message: {
           type: "feed",
           version: MARKET_STREAM_PROTOCOL_VERSION,
+          sentAt,
           feed,
         },
       };

@@ -13,6 +13,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RECONNECT_CEILING_MS } from "./reconnect-policy.js";
 import { LIVE_FEED_TICK_MS, useLiveFeed } from "./use-live-feed.js";
 
+/** When the gateway sent the frame (Task 3.6.4). Any instant; only its presence is load-bearing here. */
+const SENT_AT = "2026-09-16T14:02:00.512Z";
+
 // The hook (Task 3.3.4). **Nothing renders it yet** — Task 3.3.5 does — so
 // what is under test is the wiring the pure halves cannot cover: that a socket
 // is opened once, that silence eventually becomes a state, and that a keepalive
@@ -50,6 +53,7 @@ const feedState = (over: Partial<WireFeedState> = {}): WireFeedState => ({
 const snapshotWith = (feed: WireFeedState): MarketStreamMessage => ({
   type: "snapshot",
   version: MARKET_STREAM_PROTOCOL_VERSION,
+  sentAt: SENT_AT,
   feed,
   observations: {
     NVDA: {
@@ -225,6 +229,7 @@ describe("what a keepalive costs", () => {
         data: encodeMarketStreamMessage({
           type: "feed",
           version: MARKET_STREAM_PROTOCOL_VERSION,
+          sentAt: SENT_AT,
           feed: feedState(),
         }),
       });
@@ -257,6 +262,7 @@ describe("what a keepalive costs", () => {
       data: encodeMarketStreamMessage({
         type: "feed",
         version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
         feed: feedState({ status: "disconnected" }),
       }),
     });
@@ -336,6 +342,7 @@ describe("a new price reaches the screen", () => {
   const barsMessage = (close: number): MarketStreamMessage => ({
     type: "bars",
     version: MARKET_STREAM_PROTOCOL_VERSION,
+    sentAt: SENT_AT,
     observations: {
       NVDA: {
         startsAt: "2026-09-16T14:01:00Z",
@@ -424,6 +431,7 @@ describe("a new price reaches the screen", () => {
         data: encodeMarketStreamMessage({
           type: "feed",
           version: MARKET_STREAM_PROTOCOL_VERSION,
+          sentAt: SENT_AT,
           feed: feedState(),
         }),
       });

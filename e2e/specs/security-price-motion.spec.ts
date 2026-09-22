@@ -9,6 +9,9 @@ import type { Page, WebSocketRoute } from "@playwright/test";
 import { expectNothingFailedToRender } from "../support/app.js";
 import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
 
+/** When the gateway sent the frame (Task 3.6.4). Any instant; only its presence is load-bearing here. */
+const SENT_AT = "2026-09-16T14:02:00.512Z";
+
 // **What a reader who asked for less motion gets** (Task 3.4.7).
 //
 // Story 3.4's arrival mark is the product's first motion that carries
@@ -88,6 +91,7 @@ async function serveFeed(
       encodeMarketStreamMessage({
         type: "snapshot",
         version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
         observations,
         feed: LIVE_FEED,
       }),
@@ -99,6 +103,7 @@ async function serveFeed(
       encodeMarketStreamMessage({
         type: "bars",
         version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
         observations: next,
       }),
     );

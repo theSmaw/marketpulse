@@ -65,7 +65,11 @@ const observation = (startsAt: string, close: number): LiveObservation => ({
 
 interface Client {
   readonly socket: WsWebSocket;
-  readonly received: { type: string; observations?: Record<string, unknown> }[];
+  readonly received: {
+    type: string;
+    sentAt?: string;
+    observations?: Record<string, unknown>;
+  }[];
   waitFor: (type: string) => Promise<void>;
   /** Wait for the Nth message of a type — see the note on the implementation. */
   waitForCount: (type: string, count: number) => Promise<void>;
@@ -97,8 +101,11 @@ afterEach(async () => {
 
 /** Connect one browser to a listening gateway and collect what it is sent. */
 async function connectClient(port: number): Promise<Client> {
-  const received: { type: string; observations?: Record<string, unknown> }[] =
-    [];
+  const received: {
+    type: string;
+    sentAt?: string;
+    observations?: Record<string, unknown>;
+  }[] = [];
   const socket = new WsWebSocket(
     `ws://127.0.0.1:${String(port)}${MARKET_STREAM_PATH}`,
   );
@@ -107,6 +114,7 @@ async function connectClient(port: number): Promise<Client> {
     received.push(
       JSON.parse(data.toString("utf8")) as {
         type: string;
+        sentAt?: string;
         observations?: Record<string, unknown>;
       },
     );
@@ -165,6 +173,7 @@ async function connectClient(port: number): Promise<Client> {
 /** A listening server, a registered gateway, and one attached browser. */
 async function attach(
   snapshot: ReadonlyMap<string, WireObservation> = new Map(),
+  wallNow?: () => number,
 ): Promise<Attached> {
   const app = buildServer({
     logLevel: "silent",
@@ -175,6 +184,8 @@ async function attach(
   const gateway = registerMarketGateway(app, {
     snapshot: () => snapshot,
     feedState: () => ({ status: "live", feed: "iex", marketOpen: true }),
+    // `exactOptionalPropertyTypes`: absent and `undefined` are different types.
+    ...(wallNow === undefined ? {} : { wallNow }),
   });
 
   await app.listen({ port: 0, host: "127.0.0.1" });
@@ -575,5 +586,87 @@ describe("a slow browser is dropped rather than tolerated (Task 3.5.7)", () => {
     // would never fire on loopback — a check that silently does nothing, which
     // this repository has shipped before.
     expect(MAX_BUFFERED_BYTES).toBeGreaterThan(600 * 1024);
+  });
+});
+
+describe("every frame is stamped from the gateway's clock at the send (Task 3.6.4)", () => {
+  // **The instrument `docs/GAPS.md` entry 12 said did not exist.** §28's clock
+  // starts at *server-received* and until this field nothing on the wire said
+  // when the server did anything. These hold the two properties a browser's
+  // subtraction depends on: the stamp is on every frame, and it is read from
+  // THIS process's clock at the moment of the send — which is only assertable
+  // because the clock is a seam.
+  //
+  // `pnpm break the-gateway-stamps-nothing` replaces the stamp with a constant
+  // and proves the first of these goes red.
+
+  it("stamps the snapshot and the bars from the injected clock", async () => {
+    let now = Date.parse("2026-09-16T14:02:00.500Z");
+    const a = await attach(new Map(), () => now);
+    await a.waitFor("snapshot");
+
+    expect(a.received[0]?.sentAt).toBe("2026-09-16T14:02:00.500Z");
+
+    now += 250;
+    a.socket.send(
+      encodeMarketStreamClientMessage({
+        type: "subscribe",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        symbols: ["NVDA"],
+      }),
+    );
+    await a.waitForCount("snapshot", 2);
+
+    now += 250;
+    a.gateway.publishObservations([
+      observation("2026-09-16T14:01:00Z", 214.75),
+    ]);
+    await a.waitFor("bars");
+
+    const stamps = a.received.map((m) => [m.type, m.sentAt]);
+    expect(stamps).toEqual([
+      ["snapshot", "2026-09-16T14:02:00.500Z"],
+      ["snapshot", "2026-09-16T14:02:00.750Z"],
+      ["bars", "2026-09-16T14:02:01.000Z"],
+    ]);
+  });
+
+  it("stamps per SEND rather than once per publish, so each client's stamp is its own", async () => {
+    // `publishObservations` encodes one payload per client. A single reading
+    // shared across the loop would put every client after the first on an
+    // instant that predates its own send — small today, and exactly the kind
+    // of error a distribution over many clients would quietly absorb.
+    let now = Date.parse("2026-09-16T14:02:00.000Z");
+    const a = await attach(new Map(), () => {
+      now += 1;
+      return now;
+    });
+    const b = await a.join();
+    await a.waitFor("snapshot");
+    await b.waitFor("snapshot");
+
+    for (const client of [a, b]) {
+      client.socket.send(
+        encodeMarketStreamClientMessage({
+          type: "subscribe",
+          version: MARKET_STREAM_PROTOCOL_VERSION,
+          symbols: ["NVDA"],
+        }),
+      );
+    }
+    await a.waitForCount("snapshot", 2);
+    await b.waitForCount("snapshot", 2);
+
+    a.gateway.publishObservations([
+      observation("2026-09-16T14:01:00Z", 214.75),
+    ]);
+    await a.waitFor("bars");
+    await b.waitFor("bars");
+
+    const stampA = a.received.find((m) => m.type === "bars")?.sentAt;
+    const stampB = b.received.find((m) => m.type === "bars")?.sentAt;
+    expect(stampA).toBeDefined();
+    expect(stampB).toBeDefined();
+    expect(stampA).not.toBe(stampB);
   });
 });

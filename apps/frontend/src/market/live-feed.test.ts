@@ -20,6 +20,9 @@ import {
   startedLiveFeed,
 } from "./live-feed.js";
 
+/** When the gateway sent the frame (Task 3.6.4). Any instant; only its presence is load-bearing here. */
+const SENT_AT = "2026-09-16T14:02:00.512Z";
+
 // The browser's feed state, decided with no socket (Task 3.3.4).
 //
 // Every test here is a pure function call. The socket is `market-stream-client`'s
@@ -45,6 +48,7 @@ const snapshot = (
 ): MarketStreamMessage => ({
   type: "snapshot",
   version: MARKET_STREAM_PROTOCOL_VERSION,
+  sentAt: SENT_AT,
   feed,
   observations: Object.fromEntries(
     Object.entries(observations).map(([symbol, { startsAt }]) => [
@@ -164,6 +168,7 @@ describe("the reducer", () => {
       message: {
         type: "bars",
         version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
         observations: {},
       },
     });
@@ -304,7 +309,7 @@ describe("what a keepalive must not cost", () => {
     const after = advanceLiveFeed(before, {
       kind: "message",
       at: 180_000,
-      message: { type: "feed", version: 1, feed: feedState() },
+      message: { type: "feed", version: 1, sentAt: SENT_AT, feed: feedState() },
     });
 
     const a = at(before, 60_500, BAR_ARRIVED);
@@ -329,6 +334,7 @@ describe("the observation store (§10.3, one Map, newest only)", () => {
   ): MarketStreamMessage => ({
     type: "bars",
     version: MARKET_STREAM_PROTOCOL_VERSION,
+    sentAt: SENT_AT,
     observations: {
       [symbol]: { startsAt, open: 1, high: 1, low: 1, close, volume: 1 },
     },
@@ -479,6 +485,7 @@ describe("the gate that would have stopped the prices moving", () => {
   const bars = (startsAt: string, close: number): MarketStreamMessage => ({
     type: "bars",
     version: MARKET_STREAM_PROTOCOL_VERSION,
+    sentAt: SENT_AT,
     observations: {
       NVDA: { startsAt, open: 1, high: 1, low: 1, close, volume: 1 },
     },
@@ -538,7 +545,7 @@ describe("the gate that would have stopped the prices moving", () => {
     const after = advanceLiveFeed(before, {
       kind: "message",
       at: 120_000,
-      message: { type: "feed", version: 1, feed: feedState() },
+      message: { type: "feed", version: 1, sentAt: SENT_AT, feed: feedState() },
     });
 
     expect(after.observations).toBe(before.observations);
@@ -557,6 +564,7 @@ describe("which symbols are sitting on a snapshot baseline (Task 3.5.4)", () => 
   ): MarketStreamMessage => ({
     type: "bars",
     version: MARKET_STREAM_PROTOCOL_VERSION,
+    sentAt: SENT_AT,
     observations: Object.fromEntries(
       Object.entries(observations).map(([symbol, { startsAt }]) => [
         symbol,

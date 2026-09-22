@@ -763,6 +763,51 @@ export const BREAKS = [
     expect: "only what it asked for",
   },
   {
+    name: "the-gateway-stamps-nothing",
+    proves:
+      "Every frame the gateway sends carries a `sentAt` that is not the " +
+      "gateway's clock at the send \u2014 here a constant, which is what a " +
+      "stamp taken once at module load, or copied from a cached payload, " +
+      "would also be. A browser subtracting it would publish a figure about " +
+      "nothing, and `PRODUCT_SPEC.md` \u00a728's p95 would read as met or " +
+      "missed on a number with no start. The stamp is the whole instrument " +
+      "`docs/GAPS.md` entry 12 waited four days for (Task 3.6.4).",
+    file: "apps/backend/src/market-gateway.ts",
+    find: "  const sentAt = (): string => new Date(wallNow()).toISOString();",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  const sentAt = (): string => new Date(0).toISOString();",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "run",
+      "test:process",
+      "src/market-gateway.process.test.ts",
+    ],
+    expect: "from the injected clock",
+  },
+  {
+    name: "the-send-instant-becomes-a-clock",
+    proves:
+      "The wire's send instant reaches the liveness rule \u2014 a THIRD clock " +
+      "reading joining the two `STREAM-SEAM.md` \u00a73 keeps apart. That " +
+      "section records what merging two of them did: the 60 s staleness " +
+      "comparison could never fire, silently, with every test green. " +
+      "`sentAt` is a server clock read on a browser's machine, so it is skew " +
+      "as readily as latency; a threshold keyed on it would fire on a viewer " +
+      "whose clock is a minute out and never on a feed that has stopped. It " +
+      "exists for measurement only (Task 3.6.4, ADR 0033).",
+    file: "packages/shared/src/feed-liveness.ts",
+    find: "export const STALE_AFTER_MS = 60_000;",
+    replace:
+      "export const STALE_AFTER_MS = 60_000;\n" +
+      "// pnpm break: reverted automatically\n" +
+      "export const sentAt = STALE_AFTER_MS;",
+    command: ["pnpm", "invariants"],
+    expect: "reads the send instant",
+  },
+  {
     name: "a-deploy-strands-every-open-tab",
     proves:
       "The browser's socket never comes back, which is the state Story 3.3 " +
