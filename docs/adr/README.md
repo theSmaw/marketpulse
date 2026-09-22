@@ -52,6 +52,7 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0031](0031-what-a-transport-without-a-schema-layer-owes.md)                                               | What a transport without a schema layer owes, and where a rule about a connection lives         | Accepted |
 | [0032](0032-a-value-that-changes-on-its-own-announces-nothing.md)                                          | A value that changes on its own announces nothing, and what it costs                            | Accepted |
 | [0033](0033-a-send-instant-on-the-wire-for-measurement-only.md)                                            | A send instant on the wire, for measurement only                                                | Accepted |
+| [0034](0034-the-tape-on-the-bar.md)                                                                        | The tape on the bar: a per-bar `feed` column, and the decision it reverses                      | Accepted |
 
 **0024 was written on 2026-09-11, out of order, and the gap it filled is worth
 remembering.** It was reserved by Story 2.11 and three planning documents cited it by
