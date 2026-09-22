@@ -2874,6 +2874,22 @@ a real state and needs a way to be said.
 > coalescing is a question again, and it is a question about our own output
 > rather than about Alpaca's.
 
+> **AMENDED 2026-09-22, Task 3.6.4 — one field was added to every server
+> message after Story 3.3 froze this shape, and it is the only change.** Each
+> `snapshot`, `bars` and `feed` frame now carries **`sentAt`**, the gateway's
+> own wall-clock instant at the moment of the send, so that `PRODUCT_SPEC.md`
+> §28's _server-received → application state_ can be measured at all — for four
+> days three stories carried that criterion and none could take it, because the
+> only instant on the wire was `startsAt`, the minute the bar covers. **Nothing
+> above is reopened by it**: it is one instant per frame rather than per
+> security, so omission semantics and the six-field observation are untouched;
+> it is **not** `staleSeconds`, which this section still refuses — it is a fact
+> about the server's clock rather than a derived age; and it is read by
+> **nothing** that computes a status, on either side of the socket, which
+> `pnpm invariants` holds. Cost, read off the wire: **36 bytes a frame**. The
+> decision, its four constraints and its reversal trigger are
+> [ADR 0033](../../../docs/adr/0033-a-send-instant-on-the-wire-for-measurement-only.md).
+
 ### 11.2 Decision 5 — the feed gets thresholds; a security gets an age
 
 **This decision has two scales and they take opposite answers.**

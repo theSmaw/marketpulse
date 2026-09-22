@@ -171,6 +171,17 @@ in one line here and argued in full where the table below points:
   everything else points once and stops, never saying nothing; and **one fact has
   one home** — a drawn sentence and its spoken twin are one string with two
   renderings, and a second copy fails the build.
+- **The market-stream wire carries a THIRD clock reading, `sentAt`, and it is
+  read by nothing but an instrument** (ADR 0033). Every frame the gateway sends
+  is stamped with the server's wall clock at the send, which is what finally
+  made `PRODUCT_SPEC.md` §28's _server-received → application state_ measurable
+  after three stories had carried it unmeasured. Four constraints travel with
+  it and all four are somebody's measured defect: a **new** field rather than a
+  second meaning for `startsAt`; never an input to the 165 s monotonic or 60 s
+  wall-clock thresholds (`pnpm invariants` holds it out of `feed-liveness.ts`
+  and both adapters); honest only as a **distribution** with n, because a
+  server clock and a browser clock disagree and a negative sample is skew; and
+  one per **frame**, 36 bytes measured, never one per security.
 
 ### What is open, with a named owner rather than a story number
 

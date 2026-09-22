@@ -657,3 +657,51 @@ why `GET /diagnostics/feed` is still the only instrument. Story 3.5 added a
 `dropped a browser that stopped reading` warning that **does** log (Task 3.5.7,
 through Fastify's logger rather than `onLog`) — so the split is now visible:
 **the gateway logs, the vendor client does not.**
+
+---
+
+## Handed here by Task 3.6.4 — 2026-09-22: the instrument exists, so criterion 4 is a re-take with a recipe
+
+**§28's headline figure has now been taken once, and the mechanism is on the
+wire for good.** Every frame the gateway sends carries `sentAt`, the server's
+wall-clock instant at the send
+([ADR 0033](../../../docs/adr/0033-a-send-instant-on-the-wire-for-measurement-only.md)).
+Task 3.6.4 subtracted it in a browser at two ends — _frame in the page_ and
+_universe table DOM updated_ — at 518 subscribed securities on a production
+build, and published the distribution with its n, its ends and its skew caveat
+in
+[`TASK-04`](../story-06-live-prices-across-the-universe/TASK-04-the-instant-the-wire-does-not-carry.md).
+`STREAM-SEAM.md` §8.9 is the standing account.
+
+**What this story owes is the re-take, and here is what the first take could
+not do, in words this story can act on:**
+
+- **It was taken against the fixture stream on loopback, not the deployed
+  gateway during a session.** The store on the measuring machine was six
+  sessions behind, so ADR 0030's replay had no session to start from and
+  emitted nothing (recorded in the task file as a finding); the fixture
+  produces the same frame shape — one `bars` frame of 518 observations a
+  minute — so the wire leg is real, but the network leg is a loopback socket.
+  **Criterion 4 re-takes this against the deployed site, with the real IEX
+  socket, during a session**, which is the only place the network and the
+  ingress are in the number.
+- **The recipe is four lines and is recorded in the task file.** Wrap
+  `window.WebSocket` from an `addInitScript` **without** `routeWebSocket`,
+  stamp `Date.now()` in the `message` listener, subtract the frame's `sentAt`,
+  and stamp the table's first mutation after it through a `MutationObserver`.
+  Two pages double n at no cost in wall time.
+- **Read the deployed figure as a distribution and expect skew.** On loopback
+  the server and the browser share one clock and a negative sample is
+  impossible; against the deployed gateway they do not, and a negative p50
+  means the viewer's clock is ahead of the server's rather than that a frame
+  arrived before it was sent. Publish p50 / p95 / max with n and say which
+  machine's clock is which. **Do not correct for skew by subtracting the
+  minimum** — that assumes the fastest frame was instantaneous.
+- **Re-take the payload beside it.** The stamp cost **36 bytes a frame**, read
+  off the wire; the universe frame's size is in the task file. The eleven
+  places that say `56.9 KiB` were deliberately not rewritten (Task 3.5.8's
+  amendment); this story's cost envelope should cite the re-measured figure
+  rather than either.
+
+**`docs/GAPS.md` entry 12 is closed.** What stays open here is only criterion
+4's own clause — _with the feed running_ — and it now has an instrument.

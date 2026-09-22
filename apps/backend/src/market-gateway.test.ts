@@ -10,6 +10,9 @@ import { MARKET_STREAM_PATH } from "@marketpulse/shared";
 
 import { KEEPALIVE_INTERVAL_MS } from "./market-gateway.js";
 
+/** When the gateway sent the frame (Task 3.6.4). Any instant; only its presence is load-bearing here. */
+const SENT_AT = "2026-09-16T14:02:00.512Z";
+
 const OBSERVATION: WireObservation = {
   startsAt: "2026-09-16T14:01:00.000Z",
   open: 214.88,
@@ -65,6 +68,7 @@ describe("what a browser is sent", () => {
     const encoded = JSON.stringify({
       type: "snapshot",
       version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: SENT_AT,
       observations: {},
       feed: { status: "live", feed: "synthetic", marketOpen: false },
     });
@@ -87,6 +91,7 @@ describe("what a browser is sent", () => {
       JSON.stringify({
         type: "feed",
         version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
         feed: { status: "stale", feed: "iex", marketOpen: true },
       }),
     );
@@ -99,6 +104,7 @@ describe("what a browser is sent", () => {
       JSON.stringify({
         type: "bars",
         version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
         observations: { NVDA: OBSERVATION },
       }),
     );

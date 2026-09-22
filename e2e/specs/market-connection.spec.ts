@@ -11,6 +11,9 @@ import type { Page, WebSocketRoute } from "@playwright/test";
 import { expectNothingFailedToRender } from "../support/app.js";
 import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
 
+/** When the gateway sent the frame (Task 3.6.4). Any instant; only its presence is load-bearing here. */
+const SENT_AT = "2026-09-16T14:02:00.512Z";
+
 // **The connection cell, in a browser** — both directions (Task 3.3.6).
 //
 // **Acceptance criterion 2 is the one with teeth**, and it is the second test
@@ -227,6 +230,7 @@ async function serveSnapshot(
       encodeMarketStreamMessage({
         type: "snapshot",
         version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
         observations,
         feed,
       }),

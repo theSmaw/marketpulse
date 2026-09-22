@@ -90,6 +90,20 @@ manufactures a disconnection. **Staleness must use the wall clock** because an
 instant carried on a bar only has meaning against a calendar. They are not
 interchangeable.
 
+> **AMENDED 2026-09-22, Task 3.6.4 — there is now a THIRD clock reading on the
+> wire, and this table deliberately does not gain a row.** Every frame the
+> gateway sends carries `sentAt`, the **server's** wall clock at the send, so a
+> browser can time `PRODUCT_SPEC.md` §28's leg (§8.9). It is worse than either
+> clock above as a threshold input: a server's wall clock read on a viewer's
+> machine is skew as readily as latency, so a rule keyed on it would fire on a
+> viewer whose clock is a minute out and never on a feed that has stopped.
+> **It reaches neither `feed-liveness.ts` nor either adapter over it**, and
+> `pnpm invariants` (`the-send-instant-is-not-a-clock`) is what makes that a
+> check rather than a sentence — with `pnpm break
+the-send-instant-becomes-a-clock` proving the check goes red.
+> [ADR 0033](../../../docs/adr/0033-a-send-instant-on-the-wire-for-measurement-only.md)
+> carries the decision.
+
 ## 4. The three implementations, and what each is for
 
 |                       | Feed        | For                                                                                 | Started by                                    |
@@ -288,6 +302,47 @@ states from inside the browser**, because CI has no credential and therefore no
 live feed — which is also the standing limit: **no browser test here has ever
 watched a real Alpaca frame reach a screen.** The suite certifies that the page
 renders what the protocol says, not that the vendor says it.
+
+### 8.9 `PRODUCT_SPEC.md` §28's figure, whole, and the field that made it takeable (2026-09-22, Task 3.6.4)
+
+**For four days this section could only quote half a journey.** Task 3.4.8
+measured _frame delivered to the page → price on screen_ at **p95 52 ms** and
+said so; §28's clock starts at _server-received_, and nothing on the wire said
+when the server had done anything (`docs/GAPS.md` entry 12, now closed).
+
+**Every frame the gateway sends now carries `sentAt`**, its own wall clock at
+the send, per client, on `snapshot`, `bars`, `feed` and the farewell alike
+([ADR 0033](../../../docs/adr/0033-a-send-instant-on-the-wire-for-measurement-only.md)).
+It is a **third** clock reading and §3's table deliberately gains no row for it:
+the field is read by nothing that computes a status, and `pnpm invariants`
+holds that.
+
+**Taken at 518 subscribed securities on `/securities`, production build, two
+pages, 60 frames each carrying the whole universe** — the conditions and the
+verbatim samples are in Task 3.6.4's record:
+
+| Leg                                     | p50   | p95         | max    |
+| --------------------------------------- | ----- | ----------- | ------ |
+| gateway send → frame in the page (wire) | 4 ms  | **6 ms**    | 84 ms  |
+| frame in the page → table DOM updated   | 46 ms | 57.1 ms     | 67 ms  |
+| **gateway send → table DOM updated**    | 49 ms | **68.1 ms** | 131 ms |
+
+**Read the ends before the number.** §28's end is _application state_; the
+third row's end is _repainted_, which is later, so the row bounds §28's figure
+from above. The decode and reducer run synchronously in the listener behind the
+instrument's, so _application state_ is the first row plus a sub-millisecond.
+
+**Read the conditions before quoting it as the deployed figure.** Server and
+browser shared one machine and one clock, so the network leg is a loopback
+socket and a negative sample was impossible. Against the deployed gateway the
+clocks differ and a negative p50 is the viewer's clock ahead of the server's,
+not a frame arriving before it was sent — publish p50 / p95 / max with n and
+name both ends every time. Story 3.11's criterion 4 owns that re-take and its
+`STORY.md` carries the four-line instrument.
+
+**The cost of the field, read off the wire:** 36 bytes a frame — a universe
+`bars` frame of 58,187 bytes against 58,151 without — at most sixteen frames a
+minute.
 
 ---
 

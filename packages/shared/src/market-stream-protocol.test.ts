@@ -23,9 +23,13 @@ const OBSERVATION = {
 
 const FEED = { status: "live", feed: "iex", marketOpen: true } as const;
 
+/** When the gateway sent the frame — §7.3's bar for 14:01 arrives after 14:02. */
+const SENT_AT = "2026-09-16T14:02:00.512Z";
+
 const snapshot: SnapshotMessage = {
   type: "snapshot",
   version: MARKET_STREAM_PROTOCOL_VERSION,
+  sentAt: SENT_AT,
   observations: { NVDA: OBSERVATION },
   feed: FEED,
 };
@@ -60,6 +64,7 @@ describe("the guard that plays `satisfies`'s role", () => {
     expect(JSON.parse(encodeMarketStreamMessage(snapshot))).toEqual({
       type: "snapshot",
       version: 1,
+      sentAt: SENT_AT,
       observations: { NVDA: OBSERVATION },
       feed: { status: "live", feed: "iex", marketOpen: true },
     });
@@ -78,11 +83,13 @@ describe("the guard that plays `satisfies`'s role", () => {
     const bars: BarsMessage = {
       type: "bars",
       version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: SENT_AT,
       observations: { SPY: OBSERVATION },
     };
     const feed: FeedMessage = {
       type: "feed",
       version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: SENT_AT,
       feed: FEED,
     };
 
@@ -141,6 +148,99 @@ describe("absence is expressed by omission", () => {
   });
 });
 
+describe("the send instant, which is the one field added after the wire froze", () => {
+  // **Task 3.6.4, ADR 0033.** `PRODUCT_SPEC.md` §28's clock starts at
+  // *server-received* and for four days nothing on this wire said when the
+  // server did anything — `docs/GAPS.md` entry 12. These hold the shape that
+  // repair took, and the four constraints that travelled with it.
+
+  it("is on every server message, as an ISO 8601 string", () => {
+    const bars: BarsMessage = {
+      type: "bars",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: SENT_AT,
+      observations: { SPY: OBSERVATION },
+    };
+    const feed: FeedMessage = {
+      type: "feed",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: SENT_AT,
+      feed: FEED,
+    };
+
+    for (const message of [snapshot, bars, feed]) {
+      const wire = JSON.parse(encodeMarketStreamMessage(message)) as {
+        sentAt: unknown;
+      };
+      expect(wire.sentAt).toBe(SENT_AT);
+      expect(Number.isFinite(Date.parse(wire.sentAt as string))).toBe(true);
+    }
+  });
+
+  it("is one per FRAME and not one per observation", () => {
+    // Constraint 4: a frame carries up to 518 securities, and stamping each
+    // would be 518 copies of one instant on a wire whose universe payload is
+    // already 58 KiB. The observation's own six fields are unchanged.
+    expect(Object.keys(OBSERVATION)).not.toContain("sentAt");
+
+    const wire = encodeMarketStreamMessage(snapshot);
+    expect(wire.match(/"sentAt"/gu)).toHaveLength(1);
+  });
+
+  it("is a NEW field and `startsAt` keeps its one meaning", () => {
+    // Constraint 1: `startsAt` is the interval's START — a fact about the
+    // market, load-bearing in the qualifier, the revision rule and every
+    // stored row. The stamp is a different fact about a different clock, and
+    // in a healthy frame the two are a minute apart (§7.3).
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(snapshot),
+    );
+
+    expect(decoded.kind === "message" && decoded.message.sentAt).toBe(SENT_AT);
+    expect(
+      decoded.kind === "message" &&
+        decoded.message.type === "snapshot" &&
+        decoded.message.observations.NVDA?.startsAt,
+    ).toBe(OBSERVATION.startsAt);
+  });
+
+  it.each(["snapshot", "bars", "feed"] as const)(
+    "refuses a %s frame that carries no send instant",
+    (type) => {
+      // Our own gateway stamps every frame, so a frame without one is a shape
+      // this product does not send. Admitting it would make the field optional
+      // in every reader — which is how a measurement-only field quietly
+      // becomes one that is sometimes there.
+      const decoded = decodeMarketStreamMessage(
+        JSON.stringify({
+          type,
+          version: MARKET_STREAM_PROTOCOL_VERSION,
+          observations: {},
+          feed: FEED,
+        }),
+      );
+
+      expect(decoded).toEqual({
+        kind: "unreadable",
+        reason: "no send instant",
+      });
+    },
+  );
+
+  it("still names an unknown type as unknown, stamp or no stamp", () => {
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({
+        type: "ticks",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+      }),
+    );
+
+    expect(decoded.kind === "unreadable" && decoded.reason).toBe(
+      'unknown message type "ticks"',
+    );
+  });
+});
+
 describe("decoding, which must never throw", () => {
   it.each([
     ["not JSON", "{not json"],
@@ -174,6 +274,7 @@ describe("decoding, which must never throw", () => {
     const withInfinity = JSON.stringify({
       type: "bars",
       version: 1,
+      sentAt: SENT_AT,
       observations: { NVDA: { ...OBSERVATION, close: INFINITE } },
     });
 
@@ -194,6 +295,7 @@ describe("decoding, which must never throw", () => {
     const mixed = JSON.stringify({
       type: "bars",
       version: 1,
+      sentAt: SENT_AT,
       observations: { NVDA: OBSERVATION, SPY: { startsAt: "x" } },
     });
 

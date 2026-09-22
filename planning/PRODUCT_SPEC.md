@@ -1159,6 +1159,22 @@ Server-received event → application state:
 
 **<250 ms p95**, excluding upstream-provider latency.
 
+**Amended 2026-09-22 by Task 3.6.4 — measured for the first time, and the
+target stands.** For four days this line was an acceptance criterion three
+stories carried and none could take, because no frame on the market-stream
+wire said when the server had sent it. Every frame now carries `sentAt`, the
+gateway's clock at the send ([ADR 0033](../docs/adr/0033-a-send-instant-on-the-wire-for-measurement-only.md)),
+and the journey was taken on `/securities` at **518 subscribed securities** on
+a production build: **p95 68.1 ms from gateway send to the universe
+table repainted**, of which the wire leg is **p95 6 ms**, over
+60 frames each carrying every security. _Repainted_ is later than
+_application state_, so the figure bounds this target from above. **It is a
+loopback figure** — server and browser on one machine, one clock — and Story
+3.11 re-takes it against the deployed gateway during a session; the record,
+its ends, its n and its skew caveat are in
+[Task 3.6.4](epic-03-live-market-data/story-06-live-prices-across-the-universe/TASK-04-the-instant-the-wire-does-not-carry.md)
+and `STREAM-SEAM.md` §8.9.
+
 ### Market topology
 
 500 nodes / 5,000 edges:

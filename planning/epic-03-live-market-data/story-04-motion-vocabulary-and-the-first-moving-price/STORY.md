@@ -1,6 +1,6 @@
 # Story 3.4 — The Motion Vocabulary & the First Price That Moves
 
-**Status:** **Everything but the rehearsal — 2026-09-21.** Nine of ten tasks complete; the vocabulary, both marks, the measurements and the chrome repair all shipped. **The story does not close**: criterion 5 is unmeasurable without a protocol change (`docs/GAPS.md` entry 12 — **owned by Story 3.6 since 2026-09-21**, Task 3.6.4, moved from Story 3.11 at Story 3.5's close) and criterion 8's _with the market open_ needs a live session — the market is shut and the deployment holds the plan's one Alpaca connection. [Task 3.4.10](TASK-10-the-rehearsal-the-sweep-and-the-close.md) records exactly what the rehearsal still owes.
+**Status:** **Everything but the rehearsal — 2026-09-21.** Nine of ten tasks complete; the vocabulary, both marks, the measurements and the chrome repair all shipped. **The story does not close**: ~~criterion 5 is unmeasurable without a protocol change (`docs/GAPS.md` entry 12 — **owned by Story 3.6 since 2026-09-21**, Task 3.6.4, moved from Story 3.11 at Story 3.5's close)~~ — **criterion 5 is measurable and bounded since 2026-09-22 (Task 3.6.4, the amendment at the foot of this file); only criterion 8 still blocks** — and criterion 8's _with the market open_ needs a live session — the market is shut and the deployment holds the plan's one Alpaca connection. [Task 3.4.10](TASK-10-the-rehearsal-the-sweep-and-the-close.md) records exactly what the rehearsal still owes.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.3
 **Epic scope covered:** the motion vocabulary (design test 4), live price updates in the UI — on one surface
@@ -701,3 +701,42 @@ drifting into:**
   designing from it is a **deliberate exception** — and an exception recorded
   beside the work is a very different thing from a chain that quietly stopped
   being followed.
+
+---
+
+## Amended by Task 3.6.4 — 2026-09-22: criterion 5 is measurable, and the figure this story could not take has been taken
+
+**The protocol change this story was waiting on has landed.** Every frame the
+gateway sends now carries `sentAt`, the server's own wall-clock instant at the
+send ([ADR 0033](../../../docs/adr/0033-a-send-instant-on-the-wire-for-measurement-only.md)),
+so a browser can subtract it at the frame's arrival and again when the screen
+changes — the two ends §28 names, plus the one this story measured.
+
+**What this story can act on, in its own words:**
+
+- **Criterion 5 is no longer unmeasurable, and it is no longer only yours to
+  take.** Task 3.6.4 took the whole journey — _gateway send → frame in the
+  page_ and _gateway send → table DOM updated_ — on the universe table at 518
+  subscribed securities, on a production build, against a fixture stream. The
+  distribution, its n and its skew caveat are in
+  [`TASK-04`](../story-06-live-prices-across-the-universe/TASK-04-the-instant-the-wire-does-not-carry.md)
+  and the standing account is `STREAM-SEAM.md` §8.9. **The one-row surface
+  this story built is a strict subset of that page's work**, so a figure taken
+  at 518 rows bounds this story's from above: if the table meets §28, the
+  identity block does.
+- **Task 3.4.10 may quote that figure rather than re-take it**, and should say
+  which surface it was taken on. If the rehearsal wants this page's own
+  reading, the instrument is four lines and it is recorded in that task file:
+  wrap `window.WebSocket` from an `addInitScript` **without** `routeWebSocket`
+  (Task 3.4.8 found the wrap never fires under a routed socket), record
+  `Date.now()` at `message`, subtract the frame's `sentAt`, and stamp the
+  identity block's first mutation after it.
+- **Two constraints reach this surface.** `startsAt` keeps its one meaning —
+  the qualifier's _change from …'s close_ still derives from it and nothing
+  else. And the identity block must not render a latency, an age or an offset
+  derived from `sentAt`: that is ADR 0033's reversal trigger, and it belongs
+  to a diagnostics surface if it ever belongs anywhere.
+
+**`docs/GAPS.md` entry 12 is closed**, and this file's status line above is
+left as it was written — it records what was true at the time, and the story's
+close is Task 3.4.10's to take.
