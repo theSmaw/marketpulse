@@ -59,6 +59,7 @@ import {
   type LastClose,
   type MarketBarsRepository,
   type SeriesSource,
+  type StoredBar,
 } from "./market-bars.js";
 import { runMigrations } from "./migrate.js";
 import type { BarCoverageTable, MarketBarsTable } from "./schema.js";
@@ -291,6 +292,11 @@ function barAt(startsAt: Date, nudge = 0): Bar {
   };
 }
 
+/** The bars alone, from what `readBars` answers since Task 3.7.3 — each bar beside its tape. */
+function barsOf(stored: readonly StoredBar[]): readonly Bar[] {
+  return stored.map((entry) => entry.bar);
+}
+
 /** One session's worth of minute bars, `count` of them from the open. */
 function sessionBars(
   session: MarketSession,
@@ -318,6 +324,8 @@ function seriesFor(
     readonly nudge?: number;
     readonly timeframe?: Timeframe;
     readonly coveredEnd?: Date;
+    /** What the series says it came from; the backfill's `alpaca`/`sip` unless a test is about another tape. */
+    readonly source?: SeriesSource;
   } = {},
 ): BarSeries {
   const requested = toTimeRange(session.open, session.close);
@@ -332,8 +340,7 @@ function seriesFor(
     timeframe: options.timeframe ?? "1m",
     bars: seriesBars,
     provenance: toSeriesProvenance("raw", {
-      provider: "alpaca",
-      feed: "sip",
+      ...(options.source ?? STORED_SOURCE),
       retrievedAt: "2026-09-08T00:00:00.000Z",
       barCount: seriesBars.length,
     }),
@@ -1012,7 +1019,7 @@ describe("writing a series", () => {
     // parse and the write agree about scale, about `bigint`-as-string and about
     // which timestamp is which. A write path whose output has never been read
     // back is a write path nobody has checked.
-    expect(readBack).toEqual(sessionBars(session, 5));
+    expect(barsOf(readBack)).toEqual(sessionBars(session, 5));
   });
 
   it("reads half-open, so adjacent windows tile without a shared bar", async () => {
@@ -1037,7 +1044,7 @@ describe("writing a series", () => {
     expect(second).toHaveLength(2);
     // The `<` is the whole point: `<=` claims the seam bar twice, which is a
     // real corruption rather than a cosmetic one.
-    expect([...first, ...second]).toEqual(sessionBars(session, 4));
+    expect(barsOf([...first, ...second])).toEqual(sessionBars(session, 4));
   });
 
   it("writes nothing the second time, proved on the data rather than the report", async () => {
@@ -1174,8 +1181,9 @@ describe("writing a series", () => {
   });
 
   it("writes past the bind-parameter chunk boundary without dropping a row", async () => {
-    // 8 written columns against Postgres's 65,535 bind parameters puts the
-    // chunk at 8,191 rows, so this series crosses it once. A backfill's daily
+    // 9 written columns against Postgres's 65,535 bind parameters puts the
+    // chunk at 7,281 rows (8,191 while there were eight, before Task 3.7.3
+    // added the tape), so this series crosses it once. A backfill's daily
     // walk is what reaches it: a session is 390 bars, and ~2,500 sessions is
     // not.
     const start = new Date("2026-09-01T00:00:00.000Z");
@@ -1827,6 +1835,163 @@ describe("the tape on the bar — `market_bars.feed` and the check behind it (Ta
     );
 
     expect(result.rows.map((row) => row.feed)).toEqual(["sip"]);
+  });
+});
+
+describe("every writer stamps the tape, and no reader consults a constant (Task 3.7.3)", () => {
+  afterEach(clearStore);
+
+  // Criterion 1: *a bar stored from the socket records its tape, and a bar
+  // stored by the backfill records its own — both readable without consulting
+  // a constant.* Every assertion below reads the tape back through `readBars`,
+  // which selects the row's own column and nothing else; none reads the
+  // ledger, and `pnpm break the-writer-stamps-a-constant` proves the writer is
+  // taking it from the series' provenance rather than from a literal.
+
+  it("a series the backfill writes reads back with `sip` on every bar", async () => {
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 5 }));
+
+    const stored = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(session.open, session.close),
+    );
+
+    expect(stored).toHaveLength(5);
+    expect(new Set(stored.map((entry) => entry.feed))).toEqual(
+      new Set(["sip"]),
+    );
+  });
+
+  it("a series the fixture provider writes reads back with `synthetic` on every bar", async () => {
+    // `backfill.database.test.ts` drives the shipped `runBackfill` with the
+    // fixture provider into a real store, so a `synthetic` bar is a thing this
+    // repository stores on purpose — and it is the one tape a constant of
+    // `sip` would silently mislabel today, which is what the break relies on.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(
+      seriesFor(symbol, session, {
+        count: 5,
+        source: { provider: "fixture", feed: "synthetic" },
+      }),
+    );
+
+    const stored = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(session.open, session.close),
+    );
+
+    expect(stored).toHaveLength(5);
+    expect(new Set(stored.map((entry) => entry.feed))).toEqual(
+      new Set(["synthetic"]),
+    );
+  });
+
+  it("a socket-shaped `iex` row reads back with `iex`, and the bar beside it", async () => {
+    // Story 3.8 writes this row from the live socket; until it does, the
+    // shape is inserted by hand — the tape and the bar are both the row's.
+    const observedAt = new Date("2026-09-03T13:30:00.000Z");
+    await insertBar({ feed: "iex", observed_at: observedAt.toISOString() });
+
+    const stored = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(observedAt, new Date(observedAt.getTime() + 60_000)),
+    );
+
+    expect(stored).toEqual([
+      {
+        feed: "iex",
+        bar: {
+          startsAt: observedAt,
+          open: 100.25,
+          high: 100.75,
+          low: 100.125,
+          close: 100.5,
+          volume: 12_345,
+        },
+      },
+    ]);
+  });
+
+  describe("a re-store of the same instant from another tape — today's rule, Story 3.8's to change", () => {
+    // The unique key is `(security_id, timeframe, observed_at)` and does not
+    // include the tape, so this is a CONFLICT, and what happens then is Story
+    // 3.8's decision (its three shapes). This task keeps today's behaviour —
+    // the existing row's tape wins — and these two assertions are what 3.8
+    // rewrites rather than a claim that this is right. `TAPE.md` §6.
+
+    it("with the same numbers, leaves the row untouched — tape included", async () => {
+      const [session] = sessions(1);
+      if (session === undefined) throw new Error("no session");
+      const [only] = sessionBars(session, 1);
+      if (only === undefined) throw new Error("no bar");
+
+      // An `iex` row at the session's first minute, with exactly the numbers
+      // the SIP series is about to bring.
+      await insertBar({
+        feed: "iex",
+        observed_at: only.startsAt.toISOString(),
+        open: only.open,
+        high: only.high,
+        low: only.low,
+        close: only.close,
+        volume: only.volume,
+      });
+
+      const written = await repository().recordSeries(
+        seriesFor(symbol, session, { count: 1 }),
+      );
+
+      expect(written).toMatchObject({
+        inserted: 0,
+        corrected: 0,
+        unchanged: 1,
+      });
+      const stored = await repository().readBars(
+        symbol,
+        "1m",
+        toTimeRange(session.open, session.close),
+      );
+      expect(stored).toEqual([{ bar: only, feed: "iex" }]);
+    });
+
+    it("with different numbers, moves the numbers and leaves the tape", async () => {
+      const [session] = sessions(1);
+      if (session === undefined) throw new Error("no session");
+      const [only] = sessionBars(session, 1);
+      if (only === undefined) throw new Error("no bar");
+
+      await insertBar({
+        feed: "iex",
+        observed_at: only.startsAt.toISOString(),
+      });
+
+      const written = await repository().recordSeries(
+        seriesFor(symbol, session, { count: 1 }),
+      );
+
+      // A correction, by the writer's own account — and the row now carries
+      // SIP's numbers under IEX's label, which is the honest description of
+      // the rule as it stands and the reason it is Story 3.8's to replace.
+      expect(written).toMatchObject({
+        inserted: 0,
+        corrected: 1,
+        unchanged: 0,
+      });
+      const stored = await repository().readBars(
+        symbol,
+        "1m",
+        toTimeRange(session.open, session.close),
+      );
+      expect(stored).toEqual([{ bar: only, feed: "iex" }]);
+    });
   });
 });
 

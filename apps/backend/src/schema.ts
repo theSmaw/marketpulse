@@ -324,20 +324,21 @@ export interface MarketBarsTable {
    * exactly as {@link timeframe} is — and the check is deliberately `NOT
    * VALID` (the migration says why; `pnpm test:database` asserts it stays so).
    *
-   * **Optional on insert for exactly one task, and that is stated rather than
-   * left to be noticed.** The database default (`'sip'`) exists so the
-   * previous backfill survives the deploy window, and `BarCoverageTable.feed`'s
-   * arrangement is that the interface then makes the column **required on
-   * insert** so the default is unreachable from shipped code. Task 3.7.2 ships
-   * the column and Task 3.7.3 ships the writers, so between the two this reads
-   * `MarketFeed | undefined` — the shipped writer omits it and the default
-   * answers `sip`, which is true of every bar it can write today. **Task 3.7.3
-   * narrows this to `MarketFeed`**, at which point a writer that omits the tape
-   * is a compile error. Update is `never`, for {@link BarCoverageTable.feed}'s
-   * reason: a bar's tape is a fact about where it was observed and does not
-   * change afterwards.
+   * **Required on insert, so the database's default is unreachable from
+   * shipped code** — `BarCoverageTable.feed`'s arrangement, and `0007`'s. The
+   * default (`'sip'`) exists for the deploy window, in which the migration has
+   * run and the previous backfill has not yet rolled and inserts without the
+   * column, and for the rows that predate the column; a writer built from
+   * this interface that omits the tape is a compile error. Task 3.7.2 shipped
+   * this as `MarketFeed | undefined` for exactly one task, so the writer it
+   * did not yet touch could omit the column; Task 3.7.3 narrowed it the moment
+   * every writer stamped the tape from the series' own provenance
+   * (`market-bars.ts`, `writeBatch`). Update is `never`, for
+   * {@link BarCoverageTable.feed}'s reason: a bar's tape is a fact about where
+   * it was observed and does not change afterwards — which is also why a
+   * correction moves the numbers and not the tape, `TAPE.md` §6.
    */
-  feed: ColumnType<MarketFeed, MarketFeed | undefined, never>;
+  feed: ColumnType<MarketFeed, MarketFeed, never>;
 
   /**
    * When we wrote the row: `timestamptz not null default now()`.

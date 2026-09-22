@@ -97,15 +97,23 @@ import type { Database, MarketBarsTable } from "./schema.js";
 const MAX_BIND_PARAMETERS = 65_535;
 
 /**
- * The columns this writer supplies for a bar. **Eight**, not nine.
+ * The columns this writer supplies for a bar. **Nine**, not ten — eight
+ * until Task 3.7.3 added `feed`, the tape the bar was observed on.
+ *
+ * **This list sizes the chunk, so it must be the list the insert actually
+ * uses.** Adding `feed` to the insert without adding it here was caught within
+ * a minute by *writes past the bind-parameter chunk boundary* — the statement
+ * asked for 8,183 parameter formats against a ceiling computed for eight
+ * columns — which is the day the comment on `MAX_BIND_PARAMETERS` predicted,
+ * and the test rather than the derivation is what made it land.
  *
  * `recorded_at` is deliberately absent: it defaults to `now()`, which is
  * transaction start time, so every bar written by one batch shares one value —
  * and `migrations/0004_market_bars.sql` records that as correct rather than as
  * an artefact, because the batch *is* the retrieval and invariant 5 wants the
  * retrieval timestamp rather than a per-row clock reading. Supplying it
- * explicitly would take the count to nine and the chunk from 8,191 rows to
- * 7,281 for nothing.
+ * explicitly would take the count to ten and the chunk from 7,281 rows to
+ * 6,553 for nothing.
  *
  * It **is** written on the correction path below, as a `now()` expression
  * rather than a bind parameter, so the count above is unaffected.
@@ -119,6 +127,7 @@ const BAR_COLUMNS = [
   "low",
   "close",
   "volume",
+  "feed",
 ] as const satisfies readonly (keyof MarketBarsTable)[];
 
 /**
@@ -373,6 +382,26 @@ export type BarRow = {
 };
 
 /**
+ * A stored bar, read back **beside** the tape it was observed on rather than
+ * with it on the `Bar` — Task 3.7.3.
+ *
+ * `Bar` is shared by the wire, the chart and every `WireObservation`, and a
+ * field added to it reaches all of them; Task 3.6.4's constraint 4 refused
+ * exactly that for the send instant, and the tape is the same shape of fact —
+ * true of a stored row, owned by the store, and not what the wire's
+ * `feed` message or the series' provenance already say in their own place. So
+ * the read of a row carries the column out as a sibling, and a caller that
+ * wants only bars takes `.bar`.
+ *
+ * `feed` is the row's own column, never a default and never the ledger's
+ * value: that is criterion 1's *readable without consulting a constant*.
+ */
+export interface StoredBar {
+  readonly bar: Bar;
+  readonly feed: MarketFeed;
+}
+
+/**
  * One row → one {@link Bar}. **The parse, and it is the whole reason
  * `migrations/README.md` §6 forbids a generic row-to-object mapper.**
  *
@@ -475,6 +504,15 @@ export interface SeriesSource {
  * `coverage.covered: null`.
  */
 const SOURCE_OF_NOTHING: SeriesSource = { provider: "alpaca", feed: "sip" };
+// **Confined to the genuinely empty case since Task 3.7.3.** Every row now
+// carries its own tape (`market_bars.feed`), stamped by `writeBatch` from the
+// series' provenance, and `readBars` hands it out beside the bar — so no read
+// of a row that exists needs this constant for its `feed`. What still reaches
+// it is a read with **no ledger row**, and through the shipped writers that is
+// the same thing as no bars: `recordSeries` writes the ledger in the same
+// transaction as the rows. Task 3.7.5 derives a window's sources from the bars
+// themselves, at which point this is reached by an empty answer and nothing
+// else.
 
 /**
  * What has been done to the prices in this table: **nothing**.
@@ -925,17 +963,24 @@ export interface MarketBarsRepository {
    * historical `sip`.
    *
    * ~~Story 2.9 owns the read contract and will meet that.~~ **Met by
-   * {@link readSeries} (Task 2.9.4)**, which produces the missing `feed` from
-   * {@link STORED_BAR_SOURCE} rather than from a column. This one stays: it is
-   * the round trip the write path's own tests need — a writer whose output has
-   * never been read back is a writer nobody has checked — and it is the cheaper
-   * question when a caller genuinely wants bars rather than a series.
+   * {@link readSeries} (Task 2.9.4)**, which produces the series' `feed` from
+   * the ledger rather than from a column. This one stays: it is the round trip
+   * the write path's own tests need — a writer whose output has never been
+   * read back is a writer nobody has checked — and it is the cheaper question
+   * when a caller genuinely wants bars rather than a series.
+   *
+   * **Since Task 3.7.3 each bar comes back beside its own tape** — the row's
+   * `feed` column, stamped at insert from the series' provenance — as a
+   * {@link StoredBar}. A caller that wants only the bars maps `.bar`; the
+   * replay source does, and drops the tape on purpose (its own emission is
+   * labelled `replay`). The series-level `feed` {@link readSeries} reports is
+   * still the ledger's until Task 3.7.5 derives it from these rows.
    */
   readBars(
     symbol: Ticker,
     timeframe: Timeframe,
     range: TimeRange,
-  ): Promise<readonly Bar[]>;
+  ): Promise<readonly StoredBar[]>;
 
   /**
    * The stored series for one security, timeframe and window — **the read the
@@ -1257,7 +1302,17 @@ export function createMarketBarsRepository(
 
         for (let index = 0; index < bars.length; index += size) {
           const batch = bars.slice(index, index + size);
-          const written = await writeBatch(trx, securityId, timeframe, batch);
+          // The tape every bar in this chunk is stamped with is the series'
+          // own — `singleSourceOf` above, which is the provenance the provider
+          // wrote and not the provider's name (`0007`'s rule for the ledger,
+          // now per bar). `pnpm break the-writer-stamps-a-constant`.
+          const written = await writeBatch(
+            trx,
+            securityId,
+            timeframe,
+            batch,
+            source.feed,
+          );
           inserted += written.inserted;
           corrected += written.corrected;
         }
@@ -1291,6 +1346,9 @@ export function createMarketBarsRepository(
           "market_bars.low",
           "market_bars.close",
           "market_bars.volume",
+          // The tape, per row, since `0010` — read from the column and never
+          // from the ledger or a constant (criterion 1, Task 3.7.3).
+          "market_bars.feed",
         ])
         .where("securities.symbol", "=", symbol)
         .where("market_bars.timeframe", "=", timeframe)
@@ -1301,7 +1359,7 @@ export function createMarketBarsRepository(
         .orderBy("market_bars.observed_at")
         .execute();
 
-      return rows.map(toBar);
+      return rows.map((row) => ({ bar: toBar(row), feed: row.feed }));
     },
 
     async readSeries(symbol, timeframe, range, now) {
@@ -1492,6 +1550,7 @@ async function writeBatch(
   securityId: string,
   timeframe: Timeframe,
   bars: readonly Bar[],
+  feed: MarketFeed,
 ): Promise<{ inserted: number; corrected: number }> {
   const first = bars[0];
   const last = bars[bars.length - 1];
@@ -1524,11 +1583,30 @@ async function writeBatch(
         low: bar.low,
         close: bar.close,
         volume: bar.volume,
+        // The tape, stamped per bar from the series' provenance (Task 3.7.3).
+        // Required by `MarketBarsTable.feed`'s insert type, so a writer that
+        // forgets it does not compile and the column's default is unreachable
+        // from here.
+        feed,
       })),
     )
     .onConflict((oc) =>
       oc
         .columns(["security_id", "timeframe", "observed_at"])
+        // **`feed` is deliberately absent from this set, and from the
+        // comparison below — the conflict rule as it stands on 2026-09-22,
+        // which is Story 3.8's to replace rather than this task's to decide.**
+        // The unique key is `(security_id, timeframe, observed_at)` and does
+        // not include the tape, so a bar re-stored from a different tape is a
+        // conflict; today the existing row's tape wins in both branches — the
+        // same numbers write nothing, different numbers move the numbers and
+        // `recorded_at` and leave the tape as it was. `MarketBarsTable.feed`'s
+        // update type is `never`, which is what makes that a compile-time
+        // rule rather than an omission. Through the shipped writers the case
+        // is unreachable anyway: `recordSeries` refuses a source that
+        // disagrees with the ledger row it would extend (`ForeignSourceError`),
+        // and Story 3.8's three shapes are about exactly that refusal.
+        // `TAPE.md` §6 records it; `market-bars.database.test.ts` asserts it.
         .doUpdateSet((eb) => ({
           open: eb.ref("excluded.open"),
           high: eb.ref("excluded.high"),

@@ -80,11 +80,14 @@ against 10 MiB/s before it is written.
 ## 3. What the store claims, in whose words
 
 - **A bar's `feed`** is the tape the bar was observed on, written by the
-  series' own provenance at insert time (Task 3.7.3) — never by a provider's
-  name and never by a default reachable from shipped code. The database's
-  default exists for the deploy window and for rows that predate the column,
-  and `schema.ts` declaring the column required on insert is what keeps it
-  out of reach otherwise (`0007`'s arrangement, repeated).
+  series' own provenance at insert time (Task 3.7.3, shipped 2026-09-22) —
+  never by a provider's name and never by a default reachable from shipped
+  code. The database's default exists for the deploy window and for rows that
+  predate the column, and `schema.ts` declaring the column required on insert
+  is what keeps it out of reach otherwise (`0007`'s arrangement, repeated).
+  **Read back beside the bar rather than on it**: `readBars` answers
+  `StoredBar { bar, feed }`, because `Bar` is shared by the wire and the chart
+  and a field on it reaches every `WireObservation` (§6).
 - **The vocabulary is `MARKET_FEEDS` in `packages/shared`**, and
   `market_bars_feed_check` is its backstop; `market-bars.database.test.ts`
   parses the constraint back and asserts set equality (Task 3.7.2), asserts
@@ -102,11 +105,18 @@ against 10 MiB/s before it is written.
   not describe is `TS1360`, which is how Task 3.7.2's first typecheck went
   red), that the check's vocabulary is the shared constant, that the check
   stays `NOT VALID`, that a tape outside the vocabulary is refused, that an
-  insert omitting the column answers `sip`; and, as they land, that a stored
-  bar reads back with its own tape (3.7.3) and a two-tape window produces two
-  sources in order (3.7.5). Two breaks prove the migration's two load-bearing
-  clauses: `pnpm break the-tape-check-gets-validated` and
-  `pnpm break the-tape-default-lies-about-the-past`.
+  insert omitting the column answers `sip`; **since 3.7.3**, that a series
+  recorded with `sip` provenance reads back `sip` on every bar, one with
+  `fixture`/`synthetic` provenance reads back `synthetic`, a hand-inserted
+  `iex` row reads back `iex` beside its bar, the shipped backfill command
+  driven by the fixture provider leaves `synthetic` and nothing else in the
+  table (`backfill.database.test.ts`), and a re-store of the same instant from
+  another tape leaves the row's tape in both branches (§6); and, as it lands,
+  that a two-tape window produces two sources in order (3.7.5). Three breaks
+  prove the load-bearing clauses: `pnpm break the-tape-check-gets-validated`,
+  `pnpm break the-tape-default-lies-about-the-past` and
+  `pnpm break the-writer-stamps-a-constant` (a literal `sip` in the writer
+  reddens the `synthetic` read-back).
 - **It does not certify** that the deployed migration finished inside 120 s —
   the figure above is a laptop's, and Task 3.7.6 owns the tier's; that the
   `NOT VALID` check was ever validated — it is not meant to be; or that the
@@ -127,3 +137,74 @@ with 10 MiB/s of bandwidth, for a value the default already gives.
 the owner would rather the column be nullable with `null` meaning _see the
 ledger_, Task 3.7.2's migration changes one clause and criterion 1's
 _readable without consulting a constant_ has to be re-argued.
+
+## 6. The writers — who writes, what each stamps, and the conflict rule as it stands (Task 3.7.3, 2026-09-22)
+
+**One writer, three sources, one rule.** Every row `market_bars` gains goes
+through `recordSeries` → `writeBatch`, and `writeBatch` takes the tape as a
+parameter — `source.feed`, where `source` is `singleSourceOf(series)`, the
+series' own `provenance.sources` — and stamps it on every bar in the chunk.
+Nothing consults the provider's name, the ledger, or a constant, and
+`MarketBarsTable.feed` is `ColumnType<MarketFeed, MarketFeed, never>`, so a
+writer that omits the tape does not compile and the column's `'sip'` default
+is unreachable from shipped code.
+
+| Who writes                                   | Series provenance       | What each bar carries     |
+| -------------------------------------------- | ----------------------- | ------------------------- |
+| The nightly backfill (`backfill.ts`, Alpaca) | `alpaca` / `sip`        | `sip`                     |
+| The same command with the fixture provider   | `fixture` / `synthetic` | `synthetic`               |
+| Story 3.8's socket writer (not yet written)  | `alpaca` / `iex`        | `iex`                     |
+| Anything naming `replay`                     | refused before the trx  | — (`ReplayedSeriesError`) |
+
+**What a read hands back.** `readBars` selects `market_bars.feed` beside the
+six bar columns and answers `readonly StoredBar[]`, `{ bar: Bar; feed:
+MarketFeed }`. The tape sits **beside** the bar rather than on it because
+`Bar` is `packages/shared`'s and reaches the wire, the chart and every
+`WireObservation`; Task 3.6.4's constraint 4 refused a field on it for the
+send instant and the reasoning is the same here. The replay source maps
+`.bar` and drops the tape deliberately — its emission is labelled `replay` by
+the engine, whichever tape the bar was observed on. `readSeries` is
+**unchanged**: the series-level `feed` it reports is still the ledger's, and
+Task 3.7.5 is what derives a window's sources from these rows.
+
+**`SOURCE_OF_NOTHING` is confined, not removed.** It is reached only by a
+read with no ledger row, which through the shipped writers is the same thing
+as no bars — `recordSeries` writes the ledger in the transaction that writes
+the rows. A row with no ledger row is producible only by hand (the test
+suite's `insertBar`), and 3.7.5 closes even that when sources come from the
+bars.
+
+**The conflict rule, as it stands on 2026-09-22 — Story 3.8's to replace.**
+The unique key is `(security_id, timeframe, observed_at)` and does not
+include the tape, so a bar re-stored from a different tape is a **conflict**.
+Today, in both branches, **the existing row's tape wins**:
+
+- the same numbers from another tape write nothing — the `is distinct from`
+  clause compares the five values and not the tape, so the row is neither
+  rewritten nor counted;
+- different numbers from another tape move the numbers and `recorded_at` and
+  **leave the tape as it was** — a correction by the writer's own account,
+  and the row then carries one tape's numbers under another tape's label.
+
+That second branch is written down as the honest description of the rule
+rather than as a claim that it is right. It is unreachable through the
+shipped writers — `recordSeries` refuses a source that disagrees with the
+ledger row it would extend (`ForeignSourceError`) before a row is touched —
+and Story 3.8's three shapes are about exactly that refusal, so this task
+kept the behaviour and asserted it (`market-bars.database.test.ts`, _a
+re-store of the same instant from another tape_) rather than deciding it in
+passing. `MarketBarsTable.feed`'s update type is `never`, which makes _the
+tape does not move on a correction_ a compile-time rule; whichever shape 3.8
+takes has to change that type on purpose.
+
+**One thing this task found, and the mechanism that found it.** The chunk
+size for the multi-row insert is derived from `BAR_COLUMNS.length` so that a
+column added to the writer cannot leave a hard-coded batch size stale — and
+adding `feed` to the insert **without adding it to that list** produced
+exactly the stale size the derivation exists to prevent (`bind message has
+8183 parameter formats but 0 parameters`, at 8,191 rows against a ceiling
+now 7,281). It was red within a minute in _writes past the bind-parameter
+chunk boundary_, which is the test doing the job the derivation cannot: the
+derivation is only as good as the list, and the test is what checks the list
+against the statement. The chunk is now **7,281 rows** (nine columns), from
+8,191.

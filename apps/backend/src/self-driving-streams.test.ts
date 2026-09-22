@@ -89,10 +89,15 @@ const barsFor = (from: Date, minutes: number): MarketBarsRepository =>
       Promise.resolve(
         Array.from({ length: minutes }, (_unused, index) =>
           bar(new Date(from.getTime() + index * 60_000), 100 + index),
-        ).filter(
-          (candidate) =>
-            candidate.startsAt >= range.start && candidate.startsAt < range.end,
-        ),
+        )
+          .filter(
+            (candidate) =>
+              candidate.startsAt >= range.start &&
+              candidate.startsAt < range.end,
+          )
+          // `readBars` answers each bar beside the tape it was observed on
+          // (Task 3.7.3); the replay drops the tape, so any member will do.
+          .map((candidate) => ({ bar: candidate, feed: "sip" as const })),
       ),
   }) as unknown as MarketBarsRepository;
 

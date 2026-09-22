@@ -373,6 +373,17 @@ test("a slow window change draws a panel over the chart, and keeps the figures",
 
 // **The chart does not move when a window is pressed** (2026-09-13).
 //
+// **Red on a STALE developer store, and that is the store rather than the
+// chart** (found 2026-09-22, against a store six sessions behind). The default
+// window is five sessions; on a store whose newest session is older than that
+// it is a correct `empty` with no figures row, and `1 month` reaches back far
+// enough to hold bars — so the press is an `empty → partial` transition, the
+// reading row appears above the picture, and the plot moves **90 px** at
+// tablet and phone with nothing wrong. CI's store (zero bars) and the deployed
+// one (backfilled nightly) are the same state either side of the press, which
+// is the assumption this test makes. Run it against `pnpm store:bare` or
+// backfill first; do not widen the tolerance.
+//
 // The rail is rendered above the picture and only while a request is
 // unanswered, so without a reserved slot the chart drops the instant somebody
 // presses a window and rises again when the answer lands — 30px, measured, under

@@ -219,6 +219,16 @@ describe("a backfill against a real store", () => {
     expect(held?.covered.start.getTime()).toBe(SESSIONS[0]?.open.getTime());
     expect(held?.covered.end.getTime()).toBe(SESSIONS.at(-1)?.close.getTime());
     expect(held?.barCount).toBe(report.inserted);
+
+    // Criterion 1 of Story 3.7, on the shipped command rather than on the
+    // repository alone: every bar the fixture provider's backfill stored
+    // carries the fixture's own tape, read from the row and not from the
+    // ledger. `distinct` rather than a count, so a single `sip` among them —
+    // a writer falling back to a constant — would show up as a second value.
+    const tapes = await db().query<{ feed: string }>(
+      "select distinct feed from market_bars",
+    );
+    expect(tapes.rows.map((row) => row.feed)).toEqual(["synthetic"]);
   });
 
   it("re-running changes nothing at all — criterion 2, on the rows", async () => {
