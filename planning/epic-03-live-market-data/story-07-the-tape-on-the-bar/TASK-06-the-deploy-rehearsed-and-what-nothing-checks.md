@@ -69,6 +69,17 @@ VALID` on purpose** and nobody validates it in a deploy (3.7.1's amendment
 - **`pnpm invariants`** for anything above that is a single grep, with its
   `pnpm break` entry
 
+  > **AMENDED 2026-09-22 by Task 3.7.2 — the first of those is now a test,
+  > and the entry changes shape.** `market-bars.database.test.ts` asserts
+  > `pg_constraint.convalidated = false` for `market_bars_feed_check`, with
+  > the reason, and `pnpm break the-tape-check-gets-validated` proves it goes
+  > red. What `docs/GAPS.md` should carry is therefore not _that it stays NOT
+  > VALID_ but the residue: **`pnpm test:database` is not in `pnpm verify`**,
+  > so the assertion holds only on the `database` CI job and when somebody
+  > runs it — and a `VALIDATE` slipped into a **later** migration would pass
+  > every unit-level check and reach the deploy's 120 s ceiling before
+  > anything red. The re-measure is the test's name and the break's.
+
 ## Done when
 
 1. The deploy's ordering is rehearsed against rows, and the old writer's insert

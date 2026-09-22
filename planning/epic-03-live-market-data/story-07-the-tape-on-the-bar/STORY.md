@@ -157,7 +157,7 @@ before it starts.
 | #     | Task                                                                                                                                         | Depends on | Visible?      |
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------- |
 | 3.7.1 | [The shape of the column, measured against the real table before a line of SQL](TASK-01-the-shape-measured-before-a-line-of-sql.md)          | 3.1        | No — **done** |
-| 3.7.2 | [The migration, and the schema that agrees with it](TASK-02-the-migration-and-the-schema-that-agree.md)                                      | 3.7.1      | No            |
+| 3.7.2 | [The migration, and the schema that agrees with it](TASK-02-the-migration-and-the-schema-that-agree.md)                                      | 3.7.1      | No — **done** |
 | 3.7.3 | [Every writer stamps the tape, and no reader consults a constant](TASK-03-every-writer-stamps-the-tape.md)                                   | 3.7.2      | No            |
 | 3.7.4 | [What replaces the ledger's refusal of a second source](TASK-04-what-replaces-the-ledgers-refusal.md)                                        | 3.7.3      | No            |
 | 3.7.5 | [A stored window spanning two tapes produces two sources, through the merge](TASK-05-two-sources-in-contribution-order-through-the-merge.md) | 3.7.4      | No            |

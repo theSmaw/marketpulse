@@ -44,6 +44,15 @@ from a row that exists.
 
 ## Work
 
+- **Narrow `MarketBarsTable.feed` to `ColumnType<MarketFeed, MarketFeed,
+never>`** — Task 3.7.2 shipped it as `MarketFeed | undefined` on insert for
+  exactly one task, so the shipped writer could omit it and the default could
+  answer `sip`; this task is the one the comment on the column names, and the
+  narrowing is what makes a writer that omits the tape a compile error
+  (`0007`'s arrangement for the ledger, repeated here). The raw-SQL test
+  _answers `sip` for a writer that does not know the column exists_ stays as
+  it is — it inserts around the type on purpose, because it is about the
+  deploy window's writer, not a shipped one.
 - `recordSeries` writes the tape per bar from the series' source
 - The read of a row (`toBar` or a sibling) exposes it, in the shape decided
   above, and the `SOURCE_OF_NOTHING` fallback is confined to the genuinely
