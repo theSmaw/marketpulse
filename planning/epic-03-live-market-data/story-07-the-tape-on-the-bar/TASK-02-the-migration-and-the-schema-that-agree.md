@@ -36,6 +36,17 @@ store that holds exactly what it held.
   ceiling, and 3.7.1's figures say what fits. If the vocabulary check is added
   `NOT VALID`, say in the migration's comment where and when it gets validated,
   and by whom.
+
+  > **AMENDED 2026-09-22 by Task 3.7.1 — decided, and the answer is _never
+  > inside a deploy, and not otherwise either_.** The check is `NOT VALID` and
+  > stays so: it enforces every new row, every existing row's value is the
+  > default and the default is in the vocabulary by construction, and the scan
+  > that validation runs is ~508 s on the deployed tier's 10 MiB/s (ADR 0034).
+  > The migration's comment says that, in those words, so nobody "tidies" it
+  > with a `VALIDATE` in a later deploy. What this task times is **the runner**
+  > — `pnpm migrate` through Kysely, not the raw `ALTER`s 3.7.1 already timed
+  > at 39 ms and 3 ms — against the populated store and against `marketpulse_bare`.
+
 - **The vocabulary is `MARKET_FEEDS` in `packages/shared`**, and the database's
   `check` is its backstop — `migrate.database.test.ts` already parses
   `bar_coverage_feed_check` back and compares it to the constant so the two

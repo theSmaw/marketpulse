@@ -206,6 +206,16 @@ is that **the database has per-bar retrieval time by convention and the wire doe
 if anything ever genuinely needs per-bar attribution, it is a query against a column that
 already exists rather than a change to this contract.
 
+> **AMENDED 2026-09-22, Task 3.7.1 — _not affordable_ was measured for four fields, and one
+> field in the store is.** The arithmetic above is about four provenance fields per bar, on
+> the wire and in every array the browser holds, and it stands for that. Story 3.7 needs one
+> field — which of two tapes — in the store only, and measured it against the real table:
+> a `feed text not null default 'sip'` column is a **catalogue write** (39 ms on 48,797,343
+> rows, no row touched, the default materialised on read) and costs **+4 bytes** on rows
+> written afterwards; the two-tape read it enables is under 10 ms at the cap. The wire is
+> unchanged — `WireObservation` carries no per-bar provenance and ADR 0033's constraint 4
+> is the reason it will not. [ADR 0034](../../../docs/adr/0034-the-tape-on-the-bar.md).
+
 ### 2.4 The one thing the sources may NOT disagree about, and it is refused rather than reported
 
 A stitched series whose halves disagree about **feed** is truthful and reportable: two

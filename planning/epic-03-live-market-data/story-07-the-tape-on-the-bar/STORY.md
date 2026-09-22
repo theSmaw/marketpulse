@@ -102,6 +102,14 @@ actually been produced once, rather than against a prediction of one.
    before this migration is SIP_ is a fact a nullable column can express for
    free. The argument against free is that it makes every reader carry the rule.
 
+   **Settled 2026-09-22 by Task 3.7.1, by the shape rather than by a
+   preference, and without the owner in the room.** A constant default on
+   PostgreSQL 18 is a catalogue write — 39 ms on 48.8 million rows, no row
+   touched — and every existing row then answers `sip` without a rewrite and
+   without a reader carrying a rule. So: **not backfilled, and not nullable**.
+   The reversal is one clause in Task 3.7.2's migration; `TAPE.md` §5 names
+   what would have to be re-argued.
+
 ## Acceptance criteria
 
 1. A bar stored from the socket records its tape, and a bar stored by the
@@ -146,15 +154,15 @@ MarketPulse canvas**, so the chain in ADR 0026 could not be walked from this
 session. Story 3.9 is the next story that needs the canvas and should check
 before it starts.
 
-| #     | Task                                                                                                                                         | Depends on | Visible? |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | -------- |
-| 3.7.1 | [The shape of the column, measured against the real table before a line of SQL](TASK-01-the-shape-measured-before-a-line-of-sql.md)          | 3.1        | No       |
-| 3.7.2 | [The migration, and the schema that agrees with it](TASK-02-the-migration-and-the-schema-that-agree.md)                                      | 3.7.1      | No       |
-| 3.7.3 | [Every writer stamps the tape, and no reader consults a constant](TASK-03-every-writer-stamps-the-tape.md)                                   | 3.7.2      | No       |
-| 3.7.4 | [What replaces the ledger's refusal of a second source](TASK-04-what-replaces-the-ledgers-refusal.md)                                        | 3.7.3      | No       |
-| 3.7.5 | [A stored window spanning two tapes produces two sources, through the merge](TASK-05-two-sources-in-contribution-order-through-the-merge.md) | 3.7.4      | No       |
-| 3.7.6 | [The deploy rehearsed against a populated store, and what nothing checks](TASK-06-the-deploy-rehearsed-and-what-nothing-checks.md)           | 3.7.5      | No       |
-| 3.7.7 | [The sweep, the hand-offs and the close](TASK-07-the-sweep-the-hand-offs-and-the-close.md)                                                   | 3.7.6      | No       |
+| #     | Task                                                                                                                                         | Depends on | Visible?      |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------- |
+| 3.7.1 | [The shape of the column, measured against the real table before a line of SQL](TASK-01-the-shape-measured-before-a-line-of-sql.md)          | 3.1        | No — **done** |
+| 3.7.2 | [The migration, and the schema that agrees with it](TASK-02-the-migration-and-the-schema-that-agree.md)                                      | 3.7.1      | No            |
+| 3.7.3 | [Every writer stamps the tape, and no reader consults a constant](TASK-03-every-writer-stamps-the-tape.md)                                   | 3.7.2      | No            |
+| 3.7.4 | [What replaces the ledger's refusal of a second source](TASK-04-what-replaces-the-ledgers-refusal.md)                                        | 3.7.3      | No            |
+| 3.7.5 | [A stored window spanning two tapes produces two sources, through the merge](TASK-05-two-sources-in-contribution-order-through-the-merge.md) | 3.7.4      | No            |
+| 3.7.6 | [The deploy rehearsed against a populated store, and what nothing checks](TASK-06-the-deploy-rehearsed-and-what-nothing-checks.md)           | 3.7.5      | No            |
+| 3.7.7 | [The sweep, the hand-offs and the close](TASK-07-the-sweep-the-hand-offs-and-the-close.md)                                                   | 3.7.6      | No            |
 
 **Where the open decision lives.** Open decision 1 — whether existing rows are
 backfilled — is Task 3.7.1's, and the shape most likely to win answers it for

@@ -40,15 +40,32 @@ new column.
   new row — say so). If a scan is inside the migration, extrapolate the
   laptop figure to the tier and state the assumption; if it does not fit in
   120 s with margin, the migration is wrong and goes back to 3.7.1
+
+  > **AMENDED 2026-09-22 by Task 3.7.1 — there is no scan and no deferred
+  > validation; the risk that remains is the LOCK.** The migration is two
+  > catalogue writes (39 ms and 3 ms on 48.8 million rows) and the check is
+  > `NOT VALID` for good (ADR 0034), so the bullet above collapses to _confirm
+  > the deploy's migrate step reports milliseconds_. What 3.7.1 could not
+  > measure and this rehearsal must: `ALTER TABLE market_bars` takes an
+  > **`ACCESS EXCLUSIVE` lock**, which waits behind any transaction touching
+  > the table — the nightly backfill's batch inserts, or a long read — and
+  > then blocks every reader and writer until it commits. `deploy.yml` runs
+  > at merge time, whatever the backfill is doing. Rehearse the migration
+  > **against a store with a backfill batch in flight** and read how long the
+  > lock waits, whether Kysely's transaction sets a `lock_timeout`, and what
+  > the 120 s ceiling does if it waits that long. A lock wait that looks like
+  > a slow migration is the failure shape this tier makes likely.
+
 - **`check-deployed.mjs`** — decide whether the post-merge check should read
   the column's presence (it reads freshness already), and add it or record
   why not
 - **`docs/GAPS.md`**: the claims this story leaves standing that nothing
-  mechanical guards — at least: that the deferred validation was ever run;
-  that the ledger's withdrawn columns are not read by anything (a grep
-  re-measure, or an invariant if it can be one); and that a bar's tape and
-  its ledger row agree, which only a database test can see and only when
-  somebody runs it
+  mechanical guards — at least: that `market_bars_feed_check` **stays `NOT
+VALID` on purpose** and nobody validates it in a deploy (3.7.1's amendment
+  above replaced _that the deferred validation was ever run_); that the
+  ledger's withdrawn columns are not read by anything (a grep re-measure, or
+  an invariant if it can be one); and that a bar's tape and its ledger row
+  agree, which only a database test can see and only when somebody runs it
 - **`pnpm invariants`** for anything above that is a single grep, with its
   `pnpm break` entry
 
