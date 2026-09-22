@@ -362,3 +362,18 @@ how the `·` is spoken_. A string whose length changes with the state of the
 **store** rather than with anything on screen is one more reason that question
 cannot be answered from a DOM, a timing, or by an agent. **Owner is unchanged:
 a person with a screen reader.**
+
+---
+
+## Amended by Task 3.6.6 — 2026-09-22: the spec's handle is shared, and its locator is scoped
+
+**`security-price-motion.spec.ts`'s `markOf` no longer reads the whole page.**
+Task 3.6.6 gave the universe table's row marks the same `[data-arrival]`
+handle this task's mark carries — the same rule, `composes:`d by both, and the
+"another handle needs a stated reason" line above is why it is the same one
+rather than a second. `/securities/NVDA` renders that table under the identity
+block, so a bar for NVDA now marks twice on the page this spec drives, and a
+page-wide count of one would have gone red for a reason that is not a defect.
+The locator is `latestPrice(page).locator("[data-arrival]")`, with the reason
+in its doc comment; all six tests pass unchanged in meaning. The row is
+`universe-live-update.spec.ts`'s to assert.
