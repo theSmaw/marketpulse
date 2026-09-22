@@ -1,6 +1,6 @@
 # Task 3.4.10 — The live rehearsal, the sweep, and the close
 
-**Status:** **BLOCKED on the rehearsal — everything else complete, 2026-09-21.** The sweep, both audits (with counts), the ADR decision and the acceptance walk are done and are below. **The story does not close**, because two acceptance criteria cannot be met tonight and neither is a matter of effort: criterion 5 is **unmeasurable** without a protocol change (`docs/GAPS.md` entry 12), and criterion 8's _with the market open_ needs a session — the market is shut and the deployed backend still holds the plan's **one** Alpaca connection, verified at 23:06 EDT.
+**Status:** **BLOCKED on the rehearsal — everything else complete, 2026-09-21.** The sweep, both audits (with counts), the ADR decision and the acceptance walk are done and are below. **The story does not close**, because two acceptance criteria cannot be met tonight and neither is a matter of effort: ~~criterion 5 is **unmeasurable** without a protocol change (`docs/GAPS.md` entry 12)~~ — **measurable and taken since 2026-09-22, see the amendment under _Do NOT expect the rehearsal to close §28's p95_ below** — and criterion 8's _with the market open_ needs a session — the market is shut and the deployed backend still holds the plan's **one** Alpaca connection, verified at 23:06 EDT.
 **Amended:** 2026-09-21 after Task 3.4.7 — the ADR question is now **two decisions**, and the second one reaches past this epic.
 **Amended:** 2026-09-21 after Task 3.4.9 — the construction-site audit now has **two forms**, because the export grep would not have caught a published row nothing could reach.
 **Amended:** 2026-09-21 after Task 3.4.8 — **§28's p95 is half-measured and the rehearsal cannot close it**, because no wire message carries a server instant. Do not record it as met.
@@ -142,6 +142,20 @@ nobody finds out — so note the answer either way, in the vendor's own document
   it; when that lands, this story's criterion 5 becomes measurable
   retroactively. What this sweep owes is only that the
   browser half is never quoted as the whole.
+
+  > **AMENDED 2026-09-22 by Task 3.6.4 — it landed, and this instruction
+  > inverts.** Every frame now carries `sentAt` (ADR 0033), and the whole
+  > journey was taken at 518 subscribed securities on a production build:
+  > **p95 6 ms** gateway send → frame in the page, **p95 68 ms** gateway send
+  > → universe table repainted, n = 60, loopback. The one-row surface this
+  > story built is a strict subset of that page's work, so the figure bounds
+  > this story's criterion 5 from above. **The rehearsal may now record
+  > criterion 5 as met by quoting that figure, with its ends and its loopback
+  > condition named** — and if it wants this page's own reading, the four-line
+  > instrument is in this story's `STORY.md` amendment and in Task 3.6.4's
+  > record. `docs/GAPS.md` entry 12 is closed. The acceptance-walk row below
+  > is left as it was written on 2026-09-21; it records what was true then.
+
 - **The production-bundle recipe, if any criterion needs one** — Task 3.4.8's,
   and it is four lines rather than a rediscovery: `pnpm build`, then
   `CORS_ORIGIN=http://localhost:4173 pnpm --filter @marketpulse/backend start`,
