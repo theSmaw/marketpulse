@@ -274,6 +274,19 @@ than thirty an hour — measured on a production build at **0 `longtask` entries
 and 0 DOM mutations over 60 s**, with the strip's text byte-identical
 throughout.
 
+> **AMENDED 2026-09-22, Task 3.6.5 — a subscription sent after a close blanked
+> the page, and the guard is now the socket's own state.** Task 3.5.6's
+> `subscribe` was gated on an `opened` flag that `open` set and nothing
+> cleared, so a subscription change landing in the 500 ms between the
+> gateway's `1001` and the retry's dial called `send` on a `CLOSING` socket.
+> `WebSocket.send` throws for that; the call came from a React effect; an
+> effect's throw is a render error; and nothing above `App` catches one — the
+> page went blank until a reload. Found by `market-reconnect.spec.ts`, three
+> tests at once, on a developer's machine and not on CI, and bisected to
+> `main`. The send is now gated on `readyState === OPEN`, the subscription is
+> kept for the next socket as the retry already assumed, and `pnpm break
+a-subscription-after-a-close-throws` proves the unit test goes red.
+
 ### 8.7 What the strip says when it breaks, and the rate at which it learns
 
 Three states, all produced on a running page rather than drawn:

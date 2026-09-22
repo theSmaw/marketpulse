@@ -22,6 +22,9 @@ const SENT_AT = "2026-09-16T14:02:00.512Z";
 class FakeSocket {
   readonly listeners = new Map<string, ((event: unknown) => void)[]>();
   closed = 0;
+  /** `CONNECTING` until the test says otherwise — the platform's own default. */
+  readyState = 0;
+  readonly sent: string[] = [];
 
   addEventListener(kind: string, listener: (event: unknown) => void): void {
     this.listeners.set(kind, [...(this.listeners.get(kind) ?? []), listener]);
@@ -29,6 +32,15 @@ class FakeSocket {
 
   close(): void {
     this.closed += 1;
+    this.readyState = 3;
+  }
+
+  /** The platform's behaviour, verbatim: a send on anything but `OPEN` throws. */
+  send(data: string): void {
+    if (this.readyState !== 1) {
+      throw new Error("WebSocket is already in CLOSING or CLOSED state.");
+    }
+    this.sent.push(data);
   }
 
   emit(kind: string, event: unknown = {}): void {
@@ -152,5 +164,40 @@ describe("disconnecting", () => {
     expect(socket.closed).toBe(1);
     socket.emit("close");
     expect(events.filter((event) => event.kind === "opened")).toHaveLength(1);
+  });
+});
+
+describe("the subscription and the socket's state (Task 3.6.5)", () => {
+  it("is buffered until the socket opens, then sent once", () => {
+    const { socket, connection } = connect();
+
+    connection.subscribe(["NVDA"]);
+    expect(socket.sent).toEqual([]);
+
+    socket.readyState = 1;
+    socket.emit("open");
+    expect(socket.sent).toHaveLength(1);
+    expect(socket.sent[0]).toContain('"NVDA"');
+  });
+
+  it("does NOT throw when the subscription changes after the socket closed", () => {
+    // **The defect that blanked the page.** The gateway closes the socket, a
+    // subscription change lands in the 500 ms before the retry dials, and a
+    // `send` on a `CLOSING` socket throws — from a React effect, which makes
+    // it a render error the root has no boundary for. The socket's own
+    // `readyState` is the guard; a flag set on `open` was not.
+    const { socket, connection } = connect();
+    socket.readyState = 1;
+    socket.emit("open");
+    connection.subscribe(["NVDA"]);
+    expect(socket.sent).toHaveLength(1);
+
+    socket.readyState = 2; // CLOSING — what the platform reports mid-close
+    socket.emit("close", { code: 1001 });
+
+    expect(() => {
+      connection.subscribe(["NVDA", "AAPL"]);
+    }).not.toThrow();
+    expect(socket.sent).toHaveLength(1);
   });
 });

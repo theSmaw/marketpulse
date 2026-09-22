@@ -460,3 +460,38 @@ mechanism to invent.
 repaint on `bars` arrival is a long task of **51–63 ms on 7 of 60 frames** — just
 over §28's 50 ms line, not the 127–265 ms the development-build readings in
 Tasks 3.6.2 and 3.6.3 showed. The problem is real and smaller than it looked.
+
+## Amended by Task 3.6.5 — 2026-09-22: criterion 4 taken, a breach this story introduced repaired, and Epic 14's trigger answered
+
+**Criterion 4 is met, and its honest content is that this story had put a
+third breach on the page.** On a production build with the fixture feed
+changing all 518 rows a minute: the cold load re-took at **56–83 ms on eight
+loads in ten** (from 50–76), `Expand all` at **80–88 ms** (from 69–87), and
+the steady state — which no earlier reading covered — at **one long animation
+frame of 73–82 ms per frame, 46–49 ms of it React re-rendering 518 rows**,
+plus **40 ms every 30 s** from the backend health poll re-rendering the whole
+route with nothing changed. Over §28's line on three frames in seven.
+
+**Epic 14's trigger did not fire as worded, and a condition it did not
+anticipate did.** The mark is not a second surface; the per-tick cost is a
+_routine_ task in §28's own word, where the cold load is once per visit — and
+it was this story's to fix on ownership grounds before the trigger's.
+[`TASK-05`](TASK-05-the-cold-load-expand-all-and-epic-14s-trigger.md) carries
+the verdict in full.
+
+**The repair: the table's first memo boundaries.** A row is `RowIdentity` (the
+four static cells, memoised on `security`) plus two live cells; the row and
+`HistoryCell` are memoised on their inputs; `groupUniverse` is memoised. And
+`table-layout: fixed` **from 1024 px up**, gated by a photograph at 390 where
+it crushed the columns. After: **no task over 50 ms in the steady state**,
+script per frame **37–40 ms** with every row changing, the health poll's
+re-render gone, worst frame gap 54 ms from 80; cold load **50–56 ms on seven
+in ten** and `Expand all` **65–86 ms** — both improved, both still standing,
+both still Epic 14's.
+
+**For Task 3.6.7:** criterion 4 is proven by Task 3.6.5's record and
+`UniverseTable.render-cost.test.tsx` (break-verified); the duration itself is
+`docs/GAPS.md` entry 14. Criterion 7's probe at four viewports was taken for
+the table region on 2026-09-22 against the production preview and is what
+gated the layout rule; the close should re-take it against `pnpm dev` rather
+than cite it.

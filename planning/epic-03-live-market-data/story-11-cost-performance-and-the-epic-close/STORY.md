@@ -705,3 +705,27 @@ not do, in words this story can act on:**
 
 **`docs/GAPS.md` entry 12 is closed.** What stays open here is only criterion
 4's own clause — _with the feed running_ — and it now has an instrument.
+
+## Handed here by Task 3.6.5 — 2026-09-22: §28's steady state on the universe table, and how to re-take it with the real feed
+
+**Criterion 4's re-take now has a third figure to re-take, and it is the one
+the real feed changes most.** Task 3.6.5 measured the universe table's steady
+state on a production build against the fixture feed — **every** row changing
+every minute, which §7.6 says the real feed never does (~65% median) — and
+after its repair the frame's script is **37–40 ms** with **no task over
+50 ms**. Against the real feed the memo boundary skips every row whose bar did
+not arrive, so the deployed figure should be **lower**; if it is not, something
+is re-rendering rows the feed did not touch, and the counter below finds it.
+
+**Two instruments, both in Task 3.6.5's record and neither needing a build of
+its own:** a `PerformanceObserver` on `long-animation-frame` from an
+`addInitScript`, whose `scripts[].invoker` names the React scheduler
+(`MessagePort.onmessage`) and whose `scripts[].duration` is the figure; and a
+counter on `__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot`, which
+production React still calls on every commit, to count commits per frame — the
+route commits once a second (the clock, cheap) and should commit **once** per
+`bars` frame and **not** on the 30 s health poll any more.
+
+**The cold load and `Expand all` are re-taken and still Epic 14's** (50–56 ms
+on seven loads in ten; 65–86 ms). Quote them from the epic's `EPIC.md` rather
+than re-taking them here unless the table changed.

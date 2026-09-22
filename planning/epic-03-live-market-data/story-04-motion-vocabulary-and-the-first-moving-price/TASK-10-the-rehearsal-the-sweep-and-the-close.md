@@ -477,6 +477,16 @@ This list was written before Story 3.5 existed. Production is now running
   rehearsal watches is **scoped**, not the whole universe.
 - **A tab survives a deploy** (3.5.5) — worth confirming opportunistically if a
   merge lands mid-session, since it is otherwise hard to arrange.
+  > **AMENDED 2026-09-22 by Task 3.6.5 — confirm it deliberately rather than
+  > opportunistically, and on `/securities/NVDA`.** That task's gates found a
+  > tab that did **not** survive a deploy on a developer's machine: a
+  > subscription change in the 500 ms between the gateway's `1001` and the
+  > retry's dial called `send` on a closing socket from a React effect, and
+  > nothing above `App` catches an effect's throw — the page went **blank**
+  > until a reload. It bisected to `main`, so it was live in every deploy
+  > since Task 3.5.6, and it is repaired (the transport asks the socket's own
+  > `readyState`). The rehearsal is the first time a person watches a real
+  > deploy under this page, and that is what the fix is for.
 
 **None of this weakens the five items above**; it changes what a watcher should
 expect between them.

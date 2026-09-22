@@ -9,7 +9,7 @@ import type {
   SecurityLastClose,
 } from "@marketpulse/shared";
 
-import { useId, useState } from "react";
+import { memo, useId, useMemo, useState } from "react";
 import { Link } from "react-router";
 
 import {
@@ -408,7 +408,104 @@ function Figure({
   );
 }
 
-function SecurityTableRow({
+/**
+ * The four cells that never change once the universe has loaded — the symbol
+ * and its link, the name, the industry and the kind (Task 3.6.5).
+ *
+ * ## Why a row is two components rather than one
+ *
+ * Until Task 3.6.1 this table rendered once per page load. Since then the live
+ * feed re-renders it **once a minute for ever**, and Task 3.6.5 measured what
+ * that costs on a production build: **47 ms of script per tick** for 518 rows,
+ * against `PRODUCT_SPEC.md` §28's 50 ms line — and a further 40 ms every
+ * 30 s, when the backend health poll re-rendered the whole route from `App`
+ * with nothing on this page changed at all.
+ *
+ * Most of a row's work is in these four cells: a React Router `Link` reads
+ * two contexts and builds an href, and a name is prose. None of it depends on
+ * a price. So they are their own memoised component keyed on `security` —
+ * one object for the life of the loaded view — and a tick that changes a
+ * row's price re-renders its two live cells and leaves these alone.
+ *
+ * **A memo boundary here is a measurement rather than a habit.** This tree
+ * has no other `memo` and does not want one by default; `CLAUDE.md`'s
+ * standing rule is to resist a mechanism before a figure demands it, and the
+ * figures are in Task 3.6.5's record.
+ */
+const RowIdentity = memo(function RowIdentity({
+  security,
+}: {
+  readonly security: Security;
+}) {
+  const untracked = security.status === "untracked";
+
+  return (
+    <>
+      {/*
+       * A `<th scope="row">`, so a screen reader announces the symbol before
+       * each cell in the row — "Semiconductors" is heard as NVDA's industry
+       * rather than as a bare word.
+       *
+       * **And, since Task 2.11.5, the row's way in.** The target is the symbol
+       * cell rather than the whole row, and the argument is in
+       * `UniverseTable.module.css` beside `.symbolLink`: the row is a bigger
+       * target and fights selection of the four columns an analyst copies, and
+       * a `<tr onClick>` is not a link in any sense a keyboard or a screen
+       * reader can use. It is a real `<a>` — reachable by Tab, activated by
+       * Enter, announced as a link, and offering the address on a
+       * middle-click — and it is a React Router `Link`, so opening a second
+       * security keeps the parsed-series cache this page's panel reads from.
+       *
+       * The destination is built with `securityPath()` and nowhere else; see
+       * `routes/paths.ts` for why a pattern is not a template. An **untracked**
+       * security is a link like any other, which is `UNIVERSE.md` §12.2's rule
+       * arriving at navigation: a security we stopped tracking is shown,
+       * marked, and still openable — its stored bars did not stop existing.
+       */}
+      <th scope="row" className={cx(styles.cell, styles.symbolCell)}>
+        <Link
+          to={securityPath(security.symbol)}
+          className={cx(styles.symbolLink, styles.symbol)}
+        >
+          <span className={cx(styles.symbolText)}>{security.symbol}</span>
+          {/* Decoration, and `Icon` is already `aria-hidden`. The link's
+            accessible name stays the bare symbol, which is what a screen
+            reader user is navigating by. */}
+          <span className={cx(styles.symbolChevron)}>
+            <Icon name="chevronRight" />
+          </span>
+        </Link>
+      </th>
+      <td className={styles.cell}>
+        {security.name}
+        {untracked && (
+          /*
+           * **"We stopped tracking this" is information, not a failure**, which
+           * is `UNIVERSE.md` §3's rule and the reason this looks nothing like
+           * the failure states below it. No red, no error vocabulary, no
+           * `role="alert"`: a hairline chip with no fill, and the row's ink
+           * receding to secondary. The row keeps its place in its sector.
+           *
+           * Encoded three ways and none of them is hue — the chip's presence,
+           * its words, and the ink. That matters here more than usual: this
+           * palette's two price directions are 1.05:1 apart in greyscale, which
+           * is the measurement that made "colour is never the sole encoding"
+           * a rule rather than a preference.
+           */
+          <span className={styles.chip}>No longer tracked</span>
+        )}
+      </td>
+      <td className={cx(styles.cell, styles.industry)}>
+        {security.industry ?? NOT_APPLICABLE}
+      </td>
+      <td className={cx(styles.cell, styles.kind)}>
+        {KIND_LABELS[security.kind]}
+      </td>
+    </>
+  );
+});
+
+const SecurityTableRow = memo(function SecurityTableRow({
   security,
   coverage,
   lastClose,
@@ -450,66 +547,7 @@ function SecurityTableRow({
 
   return (
     <tr className={cx(styles.row, untracked ? styles.untracked : undefined)}>
-      {/*
-       * A `<th scope="row">`, so a screen reader announces the symbol before
-       * each cell in the row — "Semiconductors" is heard as NVDA's industry
-       * rather than as a bare word.
-       *
-       * **And, since Task 2.11.5, the row's way in.** The target is the symbol
-       * cell rather than the whole row, and the argument is in
-       * `UniverseTable.module.css` beside `.symbolLink`: the row is a bigger
-       * target and fights selection of the four columns an analyst copies, and
-       * a `<tr onClick>` is not a link in any sense a keyboard or a screen
-       * reader can use. It is a real `<a>` — reachable by Tab, activated by
-       * Enter, announced as a link, and offering the address on a
-       * middle-click — and it is a React Router `Link`, so opening a second
-       * security keeps the parsed-series cache this page's panel reads from.
-       *
-       * The destination is built with `securityPath()` and nowhere else; see
-       * `routes/paths.ts` for why a pattern is not a template. An **untracked**
-       * security is a link like any other, which is `UNIVERSE.md` §12.2's rule
-       * arriving at navigation: a security we stopped tracking is shown,
-       * marked, and still openable — its stored bars did not stop existing.
-       */}
-      <th scope="row" className={cx(styles.cell, styles.symbolCell)}>
-        <Link
-          to={securityPath(security.symbol)}
-          className={cx(styles.symbolLink, styles.symbol)}
-        >
-          <span className={cx(styles.symbolText)}>{security.symbol}</span>
-          {/* Decoration, and `Icon` is already `aria-hidden`. The link's
-              accessible name stays the bare symbol, which is what a screen
-              reader user is navigating by. */}
-          <span className={cx(styles.symbolChevron)}>
-            <Icon name="chevronRight" />
-          </span>
-        </Link>
-      </th>
-      <td className={styles.cell}>
-        {security.name}
-        {untracked && (
-          /*
-           * **"We stopped tracking this" is information, not a failure**, which
-           * is `UNIVERSE.md` §3's rule and the reason this looks nothing like
-           * the failure states below it. No red, no error vocabulary, no
-           * `role="alert"`: a hairline chip with no fill, and the row's ink
-           * receding to secondary. The row keeps its place in its sector.
-           *
-           * Encoded three ways and none of them is hue — the chip's presence,
-           * its words, and the ink. That matters here more than usual: this
-           * palette's two price directions are 1.05:1 apart in greyscale, which
-           * is the measurement that made "colour is never the sole encoding"
-           * a rule rather than a preference.
-           */
-          <span className={styles.chip}>No longer tracked</span>
-        )}
-      </td>
-      <td className={cx(styles.cell, styles.industry)}>
-        {security.industry ?? NOT_APPLICABLE}
-      </td>
-      <td className={cx(styles.cell, styles.kind)}>
-        {KIND_LABELS[security.kind]}
-      </td>
+      <RowIdentity security={security} />
       <LastCloseCell
         lastClose={lastClose}
         live={live}
@@ -521,7 +559,7 @@ function SecurityTableRow({
       <HistoryCell coverage={coverage} />
     </tr>
   );
-}
+});
 
 /**
  * The last price this security closed at — **the first real price MarketPulse
@@ -782,7 +820,7 @@ function ChangeCell({
  * rather than an alarm. It is the sentence a first-time viewer is most likely
  * to meet if anything went wrong, so it says what it knows and stops.
  */
-function HistoryCell({
+const HistoryCell = memo(function HistoryCell({
   coverage,
 }: {
   readonly coverage: SecurityCoverage | undefined;
@@ -808,7 +846,7 @@ function HistoryCell({
       <span className={styles.from}>from {coverageStartDate(coverage)}</span>
     </td>
   );
-}
+});
 
 /**
  * The table.
@@ -861,7 +899,12 @@ function UniverseRows({
   readonly fromSnapshot: ReadonlySet<string>;
   readonly initiallyCollapsed: readonly string[];
 }) {
-  const groups = groupUniverse(securities);
+  // **Memoised since Task 3.6.5**, because this function now runs on every
+  // tick rather than once: the live feed re-renders this component once a
+  // minute for ever, and regrouping 518 unchanged securities each time was
+  // work nobody asked for. The reference is the signal — `view.securities`
+  // is one object for the life of the loaded view.
+  const groups = useMemo(() => groupUniverse(securities), [securities]);
 
   /*
    * **The column's shared claim, and Task 3.6.1 is where it can stop being
