@@ -380,3 +380,56 @@ same reducer and 518 rows, Task 3.6.2 measured long tasks of **249, 265, 98,
 117 ms** — and, with the mark not rendered at all, **216, 83, 102, 196,
 195 ms**. The reducer is still not the cost; **the rendering is**, and that is a
 property of the surface rather than of the stream.
+
+---
+
+## Amended by Task 3.6.3 — 2026-09-22: this task's figure turned out to be half of a controlled experiment
+
+**The amendment above said one inference from these figures does not travel.**
+Task 3.6.3 ran the other arm, and the pair now **isolates the variable** — which
+is a better outcome for this task's record than the amendment it replaces,
+because the figure stops being _a measurement that did not generalise_ and
+becomes _half of a result_.
+
+| Measurement                      | Observations per tick | Rows rendered | Long tasks             |
+| -------------------------------- | --------------------- | ------------- | ---------------------- |
+| **This task** (production build) | **332**               | **1**         | **none — empty array** |
+| Task 3.6.3, arm B (dev build)    | **8**                 | **518**       | 127, 162, 172, 203 ms  |
+| Task 3.6.3, arm A (dev build)    | ~518                  | **518**       | 263, 259, 237 ms       |
+
+**Read the first two rows against each other.** Forty times the observations,
+into one row, cost nothing an observer with a 50 ms floor could see. Eight
+observations into 518 rows cost 166 ms. **The driver is rows, not
+observations** — and that is the thing neither measurement could say alone.
+
+**Arms A and B pin down how much is which**, and they share a build so the
+comparison is clean: going from 8 observations to 518, with the row count
+fixed, costs about **90 ms**. So roughly a third of the tick scales with the
+data and the rest is fixed per tick, whatever arrived.
+
+### The caveat, which is this task's own rule turned on itself
+
+**The two builds are not comparable and this file says so twice.** _A
+development build is not the product_ is one of the two ways it records for
+taking these figures wrong — Task 3.3.5 measured 141 ms long tasks against
+`pnpm dev` and **zero** against production.
+
+So the cross-build row above is **suggestive rather than decisive**, and the
+within-build pair is the load-bearing one. **Task 3.6.5 owns re-taking both
+arms on a production build**, and until it does, _rows dominate_ is a finding
+with a named weakness rather than a conclusion.
+
+### And one number in this file's own words is now stale
+
+> §28's _no routine main-thread task over 50 ms_ is met and **this story adds
+> no third exception** to the two Epic 14 owns.
+
+**The first half stands** — this story's surface is the security page, it was
+measured on a production build, and it added nothing. **The second half is a
+count of the world rather than a claim about this story**, and the world has
+moved: the universe table's live re-render is a candidate third exception,
+created by Story 3.6 rather than by this one.
+
+It is **not** written into `PRODUCT_SPEC.md` §28 yet, and should not be on a
+dev-build figure. Task 3.6.5 owes that decision and its own file already says
+so.
