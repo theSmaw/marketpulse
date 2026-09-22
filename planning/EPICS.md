@@ -558,6 +558,13 @@ a finding somebody measures again from scratch.
   with this measurement behind it rather than in ignorance of it. What this epic
   owes it is a re-take on the then-current universe and a decision, not a
   rediscovery.
+- **Both re-taken 2026-09-22 by Task 3.6.5 with the feed running, and both
+  stand.** Cold load **50–56 ms on seven loads in ten** (from 56–83 on eight)
+  and `Expand all` **65–86 ms** (from 80–88 the same day), after a fixed table
+  layout from 1024 px up that is not one of the three candidates and does not
+  close either. The trigger did **not** fire as worded; a routine per-tick
+  breach the live feed introduced was repaired in Story 3.6 instead. The
+  epic's own `EPIC.md` carries the table and the verdict.
 
 ---
 

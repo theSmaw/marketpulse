@@ -1217,6 +1217,22 @@ then. Nothing else in this section is known to be breached, and the chart layer
 specifically is not: it produces no task over 50 ms at any density the API can
 serve.
 
+**Amended 2026-09-22 by Task 3.6.5 — both exceptions re-taken with the feed
+running, a third found and repaired in the same task, and the ownership
+unchanged.** On a production build at 1440 the cold load of `/securities` is
+**50–56 ms on seven loads in ten** (none on three) after a fixed table layout
+from 1024 px up, from 56–83 ms on eight in ten before it; `Expand all` is
+**65–86 ms** from 80–88 ms the same day. Both **stand as exceptions and stay
+Epic 14's**. The third was this epic's own: since Task 3.6.1 the live feed
+re-rendered all 518 rows once a minute, and the backend health poll re-rendered
+them every 30 s with nothing changed — **routine**, in this section's own word,
+where the two above are once per visit — and it crossed 50 ms on three frames
+in seven. Two memo boundaries repaired it: **no task over 50 ms in the steady
+state** on a production build with every row changing every minute, the frame's
+script down from 46–49 ms to 37–40 ms, the health poll's 40 ms gone. The
+figures, the instruments and the trigger's written verdict are in
+[Task 3.6.5](epic-03-live-market-data/story-06-live-prices-across-the-universe/TASK-05-the-cold-load-expand-all-and-epic-14s-trigger.md).
+
 ### Investigation
 
 Visible indication that an investigation has begun:

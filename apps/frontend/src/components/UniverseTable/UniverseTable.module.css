@@ -206,8 +206,45 @@
 .table {
   width: 100%;
   border-collapse: collapse;
+  /*
+   * **Fixed, since Task 3.6.5, and it is a performance decision with a figure
+   * behind it.** Under the automatic algorithm a table's column widths depend
+   * on the content of every cell, so one price changing in one row re-lays
+   * the whole table — 530 rows — to check whether a column should move. The
+   * `<col>` proportions below already decide every width, so the automatic
+   * pass was measuring 518 rows to confirm an answer it had been given.
+   *
+   * **Measured, and the expectation was half right.** On a production build
+   * the tick's layout stayed at 11–15 ms with or without this line — a
+   * price's text change was not re-laying the table, or not measurably. What
+   * it did move is the **cold load**: the one task every load of this page
+   * spends fell from 56–83 ms on eight loads in ten to 50–56 ms on seven in
+   * ten, because the first layout of 530 rows no longer measures every cell
+   * to size columns it has already been told. It stays for that figure; the
+   * record is Task 3.6.5's.
+   *
+   * What changes for a reader at those widths: nothing — a fixed layout
+   * honours the same proportions, and the columns that must not wrap
+   * (`Close`, `Change`, `History`) hold bounded strings and were sized for
+   * them.
+   *
+   * **From 1024 up only, and that was a photograph rather than a guess.** At
+   * 390 the same line crushed seven columns into 308 px — the automatic
+   * algorithm had been letting the table outgrow its scroller, which is the
+   * one thing `CLAUDE.md` permits a table to do — and at 768 the history
+   * column's `1y from 2025-09-08` no longer fits its 14%. Below 1024 the
+   * table keeps the algorithm it always had; the persona in §3 works on a
+   * desktop, and that is where the cold load is spent. The rule is at the
+   * foot of this block.
+   */
   font-size: var(--font-size-dense);
   line-height: var(--line-height-dense);
+}
+
+@media (min-width: 1024px) {
+  .table {
+    table-layout: fixed;
+  }
 }
 
 /*

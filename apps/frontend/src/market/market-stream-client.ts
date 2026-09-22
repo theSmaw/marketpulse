@@ -80,6 +80,17 @@ export function marketStreamUrl(origin: string): string {
  */
 const OPEN_SOCKET = (url: string): WebSocket => new WebSocket(url);
 
+/**
+ * `WebSocket.OPEN`, spelled as the number the platform defines it as rather
+ * than read from the global.
+ *
+ * The test environment assigns a stub to `globalThis.WebSocket` that carries
+ * no constants (`test-setup.ts`), and a `readyState` compared against
+ * `undefined` would be a guard that never opens — silently, with every test
+ * green, which is the shape this repository refuses.
+ */
+const OPEN = 1;
+
 /** What the transport hands up. One callback, because there is one consumer. */
 export type LiveFeedListener = (event: LiveFeedEvent) => void;
 
@@ -137,10 +148,29 @@ export function connectMarketStream(
   // `DISCONNECTED` it replaced. It is the same shape §8.7 forced on the
   // upstream client, which re-asserts its constant across every reconnect.
   let wanted: readonly string[] | undefined;
-  let opened = false;
 
+  /**
+   * Send the subscription **only while the socket can take it**, and read that
+   * from the socket rather than from a flag (Task 3.6.5).
+   *
+   * ## The defect this replaces blanked the whole application
+   *
+   * The first shape was an `opened` boolean set on `open` and never cleared.
+   * After the gateway closed the socket — a deploy's `1001`, in a browser
+   * spec — the flag still read `true`, and a subscription change arriving in
+   * the 500 ms before the retry dialled called `send` on a socket in the
+   * `CLOSING` state. `WebSocket.send` **throws** for that, the call came from
+   * a React effect, an effect's throw is a render error, and the root has no
+   * boundary above `App`: **the page went blank** until a reload. Found by
+   * `market-reconnect.spec.ts` on 2026-09-22, three tests at once.
+   *
+   * `readyState` is the socket's own answer and it is right at every moment
+   * the flag was wrong. A subscription that arrives while the socket is not
+   * open is kept in `wanted`, and the next socket re-asserts it on `open` —
+   * which is what `use-live-feed.ts` already relies on for every reconnect.
+   */
   const sendSubscription = (): void => {
-    if (!opened || wanted === undefined) return;
+    if (wanted === undefined || socket.readyState !== OPEN) return;
     socket.send(
       encodeMarketStreamClientMessage({
         type: "subscribe",
@@ -151,7 +181,6 @@ export function connectMarketStream(
   };
 
   socket.addEventListener("open", () => {
-    opened = true;
     sendSubscription();
     listen({ kind: "opened", at: now() });
   });

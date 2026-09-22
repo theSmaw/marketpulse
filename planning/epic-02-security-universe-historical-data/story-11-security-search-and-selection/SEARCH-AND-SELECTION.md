@@ -1613,3 +1613,32 @@ rather than being rediscovered.
 number: the first time a second surface on this page renders per-row markup at
 universe scale.** If that fires before Epic 14, the repair is due then and not at
 Epic 14's convenience.
+
+### Re-measured 2026-09-22 by Task 3.6.5 — with the feed running, a fourth lever, and a different breach on the same component
+
+**The three candidates above stand, for the breach they were written for.**
+Re-taken on a production build at 1440, ten loads: **56–83 ms on eight loads
+in ten** with 518 rows and none on five of six with twenty — the same
+attribution, at the top of the band. `Expand all` **80–88 ms** on five runs.
+
+**A fourth lever was taken, and it is stated as what it is.** `table-layout:
+fixed` from 1024 px up — the `<col>` proportions already decided every width
+— took the cold load to **50–56 ms on seven loads in ten** and `Expand all` to
+**65–86 ms**. Neither closes; a mount is still 530 rows built. It is gated
+because at 390 it crushed seven columns into 308 px, where the automatic
+algorithm had been letting the table outgrow its scroller.
+
+**And the steady state, which this section's re-measure could not see because
+there was no feed when it was written, was breached and repaired in the same
+task.** Since Task 3.6.1 the live feed re-rendered all 518 rows once a minute,
+and `useBackendHealth`'s 30 s poll re-rendered the whole route from `App` with
+nothing changed — **46–49 ms of script per frame and 40 ms every 30 s**, over
+the line on three frames in seven. Two memo boundaries in `UniverseTable.tsx`
+(`RowIdentity`, `SecurityTableRow`, `HistoryCell`) and a memoised
+`groupUniverse` took it to **no task over 50 ms** with every row changing. That
+lever was render work rather than DOM size, which is why none of the three
+above would have touched it. The instrument that found it is a
+`long-animation-frame` observer — which names the invoker — and a counter on
+React's DevTools hook, which production React still calls on every commit;
+both are written out in
+[Task 3.6.5](../../epic-03-live-market-data/story-06-live-prices-across-the-universe/TASK-05-the-cold-load-expand-all-and-epic-14s-trigger.md).

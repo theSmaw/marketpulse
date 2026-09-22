@@ -107,3 +107,39 @@ this measurement behind it rather than in ignorance of it. What this epic owes i
 is **a re-take on the then-current universe and a decision**, not a
 rediscovery — and the re-take should be taken together with entry 1, because the
 "not new" half of that argument is entry 1.
+
+### Re-taken 2026-09-22 by Task 3.6.5, with the feed running — and the trigger answered in writing
+
+**Both entries stand and stay here.** The same instruments, on a production
+build at 1440, on the day the live feed was on the page:
+
+| Entry                              | Before this task                       | After it                                      |
+| ---------------------------------- | -------------------------------------- | --------------------------------------------- |
+| 1. Cold load of `/securities`, ×10 | 56–83 ms on **8 of 10** loads          | **50–56 ms on 7 of 10**, none on 3            |
+| 1. Cold load of `/securities/NVDA` | 52–58 ms on 6 of 6                     | not re-taken after; the repair is route-blind |
+| 1. The 20-row control              | none on 5 of 6 (66 ms on first launch) | —                                             |
+| 2. `Expand all`, ×5                | 80–88 ms (was 69–87 on 2026-09-11)     | **65–86 ms**                                  |
+
+**What moved them is a fourth lever, taken there because it fell out of other
+work and cost nothing visible:** `table-layout: fixed` from 1024 px up. The
+`<col>` proportions already decided every width, so the automatic algorithm
+was measuring 518 rows to confirm an answer it had been given. It is **not**
+one of the three candidates and it does not close either entry — a mount is
+still 530 rows built — so the candidates stand exactly as written. It was
+photographed at four widths first: at 390 it crushed the columns, which is
+why it is gated.
+
+**The trigger, evaluated rather than assumed** — _the first time a second
+surface on this page renders per-row markup at universe scale_ — **did not
+fire as worded.** Story 3.6's arrival mark is per-row markup, but it is a child
+of the price cell on the surface that already existed and was measured not to
+cost. What fired instead was a condition this epic's entries do not cover:
+**a routine task**, once a minute for ever, from the live feed re-rendering
+every row — plus 40 ms every 30 s from the health poll re-rendering the route
+with nothing changed. §28's word _routine_ put that ahead of these two, and
+Task 3.6.5 repaired it in place with memo boundaries rather than with anything
+here: the steady state now has no task over 50 ms on a production build with
+every row changing. **The lever for these two entries is DOM size; the lever
+for that one was render work.** They are different problems on one component,
+and this table now carries two memo boundaries a virtualisation would have to
+keep.

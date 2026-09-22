@@ -763,6 +763,54 @@ export const BREAKS = [
     expect: "only what it asked for",
   },
   {
+    name: "a-subscription-after-a-close-throws",
+    proves:
+      "The transport sends a subscription whenever it has one, without asking " +
+      "the socket whether it can take it \u2014 the shape Story 3.5 shipped. A " +
+      "subscription change landing in the 500 ms between the gateway's close " +
+      "and the retry's dial then calls `send` on a CLOSING socket, which " +
+      "throws; the call comes from a React effect, an effect's throw is a " +
+      "render error, and the root has no boundary above `App`, so the PAGE " +
+      "GOES BLANK until a reload. `market-reconnect.spec.ts` found it on " +
+      "2026-09-22, three tests at once, while Task 3.6.5 ran the gates.",
+    file: "apps/frontend/src/market/market-stream-client.ts",
+    find: "    if (wanted === undefined || socket.readyState !== OPEN) return;",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    if (wanted === undefined) return;",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "market-stream-client",
+    ],
+    expect: "after the socket closed",
+  },
+  {
+    name: "a-price-re-renders-every-symbol-link",
+    proves:
+      "The row's static half re-renders on every tick \u2014 the state Task " +
+      "3.6.1 shipped and Task 3.6.5 measured on a production build at 47 ms " +
+      "of script per tick for 518 rows, against \u00a728's 50 ms line, plus " +
+      "40 ms every 30 s when the health poll re-rendered the route with " +
+      "nothing changed. Removing the memo is invisible on a screen and in " +
+      "every presentation test; only a render count sees it.",
+    file: "apps/frontend/src/components/UniverseTable/UniverseTable.tsx",
+    find: "const RowIdentity = memo(function RowIdentity({",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "const RowIdentity = (function RowIdentity({",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "UniverseTable.render-cost",
+    ],
+    expect: "re-renders no symbol link",
+  },
+  {
     name: "the-gateway-stamps-nothing",
     proves:
       "Every frame the gateway sends carries a `sentAt` that is not the " +
