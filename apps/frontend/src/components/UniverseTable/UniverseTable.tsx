@@ -651,7 +651,12 @@ function LastCloseCell({
              * who cannot see it has lost nothing — which is also what makes
              * the reduced-motion answer honest rather than a degradation.
              */
-            <span key={arrival} className={styles.arrival} aria-hidden="true" />
+            <span
+              key={arrival}
+              className={styles.arrival}
+              data-arrival={arrival}
+              aria-hidden="true"
+            />
           )}
           {formatPrice(live.close)}
         </span>

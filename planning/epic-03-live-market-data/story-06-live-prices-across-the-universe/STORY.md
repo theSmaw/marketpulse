@@ -495,3 +495,27 @@ both still Epic 14's.
 the table region on 2026-09-22 against the production preview and is what
 gated the layout rule; the close should re-take it against `pnpm dev` rather
 than cite it.
+
+---
+
+## Amended by Task 3.6.6 — 2026-09-22: criterion 6 is a spec, and it is about a transition
+
+**`e2e/specs/universe-live-update.spec.ts`** answers the market socket from the
+test — the motion spec's own pattern — and asserts, on `/securities` with all
+518 subscribed: a pushed bar changes NVDA's `Last` cell from one figure to
+another with no reload and the `Live price` word surviving; AAPL's cell,
+which the frame did not carry, is **exactly what it was**; every row is where
+it was; two live prices from a snapshot draw **zero** marks; one arriving bar
+marks **one** row, the right one, with the vocabulary's own animation.
+
+**Nothing in it names a figure that depends on bars existing**, which is what
+lets it pass against `marketpulse_bare` and a developer's store alike — the
+untouched cell is captured and asserted unchanged rather than asserted to be
+anything. Two breaks prove it can fail (`the-table-ignores-the-live-price`,
+`the-table-marks-no-arrival`). The table's mark now carries `[data-arrival]`
+like the identity block's, and the motion spec's locator is scoped to the
+block because `/securities/NVDA` renders both.
+
+**For Task 3.6.7:** criterion 6 is proven by that spec; what it does not
+certify — that a frame ever arrives — is `e2e/README.md`'s standing sentence,
+now naming this spec beside the motion spec.

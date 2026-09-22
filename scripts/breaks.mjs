@@ -788,6 +788,38 @@ export const BREAKS = [
     expect: "after the socket closed",
   },
   {
+    name: "the-table-ignores-the-live-price",
+    proves:
+      "The universe table stops handing a row its live observation, so a bar " +
+      "arriving changes nothing on the only screen that shows 518 of them \u2014 " +
+      "Story 3.6's whole headline, undone in one prop. Every unit test over the " +
+      "reducer still passes, because the reducer is right and nothing renders " +
+      "it; only a browser watching the row can see it (Task 3.6.6).",
+    file: "apps/frontend/src/components/UniverseTable/UniverseTable.tsx",
+    find: "                      live={observations.get(security.symbol)}",
+    replace:
+      "                      // pnpm break: reverted automatically\n" +
+      "                      live={undefined}",
+    command: ["pnpm", "e2e", "universe-live-update.spec.ts", "--anyway"],
+    expect: "changes a row's price",
+  },
+  {
+    name: "the-table-marks-no-arrival",
+    proves:
+      "A bar arriving in the table draws no mark, so the row changes by " +
+      "silently swapping text \u2014 PRODUCT_SPEC.md \u00a75.6's exact " +
+      "description of a screen that feels dead. The mark is the same rule the " +
+      "identity block composes; losing the handle on the row is invisible to " +
+      "every level below a browser (Task 3.6.6).",
+    file: "apps/frontend/src/components/UniverseTable/UniverseTable.tsx",
+    find: "              data-arrival={arrival}",
+    replace:
+      "              // pnpm break: reverted automatically\n" +
+      "              data-arrival={undefined}",
+    command: ["pnpm", "e2e", "universe-live-update.spec.ts", "--anyway"],
+    expect: "marks the row that arrived",
+  },
+  {
     name: "a-price-re-renders-every-symbol-link",
     proves:
       "The row's static half re-renders on every tick \u2014 the state Task " +

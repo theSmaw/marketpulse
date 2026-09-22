@@ -82,7 +82,11 @@ reach a state where a price exists at all, let alone **changes**.
   single `push` with 332 entries, which is the case that matters and the one a
   figure taken against one observation at a time says nothing about.
 - **`[data-arrival]` is the handle** for the mark, and the mark's own cost is on
-  the list below.
+  the list below. **Since 2026-09-22 (Task 3.6.6) it is the handle for the
+  universe table's row marks too** — one vocabulary, one handle — and
+  `/securities/:symbol` renders that table under the block, so a page-wide
+  `[data-arrival]` counts both. Scope it to the identity block, as the motion
+  spec now does.
 
 ## Work
 

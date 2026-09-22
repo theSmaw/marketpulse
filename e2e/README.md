@@ -44,22 +44,23 @@ from; an assertion about that number belongs here.
 
 ## What is here
 
-| File                                               | What it is for                                                         |
-| -------------------------------------------------- | ---------------------------------------------------------------------- |
-| `playwright.config.ts`                             | the decisions the first test settled for every test after it           |
-| `specs/landing-route.spec.ts`                      | the chrome and PRODUCT_SPEC.md §9's four regions                       |
-| `specs/backend-health.spec.ts`                     | the two halves talking — the journey this story exists for             |
-| `specs/backend-failure-states.spec.ts`             | the three states from named causes, and §36's "the rest still works"   |
-| `specs/backend-recovery.spec.ts`                   | recovery across a real poll interval, with no page reload              |
-| `specs/securities-route.spec.ts`                   | the first page whose content arrives over the network                  |
-| `specs/search-keyboard.spec.ts`                    | search → open → the security's page, by pointer and by keyboard alone  |
-| `specs/security-navigation.spec.ts`                | two securities in one page lifetime — the cache, and no second load    |
-| `specs/market-clock.spec.ts`                       | the chrome's clock, and the one assertion below this level cannot make |
-| `support/`                                         | locators, timings and the axe pass — not collected as tests            |
-| `playwright.deployed.config.ts`                    | the post-deploy check's config — a second file, not a second project   |
-| `specs-deployed/two-halves.spec.ts`                | the two failures no other instrument here can see                      |
-| `specs-deployed/host-routing.spec.ts`              | Story 1.5's deep-link and missing-asset criteria, at last              |
-| `specs-deployed/security-explorer-journey.spec.ts` | the epic's exit criterion, deployed — the journey, not the components  |
+| File                                               | What it is for                                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `playwright.config.ts`                             | the decisions the first test settled for every test after it                          |
+| `specs/landing-route.spec.ts`                      | the chrome and PRODUCT_SPEC.md §9's four regions                                      |
+| `specs/backend-health.spec.ts`                     | the two halves talking — the journey this story exists for                            |
+| `specs/backend-failure-states.spec.ts`             | the three states from named causes, and §36's "the rest still works"                  |
+| `specs/backend-recovery.spec.ts`                   | recovery across a real poll interval, with no page reload                             |
+| `specs/securities-route.spec.ts`                   | the first page whose content arrives over the network                                 |
+| `specs/search-keyboard.spec.ts`                    | search → open → the security's page, by pointer and by keyboard alone                 |
+| `specs/security-navigation.spec.ts`                | two securities in one page lifetime — the cache, and no second load                   |
+| `specs/market-clock.spec.ts`                       | the chrome's clock, and the one assertion below this level cannot make                |
+| `specs/universe-live-update.spec.ts`               | a bar landing in the 518-row table: the transition, the mark, and nothing else moving |
+| `support/`                                         | locators, timings and the axe pass — not collected as tests                           |
+| `playwright.deployed.config.ts`                    | the post-deploy check's config — a second file, not a second project                  |
+| `specs-deployed/two-halves.spec.ts`                | the two failures no other instrument here can see                                     |
+| `specs-deployed/host-routing.spec.ts`              | Story 1.5's deep-link and missing-asset criteria, at last                             |
+| `specs-deployed/security-explorer-journey.spec.ts` | the epic's exit criterion, deployed — the journey, not the components                 |
 
 ### `specs/` and `specs-deployed/` hold their own copies of the same locators
 
@@ -723,7 +724,8 @@ In the same shape ADR 0010 states it for the tick.
   entirely from the test, because CI has no credential and could not otherwise
   reach a state where a price exists at all — so its five green tests say
   **everything about what the browser does with an arrival and nothing about
-  whether one arrives**. If the gateway stopped sending `bars` for ever, every
+  whether one arrives**. `universe-live-update.spec.ts` (Task 3.6.6) pays the
+  same price for the table, and says so in its own header. If the gateway stopped sending `bars` for ever, every
   one of them would still pass. That chain is covered piecewise elsewhere —
   `self-driving-streams.test.ts` asserts a stream left alone produces an
   observation, `market-connection.spec.ts` has two tests that talk to the real
