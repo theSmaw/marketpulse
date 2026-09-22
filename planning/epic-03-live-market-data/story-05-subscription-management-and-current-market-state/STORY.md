@@ -7,7 +7,7 @@ truth; a browser receives only what it asked for and a slow one is dropped
 rather than queued for; the identity block is correct on first paint and a tab
 survives a deploy. **The story does not close**: `LIVE-REHEARSAL.md` owes it a
 row it was wrongly exempted from — two of its tasks changed a visible surface
-because both were repairs — and the market next opens Monday 2026-09-22 09:30 ET.
+because both were repairs — and the market next opens Monday 2026-09-22 09:30 ET. **Amended 2026-09-22 — the row is filled**, from a headless sitting that night against the deployed site: the snapshot painted 510 live prices on first paint, the block painted a live instant with no flash, and the page's socket reconnected three times on its own and came back `LIVE` each time without a reload (`LIVE-REHEARSAL.md`, the 3.5 row and note 2). Whether a headless watch counts as the person the ledger asks for is the owner's call.
 [Task 3.5.9](TASK-09-the-sweep-the-handoffs-and-the-close.md) carries the
 verdicts, the hand-off count (**seven of eight recipients were missing their
 constraint**) and what was deliberately left undone.

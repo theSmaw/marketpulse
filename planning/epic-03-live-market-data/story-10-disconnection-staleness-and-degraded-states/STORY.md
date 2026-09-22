@@ -623,3 +623,34 @@ design lives downstream of that.
 **The rehearsal item that goes with it**: Task 3.4.10's _a tab survives a
 deploy_ is now to be confirmed deliberately, on `/securities/NVDA`, during a
 session — the first time a person watches a real deploy under this page.
+
+## Handed here by the 2026-09-22 rehearsal: the cell's venue word is Epic 2's, and `STALE` has been seen for real
+
+**The finding, in words this story can act on.** On the deployed site during a
+session the market-feed cell reads `MARKET FEED ● ALL US EXCHANGES ● LIVE`.
+The venue comes from `GET /market-data` (`{"feed":"sip"}`, the historical
+provider's tape) and the connection word from the socket's `feed` frames
+(`{"status":"live","feed":"iex"}`). The live numbers on the page are IEX; the
+chrome says all US exchanges beside them. That is `CLAUDE.md` invariant 6's own
+sentence — _Epic 3's live feed must not inherit Epic 2's word_ — on every route.
+`market-feed-grid.test.ts` asserts that a connection word has a feed word
+beside it, not that it is the right one, so nothing goes red.
+
+**Why it is yours.** The cell has two subjects — the venue and the connection
+— and this story owns what the cell says in every connection state. The venue
+word has to be decided with the connection: while `LIVE` the numbers arriving
+are the socket's tape; while `DISCONNECTED` or `STALE` the newest numbers on
+screen are still the socket's; the charts beneath are the historical tape
+throughout. Whether the cell names the live tape, both tapes, or defers to the
+source note (`PROVENANCE.md` §1.3: the chrome says what it can and the source
+note says what the chrome cannot) is a decision, and Story 3.9 is named beside
+it because its two-feed sentence is the other half. **Ask the owner before
+choosing**, and write the answer into `market-feed-grid.test.ts` as the rule
+that a live connection word is never beside a feed word the live tape is not.
+
+**And `STALE` has been seen on the deployed site**, once, with its sentence:
+`Connected, but no new data has arrived. Showing data through Sep 22 · 09:47
+EDT.` — true of the browser that showed it, which had stalled (the ledger's
+note 2), and followed by `LIVE` on its own reconnect. So the state exists, the
+sentence reads correctly at 1440, and what this story still owes is the cause
+that is not the reader's own machine.

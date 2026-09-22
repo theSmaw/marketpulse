@@ -1,6 +1,6 @@
 # Task 3.4.10 — The live rehearsal, the sweep, and the close
 
-**Status:** **BLOCKED on the rehearsal — everything else complete, 2026-09-21.** The sweep, both audits (with counts), the ADR decision and the acceptance walk are done and are below. **The story does not close**, because two acceptance criteria cannot be met tonight and neither is a matter of effort: ~~criterion 5 is **unmeasurable** without a protocol change (`docs/GAPS.md` entry 12)~~ — **measurable and taken since 2026-09-22, see the amendment under _Do NOT expect the rehearsal to close §28's p95_ below** — and criterion 8's _with the market open_ needs a session — the market is shut and the deployed backend still holds the plan's **one** Alpaca connection, verified at 23:06 EDT.
+**Status:** **Rehearsed in part — 2026-09-22, headless; two of criterion 8's owed items taken, three still owed (the addendum at the foot).** Until that night: **BLOCKED on the rehearsal — everything else complete, 2026-09-21.** The sweep, both audits (with counts), the ADR decision and the acceptance walk are done and are below. **The story does not close**, because two acceptance criteria cannot be met tonight and neither is a matter of effort: ~~criterion 5 is **unmeasurable** without a protocol change (`docs/GAPS.md` entry 12)~~ — **measurable and taken since 2026-09-22, see the amendment under _Do NOT expect the rehearsal to close §28's p95_ below** — and criterion 8's _with the market open_ needs a session — the market is shut and the deployed backend still holds the plan's **one** Alpaca connection, verified at 23:06 EDT.
 **Amended:** 2026-09-21 after Task 3.4.7 — the ADR question is now **two decisions**, and the second one reaches past this epic.
 **Amended:** 2026-09-21 after Task 3.4.9 — the construction-site audit now has **two forms**, because the export grep would not have caught a published row nothing could reach.
 **Amended:** 2026-09-21 after Task 3.4.8 — **§28's p95 is half-measured and the rehearsal cannot close it**, because no wire message carries a server instant. Do not record it as met.
@@ -651,3 +651,32 @@ browser they form a vertical column that reads more like furniture than like
 events. **Watch for it deliberately**, because it is the one question this
 story's own subject left open and the answer is a judgement rather than a
 figure.
+
+---
+
+## Addendum — what the 2026-09-22 sitting answered, item by item
+
+The rehearsal Story 3.6 owed was one sitting with this story's, and it was
+taken on 2026-09-22 09:44–10:38 ET by Claude through a headless browser
+against the deployed site (`LIVE-REHEARSAL.md`, the 3.4 row and note 1). The
+table above, verdict by verdict:
+
+| Needs                                     | Verdict from the sitting                                                                                                                                                                                                                                                                               |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **the extended-hours mark on a real bar** | **Still owed.** The market was open for the whole sitting; every instant read `HH:MM EDT · change from …` with no qualifier, which is correct and answers nothing about the qualifier.                                                                                                                 |
+| **a genuinely quiet minute**              | **Not seen in the six minutes actually observed** — every observed minute had at least one bars frame — and the stretches the stalled instrument did not watch cannot be counted as seen. Still owed as a sighting; not owed as a repair.                                                              |
+| **a real correction**                     | **Not observable by this instrument**, which kept frame counts and not instants. Still owed, and the next instrument keeps `(symbol, startsAt)` per frame so a repeat is a correction.                                                                                                                 |
+| **`pnpm probe` with the market open**     | **Not taken.** `probe` runs against a local pair, and the deployed page was photographed at 1440 only. The block was seen at one width with a live figure: `LATEST PRICE 228.05 ▲ +0.29% · Sep 22 · 09:44 EDT · change from 2026-09-21's close`.                                                       |
+| **one vendor glance**                     | **Answered for this sitting only.** Every bars frame seen was stamped inside the 2026-09-22 session (13:46:00Z, 13:48:00Z, 14:04:00Z, 14:05:00Z, 14:08:03Z …); none arrived stamped outside a trading day. Task 3.4.6's assumption held on the day it was looked at, which is what a glance certifies. |
+
+**What the sitting did see on this story's surface**: the figure, the glyph
+and the instant changing together across seven readings — up, down and
+`— unchanged 0.00%` all carried a glyph or a word beside the hue — and one
+arrival mark on the block. **What was wrong on the surface: nothing.** What was
+wrong beneath it is the chrome's venue word (ledger note 3), 3.3's and now
+Story 3.10's.
+
+**Criterion 8 therefore reads: probed (met) and a headless watch looked with
+the market open (taken, with the word _person_ left to the owner).** The story
+does not mark itself closed on that; the three items above stay owed, and the
+first sitting on a shut market takes the first of them.
