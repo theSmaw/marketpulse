@@ -784,6 +784,20 @@ throws naming both — which is `0004_market_bars.sql`'s trigger for a per-bar
 `feed` column firing **per series, at the moment it happens**, rather than being
 noticed later by a person reading a chart.
 
+> **Amended 2026-09-22 by Task 3.7.4 — the trigger fired, and the refusal is
+> narrower now.** `0010_market_bars_feed.sql` gave every bar its own tape
+> (Task 3.7.2), every writer stamps it (3.7.3), and the ledger row's `feed`
+> is withdrawn from every decision: it holds the tape the window was
+> **opened** with and no more, while `provider` stays the window's one
+> provider. `recordSeries` now refuses for three named reasons — a
+> **stitched** series (unchanged), a different **provider**, and a series
+> **overlapping** stored bars from another tape (kept until Story 3.8
+> decides what two tapes on one minute mean) — and **accepts a second tape
+> extending the window contiguously**. The paragraph above stands as the
+> record of the mechanism as Epic 2 built it; the current one is
+> `planning/epic-03-live-market-data/story-07-the-tape-on-the-bar/TAPE.md`
+> §7.
+
 **The columns carry a database default (`'alpaca'`, `'sip'`) where
 `0002_securities.sql` refused one for `profile_source`.** The argument there was
 that a default silently attributes one source's data to another and it is right;

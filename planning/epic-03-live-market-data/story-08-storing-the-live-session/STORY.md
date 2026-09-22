@@ -54,6 +54,23 @@ before the store starts answering the same question.
   accident: **`recordSeries` refuses a series whose source disagrees with the
   ledger row it would extend.** Story 3.7 decides what replaces it; this story
   writes through it.
+
+  > **Decided 2026-09-22 by Task 3.7.4, in words this story can act on.**
+  > The refusal is three named reasons on `ForeignSourceError.reason`:
+  > **`stitched`** (a series naming two sources — stands), **`provider`** (a
+  > different provider from the ledger row's — stands; the row carries the
+  > tape and not the provider, so the ledger names one), and **`overlap`**
+  > (the series overlaps stored bars from another tape — **yours to lift**,
+  > and the only one). A socket series with `alpaca`/`iex` provenance
+  > **already stores** as a contiguous extension of the SIP window: the
+  > window grows to the union, `readBars` answers both tapes in order, and
+  > the ledger's `feed` column is the tape the window was opened with and
+  > means nothing else. What lifting `overlap` decides is the three shapes
+  > below **and** what _contribution order_ means once a tape can occur in
+  > two runs (`TAPE.md` §6 and §7); `MarketBarsTable.feed`'s update type is
+  > `never`, so a shape that moves a tape on a correction changes that type
+  > on purpose.
+
 - **What happens tonight.** The backfill fetches the same session from the
   consolidated tape. Three shapes, none chosen, and this story must take it
   explicitly rather than discover it at the first overnight run:

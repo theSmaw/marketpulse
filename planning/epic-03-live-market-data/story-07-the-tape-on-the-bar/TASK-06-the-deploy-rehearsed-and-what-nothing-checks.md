@@ -87,7 +87,24 @@ VALID` on purpose** and nobody validates it in a deploy (3.7.1's amendment
   > withdrawn from every read — into _that `bar_coverage.feed` is read by
   > nothing_, which is a grep and belongs in `pnpm invariants`; the
   > `provider` column stays read (3.7.4's amendment) and so is not in the
-  > residue at all. New: **a browser spec whose assumption is about the
+  > residue at all.
+  >
+  > **AMENDED 2026-09-22 by Task 3.7.4 — the shape of that invariant, now
+  > that the readers are known.** After 3.7.4 the ledger's `feed` is read by
+  > exactly two things: `toStoredSeries` (the series-level feed, until 3.7.5
+  > derives sources from the rows) and `readCoverageRow` (into
+  > `BarCoverage.source.feed`, which 3.7.5 is asked to drop). It is still
+  > **written** by `extendCoverage`, on purpose — required on insert so the
+  > database default stays unreachable — and described by `schema.ts` and
+  > `market-bars.database.test.ts`. So the invariant is: **no selection of
+  > `bar_coverage.feed` and no `.source.feed` anywhere in
+  > `apps/backend/src` outside `schema.ts`, the tests and the one insert in
+  > `extendCoverage`**; if 3.7.5 leaves either reader standing, the
+  > invariant cannot be written and this task records why. Its break removes
+  > the guard. Nothing else 3.7.4 added needs a deploy-time thought: the
+  > overlap refusal is one indexed `select distinct feed` per write, paid
+  > only when windows intersect, which the nightly walk's edge-extension
+  > never does. New: **a browser spec whose assumption is about the
   > store's freshness rather than the page** — `security-window-change.spec.ts`'s
   > _pressing a window does not move the chart_ is red by 90 px on a
   > developer store more than five sessions stale (the default window is
