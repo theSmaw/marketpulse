@@ -756,3 +756,52 @@ describe("the Security Explorer shell", () => {
     expect(screen.getAllByRole("status")).toHaveLength(3);
   });
 });
+
+describe("which rows this screen asks for (Task 3.6.3)", () => {
+  // **Decision 1: every row stays live.** Measured on 2026-09-22 with a
+  // long-task observer set `buffered: false`, on the same machine and feed:
+  // subscribing to all 518 cost 263/259/237 ms a tick, and subscribing to
+  // **eight** cost 127/162/172/203 — so cutting the data by 98.5% removed
+  // about a third of a breach it does not clear. The residue is the
+  // reconciliation walk over 518 rows, which happens whatever arrived.
+  //
+  // Scoping would therefore buy a fraction of a §28 breach in exchange for a
+  // row that jumps when a reader scrolls back to it. This asserts the screen
+  // asks for **everything it draws**, so a later scoping cannot arrive as a
+  // silent optimisation.
+  it("asks for every row it renders rather than a subset", async () => {
+    stubFetch(() =>
+      json(200, {
+        securities: [NVDA, SPY, GILD],
+        coverage: [],
+        lastCloses: [],
+      }),
+    );
+
+    const asked: readonly string[][] = [];
+    const onLiveSymbols = (symbols: readonly string[]) => {
+      (asked as string[][]).push([...symbols]);
+    };
+
+    renderWithContext(
+      <SecurityExplorer
+        marketFeed={MARKET_FEED}
+        liveFeed={NO_LIVE_FEED}
+        onLiveSymbols={onLiveSymbols}
+      />,
+      { at: PATHS.securities },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("table")).toBeTruthy();
+    });
+
+    const latest = asked.at(-1) ?? [];
+
+    // Every symbol on the page, including the untracked one: the backend
+    // subscribes upstream to `active` securities only, so an untracked row
+    // simply never receives an observation — which is `UNIVERSE.md` §12.2
+    // working rather than a reason for this screen to filter.
+    expect([...latest].sort()).toEqual(["GILD", "NVDA", "SPY"]);
+  });
+});
