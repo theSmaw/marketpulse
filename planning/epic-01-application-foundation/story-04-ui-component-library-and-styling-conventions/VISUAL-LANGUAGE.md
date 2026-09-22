@@ -464,7 +464,11 @@ Task 3.4.5 keyed the mark on the observation's **instant**, which is right for a
 
 #### Reversal trigger, as a condition
 
-**The first time a reader reports the mark as noise, or the first surface where it fires more than once a second.** Story 3.6 puts 518 rows on one screen, which is **8.6 a second** — the trigger is aimed at that story by name and the constraint is written into its own file rather than linked back to here.
+**The first time a reader reports the mark as noise, or the first surface where it fires more than once a second.** The trigger is aimed at Story 3.6 by name and the constraint is written into its own file rather than linked back to here.
+
+**Amended 2026-09-21 by Task 3.6.2, which evaluated it: the trigger did NOT fire, and the figure that said it had was a division.** This section used to read _Story 3.6 puts 518 rows on one screen, which is 8.6 a second_. That is 518 arrivals a minute divided by sixty, and it assumes they are spread across the minute — **§7.4 measured 332 bars landing inside a 243 ms burst**, once a minute. So the mark fires **once a minute** on that surface and paints for 900 ms of it; measured on the running table against a stream marking all 518 at once, any mark was visible in **2 of 39 sampled seconds**.
+
+**The clause itself is kept, and the reading of it is now on the record: _fires_ means how often the event happens, not how many marks it produces.** A surface that marks five hundred rows in one burst has fired **once**. A second clause is added rather than replacing the first, because the thing the trigger was really guarding against was never a rate: **the first rehearsal in which a reader describes a burst as a _flash_ rather than as a _pulse_.** That is a judgement, it needs a live session, and it is the half no arithmetic can settle.
 
 ## The chart — added 2026-09-11 by Task 2.12.2
 

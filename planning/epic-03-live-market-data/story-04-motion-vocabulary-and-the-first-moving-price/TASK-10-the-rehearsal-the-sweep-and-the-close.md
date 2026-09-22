@@ -571,3 +571,59 @@ connection. **That is unchanged** — but Task 3.6.1 took `pnpm probe` against a
 row changing height the first time an observation reached it. So the probe is
 worth running against whatever stream is available rather than waiting for a
 live one; it found a layout defect that every automated check was green through.
+
+---
+
+## Amended by Task 3.6.2 — 2026-09-21: two audit rows moved, and the hand-off row's figure was wrong
+
+**This task ran two audits whose whole value is that they can be re-run.** Both
+have rows that are now false, so both are corrected rather than left to fail
+quietly on the next pass.
+
+### The export form
+
+`observationIdentity` no longer lives in `SecurityIdentity.tsx`. It moved to
+**`apps/frontend/src/market/arrival.ts`** on 2026-09-21, with a second function
+beside it — `arrivalKey` — because Task 3.6.2 gave the arrival rule a **second
+consumer** and two implementations of _what counts as an arrival_ is the shape
+Task 3.5.2 removed from the subscription. `useArrival` stays where it is: the
+identity block needs a hook because the route changes symbol underneath it
+without re-mounting, and a table row is keyed by its symbol, so the same rule
+reduces to a pure function there.
+
+### The reachability form
+
+| Row                       | Producer, as this task recorded it | Producer now                                                                           |
+| ------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------- |
+| `--motion-duration-decay` | `SecurityIdentity.module.css`      | **`styles/motion.module.css`**, composed by `SecurityIdentity` **and** `UniverseTable` |
+
+**The move is the point rather than a detail.** The token had one consumer when
+this table was written; it has two now, and the shapes moved into a shared
+layer so the vocabulary has one home. A re-run of this form against the old row
+would report a producer that no longer declares it.
+
+### The hand-off row's figure
+
+The table of stories named in this story's documents records **Story 3.6** as
+carried _"yes — 8.63 marks/second"_. **The hand-off happened and the figure in
+it was wrong**: see Task 3.4.8's amendment. The constraint reached 3.6's own
+file, which is what this form checks; what the form cannot check is whether
+what reached it was true.
+
+**That is a limit of the audit worth stating.** It counts whether a constraint
+crossed the boundary, not whether it was correct when it did — and a confident
+wrong figure crosses just as cleanly as a right one.
+
+### And the rehearsal gained its sharpest item
+
+Task 3.6.2 kept the mark unchanged at 518 and recorded a reversal trigger that
+**only a rehearsal can evaluate**: _the first rehearsal in which a reader
+describes the minute tick as a **flash** rather than as a **pulse**_.
+
+Everything measurable says the mark is cheap and rare. What no measurement
+settles is whether **~321 discs appearing together, once a minute** reads as a
+market breathing or as a page flashing — and held at full density in the
+browser they form a vertical column that reads more like furniture than like
+events. **Watch for it deliberately**, because it is the one question this
+story's own subject left open and the answer is a judgement rather than a
+figure.

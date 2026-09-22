@@ -268,6 +268,14 @@ multiplication. Three things follow, and none of them is "decide it differently"
   **8.6 marks a second** across the page. Read that as the trigger having fired
   unless you can show it has not.
 
+  **Task 3.6.2 showed it has not, on 2026-09-21, and the figure above is left
+  standing as the instruction it was.** The division assumes a minute's
+  arrivals are spread across the minute; §7.4 measured **332 bars inside a
+  243 ms burst**, so the mark fires **once a minute** and the page is still for
+  59.7 seconds of it. The mark was kept unchanged. What replaced the rate as
+  the open question is a judgement — whether a synchronised burst reads as a
+  pulse or as a flash — and only a rehearsal can return it.
+
   **Measured 2026-09-21 by Task 3.4.8, so the arithmetic has a floor under it
   rather than being a worry.** On a production build, **20 bursts of 332 bars —
   6,640 observations** — produced **p95 52 ms** frame-to-screen and **zero**

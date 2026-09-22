@@ -361,3 +361,33 @@ saying the price came from before the bell or after it.
 **What is left in this story:** what a screen reader hears, the measurements we
 owe, and one chrome contradiction on the replay. Then the story closes with a
 rehearsal against the real market.
+
+---
+
+## Amended by Task 3.6.2 — 2026-09-21: "one place or two" was tested, and it held
+
+This task wrote down that **the detection lives in one place or it lives in
+two**, and put `useArrival` in one. That rule met its first real test when Task
+3.6.2 gave the arrival mark a **second surface**.
+
+**It held, and the shape of holding is worth recording.** `observationIdentity`
+— the revision rule this task argued for — moved out of `SecurityIdentity.tsx`
+into **`apps/frontend/src/market/arrival.ts`**, so both surfaces read the same
+definition of _what counts as a different observation_. Two implementations
+would have been the shape Task 3.5.2 removed from the subscription: two
+policies that agree today, disagree invisibly, and nothing saying which is
+authoritative.
+
+**What did not move is `useArrival` itself**, and the asymmetry is the
+interesting part. The identity block needs a **hook** because the route changes
+symbol underneath it without re-mounting — Task 2.11.5 measured that — so it
+has to remember what it was showing. **A table row is keyed by its symbol and
+has no such problem**, so the same rule reduces there to a pure function and a
+React `key`: `arrivalKey(bar, fromSnapshot)`. That is **0 hooks across 518
+rows**.
+
+**And this task's break was one of the four found rotted in the same sweep** —
+`a-revision-is-a-bar-arriving-too` had keyed on a one-line `useArrival(…)` call
+that Task 3.5.4 had given a third argument. It is repointed and re-run; see
+Task 3.4.5's amendment for the full set and for the check that now catches this
+class.

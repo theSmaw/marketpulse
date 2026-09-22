@@ -577,12 +577,18 @@ export const BREAKS = [
       "DIFFERENT price passes against it, because the two implementations " +
       "only disagree on the quiet minute.",
     file: "apps/frontend/src/components/SecurityIdentity/SecurityIdentity.tsx",
-    find: "  const arrival = useArrival(symbol, observationIdentity(live));",
+    find:
+      "  const arrival = useArrival(\n" +
+      "    symbol,\n" +
+      "    observationIdentity(live),\n" +
+      "    liveFromSnapshot,\n" +
+      "  );",
     replace:
       "  // pnpm break: reverted automatically\n" +
       "  const arrival = useArrival(\n" +
       "    symbol,\n" +
       "    live === undefined ? undefined : String(live.close),\n" +
+      "    liveFromSnapshot,\n" +
       "  );",
     command: [
       "pnpm",
@@ -606,12 +612,18 @@ export const BREAKS = [
       "reader watches the figure move with nothing marking it — the inverse " +
       "of what the mark was decided to mean.",
     file: "apps/frontend/src/components/SecurityIdentity/SecurityIdentity.tsx",
-    find: "  const arrival = useArrival(symbol, observationIdentity(live));",
+    find:
+      "  const arrival = useArrival(\n" +
+      "    symbol,\n" +
+      "    observationIdentity(live),\n" +
+      "    liveFromSnapshot,\n" +
+      "  );",
     replace:
       "  // pnpm break: reverted automatically — the tree as 3.4.5 shipped it\n" +
       "  const arrival = useArrival(\n" +
       "    symbol,\n" +
       "    live === undefined ? undefined : String(live.startsAt.getTime()),\n" +
+      "    liveFromSnapshot,\n" +
       "  );",
     command: [
       "pnpm",
@@ -654,8 +666,15 @@ export const BREAKS = [
       "the CSS initial value. Without a base `opacity`, reduced motion turns " +
       "the arrival mark into a PERMANENT dot — the opposite of the vocabulary " +
       "it belongs to, because a mark that persists reads as a state.",
-    file: "apps/frontend/src/components/SecurityIdentity/SecurityIdentity.module.css",
-    find: "  opacity: 0;\n\n  /*\n   * **Decays rather than loops**",
+    // **Repointed 2026-09-21 by Task 3.6.2, which moved the base it guards.**
+    // The disc, its ink, its `opacity: 0` and its decay went to a shared
+    // motion layer when the mark acquired a second consumer, so the defect
+    // this break performs now lands in one file and reaches BOTH surfaces —
+    // which makes it a stronger break than it was, not a weaker one: under
+    // reduced motion it would leave a permanent dot on the identity block and
+    // on 518 table rows at once.
+    file: "apps/frontend/src/styles/motion.module.css",
+    find: "  opacity: 0;\n\n  /*\n   * **Decays rather than loops.**",
     replace:
       "  /* pnpm break: reverted automatically — the tree as 3.4.5 shipped it */\n\n  /*\n   * **Decays rather than loops**",
     command: ["pnpm", "e2e", "security-price-motion.spec.ts", "--anyway"],
@@ -679,9 +698,19 @@ export const BREAKS = [
     // **inline** `<span>`, and `width`/`height` do not apply to a non-replaced
     // inline box — so the mark collapsed to nothing and shifted nothing.
     // `inline-block` is the version that actually takes the 8 px.
-    find: ".arrival {\n  position: absolute;",
+    //
+    // **Repointed 2026-09-21 by Task 3.6.2.** `.arrival` now takes its
+    // appearance from the shared motion layer and declares only its position
+    // here, so the rule no longer opens with `position: absolute` — the
+    // `composes:` line does. The substitution targets the declaration rather
+    // than the top of the rule.
+    find:
+      '  composes: arrivalMark from "../../styles/motion.module.css";\n' +
+      "  position: absolute;",
     replace:
-      "/* pnpm break: reverted automatically */\n.arrival {\n  display: inline-block;",
+      "  /* pnpm break: reverted automatically */\n" +
+      '  composes: arrivalMark from "../../styles/motion.module.css";\n' +
+      "  display: inline-block;",
     command: ["pnpm", "e2e", "security-price-motion.spec.ts", "--anyway"],
     expect: "an arrival moves nothing around the price",
   },
@@ -975,5 +1004,32 @@ export const BREAKS = [
       "  const liveSymbols = useMemo(() => {",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "call sites use",
+  },
+  {
+    name: "a-break-that-can-no-longer-land",
+    proves:
+      "A break whose `find` no longer matches proves nothing, and nothing " +
+      "says so: breaks are deliberately outside `pnpm verify` because several " +
+      "need a browser or a database. Two arrival-rule entries rotted this way " +
+      "on 2026-09-21 — Task 3.5.4 gave `useArrival` a third argument, " +
+      "Prettier wrapped the call, and both entries silently stopped landing.",
+    // **The registry breaking itself**, which is the only honest target: the
+    // claim is about `breaks.mjs`, so the defect has to live there.
+    //
+    // **The find spans two lines on purpose.** A single-line literal taken
+    // from this file appears twice the moment it is written down here — once
+    // where it belongs and once inside this entry — and the harness refuses a
+    // substitution that matches more than once. Writing it as a concatenation
+    // puts a `\n` ESCAPE in this file's source where the target has a real
+    // newline, so the entry cannot match itself.
+    file: "scripts/breaks.mjs",
+    find:
+      '    find: "  const liveSymbols = useMemo(() => {",\n' + "    replace:",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      '    find: "  const liveSymbols = useMemoNOPE(() => {",\n' +
+      "    replace:",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "can no longer land",
   },
 ];

@@ -352,3 +352,53 @@ measurements this story owes. And the dot is deliberately on **one number** so
 far — the 518-company table and the chart inherit it, and the one open question
 we have already flagged is whether nine dots a second across one page is still
 calm.
+
+---
+
+## Amended by Task 3.6.2's sweep — 2026-09-21: this task's two breaks had stopped landing, and so had 3.4.6's
+
+**Four break entries belonging to this story and Task 3.4.6 could not be
+applied, and every `pnpm verify` stayed green throughout.**
+
+| Entry                                     | Why it stopped landing                                                                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `the-mark-fires-on-arrival-not-on-change` | Task 3.5.4 gave `useArrival` a **third argument** and Prettier wrapped the call across four lines; the entry keyed on the one-line version |
+| `a-revision-is-a-bar-arriving-too`        | the same call site, the same cause                                                                                                         |
+| `the-mark-does-not-outlive-its-motion`    | Task 3.6.2 moved the `opacity: 0` base into `styles/motion.module.css` when the mark acquired a second consumer                            |
+| `an-arrival-moves-nothing`                | `.arrival` now takes its appearance from that shared layer, so the rule no longer opens with `position: absolute`                          |
+
+**The first two rotted on 2026-09-21 and the last two an hour before they were
+found** — by the sweep that found the first two, which is the only reason
+anybody looked.
+
+### Why nothing said so, and what now does
+
+**`pnpm break` refuses loudly when a substitution does not land.** The harness
+was never the problem: _breaks are deliberately outside `pnpm verify`_, because
+several of them run the browser suite or need a database and `verify` has
+neither. So an entry rots in silence, and the first symptom is somebody running
+it months later and discovering the check it was written to prove has been
+**unprovable** ever since.
+
+**`pnpm invariants` gains `every-break-can-still-land`** — every entry's `find`
+still matches exactly once in the file it names. It caught the last two on its
+first run, which is the strongest possible argument for it: it found a
+regression that was ninety minutes old and that nothing else in the repository
+could see.
+
+**It asserts the half that rots.** That the text is still there — not that the
+substitution still expresses the defect, which needs running the break. The
+entry says so in as many words, because a check described as proving more than
+it does is how a green run starts meaning less than a reader thinks.
+
+**And the runner had to be hardened to carry it.** The check reads the registry
+through a dynamic `import`, so it returns a promise — and the invariant loop was
+**synchronous**, which would have let a rejection escape as an unhandled
+rejection while the run recorded nothing and exited **0**. That is `CLAUDE.md`'s
+own warning, and this repository has already paid for it once. The loop now
+awaits; awaiting a non-promise is a no-op, so every existing check is
+unaffected.
+
+**All four repointed entries were re-run and go red**, and the two CSS ones are
+stronger than they were: the defect they perform now lands in a shared layer
+and would leave a permanent dot on the identity block **and on 518 table rows**.
