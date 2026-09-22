@@ -34,6 +34,18 @@ new column.
   writer that does not know the column) for one symbol, and confirm the
   insert succeeds on the default — the additive rule, demonstrated rather
   than asserted
+
+  > **AMENDED 2026-09-22 by Task 3.7.3 — "the previous build" now has a
+  > commit, and the insert half is already a test.** The last writer that
+  > does not know the column is `main` at `b9772d1` (PR 415 merged, before
+  > PR 416); build that and run its `pnpm backfill` for one symbol against
+  > the migrated store. At unit level the same fact is already
+  > `market-bars.database.test.ts`'s _answers `sip` for a writer that does not
+  > know the column exists_, so what the rehearsal adds is the **process**
+  > half — the old build's real statement, chunked at 8,191 rows of eight
+  > columns against a nine-column table — and, per 3.7.1's amendment below,
+  > the lock.
+
 - **Take the B1ms figure honestly.** If the deferred validation from 3.7.1 is
   the only scan and it runs out of band, document the command, who runs it,
   and what happens if nobody does (a `NOT VALID` check still enforces every
@@ -68,6 +80,21 @@ VALID` on purpose** and nobody validates it in a deploy (3.7.1's amendment
   agree, which only a database test can see and only when somebody runs it
 - **`pnpm invariants`** for anything above that is a single grep, with its
   `pnpm break` entry
+
+  > **AMENDED 2026-09-22 by Task 3.7.3 — two of the residue's entries change
+  > shape, and one is new.** _That a bar's tape and its ledger row agree_
+  > dissolves under Task 3.7.4's meaning for the ledger — its `feed` is
+  > withdrawn from every read — into _that `bar_coverage.feed` is read by
+  > nothing_, which is a grep and belongs in `pnpm invariants`; the
+  > `provider` column stays read (3.7.4's amendment) and so is not in the
+  > residue at all. New: **a browser spec whose assumption is about the
+  > store's freshness rather than the page** — `security-window-change.spec.ts`'s
+  > _pressing a window does not move the chart_ is red by 90 px on a
+  > developer store more than five sessions stale (the default window is
+  > `empty`, `1 month` is not), green on CI's bare store and on the deployed
+  > one, and says so in its own comment since 3.7.3. Nothing mechanical
+  > tells a developer their store is the reason; the re-measure is
+  > `GET /diagnostics/freshness` before believing the spec.
 
   > **AMENDED 2026-09-22 by Task 3.7.2 — the first of those is now a test,
   > and the entry changes shape.** `market-bars.database.test.ts` asserts
