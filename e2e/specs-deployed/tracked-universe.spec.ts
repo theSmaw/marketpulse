@@ -116,12 +116,28 @@ test("the deployed page renders the tracked universe from the deployed database"
   // last ran against it, and a stale store is a `pnpm backfill`, not a rollback.
   const table = region.getByRole("table");
   await expect(table).toBeVisible();
+  // **The word depends on whether anything is live, so both spellings are the
+  // shape** (Task 3.6.1, corrected here 2026-09-21 after the deployed check
+  // went red). The heading is a claim about every cell under it:
+  //
+  //   nothing live          `Last close`, plus the session date when every
+  //                         close on the page shares one
+  //   any row live          `Last` — two rows in three hold a live IEX price
+  //                         rather than a stored close, so `close` stops being
+  //                         true of the column
+  //
+  // A literal here asserts **the state of the market at the moment the suite
+  // ran**. `Last close` passes only while the feed has delivered nothing —
+  // which is every CI run, because CI has no credential — and fails the moment
+  // a real deployment is doing its job. A spec that passes only while the
+  // product is idle is the same defect as one that passes only while it is
+  // broken, which this repository has shipped once already.
   await expect(table.getByRole("columnheader")).toHaveText([
     "Symbol",
     "Name",
     "Industry",
     "Kind",
-    /^Last close( \d{4}-\d{2}-\d{2})?$/,
+    /^Last( close( \d{4}-\d{2}-\d{2})?)?$/,
     "Change",
     "Minute-bar history",
   ]);
