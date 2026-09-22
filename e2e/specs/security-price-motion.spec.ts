@@ -115,7 +115,16 @@ function latestPrice(page: Page) {
   return page.getByText("Latest price", { exact: true }).locator("..");
 }
 
-const markOf = (page: Page) => page.locator("[data-arrival]");
+/**
+ * The identity block's mark, **scoped to the block since Task 3.6.6**.
+ *
+ * `[data-arrival]` is the handle for the vocabulary, and since that task the
+ * universe table's rows carry it too — the same mark, `composes:`d from the
+ * same rule. This page renders the table under the block, so a bar for NVDA
+ * marks twice on one page: the figure and the row. This spec is about the
+ * block; `universe-live-update.spec.ts` is about the row.
+ */
+const markOf = (page: Page) => latestPrice(page).locator("[data-arrival]");
 
 test("the mark is INVISIBLE under reduced motion, not permanent", async ({
   page,
@@ -320,7 +329,7 @@ test("an arrival moves nothing around the price", async ({ page }) => {
   // which is what actually happens and is the only version worth asserting.
   push({ NVDA: bar(NEXT_MINUTE, 219.62) });
   await expect(latestPrice(page)).toContainText("219.62");
-  await expect(page.locator("[data-arrival]")).toHaveCount(1);
+  await expect(markOf(page)).toHaveCount(1);
 
   expect(await boxes()).toEqual(before);
 
