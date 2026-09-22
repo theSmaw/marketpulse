@@ -433,3 +433,31 @@ created by Story 3.6 rather than by this one.
 It is **not** written into `PRODUCT_SPEC.md` §28 yet, and should not be on a
 dev-build figure. Task 3.6.5 owes that decision and its own file already says
 so.
+
+---
+
+## Amended by Task 3.6.5 — 2026-09-22: the production row exists, and both debts above are paid
+
+**The named weakness is gone.** Task 3.6.5 took the universe table's steady
+state on a **production build**, so the controlled pair now has a within-build
+row on the product itself, and this file's own rule — _a development build is
+not the product_ — is satisfied rather than cited:
+
+| Measurement                            | Observations per tick | Rows rendered | Long tasks                                                  |
+| -------------------------------------- | --------------------- | ------------- | ----------------------------------------------------------- |
+| **This task** (production build)       | **332**               | **1**         | **none — empty array**                                      |
+| Task 3.6.5, before repair (production) | **518**               | **518**       | 66, 56, 52 ms — 3 of 7 frames; 46–49 ms of script per frame |
+| Task 3.6.5, after repair (production)  | **518**               | **518**       | **none** — 37–40 ms of script per frame                     |
+
+**_Rows dominate_ is now a conclusion**, and the production figure is smaller
+than the dev-build arms suggested: 46–49 ms of React per tick rather than
+237–263, because a minified bundle without a profiler attached is most of the
+difference. Two memo boundaries on the table then took it under the line with
+every row changing.
+
+**And the stale sentence is settled the way this amendment asked.** The
+_third exception_ was **not** written into `PRODUCT_SPEC.md` §28 as a standing
+one: it was measured on a production build, found breached, repaired in the
+same task and recorded there as _breached and repaired_, with the after-figure.
+This story's own claim — _this story adds no third exception_ — stands
+unchanged, and the count of the world is back to the two Epic 14 owns.
