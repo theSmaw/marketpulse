@@ -1442,3 +1442,86 @@ describe("the arrival mark at universe scale", () => {
     expect(marksIn(container)).toHaveLength(0);
   });
 });
+
+describe("the order under live data (Task 3.6.3)", () => {
+  const symbolsInOrder = () =>
+    screen.getAllByRole("rowheader").map((cell) => cell.textContent.trim());
+
+  // A specimen whose *declared* order and whose *price* order disagree, so a
+  // sort by any live value would be visible. `SECTORS` puts Technology before
+  // Health Care, and within a band the sector ETF leads.
+  const specimen = () =>
+    loaded(
+      [
+        equity({ symbol: toTicker("NVDA"), name: "NVIDIA" }),
+        equity({ symbol: toTicker("AMD"), name: "AMD" }),
+        equity({
+          symbol: toTicker("ABBV"),
+          name: "AbbVie",
+          sector: "health_care",
+          industry: "Pharmaceuticals",
+        }),
+      ],
+      [],
+      [
+        closeFor("NVDA", 230.36, 228.45),
+        closeFor("AMD", 142.06, 141.0),
+        closeFor("ABBV", 256.46, 260.21),
+      ],
+    );
+
+  // **Decision 2: the table does not re-order under live data.** Read rather
+  // than assumed — the order is `SECTORS`, then the sector's own ETF, then the
+  // equities in the order the query returned, and nothing in it reads a price.
+  //
+  // A decision that is already the behaviour is the easiest kind to lose: it
+  // survives as an accident until something asserts it was chosen. A row that
+  // moves while it is being read is a row that cannot be read, and anything
+  // *ranked* by a live value is Epic 4's.
+  it("keeps every row where it was when prices arrive", () => {
+    const { unmount } = renderWithContext(
+      <UniverseTable view={specimen()} onRetry={noop} />,
+    );
+    const still = symbolsInOrder();
+    unmount();
+
+    renderWithContext(
+      <UniverseTable
+        view={specimen()}
+        onRetry={noop}
+        // Prices chosen so that ANY ordering by a live value — ascending or
+        // descending, by price or by change — would differ from the declared
+        // one. AMD leads on price, ABBV on change, NVDA on neither.
+        observations={
+          new Map([
+            ["NVDA", liveFor(231.0)],
+            ["AMD", liveFor(999.0)],
+            ["ABBV", liveFor(300.0)],
+          ])
+        }
+      />,
+    );
+
+    expect(symbolsInOrder()).toEqual(still);
+  });
+
+  it("puts the bands in their declared order rather than a derived one", () => {
+    renderWithContext(
+      <UniverseTable
+        view={specimen()}
+        onRetry={noop}
+        observations={new Map([["ABBV", liveFor(999.0)]])}
+      />,
+    );
+
+    // Technology before Health Care is `SECTORS`, not the data: Health Care
+    // holds the highest live price here and still comes second.
+    const bands = screen
+      .getAllByRole("button")
+      .map((b) => b.textContent)
+      .filter((t) => t.includes("Technology") || t.includes("Health Care"));
+
+    expect(bands[0]).toContain("Technology");
+    expect(bands[1]).toContain("Health Care");
+  });
+});
