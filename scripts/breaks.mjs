@@ -79,6 +79,51 @@ export const BREAKS = [
     build: true,
   },
   {
+    name: "the-tape-check-gets-validated",
+    proves:
+      "Somebody 'tidies' `0010_market_bars_feed.sql` by dropping NOT VALID, and " +
+      "the next deploy validates the check: a full read of the heap \u2014 " +
+      "6.2 s on a laptop over 48.8 million rows, ~508 s on the deployed tier's " +
+      "10 MiB/s \u2014 inside `timeout 120 pnpm migrate` and Kysely's single " +
+      "transaction. The deploy rolls back with nothing applied, at merge time, " +
+      "and the migration looks correct in review (Task 3.7.2, ADR 0034).",
+    file: "apps/backend/migrations/0010_market_bars_feed.sql",
+    find: "        check (feed in ('iex', 'sip', 'synthetic', 'replay'))\n        not valid;",
+    replace:
+      "        -- pnpm break: reverted automatically\n" +
+      "        check (feed in ('iex', 'sip', 'synthetic', 'replay'));",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "stays NOT VALID",
+  },
+  {
+    name: "the-tape-default-lies-about-the-past",
+    proves:
+      "The column's default names a tape the pre-existing rows did NOT come " +
+      "from. Every bar stored before `0010` is the consolidated SIP tape; a " +
+      "default of `iex` would relabel 48.8 million of them as a single venue " +
+      "without touching one, and the ledger \u2014 still saying `sip` \u2014 " +
+      "would disagree with every bar under it (Task 3.7.2, ADR 0034).",
+    file: "apps/backend/migrations/0010_market_bars_feed.sql",
+    find: "    add column feed text not null default 'sip';",
+    replace:
+      "    -- pnpm break: reverted automatically\n" +
+      "    add column feed text not null default 'iex';",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "does not know the column exists",
+  },
+  {
     name: "replayed-series-refused-by-the-store",
     proves:
       "A replayed bar can be written to `market_bars`. Its prices are real but " +

@@ -311,6 +311,35 @@ export interface MarketBarsTable {
   >;
 
   /**
+   * Which tape this bar was observed on — `sip`, `iex`, `synthetic` or
+   * `replay`. See `../migrations/0010_market_bars_feed.sql` and ADR 0034.
+   *
+   * **The invariant-6 column, per bar, and the reversal of `0004`'s decision
+   * at its own trigger.** Until Story 3.7 the tape lived one row per series in
+   * {@link BarCoverageTable.feed}; the day a second feed writes into this
+   * table that row cannot state the series' tape honestly, and Story 3.8 is
+   * that day.
+   *
+   * **The union rather than `string`**, backed by `market_bars_feed_check`,
+   * exactly as {@link timeframe} is — and the check is deliberately `NOT
+   * VALID` (the migration says why; `pnpm test:database` asserts it stays so).
+   *
+   * **Optional on insert for exactly one task, and that is stated rather than
+   * left to be noticed.** The database default (`'sip'`) exists so the
+   * previous backfill survives the deploy window, and `BarCoverageTable.feed`'s
+   * arrangement is that the interface then makes the column **required on
+   * insert** so the default is unreachable from shipped code. Task 3.7.2 ships
+   * the column and Task 3.7.3 ships the writers, so between the two this reads
+   * `MarketFeed | undefined` — the shipped writer omits it and the default
+   * answers `sip`, which is true of every bar it can write today. **Task 3.7.3
+   * narrows this to `MarketFeed`**, at which point a writer that omits the tape
+   * is a compile error. Update is `never`, for {@link BarCoverageTable.feed}'s
+   * reason: a bar's tape is a fact about where it was observed and does not
+   * change afterwards.
+   */
+  feed: ColumnType<MarketFeed, MarketFeed | undefined, never>;
+
+  /**
    * When we wrote the row: `timestamptz not null default now()`.
    *
    * Optional on insert because of the default, exactly as

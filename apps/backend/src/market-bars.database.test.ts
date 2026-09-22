@@ -135,6 +135,11 @@ const EXPECTED_MARKET_BARS = {
   low: { dataType: "numeric", nullable: false, precision: 18, scale: 6 },
   close: { dataType: "numeric", nullable: false, precision: 18, scale: 6 },
   volume: { dataType: "bigint", nullable: false, precision: 64, scale: 0 },
+  // The tape on the bar (Task 3.7.2, ADR 0034). The default is a dated
+  // historical claim — every bar stored before `0010` came from the
+  // consolidated tape — and the deploy window's survival; the interface is
+  // what keeps it out of reach of a shipped writer.
+  feed: { dataType: "text", nullable: false, defaultExpression: "'sip'::text" },
   recorded_at: {
     dataType: "timestamp with time zone",
     nullable: false,
@@ -263,7 +268,7 @@ async function fingerprint(table: string, columns: string): Promise<string> {
 }
 
 const BARS_FINGERPRINT =
-  "security_id, timeframe, observed_at, open, high, low, close, volume, recorded_at";
+  "security_id, timeframe, observed_at, open, high, low, close, volume, feed, recorded_at";
 const COVERAGE_FINGERPRINT =
   "security_id, timeframe, covered_start, covered_end, bar_count, recorded_at, updated_at";
 
@@ -1751,6 +1756,77 @@ describe("the ledger's provenance vocabulary, and the checks that back it", () =
 
       expect(permitted, constraint).toEqual([...vocabulary].sort());
     }
+  });
+});
+
+describe("the tape on the bar — `market_bars.feed` and the check behind it (Task 3.7.2)", () => {
+  afterEach(clearStore);
+
+  // `0004_market_bars.sql` decided against this column and named its reversal
+  // trigger; `0010_market_bars_feed.sql` is that trigger firing, and ADR 0034
+  // carries the figures. These four hold the shape the migration took.
+
+  it("market_bars_feed_check permits exactly the members of MARKET_FEEDS", async () => {
+    // The ledger's arrangement, one table over: Postgres rewrites the check as
+    // `= ANY (ARRAY[…])`, so it is parsed back rather than string-matched, and
+    // the assertion is SET EQUALITY with the shared constant — a member the
+    // database refuses is a feed the product cannot record having read.
+    const result = await db().query<{ definition: string }>(
+      `select pg_get_constraintdef(oid) as definition
+         from pg_constraint
+        where conrelid = 'market_bars'::regclass
+          and conname = 'market_bars_feed_check'`,
+    );
+
+    expect(result.rows).toHaveLength(1);
+    const permitted = [
+      ...(result.rows[0]?.definition ?? "").matchAll(/'([^']*)'::text/g),
+    ]
+      .map((match) => match[1])
+      .sort();
+
+    expect(permitted).toEqual([...MARKET_FEEDS].sort());
+  });
+
+  it("stays NOT VALID, on purpose — a validated check would stall a deploy", async () => {
+    // **This is the assertion that stops somebody tidying the migration.**
+    // Validating the check reads the whole heap: 6.2 s on a laptop over 48.8
+    // million rows, ~508 s on the deployed tier's 10 MiB/s, against
+    // `deploy.yml`'s 120 s ceiling (Task 3.7.1). It would also prove nothing:
+    // every pre-existing row holds the default, which is in the vocabulary by
+    // construction. NOT VALID enforces every new row all the same — the test
+    // below is what says so.
+    const result = await db().query<{ convalidated: boolean }>(
+      `select convalidated
+         from pg_constraint
+        where conrelid = 'market_bars'::regclass
+          and conname = 'market_bars_feed_check'`,
+    );
+
+    expect(result.rows[0]?.convalidated).toBe(false);
+  });
+
+  it("refuses a tape outside the vocabulary, NOT VALID notwithstanding", async () => {
+    // The run-time half, and the proof that NOT VALID is about the past rather
+    // than the future: a writer that bypassed the type still meets the check.
+    await expect(insertBar({ feed: "nyse" })).rejects.toThrow(
+      /market_bars_feed_check/,
+    );
+  });
+
+  it("answers `sip` for a writer that does not know the column exists", async () => {
+    // The deploy window: the migration runs before the code rolls, and the
+    // previous backfill inserts without the column. The default is what keeps
+    // that insert alive, and `sip` is true of every bar that writer can
+    // produce. Task 3.7.3 makes the column required on insert so this path is
+    // unreachable from shipped code afterwards.
+    await insertBar();
+
+    const result = await db().query<{ feed: string }>(
+      "select feed from market_bars",
+    );
+
+    expect(result.rows.map((row) => row.feed)).toEqual(["sip"]);
   });
 });
 

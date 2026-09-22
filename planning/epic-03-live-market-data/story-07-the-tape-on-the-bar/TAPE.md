@@ -44,6 +44,19 @@ Heap `5081 MB`, total `9097 MB`, `count(*)` itself **15.6 s** — which is the
 cheapest possible reminder of what a full scan of this table costs even on a
 laptop.
 
+**The runner, end to end (Task 3.7.2, 2026-09-22)** — `pnpm migrate` through
+Kysely, Node start-up included, `time` on the whole command:
+
+| Store                       | `pnpm migrate` applying `0010` |
+| --------------------------- | ------------------------------ |
+| Populated (48,797,343 rows) | **0.478 s** total              |
+| `marketpulse_bare` (0 rows) | **0.456 s** total              |
+
+Against `deploy.yml`'s `timeout 120` that is a margin of ~250×, and the two
+stores agree to within 22 ms — which is the whole point: the migration does
+not read the table. What it left behind, read back from the catalogue:
+`market_bars_feed_check | convalidated = f`, `column_default = 'sip'::text`.
+
 ## 2. The deploy's ceiling, and why the check is never validated there
 
 `deploy.yml` runs `timeout 120 pnpm migrate` inside Kysely's single
@@ -73,8 +86,10 @@ against 10 MiB/s before it is written.
   and `schema.ts` declaring the column required on insert is what keeps it
   out of reach otherwise (`0007`'s arrangement, repeated).
 - **The vocabulary is `MARKET_FEEDS` in `packages/shared`**, and
-  `market_bars_feed_check` is its backstop; `migrate.database.test.ts` parses
-  the constraint back and compares (Task 3.7.2).
+  `market_bars_feed_check` is its backstop; `market-bars.database.test.ts`
+  parses the constraint back and asserts set equality (Task 3.7.2), asserts
+  it is **unvalidated on purpose**, refuses a tape outside the list, and
+  reads `sip` back for a writer that omits the column.
 - **A window's sources** are derived from the bars — per tape, first
   `observed_at` for order, `count(*)` for the bar count, the stretch's
   `recorded_at` for `retrievedAt` — and joined through `mergeSeriesProvenance`
@@ -82,10 +97,16 @@ against 10 MiB/s before it is written.
 
 ## 4. What a green `pnpm test:database` certifies about this, and what it does not
 
-- **It certifies** that the migration and `schema.ts` agree, that the check's
-  vocabulary is the shared constant, that a stored bar reads back with its own
-  tape, and that a two-tape window produces two sources in order (each a task's
-  test, as it lands).
+- **It certifies** that the migration and `schema.ts` agree (both directions,
+  and the compiler covers the third — a column on the interface the test does
+  not describe is `TS1360`, which is how Task 3.7.2's first typecheck went
+  red), that the check's vocabulary is the shared constant, that the check
+  stays `NOT VALID`, that a tape outside the vocabulary is refused, that an
+  insert omitting the column answers `sip`; and, as they land, that a stored
+  bar reads back with its own tape (3.7.3) and a two-tape window produces two
+  sources in order (3.7.5). Two breaks prove the migration's two load-bearing
+  clauses: `pnpm break the-tape-check-gets-validated` and
+  `pnpm break the-tape-default-lies-about-the-past`.
 - **It does not certify** that the deployed migration finished inside 120 s —
   the figure above is a laptop's, and Task 3.7.6 owns the tier's; that the
   `NOT VALID` check was ever validated — it is not meant to be; or that the
