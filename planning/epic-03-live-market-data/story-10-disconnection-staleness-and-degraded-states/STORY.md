@@ -596,3 +596,30 @@ re-render rather than the mark, attributed by measuring with the mark rendered
 and not rendered on the same machine and feed. **Anything you add per row lands
 on top of that.** Task 3.6.5 owns the figure and re-takes it on a production
 build.
+
+---
+
+## Handed here by Story 3.6's close — 2026-09-22: a degraded state that blanked the page, found and fixed on your behalf
+
+**A tab did not survive a deploy, and it was live in every deploy since Task
+3.5.6.** Task 3.6.5's gates found `market-reconnect.spec.ts` failing three
+tests with a **blank page**, and bisected it to `main`: the transport sent a
+subscription on an `opened` flag nothing cleared, so a subscription change in
+the 500 ms between the gateway's `1001` and the retry's dial called `send` on
+a `CLOSING` socket. `WebSocket.send` throws; the call came from a React
+effect; an effect's throw is a render error; nothing above `App` catches one.
+**The page went blank until a reload** — §36's exact prohibition, produced by
+the reconnect path you own the states of.
+
+**It is repaired**: the send is gated on the socket's own `readyState`, the
+subscription is kept for the next socket (which the retry already relied on),
+two unit tests hold it and `pnpm break a-subscription-after-a-close-throws`
+proves one goes red. **What is yours is the rule underneath**, now in
+`CLAUDE.md`: a transport asks the resource's own state before every send,
+never a flag it set on `open`, and anything an effect calls on a resource
+somebody else can close asks the same question. Every degraded state you
+design lives downstream of that.
+
+**The rehearsal item that goes with it**: Task 3.4.10's _a tab survives a
+deploy_ is now to be confirmed deliberately, on `/securities/NVDA`, during a
+session — the first time a person watches a real deploy under this page.

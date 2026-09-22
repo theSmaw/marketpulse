@@ -154,3 +154,31 @@ build. But property 3 means continuity is the **feed's**, not ours: a 5-minute
 return over a security with 2.1% coverage is arithmetic over two bars an hour
 apart. **Every score this epic emits owes an explanation, and "how much of the
 window was actually observed" belongs in it.**
+
+---
+
+## Handed here by Story 3.6's close — 2026-09-22: a score on every row is the trigger's own example
+
+**Epic 14's reversal trigger names you.** _The first time a second surface on
+`/securities` renders per-row markup at universe scale_ was written with a
+per-security anomaly score in mind — Epic 14's `EPIC.md` says so in as many
+words — and Task 3.6.5 evaluated it against Story 3.6's arrival mark and
+found it **not fired as worded**, because the mark is a child of a cell that
+already existed. An `AnomalyBadge` in every row is the thing it was written
+for. If you put one there, the cold-load repair (virtualisation or its two
+cheaper candidates, `SEARCH-AND-SELECTION.md` §10) is due with it rather than
+in Epic 14.
+
+**And the row is memoised now, on purpose.** Task 3.6.5 split each row into
+`RowIdentity` — four static cells memoised on `security` — and two live cells,
+because a tick re-rendering 518 whole rows crossed §28's 50 ms line on a
+production build. A score that changes on its own is a third live cell:
+either it joins the live half with its own memo input, or it re-renders the
+static half on every tick and undoes the repair. The render-count test
+(`UniverseTable.render-cost.test.tsx`) asserts a price arriving re-renders no
+symbol link; a score arriving must satisfy the same test.
+
+**The score's own motion is the vocabulary's third surface**: work in
+progress loops, a state persists, a fact arriving decays — and a score
+changing is a fact arriving, marked with the same `[data-arrival]` rule the
+figure and the row already share.

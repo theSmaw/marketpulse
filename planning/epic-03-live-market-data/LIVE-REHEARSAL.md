@@ -86,6 +86,17 @@ shut — it next opens **Monday 2026-09-22 09:30 ET** — and three of 3.5.4's a
 3.5.5's five rehearsal items can be taken against the **deployed** site rather
 than a local session, which is where Task 3.4.10's blocked list already sits.
 
+**3.6's row is empty on 2026-09-22 and the rehearsal is owed to tonight's
+session, not waived.** The table was watched for over an hour against the
+**fixture** feed on a production build (Tasks 3.6.4 and 3.6.5: 518 rows
+changing once a minute, marks firing as one burst, no long task in the steady
+state) and photographed at four widths — **which is not a rehearsal and is not
+in a row.** The replay could not run on the measuring machine's store. The
+deployed feed read `live` on `iex` at 08:31 UTC that day, so the venue is the
+deployed site during the session that opens 09:30 ET; the one judgement only
+that sitting can return is Task 3.6.2's _pulse or flash_, and Story 3.4's
+list is the same sitting.
+
 ## What a full ledger does not certify
 
 That the live feed works **now**. Every row is a dated observation of a third
