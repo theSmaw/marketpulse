@@ -32,6 +32,25 @@ tapes produces the list it needs; the first time a user reads it is Story
   `sources` array: that function is the only route to a multi-source record,
   and its adjustment check fires whether or not anybody read the rule. One
   tape is `toSeriesProvenance`, as today.
+
+  > **AMENDED 2026-09-22 by Task 3.7.3 — what the read path already carries,
+  > and what it still cannot.** `readBars` answers `StoredBar { bar, feed }`
+  > since 3.7.3, so the per-row tape is already read back and the test
+  > suite's instrument for _which tape is this bar_ exists; what this task
+  > adds is the **aggregate** over `readSeries`'s window (`DatedBarRow` does
+  > not carry `feed` and need not — the stretches come from the `group by`,
+  > not from the rows). **Each stretch's `provider` comes from the ledger
+  > row**, which Task 3.7.4 keeps as a read for exactly this reason: the row
+  > holds the tape only, ADR 0034 forbids a per-bar provider, and a mapping
+  > from feed to provider would be the constant criterion 1 forbids.
+  > **`min(recorded_at)` per stretch is safe under 3.7.3's conflict rule**: a
+  > correction moves a row's `recorded_at` and leaves its tape, so the row
+  > stays in its stretch and the minimum is unmoved. And `SOURCE_OF_NOTHING`'s
+  > comment names this task as the one after which only an **empty** answer
+  > reaches it — once the sources come from the bars, a window with rows and
+  > no ledger row is `MissingCoverageError` before the constant is consulted;
+  > confirm that and reword the comment to say so.
+
 - **The query, measured.** 3.7.1 costed a `group by feed` over a window; take
   the real figure here against the cap-sized window (9,750 bars) and the
   default (390), and say what the read path's p95 became against Story 2.9's
