@@ -116,6 +116,59 @@ actually been produced once, rather than against a prediction of one.
    additive-only
 6. `pnpm verify` passes, and `pnpm test:database` passes against a real server
 
+## Tasks
+
+**Seven, none of them visible, and that is the story's own scope rather than a
+shortfall.** The store holds exactly what it held; what changes is what it can
+_say_ about each bar. The first thing a user reads that this story made
+possible is Story 3.9's two-feed sentence, and the first thing they can _do_
+is Story 3.8's cold load during a session — so the tasks are ordered to unblock
+3.8 as early as possible: the shape first, then the column, then the writers,
+then the ledger's refusal, then the read path that pays the column back.
+
+**The decision is the first task and it is a measurement.** `0004` recorded a
+decision _against_ a per-bar feed column with a named reversal trigger — _a
+second feed writing into this table_ — and this story is that trigger firing.
+Two constraints the story file did not carry shape the whole split: the
+deploy wraps `pnpm migrate` in **`timeout 120`**, and the real table is **45–48
+million rows on PostgreSQL 18**, where a constant default is a catalogue write
+and a check constraint's validation is a full scan. So whatever the column's
+shape, it must be metadata-only at deploy time, and 3.7.1 takes the figures
+that prove which shapes are.
+
+**The design canvas is untouched, and that was checked rather than assumed.**
+This story adds no surface, no token and no word: the two-feed sentence it
+makes producible is already drawn (`Provenance and the empty answers`) and
+already shipped in `describeSeriesFeeds`; Story 3.9 puts it on the source
+note. One finding for the owner: on 2026-09-22 `DesignSync` listed two
+writable design-system projects for this login and **neither was the
+MarketPulse canvas**, so the chain in ADR 0026 could not be walked from this
+session. Story 3.9 is the next story that needs the canvas and should check
+before it starts.
+
+| #     | Task                                                                                                                                         | Depends on | Visible? |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | -------- |
+| 3.7.1 | [The shape of the column, measured against the real table before a line of SQL](TASK-01-the-shape-measured-before-a-line-of-sql.md)          | 3.1        | No       |
+| 3.7.2 | [The migration, and the schema that agrees with it](TASK-02-the-migration-and-the-schema-that-agree.md)                                      | 3.7.1      | No       |
+| 3.7.3 | [Every writer stamps the tape, and no reader consults a constant](TASK-03-every-writer-stamps-the-tape.md)                                   | 3.7.2      | No       |
+| 3.7.4 | [What replaces the ledger's refusal of a second source](TASK-04-what-replaces-the-ledgers-refusal.md)                                        | 3.7.3      | No       |
+| 3.7.5 | [A stored window spanning two tapes produces two sources, through the merge](TASK-05-two-sources-in-contribution-order-through-the-merge.md) | 3.7.4      | No       |
+| 3.7.6 | [The deploy rehearsed against a populated store, and what nothing checks](TASK-06-the-deploy-rehearsed-and-what-nothing-checks.md)           | 3.7.5      | No       |
+| 3.7.7 | [The sweep, the hand-offs and the close](TASK-07-the-sweep-the-hand-offs-and-the-close.md)                                                   | 3.7.6      | No       |
+
+**Where the open decision lives.** Open decision 1 — whether existing rows are
+backfilled — is Task 3.7.1's, and the shape most likely to win answers it for
+free: a constant default on PostgreSQL 18 is materialised on read, so
+_everything before this migration is SIP_ becomes a fact every row states
+without a rewrite and without every reader carrying the rule.
+
+**What a stakeholder should expect to see from this story: nothing, and then
+two things quickly.** Story 3.8 immediately follows and is visible — a page
+reloaded during a session still shows today — and Story 3.9's source note
+finally says, from real data, which venue each stretch of a chart came from.
+Both are impossible until this column exists, and this story is deliberately
+the shortest route to it.
+
 ## What this story hands forward
 
 A store that can tell two tapes apart, which is the precondition for Story 3.8
