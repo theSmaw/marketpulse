@@ -148,6 +148,48 @@ export const BREAKS = [
     expect: "reads back with `synthetic` on every bar",
   },
   {
+    name: "a-second-tape-overwrites-the-first",
+    proves:
+      "An IEX series overlapping stored SIP bars is refused before a row is " +
+      "touched. Without the guard the write reaches the per-row conflict " +
+      "rule as it stands \u2014 the existing row keeps its `sip` label and " +
+      "takes IEX's numbers \u2014 which is Story 3.8's decision taken in " +
+      "passing (Task 3.7.4). Needs a database, so it lives outside `verify`.",
+    file: "apps/backend/src/market-bars.ts",
+    find: "            if (foreign.length > 0) {",
+    replace:
+      "            if (foreign.length < 0) { // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "OVERLAPPING stored bars",
+  },
+  {
+    name: "a-second-provider-is-relabelled",
+    proves:
+      "A series from another provider is refused rather than written under " +
+      "the ledger row's provider. The row carries the tape and not the " +
+      "provider, so the ledger is the only place a window's provider is " +
+      "written and it names one (Task 3.7.4). Needs a database, so it lives " +
+      "outside `verify`.",
+    file: "apps/backend/src/market-bars.ts",
+    find: "          if (held.provider !== source.provider) {",
+    replace:
+      "          if (held.provider !== source.provider && false) { // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "refuses a second provider",
+  },
+  {
     name: "replayed-series-refused-by-the-store",
     proves:
       "A replayed bar can be written to `market_bars`. Its prices are real but " +
