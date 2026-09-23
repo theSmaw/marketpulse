@@ -1,6 +1,6 @@
 # Story 3.8 — Storing the Live Session
 
-**Status:** In progress — **three of nine tasks done (3.8.1, 3.8.2, 3.8.3)**, the last of them on 2026-09-23, which makes the deployed backend a bar writer and puts the two-feed source note on screen. Originally **split into eight tasks 2026-09-23, and a ninth inserted at 3.8.4 on the same day**, see _Tasks_ below. The visible payoff is Task 3.8.3, which is as early as the two decisions before it allow.
+**Status:** In progress — **four of nine tasks done (3.8.1–3.8.4)**, the last of them on 2026-09-23, which makes the deployed backend a bar writer and puts the two-feed source note on screen. Originally **split into eight tasks 2026-09-23, and a ninth inserted at 3.8.4 on the same day**, see _Tasks_ below. The visible payoff is Task 3.8.3, which is as early as the two decisions before it allow.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.5, 3.7
 **Epic scope covered:** market-data persistence for live observations, and the reconciliation between two tapes covering one session
@@ -176,17 +176,17 @@ to be able to hold what they decided (3.8.2); **3.8.3 then delivers both visible
 things at once**, and everything after it makes that correct rather than adding
 to it.
 
-| #     | Task                                                                                                                           | Depends on | Visible?                                          |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------------------------------------------------- |
-| 3.8.1 | [What a record is, decided before a row is written](TASK-01-what-a-record-is-decided-before-a-row-is-written.md)               | 3.7        | No — **done**                                     |
-| 3.8.2 | [The uniqueness rule, and the migration it needs](TASK-02-the-uniqueness-rule-and-the-migration-it-needs.md)                   | 3.8.1      | No — **done**                                     |
-| 3.8.3 | [The writer, and the first reload that keeps its chart](TASK-03-the-writer-and-the-first-reload-that-keeps-its-chart.md)       | 3.8.2      | **Yes — both, and both seen — done**              |
-| 3.8.4 | [One minute, two rows, and the 500 that arrives otherwise](TASK-04-one-minute-two-rows-and-the-500-that-arrives-otherwise.md)  | 3.8.3      | No — **and one thing that never becomes visible** |
-| 3.8.5 | [A growing session is not an immutable one](TASK-05-a-growing-session-is-not-an-immutable-one.md)                              | 3.8.3      | No — one thing stops being wrong                  |
-| 3.8.6 | [The late revision the live path throws away](TASK-06-the-late-revision-the-live-path-throws-away.md)                          | 3.8.3      | No                                                |
-| 3.8.7 | [The surfaces that now show a stored today](TASK-07-the-surfaces-that-now-show-a-stored-today.md)                              | 3.8.3      | **Yes — consistency across a reload**             |
-| 3.8.8 | [The overnight reconciliation, rehearsed over one session](TASK-08-the-overnight-reconciliation-rehearsed-over-one-session.md) | 3.8.6      | No                                                |
-| 3.8.9 | [The sweep, the hand-offs and the close](TASK-09-the-sweep-the-hand-offs-and-the-close.md)                                     | 3.8.8      | No                                                |
+| #     | Task                                                                                                                           | Depends on | Visible?                              |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------------------------------------- |
+| 3.8.1 | [What a record is, decided before a row is written](TASK-01-what-a-record-is-decided-before-a-row-is-written.md)               | 3.7        | No — **done**                         |
+| 3.8.2 | [The uniqueness rule, and the migration it needs](TASK-02-the-uniqueness-rule-and-the-migration-it-needs.md)                   | 3.8.1      | No — **done**                         |
+| 3.8.3 | [The writer, and the first reload that keeps its chart](TASK-03-the-writer-and-the-first-reload-that-keeps-its-chart.md)       | 3.8.2      | **Yes — both, and both seen — done**  |
+| 3.8.4 | [One minute, two rows, and the 500 that arrives otherwise](TASK-04-one-minute-two-rows-and-the-500-that-arrives-otherwise.md)  | 3.8.3      | No — the 500 never arrives — **done** |
+| 3.8.5 | [A growing session is not an immutable one](TASK-05-a-growing-session-is-not-an-immutable-one.md)                              | 3.8.3      | No — one thing stops being wrong      |
+| 3.8.6 | [The late revision the live path throws away](TASK-06-the-late-revision-the-live-path-throws-away.md)                          | 3.8.3      | No                                    |
+| 3.8.7 | [The surfaces that now show a stored today](TASK-07-the-surfaces-that-now-show-a-stored-today.md)                              | 3.8.3      | **Yes — consistency across a reload** |
+| 3.8.8 | [The overnight reconciliation, rehearsed over one session](TASK-08-the-overnight-reconciliation-rehearsed-over-one-session.md) | 3.8.6      | No                                    |
+| 3.8.9 | [The sweep, the hand-offs and the close](TASK-09-the-sweep-the-hand-offs-and-the-close.md)                                     | 3.8.8      | No                                    |
 
 **Task 3.8.3 carries a second visible change that costs nothing to build, and
 it is the one worth showing.** `SourceNote` already renders one stretch per

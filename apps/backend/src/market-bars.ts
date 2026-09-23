@@ -904,6 +904,79 @@ export function toStoredSeries(input: StoredSeriesInput): BarSeries {
 }
 
 /**
+ * **Which tape a served window prefers when two of them cover one minute**
+ * (Task 3.8.4, and it is the decision that task exists to take).
+ *
+ * Since ADR 0035 the store keeps both tapes, and since `0011` the key permits
+ * them, so a minute may hold two rows. `toBarSeries` refuses bars that are not
+ * **strictly** ascending by instant — it throws a `RangeError` — so without a
+ * rule the first chart request over a reconciled session is a **500 on a page
+ * load for every reader**. This is that rule.
+ *
+ * **The consolidated tape wins.** A served chart is *the best account we have
+ * of what happened*, and SIP is the full US tape where IEX is a single venue
+ * printing 65.1% of a median name's minutes (`LIVE-DATA.md` §7.6). During a
+ * session the consolidated bar does not exist yet for recent minutes, so the
+ * rule reads **prefer SIP, fall back to IEX**, and a chart drawn at 15:00
+ * legitimately changes shape once the backfill has run. That is honest rather
+ * than awkward, and the source note is what says so: the stretches are derived
+ * from the rows the answer actually contains, so they describe **what was
+ * served** and not what is stored.
+ *
+ * **The alternative that was not taken, and why keeping both rows is what
+ * makes it safe to skip.** *What was observable at the time* is the other
+ * defensible rule — `PRODUCT_SPEC.md` §22's, and Epic 13's replay will want
+ * exactly it, because a reader at 11:07 could only have seen the IEX bar. It
+ * is the **wrong** rule for an ordinary chart of last Tuesday, which should
+ * show the best history available. Both questions get a true answer only
+ * because ADR 0035 kept both rows: this preference governs {@link
+ * MarketBarsRepository.readSeries} and **nothing else**, and
+ * {@link MarketBarsRepository.readBars} still answers every row so the replay
+ * source can apply its own.
+ *
+ * A third candidate — prefer whichever tape covers more of the window — was
+ * rejected for being stable within one answer and unstable across two: a
+ * window nudged by a minute could flip tapes and redraw the whole chart.
+ *
+ * **Only the first comparison is a claim.** `sip` above `iex` is argued above.
+ * The other two are ordered so the choice is **deterministic** rather than
+ * because anything is known about their relative worth: neither should ever
+ * reach this table on a deployed store — `synthetic` is the fixture feed's and
+ * `ReplayedSeriesError` refuses a replayed series outright — and a rule that
+ * left them unordered would make `distinct on` pick arbitrarily.
+ *
+ * `satisfies Record<MarketFeed, number>` is load-bearing: a feed added to
+ * `MARKET_FEEDS` fails this build rather than silently sorting last.
+ */
+const SERVED_TAPE_RANK = {
+  sip: 0,
+  iex: 1,
+  replay: 2,
+  synthetic: 3,
+} as const satisfies Record<MarketFeed, number>;
+
+/**
+ * {@link SERVED_TAPE_RANK} as the `order by` expression `distinct on` needs.
+ *
+ * **Built from the record rather than written out**, so the two cannot drift —
+ * the same reason `valueColumns` is derived from `BAR_VALUE_COLUMNS`.
+ *
+ * **On the raw `sql` this module's header warns about**: the concern there is
+ * Epic 13's plugin being unable to rewrite a read's `observed_at` filter, and
+ * this is an `order by` expression over a column the plugin does not touch.
+ * The `where` clause beside it stays an ordinary builder predicate and remains
+ * rewritable, which is the property that matters.
+ */
+const SERVED_TAPE_ORDER: RawBuilder<number> = sql<number>`case ${sql.ref(
+  "market_bars.feed",
+)} ${sql.join(
+  Object.entries(SERVED_TAPE_RANK).map(
+    ([feed, rank]) => sql`when ${sql.lit(feed)} then ${sql.lit(rank)}`,
+  ),
+  sql` `,
+)} end`;
+
+/**
  * One contiguous run of rows on one tape — what a stored window's `BarSource`
  * is made from (Task 3.7.5).
  */
@@ -1102,6 +1175,21 @@ export interface MarketBarsRepository {
    * replay source does, and drops the tape on purpose (its own emission is
    * labelled `replay`). The series-level `feed` {@link readSeries} reports is
    * still the ledger's until Task 3.7.5 derives it from these rows.
+   *
+   * **It answers EVERY row, including two for one minute, and that is decided
+   * rather than inherited** (Task 3.8.4). {@link readSeries} reduces a minute
+   * to one bar under {@link SERVED_TAPE_RANK}; this one does not, because its
+   * one shipped caller is `replay-bar-source.ts` and a replay wants the
+   * opposite question answered. *What was observable at 11:07* is
+   * `PRODUCT_SPEC.md` §22's rule and it is the **IEX** row for a
+   * live-written session — the consolidated version did not exist yet — so a
+   * preference applied here would hand Epic 13 a bar nobody could have seen
+   * and call it history. Keeping both rows is what lets the two reads answer
+   * two questions truthfully, which is ADR 0035's whole point.
+   *
+   * **So a caller that maps these straight into `toBarSeries` will throw** on
+   * a reconciled window, and that is correct: it is asking a question this
+   * read does not answer. Use {@link readSeries}, or pick a tape.
    */
   readBars(
     symbol: Ticker,
@@ -1126,6 +1214,13 @@ export interface MarketBarsRepository {
    * its stored history; saying otherwise would be a lie about data we hold.
    *
    * `now` is used only when the answer holds no bars.
+   *
+   * **One bar a minute, since Task 3.8.4.** A minute may hold a row per tape
+   * (ADR 0035, `0011`), and this read serves the one {@link SERVED_TAPE_RANK}
+   * names — the consolidated tape where it exists, the live one where it does
+   * not. Applied in the query, before the stretches are computed, so
+   * `provenance.sources` describes **what was served** rather than what is
+   * stored. {@link readBars} deliberately does not do this.
    */
   readSeries(
     symbol: Ticker,
@@ -1519,6 +1614,21 @@ export function createMarketBarsRepository(
       const rows = await db
         .selectFrom("market_bars")
         .innerJoin("securities", "securities.id", "market_bars.security_id")
+        // **One row a minute, the fuller tape winning** (Task 3.8.4). A minute
+        // may hold two rows since ADR 0035 and `0011`, and `toBarSeries`
+        // throws on bars that are not strictly ascending — so without this the
+        // first chart request over a reconciled session is a 500 for every
+        // reader. {@link SERVED_TAPE_RANK} carries the decision and its
+        // alternatives.
+        //
+        // **In the query rather than in the mapping, and that was measured
+        // rather than assumed** (Task 3.8.4, populated store, a real two-tape
+        // window at the 9,750-bar cap): reducing here is **22.6 ms** against
+        // **43.6 ms** for carrying both rows to Node and reducing them there,
+        // because the second shape puts 19,500 rows on the wire instead of
+        // 9,750. It also keeps `toStoredSeries` a pure function of the rows it
+        // is handed rather than giving it a second job.
+        .distinctOn("market_bars.observed_at")
         .select([
           "market_bars.observed_at",
           "market_bars.open",
@@ -1531,7 +1641,8 @@ export function createMarketBarsRepository(
           // `toStoredSeries`: it becomes each stretch's `retrievedAt`.
           "market_bars.recorded_at",
           // The tape per row, from which the window's sources are derived
-          // (Task 3.7.5) — never from the ledger's `feed`.
+          // (Task 3.7.5) — never from the ledger's `feed`. With the preference
+          // above applied first, the stretches describe **what was served**.
           "market_bars.feed",
         ])
         // No filter on `securities.status`. See the interface.
@@ -1539,7 +1650,11 @@ export function createMarketBarsRepository(
         .where("market_bars.timeframe", "=", timeframe)
         .where("market_bars.observed_at", ">=", range.start)
         .where("market_bars.observed_at", "<", range.end)
+        // `distinct on` requires its expression to lead the `order by`, and
+        // the tie-break after it is what decides which row survives. The
+        // result is still ascending by instant, which `toStoredSeries` needs.
         .orderBy("market_bars.observed_at")
+        .orderBy(SERVED_TAPE_ORDER)
         .execute();
 
       const held = await coverageFor(symbol, timeframe);
