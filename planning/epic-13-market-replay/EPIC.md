@@ -157,3 +157,38 @@ Three things to pick up, in the words you will need them:
   around today's.
 - **The `status` predicate rule is unchanged** and still yours: never filter
   `securities.status` when replaying something stored.
+
+## Handed here by Task 3.8.1 — 2026-09-23: the decision was taken in your favour, and here is what it cost
+
+Story 3.7's section above said the tape was the column _what was knowable at
+11:07_ had been waiting for, and left the collision question open. **It is
+settled: both tapes are kept**
+([ADR 0035](../../docs/adr/0035-both-tapes-are-kept-and-what-a-record-is.md)).
+
+A minute of a security may hold one row per tape. The IEX bar the live stream
+observed **survives** the consolidated bar that arrives overnight — they are two
+observations of one minute by two instruments, not a bar and its correction —
+so the honest answer to _what was knowable at 11:07_ is a row in the table
+rather than an inference.
+
+**The argument that won was yours**, quoted from the record so it is not
+re-derived: an overwritten IEX bar leaves no trace the observation was ever
+made, and `PRODUCT_SPEC.md` §23's question then stops being answerable rather
+than becoming expensive.
+
+**What it cost, so you know what you are spending.** Keeping both is **+69%
+rows a year** (47.7M → 80.5M), **+6.1 GiB a year**, and takes the store's
+headroom from **~2.6 years to ~1.5** against 22.5 GiB usable. ADR 0035's
+reversal trigger is a condition — the first month the live rows outgrow the
+backfill's, or the storage alert firing early — and **the evidence that would
+defend the decision is yours to produce**: what the IEX bars are actually used
+for, once replay ships. Until then the cost is carried on the strength of the
+premise alone.
+
+**One practical note for the replay's reads.** A window may return two rows for
+one minute, and which one a chart draws is a read decision Story 3.9 takes.
+**Replay's answer is not the same one**: a chart may reasonably prefer the
+consolidated bar, and replay must prefer the tape that was **observable at the
+replay clock** — which is the IEX row for a session being replayed live-shaped,
+and the consolidated one only for instants after it arrived. That is invariant
+4 in a form the column finally makes expressible.
