@@ -541,3 +541,101 @@ of the shape that measurement rejected.
   makes the tool's most alarming line meaningless on exactly the night it
   matters. **Handed to Task 3.8.9**, which already owns `bars:check` as
   criterion 9 and has to decide whether it still answers honestly.
+
+## 10. Reading a session that is still being written (Task 3.8.6, 2026-09-23)
+
+**The store now gains a bar a minute while a reader is looking at it.** Every
+decision about serving a window was taken against a store that stopped at
+yesterday's close. Two were re-read here, and **the one the task expected to be
+broken was already right.**
+
+### Criterion 7 was met before Story 3.8 existed
+
+The task described the hazard as _an afternoon window requested at 15:00 and
+served again at 15:10 looks closed to the rule and is not_. It does not.
+`isClosedWindow` asks whether a window ends before the last **bell that has
+rung**, not before **now** — so during a session `closedThrough` is
+_yesterday's_ close and any window touching today is `no-cache`. Checked at four
+clock positions rather than argued:
+
+| clock                      | window                | verdict       |
+| -------------------------- | --------------------- | ------------- |
+| during the session, 19:00Z | today 13:30Z→19:00Z   | `no-cache`    |
+| during the session, 19:00Z | today 13:30Z→15:00Z   | `no-cache`    |
+| after the close            | today's whole session | `max-age=300` |
+| after the close            | yesterday             | `max-age=300` |
+
+And every **named** window is `no-cache` whatever it resolved to, which is what
+the frontend sends. Task 2.9.8 got this right for a reason that outlived its own
+premise.
+
+### What was actually wrong: a rolling minute that straddles the boundary
+
+`LIVE_ANSWER_TTL_MS` is the **server-side** lifetime for a window reaching into
+the live session, and its argument has two legs. The first — _a second request
+inside the same minute cannot be answered with a bar the first one could not
+have had_ — is still exactly right. The second — _this TTL is a bound on what we
+ask the vendor_ — **stopped being true with Task 3.8.3** (see §5's verdict
+below: the vendor request is gone).
+
+And the first leg does not survive contact with its own implementation. A
+rolling minute is measured from **the request**, so it straddles the boundary
+the argument appeals to:
+
+```text
+written 18:00:30   read 18:00:45  HIT
+                   read 18:01:05  HIT   <-- the 18:00 bar is in the store
+                   read 18:01:29  HIT   <-- and is not being served
+                   read 18:01:31  miss
+```
+
+**Up to 59 seconds of a chart one bar behind the store**, with nothing on it
+saying so. Harmless while the store gained nothing during a session; a defect
+the moment Task 3.8.3 made it gain a bar a minute.
+
+**The lifetime now runs to the next minute boundary.** A second request in the
+same minute is still a hit — the first leg's whole intent — and the first
+request of a new minute is a miss. What remains is a sub-second race: an entry
+written after a boundary but before that minute's bar has been stored holds
+until the next one. That window is the socket's delivery plus one 2.3 ms write,
+and it is stated rather than closed, because closing it means reading the ledger
+on every cache hit — the query the cache exists to avoid.
+
+`pnpm break a-live-answer-is-held-across-the-minute-it-changes` proves the red.
+
+### §5's reversal trigger: fired, and half of it was wrong
+
+Measured through `tailWindow` and `alpacaServableEnd`, a reader at 18:00Z asking
+for today 13:30Z→18:00Z:
+
+|                   | tail the stitch asks for | after the clamp  | metered request |
+| ----------------- | ------------------------ | ---------------- | --------------- |
+| before Task 3.8.3 | **270 min**              | 254 servable min | **yes**         |
+| after Task 3.8.3  | **1 min**                | 0 servable min   | **NONE**        |
+
+**The stitch's metered request disappears during a session** — not because the
+stitch was removed but because the store now covers everything the free plan
+would serve.
+
+**But the trigger predicted that rules 2 and 3 would stop being necessary, and
+the opposite is true of rule 2.** The 16-minute clamp is _precisely_ what turns
+the writer's one-minute tail into no request at all; removing it would restore a
+metered request on every cache miss. Rule 3's session bound stands too, because
+the live writer fills only **today** and a store stale by a week still needs it.
+
+The trigger's premise was _a stream is not a metered request and is not 16
+minutes stale_. True of the **stream** — and the stitch does not read the
+stream. It reads the **store the stream writes**, through the same provider
+seam. That is the distinction the wording missed, and it is corrected in §5.
+
+### One case left standing, with a trigger rather than a repair
+
+`max-age=300`'s tolerance rested on the **rarity** of a closed window's body
+changing. Since Task 3.8.4 the nightly reconciliation changes the **prices** of
+an already-closed window — same instants, same count, different numbers — for
+every security, every night. Not rare.
+
+It is left because it is **unreachable from this product**: `max-age` applies
+only to the **absolute** window form, and the frontend constructs only
+`{ form: "named" }`. The absolute variant exists in the type and is built
+nowhere. **Reversal trigger: the first client that sends one.**

@@ -129,6 +129,47 @@ export const CLOSED_ANSWER_TTL_MS = CLOSED_ANSWER_SECONDS * 1_000;
 export const LIVE_ANSWER_TTL_MS = 60_000;
 
 /**
+ * How long a live answer may actually be reused — **to the next minute
+ * boundary, not for a minute** (Task 3.8.6).
+ *
+ * **The reasoning above has two legs and Task 3.8.3 broke the second one.**
+ * The first — _a second request inside the same minute cannot be answered with
+ * a bar the first one could not have had_ — is still exactly right. The second
+ * was that the lifetime is *"a bound on what we ask the vendor"*, and that is
+ * no longer what it does: since the live writer fills the session, the tail the
+ * stitch asks for is about **one minute** long and falls entirely inside the
+ * free plan's withheld window, so the provider declines to make the request at
+ * all. Measured in Task 3.8.6: the tail fell from **270 minutes to 1**, and the
+ * clamp turns that one into **no request**. What is left is a lifetime that
+ * only ever stands between a reader and our own store.
+ *
+ * **And a rolling minute does not do what the first leg says.** It is measured
+ * from whenever the request happened, so it **straddles** the boundary the
+ * argument appeals to. Written at `18:00:30`, the entry is still served at
+ * `18:01:05` — by which time the store holds the `18:00` bar, because the
+ * vendor sends a minute's bar at the end of that minute (`LIVE-DATA.md` §7.7)
+ * and the writer stores it in 2.3 ms. **Up to 59 seconds of a chart one bar
+ * behind the store**, with nothing on it saying so.
+ *
+ * Aligning to the boundary keeps the first leg's intent exactly — a second
+ * request in the same minute is still a hit — and removes the straddle. What
+ * remains is a sub-second race: an entry written in the moment **after** a
+ * boundary but **before** that minute's bar has been stored holds until the
+ * next one. That window is the socket's delivery plus one 2.3 ms write, and it
+ * is stated rather than closed because closing it means reading the ledger on
+ * every cache hit, which is the query the cache exists to avoid.
+ *
+ * {@link LIVE_ANSWER_TTL_MS} remains the ceiling this can return, and is what
+ * an entry written exactly on a boundary gets.
+ */
+export function liveAnswerTtlMs(storedAt: Date): number {
+  const sinceBoundary = storedAt.getTime() % LIVE_ANSWER_TTL_MS;
+  return sinceBoundary === 0
+    ? LIVE_ANSWER_TTL_MS
+    : LIVE_ANSWER_TTL_MS - sinceBoundary;
+}
+
+/**
  * The instant every session on or before it has finished.
  *
  * The calendar answers this and a clock cannot: 16:00 is not the close on a
@@ -345,7 +386,11 @@ export function createSeriesCache(): SeriesCache {
         storedAt: now,
         ttlMs: isClosedWindow(key.range, now)
           ? CLOSED_ANSWER_TTL_MS
-          : LIVE_ANSWER_TTL_MS,
+          : // To the next minute boundary rather than for a minute — see
+            // {@link liveAnswerTtlMs}. A rolling minute straddles the boundary
+            // the argument for it appeals to, and since Task 3.8.3 the store
+            // gains a bar on that boundary.
+            liveAnswerTtlMs(now),
         bars: served.series.bars.length,
       };
 

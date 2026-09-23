@@ -491,6 +491,41 @@ this decision back rather than to absorb the cost.
 > more than the same 390 bars read from the store (§12.6). The stitch is
 > affordable as chosen.
 
+> **THE TRIGGER FIRED — evaluated in writing 2026-09-23 by Task 3.8.6, and the
+> half of it that predicted a simplification was wrong.**
+>
+> Story 3.8's live writer fills the session into the store as it happens, so
+> the tail is no longer the vendor's job. Measured through `tailWindow` and
+> `alpacaServableEnd`, a reader at 18:00Z asking for today 13:30Z→18:00Z:
+>
+> |                   | tail the stitch asks for | after rule 2's clamp | metered request |
+> | ----------------- | ------------------------ | -------------------- | --------------- |
+> | before Task 3.8.3 | **270 min**              | 254 servable min     | **yes**         |
+> | after Task 3.8.3  | **1 min**                | 0 servable min       | **NONE**        |
+>
+> **So the cost this section worried about is gone**, and the decision to
+> stitch is untouched — it simply has almost nothing left to stitch during a
+> session.
+>
+> **But rules 2 and 3 do not stop being necessary, which is what this trigger
+> predicted.** The opposite is true of rule 2: the clamp is _precisely_ what
+> turns the writer's one-minute tail into no request at all. It is doing more
+> work than before, not less, and removing it would restore a metered request
+> on every cache miss during a session — the exact cost this section was
+> written to bound. **Rule 3's bound stands too**: the live writer fills only
+> **today**, so a store stale by a week — a developer's, or any store after a
+> failed backfill — still needs the bound that stops a "last 5 sessions"
+> request becoming a multi-day fetch.
+>
+> The trigger's premise was _a stream is not a metered request and is not 16
+> minutes stale_. True of the **stream** — and the stitch does not read the
+> stream. It reads the **store the stream writes**, through the same path and
+> the same provider seam as before. That is the distinction the wording
+> missed.
+>
+> **Verdict: the stitch stays, both bounds stay, and the metered request it
+> was costed against no longer happens during a session.**
+
 **Reversal trigger, as a condition:** the tail's **source** changes when Epic 3
 has a live stream worth joining — at that point rule 2's clamp and rule 3's bound
 both stop being necessary, because a stream is not a metered request and is not
@@ -934,6 +969,43 @@ Asserted, in `routes/market-data.test.ts`: the same window asked both ways
 returns **byte-identical bodies and the same `ETag`**, with `no-cache` on one and
 `max-age=300` on the other. The difference between them is a promise about the
 future, not a difference in what was served.
+
+> **Amended 2026-09-23 by Task 3.8.6 — the store now gains bars while a reader
+> is looking at it, and what that broke was not what the task expected.**
+>
+> **What was already right.** A window reaching into the session in progress
+> was never at risk: `isClosedWindow` asks whether the window ends before the
+> last **bell that has rung**, not before _now_, so an afternoon window served
+> at 15:10 is `no-cache` — and every **named** window is `no-cache` whatever it
+> resolved to. Checked at four clock positions rather than assumed. Criterion 7
+> was met by this section's own design before Story 3.8 existed.
+>
+> **What was wrong was the SERVER-side lifetime, and only after Task 3.8.3.**
+> `LIVE_ANSWER_TTL_MS` is a **rolling** minute measured from the request, so it
+> straddles the minute boundary its own argument appeals to. Written at
+> `18:00:30` an entry was still served at `18:01:05` — by which time the store
+> holds the `18:00` bar, because the vendor sends a minute's bar at the end of
+> that minute and the live writer stores it in 2.3 ms. **Up to 59 seconds of a
+> chart one bar behind the store, with nothing on it saying so.** Harmless
+> before Story 3.8, when the store gained nothing during a session; a defect
+> the moment it did. The lifetime now runs **to the next boundary**, which
+> keeps the argument's intent — a second request in the same minute is still a
+> hit — and removes the straddle.
+>
+> **And one case this table still does not hold, recorded rather than
+> repaired.** The `max-age=300` row's tolerance rested on the rarity of the
+> things in the table above it: _"Rare; `BarWriteResult.corrected` is the only
+> trigger for noticing"_. Since Task 3.8.4 a served minute is the **preferred**
+> tape, so the nightly reconciliation changes the **prices** of an already
+> closed window — same instants, same bar count, different numbers — for
+> **every security, every night**. That is no longer rare. It is left standing
+> because it is **unreachable from this product**: `max-age` applies only to
+> the **absolute** form, and the frontend constructs only `{ form: "named" }`
+> — the absolute variant exists in the type and is built nowhere.
+> **Reversal trigger:** the first client that sends an absolute window. At that
+> point the honest options are to withdraw the row (a `304` is 0 bytes, so it
+> costs one round-trip — 2–3 ms measured on loopback) or to exclude windows the
+> backfill has not yet reconciled.
 
 **Five minutes is one number used twice** — the browser's `max-age` and the
 server-side cache's lifetime for the same answer — and it is a ceiling on how

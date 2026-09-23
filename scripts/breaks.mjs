@@ -195,6 +195,28 @@ export const BREAKS = [
     expect: "writes a `sources:` array by hand",
   },
   {
+    name: "a-live-answer-is-held-across-the-minute-it-changes",
+    proves:
+      "A chart of the session in progress is served a minute behind the store. " +
+      "The live answer's lifetime was a ROLLING minute measured from the " +
+      "request, so it straddled the boundary its own argument appealed to: " +
+      "written at :30 it was still served at the next minute's :05, by which " +
+      "time the writer had stored that minute's bar. Up to 59 seconds of a " +
+      "chart one bar behind, with nothing on it saying so.",
+    file: "apps/backend/src/series-cache.ts",
+    find: "            liveAnswerTtlMs(now),",
+    replace:
+      "            LIVE_ANSWER_TTL_MS, // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/series-cache.test.ts",
+    ],
+    expect: "expires a live window AT the minute boundary",
+  },
+  {
     name: "the-last-close-compares-one-minute-with-itself",
     proves:
       "The universe table prints a fabricated move. `readLastCloses` takes " +
