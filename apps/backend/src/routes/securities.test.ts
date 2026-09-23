@@ -109,7 +109,7 @@ function coverageFor(
       new Date("2025-09-08T13:30:00.000Z"),
       new Date("2026-09-04T20:00:00.000Z"),
     ),
-    source: { provider: "alpaca", feed: "sip" },
+    provider: "alpaca",
     barCount: 97530,
     updatedAt: new Date("2026-09-05T04:00:00.000Z"),
   };

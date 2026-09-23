@@ -1995,6 +1995,136 @@ describe("every writer stamps the tape, and no reader consults a constant (Task 
   });
 });
 
+describe("a stored window spanning two tapes produces two sources, through the merge (Task 3.7.5)", () => {
+  afterEach(clearStore);
+
+  /** The instant of the read. Distinct from anything the database will write. */
+  const readAt = new Date("2030-01-01T00:00:00.000Z");
+
+  // Criterion 2: *a stored window spanning two tapes produces two `BarSource`
+  // records, in contribution order, through `mergeSeriesProvenance`.* The
+  // window is built through the shipped writer — Task 3.7.4's accepted case,
+  // a second tape extending the held window contiguously — so these read
+  // rows the product can actually write. `pnpm break
+  // the-second-tape-is-folded-into-the-first` proves the split is read back;
+  // `pnpm invariants` holds that no `sources` array is built by hand.
+
+  it("reads a SIP session followed by an IEX session as two sources, in that order, with their counts", async () => {
+    const [session, next] = sessions(2);
+    if (session === undefined || next === undefined) {
+      throw new Error("no sessions");
+    }
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+    await repository().recordSeries(
+      seriesFor(symbol, next, {
+        count: 2,
+        source: { provider: "alpaca", feed: "iex" },
+      }),
+    );
+
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      toTimeRange(session.open, next.close),
+      readAt,
+    );
+
+    expect(series.bars).toHaveLength(5);
+    expect(
+      series.provenance.sources.map((one) => [
+        one.provider,
+        one.feed,
+        one.barCount,
+      ]),
+    ).toEqual([
+      ["alpaca", "sip", 3],
+      ["alpaca", "iex", 2],
+    ]);
+    // Each stretch's `retrievedAt` is its own batch's write, and the two
+    // batches were two transactions — so they differ, and the window does
+    // not report the older one for both.
+    const [first, second] = series.provenance.sources;
+    expect(first.retrievedAt).not.toBe(second?.retrievedAt);
+    expect(series.provenance.adjustment).toBe("raw");
+  });
+
+  it("reads the reverse order reversed", async () => {
+    const [session, next] = sessions(2);
+    if (session === undefined || next === undefined) {
+      throw new Error("no sessions");
+    }
+
+    await repository().recordSeries(
+      seriesFor(symbol, session, {
+        count: 3,
+        source: { provider: "alpaca", feed: "iex" },
+      }),
+    );
+    await repository().recordSeries(seriesFor(symbol, next, { count: 2 }));
+
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      toTimeRange(session.open, next.close),
+      readAt,
+    );
+
+    expect(series.provenance.sources.map((one) => one.feed)).toEqual([
+      "iex",
+      "sip",
+    ]);
+  });
+
+  it("reads a one-tape window as one source, exactly as before", async () => {
+    const [session, next] = sessions(2);
+    if (session === undefined || next === undefined) {
+      throw new Error("no sessions");
+    }
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+    await repository().recordSeries(seriesFor(symbol, next, { count: 2 }));
+
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      toTimeRange(session.open, next.close),
+      readAt,
+    );
+
+    const [source, ...rest] = series.provenance.sources;
+    expect(rest).toEqual([]);
+    expect(source.feed).toBe("sip");
+    expect(source.barCount).toBe(5);
+  });
+
+  it("answers only the asked window's stretches", async () => {
+    // The IEX session is stored but not asked for: the answer names one
+    // source, because the sources describe the answer and not the store.
+    const [session, next] = sessions(2);
+    if (session === undefined || next === undefined) {
+      throw new Error("no sessions");
+    }
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+    await repository().recordSeries(
+      seriesFor(symbol, next, {
+        count: 2,
+        source: { provider: "alpaca", feed: "iex" },
+      }),
+    );
+
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      toTimeRange(session.open, session.close),
+      readAt,
+    );
+
+    expect(series.provenance.sources.map((one) => one.feed)).toEqual(["sip"]);
+  });
+});
+
 describe("a replayed series never reaches the store", () => {
   afterEach(clearStore);
 
@@ -2115,7 +2245,7 @@ describe("the source the ledger stores, and the writer that keeps it true", () =
       new Date("2030-01-01T00:00:00.000Z"),
     );
 
-    expect(held?.source).toEqual({ provider: "fixture", feed: "synthetic" });
+    expect(held?.provider).toBe("fixture");
     const [source] = series.provenance.sources;
     expect(source.provider).toBe("fixture");
     expect(source.feed).toBe("synthetic");
@@ -2156,7 +2286,7 @@ describe("the source the ledger stores, and the writer that keeps it true", () =
     expect(held?.covered.start.getTime()).toBe(session.open.getTime());
     expect(held?.covered.end.getTime()).toBe(next.close.getTime());
     expect(held?.barCount).toBe(5);
-    expect(held?.source.provider).toBe("alpaca");
+    expect(held?.provider).toBe("alpaca");
 
     // The bars carry both tapes, in contribution order, read from the rows.
     const stored = await repository().readBars(
@@ -2175,7 +2305,10 @@ describe("the source the ledger stores, and the writer that keeps it true", () =
     // And the ledger's `feed` is the tape the window was OPENED with, not
     // relabelled and not the truth about the window — `TAPE.md` §7 says why
     // it is still there and who reads it until Task 3.7.5.
-    expect(held?.source.feed).toBe("sip");
+    const opened = await db().query<{ feed: string }>(
+      "select feed from bar_coverage",
+    );
+    expect(opened.rows.map((row) => row.feed)).toEqual(["sip"]);
   });
 
   it("still refuses a second tape that leaves a session unfetched — the refusal that stands is contiguity", async () => {
@@ -2223,7 +2356,7 @@ describe("the source the ledger stores, and the writer that keeps it true", () =
 
     expect(await fingerprint("market_bars", BARS_FINGERPRINT)).toBe(before);
     const held = await repository().readCoverage(symbol, "1m");
-    expect(held?.source).toEqual(STORED_SOURCE);
+    expect(held?.provider).toBe(STORED_SOURCE.provider);
     expect(held?.barCount).toBe(3);
   });
 

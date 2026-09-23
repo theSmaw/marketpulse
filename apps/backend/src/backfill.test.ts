@@ -215,7 +215,7 @@ function coverageOf(symbol: Ticker, covered: TimeRange): BarCoverage {
     symbol,
     timeframe: "1m",
     covered,
-    source: { provider: "alpaca", feed: "sip" },
+    provider: "alpaca",
     barCount: 1,
     updatedAt: new Date("2026-03-07T00:00:00.000Z"),
   };
