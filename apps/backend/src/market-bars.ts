@@ -1755,6 +1755,16 @@ async function writeBatch(
         .select("observed_at")
         .where("security_id", "=", securityId)
         .where("timeframe", "=", timeframe)
+        // **On this tape, since `0011` — and leaving it out was a real
+        // defect rather than a tidiness.** This set answers *was this minute
+        // already here?*, which decides `inserted` against `corrected`, and
+        // `inserted` is what `extendCoverage` adds to the ledger's
+        // `bar_count`. Once a minute can hold one row per tape, a genuine
+        // insert on a second tape matches an existing row on the first, gets
+        // counted as a correction, and the ledger **under-reports** — one of
+        // the two silent failures this module's header exists to prevent.
+        // Found by the test that asserts two tapes coexist (Task 3.8.2).
+        .where("feed", "=", feed)
         .where("observed_at", ">=", first.startsAt)
         .where("observed_at", "<=", last.startsAt)
         .execute()
@@ -1782,21 +1792,26 @@ async function writeBatch(
     )
     .onConflict((oc) =>
       oc
-        .columns(["security_id", "timeframe", "observed_at"])
-        // **`feed` is deliberately absent from this set, and from the
-        // comparison below — the conflict rule as it stands on 2026-09-22,
-        // which is Story 3.8's to replace rather than this task's to decide.**
-        // The unique key is `(security_id, timeframe, observed_at)` and does
-        // not include the tape, so a bar re-stored from a different tape is a
-        // conflict; today the existing row's tape wins in both branches — the
-        // same numbers write nothing, different numbers move the numbers and
-        // `recorded_at` and leave the tape as it was. `MarketBarsTable.feed`'s
-        // update type is `never`, which is what makes that a compile-time
-        // rule rather than an omission. Through the shipped writers the case
-        // is unreachable anyway: `recordSeries` refuses a source that
-        // disagrees with the ledger row it would extend (`ForeignSourceError`),
-        // and Story 3.8's three shapes are about exactly that refusal.
-        // `TAPE.md` §6 records it; `market-bars.database.test.ts` asserts it.
+        // **The tape is part of the key since `0011` (ADR 0035, Task 3.8.2).**
+        // A minute of a security may hold one row per tape, because a stored
+        // bar is a record of an observation rather than a cache of the best
+        // available number — so the IEX bar the live stream saw and the
+        // consolidated bar the backfill fetched are two rows, and neither is
+        // the other's correction.
+        //
+        // **These four columns must match a unique index exactly**, or
+        // Postgres refuses the statement with *there is no unique or exclusion
+        // constraint matching the ON CONFLICT specification*. They match
+        // `market_bars_unique_bar`, and `market-bars.database.test.ts` reads
+        // that constraint back from the catalogue so the two cannot drift.
+        //
+        // **What still conflicts is a re-store on the SAME tape**, which is
+        // the idempotent re-run and the correction: the same numbers write
+        // nothing (the `where` below), different numbers move the numbers and
+        // `recorded_at`. `feed` is absent from the update set because
+        // `MarketBarsTable.feed`'s update type is `never` — a bar's tape is
+        // where it was observed and does not change (`TAPE.md` §6).
+        .columns(["security_id", "timeframe", "observed_at", "feed"])
         .doUpdateSet((eb) => ({
           open: eb.ref("excluded.open"),
           high: eb.ref("excluded.high"),

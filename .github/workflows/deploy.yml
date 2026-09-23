@@ -283,6 +283,66 @@ jobs:
       # `IDENTITY_ENDPOINT`, which does not exist on a runner, so here `az`
       # mints it. `entra` mode names the sidecar path specifically, so claiming
       # it here would be a lie the pool would then act on.
+      # -----------------------------------------------------------------
+      # THE INDEX BUILD THAT CANNOT FIT INSIDE A MIGRATION (Task 3.8.2).
+      #
+      # `pnpm migrate` below gets 120 seconds and runs inside Kysely's single
+      # transaction. Both are deliberate, and together they forbid one thing
+      # Story 3.8 needs: a unique index over `market_bars`, which is 49.8
+      # million rows on this instance. One pass over its heap at the tier's
+      # 10 MiB/s is ~508 s (ADR 0034), and `create index concurrently` cannot
+      # run inside a transaction block at all.
+      #
+      # So the build happens HERE, concurrently, and the migration only adopts
+      # the finished index. Measured on the populated local store
+      # (48.8 M rows): the concurrent build **42.9 s**, the migration that
+      # adopts it **0.6 s**, and this step on a database that already has it
+      # **0.4 s** — a catalogue query, which is what it is on every deploy
+      # after the first.
+      #
+      # **It runs before the migration and not after**, because the migration
+      # adopts what it builds. If this step is skipped the migration builds
+      # inline instead (`create unique index if not exists`), which is 30.7 s
+      # on a laptop and minutes on this tier — it would blow the 120 s ceiling
+      # and the deploy would stop with nothing applied and no code rolled.
+      # That is the safe direction, and it is why this step is not allowed to
+      # be optional rather than why it is allowed to be forgotten.
+      #
+      # Its own timeout is generous rather than absent: a concurrent build is
+      # minutes and must be allowed to finish, but a build that has hung is
+      # still a build that should stop. Reads and writes continue throughout —
+      # `SHARE UPDATE EXCLUSIVE` — so the nightly backfill is not blocked.
+      - name: Prepare the indexes a migration cannot build
+        env:
+          DATABASE_HOST: psql-marketpulse-dev.postgres.database.azure.com
+          DATABASE_PORT: "5432"
+          DATABASE_NAME: marketpulse
+          DATABASE_USER: marketpulse-github-deploy
+          DATABASE_AUTH: password
+          DATABASE_SSL: verify-full
+        run: |
+          set -euo pipefail
+
+          pnpm --filter @marketpulse/backend build
+
+          DATABASE_PASSWORD="$(az account get-access-token \
+            --resource https://ossrdbms-aad.database.windows.net \
+            --query accessToken -o tsv)"
+          echo "::add-mask::$DATABASE_PASSWORD"
+          export DATABASE_PASSWORD
+
+          status=0
+          timeout 1800 pnpm index:prepare || status=$?
+
+          if [ "$status" -ne 0 ]; then
+            if [ "$status" -eq 124 ]; then
+              echo "::error::a concurrent index build did not finish inside 30 minutes. It holds SHARE UPDATE EXCLUSIVE, so it blocks nothing — check pg_stat_progress_create_index for its phase before assuming it hung. Nothing was migrated by this run."
+            else
+              echo "::error::preparing the indexes failed, and the migration did not run. The database is as it was; an INVALID leftover index is dropped and rebuilt automatically, so a repeat is a different fault."
+            fi
+            exit "$status"
+          fi
+
       - name: Migrate the deployed database
         env:
           DATABASE_HOST: psql-marketpulse-dev.postgres.database.azure.com

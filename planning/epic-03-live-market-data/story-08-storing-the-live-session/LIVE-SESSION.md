@@ -127,7 +127,65 @@ half:
   and the thing to assert is not only that the reconciliation behaves, but that
   **the backfill asked at all**.
 
-## 4. The read path REFUSES two rows for one minute, and that made a ninth task
+## 4. The key — what a row is unique by, and what the store can hold now (Task 3.8.2, 2026-09-23)
+
+**`market_bars_unique_bar` is `(security_id, timeframe, observed_at, feed)`**
+since `0011_market_bars_unique_bar_by_tape.sql`. A minute of a security may
+hold one row per tape. `0004_market_bars.sql` argued the three-column key
+deliberately, on a premise true when it was written — _a backfilled historical
+bar is final_ — and ADR 0035 is its amendment.
+
+**The measurements that decided how it ships**, on the populated local store
+(48,797,343 rows; the deployed table is **49,796,479**):
+
+| Step                                          |               Cost | Lock held while it runs                  |
+| --------------------------------------------- | -----------------: | ---------------------------------------- |
+| Build the index **non**-concurrently          |             37.3 s | `SHARE` — reads yes, writes no           |
+| Build it **concurrently**                     |             42.3 s | `SHARE UPDATE EXCLUSIVE` — both continue |
+| **Adopt** a built index as the constraint     |             0.11 s | catalogue only                           |
+| `pnpm index:prepare` then `pnpm migrate`      | 42.9 s + **0.6 s** | —                                        |
+| `pnpm migrate` alone, the step skipped        |             30.7 s | —                                        |
+| `pnpm migrate` on `marketpulse_bare` (0 rows) |             0.47 s | —                                        |
+| `pnpm index:prepare` with nothing to do       |              0.4 s | —                                        |
+
+**So the build is a deploy step and the migration only adopts it.** Against
+`deploy.yml`'s `timeout 120` the migration has a **200× margin**; a build
+inside it would not fit on the deployed tier, where one pass over the heap is
+~508 s at 10 MiB/s (ADR 0034). `migrations/README.md` §9 is the convention this
+established.
+
+**The index got smaller, which pays part of ADR 0035's bill.** The old
+three-column index was **2,969 MB**; the fresh four-column one is **2,311 MB**,
+because the old one carried years of backfill-upsert bloat. `market_bars` went
+from **9,097 MB to 8,439 MB** — a **658 MB reclaim** on a migration that added
+a column to a key.
+
+**The old writer does not survive the deploy window, and that was demonstrated
+rather than assumed.** `ON CONFLICT (security_id, timeframe, observed_at)`
+needs a unique index on exactly those columns; after `0011` there is none. Run
+verbatim against a migrated store:
+
+```text
+ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+```
+
+**Why that is narrow here**: the only caller of `recordSeries` in the tree is
+`backfill.ts`, which runs from a GitHub runner with its own checkout and build.
+The deployed backend never writes bars. So the exposure is a backfill run
+**already in flight** when the deploy lands — a ten-minute job twice a day —
+and it fails loudly, writes nothing, and is correct on its next run.
+
+**One defect the new key exposed, found by a test rather than by review.**
+`writeBatch`'s pre-read that decides `inserted` against `corrected` was not
+scoped to the tape, so a genuine insert on a second tape matched the first
+tape's row, was counted as a **correction**, and never reached
+`extendCoverage`'s `bar_count`. The ledger would have under-reported — one of
+the two silent failures `market-bars.ts` exists to prevent — with nothing on
+any screen to see it. `pnpm break the-presence-check-forgets-the-tape` is what
+holds it now, and `migrations/README.md` §9 carries the general form: **when a
+key gains a column, grep for every query that assumed the old one.**
+
+## 5. The read path REFUSES two rows for one minute, and that made a ninth task
 
 **Found 2026-09-23, the same day the decision was taken, by checking what the
 read path does rather than what it prefers.** Keeping both tapes makes a minute
@@ -161,7 +219,7 @@ Task 3.8.4 shipping, a local store with a live-written session that is then
 backfilled will 500 on that window. Do not run `pnpm backfill` over a
 live-written session in that window, or rebuild the store.
 
-## 5. What a green `pnpm test:database` will certify about this, and what it will not
+## 6. What a green `pnpm test:database` will certify about this, and what it will not
 
 Nothing yet: this task wrote a decision, not a mechanism. The sections above are
 what the later tasks are held to, and each will add its own row here.

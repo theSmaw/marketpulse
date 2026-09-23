@@ -31,6 +31,7 @@
     "coverage:check": "node scripts/check-backfill-coverage.mjs",
     "ready": "node scripts/check-ready.mjs",
     "db": "node scripts/local-database.mjs",
+    "index:prepare": "node scripts/prepare-indexes.mjs",
     "migrate": "node scripts/run-migrations.mjs",
     "universe": "node scripts/load-universe.mjs",
     "universe:check": "node scripts/check-universe.mjs",
