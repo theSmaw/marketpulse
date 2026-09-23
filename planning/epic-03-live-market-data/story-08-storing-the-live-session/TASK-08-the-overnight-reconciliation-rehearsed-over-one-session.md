@@ -40,10 +40,40 @@ make safe.
 ## What to watch for, named in advance
 
 - **A minute neither tape covers** is not a defect and must not be reported as
-  one: IEX's median minute coverage is 82.8% and SIP's 99.7%, and `BARS.md`
+  one: **live** IEX's median minute coverage is **65.1%**, worst case 2.1%
+  (`LIVE-DATA.md` §7.6, measured on the stream), and SIP's is 99.7%; `BARS.md`
   measured that only 8 of 28 S&P 500 constituents print a full 390 minutes.
+
+  **The figure above was wrong until 2026-09-23** — it read _IEX's median
+  minute coverage is 82.8%_, which is `ALPACA.md` §5.2's measurement of the
+  **stored** `feed=iex` REST endpoint, struck for the live feed by §7.6 on
+  2026-09-16. It matters here more than anywhere: this rehearsal counts the
+  minutes the two tapes disagree about, and **a third of a median name's
+  minutes are missing from the live tape rather than a sixth.** Sizing the
+  expected gap from 82.8% would have made a correct reconciliation look
+  broken.
+
 - **A minute both cover with different numbers** is the interesting one, and
   what happens to it is exactly 3.8.1's decision. Count them.
+- **The ledger's `covered_end` on the DAILY rows is holding a wall clock, and
+  it is yours** — handed here 2026-09-23 by Task 3.8.3, which met it by
+  accident. Every `1d` row read `2026-09-14T00:04:38.533Z`, milliseconds and
+  all: the moment the backfill ran, not an instant in the market. The `1m` rows
+  were honest. `covered_end` is a market-time column sitting on the same row as
+  `recorded_at`, which is the confusion `DATA-LAYER.md` separates the two to
+  prevent — and it is **the column `planRequests` and `commonCoverage` read to
+  decide what to fetch**, which is this task's whole subject. Find the writer
+  that sets it (the backfill's daily path is the candidate), say whether the
+  value is deliberate, and either correct it or record why a wall clock belongs
+  there. Nothing on any screen shows it. `STORY.md` carries the same hand-off.
+- **What the live writer claims, which is what makes the backfill ask at all.**
+  3.8.3 settled it: `seriesFor()` claims `[first.startsAt, last.startsAt + 1
+minute)` and never the session close, so `covered_end` lags the session by
+  design. Confirmed against a real ledger — thirty `iex` bars from
+  `13:30:00Z` moved it to `14:00:00Z` and no further. **Assert that the
+  backfill asked**, which is criterion 5's un-fudgeable half, and assert it
+  against a `commonCoverage` intersection that is the earliest of 518 lagging
+  ends rather than against one symbol's.
 - **The ledger's own claim** after both runs: one contiguous window, a bar count
   that agrees with the rows, and a `provider` that did not change.
   **Assert the bar count against `count(*)` rather than reading it**, added

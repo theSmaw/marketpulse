@@ -37,6 +37,33 @@ and stated the consequence of not fixing it in terms this task should not soften
   first question is where the store learns about a revision at all: today the
   gateway broadcasts `currentMarketState.observe(...)`'s **return value**, which
   is deliberately the filtered list.
+
+  **The seam has a shape now, added 2026-09-23 by Task 3.8.3**, and it is
+  three lines in `index.ts`:
+
+  ```ts
+  const applied = currentMarketState.observe(observations);
+  gateway.publishObservations(applied);
+  void liveBarWriter.store(applied).then(…);
+  ```
+
+  So the writer is a **second consumer of the same filtered list** rather than
+  of the raw one, and that was deliberate: 3.8.3 recorded that widening its
+  input _would have taken this task's decision in passing_. The change you
+  make is `store(applied)` → the raw list, or a second call carrying the
+  revisions the filter dropped — and the reason it is yours is that `applied`
+  is what makes the store and every open browser agree by construction. Say
+  what replaces that guarantee.
+
+  **Two warnings that cost real time in 3.8.3.** `the-live-stream-loses-its-consumer`
+  is anchored on the first of those three lines, and its substitution has to
+  **remove the `observe` call** rather than re-spell the broadcast — re-pointing
+  it at `publishObservations` leaves `currentMarketState.observe(` on the line
+  above, the invariant still passes and the break goes red for the wrong
+  reason, which the harness says in as many words. And `live-bar-writer.ts`'s
+  header states the applied-list rule twice; a change here that leaves it
+  standing is a comment that has become false in the file it governs.
+
 - **A correction moves the numbers and not the tape**, which is 3.7.3's rule and
   a compile-time one: `MarketBarsTable.feed`'s update type is `never`. A
   revision that arrives on the same tape is an ordinary correction; one that

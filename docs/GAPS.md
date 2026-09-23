@@ -488,6 +488,33 @@ DATABASE_NAME=marketpulse_bare pnpm dev     # then run the spec against it
 
 If it passes there and fails against your own store, **the store is the subject**. **Owner: a condition** — the first browser spec that asserts on a figure whose presence depends on a window having data.
 
+**Fired again 2026-09-23 — and the second half of that diagnosis was wrong, which is the part worth keeping.**
+Task 3.8.3's full `pnpm e2e` came back `1 failed, 141 passed` on the same spec,
+the same two narrow viewports and the same 90 px. The two commands above were
+run before anything was believed, and they worked: green on `marketpulse_bare`,
+red on a store seven sessions stale whose `1D` answers 0 bars and `1M` answers
+5,460. The change under test had touched no frontend, shared or route file and
+nothing on the read path, which pointed the same way.
+
+**All of that was true and the conclusion drawn from it was still wrong.** The
+store was the _trigger_; it was not the _defect_. `Figures` returned `null` in
+every state with no readable series, so the block left the layout and the
+chart, the window control and everything under them moved 90 px whenever an
+answer with bars replaced one without — a real defect, on any store, reachable
+by any reader who presses a window a security has no bars in. It had been read
+as data twice because the store is what varies between the machines that see
+it. **Repaired in that task** (a hidden reservation, plus an `8ch` column on
+the close so the wrap stops depending on the price's glyph count), and the spec
+now passes on both store shapes.
+
+So the entry keeps its procedure and loses its example. The rule it was written
+for stands: **run the two commands before believing a browser failure.** What
+this adds is the step after them — _green on bare and red on yours_ narrows the
+subject to something the data reaches; **it does not establish that the product
+is correct.** A layout whose height depends on the data is a defect that only
+one of the two stores can show you, and it looks exactly like a store problem
+from the outside.
+
 ## A migration on `market_bars` waits for as long as the longest open transaction, and every reader of that table waits behind it
 
 **Added 2026-09-23 by Task 3.7.6, from a rehearsal rather than an argument.**

@@ -5366,3 +5366,105 @@ stylesheet rather than through a word.
 
 So `.railBlock` is the name for what the two settled rails actually share: a
 rule that does not move. `.refreshing` keeps `march`, and keeps meaning it.
+
+## 83. The figures' reservation, and the column that made it exact — 2026-09-23
+
+**Found by Task 3.8.3, which was not looking for it**, and mis-read as a
+data problem twice before it was read correctly.
+
+### What was wrong
+
+`Figures` returned `null` in the four states with no readable series —
+`loading`, `empty`, `refused`, `failed` — and the whole block left the layout
+with it. `.reading` is the row that carries the close, the four prices and,
+in its right-hand column, **the window control**. So the block's absence was
+not a gap above the chart; it was **everything below it moving**.
+
+Measured on a populated store at 1024, empty window against populated:
+
+|                    | `.reading` | control |
+| ------------------ | ---------- | ------- |
+| a window with bars | 182 px     | y = 450 |
+| a window with none | 92 px      | y = 360 |
+
+**The control moving is the worse half.** §75 put the control in this row
+precisely because it belongs beside the numbers it changes, and the cost nobody
+priced is that it then inherits the row's height. A reader presses `1D`, the
+answer comes back with no bars, and the segmented control they are about to
+press again jumps 90 px out from under the pointer.
+
+`security-window-change.spec.ts` has asserted _pressing a window does not move
+the chart_ since §72 and it caught this — but only on a store where one window
+is empty and another is not, which is a developer's and not CI's, where every
+window is a correct `empty` and nothing moves because nothing is ever present.
+
+### The second defect, underneath the first
+
+`.reading` wraps. Whether the price strip sits **beside** the close or **under**
+it was therefore decided by how wide the close was — and `.close` sets
+`font-variant-numeric: tabular-nums`, which fixes the width of a digit and says
+nothing about how many digits there are. At 1024 the strip fits beside a
+three-glyph price and does not fit beside a four-glyph one: **30 px of panel
+height between two securities, or between two windows of one security whose
+close crossed 100.**
+
+Nothing had seen it because the one screen anybody photographs is NVDA at a
+price that has had four digits throughout.
+
+### The repair, both halves
+
+**A reservation, and it is this file's own idiom rather than a new one.**
+`.rail` has laid out a hidden copy of its worst sentence since §72 for exactly
+this reason, and its comment is the argument: a hidden copy is _"the only form
+of reservation that survives a sentence that wraps at 390px and does not at
+1440"_, and a height token would be _"a measurement of one viewport declared as
+a constant"_. `.figuresSizer` is that idiom's second consumer, one row up.
+
+`visibility: hidden` and `aria-hidden`, which is what keeps **ADR 0029**: a
+row reading `1D OPEN —` would be a fully-formed figures block about a window
+with no bars, which is the false impression that ADR forbids. A reservation
+makes no claim at all — it occupies the room the real one will and says
+nothing.
+
+**And an `8ch` column on `.close`**, which is what makes the reservation
+_exact_ rather than generous. It is the tabular-figures decision carried one
+step further: with every digit one `ch`, `8ch` is _eight glyphs of this font at
+this size_ rather than a guess in pixels, and it covers `99999.99`. With the
+column fixed, the wrap is a property of the viewport alone, the reservation can
+be **blank**, and the change chip stops dancing horizontally between
+securities.
+
+### Why an exact reservation is possible at all
+
+Measured at four viewports: the price strip is **42 px at every width** and does
+not wrap, and the headline is **32 px**. So the block's height is a function of
+the _viewport_ — 52 px at 1440 where the strip fits beside the close, 82 px
+below that where it goes under — and **not of the values in it**. If
+`MetricStrip` ever wraps, that stops being true and the reservation has to hold
+the widest case instead; that is written beside the rule.
+
+After, at all four viewports, empty against populated: **52/52, 82/82, 82/82,
+82/82**, with the control at the same `y` in both. `pnpm e2e` passes on **both**
+store shapes.
+
+### The reservation's labels are blank, and that is a test constraint
+
+They would honestly be `Open`/`High`/`Low`/`Close`, and they cannot be: a hidden
+`dt` reading `Open` is still matched by `getByText`, so the spec's _"the panel
+has settled on an answer"_ locator would resolve to the reservation and then
+fail `toBeVisible()` — the fix wedging the test that caught the defect. Blank
+labels have the same line box and the same height, and `MetricStrip` keys on the
+label, so they differ by a count of spaces nothing can see.
+
+### What this cost to diagnose, which is the transferable part
+
+It was recorded as `docs/GAPS.md`'s known stale-store entry first, and the
+entry's re-measure supported that reading: green on `marketpulse_bare`, red on a
+store seven sessions stale, and a diff that touched no frontend file. Every one
+of those was true and the conclusion was still wrong.
+
+**_Green on bare and red on yours_ narrows the subject to something the data
+reaches. It does not establish that the product is correct.** A layout whose
+height depends on the data is a defect only one of the two stores can show you,
+and from the outside it is indistinguishable from a store problem. That step is
+now written into the `GAPS.md` entry.

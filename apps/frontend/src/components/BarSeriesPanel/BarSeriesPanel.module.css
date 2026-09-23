@@ -478,6 +478,27 @@
   /* The column-holding property Story 1.4 measured at a 14.3 px spread across
      three same-length figures. It matters more at display size, not less. */
   font-variant-numeric: tabular-nums;
+  /*
+   * **A column wide enough for any price this panel can hold** (Task 3.8.3),
+   * and it is the same argument as the line above it carried one step further.
+   *
+   * `tabular-nums` fixes the width of a digit; it does nothing about how many
+   * digits there are. `.reading` is a wrapping flex row, so whether the price
+   * strip sits *beside* this figure or *under* it was decided by the number of
+   * glyphs in today's close — which made the panel 30 px taller at 1024 for a
+   * four-digit price than for a three-digit one, moving the chart and the
+   * window control with it. A layout that changes height because a stock
+   * crossed 100 is a layout measured on one security.
+   *
+   * `ch` is exact here because of the declaration above: with tabular figures
+   * every digit is one `ch`, so this is *eight glyphs of this font at this
+   * size* rather than a guess in pixels. Eight covers `99999.99`, which is
+   * comfortably past the widest close in the tracked universe.
+   *
+   * It is also why the reservation in `BarSeriesPanel.tsx` can be blank: the
+   * width it reserves is this rule's, not its content's.
+   */
+  min-width: 8ch;
 }
 
 .headlineChange {
@@ -706,4 +727,19 @@
   to {
     opacity: 0.55;
   }
+}
+
+/*
+ * **The figures' reservation** (Task 3.8.3): the block laid out and hidden, so
+ * the chart and the window control do not move 90 px when an answer with bars
+ * replaces one without.
+ *
+ * `visibility: hidden` rather than `display: none`, which is the entire point,
+ * and `pointer-events: none` so a hidden figure cannot take a click meant for
+ * the control beside it. The same two lines as `.railSizer`, for the same
+ * reason, one row further up.
+ */
+.figuresSizer {
+  visibility: hidden;
+  pointer-events: none;
 }

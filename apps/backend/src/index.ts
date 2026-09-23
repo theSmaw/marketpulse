@@ -31,6 +31,7 @@ import {
 import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
 import { ReplayDuringSessionError } from "./replay-stream.js";
 import { resolveMarketData } from "./market-data.js";
+import { createLiveBarWriter } from "./live-bar-writer.js";
 import { createMarketBarsRepository } from "./market-bars.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
 import { createMarketDataRoutes } from "./routes/market-data.js";
@@ -701,6 +702,17 @@ if (marketStream === undefined) {
 } else {
   const stream = marketStream;
 
+  // **The store's half of the live session** (Story 3.8, Task 3.8.3). It takes
+  // its own repository handle rather than sharing the read path's, which is
+  // `market-bars.ts`'s seam rule: a caller depends on the questions it can ask
+  // and never on a handle.
+  const liveBarWriter = createLiveBarWriter({
+    bars: createMarketBarsRepository(database),
+    warn: (fields, message) => {
+      app.log.warn(fields, message);
+    },
+  });
+
   const unsubscribe = stream.subscribe(STREAM_SYMBOLS, {
     // **The state writes first, and the gateway publishes what it applied.**
     //
@@ -713,7 +725,41 @@ if (marketStream === undefined) {
     // Single-sourced **by construction rather than by agreement**: there is no
     // path from the socket to a browser that does not pass through the state.
     onObservations: (observations) => {
-      gateway.publishObservations(currentMarketState.observe(observations));
+      const applied = currentMarketState.observe(observations);
+      gateway.publishObservations(applied);
+
+      // **And then the store — after the broadcast, never before it.** Story
+      // 3.8's writer: the same applied list a browser receives becomes rows in
+      // `market_bars`, so a page reloaded mid-session reads today from the
+      // store rather than rebuilding from the socket (`LIVE-SESSION.md`).
+      //
+      // **`void` rather than `await`, and the rejection handled rather than
+      // hoped away.** This callback belongs to the socket: awaiting a database
+      // round trip here would hold up every browser's price for the length of
+      // it, and an unhandled rejection would take the process down on a
+      // liveness-probed platform. The writer catches per security already;
+      // this is the second net, for the failure that is the pool rather than
+      // the series.
+      void liveBarWriter.store(applied).then(
+        (report) => {
+          if (report.inserted + report.corrected > 0) {
+            app.log.debug(
+              {
+                securities: report.securities,
+                inserted: report.inserted,
+                corrected: report.corrected,
+                unchanged: report.unchanged,
+                pending: report.pending,
+                elapsedMs: report.elapsedMs,
+              },
+              "live bars stored",
+            );
+          }
+        },
+        (error: unknown) => {
+          app.log.warn({ err: error }, "live bar write failed");
+        },
+      );
     },
     onConnectionChange: (connection) => {
       app.log.debug(

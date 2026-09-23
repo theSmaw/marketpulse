@@ -611,22 +611,17 @@ export class ReplayedSeriesError extends Error {
  *   a window already filled from a real feed, which
  *   `backfill.database.test.ts` produces on purpose by passing the fixture
  *   provider as a dependency.
- * - **`overlap`** — the series' window overlaps the held one and the bars in
- *   the overlap carry **another tape**. The unique key on `market_bars` does
- *   not include the tape, so writing through would reach the conflict rule
- *   Task 3.7.3 pinned as **Story 3.8's decision** — the existing row's tape
- *   wins, and different numbers move the numbers and leave the label. Until
- *   3.8 lifts this, an IEX series re-stored over SIP bars is refused before
- *   a row is touched rather than written under a `sip` label.
+ * **A third reason, `overlap`, was removed on 2026-09-23 by Task 3.8.3** — the
+ * story it was being kept for. It refused a series overlapping stored bars
+ * from another tape, because the key did not carry the tape and writing
+ * through would have relabelled a row. `0011` put the tape in the key and
+ * ADR 0035 decided both tapes are kept, so that write is now a second row:
+ * the outcome the refusal existed to protect rather than the one it
+ * prevented.
  */
 export type ForeignSourceReason =
   | { readonly kind: "stitched" }
-  | { readonly kind: "provider"; readonly held: ProviderId }
-  | {
-      readonly kind: "overlap";
-      readonly overlap: TimeRange;
-      readonly heldTapes: readonly MarketFeed[];
-    };
+  | { readonly kind: "provider"; readonly held: ProviderId };
 
 export class ForeignSourceError extends Error {
   readonly provider: ProviderId;
@@ -673,17 +668,6 @@ function describeForeignSource(
         `the only place a window's provider is written, and it can name one. ` +
         `A second tape from the SAME provider is accepted; a second provider ` +
         `is not.`
-      );
-    case "overlap":
-      return (
-        `${series} came from the ${feed} tape and overlaps stored bars from ` +
-        `${reason.heldTapes.join(", ")} between ` +
-        `${reason.overlap.start.toISOString()} and ` +
-        `${reason.overlap.end.toISOString()}. Writing through would meet ` +
-        `the per-row conflict rule as it stands — the existing row keeps its ` +
-        `tape and takes the new numbers — and what happens when two tapes ` +
-        `meet on one minute is Story 3.8's decision, not this writer's. ` +
-        `Extend the window from another tape; do not overwrite it.`
       );
   }
 }
@@ -1446,41 +1430,14 @@ export function createMarketBarsRepository(
             );
           }
 
-          // And a series that **overlaps** the held window is refused if the
-          // stored bars in the overlap carry another tape — read from the
-          // rows, never from the ledger's `feed`. This is the guard in front
-          // of the per-row conflict rule Task 3.7.3 kept as Story 3.8's to
-          // decide; a same-tape overlap is the idempotent re-run or a
-          // correction, as it always was. `pnpm break
-          // a-second-tape-overwrites-the-first`.
-          const overlapStart = later(arriving.start, held.covered_start);
-          const overlapEnd = earlier(arriving.end, held.covered_end);
-          if (overlapStart < overlapEnd) {
-            const foreign = await trx
-              .selectFrom("market_bars")
-              .select("feed")
-              .distinct()
-              .where("security_id", "=", securityId)
-              .where("timeframe", "=", timeframe)
-              .where("observed_at", ">=", overlapStart)
-              .where("observed_at", "<", overlapEnd)
-              .where("feed", "!=", source.feed)
-              .execute();
-
-            if (foreign.length > 0) {
-              throw new ForeignSourceError(
-                symbol,
-                timeframe,
-                source.provider,
-                source.feed,
-                {
-                  kind: "overlap",
-                  overlap: toTimeRange(overlapStart, overlapEnd),
-                  heldTapes: foreign.map((row) => row.feed),
-                },
-              );
-            }
-          }
+          // **The overlap refusal was lifted here, by the story it was kept
+          // for.** Task 3.7.4 refused a series overlapping stored bars from
+          // another tape, because the key did not include the tape and
+          // writing through would have given the existing row the new
+          // numbers under the old label. ADR 0035 decided both tapes are
+          // kept and `0011` put the tape in the key, so the same write is
+          // now a **second row** — which is the outcome the refusal was
+          // protecting, not the one it was preventing. `TAPE.md` §7.
         }
 
         let inserted = 0;

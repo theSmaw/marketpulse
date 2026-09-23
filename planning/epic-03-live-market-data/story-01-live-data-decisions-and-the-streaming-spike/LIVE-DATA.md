@@ -248,8 +248,11 @@ Recorded in [`EPIC.md`](../EPIC.md) and not re-argued here:
   sentence claiming something about **the market** rather than about our store.
   True while every bar is the consolidated tape; a single venue's silence
   reported as the whole market's the moment it is not — and an absent bar is
-  **ordinary** on IEX (82.8% median minute coverage against 99.7% on SIP, worst
-  case 43.1%) and **notable** on SIP. Stories 3.9 and 3.10.
+  **ordinary** on IEX (**65.1% median minute coverage against 99.7% on SIP,
+  worst case 2.1%** — corrected 2026-09-23; this read _82.8% … worst case
+  43.1%_, which are §5.2's **stored** figures, and §7.6 struck them for the
+  live feed on 2026-09-16) and **notable** on SIP. The correction makes this
+  sentence's point harder rather than softer. Stories 3.9 and 3.10.
 
 ### 1.12 The design test this epic was handed by name
 
@@ -472,8 +475,10 @@ without an observation before a feed is `stale`, and how long before it is
 
 **Why this is hard rather than a constant.** The quietest legitimate interval on
 a minute-bar feed **is a minute** (§2.1), so any threshold under ~60 s marks a
-healthy feed stale. And on IEX an **absent bar is ordinary** — 82.8% median
-minute coverage, worst case 43.1% — so a per-security threshold and a per-feed
+healthy feed stale. And on IEX an **absent bar is ordinary** — **65.1% median
+minute coverage, worst case 2.1%** (corrected 2026-09-23 from §5.2's _stored_
+82.8% / 43.1%, struck for the live feed by §7.6 on 2026-09-16; the threshold
+argument below only gets stronger) — so a per-security threshold and a per-feed
 threshold are genuinely different claims. A security with no bar for four
 minutes may be a silent security on a working feed; the feed being silent for
 four minutes across 518 securities is not.

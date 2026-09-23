@@ -61,6 +61,8 @@ import {
   type SeriesSource,
   type StoredBar,
 } from "./market-bars.js";
+import { createLiveBarWriter } from "./live-bar-writer.js";
+import type { LiveObservation } from "./market-data-stream.js";
 import { runMigrations } from "./migrate.js";
 import type { BarCoverageTable, MarketBarsTable } from "./schema.js";
 
@@ -2163,6 +2165,172 @@ describe("a stored window spanning two tapes produces two sources, through the m
   });
 });
 
+describe("the live writer, against a real store (Task 3.8.3)", () => {
+  afterEach(clearStore);
+
+  /** 2026-09-11 is the newest session the local store holds; this is inside it. */
+  const liveMinute = Date.parse("2026-09-11T14:30:00.000Z");
+  const afterTheMinute = liveMinute + 5 * 60_000;
+
+  function liveObservation(startsAt: number, close = 100.5): LiveObservation {
+    return {
+      symbol,
+      bar: {
+        startsAt: new Date(startsAt),
+        open: 100,
+        high: 101,
+        low: 99,
+        close,
+        volume: 1_000,
+      },
+      source: {
+        provider: "alpaca",
+        feed: "iex",
+        retrievedAt: "2026-09-11T14:31:00.000Z",
+        barCount: 1,
+      },
+      supersedes: false,
+    };
+  }
+
+  const writer = () =>
+    createLiveBarWriter({
+      bars: repository(),
+      warn: () => undefined,
+      now: () => afterTheMinute,
+    });
+
+  it("stores a socket bar with its tape, and the ledger agrees — criterion 1", async () => {
+    const report = await writer().store([liveObservation(liveMinute)]);
+
+    expect(report).toMatchObject({ securities: 1, inserted: 1, pending: 0 });
+
+    const stored = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(new Date(liveMinute), new Date(liveMinute + 60_000)),
+    );
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.feed).toBe("iex");
+
+    // **The instant is the bar's own, exactly** — criterion 6. `observed_at`
+    // has no default precisely so this cannot silently become the write time,
+    // and a live bar is the first row where the two differ by seconds.
+    expect(stored[0]?.bar.startsAt.getTime()).toBe(liveMinute);
+
+    const held = await repository().readCoverage(symbol, "1m");
+    expect(held?.barCount).toBe(1);
+    expect(held?.provider).toBe("alpaca");
+  });
+
+  it("claims only the minutes it holds, so the backfill still asks for the session", async () => {
+    // The ledger's end is the last bar plus one minute — never the session
+    // close, which would make `planRequests` skip the session for ever
+    // (`LIVE-SESSION.md` §3).
+    await writer().store([
+      liveObservation(liveMinute),
+      liveObservation(liveMinute + 60_000),
+    ]);
+
+    const held = await repository().readCoverage(symbol, "1m");
+    expect(held?.covered.start.getTime()).toBe(liveMinute);
+    expect(held?.covered.end.getTime()).toBe(liveMinute + 2 * 60_000);
+
+    // And emphatically not the session's close, which is hours later.
+    expect(held?.covered.end.getTime()).toBeLessThan(
+      Date.parse("2026-09-11T20:00:00.000Z"),
+    );
+  });
+
+  it("stores the same bar twice as one row and no error — criterion 3", async () => {
+    const first = await writer().store([liveObservation(liveMinute)]);
+    const again = await writer().store([liveObservation(liveMinute)]);
+
+    expect(first.inserted).toBe(1);
+    expect(again).toMatchObject({ inserted: 0, corrected: 0, unchanged: 1 });
+    expect(again.refused.size).toBe(0);
+
+    const rows = await db().query<{ count: string }>(
+      "select count(*) as count from market_bars",
+    );
+    expect(rows.rows[0]?.count).toBe("1");
+  });
+
+  it("applies a revision for the minute it holds, as a correction rather than a second row", async () => {
+    await writer().store([liveObservation(liveMinute, 100.5)]);
+    const revised = await writer().store([
+      { ...liveObservation(liveMinute, 222.25), supersedes: true },
+    ]);
+
+    expect(revised).toMatchObject({ inserted: 0, corrected: 1, unchanged: 0 });
+
+    const stored = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(new Date(liveMinute), new Date(liveMinute + 60_000)),
+    );
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.bar.close).toBe(222.25);
+    // The numbers moved and the tape did not — `MarketBarsTable.feed`'s
+    // update type is `never` and this is that rule met by the live path.
+    expect(stored[0]?.feed).toBe("iex");
+  });
+
+  it("re-subscribing after a restart replays bars without a second row or a throw", async () => {
+    // The third idempotence case: a restart re-subscribes and the feed sends
+    // the minutes it has, which are the ones already written.
+    const batch = [
+      liveObservation(liveMinute),
+      liveObservation(liveMinute + 60_000),
+      liveObservation(liveMinute + 120_000),
+    ];
+
+    await writer().store(batch);
+    const replayed = await writer().store(batch);
+
+    expect(replayed).toMatchObject({ inserted: 0, unchanged: 3 });
+    expect(replayed.refused.size).toBe(0);
+    expect((await repository().readCoverage(symbol, "1m"))?.barCount).toBe(3);
+  });
+
+  it("stores beside the consolidated tape rather than fighting it", async () => {
+    // ADR 0035, end to end through the shipped writer: the backfill's SIP bar
+    // and the socket's IEX bar for one minute are two rows, each with its own
+    // numbers. The overlap refusal that used to prevent this was lifted by
+    // this task, because `0011` made the outcome a second row.
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+    const [only] = sessionBars(session, 1);
+    if (only === undefined) throw new Error("no bar");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 1 }));
+
+    const stored = await createLiveBarWriter({
+      bars: repository(),
+      warn: () => undefined,
+      now: () => only.startsAt.getTime() + 5 * 60_000,
+    }).store([
+      {
+        ...liveObservation(only.startsAt.getTime(), 999.75),
+        bar: { ...only, close: 999.75 },
+      },
+    ]);
+
+    expect(stored).toMatchObject({ inserted: 1, refused: new Map() });
+
+    const both = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(session.open, session.close),
+    );
+    expect(both.map((entry) => entry.feed).sort()).toEqual(["iex", "sip"]);
+    expect(both.find((entry) => entry.feed === "iex")?.bar.close).toBe(999.75);
+    expect(both.find((entry) => entry.feed === "sip")?.bar.close).toBe(
+      only.close,
+    );
+  });
+});
+
 describe("a replayed series never reaches the store", () => {
   afterEach(clearStore);
 
@@ -2398,41 +2566,45 @@ describe("the source the ledger stores, and the writer that keeps it true", () =
     expect(held?.barCount).toBe(3);
   });
 
-  it("refuses a second tape OVERLAPPING stored bars, and leaves every row's tape as it was — Story 3.8's to lift", async () => {
-    // The unique key does not include the tape, so an IEX series re-stored
-    // over SIP bars would meet the per-row conflict rule Task 3.7.3 kept as
-    // Story 3.8's decision — the existing row keeps its label and takes the
-    // new numbers. This guard stands in front of that until 3.8 decides.
+  it("ACCEPTS a second tape overlapping stored bars, since 0011 makes it a second row", async () => {
+    // **This asserted the opposite until 2026-09-23, and said so.** Task
+    // 3.7.4 refused an overlapping series from another tape because the key
+    // did not carry the tape, so writing through would have given the stored
+    // row the new numbers under the old label — and it named Story 3.8 as the
+    // one that would lift it. `0011` put the tape in the key and ADR 0035
+    // decided both tapes are kept, so the write is now a second row: the
+    // outcome the refusal was protecting rather than the one it prevented.
     const [session] = sessions(1);
     if (session === undefined) throw new Error("no session");
 
     await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
-    const before = await fingerprint("market_bars", BARS_FINGERPRINT);
 
-    // Same session, other tape, DIFFERENT numbers — the overwrite that must
-    // not happen in passing.
-    const refused = repository().recordSeries(
+    const accepted = await repository().recordSeries(
       seriesFor(symbol, session, {
         count: 3,
         nudge: 1,
         source: { provider: "alpaca", feed: "iex" },
       }),
     );
-    await expect(refused).rejects.toThrow(ForeignSourceError);
-    await expect(refused).rejects.toMatchObject({
-      reason: { kind: "overlap", heldTapes: ["sip"] },
-    });
 
-    // Numbers, tapes and the ledger exactly as they were.
-    expect(await fingerprint("market_bars", BARS_FINGERPRINT)).toBe(before);
+    expect(accepted).toMatchObject({ inserted: 3, corrected: 0, unchanged: 0 });
+
     const stored = await repository().readBars(
       symbol,
       "1m",
       toTimeRange(session.open, session.close),
     );
-    expect(stored.map((entry) => entry.feed)).toEqual(["sip", "sip", "sip"]);
-    expect(barsOf(stored)).toEqual(sessionBars(session, 3));
-    expect((await repository().readCoverage(symbol, "1m"))?.barCount).toBe(3);
+    expect(stored).toHaveLength(6);
+    expect(stored.filter((entry) => entry.feed === "sip")).toHaveLength(3);
+    expect(stored.filter((entry) => entry.feed === "iex")).toHaveLength(3);
+
+    // The SIP rows kept the numbers they were stored with: a second tape is
+    // not a correction of the first.
+    expect(
+      stored
+        .filter((entry) => entry.feed === "sip")
+        .map((entry) => entry.bar.close),
+    ).toEqual(sessionBars(session, 3).map((one) => one.close));
   });
 
   it("still accepts a same-tape overlap — the idempotent re-run and the correction are unchanged", async () => {

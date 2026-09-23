@@ -147,27 +147,17 @@ export const BREAKS = [
     ],
     expect: "reads back with `synthetic` on every bar",
   },
-  {
-    name: "a-second-tape-overwrites-the-first",
-    proves:
-      "An IEX series overlapping stored SIP bars is refused before a row is " +
-      "touched. Without the guard the write reaches the per-row conflict " +
-      "rule as it stands \u2014 the existing row keeps its `sip` label and " +
-      "takes IEX's numbers \u2014 which is Story 3.8's decision taken in " +
-      "passing (Task 3.7.4). Needs a database, so it lives outside `verify`.",
-    file: "apps/backend/src/market-bars.ts",
-    find: "            if (foreign.length > 0) {",
-    replace:
-      "            if (foreign.length < 0) { // pnpm break: reverted automatically",
-    command: [
-      "pnpm",
-      "--filter",
-      "@marketpulse/backend",
-      "test:database",
-      "src/market-bars.database.test.ts",
-    ],
-    expect: "OVERLAPPING stored bars",
-  },
+  // **Retired 2026-09-23 by Task 3.8.3, and this note is the record.** The
+  // entry here proved the OVERLAP refusal: an IEX series overlapping stored SIP
+  // bars was rejected before a row was touched. Task 3.7.4 wrote it saying the
+  // refusal existed so that Story 3.8's decision would not be taken in passing.
+  // Story 3.8 then took that decision deliberately — `0011` makes a second tape
+  // a second ROW rather than a collision, so the overlap is now the point of
+  // the column and the refusal is gone from `ForeignSourceReason`. A break
+  // whose defect is no longer a defect is deleted rather than repointed. The
+  // two refusals that remain, `stitched` and `provider`, keep their own
+  // entries; `the-second-tape-is-folded-into-the-first` below still holds the
+  // read side.
   {
     name: "the-second-tape-is-folded-into-the-first",
     proves:
@@ -203,6 +193,29 @@ export const BREAKS = [
       "    : ({ adjustment: first.adjustment, sources: [first.sources[0], second.sources[0], ...more.map((p) => p.sources[0])] } as SeriesProvenance); // pnpm break: reverted automatically",
     command: ["pnpm", "invariants"],
     expect: "writes a `sources:` array by hand",
+  },
+  {
+    name: "the-live-writer-claims-the-whole-session",
+    proves:
+      "The live writer's ledger claim ends at the last bar it holds. Claim " +
+      "more and `planRequests` finds the session WHOLLY INSIDE the covered " +
+      "window and skips it \u2014 so tonight's backfill never fetches the " +
+      "consolidated version and the store keeps a thin one-venue session " +
+      "permanently, with no collision, no error and nothing on any screen " +
+      "(Task 3.8.1's finding, Task 3.8.3's decision). Needs a database, so " +
+      "it lives outside `verify`.",
+    file: "apps/backend/src/live-bar-writer.ts",
+    find: "    new Date(last.bar.startsAt.getTime() + MINUTE_MS),",
+    replace:
+      "    new Date(last.bar.startsAt.getTime() + 8 * 60 * MINUTE_MS), // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "claims only the minutes it holds",
   },
   {
     name: "the-tape-leaves-the-conflict-target",
@@ -1255,6 +1268,30 @@ export const BREAKS = [
     expect: "subscribe to the market stream",
   },
   {
+    name: "the-figures-lose-their-reservation",
+    proves:
+      "The chart and the window control move 90 px when an answer with bars " +
+      "replaces one without. `Figures` returned `null` in the four states " +
+      "with no readable series until Task 3.8.3, so `.reading` collapsed and " +
+      "everything under it rose \u2014 including the segmented control the " +
+      "reader has just pressed. jsdom computes no layout, so the unit half " +
+      "asserts the structure the height depends on; the browser half is " +
+      "`security-window-change.spec.ts`.",
+    file: "apps/frontend/src/components/BarSeriesPanel/BarSeriesPanel.tsx",
+    find: "  if (series === null) return <FiguresReservation />;",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  if (series === null) return null;",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "BarSeriesPanel",
+    ],
+    expect: "keeps one figures strip in every state",
+  },
+  {
     name: "the-live-stream-loses-its-consumer",
     proves:
       "The process discards every live observation again \u2014 the state this " +
@@ -1269,10 +1306,20 @@ export const BREAKS = [
     // nobody is testing. The new form is also a better regression than the old
     // one: it broadcasts the RAW batch instead of what the state applied,
     // which is precisely the divergence this task removed.
-    find: "      gateway.publishObservations(currentMarketState.observe(observations));",
+    //
+    // **Re-anchored again by Task 3.8.3, and the anchor MOVED rather than
+    // being re-spelled.** That task split the call in two so the live bar
+    // writer could take the applied list. Re-pointing at the broadcast line
+    // alone would have left `currentMarketState.observe(` on the line above —
+    // still present, so the invariant would still have passed and the break
+    // would have gone red only on `every-break-can-still-land`. A break that
+    // fails for the wrong reason proves nothing, which the harness says in as
+    // many words. So the substitution now removes the `observe` call itself,
+    // which is the wiring the invariant is about.
+    find: "      const applied = currentMarketState.observe(observations);",
     replace:
       "      // pnpm break: reverted automatically\n" +
-      "      gateway.publishObservations(observations);",
+      "      const applied = observations;",
     command: ["pnpm", "invariants"],
     expect: "does not feed the market stream",
   },

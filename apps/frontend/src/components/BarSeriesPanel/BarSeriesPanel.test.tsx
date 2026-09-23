@@ -118,6 +118,48 @@ describe("BarSeriesPanel", () => {
     }
   });
 
+  // **The figures keep their room in every state** (Task 3.8.3).
+  //
+  // `Figures` returned `null` in the four states with no readable series, so
+  // the whole block left the layout and the chart, the window control and
+  // everything under them rose by 90 px the moment an answer with bars
+  // replaced one without. The control moving is the worse half: it is what the
+  // reader has just pressed and is about to press again.
+  //
+  // jsdom computes no layout, so this asserts the *structure* the height
+  // depends on — one metric strip in every state, real or reserved — and
+  // `security-window-change.spec.ts` asserts the pixels in a browser, which is
+  // the only place they exist. Both halves are needed: this one goes red if
+  // the reservation is deleted, and that one goes red if it stops matching.
+  it("keeps one figures strip in every state, so nothing below it can move", () => {
+    // One readable state and the three unreadable ones a reader can sit in.
+    for (const name of [
+      "full",
+      "empty",
+      "refusedCap",
+      "unavailable",
+    ] as const) {
+      const { container, unmount } = render(
+        <Panel {...props} view={barSeriesFixtureView(name)} />,
+      );
+      expect(container.querySelectorAll("dl")).toHaveLength(1);
+      unmount();
+    }
+  });
+
+  // The other half of the same decision, and the reason it is a reservation
+  // rather than a row of em-dashes: ADR 0029 makes a fully-formed record about
+  // zero bars a false impression rather than a courtesy. A reader must meet
+  // nothing at all.
+  it("says nothing through the reservation, in the states that have no figures", () => {
+    const { unmount } = render(
+      <Panel {...props} view={barSeriesFixtureView("empty")} />,
+    );
+    expect(screen.queryByText(/Open$/u, VISIBLE)).toBeNull();
+    expect(screen.queryByText(/Close$/u, VISIBLE)).toBeNull();
+    unmount();
+  });
+
   it("states no window figures of its own, because three surfaces already do", () => {
     // **2026-09-14 took four blocks off this panel**: the coverage sentence, the
     // `Asked for` / `Held` / `Bars` / `First → last` list, the chart's resting
