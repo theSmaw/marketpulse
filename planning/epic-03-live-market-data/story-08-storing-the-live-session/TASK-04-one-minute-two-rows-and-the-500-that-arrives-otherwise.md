@@ -36,10 +36,24 @@ all.
 `0011_market_bars_unique_bar_by_tape.sql` put the tape in
 `market_bars_unique_bar`, so **two rows for one minute are now something the
 database will accept** — before Task 3.8.2 the old three-column key made this
-task's failure impossible to produce at all. It is still not reachable through
-any shipped writer (the overlap refusal stands, and `pnpm backfill` only ever
-asks Alpaca for `sip`), so the 500 arrives with Story 3.8's own writer and its
-first reconciliation, exactly as described below.
+task's failure impossible to produce at all.
+
+**Amended 2026-09-23 by Task 3.8.3: this is no longer a hazard in waiting, it
+is reachable today.** The paragraph here used to end _it is still not reachable
+through any shipped writer (the overlap refusal stands …)_. Both halves of that
+have gone. **The overlap refusal is lifted** — `ForeignSourceReason` has two
+members now, `stitched` and `provider` — and **a shipped writer puts `iex` bars
+into `market_bars` every minute the market is open**, because
+`live-bar-writer.ts` is wired into the deployed backend. So the two-row state
+needs no instrument to produce: one live session plus one `pnpm backfill` over
+it, which is what the nightly cron does, and the next chart request for that
+window is a **500 for every reader**.
+
+**What that changes for this task:** nothing in its design, and everything
+about its urgency. It is the next task rather than a later one, and the window
+it is open in is a real one rather than a theoretical one — see the hazard
+below, which is now live on any store that has had both writers over one
+session.
 
 ## Why this is its own task and not a line in the writer's
 
@@ -49,11 +63,13 @@ bars into a window the backfill has not filled, so there are no duplicates and
 backfill stores the consolidated version of the same minutes — which is the
 moment Task 3.8.1 was created to make deliberate.
 
-**A hazard between the two tasks, stated so it is not discovered.** Between
-3.8.3 landing and this task landing, a local store that has both a live-written
+**A hazard between the two tasks, stated so it is not discovered — and OPEN
+since 2026-09-23.** 3.8.3 has landed, so a store that has both a live-written
 session and a backfill run over it **will 500 on that window**. Do not run
-`pnpm backfill` over a live-written session in that window, or rebuild the store
-if you do.
+`pnpm backfill` over a live-written session until this task lands, and rebuild
+the store if you do. On the **deployed** store the clock is the nightly cron:
+the first night after a session the live writer has filled is when this
+arrives.
 
 ## The decision this task takes
 

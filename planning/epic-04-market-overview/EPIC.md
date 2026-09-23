@@ -36,13 +36,23 @@ universe, and Epic 2 measured three things that make such an aggregate
 recorded here because each lives in a document this epic has no reason to open.
 
 - **A live breadth number is computed over a feed that is missing bars.** The
-  free Alpaca plan's live stream is **IEX only**, and IEX minute coverage is
-  **82.8% median, 43.1% worst case** (`CCI`) against **99.7%** on consolidated
-  SIP — `ALPACA.md` §5.2, measured 2026-09-07. An absent bar is **ordinary** on
-  IEX and **notable** on SIP. `UNIVERSE.md` calls this **breadth pollution** and
+  free Alpaca plan's live stream is **IEX only**, and **live** IEX minute
+  coverage is **65.1% median, 2.1% worst case** (`ERIE`) against **99.7%** on
+  consolidated SIP — `LIVE-DATA.md` §7.6, measured first-hand on the stream,
+  2026-09-16. An absent bar is **ordinary** on IEX and **notable** on SIP.
+
+  **Corrected 2026-09-23, and the correction makes this warning bigger rather
+  than smaller.** This read _82.8% median, 43.1% worst case (`CCI`)_ and cited
+  `ALPACA.md` §5.2 — which is a real measurement of the **stored** `feed=iex`
+  REST endpoint and not of the live stream. §7.6 struck it for the live feed on
+  2026-09-16 and nothing propagated the strike here. So the denominator problem
+  below is **worse than this paragraph claimed**: a median name is missing about
+  a **third** of its minutes on the live feed, not a sixth, and the worst name
+  is missing **98%** of them rather than 57%. `UNIVERSE.md` calls this **breadth pollution** and
   names it a live concern for the stream and close to a non-issue for stored
   bars. So "how many securities are negative right now" has a denominator
   question in it: a name with no recent IEX bar is not a name that did not move.
+
 - **The sector SPDRs hold S&P 500 constituents only.** A tracked equity outside
   the index has a sector, has a benchmark, and is **not a constituent of that
   benchmark** (`UNIVERSE.md` §5). That is fine for a relative-move comparison

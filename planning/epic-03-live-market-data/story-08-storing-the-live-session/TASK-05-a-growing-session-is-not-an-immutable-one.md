@@ -31,6 +31,16 @@ requested at 15:00 and served again at 15:10 — looks closed to the rule and is
 not. Five minutes of freshness over a series growing every minute is a stale
 chart with a valid validator.
 
+**And since 2026-09-23 there is a concrete thing to key on.** Task 3.8.3
+settled that the live writer claims `[first.startsAt, last.startsAt + 1
+minute)` and never the session close, so **`bar_coverage.covered_end` advances
+once a minute for every security the feed is carrying** — confirmed against a
+real ledger. That makes _is this window still growing_ a question the store can
+answer rather than one the clock has to guess: a window whose end is at or past
+the ledger's `covered_end` is one the writer has not finished. Whether the
+validator should read it is this task's to decide; that it is readable is not
+in doubt.
+
 **2. The stitch's bound, whose reversal trigger has fired.**
 `MARKET-DATA-API.md` §5 recorded: _the tail's **source** changes when Epic 3 has
 a live stream worth joining — at that point rule 2's clamp and rule 3's bound
