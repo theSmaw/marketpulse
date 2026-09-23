@@ -1369,6 +1369,29 @@ export const BREAKS = [
     expect: "keeps one figures strip in every state",
   },
   {
+    name: "bars-check-calls-a-reconciled-session-a-fault",
+    proves:
+      "`pnpm bars:check` puts a red line under every security on the night " +
+      "its output matters most. `bar_coverage.bar_count` counts ROWS, and " +
+      "since ADR 0035 a minute may hold one per tape \u2014 measured at 430 " +
+      "rows over a 390-minute session in Task 3.8.9's rehearsal. At a " +
+      "threshold of one row a minute, a correctly reconciled session is " +
+      "reported as an invariant violation: the tool's loudest line, firing on " +
+      "the thing the whole story was built to make safe.",
+    file: "apps/backend/src/bar-completeness.ts",
+    find: "const MAX_ROWS_PER_MINUTE = 2;",
+    replace:
+      "const MAX_ROWS_PER_MINUTE = 1; // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/bar-completeness.test.ts",
+    ],
+    expect: "says nothing about a session reconciled from two tapes",
+  },
+  {
     name: "the-store-claims-one-securitys-frontier-as-its-own",
     proves:
       "The universe summary promises a date 178 securities do not reach. " +

@@ -24,7 +24,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   marketSessionsBetween,
   toMarketDate,
+  toSeriesProvenance,
   toTicker,
+  toTimeRange,
   type MarketSession,
   type Ticker,
 } from "@marketpulse/shared";
@@ -32,6 +34,8 @@ import {
 import { runBackfill, type BackfillDependencies } from "./backfill.js";
 import { loadConfig, loadEnvFile } from "./config.js";
 import { createFixtureProvider } from "./fixture-provider.js";
+import { createLiveBarWriter } from "./live-bar-writer.js";
+import type { LiveObservation } from "./market-data-stream.js";
 import { loadUniverse } from "./load-universe.js";
 import {
   createBarAttemptsRepository,
@@ -353,5 +357,281 @@ describe("an interrupted backfill", () => {
     // vendor at the point a real key is used. What this test holds is the half
     // a store can: whatever came back was filed where the calendar says it
     // belongs.
+  });
+});
+
+// **The overnight reconciliation, rehearsed over one session** (Task 3.8.9).
+//
+// Criterion 5, and it is written to be un-fudgeable: both writers fill the same
+// table for the same minutes, in the real order, and the rehearsal reads what a
+// user would meet rather than what the command reports about itself.
+//
+// **What stands in for what, stated rather than implied.** The bars are the
+// fixture corpus's and the clock is the test's; the LABELS are production's —
+// the live half writes `alpaca`/`iex` exactly as `live-bar-writer.ts` does from
+// the socket, and the backfill half is the real `runBackfill` behind a provider
+// declaring `alpaca`/`sip`. So `planRequests`, `recordSeries`, `extendCoverage`
+// and `readSeries` are all the shipped ones, and the tapes rank as they do in
+// production. What is simulated is the data, not the path.
+describe("the overnight reconciliation, over one session (Task 3.8.9)", () => {
+  const SESSION = SESSIONS.at(-1);
+
+  /** The consolidated tape, as the nightly run would see it. */
+  function consolidatedProvider() {
+    const fixture = createFixtureProvider();
+    const asSip = (result: Awaited<ReturnType<typeof fixture.fetchBars>>) =>
+      result.outcome === "ok"
+        ? {
+            ...result,
+            series: {
+              ...result.series,
+              provenance: toSeriesProvenance("raw", {
+                provider: "alpaca" as const,
+                feed: "sip" as const,
+                retrievedAt: result.series.provenance.sources[0].retrievedAt,
+                barCount: result.series.bars.length,
+              }),
+            },
+          }
+        : result;
+
+    return {
+      ...fixture,
+      id: "alpaca" as const,
+      feed: "sip" as const,
+      fetchBars: async (...args: Parameters<typeof fixture.fetchBars>) =>
+        asSip(await fixture.fetchBars(...args)),
+      // **`fetchManyBars` too, and forgetting it was the first failure.**
+      // `runBackfill` calls the batched one, so wrapping only `fetchBars` left
+      // the run using the fixture's own `fixture`/`synthetic` provenance — and
+      // the store refused it with a `ForeignSourceError` naming a second
+      // PROVIDER, which is Task 3.7.4's refusal doing exactly its job.
+      fetchManyBars: async (
+        ...args: Parameters<typeof fixture.fetchManyBars>
+      ) =>
+        new Map(
+          [...(await fixture.fetchManyBars(...args))].map(
+            ([symbol, result]) => [symbol, asSip(result)] as const,
+          ),
+        ),
+    };
+  }
+
+  /** One minute of the session, on the live tape, as the socket delivers it. */
+  const liveMinute = (index: number): LiveObservation => {
+    if (SESSION === undefined) throw new Error("no session");
+    const startsAt = new Date(SESSION.open.getTime() + index * 60_000);
+    const close = 100 + index * 0.25;
+    return {
+      symbol: SYMBOL,
+      supersedes: false,
+      bar: {
+        startsAt,
+        open: close - 0.5,
+        high: close + 0.5,
+        low: close - 1,
+        close,
+        volume: 5_000 + index,
+      },
+      source: {
+        provider: "alpaca",
+        feed: "iex",
+        retrievedAt: "2026-03-04T21:00:00.000Z",
+        barCount: 1,
+      },
+    };
+  };
+
+  it("asks, keeps both tapes, serves the consolidated one, and leaves a ledger that agrees with its rows", async () => {
+    if (SESSION === undefined) throw new Error("no session");
+
+    // **This file's tests share one store and run in order**, so this one
+    // starts from empty rather than from whatever the walk above left. It is
+    // last in the file for the same reason.
+    await db().query("truncate market_bars, bar_coverage, bar_attempts");
+
+    // ---- The live session, written as it happened ---------------------------
+    const writer = createLiveBarWriter({
+      bars: repository(),
+      warn: () => undefined,
+      now: () => SESSION.close.getTime(),
+    });
+    const LIVE_MINUTES = 40;
+    const live = await writer.store(
+      Array.from({ length: LIVE_MINUTES }, (_, index) => liveMinute(index)),
+    );
+    expect(live.inserted).toBe(LIVE_MINUTES);
+
+    const beforeReconciliation = await fingerprint();
+
+    // ---- Then the nightly run, over the same session -------------------------
+    const report = await runBackfill(
+      await dependencies({
+        provider: consolidatedProvider(),
+        sessions: [SESSION],
+        coverage: await coverageMap(),
+      }),
+    );
+
+    // **The first assertion is not about the rows. It is about the REQUEST.**
+    // `planRequests` skips a session wholly inside the covered window, so a
+    // live writer that claimed the whole session would make this run report
+    // `0 fetches, 1 already held` and store nothing — correctly by its own
+    // rules and wrongly for the product. A run that fetched nothing looks
+    // identical to one that reconciled perfectly. Task 3.8.3 claims only up to
+    // the last bar seen precisely so that this number is not zero.
+    expect(report.requests).toBeGreaterThan(0);
+    expect(report.sessionsFetched).toBe(1);
+    expect(report.sessionsAlreadyHeld).toBe(0);
+
+    // Something happened. A count would hide a replacement; the fingerprint
+    // covers every stored bar and the ledger.
+    expect(await fingerprint()).not.toBe(beforeReconciliation);
+
+    // ---- What the table holds ------------------------------------------------
+    const tapes = await db().query<{ feed: string; held: string }>(
+      `select feed, count(*)::text as held from market_bars
+        where timeframe = '1m' group by feed order by feed`,
+    );
+    const held = new Map(
+      tapes.rows.map((row) => [row.feed, Number(row.held)] as const),
+    );
+    expect(held.get("iex")).toBe(LIVE_MINUTES);
+    expect(held.get("sip") ?? 0).toBeGreaterThan(0);
+
+    const doubled = await db().query<{ minutes: string }>(
+      `select count(*)::text as minutes from (
+         select observed_at from market_bars where timeframe = '1m'
+          group by observed_at having count(*) > 1) t`,
+    );
+    const doublyCovered = Number(doubled.rows[0]?.minutes ?? "0");
+    // **A minute both tapes cover is the interesting one.** Counted rather
+    // than assumed, and non-zero is what makes the rest of this test mean
+    // anything.
+    expect(doublyCovered).toBeGreaterThan(0);
+
+    // ---- What a reader is served --------------------------------------------
+    const { series } = await repository().readSeries(
+      SYMBOL,
+      "1m",
+      toTimeRange(SESSION.open, SESSION.close),
+      new Date(),
+    );
+
+    // One bar a minute, which is Task 3.8.4's repair holding under volume.
+    const instants = series.bars.map((one) => one.startsAt.getTime());
+    expect(new Set(instants).size).toBe(instants.length);
+
+    // **Two-sided, as the task asks.** Counting rows would pass against a read
+    // that served the wrong tape. The live tape's prices are 100 + index/4 and
+    // the fixture corpus's are not, so a served bar carrying a live price on a
+    // doubly-covered minute is visible here.
+    const liveCloses = new Set(
+      Array.from({ length: LIVE_MINUTES }, (_, index) => 100 + index * 0.25),
+    );
+    const doublyCoveredInstants = new Set(
+      (
+        await db().query<{ observed_at: Date }>(
+          `select observed_at from market_bars where timeframe = '1m'
+            group by observed_at having count(*) > 1`,
+        )
+      ).rows.map((row) => row.observed_at.getTime()),
+    );
+    const servedFromLiveWhereBothExist = series.bars.filter(
+      (bar) =>
+        doublyCoveredInstants.has(bar.startsAt.getTime()) &&
+        liveCloses.has(bar.close),
+    );
+    expect(servedFromLiveWhereBothExist).toHaveLength(0);
+
+    // ---- What the note says --------------------------------------------------
+    //
+    // `provenance.sources` describes **what was served**, not what is stored.
+    // So the live tape's count here is the minutes the consolidated tape did
+    // not reach — never the number of `iex` rows in the table. Asserting the
+    // DIFFERENCE rather than the equality, because equality is what a
+    // regression would produce.
+    const namedLive = series.provenance.sources
+      .filter((source) => source.feed === "iex")
+      .reduce((total, source) => total + source.barCount, 0);
+    expect(namedLive).toBeLessThan(LIVE_MINUTES);
+    expect(namedLive).toBe(LIVE_MINUTES - doublyCovered);
+
+    // ---- What the ledger claims ---------------------------------------------
+    const ledger = (await coverageMap()).get(SYMBOL);
+    expect(ledger).toBeDefined();
+    expect(ledger?.provider).toBe("alpaca");
+
+    // **The bar count against `count(*)`, not read on its own.** Task 3.8.2
+    // found the writer's presence check unscoped to the tape, which made a
+    // genuine insert count as a correction and never reach `extendCoverage` —
+    // the ledger under-reports and nothing says so. A reconciliation is the
+    // first place two tapes meet in volume, so it is the first place a
+    // residual version of that defect would show. The two numbers agreeing is
+    // the assertion; either one alone is not.
+    expect(ledger?.barCount).toBe(await barCount());
+  });
+
+  // **The shape production actually reaches, and the one a user meets.** The
+  // test above reconciles a session the consolidated fetch covers completely,
+  // so every live minute has a better version and the note names ONE source.
+  // That is correct and it is not the whole story: the live writer keeps
+  // extended-hours bars (Task 3.8.3), and the backfill asks per SESSION — so
+  // the minutes outside the bell are the live tape's alone, for ever. Those
+  // are the minutes the note's live count is about.
+  it("names both tapes when the live one reached minutes the session fetch never covers", async () => {
+    if (SESSION === undefined) throw new Error("no session");
+    await db().query("truncate market_bars, bar_coverage, bar_attempts");
+
+    const writer = createLiveBarWriter({
+      bars: repository(),
+      warn: () => undefined,
+      now: () => SESSION.close.getTime(),
+    });
+
+    // Ten minutes of pre-market, then ten inside the session.
+    const PRE_MARKET = 10;
+    await writer.store([
+      ...Array.from({ length: PRE_MARKET }, (_, index) =>
+        liveMinute(index - PRE_MARKET),
+      ),
+      ...Array.from({ length: 10 }, (_, index) => liveMinute(index)),
+    ]);
+
+    await runBackfill(
+      await dependencies({
+        provider: consolidatedProvider(),
+        sessions: [SESSION],
+        coverage: await coverageMap(),
+      }),
+    );
+
+    const { series } = await repository().readSeries(
+      SYMBOL,
+      "1m",
+      toTimeRange(
+        new Date(SESSION.open.getTime() - PRE_MARKET * 60_000),
+        SESSION.close,
+      ),
+      new Date(),
+    );
+
+    // **In contribution order, which is what the source note draws.** The
+    // pre-market run is the live tape's alone and comes first; the session is
+    // the consolidated tape's.
+    expect(
+      series.provenance.sources.map((source) => [source.feed, source.barCount]),
+    ).toEqual([
+      ["iex", PRE_MARKET],
+      ["sip", 390],
+    ]);
+
+    // And the live count in the note is the minutes the consolidated tape did
+    // not reach — not the 20 live rows the table holds.
+    const liveRows = await db().query<{ held: string }>(
+      "select count(*)::text as held from market_bars where feed = 'iex'",
+    );
+    expect(Number(liveRows.rows[0]?.held)).toBe(PRE_MARKET + 10);
+    expect(series.provenance.sources[0].barCount).toBe(PRE_MARKET);
   });
 });

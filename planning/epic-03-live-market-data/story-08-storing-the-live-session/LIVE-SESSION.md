@@ -865,3 +865,106 @@ SOURCES   5,505 bars  All US exchanges
 **It matches, clause for clause**, including the single-source case drawing no
 count at all. An arrangement designed against no data, two epics before any
 existed, held the first time it had some.
+
+## 13. The overnight reconciliation, rehearsed (Task 3.8.9, 2026-09-23)
+
+**Criterion 5, proved by running both paths over one session rather than by
+reasoning about them.** The rehearsal lives in `backfill.database.test.ts` so it
+has a mechanical successor instead of being a one-off.
+
+**What stands in for what, stated rather than implied.** The bars are the
+fixture corpus's and the clock is the test's; the **labels are production's** —
+the live half writes `alpaca`/`iex` through the shipped `live-bar-writer.ts`,
+and the backfill half is the real `runBackfill` behind a provider declaring
+`alpaca`/`sip`. `planRequests`, `recordSeries`, `extendCoverage` and
+`readSeries` are all the shipped ones, and the tapes rank as they do in
+production. **What is simulated is the data, not the path.**
+
+### A fully reconciled session
+
+40 live minutes, then the nightly run over the same session:
+
+|                          |                            |
+| ------------------------ | -------------------------- |
+| **requests**             | **1** — the backfill asked |
+| sessions already held    | 0                          |
+| inserted by the backfill | 390                        |
+| corrected                | 0                          |
+| live rows held           | 40                         |
+| consolidated rows held   | 390                        |
+| **minutes held twice**   | **40**                     |
+| bars served              | 390                        |
+| **sources named**        | **`sip` × 390 — one**      |
+
+**The first assertion is the request count, not the rows.** `planRequests` skips
+a session wholly inside the covered window, so a live writer that claimed the
+whole session would make this run report `0 fetches, 1 already held` and store
+nothing — correctly by its own rules and **wrongly for the product**. A run that
+fetched nothing looks identical to one that reconciled perfectly. Task 3.8.3
+claims only up to the last bar seen precisely so this number is not zero.
+
+**And the note names one source, which is the right answer.** Every live minute
+had a consolidated version, so nothing of the live tape survives into the
+answer. The store holds **430 rows**; the answer names **390 from one tape**.
+That is `provenance.sources` describing **what was served** rather than what is
+stored, under load for the first time.
+
+### The shape production actually reaches
+
+The case above is a session the consolidated fetch covers completely. Production
+has minutes it never covers: the live writer keeps **extended-hours** bars and
+the backfill asks per **session**, so the minutes outside the bell are the live
+tape's alone, for ever. Ten pre-market minutes plus ten inside the session, then
+the run:
+
+```text
+sources named:  iex × 10 , then  sip × 390
+live rows held: 20        live minutes named in the note: 10
+```
+
+**In contribution order**, and the live count in the note is the minutes the
+consolidated tape did not reach — never the number of `iex` rows. Asserted as
+the **difference**, because equality is what a regression would produce.
+
+### Criterion 9: `bars:check` was not honest, and is repaired
+
+It reports _series holding MORE bars than their sessions have minutes_ as an
+invariant violation, and `bar_coverage.bar_count` counts **rows**. A reconciled
+session legitimately holds two rows a minute — 430 over a 390-minute session in
+the rehearsal above — so **every reconciled security would trip the tool's
+loudest line on exactly the night its output matters most.**
+
+**The threshold is now two rows a minute** (`MAX_ROWS_PER_MINUTE`), which keeps
+the check's original catch: what it was written for is `ALPACA.md`'s measured
+**2.35×** — a span-shaped request collecting extended-hours prints — and 2.35 is
+still over the line. What is given up is the band between one and two rows a
+minute, which is precisely the band a second tape occupies. The 2.35× test
+passes unchanged; a new one asserts the reconciled case says nothing.
+`pnpm break bars-check-calls-a-reconciled-session-a-fault`.
+
+### The daily `covered_end` is the CLAMP, not a wall clock — and the hand-off that said otherwise is corrected
+
+Task 3.8.3 met a daily ledger reading `2026-09-14T00:04:38.533Z`, milliseconds
+and all, and handed it here as _a market-time column carrying a write time_,
+_the confusion `DATA-LAYER.md` separates the two columns to prevent_. **That
+framing was wrong and this is the correction.**
+
+The mechanism is `alpacaServableEnd(range, startedAt)`: the free plan withholds
+the most recent ~16 minutes, so a request whose end is **in the future** is
+clamped to `now − 16 min`, and the provider reports that clamp as
+`coverage.covered.end`. A daily window is `[midnight, next midnight)` and its
+end is always in the future, so the clamp always binds. `00:04:38.533Z` is a run
+at `00:20:38.533Z` minus sixteen minutes — the arithmetic checks.
+
+**So the value is correct.** `coverage.covered` is defined as what the answer
+actually covers, and the answer genuinely stops at the clamp; claiming the
+midnight that was asked for would be the ledger overstating. The minute rows
+looked "honest" only because their requested end is a past session close, where
+the clamp does not bind.
+
+**And it costs nothing.** The clamp lands after the last session's close, so
+`planRequests` still counts that session as covered and nothing is re-fetched.
+
+Fourth time this story a stated defect has turned out to be narrower than the
+record claimed, and the fourth settled by following the arithmetic rather than
+the wording.

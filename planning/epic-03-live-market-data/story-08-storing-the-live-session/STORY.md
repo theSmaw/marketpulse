@@ -1,6 +1,6 @@
 # Story 3.8 — Storing the Live Session
 
-**Status:** In progress — **eight of TEN tasks done (3.8.1–3.8.8)**, the last of them on 2026-09-23. The deployed backend is a bar writer, the two-feed source note is on screen, and a reconciled session is a chart rather than a 500. Originally **split into eight tasks 2026-09-23**; a ninth was inserted at 3.8.4 that day, and a **tenth at 3.8.5** on the same day with everything after it renumbered — Task 3.8.4 repaired one read that assumed one row a minute and the audit it prompted found a second, `readLastCloses`, which does not throw and whose wrong answer has no tell — latent today, because nothing calls it at a timeframe that can hold two tapes, and waiting directly in Task 3.8.8's path. See _Tasks_ below. The visible payoff is Task 3.8.3, which is as early as the two decisions before it allow.
+**Status:** In progress — **nine of TEN tasks done (3.8.1–3.8.9)**, the last of them on 2026-09-23. The deployed backend is a bar writer, the two-feed source note is on screen, and a reconciled session is a chart rather than a 500. Originally **split into eight tasks 2026-09-23**; a ninth was inserted at 3.8.4 that day, and a **tenth at 3.8.5** on the same day with everything after it renumbered — Task 3.8.4 repaired one read that assumed one row a minute and the audit it prompted found a second, `readLastCloses`, which does not throw and whose wrong answer has no tell — latent today, because nothing calls it at a timeframe that can hold two tapes, and waiting directly in Task 3.8.8's path. See _Tasks_ below. The visible payoff is Task 3.8.3, which is as early as the two decisions before it allow.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.5, 3.7
 **Epic scope covered:** market-data persistence for live observations, and the reconciliation between two tapes covering one session
@@ -186,7 +186,7 @@ to it.
 | 3.8.6  | [A growing session is not an immutable one](TASK-06-a-growing-session-is-not-an-immutable-one.md)                              | 3.8.3      | No — one thing stops being wrong — **done**    |
 | 3.8.7  | [The late revision the live path throws away](TASK-07-the-late-revision-the-live-path-throws-away.md)                          | 3.8.3      | No — **done**                                  |
 | 3.8.8  | [The surfaces that now show a stored today](TASK-08-the-surfaces-that-now-show-a-stored-today.md)                              | 3.8.3      | **Yes — a claim the store can keep — done**    |
-| 3.8.9  | [The overnight reconciliation, rehearsed over one session](TASK-09-the-overnight-reconciliation-rehearsed-over-one-session.md) | 3.8.7      | No                                             |
+| 3.8.9  | [The overnight reconciliation, rehearsed over one session](TASK-09-the-overnight-reconciliation-rehearsed-over-one-session.md) | 3.8.7      | No — **done**                                  |
 | 3.8.10 | [The sweep, the hand-offs and the close](TASK-10-the-sweep-the-hand-offs-and-the-close.md)                                     | 3.8.9      | No                                             |
 
 **Task 3.8.3 carries a second visible change that costs nothing to build, and
@@ -510,6 +510,20 @@ _A growing session_ onward each moved up one number; nothing else changed, and
 every reference to them was remapped in the same change.
 
 ## Handed here by Task 3.8.3 — 2026-09-23: the daily ledger's `covered_end` is holding a wall clock, and Task 3.8.9 owns it
+
+> **ANSWERED 2026-09-23 by Task 3.8.9, and the answer is that this section was
+> wrong.** The value is the vendor **clamp**, not a write time.
+> `alpacaServableEnd(range, startedAt)` clamps any request whose end is in the
+> future to `now − 16 min`, and the provider reports that clamp as
+> `coverage.covered.end`. A daily window is `[midnight, next midnight)` and its
+> end is always in the future, so the clamp always binds; `00:04:38.533Z` is a
+> run at `00:20:38.533Z` minus sixteen minutes. **The value is correct** —
+> `covered` is what the answer actually covers, and claiming the midnight that
+> was asked for would be the ledger overstating. The minute rows looked honest
+> only because their end is a past session close, where the clamp does not
+> bind. It costs nothing either: the clamp lands after the last session's
+> close, so `planRequests` still counts that session as covered. The section
+> below is left standing as the record of what was suspected.
 
 **`bar_coverage.covered_end` is a market-time column, and on every `1d` row it
 was a write time.** Found by accident on a developer's store while cleaning up
