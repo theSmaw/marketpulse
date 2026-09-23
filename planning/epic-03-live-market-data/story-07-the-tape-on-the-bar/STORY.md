@@ -161,7 +161,7 @@ before it starts.
 | 3.7.3 | [Every writer stamps the tape, and no reader consults a constant](TASK-03-every-writer-stamps-the-tape.md)                                   | 3.7.2      | No — **done** |
 | 3.7.4 | [What replaces the ledger's refusal of a second source](TASK-04-what-replaces-the-ledgers-refusal.md)                                        | 3.7.3      | No — **done** |
 | 3.7.5 | [A stored window spanning two tapes produces two sources, through the merge](TASK-05-two-sources-in-contribution-order-through-the-merge.md) | 3.7.4      | No            |
-| 3.7.6 | [The deploy rehearsed against a populated store, and what nothing checks](TASK-06-the-deploy-rehearsed-and-what-nothing-checks.md)           | 3.7.5      | No            |
+| 3.7.6 | [The deploy rehearsed against a populated store, and what nothing checks](TASK-06-the-deploy-rehearsed-and-what-nothing-checks.md)           | 3.7.5      | No — **done** |
 | 3.7.7 | [The sweep, the hand-offs and the close](TASK-07-the-sweep-the-hand-offs-and-the-close.md)                                                   | 3.7.6      | No            |
 
 **Where the open decision lives.** Open decision 1 — whether existing rows are

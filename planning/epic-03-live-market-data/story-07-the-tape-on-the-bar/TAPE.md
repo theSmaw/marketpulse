@@ -377,3 +377,82 @@ serialisation it sits beside. Against Story 2.9's recorded misses (4.9 / 9.7
 same factor — a loaded laptop through the dev watcher rather than 2.9's built
 server on a quiet one — which is why the A/B is the figure and the comparison
 to 2.9 is not.
+
+## 9. The deploy — what it cost, what it waits for, and what nothing checks (Task 3.7.6, 2026-09-23)
+
+**The deployed figure exists and is not an extrapolation.** `0010` rolled to
+the B1ms instance on 2026-09-22 in the deploy for `b9772d1`, and the runner's
+own log is the measurement: the migrate step's process started at
+`10:01:53.090Z` and its last line printed at `10:01:54.341Z` — **1.251 s** for
+Node's boot, a TLS connection from a GitHub runner to Azure, Kysely's advisory
+lock, the bookkeeping read, both catalogue writes and the commit. Against
+`timeout 120` that is a margin of **~96×**, and against 3.7.2's local 0.478 s
+the difference is the network and the runner, not the table.
+
+```text
+2026-09-22T10:01:53.0896729Z $ node scripts/run-migrations.mjs
+2026-09-22T10:01:54.3213260Z   Pending: 0010_market_bars_feed
+2026-09-22T10:01:54.3214224Z   ✓ 0010_market_bars_feed
+2026-09-22T10:01:54.3214851Z   Applied 1 migration.
+```
+
+The three lines are 96 µs apart because `runMigrations()` returns its lines and
+the script prints them at the end — so read the **step**, not the gap between
+them. Criterion 4's figure is that step, with its assumption stated: a constant
+default is a catalogue write, which 3.7.2 proved is O(1) in the table's size by
+measuring 0.478 s on 48.8 million rows and 0.456 s on none.
+
+**What the deploy actually risks on this table is the lock, and it is
+measured.** `ALTER TABLE` takes an `ACCESS EXCLUSIVE` lock; a rehearsal on the
+populated store with a write transaction in flight had the migration waiting
+**18.16 s** and an ordinary chart read, whose own lock conflicts with nothing
+that was granted, waiting **16.16 s** behind it against a **0.09 s** baseline.
+The full table, the `lock_timeout` contrast and the decision not to ship a
+bound are `docs/GAPS.md`'s entry _A migration on `market_bars` waits for as
+long as the longest open transaction_. The exposure on this product is small —
+one `recordSeries` transaction is 390 rows and **81–137 ms** — and the deploy
+fails safely when it is not: exit 124, nothing applied, no code rolled.
+
+**One thing was repaired rather than recorded.** `deploy.yml`'s message for exit
+124 told the reader the likeliest cause was another migration holding Kysely's
+advisory lock, and to look for `wait_event: advisory`. Since `0010` that is the
+wrong row: a migration queued on this table shows `wait_event: relation`, and
+so does every reader stuck behind it. The message now names both, in the order
+a reader should check them.
+
+**The old writer, rehearsed against the migrated table.** The last build that
+does not know the column is `main` at `b9772d1`; built in a worktree and run
+against `marketpulse_bare` after `0010`, its backfill stored **9,750 bars over
+25 sessions** and every row came back `feed = 'sip'` from the database default,
+with the ledger reading `alpaca`/`sip` beside them. That is the deploy window
+demonstrated rather than asserted: between the migrate step and the code roll
+the previous revision keeps writing, its insert names eight columns against a
+nine-column table, and the default is true of every bar it can produce.
+
+**Two precisions the rehearsal added.** The shipped backfill calls
+`recordSeries` **once per session**, so the largest statement it ever issues is
+390 rows — the 8,191-row chunk boundary the old build computed is reachable only
+by a caller that hands the writer a multi-session series, which nothing does.
+And `pnpm backfill` takes its provider from `createAlpacaProvider` directly
+rather than from `MARKET_DATA_PROVIDER`: the rehearsal was run with
+`MARKET_DATA_PROVIDER=fixture` set and went to the real vendor anyway, spending
+25 metered requests. That is defensible — a backfill's job is real history, and
+`backfill.database.test.ts` reaches the seam by passing a provider as a
+dependency — but the variable is silently ignored rather than refused.
+
+**What nothing checks, in one place.** Three entries went into `docs/GAPS.md`:
+the lock wait above; that `bar_coverage.feed` is written, described and read by
+nothing with no trigger for the contract deploy that would drop it; and that
+everything this story asserts about the schema lives in `pnpm test:database`,
+which is a required CI job and **not** part of `pnpm verify`, so a later
+`validate constraint` would pass every unit-level check and reach the deploy's
+120 s ceiling before anything went red.
+
+**Two things the task expected to leave open closed instead.** The invariant
+`stored-sources-only-through-the-merge` now also asserts that **no module but
+`market-bars.ts` builds a query against `bar_coverage`** — eleven files mention
+the table and none of the others queries it — which is what makes its one-file
+grep sound rather than lucky (`pnpm break a-second-module-queries-the-ledger`).
+And the empty answer's `SOURCE_OF_NOTHING` cannot reach a reader: `source-note.ts`
+applies ADR 0029 **per clause**, and the feed, adjustment and retrieval clauses
+are properties of the bars, so a series with no bars renders none of them.

@@ -487,3 +487,118 @@ DATABASE_NAME=marketpulse_bare pnpm dev     # then run the spec against it
 ```
 
 If it passes there and fails against your own store, **the store is the subject**. **Owner: a condition** — the first browser spec that asserts on a figure whose presence depends on a window having data.
+
+## A migration on `market_bars` waits for as long as the longest open transaction, and every reader of that table waits behind it
+
+**Added 2026-09-23 by Task 3.7.6, from a rehearsal rather than an argument.**
+`0010` is two catalogue writes and reads no row (ADR 0034), so the figure that
+matters is not its duration — it is what it waits for. `ALTER TABLE` takes an
+`ACCESS EXCLUSIVE` lock, which conflicts with every other lock mode, and
+Postgres queues later requests **behind** a waiting exclusive request rather
+than letting them past.
+
+Rehearsed against the local populated store (48,797,343 rows, PostgreSQL 18.6),
+three sessions: A held an open transaction that had inserted into `market_bars`;
+B ran the migration's statement shape; C was an ordinary reader arriving two
+seconds after B.
+
+| Session                        | Lock wanted           | Granted | Elapsed     |
+| ------------------------------ | --------------------- | ------- | ----------- |
+| A — a backfill batch in flight | `RowExclusiveLock`    | yes     | held 20 s   |
+| B — the migration              | `AccessExclusiveLock` | **no**  | **18.16 s** |
+| C — an ordinary chart read     | `AccessShareLock`     | **no**  | **16.16 s** |
+
+C's lock does **not** conflict with A's. It waited only because B was ahead of
+it in the queue, and the same read costs **0.09 s** with nothing else running —
+so a migration that waits turns every `GET /market-data/bars` on the deployed
+site into a stall of the same length. `pg_stat_activity` showed B and C as
+`wait_event_type: Lock`, `wait_event: relation`.
+
+**Nothing bounds that wait.** `lock_timeout` and `statement_timeout` are both
+`0` on this server, and `migrate.ts` sets neither; with `lock_timeout = '3s'`
+the same rehearsal failed in **3.13 s** with `canceling statement due to lock
+timeout` and exit 1, and C was released as soon as B gave up. The repair was
+**not shipped**, for three reasons worth reading before shipping it: the
+realistic wait on this product is one `recordSeries` transaction — one session,
+390 rows, **81–137 ms** measured on the populated store — so the exposure is
+small; `createDatabasePool` is shared with the **serving** pool, so bounding
+only the migration's lock is a new parameter on a shared factory rather than a
+line; and a `SET` on a pooled connection is not reliably the connection the
+migrator's DDL runs on, because `POOL_MAX` is 10. The deploy already fails
+**safely** when it waits too long: `timeout 120` gives exit 124, nothing is
+applied, and the code does not roll.
+
+**Re-measure** (the rehearsal restores itself; nothing persists):
+
+```sh
+docker exec -i marketpulse-postgres-1 psql -U marketpulse -d marketpulse -At -c \
+  "select current_setting('lock_timeout'), current_setting('statement_timeout');"
+```
+
+Then hold a transaction that writes to `market_bars` in one session and run
+`alter table market_bars add column rehearsal text not null default 'x';` in
+another inside `begin; … rollback;`, timing both, with a third session reading.
+
+**Owner: a condition** — **the first migration on `market_bars` that is not two
+catalogue writes**, or the first deploy that reports exit 124 with
+`wait_event: relation`. Either makes the bound worth buying.
+
+## `bar_coverage.feed` is written, described and read by nothing, and dropping it has no trigger
+
+**Added 2026-09-23 by Task 3.7.6.** Task 3.7.4 withdrew the ledger's tape from
+every decision and Task 3.7.5 took it off `BarCoverage`, so the column now
+holds the tape a window was **opened** with and nothing reads it —
+`pnpm invariants` (`stored-sources-only-through-the-merge`) fails on a select of
+it, and on any module but `market-bars.ts` building a query against the table at
+all. It is still **written** on every first insert, on purpose: `schema.ts`
+types it required so the database default stays unreachable from shipped code.
+
+What nothing guards is the **second half of expand-then-contract**. Dropping a
+column from a live ledger is a migration nobody has decided to run, and the
+usual trap applies — a column that is written but read by nothing looks
+identical to a column that is load-bearing, to everyone except the person who
+read this. `migrations/README.md` has the rule; this is the instance of it.
+
+**Re-measure:**
+
+```sh
+pnpm invariants                     # the two halves above
+grep -rn "bar_coverage" apps/backend/src --include=*.ts | grep -v "\.test\."
+```
+
+**Owner: a condition** — **the first migration that touches `bar_coverage` for
+any other reason.** Contract it in the same change or record why not; a drop of
+its own is not worth a deploy.
+
+## Everything Story 3.7 asserts about the schema holds only on the `database` job, and a later `VALIDATE` would reach the deploy's ceiling before anything went red
+
+**Added 2026-09-23 by Task 3.7.6, replacing the shape Task 3.7.2 predicted.**
+`pnpm test:database` is **not** in `pnpm verify` and not in `pnpm test`. It is a
+required check on `main` as its own CI job, so a pull request cannot merge
+without it — but locally it has to be run on purpose, and nothing at the desk
+notices when it is not.
+
+What rides on it is the whole of this story's evidence: that
+`market_bars_feed_check` stays **`NOT VALID`** (`pg_constraint.convalidated`
+is `false`, with `pnpm break the-tape-check-gets-validated`), that every writer
+stamps the tape from the series' provenance, that a second tape extends a window
+and an overlapping one is refused, and that a two-tape window reads back as two
+sources in order. None of it is visible to a unit test.
+
+**The specific hazard is a later migration.** A `validate constraint
+market_bars_feed_check` added to `0011` or beyond passes `tsc`, `lint`, every
+unit test and `pnpm verify` untouched; the database job would catch it, and if
+it ever did not, the first thing to notice would be a deploy burning its 120 s
+on a full scan of the heap — ~508 s on the B1ms tier at 10 MiB/s (ADR 0034).
+
+**Re-measure:**
+
+```sh
+pnpm test:database                                  # all of it, on purpose
+pnpm break the-tape-check-gets-validated            # the one that matters most
+grep -rn "validate constraint" apps/backend/migrations
+```
+
+**Owner: a condition** — **the first migration added to `market_bars` after
+`0010`.** Read it for `validate`, `cluster`, a non-concurrent index or a
+rewrite, and measure it against 10 MiB/s before it is written.
