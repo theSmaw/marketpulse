@@ -195,6 +195,27 @@ export const BREAKS = [
     expect: "writes a `sources:` array by hand",
   },
   {
+    name: "the-served-minute-keeps-both-its-rows",
+    proves:
+      "A chart request over a reconciled session is a 500 for every reader. " +
+      "ADR 0035 keeps both tapes and `0011` lets the key hold them, so a " +
+      "minute may carry two rows; `toBarSeries` refuses bars that are not " +
+      "strictly ascending by instant and THROWS, which the route answers as a " +
+      "500 on a page load. Without the `distinct on`, `readSeries` hands it " +
+      "both rows. Needs a database, so it lives outside `verify`.",
+    file: "apps/backend/src/market-bars.ts",
+    find: '        .distinctOn("market_bars.observed_at")',
+    replace: "        // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "serves a window whose minutes each hold two tapes",
+  },
+  {
     name: "the-live-writer-claims-the-whole-session",
     proves:
       "The live writer's ledger claim ends at the last bar it holds. Claim " +

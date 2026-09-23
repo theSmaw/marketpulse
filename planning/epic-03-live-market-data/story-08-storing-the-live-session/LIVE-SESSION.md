@@ -374,3 +374,90 @@ live writer **created** NVDA's ledger row rather than extending one, and it
 created it with `provider fixture` / `feed synthetic` taken from the
 observation's own provenance rather than from a constant — which is `TAPE.md`
 §6's rule holding on the path that has no prior row to copy from.
+
+## 8. Serving a minute that has two rows (Task 3.8.4, 2026-09-23)
+
+**The decision §4's key made possible had a hard failure on the other side of
+it, and this is the repair.** A minute may hold a row per tape. `readSeries`
+selected them in `observed_at` order, `toStoredSeries` mapped them to bars, and
+`toBarSeries` refused bars that are not **strictly** ascending by instant — it
+throws a `RangeError`, which the route answers as a **500 on a page load, for
+every reader, for that window**. Not a degradation: a thrown error where a
+chart should be.
+
+### The rule
+
+**The consolidated tape wins, and the live one fills what it has not reached.**
+`SERVED_TAPE_RANK` in `market-bars.ts` is the whole of it.
+
+A served chart is _the best account we have of what happened_. SIP is the full
+US tape; IEX is a single venue printing **65.1% of a median name's minutes**
+(`LIVE-DATA.md` §7.6). During a session the consolidated bar does not exist yet
+for recent minutes, so the rule reads **prefer SIP, fall back to IEX**, and a
+chart drawn at 15:00 legitimately changes shape once the backfill has run. That
+is honest rather than awkward, and the source note is what says so.
+
+**Only the first comparison is a claim.** `sip` above `iex` is argued. The other
+two members of `MarketFeed` are ordered so the choice is **deterministic**
+rather than because anything is known about their worth: neither `synthetic` nor
+`replay` should ever reach this table on a deployed store, and leaving them
+unordered would make `distinct on` pick arbitrarily. The record is
+`satisfies Record<MarketFeed, number>`, so a feed added to the vocabulary fails
+this build rather than silently sorting last.
+
+### What was rejected, and why keeping both rows is what makes it safe
+
+**_What was observable at the time_** is the other defensible rule, and it is
+`PRODUCT_SPEC.md` §22's — a reader at 11:07 could only have seen the IEX bar,
+because the consolidated version did not exist yet. It is the **wrong** rule for
+an ordinary chart of last Tuesday, which should show the best history available.
+
+Both questions now get a true answer, and **only because ADR 0035 kept both
+rows**. This preference governs `readSeries` and nothing else. `readBars` still
+answers every row, so Epic 13's replay source can apply its own rule — and that
+is stated at both declarations rather than left to be inferred. A preference
+applied there would hand replay a bar nobody could have seen and call it
+history, which is invariant 4's failure mode wearing a different hat.
+
+**Prefer by coverage per window** — whichever tape covers more of the requested
+range — was rejected for being stable within one answer and unstable across
+two: a window nudged by one minute could flip tapes and redraw the whole chart.
+
+### Where it is applied, and the measurement that decided it
+
+**In the query.** `distinct on (observed_at)` with the rank leading the
+tie-break, which keeps `toStoredSeries` a pure function of the rows it is
+handed rather than giving it a second job.
+
+Measured against the populated store with a **real** two-tape window at the
+9,750-bar cap — 9,750 `iex` rows inserted beside the `sip` ones for NVDA, then
+removed:
+
+| where the preference is applied   | median      | rows on the wire |
+| --------------------------------- | ----------- | ---------------- |
+| nowhere — both rows, then a throw | 55.7 ms     | 19,500           |
+| in JavaScript, after the fetch    | 43.6 ms     | 19,500           |
+| **in the query**                  | **22.6 ms** | **9,750**        |
+
+The wire is the whole difference: reducing in Node means 19,500 rows cross from
+Postgres for a window that serves 9,750. The database's own sort costs 6.4 ms of
+the 22.6 (quicksort, 2,292 kB).
+
+### The order it is applied in is criterion 2
+
+`provenance.sources` must describe **what was served**, not what is stored. The
+stretches are walked over the rows the answer contains (`TAPE.md` §8), so this
+is correct **only because the preference is applied before them** — in the query,
+which is upstream of everything. Asserted rather than assumed: a window with SIP
+over minutes 0–4 and IEX over 3–7 serves eight bars and names
+`sip ×5, iex ×3` — not `sip ×5, iex ×5`, which is what the store holds.
+
+### What a green `pnpm test:database` certifies here
+
+Five tests, and the first is the one that fails without this task **by
+throwing** rather than by asserting. `pnpm break the-served-minute-keeps-both-its-rows`
+removes the `distinct on` and proves the red.
+
+What it does not certify: that any **deployed** store has ever held two tapes
+for one minute. It has not yet — the first night after a session the live writer
+filled is when that arrives, which is Task 3.8.8's rehearsal.

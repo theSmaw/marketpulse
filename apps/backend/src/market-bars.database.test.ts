@@ -2165,6 +2165,161 @@ describe("a stored window spanning two tapes produces two sources, through the m
   });
 });
 
+describe("one minute, two rows, and what a reader is served (Task 3.8.4)", () => {
+  afterEach(clearStore);
+
+  // ADR 0035 keeps both tapes and `0011` lets the key hold them, so a minute
+  // may carry a row per tape. `toBarSeries` refuses bars that are not strictly
+  // ascending by instant — it THROWS — so every test here is really one
+  // assertion: a reconciled window is a chart rather than a 500.
+  const session = () => {
+    const [only] = sessions(1);
+    if (only === undefined) throw new Error("no session");
+    return only;
+  };
+
+  /** A series on one tape over `[from, from + count)` minutes of the session. */
+  function tapeSeries(
+    tape: SeriesSource,
+    from: number,
+    count: number,
+    nudge: number,
+  ): BarSeries {
+    const open = session().open.getTime();
+    const bars = Array.from({ length: count }, (_, index) =>
+      barAt(new Date(open + (from + index) * 60_000), nudge),
+    );
+    const covered = toTimeRange(
+      new Date(open + from * 60_000),
+      new Date(open + (from + count) * 60_000),
+    );
+    return toBarSeries({
+      symbol,
+      timeframe: "1m",
+      bars,
+      provenance: toSeriesProvenance("raw", {
+        ...tape,
+        retrievedAt: "2026-09-08T00:00:00.000Z",
+        barCount: bars.length,
+      }),
+      coverage: { requested: covered, covered },
+    });
+  }
+
+  const SIP: SeriesSource = { provider: "alpaca", feed: "sip" };
+  const IEX: SeriesSource = { provider: "alpaca", feed: "iex" };
+
+  /** The whole session, which is what a chart asks for. */
+  const wholeSession = () => toTimeRange(session().open, session().close);
+
+  // **The test that fails without Task 3.8.4**, and it fails by THROWING
+  // rather than by asserting — which is the point. Before the preference
+  // existed this read reached `toBarSeries` with two bars stamped the same
+  // minute and raised `RangeError: Bars must be strictly ascending by
+  // startsAt`, so the route's answer was a 500 on a page load for every
+  // reader of that window.
+  it("serves a window whose minutes each hold two tapes, rather than throwing", async () => {
+    await repository().recordSeries(tapeSeries(SIP, 0, 5, 0));
+    await repository().recordSeries(tapeSeries(IEX, 0, 5, 50));
+
+    const stored = await db().query(
+      "select count(*)::int n from market_bars where timeframe = '1m'",
+    );
+    expect(stored.rows[0]).toEqual({ n: 10 });
+
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      wholeSession(),
+      new Date(),
+    );
+
+    expect(series.bars).toHaveLength(5);
+  });
+
+  it("serves the consolidated tape where it exists, which is the decision", async () => {
+    await repository().recordSeries(tapeSeries(SIP, 0, 5, 0));
+    await repository().recordSeries(tapeSeries(IEX, 0, 5, 50));
+
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      wholeSession(),
+      new Date(),
+    );
+
+    // `nudge` moves every price by 50, so the numbers say which row survived
+    // without the assertion having to read a `feed` the bars do not carry.
+    const sip = sessionBars(session(), 5, 0);
+    expect(series.bars.map((bar) => bar.close)).toEqual(
+      sip.map((bar) => bar.close),
+    );
+    expect(series.provenance.sources).toEqual([
+      expect.objectContaining({ feed: "sip", barCount: 5 }),
+    ]);
+  });
+
+  // The order this is applied in is the whole of criterion 2: the stretches
+  // are walked over the rows the answer CONTAINS, so a preference applied
+  // after them would describe the store and call it the answer.
+  it("names the sources of what was served, not of what is stored", async () => {
+    // SIP over minutes 0–4, IEX over 3–7. Minutes 3 and 4 are held twice and
+    // SIP wins both, so the served answer is five SIP bars then three IEX.
+    await repository().recordSeries(tapeSeries(SIP, 0, 5, 0));
+    await repository().recordSeries(tapeSeries(IEX, 3, 5, 50));
+
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      wholeSession(),
+      new Date(),
+    );
+
+    expect(series.bars).toHaveLength(8);
+    expect(
+      series.provenance.sources.map((source) => [source.feed, source.barCount]),
+    ).toEqual([
+      ["sip", 5],
+      ["iex", 3],
+    ]);
+  });
+
+  it("leaves a window with no overlap exactly as it was", async () => {
+    await repository().recordSeries(tapeSeries(SIP, 0, 5, 0));
+    await repository().recordSeries(tapeSeries(IEX, 5, 3, 50));
+
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      wholeSession(),
+      new Date(),
+    );
+
+    expect(series.bars).toHaveLength(8);
+    expect(
+      series.provenance.sources.map((source) => [source.feed, source.barCount]),
+    ).toEqual([
+      ["sip", 5],
+      ["iex", 3],
+    ]);
+  });
+
+  // The other half of the decision, and it is a decision rather than an
+  // oversight: the replay source wants what was OBSERVABLE at the time, which
+  // for a live-written session is the IEX row. A preference here would hand
+  // Epic 13 a bar nobody could have seen.
+  it("answers every row from `readBars`, both tapes included", async () => {
+    await repository().recordSeries(tapeSeries(SIP, 0, 5, 0));
+    await repository().recordSeries(tapeSeries(IEX, 0, 5, 50));
+
+    const stored = await repository().readBars(symbol, "1m", wholeSession());
+
+    expect(stored).toHaveLength(10);
+    expect(stored.filter((entry) => entry.feed === "iex")).toHaveLength(5);
+    expect(stored.filter((entry) => entry.feed === "sip")).toHaveLength(5);
+  });
+});
+
 describe("the live writer, against a real store (Task 3.8.3)", () => {
   afterEach(clearStore);
 
