@@ -559,6 +559,13 @@ window again — so the honest count is **three stories waiting on one sitting**
 
 ## Audit 1, re-read 2026-09-23 — what Story 3.8 did with this story's constraints
 
+> **Note for a reader of this story's own suite.** Since Task 3.8.8,
+> `security-price-motion.spec.ts` — this story's spec, and the home of the
+> `[data-arrival]` handle — carries an assertion written by **Story 3.8**: that
+> a page fed only by the store marks nothing. It lives here rather than with
+> that story's files because the mark is this story's subject and a second
+> locator for one handle is how two specs start disagreeing about it.
+
 The enumeration below handed **3.8** three constraints. Two are now shipped and
 were checked rather than assumed:
 
@@ -570,9 +577,43 @@ close, volume, recorded_at, feed` — no extended-hours column, and the word is
   supplies `observed_at` from the bar itself and the read maps it straight back
   (`startsAt: row.observed_at`); the column still has no default, which is what
   keeps _when it was true in the market_ from becoming _when we wrote it_.
-- **A replay of the store must not fire the arrival mark.** **Still owed**, and
-  correctly so — it is Task 3.8.8's second item, unstarted. Nothing to check
-  yet; this line exists so the count is not mistaken for three of three.
+- **A replay of the store must not fire the arrival mark.** **Half discharged
+  on 2026-09-23 by Task 3.8.8, and the other half turns out to be a question
+  this sentence did not know it was asking.** It has two readings and they want
+  opposite answers:
+
+  - **A static store read** — a page whose prices come from the store because
+    no feed is connected, which is the deployed default and CI's. **Discharged
+    and asserted in a browser**: `security-price-motion.spec.ts` loads
+    `/securities/NVDA` with no feed stubbed, reloads it, and asserts
+    `[data-arrival]` has count **0** across the whole page both times —
+    the 518 table rows included, since Task 3.6.1 gave them the same handle.
+    This is the reading that matches the argument, _re-reading is not an
+    arrival_.
+  - **Replay playback**, which ships today as `MARKET_DATA_PROVIDER=replay` and
+    is Epic 13's signature feature. **Not discharged, not Story 3.8's, and the
+    constraint as worded is probably wrong for it.** In replay the product is
+    reproducing a session against a moving clock; a bar _does_ arrive at the
+    replay instant, and suppressing the mark would make the reproduction less
+    faithful rather than more honest. `PRODUCT_SPEC.md` §21–23 is about showing
+    what was knowable **as it became knowable**.
+
+  **What happens today, read off the code rather than run:** `useArrival` keys
+  on `(symbol, observation signature, fromSnapshot)` and **has no feed input at
+  all**, so a replayed bar is indistinguishable from a live one and the mark
+  fires. Under this sentence's wording that is a defect; under Epic 13's intent
+  it is the behaviour you would choose.
+
+  **Owner: Epic 13, and the decision is one line** — whether the motion
+  vocabulary is a claim about _the wall clock_ or about _the clock the reader is
+  watching_. Story 3.4's own rule is _a fact arriving decays_, and in replay the
+  fact is arriving; the chrome already says `REPLAYING` beside it, so a reader
+  is not being told a stale thing is live. Recorded here rather than resolved,
+  because this story does not own replay and Story 3.8 closes without touching
+  it.
+
+  **So the count is two and a half of three, not three of three**, and the half
+  is a design question rather than unfinished work.
 
 ---
 

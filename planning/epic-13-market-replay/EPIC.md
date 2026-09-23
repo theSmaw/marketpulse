@@ -192,3 +192,49 @@ consolidated bar, and replay must prefer the tape that was **observable at the
 replay clock** — which is the IEX row for a session being replayed live-shaped,
 and the consolidated one only for instants after it arrived. That is invariant
 4 in a form the column finally makes expressible.
+
+## Handed here by Task 3.8.8 — 2026-09-23: does a replayed bar fire the arrival mark, and the sentence that assumed it should not
+
+**Story 3.4 handed Story 3.8 a constraint with two readings in it, and only one
+of them is yours.** The wording was: _a replay of the store must not fire the
+arrival mark, because re-reading is not an arrival._
+
+**The reading that is settled.** A page whose prices come from the **store**
+because no feed is connected — the deployed default, and CI's — marks nothing.
+Asserted in a browser by `security-price-motion.spec.ts`: load, reload, and
+`[data-arrival]` has count **0** across the whole page, the 518 universe rows
+included. That is the reading the argument fits: scrolling through yesterday is
+not an arrival.
+
+**The reading that is yours, and it wants the opposite answer.** Replay
+playback is not a re-read; it is a **reproduction against a moving clock**, and
+a bar genuinely arrives at the replay instant. Suppressing the mark would make
+the reproduction _less_ faithful, and §§21–23 are about showing what was
+knowable **as it became knowable**. Story 3.4's own vocabulary — _work in
+progress loops, a state persists, **a fact arriving decays**_ — reads in favour
+of marking.
+
+**What happens today, read off the code rather than run.** `useArrival` in
+`SecurityIdentity.tsx` keys on `(symbol, observation signature, fromSnapshot)`
+and **has no feed input at all**, so a replayed bar is indistinguishable from a
+live one and **the mark fires**. `MARKET_DATA_PROVIDER=replay` ships now, so
+this is the behaviour a developer sees today rather than a future question.
+
+**The decision is one line and it is a design decision, not a bug fix:** is the
+motion vocabulary a claim about **the wall clock** or about **the clock the
+reader is watching**? Two things that make the second answer cheap to defend:
+the chrome already says `REPLAYING` beside the figure, so nobody is being told a
+stale thing is live; and the mark says _a bar arrived for this security_ rather
+than _this price just moved_, which is true of a replayed bar at its own
+instant.
+
+**If you choose to suppress it**, note what that costs: `useArrival` would need
+the feed, which it deliberately does not take — the flag it does take,
+`fromSnapshot`, comes **down from the store rather than being inferred**,
+because _ignore whichever observation arrives first_ would also suppress a
+genuine first bar for a thin security. Any feed-aware suppression needs the same
+care, and `LIVE-DATA.md` §7.6's 2.1% minute coverage for `ERIE` is why.
+
+**Where the rest of it is written:** Story 3.4's Task 3.4.10 carries the audit
+this came out of, and records the count as **two and a half of three** rather
+than three, so the open half is not mistaken for finished work.
