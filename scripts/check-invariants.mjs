@@ -1244,6 +1244,32 @@ const INVARIANTS = [
             "written on insert only (`TAPE.md` §7).",
         );
       }
+
+      // **And the reason one file is enough** (Task 3.7.6). The grep above
+      // scopes to `market-bars.ts`, which is only sound while that module is
+      // the one place `bar_coverage` is queried — the seam `market-bars.ts`'s
+      // header states and `DATA-LAYER.md` requires, since a module that built
+      // its own query could select the withdrawn column and pass every check
+      // above. Measured on 2026-09-23: eleven files mention `bar_coverage`
+      // and **none of them but this one builds a query against it**. So the
+      // scope is asserted rather than assumed.
+      const LEDGER_QUERY =
+        /(?:selectFrom|insertInto|updateTable|deleteFrom)\(\s*"bar_coverage"/u;
+      for (const file of sourceFilesUnder(
+        resolve(REPO_ROOT, "apps/backend/src"),
+      )) {
+        if (file.path.endsWith("market-bars.ts")) continue;
+        if (/\.test\.tsx?$/u.test(file.path)) continue;
+        if (LEDGER_QUERY.test(withoutComments(file.text))) {
+          throw new InvariantFailure(
+            `${relative(REPO_ROOT, file.path)} builds a query against ` +
+              "`bar_coverage`. The ledger has one reader — `market-bars.ts` — " +
+              "and that is what lets the check above scope its grep to one " +
+              "file; a second querier could select the withdrawn `feed` and " +
+              "pass it (Task 3.7.6, `TAPE.md` §7).",
+          );
+        }
+      }
     },
   },
   {

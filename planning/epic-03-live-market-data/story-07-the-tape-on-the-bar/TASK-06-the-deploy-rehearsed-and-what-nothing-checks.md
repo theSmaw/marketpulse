@@ -1,6 +1,6 @@
 # Task 3.7.6 — The deploy rehearsed against a populated store, and what nothing checks
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-23.** The deployed migrate step's own figure is **1.251 s** against `timeout 120` (~96× margin), read from the runner's log rather than extrapolated. The old writer was built at `b9772d1` in a worktree and stored 9,750 bars into the migrated table, every row answering `sip` on the default. The lock was rehearsed on the populated store: the migration waited **18.16 s** behind a write transaction and an ordinary read waited **16.16 s** behind _it_, against a 0.09 s baseline — recorded, with the `lock_timeout` repair measured and deliberately not shipped. `deploy.yml`'s exit-124 message was repaired: it named the wrong `pg_stat_activity` row. Three `docs/GAPS.md` entries; the invariant widened to the ledger's seam with a fourth break; `check-deployed.mjs` decided against, in writing.
 **Story:** [3.7 The Tape on the Bar](STORY.md)
 **Depends on:** 3.7.5
 
@@ -105,6 +105,13 @@ VALID` on purpose** and nobody validates it in a deploy (3.7.1's amendment
   > overlap refusal is one indexed `select distinct feed` per write, paid
   > only when windows intersect, which the nightly walk's edge-extension
   > never does. New: **a browser spec whose assumption is about the
+  > store's freshness rather than the page** — `security-window-change.spec.ts`'s
+  > _pressing a window does not move the chart_ is red by 90 px on a
+  > developer store more than five sessions stale (the default window is
+  > `empty`, `1 month` is not), green on CI's bare store and on the deployed
+  > one, and says so in its own comment since 3.7.3. Nothing mechanical
+  > tells a developer their store is the reason; the re-measure is
+  > `GET /diagnostics/freshness` before believing the spec.
   >
   > **AMENDED 2026-09-23 by Task 3.7.5 — the invariant exists, and the
   > residue is smaller and different.** `pnpm invariants` carries
@@ -128,13 +135,6 @@ VALID` on purpose** and nobody validates it in a deploy (3.7.1's amendment
   > for zero bars **if** the note renders a feed clause for an empty series —
   > read `source-note.ts` against ADR 0029's rule and either confirm it does
   > not or record the case.
-  > store's freshness rather than the page** — `security-window-change.spec.ts`'s
-  > _pressing a window does not move the chart_ is red by 90 px on a
-  > developer store more than five sessions stale (the default window is
-  > `empty`, `1 month` is not), green on CI's bare store and on the deployed
-  > one, and says so in its own comment since 3.7.3. Nothing mechanical
-  > tells a developer their store is the reason; the re-measure is
-  > `GET /diagnostics/freshness` before believing the spec.
 
   > **AMENDED 2026-09-22 by Task 3.7.2 — the first of those is now a test,
   > and the entry changes shape.** `market-bars.database.test.ts` asserts
@@ -155,3 +155,202 @@ VALID` on purpose** and nobody validates it in a deploy (3.7.1's amendment
    fits the ceiling with margin
 3. `docs/GAPS.md` carries this story's residue, each with a re-measure
 4. `pnpm verify` passes; `pnpm test:database` passes
+
+---
+
+## What was done — 2026-09-23
+
+### 1. Criterion 4, from the deploy's own log rather than an extrapolation
+
+`0010` had already rolled to the B1ms instance — on 2026-09-22, in the deploy
+for `b9772d1` — so the tier's figure did not need estimating. The migrate
+step's process started at `10:01:53.090Z` and printed its last line at
+`10:01:54.341Z`: **1.251 s** end to end, including Node's boot, a TLS
+connection from a GitHub runner to Azure, Kysely's advisory lock, the
+bookkeeping read, both catalogue writes and the commit. Against `timeout 120`
+that is **~96×** of margin.
+
+**One trap in reading that log, written down because it nearly produced a
+wrong figure**: `Pending:`, `✓` and `Applied 1 migration.` are 96 µs apart,
+which is not a round trip to Azure. `runMigrations()` returns its lines and the
+runner prints them after the work — so the measurement is the **step**, and the
+gaps between those three lines are console writes.
+
+The assumption the figure rests on is 3.7.2's and is stated rather than
+implied: a constant default is a catalogue write, O(1) in the table's size,
+proved by 0.478 s on 48.8 million rows against 0.456 s on none.
+
+### 2. Criterion 1, with the old build actually built
+
+The last writer that does not know the column is `main` at `b9772d1`. It was
+checked out into a git worktree outside the repository, installed, built, and
+run against `marketpulse_bare` **after** `0010` had been applied to it:
+
+```text
+  25 fetches, 25 sessions fetched, 0 already held
+  9750 bars stored, 0 corrected, 0 unchanged
+```
+
+Read back: `9750` rows, **one** distinct tape, `sip` — from the database
+default, because that writer's insert names eight columns against a
+nine-column table. The ledger beside them reads `alpaca`/`sip`. That is the
+deploy window demonstrated: between the migrate step and the code roll the
+previous revision keeps writing, and the default is true of every bar it can
+produce.
+
+**Two precisions the rehearsal added, neither of which the task file
+predicted.** The shipped backfill calls `recordSeries` once **per session**, so
+the largest statement it ever issues is 390 rows — the 8,191-row chunk the old
+build computed is unreachable from that command, and only a caller handing the
+writer a multi-session series would cross it. And `pnpm backfill` resolves its
+provider from `createAlpacaProvider` directly rather than from
+`MARKET_DATA_PROVIDER`: the run was started with `MARKET_DATA_PROVIDER=fixture`
+and went to the real vendor anyway, spending **25 metered requests** and
+storing real SIP bars. It made the rehearsal more faithful than planned, and
+the observation is recorded rather than repaired — a backfill's job is real
+history, and `backfill.database.test.ts` reaches the seam by passing a provider
+as a dependency — but the variable is silently ignored rather than refused.
+`marketpulse_bare` was dropped and rebuilt afterwards; `build-bare-store.mjs`
+refused to rebuild over the contaminated copy and printed the exact command to
+drop it, which is that guard doing its job.
+
+### 3. The lock, which is what this table's deploy actually risks
+
+`ALTER TABLE` takes an `ACCESS EXCLUSIVE` lock and Postgres queues later
+requests **behind** a waiting exclusive one. Rehearsed on the populated store
+(48,797,343 rows) with three sessions — A holding a transaction that had
+inserted, B running the migration's statement shape, C an ordinary chart read
+arriving two seconds later:
+
+| Session                        | Lock wanted           | Granted | Elapsed     |
+| ------------------------------ | --------------------- | ------- | ----------- |
+| A — a backfill batch in flight | `RowExclusiveLock`    | yes     | held 20 s   |
+| B — the migration              | `AccessExclusiveLock` | **no**  | **18.16 s** |
+| C — an ordinary chart read     | `AccessShareLock`     | **no**  | **16.16 s** |
+
+C's lock conflicts with nothing that was granted. It waited only because B was
+ahead of it, and the same read is **0.09 s** unobstructed — so a migration that
+waits stalls every `GET /market-data/bars` on the site for the same length.
+Both showed `wait_event_type: Lock`, `wait_event: relation`.
+
+**`lock_timeout` and `statement_timeout` are both `0` and `migrate.ts` sets
+neither.** With `lock_timeout = '3s'` the same rehearsal failed in **3.13 s**
+with `canceling statement due to lock timeout` and exit 1, releasing C at once.
+
+**The bound was measured and deliberately not shipped**, which is a decision
+and is recorded as one: the realistic wait here is a single `recordSeries`
+transaction — 390 rows, **81–137 ms** measured on the populated store — so the
+exposure is small; `createDatabasePool` is shared with the **serving** pool, so
+bounding only the migration means a new parameter on a shared factory rather
+than a line; a `SET` on a pooled connection is not reliably the connection the
+DDL runs on, because `POOL_MAX` is 10; and the deploy already fails safely when
+it waits too long. `docs/GAPS.md` carries it with a condition for buying the
+bound.
+
+### 4. What was repaired: the deploy's own error message named the wrong lock
+
+`deploy.yml`'s exit-124 branch told the reader the likeliest cause was another
+migration holding Kysely's advisory lock, and to check `pg_stat_activity` for
+`wait_event: advisory`. Since `0010` that is the wrong row — a migration queued
+on `market_bars` reads `wait_event: relation`, and so does every reader behind
+it. The message now names both, in the order a reader should check them, and
+says that the readers are queued too. A diagnostic that points at the wrong row
+is worse than none, because it is followed.
+
+### 5. `check-deployed.mjs` — decided against, in writing
+
+It should **not** probe the column's presence, and the reason is ordering
+rather than cost: the deploy migrates before either half of the code rolls and
+exits non-zero on a migration that did not apply, so a deployment with live
+code and a missing column is not reachable through the pipeline. The check runs
+after the merge and gates nothing. The decision, the cheaper end-to-end witness
+if one is ever wanted (`provenance.sources` is derived from the column since
+3.7.5, so any 200 from the bars route proves it), and the condition that would
+trigger adding one are a comment in `check-deployed.mjs` beside the probe it
+would have joined.
+
+### 6. Criterion 3 — the residue, and two items that closed instead
+
+Three entries in `docs/GAPS.md`, each with a re-measure and an owner that is a
+condition:
+
+- **the lock wait**, with the table above and the un-bought bound;
+- **`bar_coverage.feed` is written, described and read by nothing**, and the
+  contract deploy that would drop it has no trigger — owner: the first
+  migration that touches that table for any other reason;
+- **everything this story asserts about the schema lives in
+  `pnpm test:database`**, a required CI job that is not part of `pnpm verify`,
+  so a later `validate constraint` passes every unit-level check and reaches
+  the deploy's 120 s ceiling before anything goes red.
+
+**Two of the residue items 3.7.5 predicted closed rather than landing in the
+list.** _(a)_ The invariant reads one file, which is sound only while that file
+is the ledger's only querier — so the invariant now **asserts that too**:
+eleven files mention `bar_coverage` and none but `market-bars.ts` builds a
+query against it. `pnpm break a-second-module-queries-the-ledger` proves it.
+_(c)_ The empty answer's `SOURCE_OF_NOTHING` cannot reach a reader:
+`source-note.ts` applies ADR 0029 **per clause**, and the feed, adjustment and
+retrieval clauses are properties of the bars, so a series with no bars renders
+none of them. Confirmed by reading the module rather than assumed.
+
+### 7. Gates
+
+`pnpm verify` green; `pnpm test:database` green; `pnpm invariants` **21 hold**
+with the widened check; `pnpm break a-second-module-queries-the-ledger` red and
+restored; `pnpm links` 0 broken; `pnpm e2e` against the rebuilt
+`marketpulse_bare`. No shipped source file changed — the repairs are a workflow
+message, a script comment, an invariant and the documents.
+
+## For a stakeholder — a status report, 2026-09-23
+
+**Where the product is.** The database can now record which exchange feed every
+stored price came from, hold two feeds for one security, and tell a chart
+exactly which stretch came from which. This task did no new building. It
+**rehearsed the risky part of shipping it** and wrote down what our automated
+checks cannot see.
+
+**What was rehearsed, and what it found.**
+
+- **The upgrade itself is fast on the real server, and we have the receipt.**
+  The change had already gone out to production the previous day, so instead
+  of estimating we read the deployment log: **1.25 seconds**, against a
+  two-minute budget. Ninety-six times the headroom.
+- **The old software keeps working during the changeover.** For a few seconds
+  during any deployment the database has the new column and the running code
+  does not know about it. We built the previous version of the software,
+  pointed it at an upgraded database and let it load 9,750 prices. Every one
+  landed correctly and was labelled with the right feed automatically.
+- **The real hazard is waiting, not working.** Adding a column needs exclusive
+  use of the price table for a moment. If anything else is mid-write, the
+  upgrade waits — and, we measured, **so does every chart on the site**, in a
+  queue behind it. In a controlled test the upgrade waited 18 seconds and an
+  ordinary chart read that would normally take a tenth of a second waited 16.
+
+**Why we did not "fix" that last one.** There is a one-setting cure: tell the
+upgrade to give up after a few seconds rather than wait. We measured that it
+works exactly as expected. We did not ship it, for three reasons we wrote
+down: the real wait on our system is a fraction of a second, because the only
+thing that writes prices does so in small batches; the setting lives in a piece
+of code shared with the live website, so changing it safely is a real change
+rather than a line; and if the upgrade ever does wait too long today, the
+deployment stops by itself, changes nothing and rolls no new code. We recorded
+the measurement, the cure and the exact condition under which it becomes worth
+buying.
+
+**One thing we did fix.** When a deployment gives up waiting, it prints advice
+about where to look. That advice was written before this feature and pointed at
+the wrong place — it would have sent whoever was on call chasing the wrong
+thing. It now names the right one first.
+
+**What we wrote down rather than solved.** Three honest gaps, each with the
+command that re-takes the measurement: the waiting problem above; a leftover
+column that is still filled in but no longer read by anything, which should be
+removed the next time that table is touched for another reason; and the fact
+that our schema tests run as their own job rather than as part of the standard
+build, so a future change of a certain shape would only be caught at
+deployment time.
+
+**What a user can see today: nothing.** This task moved no pixel. What it buys
+is confidence that the next two stories — storing the live trading session,
+then telling a reader on screen which exchange each part of their chart came
+from — can ship without a deployment stalling the site.

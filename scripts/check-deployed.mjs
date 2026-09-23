@@ -168,6 +168,30 @@ async function probeBackend(backendOrigin) {
  * being read. **A store with no bars is not a stale store**; it is a store
  * nobody has filled, and `pnpm bars:check` is the instrument for that.
  */
+/**
+ * **What this file deliberately does not probe, decided 2026-09-23 by Task
+ * 3.7.6: the presence of a column.**
+ *
+ * Story 3.7 added `market_bars.feed` in `0010`, and the question the task
+ * asked is whether this check should assert the schema rolled. It should not,
+ * for a reason about **ordering** rather than about cost: `deploy.yml`
+ * migrates *before* either half of the code rolls and exits non-zero on a
+ * migration that did not apply — the `status=$?` guard that exists because a
+ * refused migration once reported success — so a deployment whose code is
+ * live and whose column is missing is not reachable through the pipeline. A
+ * probe here would assert something the step before it already fails on, and
+ * this check runs **after the merge and gates nothing**; its output is a
+ * rollback decision.
+ *
+ * The cheapest honest witness, if one is ever wanted, is **not** schema
+ * introspection: since Task 3.7.5 a served window's `provenance.sources` is
+ * derived from that column, so any `GET /market-data/bars` answering 200 with
+ * a source proves the column exists and is read end to end. That is a bars
+ * probe with a symbol and a window, and it is worth adding **when a schema
+ * change lands whose absence the migrate step cannot see** — an out-of-band
+ * `VALIDATE`, a column dropped by a contract deploy, or a manual repair. That
+ * condition is the trigger; a story number is not.
+ */
 async function probeFreshness(backendOrigin) {
   const result = await get(`${backendOrigin}/diagnostics/freshness`);
 

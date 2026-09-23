@@ -205,6 +205,24 @@ export const BREAKS = [
     expect: "writes a `sources:` array by hand",
   },
   {
+    name: "a-second-module-queries-the-ledger",
+    proves:
+      "The ledger has one reader. `stored-sources-only-through-the-merge` " +
+      "greps ONE file for a select of the withdrawn `bar_coverage.feed`, " +
+      "which is sound only while `market-bars.ts` is the only module that " +
+      "builds a query against that table \u2014 the seam `DATA-LAYER.md` " +
+      "requires. A second querier could select the column and pass the grep " +
+      "(Task 3.7.6).",
+    file: "apps/backend/src/store-freshness.ts",
+    find: "export function lastCompletedSession(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      'const reintroduced = (db) => db.selectFrom("bar_coverage").select("feed");\n' +
+      "export function lastCompletedSession(",
+    command: ["pnpm", "invariants"],
+    expect: "builds a query against",
+  },
+  {
     name: "the-ledgers-tape-is-read-again",
     proves:
       "The ledger's `feed` column comes back as a read. It is the tape the " +
