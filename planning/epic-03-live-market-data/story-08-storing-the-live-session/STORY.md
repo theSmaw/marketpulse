@@ -349,3 +349,55 @@ never expires an observation, so a "live" price can be hours old (Task 3.6.2
 handed that state to Story 3.10, not to you); and the table is memoised on
 the observation's identity (Task 3.6.5), so a stored bar handed to it under a
 new object for the same minute is a re-render of that row.
+
+## Handed here by Task 3.7.6 — 2026-09-23: writing during the session changes what a deploy costs, and the number is yours to keep small
+
+**This is a constraint on a decision you have not taken yet**, which is why it
+is here rather than in a document you would have to know to open.
+
+**The measurement.** `ALTER TABLE market_bars` takes an `ACCESS EXCLUSIVE`
+lock. It waits behind any open transaction on that table, and Postgres queues
+everything that arrives afterwards **behind the waiter** — including plain
+reads whose own locks conflict with nothing that was granted. Rehearsed on the
+local populated store (48,797,343 rows) with a write transaction held open: the
+migration waited **18.16 s**, and an ordinary chart read arriving two seconds
+later waited **16.16 s** against a **0.09 s** baseline. Both showed
+`wait_event_type: Lock`, `wait_event: relation`. `lock_timeout` and
+`statement_timeout` are `0` and `migrate.ts` sets neither; the bound was
+measured (`lock_timeout = '3s'` fails clean in 3.13 s) and deliberately not
+bought — `docs/GAPS.md`, _A migration on `market_bars` waits for as long as the
+longest open transaction_.
+
+**Why it is yours rather than the deploy's.** Today the only thing that writes
+to `market_bars` is the nightly backfill, in **two cron windows a day**
+(`backfill.yml`: `0 21` and `0 8` UTC), each about ten minutes, and each
+transaction is one session — 390 rows, **81–137 ms** measured. So a merge has
+to land inside a twenty-minute window and then inside a hundred-millisecond
+transaction, and the deploy fails safely if it does not (`timeout 120`, exit
+124, nothing applied, no code rolled).
+
+**This story makes the backend write to that table throughout the trading
+session.** That turns two narrow windows into six and a half hours a day, and
+it puts the transaction's duration on the critical path of every deploy that
+merges while the market is open — which, for a developer in Asia/Singapore, is
+the evening. **So the granularity of your write is also a deploy decision**: a
+transaction per minute-batch across 518 securities is a different exposure from
+a transaction per security per bar, and the difference is measured in how long
+the whole site's charts can stall.
+
+**What to do with it, concretely:**
+
+- **Measure the transaction you ship**, the way 3.7.6 measured the backfill's,
+  and record the figure in this story's subject document. A write path whose
+  transaction duration is unmeasured is one nobody can reason about here.
+- **Prefer short transactions to few ones** where the choice is free. The
+  store's own writer already batches by session because that is what
+  `recordSeries` takes; a live writer has a real choice.
+- **Do not reach for `lock_timeout` without reading why it was not bought** —
+  `createDatabasePool` is shared with the serving pool and `POOL_MAX` is 10,
+  so a `SET` is not reliably the connection the DDL runs on. If your
+  measurement makes the bound worth buying, that entry's owner condition is
+  met and the repair belongs with it.
+- **The diagnostic is already correct**: `deploy.yml`'s exit-124 message names
+  `wait_event: relation` beside the advisory lock since 3.7.6, so an incident
+  points at the right row.
