@@ -1,4 +1,4 @@
-# Task 3.8.5 — A growing session is not an immutable one
+# Task 3.8.6 — A growing session is not an immutable one
 
 **Status:** Not started
 **Story:** [3.8 Storing the Live Session](STORY.md)
@@ -40,6 +40,27 @@ answer rather than one the clock has to guess: a window whose end is at or past
 the ledger's `covered_end` is one the writer has not finished. Whether the
 validator should read it is this task's to decide; that it is readable is not
 in doubt.
+
+**And a third case that is not about growth at all — added 2026-09-23 by Task
+3.8.4.** The two above are both _a window gaining bars_. This one is **a window
+whose bars change without gaining any**, and the caching argument has never had
+to hold it.
+
+Since 3.8.4 a served minute is the **preferred** tape rather than the only one.
+So a window served at 20:00, before the backfill, returns the IEX bars; the
+same window served at 21:00, after it, returns the **consolidated** bars for
+those same minutes. Same instants, same bar count, **different prices**, and a
+`provenance.sources` that has changed shape. `MARKET-DATA-API.md` §11's premise
+is _a closed session's bars never change_ — that is now false in a second and
+less obvious way, and the session does not have to be growing for it to bite.
+
+The hazard is precise and it is the one the table's `max-age=300` was written
+against: a window entirely inside closed sessions is cacheable by that rule, and
+the reconciliation can land inside those five minutes. **Whatever validator this
+task lands on has to change when the tape serving a minute changes**, not only
+when a bar arrives — which is an argument for deriving it from something that
+moves on a correction, `recorded_at` being the obvious candidate since `0004`
+argued it as exactly that record.
 
 **2. The stitch's bound, whose reversal trigger has fired.**
 `MARKET-DATA-API.md` §5 recorded: _the tail's **source** changes when Epic 3 has

@@ -1,8 +1,8 @@
-# Task 3.8.8 — The overnight reconciliation, rehearsed over one session
+# Task 3.8.9 — The overnight reconciliation, rehearsed over one session
 
 **Status:** Not started
 **Story:** [3.8 Storing the Live Session](STORY.md)
-**Depends on:** 3.8.6
+**Depends on:** 3.8.7
 
 ## Objective
 
@@ -55,6 +55,19 @@ make safe.
 
 - **A minute both cover with different numbers** is the interesting one, and
   what happens to it is exactly 3.8.1's decision. Count them.
+  **And since 2026-09-23 there is a stated answer to hold it to** (Task 3.8.4):
+  both rows are kept, and the **consolidated** one is what `readSeries` serves,
+  under `SERVED_TAPE_RANK`. So the assertion is two-sided — the count of
+  doubly-covered minutes against the store, and the served answer naming the
+  consolidated tape for every one of them. A rehearsal that only counted rows
+  would pass against a read that served the wrong one.
+- **What the served window's `provenance.sources` says after both runs**, which
+  is the part a user meets. It describes **what was served**, not what is
+  stored, so the IEX count in the note is the minutes the consolidated tape did
+  **not** reach — not the number of IEX rows in the table. Task 3.8.4 saw
+  exactly this on a local store: 90 IEX rows held, **45** named. Assert the
+  difference rather than the equality, because equality is what a regression
+  would produce.
 - **The ledger's `covered_end` on the DAILY rows is holding a wall clock, and
   it is yours** — handed here 2026-09-23 by Task 3.8.3, which met it by
   accident. Every `1d` row read `2026-09-14T00:04:38.533Z`, milliseconds and

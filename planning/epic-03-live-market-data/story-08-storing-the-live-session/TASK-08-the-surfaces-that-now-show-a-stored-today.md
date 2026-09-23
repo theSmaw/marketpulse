@@ -1,4 +1,4 @@
-# Task 3.8.7 — The surfaces that now show a stored today
+# Task 3.8.8 — The surfaces that now show a stored today
 
 **Status:** Not started
 **Story:** [3.8 Storing the Live Session](STORY.md)

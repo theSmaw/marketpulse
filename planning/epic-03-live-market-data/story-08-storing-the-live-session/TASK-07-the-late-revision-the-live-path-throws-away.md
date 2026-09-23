@@ -1,4 +1,4 @@
-# Task 3.8.6 — The late revision the live path throws away
+# Task 3.8.7 — The late revision the live path throws away
 
 **Status:** Not started
 **Story:** [3.8 Storing the Live Session](STORY.md)
@@ -80,6 +80,21 @@ feed)`, so a revision arriving on the **same** tape conflicts and upserts —
   insert counted as a correction and the ledger silently under-reported. Any
   query you add that asks _does this bar already exist_ asks it **per tape**;
   `migrations/README.md` §9 carries the general form.
+- **A revision to a SHADOWED tape changes nothing a reader can see, and that
+  will look like a broken fix — added 2026-09-23 by Task 3.8.4.** Since that
+  task a served minute is the **preferred** tape: where a consolidated bar
+  exists it wins, and the IEX row beside it is stored but not served. Your
+  revisions arrive on the **live** tape. So a late correction applied to a
+  minute the backfill has already reconciled is written correctly, changes the
+  stored row correctly, and is **invisible through `readSeries`** — because the
+  reader is being served the other row.
+  That is the system behaving as designed, and it is a trap for this task's
+  tests: an assertion that reads the revision back through `readSeries` fails on
+  a reconciled minute and passes on an unreconciled one, which looks like
+  flakiness and is not. Assert through `readBars`, or on the row, or on a
+  minute the consolidated tape has not reached — and say in the test which, and
+  why. The value of applying it anyway is Epic 13's: replay reads the tape that
+  was observable, and that is the row you are correcting.
 - **`recorded_at` is the record that a correction happened** — it is the only
   signal, and `0004` argued it rather than an `updated_at`. The
   `is distinct from` clause on the writer's `on conflict` is what keeps it

@@ -1,8 +1,8 @@
-# Task 3.8.9 — The sweep, the hand-offs and the close
+# Task 3.8.10 — The sweep, the hand-offs and the close
 
 **Status:** Not started
 **Story:** [3.8 Storing the Live Session](STORY.md)
-**Depends on:** 3.8.8
+**Depends on:** 3.8.9
 
 ## Objective
 
@@ -48,9 +48,9 @@ Known candidates, each to be checked rather than assumed:
 - **`LIVE-DATA.md` §10.3** — _the backend holds only the last bar per security,
   not today's bars, because Story 3.8 is about to hold them durably._ That
   sentence becomes past tense; check it says so.
-- **`MARKET-DATA-API.md` §5 and §11**, if Task **3.8.5** did not already amend
+- **`MARKET-DATA-API.md` §5 and §11**, if Task **3.8.6** did not already amend
   them — corrected 2026-09-23, this read _3.8.4_, which owns the read path's
-  duplicate-minute repair and never touches those sections. 3.8.5 is the task
+  duplicate-minute repair and never touches those sections. 3.8.6 is the task
   told to re-read them.
 - **`BARS.md` §8.3–8.4** — a live session adds rows every day the market is
   open. Story 3.7's close amended the row size for the tape column and left the
@@ -73,11 +73,22 @@ Known candidates, each to be checked rather than assumed:
   `feed=iex` REST endpoint; `LIVE-DATA.md` §7.6 measured the _live stream_ at
   **65.1% / 2.1%** and struck the old pair for it on 2026-09-16. The strike did
   not propagate: two live sites in `LIVE-DATA.md` itself, one in
-  `epic-04-market-overview/EPIC.md` and one inherited into Task 3.8.8 were all
+  `epic-04-market-overview/EPIC.md` and one inherited into Task 3.8.9 were all
   corrected on 2026-09-23. Epic 2's own records keep 82.8% and are **right** —
   they are about the historical endpoint. **At the close, grep `82.8` again and
   check each hit says _stored_.** This is the third time this epic has paid for
   a correction that was recorded and not propagated.
+- **The reads that assume one row a minute, and whether the list is finished.**
+  Two were found by being met rather than by looking — `readSeries` (a 500,
+  Task 3.8.4) and `readLastCloses` (a fabricated +49.8% move, Task 3.8.5). Task
+  3.8.5 audits the rest and records the answer; at the close, **check that the
+  audit was written down rather than performed**, because an audit whose result
+  lives only in a diff is one the next person repeats.
+- **`TAPE.md` §8 and ADR 0035**, both of which describe a window's sources as
+  derived from the stored rows. Since Task 3.8.4 they are derived from the rows
+  **the answer contains**, which is a narrower and more accurate claim. Check
+  each says so, and that neither still implies a served window names every tape
+  the store holds for it.
 - **`docs/GAPS.md`'s stale-store entry**, amended twice on 2026-09-23 — once
   wrongly, then corrected. Check it still reads as _the procedure stands, the
   example was repaired_, and that no other entry describes the 90 px panel jump
