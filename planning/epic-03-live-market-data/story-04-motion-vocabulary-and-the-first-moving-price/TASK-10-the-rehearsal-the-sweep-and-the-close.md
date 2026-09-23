@@ -565,6 +565,18 @@ window again — so the honest count is **three stories waiting on one sitting**
 > a page fed only by the store marks nothing. It lives here rather than with
 > that story's files because the mark is this story's subject and a second
 > locator for one handle is how two specs start disagreeing about it.
+>
+> **Amended 2026-09-24 by Task 3.8.9.** That assertion **flaked**, and the
+> repair changes how this spec waits. It passed alone and failed in a full
+> suite run: the universe assertion is anchored on a table of 518 rows behind a
+> 190 kB response, which on a loaded machine is longer than an assertion's
+> default patience. It now waits on the universe **answer**
+> (`SECURITIES_ROUTE_PATTERN`) rather than on `networkidle` and the table's
+> paint — the wait is about the thing that is actually slow. **The rule for
+> anything this story adds to that spec**: an assertion that reaches the
+> universe table waits for the response, because `networkidle` is not a
+> guarantee that 518 rows have rendered. A widened timeout would have hidden
+> the reason rather than fixed it.
 
 The enumeration below handed **3.8** three constraints. Two are now shipped and
 were checked rather than assumed:
