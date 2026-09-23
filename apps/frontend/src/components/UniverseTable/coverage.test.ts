@@ -120,13 +120,29 @@ describe("summariseCoverage", () => {
       securities: 2,
       bars: 117_071,
       through: "2026-09-04",
+      // A flat frontier names no second date, so the everyday sentence is the
+      // one this line has always drawn.
+      reaching: null,
     });
   });
 
-  // "Through when" is the frontier the store has reached, so it is the latest
-  // end and not the earliest. A backfill walks backwards from the most recent
-  // session, so securities differ at the start and share this date.
-  it("reports the furthest day any security reaches", () => {
+  // **This asserted the OPPOSITE until 2026-09-23, and the inversion is the
+  // change rather than a relaxation** (Task 3.8.8). It read *reports the
+  // furthest day any security reaches*, on the argument that a backfill walks
+  // backwards from the most recent session so securities differ at the START
+  // and share this date. The code carried the condition that would end it:
+  // *if that ever stops being true, this figure becomes the optimistic one and
+  // the honest thing to do is say so rather than switch it silently.*
+  //
+  // Storing the live session ended it. The live feed is one venue carrying
+  // 65.1% of a median name's minutes, so during a session some securities hold
+  // today and some do not, and the maximum is one name's reach presented as
+  // the store's. Measured on the local store at 340 of 518: the old figure
+  // claimed a date **178 securities did not reach**.
+  //
+  // Asserted as an inversion rather than rewritten away, because a summary
+  // that quietly goes back to the maximum is the defect this replaced.
+  it("reports the day EVERY security reaches, and names the furthest second", () => {
     const summary = summariseCoverage(
       new Map([
         [
@@ -137,7 +153,10 @@ describe("summariseCoverage", () => {
       ]),
     );
 
-    expect(summary.through).toBe("2026-09-04");
+    // What the store can be trusted for, across the whole universe.
+    expect(summary.through).toBe("2026-08-03");
+    // And how far the furthest one goes — the progress, second.
+    expect(summary.reaching).toBe("2026-09-04");
   });
 
   // A migrated database nobody has backfilled. `null` rather than a date,
@@ -148,6 +167,7 @@ describe("summariseCoverage", () => {
       securities: 0,
       bars: 0,
       through: null,
+      reaching: null,
     });
   });
 });

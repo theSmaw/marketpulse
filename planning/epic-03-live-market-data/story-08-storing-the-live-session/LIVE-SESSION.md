@@ -758,3 +758,110 @@ rather than leaving as an exercise: every row in the store is `sip` from the
 backfill, and the backfill does not correct. The count needs the **live** tape
 over a session. Written into the shared-sitting list in Task 3.4.10, beside the
 rehearsal item it overlaps exactly — _a real correction, both halves_.
+
+## 12. The surfaces that now show a stored today (Task 3.8.8, 2026-09-23)
+
+**Two surfaces were handed here, and the one this task was aimed at turned out
+not to move. The one that moved was a third, and its own comment named the
+condition.**
+
+### The `Last close` column does not blur, and checking took one query
+
+The task inherited Story 3.6's dating rule and said _storing the live session
+blurs the line it draws_. It does not. That column reads **`1d`** —
+`CLOSE_TIMEFRAME` in `routes/securities.ts` — and the live writer writes
+**`1m`** and nothing else. Confirmed against the store: 676 daily sessions, all
+`sip`, newest `2026-09-11`. Daily bars still arrive only from the nightly
+backfill, all 518 at once, so `commonSession` still finds one date and the
+heading still carries it.
+
+**That is the third task in a row whose stated hazard was not the real one**,
+and the third time one query settled it before any code was written.
+
+### What did move: the store's claim about its own depth
+
+`summariseCoverage`'s `through` took the **maximum** end date across the
+universe, and the comment above it named exactly what would end that:
+
+> A backfill walks backwards from the most recent session, so **every security
+> shares this date**… **If that ever stops being true, this figure becomes the
+> optimistic one and the honest thing to do is say so rather than switch it
+> silently.**
+
+Storing the live session ended it. The live feed is one venue carrying **65.1%
+of a median name's minutes** and 2.1% of the worst, so during a session some
+securities hold today and some do not. Simulated on the real ledger at 340 of
+518:
+
+|                                              |            |
+| -------------------------------------------- | ---------- |
+| distinct end days across the universe        | 2          |
+| what the line claimed (the maximum)          | 2026-09-14 |
+| what is true of all 518 (the minimum)        | 2026-09-11 |
+| **securities not reaching the claimed date** | **178**    |
+
+**From the first minute of a session**, one security printing a bar made the
+page claim the store reached today while 517 had nothing for it.
+
+### The decision: the reliable date first, the frontier second
+
+`through <min>`, and `, some to <max>` only when they differ.
+
+**Reliability first because that is the line's job.** It is a claim about what
+the store can be **trusted** to hold for every security; the other way round it
+is a promise 178 rows cannot keep. This is the same asymmetry the table already
+applies to the `Last close` heading — _a shared claim is made only when it is
+true of everything, and the moment it is not, the page stops making it rather
+than making it approximately._ Reused rather than reinvented.
+
+**And it stops hiding a straggler.** A delisted security whose history ends
+years ago is invisible behind a maximum and is the first thing a reader meets
+under a minimum, which is the honest way round.
+
+**Measured at four viewports, flat against ragged: the extra clause costs no
+height** — `1358×22` at 1440 and `308×100` at 390 in both states, because the
+line already wraps and the new text fits the last row. Drawn:
+
+```text
+518 securities tracked · 11 sectors · 15 ETFs · all with history ·
+48.4M minute bars · through 2026-09-11, some to 2026-09-14
+```
+
+`pnpm break the-store-claims-one-securitys-frontier-as-its-own` proves the red.
+
+### The arrival mark does not fire on a store re-read, asserted in a browser
+
+Story 3.4's close named this _the one thing that would be invisible until
+somebody watched it_. Two halves were already covered — a reconnect's snapshot
+fires no mark (`market-reconnect.spec.ts`) and a snapshot at universe scale is
+not an arrival (`universe-live-update.spec.ts`). The half that was not is the
+task's own sentence: **a page re-read from the store must not pretend prices are
+arriving.**
+
+`security-price-motion.spec.ts` now loads `/securities/NVDA` with **no feed
+stubbed** — the deployed default and CI's, so every price on the page is a
+stored close — reloads it, and asserts `[data-arrival]` has count **0** across
+the whole page, both times. Across the whole page rather than the block, because
+since Task 3.6.1 the universe table's 518 rows carry the same handle.
+
+### The design reading, and it is a rare positive
+
+The task asked whether the two-feed source note, now that it has had real data
+behind it for the first time, matches what the canvas intended.
+`VISUAL-LANGUAGE.md`'s provenance section specifies, for more than one source:
+_each stretch on its own row, its bar count right-aligned in the data face, its
+label beside it and its sentence after that_ — and, from its 2026-09-14
+amendment, _the count is drawn only where there is a split to measure_.
+
+Photographed from real stored rows in Tasks 3.8.3 and 3.8.4:
+
+```text
+SOURCES   5,505 bars  All US exchanges
+             45 bars  IEX
+                      Trades reported by the IEX exchange only — not the
+                      full US consolidated tape.
+```
+
+**It matches, clause for clause**, including the single-source case drawing no
+count at all. An arrangement designed against no data, two epics before any
+existed, held the first time it had some.
