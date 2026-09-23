@@ -295,11 +295,20 @@ none of them. Confirmed by reading the module rather than assumed.
 
 ### 7. Gates
 
-`pnpm verify` green; `pnpm test:database` green; `pnpm invariants` **21 hold**
-with the widened check; `pnpm break a-second-module-queries-the-ledger` red and
-restored; `pnpm links` 0 broken; `pnpm e2e` against the rebuilt
-`marketpulse_bare`. No shipped source file changed — the repairs are a workflow
-message, a script comment, an invariant and the documents.
+`pnpm verify` green; `pnpm test:database` **188/188**; `pnpm invariants`
+**21 hold** with the widened check; `pnpm break a-second-module-queries-the-ledger`
+red and restored; `pnpm links` 0 broken. `deploy.yml`'s changed line was
+re-parsed with `bash -n` and its indentation confirmed unchanged inside its
+`run:` block, because nothing in `verify` reads a workflow file.
+
+**`pnpm e2e` was NOT run, and that is a judgement rather than an omission.**
+No application source changed — the repairs are a workflow message, a script
+comment, an invariant, a break and the documents — so the browser suite is out
+of scope for what this change can break; CI runs it on the pull request.
+`marketpulse_bare` was rebuilt to CI's shape (518 securities, 0 bars) after
+the rehearsal contaminated it, so the next local run starts from the right
+store. _Corrected 2026-09-23 by this story's sweep: the first draft of this
+section listed `pnpm e2e` among the gates as though it had been run._
 
 ## For a stakeholder — a status report, 2026-09-23
 
