@@ -162,6 +162,21 @@ seventh rehearses it; `LIVE-SESSION.md` §3 states it.
 - **What the read path prefers when a window holds both tapes for one minute.**
   The bars are two rows; which one a chart draws is a read decision, and
   `mergeSeriesProvenance` already reports both stretches honestly either way.
+
+  > **Corrected the same day, 2026-09-23, by Story 3.8's own sweep of this
+  > record.** The sentence above is true about the _preference_ and wrong about
+  > who owns it, because it assumed the read path degrades gracefully without
+  > one. It does not: `toBarSeries` refuses bars that are not **strictly
+  > ascending** by instant and **throws a `RangeError`**, so a window holding
+  > two rows for one minute is a **500 on a page load** rather than a chart
+  > drawn from the less good row. That makes the rule a **precondition of this
+  > decision shipping at all**, not a downstream nicety — it is Story 3.8's
+  > (Task 3.8.4, inserted for it), and what remains Story 3.9's is the **live
+  > edge**, where only one tape can have a bar for the minute in progress.
+  > **The general lesson is the one worth carrying**: a decision that widens
+  > what the store may hold has to be checked against what the read path
+  > _refuses_, not only against what it prefers.
+
 - **Whether the surrogate index is dropped.** Named above as the funder; Epic 14
   owns it.
 - **The gap a disconnection leaves**, which is Story 3.10's and is made

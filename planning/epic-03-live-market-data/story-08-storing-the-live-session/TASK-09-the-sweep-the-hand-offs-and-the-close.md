@@ -1,8 +1,8 @@
-# Task 3.8.8 — The sweep, the hand-offs and the close
+# Task 3.8.9 — The sweep, the hand-offs and the close
 
 **Status:** Not started
 **Story:** [3.8 Storing the Live Session](STORY.md)
-**Depends on:** 3.8.7
+**Depends on:** 3.8.8
 
 ## Objective
 
@@ -51,7 +51,11 @@ including if it is zero. Known candidates:
 - **Story 3.9** — today's bars come from the store now, which is the dependency
   `LIVE-DATA.md` §10.3 created; and the two-feed sentence it was to produce from
   the read-time stitch may already be on screen from real data (Task 3.8.3), so
-  its scope needs re-reading rather than assuming
+  its scope needs re-reading rather than assuming. **And one question it was
+  handed has come back**: which row a chart draws when a minute holds two was
+  given to 3.9 by ADR 0035 and reclaimed by Task 3.8.4, because without a rule
+  the read **throws** rather than choosing badly. What is left for 3.9 is the
+  **live edge** — the minute in progress, where only one tape can have a bar
 - **Story 3.10** — the gap a disconnection leaves is its own, and this story
   makes it reachable: a ledger extended across a gap claims a window it does not
   hold. Say exactly what shape that takes now

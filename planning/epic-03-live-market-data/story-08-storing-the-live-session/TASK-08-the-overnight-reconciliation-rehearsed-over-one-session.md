@@ -1,8 +1,8 @@
-# Task 3.8.7 — The overnight reconciliation, rehearsed over one session
+# Task 3.8.8 — The overnight reconciliation, rehearsed over one session
 
 **Status:** Not started
 **Story:** [3.8 Storing the Live Session](STORY.md)
-**Depends on:** 3.8.5
+**Depends on:** 3.8.6
 
 ## Objective
 

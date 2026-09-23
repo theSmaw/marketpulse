@@ -123,11 +123,45 @@ half:
   skip it; claiming only up to the last bar seen leaves the ledger honest and
   the backfill asking, but a per-symbol `covered_end` that lags means
   `commonCoverage`'s intersection is the **earliest** of 518 lagging ends.
-- **Task 3.8.7 rehearses it** — both paths over one session, in the real order —
+- **Task 3.8.8 rehearses it** — both paths over one session, in the real order —
   and the thing to assert is not only that the reconciliation behaves, but that
   **the backfill asked at all**.
 
-## 4. What a green `pnpm test:database` will certify about this, and what it will not
+## 4. The read path REFUSES two rows for one minute, and that made a ninth task
+
+**Found 2026-09-23, the same day the decision was taken, by checking what the
+read path does rather than what it prefers.** Keeping both tapes makes a minute
+able to hold two rows. `readSeries` selects them in `observed_at` order and
+`toStoredSeries` maps them to bars, and `toBarSeries` does this:
+
+```ts
+if (current.startsAt.getTime() <= previous.startsAt.getTime())
+  throw new RangeError("Bars must be strictly ascending by startsAt, …");
+```
+
+So the first chart request over a session that has been live-written **and then
+backfilled** is a **500 on a page load** — for every reader, for that window.
+Not the less good bar drawn: no chart at all.
+
+**ADR 0035 had handed this to Story 3.9** as _which row does a chart draw_, on
+the reading that it was a preference. It is a precondition. Both the ADR and
+Story 3.9's file carry a dated correction, and **Task 3.8.4 was inserted** to
+take the decision, make `readSeries` return one bar a minute, and leave a test
+that fails without it. What stays Story 3.9's is the **live edge**: for the
+minute in progress only one tape can have a bar, so the preference has nothing
+to choose between.
+
+**The general lesson, which is the part worth carrying past this story:** a
+decision that widens what the store may **hold** has to be checked against what
+the read path **refuses**, not only against what it would prefer. The refusal
+was three lines away in a file nobody had reason to open.
+
+**The hazard window, stated so it is not met.** Between Task 3.8.3 shipping and
+Task 3.8.4 shipping, a local store with a live-written session that is then
+backfilled will 500 on that window. Do not run `pnpm backfill` over a
+live-written session in that window, or rebuild the store.
+
+## 5. What a green `pnpm test:database` will certify about this, and what it will not
 
 Nothing yet: this task wrote a decision, not a mechanism. The sections above are
 what the later tasks are held to, and each will add its own row here.

@@ -1,4 +1,4 @@
-# Task 3.8.4 — A growing session is not an immutable one
+# Task 3.8.5 — A growing session is not an immutable one
 
 **Status:** Not started
 **Story:** [3.8 Storing the Live Session](STORY.md)
