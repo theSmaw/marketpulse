@@ -260,10 +260,14 @@ the previous close`), so **the sentence's length now depends on the state of
 - **Two shipped sentences are correct today and become false the first time an
   IEX tail is stitched on. Owner: Epic 3, beside the two-feed ledger.** The
   ledger itself — each stretch, in contribution order, with its bar count — is
-  the sentence invariant 6 exists for, and **no server this product runs can
-  produce it**: all sixteen recorded bar-series bodies carry `sip`, so the state
-  is reached through `twoFeedStitchView()`, the recorded stitch with one field
-  changed. And `No shares changed hands anywhere in the window.` is the only
+  the sentence invariant 6 exists for, and ~~**no server this product runs can
+  produce it**~~ — **since 2026-09-23 the server can, from a store that holds
+  two tapes** (Task 3.7.5: one source per contiguous run of tape, through the
+  merge, proved in `pnpm test:database` against rows the shipped writer
+  wrote), and what remains true is that **no deployed store holds two tapes**
+  until Story 3.8 writes one: all sixteen recorded bar-series bodies carry
+  `sip`, so the frontend's version of the state is still reached through
+  `twoFeedStitchView()`, the recorded stitch with one field changed. And `No shares changed hands anywhere in the window.` is the only
   shipped sentence claiming something about **the market** rather than about our
   store — true while every bar is the consolidated tape, a single venue's silence
   reported as the whole market's the moment it is not.

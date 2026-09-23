@@ -31,6 +31,22 @@ one field changed, named and commented so that _deleting it and pointing its
 three readers at a real recorded body is the obvious move._ **This story is that
 move.**
 
+> **Amended 2026-09-23 by Task 3.7.5 — the server half of that sentence is
+> no longer true, and that is this story's good news.** `readSeries` now
+> produces the list from stored rows: one `BarSource` per contiguous run of
+> tape, in the order the bars sit, each with its bar count and its own
+> `retrievedAt`, joined through `mergeSeriesProvenance` — proved in
+> `pnpm test:database` against a window the shipped writer wrote as SIP then
+> IEX, and on the wire through `app.inject()`. What is still true: no
+> **deployed** store holds two tapes until Story 3.8 writes one, and the
+> frontend's fixtures are unchanged, so `twoFeedStitchView()` is still how a
+> story or a test reaches the state in the browser. Two things this story
+> can act on: the real recorded body it deletes the stitch for can be taken
+> from a local store the moment 3.8 lands (`TAPE.md` §8); and the note's
+> `formatRetrieval` already ranges over every source's date, so a two-stretch
+> series retrieved on two days renders `4–8 September 2026` with no change —
+> read it against a real body rather than assuming it.
+
 ## What the user can see when this story lands
 
 **A chart that reaches the current minute**, on `/securities/:symbol` with the
@@ -301,6 +317,9 @@ is real and was accepted with the re-order rather than overlooked:
 
 - `mergeSeriesProvenance` and `twoFeedStitchView()` remain the only path to a
   genuine two-feed sentence, and **nothing user-facing will exercise them**.
+  _Amended 2026-09-23: the store's read path is now a third — Task 3.7.5
+  joins a two-tape window through `mergeSeriesProvenance` — and it is still
+  exercised by nothing user-facing until 3.8 stores a second tape._
 - `CLAUDE.md`'s two shipped sentences that _"become false the first time an IEX
   tail is stitched on"_ are still owed an answer, and this story still owes it —
   it just gets the tail from a different place.

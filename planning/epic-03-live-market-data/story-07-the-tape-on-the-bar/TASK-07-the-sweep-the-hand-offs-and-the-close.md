@@ -26,6 +26,12 @@ four documents that are **live claims** today:
   produce it** — all sixteen recorded bar-series bodies carry `sip`, so the
   state is reached through `twoFeedStitchView()`_. After 3.7.5 a server can
   produce it from a store that holds two tapes. Amend, dated.
+  **Swept 2026-09-23 by Task 3.7.5's sweep, the same day the read path
+  landed**: `CLAUDE.md`'s bullet, `docs/GAPS.md`'s entry and Story 3.9's own
+  description all carry a dated amendment — the server produces the list from
+  a two-tape store now; no deployed store holds one until 3.8. At the close,
+  `grep -rn "no server this product runs"` should find only struck-through or
+  amended sites.
 - **`0004_market_bars.sql`'s decision and `PROVIDER.md` §2.3**: applied
   migrations are immutable and the ADR is the amendment, but `PROVIDER.md` is
   live and says per-bar provenance is not affordable. It gets a dated
@@ -39,6 +45,13 @@ four documents that are **live claims** today:
 - **`PROVENANCE.md`** §on the two-feed sentence, and the `e2e/README.md` and
   `docs/GAPS.md` entries that say the two-tape state is unreachable on any
   server.
+- **`MARKET-DATA-API.md` §_What the ledger's one row can and cannot say_ and
+  Story 3.8's scope bullet** — both said `recordSeries` refuses a series
+  whose source disagrees with the ledger row. **Amended 2026-09-22 by Task
+  3.7.4's sweep, the same day**, with a dated note at each: the refusal is
+  now three named reasons (`stitched`, `provider`, `overlap`) and a second
+  tape extends a window. Check at the close that nothing else repeats the
+  old sentence (`grep -rn "source disagrees"`).
 
 ## The hand-offs, enumerated rather than remembered
 
@@ -55,9 +68,35 @@ Known candidates:
   correction changes that type **on purpose**; the overlap refusal 3.7.4
   leaves standing is the one 3.8 lifts; and `BAR_COLUMNS` sizes the
   multi-row chunk, so a column the socket writer adds goes in that list or
-  the chunk-boundary test goes red (it did, in 3.7.3)
+  the chunk-boundary test goes red (it did, in 3.7.3). **Since 3.7.4, in the
+  same words**: what 3.8 lifts is `ForeignSourceError`'s `overlap` reason
+  and nothing else — `stitched` and `provider` stand; `reason` is a
+  discriminant its tests can assert; lifting the overlap is two decisions,
+  the per-row conflict rule (`TAPE.md` §6) and what _contribution order_
+  means once a tape can occur in two runs (`TAPE.md` §7, 3.7.5's premise);
+  and a socket bar is written through `recordSeries` with `alpaca`/`iex`
+  provenance, which the store accepts as a contiguous extension of the SIP
+  window today — the test _accepts a second tape extending a held window
+  contiguously_ is the shape 3.8's write path lands on
+  **Since 3.7.5**: contribution order is defined — one source per contiguous
+  run, in the order the bars sit — and `market-bars.test.ts` asserts the run
+  reading (`iex, sip, iex` for a tape that occurs twice), so a shape of 3.8's
+  that wants a different reading changes that test on purpose; the ledger's
+  `feed` column is read by nothing and held so by an invariant, so 3.8's
+  write path may write it and must not read it.
 - **Story 3.9** — the ledger comes out of the store now; `twoFeedStitchView()`
-  has a real sibling; the read-path cost of the grouping
+  has a real sibling; the read-path cost of the grouping. **Since 3.7.4**:
+  every stretch of a stored window carries the ledger row's one `provider`,
+  so the source note's two-feed sentence names two tapes and one supplier —
+  which is the plan's shape, and the day it is not (`fixture` stitched onto
+  `alpaca`) the write is refused, not mislabelled
+  **Since 3.7.5, written into its `STORY.md` the same day**: the list is
+  produced from stored rows and proved on the wire; the grouping's cost is
+  not measurable (`TAPE.md` §8's A/B); each stretch carries its **own**
+  `retrievedAt`, and the note's `formatRetrieval` already renders two dates
+  as a range — 3.9 reads that against a real body rather than assuming it;
+  and the real recorded body that retires `twoFeedStitchView()` can be taken
+  from a local store the moment 3.8 lands.
 - **Story 3.10** — nothing this story changes about a degraded state, said
   rather than assumed
 - **Story 3.11** — the deferred validation, if any, as a thing the close checks
