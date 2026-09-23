@@ -41,6 +41,15 @@ Known candidates, each to be checked rather than assumed:
   bar into a SIP window, that becomes false.
 - **`0004_market_bars.sql`'s uniqueness decision** is immutable; the ADR from
   3.8.1 is its amendment. Check the ADR index lists it.
+- **`migrations/README.md` §9 and `CLAUDE.md`'s _Data layer_ trap** — both new
+  or amended by Task 3.8.2, and both written while **the backfill was the only
+  bar writer**. Task 3.8.3 makes the deployed backend one, so re-read the
+  deploy-window reasoning in each against a tree where the image being replaced
+  is itself writing.
+- **`BARS.md` §8.5 and ADR 0035's cost section** — amended by Task 3.8.2's
+  sweep on the day the figures moved (the key gained a column, the index shrank
+  658 MB, the table fell to 8,439 MB). Check at the close that no other site
+  still quotes the three-column key or the 2,915 MB figure.
 
 ## The hand-offs, enumerated rather than remembered
 
@@ -72,6 +81,14 @@ including if it is zero. Known candidates:
 
 - Nine criteria, nine verdicts, each with a test name, a break entry, a
   measurement or an honest _not met_
+- **One residue candidate this story created, to add to `docs/GAPS.md` or to
+  mechanise** (raised 2026-09-23 by Task 3.8.2): `prepare-indexes.ts`'s
+  `PREPARED` list names the migration that adopts each index (`adoptedBy`), and
+  **nothing checks that the migration exists** — an entry whose adopter was
+  renamed or never written would build an index forever with nothing to adopt
+  it, and an adopter with no entry fails a deploy once and loudly. The first is
+  silent, which is the one worth a grep. It is a single `existsSync` away from
+  being an invariant.
 - The upward sweep above, live claims amended with a date and historical records
   left standing
 - The hand-off enumeration, with the count

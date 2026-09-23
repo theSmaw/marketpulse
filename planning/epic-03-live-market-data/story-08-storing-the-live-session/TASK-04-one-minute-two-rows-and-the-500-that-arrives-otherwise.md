@@ -31,6 +31,16 @@ minute.**
 The chart of a reconciled session draws. Without this task it does not draw at
 all.
 
+## Reachable since 2026-09-23, which it was not when this task was written
+
+`0011_market_bars_unique_bar_by_tape.sql` put the tape in
+`market_bars_unique_bar`, so **two rows for one minute are now something the
+database will accept** — before Task 3.8.2 the old three-column key made this
+task's failure impossible to produce at all. It is still not reachable through
+any shipped writer (the overlap refusal stands, and `pnpm backfill` only ever
+asks Alpaca for `sip`), so the 500 arrives with Story 3.8's own writer and its
+first reconciliation, exactly as described below.
+
 ## Why this is its own task and not a line in the writer's
 
 The writer does not break anything on the day it ships: it writes today's IEX

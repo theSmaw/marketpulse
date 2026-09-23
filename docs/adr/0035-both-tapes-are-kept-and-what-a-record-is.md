@@ -95,6 +95,13 @@ takes the figure above from ~1.5 years to **~1.7**. It is **Epic 14's to do and
 not this story's**, and it is named here so the cost is read against the offset
 that exists rather than in isolation.
 
+> **A second offset, banked 2026-09-23 by Task 3.8.2 rather than planned.**
+> Putting the tape in the key meant rebuilding `market_bars_unique_bar`, and
+> the fresh index is **2,311 MB** against the bloated 2,969 MB it replaced —
+> `market_bars` fell from 9,097 MB to **8,439 MB**. That is a **658 MB**
+> one-off, about a tenth of this decision's first year, and it does not touch
+> the **rate** above. `BARS.md` §8.5 carries it beside the index it corrects.
+
 ## Decision
 
 **Both tapes are kept. A stored bar is a record of an observation, and the

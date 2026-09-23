@@ -41,6 +41,18 @@ and stated the consequence of not fixing it in terms this task should not soften
   a compile-time one: `MarketBarsTable.feed`'s update type is `never`. A
   revision that arrives on the same tape is an ordinary correction; one that
   arrives on another is 3.8.1's decision.
+- **A correction is now defined by the tape, and that is mechanical since
+  `0011`.** The unique key covers `(security_id, timeframe, observed_at,
+feed)`, so a revision arriving on the **same** tape conflicts and upserts —
+  an ordinary correction — while one arriving on **another** tape is simply a
+  different row. That is ADR 0035 rather than a special case for this task to
+  invent, and it means the path you add has to carry the revision's own tape
+  rather than assume the stored row's.
+- **And take 3.8.2's lesson before you add a query.** Its writer's pre-read of
+  _which minutes are already here_ was not scoped to the tape, so a genuine
+  insert counted as a correction and the ledger silently under-reported. Any
+  query you add that asks _does this bar already exist_ asks it **per tape**;
+  `migrations/README.md` §9 carries the general form.
 - **`recorded_at` is the record that a correction happened** — it is the only
   signal, and `0004` argued it rather than an `updated_at`. The
   `is distinct from` clause on the writer's `on conflict` is what keeps it
