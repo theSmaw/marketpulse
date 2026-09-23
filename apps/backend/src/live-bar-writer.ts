@@ -14,7 +14,7 @@
 // task boundary rather than an oversight: Story 3.5's close recorded that a
 // revision for a **superseded** minute is dropped by the live path and that
 // only the store can apply it. Widening this writer's input to the raw list is
-// Task 3.8.6's, and doing it here would mean taking that decision in passing.
+// Task 3.8.7's, and doing it here would mean taking that decision in passing.
 //
 // ## What it may never do
 //

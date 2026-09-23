@@ -72,7 +72,7 @@ continue;`) and `commonCoverage` takes the **intersection** across symbols.
   if nobody decides. Claiming only up to the last bar seen keeps the ledger
   honest and the backfill asking, at the cost of a `commonCoverage`
   intersection that is the earliest of 518 lagging ends. **Decide it here and
-  write it into `LIVE-SESSION.md` §3**; Task 3.8.8 rehearses it and asserts
+  write it into `LIVE-SESSION.md` §3**; Task 3.8.9 rehearses it and asserts
   that the backfill asked at all.
 - **The transaction's duration is a deploy decision.** Task 3.7.6 measured that
   a migration queues behind any open transaction on this table and takes every
@@ -172,8 +172,8 @@ arrived.** Task 3.5.1's rule is that the gateway broadcasts what was applied, so
 a browser can never receive a revision this process rejected; hanging the writer
 off the same list makes the store and every open browser agree by construction.
 It also means a revision for a **superseded** minute — which the live path drops
-and only the store can apply — does not reach here. That is Task 3.8.6's, and
-widening the input here would have taken 3.8.6's decision in passing.
+and only the store can apply — does not reach here. That is Task 3.8.7's, and
+widening the input here would have taken 3.8.7's decision in passing.
 
 **It never throws into the stream.** `onObservations` runs inside the socket's
 own callback, where an unhandled rejection is a crashed process on a
@@ -195,7 +195,7 @@ claimed today's session would have stopped the consolidated version ever being
 fetched, and the store would have kept a thin one-venue session **permanently,
 with no collision, no error and nothing on any screen**. The cost taken instead
 is the one 3.8.1 named: a `covered_end` that lags, so the intersection across
-518 symbols is the earliest of 518 lagging ends. Task 3.8.8 asserts the backfill
+518 symbols is the earliest of 518 lagging ends. Task 3.8.9 asserts the backfill
 still asks.
 
 Confirmed twice against real ledgers rather than in a test. Thirty `iex` bars
@@ -309,7 +309,7 @@ not an instant in the market. The minute rows were honest
 market-time column on the same row as `recorded_at`, and a value carrying the
 write time in it is exactly the confusion `DATA-LAYER.md` separates the two
 columns to prevent — on the column `commonCoverage` and `planRequests` read to
-decide what to fetch. Nothing on any screen shows it. **Handed to Task 3.8.8**,
+decide what to fetch. Nothing on any screen shows it. **Handed to Task 3.8.9**,
 which owns reconciliation and already has to read both ends of this column;
 written into `STORY.md` rather than only here, because a constraint measured for
 a sibling task dies in the document that measured it.

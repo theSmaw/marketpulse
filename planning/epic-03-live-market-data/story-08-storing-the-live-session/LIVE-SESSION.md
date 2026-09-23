@@ -123,7 +123,7 @@ half:
   skip it; claiming only up to the last bar seen leaves the ledger honest and
   the backfill asking, but a per-symbol `covered_end` that lags means
   `commonCoverage`'s intersection is the **earliest** of 518 lagging ends.
-- **Task 3.8.8 rehearses it** — both paths over one session, in the real order —
+- **Task 3.8.9 rehearses it** — both paths over one session, in the real order —
   and the thing to assert is not only that the reconciliation behaves, but that
   **the backfill asked at all**.
 
@@ -181,7 +181,7 @@ and it fails loudly, writes nothing, and is correct on its next run.
 > the deploy window**, in the image about to be replaced, rather than a
 > scheduled job that rebuilds itself from `main`. The reasoning in
 > `migrations/README.md` §9 and `CLAUDE.md`'s _Data layer_ trap was written
-> while that was not so; 3.8.3 is told to correct both, and 3.8.9's sweep
+> while that was not so; 3.8.3 is told to correct both, and 3.8.10's sweep
 > checks it.
 >
 > **Fired 2026-09-23.** Task 3.8.3 shipped `live-bar-writer.ts` and wired it
@@ -269,7 +269,7 @@ stopped `planRequests` ever fetching the consolidated version of those minutes,
 and the store would have kept a thin one-venue session permanently with nothing
 on any screen to see it. The cost taken instead is the one §3 named: a
 per-symbol `covered_end` that lags the session close, so `commonCoverage`'s
-intersection across 518 symbols is the earliest of 518 lagging ends. Task 3.8.8
+intersection across 518 symbols is the earliest of 518 lagging ends. Task 3.8.9
 rehearses both paths over one session and asserts that the backfill asked.
 
 Confirmed against the real store on 2026-09-23: thirty `iex` bars written for
@@ -460,4 +460,4 @@ removes the `distinct on` and proves the red.
 
 What it does not certify: that any **deployed** store has ever held two tapes
 for one minute. It has not yet — the first night after a session the live writer
-filled is when that arrives, which is Task 3.8.8's rehearsal.
+filled is when that arrives, which is Task 3.8.9's rehearsal.

@@ -193,7 +193,7 @@ That is worse than any of the three shapes the story named, and it is what
 happens **by default if nobody decides**. It is not a shape of the decision; it
 is a second half of it that belongs to the **writer**, and it is now written
 into the two tasks that can act on it: **Task 3.8.3** decides what the writer
-claims as `coverage.covered`, and **Task 3.8.8**'s rehearsal asserts the
+claims as `coverage.covered`, and **Task 3.8.9**'s rehearsal asserts the
 backfill **asked at all** — because a run reporting `0 fetches, 1 already held`
 looks identical to a run that reconciled perfectly.
 
