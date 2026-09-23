@@ -22,6 +22,7 @@ import {
   createSeriesCache,
   isClosedWindow,
   LIVE_ANSWER_TTL_MS,
+  liveAnswerTtlMs,
   MAX_CACHED_ANSWERS,
   MAX_CACHED_BARS,
   seriesCacheControl,
@@ -272,9 +273,15 @@ describe("the series cache", () => {
   });
 
   it("expires a live window after a bar's worth of time", () => {
-    // The bound `MARKET-DATA-API.md` §5 hands this task: a window ending now is
-    // a metered vendor request on a miss, so what this number bounds is how
-    // often we ask the vendor — once a minute per window, whatever the traffic.
+    // **The reason changed in Task 3.8.6 and the assertion did not.** This was
+    // `MARKET-DATA-API.md` §5's bound on how often we ask the VENDOR — once a
+    // minute per window, whatever the traffic. Since Task 3.8.3 the live writer
+    // fills the session, so the tail is about one minute long, falls inside the
+    // plan's withheld window and costs no request at all. What this number now
+    // bounds is how long a reader waits for **our own store**.
+    //
+    // `MID_SESSION` is exactly on a minute boundary, which is why this case is
+    // unchanged: an entry written there still holds for a whole minute.
     const cache = createSeriesCache();
     cache.write(key(0), answer(2), MID_SESSION);
 
@@ -283,6 +290,41 @@ describe("the series cache", () => {
 
     const atTheEdge = new Date(MID_SESSION.getTime() + LIVE_ANSWER_TTL_MS);
     expect(cache.read(key(0), atTheEdge)).toBeUndefined();
+  });
+
+  // **The test that fails without Task 3.8.6.** A rolling minute is measured
+  // from the request, so it straddles the boundary its own argument appeals to:
+  // written at :30, the entry was still served at the next minute's :05 — by
+  // which time the store holds that minute's bar, because the vendor sends it
+  // at the end of the minute and the writer stores it in 2.3 ms. Up to 59
+  // seconds of a chart one bar behind the store, with nothing saying so.
+  it("expires a live window AT the minute boundary, not a minute after the request", () => {
+    const cache = createSeriesCache();
+    const halfPast = new Date(MID_SESSION.getTime() + 30_000);
+    cache.write(key(0), answer(2), halfPast);
+
+    // A second request in the same minute is still a hit — that is the whole
+    // of what the lifetime was for, and it is kept.
+    expect(
+      cache.read(key(0), new Date(halfPast.getTime() + 29_000)),
+    ).toBeDefined();
+
+    // The first request of the NEXT minute is a miss, so the bar that landed
+    // on the boundary is served rather than withheld for another 30 seconds.
+    const nextBoundary = new Date(MID_SESSION.getTime() + LIVE_ANSWER_TTL_MS);
+    expect(cache.read(key(0), nextBoundary)).toBeUndefined();
+    expect(
+      cache.read(key(0), new Date(nextBoundary.getTime() + 5_000)),
+    ).toBeUndefined();
+  });
+
+  it("gives an entry written exactly on a boundary the whole minute", () => {
+    // The ceiling is unchanged; only the straddle is gone.
+    expect(liveAnswerTtlMs(MID_SESSION)).toBe(LIVE_ANSWER_TTL_MS);
+    expect(liveAnswerTtlMs(new Date(MID_SESSION.getTime() + 1))).toBe(
+      LIVE_ANSWER_TTL_MS - 1,
+    );
+    expect(liveAnswerTtlMs(new Date(MID_SESSION.getTime() + 59_999))).toBe(1);
   });
 
   it("expires a closed window too, and that is the backfill answer", () => {
