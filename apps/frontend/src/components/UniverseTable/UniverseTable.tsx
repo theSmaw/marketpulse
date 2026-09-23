@@ -337,9 +337,33 @@ function SummaryLine({
             <Figure value={held.securities} label="with history" />
           )}
           <Figure value={formatBarCount(held.bars)} label="minute bars" />
+          {/*
+           * **The date every security reaches, and only then how far the
+           * furthest one goes** (Task 3.8.8).
+           *
+           * This clause took the maximum until the product stored the live
+           * session, which was the same as the minimum while only a nightly
+           * backfill wrote bars. A live feed is one venue carrying about two
+           * thirds of a median name's minutes, so the frontier is now ragged
+           * during a session and the maximum is one security's reach
+           * presented as the store's — measured at 340 of 518, with 178 not
+           * reaching the date the line was claiming.
+           *
+           * Reliability first, progress second: this line is what a reader can
+           * count on the store holding for **every** security, and the other
+           * way round it is a promise 178 rows cannot keep. The second clause
+           * renders only when the two differ, so the everyday sentence is the
+           * one this line has always drawn.
+           */}
           {held.through !== null && (
             <span className={styles.figure}>
               through <span className={styles.figureValue}>{held.through}</span>
+              {held.reaching !== null && (
+                <>
+                  , some to{" "}
+                  <span className={styles.figureValue}>{held.reaching}</span>
+                </>
+              )}
             </span>
           )}
         </>

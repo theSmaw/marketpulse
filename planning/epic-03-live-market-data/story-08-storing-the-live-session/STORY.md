@@ -1,6 +1,6 @@
 # Story 3.8 — Storing the Live Session
 
-**Status:** In progress — **seven of TEN tasks done (3.8.1–3.8.7)**, the last of them on 2026-09-23. The deployed backend is a bar writer, the two-feed source note is on screen, and a reconciled session is a chart rather than a 500. Originally **split into eight tasks 2026-09-23**; a ninth was inserted at 3.8.4 that day, and a **tenth at 3.8.5** on the same day with everything after it renumbered — Task 3.8.4 repaired one read that assumed one row a minute and the audit it prompted found a second, `readLastCloses`, which does not throw and whose wrong answer has no tell — latent today, because nothing calls it at a timeframe that can hold two tapes, and waiting directly in Task 3.8.8's path. See _Tasks_ below. The visible payoff is Task 3.8.3, which is as early as the two decisions before it allow.
+**Status:** In progress — **eight of TEN tasks done (3.8.1–3.8.8)**, the last of them on 2026-09-23. The deployed backend is a bar writer, the two-feed source note is on screen, and a reconciled session is a chart rather than a 500. Originally **split into eight tasks 2026-09-23**; a ninth was inserted at 3.8.4 that day, and a **tenth at 3.8.5** on the same day with everything after it renumbered — Task 3.8.4 repaired one read that assumed one row a minute and the audit it prompted found a second, `readLastCloses`, which does not throw and whose wrong answer has no tell — latent today, because nothing calls it at a timeframe that can hold two tapes, and waiting directly in Task 3.8.8's path. See _Tasks_ below. The visible payoff is Task 3.8.3, which is as early as the two decisions before it allow.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.5, 3.7
 **Epic scope covered:** market-data persistence for live observations, and the reconciliation between two tapes covering one session
@@ -185,7 +185,7 @@ to it.
 | 3.8.5  | [The last close that is the same minute twice](TASK-05-the-last-close-that-is-the-same-minute-twice.md)                        | 3.8.4      | No — a latent lie closed before 3.8.8 meets it |
 | 3.8.6  | [A growing session is not an immutable one](TASK-06-a-growing-session-is-not-an-immutable-one.md)                              | 3.8.3      | No — one thing stops being wrong — **done**    |
 | 3.8.7  | [The late revision the live path throws away](TASK-07-the-late-revision-the-live-path-throws-away.md)                          | 3.8.3      | No — **done**                                  |
-| 3.8.8  | [The surfaces that now show a stored today](TASK-08-the-surfaces-that-now-show-a-stored-today.md)                              | 3.8.3      | **Yes — consistency across a reload**          |
+| 3.8.8  | [The surfaces that now show a stored today](TASK-08-the-surfaces-that-now-show-a-stored-today.md)                              | 3.8.3      | **Yes — a claim the store can keep — done**    |
 | 3.8.9  | [The overnight reconciliation, rehearsed over one session](TASK-09-the-overnight-reconciliation-rehearsed-over-one-session.md) | 3.8.7      | No                                             |
 | 3.8.10 | [The sweep, the hand-offs and the close](TASK-10-the-sweep-the-hand-offs-and-the-close.md)                                     | 3.8.9      | No                                             |
 

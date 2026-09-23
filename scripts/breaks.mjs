@@ -1369,6 +1369,30 @@ export const BREAKS = [
     expect: "keeps one figures strip in every state",
   },
   {
+    name: "the-store-claims-one-securitys-frontier-as-its-own",
+    proves:
+      "The universe summary promises a date 178 securities do not reach. " +
+      "`through` took the MAXIMUM end date across the universe, which was the " +
+      "same as the minimum while only a nightly backfill wrote bars \u2014 the " +
+      "code said so and named the condition that would end it. Storing the " +
+      "live session ended it: the feed is one venue carrying 65.1% of a " +
+      "median name's minutes, so during a session the maximum is one " +
+      "security's reach presented as the store's.",
+    file: "apps/frontend/src/components/UniverseTable/coverage.ts",
+    find: "    if (through === null || end < through) through = end;",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    if (through === null || end > through) through = end;",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "src/components/UniverseTable/coverage.test.ts",
+    ],
+    expect: "reports the day EVERY security reaches",
+  },
+  {
     name: "the-store-is-told-only-what-is-news",
     proves:
       "Every revision for a minute the live path has already moved past is " +

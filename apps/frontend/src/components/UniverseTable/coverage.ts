@@ -115,17 +115,44 @@ export interface CoverageSummary {
   readonly bars: number;
 
   /**
-   * The last trading day any of it reaches, or `null` when we hold nothing.
+   * The last trading day **every** security reaches, or `null` when we hold
+   * nothing.
    *
-   * The **maximum** rather than the minimum, and both are defensible: this is
-   * "through when", which is a claim about the frontier the store has reached.
-   * A backfill walks backwards from the most recent session (Task 2.8.6), so
-   * every security shares this date and the securities that differ differ at
-   * the *start*. If that ever stops being true, this figure becomes the
-   * optimistic one and the honest thing to do is say so rather than switch it
-   * silently.
+   * **This was the maximum until 2026-09-23, and the comment it carried named
+   * the condition that changed it** (Task 3.8.8): _a backfill walks backwards
+   * from the most recent session, so every security shares this date… if that
+   * ever stops being true, this figure becomes the optimistic one and the
+   * honest thing to do is say so rather than switch it silently._
+   *
+   * Storing the live session stopped it being true. The live feed is one venue
+   * carrying **65.1% of a median name's minutes** (`LIVE-DATA.md` §7.6), so
+   * during a session some securities have today and some do not, and the
+   * maximum is the most-covered name's frontier presented as the store's.
+   * Measured on the local store: with 340 of 518 holding a bar for a new day,
+   * the maximum claimed a date **178 securities did not reach**.
+   *
+   * **So this is the minimum, and the words changed with it** — see
+   * {@link reaching} for the other half and `UniverseTable.tsx` for the
+   * sentence. It is the same asymmetry this table already applies to the
+   * `Last close` heading through `commonSession`: a shared claim is made only
+   * when it is true of everything.
+   *
+   * It also stops hiding a straggler. A delisted security whose history ends
+   * years ago is invisible behind a maximum and is the first thing a reader
+   * sees under a minimum, which is the honest way round for a line whose job
+   * is to say what the store can be **trusted** for.
    */
   readonly through: MarketDate | null;
+
+  /**
+   * How far the **furthest** security reaches, when that is not
+   * {@link through}, and `null` when the frontier is flat.
+   *
+   * The progress half of the claim, and second in the sentence on purpose: the
+   * reliability figure is what a reader needs first. `null` when they agree, so
+   * the everyday case renders exactly the clause it always did.
+   */
+  readonly reaching: MarketDate | null;
 }
 
 /**
@@ -140,6 +167,7 @@ export function summariseCoverage(
 ): CoverageSummary {
   let bars = 0;
   let through: MarketDate | null = null;
+  let reaching: MarketDate | null = null;
 
   for (const record of coverage.values()) {
     bars += record.barCount;
@@ -148,10 +176,19 @@ export function summariseCoverage(
     // reason that format was chosen over anything friendlier: fixed-width,
     // zero-padded, most-significant-first, so string order *is* chronological
     // order. No parsing and nothing to get wrong.
-    if (through === null || end > through) through = end;
+    if (through === null || end < through) through = end;
+    if (reaching === null || end > reaching) reaching = end;
   }
 
-  return { securities: coverage.size, bars, through };
+  return {
+    securities: coverage.size,
+    bars,
+    through,
+    // `null` when the frontier is flat, so the everyday sentence is the one
+    // this line has always drawn. The clause appears only when it means
+    // something, which is `UniverseTable.tsx`'s own asymmetry.
+    reaching: reaching === through ? null : reaching,
+  };
 }
 
 /**

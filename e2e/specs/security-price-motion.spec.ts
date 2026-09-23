@@ -335,3 +335,39 @@ test("an arrival moves nothing around the price", async ({ page }) => {
 
   await expectNothingFailedToRender(page);
 });
+
+test("a page fed only by the store marks nothing, on the block or in the table", async ({
+  page,
+}) => {
+  // **Story 3.4's close named this as the one thing that would be invisible
+  // until somebody watched it, and Task 3.8.8 is where it gets watched.**
+  //
+  // The mark means *a bar arrived for this security* — an event. Re-reading a
+  // stored session is not one. The vocabulary is *work in progress loops, a
+  // state persists, a fact arriving decays*, and a mark that fired while a
+  // reader scrolled through yesterday would make the vocabulary's own sentence
+  // false.
+  //
+  // **No feed is stubbed here, and that is the test rather than a shortcut.**
+  // The pair runs with no provider configured, which is the deployed default
+  // and CI's, so every price on this page is a **stored close** — the exact
+  // state the task's own sentence describes: *a page re-read from the store
+  // should not pretend prices are arriving.*
+  //
+  // The reload is the second half. `SecurityIdentity` remembers the instant it
+  // mounted with so a first paint marks nothing; this asserts that a **second**
+  // paint of the same stored data does not either.
+  //
+  // It asserts across the WHOLE page rather than the block, because since Task
+  // 3.6.1 the universe table's rows carry the same `[data-arrival]` handle,
+  // `composes:`d from the same rule — 518 more places this could fire.
+  await page.goto(EXPLORER, { waitUntil: "networkidle" });
+  await expect(page.getByRole("table")).toBeVisible();
+  await expect(page.locator("[data-arrival]")).toHaveCount(0);
+
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(page.getByRole("table")).toBeVisible();
+  await expect(page.locator("[data-arrival]")).toHaveCount(0);
+
+  await expectNothingFailedToRender(page);
+});
