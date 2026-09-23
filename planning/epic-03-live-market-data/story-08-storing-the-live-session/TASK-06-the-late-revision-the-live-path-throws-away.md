@@ -1,4 +1,4 @@
-# Task 3.8.5 — The late revision the live path throws away
+# Task 3.8.6 — The late revision the live path throws away
 
 **Status:** Not started
 **Story:** [3.8 Storing the Live Session](STORY.md)

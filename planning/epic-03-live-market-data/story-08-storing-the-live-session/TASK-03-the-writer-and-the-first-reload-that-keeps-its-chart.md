@@ -72,7 +72,7 @@ continue;`) and `commonCoverage` takes the **intersection** across symbols.
   if nobody decides. Claiming only up to the last bar seen keeps the ledger
   honest and the backfill asking, at the cost of a `commonCoverage`
   intersection that is the earliest of 518 lagging ends. **Decide it here and
-  write it into `LIVE-SESSION.md` §3**; Task 3.8.7 rehearses it and asserts
+  write it into `LIVE-SESSION.md` §3**; Task 3.8.8 rehearses it and asserts
   that the backfill asked at all.
 - **The transaction's duration is a deploy decision.** Task 3.7.6 measured that
   a migration queues behind any open transaction on this table and takes every
@@ -80,6 +80,19 @@ continue;`) and `commonCoverage` takes the **intersection** across symbols.
   windows; you make it six and a half hours a day. **Measure the transaction
   you ship** and record it in `LIVE-SESSION.md`; prefer short transactions to
   few ones where the choice is free.
+
+## One hazard this task opens, closed by the next one
+
+**Nothing breaks on the day this ships**, because the writer fills today's
+session and the backfill has not. **The failure arrives the first night.** Once
+the consolidated version of the same minutes is stored beside the IEX one, a
+window holds two rows for one minute, and `toBarSeries` refuses bars that are
+not strictly ascending by instant — it **throws**, so the chart request is a
+**500**. Task 3.8.4 is the repair and exists only because of this.
+
+**So between this task and that one: do not run `pnpm backfill` over a
+live-written session**, and rebuild the store if you do. Naming it here is
+cheaper than meeting it.
 
 ## Work
 

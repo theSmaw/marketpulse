@@ -413,4 +413,20 @@ moment?_ is what that protects.
 **And the window may hold two rows for one minute.** Which one a chart draws is
 a read decision ADR 0035 deliberately does not take — `mergeSeriesProvenance`
 reports both stretches honestly either way, but a line has to pick a number.
-**That is yours**, and it is the first question to answer rather than the last.
+~~**That is yours**, and it is the first question to answer rather than the
+last.~~
+
+> **Corrected the same day, 2026-09-23 — it is NOT yours, and the reason is
+> worth knowing.** `toBarSeries` refuses bars that are not strictly ascending by
+> instant and **throws**, so a window holding two rows for one minute is a
+> **500 on a page load** rather than a chart drawn from the wrong row. That
+> makes the rule a precondition of Story 3.8 shipping at all, and it took it
+> back: **Task 3.8.4** decides which tape a served chart prefers and makes the
+> read return one bar a minute.
+>
+> **What is left for you is the live edge**, and it is a narrower and more
+> interesting question: for the minute **in progress** only one tape can have a
+> bar at all, so the preference rule has nothing to choose between and the
+> chart's last point is whatever arrived. Whether that point is drawn
+> differently from a settled one — and what happens to it when the consolidated
+> version lands minutes later — is the live edge this story is named for.
