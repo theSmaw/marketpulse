@@ -105,6 +105,29 @@ VALID` on purpose** and nobody validates it in a deploy (3.7.1's amendment
   > overlap refusal is one indexed `select distinct feed` per write, paid
   > only when windows intersect, which the nightly walk's edge-extension
   > never does. New: **a browser spec whose assumption is about the
+  >
+  > **AMENDED 2026-09-23 by Task 3.7.5 — the invariant exists, and the
+  > residue is smaller and different.** `pnpm invariants` carries
+  > `stored-sources-only-through-the-merge` since 3.7.5: no `sources:`
+  > literal in `market-bars.ts`, `mergeSeriesProvenance(` still called, no
+  > select of `bar_coverage.feed`; breaks `the-sources-are-written-by-hand`
+  > and `the-ledgers-tape-is-read-again`. Both readers this amendment named
+  > are gone (`BarCoverage.source` is `BarCoverage.provider`). So the entry
+  > _the ledger's `feed` is read by nothing_ does **not** go in
+  > `docs/GAPS.md` — it is mechanical. What goes there instead, each with a
+  > re-measure: **(a)** the invariant reads one file, so a reader of
+  > `bar_coverage.feed` in another module would pass it — widen the grep to
+  > `apps/backend/src` if it stays a single file, or record why not; **(b)**
+  > the column is still **written** on every first insert and described by
+  > `schema.ts`, and dropping it is an expand-then-contract deploy nobody has
+  > decided to run — record the trigger (the first migration on
+  > `bar_coverage` for any other reason) rather than a story; **(c)** an
+  > empty answer now names `SOURCE_OF_NOTHING` (`alpaca`/`sip`) whatever the
+  > ledger's provider, so on a `none` deployment whose store holds only
+  > fixture bars a quiet window's source note could print _All US exchanges_
+  > for zero bars **if** the note renders a feed clause for an empty series —
+  > read `source-note.ts` against ADR 0029's rule and either confirm it does
+  > not or record the case.
   > store's freshness rather than the page** — `security-window-change.spec.ts`'s
   > _pressing a window does not move the chart_ is red by 90 px on a
   > developer store more than five sessions stale (the default window is
