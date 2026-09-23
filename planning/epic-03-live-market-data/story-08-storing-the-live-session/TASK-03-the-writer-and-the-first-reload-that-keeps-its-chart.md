@@ -60,6 +60,20 @@ true, **photograph it**, because it is the most showable thing in this story.
 - **Extended-hours bars are kept**, and the instant is kept **exactly** — the
   pre-market word is derived from the instant through Story 2.5's calendar and
   must not become a stored boolean (Story 3.4's close).
+- **What the writer claims as `coverage.covered` decides whether tonight's
+  backfill ever asks** — added 2026-09-23 by Task 3.8.1, which found it while
+  pricing the shapes. `planRequests` skips a session wholly inside the covered
+  window (`if (session.open >= common.start && session.close <= common.end)
+continue;`) and `commonCoverage` takes the **intersection** across symbols.
+  A writer that claims today's session as covered therefore stops the
+  consolidated version from ever being fetched: the store keeps the thin IEX
+  session **permanently, with no collision, no error and nothing on screen to
+  see it** — which is worse than any shape the story named and is the default
+  if nobody decides. Claiming only up to the last bar seen keeps the ledger
+  honest and the backfill asking, at the cost of a `commonCoverage`
+  intersection that is the earliest of 518 lagging ends. **Decide it here and
+  write it into `LIVE-SESSION.md` §3**; Task 3.8.7 rehearses it and asserts
+  that the backfill asked at all.
 - **The transaction's duration is a deploy decision.** Task 3.7.6 measured that
   a migration queues behind any open transaction on this table and takes every
   reader with it. Today the only writer is a nightly backfill in two cron

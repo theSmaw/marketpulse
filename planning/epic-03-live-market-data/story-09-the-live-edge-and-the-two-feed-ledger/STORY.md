@@ -379,3 +379,38 @@ the two provenances are said.
 **And the gateway's `sentAt`** (Task 3.6.4, ADR 0033) is on every frame you
 will receive: a measurement field, never a clock for staleness, honest only as
 a distribution.
+
+## Handed here by Task 3.8.1 — 2026-09-23: the two-feed sentence will have real data behind it, and it may arrive before you do
+
+**Both tapes are kept** ([ADR 0035](../../../docs/adr/0035-both-tapes-are-kept-and-what-a-record-is.md)).
+A minute of a security may hold one row per tape — the IEX bar the live stream
+observed and the consolidated bar the nightly backfill fetched — because a
+stored bar is a record of an observation rather than a cache of the best
+available number, and `PRODUCT_SPEC.md` §23's _what was knowable at this
+moment?_ is what that protects.
+
+**Three consequences, in the order you will meet them.**
+
+1. **Your sentence stops being hypothetical.** Task 3.7.5 already derives a
+   served window's `provenance.sources` from the stored rows, one entry per
+   contiguous run of tape. Once Story 3.8's writer stores an IEX bar into a
+   window the backfill filled with SIP, a real server produces the two-feed
+   record — so `twoFeedStitchView()` is no longer the only route to the state,
+   and the real recorded body that retires it can be taken from a local store.
+2. **It may be on screen before this story starts.** `SourceNote` already
+   renders one stretch per `BarSource` with its bar count, and `namesFeeds`
+   returns true as soon as a series names more than one feed. Task 3.8.3 is
+   asked to confirm or refute that and to photograph the result. **If it is
+   already drawn, your scope is narrower than your file assumes** — read it
+   again rather than building what shipped.
+3. **A live-written session is served to every reader, with its label.** It is
+   honest but thin — **65.1% median per-symbol minute coverage** measured
+   first-hand (`LIVE-DATA.md` §7.6), not the 82.8% that is the stored SIP
+   figure. So the chart a reader sees during a session is sparser than the same
+   chart tomorrow, and the label is what keeps that from misleading them. §7.1's
+   rule is met **per stretch** rather than per response.
+
+**And the window may hold two rows for one minute.** Which one a chart draws is
+a read decision ADR 0035 deliberately does not take — `mergeSeriesProvenance`
+reports both stretches honestly either way, but a line has to pick a number.
+**That is yours**, and it is the first question to answer rather than the last.

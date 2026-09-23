@@ -126,6 +126,29 @@ before the store starts answering the same question.
    writer**, which is really a question about how much this product trusts a
    single venue's bars as history.
 
+   **Settled 2026-09-23 by Task 3.8.1.** Decision 1 is **shape 2 — both tapes
+   are kept**: a minute may hold one row per tape, because a stored bar is a
+   record of an observation rather than a cache of the best available number.
+   It costs **+69% rows a year**, **+6.1 GiB a year**, and takes the store's
+   headroom from ~2.6 years to **~1.5**; the funder named beside it is
+   `market_bars_pkey`, **1,045 MB with zero scans**, which is Epic 14's.
+   Decision 2 is **served to everyone, with its label** — the session is honest
+   but thin (**65.1%** median per-symbol minute coverage, measured first-hand,
+   _not_ the 82.8% that is the stored SIP figure), and the source note already
+   meets `PRODUCT_SPEC.md` §7.1 **per stretch**. "Only the writer" collapsed on
+   inspection: `GET /market-data/bars` has no notion of a caller, so it would
+   have had to be a storage rule rather than a serving one.
+   [ADR 0035](../../../docs/adr/0035-both-tapes-are-kept-and-what-a-record-is.md)
+   carries the alternatives, their prices and the reversal trigger;
+   [`LIVE-SESSION.md`](LIVE-SESSION.md) carries the figures.
+
+**And a third thing was found while pricing them, which belongs to the writer
+rather than to this list.** Today's backfill skips any session it believes is
+covered, so a live writer that claims today would stop the consolidated version
+ever being fetched — leaving a permanently thin session with **no collision, no
+error and nothing on screen**. `LIVE-SESSION.md` §3; Task 3.8.3 decides what the
+writer claims and Task 3.8.7 asserts the backfill asked at all.
+
 ## Acceptance criteria
 
 1. A minute bar arriving on the socket is stored with its tape, and the ledger
@@ -155,7 +178,7 @@ to it.
 
 | #     | Task                                                                                                                           | Depends on | Visible?                                     |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------ | ---------- | -------------------------------------------- |
-| 3.8.1 | [What a record is, decided before a row is written](TASK-01-what-a-record-is-decided-before-a-row-is-written.md)               | 3.7        | No                                           |
+| 3.8.1 | [What a record is, decided before a row is written](TASK-01-what-a-record-is-decided-before-a-row-is-written.md)               | 3.7        | No — **done**                                |
 | 3.8.2 | [The uniqueness rule, and the migration it needs](TASK-02-the-uniqueness-rule-and-the-migration-it-needs.md)                   | 3.8.1      | No                                           |
 | 3.8.3 | [The writer, and the first reload that keeps its chart](TASK-03-the-writer-and-the-first-reload-that-keeps-its-chart.md)       | 3.8.2      | **Yes — the story's headline, and a second** |
 | 3.8.4 | [A growing session is not an immutable one](TASK-04-a-growing-session-is-not-an-immutable-one.md)                              | 3.8.3      | No — one thing stops being wrong             |

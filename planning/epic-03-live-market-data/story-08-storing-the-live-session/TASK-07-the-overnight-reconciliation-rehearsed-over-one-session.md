@@ -46,6 +46,14 @@ make safe.
   what happens to it is exactly 3.8.1's decision. Count them.
 - **The ledger's own claim** after both runs: one contiguous window, a bar count
   that agrees with the rows, and a `provider` that did not change.
+- **That the backfill asked at all** — added 2026-09-23 by Task 3.8.1.
+  `planRequests` skips a session wholly inside the covered window, so a live
+  writer that claimed today would make tonight's run report
+  `0 fetches, 1 already held` and store nothing, **correctly by its own rules
+  and wrongly for the product**. The rehearsal's first assertion is therefore
+  not about the rows but about the **request count**: a run that fetched
+  nothing has not reconciled anything, and it looks identical to a run that
+  reconciled perfectly. `LIVE-SESSION.md` §3.
 
 ## Work
 
