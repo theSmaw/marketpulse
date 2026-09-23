@@ -146,6 +146,19 @@ enforcement.** `recordSeries` **refuses** a series whose source disagrees with t
 would extend, and refuses a stitched series naming two sources for one window. So the day
 a second feed writes into one series is the day the write throws naming both.
 
+> **Amended 2026-09-23 by Story 3.7's close — this trigger FIRED, and was
+> honoured.** `0010_market_bars_feed.sql` (2026-09-22) gives every bar its own
+> tape; `recordSeries` stamps it from the series' provenance and accepts a
+> second tape extending a window; and a served window's `provenance.sources` is
+> derived from the rows, one entry per contiguous run of tape, joined through
+> `mergeSeriesProvenance`. So the paragraph above describes the enforcement as
+> Story 2.9 built it, and the enforcement that stands today is three named
+> refusals — `stitched`, `provider`, `overlap` — with the tape question answered
+> per bar instead. ADR 0034 records the decision and `TAPE.md` the account. The
+> grain argument this ADR makes is **not** reversed: the wire still carries
+> provenance per series and never per bar, and ADR 0033's constraint 4 refused a
+> per-bar field on the wire again in Story 3.6.
+
 **Reversal trigger:** a second feed writing into one `(security, timeframe)` series — at
 which point `0004_market_bars.sql`'s per-bar `feed` column is what is owed, and the write
 path is already throwing to say so.

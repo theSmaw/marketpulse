@@ -192,6 +192,18 @@ answer to "which tape is this"**, and that `market-bars.ts` **refuses** a write 
 source disagrees with the row it would extend — which is decision 1's correction gap
 gaining a mechanism on one axis. See ADR 0021 and `MARKET-DATA-API.md` §10.
 
+> **Amended 2026-09-23 by Story 3.7's close.** Both halves of that paragraph have
+> moved. The ledger is **no longer** the answer to _which tape is this_: since
+> `0010_market_bars_feed.sql` every bar carries its own (ADR 0034), the ledger's
+> `feed` column holds the tape a window was **opened** with and is read by
+> nothing — `pnpm invariants` holds that — while its `provider` stays the
+> window's one supplier. And the refusal is now three named reasons rather than
+> one: a **stitched** series, a different **provider**, and a series
+> **overlapping** stored bars from another tape. A second **tape** extending a
+> window contiguously is accepted, which is what the column was added for.
+> `TAPE.md` §7 is the current account; the paragraph above stands as what Story
+> 2.8 built.
+
 ### 9. The backfill runs from a RUNNER, and the catch-up is SCHEDULED
 
 Open decision 4, corrected by measurement rather than abandoned. ~250 ms per round trip from

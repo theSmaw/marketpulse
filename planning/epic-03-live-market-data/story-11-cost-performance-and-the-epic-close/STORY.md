@@ -729,3 +729,28 @@ route commits once a second (the clock, cheap) and should commit **once** per
 **The cold load and `Expand all` are re-taken and still Epic 14's** (50–56 ms
 on seven loads in ten; 65–86 ms). Quote them from the epic's `EPIC.md` rather
 than re-taking them here unless the table changed.
+
+## Handed here by Story 3.7's close — 2026-09-23: two figures for the bill, and one condition to evaluate
+
+- **The tape column costs ~2% of the store's headroom, and the plan does not
+  move.** `0010` added 4 bytes to every row written after 2026-09-22 and **zero**
+  to the 48 million already there — a constant default on PostgreSQL 18 is a
+  catalogue entry, not a rewrite. `BARS.md` §8.3 and §8.4 carry the amendment:
+  195 → 199 B/row on new rows, 8.66 → 8.84 GiB a year at 518 symbols, ~2.6 → ~2.55
+  measured years to read-only, and **~2.4 against the calendar ceiling either
+  way**. Quote those rather than re-taking them. The number worth your attention
+  is not this one: `market_bars_pkey` is **1,029 MB with zero scans**, which is
+  25× the tape column's whole annual cost.
+- **There is no deferred validation to check was run, and there never will be.**
+  `market_bars_feed_check` is `NOT VALID` permanently — validating it is a full
+  heap scan, ~508 s on the B1ms tier against `deploy.yml`'s 120 s — and
+  `pg_constraint.convalidated = false` is asserted by `pnpm test:database` with
+  `pnpm break the-tape-check-gets-validated` behind it (ADR 0034).
+- **One `docs/GAPS.md` condition you are well placed to evaluate.** _A migration
+  on `market_bars` waits for as long as the longest open transaction_ — measured
+  at 18.16 s for the migration and 16.16 s for an ordinary chart read queued
+  behind it, against a 0.09 s baseline. Its owner is a condition rather than a
+  story: the first migration on that table that is not two catalogue writes, or
+  the first deploy reporting exit 124 with `wait_event: relation`. An epic close
+  that reviews cost and performance is the natural place to ask whether Story
+  3.8's live writer has made that condition worth buying the bound for.

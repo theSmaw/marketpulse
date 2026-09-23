@@ -143,3 +143,26 @@ every row changing. **The lever for these two entries is DOM size; the lever
 for that one was render work.** They are different problems on one component,
 and this table now carries two memo boundaries a virtualisation would have to
 keep.
+
+## Handed here by Story 3.7's close — 2026-09-23: a measured cost that belongs to the deploy rather than to a page
+
+**The largest single latency figure anywhere in this product's read path is not
+a query, and no instrument this epic owns can see it.** A migration on
+`market_bars` takes an `ACCESS EXCLUSIVE` lock; Postgres queues later requests
+behind a waiting exclusive one; and an ordinary chart read whose own lock
+conflicts with nothing that was granted waited **16.16 s** behind a queued
+migration in a rehearsal on the populated store, against a **0.09 s** baseline.
+The migration itself waited 18.16 s, which was simply the length of the
+transaction ahead of it.
+
+It is a fact about a **lock queue**, so it does not appear in a query plan, a
+long-task observer, or any p95 taken from a running pair — every instrument in
+this epic would read the affected request as a slow one with no cause.
+`docs/GAPS.md` carries the figures, the `lock_timeout` cure and why it was not
+bought; `CLAUDE.md`'s _Data layer_ trap carries the rule.
+
+**And the row size moved, slightly.** `0010` added 4 bytes to rows written after
+2026-09-22 and none to the 48 million already stored — `BARS.md` §8.3's amendment
+has the arithmetic. The figure still worth this epic's attention is the one that
+was already there: `market_bars_pkey` at **1,029 MB with zero scans** (§8.5),
+which is 25× the new column's annual cost.

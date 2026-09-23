@@ -976,6 +976,15 @@ the two-feed sentence §2 settles has no producer until there is.
 > stored history. §2's sentence is still waiting for Epic 3 to produce the state
 > it describes, which is Story 3.9's.
 >
+> > **Amended 2026-09-23 by Story 3.7's close — the producer exists, and it is
+> > the store rather than the stitch.** Task 3.7.5 derives a served window's
+> > sources from `market_bars.feed`, one per contiguous run of tape, so a store
+> > holding two tapes produces the two-feed record without the read-time stitch.
+> > No **deployed** store holds two tapes until Story 3.8, and the recorded
+> > bodies are unchanged — so this document's own states are as they were, and
+> > what has changed is that §2's sentence is now waiting on data rather than on
+> > a mechanism.
+>
 > The distinction matters for this document specifically: **the product can now
 > make a claim about the present, and it still makes no claim about a stitched
 > series.** Those were one sentence when this was written and are two now.

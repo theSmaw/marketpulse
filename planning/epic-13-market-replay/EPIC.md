@@ -131,3 +131,29 @@ end up sharing one flag.
    being replayed, so filtering it away is invariant 4's failure arriving through a column
    rather than through a timestamp. Story 2.4 shipped the rendering that keeps such rows
    visible; this epic must keep them in the data.
+
+## Handed here by Story 3.7's close — 2026-09-23: a stored bar now knows which tape it came from
+
+**This is the column _what was knowable at 11:07_ has been waiting for.**
+`market_bars.feed` holds `sip`, `iex`, `synthetic` or `replay` per row since
+`0010_market_bars_feed.sql` (ADR 0034), stamped by the writer from the series'
+own provenance. So the distinction this epic turns on — the **IEX bar that was
+observable live** against the **SIP correction that arrived overnight** — is now
+a fact in the data rather than one the replay would have to infer.
+
+Three things to pick up, in the words you will need them:
+
+- **The tape reaches you and is dropped on purpose.** `readBars` answers
+  `StoredBar { bar, feed }`; `replay-bar-source.ts` maps `.bar` and discards the
+  tape, with a comment saying the engine's own emission is labelled `replay`
+  whatever the bar was observed on. **That line is where you pick it up** if
+  _what was knowable_ needs the tape rather than the numbers.
+- **What happens when two tapes claim one minute is Story 3.8's decision, not
+  yours, and it is not taken yet.** Today the writer refuses an overlapping
+  series from another tape rather than resolving it (`ForeignSourceError`,
+  reason `overlap`), and the per-row conflict rule is that the existing row
+  keeps its tape and takes the new numbers. `TAPE.md` §6 and §7. Whichever shape
+  3.8 chooses is the shape your replay reads, so read it before designing
+  around today's.
+- **The `status` predicate rule is unchanged** and still yours: never filter
+  `securities.status` when replaying something stored.
