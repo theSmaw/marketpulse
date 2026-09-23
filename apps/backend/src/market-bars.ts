@@ -1313,6 +1313,25 @@ export interface MarketBarsRepository {
    * **absent** rather than present with a zero — {@link listCoverage}'s
    * spelling, and the one that keeps "we hold nothing for this" and "it closed
    * at nothing" from becoming the same value.
+   *
+   * ## Two different instants, since Task 3.8.5
+   *
+   * **`last` and `previous` are two minutes, not two rows.** They were the
+   * same thing until ADR 0035 let a minute hold a row per tape; after it, the
+   * newest two rows of a reconciled window are one instant twice, and a
+   * `previousClose` taken from the other tape produces a **fabricated move**
+   * with nothing on screen to reveal it. The lateral now takes one row per
+   * instant under {@link SERVED_TAPE_RANK} — the same tie-break
+   * {@link readSeries} serves under, so a table and the chart beside it cannot
+   * disagree about one minute.
+   *
+   * **Latent when it was repaired, and repaired anyway.** The one shipped
+   * caller passes `1d`, which only the backfill writes and only ever on `sip`;
+   * the live writer writes `1m`. But the timeframe is a **parameter**, `1m`
+   * can hold two tapes today, and a universe table showing *today's* close is
+   * a table reading minute bars — which is Task 3.8.8's subject. The cost of
+   * closing it early is 2.1 ms; the cost of meeting it late is a wrong number
+   * that looks right.
    */
   readLastCloses(timeframe: Timeframe): Promise<ReadonlyMap<Ticker, LastClose>>;
 }
@@ -1710,10 +1729,32 @@ export function createMarketBarsRepository(
         .crossJoinLateral((eb) =>
           eb
             .selectFrom("market_bars")
+            // **Two rows meant two minutes until 2026-09-23** (Task 3.8.5).
+            // Since ADR 0035 a minute may hold a row per tape, so on a
+            // reconciled window the newest two rows are the SAME minute and
+            // `previousClose` becomes the other tape's version of the close it
+            // is compared against — a fabricated move, drawn as an ordinary
+            // one. `SERVED_TAPE_RANK` is the tie-break, the same one
+            // `readSeries` serves under, so a table and the chart beside it
+            // cannot disagree about one minute.
+            //
+            // **Measured, because `limit 2` is load-bearing** — it is what
+            // makes this a bounded backwards walk of `(security_id, timeframe,
+            // observed_at)` rather than a ranking of every bar. At `1m`
+            // against a store with the newest two minutes doubled: 7.6 ms
+            // against 5.2 ms without, and the plan is an **Incremental Sort**,
+            // so the index still supplies the order and only the rows sharing
+            // an instant are sorted. Well inside the 4.8–8.2 ms this query has
+            // occupied since 2026-09-09, and 33× clear of the 182–279 ms
+            // `row_number()` shape that measurement rejected.
+            .distinctOn("market_bars.observed_at")
             .select(["market_bars.observed_at", "market_bars.close"])
             .whereRef("market_bars.security_id", "=", "securities.id")
             .where("market_bars.timeframe", "=", timeframe)
+            // `distinct on` requires its expression to lead the `order by`;
+            // the tie-break after it decides which row of a minute survives.
             .orderBy("market_bars.observed_at", "desc")
+            .orderBy(SERVED_TAPE_ORDER)
             .limit(2)
             .as("recent"),
         )

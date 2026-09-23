@@ -1,6 +1,6 @@
 # Story 3.8 — Storing the Live Session
 
-**Status:** In progress — **four of TEN tasks done (3.8.1–3.8.4)**, the last of them on 2026-09-23. The deployed backend is a bar writer, the two-feed source note is on screen, and a reconciled session is a chart rather than a 500. Originally **split into eight tasks 2026-09-23**; a ninth was inserted at 3.8.4 that day, and a **tenth at 3.8.5** on the same day with everything after it renumbered — Task 3.8.4 repaired one read that assumed one row a minute and the audit it prompted found a second, `readLastCloses`, which does not throw but prints a fabricated double-digit move on all 518 universe rows. See _Tasks_ below. The visible payoff is Task 3.8.3, which is as early as the two decisions before it allow.
+**Status:** In progress — **four of TEN tasks done (3.8.1–3.8.4)**, the last of them on 2026-09-23. The deployed backend is a bar writer, the two-feed source note is on screen, and a reconciled session is a chart rather than a 500. Originally **split into eight tasks 2026-09-23**; a ninth was inserted at 3.8.4 that day, and a **tenth at 3.8.5** on the same day with everything after it renumbered — Task 3.8.4 repaired one read that assumed one row a minute and the audit it prompted found a second, `readLastCloses`, which does not throw and whose wrong answer has no tell — latent today, because nothing calls it at a timeframe that can hold two tapes, and waiting directly in Task 3.8.8's path. See _Tasks_ below. The visible payoff is Task 3.8.3, which is as early as the two decisions before it allow.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.5, 3.7
 **Epic scope covered:** market-data persistence for live observations, and the reconciliation between two tapes covering one session
@@ -176,18 +176,18 @@ to be able to hold what they decided (3.8.2); **3.8.3 then delivers both visible
 things at once**, and everything after it makes that correct rather than adding
 to it.
 
-| #      | Task                                                                                                                           | Depends on | Visible?                                   |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------------------------------------------ |
-| 3.8.1  | [What a record is, decided before a row is written](TASK-01-what-a-record-is-decided-before-a-row-is-written.md)               | 3.7        | No — **done**                              |
-| 3.8.2  | [The uniqueness rule, and the migration it needs](TASK-02-the-uniqueness-rule-and-the-migration-it-needs.md)                   | 3.8.1      | No — **done**                              |
-| 3.8.3  | [The writer, and the first reload that keeps its chart](TASK-03-the-writer-and-the-first-reload-that-keeps-its-chart.md)       | 3.8.2      | **Yes — both, and both seen — done**       |
-| 3.8.4  | [One minute, two rows, and the 500 that arrives otherwise](TASK-04-one-minute-two-rows-and-the-500-that-arrives-otherwise.md)  | 3.8.3      | No — the 500 never arrives — **done**      |
-| 3.8.5  | [The last close that is the same minute twice](TASK-05-the-last-close-that-is-the-same-minute-twice.md)                        | 3.8.4      | **Yes — a fabricated move stops printing** |
-| 3.8.6  | [A growing session is not an immutable one](TASK-06-a-growing-session-is-not-an-immutable-one.md)                              | 3.8.3      | No — one thing stops being wrong           |
-| 3.8.7  | [The late revision the live path throws away](TASK-07-the-late-revision-the-live-path-throws-away.md)                          | 3.8.3      | No                                         |
-| 3.8.8  | [The surfaces that now show a stored today](TASK-08-the-surfaces-that-now-show-a-stored-today.md)                              | 3.8.3      | **Yes — consistency across a reload**      |
-| 3.8.9  | [The overnight reconciliation, rehearsed over one session](TASK-09-the-overnight-reconciliation-rehearsed-over-one-session.md) | 3.8.7      | No                                         |
-| 3.8.10 | [The sweep, the hand-offs and the close](TASK-10-the-sweep-the-hand-offs-and-the-close.md)                                     | 3.8.9      | No                                         |
+| #      | Task                                                                                                                           | Depends on | Visible?                                       |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------ | ---------- | ---------------------------------------------- |
+| 3.8.1  | [What a record is, decided before a row is written](TASK-01-what-a-record-is-decided-before-a-row-is-written.md)               | 3.7        | No — **done**                                  |
+| 3.8.2  | [The uniqueness rule, and the migration it needs](TASK-02-the-uniqueness-rule-and-the-migration-it-needs.md)                   | 3.8.1      | No — **done**                                  |
+| 3.8.3  | [The writer, and the first reload that keeps its chart](TASK-03-the-writer-and-the-first-reload-that-keeps-its-chart.md)       | 3.8.2      | **Yes — both, and both seen — done**           |
+| 3.8.4  | [One minute, two rows, and the 500 that arrives otherwise](TASK-04-one-minute-two-rows-and-the-500-that-arrives-otherwise.md)  | 3.8.3      | No — the 500 never arrives — **done**          |
+| 3.8.5  | [The last close that is the same minute twice](TASK-05-the-last-close-that-is-the-same-minute-twice.md)                        | 3.8.4      | No — a latent lie closed before 3.8.8 meets it |
+| 3.8.6  | [A growing session is not an immutable one](TASK-06-a-growing-session-is-not-an-immutable-one.md)                              | 3.8.3      | No — one thing stops being wrong               |
+| 3.8.7  | [The late revision the live path throws away](TASK-07-the-late-revision-the-live-path-throws-away.md)                          | 3.8.3      | No                                             |
+| 3.8.8  | [The surfaces that now show a stored today](TASK-08-the-surfaces-that-now-show-a-stored-today.md)                              | 3.8.3      | **Yes — consistency across a reload**          |
+| 3.8.9  | [The overnight reconciliation, rehearsed over one session](TASK-09-the-overnight-reconciliation-rehearsed-over-one-session.md) | 3.8.7      | No                                             |
+| 3.8.10 | [The sweep, the hand-offs and the close](TASK-10-the-sweep-the-hand-offs-and-the-close.md)                                     | 3.8.9      | No                                             |
 
 **Task 3.8.3 carries a second visible change that costs nothing to build, and
 it is the one worth showing.** `SourceNote` already renders one stretch per
@@ -544,7 +544,8 @@ calls them `(last, previous)` — an assumption from Task 2.9.6 that two rows
 means two minutes. Since ADR 0035 a minute may hold a row per tape, so on a
 reconciled session the two newest rows are the **same minute twice**.
 
-Measured rather than reasoned, on the populated store:
+Measured rather than reasoned, on the populated store, **at the `1m`
+timeframe**:
 
 ```text
 BEFORE: close 218.19 at 2026-09-11T19:59Z,  previousClose 218.38
@@ -554,13 +555,23 @@ AFTER : close 301    at 2026-09-14T13:32Z,  previousClose 201
 `201` is the IEX close for **13:32**, the same minute as `301`. The change that
 produces is about **+49.8%**, drawn with an arrow and a colour like any other.
 
-**It ranks ahead of the four tasks it was inserted before because it renders.**
-3.8.4's failure was a thrown error: loud, total, obviously a fault. This one
-produces a plausible number in the right format on the product's
-most-populated surface, and nothing says it is wrong. `PRODUCT_SPEC.md` §35
-forbids exactly this twice over — the product must not **manufacture missing
-observations**, and **every generated conclusion should be distinguishable from
-an observed fact**.
+**Corrected 2026-09-23, before the task was implemented.** The paragraph here
+claimed this would print on all 518 universe rows on the first night after a
+live session. **It would not.** `readLastCloses` has one shipped caller and it
+passes **`1d`**; the live writer writes **`1m`** and nothing else; only the
+backfill writes daily bars and only ever on `sip`. The reproduction called it
+at `1m`, which nothing in the product does. **The defect is latent.**
+
+**It still ranks here, for a different reason than the one first given.** The
+function takes a timeframe as a parameter and is wrong for any that can hold two
+tapes — and `1m` can, today. Task 3.8.8 is _The surfaces that now show a stored
+today_, and a universe table showing today's close is a table reading minute
+bars. This is a trap laid directly in that task's path, it is cheap to close
+now, and its wrong answer has **no tell**: a well-formed, correctly-coloured
+percentage with an arrow, computed between two versions of one minute.
+`PRODUCT_SPEC.md` §35 forbids exactly that twice over — no **manufacturing
+missing observations**, and **every generated conclusion distinguishable from an
+observed fact**.
 
 **It is not a one-liner, which is why it is a task.** The lateral's `limit 2` is
 what makes that query a bounded backwards index walk — 518 searches, 2,597

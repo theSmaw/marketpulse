@@ -195,6 +195,32 @@ export const BREAKS = [
     expect: "writes a `sources:` array by hand",
   },
   {
+    name: "the-last-close-compares-one-minute-with-itself",
+    proves:
+      "The universe table prints a fabricated move. `readLastCloses` takes " +
+      "the newest TWO ROWS and calls them (last, previous); since ADR 0035 a " +
+      "minute may hold a row per tape, so on a reconciled window those two " +
+      "rows are one instant twice and the percentage is computed between the " +
+      "consolidated close and the single-venue close of the SAME minute. It " +
+      "does not throw \u2014 it renders, correctly formatted and correctly " +
+      "coloured. Needs a database, so it lives outside `verify`.",
+    file: "apps/backend/src/market-bars.ts",
+    find:
+      '            .distinctOn("market_bars.observed_at")\n' +
+      '            .select(["market_bars.observed_at", "market_bars.close"])',
+    replace:
+      "            // pnpm break: reverted automatically\n" +
+      '            .select(["market_bars.observed_at", "market_bars.close"])',
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "compares two instants rather than one instant twice",
+  },
+  {
     name: "the-served-minute-keeps-both-its-rows",
     proves:
       "A chart request over a reconciled session is a 500 for every reader. " +
@@ -204,8 +230,16 @@ export const BREAKS = [
       "500 on a page load. Without the `distinct on`, `readSeries` hands it " +
       "both rows. Needs a database, so it lives outside `verify`.",
     file: "apps/backend/src/market-bars.ts",
-    find: '        .distinctOn("market_bars.observed_at")',
-    replace: "        // pnpm break: reverted automatically",
+    // **Re-anchored by Task 3.8.5**, and caught by `every-break-can-still-land`
+    // rather than by review. That task gave `readLastCloses` the same
+    // `distinctOn` at a deeper indent, and an eight-space anchor is a
+    // SUBSTRING of a twelve-space one — so this entry began matching twice and
+    // could no longer land. The anchor now carries the line after it, which
+    // differs between the two call sites.
+    find:
+      '        .distinctOn("market_bars.observed_at")\n' + "        .select([",
+    replace:
+      "        // pnpm break: reverted automatically\n" + "        .select([",
     command: [
       "pnpm",
       "--filter",

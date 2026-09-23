@@ -2857,6 +2857,97 @@ describe("readLastCloses — the read behind the first price on screen", () => {
     });
   }
 
+  // **Two rows meant two minutes until Task 3.8.5**, and when it stopped being
+  // true the wrong answer had no tell: a well-formed, correctly-aligned,
+  // correctly-coloured percentage computed between two versions of one
+  // instant. These use `1m`, which is the timeframe that can hold two tapes —
+  // the shipped caller passes `1d`, which only the backfill writes and only
+  // ever on `sip`, so the defect was latent. The function takes the timeframe
+  // as a parameter, and Task 3.8.8 is about to want minute closes.
+  describe("a minute held on two tapes (Task 3.8.5)", () => {
+    async function minuteBar(
+      observedAt: string,
+      close: number,
+      feed: string,
+    ): Promise<void> {
+      await insertBar({
+        security_id: securityId,
+        timeframe: "1m",
+        observed_at: observedAt,
+        open: close - 1,
+        high: close + 1,
+        low: close - 2,
+        close,
+        volume: 1_000,
+        feed,
+      });
+    }
+
+    // **The test that fails without the repair**, and it fails by producing a
+    // number rather than by throwing. Before it, `previousClose` was `201` —
+    // the IEX close for the SAME instant as the `301` beside it — and the
+    // percentage drawn from that pair is +49.75%.
+    it("compares two instants rather than one instant twice", async () => {
+      await minuteBar("2026-09-14T13:31:00.000Z", 300.5, "sip");
+      await minuteBar("2026-09-14T13:31:00.000Z", 200.5, "iex");
+      await minuteBar("2026-09-14T13:32:00.000Z", 301, "sip");
+      await minuteBar("2026-09-14T13:32:00.000Z", 201, "iex");
+
+      const close = closes(await repository().readLastCloses("1m"), symbol);
+
+      expect(close.observedAt).toEqual(new Date("2026-09-14T13:32:00.000Z"));
+      expect(close.close).toBe(301);
+      // The minute before, not the other tape's version of this one.
+      expect(close.previousClose).toBe(300.5);
+    });
+
+    it("serves the consolidated tape, the same one the chart is served", async () => {
+      await minuteBar("2026-09-14T13:31:00.000Z", 300.5, "sip");
+      await minuteBar("2026-09-14T13:32:00.000Z", 301, "sip");
+      await minuteBar("2026-09-14T13:32:00.000Z", 201, "iex");
+
+      const close = closes(await repository().readLastCloses("1m"), symbol);
+
+      expect(close.close).toBe(301);
+    });
+
+    // The live tail of a session the backfill has not reached: IEX is the only
+    // tape for the newest minute, so it is what a reader is shown.
+    it("falls back to the live tape where the consolidated one has not reached", async () => {
+      await minuteBar("2026-09-14T13:31:00.000Z", 300.5, "sip");
+      await minuteBar("2026-09-14T13:32:00.000Z", 201, "iex");
+
+      const close = closes(await repository().readLastCloses("1m"), symbol);
+
+      expect(close.close).toBe(201);
+      expect(close.previousClose).toBe(300.5);
+    });
+
+    // **The state the design card was made for.** One distinct instant held
+    // twice is one instant, so there is genuinely nothing to compare against —
+    // and the cell draws an absence rather than a zero. Before the repair this
+    // was the pair that produced the fabricated move.
+    it("has no previous close when the only instant is held twice", async () => {
+      await minuteBar("2026-09-14T13:32:00.000Z", 301, "sip");
+      await minuteBar("2026-09-14T13:32:00.000Z", 201, "iex");
+
+      const close = closes(await repository().readLastCloses("1m"), symbol);
+
+      expect(close.close).toBe(301);
+      expect(close.previousClose).toBeNull();
+    });
+
+    it("leaves a security with one tape exactly as it was", async () => {
+      await minuteBar("2026-09-14T13:31:00.000Z", 300.5, "sip");
+      await minuteBar("2026-09-14T13:32:00.000Z", 301, "sip");
+
+      const close = closes(await repository().readLastCloses("1m"), symbol);
+
+      expect(close.close).toBe(301);
+      expect(close.previousClose).toBe(300.5);
+    });
+  });
+
   it("answers the newest close and the one before it", async () => {
     await dailyBar(securityId, "2026-09-02T04:00:00.000Z", 224.41);
     await dailyBar(securityId, "2026-09-03T04:00:00.000Z", 228.45);

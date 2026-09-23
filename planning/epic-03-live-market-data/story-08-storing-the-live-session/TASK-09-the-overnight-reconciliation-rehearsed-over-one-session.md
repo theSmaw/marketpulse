@@ -30,7 +30,14 @@ make safe.
 - **Then read the served answer**, because that is what a user meets: how many
   sources does the window name, in what order, with what counts, and what does
   the source note draw.
-- **And `pnpm bars:check`** — criterion 9. That script tells the truth about
+- **And `pnpm bars:check`** — criterion 9, **and Task 3.8.5 has already found
+  one way it misreports, so start there rather than from scratch.** It reports
+  _series holding MORE bars than their sessions have minutes_ as an anomaly,
+  and the ledger's `bar_count` counts **rows**. A fully reconciled session
+  holds up to two rows a minute, so every reconciled security trips that line —
+  a false alarm, on exactly the night the tool's output matters most. Decide
+  whether the count becomes distinct instants, whether the expectation doubles,
+  or whether the line says which tape it means. That script tells the truth about
   what is missing and why, and it was written when one writer filled this table.
   Two writers can make a session look complete when one tape's holes are filled
   by the other's, or incomplete when neither covers a minute nobody traded in.

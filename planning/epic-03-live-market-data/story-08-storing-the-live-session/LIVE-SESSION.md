@@ -461,3 +461,83 @@ removes the `distinct on` and proves the red.
 What it does not certify: that any **deployed** store has ever held two tapes
 for one minute. It has not yet — the first night after a session the live writer
 filled is when that arrives, which is Task 3.8.9's rehearsal.
+
+## 9. The reads that assumed one row a minute (Task 3.8.5, 2026-09-23)
+
+**Two reads made the same assumption and neither was written down as making
+it.** §8 repaired the first by meeting it; this section is what the audit of the
+rest found.
+
+`readLastCloses` takes the newest **two rows** per security and calls them
+`(last, previous)`. That was one assumption — _two rows means two minutes_ —
+and it was true from Task 2.9.6 until ADR 0035. After it, the newest two rows of
+a reconciled window are **one instant twice**, and `previousClose` becomes the
+other tape's version of the close it is compared against:
+
+```text
+BEFORE: close 218.19 at 2026-09-11T19:59Z,  previousClose 218.38
+AFTER : close 301    at 2026-09-14T13:32Z,  previousClose 201
+```
+
+`201` is the IEX close for **13:32**, the same instant as `301`. The percentage
+is **+49.75%**, drawn with an arrow and a colour like any other move.
+
+### It was latent, and the first draft of the task said otherwise
+
+**Worth recording because the correction cost one grep and the claim had
+already been written into three documents.** `readLastCloses` has exactly one
+shipped caller and it passes **`1d`**. The live writer writes **`1m`**. Only
+the backfill writes daily bars and it only ever asks for `sip`. Confirmed
+against the store: `1d` is 347,631 rows, all `sip`.
+
+So no deployed surface was printing a fabricated move, and the reproduction
+that found the defect called `readLastCloses("1m")` — a timeframe nothing in
+the product passes it.
+
+**It was repaired anyway, and the reason is a date rather than a severity.**
+The timeframe is a **parameter**; `1m` can hold two tapes today; and Task 3.8.8
+is _The surfaces that now show a stored today_, which is a universe table
+reading minute closes. The trap is laid directly in that task's path. Closing
+it cost 2.1 ms.
+
+### The shape, and the measurement that chose it
+
+`distinct on (observed_at)` inside the lateral, with `SERVED_TAPE_RANK` as the
+tie-break — the same rule §8 serves under, so a table and the chart beside it
+cannot disagree about one minute.
+
+`limit 2` is load-bearing: it is what makes this a bounded backwards walk of
+`(security_id, timeframe, observed_at)` rather than a ranking of every bar, and
+2026-09-09 measured the ranking alternative at **182–279 ms warm**. Measured
+2026-09-23 against a store with the newest two minutes of all 518 securities
+doubled:
+
+| shape                            | `1m`    | `1d`   |
+| -------------------------------- | ------- | ------ |
+| today's query, no preference     | 5.2 ms  | 3.4 ms |
+| **`distinct on` in the lateral** | 7.6 ms  | 5.5 ms |
+| a wider limit, reduced in Node   | 16.6 ms | 6.4 ms |
+
+**The plan is an `Incremental Sort`**, which is the answer the question needed:
+the index still supplies the order and only the rows sharing an instant are
+sorted. Buffers rise from 12,487 to 31,377 at `1m`. The result sits **inside
+the 4.8–8.2 ms band this query has occupied since 2026-09-09** and is 33× clear
+of the shape that measurement rejected.
+
+### The audit, written down either way
+
+- **`readSeries`** — repaired by §8.
+- **`readBars`** — deliberately not repaired; the replay source wants every row.
+- **`readLastCloses`** — repaired here.
+- **`readLastBarDates`** — `max(observed_at)` grouped by symbol. **Safe**, and
+  checked rather than assumed: a maximum over duplicates is the same maximum.
+- **`writeBatch`'s presence check** — tape-scoped since 3.8.2.
+- **`store-freshness`** — reads `readLastBarDates`. Safe by the same argument.
+- **`pnpm bars:check` — NOT safe, and it is the third instance of this family.**
+  It reports _series holding MORE bars than their sessions have minutes_ as an
+  anomaly, and `bar_count` counts **rows**. A fully reconciled session holds up
+  to two rows a minute, so every reconciled security would be reported as
+  over-full. That is a false alarm rather than a defect in the store, and it
+  makes the tool's most alarming line meaningless on exactly the night it
+  matters. **Handed to Task 3.8.9**, which already owns `bars:check` as
+  criterion 9 and has to decide whether it still answers honestly.
