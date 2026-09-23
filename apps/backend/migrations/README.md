@@ -859,3 +859,21 @@ insert on a second tape matched the first tape's row, counted as a correction,
 and never reached the ledger's `bar_count`. The ledger under-reports and
 nothing says so. **When a key gains a column, grep for every query that assumed
 the old one.**
+
+**And since 2026-09-23 the deploy window has a writer inside it.** This section
+was written while `backfill.ts` was the only caller of `recordSeries`, running
+from a GitHub runner with its own checkout — so a migration that changed the
+shape of a write met, at worst, a scheduled job already in flight, which failed
+loudly and was correct on its next run. Task 3.8.3 wired a live bar writer into
+the deployed backend. A migration on `market_bars` now meets a writer **running
+inside the deploy window, in the image about to be replaced**, for the six and a
+half hours the US market is open, and that writer is caught-and-logged by
+design: it does not fail loudly, it warns and carries on.
+
+Two consequences for anything written here afterwards. **A write-shape change
+on this table is two deploys, expand then contract** — the running image has to
+tolerate the new shape before the old one goes away — which is the general rule
+§8 already states, now with a reason that bites daily rather than twice a night.
+And **the quiet failure mode is the one to design against**: a refused live
+write leaves a gap in the session with a `warn` line and nothing on any screen,
+where a refused backfill run leaves a red job.

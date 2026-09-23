@@ -183,6 +183,12 @@ and it fails loudly, writes nothing, and is correct on its next run.
 > `migrations/README.md` §9 and `CLAUDE.md`'s _Data layer_ trap was written
 > while that was not so; 3.8.3 is told to correct both, and 3.8.9's sweep
 > checks it.
+>
+> **Fired 2026-09-23.** Task 3.8.3 shipped `live-bar-writer.ts` and wired it
+> into `index.ts`, so the paragraph above this one — _the deployed backend
+> never writes bars_ — is now false, and the exposure it called narrow is a
+> whole trading session rather than two cron windows. Both documents were
+> corrected in that task. §7 is the writer's own record.
 
 **One defect the new key exposed, found by a test rather than by review.**
 `writeBatch`'s pre-read that decides `inserted` against `corrected` was not
@@ -237,3 +243,134 @@ what the later tasks are held to, and each will add its own row here.
 41% of the storage runway. That is a product judgement with a named reversal
 trigger (ADR 0035), and the evidence that would settle it does not exist until
 Epic 13 has shipped replay and can say what the IEX bars were used for.
+
+## 7. The writer, what it claims, and what it costs (Task 3.8.3, 2026-09-23)
+
+**`live-bar-writer.ts` is the mechanism the sections above were written for.**
+It hangs off `index.ts`'s single stream subscriber, beside the gateway, and
+takes the list the current-market state **applied** rather than the list that
+arrived — so the store and every open browser agree by construction rather than
+by two code paths happening to make the same decision. The gateway publishes
+first; the write runs after, so a slow database cannot hold up a price.
+
+Two rules it may never break, both of them properties of where it is called
+from rather than of what it does. **It never throws into the stream**, because
+`onObservations` runs inside the socket's own callback and an unhandled
+rejection there is a crashed process on a liveness-probed platform; every
+failure is caught per security, counted, and logged. **It never blocks the
+broadcast.**
+
+### What it claims as covered, and why that is the whole of §3's second half
+
+**The covered window ends at the last bar seen, not at the session close.**
+`seriesFor()` claims `[first.startsAt, last.startsAt + 1 minute)`. §3 is the
+argument; this is the decision it asked for. Claiming the session would have
+stopped `planRequests` ever fetching the consolidated version of those minutes,
+and the store would have kept a thin one-venue session permanently with nothing
+on any screen to see it. The cost taken instead is the one §3 named: a
+per-symbol `covered_end` that lags the session close, so `commonCoverage`'s
+intersection across 518 symbols is the earliest of 518 lagging ends. Task 3.8.8
+rehearses both paths over one session and asserts that the backfill asked.
+
+Confirmed against the real store on 2026-09-23: thirty `iex` bars written for
+NVDA starting `2026-09-14T13:30:00Z` moved `bar_coverage.covered_end` to
+`2026-09-14T14:00:00Z` — the last bar's instant plus one minute, exactly — and
+no further. Criterion 1, with the ledger agreeing.
+
+### The partial-minute rule is smaller than the story expected
+
+`isComplete(bar, now)` is one comparison and it is **not** a clock deciding
+when a minute is finished. The vendor already sends a bar for minute _M_ at the
+end of _M_ (`LIVE-DATA.md` §7.7: the first pre-market bar carries `t=08:43` and
+arrived at `08:43:59`), and a bar that is later revised is handled by the
+correction path rather than by a completeness test (§7.8's `updatedBars`, about
+thirty seconds later, which the upsert applies). So the guard exists for the one
+shape that would be a **false record rather than an early one** — a bar stamped
+in the future, which no correction can ever repair because nothing will arrive
+to repair it. It has never been observed.
+
+### The transaction, measured
+
+**One transaction per security, never one per batch.** Task 3.7.6 measured that
+a migration on `market_bars` queues behind any open transaction on the table and
+takes every ordinary reader down with it, and this task turns two cron windows a
+day into a six-and-a-half-hour session. A transaction holding one security's
+minute is the shortest shape `recordSeries` offers; a batch-wide one would hold
+the table for the length of 518 writes.
+
+Measured 2026-09-23 through the **shipped** writer against the populated store
+(48.8 million rows, a developer's laptop), ten securities a batch, twelve
+batches, the first two discarded as warm-up:
+
+| what                           | median | p95    | max    |
+| ------------------------------ | ------ | ------ | ------ |
+| one security (one transaction) | 2.3 ms | 3.2 ms | 3.2 ms |
+| the whole batch of ten         | 23 ms  | 32 ms  | —      |
+
+**Read the first row, not the second.** The lock a migration queues behind is
+held for the length of one transaction, and that is 2.3 ms. The batch figure is
+throughput and says only that 518 securities' minute is comfortably inside the
+minute it describes.
+
+**A first attempt at this figure was invalid and is recorded because the
+failure is silent.** The instrument stamped its bars in 2099, which is outside
+`market-calendar.ts`'s checked table (2024–2028), so every write was refused and
+the run reported a confident `1.2 ms / 12 ms` — **the cost of the refusal path,
+not the write path**. The tell was one line of the same output: `cleaned up 0
+rows`. A measurement of a write that wrote nothing looks exactly like a fast
+write.
+
+### The deployed backend is now a bar writer, and two documents said otherwise
+
+Task 3.8.2 justified a deploy window and then measured why it barely mattered:
+the only caller of `recordSeries` was `backfill.ts`, which runs from a GitHub
+runner with its own checkout. **That stopped being true here.** A migration that
+changes how a write is shaped now meets a writer running **inside the deploy
+window**, in the image about to be replaced, rather than a scheduled job that
+rebuilds itself from `main`. `migrations/README.md` §9 and `CLAUDE.md`'s _Data
+layer_ trap were both written under the old premise and were corrected in this
+task.
+
+### What was looked at, in a browser, and what it proved
+
+Both of these were **seen**, not derived, on 2026-09-23 at 1456×835.
+
+**The two-feed sentence is real.** The task predicted it from reading
+`namesFeeds` and `describeSeriesFeeds` and asked for it to be checked. With
+thirty `iex` bars stored beside NVDA's backfilled `sip` window, `/securities/NVDA?sessions=21`
+renders, with **no new code**, three things at once: the Price region's feed
+line reads `● All US exchanges  ● IEX  Trades reported by the IEX exchange only
+— not the full US consolidated tape.`; the source note at the foot of the region
+group reads `5,460 bars All US exchanges` / `30 bars IEX` with the same
+qualifier; and the chart's spoken sentence ends `Stitched: 5,460 from All US
+exchanges and 30 from IEX.` That is `PRODUCT_SPEC.md` §7.1's requirement and the
+sentence `CLAUDE.md`'s invariant 6 exists for, on screen from stored data for
+the first time in this product's life.
+
+**Two honest qualifications on that photograph.** The IEX prices in it were
+written by an instrument rather than by the socket, because the market was
+closed at 23:18 EDT when it was taken — the **path** is the shipped writer and
+the **stretching, ordering and counting** are the real read path, but the prices
+themselves are invented, which is why the chart shows a cliff at the join.
+And the rows were removed afterwards, so reproducing the photograph is one
+script rather than a state the store is in.
+
+**Criterion 2, confirmed in a browser.** The socket-to-store-to-reload path was
+run end to end against `marketpulse_bare` — CI's store, 518 securities and zero
+bars — with the fixture feed, which is the shape Task 3.8.3 sanctioned when a
+session is not available. Six minutes arrived on the socket and the writer
+stored 518 rows a minute with their tape. A **cold load** of
+`/securities/NVDA?sessions=5` then drew all six, `LATEST PRICE 102.39` at
+`Sep 16 · 09:35 EDT`, reaching exactly the edge the writer had reached; the
+`/market-data/bars` response carried six bars and
+`covered { start 13:30, end 13:36 }`. Five of those six minutes had arrived
+before that page existed, so they can only have come from the store. The status
+bar read `SIMULATED · Generated test data. Not a market feed. · LIVE`
+throughout, which is `PROVIDER.md` §5.4's structural labelling doing its job
+without anybody remembering to add a banner.
+
+**One more thing the bare store showed that the populated one could not.** The
+live writer **created** NVDA's ledger row rather than extending one, and it
+created it with `provider fixture` / `feed synthetic` taken from the
+observation's own provenance rather than from a constant — which is `TAPE.md`
+§6's rule holding on the path that has no prior row to copy from.

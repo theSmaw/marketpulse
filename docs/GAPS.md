@@ -488,6 +488,23 @@ DATABASE_NAME=marketpulse_bare pnpm dev     # then run the spec against it
 
 If it passes there and fails against your own store, **the store is the subject**. **Owner: a condition** — the first browser spec that asserts on a figure whose presence depends on a window having data.
 
+**Fired again 2026-09-23, and this time the procedure caught it on the first
+pass rather than the third.** Task 3.8.3's full `pnpm e2e` came back `1 failed,
+141 passed` on the same spec, the same two narrow viewports and the same 90 px.
+The two commands above were run before anything was believed: green on
+`marketpulse_bare`, red on a store seven sessions stale whose `1D` answers 0
+bars and `1M` answers 5,460. The task that produced the failure had changed no
+frontend, shared or route file and nothing on the read path — only
+`recordSeries` and `writeBatch` — so the diagnosis was also checkable from the
+diff, which is worth pairing with the store check: **a layout failure from a
+change that touches no layout is a data failure until proved otherwise.**
+
+**Worth knowing where this ends.** The entry's condition is a stale store, and
+Story 3.8 is the story that stops the store being stale during a session — once
+the live writer has filled today, `1D` is not empty. That narrows the window in
+which this can fire rather than closing it: a store stale **out of hours**, or
+one for a security the feed did not carry, still produces it.
+
 ## A migration on `market_bars` waits for as long as the longest open transaction, and every reader of that table waits behind it
 
 **Added 2026-09-23 by Task 3.7.6, from a rehearsal rather than an argument.**

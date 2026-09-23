@@ -1,6 +1,6 @@
 # Story 3.8 — Storing the Live Session
 
-**Status:** Not started — **split into eight tasks 2026-09-23, and a ninth inserted at 3.8.4 on the same day**, see _Tasks_ below. The visible payoff is Task 3.8.3, which is as early as the two decisions before it allow.
+**Status:** In progress — **three of nine tasks done (3.8.1, 3.8.2, 3.8.3)**, the last of them on 2026-09-23, which makes the deployed backend a bar writer and puts the two-feed source note on screen. Originally **split into eight tasks 2026-09-23, and a ninth inserted at 3.8.4 on the same day**, see _Tasks_ below. The visible payoff is Task 3.8.3, which is as early as the two decisions before it allow.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.5, 3.7
 **Epic scope covered:** market-data persistence for live observations, and the reconciliation between two tapes covering one session
@@ -180,7 +180,7 @@ to it.
 | ----- | ------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------------------------------------------------- |
 | 3.8.1 | [What a record is, decided before a row is written](TASK-01-what-a-record-is-decided-before-a-row-is-written.md)               | 3.7        | No — **done**                                     |
 | 3.8.2 | [The uniqueness rule, and the migration it needs](TASK-02-the-uniqueness-rule-and-the-migration-it-needs.md)                   | 3.8.1      | No — **done**                                     |
-| 3.8.3 | [The writer, and the first reload that keeps its chart](TASK-03-the-writer-and-the-first-reload-that-keeps-its-chart.md)       | 3.8.2      | **Yes — the story's headline, and a second**      |
+| 3.8.3 | [The writer, and the first reload that keeps its chart](TASK-03-the-writer-and-the-first-reload-that-keeps-its-chart.md)       | 3.8.2      | **Yes — both, and both seen — done**              |
 | 3.8.4 | [One minute, two rows, and the 500 that arrives otherwise](TASK-04-one-minute-two-rows-and-the-500-that-arrives-otherwise.md)  | 3.8.3      | No — **and one thing that never becomes visible** |
 | 3.8.5 | [A growing session is not an immutable one](TASK-05-a-growing-session-is-not-an-immutable-one.md)                              | 3.8.3      | No — one thing stops being wrong                  |
 | 3.8.6 | [The late revision the live path throws away](TASK-06-the-late-revision-the-live-path-throws-away.md)                          | 3.8.3      | No                                                |
@@ -507,3 +507,30 @@ takes a decision (which tape a served chart prefers), it needs its own tests,
 and it has to land before the first overnight reconciliation. The tasks from
 _A growing session_ onward each moved up one number; nothing else changed, and
 every reference to them was remapped in the same change.
+
+## Handed here by Task 3.8.3 — 2026-09-23: the daily ledger's `covered_end` is holding a wall clock, and Task 3.8.8 owns it
+
+**`bar_coverage.covered_end` is a market-time column, and on every `1d` row it
+was a write time.** Found by accident on a developer's store while cleaning up
+after the writer measurement: all 518 daily rows read
+`2026-09-14T00:04:38.533Z` — milliseconds and all, the instant the backfill ran
+— where the minute rows read `2026-09-11T20:00:00Z`, which is the last stored
+bar plus a minute and is correct.
+
+**Why this is Task 3.8.8's and not a tidy-up.** That task owns the overnight
+reconciliation, and the two functions that decide whether tonight's backfill
+asks for anything — `planRequests`, which skips a session wholly inside the
+covered window, and `commonCoverage`, which intersects `covered` across symbols
+— **both read this column**. A `covered_end` that drifts forward to the write
+time claims coverage the store does not hold, which is the same failure mode
+`LIVE-SESSION.md` §3 made Task 3.8.3 decide the live writer's claim to avoid.
+It is the daily timeframe rather than the minute one, so it does not touch the
+live session directly; it touches whether the reconciliation can trust the
+number it is reconciling against.
+
+**What 3.8.8 owes on it:** find which writer sets it (the backfill's daily path
+is the candidate), say whether the value is deliberate, and either correct it or
+record why a wall clock belongs on that column. `DATA-LAYER.md`'s rule is that
+`observed_at` is when it was true in the market and `recorded_at` is when we
+wrote it, and a market-time column carrying a write time is exactly the
+confusion that rule exists to prevent.
