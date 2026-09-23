@@ -175,6 +175,15 @@ The deployed backend never writes bars. So the exposure is a backfill run
 **already in flight** when the deploy lands — a ten-minute job twice a day —
 and it fails loudly, writes nothing, and is correct on its next run.
 
+> **And that argument expires with Task 3.8.3**, which is the next task and
+> makes the deployed backend a bar writer for the first time. After it, a
+> migration that changes the shape of a write meets a writer **running inside
+> the deploy window**, in the image about to be replaced, rather than a
+> scheduled job that rebuilds itself from `main`. The reasoning in
+> `migrations/README.md` §9 and `CLAUDE.md`'s _Data layer_ trap was written
+> while that was not so; 3.8.3 is told to correct both, and 3.8.9's sweep
+> checks it.
+
 **One defect the new key exposed, found by a test rather than by review.**
 `writeBatch`'s pre-read that decides `inserted` against `corrected` was not
 scoped to the tape, so a genuine insert on a second tape matched the first

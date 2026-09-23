@@ -722,6 +722,30 @@ and this is the first time it has had anything to watch.
 | `market_bars_unique_bar` — `(security_id, timeframe, observed_at)` |     2,915 MB | **15,327,127** |      76,422 |
 | `market_bars_pkey` — the surrogate `id`                            | **1,029 MB** |          **0** |       **0** |
 
+> **AMENDED 2026-09-23 by Task 3.8.2 — both rows moved, and one of them moved
+> in the good direction.** `0011_market_bars_unique_bar_by_tape.sql` put the
+> tape in the natural key, so the first row is now
+> `(security_id, timeframe, observed_at, **feed**)` — and rebuilding it
+> **shrank** it, because the old index carried years of backfill-upsert bloat
+> and the new one is a fresh build. Measured on the local store the same day
+> (48,797,343 rows, so a slightly larger table than the one above):
+>
+> | Index                                                                    |         Size |
+> | ------------------------------------------------------------------------ | -----------: |
+> | `market_bars_unique_bar` — `(security_id, timeframe, observed_at, feed)` | **2,311 MB** |
+> | `market_bars_pkey` — the surrogate `id`                                  | **1,045 MB** |
+>
+> **`market_bars` went from 9,097 MB to 8,439 MB** across that migration: a
+> **658 MB reclaim** on a change that added a column to a key. It is a one-off
+> and does not change the **rate** ADR 0035 prices (+6.1 GiB a year for keeping
+> both tapes), but it is roughly a tenth of that first year, already banked.
+>
+> **The section's argument is untouched.** `market_bars_pkey` is still a
+> gigabyte with zero scans, still a convention with a price, and its reversal
+> trigger — the first thing that references a bar by `id`, or disk pressure
+> arriving first — is if anything nearer now that ADR 0035 has spent the
+> runway.
+
 **A gigabyte of index with zero scans**, across the backfill, the daily run and
 every query since the table was created — ~11% of a year's storage on a disk
 with ~22.5 GiB usable, plus write amplification on all 48M inserts.

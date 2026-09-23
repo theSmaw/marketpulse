@@ -81,6 +81,33 @@ continue;`) and `commonCoverage` takes the **intersection** across symbols.
   you ship** and record it in `LIVE-SESSION.md`; prefer short transactions to
   few ones where the choice is free.
 
+## What you inherit from 3.8.2, and the one thing you take away from it
+
+**The key already permits what you are about to write.**
+`market_bars_unique_bar` covers the tape since `0011`, and `writeBatch`'s
+`on conflict` names all four columns — so a socket series with `alpaca`/`iex`
+provenance stores beside the backfill's SIP rows rather than fighting them.
+Nothing in the writer needs the key changed; what is left is the **overlap
+refusal**, which is 3.8.1's decision and yours to lift.
+
+**And one measurement of 3.8.2's stops being true the moment this ships.**
+That task justified a deploy window by proving the old writer's `on conflict`
+could not survive it — and then measured why that barely mattered: _the only
+caller of `recordSeries` in the tree is `backfill.ts`, which runs from a GitHub
+runner with its own checkout and build. The deployed backend never writes
+bars._
+
+**This task makes the deployed backend a bar writer.** After it, a migration
+that changes how a write is shaped meets a writer that is **running inside the
+deploy window**, in the image that is about to be replaced, rather than a
+scheduled job that rebuilds itself from `main`. That is a genuinely different
+risk and it is the kind that is discovered rather than remembered. So:
+
+- **Say so in `LIVE-SESSION.md`** when you land, and
+- **check `migrations/README.md` §9 and `CLAUDE.md`'s _Data layer_ trap** —
+  both were written while the backfill was the only writer, and the next
+  migration on this table should meet the corrected version.
+
 ## One hazard this task opens, closed by the next one
 
 **Nothing breaks on the day this ships**, because the writer fills today's

@@ -46,6 +46,13 @@ make safe.
   what happens to it is exactly 3.8.1's decision. Count them.
 - **The ledger's own claim** after both runs: one contiguous window, a bar count
   that agrees with the rows, and a `provider` that did not change.
+  **Assert the bar count against `count(*)` rather than reading it**, added
+  2026-09-23 by Task 3.8.2: that task found the writer's presence check
+  unscoped to the tape, which made a genuine insert count as a correction and
+  never reach `extendCoverage` — the ledger under-reports and **nothing says
+  so**. A reconciliation is the first place two tapes meet in volume, so it is
+  the first place a residual version of that defect would show. The two
+  numbers agreeing is the assertion; either one alone is not.
 - **That the backfill asked at all** — added 2026-09-23 by Task 3.8.1.
   `planRequests` skips a session wholly inside the covered window, so a live
   writer that claimed today would make tonight's run report
