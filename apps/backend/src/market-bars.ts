@@ -542,29 +542,6 @@ const SOURCE_OF_NOTHING: SeriesSource = { provider: "alpaca", feed: "sip" };
 export const STORED_BAR_ADJUSTMENT: Adjustment = "raw";
 
 /**
- * A series' source disagrees with the ledger row it would extend, or with
- * itself.
- *
- * **This is `0004_market_bars.sql`'s trigger firing per series rather than
- * being noticed later by a person.** That migration stores no per-bar
- * provenance and names its reversal condition as *a second feed writing into
- * this table*; `bar_coverage` holds one source per `(security, timeframe)`, so
- * the moment a second one writes into one series there is no row that can
- * describe it truthfully.
- *
- * A throw rather than a relabel and rather than a silent accept, because both
- * alternatives end in the same place: rows in `market_bars` that the ledger
- * then misdescribes to every reader, with nothing able to tell them apart from
- * the rows it describes correctly. That is invariant 6 failing without anything
- * going red — the shape this story's task file warns against resolving with a
- * shrug.
- *
- * It is **not** only a tripwire for Epic 3. It is what stops the case that
- * exists today: `pnpm backfill` under `MARKET_DATA_PROVIDER=fixture` stores
- * invented prices, and appending them to a window already filled from a real
- * feed would put both under one label.
- */
-/**
  * A replayed series was offered to the store.
  *
  * **A RUNTIME guard, and it has to be** — which is the whole reason this class
@@ -629,7 +606,11 @@ export class ReplayedSeriesError extends Error {
  *   a stretch's provider can only come from the ledger, and the ledger can
  *   only say one. A series has one provider even when it has two tapes — the
  *   plan's `sip` and `iex` are both Alpaca — so this refuses nothing the
- *   product needs to store.
+ *   product needs to store. **It is not only a tripwire for Epic 3**: it stops
+ *   a case that exists today, a `fixture`/`synthetic` series recorded against
+ *   a window already filled from a real feed, which
+ *   `backfill.database.test.ts` produces on purpose by passing the fixture
+ *   provider as a dependency.
  * - **`overlap`** — the series' window overlaps the held one and the bars in
  *   the overlap carry **another tape**. The unique key on `market_bars` does
  *   not include the tape, so writing through would reach the conflict rule

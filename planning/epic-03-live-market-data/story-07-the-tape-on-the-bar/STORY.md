@@ -1,6 +1,6 @@
 # Story 3.7 — The Tape on the Bar
 
-**Status:** Not started
+**Status:** **Closed — 2026-09-23.** Seven tasks, six criteria, six verdicts, all met. `market_bars` carries a `feed` column (`0010`, ADR 0034); every writer stamps it from the series' own provenance and a writer that omits it does not compile; the ledger keeps the window, the count and the **provider** and has withdrawn its tape; a second tape extends a window contiguously while a stitch, a second provider and an overlap are refused by name; and a served window's `provenance.sources` is derived from the rows, one entry per contiguous run of tape, through `mergeSeriesProvenance`. The deployed migrate step took **1.251 s** inside `timeout 120`. [Task 3.7.7](TASK-07-the-sweep-the-hand-offs-and-the-close.md) holds the walk, the upward sweep (five live claims and one orphaned code comment) and the hand-off count (**four of six missing, all written**).
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.1
 **Epic scope covered:** a tape column on `market_bars` — added to this epic's scope on 2026-09-15 from Epic 2's close
@@ -162,7 +162,7 @@ before it starts.
 | 3.7.4 | [What replaces the ledger's refusal of a second source](TASK-04-what-replaces-the-ledgers-refusal.md)                                        | 3.7.3      | No — **done** |
 | 3.7.5 | [A stored window spanning two tapes produces two sources, through the merge](TASK-05-two-sources-in-contribution-order-through-the-merge.md) | 3.7.4      | No            |
 | 3.7.6 | [The deploy rehearsed against a populated store, and what nothing checks](TASK-06-the-deploy-rehearsed-and-what-nothing-checks.md)           | 3.7.5      | No — **done** |
-| 3.7.7 | [The sweep, the hand-offs and the close](TASK-07-the-sweep-the-hand-offs-and-the-close.md)                                                   | 3.7.6      | No            |
+| 3.7.7 | [The sweep, the hand-offs and the close](TASK-07-the-sweep-the-hand-offs-and-the-close.md)                                                   | 3.7.6      | No — **done** |
 
 **Where the open decision lives.** Open decision 1 — whether existing rows are
 backfilled — is Task 3.7.1's, and the shape most likely to win answers it for

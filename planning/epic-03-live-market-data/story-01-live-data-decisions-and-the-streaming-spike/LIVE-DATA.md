@@ -236,6 +236,14 @@ Recorded in [`EPIC.md`](../EPIC.md) and not re-argued here:
   All sixteen recorded bar-series bodies carry `sip`; the state is reached
   through `twoFeedStitchView()`, the recorded stitch with one field changed.
   Story 3.9.
+  > **Amended 2026-09-23 by Story 3.7's close — a server can produce it now.**
+  > Task 3.7.5 derives a window's sources from the stored rows, so a store
+  > holding two tapes serves two `BarSource` records in contribution order,
+  > proved against a real database and on the wire. What is still true is the
+  > rest of the sentence: **no deployed store holds two tapes** until Story 3.8
+  > writes one, and the frontend's sixteen recorded bodies are unchanged, so
+  > `twoFeedStitchView()` remains how a story or a test reaches the state in a
+  > browser. Story 3.9 still owns the sentence a reader sees.
 - **`No shares changed hands anywhere in the window.`** is the only shipped
   sentence claiming something about **the market** rather than about our store.
   True while every bar is the consolidated tape; a single venue's silence

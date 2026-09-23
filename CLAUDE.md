@@ -145,11 +145,32 @@ send to the table repainted, at 518 subscribed, because every frame now carries
 `sentAt`. A browser spec asserts a bar landing in a row against a store with
 zero bars.
 
+**And since 2026-09-23 the store can tell two tapes apart, which is a sentence
+about the database rather than the screen.** `market_bars` carries a `feed`
+column; every writer stamps it from the series' own provenance and a writer
+that omits it does not compile; a window may hold a **second** tape as a
+contiguous extension, and a served window's `provenance.sources` is derived
+from the stored rows — one entry per contiguous run of tape, in the order the
+bars sit, joined through `mergeSeriesProvenance`. **Nothing on any screen reads
+it yet**, and no deployed store holds two tapes until Story 3.8 writes one; the
+first sentence a reader sees from it is Story 3.9's source note. The migration
+was **two catalogue writes** and its deployed step took **1.251 s** inside
+`deploy.yml`'s `timeout 120`. [`TAPE.md`](planning/epic-03-live-market-data/story-07-the-tape-on-the-bar/TAPE.md)
+is the subject document and [ADR 0034](docs/adr/0034-the-tape-on-the-bar.md) the
+decision.
+
 **What they still cannot do:** have a person **vouch** for it during a session.
 The deployed backend reads `live` on IEX again since 2026-09-21 — the `406`
-this paragraph used to describe is gone — but `LIVE-REHEARSAL.md`'s rows for
+this paragraph used to describe is gone — and ~~`LIVE-REHEARSAL.md`'s rows for
 3.4, 3.5 and 3.6 are empty until somebody opens the deployed site while the
-market is open, which is one sitting. Story 3.10 owns what the page says when
+market is open, which is one sitting~~ — **those three rows were filled on
+2026-09-22, by a headless browser rather than by a person**, watching the
+deployed site from 09:44 to 10:55 ET: prices moved, the table read as a pulse
+rather than a flash, the socket reconnected three times on its own and came
+back `LIVE` each time, and the chrome read `ALL US EXCHANGES` beside `LIVE`
+while every live bar was IEX — which is invariant 6's own sentence, handed to
+Story 3.10. Four notes beneath the ledger say what a headless watch cannot
+claim, and each story's status leaves _a person looked_ to the owner. Story 3.10 owns what the page says when
 the feed stops, and Story 3.11 owns the deployed re-take of every figure above.
 
 ### What is settled, and where the argument lives
@@ -347,6 +368,7 @@ This repository documents itself thoroughly, and **that documentation is the sou
 | **What this product claims about its own data**, in whose words, and the complete set of its failure and partial states                                                                                        | [`PROVENANCE.md`](planning/epic-02-security-universe-historical-data/story-14-provenance-partial-states-and-epic-close/PROVENANCE.md) — and ADR 0029                                                                                    |
 | **What the live market socket actually does** — every frame, the rates, the faults, and Epic 3's eight decisions                                                                                               | [`LIVE-DATA.md`](planning/epic-03-live-market-data/story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) — read §0 first                                                                                                   |
 | **How a live observation reaches this process — and then a browser** — the seam, the three implementations, the two clocks, the gateway, the browser's own end, and what a green stream suite does not certify | [`STREAM-SEAM.md`](planning/epic-03-live-market-data/story-02-stream-seam-and-alpaca-iex-client/STREAM-SEAM.md) — the vendor is `LIVE-DATA.md`'s; this is our client's. §8 is the browser half, and ADR 0031 is what outlives the story |
+| **What the store claims about where a bar came from** — the column, the writers, the ledger's withdrawn half, the read that produces two sources, and the deploy's lock                                        | [`TAPE.md`](planning/epic-03-live-market-data/story-07-the-tape-on-the-bar/TAPE.md) — and [ADR 0034](docs/adr/0034-the-tape-on-the-bar.md), which is the decision and its two rejected alternatives                                     |
 | Setup, commands and the running application, for humans                                                                                                                                                        | [`README.md`](README.md)                                                                                                                                                                                                                |
 
 Every story has a `STORY.md` with acceptance criteria and open decisions, and every task a `TASK-NN-*.md` with what was done and what was found. **Read the STORY.md before starting a story**: several carry open decisions that are deliberately unresolved and should be settled with the user rather than assumed.

@@ -672,6 +672,20 @@ are 7 bytes inline, not 12–14.
 §10 carried was a **heap** figure and is close to the 109 measured here — what
 it omitted, and what doubles the answer, is the index.
 
+> **AMENDED 2026-09-23 by Story 3.7's close — the row gained a column, and it
+> is +4 bytes on NEW rows only.** `0010_market_bars_feed.sql` added `feed text
+not null default 'sip'`. Task 3.7.1 measured `pg_column_size` on a freshly
+> written row **with** the column at **100 B** against **96 B** without it, on
+> the same shape — so the figures above move by **4 bytes a row**, from a
+> `pg_column_size` of ~104 to ~108, and the totals by the same for every row
+> written after 2026-09-22.
+>
+> **The 48 million rows already in the table did not move**, and that is the
+> whole reason the migration was affordable: a constant default on PostgreSQL
+> 18 is a catalogue entry materialised on read, not a rewrite (ADR 0034, 39 ms
+> on the populated store). So the blended bytes-a-row rises only as new rows
+> are written, and §8.4's table below is amended rather than replaced.
+
 ### 8.4 Headroom, against 22.5 GiB usable
 
 At the measured 195 B/row, and Story 2.1's **~22.5 GiB usable** (32 GiB less
@@ -686,6 +700,15 @@ At the measured 195 B/row, and Story 2.1's **~22.5 GiB usable** (32 GiB less
 Against the calendar's ceiling of 50.5M rather than the measured density it is
 **~2.4 years**. **Plan against ~2.4**, which is what Task 2.8.6 said and what
 this confirms.
+
+> **AMENDED 2026-09-23 by Story 3.7's close — the tape column costs ~2% of the
+> headroom, and the plan does not move.** At 195 B/row the 518-symbol universe
+> writes 8.66 GiB a year; at **199 B/row** — §8.3's +4 on rows written after
+> `0010` — it writes **8.84 GiB**, and the ~2.6 measured years become **~2.55**.
+> Against the calendar ceiling the ~2.4-year figure rounds to the same ~2.4.
+> **Plan against ~2.4 still.** The number worth re-taking is not this one but
+> the index's: §8.5's `market_bars_pkey` is 1,029 MB with **zero** scans, which
+> is 25× the tape column's whole annual cost.
 
 **Criterion 7's honest sentence names 22.5 GiB rather than 32**, because the
 difference is a third of the disk. The `psql-storage-80pct` alert (severity 2,

@@ -654,3 +654,22 @@ EDT.` — true of the browser that showed it, which had stalled (the ledger's
 note 2), and followed by `LIVE` on its own reconnect. So the state exists, the
 sentence reads correctly at 1440, and what this story still owes is the cause
 that is not the reader's own machine.
+
+## Handed here by Story 3.7's close — 2026-09-23: nothing, and that is stated rather than assumed
+
+Story 3.7 gave every stored bar its tape, let a window hold two, and made a
+served window's `provenance.sources` come from the rows. **None of it changes a
+degraded state, and this paragraph exists so that is a finding rather than an
+omission.**
+
+Specifically: no connection word moves; the market-feed cell's two subjects are
+untouched; `STALE`, `DISCONNECTED` and `REPLAYING` mean exactly what they meant;
+and nothing in the store is consulted to decide any of them — the chrome's
+connection half is the socket's and its venue half is `GET /market-data`'s, both
+unchanged. The one place a reader could meet this story is the **source note**,
+which is Story 3.9's, and it renders no feed clause for a series with no bars
+(ADR 0029 applied per clause), so a degraded or empty answer says nothing new.
+
+**What you already have from this epic that does bear on you** is the venue-word
+finding from the 2026-09-22 rehearsal, in its own section above. That one is
+real and yours; this one is nil, on purpose.
