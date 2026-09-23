@@ -1189,6 +1189,64 @@ const INVARIANTS = [
   },
 
   {
+    id: "stored-sources-only-through-the-merge",
+    claim:
+      "A served series' `sources` are built by `toSeriesProvenance` and " +
+      "joined by `mergeSeriesProvenance`, never written out as an array; " +
+      "and the ledger's withdrawn `feed` column is read by nothing.",
+    check() {
+      // **Two halves of Story 3.7's read path, both greps (Task 3.7.5).**
+      //
+      // The first: `mergeSeriesProvenance` is the only route to a
+      // multi-source record and its adjustment check fires whether or not
+      // anybody read the rule — so a `sources:` literal in the repository
+      // module is a second route that skips it. Criterion 2 says *through
+      // the merge rather than around it*, and a test cannot see which of
+      // two identical arrays came through a function, so the file is read.
+      //
+      // The second: Task 3.7.4 withdrew `bar_coverage.feed` from every
+      // decision (the tape the window was OPENED with, a fact one column
+      // cannot keep once a window holds two tapes) and Task 3.7.5 took it
+      // off `BarCoverage`. It is still written on insert, on purpose, so
+      // the database default stays unreachable; what must not come back is
+      // a read. `schema.ts` describes the column and `extendCoverage` writes
+      // it — everything else is a reader.
+      const path = "apps/backend/src/market-bars.ts";
+      const text = withoutComments(
+        readFileSync(resolve(REPO_ROOT, path), "utf8"),
+      );
+
+      if (/\bsources\s*:/.test(text)) {
+        throw new InvariantFailure(
+          `${path} writes a \`sources:\` array by hand. A served series' ` +
+            "sources are one `toSeriesProvenance` per stretch joined by " +
+            "`mergeSeriesProvenance`, whose adjustment check is the point " +
+            "(Task 3.7.5, criterion 2).",
+        );
+      }
+      if (!text.includes("mergeSeriesProvenance(")) {
+        throw new InvariantFailure(
+          `${path} no longer calls \`mergeSeriesProvenance\`; a two-tape ` +
+            "window has no route to two sources (Task 3.7.5).",
+        );
+      }
+
+      // Only the column select: `BarCoverage` no longer has a `feed` to read,
+      // so a domain-level reader is a compile error and needs no grep — and
+      // `.source.feed` is also how a *series'* source is spelled, which is
+      // exactly the read this file should be doing.
+      const reads = text.match(/"bar_coverage\.feed"/g) ?? [];
+      if (reads.length > 0) {
+        throw new InvariantFailure(
+          `${path} reads the ledger's \`feed\` column ${String(reads.length)} ` +
+            "time(s). It is the tape the window was opened with and nothing " +
+            "else — withdrawn by Task 3.7.4, off `BarCoverage` since 3.7.5, " +
+            "written on insert only (`TAPE.md` §7).",
+        );
+      }
+    },
+  },
+  {
     id: "the-epic-close-cannot-outrun-the-rehearsal-ledger",
     claim:
       "Story 3.11 cannot be closed while a story in LIVE-REHEARSAL.md's " +

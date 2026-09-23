@@ -93,15 +93,17 @@ against 10 MiB/s before it is written.
   parses the constraint back and asserts set equality (Task 3.7.2), asserts
   it is **unvalidated on purpose**, refuses a tape outside the list, and
   reads `sip` back for a writer that omits the column.
-- **A window's sources** are derived from the bars — per tape, first
-  `observed_at` for order, `count(*)` for the bar count, the stretch's
-  `recorded_at` for `retrievedAt` — and joined through `mergeSeriesProvenance`
-  (Task 3.7.5). The ledger's `feed` is not consulted for it; **each stretch's
-  `provider` is the ledger row's**, because the row carries the tape and
-  nothing else and a window has one provider (§7, Task 3.7.4).
+- **A window's sources** are derived from the rows the read already loads —
+  one `BarSource` per **contiguous run of tape**, in the order the bars sit,
+  with the run's bar count and the oldest `recorded_at` in the run as its
+  `retrievedAt` — and joined through `mergeSeriesProvenance` (Task 3.7.5,
+  shipped 2026-09-23; §8). The ledger's `feed` is not consulted for it;
+  **each stretch's `provider` is the ledger row's**, because the row carries
+  the tape and nothing else and a window has one provider (§7, Task 3.7.4).
 - **The ledger row** claims the window, the count and the provider (§7). Its
-  `feed` column is the tape the window was **opened** with and claims nothing
-  else since Task 3.7.4.
+  `feed` column is the tape the window was **opened** with, claims nothing
+  else since Task 3.7.4, and is **read by nothing** since Task 3.7.5 —
+  `pnpm invariants` holds that.
 
 ## 4. What a green `pnpm test:database` certifies about this, and what it does not
 
@@ -121,14 +123,19 @@ against 10 MiB/s before it is written.
   reads back as both tapes in order, that a second provider is refused and
   writes nothing, that a second tape **overlapping** stored bars is refused
   and leaves every row's numbers and tape as they were, and that a same-tape
-  overlap is still the re-run and the correction (§7); and, as it lands,
-  that a two-tape window produces two sources in order (3.7.5). Five breaks
-  prove the load-bearing clauses: `pnpm break the-tape-check-gets-validated`,
-  `pnpm break the-tape-default-lies-about-the-past`,
-  `pnpm break the-writer-stamps-a-constant` (a literal `sip` in the writer
-  reddens the `synthetic` read-back), `pnpm break
-a-second-tape-overwrites-the-first` and `pnpm break
-a-second-provider-is-relabelled`.
+  overlap is still the re-run and the correction (§7); and **since 3.7.5**
+  that a SIP session followed by an IEX session reads back as two sources in
+  that order with their counts and two different `retrievedAt`s, the reverse
+  order reversed, a one-tape window as one source, and only the asked
+  window's stretches (§8). Six breaks prove the load-bearing clauses: `pnpm
+break the-tape-check-gets-validated`, `pnpm break
+the-tape-default-lies-about-the-past`, `pnpm break
+the-writer-stamps-a-constant` (a literal `sip` in the writer reddens the
+  `synthetic` read-back), `pnpm break a-second-tape-overwrites-the-first`,
+  `pnpm break a-second-provider-is-relabelled` and `pnpm break
+the-second-tape-is-folded-into-the-first` (the run split disabled). Two
+  more prove `pnpm invariants` rather than a test:
+  `the-sources-are-written-by-hand` and `the-ledgers-tape-is-read-again`.
 - **It does not certify** that the deployed migration finished inside 120 s —
   the figure above is a laptop's, and Task 3.7.6 owns the tier's; that the
   `NOT VALID` check was ever validated — it is not meant to be; or that the
@@ -228,12 +235,12 @@ against the statement. The chunk is now **7,281 rows** (nine columns), from
 **Candidate 1, narrowed by what 3.7.3 shipped.** `bar_coverage` keeps one row
 per `(security, timeframe)` and three of its four facts:
 
-| Column                        | Claims                                                    | Read by                                                           | Enforced by                                 |
-| ----------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------- |
-| `covered_start`/`covered_end` | The one contiguous window we hold                         | `readSeries`, the backfill's resume point, `MissingCoverageError` | `CoverageGapError` — unchanged              |
-| `bar_count`                   | How many bars inside it                                   | `readCoverage`, the freshness diagnostic                          | extended per batch — unchanged              |
-| `provider`                    | **The window's one provider**                             | `readSeries`, and 3.7.5's per-stretch `BarSource.provider`        | `ForeignSourceError`, reason **`provider`** |
-| `feed`                        | **The tape the window was opened with, and nothing else** | `readSeries` only, until 3.7.5 derives sources from the rows      | nothing — withdrawn                         |
+| Column                        | Claims                                                    | Read by                                                                                                                 | Enforced by                                 |
+| ----------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `covered_start`/`covered_end` | The one contiguous window we hold                         | `readSeries`, the backfill's resume point, `MissingCoverageError`                                                       | `CoverageGapError` — unchanged              |
+| `bar_count`                   | How many bars inside it                                   | `readCoverage`, the freshness diagnostic                                                                                | extended per batch — unchanged              |
+| `provider`                    | **The window's one provider**                             | `readSeries`, and 3.7.5's per-stretch `BarSource.provider`                                                              | `ForeignSourceError`, reason **`provider`** |
+| `feed`                        | **The tape the window was opened with, and nothing else** | **Nothing, since 3.7.5** — off `BarCoverage`, not selected; `pnpm invariants` (`stored-sources-only-through-the-merge`) | nothing — withdrawn                         |
 
 **Why `provider` stays a read and a rule.** The row on `market_bars` carries
 the tape and nothing else — ADR 0034's reversal trigger is _the first per-bar
@@ -283,3 +290,90 @@ never does (it extends from one end), so the shipped writer pays nothing.
 `pnpm test:database` 184/184; two breaks — `a-second-tape-overwrites-the-first`
 (the guard inverted) and `a-second-provider-is-relabelled` (the provider
 check disabled) — each reddened their own test and restored the file.
+
+## 8. Reading — the sources of a window, the order rule, and what the wire says (Task 3.7.5, 2026-09-23)
+
+**Criterion 2, as shipped.** `readSeries` selects `market_bars.feed` beside
+the six bar columns and `recorded_at`, and `toStoredSeries` walks the rows
+once — they arrive ascending by `observed_at` — starting a new **stretch**
+every time the tape changes. Each stretch becomes one `BarSource`:
+
+| Field         | Comes from                                                                                                                                                                                                  |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `provider`    | the ledger row's `provider` — the only place it is written (§7)                                                                                                                                             |
+| `feed`        | the stretch's tape, off the rows                                                                                                                                                                            |
+| `barCount`    | the rows in the stretch                                                                                                                                                                                     |
+| `retrievedAt` | the **oldest** `recorded_at` in the stretch — the honest staleness of the run; a correction moves a row's `recorded_at` forward and leaves its tape (§6), so it stays in its run and the minimum is unmoved |
+
+One stretch is `toSeriesProvenance`, as before. Two or more go **through
+`mergeSeriesProvenance`** — never a hand-written `sources` array — because
+that function is the only route to a multi-source record and its adjustment
+check fires whether or not anybody read the rule. A test cannot tell two
+identical arrays apart by which function built them, so `pnpm invariants`
+reads the file: `stored-sources-only-through-the-merge` fails on a `sources:`
+literal in `market-bars.ts`, on the merge no longer being called, and on any
+select of `bar_coverage.feed`. Its two breaks are
+`the-sources-are-written-by-hand` and `the-ledgers-tape-is-read-again`; the
+behaviour's break is `the-second-tape-is-folded-into-the-first`.
+
+**Derived from the rows already in hand, not by a second query — a reversal
+of 3.7.3's note, recorded.** 3.7.1 measured a `group by feed` aggregate
+(0.478 ms for a session, 9.964 ms for 10,140 bars) and 3.7.3's amendment to
+this task said the rows need not carry `feed`. They do now, for one reason
+that outranks the query's elegance: `toStoredSeries` stays a **pure function
+of one query's rows**, so every store the fast suite builds through it — the
+route's and the stitch's — cannot disagree with itself about where the bars
+came from, and the wire test for two sources is the real read path with one
+row's tape changed rather than a second stub kept consistent with the first.
+The rows are loaded for the bars regardless; the tape is one four-byte
+column beside them and the walk is one pass over data already in memory.
+The aggregate's figures stand as what a second query _would_ cost; what was
+measured instead is the route (below).
+
+**Contribution order is "one source per run, in the order the bars sit" —
+and until Story 3.8 it coincides with "first instant per tape".** A second
+tape can only reach the store as a contiguous extension of the window (§7's
+overlap refusal), so today every tape is exactly one run and the two
+readings agree. The day 3.8 lifts that refusal a tape can occur twice — an
+IEX afternoon corrected by SIP bar by bar — and the walk answers `sip, iex,
+sip`, which is the reading a source note can print without a rule the reader
+has to know. 3.8 may choose otherwise; `market-bars.test.ts` asserts the run
+reading so a change is a red test rather than a surprise.
+
+**The empty answer names the constant, whatever the ledger says.** Before
+this task a quiet window on a fixture store reported `fixture`/`synthetic`
+for zero bars from the ledger's pair; now it reports `SOURCE_OF_NOTHING`
+(`alpaca`/`sip`) like every other empty answer, because the ledger no longer
+carries a tape and a claim about zero bars is not provenance (ADR 0029). The
+wire carries the meaning in `bars: []` and `coverage.covered`, and the source
+note renders no clause for data that is not there. Stated here because it is
+the one served answer this task changed for a one-tape store.
+
+**The domain object lost a field.** `BarCoverage.source` (`{ provider, feed }`)
+is `BarCoverage.provider`. Every fixture in the fast suite that built a
+ledger row followed the compiler (seven files); `readCoverageRow` and the
+backfill's coverage map no longer select the column; Task 3.7.4's test that
+the ledger's `feed` is the opening tape now reads it with raw SQL, which is
+the honest instrument for a column nothing else reads.
+
+**The route, measured — Story 2.9's method, A/B on one machine, 2026-09-23.**
+`GET /market-data/bars` on loopback through the dev pair (tsx, not a
+production build), n = 15 per cell, miss = 15 distinct symbols, hit = one
+symbol repeated, the store 7 sessions stale so windows are absolute and end
+2026-09-11, load average 8–10 from the machine's own processes. Main's read
+path overlaid on the running pair first, this task's second, minutes apart:
+
+| Window            |  Bars | main miss median / p95 | 3.7.5 miss median / p95 | main hit median / p95 | 3.7.5 hit median / p95 |
+| ----------------- | ----: | ---------------------: | ----------------------: | --------------------: | ---------------------: |
+| one session       |   390 |          7.6 / 48.3 ms |           8.3 / 69.2 ms |          3.5 / 5.0 ms |           3.2 / 4.4 ms |
+| five sessions     | 1,950 |         17.9 / 37.0 ms |          14.4 / 21.7 ms |         8.8 / 11.6 ms |          8.2 / 12.0 ms |
+| 24 sessions       | 9,356 |         50.3 / 58.8 ms |          50.3 / 58.8 ms |        28.2 / 31.2 ms |         30.1 / 38.6 ms |
+| 25 sessions (cap) | 9,746 |         52.2 / 91.6 ms |          52.4 / 65.9 ms |        29.5 / 35.8 ms |         29.5 / 33.4 ms |
+
+**The medians agree to within the run-to-run noise at every size, and the
+p95s move both ways.** The walk is not measurable against the query and the
+serialisation it sits beside. Against Story 2.9's recorded misses (4.9 / 9.7
+/ 31.9 ms medians, p95 19.0 / 20.8 / 42.5) both arms here are slower by the
+same factor — a loaded laptop through the dev watcher rather than 2.9's built
+server on a quiet one — which is why the A/B is the figure and the comparison
+to 2.9 is not.

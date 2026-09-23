@@ -70,6 +70,7 @@ import type pg from "pg";
 import {
   marketDateAt,
   marketSessionsBetween,
+  mergeSeriesProvenance,
   toBarSeries,
   toSeriesProvenance,
   toTicker,
@@ -78,6 +79,7 @@ import {
   type Bar,
   type BarSeries,
   type MarketFeed,
+  type SeriesProvenance,
   type ProviderId,
   type Ticker,
   type Timeframe,
@@ -182,23 +184,25 @@ export interface BarCoverage {
   readonly covered: TimeRange;
 
   /**
-   * Who sold us the bars in {@link covered} — and, until Task 3.7.5, the tape
-   * the window was **opened** with (`0007_bar_coverage_provenance.sql`).
+   * Who sold us the bars in {@link covered} — the window's **one** provider
+   * (`0007_bar_coverage_provenance.sql`, narrowed by Tasks 3.7.4 and 3.7.5).
    *
-   * **Half of this is withdrawn since Task 3.7.4.** `provider` is the window's
-   * one provider and is enforced by `recordSeries`. `feed` was *the fact
-   * `market_bars` deliberately does not store, held once per series* — and
-   * since `0010_market_bars_feed.sql` every row stores it, a window may hold
-   * two tapes, and this field can name only the first. It is still what
-   * {@link toStoredSeries} puts on a served series' provenance, which is
-   * honest while no shipped writer sends a second tape (Story 3.8 is the
-   * first) and is what Task 3.7.5 replaces with sources derived from the rows.
-   * Nothing on the write path reads it.
+   * **This used to be a `source` pair, and the tape half is gone on purpose.**
+   * Until Story 3.7 the ledger carried *the fact `market_bars` deliberately
+   * does not store, held once per series* — provider and feed. Since
+   * `0010_market_bars_feed.sql` every row stores its tape, a window may hold
+   * two, and one field per window cannot say so; Task 3.7.4 withdrew the
+   * column from every decision and Task 3.7.5 took it off this object so
+   * nothing in the domain can carry a withdrawn fact. The column itself stays
+   * in `bar_coverage` (a contract is a second deploy) as the tape the window
+   * was opened with, written by `extendCoverage` and read by nothing —
+   * `pnpm invariants` holds that.
    *
-   * Not a `BarSource`: that type also carries `retrievedAt` and `barCount`, and
-   * both are answers about a *served window* rather than about the ledger's.
+   * The provider stays because it is the only place a window's provider is
+   * written — the row carries the tape and nothing else — and every stretch a
+   * served series names takes it from here (`toStoredSeries`).
    */
-  readonly source: { readonly provider: ProviderId; readonly feed: MarketFeed };
+  readonly provider: ProviderId;
 
   /** How many bars we hold inside {@link covered}. A read, never a `count(*)`. */
   readonly barCount: number;
@@ -508,15 +512,15 @@ export interface SeriesSource {
  * `coverage.covered: null`.
  */
 const SOURCE_OF_NOTHING: SeriesSource = { provider: "alpaca", feed: "sip" };
-// **Confined to the genuinely empty case since Task 3.7.3.** Every row now
-// carries its own tape (`market_bars.feed`), stamped by `writeBatch` from the
-// series' provenance, and `readBars` hands it out beside the bar — so no read
-// of a row that exists needs this constant for its `feed`. What still reaches
-// it is a read with **no ledger row**, and through the shipped writers that is
-// the same thing as no bars: `recordSeries` writes the ledger in the same
-// transaction as the rows. Task 3.7.5 derives a window's sources from the bars
-// themselves, at which point this is reached by an empty answer and nothing
-// else.
+// **Reached by an empty answer and nothing else, since Task 3.7.5.** A served
+// series' sources are derived from its rows — one per contiguous run of tape,
+// each with the ledger row's provider — so any answer holding a bar names the
+// tape that bar carries and never this. An answer holding **no** bars has no
+// tape to name and the type still requires one; this is that one, for the
+// no-ledger-row case and the quiet-window case alike, and it is a claim about
+// zero bars, which ADR 0029 says a surface must not dress up as provenance.
+// The wire carries the meaning in `bars: []` and `coverage.covered`, and the
+// source note renders no clause for data that is not there.
 
 /**
  * What has been done to the prices in this table: **nothing**.
@@ -772,7 +776,15 @@ export class MissingCoverageError extends Error {
  * *when did we fetch this*, and {@link toStoredSeries} turns it into the
  * series' `retrievedAt`.
  */
-export type DatedBarRow = BarRow & { readonly recorded_at: Date };
+/**
+ * A row {@link toStoredSeries} is handed: a bar, when it was written, and the
+ * tape it was observed on. `feed` joined on Task 3.7.5 — the sources of a
+ * served window are derived from these rows, one per contiguous run of tape.
+ */
+export type DatedBarRow = BarRow & {
+  readonly recorded_at: Date;
+  readonly feed: MarketFeed;
+};
 
 /** Everything {@link toStoredSeries} needs, which is one query's worth of it. */
 export interface StoredSeriesInput {
@@ -884,30 +896,27 @@ export function toStoredSeries(input: StoredSeriesInput): BarSeries {
 
   const bars = rows.map(toBar);
 
-  const provenance = toSeriesProvenance(STORED_BAR_ADJUSTMENT, {
-    // From the ledger, which is where `0007_bar_coverage_provenance.sql` put
-    // it. The constant is reached only when there is no ledger row at all,
-    // which is an answer holding no bars — see `SOURCE_OF_NOTHING`. Since
-    // Task 3.7.4 the ledger's `feed` is the tape the window was opened with
-    // and a window may hold a second (`market_bars.feed`); this is the last
-    // reader of that column, and Task 3.7.5 derives the sources from the rows.
-    ...(held?.source ?? SOURCE_OF_NOTHING),
-    retrievedAt: (earliestRecordedAt(rows) ?? now).toISOString(),
-    barCount: bars.length,
-  });
-
   if (bars.length === 0) {
     return toBarSeries({
       symbol,
       timeframe,
       bars,
-      provenance,
+      // A claim about zero bars — see `SOURCE_OF_NOTHING`. `now` is the one
+      // place the read clock touches a `retrievedAt`, and it is honest here
+      // because there is no past retrieval to attribute to an empty answer.
+      provenance: toSeriesProvenance(STORED_BAR_ADJUSTMENT, {
+        ...SOURCE_OF_NOTHING,
+        retrievedAt: now.toISOString(),
+        barCount: 0,
+      }),
       coverage: { requested, covered: null },
     });
   }
 
   if (held === undefined)
     throw new MissingCoverageError(symbol, timeframe, bars.length);
+
+  const provenance = storedProvenance(rows, held.provider);
 
   // The intersection. `toTimeRange` refuses an inverted or zero-width range, and
   // that refusal is wanted here: bars inside a window the ledger says we do not
@@ -929,18 +938,102 @@ export function toStoredSeries(input: StoredSeriesInput): BarSeries {
   });
 }
 
-/** The oldest write time among these rows, or `undefined` if there are none. */
-function earliestRecordedAt(rows: readonly DatedBarRow[]): Date | undefined {
-  let earliest: Date | undefined;
+/**
+ * One contiguous run of rows on one tape — what a stored window's `BarSource`
+ * is made from (Task 3.7.5).
+ */
+interface Stretch {
+  readonly feed: MarketFeed;
+  readonly barCount: number;
+  /** The oldest write time in the run: `BarSource.retrievedAt`, per batch. */
+  readonly retrievedAt: Date;
+}
+
+/**
+ * The stretches of a window, **in contribution order** — walked once over the
+ * rows, which arrive ascending by `observed_at`, starting a new stretch every
+ * time the tape changes.
+ *
+ * **Derived from the rows already in hand, not by a second query.** Task
+ * 3.7.1 measured a `group by feed` aggregate at 0.478 ms for a session and
+ * 9.964 ms for 10,140 bars, and the shape is settled; what this walk adds is
+ * that {@link toStoredSeries} stays a pure function of one query's rows, so
+ * every store the fast suite builds through it (the route's and the stitch's)
+ * cannot disagree with itself about where the bars came from. The rows are
+ * loaded for the bars regardless, and the tape is one column beside them.
+ *
+ * **The definition of contribution order is "one source per run", and until
+ * Story 3.8 it coincides with "first instant per tape".** A second tape can
+ * only reach the store as a contiguous extension of the window (Task 3.7.4's
+ * overlap refusal), so today every tape is exactly one run and the two
+ * readings agree. The day 3.8 lifts that refusal a tape can occur twice —
+ * an IEX afternoon corrected by SIP bar by bar — and this walk then answers
+ * `sip, iex, sip`, in the order the bars sit, which is the reading a source
+ * note can print without a rule the reader has to know. 3.8 may choose
+ * otherwise; this is what it inherits.
+ */
+function stretchesOf(rows: readonly DatedBarRow[]): readonly Stretch[] {
+  const stretches: {
+    feed: MarketFeed;
+    barCount: number;
+    retrievedAt: Date;
+  }[] = [];
+
   for (const row of rows) {
-    if (
-      earliest === undefined ||
-      row.recorded_at.getTime() < earliest.getTime()
-    ) {
-      earliest = row.recorded_at;
+    const current = stretches.at(-1);
+    if (current?.feed !== row.feed) {
+      stretches.push({
+        feed: row.feed,
+        barCount: 1,
+        retrievedAt: row.recorded_at,
+      });
+      continue;
+    }
+    current.barCount += 1;
+    // `min` rather than `max`: a single-source record has one timestamp for
+    // the whole run, and the oldest batch is the honest staleness of it —
+    // `max` understates everything but the newest batch. A correction moves
+    // a row's `recorded_at` forward and leaves its tape (`TAPE.md` §6), so
+    // the row stays in its run and the minimum is unmoved.
+    if (row.recorded_at.getTime() < current.retrievedAt.getTime()) {
+      current.retrievedAt = row.recorded_at;
     }
   }
-  return earliest;
+
+  return stretches;
+}
+
+/**
+ * A served window's provenance: one `BarSource` per stretch, joined
+ * **through `mergeSeriesProvenance`** — never by hand-building a `sources`
+ * array. That function is the only route to a multi-source record, and its
+ * adjustment check fires whether or not anybody read the rule; `pnpm
+ * invariants` (`stored-sources-only-through-the-merge`) holds this file to
+ * that, and `pnpm break the-second-tape-is-folded-into-the-first` proves the
+ * split is read back. The provider is the ledger row's — the only place a
+ * window's provider is written, since the row carries the tape alone.
+ */
+function storedProvenance(
+  rows: readonly DatedBarRow[],
+  provider: ProviderId,
+): SeriesProvenance {
+  const [first, ...rest] = stretchesOf(rows).map((stretch) =>
+    toSeriesProvenance(STORED_BAR_ADJUSTMENT, {
+      provider,
+      feed: stretch.feed,
+      retrievedAt: stretch.retrievedAt.toISOString(),
+      barCount: stretch.barCount,
+    }),
+  );
+  if (first === undefined) {
+    // Unreachable: the caller has checked `bars.length > 0`. Stated rather
+    // than cast, for `extendCoverage`'s reason.
+    throw new Error("storedProvenance was handed no rows");
+  }
+  const [second, ...more] = rest;
+  return second === undefined
+    ? first
+    : mergeSeriesProvenance(first, second, ...more);
 }
 
 function later(first: Date, second: Date): Date {
@@ -1170,7 +1263,6 @@ interface CoverageRow {
   readonly covered_start: Date;
   readonly covered_end: Date;
   readonly provider: ProviderId;
-  readonly feed: MarketFeed;
   readonly bar_count: string;
   readonly updated_at: Date;
 }
@@ -1185,11 +1277,11 @@ function toCoverage(row: CoverageRow): BarCoverage {
     symbol: toTicker(row.symbol),
     timeframe: row.timeframe,
     covered: toTimeRange(row.covered_start, row.covered_end),
-    // Both columns are `check`-constrained to the shipped vocabularies, and
-    // `pnpm test:database` compares the constraints against `PROVIDER_IDS` and
-    // `MARKET_FEEDS` — so the narrowing here is held by the database rather than
-    // asserted by this line.
-    source: { provider: row.provider, feed: row.feed },
+    // `check`-constrained to the shipped vocabulary, and `pnpm test:database`
+    // compares the constraint against `PROVIDER_IDS` — so the narrowing here
+    // is held by the database rather than asserted by this line. The ledger's
+    // `feed` is deliberately not read: Task 3.7.5, `BarCoverage.provider`.
+    provider: row.provider,
     // `bar_count` is a `bigint` and therefore a string. Safe as a `number`:
     // 2^53 against a universe-wide ceiling of ~50.5M rows a year.
     barCount: Number(row.bar_count),
@@ -1259,7 +1351,6 @@ export function createMarketBarsRepository(
         "bar_coverage.covered_start",
         "bar_coverage.covered_end",
         "bar_coverage.provider",
-        "bar_coverage.feed",
         "bar_coverage.bar_count",
         "bar_coverage.updated_at",
       ])
@@ -1499,8 +1590,11 @@ export function createMarketBarsRepository(
           "market_bars.volume",
           // The one column `readBars` does not select, and the whole reason
           // this is a separate query rather than a wrapper around it. See
-          // `toStoredSeries`: it becomes the series' `retrievedAt`.
+          // `toStoredSeries`: it becomes each stretch's `retrievedAt`.
           "market_bars.recorded_at",
+          // The tape per row, from which the window's sources are derived
+          // (Task 3.7.5) — never from the ledger's `feed`.
+          "market_bars.feed",
         ])
         // No filter on `securities.status`. See the interface.
         .where("securities.symbol", "=", symbol)
@@ -1615,7 +1709,6 @@ export function createMarketBarsRepository(
           "bar_coverage.covered_start",
           "bar_coverage.covered_end",
           "bar_coverage.provider",
-          "bar_coverage.feed",
           "bar_coverage.bar_count",
           "bar_coverage.updated_at",
         ])
@@ -1873,7 +1966,8 @@ async function readCoverageRow(
       "bar_coverage.covered_start",
       "bar_coverage.covered_end",
       "bar_coverage.provider",
-      "bar_coverage.feed",
+      // Not `bar_coverage.feed` — the tape the window was opened with, read
+      // by nothing since Task 3.7.5. `pnpm invariants` holds this select.
       "bar_coverage.bar_count",
       "bar_coverage.updated_at",
     ])

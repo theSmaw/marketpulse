@@ -16,6 +16,7 @@ import {
   toSeriesProvenance,
   toTicker,
   toTimeRange,
+  type MarketFeed,
 } from "@marketpulse/shared";
 import type {
   ApiError,
@@ -195,8 +196,9 @@ const NVDA: Security = {
  * A stored row, spelled the way the driver hands one over — `numeric` as a
  * string, which is the representation `toBar` exists to convert.
  */
-function row(at: string, close: number): DatedBarRow {
+function row(at: string, close: number, feed: MarketFeed = "sip"): DatedBarRow {
   return {
+    feed,
     observed_at: new Date(at),
     open: close.toFixed(6),
     high: close.toFixed(6),
@@ -218,7 +220,7 @@ function ledger(covered: TimeRange, barCount: number): BarCoverage {
     symbol: toTicker("NVDA"),
     timeframe: "1m",
     covered,
-    source: { provider: "alpaca", feed: "sip" },
+    provider: "alpaca",
     barCount,
     updatedAt: new Date(RETRIEVED_AT),
   };
@@ -897,6 +899,45 @@ describe("the GET /market-data/bars response schema", () => {
     });
   });
 
+  // Criterion 2 of Story 3.7 at the wire (Task 3.7.5): a stored window whose
+  // rows carry two tapes is served with two sources, in contribution order,
+  // and the serialiser's `satisfies` guard is what stops a field vanishing
+  // between `toStoredSeries` and the body. Built through the real
+  // `toStoredSeries`, so this is the read path and not a hand-written list.
+  it("serves a stored window spanning two tapes as two sources in order", async () => {
+    const instance = await barsServer({
+      store: {
+        rows: [
+          row("2026-09-08T13:30:00.000Z", 198.5401),
+          row("2026-09-08T13:31:00.000Z", 198.22),
+          row("2026-09-08T13:32:00.000Z", 198.4, "iex"),
+        ],
+        held: ledger(
+          toTimeRange(
+            new Date("2026-09-08T13:30:00.000Z"),
+            new Date("2026-09-08T13:33:00.000Z"),
+          ),
+          3,
+        ),
+      },
+    });
+
+    const response = await instance.inject({ method: "GET", url: BARS_PATH });
+    const body = response.json<BarSeriesResponse>();
+
+    expect(response.statusCode).toBe(200);
+    expect(
+      body.series.provenance.sources.map((one) => [
+        one.provider,
+        one.feed,
+        one.barCount,
+      ]),
+    ).toStrictEqual([
+      ["alpaca", "sip", 2],
+      ["alpaca", "iex", 1],
+    ]);
+  });
+
   // `MARKET-DATA-API.md` §5's stitch, which is the entire reason `sources` is a
   // list — and it is produced here rather than assembled: the stub provider
   // declares `iex` where the store holds `sip`, and `serveSeries` merges them.
@@ -1231,7 +1272,7 @@ describe("the bars route's answer cache", () => {
           new Date("2026-09-09T13:30:00.000Z"),
           new Date("2026-09-09T13:31:00.000Z"),
         ),
-        source: { provider: "alpaca", feed: "sip" },
+        provider: "alpaca",
         barCount: 1,
         updatedAt: new Date("2026-09-09T13:31:00.000Z"),
       },

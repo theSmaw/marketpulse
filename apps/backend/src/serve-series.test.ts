@@ -60,8 +60,9 @@ const SERVABLE_END = new Date("2026-09-09T17:44:00.000Z");
 
 const RETRIEVED_AT = "2026-09-08T20:05:00.000Z";
 
-function row(at: string, close: number): DatedBarRow {
+function row(at: string, close: number, feed: MarketFeed = "sip"): DatedBarRow {
   return {
+    feed,
     observed_at: new Date(at),
     open: close.toFixed(6),
     high: close.toFixed(6),
@@ -89,7 +90,7 @@ function ledger(covered: TimeRange, barCount: number): BarCoverage {
     symbol: NVDA,
     timeframe: "1m",
     covered,
-    source: { provider: "alpaca", feed: "sip" },
+    provider: "alpaca",
     barCount,
     updatedAt: new Date(RETRIEVED_AT),
   };

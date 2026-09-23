@@ -21,6 +21,8 @@ import { describe, expect, it } from "vitest";
 import {
   toTicker,
   toTimeRange,
+  type MarketFeed,
+  type ProviderId,
   type Ticker,
   type TimeRange,
 } from "@marketpulse/shared";
@@ -108,8 +110,13 @@ const SESSION: TimeRange = toTimeRange(
 );
 
 /** A row at a minute of that session, written at `recordedAt`. */
-function rowAt(minute: number, recordedAt: string): DatedBarRow {
+function rowAt(
+  minute: number,
+  recordedAt: string,
+  feed: MarketFeed = "sip",
+): DatedBarRow {
   return {
+    feed,
     observed_at: new Date(SESSION.start.getTime() + minute * 60_000),
     open: "100.000000",
     high: "101.000000",
@@ -125,13 +132,13 @@ const STORED_SOURCE: SeriesSource = { provider: "alpaca", feed: "sip" };
 function coverage(
   covered: TimeRange,
   barCount: number,
-  source: SeriesSource = STORED_SOURCE,
+  provider: ProviderId = STORED_SOURCE.provider,
 ): BarCoverage {
   return {
     symbol: SYMBOL,
     timeframe: "1m",
     covered,
-    source,
+    provider,
     barCount,
     updatedAt: new Date("2026-09-08T10:00:00.000Z"),
   };
@@ -299,19 +306,129 @@ describe("toStoredSeries", () => {
     // purpose. A constant asserting `alpaca`/`sip` at this boundary would label
     // those prices as the full US consolidated tape on a chart —
     // `MARKET_FEED_DESCRIPTIONS.synthetic` exists so a fixture-backed screen
-    // says "Generated test data. Not a market feed." instead.
+    // says "Generated test data. Not a market feed." instead. Since Task
+    // 3.7.5 the tape is the ROW's and the provider is the ledger's.
     const series = toStoredSeries({
       symbol: SYMBOL,
       timeframe: "1m",
       requested: SESSION,
-      rows: [rowAt(0, "2026-09-08T07:28:40.000Z")],
-      held: coverage(SESSION, 1, { provider: "fixture", feed: "synthetic" }),
+      rows: [rowAt(0, "2026-09-08T07:28:40.000Z", "synthetic")],
+      held: coverage(SESSION, 1, "fixture"),
       now: NOW,
     });
 
     const [source] = series.provenance.sources;
     expect(source.provider).toBe("fixture");
     expect(source.feed).toBe("synthetic");
+  });
+
+  // --- Task 3.7.5: the sources come from the rows, through the merge -------
+
+  it("derives one source per contiguous run of tape, in the order the bars sit", () => {
+    // Criterion 2 of Story 3.7, on the pure function: a SIP stretch followed
+    // by an IEX stretch is two sources in that order, each with its own bar
+    // count, each with the ledger row's provider.
+    const series = toStoredSeries({
+      symbol: SYMBOL,
+      timeframe: "1m",
+      requested: SESSION,
+      rows: [
+        rowAt(0, "2026-09-08T07:28:40.000Z", "sip"),
+        rowAt(1, "2026-09-08T07:28:40.000Z", "sip"),
+        rowAt(2, "2026-09-08T07:28:40.000Z", "sip"),
+        rowAt(3, "2026-09-09T20:05:00.000Z", "iex"),
+        rowAt(4, "2026-09-09T20:05:00.000Z", "iex"),
+      ],
+      held: coverage(SESSION, 5),
+      now: NOW,
+    });
+
+    expect(
+      series.provenance.sources.map((one) => [
+        one.provider,
+        one.feed,
+        one.barCount,
+        one.retrievedAt,
+      ]),
+    ).toEqual([
+      ["alpaca", "sip", 3, "2026-09-08T07:28:40.000Z"],
+      ["alpaca", "iex", 2, "2026-09-09T20:05:00.000Z"],
+    ]);
+    expect(series.provenance.adjustment).toBe("raw");
+  });
+
+  it("reads the reverse order reversed, and a tape that occurs twice as two runs", () => {
+    // "Contribution order" is one source per run, in the order the bars sit —
+    // the definition Story 3.8 inherits (`TAPE.md` §8). Today a tape can only
+    // be one run (Task 3.7.4's overlap refusal); this is what the walk answers
+    // the day that changes, stated rather than left to be discovered.
+    const series = toStoredSeries({
+      symbol: SYMBOL,
+      timeframe: "1m",
+      requested: SESSION,
+      rows: [
+        rowAt(0, "2026-09-08T07:28:40.000Z", "iex"),
+        rowAt(1, "2026-09-08T07:28:40.000Z", "sip"),
+        rowAt(2, "2026-09-08T07:28:40.000Z", "sip"),
+        rowAt(3, "2026-09-08T07:28:40.000Z", "iex"),
+      ],
+      held: coverage(SESSION, 4),
+      now: NOW,
+    });
+
+    expect(
+      series.provenance.sources.map(
+        (one) => `${one.feed}:${String(one.barCount)}`,
+      ),
+    ).toEqual(["iex:1", "sip:2", "iex:1"]);
+  });
+
+  it("stamps each stretch with the OLDEST write in that stretch, not the window's", () => {
+    // `retrievedAt` is per source, so a SIP stretch backfilled a week ago and
+    // an IEX stretch stored this afternoon report two different ages — which
+    // is the whole point of a source per stretch. Within a stretch, `min`:
+    // the oldest batch is the honest staleness of the run.
+    const series = toStoredSeries({
+      symbol: SYMBOL,
+      timeframe: "1m",
+      requested: SESSION,
+      rows: [
+        rowAt(0, "2026-09-01T07:00:00.000Z", "sip"),
+        rowAt(1, "2026-09-02T07:00:00.000Z", "sip"),
+        rowAt(2, "2026-09-09T20:05:00.000Z", "iex"),
+        rowAt(3, "2026-09-09T20:04:00.000Z", "iex"),
+      ],
+      held: coverage(SESSION, 4),
+      now: NOW,
+    });
+
+    expect(series.provenance.sources.map((one) => one.retrievedAt)).toEqual([
+      "2026-09-01T07:00:00.000Z",
+      "2026-09-09T20:04:00.000Z",
+    ]);
+  });
+
+  it("names the constant for an empty answer only, whatever the ledger says", () => {
+    // `SOURCE_OF_NOTHING`'s comment: a claim about zero bars, and the type
+    // requires one. A quiet window on a fixture store says the same thing an
+    // unknown window does, and the wire carries the meaning in `bars: []`.
+    const quiet = toStoredSeries({
+      symbol: SYMBOL,
+      timeframe: "1m",
+      requested: SESSION,
+      rows: [],
+      held: coverage(SESSION, 0, "fixture"),
+      now: NOW,
+    });
+
+    const [source, ...rest] = quiet.provenance.sources;
+    expect(rest).toEqual([]);
+    expect(source).toEqual({
+      provider: "alpaca",
+      feed: "sip",
+      retrievedAt: NOW.toISOString(),
+      barCount: 0,
+    });
   });
 
   it("refuses to invent a covered range for bars the ledger does not claim", () => {

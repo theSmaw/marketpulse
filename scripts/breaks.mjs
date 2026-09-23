@@ -169,6 +169,56 @@ export const BREAKS = [
     expect: "OVERLAPPING stored bars",
   },
   {
+    name: "the-second-tape-is-folded-into-the-first",
+    proves:
+      "A stored window holding two tapes is read back as two sources in " +
+      "contribution order. With the run split disabled every bar joins the " +
+      "first stretch and an IEX afternoon is served under `sip` \u2014 " +
+      "invariant 6 failing with nothing else wrong (Task 3.7.5, criterion " +
+      "2). Needs a database, so it lives outside `verify`.",
+    file: "apps/backend/src/market-bars.ts",
+    find: "    if (current?.feed !== row.feed) {",
+    replace:
+      "    if (current === undefined) { // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "two sources, in that order",
+  },
+  {
+    name: "the-sources-are-written-by-hand",
+    proves:
+      "A served series' sources reach the wire without passing through " +
+      "`mergeSeriesProvenance`, whose adjustment check is the reason the " +
+      "function is the only route to a multi-source record (Task 3.7.5, " +
+      "criterion 2). The invariant reads the file, because two identical " +
+      "arrays cannot be told apart by a test.",
+    file: "apps/backend/src/market-bars.ts",
+    find: "    : mergeSeriesProvenance(first, second, ...more);",
+    replace:
+      "    : ({ adjustment: first.adjustment, sources: [first.sources[0], second.sources[0], ...more.map((p) => p.sources[0])] } as SeriesProvenance); // pnpm break: reverted automatically",
+    command: ["pnpm", "invariants"],
+    expect: "writes a `sources:` array by hand",
+  },
+  {
+    name: "the-ledgers-tape-is-read-again",
+    proves:
+      "The ledger's `feed` column comes back as a read. It is the tape the " +
+      "window was OPENED with and nothing else \u2014 withdrawn by Task " +
+      "3.7.4, off the domain object since 3.7.5 \u2014 and a reader would " +
+      "serve a two-tape window under its first tape (`TAPE.md` \u00a77).",
+    file: "apps/backend/src/market-bars.ts",
+    find: '      "bar_coverage.provider",\n      // Not `bar_coverage.feed`',
+    replace:
+      '      "bar_coverage.provider",\n      "bar_coverage.feed", // pnpm break: reverted automatically\n      // Not `bar_coverage.feed`',
+    command: ["pnpm", "invariants"],
+    expect: "reads the ledger's `feed` column",
+  },
+  {
     name: "a-second-provider-is-relabelled",
     proves:
       "A series from another provider is refused rather than written under " +
