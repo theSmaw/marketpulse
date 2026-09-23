@@ -1,6 +1,6 @@
 # Story 3.8 — Storing the Live Session
 
-**Status:** Not started
+**Status:** Not started — **split into eight tasks 2026-09-23**, see _Tasks_ below. The visible payoff is Task 3.8.3, which is as early as the two decisions before it allow.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.5, 3.7
 **Epic scope covered:** market-data persistence for live observations, and the reconciliation between two tapes covering one session
@@ -142,6 +142,69 @@ before the store starts answering the same question.
 8. `pnpm test:database` passes; `pnpm verify` passes
 9. `pnpm bars:check` still tells the truth about what is missing and why, now
    that two writers fill the same table
+
+## Tasks
+
+**Eight, and the third one is the payoff.** This story is mostly a write path,
+which is the kind of work that can run for a week with nothing to show — so the
+split is ordered to put the visible change as early as the dependencies allow.
+Two decisions have to be taken before a row is written (3.8.1) and the store has
+to be able to hold what they decided (3.8.2); **3.8.3 then delivers both visible
+things at once**, and everything after it makes that correct rather than adding
+to it.
+
+| #     | Task                                                                                                                           | Depends on | Visible?                                     |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------ | ---------- | -------------------------------------------- |
+| 3.8.1 | [What a record is, decided before a row is written](TASK-01-what-a-record-is-decided-before-a-row-is-written.md)               | 3.7        | No                                           |
+| 3.8.2 | [The uniqueness rule, and the migration it needs](TASK-02-the-uniqueness-rule-and-the-migration-it-needs.md)                   | 3.8.1      | No                                           |
+| 3.8.3 | [The writer, and the first reload that keeps its chart](TASK-03-the-writer-and-the-first-reload-that-keeps-its-chart.md)       | 3.8.2      | **Yes — the story's headline, and a second** |
+| 3.8.4 | [A growing session is not an immutable one](TASK-04-a-growing-session-is-not-an-immutable-one.md)                              | 3.8.3      | No — one thing stops being wrong             |
+| 3.8.5 | [The late revision the live path throws away](TASK-05-the-late-revision-the-live-path-throws-away.md)                          | 3.8.3      | No                                           |
+| 3.8.6 | [The surfaces that now show a stored today](TASK-06-the-surfaces-that-now-show-a-stored-today.md)                              | 3.8.3      | **Yes — consistency across a reload**        |
+| 3.8.7 | [The overnight reconciliation, rehearsed over one session](TASK-07-the-overnight-reconciliation-rehearsed-over-one-session.md) | 3.8.5      | No                                           |
+| 3.8.8 | [The sweep, the hand-offs and the close](TASK-08-the-sweep-the-hand-offs-and-the-close.md)                                     | 3.8.7      | No                                           |
+
+**Task 3.8.3 carries a second visible change that costs nothing to build, and
+it is the one worth showing.** `SourceNote` already renders one stretch per
+`BarSource` when a series names more than one feed, and Task 3.7.5 already made
+a stored window produce exactly that from its rows. So the first time this
+story's writer puts an IEX bar into a window the backfill filled with SIP, the
+source note at the foot of the Security Explorer should read its stretches in
+contribution order with their bar counts — `All US exchanges`, then `IEX` **with
+the sentence saying it is one venue rather than the whole tape**. That is
+`PRODUCT_SPEC.md` §7.1's requirement, the sentence `CLAUDE.md`'s invariant 6
+exists for, and a thing this product has shipped the code for and never once
+been able to show. **It is derived from reading the code rather than from having
+seen it**, so 3.8.3 confirms or refutes it and photographs the result either way.
+
+**Why the decision is the first task.** `0004_market_bars.sql` made a
+uniqueness decision deliberately — one row per `(security, timeframe,
+observed_at)` — on the premise that a backfilled historical bar is final. A live
+bar is not final, and the three shapes in _Open decisions_ above differ in
+whether that constraint survives. Writing the writer first and discovering the
+constraint at the first overnight run is the failure this order exists to
+prevent, and Story 3.7 took the same shape for the same reason.
+
+**Two constraints from Story 3.7 shape the split and are worth restating here.**
+The store already accepts a second tape extending a window contiguously, so a
+socket series with `alpaca`/`iex` provenance **stores today** — what 3.8.1
+decides is the **overlap**, which is the one refusal left. And Task 3.7.6
+measured that a migration on `market_bars` queues behind any open transaction
+and takes every reader with it, which makes this story's write transaction a
+deploy decision rather than only a throughput one (the section at the foot of
+this file).
+
+**The design canvas could not be walked, for the second time in two days.** On
+2026-09-23 `DesignSync` listed two writable design-system projects for this
+login — `Ida's / Charlotte Puxley Design System` and `Design System` — and
+**neither is the MarketPulse canvas**, exactly as Story 3.7's split found on
+2026-09-22. ADR 0026's chain is canvas → `VISUAL-LANGUAGE.md` → `tokens.css` →
+components, so with the canvas unreachable the document is the working source
+of truth for this story, which is a **downgrade of the chain rather than a
+break** — nothing in this story adds a token or a surface. **Two occurrences
+make it a pattern rather than an accident**: whoever owns the canvas should
+confirm whether this login can still reach it, because Story 3.9 is the next
+story that genuinely needs it and it has been told to check twice now.
 
 ## What this story hands forward
 
