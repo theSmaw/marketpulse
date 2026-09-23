@@ -1,6 +1,6 @@
 # Task 3.6.7 — The rehearsal, the sweep, the hand-offs and the close
 
-**Status:** **Everything but the rehearsal — 2026-09-22.** Eight criteria walked with evidence: **seven met, one half met** — criterion 7's _a person looked during a live session_ is owed to the deployed site's next session, which opens **21:30 Asia/Singapore tonight**, and is recorded beneath the ledger rather than in a row. The hand-off enumeration found **four of seven recipients missing their constraint** (Stories 3.8 and 3.9, Epics 4 and 5) and one carrying half of it (Story 3.10); all five are written now. `CLAUDE.md`'s _Current state_ is corrected — its last paragraph described a deployed feed refused `406`, and `GET /diagnostics/feed` on the deployed site read `live` on IEX this morning. `LIVE-DATA.md` was swept and nothing this story measured falsifies it. No new `docs/GAPS.md` entry: the two this story left standing were added by the tasks that found them.
+**Status:** **Rehearsed — 2026-09-22 21:41 Asia/Singapore, headless; see the addendum at the foot.** Eight criteria walked: **seven met, the eighth taken that night** — criterion 7's _a person looked during a live session_ was watched by Claude through a headless browser against the deployed site, and the row is in the ledger with what it can and cannot claim. Earlier that day the status read _everything but the rehearsal_ with criterion 7 owed to the session opening 21:30. The hand-off enumeration found **four of seven recipients missing their constraint** (Stories 3.8 and 3.9, Epics 4 and 5) and one carrying half of it (Story 3.10); all five are written now. `CLAUDE.md`'s _Current state_ is corrected — its last paragraph described a deployed feed refused `406`, and `GET /diagnostics/feed` on the deployed site read `live` on IEX this morning. `LIVE-DATA.md` was swept and nothing this story measured falsifies it. No new `docs/GAPS.md` entry: the two this story left standing were added by the tasks that found them.
 **Story:** [3.6 Live Prices Across the Tracked Universe](STORY.md)
 **Depends on:** 3.6.6
 
@@ -259,3 +259,39 @@ rehearsal can happen on the real site, which is where it belongs.
 next four pieces of work start from what this one learned rather than
 rediscovering it, and that the story's one open item is a single sitting with a
 browser rather than anything anyone has to build.
+
+---
+
+## Addendum — the rehearsal, taken 2026-09-22 09:44–10:55 ET
+
+**It happened, headless, and the row is honest about that.** At the scheduled
+time Claude opened the deployed site in a headless Chromium on the user's
+machine — the user had asked for it to be started at the right time and left
+the computer open — and watched `/securities` for the story's two or three
+minute ticks and `/securities/NVDA` for Story 3.4's list. `LIVE-REHEARSAL.md`
+carries the 3.6 row and four notes; this is the verdict on the one judgement
+only that sitting could return.
+
+**Pulse, not flash.** Bars frames arrived once or twice a minute on the
+minute, each a burst (`n = 21`; `33` and `11`; `27` and `13`; `60` and `59`).
+At **10:41:00 ET on the page's own clock**, 250 ms after a frame landed, the
+table was photographed: discs beside a scatter of figures — 67 rows — and every
+other row still; at **10:41:02** none were left. The whole table did not
+change at once, nothing swept, and the figures that moved moved by one or two
+glyphs. Task 3.6.2's accepted risk — that a burst across 518 rows reads as a
+flash — did not fire, and its reversal trigger (_the first reader who says
+flash_) stands with no reader having said it.
+
+**What the sitting found that was not the table's.** The chrome's venue word
+read `ALL US EXCHANGES` beside `LIVE` while every live bar was IEX — Epic 2's
+word beside Epic 3's connection, invariant 6 as written. It is 3.3's surface,
+handed to Story 3.10 (ledger note 3). And the instrument itself was starved by
+the machine's load, so its socket dropped and reconnected three times in one
+page — which turned into an unplanned sighting of Task 3.5.5's reconnect
+working, and is why no figure from the instrument's clock is quoted anywhere.
+
+**Criterion 7, restated.** _`pnpm probe` at four viewports_ — met (3.6.5).
+_A person looked during a session_ — **a headless watch looked**, and whether
+that satisfies the word _person_ is the owner's call rather than this
+task's; the story's status says exactly that, and the sitting is repeatable
+in minutes on any session day.
