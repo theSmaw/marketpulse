@@ -157,6 +157,88 @@ describe("the current market state", () => {
       );
     });
 
+    // **The two lists, and the case that needed them** (Task 3.8.7).
+    //
+    // Until this task `observe` returned one list and both the gateway and
+    // the store took it. That is right for the gateway and wrong for the
+    // store: a revision for a minute already passed is not NEWS, which is why
+    // it is dropped — but it is still TRUE, and §14.1 measured 35.3% of
+    // revisions changing the close. Story 3.5's close put the consequence in
+    // terms worth keeping: without a path to the store, this product's stored
+    // history is permanently and knowably wrong for a fraction of bars and
+    // nothing ever reports it.
+    describe("the two lists a batch turns out to be (Task 3.8.7)", () => {
+      /** 14:02Z — one minute after the recorded bar, so the bar below is stale. */
+      const nextMinuteFrom = (recorded: LiveObservation): LiveObservation => ({
+        ...recorded,
+        bar: {
+          ...recorded.bar,
+          startsAt: new Date("2026-09-16T14:02:00.000Z"),
+          close: 215.1,
+        },
+      });
+
+      it("keeps a superseded revision out of `applied` and in `tracked`", () => {
+        const state = stateAt();
+        const [recorded] = observationsFrom("bar-nvda");
+        if (recorded === undefined) throw new Error("fixture produced no bar");
+
+        state.observe([nextMinuteFrom(recorded)]);
+        const observed = state.observe(
+          observationsFrom("bar-nvda-revision-close-changed"),
+        );
+
+        // Not news: the browser must not be sent a price that walks backwards.
+        expect(observed.applied).toHaveLength(0);
+        // Still true: the store is the only place it can land.
+        expect(observed.tracked).toHaveLength(1);
+        expect(observed.tracked[0]?.bar.close).toBe(214.71);
+        expect(observed.tracked[0]?.bar.startsAt.toISOString()).toBe(
+          "2026-09-16T14:01:00.000Z",
+        );
+      });
+
+      // **Done-when 2: the live path is unchanged, asserted rather than
+      // assumed.** The same batch that now reaches the store must leave the
+      // current state exactly where it was.
+      it("leaves the latest observation untouched by a superseded revision", () => {
+        const state = stateAt();
+        const [recorded] = observationsFrom("bar-nvda");
+        if (recorded === undefined) throw new Error("fixture produced no bar");
+
+        state.observe([nextMinuteFrom(recorded)]);
+        state.observe(observationsFrom("bar-nvda-revision-close-changed"));
+
+        expect(state.read(NVDA)?.bar.close).toBe(215.1);
+        expect(state.read(NVDA)?.bar.startsAt.toISOString()).toBe(
+          "2026-09-16T14:02:00.000Z",
+        );
+        expect(state.size()).toBe(1);
+      });
+
+      it("puts an ordinary observation in both lists", () => {
+        const state = stateAt();
+        const observed = state.observe(observationsFrom("bar-nvda"));
+
+        expect(observed.applied).toHaveLength(1);
+        expect(observed.tracked).toEqual(observed.applied);
+      });
+
+      // The universe gate belongs to BOTH readers: a symbol with no
+      // `securities` row is not something the store could write if it tried.
+      it("keeps an untracked symbol out of both lists", () => {
+        const state = createCurrentMarketState({
+          now: () => READ_AT,
+          tracked: new Set(["AAPL"]),
+        });
+
+        const observed = state.observe(observationsFrom("bar-nvda"));
+
+        expect(observed.applied).toHaveLength(0);
+        expect(observed.tracked).toHaveLength(0);
+      });
+    });
+
     it("inserts a revision for a minute it never saw", () => {
       // The task's own words: a `u` frame for a minute we never saw is an
       // insert, not an error. After a restart this is the common shape — the

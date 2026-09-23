@@ -2165,6 +2165,161 @@ describe("a stored window spanning two tapes produces two sources, through the m
   });
 });
 
+describe("the late revision, against a real store (Task 3.8.7)", () => {
+  afterEach(clearStore);
+
+  const [only] = sessions(1);
+  const session = () => {
+    if (only === undefined) throw new Error("no session");
+    return only;
+  };
+
+  /** One IEX bar at minute `n` of the session, at a chosen close. */
+  function liveSeries(n: number, close: number): BarSeries {
+    const startsAt = new Date(session().open.getTime() + n * 60_000);
+    const covered = toTimeRange(
+      startsAt,
+      new Date(startsAt.getTime() + 60_000),
+    );
+    return toBarSeries({
+      symbol,
+      timeframe: "1m",
+      bars: [
+        {
+          startsAt,
+          open: close - 1,
+          high: close + 1,
+          low: close - 2,
+          close,
+          volume: 1_000,
+        },
+      ],
+      provenance: toSeriesProvenance("raw", {
+        provider: "alpaca",
+        feed: "iex",
+        retrievedAt: "2026-09-08T00:00:00.000Z",
+        barCount: 1,
+      }),
+      coverage: { requested: covered, covered },
+    });
+  }
+
+  const rowAt = async (n: number) => {
+    const startsAt = new Date(session().open.getTime() + n * 60_000);
+    const { rows } = await db().query<{
+      close: string;
+      feed: string;
+      recorded_at: Date;
+    }>(
+      `select close, feed, recorded_at from market_bars
+        where security_id = $1 and timeframe = '1m' and observed_at = $2`,
+      [securityId, startsAt.toISOString()],
+    );
+    return rows[0];
+  };
+
+  // **Criterion 1.** A revision for a minute the live path has already moved
+  // past reaches the store and moves the numbers. Before Task 3.8.7 the
+  // writer never saw it: `index.ts` handed it the applied list, and the
+  // current market state drops a superseded revision by design.
+  it("applies a revision for a minute the live path had moved past", async () => {
+    await repository().recordSeries(liveSeries(0, 100));
+    await repository().recordSeries(liveSeries(1, 101));
+
+    // The correction to minute 0, arriving after minute 1 is the latest.
+    const written = await repository().recordSeries(liveSeries(0, 100.42));
+
+    expect(written.corrected).toBe(1);
+    expect(written.inserted).toBe(0);
+    expect(Number((await rowAt(0))?.close)).toBe(100.42);
+  });
+
+  // `0004` argued `recorded_at` rather than an `updated_at`: it is the record
+  // that a correction HAPPENED, which is only true if a revision changing
+  // nothing leaves it alone. The `is distinct from` clause on the writer's
+  // `on conflict` is what keeps that meaning.
+  it("moves no row and no `recorded_at` when the revision changes nothing", async () => {
+    await repository().recordSeries(liveSeries(0, 100));
+    const before = await rowAt(0);
+
+    const written = await repository().recordSeries(liveSeries(0, 100));
+
+    expect(written.corrected).toBe(0);
+    expect(written.unchanged).toBe(1);
+    expect((await rowAt(0))?.recorded_at).toEqual(before?.recorded_at);
+  });
+
+  // A correction moves the numbers and not the tape (Task 3.7.3), and it is a
+  // compile-time rule — `MarketBarsTable.feed`'s update type is `never`. This
+  // is the runtime half: the row keeps the tape it was written on.
+  it("moves the numbers and never the tape", async () => {
+    await repository().recordSeries(liveSeries(0, 100));
+    await repository().recordSeries(liveSeries(0, 100.42));
+
+    const row = await rowAt(0);
+    expect(row?.feed).toBe("iex");
+    expect(Number(row?.close)).toBe(100.42);
+  });
+
+  // **The trap Task 3.8.4 left for this one, asserted so it is not met.**
+  // A served minute is the PREFERRED tape, so once the consolidated bar
+  // exists the corrected `iex` row is stored and not served. That is the
+  // system behaving as designed; a test reading the revision back through
+  // `readSeries` would fail here and pass on an unreconciled minute, which
+  // looks like flakiness and is not. `readBars` is what sees it.
+  it("is invisible through `readSeries` once the consolidated tape covers the minute, and visible through `readBars`", async () => {
+    await repository().recordSeries(liveSeries(0, 100));
+    await repository().recordSeries(liveSeries(0, 100.42));
+
+    const startsAt = new Date(session().open.getTime());
+    const sipCovered = toTimeRange(
+      startsAt,
+      new Date(startsAt.getTime() + 60_000),
+    );
+    await repository().recordSeries(
+      toBarSeries({
+        symbol,
+        timeframe: "1m",
+        bars: [
+          {
+            startsAt,
+            open: 199,
+            high: 201,
+            low: 198,
+            close: 200,
+            volume: 9_000,
+          },
+        ],
+        provenance: toSeriesProvenance("raw", {
+          provider: "alpaca",
+          feed: "sip",
+          retrievedAt: "2026-09-08T00:00:00.000Z",
+          barCount: 1,
+        }),
+        coverage: { requested: sipCovered, covered: sipCovered },
+      }),
+    );
+
+    const { series } = await repository().readSeries(
+      symbol,
+      "1m",
+      toTimeRange(session().open, session().close),
+      new Date(),
+    );
+    // The consolidated close, not the corrected live one.
+    expect(series.bars[0]?.close).toBe(200);
+
+    const stored = await repository().readBars(
+      symbol,
+      "1m",
+      toTimeRange(session().open, session().close),
+    );
+    const live = stored.find((entry) => entry.feed === "iex");
+    // The correction is there, and it is the row replay will read.
+    expect(live?.bar.close).toBe(100.42);
+  });
+});
+
 describe("one minute, two rows, and what a reader is served (Task 3.8.4)", () => {
   afterEach(clearStore);
 

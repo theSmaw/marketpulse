@@ -1369,6 +1369,24 @@ export const BREAKS = [
     expect: "keeps one figures strip in every state",
   },
   {
+    name: "the-store-is-told-only-what-is-news",
+    proves:
+      "Every revision for a minute the live path has already moved past is " +
+      "dropped on the floor. The current market state drops a superseded " +
+      "revision on purpose \u2014 it is not news \u2014 but it is still true, " +
+      "and \u00a714.1 measured 35.3% of revisions changing the close. Handing " +
+      "the writer the APPLIED list instead of the TRACKED one makes this " +
+      "product's stored history permanently and knowably wrong for a fraction " +
+      "of bars, with nothing to report it.",
+    file: "apps/backend/src/index.ts",
+    find: "      void liveBarWriter.store(observed.tracked).then(",
+    replace:
+      "      // pnpm break: reverted automatically\n" +
+      "      void liveBarWriter.store(observed.applied).then(",
+    command: ["pnpm", "invariants"],
+    expect: "does not hand the live bar writer",
+  },
+  {
     name: "the-live-stream-loses-its-consumer",
     proves:
       "The process discards every live observation again \u2014 the state this " +
@@ -1393,10 +1411,16 @@ export const BREAKS = [
     // fails for the wrong reason proves nothing, which the harness says in as
     // many words. So the substitution now removes the `observe` call itself,
     // which is the wiring the invariant is about.
-    find: "      const applied = currentMarketState.observe(observations);",
+    // **Re-anchored a THIRD time by Task 3.8.7**, and the reason is the same
+    // as 3.8.3's: the line this sits on keeps being the one a task changes,
+    // because it is where the stream meets everything downstream. That task
+    // split the return value into two lists, so the binding is `observed`.
+    // The substitution still removes the `observe` call, which is the wiring
+    // the invariant is about.
+    find: "      const observed = currentMarketState.observe(observations);",
     replace:
       "      // pnpm break: reverted automatically\n" +
-      "      const applied = observations;",
+      "      const observed = { applied: observations, tracked: observations };",
     command: ["pnpm", "invariants"],
     expect: "does not feed the market stream",
   },
@@ -1410,7 +1434,10 @@ export const BREAKS = [
       "deliberately does not, and a reader who makes the two agree breaks one " +
       "of them. Nothing but this test says so.",
     file: "apps/backend/src/current-market-state.ts",
-    find: "        if (!tracked.has(observation.symbol)) continue;",
+    // **Re-anchored by Task 3.8.7**, which renamed the local binding: the
+    // option is still `tracked`, but `tracked` is now also the name of a list
+    // `observe` returns, so the universe set is destructured as `universe`.
+    find: "        if (!universe.has(observation.symbol)) continue;",
     replace:
       "        // pnpm break: reverted automatically\n" +
       "        if (false) continue;",

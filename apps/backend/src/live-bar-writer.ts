@@ -189,7 +189,37 @@ export function createLiveBarWriter(
  * product where those differ by seconds rather than hours.
  */
 function seriesFor(symbol: Ticker, group: readonly LiveObservation[]) {
-  const sorted = [...group].sort(
+  // **One bar per instant, the LAST one winning** (Task 3.8.7).
+  //
+  // A batch is one socket message and `observationsIn` flat-maps every
+  // observation frame in it into one call, so nothing in the types stops a bar
+  // and its revision for one minute arriving together. Handed that pair, the
+  // writer reached `toBarSeries` with two bars stamped alike, which throws, and
+  // the per-security catch turned it into a refusal: **the security lost the
+  // bar as well as the revision**, silently, to a `warn` line. Demonstrated
+  // against the shipped writer.
+  //
+  // **Whether the vendor ever sends that pair is NOT established, and the
+  // measurement points the other way** — corrected here rather than left as
+  // the overstatement it first was. `LIVE-DATA.md` §14.1 measured revisions
+  // arriving **29.1–30.1 s** after their bar, and §9.5 measured **8.8
+  // messages/min** at the open, so a revision is **four to five messages**
+  // behind its bar; the recorded `b` and `u` fixtures are separate messages.
+  // So this is a **guard on a shape the types permit**, not a repair of a
+  // defect anybody has seen — and it costs one `Map`.
+  //
+  // Last wins because within one batch that is what a revision IS — the
+  // frames arrive in the order the vendor sent them, and a later frame for a
+  // minute already in the batch is the correction to it. This is the same
+  // rule the store applies across batches through `on conflict`; here it is
+  // applied before the series is built, because `toBarSeries` will not hold
+  // two bars on one instant long enough for the store to decide.
+  const byInstant = new Map<number, LiveObservation>();
+  for (const observation of group) {
+    byInstant.set(observation.bar.startsAt.getTime(), observation);
+  }
+
+  const sorted = [...byInstant.values()].sort(
     (a, b) => a.bar.startsAt.getTime() - b.bar.startsAt.getTime(),
   );
 

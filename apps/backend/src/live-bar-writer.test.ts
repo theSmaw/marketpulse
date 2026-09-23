@@ -207,4 +207,54 @@ describe("the live bar writer", () => {
       MINUTE + 60_000,
     ]);
   });
+
+  // **The defect this found rather than the one it was sent for** (Task
+  // 3.8.7). One batch is one socket message, and `observationsIn` flat-maps
+  // every observation frame in it into a single call — so a bar and its
+  // revision for the same minute can arrive together. Before this task that
+  // pair reached `toBarSeries` as two bars stamped alike, which throws, and
+  // the per-security catch turned it into a refusal: the security lost **the
+  // bar as well as the revision**, silently, to a `warn` line. Reproduced
+  // against the shipped writer before it was repaired.
+  it("collapses a bar and its revision in one batch, keeping the revision", async () => {
+    const { bars, written } = recorder();
+    const warnings: string[] = [];
+    const writer = createLiveBarWriter({
+      bars,
+      warn: (_fields, message) => warnings.push(message),
+      now: () => MINUTE + 5 * 60_000,
+    });
+
+    const report = await writer.store([
+      observed(NVDA, MINUTE, { bar: bar(MINUTE, 100.5) }),
+      observed(NVDA, MINUTE, { bar: bar(MINUTE, 101.25) }),
+    ]);
+
+    // One bar, not two — and not a refusal, which is what it used to be.
+    expect(report.refused.size).toBe(0);
+    expect(warnings).toEqual([]);
+    expect(written[0]?.bars).toHaveLength(1);
+
+    // **Last wins, because within one batch that is what a revision is.** The
+    // frames arrive in the order the vendor sent them, so a later frame for a
+    // minute already in the batch is the correction to it.
+    expect(written[0]?.bars[0]?.close).toBe(101.25);
+  });
+
+  it("still writes both when the two minutes differ", async () => {
+    // The guard above must not collapse an ordinary pair of bars.
+    const { bars, written } = recorder();
+    const writer = createLiveBarWriter({
+      bars,
+      warn: () => undefined,
+      now: () => MINUTE + 5 * 60_000,
+    });
+
+    await writer.store([
+      observed(NVDA, MINUTE),
+      observed(NVDA, MINUTE + 60_000),
+    ]);
+
+    expect(written[0]?.bars).toHaveLength(2);
+  });
 });
