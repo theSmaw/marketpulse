@@ -205,6 +205,52 @@ export const BREAKS = [
     expect: "writes a `sources:` array by hand",
   },
   {
+    name: "the-tape-leaves-the-conflict-target",
+    proves:
+      "The writer's `on conflict` names the four columns the unique key " +
+      "covers. With the tape removed the target no longer matches any unique " +
+      "index and Postgres refuses the statement outright \u2014 *there is no " +
+      "unique or exclusion constraint matching the ON CONFLICT " +
+      "specification* \u2014 so every write fails rather than mislabelling " +
+      "anything (Task 3.8.2, ADR 0035). Needs a database, so it lives " +
+      "outside `verify`.",
+    file: "apps/backend/src/market-bars.ts",
+    find: '        .columns(["security_id", "timeframe", "observed_at", "feed"])',
+    replace:
+      '        .columns(["security_id", "timeframe", "observed_at"]) // pnpm break: reverted automatically',
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "ON CONFLICT",
+  },
+  {
+    name: "the-presence-check-forgets-the-tape",
+    proves:
+      "The pre-read that decides `inserted` against `corrected` is scoped to " +
+      "the tape. Without that scope a genuine insert on a second tape matches " +
+      "the first tape's row, is counted as a correction, and " +
+      "`extendCoverage` never adds it to the ledger's `bar_count` \u2014 the " +
+      "ledger UNDER-REPORTS, which is one of the two silent failures " +
+      "`market-bars.ts` exists to prevent. Found by a test rather than by " +
+      "review (Task 3.8.2).",
+    file: "apps/backend/src/market-bars.ts",
+    find: '        .where("feed", "=", feed)\n        .where("observed_at", ">=", first.startsAt)',
+    replace:
+      '        .where("observed_at", ">=", first.startsAt) // pnpm break: reverted automatically',
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/market-bars.database.test.ts",
+    ],
+    expect: "keeps both, with their own numbers",
+  },
+  {
     name: "a-second-module-queries-the-ledger",
     proves:
       "The ledger has one reader. `stored-sources-only-through-the-merge` " +

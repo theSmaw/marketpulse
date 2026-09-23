@@ -777,8 +777,14 @@ describe("the foreign key, tested here for the first time in this schema", () =>
     // this costs no extra index; that it does is asserted rather than assumed.
     const definition = await constraintDefinition("market_bars_unique_bar");
 
+    // The tape joined the key in `0011` (ADR 0035) and the leading column did
+    // not move, which is what keeps this property true: `security_id` first,
+    // so the foreign key's parent still costs nothing to operate on.
     expect(definition).toContain(
-      "UNIQUE (security_id, timeframe, observed_at)",
+      "UNIQUE (security_id, timeframe, observed_at, feed)",
+    );
+    expect(definition.indexOf("security_id")).toBeLessThan(
+      definition.indexOf("feed"),
     );
   });
 });
@@ -1920,77 +1926,109 @@ describe("every writer stamps the tape, and no reader consults a constant (Task 
     ]);
   });
 
-  describe("a re-store of the same instant from another tape — today's rule, Story 3.8's to change", () => {
-    // The unique key is `(security_id, timeframe, observed_at)` and does not
-    // include the tape, so this is a CONFLICT, and what happens then is Story
-    // 3.8's decision (its three shapes). This task keeps today's behaviour —
-    // the existing row's tape wins — and these two assertions are what 3.8
-    // rewrites rather than a claim that this is right. `TAPE.md` §6.
+  describe("a re-store of the same instant from another tape — a second row since `0011`", () => {
+    // **This block asserted the opposite until 2026-09-23, on purpose.** Task
+    // 3.7.3 pinned the behaviour of a key that did not include the tape — the
+    // existing row won, and different numbers moved the numbers under the old
+    // label — and named it *Story 3.8's to change*. ADR 0035 changed it: a
+    // stored bar is a record of an observation, so the IEX bar and the
+    // consolidated bar for one minute are two rows rather than one row and its
+    // correction. `market_bars_unique_bar` covers the tape since `0011`.
 
-    it("with the same numbers, leaves the row untouched — tape included", async () => {
+    it("keeps both, with their own numbers, rather than correcting one into the other", async () => {
       const [session] = sessions(1);
       if (session === undefined) throw new Error("no session");
       const [only] = sessionBars(session, 1);
       if (only === undefined) throw new Error("no bar");
 
-      // An `iex` row at the session's first minute, with exactly the numbers
-      // the SIP series is about to bring.
+      // An `iex` row at the session's first minute, with numbers of its own.
       await insertBar({
         feed: "iex",
         observed_at: only.startsAt.toISOString(),
-        open: only.open,
-        high: only.high,
-        low: only.low,
-        close: only.close,
-        volume: only.volume,
+        open: 1,
+        high: 1,
+        low: 1,
+        close: 1,
+        volume: 1,
       });
 
       const written = await repository().recordSeries(
         seriesFor(symbol, session, { count: 1 }),
       );
 
+      // Inserted rather than corrected: the SIP bar is a new observation.
       expect(written).toMatchObject({
-        inserted: 0,
+        inserted: 1,
         corrected: 0,
-        unchanged: 1,
-      });
-      const stored = await repository().readBars(
-        symbol,
-        "1m",
-        toTimeRange(session.open, session.close),
-      );
-      expect(stored).toEqual([{ bar: only, feed: "iex" }]);
-    });
-
-    it("with different numbers, moves the numbers and leaves the tape", async () => {
-      const [session] = sessions(1);
-      if (session === undefined) throw new Error("no session");
-      const [only] = sessionBars(session, 1);
-      if (only === undefined) throw new Error("no bar");
-
-      await insertBar({
-        feed: "iex",
-        observed_at: only.startsAt.toISOString(),
-      });
-
-      const written = await repository().recordSeries(
-        seriesFor(symbol, session, { count: 1 }),
-      );
-
-      // A correction, by the writer's own account — and the row now carries
-      // SIP's numbers under IEX's label, which is the honest description of
-      // the rule as it stands and the reason it is Story 3.8's to replace.
-      expect(written).toMatchObject({
-        inserted: 0,
-        corrected: 1,
         unchanged: 0,
       });
+
       const stored = await repository().readBars(
         symbol,
         "1m",
         toTimeRange(session.open, session.close),
       );
-      expect(stored).toEqual([{ bar: only, feed: "iex" }]);
+      expect(stored).toHaveLength(2);
+      expect([...stored].map((entry) => entry.feed).sort()).toEqual([
+        "iex",
+        "sip",
+      ]);
+      // And neither was rewritten by the other: the IEX row still holds the
+      // numbers it was observed with.
+      const iex = stored.find((entry) => entry.feed === "iex");
+      expect(iex?.bar.close).toBe(1);
+      expect(stored.find((entry) => entry.feed === "sip")?.bar.close).toBe(
+        only.close,
+      );
+    });
+
+    it("still corrects a re-store on the SAME tape, and still writes nothing when the numbers match", async () => {
+      // The idempotent re-run and the correction are what the key still
+      // catches, and they are the cases every backfill depends on.
+      const [session] = sessions(1);
+      if (session === undefined) throw new Error("no session");
+
+      await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+
+      const rerun = await repository().recordSeries(
+        seriesFor(symbol, session, { count: 3 }),
+      );
+      expect(rerun).toMatchObject({ inserted: 0, corrected: 0, unchanged: 3 });
+
+      const corrected = await repository().recordSeries(
+        seriesFor(symbol, session, { count: 3, nudge: 1 }),
+      );
+      expect(corrected).toMatchObject({
+        inserted: 0,
+        corrected: 3,
+        unchanged: 0,
+      });
+
+      expect(
+        await repository().readBars(
+          symbol,
+          "1m",
+          toTimeRange(session.open, session.close),
+        ),
+      ).toHaveLength(3);
+    });
+
+    it("refuses a second row for one minute on ONE tape, which is what the key still forbids", async () => {
+      const observedAt = "2026-09-03T19:00:00.000Z";
+      await insertBar({ feed: "iex", observed_at: observedAt });
+
+      await expect(
+        insertBar({ feed: "iex", observed_at: observedAt, close: 999 }),
+      ).rejects.toThrow(/market_bars_unique_bar/);
+
+      // …and accepts the same minute on another tape, which is the whole
+      // point of `0011`.
+      await insertBar({ feed: "sip", observed_at: observedAt, close: 999 });
+
+      const rows = await db().query<{ count: string }>(
+        "select count(*) as count from market_bars",
+      );
+      expect(rows.rows[0]?.count).toBe("2");
     });
   });
 });

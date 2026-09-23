@@ -179,7 +179,7 @@ to it.
 | #     | Task                                                                                                                           | Depends on | Visible?                                          |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------------------------------------------------- |
 | 3.8.1 | [What a record is, decided before a row is written](TASK-01-what-a-record-is-decided-before-a-row-is-written.md)               | 3.7        | No — **done**                                     |
-| 3.8.2 | [The uniqueness rule, and the migration it needs](TASK-02-the-uniqueness-rule-and-the-migration-it-needs.md)                   | 3.8.1      | No                                                |
+| 3.8.2 | [The uniqueness rule, and the migration it needs](TASK-02-the-uniqueness-rule-and-the-migration-it-needs.md)                   | 3.8.1      | No — **done**                                     |
 | 3.8.3 | [The writer, and the first reload that keeps its chart](TASK-03-the-writer-and-the-first-reload-that-keeps-its-chart.md)       | 3.8.2      | **Yes — the story's headline, and a second**      |
 | 3.8.4 | [One minute, two rows, and the 500 that arrives otherwise](TASK-04-one-minute-two-rows-and-the-500-that-arrives-otherwise.md)  | 3.8.3      | No — **and one thing that never becomes visible** |
 | 3.8.5 | [A growing session is not an immutable one](TASK-05-a-growing-session-is-not-an-immutable-one.md)                              | 3.8.3      | No — one thing stops being wrong                  |

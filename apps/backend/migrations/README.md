@@ -804,3 +804,58 @@ therefore tempting — and it cannot tell a statement from a comment or a string
 literal, so it would false-positive on this very directory's header comments, and
 the workaround for a false positive is to phrase the comment differently, which is
 the worst possible thing to teach. The database can tell them apart. Ask it there.
+
+## 9. An index a migration cannot build goes in `pnpm index:prepare`
+
+**Added 2026-09-23 by Task 3.8.2, from a measurement rather than a
+preference.** Two things this repository has already decided collide the first
+time a migration needs an index on a large table:
+
+- `deploy.yml` gives `pnpm migrate` **120 seconds** (§8's advisory-lock
+  reasoning is why the number exists at all), and
+- Kysely wraps the whole run in **one transaction**, which is what makes
+  Postgres's transactional DDL do the work of a rollback.
+
+`CREATE INDEX CONCURRENTLY` **cannot run inside a transaction block**, and a
+non-concurrent build cannot fit in the budget: measured on the populated local
+store (48.8 M rows), a unique index over `market_bars` takes **37.3 s** to build
+on a laptop, and one pass over that table's heap on the deployed tier is
+**~508 s** at 10 MiB/s (ADR 0034).
+
+**So the build is a separate deploy step and the migration only adopts it:**
+
+```sql
+create unique index if not exists market_bars_unique_bar_v2
+    on market_bars (security_id, timeframe, observed_at, feed);
+
+alter table market_bars drop constraint market_bars_unique_bar;
+alter table market_bars add constraint market_bars_unique_bar
+    unique using index market_bars_unique_bar_v2;
+```
+
+Three properties make that safe, and each is worth copying:
+
+- **`if not exists` keeps a fresh database working.** On CI, on
+  `marketpulse_bare` and on a new clone the table is empty and the index builds
+  inline in milliseconds — measured **0.47 s** for the whole `pnpm migrate`. On
+  a populated store the step before has already built it, so this is a
+  catalogue check and the migration is **0.6 s**.
+- **`using index` keeps the name.** Postgres renames the index to the
+  constraint's name on adoption, so `market_bars_unique_bar` means the same
+  thing before and after; only its columns moved.
+- **A skipped step fails in the safe direction.** Without the prepared index
+  the migration builds inline, blows the 120 s ceiling, and the deploy stops
+  with nothing applied and no code rolled.
+
+`apps/backend/src/prepare-indexes.ts` is the mechanism and carries the one
+failure mode a concurrent build has: an interrupted build leaves an **invalid**
+index that `if not exists` would skip forever, so it is dropped and rebuilt
+rather than reported.
+
+**And widening a key can change what a write MEANS, not only what it
+permits.** The same task found it: `writeBatch`'s pre-read that decides
+`inserted` against `corrected` was not scoped to the new column, so a genuine
+insert on a second tape matched the first tape's row, counted as a correction,
+and never reached the ledger's `bar_count`. The ledger under-reports and
+nothing says so. **When a key gains a column, grep for every query that assumed
+the old one.**

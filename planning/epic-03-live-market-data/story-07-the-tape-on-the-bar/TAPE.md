@@ -193,7 +193,17 @@ the rows. A row with no ledger row is producible only by hand (the test
 suite's `insertBar`), and 3.7.5 closes even that when sources come from the
 bars.
 
-**The conflict rule, as it stands on 2026-09-22 — Story 3.8's to replace.**
+> **REPLACED 2026-09-23 by Task 3.8.2, which is Story 3.8 doing what this
+> section said it would.** The unique key now **includes the tape**
+> (`0011_market_bars_unique_bar_by_tape.sql`, ADR 0035), so the case below is
+> no longer a conflict at all: the IEX bar and the consolidated bar for one
+> minute are **two rows**, each keeping its own numbers, and neither is the
+> other's correction. What still conflicts is a re-store on the **same** tape,
+> which is the idempotent re-run and the correction, and those behave exactly
+> as described below. The paragraph is left standing because it is the rule
+> Task 3.7.3 pinned and the reason the column existed to be widened.
+
+**The conflict rule, as it stood on 2026-09-22 — replaced by Story 3.8.**
 The unique key is `(security_id, timeframe, observed_at)` and does not
 include the tape, so a bar re-stored from a different tape is a **conflict**.
 Today, in both branches, **the existing row's tape wins**:
