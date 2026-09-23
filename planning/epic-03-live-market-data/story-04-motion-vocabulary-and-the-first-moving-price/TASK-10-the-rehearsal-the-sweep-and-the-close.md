@@ -488,8 +488,82 @@ This list was written before Story 3.5 existed. Production is now running
   > `readyState`). The rehearsal is the first time a person watches a real
   > deploy under this page, and that is what the fix is for.
 
+> **AMENDED 2026-09-23 — Stories 3.7 and 3.8 have landed since the list above,
+> and the change is larger than 3.5's was.** The deployed backend now **writes
+> bars to the store every minute the market is open**
+> (`live-bar-writer.ts`, Task 3.8.3), which is the first time this product
+> has had a second consumer of the stream the rehearsal is watching. Three
+> things follow, and none of them is a regression:
+>
+> - **A mid-session reload now keeps today's chart.** Before Story 3.8 a cold
+>   load during a session dropped back to the plan's fifteen-minute embargo
+>   cliff and rebuilt from the socket. It no longer does. If you reload to
+>   re-read the identity block — which a rehearsal does constantly — **the
+>   chart beside it will not blank**, and that is the deliverable rather than
+>   a caching bug.
+> - **The chart may name two feeds mid-session.** Once the store holds an IEX
+>   tail against a `sip` morning, the source note reads two stretches in
+>   contribution order (Tasks 3.7.5, 3.8.4). It has never done this on a
+>   deployed store. **It is not part of criterion 8** and it is the most
+>   showable thing in the epic, so photograph it if it appears.
+> - **The deployed log gains a line that is not a fault.** The writer catches
+>   every refusal per security and **warns rather than throwing** — it is called
+>   from the socket's own callback, where an unhandled rejection is a crashed
+>   process. A `live bars refused by the store` line in the deployed log during
+>   your sitting is the design working, not the rehearsal failing.
+
 **None of this weakens the five items above**; it changes what a watcher should
 expect between them.
+
+## The window this task is blocked on is the SAME window Story 3.8 is blocked on — 2026-09-23
+
+**Neither file said so, and this epic has now lost a constraint to exactly that
+twice by its own account.**
+
+Criterion 8 needs _the deployed site, with the market open, with a person_.
+Task 3.8.10's close owes a `LIVE-REHEARSAL.md` row that needs **the same three
+things**, for different reasons: the reload that keeps today's chart, and a
+photograph of the two-feed source note from a deployed store rather than from an
+instrument.
+
+**The connection is the scarce resource**, not the attention. `docs/GAPS.md`
+entry 10 records that the free plan holds **one** Alpaca connection and the
+deployment has it, which is why neither story can rehearse locally against a
+real feed. So a sitting taken for one story can take the other's items at no
+extra cost, and a sitting taken for one and not the other **spends the scarce
+thing twice**.
+
+**What to take in one sitting, if you are only getting one:**
+
+| Item                                                     | Owner  |
+| -------------------------------------------------------- | ------ |
+| the extended-hours mark on a real bar (04:00–09:30 ET)   | 3.4.10 |
+| a genuinely quiet minute                                 | 3.4.10 |
+| a real correction — both halves                          | 3.4.10 |
+| `pnpm probe` with the market open                        | 3.4.10 |
+| one vendor glance: a frame stamped outside a trading day | 3.4.10 |
+| a mid-session reload that keeps today's chart            | 3.8.10 |
+| the two-feed source note, photographed from production   | 3.8.10 |
+
+Task 3.5.8's five unconfirmed vendor figures, listed below, need the same
+window again — so the honest count is **three stories waiting on one sitting**.
+
+## Audit 1, re-read 2026-09-23 — what Story 3.8 did with this story's constraints
+
+The enumeration below handed **3.8** three constraints. Two are now shipped and
+were checked rather than assumed:
+
+- **The extended-hours mark must not become a stored field.** Honoured.
+  `market_bars` is `id, security_id, timeframe, observed_at, open, high, low,
+close, volume, recorded_at, feed` — no extended-hours column, and the word is
+  still derived from the bar's own instant through Story 2.5's calendar.
+- **A stored observation keeps its instant exactly.** Honoured. The live writer
+  supplies `observed_at` from the bar itself and the read maps it straight back
+  (`startsAt: row.observed_at`); the column still has no default, which is what
+  keeps _when it was true in the market_ from becoming _when we wrote it_.
+- **A replay of the store must not fire the arrival mark.** **Still owed**, and
+  correctly so — it is Task 3.8.8's second item, unstarted. Nothing to check
+  yet; this line exists so the count is not mistaken for three of three.
 
 ---
 
