@@ -792,16 +792,28 @@ describe("which rows this screen asks for (Task 3.6.3)", () => {
       { at: PATHS.securities },
     );
 
-    await waitFor(() => {
-      expect(screen.getByRole("table")).toBeTruthy();
-    });
-
-    const latest = asked.at(-1) ?? [];
-
+    // **Waits for the subscription, not for the table** (repaired 2026-09-23).
+    //
+    // It waited for the table and then read `asked.at(-1)` once. Those are two
+    // different moments: the table paints when the securities answer lands,
+    // and the symbol list is pushed from an effect after it — so the single
+    // read could land on an earlier push carrying only the default security.
+    // It passed for as long as the second moment reliably beat the assertion,
+    // which is a property of how loaded the machine is rather than of this
+    // screen. It failed the first time an unrelated file was given two more
+    // tests, and passed again in isolation, which is what a race looks like
+    // from the outside.
+    //
+    // Asserting *inside* `waitFor` removes the race rather than widening it:
+    // the condition polled is now the one the test is about.
+    //
     // Every symbol on the page, including the untracked one: the backend
     // subscribes upstream to `active` securities only, so an untracked row
     // simply never receives an observation — which is `UNIVERSE.md` §12.2
     // working rather than a reason for this screen to filter.
-    expect([...latest].sort()).toEqual(["GILD", "NVDA", "SPY"]);
+    await waitFor(() => {
+      expect(screen.getByRole("table")).toBeTruthy();
+      expect([...(asked.at(-1) ?? [])].sort()).toEqual(["GILD", "NVDA", "SPY"]);
+    });
   });
 });

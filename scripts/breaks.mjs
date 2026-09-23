@@ -1268,6 +1268,30 @@ export const BREAKS = [
     expect: "subscribe to the market stream",
   },
   {
+    name: "the-figures-lose-their-reservation",
+    proves:
+      "The chart and the window control move 90 px when an answer with bars " +
+      "replaces one without. `Figures` returned `null` in the four states " +
+      "with no readable series until Task 3.8.3, so `.reading` collapsed and " +
+      "everything under it rose \u2014 including the segmented control the " +
+      "reader has just pressed. jsdom computes no layout, so the unit half " +
+      "asserts the structure the height depends on; the browser half is " +
+      "`security-window-change.spec.ts`.",
+    file: "apps/frontend/src/components/BarSeriesPanel/BarSeriesPanel.tsx",
+    find: "  if (series === null) return <FiguresReservation />;",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  if (series === null) return null;",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "BarSeriesPanel",
+    ],
+    expect: "keeps one figures strip in every state",
+  },
+  {
     name: "the-live-stream-loses-its-consumer",
     proves:
       "The process discards every live observation again \u2014 the state this " +

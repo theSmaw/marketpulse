@@ -369,7 +369,7 @@ export function BarSeriesPanel({
  */
 function Figures({ screen }: { readonly screen: BarSeriesScreen }) {
   const series = readableSeries(screen.shown);
-  if (series === null) return null;
+  if (series === null) return <FiguresReservation />;
 
   const prices = seriesPrices(series);
   const percent = changePercent(prices);
@@ -436,6 +436,83 @@ function Figures({ screen }: { readonly screen: BarSeriesScreen }) {
     </div>
   );
 }
+
+/**
+ * **The figures' reservation — present in layout, absent from everything
+ * else** (Task 3.8.3).
+ *
+ * `Figures` returned `null` in the four states that have no readable series,
+ * and the whole block went with it: `.reading` collapsed, and **the chart, the
+ * window control and everything below them moved by 90 px** the moment an
+ * answer with bars replaced one without. Measured on a populated store at
+ * 1024: `.reading` is 182 px with figures and 92 px without, and the control
+ * moves from y=450 to y=360.
+ *
+ * That is worse than a chart that moves. **The control moves too** — the
+ * segmented control a reader has just pressed, and is likely to press again,
+ * jumps 90 px out from under the pointer when the answer lands. `1D` on a
+ * store that has not yet stored today against `1M`, which is every security
+ * during a session before Story 3.8's writer had filled it, and any window a
+ * security genuinely has no bars in afterwards.
+ *
+ * **This is the panel's own idiom rather than a new one.** `.rail` has done
+ * exactly this since 2026-09-13 for exactly this reason, and its comment
+ * carries the argument: a hidden copy of the content is *"the only form of
+ * reservation that survives a sentence that wraps at 390px and does not at
+ * 1440"*, and a height token would be *"a measurement of one viewport declared
+ * as a constant"*. This is that idiom's second consumer in this file.
+ *
+ * **Why it can be exact rather than generous.** Measured at all four
+ * viewports, the strip's height is **42 px at every width** — it does not wrap
+ * — and the headline's is **32 px**. So the block's height is a function of the
+ * *viewport* (whether the strip sits beside the headline or under it: 52 px at
+ * 1440, 82 px below that) and **not of the values in it**. A reservation with
+ * the same two children therefore reserves precisely what the real block
+ * occupies, at every width, whatever the prices are. If `MetricStrip` ever
+ * wraps, that stops being true and this has to hold the widest case instead.
+ *
+ * **Why the labels are blank rather than `Open`/`High`/`Low`/`Close`.** They
+ * would be the honest thing to reserve with, and they cannot be used: a hidden
+ * `dt` reading `Open` is still matched by `getByText`, so `security-window-change`'s
+ * *"the panel has settled on an answer"* locator would resolve to the
+ * reservation and then fail `toBeVisible()` — a test wedged by the fix to the
+ * defect it tests. Blank labels have the same line box and the same height, and
+ * `MetricStrip` keys on the label, so they differ by a count of spaces that
+ * nothing can see and no column width depends on.
+ *
+ * **And why it is hidden rather than drawn as em-dashes.** ADR 0029: a
+ * fully-formed record about zero bars is a false impression rather than a
+ * courtesy. A block reading `1D OPEN —` is a figures block about a window that
+ * has none. `visibility: hidden` and `aria-hidden` render no claim at all —
+ * they only take up the room the real one will.
+ */
+function FiguresReservation() {
+  const blank = (width: number) => NON_BREAKING_SPACE.repeat(width);
+
+  return (
+    <div aria-hidden="true" className={cx(styles.figures, styles.figuresSizer)}>
+      <div className={styles.headline}>
+        <span className={styles.close}>{blank(1)}</span>
+      </div>
+      <div className={styles.priceStrip}>
+        <MetricStrip
+          size="compact"
+          // One blank label per column. They differ only in how many spaces
+          // they are, because `MetricStrip` keys on the label and four
+          // identical keys is a React warning; nothing can see the difference
+          // and no column width depends on it.
+          metrics={[1, 2, 3, 4].map((column) => ({
+            label: blank(column),
+            value: blank(1),
+          }))}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** The one glyph a reservation is made of: a line box with nothing in it. */
+const NON_BREAKING_SPACE = "\u00a0";
 
 /**
  * The series behind the figures, when the answer has bars in it.
