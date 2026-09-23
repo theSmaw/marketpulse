@@ -74,6 +74,36 @@ export interface CurrentObservation {
   readonly ageMs: number;
 }
 
+/**
+ * What one batch turned out to be — **two lists, because this object applies
+ * two filters and they belong to different readers** (Task 3.8.7).
+ *
+ * Until this task `observe` returned one list and both readers took it. That
+ * was right for the gateway and wrong for the store, and the difference is
+ * which filter each reader is entitled to:
+ *
+ * - **The universe gate is everyone's.** A symbol outside the tracked universe
+ *   has no `securities` row, so the store could not write it if it tried.
+ *   Neither list carries one.
+ * - **The supersede rule is the live surface's alone.** Dropping a revision
+ *   for a minute already passed is a statement about what is *news about now*.
+ *   It is not a statement about what is *true*, and the store's subject is the
+ *   second one.
+ */
+export interface ObservedBatch {
+  /**
+   * What changed the current state — the gateway's list, unchanged in meaning
+   * since Task 3.5.2.
+   */
+  readonly applied: readonly LiveObservation[];
+
+  /**
+   * Every observation of a tracked security in the batch, **including the ones
+   * that are not news**. A superset of {@link applied}.
+   */
+  readonly tracked: readonly LiveObservation[];
+}
+
 export interface CurrentMarketState {
   /**
    * Apply a batch from the stream. The only writer.
@@ -83,12 +113,19 @@ export interface CurrentMarketState {
    * 3.5.2). Before that task, `market-gateway.ts` broadcast the raw batch
    * while this object quietly dropped a revision for a minute already passed —
    * two policies over one stream, which disagree the moment anything reads
-   * both. A caller that broadcasts the **return value** cannot send a browser
-   * something this object rejected.
+   * both. A caller that broadcasts `applied` cannot send a browser something
+   * this object rejected.
+   *
+   * **And since Task 3.8.7 it returns the other list too.** `applied` is what
+   * is news; `tracked` is what is true. See {@link ObservedBatch} for why the
+   * two filters have different owners — and note that the guarantee above is
+   * **narrowed rather than withdrawn**: the store and the browser still agree
+   * about the *latest* observation of every security, and now deliberately
+   * differ about *past* minutes, where the store is the one that is right.
+   * That is the product's own model: a live surface reports what is news, and
+   * the record is what was true.
    */
-  observe: (
-    observations: readonly LiveObservation[],
-  ) => readonly LiveObservation[];
+  observe: (observations: readonly LiveObservation[]) => ObservedBatch;
   /**
    * One security, or `undefined` for **nothing observed** — an ordinary
    * answer rather than an error, for property 1's reason.
@@ -134,7 +171,11 @@ export interface CurrentMarketStateOptions {
 export function createCurrentMarketState(
   options: CurrentMarketStateOptions = {},
 ): CurrentMarketState {
-  const { now = () => Date.now(), tracked = trackedSymbols() } = options;
+  // Destructured under a different name since Task 3.8.7: the option is the
+  // universe this object is ABOUT, and `tracked` is now also the name of the
+  // list `observe` returns. Two subjects, two words.
+  const { now = () => Date.now(), tracked: universe = trackedSymbols() } =
+    options;
 
   const latest = new Map<Ticker, LiveObservation>();
 
@@ -148,12 +189,18 @@ export function createCurrentMarketState(
   return {
     observe(observations) {
       const applied: LiveObservation[] = [];
+      const tracked: LiveObservation[] = [];
 
       for (const observation of observations) {
         // The `status` filter, and the only gate on the write path. A symbol
         // outside the tracked universe is not an error — Task 3.5.3 keeps the
         // subscribe frame honest, and this is the belt to that brace.
-        if (!tracked.has(observation.symbol)) continue;
+        if (!universe.has(observation.symbol)) continue;
+
+        // **Past this line the observation is true, whether or not it is
+        // news** (Task 3.8.7). The store takes this list; the gateway takes
+        // the narrower one below.
+        tracked.push(observation);
 
         const held = latest.get(observation.symbol);
 
@@ -183,7 +230,7 @@ export function createCurrentMarketState(
         applied.push(observation);
       }
 
-      return applied;
+      return { applied, tracked };
     },
 
     read(symbol) {

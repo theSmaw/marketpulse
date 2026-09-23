@@ -639,3 +639,122 @@ It is left because it is **unreachable from this product**: `max-age` applies
 only to the **absolute** window form, and the frontend constructs only
 `{ form: "named" }`. The absolute variant exists in the type and is built
 nowhere. **Reversal trigger: the first client that sends one.**
+
+## 11. Corrections — the revision the live path throws away (Task 3.8.7, 2026-09-23)
+
+**Story 3.5's close handed this story a defect only the store could fix, and
+stated the consequence in terms worth keeping:** a revision for a **superseded**
+minute is discarded by the live path entirely; §14.1 measured revisions at
+**0.064%** of bars with **35.3% of them changing the close**; so without a path
+to the store, _"this product's stored history is permanently and knowably wrong
+for a small fraction of bars — and nothing will ever report it."_
+
+### The seam: one batch, two lists, two owners
+
+`currentMarketState.observe` applies **two** filters and until this task
+returned **one** list that both the gateway and the writer took. The filters
+have different owners:
+
+- **The universe gate is everyone's.** A symbol outside the tracked universe
+  has no `securities` row, so the store could not write it if it tried.
+- **The supersede rule is the live surface's alone.** Dropping a revision for a
+  minute already passed is a statement about what is **news about now**. It is
+  not a statement about what is **true**, and the store's subject is the second
+  one.
+
+So `observe` now returns `ObservedBatch { applied, tracked }`. The gateway takes
+`applied`, unchanged in meaning since Task 3.5.2. The writer takes `tracked` —
+every observation of a tracked security, including the ones that are not news.
+
+**What that costs is a guarantee narrowed rather than withdrawn.** Task 3.5.2's
+rule was that broadcasting the return value makes the store and every browser
+agree _by construction_. They still agree about the **latest observation** of
+each security — `applied` is still the only thing broadcast — and they now
+deliberately differ about **past** minutes, where the store is right. That is
+the product's own model rather than a compromise: a live surface reports what is
+news, and the record reports what was true.
+
+`index.ts` is the process and no runner instruments a spawned child, so this
+wiring sits at 0% coverage by construction. It is held by a grep —
+`the-store-takes-what-is-true-not-what-is-news`, which asserts **both** halves,
+and `pnpm break the-store-is-told-only-what-is-news` proves the red.
+
+### The defect this found rather than the one it was sent for
+
+**One batch is one socket message.** `observationsIn` flat-maps every
+observation frame in a message into a single `onObservations` call, so a bar and
+its revision for the same minute can arrive **together**. That pair reached
+`toBarSeries` as two bars stamped alike, which throws, and the writer's
+per-security catch turned it into a refusal:
+
+```text
+warn: live bars refused by the store
+      Bars must be strictly ascending by startsAt, but bar 1 starts at …13:30:00.000Z
+recordSeries calls: []   inserted: 0
+```
+
+**The security lost the bar as well as the revision**, silently, to a `warn`
+line. Reproduced against the shipped writer before it was repaired.
+
+`seriesFor` now collapses a batch to one observation per instant, **last
+winning** — because within one batch that is what a revision _is_: the frames
+arrive in the order the vendor sent them, so a later frame for a minute already
+in the batch is the correction to it. It is the same rule the store applies
+across batches through `on conflict`, applied before the series is built,
+because `toBarSeries` will not hold two bars on one instant long enough for the
+store to decide.
+
+**Corrected the same day, and it is the third time this session the stated
+reachability was wider than the evidence.** The paragraph above said such a
+batch _can_ arrive. That is true of the **types** and is not supported by the
+**measurement**: `LIVE-DATA.md` §14.1 put revisions **29.1–30.1 s** after their
+bar and §9.5 put the vendor at **8.8 messages/min** at the open — so a revision
+is **four to five messages** behind its bar, and the recorded `b` and `u`
+fixtures are two separate messages. Nothing observed has ever carried the pair.
+
+So this is a **guard on a shape the types permit** rather than a repair of a
+defect anybody has met. It stays, because it costs one `Map` and the failure it
+prevents is silent and expensive — the security loses a real bar, not just a
+revision. But it is not evidence of a live fault, and the record should not read
+as though it were.
+
+### What the store does with a correction, asserted against a real one
+
+| behaviour                                                   | assertion                                      |
+| ----------------------------------------------------------- | ---------------------------------------------- |
+| a revision for a minute the live path moved past is applied | `corrected: 1`, `inserted: 0`, the close moves |
+| a revision that changes nothing moves no row                | `unchanged: 1`, `recorded_at` identical        |
+| a correction moves the numbers and never the tape           | the row keeps `iex`                            |
+
+`recorded_at` is the record that a correction **happened** — `0004` argued it
+rather than an `updated_at` — and that is only true while a revision changing
+nothing leaves it alone. The `is distinct from` clause on the writer's
+`on conflict` is what keeps the meaning; the second row above is what holds it.
+
+### The trap Task 3.8.4 left here, asserted rather than met
+
+Since that task a served minute is the **preferred** tape. Revisions arrive on
+the **live** tape. So a correction applied to a minute the backfill has already
+reconciled is written correctly, changes the stored row correctly, and is
+**invisible through `readSeries`** — the reader is being served the other row.
+
+That is the system behaving as designed, and it is a trap for a test: an
+assertion reading the revision back through `readSeries` fails on a reconciled
+minute and passes on an unreconciled one, which looks like flakiness and is not.
+The database suite asserts **both halves** — the consolidated close through
+`readSeries`, the corrected live close through `readBars` — and says which and
+why. The value of applying it anyway is Epic 13's: replay reads the tape that
+was observable, and that is the row being corrected.
+
+### The count is owed and cannot be taken yet
+
+The task asks for corrections to be **counted over a real session** against
+§14.1's **0.064%** — a figure this product has never taken from its own store.
+It cannot be taken now: 07:31 EDT on 2026-09-23, `before_open`, and the
+deployment holds the plan's one connection.
+
+It is **not a figure the store can answer either**, which is worth stating
+rather than leaving as an exercise: every row in the store is `sip` from the
+backfill, and the backfill does not correct. The count needs the **live** tape
+over a session. Written into the shared-sitting list in Task 3.4.10, beside the
+rehearsal item it overlaps exactly — _a real correction, both halves_.

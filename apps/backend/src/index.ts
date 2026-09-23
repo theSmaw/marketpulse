@@ -725,13 +725,30 @@ if (marketStream === undefined) {
     // Single-sourced **by construction rather than by agreement**: there is no
     // path from the socket to a browser that does not pass through the state.
     onObservations: (observations) => {
-      const applied = currentMarketState.observe(observations);
-      gateway.publishObservations(applied);
+      const observed = currentMarketState.observe(observations);
+      gateway.publishObservations(observed.applied);
 
-      // **And then the store — after the broadcast, never before it.** Story
-      // 3.8's writer: the same applied list a browser receives becomes rows in
-      // `market_bars`, so a page reloaded mid-session reads today from the
-      // store rather than rebuilding from the socket (`LIVE-SESSION.md`).
+      // **And then the store — after the broadcast, never before it, and from
+      // the OTHER list since Task 3.8.7.** Story 3.8's writer turns these into
+      // rows in `market_bars`, so a page reloaded mid-session reads today from
+      // the store rather than rebuilding from the socket (`LIVE-SESSION.md`).
+      //
+      // **`tracked` rather than `applied`, and the difference is one case.**
+      // A revision for a minute already passed is not news — the state drops
+      // it, correctly, because applying it would walk the latest observation
+      // backwards and every reader would watch the price jump. It is still
+      // **true**, and §14.1 measured 35.3% of revisions changing the close.
+      // The store is the only place it can land, and Story 3.5's close said
+      // that in as many words: without this, stored history is permanently
+      // and knowably wrong for a fraction of bars and nothing ever reports it.
+      //
+      // **What this costs is a guarantee narrowed rather than withdrawn.**
+      // The store and every browser still agree about the *latest* observation
+      // of each security — `applied` is still the only thing broadcast — and
+      // they now deliberately differ about *past* minutes, where the store is
+      // right. That is the product's own model rather than a compromise: a
+      // live surface reports what is news, and the record reports what was
+      // true.
       //
       // **`void` rather than `await`, and the rejection handled rather than
       // hoped away.** This callback belongs to the socket: awaiting a database
@@ -740,7 +757,7 @@ if (marketStream === undefined) {
       // liveness-probed platform. The writer catches per security already;
       // this is the second net, for the failure that is the pool rather than
       // the series.
-      void liveBarWriter.store(applied).then(
+      void liveBarWriter.store(observed.tracked).then(
         (report) => {
           if (report.inserted + report.corrected > 0) {
             app.log.debug(

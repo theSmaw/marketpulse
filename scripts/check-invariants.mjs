@@ -1133,6 +1133,50 @@ const INVARIANTS = [
   },
 
   {
+    id: "the-store-takes-what-is-true-not-what-is-news",
+    claim:
+      "`index.ts` hands the live bar writer the TRACKED list, not the applied one.",
+    check() {
+      // **The two lists have different owners, and one line decides which
+      // reader gets which** (Task 3.8.7). `currentMarketState.observe` drops a
+      // revision for a minute already passed — correctly, because applying it
+      // would walk the latest observation backwards and every reader would see
+      // the price jump. That is a statement about what is NEWS. It is not a
+      // statement about what is TRUE, and §14.1 measured 35.3% of revisions
+      // changing the close.
+      //
+      // Story 3.5's close put the consequence in terms worth repeating: if the
+      // store does not get them, this product's stored history is permanently
+      // and knowably wrong for a fraction of bars **and nothing will ever
+      // report it**, because the frame that would have corrected it was
+      // dropped a story earlier.
+      //
+      // A grep rather than a test because `index.ts` is the process: no runner
+      // instruments a spawned child, so this wiring is at 0% coverage by
+      // construction and the only mechanical guard is the text.
+      const path = resolve(REPO_ROOT, "apps/backend/src/index.ts");
+      const text = readAnchored(path);
+
+      if (!text.includes("liveBarWriter.store(observed.tracked)")) {
+        throw new InvariantFailure(
+          "index.ts does not hand the live bar writer `observed.tracked`. " +
+            "If it is handing it `observed.applied`, every revision for a " +
+            "minute the live path has already moved past is dropped on the " +
+            "floor and the store is quietly wrong for those bars.",
+        );
+      }
+
+      if (!text.includes("gateway.publishObservations(observed.applied)")) {
+        throw new InvariantFailure(
+          "index.ts does not broadcast `observed.applied`. A browser must " +
+            "never receive an observation the current market state rejected " +
+            "(Task 3.5.2).",
+        );
+      }
+    },
+  },
+
+  {
     id: "one-subscriber-on-the-upstream-socket",
     claim: "Shipped serving code subscribes to the market stream exactly once.",
     check() {
