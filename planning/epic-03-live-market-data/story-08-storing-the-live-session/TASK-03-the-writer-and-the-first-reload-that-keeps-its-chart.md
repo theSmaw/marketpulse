@@ -428,15 +428,63 @@ of 21, after two break entries were repaired — see below. `pnpm e2e` came back
 **141 passed, 1 failed**, and the failure was `security-window-change.spec.ts`
 at tablet and phone: _pressing a window does not move the chart_, off by 90 px.
 
-**It is `docs/GAPS.md`'s known entry, fired again**, and the entry's own
-re-measure settled it on the first attempt rather than the third: green against
-`marketpulse_bare`, red against a developer's store seven sessions stale, whose
-`1D` answers **0 bars** and `1M` answers **5,460** — so the readout strip is
-absent in one state and present in the other and the plot moves between them.
-Checkable from the diff as well: this task changed no frontend, shared or route
-file and nothing on the read path, only `recordSeries` and `writeBatch`. **A
-layout failure from a change that touches no layout is a data failure until
-proved otherwise.** The entry was amended with the date and that pairing.
+**It looked like `docs/GAPS.md`'s known stale-store entry, and for an hour it
+was recorded as one. That was wrong, and the correction is the useful part.**
+The entry's own re-measure ran clean — green on `marketpulse_bare`, red on a
+store seven sessions stale whose `1D` answers **0 bars** and `1M` answers
+**5,460** — and the diff pointed the same way, since this task had changed no
+frontend, shared or route file and nothing on the read path. Every one of those
+facts was true. The conclusion drawn from them was not: **the store was the
+trigger, not the defect.**
+
+`Figures` returned `null` in all four states with no readable series, so the
+whole block left the layout. `.reading` collapsed from **182 px to 92 px** at
+1024, and the chart, the window control and everything under them rose by
+**90 px** the moment an answer with bars replaced one without. That is a defect
+on any store — it is reachable by any reader who presses a window the security
+has no bars in — and **the control moving is the worse half of it**, because it
+is what the reader has just pressed and is likely to press again.
+
+Underneath it was a second one nobody had looked for. `.reading` is a wrapping
+flex row, so whether the price strip sits **beside** the close or **under** it
+was decided by how many glyphs were in today's price: 30 px of panel height at
+1024 between a three-digit close and a four-digit one. A layout that changes
+height because a stock crossed 100.
+
+**Both repaired here.** A reservation — the block laid out and hidden, which is
+`.rail`'s own idiom in this file since 2026-09-13, `visibility: hidden` and
+`aria-hidden` so ADR 0029 holds and a reader meets nothing rather than a
+figures block about zero bars. And an `8ch` column on `.close`, exact because
+the declaration above it already fixes every digit to one `ch`, so the wrap is
+a property of the viewport alone.
+
+Measured after, empty window against populated, at all four viewports:
+
+| width | figures, empty | figures, populated | control y |
+| ----- | -------------- | ------------------ | --------- |
+| 1440  | 52             | 52                 | 360 both  |
+| 1024  | 82             | 82                 | 450 both  |
+| 768   | 82             | 82                 | 546 both  |
+| 390   | 82             | 82                 | 649 both  |
+
+An exact reservation is possible rather than a generous one because the strip
+is **42 px at every width and never wraps**; if it ever does, the reservation
+has to hold the widest case instead, and that is written beside it.
+
+`pnpm e2e` then passed on **both** store shapes — 142 passed, 15 skipped, none
+failed, against the populated store and against `marketpulse_bare`.
+
+### One test race, exposed rather than caused
+
+`SecurityExplorer`'s _asks for every row it renders_ waited for the **table**
+and then read the pushed symbol list **once**. Those are two different moments:
+the table paints when the securities answer lands and the list is pushed from an
+effect after it. It passed for as long as the second reliably beat the
+assertion, which is a property of how loaded the machine is — and it failed the
+first time an unrelated file gained two tests, then passed again in isolation,
+which is what a race looks like from the outside. The assertion now polls the
+condition it is about, and that was checked against the exact loop that exposed
+it rather than assumed.
 
 ### Two breaks rotted on this change, and `every-break-can-still-land` is why anybody knows
 

@@ -82,6 +82,15 @@ and a wait longer than 160 ms is covered by a pulsing panel rather than left
 looking current. Every failure has an honest sentence and one `Try again` per
 screen.
 
+**And since 2026-09-23 nothing on it jumps when a window has no bars.** The
+figures block used to leave the layout in every state with no readable series,
+taking 90 px with it — so the chart, and the **window control the reader had
+just pressed**, moved the moment an answer with bars replaced one without. It
+now reserves its room, hidden, which is `.rail`'s idiom one row up; and
+`.close` reserves an `8ch` column, so whether the price strip sits beside the
+close or under it stopped depending on how many digits today's price has.
+`VOLUME-AND-WINDOW.md` §83.
+
 **And the screen says where its numbers came from.** One source note at the foot
 of the region group — not one per region — states the adjustment, when the bars
 were retrieved, and that sector and industry are **curated** rather than market
