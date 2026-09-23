@@ -252,6 +252,34 @@ describe("compareStoreToCalendar — cause 2, the security did not trade", () =>
     expect(report.findings[0]?.kind).toBe("over-full");
     expect(report.findings.every(needsAttention)).toBe(true);
   });
+
+  // **The band a second tape occupies, and it must stay quiet** (Task 3.8.9).
+  //
+  // `bar_count` counts ROWS, and since ADR 0035 a minute may hold one per
+  // tape — the live `iex` row and the consolidated `sip` one. A fully
+  // reconciled session therefore holds up to two rows a minute, measured in
+  // that task's rehearsal at 430 over a 390-minute session. Reporting it would
+  // put a red line under every security on exactly the night this tool's
+  // output matters most.
+  //
+  // The test above is what makes this safe to give up: the defect this check
+  // was written for is a measured **2.35×**, which is still over the line.
+  it("says nothing about a session reconciled from two tapes", () => {
+    const report = compare([
+      {
+        symbol: NVDA,
+        timeframe: "1m",
+        // Every minute held twice — the most a reconciliation can produce.
+        coverage: coverageOver(NVDA, WEEK, completeBars(WEEK) * 2),
+        attempts: [],
+        lastBarAt: openOf(WEEK, 4),
+      },
+    ]);
+
+    expect(report.findings.filter((one) => one.kind === "over-full")).toEqual(
+      [],
+    );
+  });
 });
 
 describe("compareStoreToCalendar — cause 3, the fetch failed", () => {

@@ -7,7 +7,10 @@ import { expect, test } from "@playwright/test";
 import type { Page, WebSocketRoute } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
-import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
+import {
+  MARKET_DATA_ROUTE_PATTERN,
+  SECURITIES_ROUTE_PATTERN,
+} from "../support/pair.js";
 
 /** When the gateway sent the frame (Task 3.6.4). Any instant; only its presence is load-bearing here. */
 const SENT_AT = "2026-09-16T14:02:00.512Z";
@@ -361,11 +364,28 @@ test("a page fed only by the store marks nothing, on the block or in the table",
   // It asserts across the WHOLE page rather than the block, because since Task
   // 3.6.1 the universe table's rows carry the same `[data-arrival]` handle,
   // `composes:`d from the same rule — 518 more places this could fire.
-  await page.goto(EXPLORER, { waitUntil: "networkidle" });
+  // **Waits for the universe ANSWER, not for the table to paint.** The first
+  // draft asserted `getByRole("table")` straight after the navigation and
+  // failed in a full suite run while passing alone: the table is 518 rows
+  // behind a 190 kB response, and on a loaded machine that is longer than an
+  // assertion's default patience. Waiting on the response makes the wait about
+  // the thing that is actually slow, rather than widening a timeout until the
+  // flake stops — the same distinction `docs/GAPS.md`'s stale-store entry
+  // draws about believing a browser failure.
+  const universeAnswered = () =>
+    page.waitForResponse((response) =>
+      SECURITIES_ROUTE_PATTERN(new URL(response.url())),
+    );
+
+  const first = universeAnswered();
+  await page.goto(EXPLORER);
+  await first;
   await expect(page.getByRole("table")).toBeVisible();
   await expect(page.locator("[data-arrival]")).toHaveCount(0);
 
-  await page.reload({ waitUntil: "networkidle" });
+  const second = universeAnswered();
+  await page.reload();
+  await second;
   await expect(page.getByRole("table")).toBeVisible();
   await expect(page.locator("[data-arrival]")).toHaveCount(0);
 

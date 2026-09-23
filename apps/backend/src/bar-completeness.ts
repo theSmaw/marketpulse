@@ -106,6 +106,20 @@ export function expectedBars(
 export const STALE_SESSION_THRESHOLD = 5;
 
 /** What one series' store looks like, taken as a parameter. */
+/**
+ * How many rows one minute may legitimately hold (Task 3.8.9).
+ *
+ * **Two, because a minute may carry one row per tape** and this product writes
+ * two: the live `iex` one as the session happens and the consolidated `sip` one
+ * the nightly backfill fetches (ADR 0035, `0011_market_bars_unique_bar_by_tape.sql`).
+ *
+ * It is a count of **tapes that write**, not of `MARKET_FEEDS` — `synthetic`
+ * and `replay` never reach a deployed store. If a third writing tape ever
+ * arrives this number moves with it, and the `over-full` finding below is the
+ * only thing that reads it.
+ */
+const MAX_ROWS_PER_MINUTE = 2;
+
 export interface SeriesStore {
   readonly symbol: Ticker;
   readonly timeframe: Timeframe;
@@ -400,7 +414,24 @@ export function compareStoreToCalendar(
       });
     }
 
-    if (coverage.barCount > barsExpected) {
+    // **A minute may hold a row per tape since ADR 0035, so the threshold is
+    // no longer one row a minute** (Task 3.8.9).
+    //
+    // `bar_coverage.bar_count` counts **rows**. Until Story 3.8 one writer
+    // filled this table and a row was a minute, so `> barsExpected` was an
+    // unambiguous invariant violation. A reconciled session now legitimately
+    // holds the live tape's row and the consolidated one's for the same
+    // minute — measured in Task 3.8.9's rehearsal at 430 rows over a 390-minute
+    // session — and reporting that as a fault would put a red line under every
+    // security on exactly the night the tool's output matters most.
+    //
+    // **The check keeps its original catch, which is why this threshold and
+    // not a withdrawal.** What it was written for is `ALPACA.md`'s measured
+    // **2.35×** — a span-shaped request collecting pre- and post-market prints
+    // — and 2.35 is greater than {@link MAX_ROWS_PER_MINUTE}, so that defect
+    // still trips this line. What is given up is the band between one and two
+    // rows a minute, which is precisely the band a second tape occupies.
+    if (coverage.barCount > barsExpected * MAX_ROWS_PER_MINUTE) {
       findings.push({
         kind: "over-full",
         symbol,
