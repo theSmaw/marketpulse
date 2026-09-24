@@ -379,6 +379,26 @@ export function ChartReading({
        * region changes when a request lands, which is a moment this one is
        * silent in, and the reverse.
        *
+       * **AMENDED 2026-09-24 by Task 3.9.6 — the sentence above is about KEY
+       * PRESSES, and since Task 3.9.2 this region can change with no key
+       * pressed at all.** The chart extends on its own once a minute. Measured
+       * in a browser, the two cases are not the same:
+       *
+       *  - **A new bar arriving changes nothing here.** The reading holds the
+       *    instant it was set for, so the sentence it speaks is the same
+       *    sentence and no announcement is made. Asserted in
+       *    `security-live-edge.spec.ts`.
+       *  - **A revision of the bar under the crosshair DOES change it**, and a
+       *    listener is announced to unprompted. That is 0.064% of bars with
+       *    35.3% of those moving the close (`LIVE-DATA.md` §7.8), and it is
+       *    arguably the one case where speaking is right: the number being
+       *    read has just changed underneath the reader.
+       *
+       * **What is not known is what a listener actually gets** — whether an
+       * unprompted polite update queues behind a sentence in progress or
+       * replaces it, which is readable from neither the DOM nor a timing.
+       * `docs/GAPS.md` carries it, with the listening pass that owns it.
+       *
        * Persistent, never unmounted, `role="status"` and never `alert`, and
        * silent on arrival.
        */}
