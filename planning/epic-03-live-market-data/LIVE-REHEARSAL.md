@@ -133,6 +133,39 @@ shadowed by the consolidated bar. It is one query on the deployed store —
 
 > = <session> group by feed` — and it belongs with this row.
 
+**The instrument for the next sitting is written and smoke-tested —
+`scripts/session-watch.mjs`, 2026-09-24.** It takes five of Task 3.4.10's eight
+combined items unattended, from the deployed site:
+
+```sh
+node scripts/session-watch.mjs 1200 --browser --every 15
+```
+
+It watches **our gateway**, not Alpaca — a second browser client, subscribed to
+the whole universe because the correction rate is the point (§14.1's 0.064%
+over ten symbols would be one or two bars, which is not a measurement). It
+records every frame it keeps **verbatim**, counts corrections and their close
+changes, flags extended-hours bars and any instant outside a trading day, polls
+`sessions=1` **and** `sessions=5` for `provenance.sources`, and does the reload
+comparison mid-run. Output is `.capture/session/`, which is gitignored.
+
+**What it cannot take, stated rather than implied**: `pnpm probe` (run it
+yourself, against the deployed pair, so the output is comparable to the last
+one); the store query above; whether a person found it pleasant; and **late
+corrections** — since Task 3.8.7 the gateway publishes what the current state
+**applied**, which drops a revision for a minute already passed, so the count is
+a **floor** and the gap between it and the vendor's own figure is the late ones.
+
+Two things the smoke test found before the night rather than during it, both now
+in the instrument: the identity block reads **`LAST SESSION CLOSE`** rather than
+`LATEST PRICE` when no live figure exists — so _which label is showing_ is
+itself the evidence, and the browser suite's selector never meets the other one,
+because CI's store has no bars. And the source note renders **no feed clause at
+all** right now: `namesFeeds` returns false when the series' one feed is the
+configured one, which with every bar `sip` and the chrome reading `All US
+exchanges` is every time. Two feeds short-circuit that check, so **the clause
+appearing at all is the signal.**
+
 ### Notes on the 2026-09-22 sitting
 
 **1. Who watched, and through what.** The three rows were watched by
