@@ -173,16 +173,37 @@ four minutes a surface; those thresholds have unit tests that own them.
 
 ### The grid, every cell filled by rendering
 
-| Surface                        | `live`              | `stale`                      | `disconnected`                      | market shut   | security quiet                 |
-| ------------------------------ | ------------------- | ---------------------------- | ----------------------------------- | ------------- | ------------------------------ |
-| **The chrome's feed cell**     | `LIVE`              | `STALE` + sentence + instant | `DISCONNECTED` + sentence + instant | `LIVE`        | `LIVE` ✅                      |
-| **The identity block's price** | figure + instant    | **identical**                | **identical**                       | **identical** | **identical, instant 3 h old** |
-| **The universe table's rows**  | figure              | **identical**                | **identical**                       | **identical** | **identical**                  |
-| **The chart's edge**           | sentence + count    | **identical**                | **identical**                       | **identical** | **identical**                  |
-| **The source note**            | `All US exchanges…` | **identical**                | **identical**                       | **identical** | **identical**                  |
-| **The volume strip**           | peak + instant      | **identical**                | **identical**                       | **identical** | **identical**                  |
+| Surface                        | `live`              | `stale`                      | `disconnected`                      | market shut   | security quiet                                                  |
+| ------------------------------ | ------------------- | ---------------------------- | ----------------------------------- | ------------- | --------------------------------------------------------------- |
+| **The chrome's feed cell**     | `LIVE`              | `STALE` + sentence + instant | `DISCONNECTED` + sentence + instant | `LIVE`        | `LIVE` ✅                                                       |
+| **The identity block's price** | figure + instant    | same shape                   | same shape                          | same shape    | same shape, **instant 3 h old — which is the whole difference** |
+| **The universe table's rows**  | figure              | **identical**                | **identical**                       | **identical** | **identical**                                                   |
+| **The chart's edge**           | sentence + count    | **identical**                | **identical**                       | **identical** | **identical**                                                   |
+| **The source note**            | `All US exchanges…` | **identical**                | **identical**                       | **identical** | **identical**                                                   |
+| **The volume strip**           | peak + instant      | **identical**                | **identical**                       | **identical** | **identical**                                                   |
 
-**One surface of six changes. The other five are unaware a feed exists.**
+**One surface of six changes with the CONNECTION. The other five are unaware a
+feed exists** — but see the correction below, because _unaware of the
+connection_ and _unable to tell an old price from a fresh one_ are two claims
+and only the first is true of all five.
+
+> **Corrected 2026-09-24 by Task 3.10.3, which went and rendered the identity
+> block properly.** This grid's `identical` meant _the same shape_, and the
+> summary drawn from it — repeated in the stakeholder report below and on the
+> canvas — slid into the stronger claim that _a price that arrived three hours
+> ago looks identical to one that arrived five seconds ago_. **That is true of
+> the table and false of the identity block**, which has carried the bar's own
+> instant since Task 3.4.2 and asserts it:
+>
+> ```text
+> fresh            Latest price 219.50 ▼ −4.71%  Sep 16 · 14:01 EDT · change from …
+> three hours old  Latest price 219.50 ▼ −4.71%  Sep 16 · 11:01 EDT · change from …
+> no live price    Last session close 230.36 ▲ +0.84%  2026-09-04 · change from …
+> ```
+>
+> Three renderings, three readings. The defect is the **table's**, which is
+> exactly where Task 3.6.2 located it — and generalising it to _every_ surface
+> below the chrome was this audit reading its own shorthand back as a finding.
 
 ### Finding 1 — §36's sentence already ships, which is most of Task 3.10.2
 
@@ -403,10 +424,16 @@ source note and the volume readout say **precisely the same thing** whether the
 feed is healthy, stalled, or dead for three hours. They are not wrong — they are
 simply unaware.
 
-The sharpest example: **a price that arrived three hours ago looks identical to
-one that arrived five seconds ago.** Meanwhile a price from _yesterday_ is
-correctly labelled with its date. We are more careful about the day-old number
-than the three-hour-old one, which is exactly backwards.
+The sharpest example is **in the 518-row table**: a price that arrived three
+hours ago looks identical to one that arrived five seconds ago. Meanwhile a
+price from _yesterday_ is correctly labelled with its date. We are more careful
+about the day-old number than the three-hour-old one, which is exactly
+backwards.
+
+_(An earlier version of this report said that of the whole screen. It is true
+of the table and **not** of the big price at the top of a security page, which
+has shown the exact minute its figure came from since Story 3.4 — checked by
+rendering it on 2026-09-24. The correction is Task 3.10.3's.)_
 
 ### The four decisions you made, and why they matter
 

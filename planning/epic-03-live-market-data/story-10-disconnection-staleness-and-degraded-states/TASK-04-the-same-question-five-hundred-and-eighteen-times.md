@@ -67,3 +67,52 @@ than reasoning about it.
 1. States 1 and 4 do not read identically, asserted
 2. The per-tick cost is re-measured and the trigger's verdict is written down
 3. `pnpm verify` and `pnpm e2e` pass
+
+---
+
+## Amended by Task 3.10.3 — 2026-09-24: the defect is yours ALONE, and the identity block is the worked example
+
+**Task 3.10.1's audit reported that every surface below the chrome could not
+tell an hours-old price from a fresh one. That was its own shorthand read back
+as a finding, and Task 3.10.3 corrected it by rendering the identity block.**
+
+The identity block has carried the bar's own instant since Task 3.4.2:
+
+```text
+fresh            Latest price 219.50 ▼ −4.71%  Sep 16 · 14:01 EDT · change from …
+three hours old  Latest price 219.50 ▼ −4.71%  Sep 16 · 11:01 EDT · change from …
+no live price    Last session close 230.36 ▲ +0.84%  2026-09-04 · change from …
+```
+
+**Three renderings, three readings**, now held as a set by
+`SecurityIdentity.test.tsx`'s _reads differently in all three states_.
+
+**So this table is the only surface where state 4 is real**, which is exactly
+where Task 3.6.2 located it and declined to repair it. Nothing has moved except
+that the claim is now checked rather than asserted.
+
+### What the identity block did, said plainly, because it is the design you are scaling
+
+- **It dates the figure.** `Sep 16 · 14:01 EDT` — the **bar's own instant**,
+  not a relative age and not a threshold verdict.
+- **The label moves for a different KIND of number.** `Latest price` against
+  `Last session close`, because a minute bar's close and a session's close are
+  different things measured at different times. The qualifier's _format_ moves
+  with it — a full instant against a bare session date.
+- **No status word, at any age.** Held across three ages by _does not grow a
+  status word as it ages_, because §11.2's ordinary maximum gap is 187 minutes.
+- **The change figure survives.** Decision 3, asserted.
+
+### The one thing that does NOT carry over, and it is the whole of your difficulty
+
+**The identity block shows one figure and you show 518.** It can afford a full
+instant — `Sep 16 · 14:01 EDT` is 17 characters in a block with a column to
+itself. A per-row instant at universe scale is the thing Epic 14's trigger is
+written against by name: _the first time a second surface on this page renders
+per-row markup at universe scale_.
+
+**The cheap version is the asymmetry rather than the instant.** State 2 already
+carries a **session date** and state 4 carries nothing. Giving state 4 the
+treatment state 2 already has costs no new element type and no new column — and
+it is the same decision the identity block took, at the grain this surface can
+afford.
