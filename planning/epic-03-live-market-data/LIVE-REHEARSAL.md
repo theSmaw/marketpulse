@@ -199,6 +199,13 @@ on the deployed site with the market open, `pnpm probe` at four viewports in
 that state, and the two-feed source note photographed **before that night's
 backfill**, which is the one item on the combined list that expires.
 
+**And one item added 2026-09-24 by Task 3.10.6, which costs nothing and is
+owed to three rows at once.** Read the **venue word in the chrome** during the
+sitting: it should say `IEX` with its one-venue sentence, not
+`ALL US EXCHANGES`. Note 3 is the defect three rows recorded and this task
+repaired; the cell is on every route the sitting already opens, and a check
+cannot read a deployed chrome.
+
 ### Notes on the 2026-09-22 sitting
 
 **1. Who watched, and through what.** The three rows were watched by
@@ -251,6 +258,19 @@ added by the story it names, not retrospectively); the finding is handed to
 Story 3.10, which owns what the cell says during a session, with Story 3.9
 named beside it because the source note's two-feed sentence is the other half
 of the same answer.
+
+> **Amended 2026-09-24 by Task 3.10.6 — repaired in code, and the sighting is
+> now owed rather than the defect.** The venue names **the tape the newest
+> numbers on the page came from**, so a live IEX price puts `IEX` and its
+> one-venue sentence in the chrome, and it keeps naming the live tape through
+> `STALE` and `DISCONNECTED` because the numbers on screen are still the
+> socket's. An **exhaustive** pairing check replaced the one this note names —
+> every (live, configured) pair, with
+> `pnpm break the-chrome-inherits-epic-2s-word-again` behind it. **What no
+> check can do is read the deployed chrome during a session**, which is what
+> this note recorded in the first place: the next sitting confirms
+> `MARKET FEED ● IEX ● … ● LIVE` on the deployed site with the market open.
+> It is on the combined one-sitting list above.
 
 **4. What this sitting did not return, in one place.** The extended-hours
 qualifier (needs the market shut); a real correction (needs an instrument that

@@ -848,6 +848,17 @@ arrival mark on the block. **What was wrong on the surface: nothing.** What was
 wrong beneath it is the chrome's venue word (ledger note 3), 3.3's and now
 Story 3.10's.
 
+> **Amended 2026-09-24 after Task 3.10.6 — the defect is repaired and a
+> SIGHTING takes its place on this story's own sitting.** The chrome now names
+> the tape the newest numbers came from, so the deployed cell should read
+> `MARKET FEED ● IEX ● … ● LIVE` during a session rather than
+> `ALL US EXCHANGES`. **This story's rehearsal is the same sitting**, so the
+> item is added to the list above rather than left to Story 3.10's: _look at
+> the chrome as well as the block, and read the venue_. It costs nothing — the
+> cell is on every route this sitting already opens — and it is the only way
+> the repair gets seen where the defect was found. No task in this story
+> changes; the three owed items are unchanged and this is a fourth.
+
 **Criterion 8 therefore reads: probed (met) and a headless watch looked with
 the market open (taken, with the word _person_ left to the owner).** The story
 does not mark itself closed on that; the three items above stay owed, and the
