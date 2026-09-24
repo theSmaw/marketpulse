@@ -121,6 +121,7 @@ const {
   marketSessionOn,
   marketSessionStateAt,
   marketWallClockAt,
+  nextMarketSession,
 } = await import(resolve(REPO_ROOT, "packages/shared/dist/index.js"));
 
 const BACKEND =
@@ -165,7 +166,26 @@ const OUT = resolve(REPO_ROOT, ".capture/session");
 mkdirSync(OUT, { recursive: true });
 
 const startedAt = new Date();
-const LOG = resolve(OUT, `session-${marketDateAt(startedAt)}.jsonl`);
+
+/**
+ * The session this run is ABOUT, which is not always the date it starts on.
+ *
+ * A sitting is started the evening before as often as the morning of — this one
+ * was started at 20:37 ET on the 23rd for the session that opens on the 24th —
+ * and a file named after the wall-clock date would put a whole session's
+ * evidence under the previous day's name. `marketSessionStateAt` says which
+ * side of the bell we are on; after the close (or on a day the calendar has
+ * shut) the run is about the **next** session.
+ */
+const aboutSession = (() => {
+  const here = marketDateAt(startedAt);
+  const state = marketSessionStateAt(startedAt);
+  return state.status === "after_close" || state.status === "closed"
+    ? nextMarketSession(here).date
+    : here;
+})();
+
+const LOG = resolve(OUT, `session-${aboutSession}.jsonl`);
 
 const record = (row) => {
   appendFileSync(
@@ -727,6 +747,7 @@ record({
   startedAt: startedAt.toISOString(),
   et: et(startedAt),
   marketDate: marketDateAt(startedAt),
+  aboutSession,
   sessionState: state,
   symbols: symbols.length,
   runForMinutes: RUN_FOR_MS / 60_000,
