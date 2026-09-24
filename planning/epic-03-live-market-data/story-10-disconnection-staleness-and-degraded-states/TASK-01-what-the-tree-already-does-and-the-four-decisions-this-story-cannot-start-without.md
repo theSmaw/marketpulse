@@ -224,7 +224,7 @@ security on a busy feed keeps the chrome at `LIVE` — correct, and the thing th
 story most feared. What it does **not** do is anything about that security's own
 three-hour-old figure, which is decision 1's subject.
 
-### Finding 3 — the contradiction pair is still reachable, in a new spelling
+### Finding 3 — WITHDRAWN 2026-09-24, and the withdrawal is the finding
 
 The dev deployment reads:
 
@@ -232,12 +232,33 @@ The dev deployment reads:
 MARKET FEED   NOT CONFIGURED   No market-data provider is configured.   LIVE
 ```
 
-**Two true halves and one contradiction**, which is Task 3.4.9's defect
-exactly — it repaired the `REPLAYING` spelling and `market-feed-grid.test.ts`
-walks the **selections**, so a socket reporting `LIVE` into a deployment with no
-provider configured is a combination the grid does not contain. It is
-unreachable in production (a configured deployment has a venue word) and
-reachable here. **Recorded for Task 3.10.6**, which owns the cell.
+**This was reported as Task 3.4.9's contradiction pair in a new spelling and
+handed to Task 3.10.6 as work. It is wrong**: an artefact of this instrument,
+not a state the product can reach.
+
+**Why it is not reachable.** `createMarketStream` answers `undefined` for a
+`none` selection (`market-stream.ts`, `case "none": return undefined`), so a
+deployment with no provider **constructs no stream** and can therefore say **no
+connection word at all** — which is what `CLAUDE.md` already records as the
+grid's `—`. The `LIVE` in that line came from **this instrument sending a
+`feed` frame that the real gateway in such a deployment never sends.**
+
+**So Task 3.4.9's check is vindicated rather than undermined.**
+`apps/backend/src/routes/market-feed-grid.test.ts` asserts exactly the rule
+that closes this — _a deployment that constructs a stream also reports a feed_
+— and it holds, six tests green. An independent attempt to reach the
+contradiction failed, and the only way to produce it was to lie to the browser.
+
+**The lesson is the instrument's, and it is the second one it taught.** A stub
+that can send any frame can manufacture states the server cannot, and those
+look exactly like findings. The first version conflated a quiet security with a
+quiet feed; this one invented a combination the wire forbids. **A produced
+state is only evidence when the producer is constrained to what the server
+would actually send** — a real constraint on Task 3.10.2's harness, written
+into that task rather than left here.
+
+**Nothing is handed to Task 3.10.6 from this finding.** Its venue-word work
+stands on decision 4 alone.
 
 ### The three cells that were to be confirmed rather than discovered
 
@@ -323,8 +344,9 @@ Confirmed rather than repeated.
   **harness and the assertions**, not the wording.
 - **3.10.3 and 3.10.4** have their decision: **date the old figure**, no
   threshold.
-- **3.10.6** has its rule to write into `market-feed-grid.test.ts`, and a second
-  contradiction spelling to cover.
+- **3.10.6** has its rule to write into
+  `apps/backend/src/routes/market-feed-grid.test.ts` — and **no** second
+  contradiction spelling, Finding 3 having been withdrawn.
 - **3.10.7** has its policy: the current session, once, on reconnect, up to the
   embargo.
 
@@ -418,12 +440,27 @@ deleted a planned task outright, discovered a feature had already shipped, and
 met a criterion nobody had checked. This time it found the headline message
 already on screen and two criteria already satisfied.
 
-**And one small thing worth telling you because it is the reason to trust the
-rest.** Our measuring tool was wrong on its first run: it modelled "a quiet
-share" as "nothing arrived at all", which is a _broken feed_, not a quiet share
-— and it duly reported a problem that wasn't there. We caught it, fixed it, and
-wrote down the mistake, because confusing those two things is precisely the
-error this whole story exists to prevent the product from making.
+**And two small things worth telling you, because they are the reason to trust
+the rest.** Our measuring tool was wrong **twice**, and both times it invented a
+problem rather than hiding one.
+
+First it modelled "a quiet share" as "nothing arrived at all" — which is a
+_broken feed_, not a quiet share — and duly reported a fault that wasn't there.
+Confusing those two is precisely the error this whole story exists to stop the
+product making.
+
+Then it reported a second fault: the status strip appearing to say _no data
+provider is configured_ and _live_ at the same time. **We withdrew that one the
+same day.** The tool had sent the app a message our own server would never
+send; the real product cannot get into that state, and an existing automated
+check already guarantees it. So the "defect" was our measuring apparatus lying
+to the app.
+
+We are telling you because the correction is the useful part: **a test tool
+that can fabricate any situation will eventually fabricate an impossible one,
+and impossible situations look exactly like discoveries.** The next piece of
+work now carries a written rule that the tool must be limited to what the real
+server could actually say.
 
 ### Where the product stands
 
