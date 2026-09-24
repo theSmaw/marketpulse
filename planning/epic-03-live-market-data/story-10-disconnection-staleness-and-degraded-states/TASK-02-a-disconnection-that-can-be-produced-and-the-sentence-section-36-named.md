@@ -37,6 +37,21 @@ carries the instant in the product's own bar-instant format.
 **Do not rewrite the sentence.** It is correct, it is shipped, and it is the one
 thing in this story a stakeholder has already been promised.
 
+### And one constraint on the harness, which Task 3.10.1 learned by breaking it
+
+**A stub that can send any frame can manufacture states the server cannot, and
+those look exactly like findings.** Task 3.10.1's throwaway did it twice: it
+modelled a quiet **security** as a silent **connection**, and it produced a
+`LIVE` connection word inside a deployment with **no provider configured** — a
+combination `createMarketStream` forbids, because a `none` selection constructs
+no stream at all. The second was written up as a defect and withdrawn.
+
+**So this harness must be constrained to what the gateway would actually
+send**, rather than to what the wire format permits. Concretely: derive the
+`feed` frame from the same selection the backend was built with, so a state a
+real deployment cannot reach is a state the harness cannot reach either. A
+harness that can lie is a harness whose green runs mean less than they look.
+
 ## Objective
 
 Two things that belong together because neither is worth much alone:

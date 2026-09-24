@@ -346,3 +346,43 @@ this one.
 
 **What is left in this story:** the rehearsal against the real market, the
 upward sweep, and the close.
+
+---
+
+## Confirmed from outside — 2026-09-24 by Task 3.10.1: somebody tried to reach the pair again and could not
+
+**This is the kind of evidence a check almost never gets**, so it is recorded
+here rather than only in the task that produced it.
+
+Story 3.10's opening audit drove the real application through five degraded
+states and read out every surface. It reported, as a finding, that the
+contradiction pair was reachable in a **new spelling**:
+
+```text
+MARKET FEED   NOT CONFIGURED   No market-data provider is configured.   LIVE
+```
+
+**That finding was withdrawn the same day.** `createMarketStream` answers
+`undefined` for a `none` selection, so a deployment with no provider
+**constructs no stream** and can say **no connection word at all**. The `LIVE`
+came from the audit's own stub sending a `feed` frame the real gateway in such a
+deployment never sends.
+
+**So the rule this task shipped is the one that closes it**, and it closes it at
+the source rather than at a rendering:
+
+> a deployment that constructs a stream also reports a feed
+
+`apps/backend/src/routes/market-feed-grid.test.ts`, six tests, green. **An
+independent attempt to produce the defect failed, and the only way to produce
+it was to lie to the browser.** A check that has gone red on purpose
+(`pnpm break a-stream-without-a-feed-word`) and has now also survived somebody
+trying to get round it is about as well-tested as a check in this repository
+gets.
+
+**One pointer sharpened while confirming it.** This file names the test as
+`market-feed-grid.test.ts` with no path, and the audit spent a detour looking
+for it under `apps/frontend`. It is a **backend route test**:
+`apps/backend/src/routes/market-feed-grid.test.ts`. The full path is given here
+because `CLAUDE.md`'s own rule is that a prose pointer rots silently, and this
+one was one directory away from doing so.
