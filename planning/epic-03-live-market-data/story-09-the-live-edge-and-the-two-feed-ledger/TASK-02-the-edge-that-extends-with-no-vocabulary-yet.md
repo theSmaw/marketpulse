@@ -1,6 +1,6 @@
 # Task 3.9.2 — The edge that extends, with no vocabulary yet
 
-**Status:** **Complete — 2026-09-24.** The chart extends while you watch it, and the newest bar is drawn exactly like every bar behind it. One join, **four readers** — the price plot, the volume plot, the shared axis and the panel's figures — because `BarSeriesScreen`'s own rule is that they all read `shown` from one place. The React Compiler refused the first draft and was right for the third time running: the effect it rejected rendered the chart one frame behind the price beside it, and the render-phase shape it points at has no such lag.
+**Status:** **Complete — 2026-09-24.** The chart extends while you watch it, and the newest bar is drawn exactly like every bar behind it. One join, **four readers** — the price plot, the volume plot, the shared axis and the panel's figures — because `BarSeriesScreen`'s own rule is that they all read `shown` from one place. The React Compiler refused the first draft and was right again: the effect it rejected rendered the chart one frame behind the price beside it, and the render-phase shape it points at has no such lag.
 **Story:** [3.9 The Live Edge on the Chart & the Two-Feed Ledger](STORY.md)
 **Depends on:** 3.9.1
 
@@ -150,8 +150,18 @@ keeps its measurement and its trigger evaluation and loses its wiring.
 
 `set-state-in-effect` rejected the accumulation-in-an-effect version. This
 repository's record says to treat a firing as a design note rather than a rule
-to route around, and that both previous firings produced **simpler** code than
-they replaced. Third time:
+to route around, and that the firings it records produced **simpler** code than
+they replaced.
+
+> **A count in the first draft of this record was wrong and is corrected the
+> same day.** It called this _the third time_, read off `CLAUDE.md`'s sentence
+> that the rules _first fired on 2026-09-11 … both catches were correct_ — which
+> is about that **first occasion**, not a running total. Grepped: the rules are
+> recorded as having fired in at least five places — `SecuritySearch` (two),
+> `use-live-feed.ts`, `chart-reading-context.ts` and `use-pending-panel.ts`. So
+> this is not the third time and the number is not the point; what the record
+> actually claims, and what holds here, is that the repair was **better than
+> what it replaced**.
 
 > Calling setState synchronously within an effect body causes cascading
 > renders.

@@ -4,6 +4,7 @@
 **Amended:** 2026-09-21 after Task 3.4.7 — there is now an instrument that makes a price **arrive** inside a browser, which is what every figure here needed and nothing had.
 **Amended:** 2026-09-21 after Task 3.4.6 — the identity block now has **two heights** at 390 and only one has been photographed.
 **Amended:** 2026-09-21 after Task 3.4.4 — the layout figure is already taken and only needs a production re-take; the mark's firing RATE is a new measurement, because the reversal trigger's second clause is a number.
+**Amended:** 2026-09-24 by Story 3.9's sweep — **the page these figures were taken on has gained two things since, and neither is this story's.** The zero-long-task figure below is still the right answer to the question it was asked (_attributable to this story_, on 2026-09-21) and it is **no longer re-takeable as written**: since Task 3.6.1 the universe table under the block re-renders every row once a minute, and since Task 3.9.2 the price and volume plots redraw on the same burst. A re-take on `/securities/:symbol` today measures three things where this measured one. Recorded because `CLAUDE.md`'s own trap is that _a figure that has moved looks exactly like a figure that was mis-recorded_ — the live successor is **Task 3.9.9**, which owns §28's _routine_ line for a chart that extends.
 **Story:** [3.4 The Motion Vocabulary & the First Price That Moves](STORY.md)
 **Depends on:** 3.4.7
 
