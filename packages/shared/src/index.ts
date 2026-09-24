@@ -27,6 +27,7 @@ export type { FeedStatus } from "./feed-status.js";
 // argument, applied a fourth time.
 export {
   CONNECTION_DESCRIPTIONS,
+  CONNECTION_SENTENCES_WITHOUT_DATA,
   CONNECTION_STATUSES,
   NOT_CONFIGURED_DESCRIPTION,
   REPLAYING_DESCRIPTION,

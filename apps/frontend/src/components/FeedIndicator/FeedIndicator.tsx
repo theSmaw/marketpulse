@@ -1,5 +1,8 @@
 import type { FeedStatus } from "@marketpulse/shared";
-import { connectionWordFor } from "@marketpulse/shared";
+import {
+  CONNECTION_SENTENCES_WITHOUT_DATA,
+  connectionWordFor,
+} from "@marketpulse/shared";
 
 import { formatBarInstant } from "../../market/index.js";
 import type { LiveFeedView } from "../../market/index.js";
@@ -105,15 +108,27 @@ export function FeedIndicator({ view }: FeedIndicatorProps) {
   // `not configured` or `checking`, so the region keeps its height.
   if (word === null) return null;
 
+  // **The sentence depends on whether there is data to be about** (Task
+  // 3.10.2). `Prices shown are the last known` and `no NEW data has arrived`
+  // are both claims about live prices this page has received, and a page that
+  // has received none is ordinary — a cold load with the market shut, a first
+  // paint before any bar lands. ADR 0029's first rule, applied to the sentence
+  // rather than only to the instant it carries; `Live in the chrome` §05
+  // states the rule and `Degraded states` §02 takes the decision.
+  const holdsData = view.observedAt !== undefined;
+  const sentence =
+    (holdsData ? undefined : CONNECTION_SENTENCES_WITHOUT_DATA[view.status]) ??
+    word.sentence;
+
   const through =
-    QUALIFIES_WITH_AN_INSTANT[view.status] && view.observedAt !== undefined
+    QUALIFIES_WITH_AN_INSTANT[view.status] && holdsData
       ? `Showing data through ${formatBarInstant(new Date(view.observedAt), "1m")}.`
       : undefined;
 
   // One string rather than two nodes: the sentence and the instant are one
   // statement, and a screen reader handed them as separate text nodes would
   // pause between them.
-  const detail = [word.sentence, through].filter(Boolean).join(" ");
+  const detail = [sentence, through].filter(Boolean).join(" ");
 
   return (
     <span className={cx(styles.indicator, STATUS_CLASS[view.status])}>

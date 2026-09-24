@@ -102,6 +102,56 @@ export const CONNECTION_DESCRIPTIONS: Record<
 };
 
 /**
+ * **What a degraded connection says when NOTHING has ever arrived**
+ * (Task 3.10.2).
+ *
+ * `CONNECTION_DESCRIPTIONS`' two degraded sentences each carry a clause about
+ * the **data on screen** — *Prices shown are the last known*, and *no **new**
+ * data has arrived*. Both are true of a page that has received a live price
+ * and stopped receiving them. **Neither is true of a page that has never
+ * received one**, and that page is ordinary rather than exotic: a cold load
+ * while the market is shut, a first paint before any bar lands, a gateway that
+ * is up against a vendor connection that is not.
+ *
+ * The rule is ADR 0029's first and it is already stated one link up the chain —
+ * *a clause renders only when its own data is present, and a surface that owns
+ * nothing defers*. The canvas applied it to the **instant** (`Live in the
+ * chrome` §05) and not to the sentence carrying it, so the instant is
+ * correctly withheld and the words beside it are left hanging.
+ *
+ * ## Why not simply drop the clause
+ *
+ * *The live feed is not connected.* on its own is true and **says nothing
+ * about the numbers on screen**, which is the question the sentence exists to
+ * answer. This product names an empty answer rather than leaving it silent —
+ * `StoredHistory` has three members and not two for exactly this reason.
+ *
+ * ## Why `live` has no entry
+ *
+ * The same reason it carries no instant: a healthy connection has nothing to
+ * qualify, and silence means *current*. A `live` feed that has delivered
+ * nothing yet is a market that has not traded yet, which is the session's fact
+ * rather than the connection's.
+ *
+ * ## The word `live` inside the sentence is load-bearing
+ *
+ * The page is **not** empty — the chart and the table are full of stored
+ * closes from HTTP — so *no prices have arrived* would contradict what the
+ * reader can see. *No **live** prices* is the true and narrower claim, and it
+ * draws the one distinction this whole strip exists for.
+ */
+export const CONNECTION_SENTENCES_WITHOUT_DATA: Partial<
+  Record<FeedStatus, string>
+> = {
+  // One word apart from the sentence above it, deliberately: *no NEW data*
+  // implies there was old data, and with nothing ever received that is a false
+  // implication rather than a clumsy one.
+  stale: "Connected, and no live prices have arrived yet.",
+  disconnected:
+    "The live feed is not connected. No live prices have arrived yet.",
+};
+
+/**
  * The word for a connection that is live **on a replay**.
  *
  * ADR 0030 decision 4: **`LIVE` must never render while the feed is `replay`.**
