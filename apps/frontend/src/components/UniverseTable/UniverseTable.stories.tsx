@@ -703,3 +703,37 @@ export const JustSubscribedNothingMarks: Story = {
     fromSnapshot: new Set(["XLK", "AAPL", "NVDA"]),
   },
 };
+
+/**
+ * ## A row the feed has moved past — state 4, and the reason this task exists
+ *
+ * `currentMarketState` keeps the latest observation per security and **never
+ * expires it**. §11.2 measured a maximum ordinary gap of **187 minutes**
+ * between one security's bars and §7.6 measured `ERIE` producing one in
+ * **2.1%** of minutes — so a row holding a three-hour-old live price is the
+ * feed working, not a fault.
+ *
+ * Until Task 3.10.4 it drew the figure, **no date**, and `Live price` spoken —
+ * identical to a row holding a price from this minute. **The table was more
+ * careful about the day-old number than the three-hour-old one**: a stored
+ * close carried its session date and this carried nothing.
+ *
+ * **What to read here.** `NVDA` and `AAPL` are level with the feed and say
+ * nothing; `XLK` is behind it and says **when**, in market time, in the line
+ * the column already reserved. No word, no colour, no verdict — §11.2 refused
+ * a per-security status word with a measurement, and this renders the instant
+ * rather than a judgement about it.
+ */
+export const ARowTheFeedHasMovedPast: Story = {
+  args: {
+    observations: new Map([
+      ["AAPL", liveFor(317.42)],
+      ["NVDA", liveFor(241.5)],
+      // Three hours behind the other two, which is inside the ordinary range.
+      [
+        "XLK",
+        { ...liveFor(188.04), startsAt: new Date("2026-09-07T14:00:00.000Z") },
+      ],
+    ]),
+  },
+};

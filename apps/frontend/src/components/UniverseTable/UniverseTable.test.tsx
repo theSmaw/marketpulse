@@ -1525,3 +1525,116 @@ describe("the order under live data (Task 3.6.3)", () => {
     expect(bands[1]).toContain("Health Care");
   });
 });
+
+describe("a live price the feed has moved past (Task 3.10.4)", () => {
+  // **State 4**, which Task 3.6.2 found and declined to repair because the
+  // repair looked like a threshold: a row holding a live observation from
+  // three hours ago drew the figure, no date and `Live price` — **identical to
+  // a row holding one from this minute**.
+  //
+  // It is ordinary rather than exotic. `currentMarketState` keeps the latest
+  // observation per security and never expires it; §11.2 measured a maximum
+  // ordinary gap of **187 minutes** between one security's bars, and §7.6
+  // measured `ERIE` producing one in **2.1%** of minutes.
+
+  /** A bar at a chosen minute of the same session. */
+  const at = (close: number, time: string): Bar => ({
+    startsAt: new Date(`2026-09-07T${time}:00.000Z`),
+    open: close,
+    high: close,
+    low: close,
+    close,
+    volume: 1_000,
+  });
+
+  function renderTwo() {
+    return renderWithContext(
+      <UniverseTable
+        view={loaded(
+          [equity(), equity({ symbol: toTicker("AAPL"), name: "Apple Inc." })],
+          [],
+          [closeFor("NVDA", 230.36, 228.45), closeFor("AAPL", 341.2, 340.1)],
+        )}
+        onRetry={noop}
+        observations={
+          new Map([
+            // The feed's newest minute, and a row it has moved past.
+            ["AAPL", at(341.55, "17:00")],
+            ["NVDA", at(241.5, "14:00")],
+          ])
+        }
+      />,
+    );
+  }
+
+  it("does not read identically to a row from the newest minute", () => {
+    renderTwo();
+
+    const behind = screen.getByText("241.50").closest("tr");
+    const level = screen.getByText("341.55").closest("tr");
+    expect(behind).not.toBeNull();
+    expect(level).not.toBeNull();
+
+    // **Story 3.10's criterion 2**, at the grain it actually bites: two rows,
+    // the same column, two readings.
+    expect(behind?.textContent).not.toBe(level?.textContent);
+  });
+
+  it("says WHEN, in market time, rather than how old", () => {
+    renderTwo();
+
+    // The instant, never a verdict — §11.2 refused a per-security status word
+    // with a measurement and this respects it.
+    const behind = screen.getByText("241.50").closest("tr");
+    expect(within(behind as HTMLElement).getByText("10:00")).toBeTruthy();
+  });
+
+  it("says nothing on the row the shared claim covers", () => {
+    renderTwo();
+
+    // The heading's own rule, turned onto the rows: a clause renders only when
+    // the shared thing does not cover it. The newest row is what every other
+    // live row is measured against, so it has nothing of its own to add.
+    const level = screen.getByText("341.55").closest("tr");
+    expect(
+      within(level as HTMLElement).queryByText(/^\d{2}:\d{2}$/u),
+    ).toBeNull();
+  });
+
+  it("extends the spoken vocabulary rather than replacing it", () => {
+    renderTwo();
+
+    const behind = screen.getByText("241.50").closest("tr");
+    const level = screen.getByText("341.55").closest("tr");
+
+    expect(within(level as HTMLElement).getByText("Live price")).toBeTruthy();
+    expect(
+      within(behind as HTMLElement).getByText("Live price from 10:00"),
+    ).toBeTruthy();
+  });
+
+  it("stays silent when every live row is level, which is the shut market", () => {
+    // After the bell every row is equally old. Against a CLOCK all 518 would
+    // grow a time, saying what the masthead's `CLOSED` already says; against
+    // the newest observation they agree and say nothing, which is correct.
+    renderWithContext(
+      <UniverseTable
+        view={loaded(
+          [equity(), equity({ symbol: toTicker("AAPL"), name: "Apple Inc." })],
+          [],
+          [closeFor("NVDA", 230.36, 228.45), closeFor("AAPL", 341.2, 340.1)],
+        )}
+        onRetry={noop}
+        observations={
+          new Map([
+            ["AAPL", at(341.55, "20:00")],
+            ["NVDA", at(241.5, "20:00")],
+          ])
+        }
+      />,
+    );
+
+    expect(screen.queryByText(/^\d{2}:\d{2}$/u)).toBeNull();
+    expect(screen.queryByText(/Live price from/u)).toBeNull();
+  });
+});
