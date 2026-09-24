@@ -20,6 +20,7 @@
 // | one vendor glance: a frame stamped outside a trading day| 3.4.10 | **yes** — socket         |
 // | a mid-session reload that keeps today's chart           | 3.8.10 | **yes** — `--browser`    |
 // | the two-feed source note, from production               | 3.8.10 | **yes** — API + `--browser` |
+// | a RECORDED two-feed body, for the fixture               | 3.9    | **yes** — API, byte for byte |
 // | `pnpm probe` with the market open                       | 3.4.10 | **no** — run it yourself |
 //
 // The last one is deliberately not here. `pnpm probe` is a documented tool with
@@ -104,7 +105,7 @@
 //
 // **This is a throwaway instrument.** Run it, record the findings, delete it.
 
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 
@@ -437,15 +438,37 @@ function connect(symbols) {
 
 // --- The API half: the two-feed ledger, from the served answer -------------
 
+/**
+ * Has a two-feed body been kept yet, per window? One each is enough.
+ *
+ * **This is the half that outlives the sitting.** Story 3.9's criterion 4
+ * deletes `twoFeedStitchView()` — the recorded stitch with one field changed —
+ * and points its three readers at *a real one, captured from the running
+ * system*. That body can only be captured while a window holds two tapes,
+ * which on a deployed store is **during a session and not after the backfill**
+ * (`LIVE-SESSION.md` §14). So the moment a poll sees more than one stretch, the
+ * **raw response text** goes to a file, byte for byte.
+ *
+ * Byte for byte matters and is not fussiness: `src/fixtures/alpaca/` is
+ * excluded from Prettier and from line-ending normalisation on purpose,
+ * because both rewrite evidence. A body re-serialised through `JSON.stringify`
+ * is a body this instrument wrote, not one the server sent.
+ */
+const keptTwoFeedBody = new Set();
+
 async function askForSources(sessions) {
   if (stopping) return undefined;
 
   const url = `${BACKEND}/market-data/bars?symbol=NVDA&timeframe=1m&sessions=${String(sessions)}`;
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-    const body = await response.json();
+
+    // `text()` rather than `json()`, so the bytes are the server's own.
+    const raw = await response.text();
+    const body = JSON.parse(raw);
     const series = body.series ?? {};
     const sources = series.provenance?.sources ?? [];
+
     record({
       kind: "sources",
       sessions,
@@ -455,6 +478,42 @@ async function askForSources(sessions) {
       sources,
       stretches: sources.length,
     });
+
+    // **Distinct FEEDS, not stretches, and the difference is not pedantic.**
+    // A window can hold two stretches of one tape — that is Epic 2's read-time
+    // stitch, stored `sip` plus a fetched `sip` tail, and this very endpoint
+    // was returning exactly that shape while the market was shut:
+    // `[{feed: sip, barCount: 390}, {feed: sip, barCount: 222}]`. Keeping that
+    // body as *the two-feed fixture* would hand Story 3.9 a recording of the
+    // wrong state, which is worse than handing it nothing, because it looks
+    // right. The artefact is two TAPES.
+    const tapes = new Set(sources.map((source) => source.feed));
+
+    if (tapes.size > 1 && !keptTwoFeedBody.has(sessions)) {
+      keptTwoFeedBody.add(sessions);
+      const path = resolve(
+        OUT,
+        `two-feed-body-${String(sessions)}-sessions-${Date.now().toString()}.json`,
+      );
+      writeFileSync(path, raw);
+      record({
+        kind: "two-feed-body",
+        sessions,
+        path,
+        bytes: raw.length,
+        stretches: sources.length,
+        tapes: [...tapes],
+        sources,
+        forCriterion:
+          "Story 3.9 criterion 4 — the recorded body that retires twoFeedStitchView()",
+      });
+      console.log(
+        `\n  A TWO-TAPE BODY, kept: ${[...tapes].join(" + ")} over ` +
+          `${String(sources.length)} stretches, ${String(sessions)} session(s)` +
+          `\n  ${path}\n`,
+      );
+    }
+
     return { sessions, sources };
   } catch (error) {
     record({ kind: "sources-failed", sessions, message: String(error) });
