@@ -545,9 +545,11 @@ thing twice**.
 | a mid-session reload that keeps today's chart                                   | 3.8.10 |
 | **count the corrections**, against §14.1's 0.064%                               | 3.8.7  |
 | the two-feed source note, photographed from production — **expires that night** | 3.8.10 |
+| a person watching the **chart extend** on the deployed site                     | 3.9.9  |
 
 Task 3.5.8's five unconfirmed vendor figures, listed below, need the same
-window again — so the honest count is **three stories waiting on one sitting**.
+window again — so the honest count is ~~**three stories waiting on one
+sitting**~~ **four, since 2026-09-24**.
 
 > **Added 2026-09-23 by Task 3.8.7.** The corrections row above **overlaps the
 > _real correction_ row exactly** and costs nothing extra: the same frames that
@@ -556,6 +558,23 @@ window again — so the honest count is **three stories waiting on one sitting**
 > product has never taken from its own store, and it cannot be taken from the
 > store at all — every stored row is `sip` from the backfill, which does not
 > correct. It needs the **live** tape over a session, which is this sitting.
+
+> **Added 2026-09-24 by Task 3.9.9 — a fourth story joins the queue, and its
+> second item costs nothing extra.** Story 3.9's criterion 8 wants _a person
+> watched the chart extend during a live session_, which is the row above and
+> is genuinely new. Its other owed item is **`pnpm probe` at four viewports
+> with the market open** — which is **already on this list as 3.4.10's**, and
+> it is the same command on the same page in the same sitting. So it is
+> recorded here as an overlap rather than as a second row, the way 3.8.7's
+> corrections row was: **whoever takes 3.4.10's probe takes 3.9.9's**, and the
+> only difference is which region they read out of it — the identity block for
+> 3.4, the two plots and the readout strip for 3.9.
+>
+> **What 3.9.9 already took without the window**, so nobody re-takes it: the
+> per-burst cost at two densities on a production build (7.2–8.1 ms and
+> 12.3–13.2 ms of script, zero frames over 50 ms), and the four-viewport probe
+> with the market **shut**. What the open market adds is a chart extending from
+> a real gateway rather than from an instrument's socket.
 
 > **Added 2026-09-24 by Task 3.9.7 — the two-feed row is the one item on this
 > list that EXPIRES, and nothing here said so.** Every other row can be taken

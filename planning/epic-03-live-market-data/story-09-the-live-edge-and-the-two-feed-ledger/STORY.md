@@ -215,8 +215,12 @@ keeps it from becoming a footnote pile is worth re-reading before adding to it.
    home is `describeSilence`; the check is
    `the-market-claiming-sentence-has-one-home` and the break is
    `the-market-claiming-sentence-gets-a-second-home`
-6. No main-thread task over 50 ms while the chart is extending, at the default
-   window and at the cap (§28, and `CHARTING.md`'s own figures are the baseline)
+6. ~~No main-thread task over 50 ms while the chart is extending, at the default
+   window and at the cap~~ — **met 2026-09-24 by Task 3.9.9 at the default
+   window and at 6,630 bars: 7.2–8.1 ms and 12.3–13.2 ms of script a burst,
+   zero frames over 50 ms across 160 bursts.** The **cap itself is
+   unmeasured** — this machine's store ends 2026-09-11 and the densest real
+   body it serves is 68% of the cap. `CHARTING.md` §18 carries the figures
 7. The reading strip, the crosshair and the keyboard walk all work at the live
    edge, ~~including on the partial final bar~~ — **there is no partial final
    bar** (Task 3.9.1); what the edge does instead is **change under the reader**
