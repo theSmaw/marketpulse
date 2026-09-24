@@ -166,6 +166,39 @@ configured one, which with every bar `sip` and the chrome reading `All US
 exchanges` is every time. Two feeds short-circuit that check, so **the clause
 appearing at all is the signal.**
 
+### Why Story 3.9's row is still empty — 2026-09-24, Task 3.9.9
+
+**The market was shut when the story's measurements were taken.** Task 3.9.9
+ran at 02:40–03:30 ET on 2026-09-24; the regular session opens at 09:30 ET.
+Criterion 8's _a person watched the chart extend during a live session_ needs
+the deployed site with the market open, so the row is **left blank rather than
+filled from an instrument**, which is this file's own first rule.
+
+**The mechanical half is already being collected.**
+`scripts/session-watch.mjs` has been running against the deployed gateway since
+**22:42 ET on 2026-09-23** for 1,000 minutes, which covers the whole of the
+2026-09-24 session. At 07:17 UTC it held **377 feed samples over 4h 36m**, of
+which **376 read `live` / `iex`** with `marketOpen: false` — the overnight
+state, correct — and one read `disconnected`.
+
+**One observation from it that is not this story's, handed on rather than
+kept.** The watcher's own socket closed **38 times in 4h 36m**, every one of
+them code **1006** with `elsewhereReachable: true` — the backend answered HTTP
+throughout. Roughly one drop every seven minutes, and the feed cell stayed
+`live` in 376 of 377 samples, so **Task 3.5.5's reconnect absorbed all but one
+of them**. Two caveats that keep this an observation rather than a finding: the
+watcher runs on a laptop over a domestic link to Azure, so the drops may be
+this end's; and an overnight socket is idle, which is the condition an idle
+timeout fires on. **Owner: Story 3.10**, which owns what the page says when the
+feed stops, beside the venue word it already holds.
+
+**What the 3.9 row still needs**, and it is the same sitting three other
+stories are waiting on (`docs/GAPS.md` entry 10 — the free plan holds one
+Alpaca connection and the deployment has it): a person watching a chart extend
+on the deployed site with the market open, `pnpm probe` at four viewports in
+that state, and the two-feed source note photographed **before that night's
+backfill**, which is the one item on the combined list that expires.
+
 ### Notes on the 2026-09-22 sitting
 
 **1. Who watched, and through what.** The three rows were watched by

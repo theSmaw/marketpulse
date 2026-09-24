@@ -2423,3 +2423,70 @@ is re-taken by anything. §16's timings are one laptop on one day; §0's rule is
 the same as it was. The chart's _shape_ is mechanical now —
 `PriceChart.test.tsx`'s element-count guard, break-verified — and its _cost_ is
 prose.
+
+## 18. What a chart that EXTENDS costs — added 2026-09-24 by Task 3.9.9
+
+§16 measured a chart being **drawn**: a cold load, once per visit, and the
+9,750-bar cap producing main-thread tasks of 137–254 ms. This section measures
+a chart being **extended** — a bar arriving, once a minute, for as long as the
+page is open — which is `PRODUCT_SPEC.md` §28's word _routine_ rather than its
+word _cold load_, and a different question with a different answer.
+
+### The figures, on a production build at 1440×900
+
+Two densities, 40 bursts each, `vite preview` serving `apps/frontend/dist`
+against this machine's own backend. **Every arriving bar is a recorded one**:
+the body is served short by 40 bars and those 40 are pushed over the socket, so
+nothing in the measurement is an invented minute.
+
+| On screen                       | Script/burst     | Layout  | Style   | Longest frame | Over 50 ms |
+| ------------------------------- | ---------------- | ------- | ------- | ------------- | ---------- |
+| **1,950 bars** (default window) | **7.2–8.1 ms**   | 1.49 ms | 1.89 ms | 18.3 ms       | **0**      |
+| **6,630 bars** (25 sessions)    | **12.3–13.2 ms** | 1.24 ms | 1.80 ms | 20.1 ms       | **0**      |
+
+Script is **net of a control run** — the same instrument with the socket send
+suppressed, which cost 3.0–3.2 ms per cycle and grew the chart by **0**, so the
+subtraction is the burst rather than the measuring. Two live samples each.
+
+**Idle frames are 16.7 ms median throughout**, so a burst lands inside a single
+display frame with headroom: the longest frame observed anywhere in the run was
+20.1 ms against a 16.7 ms floor.
+
+### What this says against §28
+
+**No routine main-thread task over 50 ms while the chart extends, at either
+density.** Not a near miss: `long-animation-frame` — which exists only for
+frames over 50 ms — reported **zero entries across 160 bursts**, and a
+deliberate 120 ms block on the same page produced one every time it was tried,
+so the silence is an absence rather than a dead observer.
+
+### The shape of the cost, which is the part worth keeping
+
+**3.4× the bars costs 1.8× the script.** That is ADR 0027's silhouette regime
+doing exactly what it was chosen for: the plot is **13 drawn elements at 6,590
+bars**, one path rather than one element per bar, so an arriving minute
+re-walks a path instead of mutating a DOM proportional to the window. §16's
+137–254 ms is a _cold_ figure for 9,790 **elements**; nothing on this axis
+approaches it while extending, because nothing here creates elements.
+
+### What is NOT measured here, stated so it is not read as measured
+
+- **The 9,750-bar cap itself.** This machine's store ends 2026-09-11, so the
+  densest real body it can serve is 6,630 bars — 68% of the cap. The trend
+  above is sub-linear and the cap would have to behave very differently to
+  breach 50 ms, but that is an argument and not a measurement.
+- **The wire leg.** Task 3.6.4 measured that separately (`sentAt`, p95 6 ms);
+  §28's sentence is about a main-thread task rather than a journey.
+- **A real gateway.** The socket is served by the instrument with the shipped
+  encoder, so this is the browser's cost of a burst and not the deployment's.
+
+### One layout figure, from the same pass
+
+The volume strip's readout is **35 px** at 1024, 768 and 390, with 22 px lines.
+Task 3.9.8's silent-window sentence — _No shares changed hands on either feed in
+the window._ — is **one line down to 342 px and two lines at 308 px**, and 308
+is the readout's real width at the 390 viewport. **Nothing jumps**, because the
+flat state is itself one of the reserved sizers: in a silent window the row
+reserves 40 px and every state inside it fits. A silent window's Volume region
+is simply 18 px taller than a trading one, which is a property of the window
+rather than of an interaction.
