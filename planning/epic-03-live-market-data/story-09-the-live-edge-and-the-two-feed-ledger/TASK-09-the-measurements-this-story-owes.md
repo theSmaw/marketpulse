@@ -2,7 +2,22 @@
 
 **Status:** Not started
 **Story:** [3.9 The Live Edge on the Chart & the Two-Feed Ledger](STORY.md)
-**Depends on:** 3.9.4, 3.9.5, 3.9.6
+**Depends on:** 3.9.5, 3.9.6 (3.9.4 deleted 2026-09-24)
+
+## Inherited from Task 3.9.3 — 2026-09-24
+
+**Task 3.9.4 is deleted and its one real obligation is yours**: `pnpm probe` at
+all four viewports with the feed running, which this task already owns. Nothing
+was drawn, so there is no treatment to photograph — what the probe is looking at
+is a chart extending with no vocabulary on it.
+
+**And one figure is already taken**, so do not re-derive it: an arriving minute
+buys **0.4 px** at the default five-session window, **2.1 px** on a single
+session, and **14.1 px** on a 57-bar answer, with **0.00 px** of horizontal
+movement in every existing point. A new extreme re-scales the value axis and
+moves every point vertically — median **2.4 px**, largest **4.9 px** at the
+default window. Those are geometry rather than cost; §28's _routine_ line is
+still unmeasured and still yours.
 
 ## Objective
 

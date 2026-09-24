@@ -1,6 +1,6 @@
 # Story 3.9 — The Live Edge on the Chart & the Two-Feed Ledger
 
-**Status:** **Split into ten tasks 2026-09-24; Task 3.9.1 complete the same day, and it did what it was written to do.** Two criteria are **already met** by Story 3.8 and struck below; **open decision 1 is withdrawn** because the case cannot occur — the vendor sends a bar for minute _M_ at the end of _M_, so no partial bar exists anywhere; and the largest finding was on nobody's list: **the chart closes up its own gaps and its spoken sentence claims a cadence it does not have**, shipped today, on stored consolidated data. Previously: The order puts the **headline visible change third from the start and undesigned** — a chart that extends with no vocabulary yet — because Story 3.4 proved that a motion vocabulary argued in front of the real thing moving is a different and better argument from one argued against a mock. Task 3.9.1 comes first and builds nothing: **Story 3.8 may already have met criteria 1 and 2 in part**, and this story's own file says _read it again rather than building what shipped_.
+**Status:** **Nine tasks — 3.9.1, 3.9.2 and 3.9.3 all complete on 2026-09-24, and 3.9.4 deleted by the third of them.** The chart extends while you watch it, and the treatments for the seam, the arriving bar and the correction were argued against it and all three rejected, each with a measurement and a trigger — so there is nothing left for 3.9.4 to apply. Originally: **Split into ten tasks 2026-09-24; Task 3.9.1 complete the same day, and it did what it was written to do.** Two criteria are **already met** by Story 3.8 and struck below; **open decision 1 is withdrawn** because the case cannot occur — the vendor sends a bar for minute _M_ at the end of _M_, so no partial bar exists anywhere; and the largest finding was on nobody's list: **the chart closes up its own gaps and its spoken sentence claims a cadence it does not have**, shipped today, on stored consolidated data. Previously: The order puts the **headline visible change third from the start and undesigned** — a chart that extends with no vocabulary yet — because Story 3.4 proved that a motion vocabulary argued in front of the real thing moving is a different and better argument from one argued against a mock. Task 3.9.1 comes first and builds nothing: **Story 3.8 may already have met criteria 1 and 2 in part**, and this story's own file says _read it again rather than building what shipped_.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.6, 3.8
 **Epic scope covered:** live price updates in the UI (the chart), the two-feed ledger produced rather than simulated, the live feed's own honest label on a series
@@ -235,18 +235,29 @@ thing in this epic, and it ships **undesigned** in 3.9.2 — the same shape Stor
 treatments were then argued in front of it. Everything from 3.9.3 on makes that
 correct, honest and readable rather than adding to it.
 
-| #      | Task                                                                                                                                             | Depends on          | Visible?                                   |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- | ------------------------------------------ |
-| 3.9.1  | [What the chart already reaches, measured before anything is built](TASK-01-what-the-chart-already-reaches-measured-before-anything-is-built.md) | 3.8                 | No — and it may shrink this story          |
-| 3.9.2  | [The edge that extends, with no vocabulary yet](TASK-02-the-edge-that-extends-with-no-vocabulary-yet.md)                                         | 3.9.1               | **Yes — the headline, and it is early**    |
-| 3.9.3  | [The seam, the partial bar, and treatments on a real edge](TASK-03-the-seam-the-partial-bar-and-treatments-on-a-real-edge.md)                    | 3.9.2               | No — the argument and the artefacts        |
-| 3.9.4  | [The vocabulary applied to the edge](TASK-04-the-vocabulary-applied-to-the-edge.md)                                                              | 3.9.3               | **Yes — the chart says what is arriving**  |
-| 3.9.5  | [The volume chart, which must move with it](TASK-05-the-volume-chart-which-must-move-with-it.md)                                                 | 3.9.2               | **Yes — both plots, one axis**             |
-| 3.9.6  | [What the crosshair reads at a minute that is not finished](TASK-06-what-the-crosshair-reads-at-a-minute-that-is-not-finished.md)                | 3.9.4, 3.9.5        | **Yes — the edge becomes readable**        |
-| 3.9.7  | [The two-feed ledger, and the stitch nothing exercises](TASK-07-the-two-feed-ledger-and-the-stitch-nothing-exercises.md)                         | 3.9.1               | **Maybe — Story 3.8 may have drawn it**    |
-| 3.9.8  | [The sentence that claims something about the market](TASK-08-the-sentence-that-claims-something-about-the-market.md)                            | 3.9.7               | **Yes — one sentence stops being a lie**   |
-| 3.9.9  | [The measurements this story owes](TASK-09-the-measurements-this-story-owes.md)                                                                  | 3.9.4, 3.9.5, 3.9.6 | No — figures, and a repair if one breaches |
-| 3.9.10 | [The sweep, the hand-offs and the close](TASK-10-the-sweep-the-hand-offs-and-the-close.md)                                                       | 3.9.9               | No                                         |
+| #         | Task                                                                                                                                             | Depends on   | Visible?                                   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------------------------ |
+| 3.9.1     | [What the chart already reaches, measured before anything is built](TASK-01-what-the-chart-already-reaches-measured-before-anything-is-built.md) | 3.8          | No — and it may shrink this story          |
+| 3.9.2     | [The edge that extends, with no vocabulary yet](TASK-02-the-edge-that-extends-with-no-vocabulary-yet.md)                                         | 3.9.1        | **Yes — the headline, and it is early**    |
+| 3.9.3     | [The seam, the partial bar, and treatments on a real edge](TASK-03-the-seam-the-partial-bar-and-treatments-on-a-real-edge.md)                    | 3.9.2        | No — the argument and the artefacts        |
+| ~~3.9.4~~ | ~~The vocabulary applied to the edge~~ — **DELETED 2026-09-24 by Task 3.9.3**: three decisions, three noes, so there is nothing to apply         | —            | —                                          |
+| 3.9.5     | [The volume chart, which must move with it](TASK-05-the-volume-chart-which-must-move-with-it.md)                                                 | 3.9.2        | **Yes — both plots, one axis**             |
+| 3.9.6     | [What the crosshair reads at a minute that is not finished](TASK-06-what-the-crosshair-reads-at-a-minute-that-is-not-finished.md)                | 3.9.5        | **Yes — the edge becomes readable**        |
+| 3.9.7     | [The two-feed ledger, and the stitch nothing exercises](TASK-07-the-two-feed-ledger-and-the-stitch-nothing-exercises.md)                         | 3.9.1        | **Maybe — Story 3.8 may have drawn it**    |
+| 3.9.8     | [The sentence that claims something about the market](TASK-08-the-sentence-that-claims-something-about-the-market.md)                            | 3.9.7        | **Yes — one sentence stops being a lie**   |
+| 3.9.9     | [The measurements this story owes](TASK-09-the-measurements-this-story-owes.md)                                                                  | 3.9.5, 3.9.6 | No — figures, and a repair if one breaches |
+| 3.9.10    | [The sweep, the hand-offs and the close](TASK-10-the-sweep-the-hand-offs-and-the-close.md)                                                       | 3.9.9        | No                                         |
+
+**Task 3.9.4 was deleted on 2026-09-24, by Task 3.9.3 answering NO three
+times.** The seam is not drawn (the source note already says it in words with
+counts, and a drawn break would be the only break on a chart that hides dozens
+of invisible gaps); the edge does not mark (a new minute buys **0.4 px** at the
+default window and **2.1 px** on a single session, and the same event is
+already marked by a disc inches above it on the same screen); and a correction
+is not drawn (it would mark the quietest version of the event and leave the
+loudest — a re-scaling value axis, median 2.4 px and up to 77 px — unnamed).
+Each carries a reversal trigger as a condition. Its one real obligation, a look
+at four viewports with the feed running, already belongs to Task 3.9.9.
 
 **Why 3.9.7 can run early and out of order.** It depends only on the
 measurement, not on the edge: the two-feed ledger comes out of the **store**

@@ -23,7 +23,7 @@ and it lands before anything is designed, which is deliberate.
 
 **What it will not do yet:** mark the new bar, draw the seam between the stored
 and live stretches, or treat the minute in progress differently from the 389
-behind it. Those are 3.9.3 and 3.9.4.
+behind it. Those were 3.9.3 and 3.9.4 — and 3.9.3 answered all three questions NO, so 3.9.4 was deleted and **nothing is ever drawn there**.
 
 ## The mechanism, and the two traps in it
 

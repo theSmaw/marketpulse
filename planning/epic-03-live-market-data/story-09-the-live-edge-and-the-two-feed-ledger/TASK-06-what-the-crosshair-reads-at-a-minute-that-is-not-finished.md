@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Story:** [3.9 The Live Edge on the Chart & the Two-Feed Ledger](STORY.md)
-**Depends on:** 3.9.4, 3.9.5
+**Depends on:** 3.9.5 (3.9.4 deleted 2026-09-24)
 
 ## Objective
 
