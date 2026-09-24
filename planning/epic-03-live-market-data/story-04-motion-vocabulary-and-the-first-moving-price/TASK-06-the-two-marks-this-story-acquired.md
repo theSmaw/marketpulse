@@ -391,3 +391,45 @@ rows**.
 that Task 3.5.4 had given a third argument. It is repointed and re-run; see
 Task 3.4.5's amendment for the full set and for the check that now catches this
 class.
+
+---
+
+## A second surface renders a bar instant — 2026-09-24, Task 3.10.4, and it deliberately does NOT carry this word
+
+**Until today the identity block was the only place in this product that
+rendered a live bar's own instant, so this task's extended-hours word had
+exactly one consumer.** `grep` for `EXTENDED_HOURS_WORDS` and `extendedHoursAt`
+returned `SecurityIdentity.tsx` and nothing else.
+
+**Task 3.10.4 added a second.** A universe-table row whose observation is
+behind the newest minute on the page now draws that observation's time —
+`12:07` — in the line the column already reserved. It is a bar instant, from
+the same field, formatted by `formatSessionTime` rather than
+`formatBarInstant`.
+
+**It carries no extended-hours word, and that is a decision rather than an
+oversight.** Recorded here, where the vocabulary lives, so a later reader does
+not find a bare `07:42` in a table and conclude the word was forgotten:
+
+- **The table's job is the figure; this block's job is the security.** §10.3
+  asks that every entry carry its own instant and that no reader render a price
+  without reading it — which the row now does. _What kind of when_ is an
+  explanation, and ADR 0029's rule is that the surface which owns the subject
+  owns the account of it.
+- **The row is right-aligned and numeric**, and `· pre-market` is thirteen
+  characters of prose in a column sized for six glyphs. The identity block has
+  a column to itself; this has 518 of them.
+- **The whole design of that repair was no new element and no new cost**, and
+  it was measured at ~7.5 µs a row. A word per row is a different kind of
+  change and would want its own measurement.
+
+> **Reversal trigger, as a condition:** the first time a table row can show an
+> extended-hours instant **often enough for a reader to meet one routinely** —
+> which today it cannot, because a row speaks only when it is behind the newest
+> observation, and in pre-market the newest observation is itself usually
+> pre-market, so the rows are level and silent. If the reference ever becomes a
+> clock rather than the page's newest minute, this fires immediately.
+
+**What is unchanged:** the word, its derivation from the bar's own instant, the
+invariant behind it, and this task's argument for a word over a glyph. The
+second consumer does not dilute any of it — it declines to use it, in writing.
