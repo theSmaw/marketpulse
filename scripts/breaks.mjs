@@ -359,6 +359,31 @@ export const BREAKS = [
     expect: "builds a query against",
   },
   {
+    name: "the-live-edge-appends-a-correction",
+    proves:
+      "A corrected minute is APPENDED to the drawn series rather than " +
+      "replacing the one it corrects. `toBarSeries` refuses bars that are not " +
+      "strictly ascending and throws, and a throw inside a React render takes " +
+      "the page down \u2014 so this is a blank page, ~30 s after a bar, on a " +
+      "tab that has been open a while. It is the defect Task 3.8.4 already " +
+      "paid for on the server side, where it was a 500 on a page load.",
+    file: "apps/frontend/src/market/live-series.ts",
+    find:
+      "  const bars = [...byInstant.entries()]\n" +
+      "    .sort(([a], [b]) => a - b)\n" +
+      "    .map(([, bar]) => bar);",
+    replace:
+      "  const bars = [...series.bars, ...inWindow]; // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "live-series",
+    ],
+    expect: "strictly ascending",
+  },
+  {
     name: "a-prepared-index-loses-its-adopter",
     proves:
       "A `PREPARED` entry whose `adoptedBy` migration does not exist is " +

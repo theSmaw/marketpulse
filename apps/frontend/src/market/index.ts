@@ -194,6 +194,12 @@ export type {
 export { useBarSeries } from "./use-bar-series.js";
 export type { BarSeriesSource } from "./use-bar-series.js";
 
+// **The live edge** (Task 3.9.2). The pure merge is exported beside the hook
+// because the rule it holds — *replace in place by instant, never append* — is
+// a fact about data and is tested without a browser.
+export { withLiveBars } from "./live-series.js";
+export { useLiveSeries } from "./use-live-series.js";
+
 // The cache itself is deliberately **not** exported. It is an implementation
 // detail of the hook — nothing outside this module should be able to read a
 // series without asking for one, which is the rule that keeps *every read is

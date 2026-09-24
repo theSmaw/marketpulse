@@ -392,6 +392,26 @@ arrive with it:**
    changing — so whatever marks it is a different thing from the hairline that
    marks a request in flight, and the two must be distinguishable at a glance or
    one of them is lying.
+
+   > **Scope clarified 2026-09-24 by Task 3.9.3, which met the first case this
+   > rule does not cover.** It governs **marks** — things drawn to say something
+   > about a change. It does not govern **content moving because the content
+   > changed**, and the chart has just produced a large example: when an
+   > arriving bar sets a new high or low the value scale re-ranges and **every
+   > point on the line shifts**, measured at a median of 2.4 px and up to
+   > **77.2 px**. That is the most visible movement on the security page and the
+   > vocabulary has nothing to say about it, correctly — there is no mark, no
+   > duration and no animation, only a redraw with different numbers in it.
+   >
+   > **Worth writing down because the next reader will ask.** A rule that says
+   > _motion means work in progress_ reads, to somebody looking at a chart that
+   > has just jumped, like a rule that has been broken. It has not been: a
+   > redraw is not a mark. What the measurement does raise is a **product**
+   > question rather than a vocabulary one — that movement carries real
+   > information, a new session extreme, and nothing on the screen names it.
+   > Task 3.9.3 handed that to Epic 5, beside the anomaly marks this screen
+   > already reserves room for.
+
 2. **Green means price-positive.** The identity accent is crimson and scoped to
    four positions in the chrome; green is spent. A motion that arrives in a
    colour has to answer what that colour already means here.

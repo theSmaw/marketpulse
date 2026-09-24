@@ -164,27 +164,48 @@ export function SecurityExplorer({
   // consumer of `GET /market-data/bars` that does not also hold the universe.
   const stored = storedHistoryFor(view, symbol);
 
-  const series = useBarSeries({
-    symbol,
-    // **Derived, never chosen** (`VOLUME-AND-WINDOW.md` §2): the mapping lives in
-    // `time-window.ts` and is exhaustive over a *count*, so a hand-typed
-    // `?sessions=7` and an agent's `setTimeWindow` map as surely as a press of
-    // `1M` does. This is also what makes the server's 10,000-bar cap structurally
-    // unreachable through the named form, so there is no size check here.
-    timeframe: timeframeForSessions(sessions),
-    window: seriesWindowFor(sessions),
-  });
-
   // **The observation for the security on screen, and absence is ordinary.**
   // §7.6 measured IEX covering 65.1% of minutes for a median symbol and 2.1%
   // for `ERIE`, and §7.2 measured a quiet minute producing no frame at all — so
   // a page open on a thin security legitimately has nothing here for hours, and
   // that is the feed working.
   const live = liveFeed.observations.get(symbol);
+
   // **A snapshot is not an arrival** (Task 3.5.4). The store keeps the wire's
   // own distinction — §11.1's `snapshot` and `bars` are two message types —
   // and this is where it reaches the block that marks an arrival.
   const liveFromSnapshot = liveFeed.fromSnapshot.has(symbol);
+
+  /*
+   * **The chart, wired to the same socket as the price above it** (Task 3.9.2).
+   *
+   * Until this argument the two halves of this screen were wired to different
+   * things: the series came from a fetch and `live` came from the socket, and
+   * the chart was given the first while the identity block was given the
+   * second. So a page left open during a session showed **a price that moved
+   * above a picture that did not** — which is the defect a reader would notice
+   * before any of the ones this story is named for.
+   *
+   * **Nothing about the drawing changes here.** The newest bar is drawn like
+   * every bar behind it: no mark, no seam, no distinction. That is Task
+   * 3.9.3's to argue in front of this working, which is the order Story 3.4
+   * used for a price that moved — and the treatment that won there was not the
+   * one anybody would have predicted from a mock.
+   */
+  const series = useBarSeries(
+    {
+      symbol,
+      // **Derived, never chosen** (`VOLUME-AND-WINDOW.md` §2): the mapping lives
+      // in `time-window.ts` and is exhaustive over a *count*, so a hand-typed
+      // `?sessions=7` and an agent's `setTimeWindow` map as surely as a press of
+      // `1M` does. This is also what makes the server's 10,000-bar cap
+      // structurally unreachable through the named form, so there is no size
+      // check here.
+      timeframe: timeframeForSessions(sessions),
+      window: seriesWindowFor(sessions),
+    },
+    live,
+  );
 
   /*
    * **What this screen asks for: the security on show, and every row in the

@@ -7,8 +7,12 @@ import type { BarSeriesView } from "./bar-series-view.js";
 import { toStaleBarSeriesView } from "./bar-series-view.js";
 import type { BarSeriesScreen, BarSeriesState } from "./held-series.js";
 import { usePendingPanel } from "./use-pending-panel.js";
+import type { Bar } from "@marketpulse/shared";
+
+import { useLiveSeries } from "./use-live-series.js";
 import {
   barSeriesScreen,
+  withLiveEdge,
   toBarSeriesState,
   toRequestedBarSeriesState,
   toRetryingBarSeriesState,
@@ -210,7 +214,19 @@ function held(key: string): BarSeriesView {
   return entry === undefined ? LOADING : toStaleBarSeriesView(entry);
 }
 
-export function useBarSeries(request: BarSeriesRequest): BarSeriesSource {
+export function useBarSeries(
+  request: BarSeriesRequest,
+  /**
+   * The security's latest live observation, when this page has one.
+   *
+   * **A second parameter rather than a field on the request** (Task 3.9.2).
+   * `BarSeriesRequest` is what `barSeriesQuery` turns into a URL and what the
+   * cache is keyed on — a live bar is neither, and putting it there would make
+   * every arriving minute look like a different request to the layer whose one
+   * job is to notice when the request changes.
+   */
+  live?: Bar,
+): BarSeriesSource {
   const key = barSeriesQuery(request);
 
   const [pinned, setPinned] = useState<PinnedRequest>(() => ({ request, key }));
@@ -332,9 +348,17 @@ export function useBarSeries(request: BarSeriesRequest): BarSeriesSource {
   // something is still coming.
   const pending = usePendingPanel(state.view.state === "loading");
 
+  // **The live edge** (Task 3.9.2). `screen` is what is drawn, so this is where
+  // the socket's bars join the fetched ones — one join, four readers, and the
+  // rule that governs it is `live-series.ts`'s: replace in place by instant,
+  // never append, because `toBarSeries` throws on two bars for one minute and a
+  // correction arrives ~30 s after every bar it corrects.
+  const screen = barSeriesScreen(state, pinned.request, pending);
+  const shown = useLiveSeries(screen.shown, live);
+
   return {
     view: state.view,
-    screen: barSeriesScreen(state, pinned.request, pending),
+    screen: withLiveEdge(screen, shown),
     retry,
   };
 }

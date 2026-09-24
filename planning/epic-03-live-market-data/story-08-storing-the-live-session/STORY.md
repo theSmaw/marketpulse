@@ -231,6 +231,16 @@ make it a pattern rather than an accident**: whoever owns the canvas should
 confirm whether this login can still reach it, because Story 3.9 is the next
 story that genuinely needs it and it has been told to check twice now.
 
+> **CORRECTED 2026-09-24 — the canvas was reachable the whole time, and this
+> entry is a NON-DEFECT recorded three times.** `list_projects` filters to
+> **design-system** projects and `Component library for MarketPulse` is not one,
+> so it comes back absent rather than listed — which reads exactly like _the
+> canvas does not exist_. `VISUAL-LANGUAGE.md` has carried that warning, and the
+> address, since **2026-09-11**, in a sentence written for this precise mistake:
+> `https://claude.ai/design/p/727b5b14-fe78-47c1-9d9c-fb84b6ce5280`. Asked for
+> by id on 2026-09-24 it answers `canEdit: true` with all nineteen `.dc.html`
+> files present. **Use `get_project` with the id; never `list_projects`.**
+
 ## What this story hands forward
 
 A store that holds today, and the first rows in this product whose provenance
