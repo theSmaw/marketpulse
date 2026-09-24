@@ -513,6 +513,22 @@ below, because the thing that made them impossible is gone.
   anchor to. The concatenation a screen reader is handed is not the string the
   elements read as. Match an element whose whole text is the word;
   `support/app.ts` does.
+- **Not a bare sentence that a live region also says — and this one fails
+  INTERMITTENTLY, which is worse than failing.** Added 2026-09-24 by Task
+  3.9.5's full run, one failure in about ten.
+  `getByText("Still loading securities.")` on the securities route resolves to
+  **two** elements once the search's visually-hidden `role="status"` has been
+  populated: the drawn `<span>`, and the announcement, which contains the same
+  sentence **inside a longer one** — `Security search: still loading
+securities. "nv" …`. Playwright's strict mode then refuses, and whether it
+  refuses depends on whether the live region has been written to yet.
+  **The bullet above is the mirror of this one**: there, a locator matches
+  nothing because a component splits its text; here, it matches twice because
+  two elements deliberately say the same words. Both come from the same product
+  rule — a drawn sentence and its spoken twin are **one string with two
+  renderings** (ADR 0029) — so a locator that means _the drawn one_ has to say
+  so. `{ exact: true }` is the whole fix, and a spec asserting on any sentence
+  this product also announces owes it.
 - **Not `innerText()` where the DOM text is what you mean.** The status words
   are lowercase in the DOM and uppercased by CSS. Playwright's text matching
   sees `healthy`; `innerText()` reports `HEALTHY`. Two strings, one element.
