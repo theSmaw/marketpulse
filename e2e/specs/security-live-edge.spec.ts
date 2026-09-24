@@ -132,6 +132,20 @@ const LIVE_FEED: WireFeedState = {
 
 const SENT_AT = "2026-09-04T20:00:00.512Z";
 
+/**
+ * A revision of the **last served** bar — the one `End` lands on.
+ *
+ * Not of the bar that just arrived: `End` reaches the last bar the ANSWER
+ * carried, so revising the arriving one would revise a bar nothing is reading.
+ * That mistake cost this task twenty minutes of a probe reporting that nothing
+ * happened, which was true and about the wrong bar.
+ */
+const revisionOfTheLastServedBar = (): WireObservation => {
+  const bar = RECORDED.series.bars[SERVED_COUNT - 1];
+  if (bar === undefined) throw new Error("the recorded session is too short");
+  return { ...bar, close: bar.close + 5, high: bar.high + 5 };
+};
+
 /** One of the held-back bars, as the wire carries it. */
 const held = (index: number, close?: number): WireObservation => {
   const bar = HELD[index];
@@ -219,6 +233,54 @@ async function plotSeries(
       pitch: Math.round((last - previous) * 100) / 100,
     };
   });
+}
+
+/**
+ * The chart's **one tab stop**, by its accessible name.
+ *
+ * `Price reading.dc.html` settled that the chart has exactly one and that the
+ * focus ring goes round the plot rather than round the point. This spec adds
+ * nothing to that; it drives it.
+ */
+function reader(page: Page) {
+  return page
+    .getByRole("region", { name: "Price" })
+    .getByRole("img", { name: /price chart$/u });
+}
+
+/**
+ * The reading strip's **drawn** row, as one line.
+ *
+ * `filter({ visible: true })` because the strip holds two rows in one grid
+ * cell — the live one and a hidden reading of the last bar that reserves the
+ * row's height — so an unfiltered locator resolves to two nodes and fails
+ * strict mode against a chart that is working. The suite already knew this
+ * shape; `e2e/README.md` now carries the general rule.
+ */
+async function readingStrip(page: Page): Promise<string> {
+  const row = page
+    .getByRole("region", { name: "Price" })
+    .getByText("Bar", { exact: true })
+    .filter({ visible: true })
+    .first();
+
+  return (await row.locator("xpath=ancestor::*[3]").innerText())
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+/** What a listener is told about the reading, from the chart's own live region. */
+async function spokenReading(page: Page): Promise<string> {
+  const said = await page
+    .getByRole("region", { name: "Price" })
+    .locator('p[role="status"]')
+    .allTextContents();
+
+  return (
+    said
+      .map((text) => text.replace(/\s+/gu, " ").trim())
+      .find((text) => text.includes("chart reading")) ?? ""
+  );
 }
 
 /** Serve the answer and the socket, and hand back a way to push a minute. */
@@ -374,6 +436,109 @@ test("the volume plot gains the same minute, and both stop at the same pixel", a
   // column now fills. The volume's evidence of gaining the minute is its
   // column COUNT above; the right edge is evidence about the shared axis.
   // Asserting both would be asserting one thing twice and getting it wrong once.
+
+  await expectNothingFailedToRender(page);
+});
+
+test("a reading HOLDS its instant when a newer bar arrives", async ({
+  page,
+}) => {
+  // **Decision 1 of Task 3.9.6, asserted rather than assumed.** `End` walks to
+  // the last bar; a minute later there is a newer one. The reading stays where
+  // the reader put it, and it stays by construction: `ChartRead` carries the
+  // bar's INSTANT beside the index, and `resolveRead` keys on the instant with
+  // the index only as a fast path (Task 2.13.7). A reading is a reading of a
+  // bar, not of "now".
+  const push = await serve(page);
+
+  await page.goto(EXPLORER);
+  await expect(drawnCount(page)).toContainText(`a line of ${served} closing`);
+
+  await reader(page).focus();
+  await page.keyboard.press("End");
+  const before = await readingStrip(page);
+  expect(before).toMatch(/EDT/u);
+
+  push({ NVDA: held(0) });
+  await expect(drawnCount(page)).toContainText(`a line of ${grown} closing`);
+
+  expect(await readingStrip(page)).toBe(before);
+});
+
+test("a reading UPDATES IN PLACE when the bar it names is revised", async ({
+  page,
+}) => {
+  // **Decision 2, and the one with a right answer.** A reading that is stale
+  // about the bar it NAMES is wrong in a way a reading that is merely
+  // not-the-latest is not. It updates by construction too — the strip stores no
+  // values, so the numbers are re-derived from the drawn series every render.
+  const push = await serve(page);
+
+  await page.goto(EXPLORER);
+  await expect(drawnCount(page)).toContainText(`a line of ${served} closing`);
+
+  await reader(page).focus();
+  await page.keyboard.press("End");
+  const before = await readingStrip(page);
+  // **Polled, because the region is silent on arrival by design** — it is
+  // populated after the reading is, so reading it in the same tick as `End`
+  // finds an empty string and says nothing useful about anything.
+  await expect.poll(() => spokenReading(page)).toContain("chart reading");
+  const spokenBefore = await spokenReading(page);
+
+  // A newer bar first: the reading must not move off the bar it names, so the
+  // revision below is unambiguously about the bar under the crosshair.
+  push({ NVDA: held(0) });
+  await expect(drawnCount(page)).toContainText(`a line of ${grown} closing`);
+  expect(await readingStrip(page)).toBe(before);
+
+  push({ NVDA: revisionOfTheLastServedBar() });
+
+  // The instant does not move and the numbers do — which is the same pair
+  // Story 3.4 shipped for the identity block's arrival mark, reached here by a
+  // different route.
+  await expect.poll(() => readingStrip(page)).not.toBe(before);
+  const after = await readingStrip(page);
+  expect(after.slice(0, after.indexOf("O "))).toBe(
+    before.slice(0, before.indexOf("O ")),
+  );
+
+  // **And the listener is told, unprompted.** The strip is a polite
+  // `role="status"`, so a revision of the bar under the crosshair re-announces
+  // with no key pressed. A new bar does NOT — nothing it names changed.
+  await expect.poll(() => spokenReading(page)).not.toBe(spokenBefore);
+
+  await expectNothingFailedToRender(page);
+});
+
+test("the keyboard still walks from the edge after a bar arrives", async ({
+  page,
+}) => {
+  const push = await serve(page);
+
+  await page.goto(EXPLORER);
+  await expect(drawnCount(page)).toContainText(`a line of ${served} closing`);
+
+  await reader(page).focus();
+  await page.keyboard.press("End");
+  const atEnd = await readingStrip(page);
+
+  push({ NVDA: held(0) });
+  await expect(drawnCount(page)).toContainText(`a line of ${grown} closing`);
+
+  // One step left from where the reading actually IS, not from a stale index —
+  // `resolveRead` hands the keyboard the resolved position for this reason.
+  await page.keyboard.press("ArrowLeft");
+  expect(await readingStrip(page)).not.toBe(atEnd);
+
+  // `End` now reaches the bar that arrived, which is the other half: the
+  // reading holds its instant until the reader asks for a different one.
+  await page.keyboard.press("End");
+  expect(await readingStrip(page)).not.toBe(atEnd);
+
+  // And `Escape` clears it and keeps the focus, unchanged by any of this.
+  await page.keyboard.press("Escape");
+  await expect(reader(page)).toBeFocused();
 
   await expectNothingFailedToRender(page);
 });
