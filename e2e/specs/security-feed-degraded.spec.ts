@@ -149,6 +149,16 @@ test("killing the feed leaves the page exactly as it was", async ({ page }) => {
   await expect(feedCell(page)).toContainText(/live/iu);
 
   const main = page.locator("main").first();
+
+  // **Wait for the snapshot's price to be ON the page before snapshotting it.**
+  // The chrome says `live` as soon as the socket greets the browser, which is
+  // before the identity block has rendered the observation that greeting
+  // carried — so a `before` taken on the chrome's word alone can miss a figure
+  // the `after` has, and the comparison fails on the page having *finished
+  // loading* rather than on the outage changing anything. Found on a full-suite
+  // run under load; the assertion was right and the fixture was racing it.
+  await expect(main).toContainText("230.25");
+
   const before = ((await main.innerText()) || "").replace(/\s+/gu, " ").trim();
   expect(before.length).toBeGreaterThan(40);
 

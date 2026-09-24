@@ -42,6 +42,7 @@ import {
   directionOf,
   formatChangePercent,
   formatPrice,
+  formatSessionTime,
 } from "../../market/index.js";
 import styles from "./UniverseTable.module.css";
 
@@ -537,6 +538,7 @@ const SecurityTableRow = memo(function SecurityTableRow({
   arrival,
   reserveSession,
   session,
+  newestObservation,
 }: {
   readonly security: Security;
   readonly coverage: SecurityCoverage | undefined;
@@ -566,6 +568,8 @@ const SecurityTableRow = memo(function SecurityTableRow({
    * A row whose own session differs from it says so; see {@link LastCloseCell}.
    */
   readonly session: MarketDate | null;
+  /** See {@link UniverseRows}. */
+  readonly newestObservation: Date | undefined;
 }) {
   const untracked = security.status === "untracked";
 
@@ -576,6 +580,7 @@ const SecurityTableRow = memo(function SecurityTableRow({
         lastClose={lastClose}
         live={live}
         arrival={arrival}
+        newestObservation={newestObservation}
         reserveSession={reserveSession}
         session={session}
       />
@@ -624,6 +629,7 @@ function LastCloseCell({
   arrival,
   reserveSession,
   session,
+  newestObservation,
 }: {
   readonly lastClose: SecurityLastClose | undefined;
   /** See {@link SecurityTableRow}: absent is the ordinary case. */
@@ -633,8 +639,29 @@ function LastCloseCell({
   /** See {@link UniverseRows}: only while a stored row is drawing one. */
   readonly reserveSession: boolean;
   readonly session: MarketDate | null;
+  /** See {@link UniverseRows}: the newest minute on the page, or absent. */
+  readonly newestObservation: Date | undefined;
 }) {
   if (live !== undefined) {
+    /*
+     * **Behind the page's newest minute, or level with it** (Task 3.10.4).
+     *
+     * `undefined` means *the shared claim covers this row* — its observation
+     * is the newest the table holds, so saying an instant would repeat what
+     * every other live row is also saying. A value means the feed has moved on
+     * and this figure has not, which is the one thing state 1 and state 4 did
+     * not say differently.
+     *
+     * **No threshold, and no verdict.** `LIVE-DATA.md` §11.2 refused to give a
+     * security a status word with a measurement — the ordinary maximum gap
+     * between one security's bars is **187 minutes** — and this respects that:
+     * it renders the instant, never a judgement about it.
+     */
+    const behind =
+      newestObservation !== undefined && live.startsAt < newestObservation
+        ? formatSessionTime(live.startsAt)
+        : undefined;
+
     /*
      * **A live price, and it carries no date** (Task 3.6.1).
      *
@@ -684,18 +711,45 @@ function LastCloseCell({
           )}
           {formatPrice(live.close)}
         </span>
-        <span className={styles.visuallyHidden}>Live price</span>
         {/*
-         * **The line this cell does not draw, reserved so arriving costs no
-         * height.** Every stored row in this column carries a session date
-         * once anything is live, so without this a row would shrink the first
-         * time an observation reached it — a table reflowing under a reader as
-         * a thin name finally trades. `aria-hidden`, because there is nothing
-         * to say: the spoken half of this cell is `Live price` above.
+         * **The spoken half carries the instant when there is one to carry**
+         * (Task 3.10.4). `Live price` alone is state 1 and state 4 in one
+         * string — a figure from this minute and a figure from three hours
+         * ago, read identically. The vocabulary is EXTENDED rather than
+         * replaced: the words a listener already knows stay, and the instant
+         * joins them only when the shared claim does not cover this row.
          */}
-        {reserveSession && (
-          <span className={styles.sessionReserved} aria-hidden="true">
-            &nbsp;
+        <span className={styles.visuallyHidden}>
+          {behind === undefined ? "Live price" : `Live price from ${behind}`}
+        </span>
+        {/*
+         * **The line this cell reserves, and now sometimes fills.**
+         *
+         * It exists so arriving costs no height: every stored row in this
+         * column carries a session date once anything is live, so without it a
+         * row would shrink the first time an observation reached it — a table
+         * reflowing under a reader as a thin name finally trades.
+         *
+         * **Task 3.10.4 put the instant in it rather than adding an element.**
+         * State 2 (a stored close) already carries a date here and state 4 (a
+         * live price the feed has moved past) carried nothing, which is the
+         * asymmetry that made them read wrong: the table was more careful
+         * about the day-old number than the three-hour-old one. The repair
+         * costs **no new element type and no new column** — it is the span
+         * that was already rendering, with text instead of a space.
+         *
+         * `aria-hidden` when it is blank, because then there is nothing to
+         * say; when it carries an instant the spoken half above carries it
+         * too, so this stays hidden either way and the fact is said once.
+         */}
+        {(reserveSession || behind !== undefined) && (
+          <span
+            className={
+              behind === undefined ? styles.sessionReserved : styles.session
+            }
+            aria-hidden="true"
+          >
+            {behind ?? "\u00a0"}
           </span>
         )}
       </td>
@@ -973,12 +1027,40 @@ function UniverseRows({
    * | Some live, some not | the stored rows | **yes** |
    * | Everything live     | none — there is no stored row left to date | no |
    */
+  /*
+   * **The newest minute this table holds, computed once** (Task 3.10.4).
+   *
+   * The shared claim a live row makes is *this is a price from the feed*, and
+   * the heading's own rule — stated at `held.through` — is that a clause
+   * renders **only when the shared thing does not cover the row**. So the
+   * reference is the newest observation on the page rather than a clock or a
+   * threshold: a row equal to it is covered by the shared claim and says
+   * nothing, and a row behind it says its own instant.
+   *
+   * **A clock would have been the wrong reference.** After the bell every row
+   * is hours old and equally so; against `Date.now()` all 518 would grow a
+   * time, saying something the masthead's `CLOSED` already says, 518 times.
+   * Against the newest observation they are all equal and all silent, which is
+   * correct — the prices agree with each other and the chrome owns the fact
+   * that the market is shut.
+   */
+  const newestObservation = [...observations.values()].reduce<Date | undefined>(
+    (newest, bar) =>
+      newest === undefined || bar.startsAt > newest ? bar.startsAt : newest,
+    undefined,
+  );
+
+  const anyBehind =
+    newestObservation !== undefined &&
+    [...observations.values()].some((bar) => bar.startsAt < newestObservation);
+
   const reserveSession =
     anyLive &&
-    securities.some(
-      (security) =>
-        !observations.has(security.symbol) && lastCloses.has(security.symbol),
-    );
+    (anyBehind ||
+      securities.some(
+        (security) =>
+          !observations.has(security.symbol) && lastCloses.has(security.symbol),
+      ));
 
   // Computed once for the whole table rather than per row: it is a fact about
   // the response, and the heading and every cell have to agree about it.
@@ -1305,6 +1387,7 @@ function UniverseRows({
                         observations.get(security.symbol),
                         fromSnapshot.has(security.symbol),
                       )}
+                      newestObservation={newestObservation}
                       reserveSession={reserveSession}
                       session={session}
                     />
