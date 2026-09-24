@@ -45,8 +45,10 @@ import type { LiveObservation } from "./market-data-stream.js";
  *    documentation: there is no way to read a price without receiving its
  *    instant in the same object.
  * 3. **A bar is not final for thirty seconds.** §14.1 measured revisions at
- *    **0.064%** of bars, arriving **29.1–30.1 s** after the bar they correct,
- *    **35.3%** of them changing the close and **not one** changing nothing.
+ *    **0.1062%** of bars, arriving **29.1–30.1 s** after the bar they correct,
+ *    **37.6%** of them changing the close and **not one** changing nothing.
+ *    (0.064% / 35.3% over the spike's window; re-measured over a whole
+ *    session on 2026-09-24, and §14.1's amendment carries both.)
  */
 
 /**

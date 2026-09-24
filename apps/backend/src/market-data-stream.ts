@@ -123,9 +123,11 @@ export interface LiveObservation {
    * ignores revisions is **quietly wrong for ever**. Neither is what the owner
    * decided on 2026-09-17 (§7.11).
    *
-   * Measured at universe scale in §14.1: **0.064%** of bars, arriving
-   * **29.1–30.1 s** after the bar they correct, **35.3%** of them changing the
-   * close, and **not one** changing nothing. So it is rare, bounded in time,
+   * Measured at universe scale in §14.1: **0.1062%** of bars, arriving
+   * **29.1–30.1 s** after the bar they correct, **37.6%** of them changing the
+   * close, and **not one** changing nothing. (The rate was 0.064% over the
+   * spike's window and was re-measured over a whole session on 2026-09-24;
+   * §14.1's amendment carries both and neither reverses anything here.) So it is rare, bounded in time,
    * and always material — which is exactly the shape that gets skipped because
    * it almost never happens.
    *
