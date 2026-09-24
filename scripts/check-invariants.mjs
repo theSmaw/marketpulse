@@ -62,7 +62,7 @@
 //
 // Dependency-free, like every script in this directory.
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import process from "node:process";
@@ -1454,6 +1454,64 @@ const INVARIANTS = [
             "\n    One subscription lives in `App` and every screen declares " +
             "what it needs through `onLiveSymbols`. A second caller is a " +
             "second socket's worth of state that nothing above it is holding.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "every-prepared-index-has-its-adopter",
+    claim:
+      "Every entry in `prepare-indexes.ts`'s `PREPARED` list names a " +
+      "migration file that exists.",
+    check() {
+      // **The silent half of a two-step index build (raised 2026-09-23 by
+      // Task 3.8.2, mechanised at Story 3.8's close).**
+      //
+      // `market_bars` is too large for a migration to build an index inside
+      // `deploy.yml`'s `timeout 120`, so `pnpm index:prepare` builds it
+      // CONCURRENTLY in a step of its own and the migration only ADOPTS it
+      // (`migrations/README.md` §9). That splits one change across two files,
+      // and the two failure modes are not symmetric:
+      //
+      //   - **An adopter with no entry** fails a deploy once and loudly — the
+      //     migration renames an index that was never built.
+      //   - **An entry with no adopter** is SILENT. The prepare step builds
+      //     the index on every deploy, reports `waiting for <migration>`, and
+      //     waits forever for a file that was renamed or never written. The
+      //     store carries an unadopted index and the message reads like
+      //     progress.
+      //
+      // The second is the one worth a grep, and it is one `existsSync`.
+      const path = "apps/backend/src/prepare-indexes.ts";
+      const text = readFileSync(resolve(REPO_ROOT, path), "utf8");
+      const adopters = [...text.matchAll(/adoptedBy:\s*"([^"]+)"/g)].map(
+        (match) => match[1],
+      );
+
+      if (adopters.length === 0) {
+        throw new InvariantFailure(
+          `${path} names no \`adoptedBy\` migration. Either the list is ` +
+            "empty — in which case this check and the step are both dead — " +
+            "or the field was renamed and nothing now ties a prepared index " +
+            "to the migration that adopts it (Task 3.8.2).",
+        );
+      }
+
+      const missing = adopters.filter(
+        (name) =>
+          !existsSync(
+            resolve(REPO_ROOT, `apps/backend/migrations/${name}.sql`),
+          ),
+      );
+
+      if (missing.length > 0) {
+        throw new InvariantFailure(
+          `${missing.length} prepared index adopter(s) name a migration that ` +
+            `does not exist: ${missing.join(", ")}. \`pnpm index:prepare\` ` +
+            "would build the index on every deploy and wait for an adopter " +
+            "that is never going to run — which reads as progress rather " +
+            "than as a fault (migrations/README.md §9).",
         );
       }
     },

@@ -74,7 +74,11 @@ looks right.
 
 - **Volume ratio and return percentile over a live tail are computed on IEX.**
   Median minute coverage is **82.8%**, worst case **43.1%** (`CCI`), against
-  **99.7%** on the consolidated tape — `ALPACA.md` §5.2, measured 2026-09-07. An
+  **99.7%** on the consolidated tape — `ALPACA.md` §5.2, measured 2026-09-07.
+  **Those are the STORED endpoint's figures; the live stream is worse, and this
+  bullet is about a live tail** — `LIVE-DATA.md` §7.6 measured **65.1%** median
+  per-symbol and **2.1%** worst case, which is the pair item 3 below already
+  quotes (noted 2026-09-24 by Story 3.8's close). An
   absent bar is **ordinary** on IEX and **notable** on SIP, so "volume 3.8×
   normal" computed with a live IEX numerator over a stored SIP baseline is
   comparing two different tapes. `UNIVERSE.md` rule 4 already pulled on this
@@ -127,6 +131,25 @@ nothing.
    (`UNIVERSE.md` §12.2 — a computation over _the market we track now_ filters;
    a read of something we **stored** does not). Story 3.8's read path is
    deliberately unfiltered, and that asymmetry must not be "fixed".
+
+   > **Added 2026-09-24 by Story 3.8's close — and a fourth property arrived
+   > with it: SOME STORED MINUTE BARS ARE NOW A SINGLE VENUE'S.** Since
+   > 2026-09-23 the deployed backend writes live IEX bars into `market_bars`
+   > beside the nightly consolidated ones, and both are kept (ADR 0035). The
+   > served read prefers `sip` where a minute holds both, so a **settled**
+   > session still computes on the consolidated tape — but two stretches do
+   > not: the **minutes in progress** before that night's backfill, and
+   > **extended hours**, which the backfill never asks for and which are
+   > therefore the live tape's permanently.
+   >
+   > So the trap this section opens with — _a volume ratio computed with a live
+   > IEX numerator over a stored SIP baseline is comparing two different
+   > tapes_ — is no longer only about a live tail. **It can now happen entirely
+   > inside the store.** A score computed over a window that reaches into
+   > today, or into pre-market, is mixing tapes without anything on the query
+   > saying so. `market_bars.feed` is on every row; read it rather than assume
+   > one tape.
+
 3. **An absent entry is normal, not an error.** Median minute coverage on the
    IEX feed is **65.1%**, and `ERIE` is **2.1%** — a security can be legitimately
    silent for a long stretch. A gap of **187 minutes** was measured. Treat

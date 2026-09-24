@@ -359,6 +359,21 @@ export const BREAKS = [
     expect: "builds a query against",
   },
   {
+    name: "a-prepared-index-loses-its-adopter",
+    proves:
+      "A `PREPARED` entry whose `adoptedBy` migration does not exist is " +
+      "caught. `pnpm index:prepare` would build the index on every deploy " +
+      "and report `waiting for <migration>` for ever \u2014 a fault that " +
+      "reads as progress (`migrations/README.md` \u00a79, raised by Task " +
+      "3.8.2, mechanised at Story 3.8's close).",
+    file: "apps/backend/src/prepare-indexes.ts",
+    find: '    adoptedBy: "0011_market_bars_unique_bar_by_tape",',
+    replace:
+      '    adoptedBy: "0011_market_bars_unique_bar_by_tape_renamed", // pnpm break: reverted automatically',
+    command: ["pnpm", "invariants"],
+    expect: "name a migration that does not exist",
+  },
+  {
     name: "the-ledgers-tape-is-read-again",
     proves:
       "The ledger's `feed` column comes back as a read. It is the tape the " +

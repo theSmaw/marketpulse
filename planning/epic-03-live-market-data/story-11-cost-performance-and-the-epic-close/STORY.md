@@ -754,3 +754,32 @@ than re-taking them here unless the table changed.
   the first deploy reporting exit 124 with `wait_event: relation`. An epic close
   that reviews cost and performance is the natural place to ask whether Story
   3.8's live writer has made that condition worth buying the bound for.
+
+---
+
+## Handed here by Story 3.8's close — 2026-09-24: a figure nobody has taken, with the arithmetic it has to beat
+
+**`BARS.md` §8.4 is now a two-writer plan on one writer's measurements, and this
+story owns the re-take.**
+
+Story 3.8 decided that **both tapes are kept**, and ADR 0035 priced it **before
+a row was written**: **+69% rows a year**, **+6.1 GiB a year**, headroom from
+~2.6 years down to **~1.5**. That is a ceiling computed as if the live feed
+produced a bar for every minute of every session.
+
+**It does not.** IEX's median per-symbol minute coverage is **65.1%**, worst
+case **2.1%** (`ERIE`), measured first-hand in `LIVE-DATA.md` §7.6 — so the real
+duplicate set is smaller, and **by how much has never been measured on a real
+day**. What this story owes:
+
+- **One trading day's rows and bytes on the deployed store**, split by `feed`,
+  against §8.4's arithmetic. It is one query, and until somebody runs it the
+  headroom figure in `BARS.md` is a prediction wearing a table's clothes.
+- **How many of those rows are duplicates** — minutes holding both tapes — which
+  is the number ADR 0035's 69% actually estimated, and the input to its reversal
+  trigger (_the first month in which the live session's rows outgrow the
+  backfill's_).
+- **What the extended-hours residue costs.** The writer keeps pre- and
+  after-hours bars and the backfill asks per **session**, so those minutes are
+  the live tape's for ever — a permanent, single-tape addition rather than a
+  duplicate. It is the one stretch that survives the night.

@@ -303,6 +303,18 @@ check disabled) — each reddened their own test and restored the file.
 
 ## 8. Reading — the sources of a window, the order rule, and what the wire says (Task 3.7.5, 2026-09-23)
 
+> **AMENDED 2026-09-24 by Story 3.8's close — the rows this section walks are
+> the rows the ANSWER contains, which is narrower than the rows the store
+> holds.** When this was written a minute held at most one row, so the two were
+> the same set. Since Task 3.8.4 a minute may hold one row per tape and
+> `readSeries` picks **one** of them — `distinct on (observed_at)`, ordered by
+> a served-tape rank that prefers `sip` — because `toBarSeries` refuses bars
+> that are not strictly ascending and the alternative was a 500. So a served
+> window's `sources` describe **what was served**, and a window whose every
+> minute holds both tapes names **one** source, not two. That is the more
+> accurate claim and it is the one to read this section under: nothing here
+> promises that a served window names every tape the store holds for it.
+
 **Criterion 2, as shipped.** `readSeries` selects `market_bars.feed` beside
 the six bar columns and `recorded_at`, and `toStoredSeries` walks the rows
 once — they arrive ascending by `observed_at` — starting a new **stretch**

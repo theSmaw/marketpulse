@@ -430,3 +430,47 @@ last.~~
 > chart's last point is whatever arrived. Whether that point is drawn
 > differently from a settled one — and what happens to it when the consolidated
 > version lands minutes later — is the live edge this story is named for.
+
+---
+
+## Handed here by Story 3.8's close — 2026-09-24: today comes from the store, and the two-feed note is narrower than this story assumed
+
+**Three things this story reasoned about are now facts rather than plans, and
+one of them shrinks a scope.**
+
+**1. Today's bars are in the store.** `live-bar-writer.ts` writes every complete
+minute bar with its tape, every minute the market is open, on the deployed
+backend (Task 3.8.3). `LIVE-DATA.md` §10.3's obligation — _not in memory,
+durably elsewhere_ — is discharged. So this story's chart assembles today from
+**the store plus what has arrived since**, and a reload mid-session keeps its
+chart without this story doing anything.
+
+**2. The two-feed source note is already on screen from real data, and this
+story did not draw it.** Task 3.8.3 photographed `All US exchanges` over `IEX`
+with the one-venue sentence, from rows the shipped writer wrote, and Task 3.8.8
+read it clause for clause against `VISUAL-LANGUAGE.md`'s provenance section and
+found it matches. **Re-read this story's ledger scope against that** rather than
+assuming it is unbuilt.
+
+**3. And the narrowing, which is the part to act on.** A served window's
+`sources` are derived from **the rows the answer contains**, not from every tape
+the store holds for it — since Task 3.8.4 the read picks one row per minute and
+prefers `sip`. The nightly backfill then covers every regular-session minute. So
+on a deployed store:
+
+| When a reader looks                                   | What the note says                   |
+| ----------------------------------------------------- | ------------------------------------ |
+| a window whose last session is **today, market open** | two stretches, in contribution order |
+| the same window **after that night's backfill**       | **one** stretch, `sip`               |
+
+Measured against production on 2026-09-23 after the backfill: `NVDA`, `1m`, one
+session — 390 bars, one source, `alpaca`/`sip`, 390 bars. Rehearsed end to end
+in Task 3.8.9, which got the same answer and explains why it is the **right**
+one: every live minute had a consolidated version, so nothing of the live tape
+survives into the answer.
+
+**What that means for this story**: the two-feed ledger is a **mid-session**
+state on real data, and any assertion, screenshot or rehearsal of it has to be
+taken while the market is open. The stretches that survive the night are the
+minutes the backfill never asks for — **extended hours** — which the writer
+keeps and the session fetch does not cover.

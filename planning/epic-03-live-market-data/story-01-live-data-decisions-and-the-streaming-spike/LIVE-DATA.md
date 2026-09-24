@@ -2770,6 +2770,15 @@ Story 3.8 stores the live session so that it can. **Decision 4 and Story 3.8's
 scope are one decision seen twice** — this half says _not in memory_, and that
 obliges Story 3.8's half to say _durably in the store_, on the same day.
 
+> **Discharged 2026-09-24 by Story 3.8's close, and this paragraph is now past
+> tense.** Story 3.8 shipped `live-bar-writer.ts` (Task 3.8.3): the deployed
+> backend writes every complete minute bar into `market_bars` with its tape,
+> every minute the market is open. Today's bars are **in the store**, so this
+> section's obligation is met and its premise — _not in memory, durably
+> elsewhere_ — holds with both halves true rather than one promised. What
+> §10.3 still decides, unchanged, is that the **backend process** holds only
+> the last bar per security.
+
 **Restart: the map comes back empty and fills unevenly, and that is ordinary.**
 It is a **cache of the socket rather than a source of truth**. After a restart a
 liquid security reappears within a minute and `ERIE` may not reappear for hours

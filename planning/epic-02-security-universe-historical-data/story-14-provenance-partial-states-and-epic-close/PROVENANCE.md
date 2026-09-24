@@ -984,6 +984,23 @@ the two-feed sentence §2 settles has no producer until there is.
 > > bodies are unchanged — so this document's own states are as they were, and
 > > what has changed is that §2's sentence is now waiting on data rather than on
 > > a mechanism.
+> >
+> > > **Amended 2026-09-24 by Story 3.8's close — the deployed store has a
+> > > WRITER putting a second tape in, and the window in which a reader can see
+> > > it is narrower than anyone had said.** Since 2026-09-23 the deployed
+> > > backend writes every complete IEX minute bar into `market_bars` (Task
+> > > 3.8.3). But a served window's sources are derived from the rows **the
+> > > answer contains**, the read prefers `sip` where a minute holds both (Task
+> > > 3.8.4), and the nightly backfill covers every regular-session minute — so
+> > > **after the backfill runs, a regular-session window collapses back to one
+> > > `sip` source**. Measured against production on 2026-09-23 at 23:16 UTC,
+> > > after that night's backfill: `NVDA`, `1m`, one session — 390 bars,
+> > > `sources` naming **one** entry, `alpaca`/`sip`, 390 bars.
+> > >
+> > > So the two-feed note is a **mid-session** state on a deployed store, not a
+> > > standing one: any window whose last session is **today, while the market
+> > > is open**. That is what Story 3.8's `LIVE-REHEARSAL.md` row is owed, and
+> > > §2's sentence is still waiting on somebody looking at the right minute.
 >
 > The distinction matters for this document specifically: **the product can now
 > make a claim about the present, and it still makes no claim about a stitched

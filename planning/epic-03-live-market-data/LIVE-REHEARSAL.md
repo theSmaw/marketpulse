@@ -31,8 +31,11 @@ check.
 - **A rehearsal is minutes, not an evening.** Open the surface the story built,
   during a session, against `MARKET_DATA_PROVIDER=alpaca`, and write down what
   you saw — including "nothing moved for four minutes", which is an ordinary
-  observation on a feed with 82.8% median minute coverage and is worth recording
-  as such.
+  observation on a feed with **65.1%** median per-symbol minute coverage and is
+  worth recording as such. (Corrected 2026-09-24 by Story 3.8's close: this read
+  _82.8%_, which is `ALPACA.md` §5.2's figure for the **stored** `feed=iex`
+  endpoint. The live stream was measured first-hand at 65.1% median, 2.1% worst
+  case, in `LIVE-DATA.md` §7.6.)
 - **`What was wrong` is the column that earns this file.** A rehearsal with
   nothing in that column for six stories running is a rehearsal nobody did.
 - **Story 3.11 cannot close with a missing row**, and since **2026-09-21** that
@@ -99,6 +102,69 @@ machine's store. The deployed feed read `live` on `iex` at 08:31 UTC that
 day, so the venue was the deployed site during the session that opened 09:30
 ET; the one judgement only that sitting could return was Task 3.6.2's _pulse
 or flash_, and Story 3.4's list was the same sitting.
+
+**3.8's row is empty at its close — 2026-09-24 — and it is owed rather than
+waived, with a narrower instruction than the story wrote for itself.** Story
+3.8's writer was deployed on 2026-09-23 at ~03:15 ET and has run through a full
+session since, so there is nothing left to build; what is missing is somebody
+looking. Two items are owed and **both must be taken while the market is open**:
+a **reload during a session keeping today's chart** on the deployed site, and a
+**photograph of the two-feed source note from the deployed store**.
+
+The second one's window turned out to be much narrower than Task 3.8.3 assumed,
+and that is worth having in writing before the sitting rather than after it. A
+served window's `sources` describe the rows the **answer** contains; the read
+prefers `sip` where a minute holds both tapes (Task 3.8.4); and the nightly
+backfill covers every regular-session minute. **So after the backfill runs the
+note collapses to one source.** Read off production on 2026-09-23 at 23:48 UTC,
+after that night's backfill: `NVDA`, `1m`, one session — 390 bars, `sources`
+naming **one** entry, `alpaca`/`sip`, 390 bars. The same query at 11:00 ET is
+the photograph; at 20:00 ET it is not. The stretches that survive the night are
+**extended hours**, which the writer keeps and the session fetch never asks for.
+
+**And one thing the same reading could not settle, recorded as a question rather
+than a finding.** A window reaching into 2026-09-23's extended hours returned
+**no pre-market bars at all**, and its after-hours bars came from the read-time
+stitch (`retrievedAt` at the moment of asking) rather than from the store — so
+**nothing observable from outside proves the deployed writer stored a single
+row that night**, because every regular-session minute it could have written is
+shadowed by the consolidated bar. It is one query on the deployed store —
+`select feed, count(*) from market_bars where timeframe = '1m' and observed_at
+
+> = <session> group by feed` — and it belongs with this row.
+
+**The instrument for the next sitting is written and smoke-tested —
+`scripts/session-watch.mjs`, 2026-09-24.** It takes five of Task 3.4.10's eight
+combined items unattended, from the deployed site:
+
+```sh
+node scripts/session-watch.mjs 1200 --browser --every 15
+```
+
+It watches **our gateway**, not Alpaca — a second browser client, subscribed to
+the whole universe because the correction rate is the point (§14.1's 0.064%
+over ten symbols would be one or two bars, which is not a measurement). It
+records every frame it keeps **verbatim**, counts corrections and their close
+changes, flags extended-hours bars and any instant outside a trading day, polls
+`sessions=1` **and** `sessions=5` for `provenance.sources`, and does the reload
+comparison mid-run. Output is `.capture/session/`, which is gitignored.
+
+**What it cannot take, stated rather than implied**: `pnpm probe` (run it
+yourself, against the deployed pair, so the output is comparable to the last
+one); the store query above; whether a person found it pleasant; and **late
+corrections** — since Task 3.8.7 the gateway publishes what the current state
+**applied**, which drops a revision for a minute already passed, so the count is
+a **floor** and the gap between it and the vendor's own figure is the late ones.
+
+Two things the smoke test found before the night rather than during it, both now
+in the instrument: the identity block reads **`LAST SESSION CLOSE`** rather than
+`LATEST PRICE` when no live figure exists — so _which label is showing_ is
+itself the evidence, and the browser suite's selector never meets the other one,
+because CI's store has no bars. And the source note renders **no feed clause at
+all** right now: `namesFeeds` returns false when the series' one feed is the
+configured one, which with every bar `sip` and the chrome reading `All US
+exchanges` is every time. Two feeds short-circuit that check, so **the clause
+appearing at all is the signal.**
 
 ### Notes on the 2026-09-22 sitting
 

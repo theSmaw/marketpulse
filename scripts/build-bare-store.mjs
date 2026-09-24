@@ -37,6 +37,19 @@
 // script, because it would send somebody to CI confident about a run that
 // proved nothing. If the counts disagree it refuses and says which.
 //
+// **And since 2026-09-24 it EMPTIES the bar tables rather than only refusing.**
+// Found by Task 3.8.3 at the cost of two confusing browser-suite runs: a store
+// the fixture feed had written to was no longer CI's shape, and re-running this
+// command reported `already there — bringing it up to date` and converged the
+// **universe** only, because `pnpm migrate` and `pnpm universe` are the only
+// two things it runs and neither removes a bar. The old script did refuse at
+// the end and name the `drop database` to type — but that arrived after two
+// screens of migration output, and the one promise on the tin is *518
+// securities and zero bars*. So it truncates `market_bars` and `bar_coverage`
+// and says how many rows it removed. Safe because the target is the bare store
+// by name: a database whose entire purpose is to hold no bars. The developer's
+// own store is never opened.
+//
 // ## What it does NOT reproduce
 //
 //   1. **A runner.** Ubuntu, a shared CPU, a cold pnpm store and a service
@@ -209,7 +222,28 @@ for (const script of ["migrate", "universe"]) {
   }
 }
 
-// 3. Prove the shape rather than assert it.
+// 3. Empty the bar tables, because nothing above this line does.
+//
+//    `pnpm migrate` and `pnpm universe` converge the SCHEMA and the UNIVERSE;
+//    a bar written by the fixture feed while the pair was pointed here
+//    survives both, and the store then looks bare and is not. The ledger goes
+//    with the bars on purpose — a `bar_coverage` row claiming a window whose
+//    bars have gone is a worse shape than either.
+const barsBefore = Number(query("select count(*) from market_bars"));
+
+if (barsBefore > 0) {
+  const ledgerBefore = Number(query("select count(*) from bar_coverage"));
+
+  query("truncate market_bars, bar_coverage");
+
+  console.log(
+    `\nEmptied ${String(barsBefore)} bars and ${String(ledgerBefore)} ledger ` +
+      "rows — neither `pnpm migrate` nor `pnpm universe` removes one, and\n" +
+      "this store's one promise is that it holds none.",
+  );
+}
+
+// 4. Prove the shape rather than assert it.
 const securities = Number(query("select count(*) from securities"));
 const bars = Number(query("select count(*) from market_bars"));
 
@@ -228,9 +262,11 @@ if (securities < MINIMUM_SECURITIES) {
 
 if (bars !== EXPECTED_BARS) {
   console.error(
-    `\n${String(bars)} bars. CI's store has none, so this is a third shape ` +
-      "rather than a\nreproduction of it — something backfilled into " +
-      `${BARE_DATABASE}. Drop it and rebuild:\n\n` +
+    `\n${String(bars)} bars, after the truncate above. CI's store has none, ` +
+      "so this is a third shape\nrather than a reproduction of it, and " +
+      "something is writing into " +
+      `${BARE_DATABASE}\nfaster than this script empties it — check for a ` +
+      "running pair pointed at it.\nDrop it and rebuild:\n\n" +
       `  pnpm db exec postgres psql -U ${database.user} -d ${database.database} ` +
       `-c 'drop database ${BARE_DATABASE}'\n`,
   );

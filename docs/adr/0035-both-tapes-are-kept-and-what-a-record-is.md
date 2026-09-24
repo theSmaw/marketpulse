@@ -183,6 +183,18 @@ seventh rehearses it; `LIVE-SESSION.md` §3 states it.
   > **The general lesson is the one worth carrying**: a decision that widens
   > what the store may hold has to be checked against what the read path
   > _refuses_, not only against what it prefers.
+  >
+  > > **Amended 2026-09-24 by Story 3.8's close — and the sentence above about
+  > > `mergeSeriesProvenance` reporting _both stretches either way_ is the half
+  > > that did not survive.** Once the read picks one row per minute, a served
+  > > window's `sources` describe **the rows the answer contains**, so a window
+  > > whose every minute holds both tapes names exactly **one** source. That is
+  > > the honest claim — provenance is about what was served — but it is not
+  > > what this bullet said, and the consequence is worth stating plainly:
+  > > **this decision's two-tape state is visible in the store and not in a
+  > > served regular-session window once the backfill has run.** Rehearsed end
+  > > to end in Task 3.8.9 (one source, `sip`, 390 bars) and seen on production
+  > > the same night.
 
 - **Whether the surrogate index is dropped.** Named above as the funder; Epic 14
   owns it.

@@ -262,6 +262,13 @@ This is not theoretical on IEX. `ALPACA.md` §5.2: median minute coverage is
 absent bar is **ordinary** on IEX and **notable** on SIP, and that sentence was
 written for the second case.
 
+> **Amended 2026-09-24 by Story 3.8's close — the live figure is WORSE than
+> the one above.** §5.2 measures the **stored** `feed=iex` REST endpoint.
+> `LIVE-DATA.md` §7.6 measured the **live stream** first-hand at **65.1%**
+> median per-symbol coverage and **2.1%** worst case (`ERIE`). Both pairs are
+> correct about their own subject; every sentence in this epic that reasons
+> about the **stream** wants 65.1% / 2.1%.
+
 ### And the honest label must not be inherited by word
 
 The free Alpaca plan is **asymmetric**: stored historical bars are consolidated

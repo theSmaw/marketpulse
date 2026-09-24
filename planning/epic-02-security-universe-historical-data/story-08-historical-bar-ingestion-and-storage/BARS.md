@@ -710,6 +710,28 @@ this confirms.
 > the index's: §8.5's `market_bars_pkey` is 1,029 MB with **zero** scans, which
 > is 25× the tape column's whole annual cost.
 
+> **AMENDED 2026-09-24 by Story 3.8's close — a SECOND WRITER, which is a rate
+> change rather than a size change, and it is the one that moves the plan.**
+> Every table above assumed the nightly backfill was the only thing writing
+> here. Since 2026-09-23 the deployed backend also writes a minute bar per
+> security per minute the market is open (`live-bar-writer.ts`, Task 3.8.3),
+> and Story 3.8's decision is that **both tapes are kept** — so a minute the
+> live feed saw and the backfill later fetched holds **two rows**, one `iex`
+> and one `sip`, on purpose ([ADR 0035](../../../docs/adr/0035-both-tapes-are-kept-and-what-a-record-is.md)).
+>
+> Priced in ADR 0035 against this section's own arithmetic: **+69% rows a
+> year**, **+6.1 GiB a year**, and the headroom above falls from ~2.6 years to
+> **~1.5**. That is the figure to plan against now, and the funder named beside
+> it is §8.5's `market_bars_pkey` — 1,029 MB with zero scans, which is Epic
+> 14's to spend.
+>
+> **It is a ceiling rather than a measurement.** The live feed is IEX, whose
+> median per-symbol minute coverage is **65.1%** (`LIVE-DATA.md` §7.6), so the
+> real duplicate set is smaller than a row-for-row doubling of the session —
+> how much smaller is **Story 3.11's**, which is told to take a day's rows and
+> bytes from the deployed store. Nothing in this repository has measured a real
+> day of two writers yet.
+
 **Criterion 7's honest sentence names 22.5 GiB rather than 32**, because the
 difference is a third of the disk. The `psql-storage-80pct` alert (severity 2,
 enabled, re-read) is what makes "nothing is deleted" safe rather than reckless,
