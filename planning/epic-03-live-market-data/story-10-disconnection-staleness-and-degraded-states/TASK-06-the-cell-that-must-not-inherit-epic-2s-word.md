@@ -81,3 +81,46 @@ that. Assert it.
 1. No connection state puts a live word beside a tape the live feed is not
 2. The check walks the **producers** rather than one rendering, break-verified
 3. A shut market is not a feed failure, asserted
+
+---
+
+## Handed here by Task 3.10.2 — 2026-09-24: the cell changes silently, and nothing has ever argued that it should
+
+**You own what this cell says in every connection state. Whether it SAYS it to
+a listener is the same decision and has never been taken.**
+
+The strip is a plain `<footer>`. `AppFooter`, `FeedIndicator` and
+`FeedProvenance` carry **no `aria-live` and no `role`** between them, so the
+word changing from `live` to `disconnected`, and the sentence that appears
+beside it, are announced to **nobody**.
+
+**The existing argument does not cover it.** `FeedProvenance`'s _Not a live
+region_ comment is correct and is about the **venue**, whose value _"cannot
+change at all without a deploy and a reload"_. The **connection** half changes
+while a page is open — the opposite case, and the one this cell exists for.
+
+**And Task 3.10.2 closed the escape route.** Criterion 3 is now held by an
+assertion that `main`'s entire text is **byte-identical** either side of an
+outage. That is right, and it means a listener who is not in the footer has
+**nothing at all** to notice: the numbers they are reading silently become
+stale.
+
+`Live in the chrome.dc.html`'s _what this did not decide_ said the listening
+list should be _"one entry longer"_ on **2026-09-19**. It reached
+`docs/GAPS.md` on 2026-09-24, five days and four tasks later.
+
+**What to decide, with the constraints that already bind it:**
+
+- The page carries **four** polite regions already, and the rule that arrived
+  with the second is that **a region belongs to a subject and its sentences
+  name it** (`FRONTEND-STATE.md` §7). A fifth needs that argument made, not
+  assumed.
+- **`role="status"` would announce on mount**, which is the commonest
+  transition in a footer and the reason the venue half refused one.
+- The honest middle is probably that **only the degraded transitions** speak —
+  a region that is silent on mount and on a return to `live`, and says
+  something when the feed stops. That is a shape this product has not built
+  before, so it is a decision rather than a default.
+- Whatever is chosen, **what a real screen reader does with it is the standing
+  unanswerable**, and the list it joins is at five entries with an owner who is
+  a person rather than a task.
