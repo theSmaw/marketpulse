@@ -207,8 +207,14 @@ keeps it from becoming a footnote pile is worth re-reading before adding to it.
 4. `twoFeedStitchView()` is gone from the tree, and the state it simulated is
    reachable from a recorded body — checked by a grep that goes red, with a
    `pnpm break` entry
-5. The market-claim sentence is repaired, has **one** home, and a second copy
-   fails the build. A check, and the break that proves it
+5. ~~The market-claim sentence is repaired, has **one** home, and a second copy
+   fails the build. A check, and the break that proves it~~ — **met 2026-09-24
+   by Task 3.9.8**, and it was **two** sentences rather than one: the silent
+   window's, repaired by naming its reach off the series' own tapes, and the
+   cadence clause handed here by Task 3.9.1, repaired by **deletion**. One
+   home is `describeSilence`; the check is
+   `the-market-claiming-sentence-has-one-home` and the break is
+   `the-market-claiming-sentence-gets-a-second-home`
 6. No main-thread task over 50 ms while the chart is extending, at the default
    window and at the cap (§28, and `CHARTING.md`'s own figures are the baseline)
 7. The reading strip, the crosshair and the keyboard walk all work at the live

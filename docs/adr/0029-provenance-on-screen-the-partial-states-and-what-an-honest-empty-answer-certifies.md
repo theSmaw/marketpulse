@@ -335,6 +335,20 @@ document for.
   because it is the only shipped sentence claiming something about **the market**
   rather than about our store, and a single venue's silence is not the market's.
   Both are in [`docs/GAPS.md`](../GAPS.md) with a re-measure.
+
+  > **Amended 2026-09-24 — both prophecies came true and both are discharged,
+  > by Tasks 3.9.7 and 3.9.8.** The paragraph above is left standing because it
+  > is the prediction, and it was right on both counts and for the stated
+  > reasons. The ledger: `market_bars` gained a `feed` column (ADR 0034), a
+  > served window derives its sources from the stored rows, and the frontend's
+  > version of the state is a **recorded** body since Task 3.9.7. The sentence:
+  > it has one home since Task 3.9.8, `describeSilence`, which reads its scope
+  > off the series' own tapes — `anywhere` only where the consolidated tape is
+  > what we read. Both are checks with breaks behind them now rather than
+  > entries in a list. **Decision 1 is what did the work in both cases**: a
+  > claim about data requires data, applied to the scope of a claim rather than
+  > to its presence.
+
 - **Epic 8's evidence provenance is this shape pointed at a different claim.**
   Source, event timestamp, retrieval timestamp, calculation method, raw-data
   reference — and the rule that governs it is decision 1: a claim about evidence

@@ -1,4 +1,9 @@
-import type { Bar, Timeframe, TimeRange } from "@marketpulse/shared";
+import type {
+  Bar,
+  MarketFeed,
+  Timeframe,
+  TimeRange,
+} from "@marketpulse/shared";
 
 import type {
   ChartDensity,
@@ -371,6 +376,19 @@ export interface ChartSubject {
   readonly covered: TimeRange | null;
   readonly timeframe: Timeframe;
   readonly bars: readonly Bar[];
+
+  /**
+   * **The tapes the answer is drawn from**, in first-contribution order
+   * (Task 3.9.8).
+   *
+   * Here rather than read off the view at a call site for this module's own
+   * stated reason: two plots that answered a question about the series
+   * differently would be two charts on one axis disagreeing. One reader today
+   * — the volume strip's silent-window sentence, whose **scope** is a fact
+   * about the feeds rather than about the bars — and it is the same shape as
+   * `covered`: a separate field because it is a separate fact.
+   */
+  readonly feeds: readonly MarketFeed[];
 }
 
 /**

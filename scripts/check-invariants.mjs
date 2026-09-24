@@ -1510,6 +1510,58 @@ const INVARIANTS = [
   },
 
   {
+    id: "the-market-claiming-sentence-has-one-home",
+    claim:
+      "`No shares changed hands` is produced by exactly one place — " +
+      "`describeSilence` in `market-provenance.ts` — so the drawn strip and " +
+      "its spoken twin cannot be corrected apart.",
+    check() {
+      // **The only sentence this product ships that claims something about
+      // the MARKET rather than about our store** (Task 3.9.8), and it had two
+      // homes: a literal in `VolumeReading.tsx` and a second literal in
+      // `chart-alternative.ts`, each carrying a comment saying it was
+      // deliberately said in the other's words *because it is the same fact*.
+      //
+      // That is ADR 0029's `one fact has one home` broken with a note
+      // explaining the break, and the cost is specific rather than tidy: the
+      // sentence's SCOPE — `anywhere`, against one named venue — is a fact
+      // about the series' tapes, so a correction applied to one copy leaves
+      // the other reporting one exchange's silence as the whole market's.
+      //
+      // Walked at the producers for `the-consolidated-word-has-one-producer`'s
+      // reason: rendering a state proves that ONE state does not say it.
+      // Comments are read out first, because the argument for the words is
+      // worth keeping and is not a producer.
+      const files = [
+        "packages/shared/src/market-provenance.ts",
+        "apps/frontend/src/components/PriceChart/VolumeReading.tsx",
+        "apps/frontend/src/components/PriceChart/chart-alternative.ts",
+        "apps/frontend/src/components/PriceChart/VolumeChart.tsx",
+        "apps/frontend/src/components/PriceChart/ChartReading.tsx",
+      ];
+
+      const producers = files.filter((file) => {
+        const full = resolve(REPO_ROOT, file);
+        if (!existsSync(full)) return false;
+        return withoutComments(readFileSync(full, "utf8")).includes(
+          "No shares changed hands",
+        );
+      });
+
+      if (producers.length !== 1 || producers[0] !== files[0]) {
+        throw new InvariantFailure(
+          `\`No shares changed hands\` is produced in ${producers.length} ` +
+            `place(s) (${producers.join(", ") || "none"}), and it must be ` +
+            "produced in exactly one: `describeSilence`. A second one is a " +
+            "copy that can be corrected alone, and the fact it carries is " +
+            "how wide a claim the series' feeds entitle it to make " +
+            "(Task 3.9.8).",
+        );
+      }
+    },
+  },
+
+  {
     id: "the-two-feed-state-comes-from-a-recorded-body",
     claim:
       "The frontend's two-feed fixture is a RECORDED body, not a recorded " +

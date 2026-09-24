@@ -357,6 +357,7 @@ export function VolumeChart({
        * arrow presses with both plots on screen rather than trusting it.
        */}
       <VolumeReading
+        feeds={subject?.feeds ?? []}
         peakBar={volume.peakBar}
         plot={box}
         readings={volume.readings}
