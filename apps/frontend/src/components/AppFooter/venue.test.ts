@@ -21,6 +21,7 @@ const live = (feed: LiveFeedView["feed"]): LiveFeedView =>
     unreadable: 0,
     observations: new Map(),
     fromSnapshot: new Set(),
+    resumes: 0,
   }) as unknown as LiveFeedView;
 
 const STORED: MarketFeedView = { state: "configured", feed: "sip" };

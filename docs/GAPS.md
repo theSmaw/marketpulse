@@ -489,6 +489,40 @@ DATABASE_NAME=marketpulse_bare pnpm dev     # then run the spec against it
 
 If it passes there and fails against your own store, **the store is the subject**. **Owner: a condition** — the first browser spec that asserts on a figure whose presence depends on a window having data.
 
+**Amended 2026-09-24 by Task 3.10.7 — it happened again, the other way round, and the condition above had already fired.** `security-chart-edge.spec.ts` (Task 3.10.5) asserted a washed edge and a bar count against the deployment's own store, which is exactly _a figure whose presence depends on a window having data_. It passed here and failed on **CI**, whose store has zero bars, with the honest sentence _"No history is stored for NVDA at this timeframe"_ on screen — so this time the failure did **not** read as a layout defect, it read as a product that had stopped drawing. **And PR 461 was merged with that check red**, which is how it reached `main`. The repair is the one the entry above implies and never states: **a spec that asserts a figure serves its own answer** — `serveFeed`'s `bars` option, added by Task 3.10.7 — rather than asking a store whose contents nobody controls. Runtime fell from **12.6 s to 1.2 s**, which is the same fact seen from the other end. **Re-measure:** grep the browser suite for a spec that asserts a count, a price or a washed width without routing `BARS_ROUTE_PATTERN`.
+
+## The browser opens a NEW market-stream socket every few seconds on an ordinary page, and nothing notices
+
+Measured 2026-09-24 by a throwaway instrument written for Task 3.10.7, on `/securities/NVDA` against a local pair: **three WebSocket connections in twelve seconds**, which is roughly one every four seconds. **The same figure on `main` without that task's changes**, so it predates the work that found it. The gateway is not the cause — two external clients held sockets to it for **30 s with zero closes** while the page was churning, so whatever ends them is this browser's end.
+
+**Nothing in the product was wrong on screen throughout**, which is why it has gone unseen: the reconnect is Task 3.5.5's and it works, a snapshot restores every price, and `fromSnapshot` correctly declines to mark any of them as an arrival. The cost was invisible until something was wired to the _event_ rather than to the state.
+
+**What it cost, and what now hides it.** Task 3.10.7 refetches the chart when the feed comes back, which turned a four-second reconnect into a four-second **refetch** — a poll, in a hook whose own comment says it does not poll, and the cause of a browser-suite flake that read as machine contention for four bisecting runs. That hook now floors refills at one a minute (two reconnections inside one minute cannot have lost two different minutes' bars), **so the churn is suppressed rather than fixed** and the next thing wired to a reconnection will meet it again.
+
+**It is unmeasured on the DEPLOYED site**, and the one figure that exists there points the other way: the 2026-09-23 overnight watch saw its own socket close **38 times in 4h 36m** — one per seven minutes, not one per four seconds. So this may be a development-only shape (StrictMode's double-invoke, Vite's HMR, the dev server's proxy) or it may be the same fault at a different rate.
+
+**Re-measure:**
+
+```ts
+page.on("websocket", () => {
+  sockets += 1;
+});
+await page.goto("/securities/NVDA");
+await page.waitForTimeout(12_000); // expect 1
+```
+
+Run it against `pnpm dev` **and** against `pnpm e2e:deployed`. **Owner: a condition** — the next feature that acts on a reconnection rather than on the connection's state, which is the second one to pay this.
+
+## A browser that reconnects fills its gap; a BACKEND that reconnects does not, and nothing on screen tells them apart
+
+Since Task 3.10.7 a page whose **own** socket drops asks for its series again when the feed returns, and the minutes it missed come back — because since Task 3.8.3 the store has them.
+
+**When the BACKEND's upstream socket drops, the store has the hole too.** The refill then returns the answer it already had and the chart keeps its hole until that night's backfill. What a reader sees is identical in both cases: a chart that states its own coverage — _covers the first 780 of 990 trading minutes_ — with no account of why.
+
+**That is deliberate and it is Task 3.10.5's decision**: a mark derived from the **connection** is neither of the two kinds `CHARTING.md` allows, the store genuinely cannot tell a dropout from a security that did not trade, and one fact has one home. What is unguarded is the claim that the **first** case is the common one: it rests on a single overnight observation (2026-09-23, the watcher's own socket closed **38 times in 4h 36m**, every one with the backend answering HTTP) and on the fact that the deployed backend's socket has its own reconnect with backoff.
+
+**Re-measure:** during a session, read `GET /diagnostics/freshness` and the backend's log for the live writer's per-security refusal counts; a backend-side dropout shows as minutes with no rows for **every** security at once, which is the one signature that distinguishes it. **Owner: Story 3.11**, which measures the cost of holding a socket through a bad week and is the only place that will have the week.
+
 **Fired again 2026-09-23 — and the second half of that diagnosis was wrong, which is the part worth keeping.**
 Task 3.8.3's full `pnpm e2e` came back `1 failed, 141 passed` on the same spec,
 the same two narrow viewports and the same 90 px. The two commands above were

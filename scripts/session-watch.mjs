@@ -620,7 +620,26 @@ async function look(label) {
             .innerText()
             .catch(() => null);
 
-    record({ kind: "page", label, identity, marks, twoFeed, note });
+    // **The chrome's own row, added 2026-09-24 mid-run by Task 3.10.7.**
+    //
+    // `LIVE-REHEARSAL.md` note 3 is the defect three rows recorded — the
+    // venue word reading `ALL US EXCHANGES` beside `LIVE` while every live
+    // bar was IEX — and Task 3.10.6 repaired it. **A check cannot read a
+    // deployed chrome**, so the repair is owed a SIGHTING with the market
+    // open, and this instrument was already looking at the page without
+    // reading the one cell in question.
+    //
+    // Taken as the whole footer's text rather than a cell selector: it is a
+    // record rather than an assertion, and the strip is three facts whose
+    // arrangement is itself worth having verbatim.
+    const chrome = await page
+      .locator("footer")
+      .first()
+      .innerText()
+      .then((text) => text.replace(/\s+/gu, " ").trim())
+      .catch(() => null);
+
+    record({ kind: "page", label, identity, marks, twoFeed, note, chrome });
 
     // **Photograph on a CHANGE, or hourly, rather than every look.** A full-page
     // shot of this page is the 518-row table as well as the chart, and a run

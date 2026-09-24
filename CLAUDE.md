@@ -230,6 +230,44 @@ against §28's 50 ms. 3.4× the bars costs 1.8× the script, because the plot is
 against a cold load, paying a dividend it was not bought for. `CHARTING.md`
 §18. The **9,750-bar cap itself is unmeasured** and is Story 3.11's.
 
+**And since 2026-09-24 a dropout costs a few seconds of chart rather than the
+rest of the day.** When a page's socket comes back, the chart asks for its
+series again and the minutes it could not hear arrive with it — because since
+Task 3.8.3 the store has them whatever a browser's socket was doing, which is
+why a mid-session **reload** already worked. So this is a reload without the
+reload, and every constraint the task was written against — the ~15-minute
+embargo, the ~3.3/s bucket, the `429` with no `Retry-After` — binds a request
+to **Alpaca** and none of them is made. Nothing computes the gap's extent:
+the window is the window and the answer to it is whole.
+
+Two rules travel with it. **The refill is quiet** — no `loading`, no pending
+panel — because nobody pressed anything, and the socket the 2026-09-23 watch
+observed closed **38 times in 4h 36m**. And **a refill that fails changes
+nothing**, because a page that was drawing a correct answer must not become an
+error message over a request the reader never made. `LiveFeedView.resumes`
+counts returns rather than disconnections, is a **counter** so two
+reconnections are two fills, and is in `sameLiveFeedView` — a resume that does
+not reach a consumer is a gap that is never filled on a page where every
+number is right. Three further rules came from a browser flake that **read as
+machine contention for four bisecting runs and was not**: a refill never
+supersedes a request in flight, it keeps what is on screen unless that is
+`loading`, and it runs **at most once a minute** — a floor rather than a poll,
+because two reconnections inside one minute cannot have lost two different
+minutes' bars.
+
+**That floor is suppressing somebody else's defect, and it is written down as
+such.** An instrument for that task measured an ordinary security page opening
+**three market-stream sockets in twelve seconds** — one every four seconds,
+**the same on the commit before the task**, with the gateway holding two
+external clients for 30 s with zero closes throughout. Nothing on screen is
+wrong while it happens, which is why it had gone unseen: it costs nothing
+until something is wired to the **event** rather than to the state, and this
+was the first thing that was. `docs/GAPS.md`; owner is a condition — the next
+feature that acts on a reconnection. The one deployed figure disagrees with it
+(one close per **seven minutes** on 2026-09-23), so it may be
+development-only. **The case it cannot fix** — the backend's own socket
+dropping, which holes the store — is `docs/GAPS.md`'s and Story 3.11's.
+
 **What they still cannot do:** have a person **vouch** for it during a session.
 The deployed backend reads `live` on IEX again since 2026-09-21 — the `406`
 this paragraph used to describe is gone — and ~~`LIVE-REHEARSAL.md`'s rows for

@@ -169,6 +169,22 @@ export interface LiveFeedConnection {
    * them is 518 bars arriving.
    */
   readonly fromSnapshot: ReadonlySet<string>;
+  /**
+   * How many snapshots this connection has been sent (Task 3.10.7).
+   *
+   * The gateway sends one on **every** connection, first or fiftieth (Task
+   * 3.5.5), so this counts connections rather than messages — and the count
+   * is the only thing in this store that distinguishes *we have just come
+   * back* from *we have been here all along*. A page that watched the feed
+   * drop and return has a **hole** in the minutes it accumulated, and the
+   * repair needs an edge to fire on rather than a level to poll.
+   *
+   * **A counter rather than a boolean**, because two reconnections in one
+   * minute are two resumes and a flag set by the first is still set when the
+   * second lands — which is the same shape as the announcement defect Task
+   * 3.10.6 found one file away.
+   */
+  readonly snapshots: number;
   /** The server's last word about its own feed, or `undefined` before the snapshot. */
   readonly server: WireFeedState | undefined;
   /**
@@ -198,6 +214,7 @@ export const initialLiveFeed: LiveFeedConnection = {
   since: 0,
   observations: new Map(),
   fromSnapshot: new Set(),
+  snapshots: 0,
   lastInboundAt: undefined,
   lastObservationAt: undefined,
   server: undefined,
@@ -353,6 +370,10 @@ export function advanceLiveFeed(
           bars,
           event.message.type,
         ),
+        snapshots:
+          event.message.type === "snapshot"
+            ? state.snapshots + 1
+            : state.snapshots,
         lastObservationAt:
           newest === undefined
             ? state.lastObservationAt
@@ -414,6 +435,20 @@ export interface LiveFeedView {
    * reconstructed from the observation itself.
    */
   readonly fromSnapshot: ReadonlySet<string>;
+  /**
+   * How many times this feed has come **back**, which is one fewer than the
+   * snapshots it has been sent (Task 3.10.7).
+   *
+   * `0` while the page has connected at most once, whatever the connection is
+   * doing now — a page that has never reached the gateway and a page on its
+   * first healthy connection both read `0`, because neither has a hole.
+   *
+   * **It counts resumptions, not disconnections.** A feed that dropped and has
+   * not come back has nothing to fill from: the minutes are still missing and
+   * the socket is still the thing that would deliver them. The edge worth
+   * acting on is the return.
+   */
+  readonly resumes: number;
   /** Messages this browser could not read. Zero on every healthy deployment. */
   readonly unreadable: number;
 }
@@ -495,6 +530,10 @@ export function liveFeedView(
     // because a socket died.
     observations: state.observations,
     fromSnapshot: state.fromSnapshot,
+    // The first snapshot is a connection, not a return. `Math.max` rather
+    // than a subtraction alone so a browser that has been told nothing yet
+    // reads `0` rather than `-1`.
+    resumes: Math.max(0, state.snapshots - 1),
   } as const;
 
   // We cannot hear the backend, so nothing it last said is evidence of
@@ -572,6 +611,11 @@ export function sameLiveFeedView(a: LiveFeedView, b: LiveFeedView): boolean {
     // be up to 518 entries every keepalive to answer a question an identity
     // check already answered.
     a.observations === b.observations &&
-    a.fromSnapshot === b.fromSnapshot
+    a.fromSnapshot === b.fromSnapshot &&
+    // **In the gate for the same reason the Map is** (Task 3.10.7). A resume
+    // that does not reach a consumer is a gap that is never filled, and it
+    // would look exactly like the feed working: every number on screen is
+    // correct, and the minutes nobody watched simply stay missing.
+    a.resumes === b.resumes
   );
 }

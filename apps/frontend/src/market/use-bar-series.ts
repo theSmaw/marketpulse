@@ -41,8 +41,13 @@ import { barSeriesCache, isCacheableBarSeriesView } from "./series-cache.js";
 //
 // ## The refetch policy, stated rather than defaulted
 //
-// **A request goes out on mount, on a change of symbol or window, and when a
-// user presses retry. There is no poll and no refetch on focus.**
+// **A request goes out on mount, on a change of symbol or window, when a user
+// presses retry, and — since Task 3.10.7 — when the live feed comes BACK.
+// There is still no poll and no refetch on focus.**
+//
+// The fourth cause is the only one no reader asked for, and it is the reason
+// `refill` exists beside `retry`: see its own comment for why it is quiet and
+// why its failures are discarded.
 //
 // The two hooks that exist are the two poles and this is deliberately a third
 // thing. `useBackendHealth` polls every 30 seconds because *a health state
@@ -95,10 +100,16 @@ import { barSeriesCache, isCacheableBarSeriesView } from "./series-cache.js";
 // - **A measured round trip on this endpoint that is slow enough for a user to
 //   see on a repeat view**, against a `304` that is already cheap. That turns
 //   the five-minute reuse from a saved round trip into a felt one.
-// - **The first window whose tail moves faster than a user will re-ask for it,
-//   with no live stream to carry it.** If Epic 3 slips past the first screen
-//   that shows an open session, this policy leaves that screen stale and a
-//   refetch on window focus is the cheap answer, not a poll.
+// - ~~**The first window whose tail moves faster than a user will re-ask for
+//   it, with no live stream to carry it.**~~ — **FIRED, and answered on
+//   2026-09-24 by Task 3.10.7.** The condition arrived in the form nobody
+//   wrote it for: not Epic 3 slipping, but Epic 3 shipping and then the
+//   stream *stopping*. A page whose socket has dropped mid-session is exactly
+//   a window whose tail is moving with no live stream to carry it, and the
+//   repair this line predicted — *a refetch, not a poll* — is what landed.
+//   The trigger it names is **the resume** rather than window focus, because
+//   focus is a guess about when the reader cares and a reconnection is a fact
+//   about when there is something new to get.
 // - **The first consumer that needs two components to share one in-flight
 //   request.** This hook deduplicates nothing across components — two panels on
 //   one series make two requests, which the browser's cache answers cheaply and
@@ -107,6 +118,15 @@ import { barSeriesCache, isCacheableBarSeriesView } from "./series-cache.js";
 
 /** The state that every request starts from, and the one nothing caches. */
 const LOADING: BarSeriesView = { state: "loading" };
+
+/**
+ * One minute — the interval a bar covers, and the floor between two refills.
+ *
+ * Spelled here rather than imported because it is being used as *the shortest
+ * time in which two different minutes can be lost*, which is a fact about the
+ * feed rather than about a bar's geometry.
+ */
+const BAR_INTERVAL_MS = 60_000;
 
 /**
  * The request whose answer is currently being rendered, and its key.
@@ -226,6 +246,19 @@ export function useBarSeries(
    * job is to notice when the request changes.
    */
   live?: Bar,
+  /**
+   * How many times the live feed has come **back** on this page (Task
+   * 3.10.7) — `LiveFeedView.resumes`.
+   *
+   * A third parameter rather than a field on the request, for the same reason
+   * `live` is one: it is not part of the request's spelling, and putting it in
+   * `BarSeriesRequest` would make a reconnection look to the key comparison
+   * like a reader asking for a different window.
+   *
+   * Optional, and `0` when omitted — a surface with no feed has nothing to
+   * refill from.
+   */
+  resumes = 0,
 ): BarSeriesSource {
   const key = barSeriesQuery(request);
 
@@ -271,41 +304,97 @@ export function useBarSeries(
   // whose answer this hook is waiting for.
   const current = useRef<AbortController | null>(null);
 
+  /**
+   * Whether a request is outstanding **right now** (Task 3.10.7).
+   *
+   * `current` cannot answer this: it holds the last controller for ever after,
+   * so *is one in flight* and *was one ever started* are the same question to
+   * it. The refill needs them apart — see {@link refill}.
+   */
+  const inFlight = useRef(false);
+
+  const ask = useCallback(
+    /**
+     * @param quiet Whether a non-`ok` answer is **discarded** rather than
+     *   rendered — see {@link refill}. `false` for every request a reader
+     *   caused.
+     */
+    (quiet: boolean) => {
+      // Supersession first: whatever was in flight is no longer the answer this
+      // hook is waiting for. This is the same line for all four causes — a key
+      // change re-creates this callback and re-runs the effect, a retry calls it
+      // directly, a resume refill calls it directly, and a teardown does the
+      // same two things in the cleanup below.
+      current.current?.abort();
+
+      const controller = new AbortController();
+      current.current = controller;
+      inFlight.current = true;
+
+      const read = async (): Promise<void> => {
+        const result = await getBarSeries(pinned.request, {
+          signal: controller.signal,
+        });
+
+        // The teardown and window-change cases, when the fetch rejected in
+        // time. Under `StrictMode` the development double-invoke aborts the
+        // first mount's request immediately and it comes back here — designed
+        // behaviour rather than something to suppress, and acceptance
+        // criterion 3's rule that a cancelled result is never rendered as a
+        // failure.
+        if (result.outcome === "aborted") return;
+
+        // The same two cases when it did not: a response that had already
+        // resolved before it was superseded, which no amount of aborting
+        // prevents. Identity rather than a boolean, because the question is
+        // *is this still the request we are waiting for* and nothing else
+        // answers it.
+        if (current.current !== controller) return;
+
+        // Only the owner reaches here, so this is *the* request finishing.
+        inFlight.current = false;
+
+        setState((previous) => {
+          // **A refill that fails changes nothing** (Task 3.10.7). Nobody
+          // asked for this request: it went out because a socket came back,
+          // and the chart on screen is a correct answer to the reader's own
+          // question. Turning it into `failed` would mean a page that was
+          // working became an error message because the network blinked
+          // twice — the global error screen `PRODUCT_SPEC.md` §36 forbids,
+          // arriving locally. The hole simply stays until the next resume or
+          // the next window change.
+          //
+          // **Unless there is nothing on screen to protect, which is the
+          // correction.** Starting a request supersedes the one in flight, so
+          // a resume landing before the FIRST answer does aborts it — and a
+          // version of this that discarded its own failure unconditionally
+          // left the page on `loading` with no answer coming and no way to
+          // ask for one. Found by the browser suite at high load, where it
+          // looked exactly like machine contention: the two specs that failed
+          // are the two whose first answer is a failure, and the window this
+          // needs is the one a loaded machine widens.
+          //
+          // So the rule is **keep what is on screen**, and `loading` is not
+          // something on screen.
+          if (
+            quiet &&
+            result.outcome !== "ok" &&
+            previous.view.state !== "loading"
+          )
+            return previous;
+
+          return toBarSeriesState(previous, pinned.request, result);
+        });
+      };
+
+      void read();
+    },
+    [pinned],
+  );
+
   const load = useCallback(() => {
-    // Supersession first: whatever was in flight is no longer the answer this
-    // hook is waiting for. This is the same line for all three causes — a key
-    // change re-creates this callback and re-runs the effect, a retry calls it
-    // directly, and a teardown does the same two things in the cleanup below.
-    current.current?.abort();
-
-    const controller = new AbortController();
-    current.current = controller;
-
-    const read = async (): Promise<void> => {
-      const result = await getBarSeries(pinned.request, {
-        signal: controller.signal,
-      });
-
-      // The teardown and window-change cases, when the fetch rejected in time.
-      // Under `StrictMode` the development double-invoke aborts the first
-      // mount's request immediately and it comes back here — designed
-      // behaviour rather than something to suppress, and acceptance criterion
-      // 3's rule that a cancelled result is never rendered as a failure.
-      if (result.outcome === "aborted") return;
-
-      // The same two cases when it did not: a response that had already
-      // resolved before it was superseded, which no amount of aborting
-      // prevents. Identity rather than a boolean, because the question is *is
-      // this still the request we are waiting for* and nothing else answers it.
-      if (current.current !== controller) return;
-
-      setState((previous) =>
-        toBarSeriesState(previous, pinned.request, result),
-      );
-    };
-
-    void read();
-  }, [pinned]);
+    ask(false);
+  }, [ask]);
 
   useEffect(() => {
     load();
@@ -317,6 +406,102 @@ export function useBarSeries(
       current.current = null;
     };
   }, [load]);
+
+  /**
+   * **Ask again because the feed came back, not because a reader did** (Task
+   * 3.10.7).
+   *
+   * While the socket was down the minutes kept happening, and this page
+   * watched none of them — so the series it holds has a hole in the middle
+   * that no amount of live bars afterwards will close, because
+   * `useLiveSeries` accumulates what **arrives** and nothing arrived.
+   *
+   * ## Why a refetch of our own store rather than a backfill
+   *
+   * The minutes are **not** missing from the store. Since Task 3.8.3 the
+   * deployed backend writes every live bar as it lands, so the hole is a fact
+   * about this browser's socket rather than about the data — which is why a
+   * reader who *reloads* mid-session already gets the whole session back. The
+   * fifteen-minute embargo, the ~3.3/s bucket and the `429` with no
+   * `Retry-After` are all constraints on asking **Alpaca**, and this asks our
+   * own server. The gap's extent is not computed either: the window is the
+   * window, and the answer to it is whole.
+   *
+   * ## Why it does not go through `retry`
+   *
+   * `retry` marks the view `loading` on the way, which is right for a reader
+   * who pressed something and wrong here: nobody asked, and ADR 0028's rule
+   * that a wait over 160 ms covers the picture is about a wait a reader
+   * caused. A socket that blinks every few minutes — 38 times in 4h 36m on
+   * 2026-09-22 — must not pulse a panel over the chart each time. So the view
+   * is left **exactly** as it is and replaced only when a better answer
+   * lands.
+   */
+  /**
+   * When the last refill went out, on the wall clock.
+   *
+   * **A floor, not a timer** (Task 3.10.7): nothing fires on this, it only
+   * ever suppresses. See {@link refill} for why it is here and why the
+   * interval is the bar interval rather than a number somebody liked.
+   */
+  const lastRefillAt = useRef(0);
+
+  const refill = useCallback(() => {
+    // **A refill never supersedes a request that is already running**, and
+    // this line is the whole of a defect that took four bisecting runs to
+    // attribute.
+    //
+    // Starting a request aborts the one in flight — which is right for a
+    // reader who changed the window, and **wrong for a resume**: the request
+    // already running is about to deliver the same fresh answer this one
+    // wants. Worse, a socket that flaps produces a resume per reconnection,
+    // and each refill aborted the one before it, so **nothing ever landed**:
+    // the page sat on `loading` with no answer coming and no control to ask
+    // for one.
+    //
+    // It reproduced only with two specs running together, which is why it
+    // read as machine contention — the same diagnosis `docs/GAPS.md` records
+    // being wrong three times in one session. What settled it was disabling
+    // this one call and watching the flake stop.
+    if (inFlight.current) return;
+
+    // **And never more than once a minute, which is a floor rather than a
+    // poll.** Nothing fires on this clock read; it only ever suppresses.
+    //
+    // The interval is `BAR_INTERVAL_MS` because that is what makes it not
+    // arbitrary: **two reconnections inside one minute cannot have lost two
+    // different minutes' bars**, so the second refill would ask for an answer
+    // the first already has.
+    //
+    // It is here because an instrument written for this task found the
+    // browser opening **three market-stream sockets in twelve seconds** on an
+    // ordinary security page — on `main` as well, so it predates this work
+    // (`docs/GAPS.md`). Without the floor, a socket that churns every four
+    // seconds makes this a refetch every four seconds, which is the poll the
+    // refetch policy above says this hook does not do.
+    const now = Date.now();
+    if (now - lastRefillAt.current < BAR_INTERVAL_MS) return;
+    lastRefillAt.current = now;
+
+    ask(true);
+  }, [ask]);
+
+  // **The edge, handled once.** `resumes` only ever increases, so remembering
+  // the last one handled is what keeps a refill from firing again when the
+  // callback identity changes for an unrelated reason — a window change, for
+  // instance, which has already fetched the whole window itself.
+  //
+  // The ref is written from the effect rather than during render, which is the
+  // React Compiler's `refs` rule and the reason this is not a `useMemo`.
+  const filled = useRef(0);
+  useEffect(() => {
+    if (resumes === filled.current) return;
+    filled.current = resumes;
+    // `0` is *this page has never lost the feed*, which is the state nearly
+    // every page is in for its whole life.
+    if (resumes === 0) return;
+    refill();
+  }, [resumes, refill]);
 
   // The cache write, deliberately here rather than inside the `setState` above.
   //

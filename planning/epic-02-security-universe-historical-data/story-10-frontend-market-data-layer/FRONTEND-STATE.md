@@ -326,6 +326,18 @@ against a module that does not exist would be a number about a probe.
   and a hand-rolled `Map` starts doing badly, and the second is the likelier one
   when Epic 3's live feed arrives beside this.
 
+  **Evaluated 2026-09-24 by Task 3.10.7 and it did NOT fire, which is worth
+  recording because the thing it names arrived.** The live feed now causes a
+  refetch — `useBarSeries` asks again when the socket comes back, so a page
+  whose connection blinked fills the minutes it missed. That is the first
+  request in this application nobody pressed anything for, and it is **not**
+  what this trigger is about: it acquires no clock. The signal is
+  `LiveFeedView.resumes`, a count of snapshots, and an **edge** on a value the
+  store already derives — where a background refetch on an interval would be
+  a timer this cache would have to own. The second half is also still
+  unfired: the refill deduplicates nothing across components, because there
+  is one chart.
+
 ---
 
 ## 3. Where the selected symbol and window live — the URL
