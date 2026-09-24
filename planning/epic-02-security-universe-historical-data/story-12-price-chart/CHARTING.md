@@ -369,6 +369,30 @@ and on an ordinal axis the surrounding bars simply close up, so _the halt become
 invisible_. The day MarketPulse has to show a halt, an intraday gap has become
 information and this axis can no longer represent it.
 
+> **EVALUATED 2026-09-24 by Task 3.9.1 — it has NOT fired, and the reason is the
+> opposite of the one this trigger expected.** Epic 3's live feed arrived, and
+> on IEX an absent minute is the **ordinary** case rather than the notable one:
+> median per-symbol coverage is **65.1%** and the worst case is **2.1%**
+> (`LIVE-DATA.md` §7.6), so a third of a typical name's minutes are simply not
+> reported. Absence there carries **less** information than it does on the
+> consolidated tape, not more. A halt would still fire this trigger and the
+> wording stands unchanged.
+>
+> **What the same measurement did establish**, because it was taken rather than
+> argued: the effect is already visible on **stored consolidated** data and
+> nobody had looked. Deployed site, 2026-09-23, both `?sessions=1` over one
+> session at 1440 px — `ERIE` drew **131** bars at **4.3 px** apart and `NVDA`
+> drew **390** at **2.1 px**, and **both ran the full width of the frame**. Two
+> charts of one session, one with a third of the data, indistinguishable in
+> shape.
+>
+> So this axis cannot express the difference between _did not trade_ and _we
+> were not told_. The first is what the picture above is about; the second is
+> **Story 3.10's**. And the chart's spoken sentence goes further than the
+> picture does — `a line of 131 closing prices, one per trading minute` over a
+> 390-minute session — which is a claim about **cadence** with nothing behind
+> it, handed to Task 3.9.8.
+
 ---
 
 ## 4. Decision 4 — the chart opens at 5 sessions of `1m`, unchanged, and now with a reason

@@ -52,3 +52,28 @@ index against a series that gained a bar is a reading of a different bar.
 1. The edge is readable by pointer and by keyboard, asserted
 2. The follow-or-hold decision is written down with its alternative
 3. The listening question is in `docs/GAPS.md` rather than answered by guess
+
+---
+
+## Amended by Task 3.9.1 — 2026-09-24: the title's premise is wrong, and the real question is better
+
+**There is no minute that is not finished.** A bar arrives at the end of the
+minute it describes (`LIVE-DATA.md` §7), so every bar the crosshair can reach is
+complete. The task's subject is therefore **not** reading an incomplete bar.
+
+**What it is instead**, and it is the harder half of the same problem: the bar
+under the crosshair can **change while it is being read**. A revision lands
+about thirty seconds after its bar on 0.064% of bars, 35.3% of them changing the
+close — so a reader who walked to the last bar with `End` and is looking at its
+figure can see that figure move, and a listener can be mid-sentence when it
+does.
+
+That sharpens the decision this task already carries — _does a reading follow
+the edge or hold its instant?_ — into two decisions, because they are different
+questions:
+
+1. **When a NEW bar arrives**, does the reading move to it?
+2. **When the bar being read is REVISED**, does the reading update in place?
+
+The second has an answer the first does not: a reading that is stale about the
+bar it names is wrong in a way a reading that is merely not-the-latest is not.

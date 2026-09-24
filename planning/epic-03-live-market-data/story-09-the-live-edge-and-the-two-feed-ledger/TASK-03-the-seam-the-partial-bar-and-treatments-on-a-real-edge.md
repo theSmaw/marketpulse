@@ -67,3 +67,28 @@ claim about attention. Task 3.6.2 measured that the mark is **not** the cost at
 1. Three decisions taken, each with alternatives and a trigger
 2. Artefacts exist and reuse the language rather than extending it
 3. Nothing is on screen, and the task says which task draws each decision
+
+---
+
+## Amended by Task 3.9.1 — 2026-09-24: one of the three decisions is withdrawn
+
+**Decision 1 — _is the minute in progress drawn as a bar?_ — is gone.** There is
+no minute in progress on the wire: `LIVE-DATA.md` §7 measured that a bar arrives
+about half a second after the minute it describes has **ended**, and
+`live-bar-writer.ts`'s `isComplete` is a guard against a bar stamped in the
+**future** rather than a completeness test. Nothing partial reaches the store or
+the browser.
+
+**What takes its place is narrower and is a drawing question rather than a
+domain one:** the last bar's numbers change about thirty seconds after it is
+drawn, on 0.064% of bars, a third of which move the close. Whether that
+correction is visible — a mark, a transition, or deliberately nothing — is the
+decision to take here, and it is **not** the same as marking an arrival: the
+bar was already there.
+
+**And a measured constraint for decision 2, the seam.** The gaps on either side
+of any seam are **invisible**, by design: `ERIE` drew 131 bars and `NVDA` 390
+over one session, both the full width of the frame, at 4.3 px and 2.1 px a slot.
+So a seam drawn as a break in the line would be the only break on a chart that
+hides thirty-odd others, which is a stronger argument against drawing it than
+this task's file originally carried.
