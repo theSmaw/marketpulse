@@ -765,13 +765,22 @@ refresh. `useLiveSeries` accumulates watched bars and `withLiveBars` merges
 them into the served series by **instant** — replacing in place where the
 instant already exists (a revision) and appending where it does not.
 
-**So the shape a stopped edge takes is: the line simply stops growing, and
+~~**So the shape a stopped edge takes is: the line simply stops growing, and
 nothing says so.** There is no marker, no fade and no gap — the plot ends at
 the last bar that arrived and looks exactly like a chart of a window that ended
-there. Task 3.9.3 took that decision deliberately (three noes: no treatment on
-the arriving bar, no seam at the stored/live join, no partial-bar affordance),
-and its reasoning was that **nothing should be drawn until there is a vocabulary
-for it** — which is you.
+there.~~
+
+> **WRONG, and corrected 2026-09-24 by Task 3.10.5, which produced it on a
+> running page rather than reasoning about it.** The plot draws the line to its
+> last bar, a **dashed rule** at the boundary, and **washed ground** across
+> everything after it — the coverage treatment, shipped since Story 2.12 and
+> asserted since Task 2.12.7. A window that ended there would have neither.
+> **Two readings, and about a quarter of the plot changes treatment between
+> them.** This paragraph was written from the code rather than from the screen,
+> which is the mistake this epic keeps paying for. Task 3.9.3 took that decision deliberately (three noes: no treatment on
+> the arriving bar, no seam at the stored/live join, no partial-bar affordance),
+> and its reasoning was that **nothing should be drawn until there is a vocabulary
+> for it** — which is you.
 
 **The concrete question you inherit**, sharpened by what 3.9 built:
 
