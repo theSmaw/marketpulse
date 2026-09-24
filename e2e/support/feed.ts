@@ -9,7 +9,7 @@ import type {
 } from "@marketpulse/shared";
 import type { Page, WebSocketRoute } from "@playwright/test";
 
-import { MARKET_DATA_ROUTE_PATTERN } from "./pair.js";
+import { BARS_ROUTE_PATTERN, MARKET_DATA_ROUTE_PATTERN } from "./pair.js";
 
 // **A degraded feed a spec can PRODUCE rather than simulate** (Task 3.10.2).
 //
@@ -75,6 +75,21 @@ export interface ProducedFeed {
   readonly drop: (code?: number) => void;
   /** The venue this deployment is modelling, for an assertion to read. */
   readonly feed: () => MarketFeed | null;
+  /**
+   * Change what the bar-series endpoint answers from **now on** (Task
+   * 3.10.7).
+   *
+   * Only meaningful when `bars` was passed to {@link serveFeed}, which is
+   * what installs the route. It exists because the gap this story fills is
+   * only observable as a **difference between two answers to one request**:
+   * the store keeps filling while a browser's socket is down, so the repair
+   * is that the page asks again and gets more than it had.
+   *
+   * **Not a way to change the past.** A spec that serves a longer answer
+   * without the page re-asking asserts nothing — the route is only consulted
+   * when the application decides to fetch, which is the behaviour under test.
+   */
+  readonly serveBars: (body: string) => void;
 }
 
 export interface ServeFeedOptions {
@@ -94,6 +109,18 @@ export interface ServeFeedOptions {
    * connection word**, because that is what such a deployment renders.
    */
   readonly feed?: MarketFeed | null;
+
+  /**
+   * The bar-series answer to serve, as a JSON body.
+   *
+   * **Pass one whenever a spec asserts anything about a line, a count or a
+   * washed edge.** CI's store is 518 securities and **zero bars**, so a chart
+   * there is a correct `empty` and every figure on the page is absent —
+   * which is a green local run and a red CI one, as this suite has now
+   * produced twice. Omit it for the chrome-only specs, which assert nothing
+   * the store answers.
+   */
+  readonly bars?: string;
 }
 
 /**
@@ -120,6 +147,19 @@ export async function serveFeed(
       body: JSON.stringify({ feed: venue }),
     }),
   );
+
+  // **Held in a closure rather than captured per route call**, so
+  // `serveBars` changes the next answer rather than the installed handler.
+  let barsBody = options.bars;
+  if (barsBody !== undefined) {
+    await page.route(BARS_ROUTE_PATTERN, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: barsBody ?? "",
+      }),
+    );
+  }
 
   let socket: WebSocketRoute | undefined;
 
@@ -174,5 +214,8 @@ export async function serveFeed(
       void socket?.close({ code });
     },
     feed: () => venue,
+    serveBars: (body) => {
+      barsBody = body;
+    },
   };
 }
