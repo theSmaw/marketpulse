@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import type { FeedStatus } from "@marketpulse/shared";
 import {
   CONNECTION_SENTENCES_WITHOUT_DATA,
@@ -9,6 +11,7 @@ import type { LiveFeedView } from "../../market/index.js";
 import { cx } from "../../cx.js";
 import { Marker } from "../Marker/Marker.js";
 import type { MarkerShape } from "../Marker/Marker.js";
+import { announcesDegradation } from "./announcement.js";
 import styles from "./FeedIndicator.module.css";
 
 // The market feed's state, as a marker and a word.
@@ -97,6 +100,25 @@ const STATUS_SHAPE: Readonly<Record<FeedStatus, MarkerShape>> = {
 };
 
 export function FeedIndicator({ view }: FeedIndicatorProps) {
+  // **The announcement is STATE, adjusted during render**, and both halves of
+  // that are the repair for a draft that looked right and announced nothing.
+  //
+  // The first version derived it — `announcesDegradation(previous, current)`
+  // computed fresh each render, with the previous status in a ref written from
+  // an effect. It put the sentence in the region for exactly **one** render and
+  // the next render wiped it, because by then the ref had caught up. A polite
+  // region emptied a frame later may never be read aloud at all, and nothing
+  // below a real screen reader can see that: the DOM was correct at one
+  // instant and the assertion that caught it was a browser one.
+  //
+  // So what is held is **the sentence**, until something changes it. Adjusted
+  // during render rather than in an effect, which is React's own shape for
+  // *state derived from a prop that has changed* and what the compiler's
+  // `set-state-in-effect` rule points at — the same call `use-live-series.ts`
+  // made, for the same reason.
+  const [shown, setShown] = useState<FeedStatus | undefined>(undefined);
+  const [announced, setAnnounced] = useState<string | null>(null);
+
   // The one crossing of the two vocabularies, called rather than re-derived.
   const word = connectionWordFor(view.status, view.feed, {
     backendReachable: view.backendReachable,
@@ -130,8 +152,33 @@ export function FeedIndicator({ view }: FeedIndicatorProps) {
   // pause between them.
   const detail = [sentence, through].filter(Boolean).join(" ");
 
+  if (shown !== view.status) {
+    setShown(view.status);
+    // Recovery clears it rather than announcing: the word stays on screen to
+    // be read, and what is SPOKEN is only the thing that changes what the
+    // numbers mean.
+    setAnnounced(
+      announcesDegradation(shown, view.status)
+        ? `Market feed ${word.label}. ${detail}`
+        : null,
+    );
+  }
+
   return (
     <span className={cx(styles.indicator, STATUS_CLASS[view.status])}>
+      {/*
+        **The spoken half, and it is silent unless something got worse** (Task
+        3.10.6). A polite region whose content is EMPTY except on a
+        degradation: mount says nothing, recovery says nothing, and going
+        `live → stale` or `→ disconnected` puts one sentence in it.
+
+        It is a sibling of the drawn word rather than a wrapper around it,
+        because the drawn word must not be announced every time it re-renders
+        — which is what putting `role="status"` on the cell itself would do.
+      */}
+      <span className={styles.announcement} role="status">
+        {announced ?? ""}
+      </span>
       <Marker shape={STATUS_SHAPE[view.status]} />
       <span className={styles.label}>{word.label}</span>
       {detail !== "" && <span className={styles.detail}>{detail}</span>}

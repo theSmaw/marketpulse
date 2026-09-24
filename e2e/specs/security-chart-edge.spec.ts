@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
@@ -16,6 +18,28 @@ import { serveFeed } from "../support/feed.js";
 // The second half is the decision. A dead feed adds **nothing** to the plot,
 // because `CHARTING.md`'s rule is that a mark is derived from the window or
 // from the bars — and a mark derived from the **connection** is neither.
+
+// **Every byte of the answer is served from here, and the first version of
+// this file was not** (corrected 2026-09-24 by Task 3.10.7).
+//
+// These three tests read the deployment's own store, which on a developer's
+// machine holds a backfilled NVDA and **on CI holds zero bars**. So the wash
+// they assert on is present locally and the chart on the runner is a correct
+// `empty` — *"No history is stored for NVDA at this timeframe"* — and the
+// spec went green here and **red on CI**, which is the exact trap
+// `CLAUDE.md`'s working loop names: *before asserting on a NUMBER in a browser
+// spec, ask whether CI has the data.*
+//
+// `uncovered.json` is the recorded answer this wants: 780 bars ending
+// 2026-09-04 inside a window that runs to 2026-09-08, which **is** a window
+// reaching past its bars — the shape a session leaves when a feed stops.
+const UNCOVERED = readFileSync(
+  new URL(
+    "../../apps/frontend/src/fixtures/bar-series/uncovered.json",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 /** The chart's own SVG, which is the largest on the page. */
 function plot(page: Page) {
@@ -41,7 +65,7 @@ async function uncoveredWidth(page: Page): Promise<number> {
 test("an edge that stopped does not read as a window that ended", async ({
   page,
 }) => {
-  const feed = await serveFeed(page, { snapshot: {} });
+  const feed = await serveFeed(page, { snapshot: {}, bars: UNCOVERED });
 
   // 25 sessions against a store that ends earlier: the window runs past the
   // bars, which is exactly the shape a session leaves when the feed stops.
@@ -58,7 +82,7 @@ test("an edge that stopped does not read as a window that ended", async ({
   // And the chart SAYS it, for a reader who cannot see the wash — the count is
   // the honest channel for how far the data reaches.
   await expect(page.getByText(/price chart:/u).first()).toContainText(
-    /covers the first .+ of .+ sessions|runs the full width/u,
+    /covers the first [\d,]+ of [\d,]+ trading minutes|runs the full width/u,
   );
 
   expect(feed.feed()).toBe("iex");
@@ -72,7 +96,7 @@ test("killing the feed changes nothing on the plot, which is the decision", asyn
   // chrome already owns that fact with its own sentence and instant. Two
   // surfaces saying one thing is the defect this repository has produced three
   // times on one screen.
-  const feed = await serveFeed(page, { snapshot: {} });
+  const feed = await serveFeed(page, { snapshot: {}, bars: UNCOVERED });
 
   await page.goto("/securities/NVDA?sessions=25");
   await expect(page.getByText(/price chart:/u).first()).toBeVisible();
@@ -101,7 +125,7 @@ test("the line stays continuous across the minutes a thin name did not trade", a
   //
   // One path, one `M`. This asserts the decision rather than an implementation
   // detail: a broken-up line is what the rejected alternative looks like.
-  const feed = await serveFeed(page, { snapshot: {} });
+  const feed = await serveFeed(page, { snapshot: {}, bars: UNCOVERED });
 
   await page.goto("/securities/NVDA?sessions=25");
   await expect(page.getByText(/price chart:/u).first()).toBeVisible();

@@ -122,9 +122,22 @@ describe("AppFooter", () => {
   });
 
   // The default deployment, and the state a correct first run shows.
+  //
+  // **The live feed's own tape is `null` here, and that is not padding**
+  // (Task 3.10.6). `createMarketStream` answers `undefined` for a `none`
+  // selection, so a deployment with no provider constructs **no stream** and
+  // can report no live tape. Leaving the fixture's default `iex` in place
+  // builds the pair `market-feed-grid.test.ts` marks unreachable — and since
+  // the venue now follows the live tape, this test was asserting against a
+  // deployment that cannot exist.
   it("says so when no market-data provider is configured", () => {
     renderWithContext(
-      <AppFooter {...props({ marketFeed: { state: "not-configured" } })} />,
+      <AppFooter
+        {...props({
+          marketFeed: { state: "not-configured" },
+          liveFeed: { ...props().liveFeed, feed: null },
+        })}
+      />,
     );
 
     expect(screen.getByText("not configured")).toBeDefined();
@@ -142,6 +155,8 @@ describe("AppFooter", () => {
       <AppFooter
         {...props({
           marketFeed: { state: "not-configured" },
+          // See above: no provider means no stream, so no live tape either.
+          liveFeed: { ...props().liveFeed, feed: null },
           backendStatus: "healthy",
         })}
       />,
