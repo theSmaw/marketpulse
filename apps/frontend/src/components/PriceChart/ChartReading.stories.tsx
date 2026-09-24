@@ -1,3 +1,4 @@
+import { distinctSeriesFeeds } from "@marketpulse/shared";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
@@ -59,6 +60,7 @@ function frameOf(name: FixtureName) {
     covered: view.series.coverage.covered,
     timeframe: view.series.timeframe,
     bars: view.series.bars,
+    feeds: distinctSeriesFeeds(view.series.provenance),
   };
 
   // **Composed here rather than by the geometry**, since Task 2.13.4: one

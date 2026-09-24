@@ -1,5 +1,6 @@
 import { cx } from "../../cx.js";
-import type { Bar, Timeframe } from "@marketpulse/shared";
+import type { Bar, MarketFeed, Timeframe } from "@marketpulse/shared";
+import { describeSilence } from "@marketpulse/shared";
 
 import type { SlotScale } from "../../market/index.js";
 import {
@@ -81,6 +82,19 @@ export interface VolumeReadingProps {
   readonly peakBar: Bar | null;
 
   /**
+   * **The tapes this window is drawn from**, in first-contribution order
+   * (Task 3.9.8).
+   *
+   * The strip needs them for exactly one state — a window in which nothing
+   * traded — because the sentence it draws there is the only one in this
+   * product claiming something about the **market** rather than about our
+   * store, and how wide that claim may be is a fact about the series' feeds.
+   * `VolumeChart` reads them off `view.series.provenance`; nothing else here
+   * consumes them, and that narrowness is deliberate.
+   */
+  readonly feeds: readonly MarketFeed[];
+
+  /**
    * What one slot is — a trading minute, or a whole session.
    *
    * Here for `ChartReading`'s reason and it is the same value, from the same
@@ -96,6 +110,7 @@ export function VolumeReading({
   plot,
   slots,
   peakBar,
+  feeds,
   timeframe,
 }: VolumeReadingProps) {
   const { read, setRead } = useChartReading();
@@ -186,6 +201,7 @@ export function VolumeReading({
       </div>
 
       <Readout
+        feeds={feeds}
         peakBar={peakBar}
         point={point}
         sizer={readings.at(-1)?.bar}
@@ -232,11 +248,13 @@ function Readout({
   peakBar,
   point,
   sizer,
+  feeds,
   timeframe,
 }: {
   readonly peakBar: Bar;
   readonly point: ChartPoint | undefined;
   readonly sizer: Bar | undefined;
+  readonly feeds: readonly MarketFeed[];
   readonly timeframe: Timeframe;
 }) {
   return (
@@ -247,11 +265,11 @@ function Readout({
         </span>
       )}
       <span className={cx(styles.line, styles.sizer)}>
-        <PeakFigures bar={peakBar} timeframe={timeframe} />
+        <PeakFigures bar={peakBar} feeds={feeds} timeframe={timeframe} />
       </span>
       <span className={styles.line}>
         {point === undefined ? (
-          <PeakFigures bar={peakBar} timeframe={timeframe} />
+          <PeakFigures bar={peakBar} feeds={feeds} timeframe={timeframe} />
         ) : (
           <VolumeFigures bar={point.bar} timeframe={timeframe} />
         )}
@@ -287,23 +305,29 @@ function VolumeFigures({
 /** The window's peak, and the minute it happened in. */
 function PeakFigures({
   bar,
+  feeds,
   timeframe,
 }: {
   readonly bar: Bar;
+  readonly feeds: readonly MarketFeed[];
   readonly timeframe: Timeframe;
 }) {
   // **A window in which nothing traded has no peak to state**, and `Peak 0` at
   // an arbitrary minute would be a figure with a false instant attached to it.
   // It is a real answer rather than a case that cannot happen — a thin
   // security's session, or a window of one — and `chart-volume-axis.ts`'s
-  // `FLAT_VOLUME_TOP` exists on the scale for the same window. Said in the
-  // words `chart-alternative.ts` says it in, because it is the same fact.
+  // `FLAT_VOLUME_TOP` exists on the scale for the same window.
+  //
+  // **The words are no longer said in `chart-alternative.ts`' words — they are
+  // the same words** (Task 3.9.8). This line used to read *"said in the words
+  // `chart-alternative.ts` says it in, because it is the same fact"*, which is
+  // ADR 0029's *one fact has one home* broken with a note explaining the
+  // break: two literals, and nothing to stop one of them being corrected
+  // alone. `describeSilence` is the home, and it is in `market-provenance.ts`
+  // rather than here because the sentence's **scope** — `anywhere`, or one
+  // named venue — is a fact about the series' tapes rather than about a strip.
   if (bar.volume <= 0) {
-    return (
-      <span className={styles.flat}>
-        No shares changed hands anywhere in the window.
-      </span>
-    );
+    return <span className={styles.flat}>{describeSilence(feeds)}</span>;
   }
 
   return (

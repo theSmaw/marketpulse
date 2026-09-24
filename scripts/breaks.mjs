@@ -398,6 +398,23 @@ export const BREAKS = [
     expect: "is produced in 2 place(s)",
   },
   {
+    name: "the-market-claiming-sentence-gets-a-second-home",
+    proves:
+      "The silent-window sentence goes back to being a literal in the drawn " +
+      "strip beside the one in its spoken twin \u2014 two copies of the only " +
+      "sentence this product ships that claims something about the MARKET " +
+      "rather than about our store. The fact it carries is how wide a claim " +
+      "the series' feeds entitle it to make, so a correction applied to one " +
+      "copy leaves the other reporting one exchange's silence as everybody's " +
+      "(Task 3.9.8).",
+    file: "apps/frontend/src/components/PriceChart/VolumeReading.tsx",
+    find: "return <span className={styles.flat}>{describeSilence(feeds)}</span>;",
+    replace:
+      "return (\n      <span className={styles.flat}>\n        No shares changed hands anywhere in the window.\n      </span>\n    ); // pnpm break: reverted automatically",
+    command: ["pnpm", "invariants"],
+    expect: "is produced in 2 place(s)",
+  },
+  {
     name: "the-two-feed-state-is-typed-again",
     proves:
       "The two-feed fixture goes back to being a recorded body with one " +

@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
+import type { Bar, MarketFeed } from "@marketpulse/shared";
+
 import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import { chartDensity } from "../../market/index.js";
 import { ChartAxis } from "./ChartAxis.js";
@@ -56,22 +58,37 @@ function frameOf(name: FixtureName) {
     covered: view.series.coverage.covered,
     timeframe: view.series.timeframe,
     bars: view.series.bars,
+    feeds: view.series.provenance.sources.map((source) => source.feed),
   };
 
   const time = timeFrame(PLOT.width, chartDensity(923), subject);
-  return { time, volume: volumeFrame(time, PLOT.height, subject.bars) };
+  return {
+    time,
+    subject,
+    volume: volumeFrame(time, PLOT.height, subject.bars),
+  };
 }
 
 /** The volume chart's own grid, with a stand-in where the plot would be. */
-function Harness({ name }: { readonly name: FixtureName }) {
-  const { time, volume } = frameOf(name);
+function Harness({
+  name,
+  feeds,
+  peakBar,
+}: {
+  readonly name: FixtureName;
+  /** Overridden only by the silent-window stories — see `SILENT_BAR`. */
+  readonly feeds?: readonly MarketFeed[];
+  readonly peakBar?: Bar;
+}) {
+  const { time, volume, subject } = frameOf(name);
 
   return (
     <ChartAxis view={barSeriesFixtureView(name)}>
       <div className={styles.chart}>
         <div className={styles.plot} />
         <VolumeReading
-          peakBar={volume.peakBar}
+          feeds={feeds ?? subject.feeds}
+          peakBar={peakBar ?? volume.peakBar}
           plot={PLOT}
           readings={volume.readings}
           slots={time.slots}
@@ -95,6 +112,7 @@ type Story = StoryObj<typeof meta>;
 type FixtureName = "full" | "dense" | "daily";
 
 const ARGS = {
+  feeds: [],
   peakBar: null,
   plot: PLOT,
   readings: [],
@@ -165,4 +183,73 @@ export const Dense: Story = {
 export const Daily: Story = {
   args: ARGS,
   render: () => <Harness name="daily" />,
+};
+
+/**
+ * **A minute that exists and in which nothing traded** — the bar the three
+ * stories below are read against.
+ *
+ * It is built here rather than recorded because no fixture holds one: every
+ * recorded body this product has is a liquid name over a window it traded in.
+ * The state is real all the same — a thin security over a short window, which
+ * on a single-venue feed is ordinary rather than rare.
+ */
+const SILENT_BAR: Bar = {
+  startsAt: new Date("2026-09-04T19:56:00.000Z"),
+  open: 230.6,
+  high: 230.6,
+  low: 230.6,
+  close: 230.6,
+  volume: 0,
+};
+
+/**
+ * **A silent window on the consolidated tape** — the sentence that has shipped
+ * since Story 2.13, and the only one in this product that claims something
+ * about the **market** rather than about our store.
+ *
+ * `anywhere` is earned here and nowhere else: the consolidated tape is every
+ * US exchange, so if it saw nothing, nothing happened. Read this beside the two
+ * below — the three are one string from one producer, and the only thing that
+ * differs between them is what the series' own provenance entitles it to say.
+ */
+export const SilentEverywhere: Story = {
+  args: ARGS,
+  render: () => <Harness feeds={["sip"]} name="full" peakBar={SILENT_BAR} />,
+};
+
+/**
+ * **The same silence, seen at one exchange** — and the state this whole task
+ * exists for.
+ *
+ * Before Task 3.9.8 this rendered the sentence above, reporting IEX's silence
+ * as the whole market's — which `PRODUCT_SPEC.md` §7.1 forbids, in the one
+ * place a reader would never look for a coverage claim. On the live feed it is
+ * ordinary rather than theoretical: median per-symbol minute coverage is 65.1%
+ * and the worst case 2.1%.
+ *
+ * The venue is **named and not explained**. The source note one region below
+ * carries *"trades reported by the IEX exchange only"*; a second copy of that
+ * explanation here is the two-surfaces defect ADR 0029's fourth rule forbids.
+ */
+export const SilentAtOneVenue: Story = {
+  args: ARGS,
+  render: () => <Harness feeds={["iex"]} name="full" peakBar={SILENT_BAR} />,
+};
+
+/**
+ * **A stitched window, silent across both halves** — stored consolidated
+ * minutes with a live single-venue tail, which is what a mid-session chart is.
+ *
+ * Part of the window was watched everywhere and part at one venue, so
+ * `anywhere` is unearned for the window as a whole. It says how many feeds
+ * without re-stating the ledger: the source note below already lists each
+ * stretch in contribution order with its bar count, and two homes for one count
+ * is how they come to disagree.
+ */
+export const SilentAcrossTwoFeeds: Story = {
+  args: ARGS,
+  render: () => (
+    <Harness feeds={["sip", "iex"]} name="full" peakBar={SILENT_BAR} />
+  ),
 };

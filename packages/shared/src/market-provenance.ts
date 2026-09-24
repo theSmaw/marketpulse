@@ -726,3 +726,118 @@ export const FEED_SERVES: Record<
   synthetic: "not-the-live-market",
   replay: "not-the-live-market",
 };
+
+/**
+ * **How wide a claim a feed entitles us to make** (Task 3.9.8).
+ *
+ * `PRODUCT_SPEC.md` §7.1 forbids implying that one venue is every venue, and
+ * invariant 6 says provenance is *displayed, never implied*. Both are usually
+ * read as rules about **labels** — print the feed, add the sentence. This
+ * record exists because the rule reaches further than that: a screen can imply
+ * coverage it does not have **without naming a feed at all**, by making an
+ * ordinary claim whose scope silently assumes the consolidated tape.
+ *
+ * That is not hypothetical. `No shares changed hands anywhere in the window.`
+ * shipped in Story 2.13 and was correct for two epics, because every bar this
+ * product held was `sip`. The first window whose bars are all `iex` makes it a
+ * false statement about the US market — one exchange's silence reported as
+ * everybody's — and nothing about the sentence looks like a provenance claim,
+ * which is why it was found by somebody reading rather than by a check.
+ *
+ * **Total over {@link MARKET_FEEDS}**, so a feed added without deciding its
+ * reach fails the build. The same mechanism and the same reason as
+ * {@link FEED_SERVES}, one question further on: that record answers *are these
+ * numbers the live market*, and this one answers *how much of the market are
+ * these numbers*.
+ *
+ * `replay` is `the-whole-market` deliberately. ADR 0030 §3: a replay is a real
+ * recorded session and its underlying tape is the consolidated one, so a
+ * silence in it genuinely was a silence everywhere — at that past moment,
+ * which is what the `replay` label itself is there to say.
+ */
+export const FEED_REACH: Record<
+  MarketFeed,
+  "the-whole-market" | "one-venue" | "not-the-market"
+> = {
+  iex: "one-venue",
+  sip: "the-whole-market",
+  replay: "the-whole-market",
+
+  // Invented numbers are not a claim about any market, so a silence in them
+  // gets no scope word at all rather than a hedged one.
+  synthetic: "not-the-market",
+};
+
+/**
+ * **The one sentence in this product that claims something about the market**
+ * (Task 3.9.8), in the one place it is produced.
+ *
+ * It had two homes — the drawn volume strip and the chart's spoken alternative
+ * — with a comment in each saying it was deliberately *"said in the words the
+ * other says it in, because it is the same fact"*. ADR 0029's rule is that one
+ * fact has one home and a second copy fails the build, so this is that home;
+ * `pnpm invariants` holds the literal to this function.
+ *
+ * ## The wording, per tape state
+ *
+ * | The window holds          | The sentence                                              |
+ * | ------------------------- | --------------------------------------------------------- |
+ * | only whole-market tapes   | `… changed hands anywhere in the window.`                 |
+ * | only one venue            | `… changed hands on IEX in the window.`                   |
+ * | both                      | `… changed hands on either feed in the window.`          |
+ * | neither (synthetic)       | `… changed hands in the window.`                          |
+ *
+ * **The consolidated case is unchanged**, which is the check on the whole
+ * design rather than a coincidence: the sentence that shipped *is* the `sip`
+ * case, and what was missing was every other one.
+ *
+ * The venue is **named and not explained**. The source note one region below
+ * carries {@link MARKET_FEED_DESCRIPTIONS}' own sentence for `iex`, and ADR
+ * 0029's fourth rule is that the surface owning the data owns the account of
+ * it while everything else points once and stops.
+ *
+ * ## What was rejected
+ *
+ * **One sentence vague enough to be true in all four states** — dropping
+ * `anywhere` outright. It is true, and it pays the commonest case to spare the
+ * rarest: a reader on the consolidated tape is entitled to the strongest claim
+ * we can honestly make, and this product's rule is that each clause renders
+ * when its own data is present rather than that every clause survives contact
+ * with the weakest state.
+ *
+ * **Naming the stretches with their bar counts** — `anywhere for 60 minutes,
+ * on IEX for 30`. Precise, and it puts the **ledger** in a second home: the
+ * source note already lists every stretch in contribution order with its
+ * count, through `describeSeriesFeeds`. Two homes for one count is how they
+ * come to disagree.
+ *
+ * **Reversal trigger, as a condition:** the first feed whose reach is neither
+ * the whole market nor a single named venue — a regional consolidator, or a
+ * second exchange stitched beside IEX. `on either feed` is honest for two and
+ * degrades to `any feed` above that, but neither names which, and at that
+ * point the strip probably owes the ledger after all.
+ */
+export function describeSilence(feeds: readonly MarketFeed[]): string {
+  return `No shares changed hands${silenceReach(feeds)} in the window.`;
+}
+
+/** The scope clause, which is empty wherever no scope can honestly be claimed. */
+function silenceReach(feeds: readonly MarketFeed[]): string {
+  const claiming = feeds.filter(
+    (feed) => FEED_REACH[feed] !== "not-the-market",
+  );
+
+  if (claiming.length === 0) return "";
+
+  const venue = claiming.find((feed) => FEED_REACH[feed] === "one-venue");
+  if (venue === undefined) return " anywhere";
+
+  // One venue and nothing wider: name it, because we can.
+  if (claiming.length === 1) {
+    return ` on ${MARKET_FEED_DESCRIPTIONS[venue].label}`;
+  }
+
+  // Part of the window was watched everywhere and part at one venue, so
+  // `anywhere` is unearned for the window as a whole.
+  return claiming.length === 2 ? " on either feed" : " on any feed";
+}

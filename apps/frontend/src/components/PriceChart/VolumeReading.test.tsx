@@ -1,3 +1,4 @@
+import type { Bar, MarketFeed } from "@marketpulse/shared";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
@@ -38,12 +39,14 @@ function framesOf(name: "full" | "dense") {
     covered: view.series.coverage.covered,
     timeframe: view.series.timeframe,
     bars: view.series.bars,
+    feeds: view.series.provenance.sources.map((source) => source.feed),
   };
 
   const time = timeFrame(PRICE.width, chartDensity(923), subject);
 
   return {
     view,
+    subject,
     bars: subject.bars,
     time,
     price: priceFrame(time, PRICE.height, subject.bars),
@@ -70,6 +73,7 @@ function renderPair(name: "full" | "dense" = "full") {
         timeframe={frames.time.axis?.timeframe ?? null}
       />
       <VolumeReading
+        feeds={frames.subject.feeds}
         peakBar={frames.volume.peakBar}
         plot={VOLUME}
         readings={frames.volume.readings}
@@ -193,6 +197,7 @@ describe("what it is not", () => {
     const { container } = render(
       <ChartAxis view={barSeriesFixtureView("full")}>
         <VolumeReading
+          feeds={[]}
           peakBar={null}
           plot={VOLUME}
           readings={[]}
@@ -227,5 +232,73 @@ describe("the reservation", () => {
     // the middle one is the instrument.
     expect(strip?.children).toHaveLength(3);
     expect(strip?.getAttribute("aria-hidden")).toBe("true");
+  });
+});
+
+describe("a window in which nothing traded", () => {
+  // **The strip's third state** (Task 3.9.8). §03 decided the resting state is
+  // the window's peak; a window whose peak is zero has no peak to state, so it
+  // draws a sentence — and that sentence is the only one this product ships
+  // claiming something about the **market** rather than about our store.
+
+  /** A minute that exists and in which nothing traded. No fixture holds one. */
+  const SILENT: Bar = {
+    startsAt: new Date("2026-09-04T19:56:00.000Z"),
+    open: 230.6,
+    high: 230.6,
+    low: 230.6,
+    close: 230.6,
+    volume: 0,
+  };
+
+  function renderSilent(feeds: readonly MarketFeed[]) {
+    const frames = framesOf("full");
+    return render(
+      <ChartAxis view={frames.view}>
+        <VolumeReading
+          feeds={feeds}
+          peakBar={SILENT}
+          plot={VOLUME}
+          readings={frames.volume.readings}
+          slots={frames.time.slots}
+          timeframe={frames.time.axis?.timeframe ?? null}
+        />
+      </ChartAxis>,
+    );
+  }
+
+  it("claims the whole market only when the whole market is what it read", () => {
+    const { container } = renderSilent(["sip"]);
+
+    expect(container.textContent).toContain(
+      "No shares changed hands anywhere in the window.",
+    );
+  });
+
+  it("does not report one venue's silence as the whole market's", () => {
+    // The case this task exists for. Before it, this rendered the sentence
+    // above — `PRODUCT_SPEC.md` §7.1's coverage claim, in the one place a
+    // reader would never look for one.
+    const { container } = renderSilent(["iex"]);
+
+    expect(container.textContent).toContain(
+      "No shares changed hands on IEX in the window.",
+    );
+    expect(container.textContent).not.toContain("anywhere");
+  });
+
+  it("claims neither feed's reach across a stitched window", () => {
+    const { container } = renderSilent(["sip", "iex"]);
+
+    expect(container.textContent).toContain(
+      "No shares changed hands on either feed in the window.",
+    );
+    expect(container.textContent).not.toContain("anywhere");
+  });
+
+  it("states no peak figure at all, rather than `Peak 0` at an arbitrary minute", () => {
+    const { container } = renderSilent(["sip"]);
+
+    expect(container.textContent).not.toContain("Peak");
   });
 });

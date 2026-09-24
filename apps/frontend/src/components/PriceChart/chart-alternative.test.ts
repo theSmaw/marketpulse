@@ -45,8 +45,8 @@ describe("chartAlternative", () => {
     // the concatenation, which is `CLAUDE.md`'s rule about what a test must not
     // assert applied to a string this time rather than to a DOM.
     expect(alternative("dense")).toBe(
-      "NVDA price chart: a line of 1,950 closing prices, one per minute of " +
-        "trading, opening at 218.99 and ending at 230.34, up 5.19% across the " +
+      "NVDA price chart: a line of 1,950 closing prices, opening at 218.99 " +
+        "and ending at 230.34, up 5.19% across the " +
         "window. The frame is drawn across 5 trading sessions. The highest " +
         "price on it is 234.76 and the lowest 215.10. The " +
         "line runs the full width of the window asked for, " +
@@ -329,8 +329,8 @@ describe("volumeAlternative", () => {
     // exact integer — `volume-format.ts` decides both in one module, so the two
     // channels quote one figure to one precision.
     expect(volume("dense")).toBe(
-      "NVDA volume chart: 1,950 columns of traded volume, one per minute of " +
-        "trading, measured from a baseline of zero to the window's busiest " +
+      "NVDA volume chart: 1,950 columns of traded volume, measured from a " +
+        "baseline of zero to the window's busiest " +
         "trading minute. The frame is drawn across 5 trading sessions. The " +
         "tallest column is 3.13 million, at Sep 3 · 13:45 EDT. The columns run " +
         "the full width of the window asked for, 2026-08-31 09:30:00 EDT → " +
@@ -345,7 +345,13 @@ describe("volumeAlternative", () => {
     // and `Aug 27 · 00:00 EDT` is an hour nothing traded in.
     const sentence = volume("daily");
 
-    expect(sentence).toContain("one per trading session");
+    // **The cadence clause is deleted rather than reworded** (Task 3.9.8).
+    // `one per trading session` was a claim this product could not support —
+    // a bar exists for an interval the security TRADED in, and `ERIE` traded
+    // in 131 minutes of a 390-minute session on the consolidated tape. What
+    // survives is the granularity, stated truly twice in the same paragraph.
+    expect(sentence).not.toContain("one per");
+    expect(sentence).toContain("trading session");
     expect(sentence).toContain("the window's busiest session");
     expect(sentence).toContain("The tallest column is 300 million, at Aug 27.");
 

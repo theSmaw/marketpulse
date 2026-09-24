@@ -1,3 +1,4 @@
+import { distinctSeriesFeeds } from "@marketpulse/shared";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -41,6 +42,7 @@ function frameOf(name: Recorded) {
     covered: view.series.coverage.covered,
     timeframe: view.series.timeframe,
     bars: view.series.bars,
+    feeds: distinctSeriesFeeds(view.series.provenance),
   };
 
   // **Composed here rather than by the geometry**, since Task 2.13.4: one

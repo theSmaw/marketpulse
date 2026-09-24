@@ -1,3 +1,4 @@
+import { distinctSeriesFeeds } from "@marketpulse/shared";
 import {
   lastMarketSessions,
   toMarketDate,
@@ -78,6 +79,7 @@ function subjectOf(
     covered: view.series.coverage.covered,
     timeframe: view.series.timeframe,
     bars: view.series.bars,
+    feeds: distinctSeriesFeeds(view.series.provenance),
   };
 }
 
@@ -218,6 +220,7 @@ describe("the frame is never conditional on the data", () => {
       covered: view.series.coverage.covered,
       timeframe: view.series.timeframe,
       bars: view.series.bars,
+      feeds: distinctSeriesFeeds(view.series.provenance),
     });
 
     expect(frame.ticks.length).toBeGreaterThan(0);
@@ -403,6 +406,7 @@ describe("direction, and the geometry that carries it", () => {
       covered: view.series.coverage.covered,
       timeframe: view.series.timeframe,
       bars: view.series.bars,
+      feeds: distinctSeriesFeeds(view.series.provenance),
     });
 
     // A rule alone would be a datum with nothing measured against it.
@@ -489,6 +493,7 @@ describe("the readings", () => {
       covered: empty.series.coverage.covered,
       timeframe: empty.series.timeframe,
       bars: empty.series.bars,
+      feeds: distinctSeriesFeeds(empty.series.provenance),
     });
 
     expect(frame.readings).toEqual([]);
@@ -600,6 +605,7 @@ describe("how much of the window is held", () => {
       covered: view.series.coverage.covered,
       timeframe: view.series.timeframe,
       bars: view.series.bars,
+      feeds: distinctSeriesFeeds(view.series.provenance),
     });
 
     // Coverage zero, which is this treatment at its limit rather than a fourth
@@ -816,6 +822,7 @@ describe("the week with a holiday and a half day in it", () => {
     covered: requested,
     timeframe: "1m",
     bars: [],
+    feeds: ["sip"],
   };
 
   it("gives the half day 210 slots and not 390", () => {
@@ -1043,6 +1050,7 @@ describe("the volume columns, at both ends of the density range", () => {
       covered: view.series.coverage.covered,
       timeframe: view.series.timeframe,
       bars: view.series.bars,
+      feeds: distinctSeriesFeeds(view.series.provenance),
     };
     const volume = volumeFrame(
       timeFrame(PLOT.width, DENSITY, subject),

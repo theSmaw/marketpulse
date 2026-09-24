@@ -1,3 +1,5 @@
+import { distinctSeriesFeeds } from "@marketpulse/shared";
+
 import type { BarSeriesView } from "../../market/index.js";
 import type { ChartSubject } from "./chart-geometry.js";
 
@@ -37,6 +39,7 @@ export function chartSubject(view: BarSeriesView): ChartSubject | null {
         covered: view.series.coverage.covered,
         timeframe: view.series.timeframe,
         bars: view.series.bars,
+        feeds: distinctSeriesFeeds(view.series.provenance),
       };
     case "loading":
     case "refused":

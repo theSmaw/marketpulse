@@ -5,7 +5,9 @@ import {
   ADJUSTMENT_DESCRIPTIONS,
   ADJUSTMENTS,
   describeSeriesFeeds,
+  describeSilence,
   distinctSeriesFeeds,
+  FEED_REACH,
   MARKET_FEED_DESCRIPTIONS,
   MARKET_FEEDS,
   mergeSeriesProvenance,
@@ -329,5 +331,85 @@ describe("describeSeriesFeeds", () => {
     );
 
     expect(distinctSeriesFeeds(stitched)).toEqual(["iex", "sip"]);
+  });
+});
+
+describe("describeSilence — the one sentence that claims something about the market", () => {
+  // **Task 3.9.8.** `No shares changed hands anywhere in the window.` shipped
+  // in Story 2.13 and was correct for two epics because every bar this product
+  // held was `sip`. These are the states that make it false, and the state that
+  // does not.
+
+  it("earns `anywhere` on the consolidated tape, unchanged from what shipped", () => {
+    expect(describeSilence(["sip"])).toBe(
+      "No shares changed hands anywhere in the window.",
+    );
+  });
+
+  it("names the venue, and does not say `anywhere`, when one venue is all the window holds", () => {
+    // The case this whole task exists for: IEX's silence reported as the
+    // market's is the coverage claim `PRODUCT_SPEC.md` §7.1 forbids, and at
+    // 65.1% median per-symbol minute coverage a silent IEX window is ordinary.
+    expect(describeSilence(["iex"])).toBe(
+      "No shares changed hands on IEX in the window.",
+    );
+    expect(describeSilence(["iex"])).not.toContain("anywhere");
+  });
+
+  it("claims neither feed's reach for the whole window when the window is stitched", () => {
+    // Part of it was watched everywhere and part at one venue, so `anywhere`
+    // is unearned for the window as a whole — and the ledger stays the source
+    // note's, which is why no bar count appears here.
+    const stitched = describeSilence(["sip", "iex"]);
+
+    expect(stitched).toBe(
+      "No shares changed hands on either feed in the window.",
+    );
+    expect(stitched).not.toContain("anywhere");
+    expect(stitched).not.toMatch(/\d/u);
+  });
+
+  it("does not order the two feeds into a different sentence", () => {
+    expect(describeSilence(["iex", "sip"])).toBe(
+      describeSilence(["sip", "iex"]),
+    );
+  });
+
+  it("claims no reach at all for invented numbers", () => {
+    // A silence in data nobody traded is not a statement about any market, so
+    // it gets no scope word rather than a hedged one.
+    expect(describeSilence(["synthetic"])).toBe(
+      "No shares changed hands in the window.",
+    );
+  });
+
+  it("ignores a synthetic stretch rather than letting it weaken a real one", () => {
+    expect(describeSilence(["sip", "synthetic"])).toBe(
+      "No shares changed hands anywhere in the window.",
+    );
+  });
+
+  it("treats a replay as the whole market, because its tape is the consolidated one", () => {
+    expect(describeSilence(["replay"])).toBe(
+      "No shares changed hands anywhere in the window.",
+    );
+  });
+
+  it("says something for a series with no sources at all", () => {
+    expect(describeSilence([])).toBe("No shares changed hands in the window.");
+  });
+
+  it("decides a reach for every feed, so a new one cannot arrive without one", () => {
+    // `FEED_SERVES`' mechanism, one question further on. The `Record` makes it
+    // a compile error; this asserts the run-time shape has not been widened.
+    for (const feed of MARKET_FEEDS) {
+      expect(FEED_REACH[feed]).toBeDefined();
+    }
+  });
+
+  it("names the venue with the feed vocabulary's own label rather than a second one", () => {
+    expect(describeSilence(["iex"])).toContain(
+      MARKET_FEED_DESCRIPTIONS.iex.label,
+    );
   });
 });

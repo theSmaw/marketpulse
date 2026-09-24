@@ -329,14 +329,29 @@ the previous close`), so **the sentence's length now depends on the state of
   served read prefers `sip` where a minute holds both and the nightly backfill
   covers every regular-session minute, so on a deployed store the two-feed
   state is **mid-session** (or extended hours, which the backfill never asks
-  for) and a window read after the backfill names one source. The frontend's
+  for) and a window read after the backfill names one source. ~~The frontend's
   fixtures are unchanged — all sixteen recorded bar-series bodies carry
   `sip`, so the frontend's version of the state is still reached through
-  `twoFeedStitchView()`, the recorded stitch with one field changed, and the
-  re-measure that retires it now has a window to be taken in. And `No shares changed hands anywhere in the window.` is the only
+  `twoFeedStitchView()`, the recorded stitch with one field changed~~ —
+  **false since 2026-09-23 and corrected on 2026-09-24**: Task 3.9.7 deleted
+  `twoFeedStitchView()` and replaced it with `two-feed.json`, a **recorded**
+  body read off this product's own server — `sip` ×60 then `iex` ×30 — with
+  `pnpm invariants` refusing its return. _That correction was owed by 3.9.7's
+  own sweep and was not taken; it was found by 3.9.8 grepping for a
+  neighbouring claim_, which is this file's own note that recording a
+  correction and propagating it are two obligations.
+  ~~And `No shares changed hands anywhere in the window.` is the only
   shipped sentence claiming something about **the market** rather than about our
   store — true while every bar is the consolidated tape, a single venue's silence
-  reported as the whole market's the moment it is not.
+  reported as the whole market's the moment it is not.~~ — **discharged
+  2026-09-24 by Task 3.9.8.** It is still the only such sentence and it no
+  longer over-claims: one home (`describeSilence`), and a reach read off the
+  series' own tapes — `anywhere` on the consolidated tape, **the venue named**
+  where one venue is all the window holds, `on either feed` across a stitch.
+  The cadence clause `one per minute of trading`, a second market claim found
+  by Task 3.9.1, was **deleted** in the same change: a bar exists for an
+  interval the security traded in, and the true density is stated twice in the
+  same paragraph already.
 - **Nothing checks that a named region says something when its subject is
   missing — and since 2026-09-21 a SIBLING rather than a widening.** Task 3.4.9
   met the harder form: _nothing checks that a named region says something

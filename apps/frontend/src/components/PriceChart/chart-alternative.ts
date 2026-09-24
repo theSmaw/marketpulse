@@ -1,4 +1,8 @@
-import { describeSeriesFeeds, distinctSeriesFeeds } from "@marketpulse/shared";
+import {
+  describeSeriesFeeds,
+  describeSilence,
+  distinctSeriesFeeds,
+} from "@marketpulse/shared";
 import type { BarSeries, TimeRange, Timeframe } from "@marketpulse/shared";
 
 import type {
@@ -304,7 +308,7 @@ function volumeAlternativeBody(
 function describeVolume(series: PopulatedBarSeries, symbol: string): string {
   return [
     `${symbol} volume chart: ${formatCount(series.bars.length)} columns of ` +
-      `traded volume, one per ${intervalWord(series.timeframe)}, measured from ` +
+      `traded volume, measured from ` +
       `a baseline of zero to the window's busiest ${slotUnit(series.timeframe)}.`,
     frameClause(series),
     peakClause(series),
@@ -328,7 +332,14 @@ function describeVolume(series: PopulatedBarSeries, symbol: string): string {
  */
 function peakClause(series: PopulatedBarSeries): string {
   const peak = volumePeak(series.bars);
-  if (peak <= 0) return "No shares changed hands anywhere in the window.";
+  // **The sentence has one home and it is not here** (Task 3.9.8). It shipped
+  // as a literal in this file and a second literal in `VolumeReading.tsx`, each
+  // commented as deliberately saying it in the other's words — which is ADR
+  // 0029's *one fact has one home* broken with a note explaining the break. It
+  // is also the only sentence this product ships that claims something about
+  // the **market** rather than about our store, so its scope is read off the
+  // series' own tapes rather than assumed.
+  if (peak <= 0) return describeSilence(distinctSeriesFeeds(series.provenance));
 
   // **The same derivation the strip's resting state reads** (Task 2.13.5).
   // It was a `find` here and would have been a second one there, which is two
@@ -363,8 +374,7 @@ function describeSeries(series: PopulatedBarSeries, symbol: string): string {
 
   return [
     `${symbol} price chart: a line of ${formatCount(series.bars.length)} ` +
-      `closing prices, one per ${intervalWord(series.timeframe)}, ` +
-      `opening at ${formatPrice(prices.open)} and ending at ` +
+      `closing prices, opening at ${formatPrice(prices.open)} and ending at ` +
       `${formatPrice(prices.close)}${move(percent)}.`,
     frameClause(series),
     `The highest price on it is ${formatPrice(prices.high)} and the lowest ` +
@@ -579,10 +589,17 @@ function clamp(slot: number, slots: number): number {
   return Math.min(Math.max(slot, 0), slots);
 }
 
-/** What one point on the line is. */
-function intervalWord(timeframe: Timeframe): string {
-  return timeframe === "1m" ? "minute of trading" : "trading session";
-}
+// **`intervalWord` is deleted rather than reworded** (Task 3.9.8). It produced
+// the clause `one per minute of trading`, which is a claim about **cadence**
+// and is false by a factor of three: `ERIE` traded in 131 of a 390-minute
+// session on the **consolidated** tape, so it is not a live-feed defect — the
+// live feed, at 65.1% median per-symbol coverage, only makes it worse.
+//
+// Rewording it (`one for each minute it traded`) was rejected because the same
+// paragraph already states the true density **twice** — `frameClause`'s *drawn
+// across 5 trading sessions* and `coverageClause`'s *covers the first 780 of
+// 990 trading minutes* — so a third telling is the copy that drifts, and the
+// sentence was 25 words against a 1,500 ms pacing floor. A listener gains.
 
 /** What the axis is divided into, pluralised. */
 function slotWord(timeframe: Timeframe, count: number): string {
