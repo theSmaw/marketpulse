@@ -148,9 +148,21 @@ whole market's.
 which it traded_, and the same paragraph already states the true density
 **twice** — `frameClause`'s _drawn across 5 trading sessions_ and
 `coverageClause`'s _covers the first 780 of 990 trading minutes_. A third
-telling of one fact is the copy that drifts, and this sentence is the one with
-the standing pacing entry against it: 25 words against a 1,500 ms floor. **The
-listener gains a shorter sentence and loses no fact.**
+telling of one fact is the copy that drifts. **The listener gains a shorter
+sentence and loses no fact.**
+
+> **Corrected 2026-09-24, in this task's own record.** An earlier draft of this
+> paragraph said the shortened sentence _"is the one with the standing pacing
+> entry against it: 25 words against a 1,500 ms floor"_. **It is not.** That
+> figure is `readingAnnouncement`'s — the reading strip's **live region**,
+> paced by `READING_ANNOUNCEMENT_MIN_GAP_MS`, which Task 2.13.5 took to 25
+> words by adding the volume clause. What this task shortened is
+> `chart-alternative.ts`' whole-chart description, rendered as a **static
+> `visuallyHidden` paragraph** with no live region on it — read when a listener
+> navigates to it, never announced against a floor. So the gain is a shorter
+> paragraph to read rather than one that fits a pacing budget, and
+> `docs/GAPS.md`'s pacing entry is **untouched by this task**: its word count
+> and its owner are unchanged.
 
 Three assertions encoded the false clause and changed. That is the repair
 landing, not a cost.
@@ -311,9 +323,14 @@ since the chart was built.
 **We deleted the phrase rather than rewriting it**, because the same paragraph
 already tells you the truth twice: how many trading sessions the chart covers,
 and how many of the window's minutes have data. A third version of one fact is
-simply a third thing that can go stale. As a bonus, that description is one we
-have flagged internally as too long for comfortable listening — so a
-screen-reader user gets a shorter sentence and loses nothing.
+simply a third thing that can go stale. A screen-reader user gets a shorter
+description and loses nothing.
+
+_(An earlier version of this report said that description was one we had
+flagged as too long for comfortable listening. That flag is against a
+**different** sentence — the one spoken when you move the crosshair. This one
+is read only when a listener navigates to it, so the win here is brevity
+rather than a timing problem solved.)_
 
 ### We also checked whether there were more
 
