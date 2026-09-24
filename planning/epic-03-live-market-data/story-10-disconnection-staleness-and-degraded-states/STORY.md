@@ -143,7 +143,10 @@ certainly may not.
 1. Every state in the set is enumerated, reachable in the suite, and
    photographed at 1440, 1024, 768 and 390
 2. Two states that imply different next actions do not read identically — the
-   defect the Epic 2 pass found twice
+   defect the Epic 2 pass found twice. **MET on the identity block 2026-09-24
+   by Task 3.10.3**, which found the three renderings already distinct and
+   added the assertion that holds them as a **set**; open on every other
+   surface, and the table is Task 3.10.4's
 3. ~~Killing the feed mid-session leaves every number on screen, labelled with
    the instant it was correct as of, and collapses nothing~~ — **MET, measured
    2026-09-24 by Task 3.10.1**: across five produced states the identity price,

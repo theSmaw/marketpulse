@@ -614,3 +614,91 @@ describe("a revision, which is a bar arriving too (Task 3.4.6)", () => {
     expect(markOf(container)).toBeNull();
   });
 });
+
+describe("the three renderings, read as a set (Task 3.10.3)", () => {
+  // **Story 3.10's criterion 2**: *two states that imply different next
+  // actions do not read identically*. The pieces of this were asserted by
+  // Task 3.4.2 one at a time — the instant exists, no status word appears, an
+  // absent live price falls back — and **nothing held the three against each
+  // other**, which is the comparison the 2.14.7 pass established as the only
+  // way a state set is reviewed.
+  //
+  // It matters here because Task 3.10.1's audit read its own shorthand back as
+  // a finding and reported that this surface could not tell an hours-old price
+  // from a fresh one. **It can.** This is what makes that a regression the
+  // next reader would catch rather than a claim in a task file.
+
+  const bar = (startsAt: string) => ({
+    startsAt: new Date(startsAt),
+    open: 219.4,
+    high: 219.62,
+    low: 219.31,
+    close: 219.5,
+    volume: 482_958,
+  });
+
+  /** Everything the block says, as a listener is handed it. */
+  function spoken(live?: ReturnType<typeof bar>): string {
+    const { container, unmount } = render(
+      <SecurityIdentity
+        symbol="NVDA"
+        view={securitiesFixtureView("full")}
+        {...(live === undefined ? {} : { live })}
+      />,
+    );
+    const said = container.textContent.replace(/\s+/gu, " ").trim();
+    unmount();
+    return said;
+  }
+
+  it("reads differently in all three states", () => {
+    const fresh = spoken(bar("2026-09-16T18:01:00Z"));
+    const hoursOld = spoken(bar("2026-09-16T15:01:00Z"));
+    const stored = spoken();
+
+    // The pairwise comparison, which is the criterion rather than a proxy for
+    // it. Three states, three readings, no two alike.
+    expect(new Set([fresh, hoursOld, stored]).size).toBe(3);
+  });
+
+  it("tells an hours-old live price from a fresh one by its instant", () => {
+    // The **same** figure and the **same** change, three hours apart. Only the
+    // instant differs, and it is the thing that has to.
+    expect(spoken(bar("2026-09-16T18:01:00Z"))).toContain("14:01 EDT");
+    expect(spoken(bar("2026-09-16T15:01:00Z"))).toContain("11:01 EDT");
+  });
+
+  it("tells a live price from a stored close by its LABEL, not only its instant", () => {
+    // A stronger difference than the one above, and deliberately so: these two
+    // are different KINDS of number — one is a minute bar's close and the
+    // other a session's — so the label moves rather than only the qualifier.
+    expect(spoken(bar("2026-09-16T18:01:00Z"))).toContain("Latest price");
+    expect(spoken()).toContain("Last session close");
+    expect(spoken()).not.toContain("Latest price");
+  });
+
+  it("keeps the change figure on an hours-old price", () => {
+    // **Task 3.10.1's decision 3**, taken by the owner: a stale price keeps
+    // its change figure. It is arithmetic over two real numbers and stays true
+    // of the price shown; dropping it would remove true information because a
+    // socket went quiet, which is the argument Story 3.4 already used for not
+    // blanking the prices themselves.
+    expect(spoken(bar("2026-09-16T15:01:00Z"))).toMatch(/−4\.71%/u);
+  });
+
+  it("does not grow a status word as it ages", () => {
+    // §11.2, held across the age range rather than at one instant: the maximum
+    // ORDINARY gap between one security's bars is 187 minutes, so an hours-old
+    // price is the feed working and must not be dressed as a fault.
+    for (const startsAt of [
+      "2026-09-16T18:01:00Z",
+      "2026-09-16T15:01:00Z",
+      "2026-09-16T11:42:00Z",
+    ]) {
+      const said = spoken(bar(startsAt));
+      for (const word of ["stale", "disconnected", "offline", "old"]) {
+        expect(said.toLowerCase()).not.toContain(word);
+      }
+    }
+  });
+});
