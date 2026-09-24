@@ -202,3 +202,73 @@ test("the venue survives the connection dying", async ({ page }) => {
 
   await expectNothingFailedToRender(page);
 });
+
+test("the venue names the live tape, not the one the charts came from", async ({
+  page,
+}) => {
+  // **Task 3.10.6.** On the deployed site during a session this cell read
+  // `ALL US EXCHANGES · LIVE` beside numbers that were entirely IEX — two true
+  // halves from two sources, and invariant 6 breached on every route.
+  const feed = await serveFeed(page, { snapshot: LIVE_PRICE });
+
+  await page.goto(EXPLORER);
+  await expect(feedCell(page)).toContainText(/live/iu);
+
+  // The harness serves one coherent deployment whose live tape is `iex`.
+  await expect(feedCell(page)).toContainText("IEX");
+  await expect(feedCell(page)).not.toContainText("All US exchanges");
+
+  // And the disclaimer arrives with the venue, which is §7.1's actual
+  // requirement — three letters teach a non-specialist nothing.
+  await expect(feedCell(page)).toContainText(
+    "Trades reported by the IEX exchange only",
+  );
+
+  expect(feed.feed()).toBe("iex");
+  await expectNothingFailedToRender(page);
+});
+
+test("a quiet socket outside market hours is not a feed failure", async ({
+  page,
+}) => {
+  // **Criterion 5.** `FeedStatus` is about the connection and
+  // `MarketSessionStatus` about the session, and they are deliberately
+  // separate: the market being shut is not a feed failure, and the 165 s
+  // threshold does not know what time it is.
+  const feed = await serveFeed(page, { marketOpen: false, snapshot: {} });
+
+  await page.goto(EXPLORER);
+
+  await expect(feedCell(page)).toContainText(/live/iu);
+  await expect(feedCell(page)).not.toContainText(/disconnected/iu);
+  await expect(feedCell(page)).not.toContainText(/stale/iu);
+
+  expect(feed.feed()).toBe("iex");
+  await expectNothingFailedToRender(page);
+});
+
+test("a degradation is announced, and a page load is not", async ({ page }) => {
+  // **Task 3.10.6's other half.** Since Task 3.10.5 this cell is the ONLY
+  // surface on a security page that says the feed stopped, and it was
+  // announced to nobody. It speaks now — but only when something got worse.
+  const feed = await serveFeed(page, { snapshot: LIVE_PRICE });
+
+  const spoken = () =>
+    page.locator("footer [role='status']").first().textContent();
+
+  await page.goto(EXPLORER);
+  await expect(feedCell(page)).toContainText(/live/iu);
+
+  // Mount says nothing, which is the whole reason a plain `role="status"` on
+  // the cell was refused: it would speak on every page load and navigation.
+  expect((await spoken())?.trim()).toBe("");
+
+  feed.drop();
+  await expect(feedCell(page)).toContainText(/disconnected/iu);
+
+  await expect
+    .poll(async () => (await spoken())?.trim())
+    .toContain("Market feed disconnected");
+
+  await expectNothingFailedToRender(page);
+});

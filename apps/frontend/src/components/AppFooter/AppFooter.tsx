@@ -8,6 +8,7 @@ import { FeedIndicator } from "../FeedIndicator/FeedIndicator.js";
 import { FeedProvenance } from "../FeedProvenance/FeedProvenance.js";
 import type { LiveFeedView } from "../../market/index.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
+import { venueFor } from "./venue.js";
 import styles from "./AppFooter.module.css";
 
 // The application's status bar, at the bottom (2026-09-16).
@@ -160,7 +161,14 @@ export function AppFooter({
           are still looking at. `useStickyFooterHeight` publishes whatever the
           bar measures, so the page's padding follows without being told.
         */}
-        <FeedProvenance view={marketFeed} />
+        {/*
+          **The venue names the tape the newest numbers came from** (Task
+          3.10.6), which is the live one whenever the socket has reported it.
+          Before that it is the configured answer, because the numbers on
+          screen are the charts' and they are the stored tape. `venue.ts`
+          carries the rule and what it rejected.
+        */}
+        <FeedProvenance view={venueFor(liveFeed, marketFeed)} />
         <FeedIndicator view={liveFeed} />
       </div>
 

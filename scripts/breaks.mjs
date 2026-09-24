@@ -1585,6 +1585,24 @@ export const BREAKS = [
     expect: "outside the tracked universe",
   },
   {
+    name: "the-chrome-inherits-epic-2s-word-again",
+    proves:
+      "The chrome's venue goes back to naming the HISTORICAL provider's tape " +
+      "while a live socket reports a different one \u2014 which is what shipped " +
+      "from 2026-09-21 and was seen on the deployed site as `ALL US " +
+      "EXCHANGES` beside prices that were entirely IEX. Two true halves, one " +
+      "false impression, and `PRODUCT_SPEC.md` \u00a77.1's own sentence " +
+      "breached on every route (Task 3.10.6).",
+    file: "apps/frontend/src/components/AppFooter/venue.ts",
+    find: "  if (live.feed === null) return configured;",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      '  if (configured.state === "configured") return configured;\n' +
+      "  if (live.feed === null) return configured;",
+    command: ["pnpm", "--filter", "@marketpulse/frontend", "test", "venue"],
+    expect: "never puts a venue beside a live tape that is not it",
+  },
+  {
     name: "a-stream-without-a-feed-word",
     proves:
       "A deployment whose chrome can say a CONNECTION word says `no " +

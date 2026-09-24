@@ -42,3 +42,15 @@
 .disconnected {
   --marker-color: var(--feed-disconnected);
 }
+
+/*
+ * **The spoken half of this cell** (Task 3.10.6).
+ *
+ * Off screen and in the accessibility tree, which is the product-wide idiom
+ * rather than a local one — `composes:` reaches the single declaration in
+ * `a11y.module.css` so there is one definition of *hidden from eyes, present
+ * to a listener* and this cannot drift from it.
+ */
+.announcement {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}
