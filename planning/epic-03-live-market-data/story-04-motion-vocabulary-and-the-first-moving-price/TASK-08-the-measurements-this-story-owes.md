@@ -412,6 +412,30 @@ comparison is clean: going from 8 observations to 518, with the row count
 fixed, costs about **90 ms**. So roughly a third of the tick scales with the
 data and the rest is fixed per tick, whatever arrived.
 
+> **A third arm, added 2026-09-24 by Task 3.9.9 — and it is the one that
+> separates _rows_ from _data on screen_.** That task measured the **chart**
+> under the same stream on a production build: **one** observation a tick,
+> against **1,950 and 6,630 bars** drawn.
+>
+> | Measurement                | Observations per tick | Elements rendered | Cost per tick     |
+> | -------------------------- | --------------------- | ----------------- | ----------------- |
+> | Task 3.9.9, default window | **1**                 | **13**            | 7.2–8.1 ms script |
+> | Task 3.9.9, 6,630 bars     | **1**                 | **13**            | 12.3–13.2 ms      |
+> | **This task** (production) | 332                   | 1 row             | none over 50 ms   |
+> | Task 3.6.3, arm B (dev)    | 8                     | 518 rows          | 127–203 ms        |
+>
+> **The conclusion above survives and gets sharper.** _The driver is rows, not
+> observations_ was right, and the chart shows what _rows_ was standing in for:
+> **elements rendered**. A chart holding 6,630 bars is **13 elements** (ADR
+> 0027's silhouette regime), and it costs about what one row costs — three
+> orders of magnitude less data-per-element than the table, and cheap for
+> exactly that reason. So the variable is not the row, the observation or the
+> bar; it is **how many things the renderer has to touch**.
+>
+> The builds differ, which the caveat below already governs: 3.9.9's arms and
+> this task's are both production, and 3.6.3's are both development, so each
+> pair is internally clean and no row is read across the boundary.
+
 ### The caveat, which is this task's own rule turned on itself
 
 **The two builds are not comparable and this file says so twice.** _A
