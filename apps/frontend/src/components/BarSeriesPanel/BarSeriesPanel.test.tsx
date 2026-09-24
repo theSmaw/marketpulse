@@ -6,7 +6,6 @@ import {
   barSeriesFixtureView,
   barSeriesViewScreen,
   staleBarSeriesFixtureView,
-  twoFeedStitchView,
   windowChangeFixtureScreen,
 } from "../../fixtures/bar-series.js";
 import type { BarSeriesView } from "../../market/index.js";
@@ -287,7 +286,7 @@ describe("BarSeriesPanel", () => {
     // copies of a one-field edit is three places for the edit to stop matching.
     // The day a two-feed body is recorded, that function is deleted and every
     // reader points at the fixture instead.
-    render(<Panel {...props} view={twoFeedStitchView()} />);
+    render(<Panel {...props} view={barSeriesFixtureView("twoFeed")} />);
 
     expect(screen.getByText("Market feed", VISIBLE)).toBeTruthy();
     expect(screen.getByText("All US exchanges", VISIBLE)).toBeTruthy();

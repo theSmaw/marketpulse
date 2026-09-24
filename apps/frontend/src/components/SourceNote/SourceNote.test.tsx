@@ -1,10 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import {
-  barSeriesFixtureView,
-  twoFeedStitchView,
-} from "../../fixtures/bar-series.js";
+import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import {
   LOADING_UNIVERSE,
   securitiesFixtureView,
@@ -111,7 +108,7 @@ function reading(element: Element): string {
  *
  * **Per row rather than one string for the whole list, and the test said so
  * before this file did.** Asserting the `dd` whole produced
- * `All US exchanges90 bars` — two stretches with nothing between them — which
+ * `All US exchanges30 bars` — two stretches with nothing between them — which
  * is what `textContent` does at an element boundary and is *not* what a
  * listener gets: a list item is its own announcement, and the count of items is
  * announced before the first one. So the row is the unit a reader receives and
@@ -173,7 +170,7 @@ describe("SourceNote", () => {
     // sources' own — never sorted, never deduplicated to the first.
     render(
       <SourceNote
-        shown={twoFeedStitchView()}
+        shown={barSeriesFixtureView("twoFeed")}
         feed={SIP}
         securities={PENDING_UNIVERSE}
         symbol={SUBJECT}
@@ -182,7 +179,7 @@ describe("SourceNote", () => {
 
     expect(rowsOf("Sources")).toEqual([
       "60 bars All US exchanges",
-      "90 bars IEX Trades reported by the IEX exchange only — not the full " +
+      "30 bars IEX Trades reported by the IEX exchange only — not the full " +
         "US consolidated tape.",
     ]);
   });

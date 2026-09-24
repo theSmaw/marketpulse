@@ -198,6 +198,7 @@ import EMPTY from "./bar-series/empty.json" with { type: "json" };
 import FLAT from "./bar-series/flat.json" with { type: "json" };
 import FULL from "./bar-series/full.json" with { type: "json" };
 import HOLIDAY_WEEK from "./bar-series/holiday-week.json" with { type: "json" };
+import TWO_FEED from "./bar-series/two-feed.json" with { type: "json" };
 import INCOHERENT from "./bar-series/incoherent.json" with { type: "json" };
 import PARTIAL from "./bar-series/partial.json" with { type: "json" };
 import REFUSED_CALENDAR from "./bar-series/refused-calendar.json" with { type: "json" };
@@ -297,6 +298,33 @@ export const BAR_SERIES_FIXTURES = {
     body: STITCHED,
     outcome: "ok",
     describes: "a stitched series whose provenance names two sources",
+  },
+
+  /**
+   * **A series that really holds two TAPES** — 60 `sip` minutes and 30 `iex`
+   * ones, in contribution order, with their counts.
+   *
+   * Recorded 2026-09-24 from this product's own `GET /market-data/bars`, by
+   * writing thirty `iex` rows into a developer's store for a session the
+   * backfill had not reached, asking the running server, and removing them
+   * again — the shape Task 3.8.3 used for the same reason. Every byte of the
+   * provenance is the read path's own work: `toStoredSeries` walked the rows,
+   * started a new stretch where the tape changed, and joined the two through
+   * `mergeSeriesProvenance`.
+   *
+   * **It replaces `twoFeedStitchView()`**, which was `stitched` with one field
+   * changed — a state somebody typed rather than one the system produced. The
+   * difference is not pedantic: that function asserted, by construction, that
+   * a two-feed record looks exactly like a two-`sip` one with a different
+   * letter in it. This body is the answer to the question *what does the
+   * server actually send?*, and `pnpm invariants` now refuses the function's
+   * return.
+   */
+  twoFeed: {
+    status: 200,
+    body: TWO_FEED,
+    outcome: "ok",
+    describes: "a series holding two tapes: 60 sip bars then 30 iex",
   },
 
   /** The 10,000-bar cap, refused rather than reduced, naming the number. */
@@ -874,64 +902,6 @@ export function staleBarSeriesFixtureView(
   name: BarSeriesFixtureName,
 ): BarSeriesView {
   return toStaleBarSeriesView(barSeriesFixtureView(name));
-}
-
-/**
- * The recorded stitch with **one field changed**, so the two-feed case can be
- * reached without a body claiming a pairing no server produces.
- *
- * **The one derivation in this module, and it is named as one.** Everything
- * else here is a recorded body; this is the recorded `stitched` answer with its
- * tail's `feed` set to `iex`, put through the real transition. The shape, the
- * bars, the coverage and the two sources are all the server's.
- *
- * ## Why it cannot be recorded, and why it must not be hand-edited
- *
- * The free Alpaca plan is asymmetric — stored history is the consolidated SIP
- * tape and the live stream is IEX only — so a series genuinely naming two feeds
- * is what Epic 3's socket produces and nothing before it can. All sixteen
- * recorded bar-series bodies carry `feed: "sip"`, `stitched.json` included:
- * both of its halves came from Alpaca's **historical** API, which is a fact
- * about this plan rather than a gap in the corpus.
- *
- * Hand-editing the JSON was the obvious alternative and is the one this module
- * exists to refuse: a fixture that has stopped being a recorded body is a
- * fixture that can drift from the contract with nothing to catch it. Changing
- * the field **here**, in code, names it — so the day a two-feed body is
- * recorded, this function is deleted and its readers point at the fixture
- * instead, rather than a quietly wrong file surviving in the directory.
- *
- * It is the precedent `BarSeriesPanel.test.tsx` set on 2026-09-14, lifted into
- * this module at Task 2.14.3 because a second and a third reader arrived — the
- * source note's story and its component test — and three copies of a
- * one-field edit is three places for the edit to stop matching.
- */
-export function twoFeedStitchView(): BarSeriesView {
-  const recorded = barSeriesFixtureResult("stitched");
-
-  if (recorded.outcome !== "ok") {
-    throw new TypeError("The stitched fixture is an answer, not a failure.");
-  }
-
-  const [stored, tail] = recorded.data.series.provenance.sources;
-
-  if (stored === undefined || tail === undefined) {
-    throw new TypeError("The stitched fixture names two sources.");
-  }
-
-  return toBarSeriesView(LOADING, {
-    ...recorded,
-    data: {
-      ...recorded.data,
-      series: {
-        ...recorded.data.series,
-        provenance: {
-          ...recorded.data.series.provenance,
-          sources: [stored, { ...tail, feed: "iex" }],
-        },
-      },
-    },
-  });
 }
 
 /**

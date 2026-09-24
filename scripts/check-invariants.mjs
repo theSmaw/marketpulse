@@ -1460,6 +1460,109 @@ const INVARIANTS = [
   },
 
   {
+    id: "the-consolidated-word-has-one-producer",
+    claim:
+      "`All US exchanges` is produced by exactly one place — `sip`'s label in " +
+      "`MARKET_FEED_DESCRIPTIONS` — so no live stretch can be given Epic 2's " +
+      "word.",
+    check() {
+      // **Criterion 3's harder half, walked at the producers** (Task 3.9.7).
+      //
+      // `PRODUCT_SPEC.md` §7.1 forbids implying coverage the plan does not
+      // have, and the concrete failure is one venue's bars labelled as the
+      // whole consolidated tape. Rendering a state cannot prove the absence:
+      // it proves that ONE state does not say it. What can be proved is that
+      // the string has a single producer and every consumer reads through it.
+      //
+      // So: the literal appears in exactly one place that produces a value —
+      // `sip`'s `label` — and a second occurrence anywhere in shipped source
+      // is either a second producer or a hard-coded copy. Comments are read
+      // out first, because the argument for the words is worth keeping and is
+      // not a producer.
+      const files = [
+        "packages/shared/src/market-provenance.ts",
+        "packages/shared/src/feed-words.ts",
+        "apps/frontend/src/components/SourceNote/SourceNote.tsx",
+        "apps/frontend/src/components/SourceNote/source-note.ts",
+        "apps/frontend/src/components/BarSeriesPanel/BarSeriesPanel.tsx",
+        "apps/frontend/src/components/PriceChart/chart-alternative.ts",
+        "apps/frontend/src/components/FeedProvenance/FeedProvenance.tsx",
+      ];
+
+      const producers = files.filter((file) => {
+        const full = resolve(REPO_ROOT, file);
+        if (!existsSync(full)) return false;
+        return withoutComments(readFileSync(full, "utf8")).includes(
+          "All US exchanges",
+        );
+      });
+
+      if (producers.length !== 1 || producers[0] !== files[0]) {
+        throw new InvariantFailure(
+          `\`All US exchanges\` is produced in ${producers.length} place(s) ` +
+            `(${producers.join(", ") || "none"}), and it must be produced in ` +
+            "exactly one: `sip`'s label. A second one is how a live stretch " +
+            "acquires Epic 2's word, which is the coverage claim " +
+            "`PRODUCT_SPEC.md` §7.1 forbids (Task 3.9.7).",
+        );
+      }
+    },
+  },
+
+  {
+    id: "the-two-feed-state-comes-from-a-recorded-body",
+    claim:
+      "The frontend's two-feed fixture is a RECORDED body, not a recorded " +
+      "body with a field changed: `twoFeedStitchView` does not come back.",
+    check() {
+      // **The state this product's provenance design exists for, and for two
+      // epics nothing could produce it** (Task 3.9.7).
+      //
+      // `twoFeedStitchView()` took `stitched.json` — two `sip` stretches, both
+      // halves from Alpaca's historical API — and changed the second's `feed`
+      // to `iex`. It was admissible when it was written and it asserted
+      // something by construction: that a two-FEED record looks exactly like a
+      // two-`sip` one with a different letter in it. Nothing checked that.
+      //
+      // Since 2026-09-24 there is a real one. `two-feed.json` was recorded from
+      // this product's own `GET /market-data/bars` reading its own store: 60
+      // `sip` minutes then 30 `iex`, with the stretches started by
+      // `toStoredSeries` where the tape changed and joined through
+      // `mergeSeriesProvenance`. Every byte of its provenance is the read
+      // path's work.
+      //
+      // The grep is the cheap half of keeping it that way: a fixture module
+      // that reintroduces a view built by editing a recorded one is the same
+      // mistake wearing the same name.
+      const path = "apps/frontend/src/fixtures/bar-series.ts";
+      const text = readFileSync(resolve(REPO_ROOT, path), "utf8");
+
+      // **The DECLARATION, not the name.** The first draft grepped for the
+      // name and went red on the fixture's own comment explaining why the
+      // function is gone — which is the paragraph most worth keeping. A check
+      // that forbids its own explanation is a check that gets deleted.
+      if (/function\s+twoFeedStitchView\b/u.test(text)) {
+        throw new InvariantFailure(
+          `${path} names \`twoFeedStitchView\` again. The two-feed state has ` +
+            "a RECORDED body since Task 3.9.7 — `two-feed.json`, 60 sip bars " +
+            "then 30 iex, read off this product's own server — and a view " +
+            "built by changing one field of another body asserts by " +
+            "construction the thing it is supposed to demonstrate.",
+        );
+      }
+
+      if (!text.includes("two-feed.json")) {
+        throw new InvariantFailure(
+          `${path} no longer imports \`two-feed.json\`. That body is the ` +
+            "only two-TAPE answer this repository holds; without it the " +
+            "source note's split-series states are drawn from nothing a " +
+            "server has ever sent (Task 3.9.7).",
+        );
+      }
+    },
+  },
+
+  {
     id: "every-prepared-index-has-its-adopter",
     claim:
       "Every entry in `prepare-indexes.ts`'s `PREPARED` list names a " +
