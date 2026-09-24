@@ -1603,6 +1603,97 @@ export const BREAKS = [
     expect: "never puts a venue beside a live tape that is not it",
   },
   {
+    name: "a-failed-refill-wipes-the-chart",
+    proves:
+      "A refetch NOBODY ASKED FOR turns a working chart into an error " +
+      "message. The refill goes out because a socket came back, not because " +
+      "a reader pressed anything, and a page that was drawing a correct " +
+      "answer must not lose it because that request did not come back — " +
+      "which is `PRODUCT_SPEC.md` §36's global error screen arriving " +
+      "locally. On a socket that dropped 38 times in 4h 36m (2026-09-22) " +
+      "this is a chart that breaks every few minutes (Task 3.10.7).",
+    file: "apps/frontend/src/market/use-bar-series.ts",
+    find:
+      "          if (\n" +
+      "            quiet &&\n" +
+      '            result.outcome !== "ok" &&\n' +
+      '            previous.view.state !== "loading"\n' +
+      "          )\n" +
+      "            return previous;",
+    replace: "          // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "use-bar-series",
+    ],
+    expect: "leaves the chart alone when the refill fails",
+  },
+  {
+    name: "a-flapping-socket-becomes-a-poll",
+    proves:
+      "A refill fires on EVERY reconnection with no floor, so a socket that " +
+      "churns turns the chart's fetch into a poll — in a hook whose own " +
+      "refetch policy says it does not poll. Measured 2026-09-24: an " +
+      "ordinary security page opens THREE market-stream sockets in twelve " +
+      "seconds (`docs/GAPS.md`), so this is a refetch every four seconds " +
+      "rather than a hypothetical. It cost four bisecting runs to attribute, " +
+      "because in a browser suite it reads as machine contention (Task " +
+      "3.10.7).",
+    file: "apps/frontend/src/market/use-bar-series.ts",
+    find:
+      "    const now = Date.now();\n" +
+      "    if (now - lastRefillAt.current < BAR_INTERVAL_MS) return;\n" +
+      "    lastRefillAt.current = now;",
+    replace: "    // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "use-bar-series",
+    ],
+    expect: "asks at most once a minute however often the feed flaps",
+  },
+  {
+    name: "a-refill-supersedes-the-request-it-is-waiting-for",
+    proves:
+      "A refill ABORTS the request already in flight, which is what starting " +
+      "one does. For a reader changing the window that is right; for a " +
+      "resume it is wrong twice over — the running request was about to " +
+      "deliver the same fresh answer, and a socket that flaps aborts each " +
+      "refill with the next, so NOTHING ever lands and the page sits on " +
+      "`loading` with no answer coming and no control to ask for one (Task " +
+      "3.10.7).",
+    file: "apps/frontend/src/market/use-bar-series.ts",
+    find: "    if (inFlight.current) return;",
+    replace: "    // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "use-bar-series",
+    ],
+    expect: "does not supersede a request that is already running",
+  },
+  {
+    name: "a-resume-does-not-reach-the-page",
+    proves:
+      "A reconnection updates the store correctly and **never reaches a " +
+      "consumer**, because the render gate upstream of the reducer does not " +
+      "compare it. The failure is silent in the worst way: every number on " +
+      "screen is right, the feed reads `LIVE`, and the minutes lost to the " +
+      "dropout are simply never filled. This is Task 3.4.1's defect shape " +
+      "with a different field (Task 3.10.7).",
+    file: "apps/frontend/src/market/live-feed.ts",
+    find: "    a.resumes === b.resumes",
+    replace: "    true // pnpm break: reverted automatically",
+    command: ["pnpm", "--filter", "@marketpulse/frontend", "test", "live-feed"],
+    expect: "makes a reconnection a change even when nothing else moved",
+  },
+  {
     name: "a-stream-without-a-feed-word",
     proves:
       "A deployment whose chrome can say a CONNECTION word says `no " +

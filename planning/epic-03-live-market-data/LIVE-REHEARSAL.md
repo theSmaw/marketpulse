@@ -199,12 +199,30 @@ on the deployed site with the market open, `pnpm probe` at four viewports in
 that state, and the two-feed source note photographed **before that night's
 backfill**, which is the one item on the combined list that expires.
 
-**And one item added 2026-09-24 by Task 3.10.6, which costs nothing and is
+~~**And one item added 2026-09-24 by Task 3.10.6, which costs nothing and is
 owed to three rows at once.** Read the **venue word in the chrome** during the
-sitting: it should say `IEX` with its one-venue sentence, not
-`ALL US EXCHANGES`. Note 3 is the defect three rows recorded and this task
-repaired; the cell is on every route the sitting already opens, and a check
-cannot read a deployed chrome.
+sitting.~~ — **TAKEN the same evening it was added, 2026-09-24, from
+production with the market open**, and not by asking a person to remember:
+`session-watch.mjs` was extended mid-run to record the deployed chrome
+verbatim, so the defect and the repair are two lines of one instrument's log,
+twenty minutes apart across the deploy of PR #462.
+
+```text
+13:57:40Z  MARKET FEED ALL US EXCHANGES LIVE BACKEND SERVICE HEALTHY
+14:17:39Z  MARKET FEED IEX Trades reported by the IEX exchange only —
+           not the full US consolidated tape. LIVE BACKEND SERVICE HEALTHY
+```
+
+**The one-venue sentence — written in Story 2.6 and never before shown — is on
+the deployed page beside live IEX prices.** Note 3 is discharged for all three
+rows that cite it, with the ordinary qualification from note 1: a headless
+watch looked, and whether that satisfies a criterion naming _a person_ is the
+owner's call.
+
+What the combined list still holds is what it always did: the extended-hours
+mark, a real correction, a genuinely quiet minute, `pnpm probe` at four
+viewports with the market open, and the two-feed source note before the
+backfill.
 
 ### Notes on the 2026-09-22 sitting
 
@@ -270,7 +288,8 @@ of the same answer.
 > check can do is read the deployed chrome during a session**, which is what
 > this note recorded in the first place: the next sitting confirms
 > `MARKET FEED ● IEX ● … ● LIVE` on the deployed site with the market open.
-> It is on the combined one-sitting list above.
+> It is on the combined one-sitting list above — **and was taken there on
+> 2026-09-24, the same evening; the two readings are quoted with it.**
 
 **4. What this sitting did not return, in one place.** The extended-hours
 qualifier (needs the market shut); a real correction (needs an instrument that

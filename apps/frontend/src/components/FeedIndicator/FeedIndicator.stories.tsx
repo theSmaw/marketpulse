@@ -36,6 +36,7 @@ const base = {
   unreadable: 0,
   observations: NO_OBSERVATIONS,
   fromSnapshot: NO_SNAPSHOT,
+  resumes: 0,
 } satisfies Omit<LiveFeedView, "status">;
 
 const VIEWS = {

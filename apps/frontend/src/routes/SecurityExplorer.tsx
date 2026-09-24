@@ -205,6 +205,11 @@ export function SecurityExplorer({
       window: seriesWindowFor(sessions),
     },
     live,
+    // **The gap, filled rather than jumped** (Task 3.10.7). While the socket
+    // was down this page watched no minutes, so the series it holds has a hole
+    // that arriving bars cannot close. The count is an edge to fire on; the
+    // fetch behind it is quiet, and a failure leaves the chart alone.
+    liveFeed.resumes,
   );
 
   /*

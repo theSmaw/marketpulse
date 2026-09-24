@@ -664,3 +664,106 @@ describe("which symbols are sitting on a snapshot baseline (Task 3.5.4)", () => 
     expect(second.fromSnapshot).toBe(first.fromSnapshot);
   });
 });
+
+// **What tells "we have just come back" from "we have been here all along"**
+// (Task 3.10.7).
+//
+// The gateway sends a snapshot on **every** connection (Task 3.5.5), so the
+// count of snapshots is the count of connections — and the count of
+// connections after the first is the number of holes this page has in the
+// minutes it accumulated. Nothing else in this store knows that: the socket
+// is `open` either way, the observations are correct either way, and the
+// minutes nobody watched simply are not there.
+describe("resumes", () => {
+  const view = (state: LiveFeedConnection): number =>
+    liveFeedView(state, {
+      now: 60_500,
+      wallNow: BAR_ARRIVED,
+    }).resumes;
+
+  it("is zero before anything has connected", () => {
+    expect(view(initialLiveFeed)).toBe(0);
+  });
+
+  // **A first connection is not a return.** Every page in the product spends
+  // its whole life here, so a `1` would make the refill fire on every load.
+  it("is zero on a first, healthy connection", () => {
+    expect(view(healthy())).toBe(0);
+  });
+
+  // The journey a real dropout takes: the socket closes, the client dials
+  // again, and the gateway greets it with a snapshot.
+  it("counts one when the feed comes back", () => {
+    const back = walk([
+      { kind: "opened", at: 0 },
+      { kind: "message", at: 1_000, message: snapshot(feedState()) },
+      { kind: "closed", at: 2_000 },
+      { kind: "opened", at: 4_000 },
+      { kind: "message", at: 4_100, message: snapshot(feedState()) },
+    ]);
+
+    expect(view(back)).toBe(1);
+  });
+
+  // **Two reconnections are two resumes**, which is the whole reason this is a
+  // counter rather than a flag — a flag set by the first is still set when the
+  // second lands and the second gap is never filled.
+  it("counts every return, not only the first", () => {
+    const twice = walk([
+      { kind: "opened", at: 0 },
+      { kind: "message", at: 1_000, message: snapshot(feedState()) },
+      { kind: "closed", at: 2_000 },
+      { kind: "opened", at: 3_000 },
+      { kind: "message", at: 3_100, message: snapshot(feedState()) },
+      { kind: "closed", at: 4_000 },
+      { kind: "opened", at: 5_000 },
+      { kind: "message", at: 5_100, message: snapshot(feedState()) },
+    ]);
+
+    expect(view(twice)).toBe(2);
+  });
+
+  // **A feed that dropped and has not come back has nothing to fill from.**
+  // The minutes are still missing and the socket is still what would deliver
+  // them; the edge worth acting on is the return.
+  // **The gate, asserted as a negative** (Task 3.10.7), which is the shape
+  // Task 3.4.1 established for the observations Map and for the same reason: a
+  // field added to the store without being added to `sameLiveFeedView` is
+  // correct in the reducer and **never reaches a consumer** — here, a gap that
+  // is never filled, on a page where every number on screen is right.
+  //
+  // The two views agree on everything else. A reconnection that delivers the
+  // **same** observations changes no status, no instant and no Map reference,
+  // so `resumes` is the only field that can make this fail.
+  it("makes a reconnection a change even when nothing else moved", () => {
+    const before = walk([
+      { kind: "opened", at: 0 },
+      { kind: "message", at: 1_000, message: snapshot(feedState()) },
+    ]);
+    const after = walk([
+      { kind: "opened", at: 0 },
+      { kind: "message", at: 1_000, message: snapshot(feedState()) },
+      { kind: "closed", at: 2_000 },
+      { kind: "opened", at: 3_000 },
+      { kind: "message", at: 3_100, message: snapshot(feedState()) },
+    ]);
+
+    const a = liveFeedView(before, { now: 3_200, wallNow: BAR_ARRIVED });
+    const b = liveFeedView(after, { now: 3_200, wallNow: BAR_ARRIVED });
+
+    expect(a.status).toBe(b.status);
+    expect(a.observedAt).toBe(b.observedAt);
+    expect(a.observations).toBe(b.observations);
+    expect(sameLiveFeedView(a, b)).toBe(false);
+  });
+
+  it("does not count a disconnection on its own", () => {
+    const gone = walk([
+      { kind: "opened", at: 0 },
+      { kind: "message", at: 1_000, message: snapshot(feedState()) },
+      { kind: "closed", at: 2_000 },
+    ]);
+
+    expect(view(gone)).toBe(0);
+  });
+});

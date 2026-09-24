@@ -1,6 +1,6 @@
 import type { BarPayload, BarSeriesPayload } from "@marketpulse/shared";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BarSeriesRequest } from "../bar-series-query.js";
 import { barSeriesQuery } from "../bar-series-query.js";
@@ -463,5 +463,317 @@ describe("useBarSeries", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 120));
     expect(calls).toHaveLength(1);
+  });
+});
+
+// **The gap, filled rather than jumped** (Task 3.10.7).
+//
+// While this page's socket was down the minutes kept happening and it watched
+// none of them, so the series it holds has a hole that no arriving bar can
+// close — `useLiveSeries` accumulates what **arrives**, and nothing did. The
+// repair is that a resume makes the page ask its own server again, because
+// since Task 3.8.3 the store has the minutes even when this browser does not.
+//
+// Every one of these is about the **loop**: the fetch is ordinary and the
+// decision is when it goes out and what its answer is allowed to do.
+describe("useBarSeries, when the live feed comes back", () => {
+  // **The refill has a floor of one a minute** — not a poll, a suppression —
+  // so a test that resumes twice in a row has to move the clock or it is
+  // asserting the floor rather than the feature. Moved explicitly rather than
+  // with fake timers, because the hook's own awaits are real promises and
+  // `waitFor` has to keep working.
+  let clock = Date.parse("2026-09-24T13:30:00.000Z");
+  const minutesLater = (n: number): void => {
+    clock += n * 60_000;
+  };
+
+  beforeEach(() => {
+    clock = Date.parse("2026-09-24T13:30:00.000Z");
+    vi.spyOn(Date, "now").mockImplementation(() => clock);
+  });
+
+  it("asks again, and the answer that lands is the fuller one", async () => {
+    let answer = series(3);
+    stub(() => ok(answer));
+
+    const { result, rerender } = renderHook(
+      ({ resumes }: { resumes: number }) =>
+        useBarSeries(REQUEST, undefined, resumes),
+      { initialProps: { resumes: 0 } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+    expect(calls).toHaveLength(1);
+
+    // The store kept filling while the socket was down.
+    answer = series(9);
+    rerender({ resumes: 1 });
+
+    await waitFor(() => {
+      const view = result.current.view;
+      if (view.state !== "loaded") throw new Error("expected loaded");
+      expect(view.series.bars).toHaveLength(9);
+    });
+    expect(calls).toHaveLength(2);
+  });
+
+  // **A page that never lost the feed is every page, nearly all the time.** A
+  // refill that fired on mount would be a second request for the answer just
+  // received, on every security page in the product.
+  it("asks once on mount and not again while the feed holds", async () => {
+    stub(() => ok(series(3)));
+
+    const { result, rerender } = renderHook(
+      ({ resumes }: { resumes: number }) =>
+        useBarSeries(REQUEST, undefined, resumes),
+      { initialProps: { resumes: 0 } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+
+    rerender({ resumes: 0 });
+    rerender({ resumes: 0 });
+
+    expect(calls).toHaveLength(1);
+  });
+
+  // The defect this guards is the one Task 3.10.6 found one file away: a
+  // *flag* set by the first reconnection is still set when the second lands,
+  // so the second gap never gets filled. A counter has no such state.
+  it("asks again for every resume, not only the first", async () => {
+    stub(() => ok(series(3)));
+
+    const { result, rerender } = renderHook(
+      ({ resumes }: { resumes: number }) =>
+        useBarSeries(REQUEST, undefined, resumes),
+      { initialProps: { resumes: 0 } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+
+    minutesLater(2);
+    rerender({ resumes: 1 });
+    await waitFor(() => {
+      expect(calls).toHaveLength(2);
+    });
+
+    minutesLater(2);
+    rerender({ resumes: 2 });
+    await waitFor(() => {
+      expect(calls).toHaveLength(3);
+    });
+  });
+
+  // **The floor, asserted as the suppression it is.** Three reconnections in
+  // twenty seconds cannot have lost three different minutes' bars — and the
+  // browser really does open three sockets in twelve seconds on a page today
+  // (`docs/GAPS.md`), so without this the refill is a four-second poll.
+  it("asks at most once a minute however often the feed flaps", async () => {
+    stub(() => ok(series(3)));
+
+    const { result, rerender } = renderHook(
+      ({ resumes }: { resumes: number }) =>
+        useBarSeries(REQUEST, undefined, resumes),
+      { initialProps: { resumes: 0 } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+
+    minutesLater(2);
+    rerender({ resumes: 1 });
+    await waitFor(() => {
+      expect(calls).toHaveLength(2);
+    });
+
+    // Two more returns, seconds apart.
+    clock += 5_000;
+    rerender({ resumes: 2 });
+    clock += 5_000;
+    rerender({ resumes: 3 });
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+    expect(calls).toHaveLength(2);
+
+    // And the floor lifts.
+    minutesLater(2);
+    rerender({ resumes: 4 });
+    await waitFor(() => {
+      expect(calls).toHaveLength(3);
+    });
+  });
+
+  // **The whole reason the refill is not `retry`.** Nobody asked for this
+  // request, so it must not put the view into a state a reader would see as a
+  // wait — which on a socket that blinked 38 times in 4h 36m on 2026-09-22
+  // would be a panel pulsing over the chart every few minutes.
+  it("never shows a wait, because nobody asked for this request", async () => {
+    let answer = series(3);
+    stub(() => okAfter(answer, 20));
+
+    const states: string[] = [];
+
+    const { result, rerender } = renderHook(
+      ({ resumes }: { resumes: number }) => {
+        const source = useBarSeries(REQUEST, undefined, resumes);
+        states.push(source.view.state);
+        return source;
+      },
+      { initialProps: { resumes: 0 } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+
+    states.length = 0;
+    answer = series(9);
+    rerender({ resumes: 1 });
+
+    await waitFor(() => {
+      const view = result.current.view;
+      if (view.state !== "loaded") throw new Error("expected loaded");
+      expect(view.series.bars).toHaveLength(9);
+    });
+
+    // Every state between the resume and the fuller answer was `loaded`.
+    expect([...new Set(states)]).toEqual(["loaded"]);
+  });
+
+  // **A refill that fails changes nothing**, which is `PRODUCT_SPEC.md` §36
+  // arriving locally: a page that was working must not become an error
+  // message because a request nobody made did not come back.
+  //
+  // `pnpm break a-failed-refill-wipes-the-chart` reverts the guard and this is
+  // what goes red.
+  it("leaves the chart alone when the refill fails", async () => {
+    let fail = false;
+    stub(() =>
+      fail ? Promise.resolve(new Response("", { status: 503 })) : ok(series(3)),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ resumes }: { resumes: number }) =>
+        useBarSeries(REQUEST, undefined, resumes),
+      { initialProps: { resumes: 0 } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+
+    fail = true;
+    rerender({ resumes: 1 });
+
+    await waitFor(() => {
+      expect(calls).toHaveLength(2);
+    });
+
+    // The request went out, the answer was a 503, and the picture is exactly
+    // what it was.
+    const view = result.current.view;
+    if (view.state !== "loaded") throw new Error("expected loaded");
+    expect(view.series.bars).toHaveLength(3);
+  });
+
+  // **The correction, and it is the one only a loaded machine found.**
+  //
+  // Starting a request supersedes the one in flight, so a resume landing
+  // before the FIRST answer does aborts it. A refill that then discarded its
+  // own failure unconditionally left the page on `loading` with no answer
+  // coming and no control to ask for one — which in a browser suite read as
+  // *the failure sentence never appeared*, and looked exactly like machine
+  // contention.
+  //
+  // The rule is **keep what is on screen**, and `loading` is not something on
+  // screen.
+  it("does not supersede a request that is already running", async () => {
+    stub(() => okAfter(series(3), 40));
+
+    const { result, rerender } = renderHook(
+      ({ resumes }: { resumes: number }) =>
+        useBarSeries(REQUEST, undefined, resumes),
+      { initialProps: { resumes: 0 } },
+    );
+
+    // Nothing has landed yet, which is the whole point.
+    expect(result.current.view.state).toBe("loading");
+
+    // Three resumes while the first request is still out. Each of these used
+    // to abort the one before it, so nothing ever landed.
+    rerender({ resumes: 1 });
+    rerender({ resumes: 2 });
+    rerender({ resumes: 3 });
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+
+    // The reader's own request, and no others.
+    expect(calls).toHaveLength(1);
+  });
+
+  // The other half of the same rule: once the answer is in, a resume asks
+  // again as it should.
+  it("asks once the running request has landed", async () => {
+    let answer = series(3);
+    stub(() => okAfter(answer, 20));
+
+    const { result, rerender } = renderHook(
+      ({ resumes }: { resumes: number }) =>
+        useBarSeries(REQUEST, undefined, resumes),
+      { initialProps: { resumes: 0 } },
+    );
+
+    expect(result.current.view.state).toBe("loading");
+    rerender({ resumes: 1 });
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+    expect(calls).toHaveLength(1);
+
+    minutesLater(2);
+    answer = series(9);
+    rerender({ resumes: 2 });
+
+    await waitFor(() => {
+      const view = result.current.view;
+      if (view.state !== "loaded") throw new Error("expected loaded");
+      expect(view.series.bars).toHaveLength(9);
+    });
+  });
+
+  // A reader pressing `Try again` is a different question, and it still gets
+  // the honest answer: this one they DID ask for.
+  it("still reports a failure the reader asked for", async () => {
+    let fail = false;
+    stub(() =>
+      fail ? Promise.resolve(new Response("", { status: 503 })) : ok(series(3)),
+    );
+
+    const { result } = renderHook(() => useBarSeries(REQUEST, undefined, 0));
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("loaded");
+    });
+
+    fail = true;
+    act(() => {
+      result.current.retry();
+    });
+
+    await waitFor(() => {
+      expect(result.current.view.state).toBe("failed");
+    });
   });
 });

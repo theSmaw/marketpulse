@@ -82,6 +82,7 @@ const FEED_SAMPLES: readonly LiveFeedView[] = FEED_STATUSES.map((status) => ({
   unreadable: 0,
   observations: NO_OBSERVATIONS,
   fromSnapshot: NO_SNAPSHOT,
+  resumes: 0,
 }));
 
 // Not market data. The three `last` values are the same digit count made of
