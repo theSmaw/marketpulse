@@ -1,6 +1,6 @@
 # Story 3.10 — Disconnection, Staleness & Every Degraded State
 
-**Status:** Not started
+**Status:** **Split into ten tasks — 2026-09-24.** The order puts a produced disconnection and **§36's own sentence second**, because that sentence is the most quotable single change in the epic and there is no reason a stakeholder should wait until task nine to see it. The first task builds nothing: this file carries **eleven hand-off sections from seven sibling stories**, some of what it asks for is already built, some was fixed on its behalf before it started, and **four decisions have to be taken by the owner before anything is designed**. The set is enumerated and photographed **ninth**, because a state is correct alone and wrong beside its neighbour — which is not a hypothesis but what the Epic 2 pass found four times.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.8, 3.9
 **Epic scope covered:** reconnection handling, stale-data detection, live connection state — as a complete set rather than one state at a time
@@ -67,8 +67,11 @@ is precisely what the Epic 2 pass found when it finally looked at them together.
   `Retry-After` on a `429`** — so the repair for a two-minute dropout and the
   repair for a two-hour one are different repairs.
 - **Staleness, with its number.** A feed that is connected and silent is
-  `stale`, and on IEX an absent minute is **ordinary** — median coverage 82.8%,
-  worst case 43.1%. A threshold tuned as if silence were alarming will cry wolf
+  `stale`, and on IEX an absent minute is **ordinary** — ~~median coverage
+  82.8%, worst case 43.1%~~ **median 65.1%, worst 2.1% (`ERIE`)**; the struck
+  figures are `ALPACA.md` §5.2's and describe **stored history**, and the
+  correction is §7.6's, made here on 2026-09-24 by the split rather than left
+  further down the file where it had sat since 2026-09-17. A threshold tuned as if silence were alarming will cry wolf
   on thin names all day; one tuned as if it were nothing will show an hour-old
   price as current.
 - **The distinction the vocabulary already holds and that this story must not
@@ -147,11 +150,41 @@ certainly may not.
    chart shows no hole afterwards
 5. A quiet socket outside market hours reads as correct rather than as broken
 6. A thin name with no trade for nine minutes during a live session is not
-   reported as a feed failure
+   reported as a feed failure — **and nine minutes is a conservative example
+   rather than the bound**: §11.2 measured an ordinary maximum gap of **187
+   minutes**, which is the figure the threshold decision must survive
 7. The `LIVE` claim is false exactly when it should be — asserted against a
    produced disconnection rather than a simulated one
 8. `pnpm verify` passes, and the browser assertions are written against what
    **CI's store and CI's absent credential** can actually answer
+
+## Tasks
+
+**Ten, and the first one builds nothing on purpose.**
+
+| #                                                                                                 | Task                                                     | What a stakeholder sees                                     |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------- |
+| [1](TASK-01-what-the-tree-already-does-and-the-four-decisions-this-story-cannot-start-without.md) | What the tree already does, and the four decisions       | Nothing — a grid, four answers, and work removed            |
+| [2](TASK-02-a-disconnection-that-can-be-produced-and-the-sentence-section-36-named.md)            | A disconnection that can be produced, and §36's sentence | **The strip stops claiming `LIVE` and says what it holds**  |
+| [3](TASK-03-the-price-that-was-live-and-is-now-old-one-surface-first.md)                          | The price that was live and is now old — one surface     | The big price stops passing an old number off as current    |
+| [4](TASK-04-the-same-question-five-hundred-and-eighteen-times.md)                                 | The same question, 518 times                             | The table stops being careless about the three-hour-old row |
+| [5](TASK-05-the-edge-that-stopped-and-the-gap-in-the-middle.md)                                   | The edge that stopped, and the gap in the middle         | A stopped chart says so; a hole stops being a straight line |
+| [6](TASK-06-the-cell-that-must-not-inherit-epic-2s-word.md)                                       | The cell that must not inherit Epic 2's word             | The chrome stops claiming the whole market on one exchange  |
+| [7](TASK-07-the-gap-filled-rather-than-jumped.md)                                                 | The gap, filled rather than jumped                       | A dropout stops costing the rest of the day                 |
+| [8](TASK-08-the-live-row-in-the-provenance-ledger.md)                                             | The live row in the provenance ledger                    | The source note gains a line about **now**                  |
+| [9](TASK-09-the-whole-set-produced-and-photographed-together.md)                                  | The whole set, produced and photographed together        | Whatever it finds — and it will find something              |
+| [10](TASK-10-the-measurements-the-rehearsal-the-sweep-and-the-close.md)                           | The measurements, the rehearsal, the sweep and the close | Nothing                                                     |
+
+**Why this order.** Task 1 is the pattern that paid four times in Story 3.9 —
+looking first removed a third of a story, deleted a task, found a shipped
+feature and met a criterion. Task 2 is early because it is the epic's headline
+sentence **and** the harness everything after it is asserted against; a harness
+with nothing asserted on it is scaffolding. Tasks 3 and 4 are one decision
+applied to one row and then to 518, in that order, because Task 3.6.2 declined
+that exact repair on the ground that choosing a threshold on the surface that
+applies it 518 times would take the epic's hardest decision as a side effect.
+Task 9 is late because it can only be done last, and it is the task most likely
+to find something.
 
 ## What this story hands forward
 
