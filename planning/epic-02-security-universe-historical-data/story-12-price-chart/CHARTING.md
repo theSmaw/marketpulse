@@ -392,6 +392,31 @@ information and this axis can no longer represent it.
 > picture does — `a line of 131 closing prices, one per trading minute` over a
 > 390-minute session — which is a claim about **cadence** with nothing behind
 > it, handed to Task 3.9.8.
+>
+> **RE-EVALUATED 2026-09-24 by Task 3.10.5, with the input the task above could
+> not have: the live edge is shipped and a feed can now stop mid-session.
+> Still NOT fired**, and the second reason is stronger than the first.
+>
+> Story 3.5's own trigger — _the first surface where a gap in the middle is
+> visibly wrong rather than merely absent_ — **has** fired, because that
+> surface now exists and `linePath` does draw one `M` and an `L` per point. The
+> answer is still no, for two measured reasons:
+>
+> 1. **A missing minute is never exceptional on any feed this product can
+>    buy.** 65.1% median on IEX, and `ERIE` at 131 of 390 on the
+>    **consolidated** tape. Washing every gap would mark about a third of an
+>    ordinary session chart as a fault — the crying-wolf failure, drawn.
+> 2. **The store cannot tell a dropout from a quiet security** (Story 3.8's
+>    close): `bar_coverage` is extended to the last bar seen, so ninety missing
+>    minutes sit inside a covered window either way. Any width threshold would
+>    confidently mark thin names as broken.
+>
+> **What did change is the record rather than the decision.** The _stopped
+> edge_ — the case Story 3.9's close described as invisible — is drawn, and has
+> been since Story 2.12: the line stops at the coverage edge, a dashed rule
+> marks the boundary and the ground after it is washed. That was verified by
+> producing it on a running page, and is now asserted in
+> `security-chart-edge.spec.ts`.
 
 ---
 
