@@ -432,6 +432,26 @@ data and the rest is fixed per tick, whatever arrived.
 > exactly that reason. So the variable is not the row, the observation or the
 > bar; it is **how many things the renderer has to touch**.
 >
+> **A fourth arm, added 2026-09-24 by Task 3.10.4, and it separates TEXT from
+> ELEMENTS.** Every arm above varies the element count. That task varied
+> neither: same 530 rows, same observations, same elements — and put a
+> formatted instant into a span that was **already rendering blank**.
+>
+> | Measurement                   | Observations/tick | Elements | Per-row text nodes | Cost/tick |
+> | ----------------------------- | ----------------- | -------- | ------------------ | --------- |
+> | Task 3.10.4, every row level  | 518               | 530 rows | **0**              | 32.85 ms  |
+> | Task 3.10.4, every row behind | 518               | 530 rows | **517**            | 36.8 ms   |
+>
+> **517 formatted instants cost about 4 ms — roughly 7.5 µs each.** So the
+> conclusion above holds and gains a floor: _the driver is elements rendered_,
+> and **text inside an element that already renders is cheap enough to be
+> nearly free at universe scale**. That is the difference between the repair
+> Task 3.10.4 shipped and the one it refused, and it is why Epic 14's trigger
+> did not fire on it.
+>
+> Both arms are production, so they are internally clean and comparable with
+> this task's own row rather than with 3.6.3's.
+
 > The builds differ, which the caveat below already governs: 3.9.9's arms and
 > this task's are both production, and 3.6.3's are both development, so each
 > pair is internally clean and no row is read across the boundary.
