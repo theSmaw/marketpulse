@@ -831,7 +831,20 @@ test("a query typed before the universe arrives is kept, not answered", async ({
   // The defect this forbids: an empty corpus matches nothing, so "no matches"
   // is reachable here and would be a claim about the market made from data
   // nobody has seen.
-  await expect(page.getByText("Still loading securities.")).toBeVisible();
+  // **`exact` is load-bearing, and a flake paid for learning it** (found
+  // 2026-09-24 by Task 3.9.5's full run, one failure in ten). The search's
+  // visually-hidden `role="status"` announcement contains this sentence inside
+  // a longer one — `Security search: still loading securities. "nv" …` — so
+  // once the live region has been populated the locator resolves to **two**
+  // elements and strict mode refuses. Which of the two exists at this instant
+  // is a timing question, so the assertion passed nine times and failed once.
+  //
+  // This is the suite's own rule about a sentence with two renderings, met from
+  // the other side: the drawn string and the spoken one are deliberately the
+  // same words, so a locator that means *the drawn one* has to say so.
+  await expect(
+    page.getByText("Still loading securities.", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(/No security matches/)).toHaveCount(0);
   await expect(field).toHaveValue("nv");
 

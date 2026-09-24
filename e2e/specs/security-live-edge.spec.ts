@@ -173,6 +173,54 @@ async function drawnPoints(page: Page): Promise<number> {
   });
 }
 
+/**
+ * The rightmost x a plot's own series path reaches, and the volume column count.
+ *
+ * **The columns are ONE path rather than one `<rect>` each** — `CHARTING.md`
+ * §1 forbids the obvious implementation outright, because one element per bar
+ * at the 9,750-bar cap is 9,790 plot elements and main-thread tasks of
+ * 137–254 ms. So a column is a subpath, and counting them is counting `M`
+ * commands.
+ *
+ * The two plots are reached the way the rest of this suite reaches them — by
+ * the **region that names them** — rather than by walking the DOM, which the
+ * first draft did and which found nothing.
+ */
+async function plotSeries(
+  page: Page,
+  region: "Price" | "Volume",
+): Promise<{ subpaths: number; right: number; pitch: number }> {
+  const svg = page
+    .getByRole("region", { name: region })
+    .locator("svg:has(line)")
+    .first();
+
+  return await svg.evaluate((element: SVGElement) => {
+    const d =
+      [...element.querySelectorAll("path[d]")]
+        .map((path) => path.getAttribute("d") ?? "")
+        .sort((a, b) => b.length - a.length)[0] ?? "";
+
+    const xs = d
+      .replace(/[A-Za-z]/gu, " ")
+      .trim()
+      .split(/\s+/u)
+      .map(Number)
+      .filter((value, index) => Number.isFinite(value) && index % 2 === 0);
+
+    const sorted = [...new Set(xs)].sort((a, b) => a - b);
+    const last = sorted[sorted.length - 1] ?? 0;
+    const previous = sorted[sorted.length - 2] ?? last;
+
+    return {
+      subpaths: (d.match(/M/gu) ?? []).length,
+      right: Math.round(last * 10) / 10,
+      /** One slot, measured off this plot rather than assumed. */
+      pitch: Math.round((last - previous) * 100) / 100,
+    };
+  });
+}
+
 /** Serve the answer and the socket, and hand back a way to push a minute. */
 async function serve(
   page: Page,
@@ -268,6 +316,64 @@ test("a correction replaces the minute it corrects rather than adding one", asyn
   await expect(drawnCount(page)).toContainText("ending at 221.75");
   await expect(drawnCount(page)).toContainText(`a line of ${grown} closing`);
   await expect.poll(() => drawnPoints(page)).toBe(before + 1);
+
+  await expectNothingFailedToRender(page);
+});
+
+test("the volume plot gains the same minute, and both stop at the same pixel", async ({
+  page,
+}) => {
+  // **Two plots, one axis, one reading** (Task 3.9.5). The canvas settled this
+  // for an edge that sits still — `Volume and window.dc.html` §08, *two plots
+  // sharing one x-domain must stop at the same pixel* — and since the store
+  // holds the session as it happens that edge advances a slot a minute. This is
+  // §08 asserted in motion.
+  //
+  // It needs no wiring of its own and that is the property under test: both
+  // plots and the shared axis read ONE value, so a bar folded in once reaches
+  // all three and there is nothing for them to disagree with.
+  const push = await serve(page);
+
+  await page.goto(EXPLORER);
+  await expect(drawnCount(page)).toContainText(`a line of ${served} closing`);
+
+  const price = await plotSeries(page, "Price");
+  const volume = await plotSeries(page, "Volume");
+  expect(volume.subpaths).toBeGreaterThan(0);
+
+  // **§08's rule, at rest — within one slot, and the slot is measured rather
+  // than argued.** The two plots share one x-domain and stop at the same slot;
+  // they do not stop at the same *pixel*, because a volume column has width and
+  // the canvas accepted that the end columns render half-width
+  // (`Volume and window.dc.html` §06). The first draft asserted equality and
+  // found 724.9 against 724.5 — one slot pitch apart on this window, which is
+  // the geometry rather than a defect.
+  const slot = Math.max(price.pitch, volume.pitch, 0.1);
+  expect(Math.abs(volume.right - price.right)).toBeLessThanOrEqual(slot);
+
+  push({ NVDA: held(0) });
+  await expect(drawnCount(page)).toContainText(`a line of ${grown} closing`);
+
+  await expect
+    .poll(async () => (await plotSeries(page, "Volume")).subpaths)
+    .toBe(volume.subpaths + 1);
+
+  // And in motion: the volume column arrived with the price point, and the two
+  // plots still stop at the same pixel — which is §08's decision paying out
+  // rather than a second mechanism.
+  const priceAfter = await plotSeries(page, "Price");
+  const volumeAfter = await plotSeries(page, "Volume");
+  expect(Math.abs(volumeAfter.right - priceAfter.right)).toBeLessThanOrEqual(
+    slot,
+  );
+  expect(priceAfter.right).toBeGreaterThan(price.right);
+
+  // **Not asserted: that the volume plot's right EDGE advanced.** It did not,
+  // and that is the column geometry rather than a missing bar — a column spans
+  // its slot, so the rightmost edge was already at the slot boundary the new
+  // column now fills. The volume's evidence of gaining the minute is its
+  // column COUNT above; the right edge is evidence about the shared axis.
+  // Asserting both would be asserting one thing twice and getting it wrong once.
 
   await expectNothingFailedToRender(page);
 });
