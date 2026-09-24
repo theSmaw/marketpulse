@@ -1,6 +1,6 @@
 # Task 3.9.3 — The seam, the partial bar, and treatments on a real edge
 
-**Status:** **Complete — 2026-09-24. All three decisions are NO**, each with a measurement behind it and a reversal trigger. So **Task 3.9.4 has nothing to draw and is deleted**. The measurement that decided them also found the thing this task did not go looking for: **the loudest motion this chart has is not the arriving point — it is the whole line shifting when a new extreme lands**, which carries real information and which nothing names. And it caught a hole in Task 3.9.2's evidence: that spec asserted the chart's **sentence**, not its **picture**, and the two disagreed for twenty minutes before the instrument turned out to be the thing that was wrong.
+**Status:** **Complete — 2026-09-24. All three decisions are NO**, and the canvas — reachable all along, see below — had already decided one of them the same way, each with a measurement behind it and a reversal trigger. So **Task 3.9.4 has nothing to draw and is deleted**. The measurement that decided them also found the thing this task did not go looking for: **the loudest motion this chart has is not the arriving point — it is the whole line shifting when a new extreme lands**, which carries real information and which nothing names. And it caught a hole in Task 3.9.2's evidence: that spec asserted the chart's **sentence**, not its **picture**, and the two disagreed for twenty minutes before the instrument turned out to be the thing that was wrong.
 **Story:** [3.9 The Live Edge on the Chart & the Two-Feed Ledger](STORY.md)
 **Depends on:** 3.9.2
 
@@ -247,14 +247,66 @@ The product was right and the test was incomplete. Both are repaired here:
   socket nobody has asked for yet. Same shape as the flake Task 3.8.9 repaired,
   same repair.
 
-### `DesignSync`, for the third time
+### The canvas — and the three stories that recorded a non-defect
 
-The two writable projects are `Ida's / Charlotte Puxley Design System` and
-`Design System`. **The MarketPulse canvas is not among them**, as Stories 3.7
-and 3.8 each recorded. This is the third occurrence and the story Story 3.8's
-close named as the one that would genuinely need it. ADR 0026's chain is
-downgraded rather than broken; `VISUAL-LANGUAGE.md` is the working source and
-nothing here adds a token.
+**It was reachable the whole time.** Stories 3.7, 3.8 and this story's own Task
+3.9.2 each recorded that `DesignSync` "does not list the MarketPulse canvas",
+each treating it as a fault and each escalating it — Story 3.8's close asked
+_whoever owns the canvas_ to confirm whether this login could still reach it.
+
+`list_projects` **filters to design-system projects**, and `Component library
+for MarketPulse` is an ordinary project. So it comes back absent rather than
+listed, which reads exactly like _the canvas does not exist_.
+
+**`VISUAL-LANGUAGE.md` has said so since 2026-09-11**, in a sentence written for
+this precise mistake, with the address beside it:
+
+> **Do not go looking for it in `list_projects`**: that method filters to
+> design-system projects and this one is not, so it comes back absent rather
+> than listed, which reads exactly like "the canvas does not exist".
+
+`get_project` with `727b5b14-fe78-47c1-9d9c-fb84b6ce5280` answers
+`canEdit: true` with all nineteen `.dc.html` files present.
+
+**Three sessions read the document, followed a task instruction that said
+_check `DesignSync` first_, and never reached the paragraph that would have
+told them.** The instruction was in the wrong place: `CLAUDE.md` names the
+canvas and the tool and gives no address, so a session that starts there has no
+reason to open `VISUAL-LANGUAGE.md` before concluding the tool is broken. The
+address is now in `CLAUDE.md` beside the chain, with the `list_projects`
+warning. The three records are corrected in place and left standing.
+
+### And the canvas AGREES with all three decisions, which is why this matters
+
+Having found it, the decisions were checked against it rather than assumed to
+be compatible — which is ADR 0026's chain run the right way round for the first
+time in three stories.
+
+**`The motion vocabulary.dc.html` §08 had already decided decision 3**, for the
+identity block, on the same grounds and in stronger words:
+
+> **And a correction needs no treatment of its own.** All three facts are
+> already on the screen: the mark fires, the figure may change, and the
+> qualifier's instant does not advance. A fourth behaviour to say that again
+> would cost the vocabulary the legibility that is its whole value.
+
+**And §05's rejection of treatment B is decision 1 and 2's argument, already
+made**: the direction rule was rejected because it _says what is already said_,
+and _a second encoding of one fact is a repetition_. That is precisely why the
+seam is not drawn and why the edge does not mark.
+
+**One thing the canvas says that this task does not follow, and says why.** Its
+closing section tells the chart to _inherit whatever is decided here_ — and it
+does: if this chart ever marks, it marks with that disc, that 900 ms decay and
+that rule. What it inherits is the **vocabulary**, not an obligation to speak.
+The canvas's own §05 names the cost of a mark that always fires and sets the
+reversal trigger at _the first reader who reports it as noise_; a third mark on
+one page, pointing at 0.4 px, is that cost taken without the information.
+
+**A staleness on the canvas, noted and not rewritten.** It calls the chart
+"Story 3.7", from before the 2026-09-21 re-order that made it 3.9. The canvas is
+the source of truth for the **language** rather than for the schedule, and ADRs
+and canvases are amended rather than rewritten — but a reader should know.
 
 `preview/price-chart-live-edge.html` is updated in place: its fourth section is
 now the **rejected** treatment with the measurement that rejects it, and a

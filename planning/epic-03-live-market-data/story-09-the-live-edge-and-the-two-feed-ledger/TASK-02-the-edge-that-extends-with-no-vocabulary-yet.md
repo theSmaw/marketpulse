@@ -220,6 +220,15 @@ were not told_**; this task names it and leaves it alone, which is what Task
 
 ### The design artefacts
 
+> **CORRECTED 2026-09-24 by Task 3.9.3 — this paragraph is wrong, and it is
+> wrong for the third story running.** The canvas is reachable, owned and
+> editable: `list_projects` filters to **design-system** projects and
+> `Component library for MarketPulse` is not one, so it is absent rather than
+> listed. The address has been in `VISUAL-LANGUAGE.md` since 2026-09-11 —
+> `https://claude.ai/design/p/727b5b14-fe78-47c1-9d9c-fb84b6ce5280` — in a
+> sentence written to stop exactly this. **Use `get_project` with the id.** The
+> paragraph below stands as the record of what three sessions believed.
+
 **`DesignSync` for the third time in three stories does not list the MarketPulse
 canvas.** The two writable projects are `Ida's / Charlotte Puxley Design System`
 and `Design System`; Stories 3.7 and 3.8 each recorded the same, and Story 3.8's
