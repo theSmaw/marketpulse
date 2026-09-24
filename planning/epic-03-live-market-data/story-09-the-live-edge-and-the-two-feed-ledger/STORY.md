@@ -1,6 +1,6 @@
 # Story 3.9 — The Live Edge on the Chart & the Two-Feed Ledger
 
-**Status:** Not started
+**Status:** **Split into ten tasks 2026-09-24**, none started. The order puts the **headline visible change third from the start and undesigned** — a chart that extends with no vocabulary yet — because Story 3.4 proved that a motion vocabulary argued in front of the real thing moving is a different and better argument from one argued against a mock. Task 3.9.1 comes first and builds nothing: **Story 3.8 may already have met criteria 1 and 2 in part**, and this story's own file says _read it again rather than building what shipped_.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.6, 3.8
 **Epic scope covered:** live price updates in the UI (the chart), the two-feed ledger produced rather than simulated, the live feed's own honest label on a series
@@ -176,6 +176,57 @@ keeps it from becoming a footnote pile is worth re-reading before adding to it.
 8. `pnpm probe` at all four viewports; a person watched the chart extend during
    a live session before the suite ran
 9. `pnpm verify` passes
+
+## Tasks
+
+**Ten, and the first one builds nothing on purpose.** This story was written
+when the store stopped at yesterday's close; Story 3.8 changed that on
+2026-09-23, and four of that story's ten tasks found that **the written-down
+hazard was not the real one** — each settled by a single query before any code.
+Task 3.9.1 is that query for this story, and it may retire a criterion or two
+before the first line is written.
+
+**After it, the visible change is as early as the dependency graph allows.** A
+chart that reaches the current minute and keeps going is the most demonstrable
+thing in this epic, and it ships **undesigned** in 3.9.2 — the same shape Story
+3.4 used, where 3.4.2 shipped a price that moved with no vocabulary and the four
+treatments were then argued in front of it. Everything from 3.9.3 on makes that
+correct, honest and readable rather than adding to it.
+
+| #      | Task                                                                                                                                             | Depends on          | Visible?                                   |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- | ------------------------------------------ |
+| 3.9.1  | [What the chart already reaches, measured before anything is built](TASK-01-what-the-chart-already-reaches-measured-before-anything-is-built.md) | 3.8                 | No — and it may shrink this story          |
+| 3.9.2  | [The edge that extends, with no vocabulary yet](TASK-02-the-edge-that-extends-with-no-vocabulary-yet.md)                                         | 3.9.1               | **Yes — the headline, and it is early**    |
+| 3.9.3  | [The seam, the partial bar, and treatments on a real edge](TASK-03-the-seam-the-partial-bar-and-treatments-on-a-real-edge.md)                    | 3.9.2               | No — the argument and the artefacts        |
+| 3.9.4  | [The vocabulary applied to the edge](TASK-04-the-vocabulary-applied-to-the-edge.md)                                                              | 3.9.3               | **Yes — the chart says what is arriving**  |
+| 3.9.5  | [The volume chart, which must move with it](TASK-05-the-volume-chart-which-must-move-with-it.md)                                                 | 3.9.2               | **Yes — both plots, one axis**             |
+| 3.9.6  | [What the crosshair reads at a minute that is not finished](TASK-06-what-the-crosshair-reads-at-a-minute-that-is-not-finished.md)                | 3.9.4, 3.9.5        | **Yes — the edge becomes readable**        |
+| 3.9.7  | [The two-feed ledger, and the stitch nothing exercises](TASK-07-the-two-feed-ledger-and-the-stitch-nothing-exercises.md)                         | 3.9.1               | **Maybe — Story 3.8 may have drawn it**    |
+| 3.9.8  | [The sentence that claims something about the market](TASK-08-the-sentence-that-claims-something-about-the-market.md)                            | 3.9.7               | **Yes — one sentence stops being a lie**   |
+| 3.9.9  | [The measurements this story owes](TASK-09-the-measurements-this-story-owes.md)                                                                  | 3.9.4, 3.9.5, 3.9.6 | No — figures, and a repair if one breaches |
+| 3.9.10 | [The sweep, the hand-offs and the close](TASK-10-the-sweep-the-hand-offs-and-the-close.md)                                                       | 3.9.9               | No                                         |
+
+**Why 3.9.7 can run early and out of order.** It depends only on the
+measurement, not on the edge: the two-feed ledger comes out of the **store**
+since the re-order, and Story 3.8 has already photographed it. Its real content
+is the obligation the re-order created — _prove the read-time stitch as well as
+the stored path_ — plus a deletion. If 3.9.1 finds the note already drawn, this
+becomes a short task and can be taken whenever a session is available, because
+**the two-feed state is a mid-session one on a deployed store** and collapses
+to one source after the nightly backfill (`LIVE-SESSION.md` §14).
+
+**Why the measurements are ninth rather than spread through.** §28's word is
+**routine**, and a chart that redraws on every burst is routine in exactly the
+sense Task 3.6.5 paid to learn. Measuring a half-built edge measures the wrong
+thing; measuring each task separately measures it five times. What is **not**
+deferred is the rehearsal inside 3.9.9 — it needs the deployed site with the
+market open, and three stories are already queued for that window.
+
+**What has no task of its own, and why.** The gap a disconnection leaves is
+Story 3.10's, and Task 3.5.5's reversal trigger names this story as the surface
+that fires it — so it is a named constraint inside 3.9.2 and a hand-off in
+3.9.10 rather than a task here. Persistence is Story 3.8's and is done. The
+tape column is Story 3.7's and is done.
 
 ## What this story hands forward
 
