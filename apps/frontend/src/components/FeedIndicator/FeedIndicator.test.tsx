@@ -155,6 +155,68 @@ describe("the instant, which appears only where it qualifies something", () => {
     );
 
     expect(screen.queryByText(/Showing data through/u)).toBeNull();
-    expect(screen.getByText(sentenceFor("stale"))).toBeDefined();
+  });
+});
+
+describe("a degraded feed that has never delivered a price", () => {
+  // **Task 3.10.2.** The rule above was applied to the instant and not to the
+  // sentence carrying it, so a page with no observation withheld the timestamp
+  // correctly and went on claiming things about data it did not have.
+  //
+  // It is not an exotic state: a cold load while the market is shut, a first
+  // paint before any bar lands, a gateway that is up against a vendor
+  // connection that is not.
+
+  it("does not say prices are shown when none are", () => {
+    render(
+      <FeedIndicator
+        view={view({ status: "disconnected", observedAt: undefined })}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "The live feed is not connected. No live prices have arrived yet.",
+      ),
+    ).toBeDefined();
+    expect(screen.queryByText(/Prices shown are the last known/u)).toBeNull();
+  });
+
+  it("does not imply there was older data", () => {
+    // `no NEW data has arrived` implies there was old data. With nothing ever
+    // received that is a false implication rather than a clumsy sentence.
+    render(
+      <FeedIndicator view={view({ status: "stale", observedAt: undefined })} />,
+    );
+
+    expect(
+      screen.getByText("Connected, and no live prices have arrived yet."),
+    ).toBeDefined();
+    expect(screen.queryByText(/no new data has arrived/iu)).toBeNull();
+  });
+
+  it("keeps the shipped sentences the moment there IS data", () => {
+    // The other half of the rule, and the one a stakeholder has been promised:
+    // §36's own case is unchanged.
+    for (const status of ["stale", "disconnected"] as const) {
+      const { unmount } = render(<FeedIndicator view={view({ status })} />);
+
+      expect(
+        screen.getByText(new RegExp(sentenceFor(status), "u")),
+      ).toBeDefined();
+      unmount();
+    }
+  });
+
+  it("says nothing extra for a live feed, which has nothing to qualify", () => {
+    // `live` has no empty-case spelling for the same reason it carries no
+    // instant: a healthy connection has nothing to qualify, and a feed that
+    // has delivered nothing yet is the session's fact rather than the
+    // connection's.
+    render(
+      <FeedIndicator view={view({ status: "live", observedAt: undefined })} />,
+    );
+
+    expect(screen.queryByText(/have arrived yet/u)).toBeNull();
   });
 });
