@@ -535,16 +535,16 @@ thing twice**.
 
 **What to take in one sitting, if you are only getting one:**
 
-| Item                                                     | Owner  |
-| -------------------------------------------------------- | ------ |
-| the extended-hours mark on a real bar (04:00–09:30 ET)   | 3.4.10 |
-| a genuinely quiet minute                                 | 3.4.10 |
-| a real correction — both halves                          | 3.4.10 |
-| `pnpm probe` with the market open                        | 3.4.10 |
-| one vendor glance: a frame stamped outside a trading day | 3.4.10 |
-| a mid-session reload that keeps today's chart            | 3.8.10 |
-| **count the corrections**, against §14.1's 0.064%        | 3.8.7  |
-| the two-feed source note, photographed from production   | 3.8.10 |
+| Item                                                                            | Owner  |
+| ------------------------------------------------------------------------------- | ------ |
+| the extended-hours mark on a real bar (04:00–09:30 ET)                          | 3.4.10 |
+| a genuinely quiet minute                                                        | 3.4.10 |
+| a real correction — both halves                                                 | 3.4.10 |
+| `pnpm probe` with the market open                                               | 3.4.10 |
+| one vendor glance: a frame stamped outside a trading day                        | 3.4.10 |
+| a mid-session reload that keeps today's chart                                   | 3.8.10 |
+| **count the corrections**, against §14.1's 0.064%                               | 3.8.7  |
+| the two-feed source note, photographed from production — **expires that night** | 3.8.10 |
 
 Task 3.5.8's five unconfirmed vendor figures, listed below, need the same
 window again — so the honest count is **three stories waiting on one sitting**.
@@ -556,6 +556,23 @@ window again — so the honest count is **three stories waiting on one sitting**
 > product has never taken from its own store, and it cannot be taken from the
 > store at all — every stored row is `sip` from the backfill, which does not
 > correct. It needs the **live** tape over a session, which is this sitting.
+
+> **Added 2026-09-24 by Task 3.9.7 — the two-feed row is the one item on this
+> list that EXPIRES, and nothing here said so.** Every other row can be taken
+> on any session; that one cannot be taken on the _next_ one for _this_ one.
+> A served window's `sources` describe the rows the answer contains, the read
+> prefers `sip` where a minute holds both tapes, and the nightly backfill
+> covers every regular-session minute — so the split exists **only while the
+> market is open** and the same window names **one** source by morning
+> (`LIVE-SESSION.md` §14). A sitting that ends without the photograph has not
+> deferred it; it has lost it.
+>
+> **What is no longer owed with it**, so the row is not read as larger than it
+> is: the design and test side is closed. Task 3.9.7 deleted
+> `twoFeedStitchView()` — the edited body this state had been drawn from for
+> two epics — and replaced it with a **recorded** one, `sip` ×60 then `iex`
+> ×30, read off this product's own server. What remains is the production
+> proof and nothing else.
 
 ## Audit 1, re-read 2026-09-23 — what Story 3.8 did with this story's constraints
 
