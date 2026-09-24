@@ -1,8 +1,41 @@
 # Task 3.10.2 — A disconnection that can be produced, and the sentence §36 named
 
-**Status:** Not started
+**Status:** Not started — **but read the amendment first: HALF OF THIS IS ALREADY BUILT.**
 **Story:** [3.10 Disconnection, Staleness & Every Degraded State](STORY.md)
 **Depends on:** 3.10.1
+
+## Amended by Task 3.10.1 — 2026-09-24: the sentence ships, so this task is the harness
+
+**The chrome already says it.** Measured by producing the states rather than
+reading the code:
+
+```text
+DISCONNECTED  The live feed is not connected. Prices shown are the last known.
+              Showing data through Sep 24 · 05:05 EDT.
+
+STALE         Connected, but no new data has arrived.
+              Showing data through Sep 24 · 05:04 EDT.
+```
+
+§36 names _"Live feed disconnected — displaying data through 10:42:17"_. **That
+is the same sentence with better words** — ours says which data and why, and
+carries the instant in the product's own bar-instant format.
+
+**So what is left of this task is the half that was always the harder one:**
+
+- **The harness**, made permanent. Criterion 7 wants the claim asserted against
+  _"a produced disconnection rather than a simulated one"_, and Task 3.10.1's
+  throwaway proved the mechanism: the browser takes the **worse** of its own
+  reading and the server's, so a stubbed `feed` frame produces `stale` through
+  the shipped path, and **closing the socket** produces `disconnected` without
+  waiting out 165 s.
+- **The assertions**, which do not exist. Criterion 3 was measured by that
+  throwaway and is **met**; nothing in the suite holds it.
+- **The no-data case**, still undecided: a page that has received nothing at all
+  and then disconnects has no instant to show.
+
+**Do not rewrite the sentence.** It is correct, it is shipped, and it is the one
+thing in this story a stakeholder has already been promised.
 
 ## Objective
 
