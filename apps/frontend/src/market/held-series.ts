@@ -224,6 +224,28 @@ export function toRetryingBarSeriesState(
  * function: `loading` draws a frame and has no picture, which is exactly the
  * distinction the rail is about.
  */
+/**
+ * The same screen, with the drawn answer extended by the live edge.
+ *
+ * **Here rather than at the call site, and that is this module's own rule
+ * being kept** (Task 3.9.2). {@link BarSeriesScreen} says every surface that
+ * renders a series reads `shown` *from one place so they cannot disagree about
+ * what is on screen* — the panel's figures, the price plot, the volume plot in
+ * another region and the shared axis, four readers. A page that spread the
+ * screen to swap `shown` would make itself a second producer of the one value
+ * that exists to have a single producer.
+ *
+ * It rebuilds nothing else: `view` is still the answer to the request being
+ * made now, and the live edge is a fact about the **picture**, which is what
+ * `shown` means.
+ */
+export function withLiveEdge(
+  screen: BarSeriesScreen,
+  shown: BarSeriesView,
+): BarSeriesScreen {
+  return shown === screen.shown ? screen : { ...screen, shown };
+}
+
 export function barSeriesScreen(
   state: BarSeriesState,
   asked: BarSeriesRequest,
