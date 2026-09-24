@@ -260,7 +260,7 @@ in one line here and argued in full where the table below points:
 
 ### What is open, with a named owner rather than a story number
 
-- **A listening pass with a real screen reader — ONE item, four entries.** The spoken bar sentence is 25
+- **A listening pass with a real screen reader — ONE item, FIVE entries since 2026-09-24.** The fifth is the first that does not need a key pressed at all: since the chart extends on its own (Task 3.9.2), a **revision of the bar under the crosshair** rewrites the reading's polite region unprompted — measured, and rare at 0.064% of bars, and arguably the one case where speaking is right because the number under the reader's cursor has just changed. What nobody can say is whether an unprompted polite update **queues behind a sentence in progress or replaces it**, which is the same unanswerable as the entry below arriving by a new route (Task 3.9.6). The spoken bar sentence is 25
   words against a 1,500 ms pacing floor, and whether a region changing every
   477 ms queues or replaces is readable from neither the DOM nor a timing nor by
   an agent. The repair is designed and unshipped. Owner: a person with a screen
