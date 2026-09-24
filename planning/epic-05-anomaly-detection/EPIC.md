@@ -205,3 +205,31 @@ symbol link; a score arriving must satisfy the same test.
 progress loops, a state persists, a fact arriving decays — and a score
 changing is a fact arriving, marked with the same `[data-arrival]` rule the
 figure and the row already share.
+
+## Handed here by Story 3.9's close — 2026-09-24: the series you compute over ends at a moving edge
+
+**The security page's charts extend on their own during a session**, once a
+minute, with no refresh (Story 3.9). Three consequences for anomaly marks, each
+a design constraint rather than a warning:
+
+- **The last bar is not stable.** A revision lands on about **0.064% of bars**
+  roughly 30 s after the bar it corrects, and **35.3% of those change the
+  close** (`LIVE-DATA.md` §7.8). So a score computed on the newest minute can be
+  recomputed from different numbers half a minute later. Decide whether a mark
+  **holds its instant** or follows the edge — the chart's reading strip already
+  took that decision and **holds** (Task 3.9.6), and a mark that behaved
+  differently from the crosshair on the same axis would be two answers about one
+  bar.
+- **The window's last slot arrives on its own.** `ChartAxis` computes the frame
+  once and both plots read it; a mark rendered inside that provider inherits the
+  growth for free. **A mark rendered outside it does not** — and that is ADR
+  0023's reversal trigger verbatim: _the first piece of state two features must
+  agree about that neither owns_. Task 3.9.5 evaluated it and it has **not**
+  fired, with the condition sharpened to name you: an anomaly lane in its own
+  region, outside `ChartAxis`'s provider, is what fires it.
+- **The room is reserved and the cost is known.** The chart is **13 drawn
+  elements at 6,630 bars** (ADR 0027's silhouette regime), and a burst costs
+  **7–13 ms of script**. Per-bar markup at that density is the thing that budget
+  cannot absorb: Epic 14 already owns a per-row breach on this page, and its
+  reversal trigger is _the first time a second surface renders per-row markup at
+  universe scale_.

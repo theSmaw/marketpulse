@@ -1,6 +1,6 @@
 # Story 3.9 — The Live Edge on the Chart & the Two-Feed Ledger
 
-**Status:** **Nine tasks — 3.9.1, 3.9.2 and 3.9.3 all complete on 2026-09-24, and 3.9.4 deleted by the third of them.** The chart extends while you watch it, and the treatments for the seam, the arriving bar and the correction were argued against it and all three rejected, each with a measurement and a trigger — so there is nothing left for 3.9.4 to apply. Originally: **Split into ten tasks 2026-09-24; Task 3.9.1 complete the same day, and it did what it was written to do.** Two criteria are **already met** by Story 3.8 and struck below; **open decision 1 is withdrawn** because the case cannot occur — the vendor sends a bar for minute _M_ at the end of _M_, so no partial bar exists anywhere; and the largest finding was on nobody's list: **the chart closes up its own gaps and its spoken sentence claims a cadence it does not have**, shipped today, on stored consolidated data. Previously: The order puts the **headline visible change third from the start and undesigned** — a chart that extends with no vocabulary yet — because Story 3.4 proved that a motion vocabulary argued in front of the real thing moving is a different and better argument from one argued against a mock. Task 3.9.1 comes first and builds nothing: **Story 3.8 may already have met criteria 1 and 2 in part**, and this story's own file says _read it again rather than building what shipped_.
+**Status:** **SWEPT AND CLOSED EXCEPT FOR ONE CRITERION — 2026-09-24. Eight of nine met; criterion 8's _a person watched_ is not, and needs the bell.** Nine tasks (3.9.4 deleted). The chart extends while you watch it, on both plots and the shared axis; the crosshair holds its instant and updates in place on a revision; the two-feed ledger comes from a recorded body rather than an edited one; the only sentence claiming something about the **market** has one home and a reach read off the series' own tapes; and a burst costs **7–13 ms** against §28's 50 ms. Task 3.9.10 carries the nine verdicts, the hand-off count (**three of six recipients were missing**) and the upward sweep. The story reopens for one row in `LIVE-REHEARSAL.md`. Previously: **Nine tasks — 3.9.1, 3.9.2 and 3.9.3 all complete on 2026-09-24, and 3.9.4 deleted by the third of them.** The chart extends while you watch it, and the treatments for the seam, the arriving bar and the correction were argued against it and all three rejected, each with a measurement and a trigger — so there is nothing left for 3.9.4 to apply. Originally: **Split into ten tasks 2026-09-24; Task 3.9.1 complete the same day, and it did what it was written to do.** Two criteria are **already met** by Story 3.8 and struck below; **open decision 1 is withdrawn** because the case cannot occur — the vendor sends a bar for minute _M_ at the end of _M_, so no partial bar exists anywhere; and the largest finding was on nobody's list: **the chart closes up its own gaps and its spoken sentence claims a cadence it does not have**, shipped today, on stored consolidated data. Previously: The order puts the **headline visible change third from the start and undesigned** — a chart that extends with no vocabulary yet — because Story 3.4 proved that a motion vocabulary argued in front of the real thing moving is a different and better argument from one argued against a mock. Task 3.9.1 comes first and builds nothing: **Story 3.8 may already have met criteria 1 and 2 in part**, and this story's own file says _read it again rather than building what shipped_.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.6, 3.8
 **Epic scope covered:** live price updates in the UI (the chart), the two-feed ledger produced rather than simulated, the live feed's own honest label on a series
@@ -225,9 +225,13 @@ keeps it from becoming a footnote pile is worth re-reading before adding to it.
    edge, ~~including on the partial final bar~~ — **there is no partial final
    bar** (Task 3.9.1); what the edge does instead is **change under the reader**
    when a revision lands, which is the harder half and is Task 3.9.6's
-8. `pnpm probe` at all four viewports; a person watched the chart extend during
-   a live session before the suite ran
-9. `pnpm verify` passes
+8. `pnpm probe` at all four viewports ~~; a person watched the chart extend
+   during a live session before the suite ran~~ — **the probe half is MET
+   (Task 3.9.9, four viewports, market shut); the person half is NOT MET and
+   is the one thing holding this story open.** It is on
+   `LIVE-REHEARSAL.md`'s one-sitting list, which four stories now share
+9. ~~`pnpm verify` passes~~ — **MET**, green at every task and at the close,
+   with **26 invariants**
 
 ## Tasks
 

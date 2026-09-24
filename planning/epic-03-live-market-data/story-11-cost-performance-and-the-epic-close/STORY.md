@@ -783,3 +783,33 @@ day**. What this story owes:
   after-hours bars and the backfill asks per **session**, so those minutes are
   the live tape's for ever — a permanent, single-tape addition rather than a
   duplicate. It is the one stretch that survives the night.
+
+## Handed here by Story 3.9's close — 2026-09-24: four figures to re-take against the deployed gateway
+
+Every figure below was taken on a **developer's machine** against a socket an
+instrument served. They are honest about what they measure and none of them is
+the deployment. This story is the deployed re-take.
+
+| Figure                                      | Taken                                 | Why it must be re-taken                                                      |
+| ------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------- |
+| **7.2–8.1 ms** script a burst, 1,950 bars   | production build, instrument's socket | no gateway, no network, one machine's CPU                                    |
+| **12.3–13.2 ms** script a burst, 6,630 bars | same                                  | and 6,630 bars is **68% of the cap**, not the cap                            |
+| **zero** frames over 50 ms, 160 bursts      | same                                  | the acceptance figure, and the one worth defending in front of a stranger    |
+| §28's **p95 68.1 ms** gateway→repaint       | Task 3.6.4, **loopback**              | server and browser on one machine, one clock — already named as your re-take |
+
+`CHARTING.md` §18 carries the first three with their method and their caveats.
+
+**The cap is the gap worth closing.** Task 3.9.9 could not reach 9,750 bars
+because that machine's store ended 2026-09-11, and backfilling to reach it is a
+metered vendor write. The deployed store is backfilled nightly, so **a deployed
+re-take reaches the cap for free** — ask for 25 sessions of `1m` on a liquid
+name and the answer is the cap. The trend measured was sub-linear (3.4× the
+bars for 1.8× the script), so the expectation is comfortable; the point is that
+expectation is not measurement.
+
+**And one method note worth inheriting rather than rediscovering.** A
+`long-animation-frame` entry only exists for a frame **over 50 ms**, so "zero
+observed" and "the observer is broken" are the same output. Task 3.9.9's first
+self-test reported zero because it blocked **outside** an animation frame on an
+idle page. Block inside a `requestAnimationFrame`, with a mutation after it, and
+confirm the observer complains **before** believing any silence it reports.
