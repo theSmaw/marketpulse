@@ -706,3 +706,50 @@ Three things follow, all yours:
 data through 10:42:17` — is the only place this distinction can be made, and
   after a reload the page has no memory of the disconnection at all. A reader
   who reloads during a gap sees a thin chart and no explanation.
+
+## Handed here by Story 3.9's close — 2026-09-24: the thing that stops now exists, and its stopped shape is a straight line
+
+**§1 above said _Story 3.9 is that surface_ and was written before it was
+built.** It is built. This is what it actually does, so you are designing
+against the tree rather than against a prediction.
+
+**A chart of the current session extends on its own**, once a minute, with no
+refresh. `useLiveSeries` accumulates watched bars and `withLiveBars` merges
+them into the served series by **instant** — replacing in place where the
+instant already exists (a revision) and appending where it does not.
+
+**So the shape a stopped edge takes is: the line simply stops growing, and
+nothing says so.** There is no marker, no fade and no gap — the plot ends at
+the last bar that arrived and looks exactly like a chart of a window that ended
+there. Task 3.9.3 took that decision deliberately (three noes: no treatment on
+the arriving bar, no seam at the stored/live join, no partial-bar affordance),
+and its reasoning was that **nothing should be drawn until there is a vocabulary
+for it** — which is you.
+
+**The concrete question you inherit**, sharpened by what 3.9 built:
+
+- **A gap in the middle** is still drawn as a straight line between the bars
+  either side, because the axis is session-ordinal and closes gaps up. §1's
+  trigger has therefore fired: this is the surface where that is visibly wrong.
+- **A stopped edge is indistinguishable from a finished window.** The chrome's
+  feed cell says `STALE` or `DISCONNECTED`, and the chart says nothing at all.
+  Two surfaces, one fact, and only one of them speaks — which is this file's
+  own §2-in-spirit problem with a different pair.
+- **The reading strip keeps answering.** A reading holds its instant (Task
+  3.9.6), so a crosshair parked on the last bar goes on reporting it correctly
+  and indefinitely after the feed dies. That is right, and it means the strip
+  is **not** a place a reader would learn the feed had stopped.
+
+### And one observation from the deployed gateway, which is evidence rather than a finding
+
+Task 3.9.9's watcher held the deployed `/market-stream` open for **4 h 36 m
+overnight on 2026-09-24** and its socket closed **38 times** — every one code
+**1006**, every one with the backend still answering HTTP. About one drop every
+seven minutes. **Task 3.5.5's reconnect absorbed all but one**: the feed cell
+read `live` in **376 of 377** samples.
+
+Two caveats keep this an observation: the watcher ran on a laptop over a
+domestic link to Azure, so the drops may be that end's; and an overnight socket
+is **idle**, which is the condition an idle timeout fires on. It is here
+because it is the only sustained measurement of how often this product's real
+socket drops, and your story is the one that cares.

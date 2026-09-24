@@ -197,6 +197,39 @@ is the subject document and [ADR 0035](docs/adr/0035-both-tapes-are-kept-and-wha
 the decision — **+69% rows a year and headroom from ~2.6 years to ~1.5**, a
 ceiling rather than a measurement, with the real figure owed by Story 3.11.
 
+**And since 2026-09-24 the chart reaches the current minute and keeps
+reaching it — which is the most visible thing in this epic.** Open a security
+during a session and both plots extend, minute by minute, with no refresh and
+no second request: the socket the chrome already had is joined to the series the
+chart already drew, in **one** place (`withLiveEdge`), and the shared axis means
+the price line, the volume columns and the time axis all grow from one value.
+A **correction** replaces the minute it corrects rather than appending a second
+one, keyed on the bar's own instant.
+
+**Nothing is drawn on the arriving bar, and that is three decisions rather than
+an omission** (Task 3.9.3): no treatment on the new minute, no seam where the
+stored bars meet the live ones, and no partial-bar affordance — because there
+**is** no partial bar anywhere in this product. A bar arrives ~0.5 s after the
+minute it describes has **ended**, so every bar the crosshair can reach is
+complete. The vocabulary for a drawn edge is Story 3.10's, beside the words for
+a feed that has stopped.
+
+**The crosshair works at the edge in both directions.** A reading **holds its
+instant** when a newer bar arrives — it is a reading of a bar, not of _now_ —
+and **updates in place** when the bar it names is revised, because a reading
+that is stale about the minute it names is wrong in a way a not-the-latest one
+is not. Both were true by construction, from `resolveRead` keying on the
+instant (Task 2.13.7, built for a window change), and were measured rather than
+assumed.
+
+**And a burst costs 7–13 ms.** Measured 2026-09-24 on a production build:
+**7.2–8.1 ms** of script at the default window and **12.3–13.2 ms** at 6,630
+bars, net of a control, with **zero** frames over 50 ms across 160 bursts
+against §28's 50 ms. 3.4× the bars costs 1.8× the script, because the plot is
+**13 drawn elements at 6,630 bars** — ADR 0027's one-path silhouette, chosen
+against a cold load, paying a dividend it was not bought for. `CHARTING.md`
+§18. The **9,750-bar cap itself is unmeasured** and is Story 3.11's.
+
 **What they still cannot do:** have a person **vouch** for it during a session.
 The deployed backend reads `live` on IEX again since 2026-09-21 — the `406`
 this paragraph used to describe is gone — and ~~`LIVE-REHEARSAL.md`'s rows for
@@ -316,8 +349,21 @@ the previous close`), so **the sentence's length now depends on the state of
   deferred by name to Epic 3's motion vocabulary against real moving numbers, and
   Epic 3 is the first epic where the honest version of the question is even
   askable: the hard form is what happens when a **price** changes.
-- **Two shipped sentences are correct today and become false the first time an
-  IEX tail is stitched on. Owner: Epic 3, beside the two-feed ledger.** The
+- ~~**Two shipped sentences are correct today and become false the first time an
+  IEX tail is stitched on. Owner: Epic 3, beside the two-feed ledger.**~~ —
+  **BOTH halves are closed as of 2026-09-24 by Story 3.9, and the entry stays
+  only for the one thing that is still owed: a photograph.** This item had been
+  amended three times without closing; the halves are separated here so the next
+  reader can see which is which. **The ledger** closed on 2026-09-23 (Story
+  3.8 wrote a two-tape store and Task 3.9.7 replaced the frontend's edited body
+  with a **recorded** one). **The sentence** closed on 2026-09-24 (Task 3.9.8:
+  one home, `describeSilence`, and a reach read off the series' own tapes).
+  **What remains is neither a sentence nor a server**: the two-feed note has
+  never been photographed from a **deployed** store, and that picture exists
+  only mid-session — after the nightly backfill the same window names one
+  source. It is on `LIVE-REHEARSAL.md`'s one-sitting list as the item that
+  **expires that night**, owned by Task 3.8.10. The history below is left
+  standing because it is a prediction that came true twice. The
   ledger itself — each stretch, in contribution order, with its bar count — is
   the sentence invariant 6 exists for, and ~~**no server this product runs can
   produce it**~~ — **since 2026-09-23 the server can, from a store that holds
@@ -423,7 +469,7 @@ This repository documents itself thoroughly, and **that documentation is the sou
 | The market-data wire: the window, the cap, the stitch, provenance's grain, caching, compression                                                                                                                   | [`MARKET-DATA-API.md`](planning/epic-02-security-universe-historical-data/story-09-market-data-api/MARKET-DATA-API.md)                                                                                                                            |
 | How the frontend holds state and fetches: the store, the cache, the URL, retryable, and what a page announces                                                                                                     | [`FRONTEND-STATE.md`](planning/epic-02-security-universe-historical-data/story-10-frontend-market-data-layer/FRONTEND-STATE.md)                                                                                                                   |
 | Search, selection, the URL rule, the input idiom, the Explorer shell, and the keyboard flow                                                                                                                       | [`SEARCH-AND-SELECTION.md`](planning/epic-02-security-universe-historical-data/story-11-security-search-and-selection/SEARCH-AND-SELECTION.md)                                                                                                    |
-| **How this product draws**: the renderer, the series type, the session-ordinal axis, the coverage rule, the states, the walk and the figures                                                                      | [`CHARTING.md`](planning/epic-02-security-universe-historical-data/story-12-price-chart/CHARTING.md) — and ADR 0027                                                                                                                               |
+| **How this product draws**: the renderer, the series type, the session-ordinal axis, the coverage rule, the states, the walk, the figures — and, since §18, **what a chart that EXTENDS costs**                   | [`CHARTING.md`](planning/epic-02-security-universe-historical-data/story-12-price-chart/CHARTING.md) — and ADR 0027                                                                                                                               |
 | The time window, the second plot, and what stays on screen while a second request is in flight                                                                                                                    | [`VOLUME-AND-WINDOW.md`](planning/epic-02-security-universe-historical-data/story-13-volume-chart-and-time-window/VOLUME-AND-WINDOW.md) — and ADR 0028                                                                                            |
 | **What this product claims about its own data**, in whose words, and the complete set of its failure and partial states                                                                                           | [`PROVENANCE.md`](planning/epic-02-security-universe-historical-data/story-14-provenance-partial-states-and-epic-close/PROVENANCE.md) — and ADR 0029                                                                                              |
 | **What the live market socket actually does** — every frame, the rates, the faults, and Epic 3's eight decisions                                                                                                  | [`LIVE-DATA.md`](planning/epic-03-live-market-data/story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) — read §0 first                                                                                                             |
