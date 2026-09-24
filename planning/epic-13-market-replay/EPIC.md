@@ -93,8 +93,11 @@ through Epic 3's live stream seam.
 **What this epic inherits, tested rather than planned:**
 
 - A replay engine that paces on **recorded offsets** rather than array position,
-  so the quiet minutes survive — and on a feed with 82.8% median minute coverage
-  the quiet minutes are most of the signal.
+  so the quiet minutes survive — and on a feed with **65.1%** median per-symbol
+  minute coverage the quiet minutes are most of the signal. (Corrected
+  2026-09-24 by Story 3.8's close: this read _82.8%_, `ALPACA.md` §5.2's figure
+  for the **stored** endpoint; the live stream is `LIVE-DATA.md` §7.6's 65.1%
+  median and 2.1% worst case.)
 - The **two-instant discipline**: a replayed observation carries a `startsAt`
   shifted onto the wall clock and an `occurredAt` holding the recorded instant.
   Epic 13 needs exactly this distinction everywhere, and it is the practical
@@ -187,11 +190,29 @@ premise alone.
 
 **One practical note for the replay's reads.** A window may return two rows for
 one minute, and which one a chart draws is a read decision Story 3.9 takes.
-**Replay's answer is not the same one**: a chart may reasonably prefer the
-consolidated bar, and replay must prefer the tape that was **observable at the
-replay clock** — which is the IEX row for a session being replayed live-shaped,
-and the consolidated one only for instants after it arrived. That is invariant
-4 in a form the column finally makes expressible.
+
+> **Amended 2026-09-24 by Story 3.8's close — that decision was reclaimed and
+> SHIPPED, and it is the one thing here you must not reuse.** Task 3.8.4 took
+> it back from Story 3.9 because `toBarSeries` refuses bars that are not
+> strictly ascending and **throws**, so two rows for one minute was a 500 on a
+> page load rather than a chart drawn from the less good row. `readSeries` now
+> does `distinct on (observed_at)` ordered by `SERVED_TAPE_RANK` —
+> `sip, iex, replay, synthetic` — in `apps/backend/src/market-bars.ts`.
+>
+> **That rank is a SERVING preference and it is the opposite of replay's**, for
+> exactly the reason the paragraph below gives. A replay that reads through the
+> shipped `readSeries` gets the consolidated bar — the one that arrived
+> overnight — for every minute the backfill later covered, which is
+> future information reaching a replayed instant through a helper nobody
+> thought of as a clock. **Invariant 4 says that constraint belongs in the data
+> layer**, so replay needs its own read rather than a flag on this one; the
+> rank exists as a named constant so a second ordering is a sibling rather than
+> an edit.
+> **Replay's answer is not the same one**: a chart may reasonably prefer the
+> consolidated bar, and replay must prefer the tape that was **observable at the
+> replay clock** — which is the IEX row for a session being replayed live-shaped,
+> and the consolidated one only for instants after it arrived. That is invariant
+> 4 in a form the column finally makes expressible.
 
 ## Handed here by Task 3.8.8 — 2026-09-23: does a replayed bar fire the arrival mark, and the sentence that assumed it should not
 

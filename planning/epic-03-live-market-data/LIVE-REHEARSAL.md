@@ -31,8 +31,11 @@ check.
 - **A rehearsal is minutes, not an evening.** Open the surface the story built,
   during a session, against `MARKET_DATA_PROVIDER=alpaca`, and write down what
   you saw — including "nothing moved for four minutes", which is an ordinary
-  observation on a feed with 82.8% median minute coverage and is worth recording
-  as such.
+  observation on a feed with **65.1%** median per-symbol minute coverage and is
+  worth recording as such. (Corrected 2026-09-24 by Story 3.8's close: this read
+  _82.8%_, which is `ALPACA.md` §5.2's figure for the **stored** `feed=iex`
+  endpoint. The live stream was measured first-hand at 65.1% median, 2.1% worst
+  case, in `LIVE-DATA.md` §7.6.)
 - **`What was wrong` is the column that earns this file.** A rehearsal with
   nothing in that column for six stories running is a rehearsal nobody did.
 - **Story 3.11 cannot close with a missing row**, and since **2026-09-21** that
@@ -99,6 +102,36 @@ machine's store. The deployed feed read `live` on `iex` at 08:31 UTC that
 day, so the venue was the deployed site during the session that opened 09:30
 ET; the one judgement only that sitting could return was Task 3.6.2's _pulse
 or flash_, and Story 3.4's list was the same sitting.
+
+**3.8's row is empty at its close — 2026-09-24 — and it is owed rather than
+waived, with a narrower instruction than the story wrote for itself.** Story
+3.8's writer was deployed on 2026-09-23 at ~03:15 ET and has run through a full
+session since, so there is nothing left to build; what is missing is somebody
+looking. Two items are owed and **both must be taken while the market is open**:
+a **reload during a session keeping today's chart** on the deployed site, and a
+**photograph of the two-feed source note from the deployed store**.
+
+The second one's window turned out to be much narrower than Task 3.8.3 assumed,
+and that is worth having in writing before the sitting rather than after it. A
+served window's `sources` describe the rows the **answer** contains; the read
+prefers `sip` where a minute holds both tapes (Task 3.8.4); and the nightly
+backfill covers every regular-session minute. **So after the backfill runs the
+note collapses to one source.** Read off production on 2026-09-23 at 23:48 UTC,
+after that night's backfill: `NVDA`, `1m`, one session — 390 bars, `sources`
+naming **one** entry, `alpaca`/`sip`, 390 bars. The same query at 11:00 ET is
+the photograph; at 20:00 ET it is not. The stretches that survive the night are
+**extended hours**, which the writer keeps and the session fetch never asks for.
+
+**And one thing the same reading could not settle, recorded as a question rather
+than a finding.** A window reaching into 2026-09-23's extended hours returned
+**no pre-market bars at all**, and its after-hours bars came from the read-time
+stitch (`retrievedAt` at the moment of asking) rather than from the store — so
+**nothing observable from outside proves the deployed writer stored a single
+row that night**, because every regular-session minute it could have written is
+shadowed by the consolidated bar. It is one query on the deployed store —
+`select feed, count(*) from market_bars where timeframe = '1m' and observed_at
+
+> = <session> group by feed` — and it belongs with this row.
 
 ### Notes on the 2026-09-22 sitting
 

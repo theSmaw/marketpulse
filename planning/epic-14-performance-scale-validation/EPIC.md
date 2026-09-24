@@ -166,3 +166,20 @@ bought; `CLAUDE.md`'s _Data layer_ trap carries the rule.
 has the arithmetic. The figure still worth this epic's attention is the one that
 was already there: `market_bars_pkey` at **1,029 MB with zero scans** (§8.5),
 which is 25× the new column's annual cost.
+
+> **Added 2026-09-24 by Story 3.8's close — that index is now NAMED as the
+> funder of a decision that has already shipped, which changes what dropping it
+> is.** Story 3.8 keeps **both tapes** for a minute the live feed and the
+> nightly backfill both saw (ADR 0035), priced at **+69% rows a year**,
+> **+6.1 GiB a year**, and headroom from ~2.6 years to **~1.5**. ADR 0035 names
+> `market_bars_pkey` beside that price as where the space comes from.
+>
+> So this is no longer only _an index nobody reads_: it is the bill for a
+> product decision that has been taken, and the reversal trigger on the
+> decision — the storage alert firing before the predicted headroom — fires
+> **sooner** if this epic does not spend it. What the drop needs is the ordinary
+> care (a surrogate key a foreign key or an `ORDER BY` might rely on, and a
+> non-concurrent build on this table does not fit `deploy.yml`'s 120 s, which is
+> why `pnpm index:prepare` exists — `migrations/README.md` §9). Story 3.11 owes
+> the measured rows-and-bytes of a real two-writer day; that figure is the one
+> to size this against rather than the 69% ceiling.

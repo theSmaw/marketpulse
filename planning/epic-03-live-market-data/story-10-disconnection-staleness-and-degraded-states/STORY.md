@@ -673,3 +673,36 @@ which is Story 3.9's, and it renders no feed clause for a series with no bars
 **What you already have from this epic that does bear on you** is the venue-word
 finding from the 2026-09-22 rehearsal, in its own section above. That one is
 real and yours; this one is nil, on purpose.
+
+---
+
+## Handed here by Story 3.8's close — 2026-09-24: the exact shape a gap now takes in the store
+
+**Before Story 3.8 a disconnection left a hole in memory. It now leaves one in
+the ledger, and the ledger is a claim.**
+
+`bar_coverage` says _this window is covered_. The live writer extends it to the
+**last bar it saw** rather than to the session's end — deliberately, so that a
+writer which claimed the whole session could not stop the nightly backfill ever
+fetching it (`live-bar-writer.ts`, Task 3.8.3). What it cannot do is notice that
+it was **disconnected** for the middle of a session: if bars arrive at 10:00 and
+again at 11:30, the window is extended across 11:30 and the ninety minutes
+between are **inside a covered window with no rows in them**.
+
+That is indistinguishable, in the store, from ninety minutes in which the
+security simply did not trade — which on IEX is ordinary (65.1% median
+per-symbol coverage, `LIVE-DATA.md` §7.6). **Nothing in the store tells the two
+apart, and only this story knows the connection dropped.**
+
+Three things follow, all yours:
+
+- **A gap-fill policy needs to know where to fill.** The ledger will not tell
+  you; the socket's own connection history will.
+- **`bars:check` will not report it.** Its completeness rule is a count against
+  the session's expected minutes, and a thin IEX session is already far below
+  that — the tool's `MAX_ROWS_PER_MINUTE = 2` ceiling (Task 3.8.9) catches the
+  opposite fault.
+- **The honest sentence a reader gets** — `Live feed disconnected — displaying
+data through 10:42:17` — is the only place this distinction can be made, and
+  after a reload the page has no memory of the disconnection at all. A reader
+  who reloads during a gap sees a thin chart and no explanation.

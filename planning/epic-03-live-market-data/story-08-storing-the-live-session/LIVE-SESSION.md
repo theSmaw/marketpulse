@@ -22,6 +22,14 @@ session it believes is covered, so a live writer that claims today would stop
 the consolidated version ever being fetched — no collision, no error, and a
 permanently thin session. §3.
 
+**And the thing a reader of this document will get wrong if they stop here
+(added 2026-09-24 at the story's close).** Keeping both tapes is a claim about
+the **store**; it is not a claim about what a window **serves**. The read picks
+one row a minute and prefers `sip` (§8), so once the nightly backfill has
+covered a session, a served window of it names **one** source. The two-feed
+source note is therefore a **mid-session** state on a deployed store — or
+extended hours, which the backfill never asks for. §14.
+
 ## 1. The figures, taken 2026-09-23 (Task 3.8.1)
 
 **One real stored session**, 2026-09-11, the nightly backfill's own product,
@@ -968,3 +976,61 @@ the clamp does not bind.
 Fourth time this story a stated defect has turned out to be narrower than the
 record claimed, and the fourth settled by following the arithmetic rather than
 the wording.
+
+## 14. The close — what production said, and what is still owed (Task 3.8.10, 2026-09-24)
+
+**The overnight reconciliation ran for real on 2026-09-23, and it did what the
+rehearsal said it would.** Read off the deployed backend at 23:48 UTC, after
+that night's backfill:
+
+```text
+GET /market-data/bars?symbol=NVDA&timeframe=1m&sessions=1
+  390 bars, 13:30 → 19:59 UTC
+  provenance.sources: [ { provider: alpaca, feed: sip, barCount: 390 } ]
+```
+
+One source. Task 3.8.9's rehearsal predicted `[["sip", 390]]` from a fixture
+corpus and a test clock; production produced it from the real Alpaca REST
+endpoint over rows the shipped writer and the shipped backfill wrote. **This is
+the first time this story's central mechanism has been observed rather than
+reasoned about or simulated.**
+
+### The narrowing, which is the close's own finding
+
+`provenance.sources` describes **the rows the answer contains**. Three shipped
+facts compose into a consequence nobody had written down:
+
+1. A minute may hold one row per tape (ADR 0035).
+2. `readSeries` picks **one** of them, preferring `sip` (§8, Task 3.8.4) —
+   because `toBarSeries` refuses bars that are not strictly ascending and the
+   alternative was a 500.
+3. The nightly backfill fetches **complete sessions** from the consolidated
+   tape, so by the end of the night every regular-session minute has a `sip`
+   row.
+
+| When a reader looks                                   | What the source note says            |
+| ----------------------------------------------------- | ------------------------------------ |
+| a window whose last session is **today**, market open | two stretches, in contribution order |
+| the same window **after that night's backfill**       | **one** stretch, `sip`               |
+
+**What survives the night is extended hours.** The writer keeps pre- and
+after-hours bars (§7.11's decision) and the backfill asks per **session**, so
+those minutes are the live tape's permanently — the one stretch of `iex` a
+deployed store will still be naming tomorrow.
+
+### The question this close could not settle
+
+A window reaching into 2026-09-23's extended hours returned **no pre-market bars
+at all**, and its after-hours bars came from the read-time stitch rather than
+from the store. So **nothing observable from outside proves the deployed writer
+stored a row that night** — every regular-session minute it could have written
+is shadowed by the consolidated bar. It is one query on the deployed store:
+
+```sql
+select feed, count(*) from market_bars
+where timeframe = '1m' and observed_at >= '2026-09-23T08:00:00Z'
+group by feed;
+```
+
+Recorded in `LIVE-REHEARSAL.md` beside the 3.8 row rather than here, because
+that is where somebody with access to the deployed store will be looking.
