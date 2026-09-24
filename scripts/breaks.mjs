@@ -384,6 +384,36 @@ export const BREAKS = [
     expect: "strictly ascending",
   },
   {
+    name: "a-live-stretch-gets-epic-2s-word",
+    proves:
+      "A second producer of `All US exchanges` appears, which is how one " +
+      "venue's bars come to be labelled as the whole consolidated tape \u2014 " +
+      "the coverage claim `PRODUCT_SPEC.md` \u00a77.1 forbids, in the one " +
+      "place a reader would never look for it (Task 3.9.7).",
+    file: "apps/frontend/src/components/SourceNote/source-note.ts",
+    find: "export function toSourceNote(",
+    replace:
+      'const FEED_LABEL = "All US exchanges"; // pnpm break: reverted automatically\nexport function toSourceNote(',
+    command: ["pnpm", "invariants"],
+    expect: "is produced in 2 place(s)",
+  },
+  {
+    name: "the-two-feed-state-is-typed-again",
+    proves:
+      "The two-feed fixture goes back to being a recorded body with one " +
+      "field changed. That state is what this product's whole provenance " +
+      "design exists for, and a view built by editing another body asserts " +
+      "by construction the thing it is supposed to demonstrate \u2014 that a " +
+      "two-TAPE record looks like a two-`sip` one with a different letter in " +
+      "it. Nothing checked that for two epics (Task 3.9.7).",
+    file: "apps/frontend/src/fixtures/bar-series.ts",
+    find: "export function barSeriesFixtureRequest(",
+    replace:
+      "export function twoFeedStitchView() {} // pnpm break: reverted automatically\nexport function barSeriesFixtureRequest(",
+    command: ["pnpm", "invariants"],
+    expect: "names `twoFeedStitchView` again",
+  },
+  {
     name: "a-prepared-index-loses-its-adopter",
     proves:
       "A `PREPARED` entry whose `adoptedBy` migration does not exist is " +

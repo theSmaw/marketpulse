@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  barSeriesFixtureView,
-  twoFeedStitchView,
-} from "../../fixtures/bar-series.js";
+import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import {
   LOADING_UNIVERSE,
   securitiesFixtureView,
@@ -109,7 +106,7 @@ describe("toSourceNote", () => {
     // that stale. Both ends of the range are true of some of the bars.
     const note = toSourceNote(
       retrievedAt(
-        twoFeedStitchView(),
+        barSeriesFixtureView("twoFeed"),
         "2026-09-04T18:00:00.000Z",
         "2026-09-08T18:00:00.000Z",
       ),
@@ -124,7 +121,7 @@ describe("toSourceNote", () => {
   it("spells both months when a range crosses one", () => {
     const note = toSourceNote(
       retrievedAt(
-        twoFeedStitchView(),
+        barSeriesFixtureView("twoFeed"),
         "2026-08-31T18:00:00.000Z",
         "2026-09-02T18:00:00.000Z",
       ),
@@ -145,10 +142,19 @@ describe("toSourceNote", () => {
   });
 
   it("names every stretch, in order, when a series carries two feeds", () => {
-    const note = toSourceNote(twoFeedStitchView(), SIP, PENDING, SUBJECT);
+    const note = toSourceNote(
+      barSeriesFixtureView("twoFeed"),
+      SIP,
+      PENDING,
+      SUBJECT,
+    );
 
     expect(note.feeds?.map((stretch) => stretch.feed)).toEqual(["sip", "iex"]);
-    expect(note.feeds?.map((stretch) => stretch.barCount)).toEqual([60, 90]);
+    // 60 and 30 since Task 3.9.7, and the numbers are the RECORDED body's: 60
+    // `sip` minutes and 30 `iex` ones from a real read of a real store. They
+    // used to be 60 and 90 because the fixture was the two-`sip` stitch with
+    // one field changed, so the second count was a consolidated tail's.
+    expect(note.feeds?.map((stretch) => stretch.barCount)).toEqual([60, 30]);
   });
 
   it("names the feed where the chrome claims a different one or none", () => {

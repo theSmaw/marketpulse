@@ -224,6 +224,27 @@ every live region before it announced the result of something **a user did**. A
 price arriving is the first thing that would announce itself **unprompted, and
 for as long as the page is open**.
 
+> **Amended 2026-09-24 by Task 3.9.6 — the premise above was true when it was
+> written and the product now has one of these anyway, by a side door, on this
+> same page.** The chart's reading strip is a polite `role="status"`, and since
+> Task 3.9.2 the chart extends on its own — so a **revision of the bar under
+> the crosshair** rewrites that region with **no key pressed**. Measured in a
+> browser: a _new_ bar changes nothing it says (the reading holds its instant,
+> so the sentence is the same sentence), and only a revision of the bar being
+> read speaks.
+>
+> **The decision below is unchanged, and the new case is why it is right rather
+> than a reason to revisit it.** Reason 2 is the whole argument: an unprompted
+> region is tolerable at **0.064% of bars** and intolerable at **once a
+> minute, indefinitely**. The chart's case is the first; the identity block's
+> would have been the second. What has changed is only that _the first thing
+> that would announce itself unprompted_ is no longer hypothetical, so a reader
+> of this section can be shown one.
+>
+> **And this story's own reversal trigger has NOT fired**: it is _the first
+> surface where a price change is the answer to something the user asked for_,
+> and an unprompted revision is the opposite of that.
+
 Four reasons, three of them measurements:
 
 - **The page already has three `role="status"` regions** — counted on

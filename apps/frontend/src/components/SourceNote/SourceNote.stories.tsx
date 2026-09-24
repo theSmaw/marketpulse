@@ -1,10 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Fragment } from "react";
 
-import {
-  barSeriesFixtureView,
-  twoFeedStitchView,
-} from "../../fixtures/bar-series.js";
+import { barSeriesFixtureView } from "../../fixtures/bar-series.js";
 import {
   LOADING_UNIVERSE,
   securitiesFixtureView,
@@ -29,9 +26,14 @@ import { SourceNote } from "./SourceNote.js";
 //    feeds is what Epic 3's socket produces and nothing before it can. All
 //    sixteen recorded bar-series bodies carry `sip`, `stitched.json` included,
 //    because both of its halves came from Alpaca's historical API. The story
-//    below is the recorded stitch with **one field changed**, through the real
-//    transition; see `twoFeedStitchView` for why that is admissible and a
-//    hand-edited fixture is not.
+//    below was the recorded stitch with **one field changed**, through the real
+//    transition.
+//
+//    **CLOSED 2026-09-24 by Task 3.9.7.** There is a seventeenth body now and
+//    it holds two TAPES — `two-feed.json`, 60 `sip` minutes then 30 `iex`,
+//    recorded from this product's own server reading its own store. The story
+//    below uses it, and the function that changed one field is deleted with a
+//    `pnpm invariants` check behind its absence.
 //  - **a feed that is not the configured one.** Same cause from the other side:
 //    it needs a deployment whose provider declares a feed the stored bars do not
 //    carry, and nothing constructs one yet.
@@ -68,7 +70,9 @@ const UNIVERSE = securitiesFixtureView("full");
  * curated file filled the classification ones — and no server this product runs
  * can produce that today, because there is one curated file. It is one field
  * removed from a body that went through `toSecuritiesView`, which is
- * `twoFeedStitchView`'s admissibility argument applied to the other request.
+ * the admissibility argument Task 3.9.7 retired for the bar series, applied to
+ * the other request — and the other request has no recorded body that carries
+ * it, so this one stands.
  */
 function withoutProvenance(view: SecuritiesView): SecuritiesView {
   if (view.state !== "loaded") throw new TypeError("expects a universe");
@@ -114,7 +118,7 @@ export const OneSource: Story = {};
  * acronym, on the sentence saying a single venue is not the whole tape.
  */
 export const TwoFeeds: Story = {
-  args: { shown: twoFeedStitchView() },
+  args: { shown: barSeriesFixtureView("twoFeed") },
 };
 
 /**
@@ -228,7 +232,7 @@ export const AllPermutations: Story = {
           ],
           [
             "Two feeds — Epic 3",
-            twoFeedStitchView(),
+            barSeriesFixtureView("twoFeed"),
             CONFIGURED_SIP,
             UNIVERSE,
             SUBJECT,
@@ -348,8 +352,8 @@ export const AllPermutations: Story = {
  * The recorded answer with its **adjustment** changed, so the second half of
  * this vocabulary is reviewable.
  *
- * The same admissibility argument as `twoFeedStitchView` and a weaker version
- * of it: `STORED_BAR_ADJUSTMENT` is `raw` — a statement about what Story 2.8's
+ * The same admissibility argument Task 3.9.7 retired for the FEED, and a
+ * weaker version of it — weaker because this one cannot be recorded at all: `STORED_BAR_ADJUSTMENT` is `raw` — a statement about what Story 2.8's
  * table holds — and the stitched tail is requested at the same adjustment
  * because `mergeSeriesProvenance` would otherwise refuse, so no server this
  * product runs can send a `split-adjusted` series. It is not in the fixture
