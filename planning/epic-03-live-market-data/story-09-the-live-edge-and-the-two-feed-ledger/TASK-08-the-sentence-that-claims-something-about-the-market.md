@@ -55,3 +55,34 @@ invariants` plus a `pnpm break`
 1. The sentence is true in all three tape states, asserted per state
 2. It has one home, and a second copy fails the build — check and break
 3. The count of other market-claiming sentences is recorded, even if it is zero
+
+---
+
+## Handed here by Task 3.9.1 — 2026-09-24: a SECOND sentence, of the same family, already shipping
+
+**`a line of 131 closing prices, one per trading minute`** — from the price
+chart's spoken alternative, `chart-alternative.ts`'s `describeSeries`, read off
+the deployed site on 2026-09-23 over a 390-minute session.
+
+**The clause is a claim about cadence and it is false by a factor of three.** It
+is not a live-feed problem: `ERIE` traded in 131 of that session's minutes on
+the **consolidated** tape, and the sentence has said _one per trading minute_
+since Story 2.12. On IEX it gets worse rather than different — 65.1% median
+coverage, 2.1% at the worst.
+
+**Why it lands here rather than in a task of its own.** It is the same shape as
+this task's own subject — a drawn-and-spoken claim that outruns its data — and
+the repair is the same mechanism: the honest wording, one home, and a check that
+a second copy fails the build. Two sentences through one mechanism is one task;
+two tasks would be the mechanism twice.
+
+**What is NOT handed here** is the picture. The axis closes gaps up by design
+and `CHARTING.md` §3's reversal trigger was evaluated by Task 3.9.1 and has
+**not** fired. This is about what the sentence says, not about what the line
+draws.
+
+**One thing to check while wording it**: the neighbouring _runs the full width
+of the window asked for_ clause is **correct** and must not be swept up. It
+compares the **requested** window with the ledger's **covered** range, both of
+which are the whole session — the coverage rule doing its job. Only the density
+clause has nothing behind it.

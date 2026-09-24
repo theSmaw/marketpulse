@@ -1,6 +1,6 @@
 # Story 3.9 — The Live Edge on the Chart & the Two-Feed Ledger
 
-**Status:** **Split into ten tasks 2026-09-24**, none started. The order puts the **headline visible change third from the start and undesigned** — a chart that extends with no vocabulary yet — because Story 3.4 proved that a motion vocabulary argued in front of the real thing moving is a different and better argument from one argued against a mock. Task 3.9.1 comes first and builds nothing: **Story 3.8 may already have met criteria 1 and 2 in part**, and this story's own file says _read it again rather than building what shipped_.
+**Status:** **Split into ten tasks 2026-09-24; Task 3.9.1 complete the same day, and it did what it was written to do.** Two criteria are **already met** by Story 3.8 and struck below; **open decision 1 is withdrawn** because the case cannot occur — the vendor sends a bar for minute _M_ at the end of _M_, so no partial bar exists anywhere; and the largest finding was on nobody's list: **the chart closes up its own gaps and its spoken sentence claims a cadence it does not have**, shipped today, on stored consolidated data. Previously: The order puts the **headline visible change third from the start and undesigned** — a chart that extends with no vocabulary yet — because Story 3.4 proved that a motion vocabulary argued in front of the real thing moving is a different and better argument from one argued against a mock. Task 3.9.1 comes first and builds nothing: **Story 3.8 may already have met criteria 1 and 2 in part**, and this story's own file says _read it again rather than building what shipped_.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.6, 3.8
 **Epic scope covered:** live price updates in the UI (the chart), the two-feed ledger produced rather than simulated, the live feed's own honest label on a series
@@ -111,6 +111,17 @@ before the store gets involved.
   home is already this repository's rule — so the repair is one string with two
   renderings, and a second copy fails the build.
 
+- **The gaps this chart cannot draw, which it turns out it already has.**
+  Added 2026-09-24 by Task 3.9.1, measured on the deployed site over one stored
+  session: `ERIE` drew **131** bars at **4.3 px** apart and `NVDA` drew **390**
+  at **2.1 px**, and **both ran the full width of the frame**. The
+  session-ordinal axis closes gaps up by design (`CHARTING.md` §3, whose
+  reversal trigger is evaluated there and has **not** fired) — but the chart's
+  spoken sentence says `a line of 131 closing prices, **one per trading
+minute**` over a 390-minute session, which is a claim about **cadence** with
+  nothing behind it. It ships today, on stored consolidated data, with no live
+  feed involved. **Handed to Task 3.9.8**, which already owns a drawn-and-spoken
+  claim that outruns its data.
 - **The chart's own motion, or its absence.** `VISUAL-LANGUAGE.md` is explicit
   that a chart animating its own first paint is decoration rather than a market
   moving. A chart whose **last bar** grows is a different thing and is this
@@ -134,10 +145,26 @@ before the store gets involved.
 
 ## Open decisions — settle with the user
 
-1. **Whether a partial final bar is drawn as a bar.** It is a real observation
-   of an incomplete minute, and drawing it identically to the 389 complete ones
-   is a small false impression of the same family `PROVENANCE.md` is built to
-   refuse — _a claim about data requires data._
+1. ~~**Whether a partial final bar is drawn as a bar.**~~ **WITHDRAWN
+   2026-09-24 by Task 3.9.1 — the case cannot occur.** `LIVE-DATA.md` §7
+   measured that _a minute bar arrives about half a second after the minute it
+   describes has ended_, and `live-bar-writer.ts` says the same from the other
+   side: a bar that arrives is a finished minute. There is no partial bar on the
+   wire, none in the store and none a browser can hold. The decision as written
+   was a rule prepared for a situation that does not exist.
+
+   **What replaces it has a different shape and is not a drawing decision.** The
+   last bar _does_ change after it is drawn — §7.8's `updatedBars` revision
+   arrives ~30 s later, measured at **0.064% of bars, 35.3% of them changing the
+   close**. That is a complete bar being corrected, and it is Task 3.9.2's
+   replace-in-place rule. The original text is kept below as the record of what
+   was assumed:
+
+   > It is a real observation of an incomplete minute, and drawing it
+   > identically to the 389 complete ones is a small false impression of the
+   > same family `PROVENANCE.md` is built to refuse — _a claim about data
+   > requires data._
+
 2. **What the source note says when the live half is empty** — the market is
    open, the socket is up, and this thin name has not traded for eleven minutes.
    That is three true facts and one of the rules says a clause renders only when
@@ -159,11 +186,24 @@ keeps it from becoming a footnote pile is worth re-reading before adding to it.
 ## Acceptance criteria
 
 1. A chart of the current session reaches the current minute and extends as the
-   session runs, without a page refresh
-2. A two-feed series names both stretches **in contribution order with their
-   counts**, and neither is dropped, sorted or deduplicated
-3. The live stretch's label names a single venue with the sentence saying what
-   that means; **Epic 2's `All US exchanges` appears nowhere on a live tail**
+   session runs, without a page refresh — **first half MET for a liquid
+   security since 2026-09-23 (Task 3.8.3), and structurally unreachable for a
+   thin one**, measured by Task 3.9.1: the live writer puts the store's edge
+   ahead of the vendor's clamp, so the stitch costs no request and contributes
+   nothing and the answer is the store's. Where the feed reports 2.1% of a
+   name's minutes, the missing ones are minutes IEX never sent. **The second
+   half — _extends without a refresh_ — is unbuilt**, and is Task 3.9.2
+2. ~~A two-feed series names both stretches **in contribution order with their
+   counts**, and neither is dropped, sorted or deduplicated~~ — **MET by Task
+   3.7.5 and drawn from real rows by Task 3.8.3**; what Task 3.9.7 owes is the
+   **photograph** and the proof that the read-time **stitch** produces it too,
+   because since the re-order the stored path is the one a user sees
+3. ~~The live stretch's label names a single venue with the sentence saying what
+   that means~~ — **MET**: `namesFeeds` renders the clause whenever the series'
+   feed differs from the configured one, which mid-session on a `1D` window is
+   every liquid security (`iex` against a `sip` chrome). **`Epic 2's `All US
+   exchanges` appears nowhere on a live tail` is NOT met and stays here** — it
+   is a check nothing performs, and Task 3.9.7 owns it
 4. `twoFeedStitchView()` is gone from the tree, and the state it simulated is
    reachable from a recorded body — checked by a grep that goes red, with a
    `pnpm break` entry
@@ -172,7 +212,9 @@ keeps it from becoming a footnote pile is worth re-reading before adding to it.
 6. No main-thread task over 50 ms while the chart is extending, at the default
    window and at the cap (§28, and `CHARTING.md`'s own figures are the baseline)
 7. The reading strip, the crosshair and the keyboard walk all work at the live
-   edge, including on the partial final bar
+   edge, ~~including on the partial final bar~~ — **there is no partial final
+   bar** (Task 3.9.1); what the edge does instead is **change under the reader**
+   when a revision lands, which is the harder half and is Task 3.9.6's
 8. `pnpm probe` at all four viewports; a person watched the chart extend during
    a live session before the suite ran
 9. `pnpm verify` passes

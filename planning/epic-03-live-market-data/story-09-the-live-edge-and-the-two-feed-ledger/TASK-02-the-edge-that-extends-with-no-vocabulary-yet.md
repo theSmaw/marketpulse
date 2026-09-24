@@ -77,3 +77,36 @@ distinction, that is 3.9.3's to design and this task's to name.
 1. The chart extends during a session with no refresh, seen on the deployed site
 2. A correction for a drawn minute replaces it and does not throw, asserted
 3. `pnpm verify` passes and the browser suite is green
+
+---
+
+## Amended by Task 3.9.1 — 2026-09-24: half of criterion 1 is already met, and trap 2 has a measured shape
+
+**The chart already reaches the current minute for a liquid security**, because
+the live writer puts the store's edge at `now − 1 min` — ahead of the vendor's
+`now − 16 min` clamp — so the stitch short-circuits and the answer is the
+store's. What is unbuilt is this task's own half: **extending without a
+refresh**. Nothing wires `useLiveFeed` to the chart; `SecurityExplorer.tsx`
+hands `series.screen` to `BarSeriesPanel` and `live` to `SecurityIdentity`, and
+those are different children.
+
+**Trap 1 is confirmed and is the only one of its kind.** There is no partial
+bar — the vendor sends a bar for minute _M_ at the end of _M_ — so every
+observation the socket delivers is a **finished** minute, and the only reason a
+drawn minute ever changes is §7.8's revision, ~30 s later, at 0.064% of bars.
+That makes the replace-in-place rule this task's single correctness
+requirement rather than one of several.
+
+**Trap 2's answer**, for the first socket frame after a mid-session load: the
+store already holds it. A page opened at 10:30 is answered to 10:29 and the
+10:30 frame arrives seconds later, so the ordinary case is _newer_, and the
+_already have it_ case arrives on a reconnect snapshot. Both go through the same
+replace-in-place path and neither is special.
+
+**And the gap is worse than this task assumed, in a way that is not this task's
+to fix.** The axis closes gaps up: measured on production, `ERIE` drew 131 bars
+and `NVDA` 390 over the same session, both the full width of the frame. So a
+chart that extends across a four-minute outage will look exactly like one that
+extends across four quiet minutes — and on IEX, quiet is the common case.
+**Do not invent a distinction here**; name it, and leave it to Story 3.10, which
+owns the difference between _did not trade_ and _we were not told_.

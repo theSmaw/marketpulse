@@ -59,6 +59,32 @@
 // mid-session request is `now − 16 min` rather than `now`. That is asserted
 // either side of the boundary, against a stub that reports a short window the
 // way the real client does.
+//
+// ## AMENDED 2026-09-24 by Task 3.9.1 — the paragraph above is no longer true
+// mid-session, and it is the store that changed rather than this module
+//
+// Since Task 3.8.3 the deployed backend WRITES the live session, and the live
+// writer extends the ledger's `covered_end` to the last bar it saw. So for a
+// security the feed is delivering, `stored.covered.end` mid-session is
+// `now − 1 min` — **ahead of the clamp rather than behind it**. Three lines
+// that were already here then compose into a different outcome:
+//
+//   1. `tailWindow` starts the tail at `stored.covered.end`, so `now − 1 min`.
+//   2. `alpaca-provider.ts` short-circuits on `servableEnd <= range.start` and
+//      returns an empty series, costing **no request at all**.
+//   3. `stitch` drops a half with no bars, so the answer is the stored series
+//      unchanged — coverage included.
+//
+// **So a mid-session answer now ends where the STORE ends, which is `now − 1
+// min`.** The clamp is still visible in the answer in the two cases that still
+// reach it: after hours, and — the one that matters — a **thin** security whose
+// last stored bar is older than `now − 16 min`, which on IEX is ordinary
+// (65.1% median per-symbol coverage, 2.1% worst case). There the tail IS
+// fetched, from the consolidated endpoint, and the answer names two tapes.
+//
+// The paragraph above is left standing as the record of what was true while
+// the stitch was the only thing that could reach past the embargo, and its
+// assertions still hold for the cases that still reach the clamp.
 
 import {
   marketDateAt,
