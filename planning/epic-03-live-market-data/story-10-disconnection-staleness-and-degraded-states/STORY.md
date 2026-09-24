@@ -144,12 +144,23 @@ certainly may not.
    photographed at 1440, 1024, 768 and 390
 2. Two states that imply different next actions do not read identically — the
    defect the Epic 2 pass found twice
-3. Killing the feed mid-session leaves every number on screen, labelled with the
-   instant it was correct as of, and collapses nothing
+3. ~~Killing the feed mid-session leaves every number on screen, labelled with
+   the instant it was correct as of, and collapses nothing~~ — **MET, measured
+   2026-09-24 by Task 3.10.1**: across five produced states the identity price,
+   the chart's sentence, the source note and the volume strip are
+   **byte-identical**, the page is never blank and **no page error is raised in
+   any state**. The label is the chrome's `Showing data through …`. What is
+   owed is the **assertion**, which is Task 3.10.2's
 4. Restoring the feed fills the gap rather than resuming beside it, and the
    chart shows no hole afterwards
-5. A quiet socket outside market hours reads as correct rather than as broken
-6. A thin name with no trade for nine minutes during a live session is not
+5. ~~A quiet socket outside market hours reads as correct rather than as
+   broken~~ — **MET, measured 2026-09-24 by Task 3.10.1**: `marketOpen: false`
+   with a healthy socket reads `LIVE`. `FeedStatus` is about the connection and
+   `MarketSessionStatus` about the session, and they are correctly separate
+6. **MET at the connection, 2026-09-24 by Task 3.10.1** — a quiet security on a
+   busy feed keeps the chrome at `LIVE` — and **open at the security**, which is
+   the three-hour-old figure decision 1 answers by dating it. A thin name with
+   no trade for nine minutes during a live session is not
    reported as a feed failure — **and nine minutes is a conservative example
    rather than the bound**: §11.2 measured an ordinary maximum gap of **187
    minutes**, which is the figure the threshold decision must survive
