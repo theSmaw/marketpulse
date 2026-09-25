@@ -218,3 +218,45 @@ unreachable and demonstrably does.
 > hypothetical about a rejected design, not a claim about the product, so it is
 > **not** falsified — but a reader meeting it after §19 will wonder, and an ADR
 > gets a dated amendment rather than a rewrite.
+
+## Amended by Task 3.11.5 — 2026-09-25: one re-read this task OWNS, and four figures for the grep
+
+### The re-read, which is named as this task's in `docs/GAPS.md`
+
+**The 32% step has n=2.** Container Apps ran at `$0.2056`/day for twelve days
+and billed `$0.2832` and `$0.2589` on 09-23 and 09-24 — the two days after Task
+3.8.3's live bar writer shipped. **Two days is a step, not a measurement**, and
+this task is the next thing that runs.
+
+```sh
+az rest --method post --url "https://management.azure.com/subscriptions/$SUB\
+/providers/Microsoft.CostManagement/query?api-version=2023-11-01" \
+  --body '{"type":"ActualCost","timeframe":"Custom","timePeriod":{...},
+           "dataset":{"granularity":"Daily", …}}'
+```
+
+**Take every reading in one pass** — the API answers and then returns `429`.
+
+**If the 32% holds**, the cost of a live session is **a database write a
+minute** rather than a held socket, and ADR 0011's arithmetic needs **redoing
+from a different premise rather than amending again** — which is a judgement for
+Task 3.11.9 and a figure for this one.
+
+### Four figures for the upward sweep, and one is provably wrong
+
+| Figure                      | Where                                                   | Status                                                                                                                                                                                            |
+| --------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **$9.26/month**             | `LIVE-DATA.md` §9, Epic 3's `EPIC.md`, three task files | **superseded** by a reading of $13.32                                                                                                                                                             |
+| **$19.04/month**            | Epic 2's `EPIC.md`, four task files                     | **historical** — ADR 0011's original, already amended once                                                                                                                                        |
+| **22.5 GiB usable**         | five files across Epic 2                                | **check it**: Azure Monitor reports 13.62 GB at **41%**, which implies ~34 GB provisioned rather than 22.5 GiB usable. One of those two is about a different thing and the sweep should say which |
+| **~2.6 years / ~1.5 years** | `CLAUDE.md`, `BARS.md`, Epics 13 and 14, Story 3.8      | **~2.1 years measured**, and the `~1.5` assumed two-tape growth that has **no signal yet**                                                                                                        |
+
+**The distinction this repository always draws applies**: a task file recording
+_what we estimated on the day_ is a historical record and stands; a document
+saying _this product costs $9.26_ is a live claim and is now wrong.
+
+> **And the trap this task should expect**, because Task 3.11.5 nearly fell into
+> it: **September's own total is $9.25, within a cent of the estimate** — and
+> only because Container Apps billed **$0.00/day for the first eleven days**. A
+> sweep that confirms the estimate against the monthly total will record a
+> prediction confirmed to the cent **and be wrong by 44%**. Use the run rate.

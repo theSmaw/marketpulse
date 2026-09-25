@@ -314,3 +314,20 @@ attached.
 
 **The last story of the live-market phase, five of ten tasks done.** What remains
 is one sitting with the market open, the documents, and the close.
+
+## The log-ingestion question, answered — 2026-09-25
+
+Task 3.11.3's amendment asked this task to _read whether the platform's log
+retention and ingestion are inside the plan's included allowance or a line of
+their own._
+
+**They are inside it.** Both **Azure Monitor** and **Log Analytics** appear in
+the September breakdown at **$0.00**, alongside PostgreSQL. So the eleven events
+Task 3.11.3 wired cost nothing at their steady rate.
+
+**The conditional term stands and is untested.** `connection-limit` is one line
+every **3 seconds** for as long as a refusal lasts — roughly **48,000 lines**
+over the 2026-09-19 outage — and no incident has happened _since_ the logging
+was wired, so the bill has never seen one. **It remains a term that only appears
+when something is wrong**, and the first outage after this is when it is
+measurable.

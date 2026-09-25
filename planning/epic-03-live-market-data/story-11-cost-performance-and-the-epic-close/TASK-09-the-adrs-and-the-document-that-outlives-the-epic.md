@@ -77,3 +77,33 @@ statement that it is the maintained one.
 1. Every decision of this epic has exactly one home, named
 2. `LIVE-DATA.md` states that it wins, and is true as of the day it says so
 3. `CLAUDE.md` points at every subject document this epic produced
+
+## Amended by Task 3.11.5 — 2026-09-25: ADR 0011 has been amended twice about the same premise, and that is a judgement for this task
+
+**ADR 0011 now carries two dated amendments and they disagree with each other
+about the thing the ADR is for.**
+
+|            | Says                                                                                      | Basis                       |
+| ---------- | ----------------------------------------------------------------------------------------- | --------------------------- |
+| Original   | a live-feed replica costs **$19.04/month**, at the active vCPU rate through every session | a rate card                 |
+| 2026-09-17 | **$9.26** — the burst shape means the threshold is crossed for only 397 s/day             | a 7.77-hour traffic capture |
+| 2026-09-25 | **$13.32** run rate, and **the bill cannot see the socket at all**                        | the bill                    |
+
+**All three reason about whether holding a socket changes the billing rate. The
+third says the question was the wrong one** — what moved the bill is a
+**database write a minute**, which none of them costed.
+
+**The judgement this task owes**: an ADR whose **premise** is falsified — rather
+than whose figure has moved — may be better **superseded by a new ADR** than
+amended a third time. This repository's rule is that ADRs are never renumbered
+and their decisions never rewritten, and a third amendment restating the premise
+differently starts to read as a document arguing with itself.
+
+**Against that**: the _decision_ ADR 0011 records — deploy both halves, what a
+green deploy certifies — is untouched and correct. **Only the cost annexe is
+wrong**, and a decision record is not primarily a cost model.
+
+**Decide it in writing either way**, with the n=2 caveat from Task 3.11.10's
+re-read in hand: if the 32% step holds, the premise is definitively wrong and a
+new ADR has a subject; if it does not, the third amendment is a correction and
+nothing more.
