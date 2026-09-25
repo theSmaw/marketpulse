@@ -1,6 +1,6 @@
 # Task 3.11.5 — The bill, read rather than estimated
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-25. The bill reads, and the premise ADR 0011 argued about is falsified.** Run rate **$13.32/month** against a $9.26 estimate — **44% over, and above the recorded $12 reversal trigger**. The **socket does not appear in the bill at all**: forty disconnected hours cost the same as connected ones. What moved it is **a database write a minute**, on the day Task 3.8.3 shipped. Storage measured at **~10.0 GB/year** against `BARS.md`'s predicted 8.84 GiB. Budget alerts moved to **60/80/100**, so the first is the trigger exactly.
 **Story:** [3.11 Cost, Performance, the Sweep & the Epic Close](STORY.md)
 **Depends on:** 3.11.1
 
@@ -119,3 +119,198 @@ lines**.
 envelope as a conditional rather than a constant: the bill has a term that only
 appears when something is wrong. Read whether the platform's log retention and
 ingestion are inside the plan's included allowance or a line of their own.
+
+---
+
+## What was done — 2026-09-25
+
+### Criterion 1 — a bill has been read, and the refusal is still half-true
+
+**`az consumption usage list` answers and nulls every money field.** 181 records
+for September, each with `pretaxCost: 'None'` and `usageStart: null` — it lists
+resources, not costs. `az costmanagement` **does not exist** as a CLI command in
+this version. What works is the REST call underneath it, and **it rate-limits**:
+a second query seconds later returned `429 Too many requests`.
+
+> **That is the third dated observation of this API refusing, and the pattern is
+> now the result**: it answers, then it does not. **Take every reading in one
+> pass.** Epic 1 met a flat refusal twice; this is a softer one and it is still
+> a refusal.
+
+### The reading, 1–24 September 2026
+
+| Service                       | Month to date |         Run rate |
+| ----------------------------- | ------------: | ---------------: |
+| **Azure Container Apps**      |         $3.01 |  **$8.25/month** |
+| **Container Registry**        |         $3.61 |  **$5.07/month** |
+| Azure Database for PostgreSQL |     **$0.00** |            $0.00 |
+| Azure Monitor, Log Analytics  |     **$0.00** |            $0.00 |
+| **TOTAL**                     |     **$6.62** | **$13.32/month** |
+
+**September's own total will be ~$9.25 — within a cent of the $9.26 estimate,
+and for the wrong reason.** Container Apps billed **$0.0000 a day until
+2026-09-11**, because the backend was not running. **Eleven free days is what
+makes the month match.** A close that quoted the monthly total would have
+recorded a prediction confirmed to the cent and been wrong by 44%.
+
+### The finding — the socket is not in the bill, and the writer might be
+
+**§9.2's whole premise is that a held socket pushes the replica off the
+Consumption plan's idle vCPU rate.** ADR 0011 priced that at $19.04, its
+2026-09-17 amendment at $9.26 with the threshold crossed for 397 seconds a day.
+
+**Across the 2026-09-19 → 09-21 outage — about forty hours DISCONNECTED —
+Container Apps billed `$0.2149` and `$0.2291` a day**, indistinguishable from
+the connected days either side. **The bill cannot see the socket.**
+
+**What it can see stepped on one day:**
+
+```text
+09-11 .. 09-22   $0.2056/day   (12 days)
+09-23            $0.2832
+09-24            $0.2589       +32%
+```
+
+**2026-09-23 is the day Task 3.8.3's live bar writer began writing every
+complete minute bar to `market_bars`.** So the cost of a live session looks like
+**a database write a minute** rather than a held socket — the figure nobody
+costed, rather than the one two versions of an ADR argued about.
+
+> **n=2, and it is a step rather than a drift**, which is the only reason it is
+> worth stating. Recorded in `docs/GAPS.md` with a re-measure and an owner:
+> **Story 3.11's close**, which is the next thing that runs.
+
+### Criterion 2 — storage from the disk rather than the ceiling
+
+`storage_used`, Azure Monitor, daily, 2026-09-04 → 09-24:
+
+- **13.62 GB used, 41%** of the provisioned volume
+- the series is dominated by **the backfill** — +3.3 GB on 09-08, +6.2 GB on
+  09-09 — which is Story 2.8 loading 48 million bars
+- **steady state 09-10 → 09-22: +27.3 MB/day = ~10.0 GB/year**
+
+**`BARS.md` §8.4 predicted 8.84 GiB/year — 9.49 GB. The disk says ~10.0.** That
+arithmetic is confirmed against a real volume for the first time.
+
+**The two-tape claim has no signal yet.** Story 3.8's writer adds **+69%** of
+rows and started on 09-23 — and 09-23 and 09-24 both show storage **falling**
+(−438 MB, −148 MB). **At this timescale autovacuum dominates**, so the +69%
+stays a ceiling. Runway is **~2.1 years** against `LIVE-SESSION.md`'s
+`~2.6 → ~1.5`, whose lower bound assumed growth that has not appeared.
+
+### The egress question, answered by an absence
+
+§9.5 asked whether the idle condition counts egress and what concurrent browsers
+add. **There is no bandwidth line in the bill at all** — five services are
+billed and none of them is network. At this volume egress is not a billed item,
+so the 38 kB/min per browser does not appear.
+
+**It is an answer rather than an estimate, and it is bounded**: it says nothing
+about a volume this subscription has never seen.
+
+### Criterion 3 — the budget, decided against the reading
+
+Decision 1 said _decide it after the reading_. The reading is in, so it was put
+to the owner with the figures: **$20 stays, and the alerts move from 50/80/100
+to 60/80/100.** Applied through the REST API and re-read back:
+
+```text
+actual_60  > 60%  = $12.00
+actual_80  > 80%  = $16.00
+actual_100 > 100% = $20.00
+```
+
+**The first alert is now §9.6's reversal trigger exactly** — *the first month
+whose actual bill exceeds $12* — rather than a second number competing with it.
+At a $13.32 run rate it fires next month, **which is correct**: a trigger exists
+to fire when an assumption is wrong, and this one is wrong by 44%.
+
+> **Rejected — raising to $25**, which accepts the new run rate as a baseline
+> and retires the $12 trigger **without it ever having fired** — answering the
+> question the trigger exists to ask. **Rejected — keeping 50/80/100**, whose
+> $10 alert fires every month from now on.
+
+### The largest line, recorded rather than pursued
+
+**Container Registry is a flat $5.07/month — 38% of the bill, more than the
+compute** — and ACR Basic charges it regardless of what is stored, so pruning
+saves nothing. The named alternative is **GitHub Container Registry**: free for
+public images, already OIDC-authenticated in CI, and moving would take the run
+rate **under the $12 trigger on its own**.
+
+**Deliberately not pursued** — the owner's decision. It touches `deploy.yml`,
+the federated credential and the rollback path, none of which is an epic
+close's subject. `docs/GAPS.md`, owner a condition: **the first month the bill
+actually exceeds $12**, which the budget's new first alert now reports.
+
+### Gates
+
+Documents and one portal change, re-read back. `pnpm links` green.
+
+## For a stakeholder — a status report, 2026-09-25
+
+### What this was
+
+**For four months every cost figure in this project has been arithmetic.** We
+priced the hosting from a rate card because the billing system refused to tell
+us anything — twice, in an earlier phase. This task asked again.
+
+**It answered.**
+
+### What it costs
+
+**$13.32 a month at the current rate**, against an estimate of **$9.26**. That
+is **44% over**, and past the point we wrote down in advance as _the number that
+means one of our assumptions is wrong_.
+
+The composition is the surprise:
+
+- **The image registry — $5.07 a month — is the single largest item**, more than
+  the servers. It is a flat fee that does not depend on how little we store.
+- **The database costs nothing.**
+- **Network traffic does not appear at all.**
+
+### The finding worth the whole task
+
+We have argued twice, in writing, about whether **holding a live connection to
+the market** pushes us onto a more expensive billing rate. One version said it
+would cost $19 a month; a revision said $9.
+
+**The bill cannot see the connection.**
+
+We know this precisely, because of the outage six days ago: for about **forty
+hours the connection was dead**, and those days cost the same as the days either
+side — to a fraction of a cent.
+
+**What did move the bill was something nobody costed.** On the day we started
+_writing prices to the database every minute_, the daily cost stepped up **32%**
+and stayed there.
+
+So the expense of running a live market feed is not listening. It is **writing
+down what you hear**. That is two days of evidence, which is not enough to call
+it proven, so it is written down as a claim to re-check rather than a
+conclusion.
+
+### The storage prediction was right
+
+We estimated our database would grow by **8.84 GB a year**. Measured against the
+actual disk over twelve steady days: **about 10 GB a year.** Close enough to
+call the arithmetic sound — the first time any of it has been checked against
+reality rather than a spreadsheet.
+
+### What we changed, and what we deliberately did not
+
+**The budget alert now fires at $12** — exactly the figure we wrote down months
+ago as the one that would mean something was wrong. It will fire next month, and
+that is the alarm working rather than failing.
+
+**We did not move off the expensive registry**, even though doing so would take
+the bill back under the trigger by itself. It would mean changing how we deploy,
+how we authenticate and how we roll back — three things worth doing carefully
+rather than in the last week of a phase. It is written down with the figure
+attached.
+
+### Where the product stands
+
+**The last story of the live-market phase, five of ten tasks done.** What remains
+is one sitting with the market open, the documents, and the close.

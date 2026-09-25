@@ -2367,3 +2367,122 @@ would mean lifting the lock to do it. **The standing hazard is unchanged and is
 restated rather than solved: a developer's IP moves, so this rule is wrong most of
 the time**, and the symptom is a laptop connection timing out against a server the
 deployed backend reaches perfectly.
+
+## The bill, read for the first time — 2026-09-25 by Task 3.11.5
+
+**Epic 1 could read no bill at all** — both billing APIs refused the
+subscription, then answered `[]` and `429`. Every cost figure in this document
+above this line is **arithmetic over a rate card**. This section is a reading.
+
+### What it took, because the refusal is still half-true
+
+`az consumption usage list` **answers** — 181 records for September — and
+**nulls every money field**: `pretaxCost: 'None'`, `usageStart: null`. It lists
+resources, not costs. `az costmanagement` **does not exist** as a CLI command in
+this version.
+
+What works is the REST call underneath it:
+
+```sh
+az rest --method post --url "https://management.azure.com/subscriptions/$SUB\
+/providers/Microsoft.CostManagement/query?api-version=2023-11-01" \
+  --body '{"type":"ActualCost","timeframe":"MonthToDate","dataset":{...}}'
+```
+
+**And it rate-limits.** A second query a few seconds later returned
+`429 Too many requests` — the third dated observation of this API refusing, and
+the pattern is now the result: **it answers, then it does not.** Take the
+readings you need in one pass.
+
+### The reading, 1–24 September 2026
+
+| Service                       | Month to date |         Run rate |
+| ----------------------------- | ------------: | ---------------: |
+| **Azure Container Apps**      |         $3.01 |  **$8.25/month** |
+| **Container Registry**        |         $3.61 |  **$5.07/month** |
+| Azure Database for PostgreSQL |     **$0.00** |            $0.00 |
+| Azure Monitor, Log Analytics  |     **$0.00** |            $0.00 |
+| **TOTAL**                     |     **$6.62** | **$13.32/month** |
+
+**September's own total will be ~$9.25** — within a cent of §9.2's $9.26
+estimate, and **for the wrong reason**: Container Apps billed **$0.0000 a day
+until 2026-09-11**, because the backend was not running. Eleven free days is
+what makes the month match. **The run rate is 44% above the estimate.**
+
+### Three findings, in order of how much they change
+
+**1. The replica costs more than estimated, and the registry is the biggest
+line.** ACR Basic is a flat **$5.07/month** — 38% of the bill, **more than the
+compute** — and it does not vary with how few images are stored, so pruning
+saves nothing. ADR 0011 priced it correctly; what it did not anticipate is that
+it would be the largest single item.
+
+**2. The socket is not what moves this bill.** Across the 2026-09-19 → 09-21
+outage, when the feed was **disconnected for about forty hours**, Container Apps
+billed `$0.2149` and `$0.2291` a day — **indistinguishable from the connected
+days either side**. §9.2's whole premise was that holding a socket pushes the
+replica off the idle vCPU rate; the bill cannot see the difference.
+
+**3. What DID move it is the live writer, on the day it shipped.** Container
+Apps runs at `$0.2056`/day from 09-11 to 09-22 and **`$0.2832` and `$0.2589` on
+09-23 and 09-24 — up 32%**. Task 3.8.3 put a writer on the socket that writes
+every complete minute bar to `market_bars`, and it started on 2026-09-23.
+
+> **n=2, and it is a step rather than a drift**, which is what makes it worth
+> stating at all. A third and fourth day either confirms it or makes it noise;
+> **Story 3.11's close should re-read this before the epic is called done.**
+
+### Storage, measured rather than projected
+
+`storage_used` from Azure Monitor, daily, 2026-09-04 → 09-24:
+
+- **13.62 GB used, 41%** of the provisioned volume, at 2026-09-24
+- the series is dominated by **the backfill**: +3.3 GB on 09-08 and +6.2 GB on
+  09-09, which is Story 2.8 loading 48 million bars
+- **steady state 09-10 → 09-22: +27.3 MB/day**, which is **~10.0 GB/year**
+
+**`BARS.md` §8.4 predicted 8.84 GiB/year — 9.49 GB — for 518 symbols at 199
+B/row. The disk says ~10.0 GB/year.** That arithmetic is confirmed against a
+real volume for the first time.
+
+**The two-tape claim has no signal yet.** Story 3.8's live writer would add
+**+69%** of rows, and it started on 09-23 — but 09-23 and 09-24 both show
+storage _falling_ (−438 MB, −148 MB), which is autovacuum rather than the
+writer. **At this timescale vacuum dominates the signal**, so the +69% is still
+a ceiling rather than a measurement.
+
+**Runway**: 13.6 GB used against ~34.4 GB provisioned leaves ~20.7 GB, which at
+10 GB/year is **about 2.1 years** — against `LIVE-SESSION.md`'s `~2.6 → ~1.5`,
+whose lower bound assumed the two-tape growth that has not yet appeared.
+
+### Egress, answered by its absence
+
+§9.5 asked whether Azure's idle condition counts **egress**, and what concurrent
+browsers add. **There is no bandwidth line in the bill at all** — the services
+billed are Container Apps, Container Registry, PostgreSQL, Monitor and Log
+Analytics, and nothing else. At this volume egress is not a billed item, so the
+38 kB/min per browser does not appear. That is an answer rather than an
+estimate, and it is bounded: **it says nothing about what happens at a volume
+this subscription has never seen.**
+
+### The budget, re-decided against the reading
+
+**`marketpulse-monthly` stays at $20 and its alerts moved from 50/80/100 to
+60/80/100** — applied, and re-read back:
+
+```text
+actual_60  > 60%  = $12.00
+actual_80  > 80%  = $16.00
+actual_100 > 100% = $20.00
+```
+
+**The first alert is now the recorded reversal trigger exactly.** §9.6's trigger
+is *the first month whose actual bill exceeds $12*, and at a $13.32 run rate
+that will fire next month — which is correct: a trigger exists to fire when an
+assumption is wrong, and §9.2's assumption is wrong by 44%.
+
+> **Rejected — raising to $25**, which accepts the new run rate as a baseline
+> and retires the $12 trigger _without the trigger ever having fired_. That is
+> answering the question the trigger exists to ask. **Rejected — keeping
+> 50/80/100**, whose $10 alert would fire every month from now on; an alert
+> that always fires is an alert nobody reads.
