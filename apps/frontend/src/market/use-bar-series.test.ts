@@ -681,6 +681,21 @@ describe("useBarSeries, when the live feed comes back", () => {
       expect(calls).toHaveLength(2);
     });
 
+    // **Drain the microtasks the refill's own answer is sitting in, and this
+    // line is the whole test — added 2026-09-25 by Task 3.11.10.**
+    //
+    // `calls` grows when the REQUEST goes out, not when its answer is handled,
+    // so the assertion below used to race the `setState` that a discarded
+    // guard would have performed. Measured against `pnpm break
+    // a-failed-refill-wipes-the-chart`: **three reds in five runs** — the
+    // defect landed after the assertion had already read a correct view two
+    // times in five. A check that catches a regression 60% of the time is not
+    // a guard, because the run that matters is the one that went green.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
     // The request went out, the answer was a 503, and the picture is exactly
     // what it was.
     const view = result.current.view;
