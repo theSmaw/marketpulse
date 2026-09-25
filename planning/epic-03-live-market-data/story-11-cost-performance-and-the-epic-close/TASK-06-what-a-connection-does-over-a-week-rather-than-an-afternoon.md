@@ -178,3 +178,27 @@ logs` or the platform's log stream, filtered to `market stream`.
 > socket to Alpaca — the connection all three questions are about. Task
 > 3.11.2's browser counter measured a **different** connection (a page to our
 > gateway) and says nothing here.
+
+## Amended by Task 3.11.5 — 2026-09-25: the COST half of this question is answered, and it is not what §9.2 said
+
+**This task inherits `LIVE-DATA.md` §9 and §12 to amend**, and §9.2's premise has
+now been falsified by a bill rather than by an argument.
+
+**§9.2 reasons that a held socket pushes the replica off the Consumption plan's
+idle vCPU rate** — ADR 0011 priced that at $19.04/month, the 2026-09-17
+amendment at $9.26 with the threshold crossed for 397 seconds a day.
+
+**The bill cannot see the socket.** Across the 2026-09-19 → 09-21 outage — about
+**forty hours disconnected**, which is the natural experiment nobody designed —
+Container Apps billed `$0.2149` and `$0.2291` a day, **indistinguishable from
+the connected days either side**.
+
+**So this task's §9 amendment is not a refinement of 550.6 B/s; it is a note
+that the whole per-second-threshold argument measures something the bill does
+not charge for.** The traffic figure stays true and stops being load-bearing.
+
+> **What the socket costs is still this task's question**, and the answer has
+> moved from _money_ to _the slot_: the free plan allows **one** connection, and
+> what a half-open or forgotten one holds is what questions 2 and 3 are about.
+> That is unaffected — and it is now the **only** reason the socket's behaviour
+> over a week matters, because the other reason turned out to be $0.00.

@@ -928,3 +928,41 @@ overstates it.
   this ADR is the reasoning over rather than a copy of
 - Story 1.12 — the client, the state and the polling §23 deliberately left, and
   the first real test of the React Compiler rules
+
+## Amended 2026-09-25 by Task 3.11.5 — the first reading, and the premise was wrong in both directions
+
+**Every cost figure in this ADR is arithmetic over a rate card.** Epic 1 could
+read no bill; this is the first one. **The tables above are untouched**, as the
+2026-09-17 amendment's were.
+
+|              |                        Predicted |                  **Read** |
+| ------------ | -------------------------------: | ------------------------: |
+| The replica  | $9.26/month blended (2026-09-17) |  **$8.25/month** run rate |
+| The registry |             ~$5/month, ACR Basic |           **$5.07/month** |
+| **Total**    |                        **$9.26** | **$13.32/month** run rate |
+
+**44% over, and above §9.6's $12 reversal trigger** — which has been moved to be
+the budget's first alert rather than a second number competing with it.
+
+**The premise this ADR and its amendment share is falsified, and it is the
+interesting half.** Both reason about whether a **held socket** pushes the
+replica off the Consumption plan's idle vCPU rate: the original said it does
+($19.04), the amendment said it barely does ($9.26, crossing the threshold for
+397 seconds a day). **The bill cannot see the socket at all.** Across the
+2026-09-19 → 09-21 outage — about forty hours **disconnected** — Container Apps
+billed `$0.2149` and `$0.2291` a day, indistinguishable from the connected days
+either side.
+
+**What moves it is writing, not listening.** Container Apps runs at
+`$0.2056`/day from 09-11 to 09-22 and **`$0.2832` / `$0.2589` on 09-23 and
+09-24 — up 32%** — and 2026-09-23 is the day Task 3.8.3's live bar writer began
+writing every complete minute to `market_bars`. **n=2**, a step rather than a
+drift, and Story 3.11's close re-reads it before the epic is called done.
+
+> **So the reversal trigger fired for a reason neither version predicted.** The
+> figure that was argued about — the socket's traffic — is not in the bill; the
+> figure nobody costed — a database write a minute — appears to be.
+
+`HOSTING.md`'s _The bill, read for the first time_ carries the full reading, the
+storage measurement, the egress answer and how to take it again, including that
+the Cost Management API **answers and then returns `429`**.

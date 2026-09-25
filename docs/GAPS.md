@@ -499,6 +499,20 @@ If it passes there and fails against your own store, **the store is the subject*
 
 **Amended 2026-09-24 by Task 3.10.7 — it happened again, the other way round, and the condition above had already fired.** `security-chart-edge.spec.ts` (Task 3.10.5) asserted a washed edge and a bar count against the deployment's own store, which is exactly _a figure whose presence depends on a window having data_. It passed here and failed on **CI**, whose store has zero bars, with the honest sentence _"No history is stored for NVDA at this timeframe"_ on screen — so this time the failure did **not** read as a layout defect, it read as a product that had stopped drawing. **And PR 461 was merged with that check red**, which is how it reached `main`. The repair is the one the entry above implies and never states: **a spec that asserts a figure serves its own answer** — `serveFeed`'s `bars` option, added by Task 3.10.7 — rather than asking a store whose contents nobody controls. Runtime fell from **12.6 s to 1.2 s**, which is the same fact seen from the other end. **Re-measure:** grep the browser suite for a spec that asserts a count, a price or a washed width without routing `BARS_ROUTE_PATTERN`.
 
+## The bill has been read ONCE, and the one figure that moved it has n=2
+
+Read 2026-09-25 by Task 3.11.5, the first billing reading this product has ever taken — Epic 1's attempts were refused twice. **Run rate $13.32/month against a $9.26 estimate**, of which Container Registry is a flat **$5.07** (38%, and more than the compute) and Container Apps **$8.25**.
+
+**Two claims rest on thin evidence and both matter.**
+
+**The socket does not appear in the bill.** Across the 2026-09-19 → 09-21 outage — forty hours disconnected — Container Apps billed `$0.2149` and `$0.2291` a day, indistinguishable from the connected days either side. That falsifies ADR 0011's premise in both its versions, and it rests on **one outage**.
+
+**The live bar writer appears to.** Container Apps steps from `$0.2056`/day (09-11 → 09-22) to `$0.2832` and `$0.2589` on 09-23 and 09-24 — **up 32%**, on exactly the day Task 3.8.3's writer shipped. **n=2.** A step rather than a drift, which is why it is worth stating, and two days is not a measurement.
+
+**Re-measure:** the REST call in `HOSTING.md`'s reading, `granularity: Daily`, after another week. **Take every reading in one pass** — the API answers and then returns `429`. If the 32% holds, the cost of the live session is a **database write a minute** rather than a held socket, and ADR 0011's arithmetic needs redoing from a different premise rather than amending. **Owner: Story 3.11's close**, which is the next thing that runs.
+
+**And the largest line is not ours to reduce by tidying.** ACR Basic is a flat $5.07/month whatever it stores, so pruning images saves nothing. The named alternative is GitHub Container Registry — free for public images, already OIDC-authenticated in CI — and moving would take the run rate under the $12 trigger on its own. **Deliberately not pursued** (2026-09-25, owner's decision): it touches `deploy.yml`, the federated credential and the rollback path, none of which is an epic close's subject. **Owner: a condition — the first month the bill actually exceeds $12**, which the budget's new first alert now reports.
+
 ## ~~The browser opens a NEW market-stream socket every few seconds on an ordinary page~~ — WITHDRAWN 2026-09-25, and the instrument was the fault
 
 **The entry that stood here was wrong**, and it is left as a heading rather than deleted because what replaced it is the more useful claim.
