@@ -93,3 +93,39 @@
 .flush {
   padding: 0;
 }
+
+/*
+ * The reserved state — `Market overview.dc.html` §03, and it is three decisions
+ * rather than a texture.
+ *
+ * **A hatched ground rather than a blank one**, because an empty panel and a
+ * failed one must never look alike and the failure is already a labelled block
+ * with a sentence. A blank frame is what a reader reads as broken.
+ *
+ * **A dashed hairline**, which is the same distinction in a second channel: the
+ * hatch is a fill, and a fill is the first thing greyscale, low vision and a
+ * poor screen take away. The header's `--rule-strong` goes dashed with it, for
+ * the same reason and to the same weight.
+ *
+ * **And no shadow.** The elevation says *this is above the page*; a panel that
+ * is holding a place is not.
+ *
+ * The stripe is built from the two ground tokens rather than a new colour — it
+ * is the sunken surface showing through the raised one at 45°, which is the
+ * quietest mark this palette can make and still be seen.
+ */
+.reserved {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--surface-raised),
+    var(--surface-raised) 6px,
+    var(--surface-sunken) 6px,
+    var(--surface-sunken) 12px
+  );
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.reserved .header {
+  border-bottom-style: dashed;
+}

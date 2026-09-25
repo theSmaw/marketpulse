@@ -23,3 +23,22 @@
 .content {
   margin-top: var(--space-16);
 }
+
+/*
+ * The tag at the right-hand end of a deferred region's header — `Epic 6`,
+ * `Story 4.3`.
+ *
+ * Uppercase mono at the micro size, which is this product's label voice, inside
+ * a hairline box so it reads as a marker rather than as a second heading. The
+ * ink is secondary rather than primary: the region's own name is the thing on
+ * this row that matters, and the tag qualifies it.
+ */
+.awaiting {
+  composes: microLabel from "../../styles/type.module.css";
+  display: inline-block;
+  padding: var(--space-4) var(--space-8);
+  color: var(--ink-secondary);
+  white-space: nowrap;
+  border: var(--border-width) solid var(--rule-strong);
+  border-radius: var(--radius);
+}

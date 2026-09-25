@@ -38,14 +38,46 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-// What three of the four landing-route regions look like today. A region
+// What six of the landing route's seven regions look like today. A region
 // labelled and empty is honest; a region labelled and empty with no explanation
-// looks broken, which is what `filledBy` is for.
+// looks broken, which is what `filledBy` is for — and since Task 4.1.3 the box
+// itself says so too: no children means the reserved state, hatched and dashed,
+// so an empty region and a failed one cannot be mistaken for one another.
 export const Empty: Story = {
   args: {
     name: "Market breadth",
+    awaiting: "Story 4.4",
     filledBy:
-      "Epic 4 fills this with advancing, declining and unchanged counts once there is live market data behind them.",
+      "How much of the market is advancing, declining and unchanged — with the number of securities the figure could see.",
+  },
+};
+
+// **The two distances, side by side — `Market overview.dc.html` §03.**
+//
+// Every deferral this product shipped before 2026-09-25 named an *epic*. Three
+// of the landing route's name a *story in the epic being built*, which is weeks
+// rather than months, and a reader who cannot tell them apart reads weeks as
+// someday.
+//
+// The tag is the only difference, deliberately. A brighter ground or a
+// countdown would make the near-term deferral louder than the region beside it
+// that already has content — the wrong hierarchy on a screen whose subject is
+// the market rather than our schedule.
+export const DeferredToAnotherEpic: Story = {
+  args: {
+    name: "Unusual activity",
+    awaiting: "Epic 5",
+    filledBy:
+      "Every tracked security scored 0–100 for how unusual its behaviour is, ranked, each score carrying its explanation.",
+  },
+};
+
+export const DeferredToThisEpic: Story = {
+  args: {
+    name: "Sector performance",
+    awaiting: "Story 4.3",
+    filledBy:
+      "Eleven sector ETFs ranked by today’s move, each carrying what its figure is computed over.",
   },
 };
 

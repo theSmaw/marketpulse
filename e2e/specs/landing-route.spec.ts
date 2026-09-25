@@ -42,11 +42,24 @@ import { expectNothingFailedToRender } from "../support/app.js";
 // cell is matching the wrong one. And the words are rendered lowercase and
 // uppercased by CSS, so the accessible text is `healthy`, not `HEALTHY`.
 
-// §9's four areas, in the vocabulary §8.1 gave them. Each is a `region`
-// landmark named by the `<h2>` it already has, so the accessible name and the
-// visible heading are one fact rather than two.
+// §8.1's contents, in the vocabulary it gave them. Each is a `region` landmark
+// named by the `<h2>` it already has, so the accessible name and the visible
+// heading are one fact rather than two.
+//
+// **Seven since Task 4.1.3, from four.** §9's sketch places four; §8.1 lists
+// two more — the index/ETF summary and sector performance — that Task 1.5.4
+// deliberately left unplaced, *because where they belong is a question about
+// their shape, and Epic 4 is the first thing that will know it*. Epic 4 knew,
+// and drawing the screen turned up a seventh with no home in §9 either: the
+// movers, which Epic 4's scope lists and which are **not** the unusual-activity
+// feed — *unusual is not largest*, and a mover list standing in for an anomaly
+// feed teaches a reader the wrong thing on the one screen whose job is
+// explaining this product.
 const REGION_NAMES = [
+  "Market summary",
   "Market topology",
+  "Sector performance",
+  "Movers",
   "Unusual activity",
   "Market breadth",
   "Current investigations",
@@ -84,7 +97,7 @@ const STATUS_LABELS = [
 // renders nothing.
 const CLOCK_SHAPE = /^\d{2}:\d{2}:\d{2}$/u;
 
-test("the landing route serves the chrome and PRODUCT_SPEC §9's four regions", async ({
+test("the landing route serves the chrome and PRODUCT_SPEC §8.1's seven regions", async ({
   page,
 }) => {
   await page.goto("/");
@@ -168,10 +181,10 @@ test("the landing route serves the chrome and PRODUCT_SPEC §9's four regions", 
     page.getByRole("heading", { level: 1, name: "Market Overview" }),
   ).toBeVisible();
 
-  // --- §9's four areas ---
+  // --- §8.1's seven regions ---
   //
   // By role and accessible name, and the count is asserted as well as the
-  // names: a fifth region appearing unnoticed is the failure a per-name loop
+  // names: an eighth region appearing unnoticed is the failure a per-name loop
   // alone would not catch.
   const regions = page.getByRole("region");
   await expect(regions).toHaveCount(REGION_NAMES.length);

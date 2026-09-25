@@ -33,12 +33,71 @@
  * The 3:1 and 2:1 ratios are the emphasis §9 asks for: the primary area is the
  * visual centre of gravity by size, before anything is drawn in it.
  */
+/*
+ * --- The route's own name ---
+ *
+ * The `h1` a route needs and a sighted reader does not, on this screen. It is
+ * visible rather than hidden, small, and it sits above the summary strip —
+ * `Market overview.dc.html` §05 rejected a display-sized page title because
+ * the masthead already says which application this is, and the Security
+ * Explorer earns its heading by having a search field beside it.
+ */
+.routeName {
+  composes: microLabel from "../styles/type.module.css";
+  margin: 0 0 var(--space-12);
+  color: var(--ink-secondary);
+}
+
+/*
+ * --- The summary strip (Task 4.1.3) ---
+ *
+ * Outside the region grid, because it is not on the grid's proportions: §9's
+ * 3:1 and 2:1 emphasis is about the primary area, and a headline strip that
+ * took a row of it would push the topology down by a third of the viewport to
+ * hold four figures.
+ */
+.summary {
+  /*
+   * **No margin, and that is the repair rather than an omission.** `App`'s
+   * `main` is a flex column with `gap: var(--space-40)`, so a margin here is a
+   * second opinion about the same space: the strip sat 64 px below the heading
+   * and the grid 64 px below the strip, which reads as two unrelated blocks
+   * rather than one screen. Found by looking at `pnpm probe`'s boxes, which is
+   * the only thing that can see it — jsdom computes no layout and the page is
+   * not wrong, only loose.
+   */
+}
+
+/*
+ * --- The region grid (Task 1.5.4, re-laid by Task 4.1.3) ---
+ *
+ * PRODUCT_SPEC.md §9's sketch, as a proportion rather than a pixel spec: a
+ * dominant primary column with the topology in it, and a narrower second column.
+ * The proportions are unchanged — 3:1 across, and the primary column's rows are
+ * §9's emphasis expressed downward.
+ *
+ * **What changed is that the regions are now NAMED AREAS, and Task 1.5.4's own
+ * comment argued against exactly that.** Its words: *a region called
+ * `rightColumn` is a layout that cannot be rearranged; this one is rearranged
+ * by editing two lines here.* That was right for four regions auto-placed into
+ * two columns. **It does not survive seven.** The wide layout wants
+ * topology-sectors-movers in one column, and the narrow one wants a reading
+ * order where everything with content comes before everything without — and no
+ * single source order satisfies both. Auto-placement can express one of them;
+ * naming the areas expresses both, at the cost of a class per region.
+ *
+ * The regions still know nothing about where they sit: the route names the
+ * areas and hands each one a class.
+ */
 .regions {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 0.7fr) minmax(0, 1.15fr) minmax(0, 1.15fr);
+  grid-template-areas:
+    "topology unusual"
+    "sectors breadth"
+    "movers investigations";
   gap: var(--space-24);
-  margin-top: var(--space-24);
   /*
    * What the layout does about Epic 6's canvas, thought about once and then
    * left alone. A WebGL renderer needs a region with a resolved size rather
@@ -46,20 +105,79 @@
    * grid itself has a height — so the grid takes one, and each region scrolls
    * its own overflow instead of pushing its neighbours.
    *
-   * It is a proportion of the viewport rather than "the space left below the
-   * chrome", because the second would mean the shell owning the page's height
-   * and `App.module.css` has finished shrinking. Epic 6 is where an exactly
-   * resolved canvas box becomes worth that change; today it would be a guess
-   * with a flex container attached.
-   *
    * `height` rather than `min-height`, and the difference is the whole layout:
    * with a minimum the `fr` rows still size to their content, the primary area
    * grows as tall as whatever is in it, and §9's proportions disappear the
-   * moment one region holds more than another — which is exactly the state this
-   * screen is in while three regions are a sentence and one holds a render
-   * check. A height makes the ratios real and hands the overflow to the region.
+   * moment one region holds more than another. A height makes the ratios real
+   * and hands the overflow to the region.
+   *
+   * Raised from 70vh to 82vh by Task 4.1.3: three rows rather than two, and a
+   * deferred region has a floor below which its heading and its sentence stop
+   * fitting at all.
    */
-  height: 70vh;
+  height: 82vh;
+}
+
+.areaTopology {
+  grid-area: topology;
+}
+.areaSectors {
+  grid-area: sectors;
+}
+.areaMovers {
+  grid-area: movers;
+}
+.areaUnusual {
+  grid-area: unusual;
+}
+.areaBreadth {
+  grid-area: breadth;
+}
+.areaInvestigations {
+  grid-area: investigations;
+}
+
+/*
+ * --- 1024 ---
+ *
+ * The second column stops being a sidebar and becomes a second column: 5:3
+ * rather than 3:1, which is `Market overview.dc.html` §04. **Every breakpoint
+ * that narrows this grid restates its areas**, because a `span N` item wider
+ * than the explicit grid is not clamped — it grows implicit columns, and it
+ * renders identically in every test below a real browser.
+ */
+@media (width <= 1180px) {
+  .regions {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 3fr);
+  }
+}
+
+/*
+ * --- 768 and below: one column, and the reading order becomes the hierarchy ---
+ *
+ * Below the two-column threshold, order is the only hierarchy left, so a reader
+ * meets everything that has content before anything that does not
+ * (`Market overview.dc.html` §04). That is the whole reason this grid names its
+ * areas: source order cannot express both layouts.
+ *
+ * The height goes with the columns. One column of seven regions is taller than
+ * any viewport, so a fixed height would make the page scroll inside itself
+ * rather than on the document — two scrollbars, and the inner one invisible
+ * until a reader hits it.
+ */
+@media (width <= 860px) {
+  .regions {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas:
+      "breadth"
+      "sectors"
+      "movers"
+      "topology"
+      "unusual"
+      "investigations";
+    height: auto;
+  }
 }
 
 .modules {
