@@ -2515,3 +2515,50 @@ flat state is itself one of the reserved sizers: in a silent window the row
 reserves 40 px and every state inside it fits. A silent window's Volume region
 is simply 18 px taller than a trading one, which is a property of the window
 rather than of an interaction.
+
+## 19. The densest chart this product can draw is 8,190 bars, not 9,750 — 2026-09-25 by Task 3.11.4
+
+**§16 and §18 both reason about a 9,750-bar cap. Nothing in the product can
+render one.**
+
+`timeframeForSessions` is `sessions <= MAX_MINUTE_SESSIONS ? "1m" : "1d"` with
+**`MAX_MINUTE_SESSIONS = 21`**, so the most minute bars any window can ask for
+is **21 × 390 = 8,190**. Beyond that the request becomes daily and the bar count
+collapses. Measured on the **deployed** site, which is the first time any of
+these figures has been taken anywhere but a laptop:
+
+| `?sessions=` | Bars drawn | Plot elements | Worst script in a long frame    |
+| ------------ | ---------- | ------------- | ------------------------------- |
+| 5            | 1,950      | **19**        | 69.0 ms (cold load — see below) |
+| **21**       | **8,190**  | **35**        | **41.6 ms**                     |
+| 22           | **22**     | 15            | 30.6 ms                         |
+
+**The boundary is exactly where the constant says**, which is `time-window.ts`'s
+own claim — _the mapping is what makes the server's 10,000-bar cap structurally
+unreachable_ — confirmed from outside rather than read.
+
+**So the cap is a property of the SERVER's limit, and 9,750 is a number no
+screen has ever drawn.** The API serves it — `?symbol=NVDA&timeframe=1m&sessions=25`
+returns exactly 9,750 from the deployed store — but the application never asks,
+because the URL carries a session count and the timeframe is derived from it.
+
+> **This corrects a hand-off rather than a measurement.** Story 3.9's close told
+> Story 3.11 that _a deployed re-take reaches the cap for free — ask for 25
+> sessions of `1m` on a liquid name and the answer is the cap._ True of the
+> endpoint, false of the product. **The figure that was never takeable is not
+> the one worth having**: what matters is the densest chart a reader can
+> actually produce, and that is now measured at 84% of the cap rather than
+> extrapolated from 68%.
+
+**ADR 0027's argument survives its own worst case and then some.** Its premise
+was _one element per bar at the cap is 9,790 plot elements_; the silhouette
+draws **35 at 8,190**. §18's sub-linear trend is confirmed at the real maximum
+rather than assumed past it.
+
+> **One reading recorded without a conclusion.** `?sessions=5` produced a single
+> **69.0 ms** long animation frame on one of three runs and `?sessions=21` did
+> not. That is the cold-load region Epic 14 owns — 50–76 ms measured locally on
+> three dates — appearing on the deployed site for the first time. **It is one
+> sample and the invoker is the React scheduler, which cannot attribute it**
+> between the 518-row table and the chart. It is not evidence the exception
+> moved; it is evidence it is still there, off a laptop.

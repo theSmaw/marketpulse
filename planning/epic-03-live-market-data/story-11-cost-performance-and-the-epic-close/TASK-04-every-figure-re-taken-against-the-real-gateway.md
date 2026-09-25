@@ -1,6 +1,6 @@
 # Task 3.11.4 — Every figure re-taken against the real gateway, in one sitting
 
-**Status:** Not started
+**Status:** **Partly taken — 2026-09-25, and criterion 2 is answered with a correction rather than a number.** **The 9,750-bar cap is unreachable through the product**: `MAX_MINUTE_SESSIONS = 21`, so the densest chart any window can ask for is **8,190 bars** — measured on the deployed site at **35 plot elements and 41.6 ms**, 84% of the cap rather than the 68% it was extrapolated from. The five frame-driven figures **still need the market open** and are booked with Task 3.11.8's sitting; this task took everything that did not.
 **Story:** [3.11 Cost, Performance, the Sweep & the Epic Close](STORY.md)
 **Depends on:** 3.11.1, 3.11.2
 
@@ -131,3 +131,176 @@ and the sitting is bounded by the market's hours rather than by effort.
 > upstream socket to **Alpaca** — those are two different connections, and the
 > forty-hour outage was the second one with the first working perfectly.
 > `GET /diagnostics/feed` is what answers for the upstream, and it is one curl.
+
+---
+
+## What was done — 2026-09-25, 00:05 ET
+
+### The split this task did not have: what needs a session, and what does not
+
+The sitting needs the market open and it was **00:05 ET** — nine and a half
+hours away. So the first thing was to ask which figures actually need a
+**socket** rather than a **deployment**:
+
+| Figure                                    | Needs                    | Taken                     |
+| ----------------------------------------- | ------------------------ | ------------------------- |
+| the 9,750-bar cap                         | the **store**, over HTTP | **now**                   |
+| the chart's cost at maximum density       | the store and a browser  | **now**                   |
+| plot element count at that density        | same                     | **now**                   |
+| §28's p95 gateway→repaint                 | **frames**               | the sitting               |
+| burst cost at live density                | **frames**               | the sitting               |
+| the tick at 518 rows / 517 instants       | **frames**               | the sitting               |
+| the frame payload and `sentAt`'s 36 bytes | **frames**               | the sitting               |
+| the transition's cost                     | a feed that **dies**     | the sitting               |
+| cold load, `Expand all`                   | —                        | **quote-only**, Epic 14's |
+
+**Four of nine came out of the sitting**, which matters because the sitting is
+bounded by the market's hours and shared with Task 3.11.8.
+
+### Criterion 2 — the cap has no measurement, because nothing can render one
+
+**The endpoint serves it.** `?symbol=NVDA&timeframe=1m&sessions=25` against the
+deployed store returns exactly **9,750 bars**, one `sip` source, covered edge to
+edge — Story 3.9's hand-off was right that it is free.
+
+**The application never asks.** `timeframeForSessions` is
+`sessions <= MAX_MINUTE_SESSIONS ? "1m" : "1d"` with **`MAX_MINUTE_SESSIONS =
+21`**, and the URL carries a session count from which the timeframe is derived.
+Measured from outside on the deployed site:
+
+```text
+?sessions=5    1,950 bars   19 plot elements   worst script 69.0 ms
+?sessions=21   8,190 bars   35 plot elements   worst script 41.6 ms
+?sessions=22      22 bars   15 plot elements   worst script 30.6 ms
+```
+
+**The boundary is exactly where the constant says**, which is `time-window.ts`'s
+own claim — _the mapping is what makes the server's 10,000-bar cap structurally
+unreachable_ — confirmed from outside rather than read.
+
+> **So this corrects a hand-off rather than taking a figure.** Story 3.9's close
+> told this story _a deployed re-take reaches the cap for free — ask for 25
+> sessions of `1m` and the answer is the cap._ True of the endpoint, **false of
+> the product**. And the figure that was never takeable is not the one worth
+> having: what matters is the densest chart a reader can produce, now measured
+> at **84% of the cap** rather than extrapolated from 68%.
+
+**ADR 0027 survives its own worst case and then some.** Its premise is _one
+element per bar at the cap is 9,790 plot elements_; the silhouette draws **35 at
+8,190**, and §18's sub-linear trend is confirmed at the real maximum rather than
+assumed past it.
+
+### The method note was worth inheriting, and the self-test earned its place
+
+```text
+SELF-TEST: observer COMPLAINS (3 -> 4)
+```
+
+A `long-animation-frame` entry only exists for a frame over 50 ms, so _zero
+observed_ and _the observer is broken_ are the same output. Blocking **inside** a
+`requestAnimationFrame` with a mutation after it, and confirming the observer
+complains, is what makes every number above mean something. Task 3.9.9 learned
+this the expensive way; this task paid nothing for it.
+
+### One reading recorded without a conclusion
+
+`?sessions=5` produced a single **69.0 ms** long animation frame on one run of
+three; `?sessions=21` did not. That is Epic 14's cold-load region — 50–76 ms,
+measured locally on three dates — **appearing off a laptop for the first time**.
+
+**It is one sample, and the invoker is `MessagePort.onmessage`**, the React
+scheduler, which cannot attribute it between the 518-row table and the chart.
+**It is not evidence the exception moved. It is evidence it is still there.**
+Epic 14's two figures stay quote-only and its trigger is Task 3.11.10's to
+verdict.
+
+### What the sitting still owes, and it is now five things rather than nine
+
+§28's p95 as a distribution with its n and its skew caveat; the burst cost at
+live density; the tick at 518 rows and at 517 instants; the frame payload with
+`sentAt`'s 36 bytes; and the transition. **All five need frames**, which means
+the socket, which means the market open — booked with Task 3.11.8.
+
+**And the recipe is four lines**, from Task 3.6.4's record: wrap
+`window.WebSocket` from an `addInitScript` **without** `routeWebSocket`, stamp
+`Date.now()` in the `message` listener, subtract the frame's `sentAt`, and stamp
+the table's first mutation through a `MutationObserver`. Two pages double n at
+no cost in wall time. **Do not correct for skew by subtracting the minimum** —
+that assumes the fastest frame was instantaneous.
+
+### Gates
+
+Documents and a deleted instrument. `pnpm links` green. Every reading above is
+quoted verbatim, which is the rule that stopped being followed four days ago and
+cost Task 3.11.2 a whole task.
+
+## For a stakeholder — a status report, 2026-09-25
+
+### What this was meant to be
+
+Every performance number this phase has published was measured **on a
+developer's laptop, against a fake market feed**. They are honest about what
+they measure, and none of them is the real system. This task re-takes them
+against the deployed product.
+
+**It was midnight in New York**, so the market was shut and the numbers that
+need live prices could not be taken. Rather than wait nine hours, we asked which
+of the nine actually need a **live feed** and which only need the **live
+system** — and four of the nine came out of the queue immediately.
+
+### The interesting finding is a number that does not exist
+
+We have been carrying a figure — _the chart can be asked for 9,750 price
+points, and we have never measured what that costs_ — through three separate
+pieces of work, each handing it to the next.
+
+**Nothing in the product can produce that chart.**
+
+The application decides what kind of data to fetch from the length of the period
+you pick: up to **21 trading days** it fetches minute-by-minute prices, and
+beyond that it switches to one point per day. So the most detailed chart anyone
+can ever open is **8,190 points**, not 9,750 — and the larger number is a limit
+on our _server_, not on anything a person can see.
+
+We verified the boundary from outside rather than by reading the code: 21 days
+gives 8,190 points, 22 days gives **22**.
+
+**So the honest answer to "what does the biggest chart cost" is a measurement of
+the biggest chart that exists**: 8,190 points, drawn on the live site, costing
+**41.6 milliseconds** — comfortably inside our 50 ms budget.
+
+### And a decision from two years ago paid off very visibly
+
+We chose early to draw price charts as a **single shape** rather than one
+element per data point, against an argument that the alternative would put
+nearly ten thousand elements on the page.
+
+The live site draws that 8,190-point chart in **35 elements**.
+
+### What is still owed
+
+Five numbers need actual live prices arriving — how fast a price gets from our
+server to the screen, what a minute's worth of updates costs, and what happens
+at the moment a feed dies. Those need the market open, and they are booked into
+the same sitting where a person watches the product work.
+
+**That sitting is now shorter by four numbers**, which matters more than it
+sounds: it depends on a connection we are only allowed one of, so everything
+that can be done outside it should be.
+
+### Where the product stands
+
+**The last story of the live-market phase, four of ten tasks done** — three
+complete and this one partly, with its remainder booked rather than pending.
+
+## Amended 2026-09-25 — the remainder is taken WITH Task 3.11.8, not before it
+
+**Task 3.11.8 declared `Depends on: 3.11.1, 3.11.4` and this task cannot finish
+without 3.11.8's sitting.** Each was waiting on the other. 3.11.8's dependency
+is corrected to 3.11.1 alone and the five remaining figures are listed there, so
+whoever takes the sitting has them in one place rather than in this file's
+prose.
+
+**This task stays open until that sitting**, and its status says _partly taken_
+rather than _complete_ for exactly that reason. What it did on 2026-09-25 it did
+**because** the market was shut — which is the opposite of a prerequisite.
