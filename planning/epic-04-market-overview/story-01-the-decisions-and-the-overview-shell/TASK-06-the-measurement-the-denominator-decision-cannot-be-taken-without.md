@@ -289,3 +289,43 @@ owner: the next piece of work touches exactly that part of the system.
 summary panels on the landing page can be built against a denominator we can
 defend rather than one that sounded round — and each of those is a piece of work
 with something visible at the end of it.
+
+## Amended by its own sweep — 2026-09-25: the remaining half, and the way this run can lie
+
+**This task is half done and the half that is left is a reading**, so the thing
+worth writing down now is **how the reading can be wrong**.
+
+### The run is on a laptop, and Epic 3 has the precedent
+
+`weekend-watch.mjs`'s 1,065 samples over 55 hours contained `poll-failed`
+stretches, and Task 3.11.1's verdict on them was plain: **the watching laptop
+was asleep.** This run is nine hours on the same machine.
+
+**So before the curve is read, the log is checked for holes**, and the checks
+are cheap because the instrument records what it needs:
+
+- **Sample count against elapsed minutes.** One sample a minute; 560 minutes
+  should give ~560 rows. A shortfall is machine sleep, not market silence, and
+  the two are indistinguishable in the counts themselves.
+- **`socket-close` rows.** Each is a reconnection, and a gap after one is this
+  client's rather than the deployment's — the same caveat every watcher in this
+  repository has carried.
+- **The first sample with a non-zero `held`.** Before it, the numbers are the
+  empty-map rehearsal state rather than a measurement.
+
+> **A curve computed over a log with a two-hour hole in it looks exactly like a
+> curve computed over a quiet market.** That is the failure this check exists
+> to prevent, and it is the same shape as every other instrument caveat this
+> product has recorded.
+
+### If the run is holed
+
+**Do not reconstruct it.** Re-run tomorrow — the instrument exists and is
+rehearsed, which is the whole point of having built it a day early — and say so
+rather than publishing a curve with a caveat nobody will read.
+
+### And the deletion is part of this task, not the close's
+
+`ALPACA.md` §11's shape is **run it, record the findings, delete it**, and the
+verbatim frames already in this record are what make that safe. The close
+confirms it happened; **this task does it.**
