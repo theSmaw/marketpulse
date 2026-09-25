@@ -1,6 +1,6 @@
 # Task 4.1.6 — The measurement the denominator decision cannot be taken without
 
-**Status:** **Instrument built, rehearsed and RUNNING — 2026-09-25. The curve itself is owed to this session's close, ~16:00 ET.** `scripts/coverage-curve.mjs` is subscribed to all 518 securities on the deployed gateway and sampling every minute through today's session; it was rehearsed twice against the shut market first, which is where its three findings came from. **The sentence is drafted.** What is not yet decided is **M**, because the number that decides it is being measured as this is written.
+**Status:** **Complete — 2026-09-25. M = 5 minutes, measured rather than argued, and the instrument is deleted.** The curve ran 07:13 → 16:02 ET and sampled **390 of the session's 390 minutes with no gap inside it**. The 2-minute window reads **57.5% at 13:00** — a reader meets that as a fault — while 5 minutes holds **90% median and never below 86.1% in any hour**. Written into Story 4.4's own file with the curve and the argument. **The 1-minute window is structurally zero** and that is a property of the wire, not of the feed. **And the instrument found a defect it was not looking for**: the gateway sends a `feed` frame per inbound vendor item to every browser regardless of subscription — 131,214 frames against 130,413 observations — handed to Story 4.7 with its cost, and unrepaired on purpose.
 **Story:** [4.1 The Decisions & the Overview Shell](STORY.md)
 **Depends on:** 4.1.1
 
@@ -516,3 +516,73 @@ question this sits beside.
 > browser-side liveness threshold must be derived from the **quiet** case,
 > because that is the floor — the session rate is an artefact of this defect
 > and will drop to the keepalive's 0.5/min the moment it is repaired.
+
+## The reading, at the close — 2026-09-25
+
+**Stopped at the bell with `SIGINT`, which wrote its own summary.** The run
+covered **07:13 → 16:02 ET**, 482 samples, **390 of the regular session's 390
+minutes with no gap over 90 s inside the session**. Two holes of 17 and 30
+minutes exist in the log and **both are pre-market**, which is exactly the
+shortfall between the elapsed minutes and the sample count.
+
+**M = 5 minutes**, written into Story 4.4's own file with the curve, the
+by-hour shape and the argument. The short version: the 2-minute window reads
+**57.5% at 13:00** and a reader meets that as a fault, while 5 minutes holds
+**90% median and never below 86.1% in any hour**, with a whole-day band ten
+points wide. 15 minutes buys 8.5 points and costs the word _live_.
+
+### The instrument's own summary, verbatim
+
+```text
+samples   : 482
+why       : interrupted
+startedAt : 2026-09-25T11:13:25.162Z
+endedAt   : 2026-09-25T20:02:09.699Z
+tracked   : 518
+reconnects: 3
+frames    : {'snapshot': 8, 'bars': 4113, 'feed': 131214, 'observations': 130413}
+```
+
+**That last line settles the feed defect by arithmetic rather than by
+inference**: **131,214 `feed` frames against 130,413 observations.** One per
+observation, near enough exactly, over 8h49m — against 4,113 `bars` frames,
+which is what the count would be if the frame were published per change or even
+per batch.
+
+### One bars frame, kept verbatim
+
+```json
+{
+  "type": "bars",
+  "version": 1,
+  "sentAt": "2026-09-25T12:25:00.013Z",
+  "observations": {
+    "INTC": {
+      "startsAt": "2026-09-25T12:24:00.000Z",
+      "open": 127.84,
+      "high": 127.84,
+      "low": 127.84,
+      "close": 127.84,
+      "volume": 100
+    }
+  }
+}
+```
+
+**A single-security batch, and the offset visible in one frame**: `startsAt`
+12:24:00 delivered at `sentAt` 12:25:00.013 — the bar for a minute arriving
+13 ms after that minute **ended**. That is the whole of why the 1-minute window
+is structurally zero, in one recorded frame rather than in an argument.
+
+### The instrument
+
+**Deleted**, which is this repository's shape for a throwaway.
+
+**And the evidence is only what is quoted above.** The log and the summary sit
+under `.capture/`, which is **gitignored** — so they exist on one machine and in
+no clone. That is the established arrangement and it is exactly why this section
+quotes the summary and a whole `bars` frame **verbatim** rather than citing
+them: `ALPACA.md` §11's lesson is that a findings section recording a
+_behaviour_ without the bytes that carried it reads complete until somebody
+needs the evidence rather than the conclusion, by which point the instrument is
+gone. Assume the files are gone.

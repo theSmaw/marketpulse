@@ -135,3 +135,77 @@ written as one.
 > `MarketClock`, `BackendIndicator`, `AppHeader` and `AppFooter` are in none of
 > them. The connection keeps its one home while this story adds a second kind
 > of statement beside it.
+
+## M is measured — 2026-09-25, and the answer is FIVE minutes
+
+**The denominator sentence needs a window, and Task 4.1.6 built an instrument
+to choose one rather than argue it.** A Node client on the deployed gateway,
+subscribed to all 518, sampling every 60 s from 07:13 ET through the bell.
+**390 of the session's 390 minutes were sampled and there are no gaps inside
+the session.**
+
+### The curve, regular session only (09:30–16:00 ET, n = 390)
+
+| Window | min | p10 | **median** | p90 | max | median as % of 518 |
+| ------ | --- | --- | ---------- | --- | --- | ------------------ |
+| 1 min  | 0   | 0   | **0**      | 0   | 0   | **0.0%**           |
+| 2 min  | 1   | 292 | **325**    | 385 | 513 | **62.7%**          |
+| 5 min  | 5   | 444 | **466**    | 491 | 518 | **90.0%**          |
+| 15 min | 10  | 505 | **510**    | 515 | 518 | **98.5%**          |
+| 60 min | 23  | 516 | **518**    | 518 | 518 | **100.0%**         |
+
+### The by-hour shape, which is what the choice is made from
+
+| Hour ET | 1m  | 2m      | 5m      | 15m | 60m |
+| ------- | --- | ------- | ------- | --- | --- |
+| 09      | 0   | 322     | 447     | 504 | 509 |
+| 10      | 0   | 336     | 464     | 509 | 516 |
+| 11      | 0   | 327     | 469     | 512 | 518 |
+| 12      | 0   | 325     | 462     | 511 | 517 |
+| **13**  | 0   | **298** | **446** | 508 | 517 |
+| 14      | 0   | 316     | 465     | 509 | 518 |
+| 15      | 0   | 391     | 498     | 515 | 518 |
+
+**The worst hour is what decides it**, because a median that reads well at
+11:00 and badly at 13:00 is a sentence that will embarrass this screen after
+lunch:
+
+| Window | worst hour | worst-hour median | %         |
+| ------ | ---------- | ----------------- | --------- |
+| 2 min  | 13:00      | 298/518           | **57.5%** |
+| 5 min  | 13:00      | 446/518           | **86.1%** |
+| 15 min | 09:00      | 504/518           | 97.3%     |
+
+### So: M = 5 minutes
+
+- **1 minute is structurally impossible**, not merely thin. A bar's `startsAt`
+  is the start of the minute it describes and it arrives ~0.5 s after that
+  minute **ends**, so the newest observation is always 60–120 s old. Measured
+  as **0 in every one of 390 samples**. A sentence offering a 1-minute window
+  would always read _0 of 518_.
+- **2 minutes reads as a fault.** _325 of 518_ is 63%, and at 13:00 it is
+  **298 — under 60%**. A reader meeting that beside a breadth figure concludes
+  the feed is broken, which is precisely the confusion Task 4.1.5 wrote the
+  one-home rule to prevent. The chrome would say `LIVE` while the figure said
+  57%.
+- **5 minutes holds 90% at the median and never drops below 86% in any hour.**
+  Its whole-day band is **446–498**, ten points wide. The sentence reads the
+  same after lunch as it does at the open, which is the property being bought.
+- **15 minutes buys 8.5 points and costs the word _live_.** A figure qualified
+  by a fifteen-minute window is not describing a live market, and this screen's
+  whole claim is that it is current.
+
+**So the sentence's shape is _N of 518 in the last 5 minutes_, with N typically
+around 466 and legitimately as low as ~446 after lunch.** Do not round N, do not
+hide it when it dips, and do not colour it — it is a property of the IEX plan
+(`PRODUCT_SPEC.md` §7.1), stated calmly, not a warning.
+
+> **And the floor is a floor.** Every figure here is a **lower bound**: a
+> revision for a superseded minute never reaches a browser and is invisible to
+> the instrument too, and a security that has not traded in the process's
+> lifetime is absent rather than stale. The true coverage is at least this.
+>
+> **Corroboration from an independent angle**: `LIVE-DATA.md` §7.6 measured
+> **65.1% median per-symbol minute coverage** a fortnight ago by a different
+> method, and the 2-minute figure here is 62.7%. Two measurements, two methods,
+> two weeks apart, agreeing.
