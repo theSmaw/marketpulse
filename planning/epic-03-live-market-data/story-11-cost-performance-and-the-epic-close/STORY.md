@@ -813,3 +813,31 @@ observed" and "the observer is broken" are the same output. Task 3.9.9's first
 self-test reported zero because it blocked **outside** an animation frame on an
 idle page. Block inside a `requestAnimationFrame`, with a mutation after it, and
 confirm the observer complains **before** believing any silence it reports.
+
+## Handed here by Story 3.10's close — 2026-09-24
+
+This story already names Story 3.10 for backoff and retry. What follows is
+**new** and is not covered by that.
+
+- **The deployed re-take of this story's figures.** Task 3.10.4 measured the
+  per-row cost of dating a stale row on a **production build against a local
+  pair** — **36.75–36.83 ms of script a tick** at the worst case (every one of
+  517 rows behind, every instant drawn), against §28's 50 ms. It is a loopback
+  figure like every other in this epic. Re-take it against the deployed
+  gateway during a session, with the rest.
+- **The transition's own cost, which is UNMEASURED and was not taken.** A feed
+  dying changes one field on one view and re-renders every surface at once —
+  a burst with a different shape from a bar arriving. Story 3.10 declined to
+  measure it and said why: §28's word is **routine**, and a disconnection is a
+  one-off, so it falls where the cold load falls rather than where the tick
+  does. **That is an argument and not a measurement**, and this story is where
+  arguments of that kind get numbers.
+- **Eight diagnostic events that reach production nowhere.** `market-stream.ts`
+  never references `onLog`, which is why a dead feed ran for **nineteen hours**
+  unseen. Story 3.10 did not repair it — it is a cost-and-observability
+  question rather than a degraded-state one.
+- **`docs/GAPS.md`'s socket-churn entry**, added 2026-09-24: an ordinary
+  security page opened **three market-stream sockets in twelve seconds**
+  locally, and the deployed gateway's own client saw **2 reconnects in 420
+  minutes**. The re-measure named there — the same counter run against
+  `pnpm e2e:deployed` — belongs in this story's deployed pass.

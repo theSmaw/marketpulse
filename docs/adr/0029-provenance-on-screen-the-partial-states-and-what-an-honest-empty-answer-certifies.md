@@ -377,3 +377,41 @@ document for.
   §14.1 — the coverage rule the coverage sentence qualifies
 - [ADR 0028](0028-the-time-window-the-per-bar-mark-and-the-answer-that-stays-on-screen.md)
   — the window the coverage sentence is measured against
+
+## Amended 2026-09-24 by Story 3.10 — the fourth rule applied to a claim that STOPS being true while somebody watches
+
+Every claim this ADR was written about is settled when it is made: a retrieval
+instant, an adjustment, a bar count. Story 3.10's is not — **the connection
+changes while the page is open** — and the four rules hold unamended in three
+cases and need one sentence added in the fourth.
+
+- **A claim about data requires data.** Unchanged, and it decided where the
+  live row does _not_ draw: a stretch marked _still being added to_ renders only
+  where this page has watched a bar arrive **for this security**, never from
+  the feed merely being live (Task 3.10.8).
+- **A surface may make the confident claim only when the thing that would
+  license it has been read.** Unchanged.
+- **One fact has one home.** It did the most work here: it **released**
+  `VISUAL-LANGUAGE.md`'s reservation for §36's sentence in the ledger, because
+  the chrome already had the sentence; and it **deleted** `BarSeriesPanel`'s
+  second drawn feed line, which had armed itself two years after being written
+  (Task 3.10.9).
+- **The surface that owns the data owns the account of it, and everything else
+  points once and stops.** **This is the one that needed saying out loud for a
+  changing claim.** The connection has one owner — the status bar — and five
+  other surfaces on the security page stay quiet about it by decision, each
+  taken with a measurement: the identity block already dates its own instant
+  (3.10.3), the plot draws nothing from a socket because a mark derived from
+  the connection is neither of the two kinds `CHARTING.md` allows (3.10.5), and
+  the source note says only what it alone owns (3.10.8).
+
+**The addition: when the owning surface is the ONLY one that speaks, it owes a
+listener more than presence.** A drawn word nobody looks at is not an account.
+So that cell announces a **degradation** and nothing else — silent on mount,
+silent on recovery (Task 3.10.6) — which is this rule's consequence rather than
+a new rule.
+
+**And the cost, recorded rather than resolved**: one owner, at the foot of a
+sticky bar, means that at 390 the distinction between _the feed stopped_ and
+_the market is shut_ is below the fold. `docs/GAPS.md`; owner a person before
+Epic 4.

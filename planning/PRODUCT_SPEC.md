@@ -1458,6 +1458,14 @@ The charts and successfully gathered evidence remain visible.
 
 The product should degrade incrementally rather than collapsing into one global error screen.
 
+**Amended 2026-09-24 by Story 3.10 — this shipped, and the wording differs from the line above in three ways that are each a decision.** What a reader sees is:
+
+> **DISCONNECTED** — The live feed is not connected. Prices shown are the last known. Showing data through Sep 24 · 05:05 EDT.
+
+**The word is a state rather than a sentence fragment**, because `live | stale | disconnected` is a shipped vocabulary with one home and three members, and `stale` — connected and silent — is a state this section does not name but the product needs: on IEX a silent minute is ordinary (65.1% median per-symbol coverage), so _not connected_ and _connected and quiet_ are different claims. **The instant carries a date and a timezone** rather than a bare `10:42:17`, because a page left open overnight would otherwise say `10:42:17` about yesterday. And **`Prices shown are the last known` is stated** rather than implied, because the line above describes what the product does and this sentence has to say it to the person reading it.
+
+**The rule under it is met as written and is stronger than it reads.** Killing the feed leaves `main`'s text **byte-identical** — asserted, not argued — and no page error is raised in any of nine produced states. What moved is that the connection has exactly **one** home: the status bar. Every other surface stays quiet by decision, each taken with a measurement behind it, because a page where six surfaces announce one fact is how two of them come to disagree.
+
 ---
 
 # 37. V1 scope

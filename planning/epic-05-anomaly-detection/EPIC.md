@@ -237,3 +237,39 @@ a design constraint rather than a warning:
   cannot absorb: Epic 14 already owns a per-row breach on this page, and its
   reversal trigger is _the first time a second surface renders per-row markup at
   universe scale_.
+
+### Handed here by Story 3.10 — 2026-09-24: the degraded set exists, inherit it rather than re-inventing it
+
+**Every live surface has degraded states and this product has already
+enumerated them once**, produced rather than imagined: nine of them,
+photographed at 1440, 1024, 768 and 390, with the text of six surfaces compared
+so _do two states read identically_ is answered by strings rather than by eye
+(Task 3.10.9). The set, the unreachable cells and why they are unreachable are
+in that task's record.
+
+**Three rules travel with it and each is somebody's measured defect:**
+
+- **`FeedStatus` is about the CONNECTION and `MarketSessionStatus` about the
+  SESSION**, and they must not be collapsed. The market being open does not
+  mean data is flowing, and the market being shut is not a feed failure — a
+  quiet socket at 02:00 is correct and must not read as broken.
+- **A quiet security is not a broken feed.** IEX's median per-symbol minute
+  coverage is **65.1%** and the worst case is **2.1%** (`LIVE-DATA.md` §7.6);
+  `LIVE-DATA.md` §11.2 measured an ordinary maximum gap of **187 minutes**.
+  Anything that reports silence as a fault will cry wolf on thin names all day.
+- **The connection has ONE home** — the status bar — and every other surface
+  stays quiet by decision (ADR 0029's fourth rule; Tasks 3.10.3, 3.10.5 and
+  3.10.8 each took it with reasons). A second surface reporting the connection
+  is the defect this product has produced four times on one screen.
+
+**And one unrepaired consequence, recorded in `docs/GAPS.md`**: because the
+connection has one home and that home is sticky at the **foot** of the
+viewport, at 390 the distinction between _the feed stopped_ and _the market is
+shut_ is below the fold. No check can see it.
+
+**What this epic must not do with it:** compute a score over a window whose
+data stopped arriving and present it as current. A score is a claim about _now_
+and the series behind it can be degraded in any of the ways above — including
+a gap in the middle that is **indistinguishable from a quiet security**, by
+decision and with the measurement behind it (Task 3.10.5). `PRODUCT_SPEC.md`
+§11's _every score must carry its explanation_ is where that belongs.

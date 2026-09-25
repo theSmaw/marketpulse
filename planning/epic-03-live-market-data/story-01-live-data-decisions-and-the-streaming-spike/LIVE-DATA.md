@@ -467,6 +467,17 @@ wanting to hold a socket.
 ### 2.5 The staleness vocabulary, in numbers
 
 > **ANSWERED 2026-09-17 — §11.2, and it takes opposite answers at two scales.** The **feed** gets three words and two numbers (165 s disconnected, 60 s stale, gated on the market clock). A **security** gets **no threshold at all** — its gap p50 is 1 minute and its maximum is 187, so no number can separate a quiet security from a broken one. It carries an age, not a verdict.
+>
+> **UPHELD and SHIPPED 2026-09-24 by Story 3.10**, which is the first work that
+> had to act on it. Task 3.10.1's decision 1 put the question to the owner as
+> _per-security staleness threshold, or no threshold_ and the answer was **date
+> it, the way a stored close is dated** — no number, no verdict, no per-security
+> tuning. Tasks 3.10.3 and 3.10.4 built it: the identity block already carried
+> the bar's own instant, and the universe table's row now reads
+> `Live price from 12:07` **when that row is behind the newest observation on
+> the page** — a comparison against what this page has actually seen rather than
+> against a clock. The 187-minute maximum is what any threshold would have had
+> to survive, and no threshold was written.
 
 **The question.** `FeedStatus` ships `live | stale | disconnected` and says
 **nothing about when one becomes the next**. Two numbers are missing: how long
