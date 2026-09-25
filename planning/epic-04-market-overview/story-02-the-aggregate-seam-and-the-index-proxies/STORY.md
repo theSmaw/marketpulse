@@ -109,3 +109,27 @@ it**, and three things travel with the decision:
 > sees comes from deterministic code. §17's analytical tools are backend tools,
 > so **Epic 5's anomaly scores cannot live in a browser**, and an aggregate
 > seam built there would be rebuilt within one epic.
+
+## Amended by Task 4.1.6 — 2026-09-25: one subscribe produces TWO snapshots, and this story owns the wire
+
+**Measured while rehearsing a coverage instrument**, on the deployed gateway:
+one `socket-open`, one `subscribe`, `reconnects: 0` — and **`snapshot: 2`**.
+Reproduced on both rehearsal runs.
+
+**Task 4.1.3 saw the browser-side version and mis-attributed it.** A page
+opened three snapshots, and that was put down to the application subscribing
+more than once as components mounted. **This client subscribes exactly once**,
+so at least one of them is the gateway's.
+
+**Why it matters here rather than as a curiosity**: mid-session a snapshot
+carries **every subscribed security** — the eleven places that say `56.9 KiB`
+are about a frame of that shape — so a spare snapshot per connection is a
+duplicate of the largest frame on the wire, per browser, at exactly the moment
+the market opens and every browser connects at once.
+
+**This story is the one that touches this wire**, adding the overview frame
+(Task 4.1.1's decision 2). **Find out why before adding to it**, because a
+protocol whose existing frames are not understood is a protocol that grows
+another one nobody understands. It may be correct — an initial snapshot plus
+one on the first subscribe acknowledgement — and if it is, say so where the
+next reader looks.

@@ -49,3 +49,27 @@ a foregone conclusion.
 2. The time to notice is a number or an explicit _did not notice_
 3. The entry says what is now known, and any repair carries the one-home rule
    in its reasoning
+
+## Amended by Task 4.1.6 — 2026-09-25: one session serves both, and it is already running
+
+**The coverage instrument is live and covers today's session** — started 07:13
+ET for 560 minutes, through the close. **This task needs the same session**, and
+Epic 3's most-repeated scheduling lesson is that the scarce thing is the sitting
+rather than anybody's attention.
+
+**So take them together.** Nothing else has to be started: the curve is
+collecting itself, and what this task adds is a person with a phone during the
+same hours.
+
+### And one thing is already known that narrows the question
+
+Task 3.11.8 measured that **at 390 × 780 the status bar is on screen**, sticky
+at the foot, about four wrapped lines. So _below the fold_ is the wrong
+description of the shipped page.
+
+**The question is noticing, not presence** — and since Task 4.1.3 the landing
+page at 390 is **seven stacked regions**, which is a taller scroll than the page
+that measurement was taken against. **A reader at the top of that scroll is
+further from the status bar than they were**, which is the case this task should
+actually test: not _can you see it_ but _do you notice it change while you are
+reading a figure_.

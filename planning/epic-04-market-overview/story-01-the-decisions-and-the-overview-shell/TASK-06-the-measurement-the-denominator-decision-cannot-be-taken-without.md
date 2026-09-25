@@ -1,6 +1,6 @@
 # Task 4.1.6 — The measurement the denominator decision cannot be taken without
 
-**Status:** Not started
+**Status:** **Instrument built, rehearsed and RUNNING — 2026-09-25. The curve itself is owed to this session's close, ~16:00 ET.** `scripts/coverage-curve.mjs` is subscribed to all 518 securities on the deployed gateway and sampling every minute through today's session; it was rehearsed twice against the shut market first, which is where its three findings came from. **The sentence is drafted.** What is not yet decided is **M**, because the number that decides it is being measured as this is written.
 **Story:** [4.1 The Decisions & the Overview Shell](STORY.md)
 **Depends on:** 4.1.1
 
@@ -101,3 +101,231 @@ discovered at the one moment nobody could retry it.
 URL and drains them on a tick.** Check it before writing anything: this task may
 be an extension of an instrument that exists rather than a new one, and the
 existing one is already rehearsed.
+
+---
+
+## What was done — 2026-09-25
+
+### The route the store cannot take, ruled out before writing anything
+
+**The obvious cheap answer is the database**, and it does not work. `market_bars`
+holds every stored IEX row, so an SQL query over a past session looks like it
+would give the curve for free and with no clock in it.
+
+**The nightly backfill covers every regular-session minute with consolidated
+SIP**, and the served read prefers `sip` where a minute holds both
+(`LIVE-SESSION.md` §14). So a query after the backfill **cannot see the IEX
+holes at all** — it sees a complete tape, and would report a denominator of 518
+with total confidence.
+
+> **The hole is only visible while the session is running**, in the same map a
+> browser holds. That is why this measurement needs a clock, and it is the
+> whole reason the task exists rather than being an afternoon's SQL.
+
+### The instrument
+
+`scripts/coverage-curve.mjs` — **a second client on our own gateway, never on
+Alpaca**, which is the discipline `weekend-watch.mjs` and `session-watch.mjs`
+both took: the free plan allows one connection and production has it. A second
+gateway client costs a duplicate copy of each frame and nothing scarce.
+
+It subscribes to all 518, tracks each symbol's **newest observation instant**,
+and samples every minute: for each of **1, 2, 5, 15 and 60 minutes**, how many
+of the universe fall inside that window. It keys on the bar's own `startsAt`
+rather than on arrival, because that is what a browser's map holds and what a
+denominator would be computed from.
+
+**The summary is computed from the log rather than from memory**, so a run that
+is killed still summarises — and it reports **min, median and max** per window
+plus the **shape by market hour**, because a mean would hide exactly the
+lunchtime thinness this exists to find.
+
+### Rehearsed twice against the shut market, and it found three things
+
+**This is Epic 3's most expensive lesson applied early** — Task 3.11.8's
+rehearsal found four faults in its own instrument, every one of which would
+otherwise have surfaced at the one moment nobody could retry it.
+
+**1. A dead loop in the summary that lint could not see.** The first draft
+carried `for (const line of appendFileSync ? [] : []) rows.push(line)` — a
+leftover that iterates nothing, reads as intent, and passes `eslint`
+cleanly. Found by running it and reading the output, which is the only thing
+that could have.
+
+**2. The summary printed no curve at all**, because the block that computed it
+was that loop. A summary with a plausible shape and no numbers in it is exactly
+the failure a rehearsal is for.
+
+**3. `held=0/518`.** With the market shut the deployed process's current-state
+map is **empty**, which is Story 3.5's property 4 — _an empty map is a
+legitimate value rather than a degraded one_ — and the instrument reads it
+correctly. **But it means the rehearsal proved the subscribe, the frame reader
+and the sampler, and could not prove the observation path.** That is stated
+here rather than discovered tonight.
+
+### Two observations the rehearsal produced that are not this task's
+
+**The gateway sends a `feed` frame every 20–50 s, unchanged.** Four in two
+minutes, all identical:
+
+```json
+{"at":"2026-09-25T11:09:13.237Z","kind":"feed","feed":{"status":"live","feed":"iex","marketOpen":false}}
+{"at":"2026-09-25T11:09:34.406Z","kind":"feed","feed":{"status":"live","feed":"iex","marketOpen":false}}
+{"at":"2026-09-25T11:10:07.236Z","kind":"feed","feed":{"status":"live","feed":"iex","marketOpen":false}}
+{"at":"2026-09-25T11:11:01.244Z","kind":"feed","feed":{"status":"live","feed":"iex","marketOpen":false}}
+```
+
+**That is correct and it explains itself**: `LIVE-DATA.md` §11.2 makes
+`disconnected` fire after **165 s with no inbound frame of any kind**, so a
+quiet market needs the gateway to say something. The feed frame is the
+heartbeat. Worth writing down because it looks like chatter until you know why.
+
+**And one subscribe produces TWO snapshots.** One `socket-open`, one
+`subscribe`, `reconnects: 0`, `snapshot: 2` — reproduced on both rehearsal
+runs. Task 4.1.3's browser observation was three snapshots per page and was put
+down to the page subscribing more than once; **this client subscribes exactly
+once.** Mid-session a snapshot carries every subscribed security, so a spare
+one is not free. **Handed to Story 4.2**, which owns the seam and will be
+adding a frame type to this wire.
+
+### The sentence, drafted
+
+> **Of the 518 securities we track, 341 were heard from in the last 5 minutes.**
+
+**Three things about it are decisions rather than phrasing:**
+
+- **It names the universe first and the count second**, so the figure a reader
+  meets is _how many we track_ rather than _how many are missing_. The same
+  fact framed as a shortfall reads as a fault.
+- **It does not reach for `live`, `stale` or `disconnected`.** Those are a
+  three-member vocabulary with one home (`one-home-for-the-feed-words`), and a
+  coverage sentence borrowing them would trip a check written for a different
+  reason — and would deserve to. The chrome says whether data is **arriving**;
+  this says what **one figure could see**.
+- **It qualifies a figure rather than the screen**, in the register the source
+  note uses for an adjustment: stated once, calmly, beside the thing it
+  qualifies. `5` is a placeholder until the curve returns.
+
+### What is owed, and when
+
+**The run is live.** Started 07:13 ET, 560 minutes, covering pre-market through
+the close at 16:00 ET:
+
+```sh
+node scripts/coverage-curve.mjs 560
+# → .capture/coverage/coverage-<stamp>.jsonl and summary-<stamp>.json
+```
+
+**M is chosen from `shapeByMarketHour`**, not from the median: a window that
+covers 90% at the open and 60% over lunch is a window that will embarrass this
+screen at 12:30, and the by-hour shape is the only view that shows it.
+
+**Then the instrument is deleted**, which is this repository's shape for a
+throwaway — and the verbatim frames above are why the findings survive it.
+
+### Gates
+
+`pnpm links` green. `eslint` clean on the new script. No product code changed.
+
+## For a stakeholder — a status report, 2026-09-25
+
+### The question
+
+The landing page will soon say things like **"42% of the market is falling."**
+
+That sentence has a hidden question in it: **out of how many?** Our market feed
+is one exchange's view of the market, and on a typical minute only about
+two-thirds of the companies we track have reported a price. A percentage
+computed over "whatever we happened to hear" is a percentage that changes
+meaning throughout the day without saying so.
+
+**We decided earlier this week to say it out loud** — _of the 518 we track, N
+were heard from in the last M minutes_. This task measures the one number in
+that sentence we cannot guess: **M**.
+
+### Why we could not just look it up
+
+Our database holds every price we have ever stored, so the obvious move is a
+query. **It gives the wrong answer, confidently.**
+
+Every night we backfill the day's prices from a complete market feed, which
+fills in everything the live feed missed. So a query run today about yesterday
+sees a perfect record and would report that we hear from all 518 companies —
+**which is true of our archive and false of our live screen.**
+
+> The gap is only visible **while the market is open**. That is why this needed
+> a measurement rather than a query, and it is why the answer arrives this
+> evening rather than this afternoon.
+
+### What we built, and what rehearsing it caught
+
+A small monitoring script now sits alongside our live market connection,
+counting every minute how many of the 518 companies have reported within one,
+two, five, fifteen and sixty minutes. It runs through today's session.
+
+**We rehearsed it against the closed market first**, and that caught three
+problems — including a block of code that quietly did nothing, which meant the
+summary would have printed a beautifully-shaped report **with no numbers in
+it**. Discovering that tonight, after the one session we can measure, would
+have cost a day.
+
+> This is now the second time this week that rehearsing an instrument before it
+> matters has paid for itself. The first found four faults.
+
+### Two things we noticed that were not what we were looking for
+
+Our own server sends a small "still here" message every thirty seconds or so
+even when nothing is happening. That is correct — it is how the browser knows
+the connection is alive rather than silently dead — and it is the kind of thing
+that looks like noise until somebody writes down why it exists.
+
+And **one request for data produces two full replies**, which on a busy screen
+is a duplicate of everything. Small, but it is pure waste, and it now has an
+owner: the next piece of work touches exactly that part of the system.
+
+### Where this leaves us
+
+**The sentence is written and the number arrives tonight.** After that, the four
+summary panels on the landing page can be built against a denominator we can
+defend rather than one that sounded round — and each of those is a piece of work
+with something visible at the end of it.
+
+## Amended by its own sweep — 2026-09-25: the remaining half, and the way this run can lie
+
+**This task is half done and the half that is left is a reading**, so the thing
+worth writing down now is **how the reading can be wrong**.
+
+### The run is on a laptop, and Epic 3 has the precedent
+
+`weekend-watch.mjs`'s 1,065 samples over 55 hours contained `poll-failed`
+stretches, and Task 3.11.1's verdict on them was plain: **the watching laptop
+was asleep.** This run is nine hours on the same machine.
+
+**So before the curve is read, the log is checked for holes**, and the checks
+are cheap because the instrument records what it needs:
+
+- **Sample count against elapsed minutes.** One sample a minute; 560 minutes
+  should give ~560 rows. A shortfall is machine sleep, not market silence, and
+  the two are indistinguishable in the counts themselves.
+- **`socket-close` rows.** Each is a reconnection, and a gap after one is this
+  client's rather than the deployment's — the same caveat every watcher in this
+  repository has carried.
+- **The first sample with a non-zero `held`.** Before it, the numbers are the
+  empty-map rehearsal state rather than a measurement.
+
+> **A curve computed over a log with a two-hour hole in it looks exactly like a
+> curve computed over a quiet market.** That is the failure this check exists
+> to prevent, and it is the same shape as every other instrument caveat this
+> product has recorded.
+
+### If the run is holed
+
+**Do not reconstruct it.** Re-run tomorrow — the instrument exists and is
+rehearsed, which is the whole point of having built it a day early — and say so
+rather than publishing a curve with a caveat nobody will read.
+
+### And the deletion is part of this task, not the close's
+
+`ALPACA.md` §11's shape is **run it, record the findings, delete it**, and the
+verbatim frames already in this record are what make that safe. The close
+confirms it happened; **this task does it.**

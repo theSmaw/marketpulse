@@ -227,3 +227,23 @@ the repair was to make sure everything that could be done without one was. The
 same applies here — the instrument, the wording, the sweep and the decisions
 are all doable in daylight, and what genuinely needs the bell is **one poll and
 one look.**
+
+## Amended by Task 4.1.6 — 2026-09-25: two things to confirm rather than assume
+
+**Task 4.1.6 is half done**, and the close is what notices if the other half
+did not happen.
+
+- **The curve was read, and read from a log without holes.** The instrument
+  runs nine hours on a laptop; Epic 3's weekend watch contained stretches that
+  were the machine asleep rather than the market quiet, and **a curve computed
+  over a holed log looks exactly like a curve computed over a quiet market.**
+  Task 4.1.6 carries the three checks; the close confirms they were run.
+- **The instrument was deleted.** `ALPACA.md` §11 — _run it, record the
+  findings, delete it_ — and the rule that makes deletion safe is that the
+  findings quote at least one frame verbatim. **They do.** The close checks the
+  script is gone rather than assuming, because an instrument left in `scripts/`
+  is one a later reader takes for a supported tool.
+
+**And `M` must be in Story 4.4's file rather than only in Task 4.1.6's**, in the
+sentence that story will render. A number recorded only in the task that
+measured it is a number the story that needs it will re-derive.
