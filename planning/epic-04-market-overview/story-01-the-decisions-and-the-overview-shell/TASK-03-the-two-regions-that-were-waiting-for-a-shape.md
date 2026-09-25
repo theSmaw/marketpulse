@@ -43,3 +43,23 @@ the three existing deferrals use.
    product already made once, when a defaulted search note invited a reader to
    use a control that had just said it was unavailable
 3. `pnpm probe`'s resolved grid tracks match what the canvas drew
+
+## Amended by Task 4.1.1 — 2026-09-25: this task also removes the paragraph that says it twice
+
+**There is a fifth surface above the four regions**, and nothing owned it: a
+`Placeholder` whose prose describes the whole screen — _"index and ETF
+summaries, an unusual activity feed, market breadth, sector performance and the
+topology. Epic 4 builds it on live data, Epic 5 scores the anomalies in it and
+Epic 6 draws the topology."_
+
+**That is the same claim the four `filledBy` sentences make, in one more
+place.** Today it is harmless, because everything below it is a deferral and
+the paragraph summarises four deferrals. **The moment this task adds two real
+regions it becomes a paragraph describing a screen that no longer matches it**
+— and one fact with two homes is the defect this product has shipped twice, in
+a chrome cell and in a ledger, both inheriting a word that had stopped being
+true.
+
+**So the paragraph goes in this change**, not in 4.1.4's. What survives it is
+the `Region`s' own sentences, which are per-region, specific, and already the
+established idiom.

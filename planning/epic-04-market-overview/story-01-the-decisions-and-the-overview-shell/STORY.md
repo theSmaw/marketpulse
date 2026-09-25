@@ -75,6 +75,42 @@ saying which for neither — and repaired it both times with **one home**.
 Each of them fills a region of a screen that already exists, which is the
 difference between five visible increments and one big-bang landing page.
 
+## Decisions taken — 2026-09-25 by Task 4.1.1
+
+**Three of the four are answered. The fourth is booked rather than open**, and
+the distinction is the useful output: a decision recorded as _taken_ when it
+was in fact assumed is the shape this product produced twice in Epic 3.
+
+| #   | Decision                       | Answer                                                                                                                                                                   | Consumer                      |
+| --- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
+| 1   | The denominator                | **A freshness window, stated on screen** — _"of the 518 we track, N were heard from in the last M minutes"_. **M comes from Task 4.1.6's curve**, not from this decision | 4.4, inherited by 4.3 and 4.5 |
+| 2   | Where an aggregate is computed | **A new frame on the existing socket.** Computed once for every browser, arriving on the same clock as the prices it describes                                           | 4.2 builds it                 |
+| 3   | The 390 fold                   | **Booked, not answered** — it needs a phone during a session                                                                                                             | 4.1.7                         |
+| 4   | Re-ordering                    | **Re-rank, and mark what moved** — the motion vocabulary's own rule, _a fact arriving DECAYS_                                                                            | 4.5 owns the treatment        |
+
+**Why decision 2 went to the socket rather than to the browser**, which was the
+cheaper option and was rejected with reasons:
+
+- **One computation rather than 518 browsers' worth.** The browser option puts
+  four aggregate regions into the same tick Task 3.6.5 measured at **37–40 ms**
+  for the table alone, on the page Epic 14's trigger names by condition.
+- **Epic 5's scores cannot live in a browser.** `PRODUCT_SPEC.md` §5.1 is that
+  the LLM never calculates and every number comes from deterministic code; §17's
+  tools are backend tools. An aggregate seam in the browser would be rebuilt
+  within one epic.
+- **It arrives on the clock it describes.** A polled HTTP route would be the
+  only polled live number in a product whose live path is a socket.
+- The cost is stated rather than waved at: **the wire protocol widens**, and
+  ADR 0031 and ADR 0033 govern what a frame may carry.
+
+**Why decision 1 is a window rather than the three-way count**, which was the
+more honest-looking option: the three-way needs `unchanged` and `unobserved` to
+be told apart on screen, and §9 sketches breadth as three percentages that
+already include `unchanged`. A window keeps the spec's shape and moves the
+honesty into a sentence a reader can act on — **and it is the option that
+degrades gracefully when the feed thins at lunchtime**, which the curve in 4.1.6
+is being measured to find.
+
 ## Open decisions — each to be settled with the owner, in writing, before 4.2
 
 ### 1. The denominator: what does _current_ mean?

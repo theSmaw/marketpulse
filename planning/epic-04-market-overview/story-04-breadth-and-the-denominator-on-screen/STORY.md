@@ -80,3 +80,23 @@ product's language means it belongs with the provenance treatment
 
 Breadth per sector (a candidate, and it is Epic 5's input rather than this
 screen's), and breadth as an anomaly factor (§11, Epic 5).
+
+## Amended by Task 4.1.1 — 2026-09-25: the denominator is a freshness window, and the words are this story's
+
+**The owner chose a stated freshness window** over the three-way count, over
+_whatever is in the map_, and over last session's close-to-close:
+
+> **Of the 518 we track, N were heard from in the last M minutes.**
+
+**M is not chosen here.** Task 4.1.6 measures how many of 518 have an
+observation inside 1, 2, 5, 15 and 60 minutes across a session, and **M comes
+off that curve** — the point of measuring it is that a window picked without
+one is a number picked because it sounded round.
+
+**What this story owns is the sentence**, and it is load-bearing rather than a
+footnote: a breadth figure whose denominator is invisible is the exact shape
+Epic 4's `EPIC.md` was written to prevent. The rejected option is worth keeping
+in view — the three-way count needed `unchanged` and `unobserved` told apart on
+screen, and §9 already sketches breadth as three percentages including
+`unchanged`, so the window keeps the spec's shape and puts the honesty in a
+sentence.

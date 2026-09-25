@@ -49,3 +49,17 @@ rather than a plausible one.
    a reversal trigger written as a condition
 3. The words the screen will use are drafted here, because a denominator
    nobody can phrase is a denominator that will not be shown
+
+## Amended by Task 4.1.1 — 2026-09-25: the decision is taken, and this task supplies its one number
+
+**The owner chose a stated freshness window**, so the question this task answers
+is narrower than it was written: not _what shape should the denominator be_ but
+**what should M be**.
+
+> _"Of the 518 we track, N were heard from in the last M minutes."_
+
+**So the curve is the deliverable and M is the output**, and the windows to
+sample are the ones a sentence could plausibly carry: **1, 2, 5, 15 and 60
+minutes**. What makes M defensible is the **shape across a session** — a window
+that covers 90% at the open and 60% over lunch is a window that will embarrass
+this screen at 12:30.

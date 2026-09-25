@@ -85,3 +85,23 @@ new file, because the vocabulary's value is that it is one page.
 
 Anomaly-ranked lists (Epic 5 — _unusual_ is not _largest_), sparklines per row
 (Epic 6/8), and any sort control on the universe table.
+
+## Amended by Task 4.1.1 — 2026-09-25: the ranking rule is decided, the treatment is not
+
+**The owner chose re-rank, and mark what moved** — from four options including
+freezing under the pointer and ranking on a slower cadence.
+
+**So the rule is settled and this story's work is the treatment.** The motion
+vocabulary already supplies the grammar — **work in progress LOOPS, a state
+PERSISTS, a fact arriving DECAYS** — and a re-order is a fact arriving about a
+row, which points at a decaying mark rather than a sustained one.
+
+**What the decision does not settle, and this story must**: what the mark is,
+how long it lasts, what happens when several rows move at once, what a reader
+with `prefers-reduced-motion` gets, and **what protects a row that is under a
+pointer or a focus ring at the moment it moves**. The rule permits re-ordering;
+it does not permit a target moving out from under a click.
+
+> **Take it against real movement.** Story 3.4 settled the first motion
+> decision in front of four treatments running on the real component at 1×
+> against replayed bars, and that is the bar this decision inherits.
