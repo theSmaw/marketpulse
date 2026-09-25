@@ -100,3 +100,38 @@ in view — the three-way count needed `unchanged` and `unobserved` told apart o
 screen, and §9 already sketches breadth as three percentages including
 `unchanged`, so the window keeps the spec's shape and puts the honesty in a
 sentence.
+
+## Amended by Task 4.1.5 — 2026-09-25: this screen carries TWO kinds of "how current is this", and the denominator is the second
+
+**The chrome already makes a statement about currency, and this story makes a
+different one.** They answer different questions, they can legitimately
+disagree, and a reader must not read one as the other.
+
+| Says                                                           | About                                                                   | Home                             |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------- |
+| `LIVE` / `STALE` / `DISCONNECTED`                              | **the connection** — is data arriving at all                            | the status bar, and nowhere else |
+| _Of the 518 we track, N were heard from in the last M minutes_ | **the coverage of one figure** — how much of the market this number saw | beside the figure it qualifies   |
+
+**A healthy `LIVE` feed with 341 of 518 names heard from in the last five
+minutes is the ordinary state of IEX** — 65.1% median per-symbol coverage,
+`LIVE-DATA.md` §7.6 — so the denominator is not a fault report and must not be
+written as one.
+
+### What that means for the sentence this story writes
+
+- **It must not reach for `live`, `stale` or `disconnected`** to describe
+  coverage. Those are a shipped three-member vocabulary with one home, and a
+  sentence borrowing them would trip `one-home-for-the-feed-words` — which
+  exists for a different reason and **would deserve to fire**.
+- **It qualifies a figure rather than the screen.** It sits beside the breadth
+  count it describes, not in a corner as a page-level status.
+- **It is not a warning.** The coverage of the IEX feed is a property of the
+  plan this product is on, stated once and calmly, in the way the source note
+  states an adjustment.
+
+> **Task 4.1.5 checked the other half and it holds**: nothing the landing route
+> can reach renders a clock, a session word or a connection word. The route's
+> transitive import closure is **fifteen files**, and `FeedIndicator`,
+> `MarketClock`, `BackendIndicator`, `AppHeader` and `AppFooter` are in none of
+> them. The connection keeps its one home while this story adds a second kind
+> of statement beside it.

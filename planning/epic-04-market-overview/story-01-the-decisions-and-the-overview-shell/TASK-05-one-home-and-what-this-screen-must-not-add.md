@@ -1,6 +1,6 @@
 # Task 4.1.5 — One home, and what this screen must not add
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-25. The clock now has a check, not only a convention.** The producer walk found the route's transitive import closure is **fifteen files** and not one of them renders a clock, a session word or a connection word. The guard added is **`one-caller-of-the-market-clock`** (29 invariants now hold), written in the shape of `one-caller-of-the-live-feed-hook` because they are the same rule about different subjects — and the two existing word checks were **reused rather than extended**, because they already cover this route.
 **Story:** [4.1 The Decisions & the Overview Shell](STORY.md)
 **Depends on:** 4.1.4
 
@@ -111,3 +111,156 @@ once.
 **Whatever guard this task adds must be written so the pair still reads as two
 questions rather than one contradiction**, and if the cheapest way to do that is
 a sentence in the invariant's own comment, write the sentence.
+
+---
+
+## What was done — 2026-09-25
+
+### The walk, and it is the deliverable rather than a formality
+
+**The route's transitive import closure is fifteen files.** Computed rather than
+read: start at `MarketOverview.tsx`, follow every relative import to fixpoint.
+
+```text
+routes/MarketOverview.tsx        components/Panel/Panel.tsx
+routes/MarketOverview.module.css components/Panel/Panel.module.css
+components/Region/Region.tsx     components/ErrorBoundary/ErrorBoundary.tsx
+components/Region/Region.module.css components/ErrorFallback/ErrorFallback.tsx
+components/Button/Button.tsx     components/ErrorFallback/ErrorFallback.module.css
+components/Button/Button.module.css components/Icon/Icon.tsx
+cx.ts                            components/Icon/Icon.module.css
+styles/a11y.module.css
+```
+
+**`FeedIndicator`, `MarketClock`, `BackendIndicator`, `AppHeader` and
+`AppFooter` appear in none of them.** The landing route cannot report the
+connection or the session, because it cannot reach anything that does.
+
+> **That is a fact about today and it is why the walk is not the deliverable on
+> its own.** The route imported five components a week ago and imports two now;
+> the number that matters is what stops it importing a sixth.
+
+### What was reused, and the check that was not needed
+
+**`one-home-for-the-feed-words` already covers this route.** It scans
+`apps/frontend/src` entire — routes included — for seven literals across the
+feed and connection vocabularies, reading through `withoutComments` so a doc
+comment cannot trip it. **A third check scoped to one route would have been a
+second spelling of a rule that already holds everywhere**, which is the defect
+this task exists to prevent, arriving through the task itself.
+
+**One correction came out of reading it.** Task 4.1.4's new invariant names
+`feed-words-in-a-renderer` as the thing keeping the feed sentence unique. That
+is the **break**; the invariant is `one-home-for-the-feed-words`. Corrected in
+place, because a comment naming the wrong guard is how somebody later goes
+looking for a check that is not there.
+
+### What was added: the clock has one caller, asserted
+
+**`one-caller-of-the-market-clock`** — shipped frontend code calls
+`useMarketClock` exactly once, and that once is `AppHeader`.
+
+**§9's own sketch is why this screen needed it.** It draws
+`LIVE   10:42:16 ET` across the top of the Market Overview, and a reader
+building from the sketch reaches for a clock in the route. Both halves of that
+line already exist and neither is the route's.
+
+**Two reasons, and the second is measured rather than tidy:**
+
+- **One home.** A page where two surfaces answer _what time is it in the
+  market_ is a page where they can disagree, and this product has produced the
+  two-surfaces defect **four times on one screen**.
+- **Render cost.** `useMarketClock` ticks, so its caller re-renders every
+  second. In `AppHeader` that is **0** whole-route re-renders in 20 s; lifted to
+  `App` it was **40**. A second caller in a route puts that on the page that is
+  about to hold four aggregates over 518 securities — Epic 14's trigger by
+  condition.
+
+**Written in the shape of `one-caller-of-the-live-feed-hook`, deliberately.**
+They are the same rule about different subjects, and a reader meeting one should
+recognise the other. Same call-site walk, same `withoutComments`, same
+_a grep that matches nothing looks exactly like a grep that passes_ guard on the
+zero case.
+
+**`pnpm break a-second-clock-on-the-landing-page`** adds `useMarketClock()` to
+the route — the exact thing §9's sketch invites — and goes red. Run and
+restored byte-identical.
+
+### The distinction handed to Story 4.4 in its own words
+
+This screen will carry **two** statements about currency, and they answer
+different questions:
+
+| Says                              | About                          | Home              |
+| --------------------------------- | ------------------------------ | ----------------- |
+| `LIVE` / `STALE` / `DISCONNECTED` | the **connection**             | the status bar    |
+| _N of 518 in the last M minutes_  | the **coverage of one figure** | beside the figure |
+
+**A healthy `LIVE` feed with 341 of 518 heard from in five minutes is the
+ordinary state of IEX.** So the denominator is not a fault report, must not
+reach for `live`/`stale`/`disconnected` — which would trip
+`one-home-for-the-feed-words`, and **would deserve to** — and qualifies a figure
+rather than the screen. Written into Story 4.4's own file rather than left here.
+
+### Gates
+
+`pnpm verify` green with **29 invariants**. `pnpm links` green. The new break
+run red and restored byte-identical.
+
+## For a stakeholder — a status report, 2026-09-25
+
+### What this was
+
+**A rule turned into a mechanism**, on the screen most likely to break it.
+
+Our specification's own sketch of the landing page draws a clock and a live
+indicator across the top of it. Both of those already exist — they live in the
+application's frame, visible on every screen — and drawing them again on this
+one page is the kind of duplication that looks harmless until the two disagree.
+
+**We have made that mistake four times already, on one screen**, which is why
+this got a task of its own rather than a code review comment.
+
+### What we found
+
+**The landing page cannot currently break the rule.** We traced everything it is
+able to reach — fifteen files — and not one of them is capable of showing a
+clock or a connection status.
+
+> **That is a fact about today, not a guarantee.** A week ago the same page
+> reached five components; today it reaches two. The useful question is not
+> _is it right now_ but _what stops the next person getting it wrong_.
+
+### What we added
+
+**A check that fails the build if a second clock appears anywhere in the
+application.** There is now exactly one place in the product that reads the
+market clock, and if a second appears the build says so by name.
+
+We also deliberately broke it — added the second clock, confirmed the build went
+red, and put it back — because a safeguard nobody has ever seen fail is a
+safeguard nobody has tested. That is the third time this week that discipline
+has paid: two of the last three tasks found documented safeguards that turned
+out to be sentences rather than mechanisms.
+
+> **There is a second reason beyond tidiness, and it is measured.** The clock
+> ticks every second, so whatever holds it redraws every second. In its current
+> home that costs nothing; moved one level up, it previously caused **forty**
+> full-page redraws in twenty seconds. This landing page is about to carry four
+> live summaries of five hundred companies, and it is the last page that can
+> afford a needless redraw every second.
+
+### One thing we deliberately did not do
+
+The page will soon carry a second kind of "how current is this" — a line saying
+how many of the market's companies a figure could actually see. **That is not
+the same statement as "is the feed working", and we wrote down the difference
+before building either**, so the two cannot be mistaken for each other by
+whoever builds them.
+
+### Where this leaves the work
+
+**The landing page's structure is finished and guarded.** What remains in this
+piece of work is a measurement, one question that needs a real phone, and the
+close — and then the filling starts: four live index figures, eleven sectors,
+market breadth and the day's biggest movers.

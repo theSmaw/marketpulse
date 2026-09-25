@@ -236,7 +236,10 @@ const INVARIANTS = [
       // **The anchor is the live feed's own sentence**, and it is chosen
       // rather than convenient: `MARKET_FEED_DESCRIPTIONS` in
       // `packages/shared/src/market-provenance.ts` is its one home, and
-      // `feed-words-in-a-renderer` below is what keeps it one. So a bundle
+      // `one-home-for-the-feed-words` below is what keeps it one — the name
+      // matters, because `feed-words-in-a-renderer` is the BREAK that proves
+      // that invariant rather than the invariant itself, and Task 4.1.5 found
+      // this comment naming the wrong one. So a bundle
       // containing that sentence contains it **because shared was bundled** —
       // there is no second way for it to get there, which is the property an
       // anchor needs and a component never had.
@@ -1511,6 +1514,72 @@ const INVARIANTS = [
             "\n    One subscription lives in `App` and every screen declares " +
             "what it needs through `onLiveSymbols`. A second caller is a " +
             "second socket's worth of state that nothing above it is holding.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "one-caller-of-the-market-clock",
+    claim:
+      "Shipped frontend code calls `useMarketClock` exactly once, so there " +
+      "is one clock on screen and it is the chrome's.",
+    check() {
+      // **The landing screen is the surface most likely to grow a second
+      // clock, and `PRODUCT_SPEC.md` §9's own sketch is why** — it draws
+      // `LIVE   10:42:16 ET` across the top of the Market Overview, and a
+      // reader building from that sketch reaches for a clock in the route.
+      //
+      // Both halves of that line already exist and neither is the route's.
+      // The market clock shipped in Story 2.5 and the feed cell in Story 2.6,
+      // with the connection word added by Epic 3; Epic 4's `EPIC.md` says it
+      // in as many words — *live market status indicators here means the
+      // CONNECTION state Epic 3 adds beside them, not a second clock.*
+      //
+      // **Two reasons, and the second is measured rather than tidy.**
+      //
+      //  - *One home.* A page where two surfaces answer *what time is it in
+      //    the market* is a page where they can disagree — and this product
+      //    has produced the two-surfaces defect four times on one screen
+      //    already (ADR 0029's fourth rule; Tasks 3.10.3, 3.10.5 and 3.10.8).
+      //  - *Render cost.* `useMarketClock` ticks, so its caller re-renders
+      //    every second. In `AppHeader` that is **0** whole-route re-renders
+      //    in 20 s; lifted to `App` it was **40**. A second caller in a route
+      //    puts that cost on a screen that is about to hold four aggregates
+      //    over 518 securities, which is Epic 14's trigger by condition.
+      //
+      // Written in the shape of `one-caller-of-the-live-feed-hook` above,
+      // deliberately: the two are the same rule about different subjects, and
+      // a reader meeting one should recognise the other.
+      const shipped = sourceFilesUnder(resolve(REPO_ROOT, "apps/frontend/src"))
+        .filter(({ path }) => !/\.(?:test|stories)\.tsx?$/u.test(path))
+        .map(({ path, text }) => ({ path, text: withoutComments(text) }));
+
+      // The hook's own module defines it; every other mention is a call.
+      const DEFINITION = "apps/frontend/src/use-market-clock.ts";
+
+      const sites = [];
+
+      for (const { path, text } of shipped) {
+        const where = relative(REPO_ROOT, path);
+        if (where === DEFINITION) continue;
+
+        for (const match of text.matchAll(/\buseMarketClock\s*\(/gu)) {
+          sites.push(`${where} (offset ${String(match.index)})`);
+        }
+      }
+
+      if (sites.length !== 1) {
+        throw new InvariantFailure(
+          `${String(sites.length)} shipped call sites use ` +
+            `\`useMarketClock\`, expected exactly 1:\n      ` +
+            (sites.length === 0
+              ? "(none — if the hook was renamed, rename it here too: a grep " +
+                "that matches nothing looks exactly like a grep that passes)"
+              : sites.join("\n      ")) +
+            "\n    The clock is the chrome's, in `AppHeader`, on every route. " +
+            "A second caller is a second answer to *what time is it in the " +
+            "market* and a per-second re-render of whatever holds it.",
         );
       }
     },

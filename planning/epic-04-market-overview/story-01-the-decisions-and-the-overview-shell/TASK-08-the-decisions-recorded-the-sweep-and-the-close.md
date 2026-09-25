@@ -189,3 +189,41 @@ prose entries into `pnpm invariants` checks already.
 — a component rendered only through a barrel, or only by another component that
 is itself orphaned, needs the walk to be transitive — and a check that cries
 wolf is worse than a list. **If it is written, it owes a break.**
+
+## Amended by Task 4.1.5 — 2026-09-25: one namespace worth grepping, and the shape of this story's close
+
+### A naming class the sweep can check cheaply
+
+**Task 4.1.5 found a comment naming the wrong guard**: Task 4.1.4's invariant
+said `feed-words-in-a-renderer` keeps the feed sentence unique. That is the
+**break**; the invariant is `one-home-for-the-feed-words`.
+
+**These are two namespaces that look like one.** `scripts/breaks.mjs` names
+_defects_ (`a-second-clock-on-the-landing-page`), and
+`scripts/check-invariants.mjs` names _claims_
+(`one-caller-of-the-market-clock`) — and both are lowercase kebab-case
+identifiers in backticks, written in prose, by the same author on the same day.
+
+**The sweep can check it with a grep rather than a reading**: every
+kebab-case identifier in a backtick in `scripts/`, `docs/` and `planning/`
+should be either a break name or an invariant id, and the ones that are neither
+are either typos or checks that do not exist. **The second kind is the one this
+epic keeps finding.**
+
+> **Do not build a checker for this without weighing it.** The false-positive
+> shape is obvious — every kebab-case phrase in prose is a candidate — and a
+> check that cries wolf is worse than a list. A one-off grep at the close may be
+> the right answer, recorded with its result.
+
+### What this story's close depends on, and when it can happen
+
+**Two of this story's tasks need the market open** — 4.1.6's coverage curve and
+4.1.7's phone — and this task depends on both. The US session is 21:30–04:00
+local.
+
+**That is a booking rather than a block**, and the distinction is Epic 3's:
+Task 3.11.1 established that **nothing in a close should wait on a clock**, and
+the repair was to make sure everything that could be done without one was. The
+same applies here — the instrument, the wording, the sweep and the decisions
+are all doable in daylight, and what genuinely needs the bell is **one poll and
+one look.**
