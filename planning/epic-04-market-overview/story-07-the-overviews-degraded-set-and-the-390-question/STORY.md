@@ -75,3 +75,70 @@ map that has stopped growing.
 
 Changing the thresholds (165 s monotonic, 60 s wall — ADR 0036), and the
 connection's home.
+
+## Amended by Task 4.1.7 — 2026-09-25: the 390 question is answered, and it turned into a different one this story owns
+
+**The question this story inherited was _does a reader notice the status bar
+change at 390_. Measured on the deployed site, the answer is that for the first
+165 seconds there is nothing to notice.**
+
+### The measurement
+
+A client at 390 × 780 with its network removed — airplane mode, a lift, a
+tunnel — keeps reading **`LIVE`**:
+
+```text
+t=0s   connected: LIVE
+t=20s  LIVE   … t=160s LIVE
+t=165s DISCONNECTED
+```
+
+**Exactly 165 s, and the mechanism is not a mystery.** `DISCONNECTED_AFTER_MS`
+is the monotonic watchdog — _no inbound frame of any kind for 165 s_
+(`LIVE-DATA.md` §11.2, ADR 0036) — and it governs the **browser's** view as
+well as the backend's. The socket closing does **not** flip the word: the
+client detects that immediately and uses it only to start reconnecting.
+
+**Two things the same run established, and both make the fold story weaker:**
+
+- **The status bar is sticky**, so it is on screen at 390 whatever the scroll —
+  Task 3.11.8 measured that and this confirms it.
+- **When it does flip it GROWS**, four wrapped lines to six, and
+  `BACKEND SERVICE` goes `UNREACHABLE` beside it. That is a size change that
+  moves the page, which is a **stronger** peripheral signal than a word change.
+
+### The decision this story owes
+
+**165 s is defensible and it was derived for a different socket.** The number
+comes from Alpaca's upstream heartbeat — 53.96–54.85 s across 82 intervals,
+three missed — and it protects against flapping during a deploy, which
+Task 3.11.6 measured at **~46 s** of feed outage. Both of those are about the
+**backend's** connection.
+
+**The browser's socket has its own heartbeat and its own failure mode.** Task
+4.1.6 measured the gateway sending a `feed` frame every **20–50 s**, unchanged,
+precisely so a quiet market still produces inbound traffic — which means the
+browser could detect a dead gateway socket **far sooner than 165 s** and still
+not cry wolf on a 46 s deploy.
+
+**The alternatives, priced:**
+
+|                               | Says `DISCONNECTED` after | Flaps on a 46 s deploy? |
+| ----------------------------- | ------------------------- | ----------------------- |
+| today                         | **165 s**                 | no                      |
+| a shorter browser threshold   | ~75 s                     | no                      |
+| retries failing for N seconds | ~60 s                     | no, if N > 46           |
+| the socket closing            | immediately               | **yes**                 |
+
+> **Whatever is chosen, it is a decision about a shipped vocabulary with one
+> home**, so it carries ADR 0036's rule: the two-clock shape is the durable
+> half and **the numbers are dated observations that get re-derived, not
+> tuned.** A browser-side threshold is a _third_ number and needs its own
+> derivation from the gateway's heartbeat rather than a fraction of this one.
+
+### And what is still a person's
+
+**The sitting is booked for the session of 2026-09-25**, on `/securities`
+rather than on `/`: the landing page has no moving figures until Story 4.2, and
+_do you notice it while reading a figure_ needs a figure. Task 4.1.7 carries the
+protocol.
