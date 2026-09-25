@@ -108,13 +108,31 @@ until the last feature story has shipped.
 - Any repair to the §28 cold-load breach beyond evaluating its trigger —
   Epic 14, unless Story 3.6's measurement fired it
 
-## Open decisions — settle with the user
+## Open decisions — ANSWERED 2026-09-25 by Task 3.11.1
 
-1. **The budget**, re-decided against a real reading.
-2. **Whether the deployed check asserts liveness**, given that it cannot on a
-   Sunday. The honest options are a criterion that only asserts out of hours
-   what can be asserted out of hours, or a scheduled check inside a session —
-   and the second is a new mechanism rather than an assertion.
+1. ~~**The budget**, re-decided against a real reading.~~ → **decide it after
+   the reading.** $20 at 50/80/100% stands until Task 3.11.5 has a bill, and
+   §9.6's `$12`trigger stands. Lowering to $15 now would put the first alert
+**below** the $9.26 estimate, so it would fire every month. **If no bill can
+be read** — and Epic 1 could not, twice — the fallback is **60/80/100**,
+which makes the first alert the`$12` trigger exactly.
+2. ~~**Whether the deployed check asserts liveness**~~ → **only what holds at
+   any hour.** Provider configured, **never replaying** (ADR 0030, 7c), and a
+   last-observation instant once Task 3.11.3 ships it. **Never** `status:
+live`. A scheduled in-session check was rejected as a new mechanism with its
+   own silence; the instant narrows the same gap and reads correctly at 3am.
+3. **Whether CI holds a credential** → **no, and recorded why.** The binding
+   constraint is the **single connection**, not the quota: the deployment holds
+   it and a developer is already refused `406` (`docs/GAPS.md` entry 7), so a
+   CI credential would be a third claimant that takes **production's** socket
+   down rather than merely failing a test. The two measured consequences stand
+   unrepaired — a spec asserting an absence that passed for four days, and no
+   browser test in this epic having watched a real vendor frame reach a screen.
+4. **What _watched_ means in the exit criterion** → **NOT MET.** Six rows, none
+   watched by a person. Task 3.11.8 takes one sitting with a human, at three
+   viewports including a real phone. Amending the criterion's word was
+   rejected: _a headless browser did not notice_ is not _a person did not
+   notice_, and the 390 question needs the second.
 
 ## Acceptance criteria
 
@@ -273,6 +291,33 @@ backend**, and that is this story's too.
 > `{"provider":"alpaca","feed":"iex",…}`, which is also why a developer machine
 > is refused `406` (`docs/GAPS.md` entry 7). `scripts/weekend-watch.mjs` is
 > polling `/diagnostics/feed` every 60 s through to Monday's open.
+>
+> **RESULT READ 2026-09-25 by Task 3.11.1 — four days after the run finished,
+> from a file nobody had opened.** `.capture/weekend/watch-2026-09-19.jsonl`
+> holds **1,065 samples over 55 hours**, 2026-09-19T13:56Z → 2026-09-21T20:58Z:
+> **535 `disconnected`, 488 `live`, 1 `stale`**.
+>
+> | Stretch                      | Reading                                                                    |
+> | ---------------------------- | -------------------------------------------------------------------------- |
+> | 09-19 13:56Z → 09-21 ~05:44Z | **`disconnected`**, ~40 h, spanning Friday's whole session and the weekend |
+> | 09-21 **05:45Z**             | **`live`** — 01:45 ET, Sunday                                              |
+> | → 20:58Z                     | **`live`**, nine single-sample blips and one `stale`                       |
+>
+> **So _Monday's open is still at risk_ is answered: it was not.** The feed
+> recovered about forty hours in, **unattended**, and stayed up.
+>
+> **What the file cannot say is what recovered it** — no restart is recorded in
+> the window, and the eight diagnostic events that would have said were not
+> being logged. **An outage that ends on its own is worse than one that needs a
+> restart**, because nothing learned anything. That is Task 3.11.3's.
+>
+> Two caveats bound it: the `poll-failed` stretches — one of 5.68 h on the
+> Saturday morning — are the watching laptop asleep rather than the product,
+> and this is `/diagnostics/feed`'s own `status`, the **backend's** view of its
+> socket, which is the right instrument here and is not a browser's.
+>
+> **And the file is gitignored**, so it exists on one machine. Anything this
+> story concludes from it is quoted here rather than referenced.
 >
 > **It is a different instrument from the retired `weekend.mjs`, and the
 > difference bounds the conclusion.** That one **held** the socket; this
