@@ -1,6 +1,6 @@
 # Story 3.11 — Cost, Performance, the Sweep & the Epic Close
 
-**Status:** **Split into ten tasks — 2026-09-25.** The order is unusual for a close and deliberately so: **the two tasks that change what a user can see come second and third**, not ninth, because this is otherwise a story of measurements and documents and a stakeholder should not wait to the end of an epic for the last thing they see. The first task **builds nothing** — this file has accumulated hand-offs from **eleven** sources over ten days and several have been superseded by the story that wrote them, which is the shape Story 3.10's equivalent task exploited to remove most of two tasks.
+**Status:** **Complete — 2026-09-25.** Eleven tasks. Epic 3 is closed.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.10
 **Epic scope covered:** the continuous-connection cost envelope, the epic's exit criterion, and everything this epic falsified upstream

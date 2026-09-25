@@ -25,6 +25,29 @@ MarketPulse continuously assigns explainable anomaly scores to securities.
 - Human-readable anomaly explanation
 - Unusual-activity ranking
 
+## A decision this epic inherits, and would otherwise re-litigate — 2026-09-25, Epic 3's close
+
+**An anomaly score changes on its own while somebody is looking at it**, which
+makes it the second self-changing surface this product has. The first was Epic
+3's live price, and the decision it forced is
+[**ADR 0032**](../../docs/adr/0032-a-value-that-changes-on-its-own-announces-nothing.md):
+
+> **A value that changes on its own announces nothing**, and the default is
+> silence rather than politeness.
+
+**That ADR names this epic in its own Context section** — _"`PRODUCT_SPEC.md`
+§11's anomaly scores change on their own as the market moves […] neither epic's
+`EPIC.md` knows this decision exists"_ — and it was right for four days.
+**Epic 3's close is the thing that told this file**, which is the hand-off rule
+working exactly as `CLAUDE.md` describes it.
+
+**What it means here, concretely**: a score that rises does not get a live
+region, and the reader is not interrupted. The full statement, its four
+reasons and its reversal trigger are in `FRONTEND-STATE.md` §7; the motion
+vocabulary that marks an arrival without announcing it is Story 3.4's, and the
+rule under it is **work in progress LOOPS, a state PERSISTS, a fact arriving
+DECAYS.**
+
 ## Exit criteria
 
 MarketPulse can surface securities such as:

@@ -1780,9 +1780,16 @@ The first vertical slice should be:
 number is stale. The universe is **518** rather than 100 (§6 carries the
 re-sizing), securities are displayed, and a security can be clicked to inspect
 its price and volume evidence — Epic 2's exit criterion, walked on the deployed
-site. **Live price updates are Epic 3 and the explainable anomaly score is
-Epic 5**, in that order, and the milestone's real content — that this slice comes
-before any AI — is unchanged and still the ordering the roadmap follows.
+site. ~~**Live price updates are Epic 3** and~~ — **amended 2026-09-25 at Epic 3's
+close: live price updates are DONE.** Three of the four clauses now hold. On
+the deployed site during a session, 518 securities carry a live price that
+updates without a refresh, a security's price and volume charts extend minute
+by minute, and the chrome says whether the feed is arriving — watched working
+by a person on 2026-09-24 and recorded in
+[`LIVE-REHEARSAL.md`](epic-03-live-market-data/LIVE-REHEARSAL.md). **The
+explainable anomaly score is Epic 5**, and the milestone's real content — that
+this slice comes before any AI — is unchanged and still the ordering the
+roadmap follows.
 
 That establishes the domain model on which almost everything else depends.
 

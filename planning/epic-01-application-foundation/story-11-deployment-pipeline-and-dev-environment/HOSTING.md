@@ -2486,3 +2486,43 @@ assumption is wrong, and §9.2's assumption is wrong by 44%.
 > answering the question the trigger exists to ask. **Rejected — keeping
 > 50/80/100**, whose $10 alert would fire every month from now on; an alert
 > that always fires is an alert nobody reads.
+
+## The bill, re-read — 2026-09-25 by Task 3.11.11
+
+**Task 3.11.5 read the first bill this project has ever had and found a 32%
+step on the day the live bar writer shipped, at n=2. This is the re-read its
+own reversal trigger asked for, four days later.**
+
+| Day                         | Container Apps      | Total               |
+| --------------------------- | ------------------- | ------------------- |
+| 09-12 → 09-22 (eleven days) | `$0.2039`–`$0.2161` | `$0.3661`–`$0.3827` |
+| **09-23**                   | **`$0.2832`**       | `$0.4498`           |
+| **09-24**                   | **`$0.2772`**       | `$0.4438`           |
+
+**The step holds at ~34%**, and 2026-09-23 is the day Task 3.8.3's writer began
+writing every complete minute to `market_bars`.
+
+> **One finding about the instrument rather than the bill.** Task 3.11.5 read
+> 09-24 as `$0.2589`; settled, it is **`$0.2772`** — **7% higher**. A same-day
+> reading under-reports, because the day is still accruing. Anybody checking a
+> cost step the day it happens will measure it small, and a small step is the
+> one that gets dismissed as noise.
+
+**Run rate: `$13.53/month`**, from `$13.32` four days ago, against a **$20**
+budget with alerts at 60 / 80 / 100%.
+
+**Taken in one pass**, because the Cost Management API answers and then returns
+`429`:
+
+```sh
+az rest --method post --url "https://management.azure.com/subscriptions/$SUB\
+/providers/Microsoft.CostManagement/query?api-version=2023-11-01" \
+  --body '{"type":"ActualCost","timeframe":"Custom",
+           "timePeriod":{"from":"2026-09-11T00:00:00Z","to":"2026-09-25T23:59:59Z"},
+           "dataset":{"granularity":"Daily",
+                      "aggregation":{"total":{"name":"Cost","function":"Sum"}},
+                      "grouping":[{"type":"Dimension","name":"ServiceName"}]}}'
+```
+
+The decision this belongs to is
+[ADR 0037](../../../docs/adr/0037-what-this-deployments-shape-costs-in-money-and-in-feed.md).

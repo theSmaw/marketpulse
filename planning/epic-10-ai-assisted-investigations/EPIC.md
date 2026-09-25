@@ -43,6 +43,30 @@ The model never directly invents authoritative numerical results.
 
 ## What Epic 1 hands this epic (2026-09-04)
 
+> **And when you decide what to DO about that ceiling, read
+> [ADR 0036](../../docs/adr/0036-two-clocks-and-what-a-liveness-threshold-must-not-read.md)
+> first — handed here 2026-09-25 by Epic 3's close, which found this file did
+> not know it existed.**
+>
+> Epic 3 shipped this product's first _is the data still arriving?_ surface and
+> paid for three defects getting it wrong, **every one of which passed a green
+> suite**. The rule that came out of it is two lines long and it is not the
+> obvious one:
+>
+> - **a duration is monotonic** (`performance.now()`), because a wall clock
+>   moves when the machine sleeps or NTP corrects it, and a suspended laptop
+>   otherwise manufactures a disconnection;
+> - **an age is wall-clock** (`Date.now()`), because an instant carried on an
+>   event only has meaning against a calendar;
+> - **and neither may read a stamp the wire supplied**, which is a server clock
+>   measured on a browser's machine.
+>
+> Using one clock for both is defect 1: the comparison can never fire, so the
+> stream reports healthy for ever, silently. **`worseFeedStatus` in
+> `packages/shared/src/feed-liveness.ts` is the shipped shape** — one function,
+> so two surfaces reporting the same stream cannot disagree about which state
+> is worse.
+
 **The agent event stream must emit something at least every four minutes.**
 Azure Container Apps' default HTTP ingress states "Request time out is 240
 seconds", and the premium-ingress table names the same number as an _idle_
