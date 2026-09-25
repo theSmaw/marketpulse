@@ -506,6 +506,33 @@ export const BREAKS = [
     build: true,
   },
   {
+    name: "the-workspace-package-leaves-the-bundle",
+    proves:
+      "The frontend stops bundling `@marketpulse/shared` and nothing says so. " +
+      "`tsc` resolves the workspace package through project references and " +
+      "the bundler resolves it through `node_modules` — two entirely " +
+      "different mechanisms — so a build can typecheck perfectly while the " +
+      "browser gets nothing. Story 1.4's render check stood in for this proof " +
+      "for five epics BY EXISTING, which is why nobody could delete a " +
+      "component gallery from the landing page until Task 4.1.4 made it a " +
+      "check instead.",
+    file: "packages/shared/src/market-provenance.ts",
+    // The live feed's honest sentence, whose one home this file is and whose
+    // uniqueness `feed-words-in-a-renderer` keeps. Breaking it HERE rather
+    // than in the frontend is the point: the invariant has to notice the
+    // PACKAGE leaving the bundle, not a caller changing its mind.
+    find:
+      '"Trades reported by the IEX exchange only \u2014 not the full US ' +
+      'consolidated tape."',
+    replace: '"pnpm break: reverted automatically"',
+    command: ["pnpm", "invariants"],
+    expect: "workspace package",
+    // `build: true`, because the check reads `apps/frontend/dist/` — a break
+    // that does not reach the bundle proves nothing, and the restore has to
+    // reach it too or the next command reads a polluted artefact.
+    build: true,
+  },
+  {
     name: "the-deploy-stops-reading-the-provider",
     proves:
       "The deploy rolls an image over a container app configured to serve a " +

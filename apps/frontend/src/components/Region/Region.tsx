@@ -158,8 +158,17 @@ export function Region({
        * broken one.
        */
       reserved={children === undefined}
+      /*
+       * **The tag renders only while the region is reserved**, and that is the
+       * same argument as `reserved` itself: a tag computed from the content
+       * cannot outlive the work it names. Without it, the day Story 4.3 fills
+       * the sector region a forgotten `awaiting="Story 4.3"` sits beside real
+       * sector data, promising work that has already landed — and nothing in
+       * this repository would say so, because prose on a screen is exactly the
+       * kind of claim no check can read.
+       */
       meta={
-        awaiting === undefined ? undefined : (
+        awaiting === undefined || children !== undefined ? undefined : (
           <span className={styles.awaiting}>{awaiting}</span>
         )
       }

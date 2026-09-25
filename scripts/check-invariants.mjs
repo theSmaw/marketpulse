@@ -211,6 +211,63 @@ const RECORDED_BODIES = [
 
 const INVARIANTS = [
   {
+    id: "the-workspace-package-reaches-the-bundle",
+    claim:
+      "The frontend bundle contains a value that can only have come from " +
+      "`@marketpulse/shared`, so the workspace dependency resolves through " +
+      "the bundler and not only through `tsc`.",
+    check() {
+      // **This replaces a component — 2026-09-25, Task 4.1.4.**
+      //
+      // Story 1.4's render check sat on the landing route for five epics, and
+      // the route file said in its own comment that the `@marketpulse/shared`
+      // import in it was *the only thing proving the workspace dependency
+      // resolves through the bundler as well as through `tsc`, and the two use
+      // entirely different resolvers*. That sentence was the reason nobody
+      // deleted a component gallery from the product's landing page.
+      //
+      // **Two things were wrong with it, and only the second matters.** It had
+      // stopped being the *only* proof somewhere around Epic 2 — 27 files in
+      // this application now carry a value import from that package. But
+      // nothing ever **asserted** any of it, which is the half that counts: a
+      // proof that depends on somebody keeping a demo alive is a claim, not a
+      // mechanism.
+      //
+      // **The anchor is the live feed's own sentence**, and it is chosen
+      // rather than convenient: `MARKET_FEED_DESCRIPTIONS` in
+      // `packages/shared/src/market-provenance.ts` is its one home, and
+      // `feed-words-in-a-renderer` below is what keeps it one. So a bundle
+      // containing that sentence contains it **because shared was bundled** —
+      // there is no second way for it to get there, which is the property an
+      // anchor needs and a component never had.
+      //
+      // It is also a string this product would notice losing for its own
+      // sake: it is the sentence that stops `IEX` implying every US exchange,
+      // which is `CLAUDE.md`'s invariant 6 and `PRODUCT_SPEC.md` §7.1.
+      //
+      // What it does not prove is the same as what the render check did not
+      // prove: that every export resolves, or that the types agree. It proves
+      // the package is in the graph.
+      const anchor =
+        "Trades reported by the IEX exchange only \u2014 not the full US " +
+        "consolidated tape.";
+      const files = bundleFiles();
+
+      if (!files.some((file) => file.text.includes(anchor))) {
+        throw new InvariantFailure(
+          "The live feed's honest sentence is not in the frontend bundle. " +
+            "It is spelled once, in `packages/shared/src/market-provenance.ts`, " +
+            "so either the workspace package stopped reaching the bundler — " +
+            "which `tsc` cannot see, because it resolves through an entirely " +
+            "different mechanism — or the sentence that stops `IEX` implying " +
+            "every US exchange has been edited, which is `CLAUDE.md`'s " +
+            "invariant 6 and a larger problem wearing the same symptom.",
+        );
+      }
+    },
+  },
+
+  {
     id: "no-fixture-reaches-the-bundle",
     claim: "No recorded market body reaches the shipped frontend bundle.",
     check() {

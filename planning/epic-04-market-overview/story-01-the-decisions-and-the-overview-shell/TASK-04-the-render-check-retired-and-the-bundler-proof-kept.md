@@ -1,6 +1,6 @@
 # Task 4.1.4 — The render check retired, and the bundler proof kept
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-25. The gallery is gone, the proof is a check, and the landing page is seven honest regions.** The artefact lost **106,821 bytes of JavaScript** — 22%, and Task 1.5.1's _~100 kB_ confirmed almost to the byte. **The comment this whole task was built around was stale**: the render check stopped being the only proof of the bundler path somewhere around Epic 2, and **27 files** carry a value import from `@marketpulse/shared` today. What was never true is that anything _asserted_ it.
 **Story:** [4.1 The Decisions & the Overview Shell](STORY.md)
 **Depends on:** 4.1.3
 
@@ -149,3 +149,179 @@ still promising work that has already landed.
 same argument as `reserved` itself — a tag that cannot disagree with the content
 is better than a tag somebody has to remember to remove — and it costs nothing,
 because a filled region has no use for it.
+
+---
+
+## What was done — 2026-09-25
+
+### The finding: the trap was smaller than the comment, and the comment was the trap
+
+This task existed because the route file said so:
+
+> _"The `@marketpulse/shared` import is still the load-bearing line — it is the
+> **only** thing proving the workspace dependency resolves through the bundler
+> as well as through `tsc`."_
+
+**Checked rather than inherited: 27 files in this application carry a value
+import from that package.** The sentence stopped being true somewhere around
+Epic 2 and nobody noticed — because nobody had any reason to look, which is
+exactly what a load-bearing comment does to the code beneath it.
+
+> **Only the second half matters, and it was never true.** It was never the
+> _only_ proof, and **nothing ever asserted any of it**. A proof that depends
+> on somebody keeping a demo alive is a claim, not a mechanism — and this epic
+> produced the same finding twice last week, in ADR 0030's missing deploy step
+> and in `LIVE-REHEARSAL.md`'s missing completion marking.
+
+### The proof, made mechanical
+
+**`pnpm invariants` gains `the-workspace-package-reaches-the-bundle`** (28 now
+hold), asserting that a value that can only have come from
+`@marketpulse/shared` is in the built bundle.
+
+**The anchor is the live feed's own sentence** — _Trades reported by the IEX
+exchange only — not the full US consolidated tape._ — and it was chosen rather
+than reached for:
+
+- **`MARKET_FEED_DESCRIPTIONS` is its one home**, and the invariant beside it,
+  `feed-words-in-a-renderer`, is what keeps it one. So the string's presence in
+  the bundle can **only** mean shared was bundled.
+- **It is a string this product would want to notice losing anyway**: it is the
+  sentence that stops `IEX` implying every US exchange, which is `CLAUDE.md`'s
+  invariant 6 and `PRODUCT_SPEC.md` §7.1.
+
+> **The first anchor was rejected by the repository's own lint rule, which is a
+> small story worth keeping.** The obvious choice was the market's timezone —
+> `market-time.ts` is the one module permitted to spell it, so nothing else can
+> put it in a bundle. Writing it in the checker **failed `pnpm lint`**: _the
+> market's timezone is named in `packages/shared/src/market-time.ts` and
+> nowhere else._ The rule that would have made the anchor unique is the rule
+> that forbids the checker from naming it. Obfuscating the literal would have
+> been gaming a rule whose intent is exactly what it says, and this repository
+> disables a lint rule in shipped code **zero** times. So the anchor moved to a
+> string with the same uniqueness and no such rule.
+
+**`pnpm break the-workspace-package-leaves-the-bundle`** substitutes the
+sentence in `market-provenance.ts` — **in the package, not in a caller**,
+because the check has to notice the _package_ leaving — rebuilds, and goes red.
+Run and restored byte-identical.
+
+### What the artefact lost
+
+|                |        Before |         After |                       Δ |
+| -------------- | ------------: | ------------: | ----------------------: |
+| `assets/*.js`  | **482,214 B** | **375,393 B** | **−106,821 B (−22.2%)** |
+| `assets/*.css` |      53,042 B |      49,813 B |        −3,229 B (−6.1%) |
+
+**Task 1.5.1 said _about 100 kB_ and it was right to within 7%** — a figure
+written five epics ago, never re-measured, and confirmed on the day it was
+finally spent. It is reclaimed **on purpose**, which is the only thing that
+sentence ever asked for.
+
+### What a reader sees
+
+**Seven regions, all seven honest.** The topology's region is now hatched and
+dashed like the rest, at the canvas's reserved-band height — **161 px measured**
+at 1440, from the `0.7fr` row Task 4.1.3 shipped for exactly this.
+
+Its sentence changed too, and it had to: it ended _"Until then this is Story
+1.4's render check, which is what proves the design language reaches the browser
+through the bundler"_ — **the only `filledBy` on the screen describing our
+scaffolding rather than the product**, and false the moment this task ran. It
+now says what Epic 6 will draw.
+
+### Two repairs made while in the neighbourhood
+
+**The `awaiting` tag renders only while a region is reserved.** Without it, the
+day Story 4.3 fills the sector region a forgotten `awaiting="Story 4.3"` sits
+beside real sector data, promising work that already landed — and nothing in
+this repository could say so, because prose on a screen is exactly the kind of
+claim no check reads. **Computed from the content, it cannot disagree with it**,
+which is the same argument `reserved` already makes.
+
+**`MarketOverview.module.css` lost 161 of its 302 lines.** The modules, the
+table header, the band list, the feed list and the error block were the render
+check's, and a class nothing renders is a class the next author has to read
+before being sure of that.
+
+### One design decision, taken by looking
+
+**`Sector performance` is now the largest hatched panel on the screen** — 342 px
+for one sentence — and the canvas's §03 rejects _deferred at full height_. So is
+this the rejected option?
+
+**No, and the difference is a rule this product already measured.** A reserved
+region is **the size of the thing it is holding a place for**, not the size of
+its sentence, so nothing moves when it fills. The security page's figures block
+used to return nothing in four states, taking 90 px with it — and the chart
+_and the window control the reader had just pressed_ moved the moment an answer
+with bars arrived. It now reserves its room, hidden (`VOLUME-AND-WINDOW.md`
+§83). **Reserving room beats reflow**, and a landing page that re-composes
+itself weekly as stories land is that defect at the scale of a screen.
+
+**The reserved band is the exception and it is deliberate**: the topology is two
+epics away rather than three weeks, so holding half the viewport for it would
+trade a real screen today against a hypothetical one later. **The band holds a
+place; a near-term region holds a size.** That is now on the canvas and in
+`VISUAL-LANGUAGE.md`.
+
+### Gates
+
+`pnpm verify` green with **28 invariants**. `pnpm e2e` green — **166 passed**.
+`pnpm links` green. The new break run red and restored. `pnpm probe` at 1440,
+read.
+
+## For a stakeholder — a status report, 2026-09-25
+
+### What changed on screen
+
+**The last piece of fake content is gone from the landing page.**
+
+Since the first week of this project, the middle of our front page has held a
+demonstration: a small table of four invented companies with invented prices, a
+list of colour swatches, and a sample error message. It was there for a real
+reason — it proved our styling and our components actually reached the browser —
+and it had quietly become the largest thing on the screen a first-time visitor
+sees.
+
+**A product whose entire discipline is _never show a number you cannot source_
+had invented prices on its front page.** That is now removed, and the page is
+seven honestly-labelled panels waiting for real data.
+
+### The interesting part is what we found while removing it
+
+The code carried a warning, in capital letters, that this demonstration was
+**the only thing proving a critical piece of our build still worked** — and that
+removing it would silently break that proof.
+
+**We checked, instead of believing it. It stopped being true around a year of
+work ago**: twenty-seven other parts of the application now rely on the same
+connection, so the proof had been redundant for a long time.
+
+> **But the half that mattered was never true at all: nothing ever actually
+> _checked_ it.** The "proof" was a demonstration somebody had to remember not
+> to delete. That is not a safeguard — it is a note. We have now replaced it
+> with an automated check that fails the build if the connection breaks, and we
+> deliberately broke it once to confirm the alarm sounds.
+>
+> This is the third time in a week we have found a documented safeguard that
+> was a sentence rather than a mechanism. The rule we wrote down after the
+> first two — _when you write that something is guarded, write the check in the
+> same change_ — is why we looked.
+
+### And the number was right
+
+A note from five phases ago estimated that removing this demonstration would
+strip **about 100 kB** from what every visitor downloads. Measured: **107 kB**,
+a **22%** reduction in the page's JavaScript. Every visitor to MarketPulse now
+downloads a fifth less code, on the screen they see first.
+
+### Where this leaves us
+
+**The landing page is structurally finished.** Seven panels, each saying what
+belongs there and when it arrives — three of them within this phase, weeks
+rather than months.
+
+**Next comes the filling**, and each piece is one story with something visible
+at the end: four live index figures, eleven sector movements, the breadth of the
+market, and the day's biggest movers.
