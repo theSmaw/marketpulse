@@ -83,10 +83,23 @@ import styles from "./Region.module.css";
 // *contents* and none about the box. The `useId` went with them: `Panel` owns
 // the heading, so it owns the id that names the landmark.
 export function Region({
+  className,
   name,
   filledBy,
+  awaiting,
   children,
 }: {
+  /**
+   * The grid area this region occupies, from the route that lays it out.
+   *
+   * **A region does not know where it sits** — Task 1.5.4's grid was four
+   * regions auto-placed into two columns precisely so that none of them had
+   * to. Seven do not auto-place: the wide layout wants the primary column and
+   * the narrow one wants a different reading order, and no source order
+   * satisfies both. So the route names the areas and passes one class; the
+   * region still knows nothing but its own name.
+   */
+  readonly className?: string | undefined;
   readonly name: string;
   /**
    * What this region holds, in a sentence under its heading.
@@ -100,6 +113,29 @@ export function Region({
    * being written to fill the slot.
    */
   readonly filledBy?: string;
+  /**
+   * Whose work fills this region — `Epic 6`, `Story 4.3` — as a tag at the
+   * right-hand end of the header.
+   *
+   * **It is a tag rather than a clause in the sentence**, so the sentence can
+   * describe the product instead of our backlog: a line opening *Epic 6 will…*
+   * makes a reader's first fact about the screen a fact about us
+   * (`Market overview.dc.html` §03).
+   *
+   * **And it carries the distance.** Every deferral this product shipped before
+   * 2026-09-25 named an epic; three of this screen's name a story in the epic
+   * being built, which is weeks rather than months. A reader who cannot tell
+   * them apart reads *weeks* as *someday* — and the tag is the only thing that
+   * changes between them, deliberately. A brighter ground or a countdown would
+   * make the near-term deferral louder than the region beside it that already
+   * has content, which is the wrong hierarchy on a screen whose subject is the
+   * market rather than our schedule.
+   *
+   * It renders into `Panel`'s `meta`, which is already *anything that qualifies
+   * the panel rather than being its content* — reusing that slot rather than
+   * adding a second one is why this treatment costs one prop.
+   */
+  readonly awaiting?: string;
   readonly children?: ReactNode;
 }) {
   return (
@@ -109,7 +145,25 @@ export function Region({
     // that no test in this repository can see. Every region gets it rather than
     // the ones currently overflowing — which of the four scrolls is a function
     // of the viewport and of what Epics 4 to 7 put in them.
-    <Panel scrollable title={name}>
+    <Panel
+      className={className}
+      scrollable
+      title={name}
+      /*
+       * `reserved` is keyed on there being no children rather than on a prop of
+       * its own, because the two can never disagree that way: a region holding
+       * content and drawn as reserved, or the reverse, is a state nobody can
+       * produce. The hatch and the dashed hairline are `Market overview.dc.html`
+       * §03's, and what they protect against is an empty region reading as a
+       * broken one.
+       */
+      reserved={children === undefined}
+      meta={
+        awaiting === undefined ? undefined : (
+          <span className={styles.awaiting}>{awaiting}</span>
+        )
+      }
+    >
       {filledBy === undefined ? null : (
         <p className={styles.filledBy}>{filledBy}</p>
       )}

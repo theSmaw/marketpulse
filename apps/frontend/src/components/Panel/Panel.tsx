@@ -88,6 +88,32 @@ export interface PanelProps {
    */
   readonly scrollable?: boolean;
 
+  /**
+   * The panel is **holding a place** rather than presenting content: a hatched
+   * ground and a dashed hairline, from `Market overview.dc.html` §03.
+   *
+   * **It exists because an empty panel and a failed one must never look
+   * alike.** A failure is already a labelled block with a sentence in it
+   * (`ErrorBoundary`); a blank frame beside it is what a reader reads as the
+   * half that broke. The hatch says *reserved*, and the dashed border says the
+   * same thing in a second channel for a reader who loses the fill first —
+   * greyscale, low vision, a poor screen.
+   *
+   * Nothing else changes: the heading, the rule, the landmark and the box are
+   * the panel's own, because a deferred region is the same component in a
+   * quieter state rather than a different one.
+   */
+  readonly reserved?: boolean;
+
+  /**
+   * Where the panel sits, from whatever lays it out. A panel never knows.
+   *
+   * `| undefined` explicitly, because `exactOptionalPropertyTypes` makes
+   * *absent* and *present as undefined* different types and a forwarded
+   * optional is always the second.
+   */
+  readonly className?: string | undefined;
+
   readonly children: ReactNode;
 }
 
@@ -98,6 +124,8 @@ export function Panel({
   headingLevel = 2,
   flush = false,
   scrollable = false,
+  reserved = false,
+  className,
   children,
 }: PanelProps) {
   // `useId` rather than a slug of the title: two panels called "Market data" on
@@ -110,7 +138,12 @@ export function Panel({
 
   return (
     <section
-      className={cx(styles.panel, scrollable ? styles.scrollable : undefined)}
+      className={cx(
+        styles.panel,
+        scrollable ? styles.scrollable : undefined,
+        reserved ? styles.reserved : undefined,
+        className,
+      )}
       aria-labelledby={labelled}
       tabIndex={scrollable ? 0 : undefined}
     >

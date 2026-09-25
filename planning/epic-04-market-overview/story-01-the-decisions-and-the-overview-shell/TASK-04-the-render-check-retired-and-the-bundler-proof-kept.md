@@ -110,3 +110,42 @@ claim about data requires data.
 
 **So the order stands**, and the earlier consideration of moving this task
 behind Story 4.2 is settled rather than left open.
+
+## Amended by Task 4.1.3 — 2026-09-25: the interim layout is already built, and the deferred state arrives for free
+
+**Two of the three things this task was carrying are done.**
+
+- **The interim layout shipped with the regions.** The grid names its areas and
+  gives the topology the short row at the top of the primary column — the
+  canvas's reserved band. This task does not restructure anything.
+- **The reserved treatment is keyed on `children === undefined`.** So the moment
+  the render check comes out of the topology region, **the region draws itself
+  hatched and dashed with no further change** — the hatch cannot disagree with
+  the content, because it is computed from it.
+
+**What is left is therefore narrower and sharper:**
+
+1. **Remove the render check**, and with it the `@marketpulse/shared` import —
+   confirmed by Task 4.1.1 to be used by nothing else in the file.
+2. **Replace the bundler proof with a check**, break-verified. This is the trap
+   and it is unchanged.
+3. **Rewrite the topology region's `filledBy`.** It currently ends _"Until then
+   this is Story 1.4's render check, which is what proves the design language
+   reaches the browser through the bundler"_ — **a sentence that becomes false in
+   this task's own diff**, and the only `filledBy` on the screen that describes
+   our scaffolding rather than the product.
+4. **Look at the row.** The topology's row is `0.7fr` of an `82vh` grid, sized
+   for a band holding a heading and a sentence. Confirm with `pnpm probe` rather
+   than by reading the CSS.
+
+### And one small repair this task should make while it is in `Region`
+
+**Nothing stops an `awaiting` tag outliving the work it names.** When Story 4.3
+fills the sector region, a forgotten `awaiting="Story 4.3"` leaves a tag on
+screen beside real sector data — un-hatched, because `reserved` is computed, but
+still promising work that has already landed.
+
+**The fix is one line: render the tag only when the region is reserved.** The
+same argument as `reserved` itself — a tag that cannot disagree with the content
+is better than a tag somebody has to remember to remove — and it costs nothing,
+because a filled region has no use for it.
