@@ -82,9 +82,11 @@ nothing.
    placeholder indistinguishable from a real answer hides whatever was built on
    top of it until the day it stops being empty.
 5. **It never walks backwards.** A revision for a minute already superseded is
-   discarded by the live path entirely (0.064% of bars, **35.3% of them changing
-   the close**), so the live figure and the stored figure can legitimately
-   disagree for a small fraction of bars.
+   discarded by the live path entirely (**0.1062% of bars, 37.6% of them
+   changing the close** — a whole session on 2026-09-24; the spike's 0.064% /
+   35.3% is `LIVE-DATA.md` §14.1's first figure and its amendment carries
+   both), so the live figure and the stored figure can legitimately disagree
+   for a small fraction of bars.
 
 **And the feed it comes from is IEX, not the consolidated tape the stored bars
 carry** — invariant 6 in `CLAUDE.md`. A number from this object and a number

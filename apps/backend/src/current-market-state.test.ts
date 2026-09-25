@@ -105,7 +105,7 @@ describe("the current market state", () => {
     expect(() => state.read(AAPL)).not.toThrow();
   });
 
-  describe("revisions — §14.1's 0.064%, 29.1–30.1 s late, 35.3% changing the close", () => {
+  describe("revisions — §14.1's ~0.1%, 29.1–30.1 s late, over a third changing the close", () => {
     it("replaces the bar it corrects rather than appending a second one", () => {
       // Criterion 2, against the recorded `u` frame. Both fixtures carry
       // `t: 14:01:00Z`; the revision changes the close 214.75 -> 214.71 and

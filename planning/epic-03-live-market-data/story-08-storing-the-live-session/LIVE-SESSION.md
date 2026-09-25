@@ -767,6 +767,24 @@ backfill, and the backfill does not correct. The count needs the **live** tape
 over a session. Written into the shared-sitting list in Task 3.4.10, beside the
 rehearsal item it overlaps exactly — _a real correction, both halves_.
 
+> **TAKEN 2026-09-24 — and the figure is two thirds higher than §14.1's.**
+> `session-watch.mjs` watched the deployed gateway for the whole regular
+> session, 09:37–16:37 ET: **132,757 observations, 141 corrections =
+> 0.1062%**, of which **53 changed the close = 37.6%**. Against §14.1's
+> 0.064% / 35.3% that is **~1.66× the rate** with the share that matters
+> **unchanged**. `LIVE-DATA.md` §14.1 carries both measurements and the
+> reading; §7.11's trigger keys on 0.36% and is still not fired.
+>
+> **It is a floor.** A correction is counted only when the watcher saw both
+> the original bar and its replacement, so a revision to a bar delivered
+> before the watch began is invisible to it.
+>
+> **And it is still not the store's own figure**, which is what this section
+> says is owed: the watch is a second client on the gateway, so it measures
+> what the **live path** sees — including the corrections that path then
+> discards. The count of corrections the store actually _kept_ needs a query
+> over `market_bars` after a session, and remains owed.
+
 ## 12. The surfaces that now show a stored today (Task 3.8.8, 2026-09-23)
 
 **Two surfaces were handed here, and the one this task was aimed at turned out

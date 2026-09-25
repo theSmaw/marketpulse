@@ -16,7 +16,7 @@
 // | the extended-hours mark on a real bar (04:00–09:30 ET)  | 3.4.10 | **yes** — socket + page  |
 // | a genuinely quiet minute                                | 3.4.10 | **yes** — socket         |
 // | a real correction, both halves                          | 3.4.10 | **yes** — socket, verbatim |
-// | count the corrections, against §14.1's 0.064%           | 3.8.7  | **yes** — socket         |
+// | count the corrections, against §14.1's 0.064%           | 3.8.7  | **TAKEN 2026-09-24: 0.1062%** |
 // | one vendor glance: a frame stamped outside a trading day| 3.4.10 | **yes** — socket         |
 // | a mid-session reload that keeps today's chart           | 3.8.10 | **yes** — `--browser`    |
 // | the two-feed source note, from production               | 3.8.10 | **yes** — API + `--browser` |
@@ -41,7 +41,8 @@
 // symbols and nothing scarce. It subscribes to the **whole tracked universe**,
 // which is what the securities table does anyway — and which is necessary
 // rather than greedy, because the correction rate is the point: `LIVE-DATA.md`
-// §14.1 measured **0.064% of bars**, so ten symbols over a session would be
+// §14.1 measured **0.064% of bars** (and this instrument then measured
+// **0.1062%** over a whole session on 2026-09-24), so ten symbols would be
 // expected to produce **one or two** corrections and 518 produce dozens. A
 // count taken over ten symbols would not be a measurement.
 //
@@ -760,7 +761,9 @@ function summarise(why) {
     counts,
     correctionRatePercent: rate,
     againstSpec:
-      "§14.1 measured 0.064% of bars, 35.3% of them changing the close",
+      "\u00a714.1 measured 0.064% of bars, 35.3% of them changing the close; " +
+      "this instrument measured 0.1062% / 37.6% over a whole session on " +
+      "2026-09-24, which is now \u00a714.1's amendment",
     minutesWithAnyBar: minutes.length,
     narrativeMinutesHeard: quiet,
   };

@@ -142,7 +142,7 @@ node scripts/session-watch.mjs 1200 --browser --every 15
 ```
 
 It watches **our gateway**, not Alpaca — a second browser client, subscribed to
-the whole universe because the correction rate is the point (§14.1's 0.064%
+the whole universe because the correction rate is the point (§14.1's 0.064%, re-measured 2026-09-24 at **0.1062%** over a whole session
 over ten symbols would be one or two bars, which is not a measurement). It
 records every frame it keeps **verbatim**, counts corrections and their close
 changes, flags extended-hours bars and any instant outside a trading day, polls

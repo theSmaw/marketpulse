@@ -161,9 +161,11 @@ nothing.
    placeholder indistinguishable from a real answer hides whatever was built on
    top of it until the day it stops being empty.
 5. **It never walks backwards.** A revision for a minute already superseded is
-   discarded by the live path entirely (0.064% of bars, **35.3% of them changing
-   the close**), so the live figure and the stored figure can legitimately
-   disagree for a small fraction of bars.
+   discarded by the live path entirely (**0.1062% of bars, 37.6% of them
+   changing the close** — a whole session on 2026-09-24; the spike's 0.064% /
+   35.3% is `LIVE-DATA.md` §14.1's first figure and its amendment carries
+   both), so the live figure and the stored figure can legitimately disagree
+   for a small fraction of bars.
 
 **And the feed it comes from is IEX, not the consolidated tape the stored bars
 carry** — invariant 6 in `CLAUDE.md`. A number from this object and a number
@@ -212,9 +214,11 @@ figure and the row already share.
 minute, with no refresh (Story 3.9). Three consequences for anomaly marks, each
 a design constraint rather than a warning:
 
-- **The last bar is not stable.** A revision lands on about **0.064% of bars**
-  roughly 30 s after the bar it corrects, and **35.3% of those change the
-  close** (`LIVE-DATA.md` §7.8). So a score computed on the newest minute can be
+- **The last bar is not stable.** A revision lands on about **0.1% of bars**
+  roughly 30 s after the bar it corrects, and **rather more than a third of
+  those change the close** (`LIVE-DATA.md` §14.1 and its 2026-09-24
+  amendment: 0.064% / 35.3% over a spike's window, **0.1062% / 37.6%** over a
+  whole session — take the figure, do not cite this line). So a score computed on the newest minute can be
   recomputed from different numbers half a minute later. Decide whether a mark
   **holds its instant** or follows the edge — the chart's reading strip already
   took that decision and **holds** (Task 3.9.6), and a mark that behaved

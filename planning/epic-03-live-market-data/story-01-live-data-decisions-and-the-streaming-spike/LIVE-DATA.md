@@ -2114,7 +2114,9 @@ measurement.
 > of magnitude **below** it, not above. _Rare correction_ survives as the
 > description, and **the decision to subscribe `updatedBars` stands and is
 > cheaper than the argument that took it assumed.** §14.1 holds the figures,
-> including the one that moved the other way.
+> including the one that moved the other way. **Re-measured over a whole
+> session on 2026-09-24 at 0.1062%** (§14.1's amendment) — still far below the
+> trigger, and still not fired.
 
 Both belong beside the measurement rather than in the story that trips over
 them, and both are the owner's.
@@ -3589,6 +3591,38 @@ names_. It is not above. It is an order of magnitude below.
 | Revisions that changed the **close** | 3 of 14 (21.4%)             | **24 of 68 (35.3%)**               |
 | Revisions that changed **nothing**   | —                           | **0**                              |
 | Lag after the original bar           | +28.6 to +29.8 s            | **p50 29.6 s, p95 30.0, max 30.1** |
+
+> **AMENDED 2026-09-24 — the RATE is now known to be low by about two thirds,
+> and the share changing the close is confirmed.** The row above stands as
+> what 3.1.9 measured and is not rewritten; what follows is a second
+> measurement, taken from **a full regular session** rather than from a spike's
+> window, by `session-watch.mjs` against the deployed gateway on 2026-09-24,
+> 09:37–16:37 ET:
+>
+> |                                      | **3.1.9** — spike window | **2026-09-24** — a whole session |
+> | ------------------------------------ | ------------------------ | -------------------------------- |
+> | Bars observed                        | 113,398                  | **132,757**                      |
+> | Revision rate                        | 0.064% (73)              | **0.1062% (141)**                |
+> | Revisions that changed the **close** | 24 of 68 (35.3%)         | **53 of 141 (37.6%)**            |
+>
+> **So the rate is ~1.66× the figure this document has carried since
+> 2026-09-15, and the proportion that matters is unchanged.** Both are floors
+> — the watcher counts a correction only when it sees both the original and
+> the replacement, so a revision to a bar delivered before the watch started
+> is invisible to it.
+>
+> **Nothing downstream reverses.** §7.11's trigger keys on the rate being
+> _materially above_ **0.36%**, and 0.1062% is not; every product decision
+> taken on "revisions are rare and, when they happen, usually matter" holds at
+> a rate two thirds higher. What changes is the arithmetic anyone does with
+> the number — a surface reasoning about how often a drawn minute changes
+> should use **0.1%**, not 0.064%. The one live argument that leaned on the
+> smaller figure is `docs/GAPS.md`'s screen-reader entry, and it is amended
+> there.
+>
+> **It is a second observation and not a replacement**, because the two
+> windows differ in kind: 3.1.9 watched a spike's slice and this watched one
+> ordinary Thursday. A third session would be worth more than either.
 
 **Why the rate fell rather than rose, which is the part worth understanding.**
 3.1.4's ten names were chosen for liquidity, and revision tracks activity: the

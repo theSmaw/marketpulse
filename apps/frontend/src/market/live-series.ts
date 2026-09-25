@@ -20,8 +20,9 @@
 // **500 on a page load**, not a chart drawn from the less good row.
 //
 // The socket delivers a bar for a minute and then — measured, §7.8 — a
-// **corrected** one about thirty seconds later, on 0.064% of bars, 35.3% of
-// which move the close. So a merge that appends produces two entries for one
+// **corrected** one about thirty seconds later, on 0.1062% of bars, 37.6% of
+// which move the close (0.064% / 35.3% over the spike's window; §14.1's
+// 2026-09-24 amendment carries both). So a merge that appends produces two entries for one
 // instant and the next render throws. It is a crash that cannot happen in a
 // quick test and cannot be avoided in a long sitting: it needs a page open
 // across a correction, which is minutes of ordinary use.
