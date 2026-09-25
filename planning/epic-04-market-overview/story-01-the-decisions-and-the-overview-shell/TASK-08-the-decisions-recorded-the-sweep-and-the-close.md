@@ -117,3 +117,34 @@ receiving epic did not know**, and nobody then told it.
   across the change.
 - **The reserved band does not grow in the meantime.** If it has, something has
   gone wrong that predates Epic 6.
+
+## Amended by Task 4.1.3 — 2026-09-25: two live claims are now false, and one new component state needs its home checked
+
+**The sweep has concrete subjects rather than a category.**
+
+### Two sentences this story made false
+
+- **Epic 4's own `EPIC.md`**: _"And the landing route is currently a placeholder
+  naming this epic."_ It is not. It is seven named regions, three of them added
+  by Task 4.1.3, five drawn in the reserved state and one still holding Story
+  1.4's render check until Task 4.1.4. **The paragraph is this epic's own and it
+  is the first thing a reader of this epic meets.**
+- **`Region.stories.tsx`'s `Empty` story** said _"what three of the four
+  landing-route regions look like today"_ — corrected in the same change, and
+  noted here because **a story's prose is a live claim about the product** in
+  exactly the way a task file's is not.
+
+**Check `CLAUDE.md`'s _What a user can see today_ with a grep rather than a
+memory.** Its seven-regions paragraph is about the **security page** (§8.3) and
+is still true; whether anything there describes the landing route is a question
+for the grep, not for this sentence.
+
+### One component state, and where it is written down
+
+`Panel.reserved` and `Region.awaiting` are new, and `VISUAL-LANGUAGE.md` gained
+_The landing screen_ for them in Task 4.1.2. **The close checks the chain ran in
+the right direction and stops** — canvas → `VISUAL-LANGUAGE.md` → `tokens.css`
+→ components — **and that nothing in it needs an ADR.** The working assumption
+is that it does not: this is a component state in a documented language, not a
+decision about what the product does, and Task 3.11.9's verdict on four
+candidates was that two of them already had a home.
