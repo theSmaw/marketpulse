@@ -448,7 +448,12 @@ feed frames in 75.0s with ONE symbol subscribed: 310
 **119 bytes each**, verbatim:
 
 ```json
-{"type":"feed","version":1,"sentAt":"2026-09-25T15:04:22.667Z","feed":{"status":"live","feed":"iex","marketOpen":true}}
+{
+  "type": "feed",
+  "version": 1,
+  "sentAt": "2026-09-25T15:04:22.667Z",
+  "feed": { "status": "live", "feed": "iex", "marketOpen": true }
+}
 ```
 
 So a phone on a security page showing one number receives **~250 identical

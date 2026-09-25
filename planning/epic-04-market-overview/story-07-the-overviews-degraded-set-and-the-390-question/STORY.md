@@ -215,10 +215,10 @@ half is an artefact of a defect.**
 Against the deployed gateway on 2026-09-25, from a client subscribed to all 518
 securities for 3h48m:
 
-| Condition            | `feed` frames per minute (median) |
-| -------------------- | --------------------------------- |
-| out of hours         | **2**                             |
-| during the session   | **332** (min 3, max 385)          |
+| Condition          | `feed` frames per minute (median) |
+| ------------------ | --------------------------------- |
+| out of hours       | **2**                             |
+| during the session | **332** (min 3, max 385)          |
 
 They arrive as **one burst in second `:00` of the minute** — 1,734 of 1,746
 frames in a five-minute slice, median inter-frame gap **0 ms**.
@@ -227,7 +227,12 @@ frames in a five-minute slice, median inter-frame gap **0 ms**.
 received **310 frames in 75 seconds**, each **119 bytes**:
 
 ```json
-{"type":"feed","version":1,"sentAt":"2026-09-25T15:04:22.667Z","feed":{"status":"live","feed":"iex","marketOpen":true}}
+{
+  "type": "feed",
+  "version": 1,
+  "sentAt": "2026-09-25T15:04:22.667Z",
+  "feed": { "status": "live", "feed": "iex", "marketOpen": true }
+}
 ```
 
 **Three distinct payloads in 3h48m**; 30,865 consecutive frames identical, 21
