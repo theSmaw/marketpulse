@@ -82,3 +82,30 @@ larger surface than that.
 **If every one of them goes red, that is a finding too**, and a better one: it
 would be the first evidence in this repository that the convention _a check you
 add owes a break_ is being honoured rather than merely written down.
+
+## Amended by Task 3.11.9 — 2026-09-25: three of these breaks are now load-bearing for an ADR, and should be run first
+
+**`CLAUDE.md` gained a corollary on 2026-09-25**, decided by Task 3.11.9 and
+earned twice in five days:
+
+> **A claim about a mechanism reads identically whether the mechanism is there
+> or not.** When you write that something is guarded, write the check in the
+> same change.
+
+**Two ADRs written the same day make exactly that kind of claim**, which puts
+their guards inside this task's scope rather than beside it:
+
+| The claim                                                                                    | Whose           | The break                                                            |
+| -------------------------------------------------------------------------------------------- | --------------- | -------------------------------------------------------------------- |
+| `sentAt` is held out of `feed-liveness.ts` and both adapters, so no threshold reads the wire | ADR 0036        | `the-send-instant-becomes-a-clock`                                   |
+| the gateway stamps every frame it sends                                                      | ADR 0033 / 0036 | `the-gateway-stamps-nothing`                                         |
+| the deploy reads the configured provider and refuses to roll on the wrong one                | ADR 0030 §7b    | `the-deploy-stops-reading-the-provider` (already run by Task 3.11.7) |
+
+**Run the first two at the front of the pass and record them separately**, not
+because they are more likely to have rotted, but because an ADR published this
+week asserts them — and this epic has twice found a published assertion standing
+in front of nothing.
+
+> **The rest of the pass is unchanged.** This is an ordering note and three
+> named entries, not a narrowing: the point of the task is still every entry the
+> epic added, and the interesting failures will be the ones nobody predicted.

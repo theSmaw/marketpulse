@@ -966,3 +966,16 @@ drift, and Story 3.11's close re-reads it before the epic is called done.
 `HOSTING.md`'s _The bill, read for the first time_ carries the full reading, the
 storage measurement, the egress answer and how to take it again, including that
 the Cost Management API **answers and then returns `429`**.
+
+> **And this is the last cost amendment this ADR takes — 2026-09-25, Task
+> 3.11.9.** The subject moves to
+> [**ADR 0037**](0037-what-this-deployments-shape-costs-in-money-and-in-feed.md),
+> which **supersedes nothing here**: every decision above is untouched and
+> correct, and it is only the cost annexe that has been amended twice and
+> falsified once. A fourth entry in an argument whose premise has been retired
+> belongs in a document whose subject is the argument.
+>
+> 0037 carries both halves of what this deployment's shape costs — **the money**
+> (the bill cannot see the socket; a write a minute appears to move it) and
+> **the feed** (every deploy costs ~46 s of it, on the platform's
+> revision-overlap schedule rather than on this product's shutdown path).

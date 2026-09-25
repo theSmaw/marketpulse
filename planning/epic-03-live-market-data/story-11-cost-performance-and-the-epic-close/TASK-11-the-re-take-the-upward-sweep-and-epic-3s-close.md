@@ -344,3 +344,75 @@ three mechanisms in prose. Two of them now have checks that fail when they go �
 a mechanism: what fails if somebody deletes it?** That is the mechanisable
 half of this list and it is exactly the standing instruction criterion 7
 carries.
+
+## Amended by Task 3.11.9 — 2026-09-25: two sweep items are DONE, and one is now a check rather than a reading
+
+**The corollary this task was handed is decided and written.** Task 3.11.9's
+verdict was `CLAUDE.md` rather than an ADR — it is a rule about how to write a
+document, not a decision about this product — and the paragraph is in place
+beside _a break that does not go red is not evidence the check works_:
+
+> **A claim about a mechanism reads identically whether the mechanism is there
+> or not.** When you write that something is guarded, write the check in the
+> same change.
+
+**So criterion 6 loses that item and keeps the sweep.** What it should still do
+is the harder half: **grep for other mechanism claims** in the ADRs and in
+`docs/GAPS.md` and check each against the tree. Two were found by accident this
+week; nobody has looked on purpose.
+
+**And `CLAUDE.md`'s _Current state_ has already been corrected in one place.**
+Its _what they still cannot do_ paragraph claimed `LIVE-REHEARSAL.md` had
+**four dated rows and not one watched by a human**, which Task 3.11.8 made
+false the same day. It is struck and answered in place rather than deleted,
+because it was true for nine stories. **The rest of that section is still this
+task's**, and it is long.
+
+**One addition to the record table**, also already made: `LIVE-REHEARSAL.md`
+was in no table anywhere — the only file in this repository about somebody
+**looking** rather than about a check passing, and a reader had to know it
+existed. It now has a row.
+
+## Amended by Task 3.11.9 — 2026-09-25: the bill's re-read now lands in a different document, and the sweep has an entry point
+
+### The re-read this task owns: amend **ADR 0037**, not ADR 0011
+
+**ADR 0011's cost subject is closed and handed on.** Task 3.11.9 wrote
+[ADR 0037](../../../docs/adr/0037-what-this-deployments-shape-costs-in-money-and-in-feed.md) —
+_what this deployment's shape costs, in money and in feed_ — and left 0011's
+twenty-four decisions untouched, with one dated line at the foot of its cost
+section saying where the subject went.
+
+**So when the 32% step is re-read:**
+
+- **it does not hold** → **ADR 0037's decision 1 is what gets amended.** Its own
+  reversal trigger says so in as many words. Do **not** open ADR 0011 again;
+  a fifth cost entry there is exactly what the handover was written to prevent.
+- **it holds** → 0037 needs no amendment, and the note is that its n rose from 2. Record the reading in `HOSTING.md` either way, which is where the full
+  bill lives.
+
+**And there is a second figure with the same shape now.** ADR 0037's decision 2
+says every deploy costs **~46 s** of live feed on the platform's schedule, with
+the reversal trigger _a deploy measured taking materially more or less_. That is
+a dated observation of a third party, not a contract — if the close reads the
+stream log again and the figure has moved, it is 0037's to amend.
+
+### The sweep has an entry point it did not have
+
+**`LIVE-DATA.md` §0 now carries a map** of the six other documents this epic
+touched, each with a one-line verdict, **plus all eight ADRs**. Criterion 6's
+_against the list AND against a grep_ is unchanged — the grep is still the half
+that finds what nobody thought of — but **the list no longer has to be
+reassembled from memory**, which is how Task 3.11.9 found its own candidate list
+had a hole in it (ADR 0032 missing from a table that claimed to name six).
+
+**Two things for the sweep to carry, both already true in the tree:**
+
+- **This epic produced EIGHT ADRs, not six** — 0030, 0031, 0032, 0033, 0034,
+  0035, and now 0036 and 0037 — and amended 0011, 0026–0029. Anything in
+  `EPIC.md` or this story's own narrative that counts them should count from the
+  directory.
+- **ADR 0030's mechanisms are `7a`, `7a-bis`, `7b`, `7c`, `7d`, `7e`, `7f`**,
+  and `7d` is the **daily scheduled probe** while `7f` is the **in-session
+  refusal**. Two task files have now misremembered this; the map names them
+  from the ADR.

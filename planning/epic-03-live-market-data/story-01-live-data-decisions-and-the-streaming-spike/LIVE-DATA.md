@@ -1,6 +1,6 @@
 # Live data — how a live observation reaches a screen
 
-**Status:** Open. Eight questions, none of them answered.
+**Status:** **Closed as the maintained account — 2026-09-25 by Task 3.11.9.** Eight questions, eight answers, and fifteen sections. **Where this document and any task file in Epic 3 disagree, this one wins.**
 **Story:** [3.1 Live-Data Decisions & the Streaming Spike](STORY.md)
 **Created:** 2026-09-15 by [Task 3.1.1](TASK-01-the-subject-document-and-the-eight-questions.md)
 **Finished by:** [Task 3.1.9](TASK-09-the-store-the-process-the-harness-is-gone-and-the-document-lands.md)
@@ -40,6 +40,21 @@ document that keeps only its conclusions cannot be argued with.
 
 ## 0. If you read one section
 
+> ### The precedence rule, stated once
+>
+> **Where this document and any task file in Epic 3 disagree, this document
+> wins.** A task file is a **record of what was true when it was written** and
+> is never corrected — correcting one destroys the record. This is a **claim
+> about now**, and it is amended the day a measurement falsifies it.
+>
+> **Two things follow that a reader should not have to infer.** A figure here
+> carries the date it was taken, because a figure with no date is a claim with
+> no expiry. And a **decision** and the **measurement that tested it** are kept
+> apart on purpose: §12.2 is the record of decision 8 and how its justification
+> moved, **§15 is what was measured**, and a reader asking _what does a deploy
+> cost the feed?_ wants §15. A third copy of that figure would be the failure
+> mode rather than the fix.
+
 **This document is what Epic 3 is built against, and it exists because nothing
 in this repository had ever opened Alpaca's WebSocket.** Nine tasks between
 2026-09-15 and 2026-09-17 opened it, held it across a full session, broke it
@@ -62,8 +77,50 @@ and names the instrument that produced it.
 | **A dead socket is indistinguishable from a quiet one except by the absent heartbeat**                                                    | §6.4, §8.8  |
 
 **Three numbers that size later work:** a minute's bars land within **243 ms**
-(§7.4); the whole universe costs a browser **38 kB/min** (§9.5); and the replica
-costs **$9.26/month**, not the $19.04 ADR 0011 assumed (§9.2).
+(§7.4); the whole universe costs a browser **38 kB/min** (§9.5); and ~~the
+replica costs **$9.26/month**, not the $19.04 ADR 0011 assumed (§9.2)~~ —
+**corrected 2026-09-25: the bill was read, and it says $13.32/month run rate
+for the whole deployment.** More usefully, **the bill cannot see the socket at
+all** — forty disconnected hours cost the same as connected ones — so §9.2's
+traffic figure stays true and stops being load-bearing. What a held socket
+costs is **the plan's one connection slot**, not money.
+[ADR 0037](../../../docs/adr/0037-what-this-deployments-shape-costs-in-money-and-in-feed.md)
+is the home for both halves of that subject.
+
+**And one number that sizes a deploy:** every deploy during a session costs
+about **46 seconds of live feed** (§15.1), on the platform's revision-overlap
+schedule rather than on this product's shutdown path — which is **shorter than
+either liveness threshold**, so the most common interruption this feed has
+produces no degraded word on any screen.
+
+### The rest of Epic 3's record, with a verdict on each — 2026-09-25, Task 3.11.9
+
+**This document is the account of how a live observation reaches a screen. Six
+others carry a subject of their own**, and each is named here so a reader finds
+them from one place rather than by knowing they exist.
+
+| Document                                                                                                                                   | What it owns                                                                                                                                    | Verdict                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`STREAM-SEAM.md`](../story-02-stream-seam-and-alpaca-iex-client/STREAM-SEAM.md)                                                           | **our client**, where this file is **the vendor**: the seam, three implementations, the two clocks, the gateway, and the browser's own end (§8) | **Finished.** Its §8.9 holds §28's journey and names the deployed re-take as Story 3.11's                                                                                                                                               |
+| [`TAPE.md`](../story-07-the-tape-on-the-bar/TAPE.md)                                                                                       | what the store claims about **where a bar came from** — the column, the writers, the read that produces two sources                             | **Finished.** [ADR 0034](../../../docs/adr/0034-the-tape-on-the-bar.md) is the decision                                                                                                                                                 |
+| [`LIVE-SESSION.md`](../story-08-storing-the-live-session/LIVE-SESSION.md)                                                                  | what happens when the product **writes the trading day down** — the writer, the ledger's narrower claim, the overnight reconciliation           | **Finished**, with one query still owed against the deployed store (§14)                                                                                                                                                                |
+| [`LIVE-REHEARSAL.md`](../LIVE-REHEARSAL.md)                                                                                                | whether a **person** has watched each story work against the real socket                                                                        | **Open by design.** It is the only file here about somebody looking, and it gains a row per story for as long as this product has a live feed                                                                                           |
+| [`CHARTING.md`](../../epic-02-security-universe-historical-data/story-12-price-chart/CHARTING.md) §18–§19                                  | what a chart that **extends** costs, and the densest chart this product can draw                                                                | **Finished for this epic's half.** The renderer's own document is Epic 2's                                                                                                                                                              |
+| [`PROVENANCE.md`](../../epic-02-security-universe-historical-data/story-14-provenance-partial-states-and-epic-close/PROVENANCE.md) §13–§14 | what the product **claims about its own data**, and the deferral pattern Story 3.9 found                                                        | **Finished for this epic's half**, and [ADR 0029](../../../docs/adr/0029-provenance-on-screen-the-partial-states-and-what-an-honest-empty-answer-certifies.md)'s 2026-09-24 amendment is the rule for a claim that **stops** being true |
+
+**And the decisions that outlived their tasks** — eight ADRs, of which this epic
+wrote six and amended two:
+
+| ADR                                                                                                         | Subject                                                                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [0030](../../../docs/adr/0030-replaying-our-own-bars-and-the-mechanisms-that-stop-the-live-feed-rotting.md) | replaying our own bars, and the mechanisms that stop the live feed rotting. **Its mechanisms are `7a`, `7a-bis`, `7b`, `7c`, `7d`, `7e`, `7f`** — and `7d` is the **daily scheduled probe** while `7f` is the **in-session refusal**, which more than one task has misremembered |
+| [0031](../../../docs/adr/0031-what-a-transport-without-a-schema-layer-owes.md)                              | what a transport without a schema layer owes                                                                                                                                                                                                                                     |
+| [0032](../../../docs/adr/0032-a-value-that-changes-on-its-own-announces-nothing.md)                         | a value that changes on its own announces nothing — **the motion vocabulary's decision**, and the reason it needs no second ADR                                                                                                                                                  |
+| [0033](../../../docs/adr/0033-a-send-instant-on-the-wire-for-measurement-only.md)                           | a send instant on the wire, for measurement only                                                                                                                                                                                                                                 |
+| [0034](../../../docs/adr/0034-the-tape-on-the-bar.md)                                                       | the tape on the bar                                                                                                                                                                                                                                                              |
+| [0035](../../../docs/adr/0035-both-tapes-are-kept-and-what-a-record-is.md)                                  | both tapes are kept, and what a record is                                                                                                                                                                                                                                        |
+| [0036](../../../docs/adr/0036-two-clocks-and-what-a-liveness-threshold-must-not-read.md)                    | **two clocks, and what a liveness threshold must not read** — §11.2's decision, written where Epic 10 will look for it                                                                                                                                                           |
+| [0037](../../../docs/adr/0037-what-this-deployments-shape-costs-in-money-and-in-feed.md)                    | **what this deployment's shape costs, in money and in feed** — the subject ADR 0011 hands on                                                                                                                                                                                     |
 
 **Two warnings about how to read this.** Every rate figure is **n=1** — one
 Wednesday in September. And every latency figure was taken from
