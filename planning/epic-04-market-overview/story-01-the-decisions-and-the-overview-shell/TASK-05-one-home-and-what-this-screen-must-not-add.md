@@ -82,3 +82,32 @@ feed fault.
   would deserve to.
 - **Record the distinction where Story 4.4 will read it**, in its own words,
   rather than leaving it here.
+
+## Amended by Task 4.1.4 — 2026-09-25: the route got small, and one new invariant looks like the opposite of this task's
+
+**The check this task owes is now nearly trivial to perform**, and that is worth
+saying rather than discovering. After Task 4.1.4 the route file is **135 lines
+and imports two things**: `Region`, and its own stylesheet. It renders no
+component that could carry a clock, a session word or a connection word, and
+**walking the producers is reading one import list**.
+
+**Do the walk anyway.** The point of the check is not its difficulty; it is that
+the next author who adds a component here has a recorded reason not to reach for
+`FeedIndicator`.
+
+### And one thing that will look like a contradiction
+
+Task 4.1.4 added **`the-workspace-package-reaches-the-bundle`**, which asserts
+the live feed's sentence — _Trades reported by the IEX exchange only…_ — **is in
+the frontend bundle.** Beside it sits `feed-words-in-a-renderer`, which asserts
+feed words are **not** in a renderer.
+
+**They are not in tension and a reader should not have to work that out.** One
+is about the **package reaching the browser at all**; the other is about
+**which module may spell the words**. The sentence belongs to shared, ships in
+the bundle, and is rendered by the surface that owns provenance — all three at
+once.
+
+**Whatever guard this task adds must be written so the pair still reads as two
+questions rather than one contradiction**, and if the cheapest way to do that is
+a sentence in the invariant's own comment, write the sentence.

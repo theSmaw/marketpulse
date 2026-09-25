@@ -148,3 +148,44 @@ the right direction and stops** — canvas → `VISUAL-LANGUAGE.md` → `tokens.
 is that it does not: this is a component state in a documented language, not a
 decision about what the product does, and Task 3.11.9's verdict on four
 candidates was that two of them already had a home.
+
+## Amended by Task 4.1.4 — 2026-09-25: removing the render check orphaned two components, and nothing can see it
+
+**`SecurityRow` has no shipped renderer at all**, and `AnomalyBadge`'s only
+shipped renderer is `SecurityRow`. Both were Story 1.4's; the render check was
+their last consumer, and Task 4.1.4 removed it.
+
+**Nothing in `pnpm verify` can notice.** `pnpm stories` asserts every component
+under `src/components/` **has** a stories file — the opposite direction — so a
+component nothing renders keeps its stories, keeps its tests, keeps its place in
+the coverage denominator, and looks exactly like a component in use.
+
+### This is a disposition rather than a deletion, and the reason is in the components
+
+- **`AnomalyBadge` is Epic 5's**, early. It renders §11's 0–100 band with its
+  explanation, which is the section's own requirement — _every score should have
+  an explanation_ — and it was built with four named bands rather than a
+  gradient because **a band can be labelled and a gradient cannot**. Deleting it
+  would throw away a decision Epic 5 would have to re-take.
+- **`SecurityRow` is less clear.** It is the ancestor of `UniverseTable`'s rows
+  and the place the anomaly band met a price, which is a shape Epic 5 needs and
+  may or may not want in this component.
+
+**So the close records them, with an owner and a condition** — never a story
+number — and the candidates are: keep, with a written statement that they are
+knowingly unrendered; or delete, with the record saying where the decisions went.
+**What is not acceptable is leaving them unremarked**, because dead code that
+looks alive is how a later author discovers a component by reading it and
+believes it is in use.
+
+### And ask whether it can be made mechanical
+
+`docs/GAPS.md`'s standing instruction is that an entry which can be made
+mechanical should be. **A check that every component under `src/components/` is
+rendered by something shipped is a grep**, and this repository has turned seven
+prose entries into `pnpm invariants` checks already.
+
+**Weigh it honestly rather than assuming**: the check has a false-positive shape
+— a component rendered only through a barrel, or only by another component that
+is itself orphaned, needs the walk to be transitive — and a check that cries
+wolf is worse than a list. **If it is written, it owes a break.**
