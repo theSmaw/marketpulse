@@ -1,8 +1,8 @@
-# Task 3.11.10 — The re-take, the upward sweep, and Epic 3's close
+# Task 3.11.11 — The re-take, the upward sweep, and Epic 3's close
 
 **Status:** Not started
 **Story:** [3.11 Cost, Performance, the Sweep & the Epic Close](STORY.md)
-**Depends on:** 3.11.2, 3.11.3, 3.11.4, 3.11.5, 3.11.6, 3.11.7, 3.11.8, 3.11.9
+**Depends on:** 3.11.2, 3.11.3, 3.11.4, 3.11.5, 3.11.6, 3.11.7, 3.11.8, 3.11.9, 3.11.10 — **renumbered from 3.11.10 on 2026-09-25, when the breaks pass was split out ahead of it; see the amendment at the foot**
 
 ## Objective
 
@@ -100,8 +100,8 @@ settle it.
 - Criterion 1's table filled, with the clean-clone / dated-reading split stated
 - The upward sweep, against the list and against a grep
 - `docs/GAPS.md` updated, with anything mechanisable made mechanical
-- Every `pnpm break` this epic added performed — Task 3.11.7 will have done the
-  replay guards; this covers the rest
+- Every `pnpm break` this epic added performed — **Task 3.11.10's, in full**;
+  this task reads its findings rather than running them
 - The hand-off enumeration and its count, recorded whatever it is
 - `CLAUDE.md`'s _Current state_ and _Where the record lives_
 - **Epic 3 closed**, both halves of the exit criterion verdicted
@@ -303,3 +303,44 @@ because Task 3.11.1 established nothing in this story waits on a clock.
 can start on a Friday. **Owner and condition rather than a story number**: the
 next person who wants the deployment to be trusted across a closure, or the
 first Monday pre-market that opens with no feed.
+
+## Amended by Task 3.11.7 — 2026-09-25: renumbered, one bullet removed, and two things added to the sweep
+
+**This task was 3.11.10 and is now 3.11.11.** Task 3.11.7's sweep split the
+breaks pass out ahead of it as the new **Task 3.11.10**, because the bullet
+_"Every `pnpm break` this epic added performed"_ turned out to be **61 entries
+and well over an hour** — an unattended hour at the end of an epic, inside the
+task that also closes the epic. The bullet is gone from the Work list above;
+**read 3.11.10's findings instead of running them.**
+
+Every reference was remapped in the same change: this file's title, its
+`Depends on`, Task 3.11.4's Epic 14 trigger, Task 3.11.9's n=2 caveat, and
+`STORY.md`'s table.
+
+### One item for criterion 6, the upward sweep
+
+**`CLAUDE.md`'s _measure rather than cite_ corollaries have a candidate**, and
+it is the same rule the sweep itself rests on:
+
+> **A claim about a mechanism reads identically whether the mechanism is there
+> or not.** A document that describes a guard — an ADR, a `docs/GAPS.md` entry,
+> a subject document — owes something mechanical that fails when the guard goes.
+
+**Its cost is the argument for promoting it, and this epic paid it twice.**
+`LIVE-REHEARSAL.md` claimed a completion marking that did not exist
+(2026-09-21); ADR 0030 §7b described a deploy step that had never been written,
+and `docs/GAPS.md` entry 9 then quoted §7b as _the only preventive mechanism_
+(2026-09-25, nine days standing). Both were found by somebody going to use the
+mechanism, not by anything mechanical. **Task 3.11.9 is weighing whether this
+is a `CLAUDE.md` corollary or an ADR — take its verdict rather than deciding it
+twice.**
+
+### One item for criterion 7, `docs/GAPS.md`
+
+**Entry 9's corrected sentence is the kind that rots**, because it describes
+three mechanisms in prose. Two of them now have checks that fail when they go —
+`the-deploy-reads-the-provider` in `pnpm invariants`, and
+`probe-deployed.yml`'s own existence. **Ask of every remaining entry that names
+a mechanism: what fails if somebody deletes it?** That is the mechanisable
+half of this list and it is exactly the standing instruction criterion 7
+carries.

@@ -687,6 +687,49 @@ jobs:
             echo
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # **ADR 0030 §7b — the only PREVENTIVE mechanism standing between a
+      # misconfigured container app and fabricated prices on a real screen.**
+      # It READS the provider and refuses to roll; it deliberately does not SET
+      # it, because the step below argues at length that a deploy which
+      # restated the app's environment would be a second definition of its
+      # configuration. The variables live on the container app, set out of
+      # band, and this asserts what is there.
+      #
+      # **Written 2026-09-25 by Task 3.11.7, which went looking for it to break
+      # it and found it had never been built.** ADR 0030 described it in the
+      # present tense from 2026-09-16 and `docs/GAPS.md` called it "the only
+      # preventive mechanism" — a claim about a mechanism reads identically
+      # whether the mechanism is there or not, which is the defect this
+      # repository has now produced twice.
+      #
+      # BOTH keys, because ADR 0030 §7e makes a replay need two deliberate
+      # values: the provider naming a non-live source is not sufficient on its
+      # own, and neither is the opt-in. Asserting one would leave the pair that
+      # actually starts a replay half-checked.
+      - name: Read the configured provider, and refuse to roll on the wrong one
+        run: |
+          set -euo pipefail
+          env_of() {
+            az containerapp show \
+              --name "$AZURE_CONTAINER_APP" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --query "properties.template.containers[0].env[?name=='$1'].value | [0]" \
+              -o tsv
+          }
+          provider="$(env_of MARKET_DATA_PROVIDER)"
+          nonlive="$(env_of NON_LIVE_MARKET_DATA)"
+          echo "MARKET_DATA_PROVIDER=${provider:-<unset>}"
+          echo "NON_LIVE_MARKET_DATA=${nonlive:-<unset>}"
+          if [ "$provider" != "alpaca" ]; then
+            echo "::error::The deployed backend is configured MARKET_DATA_PROVIDER=${provider:-<unset>}, not alpaca. Production serves the real market or it does not roll (ADR 0030 7a)."
+            exit 1
+          fi
+          if [ "$nonlive" = "permitted" ]; then
+            echo "::error::NON_LIVE_MARKET_DATA=permitted is set on the container app. That is the second of the two keys a replay needs (ADR 0030 7e); production must never hold it."
+            exit 1
+          fi
+          echo "the deployed backend serves the real market, and is not permitted to serve anything else"
+
       # `update`, never `create`. The ingress, the probes, the scale rule, the
       # environment variables and the managed identity are all already set on
       # this app and are deliberately NOT re-specified here: a deploy step that

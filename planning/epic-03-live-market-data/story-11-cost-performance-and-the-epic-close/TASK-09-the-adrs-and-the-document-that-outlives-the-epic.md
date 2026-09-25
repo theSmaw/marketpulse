@@ -103,7 +103,7 @@ differently starts to read as a document arguing with itself.
 green deploy certifies — is untouched and correct. **Only the cost annexe is
 wrong**, and a decision record is not primarily a cost model.
 
-**Decide it in writing either way**, with the n=2 caveat from Task 3.11.10's
+**Decide it in writing either way**, with the n=2 caveat from Task 3.11.11's
 re-read in hand: if the 32% step holds, the premise is definitively wrong and a
 new ADR has a subject; if it does not, the third amendment is a correction and
 nothing more.
@@ -135,3 +135,46 @@ already weighing a supersession of, from Task 3.11.5's amendment above.
 (3.11.6). If the verdict is a new ADR rather than a third amendment, these are
 its two subjects and it has a coherent one: **what this deployment's shape
 costs, in money and in feed.**
+
+## Amended by Task 3.11.7 — 2026-09-25: ADR 0030 described a mechanism that did not exist, and the pattern is now a candidate decision
+
+**ADR 0030 §7b said, in the present tense from 2026-09-16, that `deploy.yml`
+reads the configured provider and refuses to roll on anything but `alpaca` —
+and that it is the only PREVENTIVE guard among the five.** No such step existed.
+Task 3.11.7 found it by trying to break it, built it, and gave §7b a **dated
+amendment** rather than a rewrite.
+
+**Two things for this task.**
+
+**1. The amendment is in place and the section's body is deliberately
+untouched.** `CLAUDE.md`'s rule is that a present-tense description which has
+become false gets a dated amendment beside it. This one was never true rather
+than having become false, which is the same repair and worth a sentence when
+`LIVE-DATA.md`'s map gives ADR 0030 its verdict.
+
+**2. The generalisable finding may have no home**, which is exactly what this
+task exists to decide:
+
+> **A claim about a mechanism reads identically whether the mechanism is there
+> or not** — so a decision record describing a guard owes something mechanical
+> that fails when the guard goes.
+
+**This epic produced it twice.** First on 2026-09-21, when
+`LIVE-REHEARSAL.md` claimed a completion marking in `EPIC.md` that does not
+exist (the `the-close-outruns-the-rehearsal` break). Then on 2026-09-25 with
+§7b. **Two instances is a pattern**, and the repair both times was the same
+shape: an invariant asserting the mechanism's own text, plus a break.
+
+**Where it belongs is this task's call.** It is a corollary of _measure rather
+than cite_ and could go in `CLAUDE.md` beside _a break that does not go red is
+not evidence the check works_ — which makes it **Task 3.11.11's** sweep rather
+than an ADR. The alternative reading is that it is a decision about what a
+decision record owes, which would make it an ADR of its own. **Decide it in
+writing; do not let it be both or neither.**
+
+> **And one small correction for the map.** ADR 0030's mechanisms run
+> 7a, 7a-bis, 7b, 7c, 7d, 7e, 7f — and **7d is the daily scheduled probe**
+> while **7f is the in-session refusal**. Task 3.11.7's own table called the
+> in-session refusal 7d, written from memory of the ADR. A reader reaching for
+> §7d and finding a cron is the cost; if `LIVE-DATA.md`'s map names these, name
+> them from the ADR.
