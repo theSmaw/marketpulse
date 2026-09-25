@@ -211,7 +211,7 @@ measured locally on three dates — **appearing off a laptop for the first time*
 **It is one sample, and the invoker is `MessagePort.onmessage`**, the React
 scheduler, which cannot attribute it between the 518-row table and the chart.
 **It is not evidence the exception moved. It is evidence it is still there.**
-Epic 14's two figures stay quote-only and its trigger is Task 3.11.10's to
+Epic 14's two figures stay quote-only and its trigger is Task 3.11.11's to
 verdict.
 
 ### What the sitting still owes, and it is now five things rather than nine

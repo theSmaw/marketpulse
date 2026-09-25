@@ -198,7 +198,8 @@ And one produces the only thing in this epic that has never happened at all:
 | 7   | [The replay's guards, re-broken rather than assumed](TASK-07-the-replays-guards-re-broken-rather-than-assumed.md)                                                                  | no                                   |
 | 8   | [The sitting a person actually takes, and the ledger completed](TASK-08-the-sitting-a-person-actually-takes.md)                                                                    | **the product, watched**             |
 | 9   | [The ADRs, and the document that outlives the epic](TASK-09-the-adrs-and-the-document-that-outlives-the-epic.md)                                                                   | no                                   |
-| 10  | [The re-take, the upward sweep, and Epic 3's close](TASK-10-the-re-take-the-upward-sweep-and-epic-3s-close.md)                                                                     | no                                   |
+| 10  | [Every break this epic added, performed](TASK-10-every-break-this-epic-added-performed.md)                                                                                         | no                                   |
+| 11  | [The re-take, the upward sweep, and Epic 3's close](TASK-11-the-re-take-the-upward-sweep-and-epic-3s-close.md)                                                                     | no                                   |
 
 **Two tasks share one window and must be taken together** — 3.11.4's
 performance pass and 3.11.8's sitting both need the market open, and the scarce
