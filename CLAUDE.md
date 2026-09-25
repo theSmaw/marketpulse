@@ -268,6 +268,27 @@ feature that acts on a reconnection. The one deployed figure disagrees with it
 development-only. **The case it cannot fix** — the backend's own socket
 dropping, which holes the store — is `docs/GAPS.md`'s and Story 3.11's.
 
+**And since 2026-09-24 the degraded set has been photographed together, which
+is the pass that keeps finding things no single screen shows.** Nine states
+produced through the shipped socket path — a real close, a real `feed` frame,
+a real `{"feed": null}` — at four widths and in greyscale, 45 photographs.
+**No two states read identically, at any width.** What it found is a
+**duplicate**: `BarSeriesPanel` drew its own `Market feed · All US exchanges ·
+IEX` line a hundred pixels above the source note's ledger, having been written
+two years earlier with a comment saying it would arm itself _the day the
+second feed arrives_. It did; the surface that should own the fact had been
+built in the meantime; it is deleted. `PROVENANCE.md` §14 carries the lesson
+about the deferral pattern, which is the part that generalises.
+
+Two things that came with it. **`docs/GAPS.md` entry 13 is discharged for this
+grid by construction** — every row was reached by producing it — and re-owned
+with its condition for the renderer-side grids that remain. And a standing item
+was added rather than repaired: **the whole difference between _the feed
+stopped_ and _the market is shut_ rests on one cell at the foot of the
+viewport**, which at 390 is below the fold. Three tasks decided, with
+measurements, that every surface above it stays quiet; reversing that is a
+conversation rather than a fix.
+
 **What they still cannot do:** have a person **vouch** for it during a session.
 The deployed backend reads `live` on IEX again since 2026-09-21 — the `406`
 this paragraph used to describe is gone — and ~~`LIVE-REHEARSAL.md`'s rows for

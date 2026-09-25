@@ -1421,3 +1421,35 @@ not change says nothing about a tape that does. The tail now opens its own
 stretch when its tape differs and extends where it does not — which since Story
 3.8 is the commoner case, and is now asked as a question about data rather than
 assumed. `pnpm break the-ledger-inherits-epic-2s-word-too`.
+
+## 14. The second drawn ledger, deleted — 2026-09-24 by Task 3.10.9
+
+**§1.3's rule was broken by a surface that had been waiting two years to break
+it.** `BarSeriesPanel` rendered its own line inside the Price region:
+
+```text
+MARKET FEED  ● All US exchanges  ● IEX  Trades reported by the IEX exchange
+only — not the full US consolidated tape.
+```
+
+a hundred pixels above the note's own `SOURCES` ledger, which says the same
+thing with bar counts attached. Its own comment is the whole account:
+
+> So today it never renders and no reader loses anything, and **the day the
+> second feed arrives it renders itself.** The alternative was a note in a
+> document saying _put this back in Epic 3_, which is the kind of note that is
+> read after the screen has shipped without it.
+
+**The mechanism worked exactly as designed and the design was overtaken.**
+Story 3.8 gave the store two tapes, Task 3.10.8 gave the live tail its own
+stretch, and between those the surface that should own this — the source note,
+Task 2.14.3 — had been built. Deleted; §1.3's table assigns _this series'
+feeds_ to the note, whose condition is a **superset** of the panel's.
+
+**The lesson is about the deferral pattern rather than about this line.**
+Leaving a self-arming renderer is better than leaving a note **only while
+nothing else claims the fact**. When something does, the armed renderer fires
+into a screen that has moved on — and it fires **silently**, because it is
+correct in isolation and every test of it passes. What catches it is a pass
+that photographs the set together, which is why Task 2.14.7's instrument was
+worth rebuilding.

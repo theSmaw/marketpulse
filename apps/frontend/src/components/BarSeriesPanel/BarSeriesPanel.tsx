@@ -1,11 +1,5 @@
 import type { ReactNode } from "react";
 
-import type { MarketFeed } from "@marketpulse/shared";
-import {
-  distinctSeriesFeeds,
-  MARKET_FEED_DESCRIPTIONS,
-} from "@marketpulse/shared";
-
 import { Badge } from "../Badge/Badge.js";
 import { Button } from "../Button/Button.js";
 import { MetricStrip } from "../MetricStrip/MetricStrip.js";
@@ -1030,9 +1024,23 @@ function Body({
     case "loading":
       return <LoadingState />;
 
+    // **Nothing here since 2026-09-24, and it is a DELETION rather than a
+    // move** (Task 3.10.9). `Provenance` rendered `Market feed · All US
+    // exchanges · IEX · <the one-venue sentence>` whenever a series carried
+    // two feeds, and its own comment said *today it never renders … and the
+    // day the second feed arrives it renders itself.* **That day arrived** —
+    // Story 3.8 gave the store two tapes and Task 3.10.8 gave the live tail
+    // its own stretch — and what it rendered was the **source note's ledger, a
+    // hundred pixels below it**, sentence for sentence.
+    //
+    // `PROVENANCE.md` §1.3 assigns *this series' feeds* to the **note**, whose
+    // condition is a superset of this one's (more than one feed, **or** one
+    // that is not the configured one), so nothing is lost. Found by Task
+    // 3.10.9 photographing the set together, which is the only way a defect of
+    // this shape is visible: every state was correct on its own.
     case "loaded":
     case "partial":
-      return <Provenance series={view.series} />;
+      return null;
 
     // **Nothing here, because the sentence moved into the plot** (2026-09-14).
     //
@@ -1107,92 +1115,6 @@ function settleSignature(
     series.bars.length,
     series.coverage.covered.end.getTime(),
   ].join("·");
-}
-
-/**
- * Which feed these bars came from, in the shipped vocabulary.
- *
- * The words are `MARKET_FEED_DESCRIPTIONS`', never this component's: a renderer
- * deriving a user-facing sentence from a slug and a table of its own is two
- * vocabularies for one fact, and is the copy that drifts. The rule that record
- * carries is that **a sentence appears when the label cannot stand alone**, so
- * `IEX` gets one and `All US exchanges` does not — and that rule is applied by
- * reading `.sentence`, not by re-deciding it here.
- *
- * **`sources` is a list because a stitched series truthfully names more than
- * one.** Today both halves of a stitch report `sip`, which is what the recorded
- * fixture shows and is not the steady state — Epic 3's IEX socket is what makes
- * two sources mean two feeds. So this renders the distinct feeds rather than one
- * label, and it does not write the *"stitched from two feeds"* wording, because
- * that sentence has no producer yet and Story 2.14 owns it.
- *
- * ## It renders only where the chrome's own label cannot be right — 2026-09-14
- *
- * The masthead carries `FeedProvenance` on every screen, so for a series whose
- * sources all name **one** feed this line was the same fact twice, three
- * centimetres below a chart that had just been given back its vertical space.
- *
- * What it is *not* safe to delete is the case invariant 6 exists for. The free
- * Alpaca plan is asymmetric — stored history is consolidated SIP and the live
- * stream is IEX — so the moment Epic 3 stitches a live tail onto stored bars,
- * **one page-level label is wrong about half of this series** and the honest
- * answer is per-series. That is the condition below, and it is a property of the
- * answer rather than a flag: more than one distinct feed in the sources.
- *
- * So today it never renders and no reader loses anything, and the day the second
- * feed arrives it renders itself. The alternative was a note in a document
- * saying *put this back in Epic 3*, which is the kind of note that is read after
- * the screen has shipped without it.
- */
-function Provenance({ series }: { readonly series: PopulatedBarSeries }) {
-  // `distinctSeriesFeeds` rather than a `Set` built here: three surfaces asked
-  // this same question with three copies of the same expression, and the source
-  // note was going to be the fourth (Task 2.14.3).
-  const feeds = distinctSeriesFeeds(series.provenance);
-
-  if (feeds.length < 2) return null;
-
-  return (
-    <div className={styles.provenance}>
-      {/*
-       * The line is labelled, because a venue name floating under a table of
-       * prices is a caption without a subject. `Market feed` is the chrome's
-       * own words for the same fact one region away, and using them twice is
-       * the point rather than a duplication: a reader who has learned what the
-       * strip means should not have to learn it again here.
-       */}
-      <span className={styles.provenanceLabel}>Market feed</span>
-      {feeds.map((feed) => (
-        <FeedLabel key={feed} feed={feed} />
-      ))}
-    </div>
-  );
-}
-
-function FeedLabel({ feed }: { readonly feed: MarketFeed }) {
-  const description = MARKET_FEED_DESCRIPTIONS[feed];
-
-  // Amber and a square for generated data, grey and a disc for a market feed —
-  // `FeedProvenance`'s mapping, for the same safety reason: a fixture-backed
-  // deployment advertises itself structurally rather than by somebody
-  // remembering a banner. The shape carries it as well as the colour, so the
-  // distinction survives desaturation.
-  const synthetic = feed === "synthetic";
-
-  return (
-    <span
-      className={cx(
-        styles.feed,
-        synthetic ? styles.synthetic : styles.realFeed,
-      )}
-    >
-      <Marker shape={synthetic ? "square" : "disc"} />
-      <span className={styles.feedLabel}>{description.label}</span>
-      {description.sentence !== undefined && (
-        <span className={styles.feedSentence}>{description.sentence}</span>
-      )}
-    </span>
-  );
 }
 
 /**

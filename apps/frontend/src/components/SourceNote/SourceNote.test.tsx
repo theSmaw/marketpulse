@@ -514,3 +514,47 @@ describe("the stretch that is still being added to", () => {
     expect(rows[1]?.textContent ?? "").toContain("arriving");
   });
 });
+
+// **`1 bars`** (Task 3.10.9). The count could not be one until Task 3.10.8
+// gave the live tail a stretch of its own — and the first minute of every
+// live session is that stretch with one bar in it, so the commonest moment of
+// the state this ledger exists for was the ungrammatical one.
+describe("the count at one", () => {
+  it("says bar, not bars", () => {
+    const view = barSeriesFixtureView("twoFeed");
+    if (view.state !== "loaded" && view.state !== "partial")
+      throw new Error(`fixture is ${view.state}`);
+
+    const [first, second] = view.series.provenance.sources;
+    if (second === undefined) throw new Error("expected two stretches");
+
+    // One bar moved from the stored stretch to the live one, which is what
+    // the first minute of a session looks like.
+    const moved = {
+      ...view,
+      series: {
+        ...view.series,
+        provenance: {
+          ...view.series.provenance,
+          sources: [
+            { ...first, barCount: first.barCount + second.barCount - 1 },
+            { ...second, barCount: 1 },
+          ] as typeof view.series.provenance.sources,
+        },
+      },
+    };
+
+    render(
+      <SourceNote
+        shown={moved}
+        feed={SIP}
+        securities={PENDING_UNIVERSE}
+        symbol={SUBJECT}
+      />,
+    );
+
+    const rows = screen.getAllByRole("listitem");
+    expect(rows[1]?.textContent ?? "").toContain("1 bar ");
+    expect(rows[1]?.textContent ?? "").not.toContain("1 bars");
+  });
+});
