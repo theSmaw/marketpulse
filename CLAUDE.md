@@ -306,11 +306,19 @@ saying how the shipped sentence differs from its example and why.
 
 **What they still cannot do, from this epic: nothing.** This paragraph has held
 an item since Epic 3 opened and no longer does — the feature work is complete
-and Story 3.11 measures and closes. What is **owed** rather than missing is a
-**person**: `LIVE-REHEARSAL.md` has dated rows for six of eleven stories and
-**not one was watched by a human** — every row was taken by a headless browser
-or a Node client, which each row says on its face. Whether that satisfies an
-exit criterion whose word is _watched_ is the owner's call, recorded as such.
+and Story 3.11 measures and closes. ~~What is **owed** rather than missing is a
+**person**~~ — **discharged 2026-09-25 by Task 3.11.8, and the sentence below
+is left standing because it was true for nine stories.** `LIVE-REHEARSAL.md`
+had dated rows for four stories and **not one was watched by a human** — every
+row was taken by a headless browser or a Node client, which each row says on
+its face — and whether that satisfied an exit criterion whose word is
+_watched_ was the owner's call. **It did not, and the owner then took the
+sitting**: the deployed product was watched during the 2026-09-24 session — the
+securities table with live prices moving, a chart extending, the feed cell, and
+a reload mid-session keeping today's bars — and nothing looked wrong. Three
+empty rows (3.3, 3.8, 3.9) were filled by a **person**, the four instrumented
+ones are corroborated, and note 5 beneath the ledger says exactly what a row of
+each kind can claim.
 The deployed backend reads `live` on IEX again since 2026-09-21 — the `406`
 this paragraph used to describe is gone — and ~~`LIVE-REHEARSAL.md`'s rows for
 3.4, 3.5 and 3.6 are empty until somebody opens the deployed site while the
@@ -557,6 +565,7 @@ This repository documents itself thoroughly, and **that documentation is the sou
 | **What the store claims about where a bar came from** — the column, the writers, the ledger's withdrawn half, the read that produces two sources, and the deploy's lock                                                            | [`TAPE.md`](planning/epic-03-live-market-data/story-07-the-tape-on-the-bar/TAPE.md) — and [ADR 0034](docs/adr/0034-the-tape-on-the-bar.md), which is the decision and its two rejected alternatives                                               |
 | **What happens when the product writes the trading day down** — the writer, what it claims in the ledger and why not the whole session, the overnight reconciliation, and the reads that assumed one row a minute                  | [`LIVE-SESSION.md`](planning/epic-03-live-market-data/story-08-storing-the-live-session/LIVE-SESSION.md) — and [ADR 0035](docs/adr/0035-both-tapes-are-kept-and-what-a-record-is.md), which is what a record is and what keeping both tapes costs |
 | **What the product says when its feed stops** — the nine states produced and photographed, the one-home rule and the five surfaces that stay quiet, the thresholds on two clocks, and what a green degraded suite does not certify | [`Story 3.10`](planning/epic-03-live-market-data/story-10-disconnection-staleness-and-degraded-states/STORY.md) and its Task 3.10.9 — and ADR 0029's 2026-09-24 amendment, which is the rule for a claim that **stops** being true                |
+| **Whether a PERSON has watched this product work against the real market** — one row per story, the rules for what a row may claim, and the instrument for the next sitting                                                        | [`LIVE-REHEARSAL.md`](planning/epic-03-live-market-data/LIVE-REHEARSAL.md) — the only file in this repository about somebody LOOKING rather than about a check passing                                                                            |
 | Setup, commands and the running application, for humans                                                                                                                                                                            | [`README.md`](README.md)                                                                                                                                                                                                                          |
 
 Every story has a `STORY.md` with acceptance criteria and open decisions, and every task a `TASK-NN-*.md` with what was done and what was found. **Read the STORY.md before starting a story**: several carry open decisions that are deliberately unresolved and should be settled with the user rather than assumed.
@@ -608,6 +617,7 @@ were the edit. Each of these cost real time that session.
 - **A break that does not go red is not evidence the check works** — it is equally evidence the break did not land. Verify the substitution.
 - **A figure that has moved looks exactly like a figure that was mis-recorded.** Only rebuilding the old commit tells them apart.
 - **A throwaway instrument's findings section must quote at least one frame, body or row VERBATIM.** _Run it, record the findings, delete it_ is the established shape (`ALPACA.md` §11) and it works — measured on 2026-09-18, a fortnight after Epic 3's harness was deleted, at **12 of the 14 frames a downstream story needed**. The two it missed came from the one section that recorded a **behaviour** without quoting the bytes that carried it, and the failure is invisible at the time: the finding is complete and the argument sound **until somebody needs the evidence rather than the conclusion**, by which point the instrument is gone. Cost: a fixture with an inferred shape, and a `docs/GAPS.md` entry to retire it.
+- **A claim about a mechanism reads identically whether the mechanism is there or not.** So a document describing a guard — an ADR, a `docs/GAPS.md` entry, a subject document — owes something mechanical that fails when the guard goes. Produced **twice in one week**: `LIVE-REHEARSAL.md` claimed a completion marking in `EPIC.md` that does not exist (2026-09-21), and ADR 0030 §7b described a `deploy.yml` step that had never been written while `docs/GAPS.md` quoted it as _the only preventive mechanism_ (2026-09-25, nine days standing). **Both were found by somebody going to USE the mechanism**, never by reading; both repairs were the same shape — an invariant over the mechanism's own text, plus a break. When you write that something is guarded, write the check in the same change.
 - **A sentence duplicated for legibility must be counted with a grep before it is corrected**, and a live claim must be told apart from a historical record. Story files record what was true when they were written; correcting those destroys the record. Amend live claims, leave historical ones.
 - **ADRs are never renumbered and their decisions are never rewritten**; a present-tense description of the tree that has become false gets a dated amendment beside it.
 - **An applied migration is immutable.** The checksum hashes the whole file, comments included, so editing one — even a comment — makes the next deploy refuse. Applied migrations therefore contain historical claims that are wrong today, and that is the correct state.

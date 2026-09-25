@@ -344,3 +344,31 @@ three mechanisms in prose. Two of them now have checks that fail when they go �
 a mechanism: what fails if somebody deletes it?** That is the mechanisable
 half of this list and it is exactly the standing instruction criterion 7
 carries.
+
+## Amended by Task 3.11.9 — 2026-09-25: two sweep items are DONE, and one is now a check rather than a reading
+
+**The corollary this task was handed is decided and written.** Task 3.11.9's
+verdict was `CLAUDE.md` rather than an ADR — it is a rule about how to write a
+document, not a decision about this product — and the paragraph is in place
+beside _a break that does not go red is not evidence the check works_:
+
+> **A claim about a mechanism reads identically whether the mechanism is there
+> or not.** When you write that something is guarded, write the check in the
+> same change.
+
+**So criterion 6 loses that item and keeps the sweep.** What it should still do
+is the harder half: **grep for other mechanism claims** in the ADRs and in
+`docs/GAPS.md` and check each against the tree. Two were found by accident this
+week; nobody has looked on purpose.
+
+**And `CLAUDE.md`'s _Current state_ has already been corrected in one place.**
+Its _what they still cannot do_ paragraph claimed `LIVE-REHEARSAL.md` had
+**four dated rows and not one watched by a human**, which Task 3.11.8 made
+false the same day. It is struck and answered in place rather than deleted,
+because it was true for nine stories. **The rest of that section is still this
+task's**, and it is long.
+
+**One addition to the record table**, also already made: `LIVE-REHEARSAL.md`
+was in no table anywhere — the only file in this repository about somebody
+**looking** rather than about a check passing, and a reader had to know it
+existed. It now has a row.
