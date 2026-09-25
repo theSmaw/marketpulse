@@ -1894,6 +1894,26 @@ export const BREAKS = [
     expect: "rehearsal rows",
   },
   {
+    name: "a-second-clock-on-the-landing-page",
+    proves:
+      "The Market Overview grows a clock of its own, which is what " +
+      "PRODUCT_SPEC.md §9's sketch invites: it draws `LIVE  10:42:16 ET` " +
+      "across the top of this screen, and both halves already exist in the " +
+      "chrome. Two surfaces answering *what time is it in the market* can " +
+      "disagree — the two-surfaces defect this product has produced four " +
+      "times on one screen — and `useMarketClock` ticks, so the second " +
+      "caller re-renders every second on the page that is about to hold four " +
+      "aggregates over 518 securities.",
+    file: "apps/frontend/src/routes/MarketOverview.tsx",
+    find: "export function MarketOverview() {",
+    replace:
+      "export function MarketOverview() {\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  useMarketClock();",
+    command: ["pnpm", "invariants"],
+    expect: "useMarketClock",
+  },
+  {
     name: "a-second-caller-of-the-live-feed-hook",
     proves:
       "A live table's obvious wiring is one subscription per row. This " +
