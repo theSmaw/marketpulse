@@ -264,6 +264,24 @@ connection has one home and that home is sticky at the **foot** of the
 viewport, at 390 the distinction between _the feed stopped_ and _the market is
 shut_ is below the fold. No check can see it.
 
+> **Amended 2026-09-25 by Task 4.1.7 — the description was wrong in two ways,
+> and what replaces it is worse.** _Below the fold_ is not what happens: the
+> status bar is **sticky**, so it is on screen at 390 whatever the scroll
+> position, and when the feed drops it **grows from four wrapped lines to six**
+> — a size change that moves the page, which is a stronger peripheral signal
+> than the word alone.
+>
+> **What is actually wrong is the timing.** Measured on the deployed site at
+> 390: a client that loses its network keeps reading **`LIVE` for exactly
+> 165 seconds** before anything changes. The word is driven by the monotonic
+> watchdog — no inbound frame for 165 s — not by the socket closing, which the
+> browser detects immediately and uses only to start reconnecting.
+>
+> **So the question this epic inherited is answered and replaced**: nobody
+> fails to notice the fold, because for two minutes forty-five seconds there is
+> nothing to notice. **Story 4.7 owns the decision**, with the argument and the
+> alternatives in its own file.
+
 **This epic is where it matters most.** The overview's whole subject is _what
 is happening right now_, so a feed that has quietly stopped is a worse lie here
 than on a security page — and the 390 consequence above is owed a person's
