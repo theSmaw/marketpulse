@@ -1,9 +1,22 @@
 # Story 4.1 — The Decisions This Screen Cannot Be Built Without, & the Overview Shell
 
-**Status:** Not started
-**Epic:** [Epic 4 — Market Overview](../EPIC.md)
-**Depends on:** Epic 3
-**Epic scope covered:** the landing route itself; the regions §9 names; live market status indicators (inherited rather than rebuilt)
+**Status:** **Split into eight tasks — 2026-09-25.** The order puts a **visible change third** and keeps the two expensive unknowns — the denominator curve and the phone — off the critical path of the screen itself, because neither blocks drawing it and both block the four stories after it.
+
+| #     | Task                                                                                                                                                                             | Visible?                          |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| 4.1.1 | [What the shell already is, and the four decisions this story cannot start without](TASK-01-what-the-shell-already-is-and-the-four-decisions-this-story-cannot-start-without.md) | no — and it removes work          |
+| 4.1.2 | [The canvas: the overview's grid, and the two regions nobody has placed](TASK-02-the-canvas-the-overview-grid-and-the-two-regions-nobody-has-placed.md)                          | a picture, before the build       |
+| 4.1.3 | [The two regions that were waiting for a shape](TASK-03-the-two-regions-that-were-waiting-for-a-shape.md)                                                                        | **yes**                           |
+| 4.1.4 | [The render check retired, and the bundler proof kept](TASK-04-the-render-check-retired-and-the-bundler-proof-kept.md)                                                           | **yes — the screen gets quieter** |
+| 4.1.5 | [One home, and what this screen must not add](TASK-05-one-home-and-what-this-screen-must-not-add.md)                                                                             | nothing new, nothing duplicated   |
+| 4.1.6 | [The measurement the denominator decision cannot be taken without](TASK-06-the-measurement-the-denominator-decision-cannot-be-taken-without.md)                                  | no                                |
+| 4.1.7 | [The 390 question, asked with a phone in hand](TASK-07-the-390-question-asked-with-a-phone-in-hand.md)                                                                           | no, or a repair                   |
+| 4.1.8 | [The decisions recorded, the sweep, and the close](TASK-08-the-decisions-recorded-the-sweep-and-the-close.md)                                                                    | no                                |
+
+> **The split's own finding, from writing it: the shell is further along than this story assumed.** Task 1.5.4 already built a `Region` component with a `filledBy` sentence — ADR 0029's defer rule in a component — and **three regions already defer correctly**. What is actually owed is **two regions Task 1.5.4 deliberately did not place**, naming this epic as the thing that would know their shape, and **retiring Story 1.4's render check without dropping the bundler proof it carries**.
+> **Epic:** [Epic 4 — Market Overview](../EPIC.md)
+> **Depends on:** Epic 3
+> **Epic scope covered:** the landing route itself; the regions §9 names; live market status indicators (inherited rather than rebuilt)
 
 ## Description
 
