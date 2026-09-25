@@ -1,0 +1,87 @@
+# Story 4.2 — The Aggregate Seam, & the Index Proxies That Move
+
+**Status:** Not started
+**Epic:** [Epic 4 — Market Overview](../EPIC.md)
+**Depends on:** 4.1
+**Epic scope covered:** major ETF/index proxy summary; the one place an aggregate is computed
+
+## Description
+
+**The first live numbers on the landing page, and the seam every later
+aggregate goes through.**
+
+`PRODUCT_SPEC.md` §9 puts a market summary at the top of this screen and §6
+names the proxies: **SPY, QQQ, DIA, IWM** — four of the universe's 518, already
+tracked, already carrying a live price since Story 3.6, and already having
+their change measured from the previous session's close by `changeFromClose`,
+**which is the one place that arithmetic is written** (`last-close.ts`, Task
+3.6.1). Nothing here re-derives it.
+
+**So the visible half of this story is small and the structural half is not.**
+Four figures is a morning's work. What takes the story is deciding — and
+building — **where an aggregate over the universe is computed**, because
+Stories 4.3, 4.4 and 4.5 all go through it and Epic 5's scores will want the
+same seam.
+
+> **The index proxies are deliberately the first thing through it**, because
+> they are the one "aggregate" that is not an aggregate: four named securities,
+> each its own row in the map. If the seam cannot serve four known symbols
+> cleanly it will not serve a breadth count, and the failure is visible in
+> minutes rather than in a percentage nobody can check by eye.
+
+## What the user can see when this story lands
+
+**Four index proxies at the top of the landing page, moving.** `SPY`, `QQQ`,
+`DIA` and `IWM` with their last price, their change from the previous session's
+close in both sign and glyph, and the arrival mark this product already uses —
+the disc that fires when **a bar arrives** rather than when the price changes.
+
+**And an honest answer when one of them has not been heard from**, which on
+IEX is ordinary rather than broken: a proxy with no current observation shows
+its last stored close with the instant it belongs to, never a blank and never a
+stale number presented as current.
+
+**What they still cannot do:** read sectors (4.3), breadth (4.4) or the movers
+(4.5), or click through (4.6).
+
+## Why it sits here in the sequence
+
+**Immediately after the shell and before every other aggregate**, because it is
+the cheapest possible test of the seam Story 4.1 decided: four rows, four
+figures, and every property of the underlying map exercised — a fresh
+observation, a missing one, and a value that arrives while somebody is looking.
+
+## Acceptance criteria
+
+1. Four proxies render with price, change and the shipped arrival mark, from
+   live data during a session and from the store outside one
+2. The change is computed by **`changeFromClose`** — a second implementation of
+   that arithmetic fails the build (`pnpm break` entry)
+3. A proxy with no current observation renders its own honest state, and the
+   words are the product's existing ones rather than new synonyms
+4. The seam Story 4.1 chose exists as **one module or one route**, with a test
+   that fails if a second caller computes the same aggregate elsewhere
+5. **The feed's provenance is not implied.** These figures come from IEX when
+   live and from the consolidated tape when stored, and the screen does not
+   suggest they are the same thing (`CLAUDE.md` invariant 6)
+6. A browser spec asserts a bar landing in a proxy against a store with zero
+   bars, which is the assertion CI can actually make
+
+## Design work
+
+**Four figures side by side is a component this product does not have.** The
+identity block's price treatment is the closest relative (`Price region.dc.html`,
+`The first price that moves.dc.html`) and it is designed for **one** number
+with room around it.
+
+Draw the proxy row on the canvas before building it: at 1440 it is four across,
+and at 390 it is the first thing that has to decide between wrapping, scrolling
+and dropping to two rows. **Colour is never the sole encoding** — the price
+palette differs by 1.04:1 in greyscale, so the sign and the glyph carry the
+direction.
+
+## Out of scope
+
+Sector ETFs (4.3), any count over the universe (4.4), ranking (4.5). The proxy
+set is the four §6 names and adding a fifth is a universe change, not a
+layout choice.
