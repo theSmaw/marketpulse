@@ -863,3 +863,51 @@ Story 3.10's.
 the market open (taken, with the word _person_ left to the owner).** The story
 does not mark itself closed on that; the three items above stay owed, and the
 first sitting on a shut market takes the first of them.
+
+## Addendum 2 — what the 2026-09-24 session watch took, item by item
+
+**A second sitting was taken on 2026-09-24**, 09:37–16:37 ET, past the bell, by
+`session-watch.mjs` against the deployed gateway — 132,757 observations over
+4,408 `bars` frames, zero unreadable. It was started for Story 3.10's work and
+it answers this story's owed list, which is the hand-off working sideways for
+once rather than being missed.
+
+**The three items above, re-verdicted:**
+
+| Owed                                      | Verdict, 2026-09-24                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **a real correction**                     | **TAKEN, verbatim.** `VRT`, minute `2026-09-24 09:31:00 EDT`, `changed: ["close","volume"]`, close **239.745 → 239.7** and volume **899 → 945**. The instrument kept `(symbol, startsAt)` per frame exactly as this addendum asked it to.                                                                                                           |
+| **the extended-hours mark on a real bar** | **Half taken.** The **socket** saw one — `MU`, `2026-09-24T12:01:00Z`, `08:01:00 EDT`, `pre_market` — and the **page** did not: **0 of 40 page looks** showed a qualifier, because the looks are every 20 minutes and the browser leg started at 09:37, after the bell. The wire half is answered; the _identity block rendering it_ is still owed. |
+| **a genuinely quiet minute**              | **Half taken.** Over 411 minutes with any bar, `ERIE` was heard in **19** — so 392 quiet minutes for a thin name, which is §7.6's 2.1% coverage seen rather than cited. The **page** half is again unanswered for the same reason: no look coincided with one.                                                                                      |
+
+**So the list is one discharged and two narrowed**, and what both survivors need
+is the same thing: **a page look taken at a chosen moment rather than on a
+timer.** The next instrument should photograph on an _event_ — the first
+extended-hours bar for a watched symbol, the first minute a watched symbol is
+silent — instead of every twenty minutes. That is a change to the instrument,
+not to this story.
+
+> **And the correction rate that came with it falsifies a figure this story
+> cites.** §14.1's 0.064% was re-measured over the whole session at **0.1062%**,
+> with 37.6% changing the close against the recorded 35.3%. Swept the same day
+> across every live claim; `LIVE-DATA.md` §14.1 carries both measurements. The
+> **table above in this file is a historical record of the 2026-09-22 sitting
+> and is left standing.**
+
+## Addendum 3 — one item ADDED to the combined sitting, 2026-09-24 by Task 3.10.9
+
+Task 3.10.9 produced nine degraded states and compared six surfaces at four
+widths. No two read identically — but **three pairs are told apart by one
+surface only**, and that surface is usually the status bar, which is sticky at
+the **foot** of the viewport.
+
+**At 390 that cell is below the fold.** So the whole difference between _the
+feed stopped_ and _the market is shut_ may sit unseen on a phone, and **no
+check can see this**: every assertion in the suite reads the DOM, where the
+cell is present whether or not anybody has looked at it.
+
+**It needs a person, a phone and a session**, which is this story's sitting
+exactly. Added to the combined list in `LIVE-REHEARSAL.md`; owner a person
+before Epic 4, whose Market Overview is the first screen whose whole subject is
+_what is happening right now_ and where a dead feed is a worse lie than it is
+here.

@@ -386,3 +386,29 @@ for it under `apps/frontend`. It is a **backend route test**:
 `apps/backend/src/routes/market-feed-grid.test.ts`. The full path is given here
 because `CLAUDE.md`'s own rule is that a prose pointer rots silently, and this
 one was one directory away from doing so.
+
+## Amended by Task 3.10.9 — 2026-09-24: the entry this task opened has its first verdict
+
+This task's finding became `docs/GAPS.md` entry 13 — _that a row of a published
+state grid is a row the product can actually reach_ — with an owner that is a
+**condition**: _the next story that publishes a state grid._
+
+**Task 3.10.9 published one and the condition fired.** Its nine-state grid is
+**discharged by construction**: every row was reached by **producing** it — a
+real socket close, a real `feed` frame, a real `{"feed": null}` — so a row
+nothing can produce could not have appeared in it. That is this entry's
+re-measure performed rather than promised, and it is the first time the
+producer-walking discipline this task established has been applied by a
+different story.
+
+**The entry is re-owned rather than closed.** `CHARTING.md`'s chart states and
+`PROVENANCE.md`'s failure-and-partial-state tables are still renderer-side
+grids; the condition stands for whoever publishes next.
+
+> **And 3.10.9 found the sibling defect this task's family predicts.** Entry
+> 13's family is _something that exists in one layer and cannot be reached from
+> the next_. 3.10.9's was the mirror image: a renderer that **could** be
+> reached, had been waiting two years to arm itself, and fired into a screen
+> that had since grown a better owner for the same fact — `BarSeriesPanel`
+> drawing the source note's ledger a second time. Correct in isolation, green
+> in every test, and visible only with the set photographed together.

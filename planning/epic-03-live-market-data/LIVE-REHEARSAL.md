@@ -219,10 +219,28 @@ rows that cite it, with the ordinary qualification from note 1: a headless
 watch looked, and whether that satisfies a criterion naming _a person_ is the
 owner's call.
 
-What the combined list still holds is what it always did: the extended-hours
-mark, a real correction, a genuinely quiet minute, `pnpm probe` at four
-viewports with the market open, and the two-feed source note before the
-backfill.
+What the combined list still holds, **re-taken 2026-09-24 after that day's
+session watch**: `pnpm probe` at four viewports with the market open, the
+two-feed source note before the backfill, and the **page** halves of two items
+whose wire halves are now answered — the extended-hours qualifier **rendered**
+(the socket saw `MU` at 08:01 EDT `pre_market`; no page look coincided) and a
+quiet minute **watched** (`ERIE` was heard in 19 of 411 minutes; again no look
+coincided). **A real correction is discharged outright** — `VRT`, 09:31 EDT,
+close 239.745 → 239.7, volume 899 → 945, verbatim.
+
+Both survivors need the same repair, and it is the instrument's rather than
+this list's: **photograph on an EVENT** — the first extended-hours bar for a
+watched symbol, the first minute one falls silent — instead of every twenty
+minutes.
+
+**And one item added 2026-09-24 by Task 3.10.9, which needs a phone.** Three
+pairs of degraded states are told apart by **one surface only**, usually the
+sticky status bar at the foot of the viewport — and **at 390 that cell is below
+the fold**. So the whole difference between _the feed stopped_ and _the market
+is shut_ may sit unseen. No check can see it: every assertion reads the DOM,
+where the cell is present whether or not anybody has looked. **Open the
+deployed site on a real phone during a session, kill the feed, and time how
+long it takes to notice.**
 
 ### Notes on the 2026-09-22 sitting
 
