@@ -1095,6 +1095,13 @@ export const BREAKS = [
     // which makes it a stronger break than it was, not a weaker one: under
     // reduced motion it would leave a permanent dot on the identity block and
     // on 518 table rows at once.
+    // **RESTART `pnpm dev` BEFORE RUNNING THIS — 2026-09-25, Task 3.11.10.**
+    // It reported *did NOT go red* against a dev server that had been up for
+    // two hours, and went red on the first run after a restart with the break
+    // applied. `CLAUDE.md` already carries the cause — *a `composes` change
+    // does not reliably hot-reload* — and what was missing is that it applies
+    // to `pnpm break`, where the symptom is a FALSE ALL-CLEAR rather than a
+    // stale screen. Every entry whose `file` is a CSS module has this.
     file: "apps/frontend/src/styles/motion.module.css",
     find: "  opacity: 0;\n\n  /*\n   * **Decays rather than loops.**",
     replace:
@@ -1830,6 +1837,19 @@ export const BREAKS = [
     // Repointed 2026-09-25: the story's status line stopped being
     // `Not started` when Task 3.11.1's split gave it one. `pnpm invariants`
     // caught it on the same commit, which is what that check is for.
+    //
+    // **AND IT CANNOT GO RED TODAY — 2026-09-25, Task 3.11.10, and the reason
+    // is worth more than the entry.** The invariant needs TWO conditions:
+    // Story 3.11 marked complete, AND a row in `LIVE-REHEARSAL.md` still
+    // empty. Task 3.11.8 filled the last three empty rows, so marking the
+    // story complete no longer makes anything fail — **the check was disarmed
+    // by the thing it was written to protect being finished.** A break is one
+    // file, so no single substitution can restore both halves.
+    //
+    // **What to do rather than weaken it**: the day Story 3.11's status says
+    // complete, repoint this entry at `LIVE-REHEARSAL.md`, emptying one row's
+    // cells, and run it. Then the story's own completion is the first
+    // condition and the substitution is the second. Task 3.11.11 carries it.
     find: "**Status:** **Split into ten tasks",
     replace:
       "**Status:** Complete <!-- pnpm break: reverted automatically -->\n" +

@@ -416,3 +416,29 @@ had a hole in it (ADR 0032 missing from a table that claimed to name six).
   and `7d` is the **daily scheduled probe** while `7f` is the **in-session
   refusal**. Two task files have now misremembered this; the map names them
   from the ADR.
+
+## Amended by Task 3.11.10 — 2026-09-25: one break is armed by THIS task's own close
+
+**`the-close-outruns-the-rehearsal` cannot go red today, and the reason is that
+its subject got finished.** The invariant it proves needs two conditions at
+once — Story 3.11 marked **complete**, and a row in `LIVE-REHEARSAL.md` still
+**empty** — and Task 3.11.8 filled the last three empty rows. A break is one
+file, so no single substitution can restore both halves.
+
+**So the run belongs to this task, after the status line changes**, and it is
+two minutes:
+
+1. Mark Story 3.11 complete, as this task does anyway.
+2. **Repoint `the-close-outruns-the-rehearsal` at `LIVE-REHEARSAL.md`**,
+   emptying one row's cells rather than editing `STORY.md`.
+3. `pnpm break the-close-outruns-the-rehearsal`, and confirm the message names
+   the rehearsal rows.
+
+> **Why it is worth the two minutes rather than a note saying it is fine.**
+> This is the check that exists because `LIVE-REHEARSAL.md` claimed a mechanism
+> that did not exist. Leaving it in a state where it provably cannot fail — on
+> the very commit that closes the epic it guards — would be the same defect
+> wearing the check's own clothes.
+
+**And `every-break-can-still-land` will not notice**, because the `find` text is
+still there. That invariant asserts the cheap half by design.

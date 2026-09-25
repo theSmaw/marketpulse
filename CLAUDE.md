@@ -945,6 +945,7 @@ here:
 - **Every check owes a break.** `pnpm break` performs the documented breaks,
   proves the check goes red, and restores the tree; `scripts/breaks.mjs` is the
   registry. Add an entry there with any check you add.
+- **A break whose file is a CSS module needs the dev server restarted first, or it reports a false all-clear.** Found 2026-09-25: `the-mark-does-not-outlive-its-motion` said _did NOT go red_ against a server that had been up for two hours, and went red on the first run after a restart with the break applied. The cause is already above — _a `composes` change does not reliably hot-reload_ — and what was missing is that under `pnpm break` the symptom is not a stale screen but **a guard reported as absent when it is there**, which is the one direction that wastes a repair.
 - **And a break rots silently, which is why it now has a check of its own.**
   Breaks are deliberately **outside `pnpm verify`** — several need a browser or
   a database and `verify` has neither — so an entry whose `find` stops matching
