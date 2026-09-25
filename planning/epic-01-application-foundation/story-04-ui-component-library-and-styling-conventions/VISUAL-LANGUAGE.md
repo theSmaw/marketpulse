@@ -913,6 +913,26 @@ route.**
 > **And the band does not grow.** A reserved band that creeps upward as the
 > screen fills is how an interim becomes permanent without anybody deciding it.
 
+### A reserved region keeps the room its content will need — added 2026-09-25 by Task 4.1.4
+
+**A region holding a place is the size of the thing it is holding a place for**,
+not the size of its sentence. `Sector performance` is a tall hatched panel today
+and eleven ranked rows in three weeks, and **nothing on the screen moves when it
+fills.**
+
+**This product decided that once already, with a measurement.** The security
+page's figures block used to return nothing in the four states with no readable
+series, taking 90 px with it — so the chart, _and the window control the reader
+had just pressed_, moved the moment an answer with bars replaced one without. It
+now reserves its room, hidden (`VOLUME-AND-WINDOW.md` §83). **Reserving room
+beats reflow**, and a landing page that re-composes itself once a week as
+stories land is the same defect at the scale of a screen.
+
+**The reserved band is the exception, and it is the deliberate one.** The
+topology is two epics away rather than three weeks, so holding half the viewport
+for it would trade a real screen today against a hypothetical one later. **The
+band holds a _place_; a near-term region holds a _size_.**
+
 ### The ranked list — one component, two uses
 
 A label, a signed figure, and a proportional bar **anchored at zero rather than
