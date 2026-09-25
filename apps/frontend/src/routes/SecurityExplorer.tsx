@@ -210,6 +210,11 @@ export function SecurityExplorer({
     // that arriving bars cannot close. The count is an edge to fire on; the
     // fetch behind it is quiet, and a failure leaves the chart alone.
     liveFeed.resumes,
+    // **The tape the socket's bars came from** (Task 3.10.8). Without it the
+    // live tail is counted under the STORED tape's name, which on this plan
+    // means IEX bars listed as `All US exchanges` — invariant 6, in the
+    // ledger rather than in the chrome.
+    liveFeed.feed,
   );
 
   /*
@@ -582,6 +587,15 @@ export function SecurityExplorer({
               feed={marketFeed}
               securities={view}
               symbol={symbol}
+              /*
+               * **Has a bar for THIS security actually arrived here** (Task
+               * 3.10.8) — not *is the feed live*, which is the chrome's
+               * question. A page open on a thin name legitimately has nothing
+               * for hours with a perfectly healthy socket, and a row claiming
+               * to be growing while nothing grows is the cry-wolf this story
+               * has steered around at every surface.
+               */
+              watchingLive={live !== undefined && liveFeed.status === "live"}
             />
           </div>
 

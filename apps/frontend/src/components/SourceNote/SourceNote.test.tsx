@@ -455,3 +455,62 @@ describe("SourceNote — the curated classification", () => {
     expect(container.textContent).not.toContain("alpaca-assets");
   });
 });
+
+// **The live row** (Task 3.10.8) — the one fact the ledger could not recover.
+//
+// Two stretches reading `All US exchanges` then `IEX` arise from two different
+// histories since Story 3.8: a window the server answered with two tapes, and
+// a stored window a page has been extending over a socket. They are not the
+// same claim, and nothing else on the screen distinguishes them.
+describe("the stretch that is still being added to", () => {
+  it("marks the last stretch, in words as well as a disc", () => {
+    render(
+      <SourceNote
+        shown={barSeriesFixtureView("twoFeed")}
+        feed={SIP}
+        securities={PENDING_UNIVERSE}
+        symbol={SUBJECT}
+        watchingLive
+      />,
+    );
+
+    // The word rather than the shape, because that is what survives greyscale,
+    // a low-vision reader and a listener.
+    expect(screen.getByText("arriving")).not.toBeNull();
+  });
+
+  // **The same body, unwatched, says nothing** — which is the whole point: the
+  // rows are identical and the claim is not.
+  it("says nothing when the page has watched nothing arrive", () => {
+    render(
+      <SourceNote
+        shown={barSeriesFixtureView("twoFeed")}
+        feed={SIP}
+        securities={PENDING_UNIVERSE}
+        symbol={SUBJECT}
+      />,
+    );
+
+    expect(screen.queryByText("arriving")).toBeNull();
+  });
+
+  // **The LAST stretch, never the first.** Contribution order is the ledger's
+  // rule, so the one being extended is the final row — and a mark on the
+  // stored half would be a claim that the past is still happening.
+  it("never marks a stretch that is not the last", () => {
+    render(
+      <SourceNote
+        shown={barSeriesFixtureView("twoFeed")}
+        feed={SIP}
+        securities={PENDING_UNIVERSE}
+        symbol={SUBJECT}
+        watchingLive
+      />,
+    );
+
+    const rows = screen.getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.textContent ?? "").not.toContain("arriving");
+    expect(rows[1]?.textContent ?? "").toContain("arriving");
+  });
+});

@@ -193,6 +193,20 @@ export function toSourceNote(
   feed: MarketFeedView,
   securities: SecuritiesView,
   symbol: string,
+  /**
+   * Whether this page has watched a bar for this security **arrive** (Task
+   * 3.10.8).
+   *
+   * It decides the live row's marker, and it is the one fact the ledger
+   * cannot otherwise recover. Two stretches — `All US exchanges` then `IEX` —
+   * arise from two different histories since Story 3.8: a window the **server**
+   * answered with two tapes, and a SIP window this page has been **extending**
+   * over a socket. Those are not the same claim: one is about the past and one
+   * is happening while somebody watches. Nothing else on the screen tells them
+   * apart, and the chrome cannot — it knows whether data is arriving, not which
+   * stretch of this picture it is arriving into.
+   */
+  watchingLive = false,
 ): SourceNoteView {
   const classification = toClassification(securities, symbol);
   const provenance = drawnProvenance(shown);
@@ -204,7 +218,7 @@ export function toSourceNote(
 
   return {
     feeds: namesFeeds(provenance, feed)
-      ? describeSeriesFeeds(provenance)
+      ? withLiveRow(describeSeriesFeeds(provenance), watchingLive)
       : null,
     // Two spellings for `exactOptionalPropertyTypes`' reason, which is the same
     // branch `describeSeriesFeeds` makes: a label that stands alone has no
@@ -219,6 +233,42 @@ export function toSourceNote(
           },
     classification,
   };
+}
+
+/**
+ * Mark the stretch this page is still adding to.
+ *
+ * **The LAST one, and only when a bar has actually arrived for this security.**
+ * Contribution order is the ledger's rule (`TAPE.md`), so the stretch being
+ * extended is the final row — which is also why this is not *"a first row
+ * above the stretches"* as `VISUAL-LANGUAGE.md` reserved it. That reservation
+ * was for **§36's sentence**, and Task 3.10.2 found that sentence already
+ * shipping in the chrome; putting it here too is the two-surfaces defect this
+ * repository has produced three times on one screen. What the note gains
+ * instead is the thing it alone owns: **which stretch of this picture is
+ * still growing.**
+ *
+ * **A state, so it persists** (`VISUAL-LANGUAGE.md`'s motion rule: work in
+ * progress LOOPS, a state PERSISTS, a fact arriving DECAYS). It is not an
+ * arrival — the arrival mark exists and belongs to the figure it marks — and a
+ * fourth motion behaviour would cost the set the legibility that is its whole
+ * value.
+ *
+ * **It goes when the socket stops**, because the claim is present tense. The
+ * stretch stays, its count stays, and the row stops saying it is being added
+ * to — which is true, and is the note's half of §36 rather than a second copy
+ * of it.
+ */
+function withLiveRow(
+  stretches: readonly SeriesFeedStretch[],
+  watchingLive: boolean,
+): readonly SeriesFeedStretch[] {
+  if (!watchingLive || stretches.length === 0) return stretches;
+
+  const last = stretches[stretches.length - 1];
+  if (last === undefined) return stretches;
+
+  return [...stretches.slice(0, -1), { ...last, live: true }];
 }
 
 /**

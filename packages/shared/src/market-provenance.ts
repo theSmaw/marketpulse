@@ -597,6 +597,22 @@ export interface SeriesFeedStretch {
 
   /** The sentence, where this feed's label cannot stand alone. */
   readonly sentence?: string;
+
+  /**
+   * Whether this stretch is the one still being added to (Task 3.10.8).
+   *
+   * **Set by a surface, never by the wire.** `describeSeriesFeeds` never
+   * produces it: a served body describes bars that have already been fetched,
+   * and *still growing* is a fact about a page with an open socket. The
+   * browser's source note sets it on the last stretch when it has watched a
+   * bar for this security arrive.
+   *
+   * It exists because two stretches — `All US exchanges` then `IEX` — arise
+   * from two different histories since Story 3.8: a window the server
+   * answered with two tapes, and a SIP window a page has been extending over
+   * a socket. Nothing else distinguishes them.
+   */
+  readonly live?: boolean;
 }
 
 /**

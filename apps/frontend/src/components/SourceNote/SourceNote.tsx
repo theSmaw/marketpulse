@@ -110,6 +110,16 @@ export interface SourceNoteProps {
    * is silent. See `toClassification`.
    */
   readonly symbol: string;
+
+  /**
+   * Whether this page has watched a bar for this security **arrive** (Task
+   * 3.10.8).
+   *
+   * Marks the stretch still being added to. See `withLiveRow` for why that is
+   * the last row rather than a first one above the stretches, and why the §36
+   * sentence is deliberately **not** repeated here.
+   */
+  readonly watchingLive?: boolean;
 }
 
 export function SourceNote({
@@ -117,8 +127,9 @@ export function SourceNote({
   feed,
   securities,
   symbol,
+  watchingLive = false,
 }: SourceNoteProps) {
-  const note = toSourceNote(shown, feed, securities, symbol);
+  const note = toSourceNote(shown, feed, securities, symbol, watchingLive);
 
   // Bound here rather than read twice inside the JSX: the narrowing does not
   // survive into the `map` callback, and the callback needs the length to know
@@ -191,7 +202,44 @@ export function SourceNote({
                       {formatCount(stretch.barCount)} bars
                     </span>
                   )}{" "}
-                  <span className={cx(styles.feedLabel)}>{stretch.label}</span>
+                  {/*
+                   * **The label and its marker are ONE grid item**, which is
+                   * a correction made by looking at the page rather than at
+                   * the markup (Task 3.10.8). The `li` is a `subgrid`, so
+                   * every direct child is a cell: a marker added as a sibling
+                   * of the label landed in the **count** column on the
+                   * sentence's row, reading as a second ledger entry rather
+                   * than as a note on this one.
+                   */}
+                  <span className={cx(styles.labelRow)}>
+                    <span className={cx(styles.feedLabel)}>
+                      {stretch.label}
+                    </span>
+                    {/*
+                     * **The live row's marker** (Task 3.10.8), and a word rather
+                     * than a dot alone: colour is never the sole encoding of
+                     * anything in this product, and neither is shape. The disc
+                     * is the arrival vocabulary **at rest** — a state persists —
+                     * and `arriving` is what a listener gets, because the disc
+                     * is `aria-hidden` and a marker nobody can read is not one.
+                     *
+                     * It says which stretch of THIS picture is still being added
+                     * to, which the chrome cannot: the chrome knows whether data
+                     * is arriving at all. Two rows reading `All US exchanges`
+                     * then `IEX` are either a served two-tape window or a socket
+                     * extending a stored one, and until this nothing told them
+                     * apart.
+                     */}
+                    {stretch.live === true && (
+                      <span className={cx(styles.live)}>
+                        <span
+                          className={cx(styles.liveDisc)}
+                          aria-hidden="true"
+                        />
+                        arriving
+                      </span>
+                    )}
+                  </span>
                   {stretch.sentence !== undefined && (
                     <>
                       {" "}

@@ -864,7 +864,13 @@ Two surfaces speak this way today: search deferring to the tracked universe (Sto
 
 ### Room reserved: Epic 3's live row
 
-The §36 sentence — _Live feed disconnected — displaying data through 10:42:17_ — is a provenance claim that changes while somebody is watching. It belongs in the ledger as a **first row above the stretches**, carrying a marker of its own. Reserved now for the reason the anomaly lane, the comparison series and the filing lane were: three retrofits cost more than three sentences.
+~~The §36 sentence — _Live feed disconnected — displaying data through 10:42:17_ — is a provenance claim that changes while somebody is watching. It belongs in the ledger as a **first row above the stretches**, carrying a marker of its own.~~ Reserved for the reason the anomaly lane, the comparison series and the filing lane were: three retrofits cost more than three sentences.
+
+**RELEASED rather than spent — 2026-09-24, Task 3.10.8.** The reservation was for §36's **sentence**, and by the time Epic 3 reached it that sentence had a home: Task 3.10.2 found it already shipping in the chrome's feed cell, and Task 3.10.6 gave the same cell the live tape and an announcement besides. Drawing it in the ledger too is ADR 0029's fourth rule broken — _the surface that owns the data owns the account of it_ — and the two-surfaces defect this product has produced three times on one screen.
+
+**What the ledger gained instead is the thing the note alone owns: which stretch of this picture is still being added to.** Since Story 3.8 two rows reading `All US exchanges` then `IEX` arise from two different histories — a window the **server** answered with two tapes, and a stored window a page has been **extending over a socket** — and nothing distinguished them. The chrome cannot: it knows whether data is arriving, not which stretch it is arriving into. So the marker sits on the **last** stretch (contribution order is the ledger's rule), it is a disc **and the word `arriving`**, and it **persists** without animating, because a state persists and the decaying version of that disc already belongs to the figure it marks. The canvas is `Provenance and the empty answers` §12.
+
+**The reservation's premise was still right.** Reserving room cost three sentences; discovering the sentence had moved cost one task reading the tree before drawing anything.
 
 ## What this is not
 
