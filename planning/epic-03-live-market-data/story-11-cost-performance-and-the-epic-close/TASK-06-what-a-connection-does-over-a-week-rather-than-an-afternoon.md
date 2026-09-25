@@ -137,3 +137,44 @@ replacing the other.
 so it narrows question 1's remainder rather than closing it: what is still
 unmeasured is whether the socket is held across a **whole** weekend now, and
 that is a poll this task can start whenever it likes and read on Monday.
+
+## Amended by Task 3.11.3 — 2026-09-25: the instrument questions 2 and 3 needed now EXISTS
+
+**This task said its remaining two questions were _one log read on a deploy that
+rolls a replica while the feed is connected_. Until today there was nothing in
+the log to read.**
+
+`createAlpacaStream`'s events reached production nowhere, so _observe whether
+the arriving replica is refused `406`, and for how long before it
+authenticates_ was not a log read — it was an impossibility politely worded.
+**Task 3.11.3 wired them**, and three of the eleven are precisely the
+measurement:
+
+| Line                                                       | What it gives                                    |
+| ---------------------------------------------------------- | ------------------------------------------------ |
+| `market stream refused: connection limit` with `retryInMs` | **when the `406` began**, and one line per retry |
+| `market stream authenticated` with `symbols`               | **when the slot was actually released**          |
+| `market stream closed` with `elapsedMs`                    | how long the outgoing socket lived               |
+
+**So the reading is the interval between the first `connection-limit` line and
+the `authenticated` line on the arriving replica**, and the number of
+`connection-limit` lines between them is the count of 3-second retries it took.
+
+**Read it against the table this task already carries**, which decided what
+each outcome means before the data arrived:
+
+- authenticates immediately → the outgoing replica's close released the slot;
+  §12.2's claim is an optimisation rather than the bound
+- refused, then authenticates within the shutdown ceiling → exactly as §12.2
+  predicts, and the bound is real
+- refused for materially longer than the ceiling → **the interesting one**: the
+  slot is not freed by our close
+
+**The evidence arrives on the next deploy** — which is the deploy of Task
+3.11.3 itself, so it should be read before anything else rolls. `az containerapp
+logs` or the platform's log stream, filtered to `market stream`.
+
+> **And one caveat this task must not lose.** These lines are the **backend's**
+> socket to Alpaca — the connection all three questions are about. Task
+> 3.11.2's browser counter measured a **different** connection (a page to our
+> gateway) and says nothing here.
