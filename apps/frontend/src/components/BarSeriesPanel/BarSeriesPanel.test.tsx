@@ -254,12 +254,20 @@ describe("BarSeriesPanel", () => {
     expect(high?.textContent).toMatch(/\d+\.\d\d/);
   });
 
-  it("says nothing about the feed where the chrome's own label is right", () => {
-    // The masthead carries `FeedProvenance` on every screen. For a series whose
-    // sources all name one feed, this row was that fact a second time — and the
-    // recorded stitch is exactly that case rather than an exception: both of its
-    // halves came from Alpaca's historical API, so two sources are one feed.
-    for (const name of ["full", "stitched"] as const) {
+  // **The panel says nothing about the feed, in EVERY state** — rewritten
+  // 2026-09-24 by Task 3.10.9, from the two tests that used to stand here.
+  //
+  // They asserted that the panel stays quiet for a one-feed series and names
+  // both for a two-feed one. The second is now wrong: `Provenance` is deleted,
+  // because the day it was built for arrived and what it drew was the **source
+  // note's ledger a hundred pixels below it**, sentence for sentence.
+  // `PROVENANCE.md` §1.3 assigns *this series' feeds* to the note, whose
+  // condition is a superset of this one's.
+  //
+  // Found by photographing the whole set together: every state was correct
+  // alone, and the duplication only exists between two surfaces.
+  it("says nothing about the feed, whatever the series carries", () => {
+    for (const name of ["full", "stitched", "twoFeed"] as const) {
       const { unmount } = render(
         <Panel {...props} view={barSeriesFixtureView(name)} />,
       );
@@ -268,29 +276,6 @@ describe("BarSeriesPanel", () => {
       expect(screen.queryByText("All US exchanges", VISIBLE)).toBeNull();
       unmount();
     }
-  });
-
-  it("names both feeds when one series carries two", () => {
-    // **The case invariant 6 exists for, and the one body no fixture can be.**
-    // The free Alpaca plan is asymmetric — stored history is consolidated SIP
-    // and the live stream is IEX — so from Epic 3 a stitched series genuinely
-    // names two feeds and one page-level label is wrong about half of it. No
-    // recorded body has two, because no shipped endpoint produces one yet.
-    //
-    // So this is the recorded stitch with **one field changed**, through the
-    // real transition, rather than a view typed by hand: the shape, the bars and
-    // the coverage are all the server's. The change itself lives in
-    // `fixtures/bar-series.ts` since Task 2.14.3, named there as the one thing
-    // in that module which is not a recorded body — the source note's story and
-    // its component test are the second and third readers of it, and three
-    // copies of a one-field edit is three places for the edit to stop matching.
-    // The day a two-feed body is recorded, that function is deleted and every
-    // reader points at the fixture instead.
-    render(<Panel {...props} view={barSeriesFixtureView("twoFeed")} />);
-
-    expect(screen.getByText("Market feed", VISIBLE)).toBeTruthy();
-    expect(screen.getByText("All US exchanges", VISIBLE)).toBeTruthy();
-    expect(screen.getByText("IEX", VISIBLE)).toBeTruthy();
   });
 
   // The sentence this used to assert moved into the plot on 2026-09-14 —

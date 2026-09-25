@@ -395,6 +395,8 @@ Each is _something that exists in one layer and cannot be reached from the next_
 
 **Re-measure:** for each published state grid, take the **producers** rather than the renderers — the selections, configurations or store shapes a deployment can be in — and confirm every row is reachable from one of them, and that every reachable pair has a row. **Owner: the next story that publishes a state grid**, which is a condition rather than a story number.
 
+**Verdict 2026-09-24 by Task 3.10.9, which published one: discharged for that grid and RE-OWNED rather than closed.** Story 3.10's nine-state grid is discharged **by construction** — every row in it was reached by driving the shipped path (a real socket close, a real `feed` frame, a real `{"feed": null}`), so a row nothing can produce could not have appeared in it. The instrument builds rows by producing them, which is this entry's re-measure performed rather than promised. **What is still unchecked is unchanged**: `CHARTING.md`'s chart states and `PROVENANCE.md`'s failure-and-partial-state tables are renderer-side grids, and the condition stands for the next story that publishes one.
+
 14. **That a tick on the universe table stays under §28's 50 ms — the duration, as opposed to the mechanism.** Added 2026-09-22 by Task 3.6.5, which found the steady state breached (46–49 ms of script per frame plus 40 ms every 30 s from the health poll re-rendering the route) and repaired it with two memo boundaries. **The mechanism is mechanical**: `UniverseTable.render-cost.test.tsx` counts the router's `Link` renders and asserts a price arriving re-renders none and a re-render with nothing changed re-renders no row — `pnpm break a-price-re-renders-every-symbol-link` proves it goes red. **The duration cannot be**: jsdom has no layout, CI's store has zero bars and no socket, and a timing on a shared runner is noise. What nothing guards is the figure itself — a change to what a live cell renders, or a third state update at `App` level, could put a tick back over the line with the render-count test green. **Re-measure:** `pnpm build`, the backend on `MARKET_DATA_PROVIDER=fixture NON_LIVE_MARKET_DATA=permitted CORS_ORIGIN=http://localhost:4173`, `vite preview`; open `/securities` at 1440 with a `PerformanceObserver` on `long-animation-frame` installed from an `addInitScript`; wait for two `bars` frames and read `scripts[].duration` against 50 — the invoker is `MessagePort.onmessage`, the React scheduler. The 2026-09-22 reading was 37–40 ms with all 518 rows changing; anything over 50 is a regression, and anything with more than one long animation frame per minute is a second state update to find with a counter on `__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot`.
 
 Two of these have caught real defects, so treat the list as live: a stated invariant quietly stopped being true for two stories, and a broken link shipped.
@@ -512,6 +514,22 @@ await page.waitForTimeout(12_000); // expect 1
 ```
 
 Run it against `pnpm dev` **and** against `pnpm e2e:deployed`. **Owner: a condition** — the next feature that acts on a reconnection rather than on the connection's state, which is the second one to pay this.
+
+## The whole difference between _the feed stopped_ and _the market is shut_ rests on one cell at the foot of the viewport
+
+Task 3.10.9 produced nine degraded states and compared the text of six surfaces at four widths. **No two read identically** — the rule holds. But three pairs are told apart by **one surface only**, at every width:
+
+| Pair                                        | Told apart by        |
+| ------------------------------------------- | -------------------- |
+| `stale` vs `disconnected`                   | the chrome           |
+| `disconnected, never live` vs `market shut` | the chrome           |
+| `quiet security` vs `market shut`           | the table row's date |
+
+**Each is the design working.** Task 3.10.3 decided the identity block stays quiet (it already dates its own instant), 3.10.5 decided the chart draws nothing from the connection (a mark derived from a socket is neither of the two kinds `CHARTING.md` allows), and 3.10.8 decided the source note says only what it alone owns. ADR 0029's fourth rule puts the connection with the chrome and nowhere else, and 3.10.6 made that cell **speak** on a degradation, which is the repair for a listener.
+
+**What is unguarded is the consequence at 390**: the status bar is sticky at the foot of the viewport, so on a phone the one surface carrying the distinction is the one a reader may not have looked at. No check can see this — every assertion in the suite reads the DOM, where the cell is present whether or not it has been seen.
+
+**It is named rather than repaired**, because repairing it means reversing three decisions that each had a measurement behind them. **Re-measure:** open `/securities/NVDA` at 390 on a real phone during a session, kill the backend, and time how long it takes to notice. **Owner: a person, before Epic 4's Market Overview**, which is the first screen whose whole subject is _what is happening right now_ and where a dead feed is a worse lie than it is here.
 
 ## A browser that reconnects fills its gap; a BACKEND that reconnects does not, and nothing on screen tells them apart
 

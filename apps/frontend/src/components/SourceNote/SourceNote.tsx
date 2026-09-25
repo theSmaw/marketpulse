@@ -196,10 +196,19 @@ export function SourceNote({
                    * are held — so printing it here would be the note repeating
                    * a fact another surface owns, which is §1.3's rule broken in
                    * the direction it is hardest to notice.
+                   *
+                   * **And it is singular at one**, which read `1 bars` on
+                   * screen until 2026-09-24. The count could not BE one until
+                   * Task 3.10.8 gave the live tail a stretch of its own — and
+                   * the first minute of every live session is exactly that
+                   * stretch with one bar in it, so the commonest moment of the
+                   * state this ledger was built for was the broken one. Found
+                   * by Task 3.10.9 producing the set and reading the strings.
                    */}
                   {feeds.length > 1 && (
                     <span className={cx(styles.count)}>
-                      {formatCount(stretch.barCount)} bars
+                      {formatCount(stretch.barCount)}{" "}
+                      {stretch.barCount === 1 ? "bar" : "bars"}
                     </span>
                   )}{" "}
                   {/*
