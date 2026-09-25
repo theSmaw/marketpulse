@@ -3718,3 +3718,90 @@ half-open death already created gaps no replay could fill.
   a subscriber; nothing here probes that.
 - **n=1 on the revision rate** — one session, one account. Every rate figure in
   this document carries that caveat and §13.1 states it once.
+
+## 15. What a connection actually does across a deploy — 2026-09-25 by Task 3.11.6
+
+**Three questions this document has carried since the spike are answered, and
+the answers falsify §12.2's bound and §9.2's premise.** Both were arguments;
+these are readings, taken from production's own logs the first day those logs
+existed (Task 3.11.3).
+
+### 15.1 §12.2's bound is wrong by 9×, and the mechanism it names is working
+
+§12.2 says the deliberate close on `SIGTERM` _bounds the every-deploy feed
+outage at the existing **5 s** shutdown ceiling instead of at §6.4's measured
+4 h 21 min of half-open socket._
+
+**Measured across two consecutive deploys:**
+
+| Revision  | First `406`  | `authenticated` | Gap        |
+| --------- | ------------ | --------------- | ---------- |
+| `0000349` | 04:25:09.917 | 04:25:55.718    | **45.8 s** |
+| `0000350` | 04:39:48.992 | 04:40:35.528    | **46.5 s** |
+
+**Fifteen and sixteen `connection-limit` retries at 3 s each**, each preceded by
+a `closed` at **3.6–5.9 ms** — which is §8.5's _refused duplicate_ shape,
+confirmed from the other end for the first time.
+
+**The close is not the problem. The close is fine.** On `0000350` the outgoing
+replica logged `market stream closing deliberately` at **04:40:32.620** and the
+arriving one authenticated at **04:40:35.528** — **2.9 s later**. §12.2's
+mechanism does exactly what it claims: the deliberate close releases the slot
+promptly.
+
+> **What is wrong is the assumption that the close is what bounds the window.**
+> The outgoing replica is not asked to shut down until **~46 s into the new
+> replica's life**, because that is when Container Apps terminates it. **The
+> bound is the platform's revision-overlap policy, not our shutdown path.**
+>
+> So §12.2's decision stands — closing deliberately is still free, correct and
+> the fastest path to releasing the slot — and its **figure** does not. **Every
+> deploy costs about 46 seconds of live feed**, and during a session that is 46
+> seconds of prices this product does not receive.
+
+### 15.2 The three questions, verdicted
+
+**1. The weekend hold** — discharged by Task 3.11.1 from
+`weekend-watch.mjs`'s own output, unread for four days: 1,065 samples over 55
+hours, `disconnected` for about **forty hours** from 2026-09-19T13:56Z, then
+**`live` at 05:45Z on the Sunday, unattended**, and up thereafter. _Monday's
+open is still at risk_ is answered: **it was not.**
+
+**What still cannot be said is what recovered it.** No restart is recorded in
+the window and the eleven events that would have said were not yet being
+logged. That evidence never existed and cannot be retrieved.
+
+**2. Does a half-open socket lock out its successor?** **Not in the ordinary
+case, because there is no half-open socket in it.** The outgoing replica is
+alive and holding the slot legitimately for the whole overlap, and releases it
+on `SIGTERM` in 2.9 s. §6.4's 4 h 21 min half-open socket remains the
+pathological case and is still unmeasured **from Alpaca's side** — what is now
+known is that the ordinary deploy is not an instance of it.
+
+**3. What holds the slot?** **The outgoing replica, for ~46 s, by the
+platform's schedule.** The table Task 3.2.5 wrote before the data arrived gave
+three readings; the answer is a fourth it did not anticipate — _refused for
+materially longer than the ceiling_, **and the slot is freed by our close**,
+which the table treated as mutually exclusive.
+
+### 15.3 §9.2's premise, falsified by a bill rather than an argument
+
+§9.2 reasons that a held socket pushes the replica off the Consumption plan's
+idle vCPU rate, and prices it — $19.04, then $9.26 on the 2026-09-17 amendment.
+
+**Task 3.11.5 read the bill. The socket does not appear in it.** Across the
+forty-hour outage, Container Apps billed `$0.2149` and `$0.2291` a day —
+indistinguishable from the connected days either side. **The 550.6 B/s figure
+stays true and stops being load-bearing.**
+
+**What the socket costs is the slot, not money** — and that is what §15.1
+measures.
+
+### 15.4 One sample of a weekend is still owed
+
+The deployed backend answered `status: "live"` with the market shut at
+2026-09-25T03:13Z, so §9.3's _hold the socket always_ is what production does
+**today**. That is **one reading**, not a weekend. Whether the socket survives
+a full 56-hour market closure **now** — as opposed to the weekend it did not,
+which was an outage rather than an idle timeout — is unmeasured, and the
+instrument is a poll anybody can start on a Friday and read on a Monday.
