@@ -270,6 +270,26 @@ hand on the container app **between** deploys. That creates a new revision and
 restarts the app with no workflow running at all, so nothing in 7b sees it. That
 gap is 7c's and 7e's.
 
+> **Amended 2026-09-25 by Task 3.11.7 — this section described a step that
+> did not exist, for nine days.** The task's job was to break all four
+> mechanisms and prove each red; **7b could not be broken, because nothing in
+> `deploy.yml` read the provider.** The present tense above was written on
+> 2026-09-16 as a description of the tree and was never true of it, and
+> `docs/GAPS.md` went on quoting it as _the only preventive mechanism_.
+>
+> **It is now built as this section describes it**, and one thing is stronger
+> than the text above: it asserts **both** of §7e's keys, because a replay
+> needs two deliberate values and checking one leaves the pair half-guarded.
+> The step is `Read the configured provider, and refuse to roll on the wrong
+one`, `pnpm invariants` carries `the-deploy-reads-the-provider`, and
+> `pnpm break the-deploy-stops-reading-the-provider` proves it red.
+>
+> **The lesson is the one this repository keeps paying for**: a claim about a
+> mechanism reads identically whether the mechanism is there or not. Nothing
+> here was sloppy — the ADR was written alongside the work and the step was
+> simply never added — and every document downstream inherited the assertion
+> and compounded it.
+
 ### 7c. `check-deployed.mjs` fails, unconditionally, if production is ever replaying
 
 Not conditionally on the hour, not tolerantly: **if `/diagnostics/feed` on the

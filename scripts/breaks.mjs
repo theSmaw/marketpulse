@@ -506,6 +506,26 @@ export const BREAKS = [
     build: true,
   },
   {
+    name: "the-deploy-stops-reading-the-provider",
+    proves:
+      "The deploy rolls an image over a container app configured to serve a " +
+      "replay or a fixture, and nothing stops it. ADR 0030 7b is the ONLY " +
+      "preventive mechanism among the replay guards — 7c and 7d are both " +
+      "detective and bound the DURATION of a wrong state rather than its " +
+      "existence. Task 3.11.7 found that the step had never been written " +
+      "while the ADR and `docs/GAPS.md` both asserted it, which is a claim " +
+      "about a mechanism reading identically whether the mechanism is there.",
+    file: ".github/workflows/deploy.yml",
+    find: '          if [ "$provider" != "alpaca" ]; then',
+    replace: '          if [ "$provider" != "" ]; then',
+    command: ["pnpm", "invariants"],
+    expect: "no longer reads the configured provider before it rolls",
+    // **The break weakens the assertion rather than deleting the step**, which
+    // is the shape the real regression would take: a step that still exists,
+    // still runs and still prints the provider, and passes on every value.
+    // Deleting the step is the loud version; this is the quiet one.
+  },
+  {
     name: "replay-refuses-during-a-session",
     proves:
       "A developer who left MARKET_DATA_PROVIDER=replay in their .env can " +

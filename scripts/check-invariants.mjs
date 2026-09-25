@@ -1673,6 +1673,53 @@ const INVARIANTS = [
   },
 
   {
+    id: "the-deploy-reads-the-provider",
+    claim:
+      "`deploy.yml` asserts the deployed provider before it rolls an image — " +
+      "ADR 0030 §7b, the only preventive replay guard.",
+    check() {
+      // **This exists because the mechanism did not.** ADR 0030 §7b has said
+      // since 2026-09-16 that the deploy reads `MARKET_DATA_PROVIDER` off the
+      // container app and refuses to roll on anything but `alpaca`, and
+      // `docs/GAPS.md` called it *the only preventive mechanism*. Task 3.11.7
+      // went to break it and found there was no such step: nine days of two
+      // documents asserting a guard that was never written.
+      //
+      // Every other ADR 0030 mechanism has a `pnpm break` entry over a source
+      // file. This one lives in a workflow, which nothing in `pnpm verify`
+      // parses and no local command exercises — so the thing that rots is the
+      // step being deleted or renamed in a refactor, with both documents still
+      // asserting it. That is precisely the failure this check answers, and it
+      // is the cheap half: it proves the assertion is there, not that Azure
+      // answers it.
+      const workflow = readFileSync(
+        resolve(REPO_ROOT, ".github/workflows/deploy.yml"),
+        "utf8",
+      );
+
+      const required = [
+        "MARKET_DATA_PROVIDER",
+        "NON_LIVE_MARKET_DATA",
+        '[ "$provider" != "alpaca" ]',
+      ];
+
+      const missing = required.filter((needle) => !workflow.includes(needle));
+
+      if (missing.length > 0) {
+        throw new InvariantFailure(
+          "`deploy.yml` no longer reads the configured provider before it " +
+            `rolls (missing: ${missing.join(", ")}). ADR 0030 §7b is the ` +
+            "ONLY preventive guard — 7c and 7d are detective and bound the " +
+            "duration of a wrong state rather than its existence. Without " +
+            "this step a container app edited by hand to serve a replay or a " +
+            "fixture rolls a new image over the top and serves invented " +
+            "prices to a real user until the next check-deployed run.",
+        );
+      }
+    },
+  },
+
+  {
     id: "every-break-can-still-land",
     claim:
       "Every entry in `scripts/breaks.mjs` substitutes text that still exists " +

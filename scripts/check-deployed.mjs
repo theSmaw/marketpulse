@@ -283,18 +283,32 @@ async function probeFreshness(backendOrigin) {
 /**
  * How long a `disconnected` reading is tolerated before it is called a fault.
  *
- * **Derived rather than chosen.** Every deploy meets a `406 connection limit
- * exceeded` by design (§8.2) while the outgoing replica still holds the plan's
- * single slot, and the arriving one retries every `REFUSED_RETRY_MS = 3_000`.
- * Measured 2026-09-19 on an unplanned reproduction: **1,149 ms to the `406`
- * and 9,498 ms to the close**. So the honest window is the handover plus a
- * retry, and this is comfortably past both.
+ * **Derived rather than chosen — and re-derived on 2026-09-25 from the right
+ * measurement.** Every deploy meets a `406 connection limit exceeded` by
+ * design (§8.2) while the outgoing replica still holds the plan's single slot,
+ * and the arriving one retries every `REFUSED_RETRY_MS = 3_000`.
  *
- * **Without it, condition 3 below would go red on the handover of every
+ * **This constant was 20,000 ms, doubled from 9,498 ms — the time the OUTGOING
+ * socket took to close, measured 2026-09-19 on an unplanned reproduction.**
+ * That is the right number for a different question. What this grace actually
+ * races is how long the ARRIVING replica is refused, and Task 3.11.6 read that
+ * off production's own stream log on two consecutive deploys: **45.8 s and
+ * 46.5 s**, fifteen and sixteen retries. The outgoing replica is not asked to
+ * shut down until ~46 s in, because that is Container Apps' revision-overlap
+ * schedule — so the bound is the platform's, not our shutdown path.
+ *
+ * **60 s is the measured overlap with a little headroom**, and it is not what
+ * has been saving this check: on both of those deploys the probe arrived
+ * **45–52 s after the feed was already back** (backend `up 98.9s` and `up
+ * 92.3s` against overlaps ending at ~46 s), because the frontend build and
+ * deploy sit between the two. **That margin is a side effect of how long an
+ * unrelated step takes**, which is not a thing to rest a check on.
+ *
+ * **Without a grace, condition 3 below would go red on the handover of every
  * deploy** — a check that cries wolf on the routine case, which is the exact
  * failure mode this epic has spent three tasks avoiding on other surfaces.
  */
-const DISCONNECTED_GRACE_MS = 20_000;
+const DISCONNECTED_GRACE_MS = 60_000;
 
 async function probeFeed(backendOrigin, { now = Date.now, sleep } = {}) {
   const deadline = now() + DISCONNECTED_GRACE_MS;
