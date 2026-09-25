@@ -183,3 +183,21 @@ which is 25× the new column's annual cost.
 > why `pnpm index:prepare` exists — `migrations/README.md` §9). Story 3.11 owes
 > the measured rows-and-bytes of a real two-writer day; that figure is the one
 > to size this against rather than the 69% ceiling.
+
+## The trigger evaluated a second time — 2026-09-24 by Task 3.10.4
+
+The condition is **the first time a second surface on that page renders per-row
+markup at universe scale**. Story 3.10 added a per-row instant to the universe
+table — `Live price from 12:07` — for every row whose live price is behind the
+newest observation on the page.
+
+**It did NOT fire, and the argument is structural rather than a measurement
+that came in under the line.** The instant is drawn into a span the column had
+**already reserved**, so there is no second surface and no new element: the
+same cell, the same row count, more characters. Measured on a production build
+at the worst case — every one of 517 rows behind, every instant drawn —
+**36.75–36.83 ms of script a tick** against §28's 50 ms, about **4 ms** for all 517.
+
+**The two exceptions this epic owns are unchanged** and were last re-taken by
+Task 3.6.5 with the feed running: the cold load at **50–56 ms** (7 in 10) and
+`Expand all` at **65–86 ms**.

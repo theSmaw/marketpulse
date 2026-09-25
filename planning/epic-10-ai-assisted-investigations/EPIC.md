@@ -69,3 +69,41 @@ plausibly brings one; `apps/frontend/src/report-error.ts` is where the three
 secrets boundary and ADR 0011's public-environment argument both apply; the
 resolved configuration is deliberately never logged, and `redact` was rejected
 as a denylist whose failure mode is the key nobody added to it.
+
+### Handed here by Story 3.10 — 2026-09-24: the degraded set exists, inherit it rather than re-inventing it
+
+**Every live surface has degraded states and this product has already
+enumerated them once**, produced rather than imagined: nine of them,
+photographed at 1440, 1024, 768 and 390, with the text of six surfaces compared
+so _do two states read identically_ is answered by strings rather than by eye
+(Task 3.10.9). The set, the unreachable cells and why they are unreachable are
+in that task's record.
+
+**Three rules travel with it and each is somebody's measured defect:**
+
+- **`FeedStatus` is about the CONNECTION and `MarketSessionStatus` about the
+  SESSION**, and they must not be collapsed. The market being open does not
+  mean data is flowing, and the market being shut is not a feed failure — a
+  quiet socket at 02:00 is correct and must not read as broken.
+- **A quiet security is not a broken feed.** IEX's median per-symbol minute
+  coverage is **65.1%** and the worst case is **2.1%** (`LIVE-DATA.md` §7.6);
+  `LIVE-DATA.md` §11.2 measured an ordinary maximum gap of **187 minutes**.
+  Anything that reports silence as a fault will cry wolf on thin names all day.
+- **The connection has ONE home** — the status bar — and every other surface
+  stays quiet by decision (ADR 0029's fourth rule; Tasks 3.10.3, 3.10.5 and
+  3.10.8 each took it with reasons). A second surface reporting the connection
+  is the defect this product has produced four times on one screen.
+
+**And one unrepaired consequence, recorded in `docs/GAPS.md`**: because the
+connection has one home and that home is sticky at the **foot** of the
+viewport, at 390 the distinction between _the feed stopped_ and _the market is
+shut_ is below the fold. No check can see it.
+
+**And the specific instruction for this epic**, which is the reason it is named
+here rather than left to inherit: `PRODUCT_SPEC.md` §36 lists an agent's
+failure states beside the market socket's, and this product now has a **shipped
+vocabulary** for the second — `live | stale | disconnected`, one home, a
+sentence and an instant, a word beside a disc, and an announcement on a
+degradation only. **Do not grow a second vocabulary for the same idea.** A tool
+that failed and a feed that stopped are different subjects; _how this product
+says a thing has stopped working_ is one.

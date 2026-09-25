@@ -1,6 +1,6 @@
 # Story 3.11 — Cost, Performance, the Sweep & the Epic Close
 
-**Status:** Not started
+**Status:** **Split into ten tasks — 2026-09-25.** The order is unusual for a close and deliberately so: **the two tasks that change what a user can see come second and third**, not ninth, because this is otherwise a story of measurements and documents and a stakeholder should not wait to the end of an epic for the last thing they see. The first task **builds nothing** — this file has accumulated hand-offs from **eleven** sources over ten days and several have been superseded by the story that wrote them, which is the shape Story 3.10's equivalent task exploited to remove most of two tasks.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.10
 **Epic scope covered:** the continuous-connection cost envelope, the epic's exit criterion, and everything this epic falsified upstream
@@ -108,13 +108,31 @@ until the last feature story has shipped.
 - Any repair to the §28 cold-load breach beyond evaluating its trigger —
   Epic 14, unless Story 3.6's measurement fired it
 
-## Open decisions — settle with the user
+## Open decisions — ANSWERED 2026-09-25 by Task 3.11.1
 
-1. **The budget**, re-decided against a real reading.
-2. **Whether the deployed check asserts liveness**, given that it cannot on a
-   Sunday. The honest options are a criterion that only asserts out of hours
-   what can be asserted out of hours, or a scheduled check inside a session —
-   and the second is a new mechanism rather than an assertion.
+1. ~~**The budget**, re-decided against a real reading.~~ → **decide it after
+   the reading.** $20 at 50/80/100% stands until Task 3.11.5 has a bill, and
+   §9.6's `$12`trigger stands. Lowering to $15 now would put the first alert
+**below** the $9.26 estimate, so it would fire every month. **If no bill can
+be read** — and Epic 1 could not, twice — the fallback is **60/80/100**,
+which makes the first alert the`$12` trigger exactly.
+2. ~~**Whether the deployed check asserts liveness**~~ → **only what holds at
+   any hour.** Provider configured, **never replaying** (ADR 0030, 7c), and a
+   last-observation instant once Task 3.11.3 ships it. **Never** `status:
+live`. A scheduled in-session check was rejected as a new mechanism with its
+   own silence; the instant narrows the same gap and reads correctly at 3am.
+3. **Whether CI holds a credential** → **no, and recorded why.** The binding
+   constraint is the **single connection**, not the quota: the deployment holds
+   it and a developer is already refused `406` (`docs/GAPS.md` entry 7), so a
+   CI credential would be a third claimant that takes **production's** socket
+   down rather than merely failing a test. The two measured consequences stand
+   unrepaired — a spec asserting an absence that passed for four days, and no
+   browser test in this epic having watched a real vendor frame reach a screen.
+4. **What _watched_ means in the exit criterion** → **NOT MET.** Six rows, none
+   watched by a person. Task 3.11.8 takes one sitting with a human, at three
+   viewports including a real phone. Amending the criterion's word was
+   rejected: _a headless browser did not notice_ is not _a person did not
+   notice_, and the 390 question needs the second.
 
 ## Acceptance criteria
 
@@ -153,6 +171,48 @@ until the last feature story has shipped.
     Production has real users and must only ever tell the absolute truth about
     the real market; that is the one claim in this epic where a missed check is
     a user being misled rather than a developer being inconvenienced
+
+## Tasks
+
+**Where the incremental progress is, stated plainly.** Eight of these ten tasks
+produce no visible change, because a close is measurement, documents and
+verdicts. **Two do**, and they are taken early rather than late:
+
+- **3.11.2** repairs a page that opens **three sockets in twelve seconds** —
+  nothing on screen is wrong today, which is exactly why it went unseen for the
+  whole epic
+- **3.11.3** makes a feed that has stopped **visible without opening a page**,
+  which is the failure that let a dead feed run for **nineteen hours**
+
+And one produces the only thing in this epic that has never happened at all:
+**3.11.8 is a person watching the product work.**
+
+| #   | Task                                                                                                                                                                               | Visible?                             |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 1   | [What this epic already measured, and the decisions this close cannot start without](TASK-01-what-this-epic-already-measured-and-the-decisions-this-close-cannot-start-without.md) | no — and it removes work             |
+| 2   | [The socket that reopens three times in twelve seconds](TASK-02-the-socket-that-reopens-three-times-in-twelve-seconds.md)                                                          | **yes**                              |
+| 3   | [The dead feed that ran for nineteen hours](TASK-03-the-dead-feed-that-ran-for-nineteen-hours.md)                                                                                  | **yes, to an operator**              |
+| 4   | [Every figure re-taken against the real gateway, in one sitting](TASK-04-every-figure-re-taken-against-the-real-gateway.md)                                                        | only if one comes back over the line |
+| 5   | [The bill, read rather than estimated](TASK-05-the-bill-read-rather-than-estimated.md)                                                                                             | no                                   |
+| 6   | [What a connection does over a week rather than an afternoon](TASK-06-what-a-connection-does-over-a-week-rather-than-an-afternoon.md)                                              | no                                   |
+| 7   | [The replay's guards, re-broken rather than assumed](TASK-07-the-replays-guards-re-broken-rather-than-assumed.md)                                                                  | no                                   |
+| 8   | [The sitting a person actually takes, and the ledger completed](TASK-08-the-sitting-a-person-actually-takes.md)                                                                    | **the product, watched**             |
+| 9   | [The ADRs, and the document that outlives the epic](TASK-09-the-adrs-and-the-document-that-outlives-the-epic.md)                                                                   | no                                   |
+| 10  | [The re-take, the upward sweep, and Epic 3's close](TASK-10-the-re-take-the-upward-sweep-and-epic-3s-close.md)                                                                     | no                                   |
+
+**Two tasks share one window and must be taken together** — 3.11.4's
+performance pass and 3.11.8's sitting both need the market open, and the scarce
+thing is the free plan's **one** Alpaca connection rather than anybody's
+attention (`docs/GAPS.md` entry 10). A sitting taken for one and not the other
+spends it twice.
+
+~~**And 3.11.6 is the one that needs elapsed time rather than effort.** Whatever
+it has to watch should be started when this story starts, not when that task
+comes up.~~ — **no longer true, 2026-09-25.** Task 3.11.1 found that the run
+3.11.6's first question needed **had already been taken** and its output had
+been sitting unread for four days. What remains there is two questions that are
+**one log read on a deploy during a session**, and Tasks 3.11.2 and 3.11.3 will
+each cause one. **Nothing in this story is now waiting on a clock.**
 
 ## What this story hands forward
 
@@ -235,6 +295,33 @@ backend**, and that is this story's too.
 > `{"provider":"alpaca","feed":"iex",…}`, which is also why a developer machine
 > is refused `406` (`docs/GAPS.md` entry 7). `scripts/weekend-watch.mjs` is
 > polling `/diagnostics/feed` every 60 s through to Monday's open.
+>
+> **RESULT READ 2026-09-25 by Task 3.11.1 — four days after the run finished,
+> from a file nobody had opened.** `.capture/weekend/watch-2026-09-19.jsonl`
+> holds **1,065 samples over 55 hours**, 2026-09-19T13:56Z → 2026-09-21T20:58Z:
+> **535 `disconnected`, 488 `live`, 1 `stale`**.
+>
+> | Stretch                      | Reading                                                                    |
+> | ---------------------------- | -------------------------------------------------------------------------- |
+> | 09-19 13:56Z → 09-21 ~05:44Z | **`disconnected`**, ~40 h, spanning Friday's whole session and the weekend |
+> | 09-21 **05:45Z**             | **`live`** — 01:45 ET, Sunday                                              |
+> | → 20:58Z                     | **`live`**, nine single-sample blips and one `stale`                       |
+>
+> **So _Monday's open is still at risk_ is answered: it was not.** The feed
+> recovered about forty hours in, **unattended**, and stayed up.
+>
+> **What the file cannot say is what recovered it** — no restart is recorded in
+> the window, and the eight diagnostic events that would have said were not
+> being logged. **An outage that ends on its own is worse than one that needs a
+> restart**, because nothing learned anything. That is Task 3.11.3's.
+>
+> Two caveats bound it: the `poll-failed` stretches — one of 5.68 h on the
+> Saturday morning — are the watching laptop asleep rather than the product,
+> and this is `/diagnostics/feed`'s own `status`, the **backend's** view of its
+> socket, which is the right instrument here and is not a browser's.
+>
+> **And the file is gitignored**, so it exists on one machine. Anything this
+> story concludes from it is quoted here rather than referenced.
 >
 > **It is a different instrument from the retired `weekend.mjs`, and the
 > difference bounds the conclusion.** That one **held** the socket; this
@@ -813,3 +900,31 @@ observed" and "the observer is broken" are the same output. Task 3.9.9's first
 self-test reported zero because it blocked **outside** an animation frame on an
 idle page. Block inside a `requestAnimationFrame`, with a mutation after it, and
 confirm the observer complains **before** believing any silence it reports.
+
+## Handed here by Story 3.10's close — 2026-09-24
+
+This story already names Story 3.10 for backoff and retry. What follows is
+**new** and is not covered by that.
+
+- **The deployed re-take of this story's figures.** Task 3.10.4 measured the
+  per-row cost of dating a stale row on a **production build against a local
+  pair** — **36.75–36.83 ms of script a tick** at the worst case (every one of
+  517 rows behind, every instant drawn), against §28's 50 ms. It is a loopback
+  figure like every other in this epic. Re-take it against the deployed
+  gateway during a session, with the rest.
+- **The transition's own cost, which is UNMEASURED and was not taken.** A feed
+  dying changes one field on one view and re-renders every surface at once —
+  a burst with a different shape from a bar arriving. Story 3.10 declined to
+  measure it and said why: §28's word is **routine**, and a disconnection is a
+  one-off, so it falls where the cold load falls rather than where the tick
+  does. **That is an argument and not a measurement**, and this story is where
+  arguments of that kind get numbers.
+- **Eight diagnostic events that reach production nowhere.** `market-stream.ts`
+  never references `onLog`, which is why a dead feed ran for **nineteen hours**
+  unseen. Story 3.10 did not repair it — it is a cost-and-observability
+  question rather than a degraded-state one.
+- **`docs/GAPS.md`'s socket-churn entry**, added 2026-09-24: an ordinary
+  security page opened **three market-stream sockets in twelve seconds**
+  locally, and the deployed gateway's own client saw **2 reconnects in 420
+  minutes**. The re-measure named there — the same counter run against
+  `pnpm e2e:deployed` — belongs in this story's deployed pass.

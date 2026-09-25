@@ -1772,8 +1772,13 @@ export const BREAKS = [
     file:
       "planning/epic-03-live-market-data/" +
       "story-11-cost-performance-and-the-epic-close/STORY.md",
-    find: "**Status:** Not started",
-    replace: "**Status:** Complete <!-- pnpm break: reverted automatically -->",
+    // Repointed 2026-09-25: the story's status line stopped being
+    // `Not started` when Task 3.11.1's split gave it one. `pnpm invariants`
+    // caught it on the same commit, which is what that check is for.
+    find: "**Status:** **Split into ten tasks",
+    replace:
+      "**Status:** Complete <!-- pnpm break: reverted automatically -->\n" +
+      "<!-- **Split into ten tasks",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "rehearsal rows",
   },

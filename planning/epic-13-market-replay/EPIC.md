@@ -259,3 +259,41 @@ care, and `LIVE-DATA.md` §7.6's 2.1% minute coverage for `ERIE` is why.
 **Where the rest of it is written:** Story 3.4's Task 3.4.10 carries the audit
 this came out of, and records the count as **two and a half of three** rather
 than three, so the open half is not mistaken for finished work.
+
+### Handed here by Story 3.10 — 2026-09-24: the degraded set exists, inherit it rather than re-inventing it
+
+**Every live surface has degraded states and this product has already
+enumerated them once**, produced rather than imagined: nine of them,
+photographed at 1440, 1024, 768 and 390, with the text of six surfaces compared
+so _do two states read identically_ is answered by strings rather than by eye
+(Task 3.10.9). The set, the unreachable cells and why they are unreachable are
+in that task's record.
+
+**Three rules travel with it and each is somebody's measured defect:**
+
+- **`FeedStatus` is about the CONNECTION and `MarketSessionStatus` about the
+  SESSION**, and they must not be collapsed. The market being open does not
+  mean data is flowing, and the market being shut is not a feed failure — a
+  quiet socket at 02:00 is correct and must not read as broken.
+- **A quiet security is not a broken feed.** IEX's median per-symbol minute
+  coverage is **65.1%** and the worst case is **2.1%** (`LIVE-DATA.md` §7.6);
+  `LIVE-DATA.md` §11.2 measured an ordinary maximum gap of **187 minutes**.
+  Anything that reports silence as a fault will cry wolf on thin names all day.
+- **The connection has ONE home** — the status bar — and every other surface
+  stays quiet by decision (ADR 0029's fourth rule; Tasks 3.10.3, 3.10.5 and
+  3.10.8 each took it with reasons). A second surface reporting the connection
+  is the defect this product has produced four times on one screen.
+
+**And one unrepaired consequence, recorded in `docs/GAPS.md`**: because the
+connection has one home and that home is sticky at the **foot** of the
+viewport, at 390 the distinction between _the feed stopped_ and _the market is
+shut_ is below the fold. No check can see it.
+
+**And the question this epic has to answer rather than inherit: a replay has no
+feed to disconnect.** Several states above are **unrepresentable** under a
+replay clock — there is no socket, so no `disconnected`, no `stale`, no gap to
+fill on reconnection — and the honest rendering of a replay's chrome is already
+decided (ADR 0030: `REPLAYING`, and a deployment configured to replay fails
+before it rolls). What is **not** decided is what a replay says when its own
+stored data runs out mid-session, which is the nearest thing it has to a
+degraded feed and is this epic's to name.
