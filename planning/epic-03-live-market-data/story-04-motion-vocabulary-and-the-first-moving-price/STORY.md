@@ -1,6 +1,6 @@
 # Story 3.4 — The Motion Vocabulary & the First Price That Moves
 
-**Status:** **Everything but the rehearsal — 2026-09-21.** Nine of ten tasks complete; the vocabulary, both marks, the measurements and the chrome repair all shipped. **The story does not close**: ~~criterion 5 is unmeasurable without a protocol change (`docs/GAPS.md` entry 12 — **owned by Story 3.6 since 2026-09-21**, Task 3.6.4, moved from Story 3.11 at Story 3.5's close)~~ — **criterion 5 is measurable and bounded since 2026-09-22 (Task 3.6.4, the amendment at the foot of this file); only criterion 8 still blocks** — and criterion 8's _with the market open_ needs a live session — the market is shut and the deployment holds the plan's one Alpaca connection. [Task 3.4.10](TASK-10-the-rehearsal-the-sweep-and-the-close.md) records exactly what the rehearsal still owes. **Amended 2026-09-22 — a sitting was taken that night**, headless, against the deployed site during the session: the identity block was watched moving for an hour and nothing on it was wrong (`LIVE-REHEARSAL.md`, the 3.4 row), two of the five owed items are answered and three still stand (Task 3.4.10's addendum), and whether a headless watch satisfies criterion 8's _person_ is the owner's call. **Amended 2026-09-23 — the sitting this story is blocked on is the SAME sitting Stories 3.8 and 3.5 are waiting for**, because the scarce thing is the plan's one Alpaca connection rather than anybody's attention (`docs/GAPS.md` entry 10). Task 3.4.10 now carries the combined list, and what Stories 3.7 and 3.8 changed underneath the rehearsal — chiefly that the deployed backend **writes bars every minute the market is open** since Task 3.8.3, so a mid-session reload keeps today's chart rather than blanking it.
+**Status:** **Everything but the rehearsal — 2026-09-21.** Nine of ten tasks complete; the vocabulary, both marks, the measurements and the chrome repair all shipped. **The story does not close**: ~~criterion 5 is unmeasurable without a protocol change (`docs/GAPS.md` entry 12 — **owned by Story 3.6 since 2026-09-21**, Task 3.6.4, moved from Story 3.11 at Story 3.5's close)~~ — **criterion 5 is measurable and bounded since 2026-09-22 (Task 3.6.4, the amendment at the foot of this file); only criterion 8 still blocks** — and criterion 8's _with the market open_ needs a live session — the market is shut and the deployment holds the plan's one Alpaca connection. [Task 3.4.10](TASK-10-the-rehearsal-the-sweep-and-the-close.md) records exactly what the rehearsal still owes. **Amended 2026-09-22 — a sitting was taken that night**, headless, against the deployed site during the session: the identity block was watched moving for an hour and nothing on it was wrong (`LIVE-REHEARSAL.md`, the 3.4 row), two of the five owed items are answered and three still stand (Task 3.4.10's addendum), and whether a headless watch satisfies criterion 8's _person_ is the owner's call. **Amended 2026-09-25 — the ambiguity this story has been blocked by is resolved, and the story is still blocked.** Criterion 8's word is _person_, and whether the 2026-09-22 headless watch satisfied it was left to the owner. Task 3.11.1 asked; the answer is **no**. What changes is the shape of the block rather than its existence: this story is no longer waiting on a judgement, it is waiting on **Task 3.11.8's sitting**, which is booked against the same window as Task 3.11.4's performance pass. **Amended 2026-09-23 — the sitting this story is blocked on is the SAME sitting Stories 3.8 and 3.5 are waiting for**, because the scarce thing is the plan's one Alpaca connection rather than anybody's attention (`docs/GAPS.md` entry 10). Task 3.4.10 now carries the combined list, and what Stories 3.7 and 3.8 changed underneath the rehearsal — chiefly that the deployed backend **writes bars every minute the market is open** since Task 3.8.3, so a mid-session reload keeps today's chart rather than blanking it.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.3
 **Epic scope covered:** the motion vocabulary (design test 4), live price updates in the UI — on one surface
@@ -498,7 +498,18 @@ minimal by default.
    changes width must not move anything around it — the numerals are tabular for
    this reason and the reason is now load-bearing
 8. `pnpm probe` at all four viewports, and a person looked at the screen with
-   the market open before the browser suite ran
+   the market open before the browser suite ran — **DECIDED 2026-09-25, and the
+   answer is NOT MET.** This criterion has been sitting on _whether a headless
+   watch satisfies the word `person`_, left to the owner since 2026-09-22.
+   Task 3.11.1 put it to them and the verdict is that it does not: _a headless
+   browser did not notice_ is not _a person did not notice_, and amending the
+   criterion's word to `observed` was explicitly rejected. **So this criterion
+   is unmet rather than ambiguous**, which is a better state to be blocked in —
+   and the sitting that discharges it is **Task 3.11.8's**, one sitting, with a
+   human, at three viewports including a real phone, shared with Task 3.11.4's
+   performance pass because the scarce thing is the plan's one Alpaca
+   connection. `pnpm probe` at four viewports with the market open is on that
+   sitting's own list and has never been taken.
 9. `pnpm verify` passes
 
 ## Tasks

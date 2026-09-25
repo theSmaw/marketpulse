@@ -510,3 +510,25 @@ one: it was measured on a production build, found breached, repaired in the
 same task and recorded there as _breached and repaired_, with the after-figure.
 This story's own claim — _this story adds no third exception_ — stands
 unchanged, and the count of the world is back to the two Epic 14 owns.
+
+## Amended by Task 3.11.1 — 2026-09-25: this task's three hand-offs to the epic close have verdicts
+
+This task handed Story 3.11 three things and then, correctly, stopped thinking
+about them. **All three now have an answer, and a reader of this file would
+otherwise never learn any of them** — which is the sideways hand-off failing in
+the direction nobody watches: not _the constraint never arrived_, but _the
+answer never came back_.
+
+| Handed on                                                              | Verdict, 2026-09-25                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **§28's headline figure has never been taken, and today it cannot be** | **SUPERSEDED.** It was taken on 2026-09-22 by Task 3.6.4, once `sentAt` shipped on every frame (ADR 0033): **p95 68.1 ms** gateway send → universe table repainted, 518 subscribed, on a production build. This task's own instrument started at _frame in the browser_; §28's clock starts at _server-received_, and that is precisely the gap the stamp closed. What remains is a **deployed re-take**, not a measurement to invent                                |
+| **The logging lever, evaluated and NOT pulled**                        | **CLOSED, and it stays closed.** Task 3.5.8 evaluated it at universe scale and found this task's successor had the trigger backwards: 1.12.6 kept `reqId` _because_ interleaving was expected. Measured both ways — 16 sequential requests paired adjacently, 12 concurrent ones interleaved — and **an ordinary page load is concurrent**, so `reqId` is doing its job. Worth 156 → 101 columns and not worth taking. **Re-open on concurrency, never on the feed** |
+| **`market-stream.ts` still never references `onLog`**                  | **STILL OWED, and it now has a task rather than a paragraph.** Eight diagnostic events reach production nowhere, which is why a dead feed ran for nineteen hours unseen — and Task 3.11.1 found the sequel: that outage lasted about **forty hours**, ended **unattended** on the Sunday at 01:45 ET, and **nobody can say what fixed it**, because the same eight events were not being logged. It is **Task 3.11.3**, deliberately third                           |
+
+> **One figure in this task's own record is now known to be unrepresentative,
+> and it is worth saying here rather than only in the close.** §28's p95 was
+> also measured by Task 3.4.8 from **Asia/Singapore over a 271–311 ms round
+> trip production does not have**. That did not falsify §28 — it made it
+> unevaluable until the same figure was taken from `eastus2`, which is Task
+> 3.11.4's. The figures in this file stand as what was measured where it was
+> measured; they are not the deployment's.
