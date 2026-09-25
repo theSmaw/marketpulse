@@ -1,6 +1,6 @@
 # Story 3.11 — Cost, Performance, the Sweep & the Epic Close
 
-**Status:** Not started
+**Status:** **Split into ten tasks — 2026-09-25.** The order is unusual for a close and deliberately so: **the two tasks that change what a user can see come second and third**, not ninth, because this is otherwise a story of measurements and documents and a stakeholder should not wait to the end of an epic for the last thing they see. The first task **builds nothing** — this file has accumulated hand-offs from **eleven** sources over ten days and several have been superseded by the story that wrote them, which is the shape Story 3.10's equivalent task exploited to remove most of two tasks.
 **Epic:** [Epic 3 — Live Market Data](../EPIC.md)
 **Depends on:** 3.10
 **Epic scope covered:** the continuous-connection cost envelope, the epic's exit criterion, and everything this epic falsified upstream
@@ -153,6 +153,44 @@ until the last feature story has shipped.
     Production has real users and must only ever tell the absolute truth about
     the real market; that is the one claim in this epic where a missed check is
     a user being misled rather than a developer being inconvenienced
+
+## Tasks
+
+**Where the incremental progress is, stated plainly.** Eight of these ten tasks
+produce no visible change, because a close is measurement, documents and
+verdicts. **Two do**, and they are taken early rather than late:
+
+- **3.11.2** repairs a page that opens **three sockets in twelve seconds** —
+  nothing on screen is wrong today, which is exactly why it went unseen for the
+  whole epic
+- **3.11.3** makes a feed that has stopped **visible without opening a page**,
+  which is the failure that let a dead feed run for **nineteen hours**
+
+And one produces the only thing in this epic that has never happened at all:
+**3.11.8 is a person watching the product work.**
+
+| #   | Task                                                                                                                                                                               | Visible?                             |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 1   | [What this epic already measured, and the decisions this close cannot start without](TASK-01-what-this-epic-already-measured-and-the-decisions-this-close-cannot-start-without.md) | no — and it removes work             |
+| 2   | [The socket that reopens three times in twelve seconds](TASK-02-the-socket-that-reopens-three-times-in-twelve-seconds.md)                                                          | **yes**                              |
+| 3   | [The dead feed that ran for nineteen hours](TASK-03-the-dead-feed-that-ran-for-nineteen-hours.md)                                                                                  | **yes, to an operator**              |
+| 4   | [Every figure re-taken against the real gateway, in one sitting](TASK-04-every-figure-re-taken-against-the-real-gateway.md)                                                        | only if one comes back over the line |
+| 5   | [The bill, read rather than estimated](TASK-05-the-bill-read-rather-than-estimated.md)                                                                                             | no                                   |
+| 6   | [What a connection does over a week rather than an afternoon](TASK-06-what-a-connection-does-over-a-week-rather-than-an-afternoon.md)                                              | no                                   |
+| 7   | [The replay's guards, re-broken rather than assumed](TASK-07-the-replays-guards-re-broken-rather-than-assumed.md)                                                                  | no                                   |
+| 8   | [The sitting a person actually takes, and the ledger completed](TASK-08-the-sitting-a-person-actually-takes.md)                                                                    | **the product, watched**             |
+| 9   | [The ADRs, and the document that outlives the epic](TASK-09-the-adrs-and-the-document-that-outlives-the-epic.md)                                                                   | no                                   |
+| 10  | [The re-take, the upward sweep, and Epic 3's close](TASK-10-the-re-take-the-upward-sweep-and-epic-3s-close.md)                                                                     | no                                   |
+
+**Two tasks share one window and must be taken together** — 3.11.4's
+performance pass and 3.11.8's sitting both need the market open, and the scarce
+thing is the free plan's **one** Alpaca connection rather than anybody's
+attention (`docs/GAPS.md` entry 10). A sitting taken for one and not the other
+spends it twice.
+
+**And 3.11.6 is the one that needs elapsed time rather than effort.** Whatever
+it has to watch should be started when this story starts, not when that task
+comes up.
 
 ## What this story hands forward
 
