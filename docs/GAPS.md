@@ -493,43 +493,30 @@ If it passes there and fails against your own store, **the store is the subject*
 
 **Amended 2026-09-24 by Task 3.10.7 — it happened again, the other way round, and the condition above had already fired.** `security-chart-edge.spec.ts` (Task 3.10.5) asserted a washed edge and a bar count against the deployment's own store, which is exactly _a figure whose presence depends on a window having data_. It passed here and failed on **CI**, whose store has zero bars, with the honest sentence _"No history is stored for NVDA at this timeframe"_ on screen — so this time the failure did **not** read as a layout defect, it read as a product that had stopped drawing. **And PR 461 was merged with that check red**, which is how it reached `main`. The repair is the one the entry above implies and never states: **a spec that asserts a figure serves its own answer** — `serveFeed`'s `bars` option, added by Task 3.10.7 — rather than asking a store whose contents nobody controls. Runtime fell from **12.6 s to 1.2 s**, which is the same fact seen from the other end. **Re-measure:** grep the browser suite for a spec that asserts a count, a price or a washed width without routing `BARS_ROUTE_PATTERN`.
 
-## The browser opens a NEW market-stream socket every few seconds on an ordinary page, and nothing notices
+## ~~The browser opens a NEW market-stream socket every few seconds on an ordinary page~~ — WITHDRAWN 2026-09-25, and the instrument was the fault
 
-Measured 2026-09-24 by a throwaway instrument written for Task 3.10.7, on `/securities/NVDA` against a local pair: **three WebSocket connections in twelve seconds**, which is roughly one every four seconds. **The same figure on `main` without that task's changes**, so it predates the work that found it. The gateway is not the cause — two external clients held sockets to it for **30 s with zero closes** while the page was churning, so whatever ends them is this browser's end.
+**The entry that stood here was wrong**, and it is left as a heading rather than deleted because what replaced it is the more useful claim.
 
-**Nothing in the product was wrong on screen throughout**, which is why it has gone unseen: the reconnect is Task 3.5.5's and it works, a snapshot restores every price, and `fromSnapshot` correctly declines to mark any of them as an arrival. The cost was invisible until something was wired to the _event_ rather than to the state.
+Task 3.10.7 measured an ordinary security page opening **three market-stream sockets in twelve seconds** and found the same on the commit before it, so it read as a defect that predated the work. It became this entry, a **floor on the gap refill**, a paragraph in `CLAUDE.md` and a task of its own.
 
-**What it cost, and what now hides it.** Task 3.10.7 refetches the chart when the feed comes back, which turned a four-second reconnect into a four-second **refetch** — a poll, in a hook whose own comment says it does not poll, and the cause of a browser-suite flake that read as machine contention for four bisecting runs. That hook now floors refills at one a minute (two reconnections inside one minute cannot have lost two different minutes' bars), **so the churn is suppressed rather than fixed** and the next thing wired to a reconnection will meet it again.
+**Two of the three were Vite's.** The counter took `page.on("websocket")` and counted every socket on the page; on a dev server the HMR connection is two of them. Re-measured 2026-09-25 with the **URLs printed beside the count**:
 
-**It is unmeasured on the DEPLOYED site**, and the one figure that exists there points the other way: the 2026-09-23 overnight watch saw its own socket close **38 times in 4h 36m** — one per seven minutes, not one per four seconds. So this may be a development-only shape (StrictMode's double-invoke, Vite's HMR, the dev server's proxy) or it may be the same fault at a different rate.
+```text
+dev        +96ms   OPEN    ws://localhost:5173/?token=…        <- Vite HMR
+           +153ms  OPEN    ws://localhost:5173/?token=…        <- Vite HMR
+           +308ms  closed  ws://localhost:3000/market-stream     (+333ms)
+           +337ms  OPEN    ws://localhost:3000/market-stream
 
-**Re-measure:**
-
-```ts
-page.on("websocket", () => {
-  sockets += 1;
-});
-await page.goto("/securities/NVDA");
-await page.waitForTimeout(12_000); // expect 1
+deployed   +1212ms OPEN    wss://…/market-stream               <- one, held
 ```
 
-Run it against `pnpm dev` **and** against `pnpm e2e:deployed`. **Owner: a condition** — the next feature that acts on a reconnection rather than on the connection's state, which is the second one to pay this.
+The open/close pair at +308 ms is **`StrictMode`'s double-invoke** — development-only, and the effect's teardown being _proved_ rather than failing. With `StrictMode` removed the dev page opens **one**. **The deployed site opens one and holds it.**
 
-## The whole difference between _the feed stopped_ and _the market is shut_ rests on one cell at the foot of the viewport
+**What is now asserted mechanically**: `e2e/specs/market-stream-socket-count.spec.ts` counts sockets whose URL contains `/market-stream` and asserts the last one was never closed, with `pnpm break the-socket-count-stops-filtering` behind it.
 
-Task 3.10.9 produced nine degraded states and compared the text of six surfaces at four widths. **No two read identically** — the rule holds. But three pairs are told apart by **one surface only**, at every width:
+**The claim that survives is about measurement, not about sockets.** _Count by URL, never by event_ — a browser page holds sockets that are not this product's, and a number with no URL beside it cannot tell them apart. The cost of not doing so was a suppression, two documents and a task, and **the wrong number survived four days of being quoted in commit messages and a PR body** because it was quoted rather than re-run.
 
-| Pair                                        | Told apart by        |
-| ------------------------------------------- | -------------------- |
-| `stale` vs `disconnected`                   | the chrome           |
-| `disconnected, never live` vs `market shut` | the chrome           |
-| `quiet security` vs `market shut`           | the table row's date |
-
-**Each is the design working.** Task 3.10.3 decided the identity block stays quiet (it already dates its own instant), 3.10.5 decided the chart draws nothing from the connection (a mark derived from a socket is neither of the two kinds `CHARTING.md` allows), and 3.10.8 decided the source note says only what it alone owns. ADR 0029's fourth rule puts the connection with the chrome and nowhere else, and 3.10.6 made that cell **speak** on a degradation, which is the repair for a listener.
-
-**What is unguarded is the consequence at 390**: the status bar is sticky at the foot of the viewport, so on a phone the one surface carrying the distinction is the one a reader may not have looked at. No check can see this — every assertion in the suite reads the DOM, where the cell is present whether or not it has been seen.
-
-**It is named rather than repaired**, because repairing it means reversing three decisions that each had a measurement behind them. **Re-measure:** open `/securities/NVDA` at 390 on a real phone during a session, kill the backend, and time how long it takes to notice. **Owner: a person, before Epic 4's Market Overview**, which is the first screen whose whole subject is _what is happening right now_ and where a dead feed is a worse lie than it is here.
+**Re-measure:** `page.on("websocket")`, print `ws.url()` with every count, and compare a dev server against `pnpm e2e:deployed`. **Owner: discharged** — the spec above is the mechanical form, which is this list's own standing instruction.
 
 ## A browser that reconnects fills its gap; a BACKEND that reconnects does not, and nothing on screen tells them apart
 

@@ -141,3 +141,28 @@ condition to record rather than a story number.
 **And criterion 1's table is already built** — Task 3.11.1 extracted it, with
 the clean-clone / live-session / quote-only split criterion 1 asks for. This
 task fills it rather than assembling it.
+
+## Amended by Task 3.11.2 — 2026-09-25: one corollary for the sweep, and one withdrawal to carry
+
+**A rule earned the hard way belongs in `CLAUDE.md`'s _measure rather than
+cite_ corollaries**, beside _a break that does not go red is not evidence the
+check works_ and _a figure that has moved looks exactly like a figure that was
+mis-recorded_:
+
+> **Count by URL, never by event.** A browser page holds sockets that are not
+> this product's — on a dev server, two of them are Vite's HMR connection — and
+> a number with no URL beside it cannot tell them apart.
+
+**Its cost is the argument for promoting it**: the wrong figure became a
+`docs/GAPS.md` entry with an owner and a re-measure, a floor on a feature built
+the same day, a paragraph in `CLAUDE.md`'s current state, a task in this
+story's split, and a line in a commit message and a PR body — and **survived
+four days because it was quoted rather than re-run.** The instrument had been
+deleted, so every reader after the first had a conclusion and no evidence.
+That is `ALPACA.md` §11's rule failing in the one way it exists to prevent.
+
+**And the withdrawal is a sweep item in its own right.** Four sites carried the
+false claim and each now carries a dated correction. The upward sweep should
+**grep for the figure rather than trust that list** — `three market-stream
+sockets`, `twelve seconds`, `four-second` — because this is exactly the shape
+the sweep exists for: something measured, propagated, and then falsified.

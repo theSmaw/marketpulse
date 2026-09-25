@@ -481,12 +481,21 @@ export function useBarSeries(
     // different minutes' bars**, so the second refill would ask for an answer
     // the first already has.
     //
-    // It is here because an instrument written for this task found the
-    // browser opening **three market-stream sockets in twelve seconds** on an
-    // ordinary security page — on `main` as well, so it predates this work
-    // (`docs/GAPS.md`). Without the floor, a socket that churns every four
-    // seconds makes this a refetch every four seconds, which is the poll the
-    // refetch policy above says this hook does not do.
+    // **It was added for a reason that turned out to be false, and it stays
+    // for the reason above** (corrected 2026-09-25 by Task 3.11.2). An
+    // instrument written for Task 3.10.7 reported the browser opening *three
+    // market-stream sockets in twelve seconds* on an ordinary page, which
+    // would have made this a refetch every four seconds — the poll the refetch
+    // policy above says this hook does not do.
+    //
+    // **Two of those three were Vite's HMR socket.** Re-measured with the URLs
+    // printed: a deployed page opens **one** and holds it, and a dev page opens
+    // one plus a `StrictMode` open/close pair 25 ms apart. There is no churn.
+    //
+    // The floor is kept because its own justification never depended on that:
+    // two reconnections inside one minute still cannot have lost two different
+    // minutes' bars. What is deleted is the claim that it is suppressing
+    // something.
     const now = Date.now();
     if (now - lastRefillAt.current < BAR_INTERVAL_MS) return;
     lastRefillAt.current = now;

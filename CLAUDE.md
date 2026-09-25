@@ -255,17 +255,20 @@ supersedes a request in flight, it keeps what is on screen unless that is
 because two reconnections inside one minute cannot have lost two different
 minutes' bars.
 
-**That floor is suppressing somebody else's defect, and it is written down as
-such.** An instrument for that task measured an ordinary security page opening
-**three market-stream sockets in twelve seconds** — one every four seconds,
-**the same on the commit before the task**, with the gateway holding two
-external clients for 30 s with zero closes throughout. Nothing on screen is
-wrong while it happens, which is why it had gone unseen: it costs nothing
-until something is wired to the **event** rather than to the state, and this
-was the first thing that was. `docs/GAPS.md`; owner is a condition — the next
-feature that acts on a reconnection. The one deployed figure disagrees with it
-(one close per **seven minutes** on 2026-09-23), so it may be
-development-only. **The case it cannot fix** — the backend's own socket
+~~**That floor is suppressing somebody else's defect.**~~ — **WITHDRAWN
+2026-09-25 by Task 3.11.2, and the instrument was the fault.** The measurement
+behind it — an ordinary page opening **three market-stream sockets in twelve
+seconds** — counted every socket on the page, and **two of the three are
+Vite's HMR connection**. Re-measured with the URLs printed: the **deployed**
+page opens **one and holds it**; a dev page opens one plus a `StrictMode`
+open/close pair 25 ms apart, which is the teardown being proved rather than
+failing. **There is no churn.** The floor is kept on its own arithmetic — two
+reconnections inside one minute cannot have lost two different minutes' bars —
+and `e2e/specs/market-stream-socket-count.spec.ts` now asserts the real claim.
+**The lesson is the part worth keeping: count by URL, never by event.** A
+browser page holds sockets that are not this product's, and a number with no
+URL beside it cannot tell them apart — which cost a suppression, two documents
+and a task, and survived four days of being quoted rather than re-run. **The case it cannot fix** — the backend's own socket
 dropping, which holes the store — is `docs/GAPS.md`'s and Story 3.11's.
 
 **And since 2026-09-24 the degraded set has been photographed together, which
