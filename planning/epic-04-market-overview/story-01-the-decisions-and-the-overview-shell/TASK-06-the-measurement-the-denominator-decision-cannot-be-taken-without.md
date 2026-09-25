@@ -63,3 +63,41 @@ sample are the ones a sentence could plausibly carry: **1, 2, 5, 15 and 60
 minutes**. What makes M defensible is the **shape across a session** — a window
 that covers 90% at the open and 60% over lunch is a window that will embarrass
 this screen at 12:30.
+
+## Amended by Task 4.1.5 — 2026-09-25: the sentence this task drafts has a constraint, and the instrument has a deadline
+
+### The wording is bounded, and the boundary is a shipped check
+
+This task drafts the words the screen will use, and Task 4.1.5 established what
+they may not be.
+
+**The denominator must not reach for `live`, `stale` or `disconnected`.** Those
+are a three-member vocabulary with one home, guarded by
+`one-home-for-the-feed-words`, and a coverage sentence borrowing them **would
+trip a check that exists for a different reason — and would deserve to.**
+
+**The reason is not the check, it is what the two statements mean.** The chrome
+says whether data is **arriving**; the denominator says how much of the market
+**one figure could see**. They can legitimately disagree — a healthy `LIVE` feed
+with 341 of 518 names heard from in five minutes is the ordinary state of IEX —
+and a reader who reads the denominator as a fault report has been told something
+false by a true sentence.
+
+**So draft it as a qualification of a figure**, in the register the source note
+uses for an adjustment: stated once, calmly, beside the thing it qualifies.
+
+### And the instrument has a deadline the measurement does not
+
+**Write and rehearse the instrument against the shut market, before the bell.**
+
+This is Epic 3's most expensive lesson, learned at the end of it: Task 3.11.8's
+sitting instrument was written and run against a closed market first, and that
+rehearsal found **four faults in the instrument** — a broken import, two lint
+rules, an observer self-test polluting its own figures, and a screenshot
+answering the wrong question — every one of which would otherwise have been
+discovered at the one moment nobody could retry it.
+
+**`scripts/session-sitting.mjs` already wraps a page's socket, counts frames by
+URL and drains them on a tick.** Check it before writing anything: this task may
+be an extension of an instrument that exists rather than a new one, and the
+existing one is already rehearsed.
