@@ -60,3 +60,34 @@ it has caught something every time it has run.
 2. The hand-off count is recorded, including if it is zero
 3. The sweep is run against the list **and** a grep
 4. Story 4.1 is closed, or the single reason it is not is named with its owner
+
+## Amended by Task 4.1.1 — 2026-09-25: three decisions are already written, and one of them may owe an ADR
+
+**The recording half of this task is mostly done.** Task 4.1.1 wrote the three
+answers into `STORY.md` **and** into each consuming file — Stories 4.2, 4.3,
+4.4 and 4.5, and Task 4.1.6 — rather than leaving them for the close. **What
+remains is to verify that, not to do it**: grep each consumer for the
+constraint in its own words, and record any that are missing, which is the
+enumeration this product runs at every close and which has caught something on
+all five of its runs.
+
+### The judgement this task now owes
+
+**Decision 2 adds a new FRAME TYPE to the market-stream wire**, and this
+repository has a precedent for the smaller version of that: ADR 0033 added a
+**field** — `sentAt` — and carries four constraints about how it may be used.
+A frame type is bigger.
+
+**So: does the overview frame owe an ADR of its own?**
+
+- **For**: the wire is a contract three epics already read, ADR 0031 says what
+  a transport without a schema layer owes, and _which frames exist_ is exactly
+  the kind of decision a later reader looks for in `docs/adr/` rather than in a
+  story file.
+- **Against**: ADR 0031 may already cover it, and this product's rule is that
+  an ADR is written **only where a decision has no home** — Task 3.11.9's
+  verdict on four candidates was that two already had one.
+
+**Decide it in writing either way**, and if the answer is yes, it is Story
+4.2's to write rather than this task's — this task decides, 4.2 builds and
+documents.

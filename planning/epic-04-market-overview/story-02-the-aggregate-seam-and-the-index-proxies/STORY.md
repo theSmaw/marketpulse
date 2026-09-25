@@ -85,3 +85,27 @@ direction.
 Sector ETFs (4.3), any count over the universe (4.4), ranking (4.5). The proxy
 set is the four §6 names and adding a fifth is a universe change, not a
 layout choice.
+
+## Amended by Task 4.1.1 — 2026-09-25: the seam is decided, and it is a frame
+
+**The owner chose a new frame on the existing market-stream socket**, over a
+browser-side computation and over a polled HTTP route. **This story builds
+it**, and three things travel with the decision:
+
+- **One computation for every browser.** The aggregate is computed where
+  `currentMarketState` already lives and sent, not recomputed per page.
+- **It arrives on the clock it describes.** The gateway already sends one
+  `bars` frame a minute; the aggregate belongs on that cadence rather than on a
+  poll of its own.
+- **The wire widens, and that is governed.** [ADR 0031](../../../docs/adr/0031-what-a-transport-without-a-schema-layer-owes.md)
+  says what a transport without a schema layer owes, and
+  [ADR 0033](../../../docs/adr/0033-a-send-instant-on-the-wire-for-measurement-only.md)
+  is the precedent for adding a field — **a new field rather than a second
+  meaning for an existing one**, and `sentAt`'s four constraints are the shape
+  to copy.
+
+> **And the reason it is not the browser**, recorded so it is not re-argued:
+> `PRODUCT_SPEC.md` §5.1 — the LLM never calculates and every number a user
+> sees comes from deterministic code. §17's analytical tools are backend tools,
+> so **Epic 5's anomaly scores cannot live in a browser**, and an aggregate
+> seam built there would be rebuilt within one epic.

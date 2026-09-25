@@ -87,3 +87,12 @@ uses is a design decision; two components that look similar is an accident.**
 Per-sector drill-down (Epic 6's topology and the Security Explorer), breadth
 inside a sector (4.4 decides whether that exists at all), and anomaly scores
 (Epic 5).
+
+## Amended by Task 4.1.1 — 2026-09-25: two decisions this story inherits rather than takes
+
+- **The aggregate arrives in a frame**, computed once in the backend (Story
+  4.2's seam). This story consumes it rather than computing eleven sector
+  figures in a browser.
+- **Ranking re-orders and marks what moved** (Story 4.5's treatment). This
+  story does not invent a second rule for its eleven rows — one ranked-list
+  component, one behaviour.

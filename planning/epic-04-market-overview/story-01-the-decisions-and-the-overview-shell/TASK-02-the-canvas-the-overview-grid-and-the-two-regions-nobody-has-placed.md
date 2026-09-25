@@ -57,3 +57,49 @@ a fact arriving DECAYS**.
 1. The artefact exists and the two unplaced contents have a home in it
 2. Four widths, each with its spans stated
 3. A stranger looking at it can tell what the screen is for
+
+## Amended by Task 4.1.1 — 2026-09-25: the hardest question on this screen is what an EMPTY dominant region looks like
+
+**Reading the route turned up a design question nothing owned, and it is the
+biggest one this screen has.**
+
+Today the topology region — §9's **visual centre of gravity**, the dominant
+primary area — is full. It holds Story 1.4's render check: three modules, a
+table, a band list, a feed list and an error block. **Task 4.1.4 removes all of
+it**, and Epic 6 does not fill it for two more epics.
+
+**So after this story the landing page's largest region is empty**, and
+`PRODUCT_SPEC.md` §5.6 is not optional about what that must not look like:
+
+> _It must look like a real, funded product rather than a **scaffold with data
+> in it**._
+
+**A deferred region the size of a postcard is a sentence. A deferred region
+that is half the screen is a design problem**, and this task is where it gets
+solved rather than discovered.
+
+### What that adds to this task
+
+- **Draw the topology region in its deferred state at all four widths**, at
+  full size, and answer honestly whether the screen still passes §5.6's four
+  tests — would a stranger believe it is a real funded product; does it look
+  designed rather than defaulted; is there a moment worth showing somebody.
+- **If the answer is no, the layout is the repair.** Options to draw rather
+  than argue: the filled regions take the primary area until Epic 6 arrives and
+  the topology is deferred in a smaller frame; or the grid changes shape at
+  this stage of the epic and changes back. **Either is a decision with a
+  reversal trigger, and a region that is simply empty is not.**
+- **Draw the breadth region FILLED, not only deferred.** It has named Epic 4
+  since Task 1.5.4, and Story 4.4 fills it — so this screen's first real
+  content is in a region that already exists rather than in one of the two
+  being added.
+- **Draw the top of the screen without the summary paragraph.** Task 4.1.3
+  removes it; what replaces it — nothing, a heading, or something else — is a
+  composition question and belongs here.
+
+> **One sequencing option was considered and rejected**: moving Task 4.1.4
+> after Story 4.2 so the gallery survives until something real replaces it.
+> **Rejected** — the gallery is in the region Epic 6 fills, so it would survive
+> two more epics on the strength of looking busy, and a landing page whose
+> centre is a component demo is exactly §5.6's scaffold. **The mitigation is
+> design, not ordering**, which is what this amendment makes explicit.

@@ -58,3 +58,24 @@ like.
 1. The route renders regions and no component gallery
 2. The bundler proof is a check rather than a component, break-verified
 3. The artefact size either side is recorded with its date
+
+## Amended by Task 4.1.1 — 2026-09-25: the scope narrows by one and gains a dependency
+
+**Two things move:**
+
+- **The `Placeholder` paragraph above the regions is Task 4.1.3's, not this
+  task's.** Task 4.1.1 found a fifth surface saying what the four `filledBy`
+  sentences already say; it becomes false the moment a region is real, which is
+  4.1.3's change rather than this one.
+- **This task now depends on Task 4.1.2 having answered what the empty
+  dominant region looks like.** Removing the check leaves §9's visual centre of
+  gravity empty for two epics, and `PRODUCT_SPEC.md` §5.6 forbids the obvious
+  result — _a scaffold with data in it_. **Do not ship the deletion before the
+  canvas has answered it**; the repair is a layout decision, not a CSS tweak
+  made at the end of this task.
+
+**What is unchanged is the trap, and Task 4.1.1 confirmed it rather than
+assuming it**: `ANOMALY_BANDS`, `FEED_STATUSES`, `toTicker` and `AnomalyBand`
+are imported from `@marketpulse/shared` and used **only** by the render check.
+Deleting the check deletes the import, and with it the one proof that the
+workspace dependency resolves through the **bundler** as well as through `tsc`.
