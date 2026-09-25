@@ -383,3 +383,33 @@ which is the best kind of agreement.
 
 **The reading that decides M is still owed**: the lunchtime trough is the case a
 round number gets wrong, and it has not happened yet.
+
+### The summariser was rehearsed against the partial log, and it found a trap in its own output
+
+**The arithmetic that produces the final answer was run mid-flight**, against
+the log as it stood at 122 samples, rather than trusted to work at 20:00 when
+the run ends and the process exits. It works. But reading its output early is
+what exposed the trap:
+
+```text
+curve: 1m {median 0}  2m {median 1}  5m {median 3}  15m {median 9}  60m {median 19}
+by market hour:
+  07  1m 0   2m 0     5m 0     15m 0     60m 0
+  08  1m 0   2m 0     5m 2     15m 6     60m 13
+  09  1m 0   2m 4     5m 8     15m 13    60m 24
+  10  1m 0   2m 361   5m 447   15m 504   60m 515
+```
+
+**The aggregate `curve` is not merely less informative than the by-hour shape —
+against this log it is actively wrong.** A run started at 07:13 ET spends
+**two hours and seventeen minutes before the bell**, during which the honest
+answer is zero at every window, and those samples are in the same median as the
+session's. `2m`'s aggregate median of **1** and its `10` o'clock median of
+**361** are the same window on the same day.
+
+**So M is chosen from `shapeByMarketHour`, restricted to the hours 09:30–16:00**,
+and the aggregate line is quoted only with its start time beside it. This is the
+same failure the socket count made — _count by URL, never by event_ — with the
+denominator changed: **a median is a claim about its population, and an
+instrument that samples outside the thing it measures has a population nobody
+chose.**
