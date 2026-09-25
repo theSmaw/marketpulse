@@ -142,3 +142,64 @@ not cry wolf on a 46 s deploy.
 rather than on `/`: the landing page has no moving figures until Story 4.2, and
 _do you notice it while reading a figure_ needs a figure. Task 4.1.7 carries the
 protocol.
+
+### One data point for the table above, taken overnight — 2026-09-25
+
+**A browser's experience of a deploy is nothing like the backend's.** Across the
+rollout of 2026-09-25T12:34Z, a page on the deployed site read:
+
+```text
+12:28:13  LIVE
+12:37:40  DISCONNECTED
+12:37:45  LIVE
+```
+
+**Five seconds**, against the **45.8 s / 46.5 s** the backend's upstream socket
+was refused. They are different quantities and the difference is the point: the
+gateway's new replica serves browsers long before its own feed is connected, and
+the browser's reconnect is **500 ms on `1001 going away`** by design (Task
+3.5.5).
+
+> **It is a coarse reading and it is labelled as one**: the word was sampled
+> every five seconds, so `≤ 5 s` is the resolution rather than the measurement,
+> and the frame log that would have given the exact inter-frame gap was
+> **broken at the time** by the drain defect found the same night. The fixed
+> instrument is running and the next deploy gives the precise figure.
+
+**What it already changes about the options**: the row that says _the socket
+closing → flaps on a deploy_ is the one to re-examine. If a deploy costs a
+browser five seconds rather than forty-six, then reporting on the socket's own
+state may not flap at all — and the threshold conversation is about a phone in
+a tunnel rather than about our rollouts.
+
+### And the figure the table was missing — 2026-09-25, overnight
+
+**On an idle connection out of hours, a browser's longest silence between
+inbound frames is 54.0 s.** Measured over 5.5 minutes on the deployed site with
+a fixed instrument: **17 frames — 3 snapshots, 12 `feed` heartbeats and 2
+`bars`** (extended-hours prints), longest gap **54.0 s**.
+
+**That 54 s is not a coincidence.** It is the upstream Alpaca heartbeat —
+53.96–54.85 s across 82 intervals, `LIVE-DATA.md` §6.3 — arriving at the
+browser as a `feed` frame. **The gateway's quiet-market traffic is paced by the
+vendor's heartbeat**, so the browser's floor is the same number the 165 s
+threshold was derived from, seen from one hop further away.
+
+**So the three numbers the decision needs now exist:**
+
+|                                                 | Measured                 |
+| ----------------------------------------------- | ------------------------ |
+| longest browser silence, **idle, out of hours** | **54.0 s** (n = 5.5 min) |
+| browser's visible outage **across a deploy**    | **≤ 5 s**                |
+| the watchdog                                    | **165 s**                |
+
+> **165 s is a 3× margin over the worst thing a healthy browser does**, and the
+> deploy it was protecting against costs a browser five seconds rather than
+> forty-six. A browser-side threshold around **90 s** would keep a 1.6× margin
+> on the idle gap and still not flap — and would halve the window in which a
+> phone in a tunnel is told its prices are live.
+>
+> **This is one 5.5-minute sample and it says so.** ADR 0036's rule is that
+> these numbers are dated observations to be re-derived rather than tuned, so
+> the decision owes a longer idle sample — and the instrument that takes it now
+> works, which it did not this morning.

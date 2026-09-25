@@ -179,6 +179,23 @@ shadowed by the consolidated bar. It is one query on the deployed store —
 >   with its n, the payload in bytes, the burst's main-thread cost, and the
 >   fan-out per browser.
 >
+> **Amended the same night — the rehearsal missed a defect that would have
+> emptied the whole sitting.** Both instruments drained the page's buffer by
+> **rebinding `globalThis.__sitting` to a fresh array**, while the page's
+> wrapper kept pushing into the array it had closed over. **Every drain after
+> the first returned nothing**, so a five-hour sitting would have recorded the
+> first five seconds and then reported a silent socket — with §28's p95, the
+> burst cost, the payload and the fan-out all coming back empty, and the
+> instrument looking healthy throughout.
+>
+> **The rehearsal could not have caught it**, and saying why is the useful
+> part: with the market shut there are no frames after the first drain anyway,
+> so **one drain and all drains look identical**. It was found by an overnight
+> run against a live gateway, by noticing that a page reported _1,533 seconds
+> without a frame_ while its own status word read `LIVE`.
+>
+> Fixed by draining with `splice` in place. `CLAUDE.md` carries the rule.
+
 > **Rehearsed against the shut market on 2026-09-25, before the bell**, which is
 > the whole point of writing it early: it runs, the socket wrapper fires, the
 > `long-animation-frame` observer **proves itself** before any silence from it

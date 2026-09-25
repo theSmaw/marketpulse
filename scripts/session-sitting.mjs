@@ -267,10 +267,19 @@ const lastHeardAt = new Map();
 async function drain(page, which) {
   let rows;
   try {
+    // **`splice` rather than a fresh array, and this is a defect that
+    // shipped** (found 2026-09-25 by an overnight run). The page instrument
+    // closes over the array it pushes into; rebinding `globalThis.__sitting` to
+    // a NEW array leaves the wrapper pushing into the old one for ever, so
+    // every drain after the first returns nothing — and the instrument
+    // reports a silent socket on a perfectly healthy connection.
+    //
+    // It is invisible to a short rehearsal: with the market shut there are
+    // no frames after the first drain anyway, so one drain and all drains
+    // look identical.
     rows = await page.evaluate(() => {
-      const out = globalThis.__sitting ?? [];
-      globalThis.__sitting = [];
-      return out;
+      const held = globalThis.__sitting ?? [];
+      return held.splice(0, held.length);
     });
   } catch {
     return []; // a navigation mid-read; the next drain gets it

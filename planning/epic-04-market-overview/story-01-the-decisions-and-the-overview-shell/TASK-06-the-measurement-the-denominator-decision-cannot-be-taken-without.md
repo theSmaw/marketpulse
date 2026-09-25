@@ -329,3 +329,57 @@ rather than publishing a curve with a caveat nobody will read.
 `ALPACA.md` §11's shape is **run it, record the findings, delete it**, and the
 verbatim frames already in this record are what make that safe. The close
 confirms it happened; **this task does it.**
+
+## The curve, first reading — 2026-09-25, the first 25 minutes of the session
+
+**The instrument came alive at the bell and the shape is already decisive.**
+
+| ET    | held | 1 min | 2 min | 5 min | 15 min | 60 min |
+| ----- | ---: | ----: | ----: | ----: | -----: | -----: |
+| 09:44 |  506 | **0** |   324 |   448 |    506 |    506 |
+| 09:49 |  513 | **0** |   340 |   460 |    506 |    513 |
+| 09:54 |  513 | **0** |   307 |   443 |    504 |    513 |
+
+### The one-minute window is structurally empty, and that is the finding
+
+**`1m` is not thin. It is zero, and it will always be zero.**
+
+A bar's `startsAt` is **the start of the minute it describes**, and the bar
+arrives about half a second after that minute has **ended** — so at any sampling
+instant the newest observation's own instant is already **60 to 120 seconds
+old**. A window of 60 seconds measured against `startsAt` can never contain
+anything.
+
+> **This product has hit that exact shape before and paid for it.** Task 3.3.4
+> found `live` **unreachable in session** because the 60 s staleness comparison
+> was measured from the interval's **start** rather than its end
+> (`LIVE-DATA.md` §11.2's second amendment). The same offset, one surface over,
+> found again by an instrument that did not know to look for it.
+
+### So the sentence has a decision in it that nobody had noticed
+
+**The window means different things depending on what it is measured against**,
+and both are defensible:
+
+| Measured against                   | Reads as                                         | Smallest honest M |
+| ---------------------------------- | ------------------------------------------------ | ----------------- |
+| the bar's own instant (`startsAt`) | _we have a price from within the last M minutes_ | **2 minutes**     |
+| when the observation **arrived**   | _we heard from it within the last M minutes_     | under a minute    |
+
+**The first is what a browser's map actually holds** and what every figure on
+this screen is computed from, so it is the one the sentence should mean — and
+the sentence must therefore never offer a window shorter than two minutes,
+because such a window is not thin, it is empty.
+
+**Handed to Story 4.4** along with M itself.
+
+### Where the curve is heading
+
+At 25 minutes into the session, against 518 tracked: **2 min ≈ 62%**, **5 min ≈
+87%**, **15 min ≈ 97%**, **60 min ≈ 99%**. The 2-minute figure lines up with
+`LIVE-DATA.md` §7.6's **65.1% median per-symbol minute coverage**, measured
+first-hand on the stream a fortnight ago and from an entirely different angle,
+which is the best kind of agreement.
+
+**The reading that decides M is still owed**: the lunchtime trough is the case a
+round number gets wrong, and it has not happened yet.

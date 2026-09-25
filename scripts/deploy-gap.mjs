@@ -186,10 +186,19 @@ while (Date.now() < deadline) {
 
   let rows;
   try {
+    // **`splice` rather than a fresh array, and this is a defect that
+    // shipped** (found 2026-09-25 by an overnight run). The page instrument
+    // closes over the array it pushes into; rebinding `globalThis.__gap` to
+    // a NEW array leaves the wrapper pushing into the old one for ever, so
+    // every drain after the first returns nothing — and the instrument
+    // reports a silent socket on a perfectly healthy connection.
+    //
+    // It is invisible to a short rehearsal: with the market shut there are
+    // no frames after the first drain anyway, so one drain and all drains
+    // look identical.
     rows = await page.evaluate(() => {
-      const out = globalThis.__gap ?? [];
-      globalThis.__gap = [];
-      return out;
+      const held = globalThis.__gap ?? [];
+      return held.splice(0, held.length);
     });
   } catch {
     record({ kind: "drain-failed" });
