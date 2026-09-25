@@ -1676,6 +1676,23 @@ export const BREAKS = [
     expect: "marks the last stretch, in words as well as a disc",
   },
   {
+    name: "the-socket-count-stops-filtering",
+    proves:
+      "The socket count stops filtering by URL and counts every WebSocket on " +
+      "the page — which on a dev server includes **Vite's HMR " +
+      "connection, twice**. That is exactly how Task 3.10.7 measured `three " +
+      "market-stream sockets in twelve seconds` on a page that opens one: " +
+      "the wrong number became a `docs/GAPS.md` entry, a floor on the gap " +
+      "refill, a paragraph in `CLAUDE.md` and a task, and survived four days " +
+      "of being quoted rather than re-run. **Count by URL, never by event** " +
+      "(Task 3.11.2).",
+    file: "e2e/specs/market-stream-socket-count.spec.ts",
+    find: '    if (!ws.url().includes("/market-stream")) return;',
+    replace: "    // pnpm break: reverted automatically",
+    command: ["pnpm", "e2e", "market-stream-socket-count.spec.ts", "--anyway"],
+    expect: "a page opens one market-stream socket and keeps it",
+  },
+  {
     name: "a-flapping-socket-becomes-a-poll",
     proves:
       "A refill fires on EVERY reconnection with no floor, so a socket that " +

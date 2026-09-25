@@ -923,8 +923,9 @@ This story already names Story 3.10 for backoff and retry. What follows is
   never references `onLog`, which is why a dead feed ran for **nineteen hours**
   unseen. Story 3.10 did not repair it — it is a cost-and-observability
   question rather than a degraded-state one.
-- **`docs/GAPS.md`'s socket-churn entry**, added 2026-09-24: an ordinary
-  security page opened **three market-stream sockets in twelve seconds**
-  locally, and the deployed gateway's own client saw **2 reconnects in 420
-  minutes**. The re-measure named there — the same counter run against
-  `pnpm e2e:deployed` — belongs in this story's deployed pass.
+- ~~**`docs/GAPS.md`'s socket-churn entry**, added 2026-09-24~~ — **WITHDRAWN
+  2026-09-25 by Task 3.11.2.** The counter counted **Vite's HMR socket** as two
+  of its three. The deployed page opens **one and holds it**; the dev page
+  opens one plus a `StrictMode` open/close pair. There is no churn, there is
+  nothing to re-measure in the deployed pass, and what replaced the entry is
+  the rule — **count by URL, never by event** — with a spec behind it.

@@ -570,10 +570,13 @@ describe("useBarSeries, when the live feed comes back", () => {
     });
   });
 
-  // **The floor, asserted as the suppression it is.** Three reconnections in
-  // twenty seconds cannot have lost three different minutes' bars — and the
-  // browser really does open three sockets in twelve seconds on a page today
-  // (`docs/GAPS.md`), so without this the refill is a four-second poll.
+  // **The floor, asserted for the reason that survives.** Three reconnections
+  // in twenty seconds cannot have lost three different minutes' bars.
+  //
+  // The claim that used to stand here — *the browser really does open three
+  // sockets in twelve seconds* — was **withdrawn 2026-09-25**: two of those
+  // three were Vite's HMR socket and a deployed page opens one. The floor is
+  // kept on its own arithmetic rather than on a churn that does not exist.
   it("asks at most once a minute however often the feed flaps", async () => {
     stub(() => ok(series(3)));
 
