@@ -232,16 +232,17 @@
   white-space: nowrap;
 }
 
+/*
+ * **Appearance and behaviour come from the shared motion layer**, which is
+ * `SecurityIdentity`'s precedent and the same rule: a fourth behaviour would
+ * be a change to the vocabulary rather than to a component, so the shapes live
+ * in one place. This is the **PERSISTS** limb's first consumer — the first
+ * draft declared its own disc here, which is precisely the drift that file
+ * exists to prevent, and it differed from the arrival mark on day one.
+ *
+ * Nothing stays here, because a mark inside a flex run needs no position of
+ * its own. The rule the class carries is that it does **not** animate.
+ */
 .liveDisc {
-  width: 0.4em;
-  height: 0.4em;
-  border-radius: 50%;
-  background: currentColor;
-  /*
-   * Nudged by hand: an inline-flex baseline aligns the disc's bottom edge with
-   * the text's, which at this size reads as sitting below the line. This
-   * centres it against the x-height.
-   */
-  transform: translateY(-0.25em);
-  flex: none;
+  composes: stateMark from "../../styles/motion.module.css";
 }

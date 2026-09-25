@@ -62,6 +62,50 @@
   animation: arrival-decays var(--motion-duration-decay) linear;
 }
 
+/*
+ * A state: there, and not going anywhere.
+ *
+ * **The second limb of the vocabulary to get a consumer, on 2026-09-24** —
+ * two years after the set was written and three after the first limb shipped.
+ * Task 3.10.8's source-note row (*this stretch is the one still being added
+ * to*) is a state rather than an arrival, and it very nearly re-declared a
+ * disc inside its own component, which is the exact drift the header of this
+ * file exists to prevent. The rule caught it, one file later.
+ *
+ * **The behaviour IS the absence of animation**, and that is the whole point
+ * rather than an omission: a mark that decays says *this just happened* and a
+ * mark that loops says *this is under way*. A reader tells the three apart
+ * without being taught only if the still one really is still.
+ *
+ * **Sized in `em` where {@link arrivalMark} is sized in `px`**, and that is a
+ * difference with a reason. The arrival mark hangs off figures — the identity
+ * block's price, a table cell — which are one size across the product, so
+ * `--space-8` is the chrome's own glyph at the chrome's own size. A state mark
+ * annotates *running text*, and the first place it appears is the source
+ * note's micro type at 11px, where an 8px disc is a bullet rather than a mark.
+ * Scaling with its line is what keeps it one shape at every type scale.
+ *
+ * **`currentColor` rather than `--ink-primary`**, for the same reason: it
+ * belongs to the run of text it sits in, and that text is deliberately the
+ * quietest on the page. Inheriting is what stops a state mark shouting over
+ * the words it qualifies — and the standing rule holds either way, because
+ * neither is the identity accent.
+ */
+.stateMark {
+  width: 0.4em;
+  height: 0.4em;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+
+  /*
+   * Nudged by hand: an inline-flex baseline aligns the disc's bottom edge with
+   * the text's, which at this size reads as sitting below the line. This
+   * centres it against the x-height.
+   */
+  transform: translateY(-0.25em);
+}
+
 @keyframes arrival-decays {
   0%,
   33% {
