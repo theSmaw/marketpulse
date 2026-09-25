@@ -195,3 +195,54 @@
     margin-top: var(--space-8);
   }
 }
+
+/*
+ * **The live row's marker** (Task 3.10.8) — a disc and a word, at the micro
+ * scale the rest of this note sits at.
+ *
+ * **A state, so it persists**: no animation at all. `VISUAL-LANGUAGE.md`'s
+ * motion rule is that work in progress LOOPS, a state PERSISTS and a fact
+ * arriving DECAYS — and this stretch being the one still growing is a state.
+ * The decaying version of this disc already exists and belongs to the figure
+ * it marks; a second, looping one here would be the fourth motion behaviour
+ * the vocabulary is kept small to avoid.
+ *
+ * **The word carries it, not the disc.** Colour is never the sole encoding of
+ * anything here and shape is not either: `arriving` is what survives a
+ * greyscale simulation, a low-vision reader and a listener.
+ */
+/*
+ * The label and its marker share one cell of the row's subgrid. Without this
+ * the marker becomes a grid item and lands in the COUNT column on the
+ * sentence's row — see `SourceNote.tsx`.
+ */
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.live {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  color: var(--color-ink-secondary);
+  white-space: nowrap;
+}
+
+/*
+ * **Appearance and behaviour come from the shared motion layer**, which is
+ * `SecurityIdentity`'s precedent and the same rule: a fourth behaviour would
+ * be a change to the vocabulary rather than to a component, so the shapes live
+ * in one place. This is the **PERSISTS** limb's first consumer — the first
+ * draft declared its own disc here, which is precisely the drift that file
+ * exists to prevent, and it differed from the arrival mark on day one.
+ *
+ * Nothing stays here, because a mark inside a flex run needs no position of
+ * its own. The rule the class carries is that it does **not** animate.
+ */
+.liveDisc {
+  composes: stateMark from "../../styles/motion.module.css";
+}

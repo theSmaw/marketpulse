@@ -402,3 +402,52 @@ unaffected.
 **All four repointed entries were re-run and go red**, and the two CSS ones are
 stronger than they were: the defect they perform now lands in a shared layer
 and would leave a permanent dot on the identity block **and on 518 table rows**.
+
+## Amended by Task 3.10.8 — 2026-09-24: the SECOND limb of the vocabulary finally has a consumer, and it nearly drifted on its first day
+
+**`work in progress LOOPS, a state PERSISTS, a fact arriving DECAYS` shipped as
+three behaviours and one shape.** This task built the DECAYS limb, Task 3.6.2
+gave it a second consumer and moved it into `styles/motion.module.css`, and
+that file's header states the rule this amendment is about:
+
+> A fourth behaviour is a change to the vocabulary rather than to a component,
+> so the shapes live here rather than being re-declared per component …
+> **Two copies of a 900ms decay is two places for the vocabulary to drift.**
+
+**The PERSISTS limb had no consumer until 2026-09-24.** Task 3.10.8's source
+note marks the stretch a socket is still adding to — a state, not an arrival —
+and its first draft **declared its own disc inside `SourceNote.module.css`**.
+It was already different from the arrival mark on the day it was written:
+`0.4em`/`currentColor` against `var(--space-8)`/`var(--ink-primary)`.
+
+**That is the drift the rule exists to prevent, caught by the rule.** The shape
+is now `.stateMark` in the motion layer and the note `composes:` it, which is
+`SecurityIdentity`'s precedent applied to the second limb.
+
+**Two things worth having in this task's record, because they are facts about
+the vocabulary rather than about that task:**
+
+- **The behaviour IS the absence of animation**, and it is a decision rather
+  than an omission. A mark that decays says _this just happened_; one that
+  loops says _this is under way_; the still one only reads as _this is so_ if
+  it really is still. Written into the class so the next reader does not "fix"
+  it.
+- **The two shapes are sized differently, and the reason generalises.** The
+  arrival mark hangs off **figures**, which are one size across the product, so
+  `--space-8` is right. A state mark annotates **running text**, and its first
+  home is the source note's micro type at 11px, where an 8px disc is a bullet
+  rather than a mark. `em` is what keeps it one shape at every type scale, and
+  `currentColor` is what stops it shouting over the quietest words on the page.
+
+**No task in this story changes.** The vocabulary is unamended — three
+behaviours, and the third has simply been built. What changed is that the
+layer now holds **two of the three shapes**, and the one still unbuilt is
+LOOPS, whose first consumer will be Epic 10's agent work.
+
+> **The gap this leaves, stated rather than implied.** `pnpm invariants` has no
+> check that a component declares no motion shape of its own; the rule is prose
+> in a CSS header and it was honoured because somebody read it. A grep for
+> `border-radius: 50%` outside the motion layer would find this class of drift
+> and would also find every avatar and dot in the product's future, so it is not
+> obviously worth writing. **Owner: a condition — the first time a third
+> component wants a mark**, at which point two near-misses are a pattern.

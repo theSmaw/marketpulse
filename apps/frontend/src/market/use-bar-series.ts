@@ -7,7 +7,7 @@ import type { BarSeriesView } from "./bar-series-view.js";
 import { toStaleBarSeriesView } from "./bar-series-view.js";
 import type { BarSeriesScreen, BarSeriesState } from "./held-series.js";
 import { usePendingPanel } from "./use-pending-panel.js";
-import type { Bar } from "@marketpulse/shared";
+import type { Bar, MarketFeed } from "@marketpulse/shared";
 
 import { useLiveSeries } from "./use-live-series.js";
 import {
@@ -259,6 +259,14 @@ export function useBarSeries(
    * refill from.
    */
   resumes = 0,
+  /**
+   * The tape the socket's bars came from — `LiveFeedView.feed` (Task 3.10.8).
+   *
+   * It reaches `withLiveBars`, which decides whether the live tail extends
+   * the stored stretch or opens one of its own. On this product's plan it
+   * opens one: stored bars are consolidated SIP and the live stream is IEX.
+   */
+  liveFeed: MarketFeed | null = null,
 ): BarSeriesSource {
   const key = barSeriesQuery(request);
 
@@ -539,7 +547,7 @@ export function useBarSeries(
   // never append, because `toBarSeries` throws on two bars for one minute and a
   // correction arrives ~30 s after every bar it corrects.
   const screen = barSeriesScreen(state, pinned.request, pending);
-  const shown = useLiveSeries(screen.shown, live);
+  const shown = useLiveSeries(screen.shown, live, liveFeed);
 
   return {
     view: state.view,

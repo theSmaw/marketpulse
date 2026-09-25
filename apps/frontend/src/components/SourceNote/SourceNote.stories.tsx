@@ -122,6 +122,30 @@ export const TwoFeeds: Story = {
 };
 
 /**
+ * The same two stretches, arriving rather than stored (Task 3.10.8).
+ *
+ * **These two stories are the reason the marker exists.** The ledger above and
+ * the one below hold identical rows — `All US exchanges` then `IEX`, with the
+ * same counts — and they are different claims: that one is a window the server
+ * answered with two tapes, which Story 3.8 made ordinary; this one is a stored
+ * window a page has been **extending over a socket** while somebody watches.
+ *
+ * Nothing else on the screen tells them apart, and the chrome cannot: it knows
+ * whether data is arriving, not which stretch of this picture it is arriving
+ * into. Put the two side by side in the workshop — that is the acceptance test
+ * for this marker.
+ *
+ * **It is a state, so it persists**: no animation. The decaying version of this
+ * disc exists and belongs to the figure it marks, and a fourth motion
+ * behaviour would cost the vocabulary the legibility that is its whole value.
+ * The **word** carries it — `arriving` survives greyscale, a low-vision reader
+ * and a listener, and the disc is `aria-hidden`.
+ */
+export const TwoFeedsArriving: Story = {
+  args: { shown: barSeriesFixtureView("twoFeed"), watchingLive: true },
+};
+
+/**
  * One feed, and it is not the one this deployment claims.
  *
  * The second condition that earns a feed clause, and the same defect as the

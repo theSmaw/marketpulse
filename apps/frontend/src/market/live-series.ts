@@ -53,6 +53,7 @@ import {
   toBarSeries,
   type Bar,
   type BarSource,
+  type MarketFeed,
   type SeriesProvenance,
   type TimeRange,
 } from "@marketpulse/shared";
@@ -73,6 +74,16 @@ const MINUTE_MS = 60_000;
 export function withLiveBars(
   series: PopulatedBarSeries,
   live: readonly Bar[],
+  /**
+   * The tape the live observations came from — `LiveFeedView.feed` (Task
+   * 3.10.8).
+   *
+   * `null` when the deployment reports no feed, which is also when no live
+   * bar can arrive; a bar in hand with no tape to name extends the last
+   * stretch, because a stretch this page cannot name is worse than one it
+   * merely has not split.
+   */
+  liveFeed: MarketFeed | null = null,
 ): PopulatedBarSeries {
   if (live.length === 0) return series;
 
@@ -117,7 +128,7 @@ export function withLiveBars(
     symbol: series.symbol,
     timeframe: series.timeframe,
     bars,
-    provenance: withLiveBarCount(series.provenance, added),
+    provenance: withLiveBarCount(series.provenance, added, liveFeed),
     coverage: {
       requested,
       covered: coveredThrough(
@@ -169,25 +180,48 @@ function coveredThrough(
  * is the check doing exactly what it was written for. What it forces is a
  * question this module cannot dodge: which source do these bars belong to?
  *
- * **The last one, and they extend it rather than starting a new stretch.** The
- * browser receives a live bar over this product's own market stream, whose
- * upstream is the provider `MARKET_DATA_PROVIDER` selects — the same one the
- * stored half was fetched from, in every configuration this product ships. So
- * the tape does not change at the join and a second stretch would be a seam
- * with no market event behind it.
+ * **The one whose TAPE they came from — a new stretch when that differs from
+ * the last, and an extension when it does not** (corrected 2026-09-24 by Task
+ * 3.10.8).
+ *
+ * The original rule here was *always extend the last one*, argued from the
+ * stream and the history sharing a **vendor**: `MARKET_DATA_PROVIDER` selects
+ * one provider and both halves come from it, so *the tape does not change at
+ * the join and a second stretch would be a seam with no market event behind
+ * it*. **The premise is false on this product's own plan.** Alpaca's free
+ * tier is asymmetric — stored bars are consolidated **SIP** and the live
+ * stream is **IEX** (`PRODUCT_SPEC.md` §7.1) — so a vendor that does not
+ * change says nothing about a tape that does, and the tail was being counted
+ * under `All US exchanges`.
+ *
+ * That is `CLAUDE.md`'s **invariant 6** — _Epic 3's live feed must not inherit
+ * Epic 2's word_ — in the ledger rather than in the chrome, where Task 3.10.6
+ * repaired the same defect a fortnight of tasks earlier. The canvas has drawn
+ * the correct shape since Task 2.14.4 (`Provenance and the empty answers`
+ * §10, *Shape B*) and nothing could produce it from a live edge.
+ *
+ * **It still extends where the tape really is the same**, which since Story
+ * 3.8 is the commoner case: a window whose last session is today is served
+ * with an `iex` stretch already, and a second one would be a boundary with no
+ * market event behind it — exactly what the original comment feared, now
+ * asked as a question about data rather than assumed.
  *
  * **`retrievedAt` is NOT re-stamped**, which is `TAPE.md` §8's rule applied to
  * the browser: a stretch reports the **oldest** retrieval in it, because that
  * is its honest staleness. Stamping it now would make every series look as
- * fresh as its newest bar, which is the trap Task 2.3.5 already found once.
+ * fresh as its newest bar, which is the trap Task 2.3.5 already found once. A
+ * **new** stretch takes the stretch it follows, for the same reason: the live
+ * tail's bars were observed now, but the note's `Retrieved` clause is about
+ * when this product asked, and a socket is not an ask.
  *
- * **Reversal trigger, as a condition**: the first deployment that configures a
- * different vendor for the stream than for history. Then the join is a real
- * provenance boundary and this function owes a second stretch.
+ * **Reversal trigger, as a condition**: the first deployment whose stored and
+ * live tapes are the same, on which this split stops being visible — the same
+ * condition `AppFooter/venue.ts` records, because it is the same fact.
  */
 function withLiveBarCount(
   provenance: SeriesProvenance,
   added: number,
+  liveFeed: MarketFeed | null,
 ): SeriesProvenance {
   if (added === 0) return provenance;
 
@@ -195,12 +229,14 @@ function withLiveBarCount(
   const last = sources[sources.length - 1];
   if (last === undefined) return provenance;
 
-  const extended: BarSource = { ...last, barCount: last.barCount + added };
+  const opensAStretch = liveFeed !== null && liveFeed !== last.feed;
+
+  const next: readonly BarSource[] = opensAStretch
+    ? [...sources, { ...last, feed: liveFeed, barCount: added }]
+    : [...sources.slice(0, -1), { ...last, barCount: last.barCount + added }];
+
   return {
     adjustment: provenance.adjustment,
-    sources: [...sources.slice(0, -1), extended] as unknown as readonly [
-      BarSource,
-      ...BarSource[],
-    ],
+    sources: next as unknown as readonly [BarSource, ...BarSource[]],
   } as SeriesProvenance;
 }

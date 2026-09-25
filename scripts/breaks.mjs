@@ -1631,6 +1631,51 @@ export const BREAKS = [
     expect: "leaves the chart alone when the refill fails",
   },
   {
+    name: "the-ledger-inherits-epic-2s-word-too",
+    proves:
+      "The live tail is counted under the STORED tape's name, so IEX bars " +
+      "arriving over the socket are listed as `All US exchanges` in the " +
+      "source note's ledger — `CLAUDE.md`'s invariant 6 in the ledger " +
+      "rather than in the chrome, where Task 3.10.6 repaired the same " +
+      "defect. The canvas has drawn the correct shape since Task 2.14.4 " +
+      "(`Provenance and the empty answers` §10, Shape B) and nothing " +
+      "could produce it from a live edge (Task 3.10.8).",
+    file: "apps/frontend/src/market/live-series.ts",
+    find: "  const opensAStretch = liveFeed !== null && liveFeed !== last.feed;",
+    replace:
+      "  const opensAStretch = false; // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "live-series",
+    ],
+    expect: "gives the live tail its own stretch when its tape differs",
+  },
+  {
+    name: "the-live-row-loses-its-word",
+    proves:
+      "The stretch still being added to is marked by a DISC alone, so the " +
+      "only thing distinguishing *a window the server answered with two " +
+      "tapes* from *a window this page is extending over a socket* is a " +
+      "4×4 px dot — invisible in greyscale, to a low-vision reader " +
+      "and to a listener. Colour is never the sole encoding of anything in " +
+      "this product and neither is shape (Task 3.10.8).",
+    file: "apps/frontend/src/components/SourceNote/SourceNote.tsx",
+    find: "                        arriving",
+    replace:
+      "                        {/* pnpm break: reverted automatically */}",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "SourceNote",
+    ],
+    expect: "marks the last stretch, in words as well as a disc",
+  },
+  {
     name: "a-flapping-socket-becomes-a-poll",
     proves:
       "A refill fires on EVERY reconnection with no floor, so a socket that " +

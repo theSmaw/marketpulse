@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import type { Bar } from "@marketpulse/shared";
+import type { Bar, MarketFeed } from "@marketpulse/shared";
 
 import type { BarSeriesView } from "./bar-series-view.js";
 import { withLiveBars } from "./live-series.js";
@@ -73,6 +73,16 @@ function requestKey(view: BarSeriesView): string {
 export function useLiveSeries(
   view: BarSeriesView,
   live: Bar | undefined,
+  /**
+   * The tape the socket's bars came from (Task 3.10.8).
+   *
+   * Passed through rather than read here, for the reason everything else in
+   * this module is: the decision is `withLiveBars`', which is pure and
+   * testable without a browser. What this adds is that the tail's bars stop
+   * being counted under the **stored** tape's name — invariant 6, in the
+   * ledger.
+   */
+  liveFeed: MarketFeed | null = null,
 ): BarSeriesView {
   const key = requestKey(view);
   const [watched, setWatched] = useState<Watched>(EMPTY);
@@ -106,7 +116,11 @@ export function useLiveSeries(
     if (watched.key !== key || watched.bars.size === 0) return view;
     if (view.state !== "loaded" && view.state !== "partial") return view;
 
-    const series = withLiveBars(view.series, [...watched.bars.values()]);
+    const series = withLiveBars(
+      view.series,
+      [...watched.bars.values()],
+      liveFeed,
+    );
     return series === view.series ? view : { ...view, series };
-  }, [view, watched, key]);
+  }, [view, watched, key, liveFeed]);
 }

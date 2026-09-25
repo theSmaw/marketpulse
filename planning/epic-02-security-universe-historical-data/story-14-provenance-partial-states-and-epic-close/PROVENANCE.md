@@ -1376,3 +1376,48 @@ and the one moving thing in it — the refreshing hairline — is already the co
 exception. The position stays reserved for Epic 3's live feed, where §36's
 _displaying data through 10:42:17_ is a failure sentence that changes while
 somebody watches.
+
+## 13. The live row, and the division of labour restated — 2026-09-24 by Task 3.10.8
+
+**§1.3's table is amended in one row and the rule above it is unchanged.**
+
+| Fact                                                      | Who states it  | Why                                                                                                       |
+| --------------------------------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------- |
+| is data arriving at all, and through when                 | the **chrome** | §36's own sentence, shipped in `FeedIndicator` since Task 3.10.2, announced on a degradation since 3.10.6 |
+| **which stretch of THIS picture is still being added to** | the **note**   | it is a fact about the series, which is the note's subject, and the chrome cannot see it                  |
+
+**The second row is the whole of this task, and the ambiguity it removes is
+real rather than theoretical.** Since Story 3.8 a window whose last session is
+today is served with **two tapes**, so a ledger reading `All US exchanges` then
+`IEX` arises from two different histories:
+
+- the **server** answered with two stretches — history, nothing moving;
+- a **socket** has been extending a stored SIP window while somebody watches.
+
+Identical rows, different claims, and nothing on the screen told them apart.
+The marker is a disc **and the word `arriving`** on the last stretch —
+contribution order being the ledger's rule, the stretch being extended is the
+final one.
+
+**§36's sentence is deliberately NOT here.** `VISUAL-LANGUAGE.md` reserved room
+for it in this ledger, and that reservation is **released** rather than spent:
+the sentence has a home, and a second copy is §1.3's own rule broken in the
+direction that is hardest to notice. The release is recorded there and argued
+on the canvas at `Provenance and the empty answers` §12.
+
+### The defect the task found, which is §2.2's own rule breaking silently
+
+§2.2 settles that the ledger names **each stretch in contribution order with
+its bar count**, and the canvas has drawn _stored SIP bars with a live IEX
+tail_ since Task 2.14.4. **The live edge could not produce it.** `withLiveBars`
+counted every arriving bar against the **last** stretch and inherited its feed,
+so IEX bars off the socket were listed under `All US exchanges` — the note
+making exactly the claim invariant 6 forbids, three centimetres below a chrome
+that had just been repaired for the same thing (Task 3.10.6).
+
+The argument behind it was that the stream and the history share a **vendor**.
+True, and irrelevant: the free Alpaca plan is asymmetric, so a vendor that does
+not change says nothing about a tape that does. The tail now opens its own
+stretch when its tape differs and extends where it does not — which since Story
+3.8 is the commoner case, and is now asked as a question about data rather than
+assumed. `pnpm break the-ledger-inherits-epic-2s-word-too`.

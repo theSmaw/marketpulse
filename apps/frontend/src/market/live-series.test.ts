@@ -156,3 +156,91 @@ describe("folding the live edge into a served series", () => {
     );
   });
 });
+
+// **The live tail must not inherit the stored tape's word** (Task 3.10.8).
+//
+// This is `CLAUDE.md`'s invariant 6 in the ledger rather than in the chrome —
+// the same defect Task 3.10.6 repaired in the status bar, one surface along.
+// The canvas has drawn the answer since Task 2.14.4 (`Provenance and the
+// empty answers` §10, *Shape B — stored SIP bars with a live IEX tail*:
+// `780 bars / All US exchanges` over `30 bars / IEX`), and until this task the
+// code could not produce it from a live edge: the tail silently extended the
+// last stretch and was counted under **its** feed.
+describe("withLiveBars, and the tape the tail actually came from", () => {
+  /** The served fixture, relabelled so its one stretch names a given tape. */
+  function servedFrom(feed: "sip" | "iex"): PopulatedBarSeries {
+    const series = served();
+    const [first, ...rest] = series.provenance.sources;
+    return {
+      ...series,
+      provenance: {
+        ...series.provenance,
+        sources: [{ ...first, feed }, ...rest],
+      },
+    };
+  }
+
+  it("gives the live tail its own stretch when its tape differs", () => {
+    const series = servedFrom("sip");
+    const before = series.bars.length;
+    const grown = withLiveBars(series, [nextMinute(series)], "iex");
+
+    expect(grown.provenance.sources).toHaveLength(2);
+    expect(grown.provenance.sources[0]).toMatchObject({
+      feed: "sip",
+      barCount: before,
+    });
+    expect(grown.provenance.sources[1]).toMatchObject({
+      feed: "iex",
+      barCount: 1,
+    });
+
+    // The counts still sum, which is what `toBarSeries` throws over.
+    expect(grown.provenance.sources.reduce((t, s) => t + s.barCount, 0)).toBe(
+      grown.bars.length,
+    );
+  });
+
+  // **And it must not invent a seam where there is no market event.** A
+  // deployment whose stored bars are already the live tape — which is what a
+  // mid-session window looks like since Story 3.8 — has one stretch, and a
+  // second would be a boundary a reader could not act on.
+  it("extends the last stretch when the tape is the same", () => {
+    const series = servedFrom("iex");
+    const before = series.bars.length;
+    const grown = withLiveBars(series, [nextMinute(series)], "iex");
+
+    expect(grown.provenance.sources).toHaveLength(1);
+    expect(grown.provenance.sources[0]).toMatchObject({
+      feed: "iex",
+      barCount: before + 1,
+    });
+  });
+
+  // **A correction is not a new bar**, so it changes no count and opens no
+  // stretch — it replaces the minute it corrects, which is this module's
+  // founding rule.
+  it("opens no stretch for a correction", () => {
+    const series = servedFrom("sip");
+    const grown = withLiveBars(series, [correctionOfLast(series)], "iex");
+
+    expect(grown.provenance.sources).toHaveLength(1);
+    expect(grown.provenance.sources[0]).toMatchObject({ feed: "sip" });
+  });
+
+  // **Not knowing the tape is a real state**: a deployment with no provider
+  // configured reports `feed: null`. With a live bar somehow in hand, the
+  // honest move is the old behaviour — extend, rather than open a stretch
+  // this page cannot name.
+  it("extends when the live tape is not known", () => {
+    const series = servedFrom("sip");
+    const before = series.bars.length;
+    const grown = withLiveBars(series, [nextMinute(series)], null);
+
+    expect(grown.provenance.sources).toHaveLength(1);
+    expect(grown.provenance.sources[0]).toMatchObject({
+      feed: "sip",
+      barCount: before + 1,
+    });
+  });
+});
