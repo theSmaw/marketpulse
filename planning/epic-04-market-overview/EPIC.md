@@ -27,6 +27,76 @@ MarketPulse has a useful landing page rather than requiring users to start with 
 
 A user opening MarketPulse can quickly understand whether the tracked market is broadly rising, falling, mixed, or concentrated in particular sectors.
 
+## Stories — split 2026-09-25
+
+**Nine stories, and eight of them put something new on the landing page.** The
+order is driven by one property of this epic: **four of its regions are
+aggregates over the same map**, so the decisions underneath them are shared and
+the screen they sit on has to exist before any of them can be incremental.
+
+| #   | Story                                                                                                                             | Depends on | Visible?                             |
+| --- | --------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------ |
+| 4.1 | [The Decisions This Screen Cannot Be Built Without, & the Overview Shell](story-01-the-decisions-and-the-overview-shell/STORY.md) | Epic 3     | **Yes — the landing page exists**    |
+| 4.2 | [The Aggregate Seam, & the Index Proxies That Move](story-02-the-aggregate-seam-and-the-index-proxies/STORY.md)                   | 4.1        | **Yes — four figures, moving**       |
+| 4.3 | [Sector Performance, & the Benchmark That Is Not a Membership](story-03-sector-performance/STORY.md)                              | 4.2        | **Yes — eleven sectors, ranked**     |
+| 4.4 | [Breadth, & the Denominator on Screen](story-04-breadth-and-the-denominator-on-screen/STORY.md)                                   | 4.3        | **Yes — how broad today is**         |
+| 4.5 | [The Movers, & the First Surface That Ranks by a Live Value](story-05-the-movers-and-the-first-ranked-surface/STORY.md)           | 4.4        | **Yes — who is actually moving**     |
+| 4.6 | [Selection From the Overview](story-06-selection-from-the-overview/STORY.md)                                                      | 4.5        | **Yes — the screen becomes a start** |
+| 4.7 | [The Overview's Degraded Set, & the 390 Question Answered](story-07-the-overviews-degraded-set-and-the-390-question/STORY.md)     | 4.6        | **Yes — honest when the feed stops** |
+| 4.8 | [The Overview at Universe Scale, & Epic 14's Trigger](story-08-the-overview-at-universe-scale/STORY.md)                           | 4.7        | no — and a screen that stays fast    |
+| 4.9 | [The Rehearsal, the Sweep, & Epic 4's Close](story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md)                        | 4.8        | no                                   |
+
+### Why this order, and not the spec's own listing order
+
+**The shell comes first because it is what makes the next five incremental.**
+Without it, every aggregate story owns a piece of layout as well as a
+computation, and the epic lands as one big-bang screen at the end. With it,
+Stories 4.2–4.5 each fill a region of a page that already exists — which is
+four visible increments instead of one.
+
+**The proxies come before every real aggregate** because they are the one
+"aggregate" that is not one: four named securities, each its own row in the
+map. If the seam cannot serve four known symbols cleanly it will not serve a
+breadth count — and a wrong figure is visible in minutes rather than hidden in
+a percentage nobody can check by eye.
+
+**Sectors come before breadth** because eleven rows are a denominator problem a
+person can sanity-check, and a single percentage over 518 names is not.
+
+**The movers come before selection** because the ranking decision — what
+happens to a list while somebody is reading it — has to be settled before
+anything on this screen becomes a click target. A target that re-orders between
+the decision to click and the click is a defect this screen manufactures every
+minute by design.
+
+**The degraded set comes after the screen is complete**, because it is produced
+by walking a finished screen through its states; earlier means doing it twice.
+
+**Performance comes after that and before the close**, because a measurement of
+half a screen measures nothing, and a figure taken after an epic is called done
+is a figure nobody re-takes.
+
+### The four decisions Story 4.1 takes, which four later stories depend on
+
+1. **The denominator** — what _current_ means on a feed that observes about 332
+   of 518 names in a median minute. **Stated on screen**, whichever it is.
+2. **Where an aggregate is computed** — the backend's `currentMarketState` or
+   the browser's `LiveFeedView.observations`. This decides whether Epic 5's
+   scores have somewhere to live.
+3. **The 390 fold**, which this file already says is owed a person's judgement
+   **before this epic ships a screen**. 4.1 asks; 4.7 answers with a phone.
+4. **Whether this screen re-orders under live data** — the universe table
+   deliberately never does, and this epic ships the first surfaces that must.
+
+### What this epic leaves named rather than built
+
+`PRODUCT_SPEC.md` §9's landing page has six regions and **this epic fills
+four**. The **market topology** is Epic 6's and the **unusual-activity feed** is
+Epic 5's; **current investigations** is Epic 7's. Each renders as a region that
+names the epic that fills it, in the idiom the security page already uses for
+four of §8.3's seven regions — which is ADR 0029's fourth rule applied to a
+whole screen for the first time.
+
 ## What Epic 2 measured that this epic's numbers rest on (added 2026-09-15)
 
 Every headline number on this screen — sector performance, advancers and
