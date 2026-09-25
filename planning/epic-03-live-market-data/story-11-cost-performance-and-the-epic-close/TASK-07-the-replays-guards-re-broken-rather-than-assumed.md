@@ -93,3 +93,48 @@ and this task reads a **real workflow run's output** for all three rather than
 reading the script. If condition 3 went red on a healthy deploy, that is a
 finding for this task and a repair for Task 3.11.3's grace, not a reason to
 weaken the condition.
+
+## Amended by Task 3.11.6 — 2026-09-25: condition 3's grace is measured now, and it is SHORT
+
+**Task 3.11.3's amendment above says condition 3's 20-second grace is derived
+from a measured handover — 1,149 ms to the `406`, 9,498 ms to the close — and
+doubled, and that whether it is enough is unproven outside a unit test.**
+
+**It is now proven, and the answer is no.** Task 3.11.6 read the handover from
+production's own stream log on two consecutive deploys:
+
+| Revision  | First `406`  | `authenticated` | Gap        |
+| --------- | ------------ | --------------- | ---------- |
+| `0000349` | 04:25:09.917 | 04:25:55.718    | **45.8 s** |
+| `0000350` | 04:39:48.992 | 04:40:35.528    | **46.5 s** |
+
+**The arriving replica is `disconnected` for about 46 seconds of every deploy,
+and `DISCONNECTED_GRACE_MS` is 20,000.** The figure the grace was doubled from
+was the _outgoing_ socket's death — 9,498 ms to the close — which is the right
+number for a different question. What condition 3 actually races is the
+**platform's revision-overlap schedule**, and that is ~46 s.
+
+**So the cry-wolf this task was told to watch for is not a risk, it is an
+arithmetic near-certainty whenever `check-deployed.mjs` probes inside the
+overlap** — which is exactly when it runs, because it runs as soon as the
+container app deploy step reports success.
+
+### What this task does with it
+
+- **Read the real run first, as already instructed.** If condition 3 has not
+  gone red, say so and say why — the probe may simply arrive after the overlap,
+  and that is a fact about timing worth recording rather than assuming.
+- **If it has gone red on a healthy deploy, the repair is the grace, not the
+  condition.** 3.11.3's amendment already ruled: _a finding for this task and a
+  repair for Task 3.11.3's grace, not a reason to weaken the condition._ The
+  honest floor is now **the measured overlap** rather than the outgoing
+  socket's close — around 60 s with headroom, and the comment above
+  `DISCONNECTED_GRACE_MS` must be rewritten, because it currently cites the
+  wrong measurement for the right constant.
+- **A break owes a re-run either way.** Changing the constant moves text
+  `scripts/breaks.mjs` may pin.
+
+> **The general shape is one this epic keeps producing**: the constant was not
+> guessed, it was derived from a measurement — of the wrong thing. A figure
+> with a provenance line reads as safe, and the provenance is what needed
+> checking.

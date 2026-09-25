@@ -148,3 +148,30 @@ and confirm the observer complains **before** believing any silence.
 > config, no credential. The sitting is bounded by the market's hours, not by
 > effort, so the script should exist and be tested against the shut market
 > **before** the bell.
+
+## Amended by Task 3.11.6 — 2026-09-25: one item on the list stops being open-ended and becomes a stopwatch
+
+**_A tab surviving a deploy on `/securities/NVDA` during a session_ has a
+predicted shape for the first time.** Task 3.11.6 measured what a deploy does to
+the feed: the arriving replica is refused for **45.8 s and 46.5 s** on two
+consecutive rollouts, so a person watching during a deploy should see, in order:
+
+1. the chart stop extending, and the status bar reach `stale` then
+   `disconnected` on its own clocks — **not immediately**, because those
+   thresholds are 60 s wall and 165 s monotonic, so a 46-second outage may
+   produce **no degraded word at all**
+2. bars resuming about **46 seconds** after they stopped
+3. **the gap filled rather than jumped** — Task 3.10.7's refill, which is the
+   thing to actually watch, because a 46 s hole is 0–1 bars and therefore the
+   smallest, least visible case the refill has
+
+> **Point 1 is the finding worth taking to the sitting.** A deploy's outage is
+> **shorter than either liveness threshold**, so the honest expectation is that
+> nothing on screen says anything — and whether that reads as _correct
+> restraint_ or as _the product not noticing_ is a judgement only a person
+> watching can make. Story 3.10 decided the thresholds with measurements; this
+> is the first time anybody can watch one **not** fire against a real event.
+
+**Time it.** The one number this item owes is how long the tab was without
+prices, against the 46 s the log says — a browser's experience of the same
+event, from the other side of the gateway.
