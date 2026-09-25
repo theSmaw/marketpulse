@@ -91,3 +91,29 @@ A frame type is bigger.
 **Decide it in writing either way**, and if the answer is yes, it is Story
 4.2's to write rather than this task's — this task decides, 4.2 builds and
 documents.
+
+## Amended by Task 4.1.2 — 2026-09-25: one hand-off nothing owns, and it is to an epic two away
+
+**The canvas's interim layout has a reversal trigger — _the first commit that
+renders a graph node on this route_ — and the epic that will trip it does not
+know it exists.**
+
+When Epic 6 draws its first node, **the overview's layout changes**: the
+reserved band becomes the primary area, and sectors and movers drop to a lower
+band. That is not Epic 6's design work to invent; it is drawn already, in
+`Market overview.dc.html` §02.
+
+**So this task writes it into Epic 6's own `EPIC.md`, in words that epic can
+act on** — never a pointer back. The enumeration this product runs at every
+close has caught a missed hand-off on all five of its runs, and **the two it
+caught most recently were both cases where an ADR said in its own text that the
+receiving epic did not know**, and nobody then told it.
+
+**What Epic 6 needs to be told, specifically:**
+
+- The landing route runs an **interim layout** until its first node renders.
+- **The end state is already drawn** — it does not need designing, only
+  building, and the regions keep their names, their order and their landmarks
+  across the change.
+- **The reserved band does not grow in the meantime.** If it has, something has
+  gone wrong that predates Epic 6.
