@@ -1,6 +1,6 @@
 # Task 3.11.11 — The re-take, the upward sweep, and Epic 3's close
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-25. EPIC 3 IS CLOSED**, both halves of the exit criterion met, the second by a person on 2026-09-24. The fifth hand-off enumeration found **two** missing — and both are cases an ADR had written down in its own text and nobody had acted on. The bill's re-read holds the 32% step and found that **a same-day cost reading under-reports**. Six items ship open, each with an owner and a condition; none of them is a feature.
 **Story:** [3.11 Cost, Performance, the Sweep & the Epic Close](STORY.md)
 **Depends on:** 3.11.2, 3.11.3, 3.11.4, 3.11.5, 3.11.6, 3.11.7, 3.11.8, 3.11.9, 3.11.10 — **renumbered from 3.11.10 on 2026-09-25, when the breaks pass was split out ahead of it; see the amendment at the foot**
 
@@ -442,3 +442,241 @@ two minutes:
 
 **And `every-break-can-still-land` will not notice**, because the `find` text is
 still there. That invariant asserts the cheap half by design.
+
+---
+
+## What was done — 2026-09-25
+
+### The hand-off enumeration — the fifth run, and it found two
+
+**The record across four closes reads 1, 6, 3, 6. This run: 2.**
+
+Both are the same shape, and it is a shape with a twist worth recording:
+
+| Missing                                                                                               | Owed by                                                                   | The twist                                                                            |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **ADR 0036's two-clock rule** — a duration is monotonic, an age is wall-clock, neither reads the wire | Epic 10, whose agent event stream has a measured four-minute idle ceiling | the ADR **says in its own Context** that Epic 10's `EPIC.md` does not know it exists |
+| **ADR 0032's announcement rule** — a value that changes on its own announces nothing                  | Epic 5, whose anomaly scores change as the market moves                   | ADR 0032 **names Epic 5 by name**, in as many words                                  |
+
+> **Both ADRs diagnosed the hand-off failure correctly and neither repaired
+> it.** Writing _"neither epic's `EPIC.md` knows this decision exists"_ inside
+> the document the other epic will not read is the failure describing itself.
+> **`CLAUDE.md`'s rule is the repair and it is stronger than it looks**: the
+> constraint goes **into the recipient's own file, in words that story can act
+> on** — never a pointer back, because a pointer is what a reader follows when
+> they already know to look.
+
+Both are now written into Epic 10's and Epic 5's `EPIC.md` with the rule, the
+defect it prevents, and the shipped shape to copy.
+
+**The other three recipients were checked and were fine**: Epic 14 holds the
+cold-load figures and its trigger, Epic 13 holds the replay guards and the
+sizing, and Epic 4 holds the live-feed references. **The enumeration has now
+caught something on all five runs it has ever had.**
+
+### The bill, re-read — the step holds, and the instrument has a bias
+
+ADR 0037's own reversal trigger asked for this.
+
+|                         | 09-12 → 09-22       | 09-23         | 09-24         |
+| ----------------------- | ------------------- | ------------- | ------------- |
+| Container Apps, per day | `$0.2039`–`$0.2161` | **`$0.2832`** | **`$0.2772`** |
+
+**~34% over the pre-writer baseline**, against ~32% four days ago. **So the
+premise is definitively retired**: what moves this bill is a database write a
+minute, not a held socket, and ADR 0037 needs no amendment — its n rose.
+
+> **And the instrument has a bias nobody had noticed.** Task 3.11.5 read 09-24
+> as **`$0.2589`**; settled, it is **`$0.2772`** — **7% higher**. A same-day
+> cost reading under-reports because the day is still accruing. **A step
+> measured on the day it happens is measured small**, and a small step is the
+> one that gets called noise. That is in `HOSTING.md` beside the reading.
+
+**Run rate `$13.53/month`**, from `$13.32`, against a $20 budget.
+
+### Criterion 1 — verdicted rather than filled, and the split is the honest part
+
+Task 3.11.1's table has fourteen rows in three classes. **Two classes are
+discharged; one is not, and saying so is the criterion's own instruction.**
+
+- **Clean-clone rows (3): verdicted.** Tape validation, and every criterion of
+  3.1–3.11 with a test name, re-take from a fresh checkout — `pnpm verify`,
+  `pnpm test:database`, `pnpm e2e`, and **every one of the 82 `pnpm break`
+  entries, all performed** (Task 3.11.10: 74 red in this pass, five in 3.11.7,
+  three findings, and the registry runs in **170 seconds**).
+- **Quote-only rows (3): verdicted.** The cold load, `Expand all` and the
+  store's row size stay quoted with their dates and their owners; Epic 14's
+  trigger is evaluated and **did not fire**.
+- **Live-session rows (8): NOT TAKEN, and owned.** §28's p95 against the
+  deployed gateway, the burst at live density, the tick at 518 rows, the frame
+  payload, and **the transition's own cost, which has never been taken at
+  all**. The instrument for them is written and rehearsed
+  (`scripts/session-sitting.mjs`, Task 3.11.8); what they need is a session.
+
+> **This is the one place the close is short of its own criterion, and it is
+> recorded rather than argued away.** The figures that exist are loopback
+> figures taken on one machine, and they are labelled as such everywhere they
+> appear — `PRODUCT_SPEC.md` §28's amendment says so in its own words. **A
+> deployed re-take is a measurement, not a capability**, and the epic's exit
+> criterion does not ask for it.
+
+### The upward sweep
+
+**Against the list and against a grep**, as criterion 6 requires — the list is
+what somebody thought of, the grep is what is there.
+
+| Swept                        | What changed                                                                                                                                       |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PRODUCT_SPEC.md` §42        | the milestone's **live price updates** clause is discharged, with what a reader can now see                                                        |
+| Epic 3's `EPIC.md`           | **closed**, the cost paragraph amended with the bill, and `7d` corrected to **`7f`** in the exit criteria — the ADR's `7d` is the daily probe      |
+| `CLAUDE.md` current state    | Epic 3 announced as complete, with the eight ADRs and the document that wins                                                                       |
+| `CLAUDE.md`, Epics 13 and 14 | the **~2.6 → ~1.5 years** headroom is a projection; the measurement is **~2.1 years**, and the `~1.5` assumed a two-tape growth with no signal yet |
+| `docs/GAPS.md`               | two entries added — see below                                                                                                                      |
+
+**And three greps that found nothing to repair**, which is worth recording
+because a sweep that only reports changes cannot be told from one that was not
+run: `$9.26` survives only in historical records and in documents that already
+carry their correction; the socket-churn figure exists only inside its own
+withdrawal; `9,750` was swept by Task 3.11.4 on the day, which the distinction
+it drew — historical measurement versus live claim — made cheap.
+
+### `docs/GAPS.md`, and the standing instruction
+
+**Two entries added, and both are residues that cannot be made mechanical:**
+
+- **15 — that a browser test asserting an ABSENCE is asserting anything.** CI
+  has no credential by a decision whose reason dates (the single connection,
+  not the quota), and a spec held a list of words that must never render for
+  **four days after they became real** without going red.
+- **16 — that a document describing a guard is describing something that
+  exists.** The rule is in `CLAUDE.md`; what this entry carries is the
+  re-measure nobody has ever run on purpose: grep the ADRs and this file for
+  `fails if`, `refuses`, `asserts`, `is enforced`, and check each against the
+  tree.
+
+**And the mechanisable half was taken rather than listed**: entry 9's two
+preventive claims now have `the-deploy-reads-the-provider` in `pnpm invariants`
+and `probe-deployed.yml`'s own existence behind them.
+
+### The break that this close arms, run
+
+**`the-close-outruns-the-rehearsal` was repointed and proved red.** Task
+3.11.10 found it could not go red at all: the invariant needs Story 3.11
+**complete** and a rehearsal row **empty**, and Task 3.11.8 had filled the last
+empty row.
+
+**Marking the story complete supplied the first condition permanently**, so the
+substitution moved to the second — it blanks row 3.3 and pushes the real row
+out of the regex's reach rather than deleting it. `pnpm invariants` caught the
+old entry the moment the status line changed, which is exactly what
+`every-break-can-still-land` is for, and the repointed break now reports:
+
+```
+✓ planning/epic-03-live-market-data/LIVE-REHEARSAL.md broken → red → restored
+  matched: rehearsal rows
+```
+
+### Epic 3's close
+
+**Both halves met.** The detailed verdicts, and the six items that ship open
+with an owner and a condition each, are in `EPIC.md`'s own close section — the
+file a later reader opens.
+
+> **The second half is the one worth pausing on.** It stayed open for nine
+> stories, and the reason is that it was the only criterion in this epic that
+> **no instrument could satisfy by trying harder.** Task 3.11.1 ruled that an
+> instrumented row does not satisfy the word `watched`, which made the epic
+> blocked on a person; and on 2026-09-24 the owner watched the deployed product
+> work and said nothing looked wrong.
+
+### Gates
+
+**All four, with their numbers rather than an assertion:**
+
+| Gate                 | Result                                           |
+| -------------------- | ------------------------------------------------ |
+| `pnpm verify`        | **green**, including `pnpm invariants` at **27** |
+| `pnpm test:database` | **green — 211 tests** against a real PostgreSQL  |
+| `pnpm e2e`           | **green — 166 passed**, 15 skipped, 3.0 min      |
+| `pnpm links`         | **green — 435 documents, 1,602 links, 0 broken** |
+
+**And the registry**: all **82** `pnpm break` entries performed — 77 in Task
+3.11.10, five in 3.11.7 — plus `the-close-outruns-the-rehearsal` repointed and
+re-run here, which makes it 83 runs of 82 entries.
+
+## For a stakeholder — a status report, 2026-09-25
+
+### The live-market phase is complete
+
+**MarketPulse is a live application.** Open the deployed site during a US
+trading session and it moves: 518 companies with prices that update on their
+own, a chart that extends minute by minute without a refresh, and an indicator
+that tells you plainly when the data stops arriving rather than showing you a
+stale number as if it were current.
+
+**Eleven stories, and the last one was about proof rather than features.**
+
+### The thing that kept this phase open
+
+The completion criterion for this phase contained one word that turned out to
+be expensive: **watched.**
+
+Everything else could be demonstrated by a machine — and was, thoroughly. But
+we decided earlier this week that a machine watching does not satisfy the word,
+**because a machine only reports what it was told to look for**. The phase was
+therefore blocked not on engineering but on a person looking at the product
+during market hours, which in this timezone is late evening.
+
+**That happened, and nothing looked wrong.** It is recorded as a person's
+observation, with a note saying exactly what a person's row can claim and what
+it cannot — it carries no figures, because the owner was watching rather than
+taking notes, and a row with numbers nobody wrote down would be a row about an
+inference.
+
+### What we found in the last mile
+
+**The bill re-read, and a bias in how we read bills.** Four days ago we found
+our hosting cost stepped up 32% on the day we started writing market data to
+the database. Re-read today: **the step held, and grew slightly** — because
+**a cost read on the day it happens is under-reported**, since the day is still
+being totted up. A small step is the one that gets dismissed as noise, so this
+is now written down beside the reading.
+
+**Two decisions that had been documented and never delivered.** Our record of
+architectural decisions is unusually thorough, and twice this week a decision
+document described a safeguard that had never actually been built. The rule
+that came out of it — _when you write that something is guarded, write the
+check in the same change_ — is now part of how we work, with automated checks
+behind both instances.
+
+**Two hand-offs that nobody had passed on.** Every phase close runs one step
+that has caught something every single time: a check that constraints measured
+for _other_ phases actually reached those phases' own files. It found two, and
+both have a sting: **the decision documents themselves said, in writing, that
+the receiving phase did not know they existed** — and nobody then told it. The
+future work on anomaly scores and on AI investigations now carries the rules it
+needs, in its own files.
+
+### What we are deliberately shipping without
+
+**Eight performance figures need a live trading session to take**, and we have
+the instrument written and rehearsed for them. They are measurements of
+something that already works, not missing capability — and saying so plainly is
+better than taking them on a developer's laptop and labelling them as if they
+came from the real thing.
+
+Beyond that: one question that needs a real phone, and a listening pass with a
+screen reader. Each has a named owner and a condition that triggers it, rather
+than a date that will slip.
+
+### Where the product goes next
+
+**Phase 4 builds the Market Overview** — the landing screen, with the unusual
+activity feed and the market topology that this product is visually built
+around. It sits directly on what the last eleven stories delivered: without a
+live feed there is nothing for an overview to overview.
+
+**The product is now two of the five capabilities in its own pitch**: it shows
+you what is happening, live. What it does not yet do is tell you what is
+**unusual** — that is the next phase but one, and it is the first time this
+product will say something a person could not have worked out by looking.

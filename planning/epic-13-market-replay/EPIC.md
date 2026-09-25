@@ -181,7 +181,7 @@ than becoming expensive.
 
 **What it cost, so you know what you are spending.** Keeping both is **+69%
 rows a year** (47.7M → 80.5M), **+6.1 GiB a year**, and takes the store's
-headroom from **~2.6 years to ~1.5** against 22.5 GiB usable. ADR 0035's
+headroom from **~2.6 years to ~1.5** against 22.5 GiB usable. **Amended 2026-09-25 at Epic 3's close: the store was measured rather than projected — 13.62 GB at 41% of the provisioned disk, which is **~2.1 years** of headroom at today's rate, and the `~1.5` assumed a two-tape growth that has **no signal in the measurement yet**. The figures here are the projection they were; `HOSTING.md` carries the reading.** ADR 0035's
 reversal trigger is a condition — the first month the live rows outgrow the
 backfill's, or the storage alert firing early — and **the evidence that would
 defend the decision is yours to produce**: what the IEX bars are actually used

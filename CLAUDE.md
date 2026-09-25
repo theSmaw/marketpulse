@@ -48,6 +48,16 @@ frontend that both run, build, deploy and are verified in CI, logging with a
 correlation id, an error contract, configuration, testing at six levels, a CI
 pipeline, and both halves deployed to Azure.
 
+**Epic 3 (Live Market Data): complete, 11 stories, closed 2026-09-25.** The
+product is live: one socket upstream carries 518 securities, the table and the
+charts move on their own, the session is written down, the chrome says whether
+the feed is arriving, and a **person** has watched all of it working against
+the real IEX socket during a real session. Eight ADRs — 0030–0037 — and seven
+subject documents, of which [`LIVE-DATA.md`](planning/epic-03-live-market-data/story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md)
+is the maintained account and **wins** where a task file disagrees. What ships
+open is in that epic's own close: eight performance figures needing a live
+session, the 390 question from a real phone, and a screen-reader pass.
+
 **Epic 2 (Security Universe & Historical Data): complete, 14 stories, closed
 2026-09-15.** A managed PostgreSQL instance, a
 migration mechanism, a curated universe of 518 securities, a trading calendar and
@@ -194,7 +204,7 @@ bars, **one** source. The stretches that survive the night are **extended
 hours**, which the writer keeps and the session fetch never asks for.
 [`LIVE-SESSION.md`](planning/epic-03-live-market-data/story-08-storing-the-live-session/LIVE-SESSION.md)
 is the subject document and [ADR 0035](docs/adr/0035-both-tapes-are-kept-and-what-a-record-is.md)
-the decision — **+69% rows a year and headroom from ~2.6 years to ~1.5**, a
+the decision — **+69% rows a year and headroom from ~2.6 years to ~1.5** **Amended 2026-09-25 at Epic 3's close: the store was measured rather than projected — 13.62 GB at 41% of the provisioned disk, which is **~2.1 years** of headroom at today's rate, and the `~1.5` assumed a two-tape growth that has **no signal in the measurement yet**. The figures here are the projection they were; `HOSTING.md` carries the reading.** — a
 ceiling rather than a measurement, with the real figure owed by Story 3.11.
 
 **And since 2026-09-24 the chart reaches the current minute and keeps

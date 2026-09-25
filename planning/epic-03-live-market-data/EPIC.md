@@ -1,6 +1,6 @@
 # Epic 3 — Live Market Data
 
-**Status:** Not started
+**Status:** **COMPLETE — 2026-09-25.** Eleven stories. Both halves of the exit criterion are met; the verdicts, the figures that ship open and the fifth hand-off enumeration are in [Task 3.11.11](story-11-cost-performance-and-the-epic-close/TASK-11-the-re-take-the-upward-sweep-and-epic-3s-close.md).
 **Sequence:** 3 of 15 — follows Epic 2 (Security Universe & Historical Market Data)
 **Spec references:** PRODUCT_SPEC.md §7.1 (Alpaca), §29 (backend architecture), §31 (streaming protocols), §36 (failure/partial states)
 
@@ -52,9 +52,48 @@ during a session and an honest still page outside one, so the live socket is the
 only thing production has ever shown; a deploy configured otherwise fails before
 it rolls (7b) and `check-deployed.mjs` fails after every merge if production is
 ever replaying (7c). And **a replay refuses to run while the market is open**
-(7d), which catches the developer who left it on in their `.env` and is building
+(**7f** — corrected 2026-09-25 from `7d`, which is ADR 0030's **daily scheduled probe**; two task files have made the same slip), which catches the developer who left it on in their `.env` and is building
 against a recording while believing they are live. A broken live feed shows as
 broken rather than being masked. The rehearsals are minutes, not evenings.
+
+## The close — 2026-09-25, Task 3.11.11
+
+**Both halves of the exit criterion are met.**
+
+**Half one — _the application can maintain a live connection for the tracked
+universe and update visible market values without page refreshes._** **Met.**
+One socket upstream carries 518 securities; a browser receives only what it
+subscribed to; all 518 rows on `/securities` carry a live price, a security
+page's price and volume plots extend minute by minute on one shared axis, and
+the chrome reports `live | stale | disconnected` from two clocks. A dropout
+fills its own gap when the socket returns, and the session is **written down**,
+so a mid-session reload still reaches the minute it reached before.
+
+**Half two — _every visible story has been watched working against the real IEX
+socket, during a real session, with a dated row._** **Met on 2026-09-24, by a
+person.** This was the hard half and it stayed open for nine stories: every row
+in the ledger had been taken by a headless browser or a Node client, and Task
+3.11.1 ruled that an instrumented row does not satisfy the word `watched`. The
+owner then watched the deployed site during the 2026-09-24 session — the
+securities table with live prices moving, a chart extending, the feed cell, and
+a reload keeping today's bars — and nothing looked wrong. Rows `3.3`, `3.8` and
+`3.9` are filled by that sitting; `pnpm invariants` holds this file's completion
+against the ledger, and the check is break-verified.
+
+### What ships open, each with an owner and a condition
+
+| Open                                                                                                                                                                                                                      | Owner                                                     | Condition                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| **Eight performance figures need a live session** — §28's p95 against the deployed gateway, the burst at live density, the tick at 518 rows, the frame payload, and the transition's own cost, which has never been taken | the next person who runs `scripts/session-sitting.mjs`    | **the next session**; the instrument is written and rehearsed                                    |
+| **The 390 question from a real phone** — whether a reader notices the one surface that says the feed stopped                                                                                                              | the owner                                                 | the next session they have a phone to hand                                                       |
+| **Whether the socket survives a full 56-hour closure _now_**                                                                                                                                                              | anybody who needs the deployment trusted across a weekend | a Friday, or the first Monday pre-market that opens with no feed                                 |
+| **A listening pass with a real screen reader** — six entries                                                                                                                                                              | a person with a screen reader                             | before Epic 11 hands these surfaces to an agent                                                  |
+| **The cold load and `Expand all`** — 50–56 ms and 65–86 ms against §28                                                                                                                                                    | **Epic 14**, by name                                      | unchanged: the first time a second surface on that page renders per-row markup at universe scale |
+| **§6.4's half-open socket, from Alpaca's side**                                                                                                                                                                           | a condition                                               | the first deploy that fails to terminate its predecessor cleanly                                 |
+
+**None of these is a feature.** Every capability this epic set out to build is
+on the deployed site, and every item above is a measurement, a look, or a
+figure owned elsewhere.
 
 ## Stories
 
@@ -379,6 +418,32 @@ environment has. ADR 0011 carries the dated amendment.
 arithmetic: the $19.04 column is still reachable by a feed that adds **trades or
 quotes**, and `minReplicas: 1` is still a required setting rather than a tuning
 knob.
+
+> **Amended 2026-09-25 at this epic's close — the bill was read, and both
+> arithmetics were reasoning about the wrong thing.** Every figure above is
+> computed from a rate card; Epic 1 could read no bill and this epic could.
+>
+> **The socket is not in the bill.** Across the 2026-09-19 → 09-21 outage —
+> about forty hours **disconnected** — Container Apps billed `$0.2149` and
+> `$0.2291` a day, indistinguishable from the connected days either side. So
+> §9.2's whole per-second-threshold argument, and the $19.04/$9.26 dispute it
+> settles, measure something the bill does not charge for. **The 550.6 B/s
+> figure stays true and stops being load-bearing.**
+>
+> **What moved it is writing.** Container Apps ran at `$0.2039`–`$0.2161`/day
+> from 09-12 to 09-22 and **`$0.2832` / `$0.2772` on 09-23 and 09-24 — up
+> ~34%** — and 09-23 is the day Task 3.8.3's live bar writer began writing
+> every complete minute to `market_bars`. Read twice, four days apart; the step
+> held and grew, because **a same-day reading under-reports** (09-24 read
+> `$0.2589` on the day and `$0.2772` once settled).
+>
+> **The run rate is `$13.53/month`**, not $9.26 — 46% over, and above §9.6's
+> $12 trigger, which is now the budget's first alert. The budget is **$20 with
+> alerts at 60 / 80 / 100%**.
+>
+> Both halves of this subject — the money, and what a deploy costs the **feed**
+> — now live in [ADR 0037](../../docs/adr/0037-what-this-deployments-shape-costs-in-money-and-in-feed.md).
+> **ADR 0011 keeps its decisions and takes no further cost amendment.**
 
 **One logging decision reverses here.** Task 1.12.6 declined `ignore: "reqId,pid"`
 on pino-pretty after measuring that 51 request pairs across two windows were

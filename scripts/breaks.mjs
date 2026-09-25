@@ -1831,9 +1831,18 @@ export const BREAKS = [
       "and for three days nothing asserted it — the sentence named a " +
       "completion marking in `EPIC.md` that does not exist. A claim about a " +
       "mechanism reads identically whether the mechanism is there or not.",
-    file:
-      "planning/epic-03-live-market-data/" +
-      "story-11-cost-performance-and-the-epic-close/STORY.md",
+    // **Repointed 2026-09-25 by Task 3.11.11, and the move is the finding.**
+    // Until today this entry edited Story 3.11's `Status:` line, because the
+    // story was open and the ledger had empty rows — one substitution supplied
+    // the missing half. Task 3.11.8 filled the last empty row and Task 3.11.10
+    // found the break could no longer go red: the invariant needs the story
+    // COMPLETE **and** a row empty, and a break is one file.
+    //
+    // The close supplies the first condition permanently, so the substitution
+    // moved to the second. It blanks row 3.3 and pushes the real row out of
+    // the regex's reach with a leading character, which is why the original
+    // text survives underneath rather than being deleted.
+    file: "planning/epic-03-live-market-data/LIVE-REHEARSAL.md",
     // Repointed 2026-09-25: the story's status line stopped being
     // `Not started` when Task 3.11.1's split gave it one. `pnpm invariants`
     // caught it on the same commit, which is what that check is for.
@@ -1850,10 +1859,10 @@ export const BREAKS = [
     // complete, repoint this entry at `LIVE-REHEARSAL.md`, emptying one row's
     // cells, and run it. Then the story's own completion is the first
     // condition and the substitution is the second. Task 3.11.11 carries it.
-    find: "**Status:** **Split into ten tasks",
+    find: "| 3.3   | 2026-09-24 |",
     replace:
-      "**Status:** Complete <!-- pnpm break: reverted automatically -->\n" +
-      "<!-- **Split into ten tasks",
+      "| 3.3 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |\n" +
+      "x| 3.3   | 2026-09-24 |",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "rehearsal rows",
   },

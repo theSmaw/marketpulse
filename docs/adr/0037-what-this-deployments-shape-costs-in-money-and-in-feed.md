@@ -52,6 +52,25 @@ What a held socket costs is **the plan's one connection slot**, not money.
 > step holds, the premise is definitively retired; if it does not, this decision
 > is the one that needs amending rather than 0011.
 
+> **Re-read 2026-09-25 at Epic 3's close, which this decision's own trigger
+> asked for. The step holds, and it grew.**
+>
+> |                         | 09-12 → 09-22       | 09-23         | 09-24         |
+> | ----------------------- | ------------------- | ------------- | ------------- |
+> | Container Apps, per day | `$0.2039`–`$0.2161` | **`$0.2832`** | **`$0.2772`** |
+>
+> **~34% over the pre-writer baseline**, against the ~32% first read. **And the
+> increase is itself a finding about the instrument**: 09-24 read `$0.2589` on
+> the day and `$0.2772` once settled, so **a same-day cost reading
+> under-reports** — which is exactly how a step could be dismissed as noise by
+> somebody checking too early.
+>
+> **n is still two full days.** What would settle it is the reverse experiment
+> nobody will run deliberately: a session during which the writer is off.
+>
+> The run rate is **`$13.53/month`**, from `$13.32` four days ago. `HOSTING.md`
+> carries the full reading.
+
 ## Decision 2 — the every-deploy feed outage is the platform's, not this product's
 
 **`LIVE-DATA.md` §12.2 credited the deliberate `SIGTERM` close with bounding the

@@ -171,7 +171,7 @@ which is 25× the new column's annual cost.
 > funder of a decision that has already shipped, which changes what dropping it
 > is.** Story 3.8 keeps **both tapes** for a minute the live feed and the
 > nightly backfill both saw (ADR 0035), priced at **+69% rows a year**,
-> **+6.1 GiB a year**, and headroom from ~2.6 years to **~1.5**. ADR 0035 names
+> **+6.1 GiB a year**, and headroom from ~2.6 years to **~1.5**. **Amended 2026-09-25 at Epic 3's close: the store was measured rather than projected — 13.62 GB at 41% of the provisioned disk, which is **~2.1 years** of headroom at today's rate, and the `~1.5` assumed a two-tape growth that has **no signal in the measurement yet**. The figures here are the projection they were; `HOSTING.md` carries the reading.** ADR 0035 names
 > `market_bars_pkey` beside that price as where the space comes from.
 >
 > So this is no longer only _an index nobody reads_: it is the bill for a
