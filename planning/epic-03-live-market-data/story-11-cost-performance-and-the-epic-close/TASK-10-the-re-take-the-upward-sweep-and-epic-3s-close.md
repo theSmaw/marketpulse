@@ -260,3 +260,46 @@ saying _this product costs $9.26_ is a live claim and is now wrong.
 > only because Container Apps billed **$0.00/day for the first eleven days**. A
 > sweep that confirms the estimate against the monthly total will record a
 > prediction confirmed to the cent **and be wrong by 44%**. Use the run rate.
+
+## Amended by Task 3.11.6 — 2026-09-25: one sweep candidate, one sideways hand-off, and one item that ships open
+
+### A sweep candidate, with the grep already run
+
+**`LIVE-DATA.md` §12.2's `≤ 5 s` row is falsified** (measured 45.8 s / 46.5 s),
+and §12.2 has been amended in place. **The grep for the claim's other homes was
+run on the day**: `docs/GAPS.md` (entry re-verdicted), `LIVE-DATA.md` §12.2 and
+§15, and this story's own `STORY.md` table of predicted outcomes. **That table
+is a historical record** — it is what was decided _before_ the data, and its
+third row is the one that came true; it is left standing on purpose.
+
+**What the sweep must still check is the ADRs**, because a deploy-window figure
+is exactly the kind of number that gets quoted by a decision record. Task
+3.11.9 is weighing ADR 0011's disposition and this belongs to the same
+judgement.
+
+### A sideways hand-off, to a story that has already closed
+
+`STORY.md`'s own table says the outcome that landed _"is a finding for Story
+3.10's reconnection policy as much as for this story."_ **Story 3.10 is
+closed**, so nothing about its close will reach this.
+
+**The finding**: a deploy costs ~46 s of feed, which is **shorter than both
+liveness thresholds** — 60 s wall for `stale`, 165 s monotonic for
+`disconnected`. So the most common feed interruption this product actually has
+produces **no degraded word at all**, by design and by arithmetic. That is not
+a defect and it needs no repair; it is a fact about what those thresholds mean
+in practice, and the hand-off enumeration should confirm it reached a document
+Story 3.10's reader opens rather than only this story's.
+
+### And one item ships open, with an owner and a condition
+
+**Whether the socket survives a full 56-hour market closure _now_** — §9.3's
+_hold the socket always_ has exactly **one** confirming reading
+(2026-09-25T03:13Z, market shut, `live`) against a weekend that had forty hours
+`disconnected`. Task 3.11.6 deliberately did **not** start a weekend poll,
+because Task 3.11.1 established nothing in this story waits on a clock.
+
+**It is recorded in `LIVE-DATA.md` §15.4 with the instrument** — a poll anybody
+can start on a Friday. **Owner and condition rather than a story number**: the
+next person who wants the deployment to be trusted across a closure, or the
+first Monday pre-market that opens with no feed.

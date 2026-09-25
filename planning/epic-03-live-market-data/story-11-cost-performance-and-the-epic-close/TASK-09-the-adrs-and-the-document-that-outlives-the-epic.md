@@ -107,3 +107,31 @@ wrong**, and a decision record is not primarily a cost model.
 re-read in hand: if the 32% step holds, the premise is definitively wrong and a
 new ADR has a subject; if it does not, the third amendment is a correction and
 nothing more.
+
+## Amended by Task 3.11.6 — 2026-09-25: `LIVE-DATA.md` now argues with itself in two places, and closing it means choosing
+
+**§12.2 has been corrected in place** — Task 3.11.6 added a dated amendment
+beside its `≤ 5 s` row saying the measured figure is **45.8 s / 46.5 s** and
+that the bound is Container Apps' revision-overlap schedule rather than
+`SHUTDOWN_TIMEOUT_MS`. **The reading itself lives in §15.** That is two homes
+for one fact, which is the shape this task exists to resolve.
+
+**This task's decision, stated so it is not rediscovered:** §12.2's table row
+and its two amendments are the **record of a decision and how its justification
+moved**, and are left standing; §15 is the **measurement**; and the closing pass
+must make §0 say which one a reader consults for _what a deploy costs the feed_.
+A third copy of the 46-second figure is the failure mode, not the fix.
+
+### And one decision of this epic may have no home at all
+
+**_The feed's every-deploy outage is bounded by the hosting platform rather
+than by this product's code._** It is a fact about the deployment shape, it
+outlives the task that measured it, and it belongs beside ADR 0011's deploy
+decision rather than in a story document — which is the same file this task is
+already weighing a supersession of, from Task 3.11.5's amendment above.
+
+**Take both in one judgement.** ADR 0011 now has a falsified cost premise
+(3.11.5) **and** a missing consequence of the rolling-deploy shape it chose
+(3.11.6). If the verdict is a new ADR rather than a third amendment, these are
+its two subjects and it has a coherent one: **what this deployment's shape
+costs, in money and in feed.**

@@ -3329,6 +3329,23 @@ long as Alpaca takes to notice — and §6.4 says that can be most of a trading 
 > refused `406`, and for how long. That single observation settles it. Recorded
 > in `docs/GAPS.md`.
 
+> **Amended 2026-09-25 by Task 3.11.6 — the trigger above FIRED, and the table's
+> first row is wrong by 9×.** Two consecutive deploys, read from the backend's
+> own stream log: the arriving replica was refused `406` and authenticated
+> **45.8 s** and **46.5 s** later, against this row's **≤ 5 s**.
+>
+> **The decision is untouched and the mechanism works.** The outgoing replica
+> logged `market stream closing deliberately` **2.9 s** before the arriving one
+> authenticated, so the deliberate close does release the slot promptly. **What
+> is wrong is what bounds it**: the outgoing replica is not asked to shut down
+> until ~46 s into its successor's life, because that is Container Apps'
+> revision-overlap schedule. **The bound is the platform's, not
+> `SHUTDOWN_TIMEOUT_MS`** — and every deploy during a session costs about
+> **46 seconds of live feed**, filled afterwards by Task 3.10.7's gap refill.
+>
+> The reading, the retry counts and the second row's still-unmeasured half are
+> in **§15**.
+
 **What the starting process does when refused.** Retry on `406`, never treat it
 as fatal. §8.7 measured that **immediate reconnection is not penalised** —
 717/709/709/722/694 ms across five back-to-back attempts, every one
