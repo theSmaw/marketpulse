@@ -413,3 +413,101 @@ same failure the socket count made — _count by URL, never by event_ — with t
 denominator changed: **a median is a claim about its population, and an
 instrument that samples outside the thing it measures has a population nobody
 chose.**
+
+## The instrument found something it was not looking for — 2026-09-25
+
+**The gateway sends a `feed` frame per inbound VENDOR ITEM, to every attached
+browser, regardless of what that browser subscribed to.** Found by reading the
+coverage log's own frame counts, confirmed in source, and then re-measured from
+a second socket subscribed to **one** symbol.
+
+### The measurement
+
+Over 3h48m on the deployed gateway, from a client subscribed to all 518:
+
+```text
+feed frames: 30541      by status: { live: 30531, disconnected: 10 }
+distinct payloads: 3
+consecutive payloads identical: 30865      different: 21
+per-minute rate, pre-market (n=89 minutes):  median 2
+per-minute rate, session   (n=90 minutes):  median 332   min 3   max 385
+```
+
+**They arrive as one burst at the top of the minute.** In the five minutes from
+14:00 UTC, **1,734 of 1,746 frames landed in second `:00`**, nine of sixty
+seconds were occupied at all, and the median inter-frame gap was **0 ms**.
+
+### And the subscription does not scope them
+
+A second socket, subscribed to **`NVDA` alone**, for 75 seconds:
+
+```text
+feed frames in 75.0s with ONE symbol subscribed: 310
+```
+
+**119 bytes each**, verbatim:
+
+```json
+{"type":"feed","version":1,"sentAt":"2026-09-25T15:04:22.667Z","feed":{"status":"live","feed":"iex","marketOpen":true}}
+```
+
+So a phone on a security page showing one number receives **~250 identical
+frames a minute** — **~30 KB/min, ~1.8 MB/hour, ~11.6 MB over a session**, of
+which the information content is three distinct payloads in 3h48m.
+
+### The mechanism, in source rather than inferred
+
+`alpaca-stream.ts:255` calls `apply(...)` **inside the per-item loop** over the
+inbound vendor message. `apply` (line 214) advances the connection and then
+notifies **unconditionally**:
+
+```ts
+connection = advanceStreamConnection(connection, event);
+subscriber?.onConnectionChange(connection);
+```
+
+`index.ts:791` answers `onConnectionChange` with `gateway.publishFeedState()`,
+which `broadcast`s `feedMessage()` to every client. The keepalive is
+`KEEPALIVE_INTERVAL_MS = 120_000` and accounts for **0.5 frames a minute** of
+the 332 measured; the other ~331 are one per vendor item.
+
+**The connection genuinely changed** — `lastFrameAt` moved — so nothing here is
+lying. What is wrong is that a change to the **watchdog's** private bookkeeping
+is published as a change to the **browser's** feed state, and those are not the
+same object.
+
+### Why nobody has seen it, which is the part that generalises
+
+**`sameLiveFeedView` suppresses the render.** The frontend already collapses a
+feed view that has not changed, so 250 no-op frames a minute cost a browser
+almost no script and produce no visible symptom. **The mitigation for the
+symptom was built before anybody measured the cause**, and it made the cause
+invisible for the whole of Epic 3.
+
+This is the deferral pattern `PROVENANCE.md` §14 recorded, with the arrow
+turned: there, a surface armed itself for a day that had already come; here, a
+suppression worked so well that the thing it suppresses was never counted.
+
+### It contradicts a stated constraint
+
+**ADR 0033's fourth constraint on `sentAt` is _one per frame, 36 bytes
+measured, never one per security._** That rule was written about the field.
+The **frame carrying it** is, in this path, one per security — so the constraint
+holds in the letter and fails in the spirit, and the ADR owes a dated amendment
+rather than a rewrite.
+
+### What was NOT done, deliberately
+
+**Nothing was repaired.** Epic 3 is closed, this is shipped behaviour on the
+live feed, and the change — notify only when the published view differs — is a
+product decision with a measurement behind it, not an overnight edit. It is
+handed to **Story 4.7** with the figures above, in that story's own words,
+because 4.7 owns the degraded set and already owns the browser-side liveness
+question this sits beside.
+
+> **And it sharpens 4.7's other number.** The "browser's own heartbeat" row in
+> that story's decision table reads _every 20–50 s_. The honest statement is
+> **bimodal**: ~2 frames a minute out of hours, ~332 during a session. A
+> browser-side liveness threshold must be derived from the **quiet** case,
+> because that is the floor — the session rate is an artefact of this defect
+> and will drop to the keepalive's 0.5/min the moment it is repaired.

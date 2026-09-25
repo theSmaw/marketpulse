@@ -203,3 +203,70 @@ threshold was derived from, seen from one hop further away.
 > these numbers are dated observations to be re-derived rather than tuned, so
 > the decision owes a longer idle sample — and the instrument that takes it now
 > works, which it did not this morning.
+
+## Handed to this story by Task 4.1.6 — 2026-09-25: the gateway's feed frame is one per vendor item
+
+**This story owns a browser-side liveness threshold, and the number it would be
+derived from has just been measured properly. It is bimodal, and the session
+half is an artefact of a defect.**
+
+### The measurement
+
+Against the deployed gateway on 2026-09-25, from a client subscribed to all 518
+securities for 3h48m:
+
+| Condition            | `feed` frames per minute (median) |
+| -------------------- | --------------------------------- |
+| out of hours         | **2**                             |
+| during the session   | **332** (min 3, max 385)          |
+
+They arrive as **one burst in second `:00` of the minute** — 1,734 of 1,746
+frames in a five-minute slice, median inter-frame gap **0 ms**.
+
+**The subscription does not scope them.** A socket subscribed to `NVDA` alone
+received **310 frames in 75 seconds**, each **119 bytes**:
+
+```json
+{"type":"feed","version":1,"sentAt":"2026-09-25T15:04:22.667Z","feed":{"status":"live","feed":"iex","marketOpen":true}}
+```
+
+**Three distinct payloads in 3h48m**; 30,865 consecutive frames identical, 21
+different.
+
+### The cause, confirmed in source
+
+`alpaca-stream.ts:255` calls `apply()` inside the **per-item** loop over the
+inbound vendor message, and `apply` notifies `onConnectionChange`
+**unconditionally** (line 214). `index.ts:791` answers that with
+`gateway.publishFeedState()`, a broadcast to every client. The keepalive
+(`KEEPALIVE_INTERVAL_MS = 120_000`) accounts for 0.5 frames a minute of the 332.
+
+**Nothing is lying** — the connection's `lastFrameAt` really did move. The fault
+is that a change to the watchdog's private bookkeeping is published as a change
+to the browser's feed state.
+
+**It is invisible because `sameLiveFeedView` already suppresses the no-op
+render.** The mitigation for the symptom predates any count of the cause.
+
+### What this story must do with it
+
+1. **Do not derive a browser-side threshold from the 332.** It is a defect's
+   rate and disappears when the defect does. The floor this product can rely on
+   is the **keepalive**, and that is `120_000` ms — which is the number a
+   browser-side threshold has to clear, not 20–50 s.
+2. **The repair is one condition**, and it is this story's to take or refuse:
+   notify only when the **published** view differs from the last published one.
+   `sameLiveFeedView` is the comparison and already exists on the frontend; the
+   question is whether the backend gets its own or lifts that one.
+3. **Price the client cost in the decision**, because it is the argument: ~250
+   frames/min at 119 bytes is **~30 KB/min, ~1.8 MB/hour, ~11.6 MB a session**
+   per attached browser — on a screen this story is measuring at 390 on a phone.
+4. **ADR 0033 owes a dated amendment.** Its fourth constraint reads _one per
+   frame, 36 bytes measured, never one per security_. The field obeys it; the
+   frame carrying the field does not.
+
+> **And the repair moves this story's own baseline.** If the keepalive becomes
+> the only routine `feed` frame, a browser's inbound traffic during a quiet
+> minute is one frame every two minutes — which is the case a 165 s monotonic
+> threshold was already uncomfortably close to. Re-derive both together or
+> neither.
