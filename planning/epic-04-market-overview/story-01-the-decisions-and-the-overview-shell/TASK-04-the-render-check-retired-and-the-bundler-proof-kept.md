@@ -79,3 +79,34 @@ assuming it**: `ANOMALY_BANDS`, `FEED_STATUSES`, `toTicker` and `AnomalyBand`
 are imported from `@marketpulse/shared` and used **only** by the render check.
 Deleting the check deletes the import, and with it the one proof that the
 workspace dependency resolves through the **bundler** as well as through `tsc`.
+
+## Amended by Task 4.1.2 — 2026-09-25: this task lands the interim layout, and what it removes is fixture data rather than content
+
+**The canvas answered what replaces the gallery**, and it is not an empty box:
+
+**`Market overview.dc.html` §01 is the interim composition** — the primary
+column holds the **reserved topology band** at the top and this epic's own
+regions beneath it, and the topology takes the column back when Epic 6 arrives
+(§02, with the trigger). **This task ships that composition**, not just the
+deletion: remove the gallery, restructure the primary column, and the screen it
+leaves is the one on the canvas.
+
+### The sequencing worry, resolved by looking at what is actually there
+
+The concern was that removing the gallery leaves the landing page visibly
+emptier until Story 4.2 fills a region — and that a screen of honest
+placeholders is worse for a stakeholder than a screen that looks busy.
+
+**It is not, and the reason is what the gallery contains.** Its rows are
+**hard-coded fixture data** — four invented securities with invented prices,
+sitting on the landing page of a product whose entire discipline is that a
+claim about data requires data.
+
+> **A landing page showing invented prices is not an argument for keeping it —
+> it is §5.6's _scaffold with data in it_, literally.** Removing it loses a
+> component demo, not content, and what replaces it says true things about a
+> screen that is being built. **That is forward progress even though the pixel
+> count goes down.**
+
+**So the order stands**, and the earlier consideration of moving this task
+behind Story 4.2 is settled rather than left open.

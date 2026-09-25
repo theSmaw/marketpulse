@@ -63,3 +63,35 @@ true.
 **So the paragraph goes in this change**, not in 4.1.4's. What survives it is
 the `Region`s' own sentences, which are per-region, specific, and already the
 established idiom.
+
+## Amended by Task 4.1.2 — 2026-09-25: three regions, not two, and two of them defer to a story rather than to an epic
+
+**Drawing the screen found a third region with no home in §9's sketch: the
+movers.** Epic 4's scope lists top gainers and losers; §9 does not place them,
+and Task 1.5.4's deferral named only the index summary and sector performance.
+
+> **They could have gone in the unusual-activity region's place** — it is empty,
+> and a ranked list of big movers looks like a ranked list of unusual ones.
+> **Story 4.5 already names that as the trap**: _unusual is not largest_. On the
+> one screen whose job is explaining what this product does, a mover list
+> standing in for an anomaly feed teaches a reader the wrong thing about it.
+
+**So this task adds three regions**, in the positions
+`Market overview.dc.html` §01 places them:
+
+| Region                                      | Where                                                | Filled by     |
+| ------------------------------------------- | ---------------------------------------------------- | ------------- |
+| **Market summary** — the four index proxies | a full-width strip at the very top, `span 12`        | **Story 4.2** |
+| **Sector performance**                      | the primary column, under the reserved topology band | **Story 4.3** |
+| **Movers**                                  | the primary column, below sectors                    | **Story 4.5** |
+
+### And a new kind of deferral sentence
+
+**Every `filledBy` sentence in the tree today names an EPIC.** Three of these
+name a **story in this epic**, which is a different promise — weeks rather than
+months — and the reader should be able to tell.
+
+**Do not invent a second vocabulary for it.** The breadth region has named Epic
+4 since Task 1.5.4 and is the precedent: the sentence describes **what will be
+there**, and the tag says **whose**. A near-term deferral is the same component
+with a nearer name in the tag.

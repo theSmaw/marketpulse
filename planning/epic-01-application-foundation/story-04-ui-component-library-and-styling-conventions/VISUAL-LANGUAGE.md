@@ -872,6 +872,71 @@ Two surfaces speak this way today: search deferring to the tracked universe (Sto
 
 **The reservation's premise was still right.** Reserving room cost three sentences; discovering the sentence had moved cost one task reading the tree before drawing anything.
 
+## The landing screen — added 2026-09-25 by Task 4.1.2
+
+The canvas is **`Market overview.dc.html`**, and it settles three things the
+rest of this document did not have to answer because no screen before it was
+mostly other epics' work.
+
+### A deferred REGION, finally drawn
+
+The deferral **sentence** has been a rule here since Task 2.14.7 and the
+deferral **frame** never was — this product has shipped one on the security
+page since Epic 2 and on the landing route since Task 1.5.4 without it reaching
+the canvas.
+
+**Three properties, each a decision rather than a texture:**
+
+- **A hatched ground rather than a blank one.** An empty region and a failed
+  region must never look alike, and the failure state is already a labelled
+  block with a sentence. A blank frame is what a reader reads as broken.
+- **A dashed border**, which is the same distinction in a second channel —
+  the hatch is a fill and a fill is exactly what greyscale, low vision and a
+  poor screen take first.
+- **The epic as a tag rather than as prose.** `EPIC 6` sits in the region's
+  head; the sentence below it describes **the product**, not the backlog. A
+  sentence that opens _Epic 6 will…_ makes a reader's first fact about the
+  screen a fact about us.
+
+### Two sizes, and the second is a decision with a trigger
+
+A deferred region the size of a postcard is a sentence. **A deferred region
+that is half the screen is a design problem**, and §9's primary area is exactly
+that for two epics.
+
+So the treatment has a second size — a **reserved band**: the frame, the tag
+and one sentence at a height that reads as _held_ rather than as _unfinished_,
+with this epic's own content taking the column beneath it. **The reversal
+trigger is a condition: the first commit that renders a graph node on that
+route.**
+
+> **And the band does not grow.** A reserved band that creeps upward as the
+> screen fills is how an interim becomes permanent without anybody deciding it.
+
+### The ranked list — one component, two uses
+
+A label, a signed figure, and a proportional bar **anchored at zero rather than
+at the edge**, so every row's length is comparable and direction is carried by
+which side of the anchor it grows from — a third channel beside the sign and
+the glyph, and the palette's 1.04:1 greyscale difference is why there are three.
+
+**Sector performance and the movers are the same component.** Two components
+that look similar is an accident; one with two uses is a decision, and it is
+what stops Story 4.5's re-order treatment having to be designed twice.
+
+### One thing this screen deliberately does not have
+
+**A page heading, and no summary paragraph.** The first thing on the landing
+screen is a **fact about the market** — the four index proxies — rather than a
+sentence about the application. The route's accessible name is a visually
+hidden `h1`, which is what the landmark list needs and what a sighted reader
+does not.
+
+The rejected alternatives are on the canvas with their reasons, and the shorter
+paragraph is rejected for the reason the Security Explorer deleted three
+sentences in Epic 2: **a second home for a claim the regions make goes stale
+silently.**
+
 ## What this is not
 
 Stated explicitly, because each one is a thing somebody will otherwise add in good faith.
