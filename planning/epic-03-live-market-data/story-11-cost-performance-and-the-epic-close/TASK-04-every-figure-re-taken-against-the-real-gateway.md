@@ -292,3 +292,15 @@ that can be done outside it should be.
 
 **The last story of the live-market phase, four of ten tasks done** — three
 complete and this one partly, with its remainder booked rather than pending.
+
+## Amended 2026-09-25 — the remainder is taken WITH Task 3.11.8, not before it
+
+**Task 3.11.8 declared `Depends on: 3.11.1, 3.11.4` and this task cannot finish
+without 3.11.8's sitting.** Each was waiting on the other. 3.11.8's dependency
+is corrected to 3.11.1 alone and the five remaining figures are listed there, so
+whoever takes the sitting has them in one place rather than in this file's
+prose.
+
+**This task stays open until that sitting**, and its status says _partly taken_
+rather than _complete_ for exactly that reason. What it did on 2026-09-25 it did
+**because** the market was shut — which is the opposite of a prerequisite.

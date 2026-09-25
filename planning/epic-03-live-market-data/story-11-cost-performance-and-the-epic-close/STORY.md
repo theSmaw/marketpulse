@@ -206,6 +206,13 @@ thing is the free plan's **one** Alpaca connection rather than anybody's
 attention (`docs/GAPS.md` entry 10). A sitting taken for one and not the other
 spends it twice.
 
+> **And the dependency between them was circular until 2026-09-25.** 3.11.8
+> declared `Depends on: 3.11.4` while five of 3.11.4's nine figures could only
+> be taken at 3.11.8's sitting. Corrected: **3.11.8 depends on 3.11.1 alone**,
+> and the two are **concurrent**. 3.11.4 is already _partly taken_ — everything
+> that needed the deployment rather than the socket was done with the market
+> shut, which is the opposite of a prerequisite.
+
 ~~**And 3.11.6 is the one that needs elapsed time rather than effort.** Whatever
 it has to watch should be started when this story starts, not when that task
 comes up.~~ — **no longer true, 2026-09-25.** Task 3.11.1 found that the run

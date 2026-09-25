@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Story:** [3.11 Cost, Performance, the Sweep & the Epic Close](STORY.md)
-**Depends on:** 3.11.1, 3.11.4
+**Depends on:** 3.11.1 — **and 3.11.4 is taken WITH this task rather than before it** (corrected 2026-09-25; see the amendment at the foot)
 
 ## Objective
 
@@ -102,3 +102,49 @@ recorded in that story's own file.
 **What that adds to the list here**: `pnpm probe` at four viewports **with the
 market open**, which is Story 3.4's criterion 8 in its own words and has never
 been taken.
+
+## Amended by Task 3.11.4 — 2026-09-25: the dependency was circular, and this sitting carries five more figures
+
+**This task declared `Depends on: 3.11.1, 3.11.4`, and 3.11.4 cannot finish
+without this sitting.** Five of its nine figures need **frames** — which means
+the socket, which means the market open — so the two tasks were each waiting on
+the other. The dependency is corrected to **3.11.1 alone**, and the split's own
+instruction is the real relationship: _take them together._
+
+**That is a correction to the plan rather than to either task.** Nothing about
+3.11.4 has to precede this; what it took on 2026-09-25 it took **because** the
+market was shut, which is the opposite of a prerequisite.
+
+### The five figures that arrive with this sitting
+
+They are 3.11.4's to record and this sitting's to make possible:
+
+| Figure                                          | Note                                                                                                                                                                              |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §28's p95, gateway send → table repainted       | a **distribution** with its n, never a single number; a negative p50 is **skew**, not a frame arriving before it was sent                                                         |
+| the burst cost at live density                  | and the real feed never changes every row — §7.6 puts a median symbol at 65.1% of minutes                                                                                         |
+| the tick at 518 rows, and at 517 instants drawn | should be **lower** than the fixture's 37–40 ms, because the memo boundary skips rows the feed did not touch; if it is not, something is re-rendering rows the feed never touched |
+| the frame payload, with `sentAt`'s 36 bytes     | **there is no single number to quote today** — eleven places say `56.9 KiB` and Task 3.5.8 deliberately left them                                                                 |
+| the transition's own cost                       | the one figure in this epic that has never been taken at all                                                                                                                      |
+
+**And the fan-out**, which is Task 3.11.5's bill and can only be measured here:
+38 kB/min per browser at the whole universe, and whether concurrent browsers
+change it.
+
+### The recipe, so nothing is rediscovered at the one moment it cannot be
+
+From Task 3.6.4's record: wrap `window.WebSocket` from an `addInitScript`
+**without** `routeWebSocket`, stamp `Date.now()` in the `message` listener,
+subtract the frame's `sentAt`, and stamp the table's first mutation through a
+`MutationObserver`. **Two pages double n at no cost in wall time.**
+
+And from Task 3.9.9, the one that cost a task: a `long-animation-frame` entry
+only exists above 50 ms, so **zero observed and the observer is broken are the
+same output** — block inside a `requestAnimationFrame` with a mutation after it
+and confirm the observer complains **before** believing any silence.
+
+> **One instrument for everything**, which Task 3.11.2 showed is about fifteen
+> lines of plain Playwright pointed at the deployed URL — no `e2e:deployed`, no
+> config, no credential. The sitting is bounded by the market's hours, not by
+> effort, so the script should exist and be tested against the shut market
+> **before** the bell.

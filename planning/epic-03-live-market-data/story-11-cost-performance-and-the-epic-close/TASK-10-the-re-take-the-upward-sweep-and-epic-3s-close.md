@@ -182,3 +182,39 @@ verdict on condition 3.
 section describes a product whose market feed reports nothing to an operator.
 That stopped being true on 2026-09-25; whether it says so anywhere is this
 task's to check with a grep rather than a memory.
+
+## Amended by Task 3.11.4 — 2026-09-25: one grep for the sweep, and it needs a distinction rather than a substitution
+
+**`9,750` appears across at least twelve files**, and this is exactly the shape
+the upward sweep exists for: a figure measured, propagated, and then found to
+describe something no screen can produce.
+
+```text
+CHARTING.md                18
+SEARCH-AND-SELECTION.md     6
+Task 2.12.9                 7
+CLAUDE.md                   3
+Story 2.12's STORY.md       3
+Epic 14's EPIC.md           1   … and more
+```
+
+**Do not substitute.** The distinction the sweep has to draw is this
+repository's standing one, and getting it wrong destroys the record:
+
+- **Historical records** — Task 2.12.9's measurements at a hypothetical 9,750
+  bars, ADR 0027's element-count argument, `CHARTING.md` §16's candidate table.
+  These say _what we measured, and at what density_. **They stand.** The
+  measurement was real even though the density is unreachable.
+- **Live claims** — anything reading _the product can be asked for 9,750 bars_,
+  or sizing a surface against it as the worst case a reader can reach. **These
+  are wrong** and take a dated amendment pointing at `CHARTING.md` §19.
+
+**The correct live figure is 8,190** — `MAX_MINUTE_SESSIONS = 21` × 390 — and
+the 9,750 is the **server's** cap, which `time-window.ts` exists to keep
+unreachable and demonstrably does.
+
+> **And one judgement the sweep should make rather than inherit**: ADR 0027's
+> argument is _one element per bar at the cap is 9,790 elements_. That is a
+> hypothetical about a rejected design, not a claim about the product, so it is
+> **not** falsified — but a reader meeting it after §19 will wonder, and an ADR
+> gets a dated amendment rather than a rewrite.
