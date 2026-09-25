@@ -2,6 +2,7 @@ import { marketDateAt, marketSessionOn } from "@marketpulse/shared";
 import type { Ticker } from "@marketpulse/shared";
 
 import { createAlpacaStream } from "./alpaca-stream.js";
+import type { StreamLogEvent } from "./alpaca-stream.js";
 import { trackedTickers } from "./universe.js";
 import type { Config, MarketDataProviderSelection } from "./config.js";
 import { createFixtureStream } from "./fixture-stream.js";
@@ -111,6 +112,25 @@ export interface MarketStreamDependencies {
     readonly setTimer: (fn: () => void, ms: number) => NodeJS.Timeout;
     readonly clearTimer: (timer: NodeJS.Timeout) => void;
   };
+
+  /**
+   * Where the vendor client's diagnostic events go (Task 3.11.3).
+   *
+   * **Until 2026-09-25 this parameter did not exist and nothing passed one**,
+   * so `createAlpacaStream` fell back to its `noop` and the eleven events on
+   * `StreamLogEvent` reached production nowhere. A socket that authenticated, a
+   * credential that was refused, a watchdog that fired, a `406` retried every
+   * three seconds: all silent.
+   *
+   * **That is why a dead feed ran for about forty hours unseen** from
+   * 2026-09-19, and why nobody can say what recovered it — the events that
+   * would have said were not being written down.
+   *
+   * It is optional because three of the four selections have no vendor to
+   * report on: the fixture and replay streams are our own code and the `none`
+   * selection constructs nothing.
+   */
+  readonly onLog?: (event: StreamLogEvent) => void;
 }
 
 export function createMarketStream(
@@ -175,6 +195,13 @@ export function createMarketStream(
         keyId: config.alpaca.keyId,
         secretKey: config.alpaca.secretKey,
         symbols: STREAM_SYMBOLS,
+        // **Spread rather than passed**, because `exactOptionalPropertyTypes`
+        // makes *absent* and *present as `undefined`* different types and the
+        // client's own default is a `noop` it should keep when nobody is
+        // listening.
+        ...(dependencies.onLog === undefined
+          ? {}
+          : { onLog: dependencies.onLog }),
       });
     }
 

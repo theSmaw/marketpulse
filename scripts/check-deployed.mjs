@@ -280,7 +280,37 @@ async function probeFreshness(backendOrigin) {
  * the DURATION of a wrong state, not its existence. `deploy.yml`'s provider read
  * (§7b) is the preventive one.
  */
-async function probeFeed(backendOrigin) {
+/**
+ * How long a `disconnected` reading is tolerated before it is called a fault.
+ *
+ * **Derived rather than chosen.** Every deploy meets a `406 connection limit
+ * exceeded` by design (§8.2) while the outgoing replica still holds the plan's
+ * single slot, and the arriving one retries every `REFUSED_RETRY_MS = 3_000`.
+ * Measured 2026-09-19 on an unplanned reproduction: **1,149 ms to the `406`
+ * and 9,498 ms to the close**. So the honest window is the handover plus a
+ * retry, and this is comfortably past both.
+ *
+ * **Without it, condition 3 below would go red on the handover of every
+ * deploy** — a check that cries wolf on the routine case, which is the exact
+ * failure mode this epic has spent three tasks avoiding on other surfaces.
+ */
+const DISCONNECTED_GRACE_MS = 20_000;
+
+async function probeFeed(backendOrigin, { now = Date.now, sleep } = {}) {
+  const deadline = now() + DISCONNECTED_GRACE_MS;
+  for (;;) {
+    const attempt = await probeFeedOnce(backendOrigin);
+    // Only the `disconnected` verdict is retried. A replaying deployment, a
+    // 404 or a wrong feed in session resolve by nobody waiting.
+    if (attempt.ok || attempt.disconnected !== true) return attempt;
+    if (now() >= deadline) return attempt;
+    await (sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))))(
+      POLL_INTERVAL_MS,
+    );
+  }
+}
+
+async function probeFeedOnce(backendOrigin) {
   const result = await get(`${backendOrigin}/diagnostics/feed`);
 
   if (!result.ok) return { ok: false, detail: result.reason };
@@ -317,7 +347,7 @@ async function probeFeed(backendOrigin) {
     return { ok: false, detail: "200 with a body that is not the contract" };
   }
 
-  const { provider, feed, status, marketOpen } = body;
+  const { provider, feed, status, marketOpen, observedAt } = body;
 
   // Condition 1. Unconditional.
   if (provider === "replay" || feed === "replay") {
@@ -341,12 +371,55 @@ async function probeFeed(backendOrigin) {
           `status=${String(status)})`,
       };
     }
-    return { ok: true, detail: "live on iex, market open" };
+    return {
+      ok: true,
+      detail: `live on iex, market open; observedAt=${String(observedAt)}`,
+    };
+  }
+
+  // **Condition 3, added 2026-09-25 by Task 3.11.3: `disconnected` is not
+  // honest at ANY hour.**
+  //
+  // Until this, a shut market returned `ok` whatever `status` said — so the
+  // only hours a dead feed could be caught were the six and a half a session
+  // lasts, and only if somebody merged during them. The 2026-09-19 outage ran
+  // about **forty hours** and most of it was out of session.
+  //
+  // **What makes this assertable out of hours is §9.3**: the deployment holds
+  // the socket *always*, not only while the market is open. Confirmed at
+  // 2026-09-25T03:13Z with the market shut —
+  // `{"status":"live","observedAt":null,"marketOpen":false}`. So `live` out of
+  // hours is the expected state and `disconnected` is a fault whatever the
+  // clock says.
+  //
+  // **`stale` is NOT a failure here**, and that is the distinction this whole
+  // epic is built on: `stale` means connected and nothing arriving, which out
+  // of hours is exactly right and in hours is ordinary on IEX at 65.1% median
+  // per-symbol coverage. Only `disconnected` means *there is no socket*.
+  //
+  // **`observedAt` is reported and never asserted on.** It is legitimately
+  // `null` after a restart — the process has observed nothing yet — and
+  // legitimately hours old over a weekend. An age threshold here would be a
+  // second staleness rule competing with the one `feed-liveness.ts` owns, and
+  // `LIVE-DATA.md` §11.2's answer to *what threshold* was **none**.
+  if (status === "disconnected") {
+    return {
+      ok: false,
+      disconnected: true,
+      detail:
+        `the deployed feed is DISCONNECTED with the market shut ` +
+        `(provider=${String(provider)} feed=${String(feed)} ` +
+        `observedAt=${String(observedAt)}) — §9.3 holds the socket at all ` +
+        "hours, so this is a fault rather than the hour. A dead feed ran for " +
+        "about forty hours on 2026-09-19 and nothing said so",
+    };
   }
 
   return {
     ok: true,
-    detail: `market closed; provider=${String(provider)} status=${String(status)}`,
+    detail:
+      `market closed; provider=${String(provider)} status=${String(status)} ` +
+      `observedAt=${String(observedAt)}`,
   };
 }
 
