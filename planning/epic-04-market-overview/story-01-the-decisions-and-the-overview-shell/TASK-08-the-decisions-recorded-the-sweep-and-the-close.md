@@ -247,3 +247,99 @@ did not happen.
 **And `M` must be in Story 4.4's file rather than only in Task 4.1.6's**, in the
 sentence that story will render. A number recorded only in the task that
 measured it is a number the story that needs it will re-derive.
+
+## Amended by Task 4.1.7 — 2026-09-25: one paragraph was copied into nine places, it carries TWO false claims, and one of them is a mechanism that does not exist
+
+**Task 4.1.7 falsified a sentence and corrected it in one of the nine places it
+lives.** That is not a criticism of 4.1.7 — it amended the file its brief named,
+correctly, with a dated amendment beside the original rather than a rewrite. It
+is this repository's own documented failure mode arriving on schedule: **a
+sentence duplicated for legibility must be counted with a grep before it is
+corrected**, and nobody ran the grep.
+
+### The paragraph
+
+```text
+**And one unrepaired consequence, recorded in `docs/GAPS.md`**: because the
+connection has one home and that home is sticky at the **foot** of the
+viewport, at 390 the distinction between _the feed stopped_ and _the market is
+shut_ is below the fold. No check can see it.
+```
+
+**Both halves of it are wrong.**
+
+1. **_Below the fold_ is false.** Measured twice — Task 3.11.8 and Task 4.1.7 —
+   the status bar is **sticky**, on screen at 390 at any scroll, and it **grows
+   from four wrapped lines to six** when the feed drops. What is actually wrong
+   is the timing: **165 seconds of `LIVE`** before anything changes.
+2. **_recorded in `docs/GAPS.md`_ is false, and this is the worse half.**
+   Task 4.1.7 went looking for the entry to re-verdict it and **there is no
+   such entry** — `docs/GAPS.md`'s `390` matches are the navigation, the price
+   strip, the window control and the chart's empty sentence, none of them this.
+   Four `EPIC.md` files and an ADR point at a record that has never existed.
+
+> **That is the third instance in eight days of _a claim about a mechanism
+> reads identically whether the mechanism is there or not_.** The other two are
+> in `CLAUDE.md` already: `LIVE-REHEARSAL.md`'s completion marking, and ADR
+> 0030 §7b. **All three were found by somebody going to USE the mechanism**,
+> never by reading — and this one was found by a task whose brief simply said
+> to re-verdict the entry.
+
+### The nine sites, enumerated rather than described
+
+**Live claims — amend:**
+
+| #   | Site                                                      | State                                                                                |
+| --- | --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 1   | `planning/epic-04-market-overview/EPIC.md:262`            | **fold half amended by 4.1.7**; the `GAPS.md` half is still false                    |
+| 2   | `planning/epic-05-anomaly-detection/EPIC.md:288`          | untouched                                                                            |
+| 3   | `planning/epic-10-ai-assisted-investigations/EPIC.md:121` | untouched                                                                            |
+| 4   | `planning/epic-13-market-replay/EPIC.md:287`              | untouched                                                                            |
+| 5   | `docs/adr/0029-…:416`                                     | untouched — **a dated amendment, never a rewrite**                                   |
+| 6   | `CLAUDE.md:301`                                           | untouched                                                                            |
+| 7   | `planning/epic-04-…/story-01/STORY.md:145`                | untouched — **this story's own file**                                                |
+| 8   | `planning/epic-03-…/LIVE-REHEARSAL.md` (the 3.10.9 item)  | untouched — and 4.1.7's protocol says the row belongs here                           |
+| 9   | `scripts/session-sitting.mjs:104` and `:419`              | **comments are code and rot the same way** (4.1.8 already says so of the route file) |
+
+**Historical records — leave standing**: Task 3.10.9's, Task 3.4.10's and Task
+3.11.8's own files. 3.11.8 already corrects it in place at its line 256, which
+is what a task record is for.
+
+**Not this subject, do not touch**: `e2e/specs/security-price-chart.spec.ts:985`
+and `ChartVacancy.tsx:26` both say _below the fold_ about a chart region. **A
+blind substitution would corrupt two correct sentences**, which is the same
+hazard the renumbering rule warns about.
+
+### The decision this hands the sweep
+
+**The `docs/GAPS.md` half needs a choice, not a correction**: either write the
+entry those five documents promise, or delete the promise from all five. **Write
+it.** The claim is real, it is unguarded, no check can see it, and it now has a
+**number** — 165 s — which is exactly what a `Re-measure:` line needs. A
+promise deleted leaves five documents that used to point somewhere and now point
+nowhere; an entry written makes four of them true retroactively.
+
+### And a note on this task's own dependency
+
+**`Depends on: 4.1.5, 4.1.6, 4.1.7` is satisfied.** 4.1.7 is _measured_, with
+its person-half owed under an owner and a condition — and this task already owns
+_what ships open carrying an owner and a condition rather than a story number_.
+**The close does not wait for a phone.** Epic 3's Task 3.11.1 settled that
+nothing in a close waits on a clock, and this is the same shape: the machine's
+half is done, the person's half is stated as exactly what it is, and the ledger
+says which kind the row is.
+
+### The sweep's own count
+
+**Add this to the hand-off enumeration.** The epic-level record across five runs
+reads **1, 6, 3, 6, 2**; this is a sixth run in everything but name, and its
+count before it starts is **eight sites owed and one discharged**. Record what
+the grep actually finds, because the table above was written from one grep on
+one day and the tree moves.
+
+> **The rule this earns, if it is not already written down:** a dated amendment
+> beside a claim is the correct repair for **the copy you are looking at**, and
+> it does nothing for the other eight. **Amending and propagating are two
+> obligations**, which is `CLAUDE.md`'s _recording a correction and propagating
+> it are two obligations_ with the word changed — and the reason it keeps
+> happening is that the first one feels like finishing.
