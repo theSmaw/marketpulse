@@ -105,3 +105,35 @@ does not have to wait for a weekend.
 > **This task cannot answer it retrospectively** — the evidence does not exist —
 > so the honest disposition is that Task 3.11.3 makes the _next_ one
 > answerable, and this task records that the previous one is not.
+
+## Amended by Task 3.11.2 — 2026-09-25: one of the three questions has a data point
+
+**Question 1's successor — _does production hold the socket out of hours?_ — has
+a reading.** At **2026-09-25T03:13Z**, market shut, the deployed backend
+answered:
+
+```json
+{
+  "provider": "alpaca",
+  "feed": "iex",
+  "status": "live",
+  "observedAt": null,
+  "marketOpen": false,
+  "checkedAt": "2026-09-25T03:13:29.035Z"
+}
+```
+
+**`status: "live"` with `marketOpen: false`** — the upstream socket is
+authenticated and held with the market shut, which is §9.3's _hold the socket
+always_ working.
+
+**That matters because the weekend-hold section says the opposite**, in as many
+words: _§9.3's hold the socket always is not what production does._ It was
+written **during** the forty-hour outage and was true of that weekend. It is not
+true today, and both readings belong in `LIVE-DATA.md` §9 rather than one
+replacing the other.
+
+**It is one sample and it is not a week**, which is this task's whole subject —
+so it narrows question 1's remainder rather than closing it: what is still
+unmeasured is whether the socket is held across a **whole** weekend now, and
+that is a poll this task can start whenever it likes and read on Monday.

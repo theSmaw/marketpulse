@@ -111,3 +111,23 @@ socket is open:**
 **And one row is quote-only rather than yours**, in its own section's words: the
 cold load at **50–56 ms** and `Expand all` at **65–86 ms** stay Epic 14's and
 are quoted from that epic's `EPIC.md` unless the table itself changed.
+
+## Amended by Task 3.11.2 — 2026-09-25: the deployed harness is simpler than this task assumed
+
+**A plain Playwright script pointed at the deployed URL works.** Task 3.11.2
+took its deployed reading with about fifteen lines — `chromium.launch()`,
+`page.goto("https://…/securities/NVDA")`, listeners, a `waitForTimeout` — and
+needed **no `pnpm e2e:deployed`, no config, and no credential**. The deployed
+frontend is a static site and the gateway is `wss://…/market-stream`; both are
+reachable from a laptop.
+
+**So the instrument for the whole sitting is one script rather than a suite**,
+which matters because this task shares its window with Task 3.11.8's rehearsal
+and the sitting is bounded by the market's hours rather than by effort.
+
+> **One caveat that bounds what a browser reading can claim, and it caught
+> Task 3.11.2 nearly overclaiming.** A browser's socket to **our gateway**
+> says the gateway is up and holding. It says **nothing** about the backend's
+> upstream socket to **Alpaca** — those are two different connections, and the
+> forty-hour outage was the second one with the first working perfectly.
+> `GET /diagnostics/feed` is what answers for the upstream, and it is one curl.

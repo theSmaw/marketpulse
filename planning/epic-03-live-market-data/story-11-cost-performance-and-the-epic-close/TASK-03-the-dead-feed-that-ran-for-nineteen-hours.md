@@ -104,3 +104,61 @@ and the weekend. It then **recovered unattended** and stayed up.
 subject: the eight events that would have said were not being logged. **An
 outage that ends on its own is worse than one that needs a restart**, because
 nothing learned anything — and the next one will be the same until this lands.
+
+## Amended by Task 3.11.2 — 2026-09-25: the middle work item is ALREADY SHIPPED, and this task narrows
+
+**`GET /diagnostics/feed` already carries a last-observation instant.** It was
+listed here as _a last-observation instant on `/diagnostics/feed`, or the
+recorded reason it belongs somewhere else_ — and `diagnostics.ts` has served
+`observedAt` all along, documented in its own comment as _when the newest
+observation was **true in the market**_, with a `["string", "null"]` schema.
+
+**And it populates.** From `weekend-watch.mjs`'s capture, verbatim:
+
+```json
+{
+  "provider": "alpaca",
+  "feed": "iex",
+  "status": "live",
+  "observedAt": "2026-09-21T12:17:00.000Z",
+  "marketOpen": false,
+  "checkedAt": "2026-09-21T12:18:48.369Z"
+}
+```
+
+```json
+{
+  "provider": "alpaca",
+  "feed": "iex",
+  "status": "stale",
+  "observedAt": "2026-09-21T13:53:00.000Z",
+  "marketOpen": true,
+  "checkedAt": "2026-09-21T13:55:00.087Z"
+}
+```
+
+It is `null` only when the process has observed nothing since it started —
+which is what it read for the whole forty-hour outage, beside
+`status: "disconnected"`.
+
+> **So the outage was visible from one HTTP call the entire time.** Not from a
+> log, not from a page: from an endpoint this product already shipped, which
+> nothing was reading. That sharpens what this task is for and shrinks it.
+
+**What this task still owes, narrowed:**
+
+1. **`onLog`** — the eight diagnostic events, genuinely unwired, and the reason
+   nobody can say **what recovered** the feed on that Sunday.
+2. **One assertion in `check-deployed.mjs`** reading the field that already
+   exists, per decision 2: never `status: live`, but `status` and `observedAt`
+   **reported**, and a refusal when `status` is `disconnected` — which holds at
+   any hour and would have caught the forty hours on the first merge after it
+   started.
+
+**What it no longer owes**: adding the field.
+
+> **And a data point taken while checking this.** At **2026-09-25T03:13Z**,
+> market shut, the deployed backend answered `status: "live"` with
+> `observedAt: null` — so **§9.3's _hold the socket always_ is what production
+> does today.** The section written during the outage says it is not; that was
+> true of that weekend and is not true now.
