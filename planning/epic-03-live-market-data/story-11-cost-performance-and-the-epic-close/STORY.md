@@ -206,9 +206,13 @@ thing is the free plan's **one** Alpaca connection rather than anybody's
 attention (`docs/GAPS.md` entry 10). A sitting taken for one and not the other
 spends it twice.
 
-**And 3.11.6 is the one that needs elapsed time rather than effort.** Whatever
+~~**And 3.11.6 is the one that needs elapsed time rather than effort.** Whatever
 it has to watch should be started when this story starts, not when that task
-comes up.
+comes up.~~ — **no longer true, 2026-09-25.** Task 3.11.1 found that the run
+3.11.6's first question needed **had already been taken** and its output had
+been sitting unread for four days. What remains there is two questions that are
+**one log read on a deploy during a session**, and Tasks 3.11.2 and 3.11.3 will
+each cause one. **Nothing in this story is now waiting on a clock.**
 
 ## What this story hands forward
 

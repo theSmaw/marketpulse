@@ -86,3 +86,28 @@ instrument that records everything to five that each need their own session.
    none
 2. The 9,750-bar cap has a measurement rather than an extrapolation
 3. §28's p95 is a distribution with an n, taken against the real gateway
+
+## Amended by Task 3.11.1 — 2026-09-25: the list is elsewhere now, and it is two rows longer
+
+**Do not rebuild the table.** Task 3.11.1 extracted criterion 1's whole re-take
+list from thirteen hand-off sections into **one table**, with the instrument
+named per figure and the split criterion 1 asks for in the last column:
+**eight need a live session, three re-take from a clean clone, three are
+quote-only.** The eight are this task's.
+
+**Two figures this task's own table did not carry, and both are cheap once the
+socket is open:**
+
+- **The payload.** `sentAt` costs **36 bytes a frame**, read off the wire, and
+  the universe frame's own size is in Task 3.6.4's record. **The cost envelope
+  should cite the re-measured figure rather than either of the two currently in
+  circulation** — the eleven places that say `56.9 KiB` were deliberately not
+  rewritten by Task 3.5.8's amendment, so there is no single number to quote
+  until this takes one.
+- **The fan-out**, which belongs to Task 3.11.5's bill but can only be measured
+  here: **38 kB/min per browser** at the whole universe (§9.5), and whether
+  concurrent browsers change it.
+
+**And one row is quote-only rather than yours**, in its own section's words: the
+cold load at **50–56 ms** and `Expand all` at **65–86 ms** stay Epic 14's and
+are quoted from that epic's `EPIC.md` unless the table itself changed.

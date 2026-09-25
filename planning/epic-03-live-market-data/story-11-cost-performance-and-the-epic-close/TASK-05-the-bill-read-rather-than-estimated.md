@@ -76,3 +76,29 @@ implements it and records the reading it was decided against.
 1. A bill has been read, or the refusal is recorded with what was tried
 2. Storage has a figure from the store rather than a ceiling
 3. The budget is decided against a reading rather than an estimate
+
+## Amended by Task 3.11.1 — 2026-09-25: decision 1 is settled, with a fallback
+
+**The budget is not re-decided here on an argument. It is re-decided on the
+reading this task takes** — and if there is no reading, there is a written
+fallback rather than a shrug.
+
+- **Until this task has a number**: `marketpulse-monthly` stays **$20** at
+  **50/80/100%**, and §9.6's reversal trigger — **the first month whose actual
+  bill exceeds $12** — stands.
+- **If a bill can be read**: re-decide against it, and say what the reading was
+  rather than only what the budget became.
+- **If no bill can be read** — and Epic 1 failed at this twice, with both APIs
+  refusing and then answering `[]` and `429` — **the fallback is 60/80/100%.**
+  That puts the first alert at **$12**, which is the recorded reversal trigger
+  exactly, and is the one change that improves the alerting without needing a
+  number.
+
+> **Rejected, and recorded so it is not re-proposed**: lowering to $15 now. The
+> 50% alert would land at **$7.50**, below the $9.26 estimate, so it would fire
+> every month — and an alert that always fires is an alert nobody reads.
+
+**A refusal is a finding, not a failure.** If the billing API refuses again,
+record _what was tried, with which credential, and what it answered_, because
+that is the third dated observation of the same third party and the pattern is
+the result.

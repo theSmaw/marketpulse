@@ -74,3 +74,34 @@ behaves the same way — which is exactly what `onLog` would have said and is Ta
 1. Three questions, three answers or three recorded narrowings
 2. Nothing in this task is waiting on a clock at the point the story closes
 3. The single-connection entries in `docs/GAPS.md` say what is now known
+
+## Amended by Task 3.11.1 — 2026-09-25: the first item is DONE, and this task no longer needs a clock
+
+**Question 1 is discharged.** `weekend-watch.mjs`'s run was found and read:
+`.capture/weekend/watch-2026-09-19.jsonl`, **1,065 samples over 55 hours**,
+2026-09-19T13:56Z → 2026-09-21T20:58Z, **535 `disconnected` / 488 `live` / 1
+`stale`**. The feed was down about **forty hours** — Friday's whole session and
+the weekend — then **`live` at 05:45Z on the Sunday**, unattended, and up
+thereafter. _Monday's open is still at risk_ is answered: **it was not.**
+
+Two caveats travel with it and are in Task 3.11.1's record: the `poll-failed`
+stretches are the watching laptop asleep, and this is `/diagnostics/feed`'s own
+`status` — the **backend's** view of its socket, not a browser's.
+
+**The consequence for this task is a re-characterisation rather than a
+deletion.** It was written as _the one that needs elapsed time rather than
+effort_, with an instruction to start it when the story starts. **That is no
+longer true.** What remains is questions 2 and 3, and they are the **same
+measurement**: one log read on a deploy that rolls a replica while the feed is
+connected. Tasks 3.11.2 and 3.11.3 will each cause one.
+
+**So this task is now two cheap observations and can be taken whenever the next
+deploy lands during a session** — it does not have to be started early and it
+does not have to wait for a weekend.
+
+> **And it inherits one question it did not have.** Nobody can say **what
+> recovered the feed** on that Sunday. No restart is recorded in the window,
+> and the eight diagnostic events that would have said were not being logged.
+> **This task cannot answer it retrospectively** — the evidence does not exist —
+> so the honest disposition is that Task 3.11.3 makes the _next_ one
+> answerable, and this task records that the previous one is not.

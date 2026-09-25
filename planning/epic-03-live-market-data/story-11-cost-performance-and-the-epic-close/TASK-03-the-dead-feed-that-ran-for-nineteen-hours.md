@@ -72,3 +72,35 @@ And `CLAUDE.md`'s own line: **the resolved configuration is never logged**, and
    page
 2. Nothing added can crash the process, asserted rather than argued
 3. `check-deployed.mjs` asserts what decision 2 said it should, and no more
+
+## Amended by Task 3.11.1 — 2026-09-25: decision 2 is settled, and the outage got longer
+
+**This task's `check-deployed.mjs` work item deferred to decision 2. It is
+answered: _only what holds at any hour_.**
+
+So the shape is fixed and is not to be re-litigated here:
+
+- **assert** the deployment is configured for the real provider, that it is
+  **never replaying** (ADR 0030, 7c), and — the new part, which is this task's —
+  a **last-observation instant**
+- **never** assert `status: live`
+- **do not** add a scheduled in-session check. It was rejected as _a new
+  mechanism with its own failure modes and its own silence when it breaks_
+
+> **Which puts more weight on this task than the split gave it.** The rejected
+> option is the one that would have caught the nineteen hours; what replaces it
+> is the instant. _The socket is up and has heard nothing since Tuesday_ has to
+> be readable at 3am from one HTTP call, or nothing mechanical notices a dead
+> feed at all. That is the honest cost of decision 2 and this task is what pays
+> it.
+
+**And the incident is bigger than this file says.** Task 3.11.1 read
+`weekend-watch.mjs`'s output — 1,065 samples, unopened for four days — and the
+outage was not nineteen hours: it ran from **2026-09-19T13:56Z to
+2026-09-21T05:44Z, about forty hours**, through the whole of Friday's session
+and the weekend. It then **recovered unattended** and stayed up.
+
+**Nobody can say what recovered it**, and the reason is exactly this task's
+subject: the eight events that would have said were not being logged. **An
+outage that ends on its own is worse than one that needs a restart**, because
+nothing learned anything — and the next one will be the same until this lands.

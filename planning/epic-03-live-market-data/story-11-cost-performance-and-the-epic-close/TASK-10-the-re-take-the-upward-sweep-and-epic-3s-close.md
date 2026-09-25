@@ -114,3 +114,30 @@ settle it.
 2. The hand-off count is recorded, and the fifth data point is in the record
 3. `pnpm verify`, `pnpm test:database`, `pnpm e2e` and `pnpm links` all green
 4. Epic 3 is closed, or the single reason it is not is named with its owner
+
+## Amended by Task 3.11.1 — 2026-09-25: one decision has no other home, and it lands here
+
+**Decision 3 — no CI credential — was answered with two measured consequences
+that this decision does not repair**, and no other task in this story owns
+writing them down:
+
+- **A spec asserting an ABSENCE passes for free on a runner with no credential.**
+  `market-feed.spec.ts` held a list of words that must never render again for
+  **four days** after Task 3.3.5 deliberately made them real, and did not go red
+  — because those words happen not to appear on an unconfigured deployment.
+- **No browser test in this epic has ever watched a real vendor frame reach a
+  screen.** `market-connection.spec.ts` furnishes the states from inside the
+  browser, which is the right answer for a page-level assertion and **is not
+  the same claim**.
+
+**Both go to `docs/GAPS.md` with the decision beside them**, because the reason
+is the thing that dates: the binding constraint is the **single connection**,
+not the quota — a CI credential would be a third claimant for a slot the
+deployment and any developer already contend for, and it would take
+**production's** socket down rather than merely failing a test. **That argument
+stops applying the day this product leaves the free plan**, which is the
+condition to record rather than a story number.
+
+**And criterion 1's table is already built** — Task 3.11.1 extracted it, with
+the clean-clone / live-session / quote-only split criterion 1 asks for. This
+task fills it rather than assembling it.

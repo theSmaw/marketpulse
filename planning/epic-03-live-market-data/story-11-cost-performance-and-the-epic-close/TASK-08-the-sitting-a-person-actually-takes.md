@@ -82,3 +82,23 @@ the scarce thing twice.
 2. A person has watched the deployed product during a live session, and the
    ledger says so rather than implying it
 3. The 390 question has an answer from a real phone
+
+## Amended by Task 3.11.1 — 2026-09-25: decision 4 is settled, and it is NOT MET
+
+**This task's dependency on decision 4 is resolved: the exit criterion's word
+is `watched` and instrumented rows do not satisfy it.**
+
+> _A headless browser did not notice_ is not _a person did not notice_, and
+> amending the criterion's word to `observed` was explicitly rejected. So was
+> half-met-with-a-named-owner, which is the shape this repository uses for the
+> screen-reader pass and is right when a thing is genuinely unbookable. **This
+> one is bookable**: it is one sitting, already shared with Task 3.11.4.
+
+**So this task is load-bearing for two stories rather than one.** Story 3.4's
+criterion 8 has been sitting on the same ambiguity since 2026-09-22 and is now
+blocked on **this sitting** by name rather than on a judgement — which is
+recorded in that story's own file.
+
+**What that adds to the list here**: `pnpm probe` at four viewports **with the
+market open**, which is Story 3.4's criterion 8 in its own words and has never
+been taken.
