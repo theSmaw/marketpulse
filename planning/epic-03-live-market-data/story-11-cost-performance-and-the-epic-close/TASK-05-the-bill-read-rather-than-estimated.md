@@ -102,3 +102,20 @@ fallback rather than a shrug.
 record _what was tried, with which credential, and what it answered_, because
 that is the third dated observation of the same third party and the pattern is
 the result.
+
+## Amended by Task 3.11.3 — 2026-09-25: a fourth, small line item
+
+**Log ingestion is billed, and this epic just added lines to it.** Task 3.11.3
+wired eleven previously-silent events to the correlation-id logger.
+
+**The steady-state volume is trivial and should be stated rather than assumed**:
+`authenticated`, `subscribed` and `closed` fire **once per connection**, and a
+connection lasts a day. What is **not** trivial is an incident —
+`connection-limit` is one line every **3 seconds** for as long as a refusal
+lasts, which over the 2026-09-19 outage would have been roughly **48,000
+lines**.
+
+**That is the correct behaviour and it is also a cost**, so it belongs in the
+envelope as a conditional rather than a constant: the bill has a term that only
+appears when something is wrong. Read whether the platform's log retention and
+ingestion are inside the plan's included allowance or a line of their own.

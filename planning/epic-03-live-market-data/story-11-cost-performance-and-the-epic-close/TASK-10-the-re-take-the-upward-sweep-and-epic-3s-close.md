@@ -166,3 +166,19 @@ false claim and each now carries a dated correction. The upward sweep should
 **grep for the figure rather than trust that list** — `three market-stream
 sockets`, `twelve seconds`, `four-second` — because this is exactly the shape
 the sweep exists for: something measured, propagated, and then falsified.
+
+## Amended by Task 3.11.3 — 2026-09-25: one GAPS entry closed with a residue, and one document to check
+
+**`docs/GAPS.md`'s _the market stream's eight diagnostic events are emitted and
+never logged_ is CLOSED**, and narrowed rather than erased: the residue is that
+**a log is only read by somebody looking**, with an owner that is a condition —
+_the first outage that begins and ends between two merges_, which is the case
+neither the log nor the deployed check can see. The sweep should confirm that
+residue reads correctly after everything else in this story has landed, because
+two later tasks could change it: Task 3.11.6's slot reading and Task 3.11.7's
+verdict on condition 3.
+
+**And one document to check rather than assume.** `CLAUDE.md`'s current-state
+section describes a product whose market feed reports nothing to an operator.
+That stopped being true on 2026-09-25; whether it says so anywhere is this
+task's to check with a grep rather than a memory.

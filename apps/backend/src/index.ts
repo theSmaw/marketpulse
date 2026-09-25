@@ -29,6 +29,7 @@ import {
   snapshotOf,
 } from "./current-market-state.js";
 import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
+import { streamLogTo } from "./stream-log.js";
 import { ReplayDuringSessionError } from "./replay-stream.js";
 import { resolveMarketData } from "./market-data.js";
 import { createLiveBarWriter } from "./live-bar-writer.js";
@@ -614,6 +615,15 @@ if (ping.ok) {
 try {
   marketStream = createMarketStream(config, {
     bars: createMarketBarsRepository(database),
+    // **The eleven events finally reach production** (Task 3.11.3). Until
+    // 2026-09-25 nothing passed an `onLog`, so `createAlpacaStream` fell back
+    // to its `noop` — which is why a dead feed ran for about forty hours unseen
+    // from 2026-09-19 and why nobody can say what recovered it.
+    //
+    // `app.log` rather than a logger of our own: the correlation-id logger is
+    // already the one thing that reaches the platform, and a second sink would
+    // be a second place to look.
+    onLog: streamLogTo(app.log),
   });
 } catch (error) {
   if (error instanceof ReplayDuringSessionError) {

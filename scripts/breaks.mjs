@@ -1676,6 +1676,24 @@ export const BREAKS = [
     expect: "marks the last stretch, in words as well as a disc",
   },
   {
+    name: "the-market-stream-goes-silent-again",
+    proves:
+      "The vendor client's diagnostic events stop reaching production. " +
+      "`createAlpacaStream` has emitted eleven of them since Story 3.2 and " +
+      "**nothing passed an `onLog`** until 2026-09-25, so a socket that " +
+      "authenticated, a credential that was refused, a watchdog that fired " +
+      "and a `406` retried every three seconds were all silent — which " +
+      "is why a dead feed ran for about FORTY HOURS unseen from 2026-09-19, " +
+      "and why nobody can say what recovered it (Task 3.11.3).",
+    file: "apps/backend/src/stream-log.ts",
+    find:
+      '      if (level === "warn") logger.warn(details, message);\n' +
+      "      else logger.info(details, message);",
+    replace: "    // pnpm break: reverted automatically",
+    command: ["pnpm", "--filter", "@marketpulse/backend", "test", "stream-log"],
+    expect: "routes each line to the level it named",
+  },
+  {
     name: "the-socket-count-stops-filtering",
     proves:
       "The socket count stops filtering by URL and counts every WebSocket on " +

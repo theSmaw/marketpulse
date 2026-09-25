@@ -63,3 +63,33 @@ runs after every merge, so the evidence is a workflow run rather than a file.
 2. A named workflow run shows the deployed replay assertion executing
 3. Every break this epic added has been performed at least once since it was
    written
+
+## Amended by Task 3.11.3 — 2026-09-25: `check-deployed.mjs` gained a condition that has never run in production
+
+**Criterion 11's shape is unchanged and its subject is one condition wider.**
+`probeFeed` now holds three rather than two:
+
+1. `replay` fails at **any hour**, in the provider or the feed — ADR 0030 §7c,
+   and the one this task was written for
+2. while the market is **open**, the feed must be a connected `iex`
+3. **`disconnected` fails at any hour** — new on 2026-09-25, with a **20-second
+   grace** for the deploy handover, and only that verdict is retried
+
+**Condition 3 has never run against production.** Its first execution is the
+merge that ships it, and two things about it are unproven outside a unit test:
+
+- **whether the 20 s grace is enough.** It is derived from a measured handover —
+  1,149 ms to the `406`, 9,498 ms to the close, retried every 3 s — and doubled.
+  **If it is short, the deploy check goes red on a healthy rollout**, which is
+  the cry-wolf this epic has avoided three times elsewhere and would be worse
+  here, because a check that fails on the routine case gets ignored rather than
+  fixed.
+- **whether `disconnected` out of hours is really a fault.** It rests on §9.3 —
+  the deployment holds the socket always — confirmed by exactly **one** reading
+  at 2026-09-25T03:13Z. One sample is a sample.
+
+**So criterion 11's _has it run_ now means three conditions rather than one**,
+and this task reads a **real workflow run's output** for all three rather than
+reading the script. If condition 3 went red on a healthy deploy, that is a
+finding for this task and a repair for Task 3.11.3's grace, not a reason to
+weaken the condition.
