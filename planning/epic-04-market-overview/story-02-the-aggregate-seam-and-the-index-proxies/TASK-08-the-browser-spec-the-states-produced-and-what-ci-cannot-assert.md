@@ -110,3 +110,41 @@ number** (`SPY. 774.03 up +0.42%`), because the symbol occupies the slot the
 security page gives to `LATEST PRICE`; and the **shared basis clause is heard
 after the four changes it qualifies**, which is correct visually as a footnote
 and is the reverse order aurally. Neither is answerable from a DOM.
+
+## Amended by Task 4.2.6 — 2026-09-26: a third `docs/GAPS.md` entry, and it is shipping today
+
+**`AppHeader`'s descriptor renders at 11px/16px instead of 9px/1, and nothing
+can see it.** Found by sweeping all 37 CSS modules for the `composes`-cascade
+shape Task 4.2.6 hit in the strip, and **proven from the built bundle rather
+than argued**:
+
+```text
+apps/frontend/src/components/AppHeader/AppHeader.module.css:91
+  .descriptor { composes: microLabel from "../../styles/type.module.css";
+                line-height: 1; font-size: 9px; }
+
+dist/assets/index-*.css
+  offset  4759  ._descriptor_…{color:…;margin:0;font-size:9px;line-height:1}
+  offset 42523  ._microLabel_…{font-size:var(--font-size-micro);line-height:var(--line-height-micro);…}
+```
+
+Equal specificity, `microLabel` later in the sheet, so **`microLabel` wins** —
+`composes` concatenates class names and does not cascade, so a declaration
+under it loses to the composed stylesheet's own.
+
+**Why it matters beyond a font size**: this is the element
+`AppHeader.module.css`'s own comment calls _"the longest string in the chrome —
+201px at 1440"_, in the argument that decided **what wraps at 390**. That
+measurement was taken against an element rendering larger than its stylesheet
+says, so the wrap decision rests on a figure whose provenance is now in doubt.
+
+**Nothing asserts a font size anywhere in this product**, and no test, axe run
+or screenshot comparison of the existing states can see it — the strip's
+version of this defect was invisible for a day for the same reason and only
+became visible when a rule that had only ever held digits was given a **word**.
+
+`Re-measure:` build, then read `dist/assets/index-*.css` for `_descriptor_` and
+`_microLabel_` and compare their offsets — the later one wins. Or measure
+`.descriptor`'s computed `font-size` in a browser against the 9px the source
+declares. **Owner: its own task** — it is a chrome change on every route, and
+the 201px re-measure travels with it.
