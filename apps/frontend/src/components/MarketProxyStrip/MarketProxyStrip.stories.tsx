@@ -9,7 +9,7 @@ import type {
 import gridStyles from "../stories.module.css";
 import { MarketProxyStrip } from "./MarketProxyStrip.js";
 
-// Seven states, one box, and nothing jumps between any two of them.
+// Ten states, one box, and nothing jumps between any two of them.
 //
 // `Market proxies.dc.html` §04 is the drawing and this is the grid it asks for.
 // Two rules govern the whole set. **ADR 0029**: a surface that owns nothing
@@ -17,8 +17,10 @@ import { MarketProxyStrip } from "./MarketProxyStrip.js";
 // its own data is present, so a fully-formed qualifier about zero figures is a
 // false impression rather than a courtesy. **Story 3.10's one-home rule**:
 // `live | stale | disconnected` has exactly one home and it is the status bar.
-// Five of the seven below are therefore states of the *data*, and the strip
-// says nothing about the feed in any of them.
+// Eight of the ten below are therefore states of the *data*, and the strip
+// says nothing about the feed in any of them — including the two Task 4.2.6
+// added, which are about the **calendar** and the **store** rather than about
+// whether anything is arriving.
 //
 // The thing to review side by side here is **height**. `.regions` begins
 // immediately below this strip in a flex column on the landing page, so every
@@ -43,13 +45,6 @@ const observed = (
   changeBasis: "2026-09-24",
 });
 
-const stored = (symbol: string, close: number): WireOverviewFigure => ({
-  state: "stored",
-  symbol,
-  session: "2026-09-11",
-  close,
-});
-
 const unknown = (symbol: string): WireOverviewFigure => ({
   state: "unknown",
   symbol,
@@ -60,6 +55,26 @@ const frame = (figures: readonly WireOverviewFigure[]): WireMarketOverview => ({
   feeds: ["iex"],
   figures,
 });
+
+// **The same figures, read on the Saturday** — 2026-09-25 is a Friday, so this
+// is the instant the aggregate was computed at and nothing else changes. The
+// absolute rule keys on it, which is why a story can produce the state without
+// waiting for a weekend.
+const frameOnSaturday = (
+  figures: readonly WireOverviewFigure[],
+): WireMarketOverview => ({
+  ...frame(figures),
+  computedAt: "2026-09-26T14:00:00.000Z",
+});
+
+const storedIn = (
+  symbol: string,
+  session: string,
+  close: number,
+): WireOverviewFigure => ({ state: "stored", symbol, session, close });
+
+const stored = (symbol: string, close: number): WireOverviewFigure =>
+  storedIn(symbol, "2026-09-11", close);
 
 // The order is the frame's, and the frame's is `PRODUCT_SPEC.md` §6's. Nothing
 // in the component sorts.
@@ -110,14 +125,22 @@ export const OneProxyBehind: Story = {
 };
 
 /**
- * Nothing observed, four stored closes, each dated. **The shared line makes no
- * claim**, because the absolute staleness rule that would let it say
- * *Friday 2026-09-25, 16:00 EDT · closing prices* is Task 4.2.6's. Until then
- * the honest answer is the universe table's with the shared half not yet
- * written: every cell carries its own session.
+ * Nothing observed, four stored closes from one session. **The noun is the
+ * point of this story** (Task 4.2.6).
  *
- * This is also what a developer's machine with no provider configured shows,
- * which is why it is the state the layout was measured against.
+ * It read `SPY / 764.29 / 2026-09-11` in four cells until 2026-09-26 — a date
+ * with no preposition and no noun beside a figure, under a heading saying
+ * `Market proxies`, with the shared line suppressed in exactly this state. So
+ * the words *close* and *closing* were nowhere in the strip, and a reader had
+ * to infer that `764.29` was a **session close** rather than a price observed
+ * at some point that day. A listener got `SPY. 764.29. 2026-09-11.`
+ *
+ * The claim is now stated **once**, with its noun — the shared-claim idiom the
+ * strip already uses for the instant — and the four cells defer to it. Where
+ * the sessions disagree they do not; see `StoredClosesFromTwoSessions`.
+ *
+ * This is what a developer's machine with no provider configured shows, and it
+ * is the state the layout was measured against.
  */
 export const AllStored: Story = {
   args: {
@@ -126,6 +149,84 @@ export const AllStored: Story = {
       stored("QQQ", 714.88),
       stored("DIA", 525.79),
       stored("IWM", 288.89),
+    ]),
+  },
+};
+
+/**
+ * **The absolute rule, and the state that is most of the week** (Task 4.2.6).
+ *
+ * The same four observed figures as `Live`, read at 10:00 on the Saturday.
+ * `currentMarketState` is not cleared on a session boundary — deliberately —
+ * so Friday's 15:59 bars are what a weekend reader meets, and the universe
+ * table's **relative** rule dates none of them: nothing is behind anything.
+ *
+ * The strip gets the rule the table is deliberately not given, because four
+ * large figures at the top of the landing page are a different kind of claim
+ * from one row of 518. It is keyed on ADR 0028's calendar — *the last session
+ * whose bell has rung* — and never on an elapsed time: §11.2 measured an
+ * ordinary maximum gap of 187 minutes between one security's bars and refused
+ * a threshold on that measurement.
+ *
+ * **It says nothing about whether the market is open.** That is the masthead's
+ * clock, and this line is a property of the figures rather than of the market.
+ *
+ * **The clause does NOT fire in extended hours** — see `ExtendedHoursPrice`.
+ * `marketSessionStateAt` answers `before_open` at 07:42, so an earlier version
+ * of this rule put `pre-market` and `last prices of the session` three words
+ * apart in one sentence, the first saying the session had not started and the
+ * second that it had ended — and in the pre-market case the second was simply
+ * false about today's print.
+ *
+ * **This is the longest sentence the strip produces**, and it is therefore the
+ * story the two-line qualifier reserve at 390 is measured against. Review it
+ * at 390.
+ */
+export const SessionClosed: Story = {
+  args: { overview: frameOnSaturday(LIVE.figures) },
+};
+
+/**
+ * **An extended-hours price, which is the deployed landing page for about nine
+ * and a half hours of every trading day** — 04:00–09:30 and 16:00–20:00 ET,
+ * because the backend stores and streams extended-hours bars.
+ *
+ * The shipped `pre-market` word says when the price is from, which is a fact
+ * about the **figure**. The closed-session clause is suppressed here and that
+ * is the correction rather than an omission: it would have said the session had
+ * ended three words after `pre-market` said it had not started, about a figure
+ * that is *today's*.
+ */
+export const ExtendedHoursPrice: Story = {
+  args: {
+    overview: {
+      ...frame([
+        observed("SPY", 774.03, 0.42, "11:42"),
+        observed("QQQ", 601.88, 0.71, "11:42"),
+        observed("DIA", 452.17, -0.18, "11:42"),
+        observed("IWM", 243.6, 0, "11:42"),
+      ]),
+      computedAt: "2026-09-25T11:42:00.000Z",
+    },
+  },
+};
+
+/**
+ * Two stored sessions, so there is no single claim to share. The line says
+ * nothing about the session and **every cell says its own, with the noun** —
+ * ADR 0029: a clause renders only when its own data is present, applied to a
+ * clause whose data is four values rather than one.
+ *
+ * A gapped store produces this ordinarily enough that `pnpm bars:check` exists
+ * for it.
+ */
+export const StoredClosesFromTwoSessions: Story = {
+  args: {
+    overview: frame([
+      storedIn("SPY", "2026-09-11", 764.29),
+      storedIn("QQQ", "2026-09-11", 714.88),
+      storedIn("DIA", "2026-09-10", 525.79),
+      storedIn("IWM", "2026-09-10", 288.89),
     ]),
   },
 };
@@ -329,6 +430,31 @@ export const AllPermutations: Story = {
               stored("QQQ", 714.88),
               stored("DIA", 525.79),
               stored("IWM", 288.89),
+            ]),
+          ],
+          [
+            "the session’s bell has rung — the absolute rule",
+            frameOnSaturday(LIVE.figures),
+          ],
+          [
+            "an extended-hours price — no closed-session clause",
+            {
+              ...frame([
+                observed("SPY", 774.03, 0.42, "11:42"),
+                observed("QQQ", 601.88, 0.71, "11:42"),
+                observed("DIA", 452.17, -0.18, "11:42"),
+                observed("IWM", 243.6, 0, "11:42"),
+              ]),
+              computedAt: "2026-09-25T11:42:00.000Z",
+            },
+          ],
+          [
+            "two stored sessions — each cell carries its own",
+            frame([
+              storedIn("SPY", "2026-09-11", 764.29),
+              storedIn("QQQ", "2026-09-11", 714.88),
+              storedIn("DIA", "2026-09-10", 525.79),
+              storedIn("IWM", "2026-09-10", 288.89),
             ]),
           ],
           [

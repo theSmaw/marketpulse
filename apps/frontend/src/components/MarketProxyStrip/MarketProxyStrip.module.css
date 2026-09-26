@@ -161,17 +161,35 @@
  * no height. The character matters and is not decoration — a plain space in a
  * `<p>` collapses to nothing, and the whole reservation scheme would then rest
  * on whichever way a browser resolves an empty line box.
+ *
+ * **The two micro properties are SPELLED rather than composed, and that is a
+ * defect repaired on 2026-09-26 rather than a preference** (Task 4.2.6).
+ *
+ * This rule read `composes: microLabel …` and then set `text-transform: none`
+ * and `letter-spacing: normal` under it, which reads like an override and is
+ * not one. `composes:` concatenates class names; it does not nest, and which
+ * of the two rules wins is the order the two stylesheets happen to land in the
+ * bundle. Here `type.module.css` lands last, so the micro label's
+ * **uppercase** and its tracking won and the undo did nothing.
+ *
+ * **Nothing showed it for a day**, because every string these two classes had
+ * ever held was digits and punctuation — `2026-09-11`, `from 12:07`. The
+ * first word put into one rendered `2026-09-11 · CLOSING PRICES` on the
+ * landing page, and `pnpm probe` is what showed it: jsdom applies no
+ * stylesheet and no unit, component or browser assertion in this repository
+ * compares a `text-transform`.
+ *
+ * `SecurityIdentity.qualifier` is the shipped precedent and does exactly this:
+ * it names the size and the line height and composes only the face it wants.
  */
 .note {
-  composes: microLabel from "../../styles/type.module.css";
   margin: 0;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
   color: var(--ink-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* Sentence case: this is a date or an instant, not a stamp. */
-  text-transform: none;
-  letter-spacing: normal;
 }
 
 .noteReserved {
@@ -187,12 +205,28 @@
  * universe table already uses: a shared claim, with an exception on the row
  * that disagrees.
  */
+/* Sentence case rather than the micro caps: see `.note` above for why the two
+ * properties are spelled here rather than composed and overridden. */
 .qualifier {
-  composes: microLabel from "../../styles/type.module.css";
   margin: var(--space-12) 0 0;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
   color: var(--ink-secondary);
-  text-transform: none;
-  letter-spacing: normal;
+  /*
+   * **Measured at 390, where this line is two** (Task 4.2.6). The longest
+   * sentence the strip produces is the closed-session one, and left to itself
+   * the browser broke it inside a DATE — `change from 2026-09-` / `24's close`
+   * — because a hyphen is a break opportunity and nothing else near the end of
+   * the line is. `balance` evens the two lines instead, which moves the break
+   * to a word boundary in the middle of the sentence.
+   *
+   * It is a hint rather than a guarantee: a browser without it wraps as before,
+   * which is a worse break and not a broken layout. The alternatives were a
+   * non-breaking hyphen inside a date a test asserts on, and splitting the
+   * sentence into per-clause elements — both of which change what the line IS
+   * to fix how it looks.
+   */
+  text-wrap: balance;
 }
 
 .qualifierReserved {

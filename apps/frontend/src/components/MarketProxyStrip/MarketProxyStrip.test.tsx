@@ -37,6 +37,10 @@ const observed = (symbol: string, price: number): WireOverviewFigure => ({
   changeBasis: "2026-09-24",
 });
 
+// A Saturday, so the absolute rule fires: `currentMarketState` is not cleared
+// on a session boundary, so Friday's 15:59 bars are what a weekend reader meets.
+const SATURDAY = "2026-09-26T14:00:00.000Z";
+
 const NO_OBSERVATIONS = new Map<string, Bar>();
 const NO_SNAPSHOT = new Set<string>();
 
@@ -114,7 +118,49 @@ describe("MarketProxyStrip", () => {
     );
 
     expect(screen.getByText("764.29")).toBeTruthy();
-    expect(screen.getByText("2026-09-11")).toBeTruthy();
+    expect(screen.getByText("2026-09-11 · closing prices")).toBeTruthy();
+  });
+
+  it("says what kind of figure it is drawing, in every state that draws one", () => {
+    // **The defect, written down as a check** (Task 4.2.6). A stored close
+    // rendered as a bare `2026-09-11` — no preposition and no noun — while the
+    // shared line was suppressed in exactly that state, so the words `close`
+    // and `closing` appeared NOWHERE in the strip. A reader met `764.29` under
+    // a heading saying `Market proxies` with a date beneath it; a listener got
+    // `SPY. 764.29. 2026-09-11.`, which is a symbol, an unlabelled number and
+    // an unlabelled date.
+    //
+    // It is deliberately a check on **all** the drawing states rather than on
+    // the one that was wrong, because the same omission is one `undefined`
+    // away in any of them, and a check written against the repair rather than
+    // against the defect would not have caught the original.
+    const stored = (symbol: string, session: string): WireOverviewFigure => ({
+      state: "stored",
+      symbol,
+      session,
+      close: 764.29,
+    });
+
+    const states: WireMarketOverview[] = [
+      // Observed, and the session it belongs to is running.
+      frame([observed("SPY", 774.03)]),
+      // Observed, and its bell has rung — the absolute rule's own state.
+      { ...frame([observed("SPY", 774.03)]), computedAt: SATURDAY },
+      // Nothing observed, one session: the claim is shared.
+      frame([stored("SPY", "2026-09-11"), stored("QQQ", "2026-09-11")]),
+      // Nothing observed, two sessions: every cell carries its own.
+      frame([stored("SPY", "2026-09-11"), stored("QQQ", "2026-09-10")]),
+      // Mixed: the observation owns the line and the close is the exception.
+      frame([observed("SPY", 774.03), stored("QQQ", "2026-09-11")]),
+    ];
+
+    for (const overview of states) {
+      const { container, unmount } = strip(overview);
+
+      expect(container.textContent).toMatch(/clos(?:e|ing)/u);
+
+      unmount();
+    }
   });
 
   it("says 'None stored' rather than a zero when nothing is held", () => {

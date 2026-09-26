@@ -40,9 +40,16 @@ import { useWaited } from "./use-waited.js";
 // (Story 3.10). Killing the feed leaves every figure here exactly as it was and
 // changes nothing in this component — byte-identical output, which is a
 // decision three tasks took with measurements behind them rather than an
-// omission. What the strip states is an instant, an age and a change basis,
-// all three true of either tape, which is the only answer to invariant 6
-// available without a second venue word on a screen that already has one.
+// omission. What the strip states is an instant, an age, a change basis, the
+// **session** a figure belongs to and **what kind of figure it is** — all of
+// them true of either tape, which is the only answer to invariant 6 available
+// without a second venue word on a screen that already has one.
+//
+// The last two arrived with Task 4.2.6 and neither is a feed word: *whether
+// the market is open* is the masthead's clock and this component still does not
+// say it. `last prices of the session` is a property of the figures rather
+// than of the market, and it is produced in `market-proxies.ts` alone —
+// `one-home-for-the-strip-staleness-sentence` refuses a second.
 //
 // ## No live region, and the reversal trigger is a condition
 //

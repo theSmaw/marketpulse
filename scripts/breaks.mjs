@@ -2206,6 +2206,52 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "call sites build the market overview",
   },
+  // ## Task 4.2.6's two, on the strip's honest states
+  {
+    name: "a-second-staleness-sentence",
+    proves:
+      "The strip's staleness claim gets a second home in the component that " +
+      "draws it \u2014 which is where it would be written, because that is " +
+      "where an author is standing when they decide a cell should say it " +
+      "too. `last prices of the session` is the only sentence on the landing " +
+      "page that says a figure is NOT CURRENT, and Story 3.10 settled that a " +
+      "degradation is announced in exactly one place; two copies can be " +
+      "corrected apart, and the half that rots is the one nobody produced.",
+    file: "apps/frontend/src/components/MarketProxyStrip/MarketProxyStrip.tsx",
+    find: "        <p className={cx(styles.note)}>{note}</p>",
+    replace:
+      "        // pnpm break: reverted automatically\n" +
+      "        <p className={cx(styles.note)}>\n" +
+      "          {note} \u00b7 last prices of the session\n" +
+      "        </p>",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "should be written only in",
+  },
+  {
+    name: "a-staleness-threshold-in-milliseconds",
+    proves:
+      "`LIVE-DATA.md` \u00a711.2 refused a per-security staleness threshold " +
+      "with a measurement behind it \u2014 an ordinary maximum gap of 187 " +
+      "minutes between one security's bars, p50 one minute \u2014 and the " +
+      "regression is not a verdict word but the CALENDAR being replaced by " +
+      "arithmetic. `if (age > FIVE_MINUTES)` reads as a repair, is one line, " +
+      "and is invisible in a green suite because every fixture in the file " +
+      "is inside whatever window its author picked.\n\n" +
+      "**Repointed 2026-09-26 in the same change that deleted the check's " +
+      "second half.** It used to add a `const STALE_AFTER_MS` and prove a " +
+      "no-numeric-literal rule \u2014 a tripwire that `3e5` walked straight " +
+      "through and that a trailing comment with a digit in it would have " +
+      "turned red for nothing. It now performs the actual substitution: the " +
+      "calendar read replaced by a duration comparison, which is what the " +
+      "surviving clause sees.",
+    file: "apps/frontend/src/market/market-proxies.ts",
+    find: "    const state = marketSessionStateAt(new Date(now));",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      '    const state = { status: now - at.getTime() < 300_000 ? "open" : "x" };',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "no longer CALLS",
+  },
   {
     name: "a-break-that-can-no-longer-land",
     proves:

@@ -1,7 +1,12 @@
 import {
   EXTENDED_HOURS_WORDS,
+  MarketCalendarRangeError,
   extendedHoursAt,
+  marketDateAt,
+  marketSessionStateAt,
   type Bar,
+  type ExtendedHours,
+  type MarketDate,
   type WireMarketOverview,
   type WireOverviewFigure,
 } from "@marketpulse/shared";
@@ -39,10 +44,54 @@ import {
 // ## It names no feed, no venue and no connection word
 //
 // `LIVE` / `STALE` / `DISCONNECTED` have exactly one home and it is the status
-// bar (Story 3.10). What the strip may state is an **instant**, an **age** and
-// a **change basis**, all three of which are true of either tape — which is the
-// only answer to invariant 6 available without putting a second venue word on a
+// bar (Story 3.10). What the strip may state is an **instant**, an **age**, a
+// **change basis**, the **session** a figure belongs to and **what kind of
+// figure** it is — all of which are true of either tape, which is the only
+// answer to invariant 6 available without putting a second venue word on a
 // screen that already has one.
+//
+// It also may not say **whether the market is open**: that is the masthead's
+// clock, and a second answer to it on one screen is the two-surfaces defect
+// this product has produced four times. Nothing below states it — the closed
+// session's clause is a property of the FIGURES, not of the market.
+//
+// ## Every figure carries a NOUN, which it did not until Task 4.2.6
+//
+// **The defect was not four copies of a date, it was an unlabelled one.** A
+// stored close rendered as a bare `2026-09-11` — no preposition and no noun —
+// beside an observed exception reading `from 12:07`, which has one. So row 3
+// carried two grammars and only one of them said what kind of thing it was
+// about; and because `qualifierOf` returned `undefined` in exactly the state
+// where nothing is observed, **the words *close* and *closing* appeared nowhere
+// in the strip in the only state that needed them**. A reader met `764.29`
+// under a heading saying `Market proxies` with a date beneath it and had to
+// infer *session close*; a listener got `SPY. 764.29. 2026-09-11.`
+//
+// The universe table does not have this problem because it has a **column
+// heading**, and the identity block does not because it has a drawn label
+// (`Last session close`). This strip has neither and is four cells wide, so the
+// noun goes where the shared claim already goes.
+//
+// ## The staleness rule here is ABSOLUTE, and the table's is relative
+//
+// `LastCell` dates a row only when it is *behind the page's newest
+// observation*. That is right for 518 rows — it dates exactly the set whose
+// number is not current — and it **fails closed when the whole map is uniformly
+// old**, which is every evening, every weekend and every morning before the
+// bell: `currentMarketState` is not cleared on a session boundary, so nothing
+// is behind anything and no row is dated.
+//
+// This strip is four figures at the top of the landing page, so it gets the
+// rule the table is deliberately **not** being given. The difference is
+// prominence and it is recorded here rather than left to read as an
+// inconsistency.
+//
+// **The instrument is ADR 0028's — the session the bell has rung for
+// (`marketSessionStateAt`) — and never a duration.** `LIVE-DATA.md` §11.2
+// measured an ordinary maximum gap of 187 minutes between one security's bars
+// and refused a threshold on that measurement; a number of milliseconds in this
+// file would be that refused threshold arriving by another door, which is what
+// `the-proxy-strip-dates-a-figure-from-a-calendar` refuses mechanically.
 
 /** A formatted change and the direction `PriceChange` pairs with a glyph. */
 export interface ProxyChange {
@@ -84,8 +133,23 @@ export type ProxyReading =
       /** Nothing observed, and a stored close that travels with its session. */
       readonly kind: "stored";
       readonly price: string;
-      /** The session the close belongs to. Never omitted: see the type. */
-      readonly note: string;
+      /**
+       * `2026-09-11 close` — **the session, and the noun that says what the
+       * figure is**, or `undefined` when the shared line has already said both
+       * for the whole strip.
+       *
+       * It was `string` until Task 4.2.6, on the ground that *a renderer cannot
+       * show this price without the date it belongs to*. That ground is intact
+       * and the date is still never absent from the screen: what changed is
+       * **which line carries it**. When no figure is observed and every stored
+       * close is from one session, the claim is stated once beneath the four —
+       * the shared-claim-with-exceptions idiom the strip already uses for the
+       * instant — and repeating it in four cells is the paragraph that idiom
+       * exists to prevent. When the sessions disagree, or when an observed
+       * figure owns the shared line, the cell states its own and the noun
+       * travels with it.
+       */
+      readonly note: string | undefined;
     }
   | {
       /** Nothing observed and nothing stored. CI's state for all 518. */
@@ -176,26 +240,55 @@ export function marketProxyStrip(
     if (newest === undefined || instant > newest) newest = instant;
   }
 
+  // The session the shared line may name as *the* closing session, and the
+  // market date the shared instant belongs to. Both are computed once and
+  // handed down, because a cell's exception is defined against the shared
+  // claim: a cell only speaks where the line above it does not cover it.
+  const closingSession = sharedClosingSession(overview.figures);
+  const newestSession =
+    newest === undefined ? undefined : marketDateAt(new Date(newest));
+
   return {
     cells: overview.figures.map((figure) => ({
       symbol: figure.symbol,
-      reading: readingOf(figure, instants.get(figure.symbol), newest),
+      reading: readingOf(figure, {
+        instant: instants.get(figure.symbol),
+        newest,
+        newestSession,
+        closingSession,
+      }),
       arrival: arrivalKey(
         observations.get(figure.symbol),
         fromSnapshot.has(figure.symbol),
       ),
     })),
-    qualifier: qualifierOf(overview.figures, instants, newest),
+    qualifier: qualifierOf(
+      overview.figures,
+      newest,
+      overview.computedAt,
+      closingSession,
+    ),
     nothingStored:
       overview.figures.length > 0 &&
       overview.figures.every((figure) => figure.state === "unknown"),
   };
 }
 
+/** What a cell needs to know about the claim the shared line is making. */
+interface SharedClaim {
+  /** This figure's own instant, when it has a readable one. */
+  readonly instant: number | undefined;
+  /** The newest observed instant in the frame. */
+  readonly newest: number | undefined;
+  /** The market date {@link SharedClaim.newest} falls in. */
+  readonly newestSession: MarketDate | undefined;
+  /** The session the shared line names as the closing one, if it names one. */
+  readonly closingSession: string | undefined;
+}
+
 function readingOf(
   figure: WireOverviewFigure,
-  instant: number | undefined,
-  newest: number | undefined,
+  shared: SharedClaim,
 ): ProxyReading {
   if (figure.state === "unknown") return { kind: "unknown" };
 
@@ -203,7 +296,15 @@ function readingOf(
     return {
       kind: "stored",
       price: formatPrice(figure.close),
-      note: figure.session,
+      // **The noun, or nothing** — see the type. `2026-09-11 close` rather than
+      // `close from 2026-09-11`, so that the date keeps the position it has in
+      // every other stored-close qualifier in this product (`SecurityIdentity`
+      // renders `2026-09-11 · change from the previous close`) and the noun is
+      // the word that is new.
+      note:
+        figure.session === shared.closingSession
+          ? undefined
+          : `${figure.session} close`,
     };
   }
 
@@ -220,33 +321,113 @@ function readingOf(
             change: formatChangePercent(figure.changePercent),
             direction: directionOf(figure.changePercent),
           },
-    note:
-      instant === undefined || newest === undefined || instant >= newest
-        ? undefined
-        : `from ${formatSessionTime(new Date(instant))}`,
+    note: behindNote(shared),
   };
 }
 
 /**
- * The shared line, in the states this task can produce.
+ * `from 12:07`, or `from Sep 24 · 12:07 EDT`, or nothing.
  *
- * **The absolute staleness rule is deliberately not here.** Task 4.2.6 owns
- * *what this line says when no session is open* — the drawn
- * `Friday 2026-09-25, 16:00 EDT · closing prices · …`, keyed on ADR 0028's
- * *last session whose bell has rung*. Until then a strip with nothing observed
- * makes **no** shared claim and every cell carries its own session, which is
- * the universe table's rule with the shared half not yet written: honest, and
- * smaller than the state it will become.
+ * **The whole instant joins when this figure is from a different session from
+ * the one the shared line names**, which is the absolute rule at the grain of a
+ * cell and needs no clock at all — it is two instants compared with each other.
+ * A bare `from 12:07` under a line reading `Sep 25 · 15:59 EDT` says *three
+ * hours behind* when the truth may be *a day and three hours behind*, and
+ * `currentMarketState` is not cleared on a session boundary, so a proxy whose
+ * last bar was yesterday is a state this map can hold.
+ *
+ * **Two spellings, and the rule is which fact is being stated.** The short form
+ * is a **time borrowed from the line above**: same session, so the date and the
+ * zone are already on screen a few pixels away and repeating them is the
+ * paragraph the shared claim exists to prevent. The long form is a **whole
+ * instant** and therefore goes through `formatBarInstant`, which is how every
+ * other dated instant in this product is spelled and is what carries the zone.
+ * A hand-built `from 2026-09-24 12:07` shipped for one review round and was a
+ * third spelling with no zone in it.
+ *
+ * A **session name** is a different kind of value and keeps the store's
+ * spelling — `2026-09-11 close`, `change from 2026-09-24's close` — which is
+ * `SecurityIdentity`'s and the wire's.
+ *
+ * **Still an age and never a verdict**: no threshold, no status word, and the
+ * shared claim above does not bend to accommodate it (§11.2 measured an
+ * ordinary maximum gap of 187 minutes between one security's bars and refused
+ * a threshold on that measurement).
+ */
+function behindNote(shared: SharedClaim): string | undefined {
+  const { instant, newest, newestSession } = shared;
+  if (instant === undefined || newest === undefined || instant >= newest) {
+    return undefined;
+  }
+
+  const at = new Date(instant);
+
+  return marketDateAt(at) === newestSession
+    ? `from ${formatSessionTime(at)}`
+    : `from ${formatBarInstant(at, "1m")}`;
+}
+
+/**
+ * The session a single *closing prices* claim may name for the whole strip.
+ *
+ * `undefined` unless **nothing is observed** — an observed figure owns the
+ * shared line, and a strip that has heard from one proxy is not a strip of
+ * closing prices — **and** every stored figure is from the same session. An
+ * `unknown` figure abstains rather than disagreeing: it says `None stored` in
+ * its own cell and has no session to contribute.
+ */
+function sharedClosingSession(
+  figures: readonly WireOverviewFigure[],
+): string | undefined {
+  let session: string | undefined;
+
+  for (const figure of figures) {
+    if (figure.state === "observed") return undefined;
+    if (figure.state !== "stored") continue;
+
+    if (session === undefined) session = figure.session;
+    else if (session !== figure.session) return undefined;
+  }
+
+  return session;
+}
+
+/**
+ * The shared line, in every state the strip can be in.
+ *
+ * ## Two grammars, and both of them now carry a noun
+ *
+ * **Nothing observed**: `2026-09-11 · closing prices`. The date keeps the first
+ * slot it has in every other qualifier in this product, and the clause that
+ * follows says what the four figures above it *are* — which was the one thing
+ * missing from the state a developer's machine and CI are both permanently in.
+ * It is a **shared** claim, so it is made only when it is true of all of them;
+ * see {@link sharedClosingSession}, and the cells carry their own where it is
+ * not.
+ *
+ * **Something observed**: the instant, then the extended-hours word, then the
+ * closed-session clause, then the basis — the last two decided together by
+ * {@link sessionTiming}, which is also the one place the calendar is read.
+ *
+ * The strip **does not say whether the market is open** — that is the
+ * masthead's clock, and Task 4.2.5's constraint holds. Every clause here is a
+ * property of the figures: what they are, when they were true, and what they
+ * were measured against.
  */
 function qualifierOf(
   figures: readonly WireOverviewFigure[],
-  instants: ReadonlyMap<string, number>,
   newest: number | undefined,
+  computedAt: string,
+  closingSession: string | undefined,
 ): string | undefined {
-  if (newest === undefined) return undefined;
+  if (newest === undefined) {
+    return closingSession === undefined
+      ? undefined
+      : `${closingSession} · closing prices`;
+  }
 
   const at = new Date(newest);
-  const extended = extendedHoursAt(at);
+  const { extended, closed } = sessionTiming(at, computedAt);
   const basis = sharedBasis(figures);
 
   return [
@@ -261,10 +442,141 @@ function qualifierOf(
     // bar. The words are `feed-words.ts`'s and a second spelling of either is
     // refused by `one-home-for-the-feed-words`.
     extended === undefined ? undefined : EXTENDED_HOURS_WORDS[extended],
+    closed ? CLOSED_SESSION : undefined,
     basis,
   ]
     .filter((clause) => clause !== undefined)
     .join(" · ");
+}
+
+/** The absolute rule's own words. See {@link sessionTiming}. */
+const CLOSED_SESSION = "last prices of the session";
+
+/**
+ * **The absolute rule**, and the one guarded reading of the trading calendar.
+ *
+ * Two facts, answered together because they are two questions about the same
+ * instant and because **both calls can throw the same error** — see the
+ * refusals below.
+ *
+ * `extended` is the shipped extended-hours word for `at`; `closed` is whether
+ * the newest observation belongs to a session that is **not running**, which is
+ * the clause `Market proxies` gets and `LastCell` deliberately does not.
+ *
+ * ## `closed` is false in extended hours, and that is a correction
+ *
+ * The clause shipped for one review round firing whenever `marketSessionStateAt`
+ * was not `open` — which includes `before_open` and `after_close`, so on any
+ * weekday between 04:00 and 09:30 and between 16:00 and 20:00 ET it produced:
+ *
+ *     Sep 28 · 07:42 EDT · pre-market · last prices of the session · change …
+ *
+ * **Two clauses three words apart contradicting each other**: `pre-market` says
+ * the session has not started and `last prices of the session` says it has
+ * ended. And in the pre-market case the sentence is not merely odd, it is
+ * **wrong** — that figure is *today's* pre-market print, and the clause invites
+ * a reader to take it for the previous session's close. The backend stores and
+ * streams extended-hours bars, so this was the deployed landing page for about
+ * nine and a half hours of every trading day, against the weekend state the
+ * rule was written for.
+ *
+ * So `extended` **suppresses** `closed` rather than sitting beside it. The
+ * extended-hours word already says when the price is from, which is the fact
+ * the reader needs, and it is a fact about the figure rather than a claim about
+ * the session's having ended. The residue is recorded rather than hidden: a
+ * Friday after-hours print read on the Saturday renders `Sep 25 · 16:12 EDT ·
+ * after-hours` with no closed-session clause — dated, correct, and one clause
+ * shorter than it could be. A sentence that is silent is better than one that
+ * is false.
+ *
+ * ## Why `computedAt` and not a clock in the browser
+ *
+ * Because there is no clock in the browser to read. `useMarketClock` ticks once
+ * a second and `a-second-clock-on-the-landing-page` refuses a second caller on
+ * this route by name; a strip that re-rendered every second to decide whether
+ * to draw one clause would be paying that cost on the page that is about to
+ * hold four aggregates over 518 securities.
+ *
+ * `computedAt` is **when the aggregate was true, by the server's clock**, and
+ * its own docblock is written for this: *a surface that wants to say “these
+ * figures are as of …” has to read this one*. It is rebuilt on every connect
+ * and every subscribe, so a page opened on a Saturday is answered with
+ * Saturday. It is **not** a clock a status is derived from — this is not a
+ * status, it is the calendar question asked at the instant the figures were
+ * joined, and `the-send-instant-is-not-a-clock` guards the three files where
+ * that distinction is load-bearing. Both instants are server-origin, so no
+ * browser clock is read and skew is not a hazard.
+ *
+ * What it cannot do is move on a page nobody is reloading: a tab held open
+ * across the closing bell keeps the last frame's `computedAt` until the next
+ * one arrives. The figures on it are equally frozen, they carry the instant
+ * they were true at, and a feed that has stopped delivering has exactly one
+ * home (Story 3.10).
+ *
+ * ## The refusals, and why they are in ONE function
+ *
+ * An unreadable `computedAt`, and either instant falling outside the trading
+ * calendar's covered range (2024–2028), all mean *make no claim*. An
+ * unsupported input is a reason to say less, never a licence to assert
+ * something this function could not establish — and the alternative,
+ * propagating `MarketCalendarRangeError` out of a render, is a blank page:
+ * nothing above `App` catches one, so `main` and all seven regions go with it.
+ *
+ * **The guard used to be on one of the two calls, which made it inert.**
+ * `extendedHoursAt(at)` was called unguarded by {@link qualifierOf} two lines
+ * before the guarded call was reached, so an out-of-range `at` threw before the
+ * `catch` existed — and the test written for the refusal varied only
+ * `computedAt`, so it passed over the hazard. Both readings are inside the
+ * guard now because they are one guard's subject: *what the calendar says about
+ * these two instants, or nothing*.
+ */
+interface SessionTiming {
+  readonly extended: ExtendedHours | undefined;
+  readonly closed: boolean;
+}
+
+/** What the calendar cannot answer: no word, and no claim. */
+const NO_TIMING: SessionTiming = { extended: undefined, closed: false };
+
+function sessionTiming(at: Date, computedAt: string): SessionTiming {
+  return (
+    withinCalendar<SessionTiming>(() => {
+      // **First, and inside the guard, because it is the range check for
+      // `at`.** A refusal has to be a property of the instant as a whole:
+      // `marketDateAt` is a timezone conversion and answers happily for the
+      // year 2030, so a version that caught only this call and carried on
+      // reached the comparison below with a date the calendar cannot classify
+      // and asserted `last prices of the session` about it. Found by varying
+      // `at` in the refusal test, which is the half the first guard missed.
+      const extended = extendedHoursAt(at);
+      if (extended !== undefined) return { extended, closed: false };
+
+      const now = Date.parse(computedAt);
+      if (Number.isNaN(now)) return NO_TIMING;
+
+      const state = marketSessionStateAt(new Date(now));
+      const running =
+        state.status === "open" && state.session.date === marketDateAt(at);
+
+      return { extended: undefined, closed: !running };
+    }) ?? NO_TIMING
+  );
+}
+
+/**
+ * Read the trading calendar, or answer `undefined` where it does not reach.
+ *
+ * Only {@link MarketCalendarRangeError} is caught. Anything else is a fault in
+ * this product rather than an unsupported input, and swallowing it here would
+ * turn a bug into a missing clause nobody can see.
+ */
+function withinCalendar<T>(read: () => T): T | undefined {
+  try {
+    return read();
+  } catch (error) {
+    if (error instanceof MarketCalendarRangeError) return undefined;
+    throw error;
+  }
 }
 
 /**

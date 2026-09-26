@@ -110,3 +110,74 @@ number** (`SPY. 774.03 up +0.42%`), because the symbol occupies the slot the
 security page gives to `LATEST PRICE`; and the **shared basis clause is heard
 after the four changes it qualifies**, which is correct visually as a footnote
 and is the reverse order aurally. Neither is answerable from a DOM.
+
+## Amended by Task 4.2.6 — 2026-09-26: a third `docs/GAPS.md` entry, and it is shipping today
+
+**`AppHeader`'s descriptor renders at 11px/16px instead of 9px/1, and nothing
+can see it.** Found by sweeping all 37 CSS modules for the `composes`-cascade
+shape Task 4.2.6 hit in the strip, and **proven from the built bundle rather
+than argued**:
+
+```text
+apps/frontend/src/components/AppHeader/AppHeader.module.css:91
+  .descriptor { composes: microLabel from "../../styles/type.module.css";
+                line-height: 1; font-size: 9px; }
+
+dist/assets/index-*.css
+  offset  4759  ._descriptor_…{color:…;margin:0;font-size:9px;line-height:1}
+  offset 42523  ._microLabel_…{font-size:var(--font-size-micro);line-height:var(--line-height-micro);…}
+```
+
+Equal specificity, `microLabel` later in the sheet, so **`microLabel` wins** —
+`composes` concatenates class names and does not cascade, so a declaration
+under it loses to the composed stylesheet's own.
+
+**Why it matters beyond a font size**: this is the element
+`AppHeader.module.css`'s own comment calls _"the longest string in the chrome —
+201px at 1440"_, in the argument that decided **what wraps at 390**. That
+measurement was taken against an element rendering larger than its stylesheet
+says, so the wrap decision rests on a figure whose provenance is now in doubt.
+
+**Nothing asserts a font size anywhere in this product**, and no test, axe run
+or screenshot comparison of the existing states can see it — the strip's
+version of this defect was invisible for a day for the same reason and only
+became visible when a rule that had only ever held digits was given a **word**.
+
+`Re-measure:` build, then read `dist/assets/index-*.css` for `_descriptor_` and
+`_microLabel_` and compare their offsets — the later one wins. Or measure
+`.descriptor`'s computed `font-size` in a browser against the 9px the source
+declares. **Owner: its own task** — it is a chrome change on every route, and
+the 201px re-measure travels with it.
+
+## Amended by Task 4.2.6 — 2026-09-26: a fourth `docs/GAPS.md` entry, and it is not this story's defect
+
+**`security-gap-fill.spec.ts:165` fails on `main` about one time in eight, and
+nothing records it.** Measured while establishing that Task 4.2.6 had **not**
+regressed it: **14 failures in 120 executions of that test on `main`** (≈12%),
+with three consecutive runs on one unchanged checkout giving `48 passed`, then
+5, 5 and 3 failures.
+
+The assertion is
+`expect(panels.filter((count) => count > 0)).toHaveLength(0)` — **no pending
+panel appears while the refill runs** — which is Story 3.9's promise that _a
+refill is quiet_, against ADR 0028's measured **160 ms** cover threshold.
+**Neither number is a tuning knob and neither should be relaxed to make this
+green.**
+
+**The mechanism is a hypothesis, not a measurement**, and is recorded as such:
+the failing page's snapshot contains the **full 518-row universe table**,
+because `/securities/:symbol` renders the Explorer shell — and `CLAUDE.md`
+already records that every cold load of that route spends one main-thread task
+of **50–76 ms**, that it is the table rather than the chart, and that it is
+**Epic 14's by name**. A 160 ms threshold sitting on top of a documented
+50–76 ms task that lands at a variable moment is a plausible source of a ~12%
+flake. Nobody has measured where the 160 ms actually goes.
+
+`Re-measure:` `pnpm e2e e2e/specs/security-gap-fill.spec.ts --repeat-each=6`
+**four times on one checkout, on a machine below load 4** — and count failures
+per execution rather than per run. A single `--repeat-each=6` is worthless
+here: at 12% it comes back clean 46% of the time.
+
+**Owner: a condition rather than a story number — the first task that measures
+where the security page's refill spends its 160 ms**, which is the same
+measurement Epic 14 owes for the cold load and should be taken once for both.

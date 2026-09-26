@@ -2558,6 +2558,135 @@ const INVARIANTS = [
     },
   },
 
+  // ## Task 4.2.6's two, both on the proxy strip's honest states
+  //
+  // The first keeps the staleness sentence in one place; the second keeps the
+  // rule that produces it keyed on a calendar rather than on a duration. They
+  // are separate because they fail separately: a second copy of the words is a
+  // sentence that can be corrected alone, and a number in that file is a
+  // threshold `LIVE-DATA.md` §11.2 refused with a measurement behind it.
+
+  {
+    id: "one-home-for-the-strip-staleness-sentence",
+    claim:
+      "`last prices of the session` is written in exactly one shipped " +
+      "source file — `market-proxies.ts` — so the strip's staleness claim " +
+      "cannot be corrected in one place and left standing in another.",
+    check() {
+      // **This is a CLAIM rather than a noun, which is why it is guarded and
+      // `closing prices` is not.** The strip's other new words — `close`,
+      // `closing prices` — are domain nouns this product already writes in
+      // four files (`chart-alternative.ts`, `UniverseTable.tsx`,
+      // `SecurityIdentity.tsx`), and a grep for one of those is a check
+      // nobody can keep green: `one-home-for-the-feed-words` declines to
+      // grep `live` for exactly that reason, and says so.
+      //
+      // `last prices of the session` is different in kind. It is a statement
+      // that the figures beside it are **not current**, derived from the
+      // calendar rather than read off the wire, and it is the only such
+      // statement on a screen whose other surfaces are all silent about
+      // staleness by decision (Story 3.10's one-home rule, five surfaces,
+      // each with a measurement behind it). A second surface writing it is a
+      // second staleness verdict on the landing page.
+      const HOME = "apps/frontend/src/market/market-proxies.ts";
+      const LITERAL = "last prices of the session";
+
+      const homes = [
+        resolve(REPO_ROOT, "apps/frontend/src"),
+        resolve(REPO_ROOT, "apps/backend/src"),
+        resolve(REPO_ROOT, "packages/shared/src"),
+      ]
+        .flatMap((directory) => sourceFilesUnder(directory))
+        .filter(({ path }) => !/\.(?:test|stories)\.tsx?$/u.test(path))
+        .filter(({ text }) => withoutComments(text).includes(LITERAL))
+        .map(({ path }) => relative(REPO_ROOT, path));
+
+      if (homes.length === 0) {
+        throw new InvariantFailure(
+          `No shipped source file writes "${LITERAL}". It is the strip's ` +
+            "only staleness claim and it lives in " +
+            `${HOME}; if the wording changed, change it here too — and read ` +
+            "Task 4.2.6 first, because the sentence is the absolute rule the " +
+            "universe table is deliberately not being given.",
+        );
+      }
+
+      if (homes.length !== 1 || homes[0] !== HOME) {
+        throw new InvariantFailure(
+          `"${LITERAL}" should be written only in ${HOME}, and is in:\n      ` +
+            homes.join("\n      ") +
+            "\n      A second surface saying a figure is not current is a " +
+            "second staleness verdict on the landing page, and Story 3.10 " +
+            "settled that a degradation is announced in one place.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "the-proxy-strip-dates-a-figure-from-a-calendar",
+    claim:
+      "The strip decides whether a figure is current by READING THE TRADING " +
+      "CALENDAR: `market-proxies.ts` calls `marketSessionStateAt`, which is " +
+      "ADR 0028's instrument and the only thing here that is not a duration.",
+    check() {
+      // **`LIVE-DATA.md` §11.2 refused a per-security staleness threshold
+      // with a measurement behind it**: the ordinary maximum gap between one
+      // security's bars is **187 minutes**, with a p50 of one minute, so a
+      // surface reporting silence as a fault cries wolf on thin names all
+      // day. Story 3.10 held that line and `ProxyReading.note` says so in as
+      // many words — *an age, never a verdict*.
+      //
+      // The regression is not a verdict word, it is the calendar being
+      // **replaced** by arithmetic: `if (now - instant > FIVE_MINUTES)`. That
+      // reads as a repair, it is one line, and it is invisible in a green
+      // suite because every fixture in this file is inside whatever window
+      // its author picked. What is left behind is a file with no calendar
+      // read in it, which is what this asserts and what the break performs.
+      //
+      // ## What this DOESN'T assert, and why the second half was deleted
+      //
+      // It shipped for one review round with a second clause: *and the file
+      // holds no numeric literal but `0` and `1`*. That was a tripwire with a
+      // hole at both ends and it is gone.
+      //
+      // It **missed** the thing it was for — `3e5` and `0x493e0` are 300,000
+      // and neither matches `\b\d[\d_]*\b` as a bare integer, so
+      // `const STALE_AFTER_MS = 3e5;` satisfied it. And it would have gone
+      // **red for nothing**, repeatedly: `withoutComments` strips only
+      // full-line `//`, so a trailing comment carrying a digit — this file's
+      // house style — trips it, as do `slice(0, 10)`, `toFixed(2)`, a
+      // `/\d{4}-\d{2}/` regex and any string containing a year. Its own
+      // first version went red on `figures.length > 0`.
+      //
+      // A check that fires on an innocent edit long before it fires on the
+      // defect is a check somebody eventually deletes in a hurry, and the
+      // honest version is the clause above: the calendar is read here, and a
+      // reviewer reads what it is read FOR.
+      const path = "apps/frontend/src/market/market-proxies.ts";
+      const text = withoutComments(
+        readFileSync(resolve(REPO_ROOT, path), "utf8"),
+      );
+
+      // **The CALL rather than the name**, so an import left behind by a
+      // substitution does not satisfy it — which is exactly the residue the
+      // break leaves and the shape the real regression takes.
+      if (!text.includes("marketSessionStateAt(")) {
+        throw new InvariantFailure(
+          `${path} no longer CALLS \`marketSessionStateAt\`. The absolute ` +
+            "staleness rule is keyed on ADR 0028's instrument — the last " +
+            "session whose bell has rung — and nothing else in this " +
+            "repository answers that question without a clock in the browser " +
+            "(`a-second-clock-on-the-landing-page` refuses one on this " +
+            "route). A rule that has stopped reading the calendar is reading " +
+            "a duration, and `LIVE-DATA.md` §11.2 refused one with a " +
+            "measurement behind it: an ordinary maximum gap of 187 minutes " +
+            "between one security's bars.",
+        );
+      }
+    },
+  },
+
   {
     id: "every-break-can-still-land",
     claim:
