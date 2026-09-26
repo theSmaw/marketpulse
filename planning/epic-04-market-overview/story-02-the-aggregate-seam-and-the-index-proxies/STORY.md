@@ -133,3 +133,56 @@ protocol whose existing frames are not understood is a protocol that grows
 another one nobody understands. It may be correct — an initial snapshot plus
 one on the first subscribe acknowledgement — and if it is, say so where the
 next reader looks.
+
+## Decomposed 2026-09-26 — nine tasks, and four decisions the owner took first
+
+**The shaping pass falsified two of this story's own premises**, both corrected
+by Task 4.2.1 rather than quoted: the spare snapshot is the **empty**
+connect-time one (~120 bytes, not 56.9 KiB — the first `sendSnapshot()` runs
+one line after `clients.set(client, new Set())`, so it filters against an empty
+subscription and cannot carry anything), and the gateway sends **up to ~16
+`bars` frames a minute**, not one. The arrival mark is one burst a minute; the
+frames are not.
+
+**Four decisions, taken by the owner at decomposition:**
+
+1. **The seam is the JOIN, and `changeFromClose` moves to `packages/shared`.**
+   AC 2 and AC 4 could not both hold while the function was frontend-only. The
+   backend now calls the one implementation, and AC 2 is **stronger** than it
+   was — one implementation, two processes. What nothing in this backend could
+   do before is join a live observation to the previous session's stored close,
+   and 4.3, 4.4, 4.5 and Epic 5 all need exactly that. `last-close.ts`'s own
+   invariant-1 argument owes a dated amendment, because it now reaches across a
+   process boundary.
+2. **The strip uses an ABSOLUTE staleness rule**, keyed on ADR 0028's _last
+   session whose bell has rung_, not the universe table's relative one. The
+   table's rule fails closed when the whole map is uniformly old — every
+   weekend and every evening — leaving four undated figures spoken as
+   `Live price` at the top of a screen about what is happening right now. The
+   difference from the table is the strip's prominence, and it is recorded as a
+   reason rather than left as an inconsistency.
+3. **Four adjacent repairs are in scope**: ADR 0038; the repair of two
+   **hard-coded invariant file lists** (verified — a new component spelling
+   `All US exchanges` is in neither list and both checks stay green, so AC 5 is
+   guarded by a check that cannot see the file AC 5 is about); the `resumes`
+   defect (`resumes = snapshots - 1` against a gateway that sends two per
+   connection plus one per subscribe, firing a spurious gap-fill on every cold
+   load, suppressed only by an `inFlight` race); and the replay `asOf` seam.
+4. **The region is renamed `Market summary` → `Market proxies`**, with the
+   sweep in Task 4.2.5 rather than deferred. It is already the product's word
+   for these four, and on a screen where three later regions summarise all 518
+   `Market summary` promises the broadest view and delivers the narrowest.
+
+**Taken from the record without a question**, and recorded so they are not
+re-opened: the order is `SPY, QQQ, DIA, IWM` (§6, `INDEX_PROXIES`, and already
+on screen in the reserved region's sentence); **no coverage/denominator
+sentence on the proxies** (four named securities have no population, and 4.1.5's
+table makes the denominator a property of a figure's coverage); **no live
+region** (`FRONTEND-STATE.md` §7's four reasons hold _a fortiori_ at four
+unprompted subjects); the arrival mark **fires four at once with no stagger**,
+because a stagger encodes an order the data does not have; the disc moves to
+the label row, because neither shipped geometry has a margin to be absolute
+into; **`MARKET_STREAM_PROTOCOL_VERSION` is not bumped**, because the deploy
+rolls the backend first and bumping makes a stale tab reject every frame rather
+than ignore one; and the empty connect-time snapshot **stays**, being the only
+frame an unsubscribed browser gets before the 120 s keepalive.
