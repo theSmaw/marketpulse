@@ -1863,18 +1863,16 @@ const INVARIANTS = [
       // per-vendor-item loop and `index.ts` answering `onConnectionChange`
       // with `publishFeedState()` — **~332 `feed` frames a minute, broadcast
       // to every browser regardless of subscription**. That is unrepaired on
-      // purpose and handed to Story 4.7. The `feed` frame is 119–127 bytes
-      // and `sameLiveFeedView` collapses the render, which is why it survived
-      // a whole epic unnoticed.
+      // purpose and handed to Story 4.7. The `feed` frame is 127 bytes and
+      // `sameLiveFeedView` collapses the render, which is why it survived a
+      // whole epic unnoticed.
       //
       // **An overview frame on that path inherits the rate and none of the
       // mercy.** It would be sent ~332 times a minute instead of once, it
       // carries an aggregate over 518 securities rather than three enum
-      // fields, and `sameLiveFeedView` does not cover it — a new field is a
-      // new comparison, and a frame carrying a recomputed count changes on
-      // most of those 332.
+      // fields, and `sameLiveFeedView` does not cover it.
       //
-      // ## Why the rule is about the WORD rather than about a name
+      // ## Why the rule is about the WORD and the FRAME rather than a name
       //
       // The symbol does not exist yet, so a check keyed on one name would be
       // a check whose target the implementing task is free to spell
@@ -1882,62 +1880,141 @@ const INVARIANTS = [
       // instead is the **frame** (`type: "overview"`, which the wire fixes)
       // and the **regions** it may not appear in.
       //
+      // ## Why the regions are sliced by their PRETTIER SHAPE, not by braces
+      //
+      // **The first draft counted braces from the next `{` after a marker,
+      // and a review demonstrated three ways through it** — all of them
+      // ordinary rather than adversarial:
+      //
+      //  1. A destructured parameter. `onConnectionChange: ({ phase }) => {`
+      //     made the "body" the destructuring pattern, so a publish on the
+      //     line after `publishFeedState()` passed.
+      //  2. A `}` in a trailing comment, a string, a template or a regex
+      //     literal truncated the region. `withoutComments` leaves trailing
+      //     `//` deliberately — its own note argues the asymmetry is the safe
+      //     direction because *the worst this can do is report a match* — and
+      //     that judgement **inverts** in front of a brace matcher.
+      //  3. `indexOf("publishFeedState()")` found the method only because no
+      //     call site precedes it in the file.
+      //
+      // So there is no parser here. Every region is delimited by a **start
+      // marker and an end marker taken from the file's Prettier-formatted
+      // indentation**, which no parameter list, comment or string can move —
+      // and each region must contain a **sentinel** proving the slice is the
+      // block meant rather than a shorter one that happened to terminate
+      // early. A missing marker or a missing sentinel is a FAILURE, because a
+      // grep that matches nothing looks exactly like a grep that passes.
+      //
       // ## The zero case, which is today's case
       //
-      // Nothing here matches yet and that is expected. **A grep that matches
-      // nothing looks exactly like a grep that passes**, so the anchors below
-      // are what make this non-vacuous: if `feedMessage`, `publishFeedState`
-      // or the keepalive stop being findable, this fails rather than passing
-      // on an absence. Move them, move this.
-      const path = "apps/backend/src/market-gateway.ts";
-      const text = withoutComments(readAnchored(resolve(REPO_ROOT, path)));
+      // Nothing matches `overview` yet and that is expected. The anchors
+      // above are what make that non-vacuous.
 
-      // **The balanced body of the thing named, so a region is a region
-      // rather than a line.** The defect this guards puts a send *inside* a
-      // handler, and a line-based grep cannot see nesting.
-      const bodyAfter = (marker) => {
-        const start = text.indexOf(marker);
-        if (start === -1) return undefined;
+      /**
+       * The text between two markers, or a reason it could not be taken.
+       *
+       * One helper rather than the two identical copies the first draft had:
+       * four rotted breaks in one week is what a second copy of a hand-rolled
+       * matcher costs here.
+       */
+      const regionBetween = (text, { from, to }) => {
+        const start = text.indexOf(from);
+        if (start === -1) return { missing: `start marker \`${from}\`` };
 
-        const open = text.indexOf("{", start + marker.length);
-        if (open === -1) return undefined;
+        const rest = start + from.length;
+        const stop = text.indexOf(to, rest);
+        if (stop === -1) return { missing: `end marker \`${to}\`` };
 
-        let depth = 0;
-        for (let i = open; i < text.length; i += 1) {
-          if (text[i] === "{") depth += 1;
-          else if (text[i] === "}") {
-            depth -= 1;
-            if (depth === 0) return text.slice(open, i + 1);
-          }
-        }
-        return undefined;
+        return { body: text.slice(start, stop + to.length) };
       };
 
+      /**
+       * Trailing `//` comments removed, **for this consumer only**.
+       *
+       * `withoutComments` deliberately leaves them and that is right for
+       * every other check; here a comment saying *the overview does not ride
+       * this path* inside `publishFeedState` would otherwise fail the build
+       * for saying the true thing.
+       */
+      const withoutTrailingComments = (body) =>
+        body.replace(/\/\/[^\n]*/gu, "");
+
       const REGIONS = [
-        ["feedMessage", "const feedMessage = "],
-        ["the keepalive callback", "const keepalive = setTimer("],
-        ["publishFeedState", "publishFeedState()"],
+        {
+          where: "apps/backend/src/market-gateway.ts",
+          name: "feedMessage",
+          from: "\n  const feedMessage = ",
+          to: "\n    });",
+          sentinel: "encodeMarketStreamMessage(",
+        },
+        {
+          where: "apps/backend/src/market-gateway.ts",
+          name: "the keepalive callback",
+          from: "\n  const keepalive = setTimer(",
+          to: "\n  }, KEEPALIVE_INTERVAL_MS);",
+          sentinel: "broadcast(",
+        },
+        {
+          // **`\n    publishFeedState() {` rather than `publishFeedState()`.**
+          // The leading newline and four spaces pin it to a method definition
+          // in the returned object literal, and the trailing ` {` is
+          // something no call site can be followed by — so a call added above
+          // this point cannot retarget the region.
+          where: "apps/backend/src/market-gateway.ts",
+          name: "publishFeedState",
+          from: "\n    publishFeedState() {",
+          to: "\n    },",
+          sentinel: "broadcast(",
+        },
+        {
+          // **The parameter list is inside the slice and that is harmless
+          // now**, because nothing here looks for a brace: a destructured
+          // handler reads the same as a named one.
+          where: "apps/backend/src/index.ts",
+          name: "the `onConnectionChange` handler",
+          from: "\n    onConnectionChange:",
+          to: "\n    },",
+          sentinel: "publishFeedState()",
+        },
       ];
 
-      for (const [name, marker] of REGIONS) {
-        const body = bodyAfter(marker);
+      const sources = new Map();
+      const readOnce = (where) => {
+        const cached = sources.get(where);
+        if (cached !== undefined) return cached;
+        const text = withoutComments(readAnchored(resolve(REPO_ROOT, where)));
+        sources.set(where, text);
+        return text;
+      };
 
-        if (body === undefined) {
+      for (const { where, name, from, to, sentinel } of REGIONS) {
+        const taken = regionBetween(readOnce(where), { from, to });
+
+        if (taken.body === undefined) {
           throw new InvariantFailure(
-            `${path} no longer has a readable \`${name}\` body (looked for ` +
-              `\`${marker}\`). This check refuses a path, so it must be able ` +
-              "to find the path: a grep that matches nothing looks exactly " +
-              "like a grep that passes. If the feed broadcast was renamed or " +
-              "restructured, repoint this check in the same change.",
+            `${where}: cannot delimit \`${name}\` — no ${taken.missing}. ` +
+              "This check refuses a path, so it must be able to find the " +
+              "path: a grep that matches nothing looks exactly like a grep " +
+              "that passes. If the feed broadcast was renamed or " +
+              "reformatted, repoint this check in the same change.",
           );
         }
 
-        if (/overview/iu.test(body)) {
+        if (!taken.body.includes(sentinel)) {
           throw new InvariantFailure(
-            `${path}'s \`${name}\` mentions the overview frame. The feed ` +
+            `${where}: the slice taken for \`${name}\` does not contain ` +
+              `\`${sentinel}\`, so the end marker \`${to}\` matched earlier ` +
+              "than the block it delimits. The region is shorter than the " +
+              "code it is meant to refuse, which is the silent-pass shape.",
+          );
+        }
+
+        if (/overview/iu.test(withoutTrailingComments(taken.body))) {
+          throw new InvariantFailure(
+            `${where}: \`${name}\` mentions the overview frame. The feed ` +
               "broadcast runs ~332 times a minute (Task 4.1.6, measured on " +
-              "the deployed gateway), it goes to every browser regardless of " +
-              "subscription, and `sameLiveFeedView` does not suppress an " +
+              "the deployed gateway), it goes to every browser regardless " +
+              "of subscription, and `sameLiveFeedView` does not suppress an " +
               "overview change the way it suppresses an unchanged `feed`. " +
               "The overview rides the `bars` path, on its own publish.",
           );
@@ -1949,58 +2026,18 @@ const INVARIANTS = [
       // counting files left a second subscriber added beside the first
       // invisible, and a second publish added beside the first is the same
       // shape. Zero is the state until Story 4.2 adds the frame.
-      const built = [...text.matchAll(/type:\s*"overview"/gu)].map(
+      const gateway = "apps/backend/src/market-gateway.ts";
+      const built = [...readOnce(gateway).matchAll(/type:\s*"overview"/gu)].map(
         (match) => `offset ${String(match.index)}`,
       );
 
       if (built.length > 1) {
         throw new InvariantFailure(
-          `${String(built.length)} places in ${path} build an \`overview\` ` +
-            "frame, expected at most 1:\n      " +
+          `${String(built.length)} places in ${gateway} build an ` +
+            "`overview` frame, expected at most 1:\n      " +
             built.join("\n      ") +
             "\n    One computation for every browser (Task 4.1.1's decision " +
             "1). A second encode is a second cadence nobody chose.",
-        );
-      }
-
-      // `index.ts` answers a connection-state change with the feed
-      // broadcast, and that handler is the ~332/minute one. Nothing about
-      // the overview belongs in it.
-      const wiring = "apps/backend/src/index.ts";
-      const process_ = withoutComments(
-        readAnchored(resolve(REPO_ROOT, wiring)),
-      );
-
-      const handler = (() => {
-        const start = process_.indexOf("onConnectionChange:");
-        if (start === -1) return undefined;
-        const open = process_.indexOf("{", start);
-        if (open === -1) return undefined;
-        let depth = 0;
-        for (let i = open; i < process_.length; i += 1) {
-          if (process_[i] === "{") depth += 1;
-          else if (process_[i] === "}") {
-            depth -= 1;
-            if (depth === 0) return process_.slice(open, i + 1);
-          }
-        }
-        return undefined;
-      })();
-
-      if (handler === undefined) {
-        throw new InvariantFailure(
-          `${wiring} has no readable \`onConnectionChange\` handler. This ` +
-            "check refuses a path and cannot refuse one it cannot find — a " +
-            "grep that matches nothing looks exactly like a grep that passes.",
-        );
-      }
-
-      if (/overview/iu.test(handler)) {
-        throw new InvariantFailure(
-          `${wiring}'s \`onConnectionChange\` handler mentions the overview ` +
-            "frame. That handler fires on every upstream connection-state " +
-            "change — ~332 times a minute, measured — and it is the path " +
-            "`publishFeedState` already rides. The overview frame does not.",
         );
       }
     },

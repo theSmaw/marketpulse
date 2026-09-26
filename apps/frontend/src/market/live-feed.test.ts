@@ -674,7 +674,7 @@ describe("which symbols are sitting on a snapshot baseline (Task 3.5.4)", () => 
 // way, and the minutes nobody watched simply are not there.
 //
 // **This used to count snapshot MESSAGES, and that was wrong.** The gateway
-// sends **two snapshots per connection plus one per subscription change** —
+// sends **two snapshots per connection plus one per `subscribe` message** —
 // one from the `upgrade` handler (structurally empty) and one at the foot of
 // every `message` listener. Measured 2026-09-26: three frames on an ordinary
 // cold load. So the first snapshot on each socket is the connection and every

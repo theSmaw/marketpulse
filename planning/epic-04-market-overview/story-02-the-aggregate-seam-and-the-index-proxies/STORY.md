@@ -149,8 +149,16 @@ _inside_ the same callback, after the send. The second snapshot is the one
 `sendSnapshot()` call at the foot of that `message` listener — **one per
 subscribe**, which is what answers a late subscriber with what we already hold.
 
-So the rule is **two per connection, plus one per subscription change**, and
-the first of the two is structurally empty.
+So the rule is **two per connection, plus one per readable `subscribe`
+message**, and the first of the two is structurally empty.
+
+**`message`, not _change_** — the gateway does not compare. `sendSnapshot()`
+sits at the foot of the `message` listener and runs for every frame that
+decodes, whether the symbol set moved or not. The two coincide today only
+because `use-live-feed` depends on a joined string of the symbols, and they
+come apart the moment anything re-asserts an unchanged subscription — which
+the reconnect path already does **by design**, since a new socket knows
+nothing about what the old one asked for.
 
 **Measured 2026-09-26** against the local gateway with a throwaway Node client
 subscribing `[]` and then `["SPY","QQQ","DIA","IWM"]` — the sequence `App.tsx`
@@ -221,7 +229,8 @@ is Task 4.2.1's guard on the path the new frame may not take.
 
 **The shaping pass falsified two of this story's own premises**, both corrected
 by Task 4.2.1 rather than quoted: the spare snapshot is the **empty**
-connect-time one (~120 bytes, not 56.9 KiB — the first `sendSnapshot()` runs
+connect-time one (**149 bytes** measured, not 56.9 KiB — the estimate written
+here at decomposition was ~120; the first `sendSnapshot()` runs
 one line after `clients.set(client, new Set())`, so it filters against an empty
 subscription and cannot carry anything), and the gateway sends **up to ~16
 `bars` frames a minute**, not one. The arrival mark is one burst a minute; the

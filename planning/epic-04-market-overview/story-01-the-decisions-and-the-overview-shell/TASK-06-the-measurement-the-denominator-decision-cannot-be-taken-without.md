@@ -200,8 +200,8 @@ adding a frame type to this wire.
 > always going to be large. Measured against a running gateway on 2026-09-26:
 > the connect-time frame is **149 bytes**, verbatim
 > `{"type":"snapshot","version":1,"sentAt":"2026-09-26T00:46:53.049Z","observations":{},"feed":{"status":"disconnected","feed":null,"marketOpen":false}}`.
-> The rule is **two snapshots per connection plus one per subscription
-> change**. Nothing above is rewritten; Story 4.2's `STORY.md` carries the
+> The rule is **two snapshots per connection plus one per readable
+> `subscribe` message** — the gateway does not compare symbol sets. Nothing above is rewritten; Story 4.2's `STORY.md` carries the
 > correction and the decision that the empty frame **stays**.
 
 ### The sentence, drafted

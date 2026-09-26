@@ -187,8 +187,12 @@ export interface LiveFeedConnection {
    *
    * **The premise that made those the same number is false.** This field was
    * written under *the gateway sends one snapshot on every connection, first
-   * or fiftieth*. It sends **two per connection, plus one per subscription
-   * change** — Task 4.2.1 measured three on an ordinary cold load and quoted
+   * or fiftieth*. It sends **two per connection, plus one per readable
+   * `subscribe` message** — one per *message*, not one per *change*: the
+   * gateway does not compare symbol sets, so a browser re-asserting an
+   * unchanged subscription is answered with another snapshot, which the
+   * reconnect path does by design. Task 4.2.1 measured three on an ordinary
+   * cold load and quoted
    * the frames: `market-gateway.ts` calls `sendSnapshot()` once in the
    * `upgrade` handler (structurally empty, 149 bytes) and once at the foot of
    * every `message` listener, and `App.tsx` subscribes twice because
@@ -199,8 +203,8 @@ export interface LiveFeedConnection {
    * suppressed only by `if (inFlight.current) return`, a timing race.
    *
    * The repair is {@link LiveFeedConnection.greeted}: only the **first**
-   * snapshot after a socket opens increments this, so a subscription change
-   * is not a return. Two reconnections are still two.
+   * snapshot after a socket opens increments this, so a later `subscribe`
+   * on the same socket is not a return. Two reconnections are still two.
    */
   readonly connections: number;
   /**
@@ -409,7 +413,7 @@ export function advanceLiveFeed(
         ),
         // **The FIRST snapshot on this socket is the connection; the rest
         // are subscribe acknowledgements** (Task 4.2.1). The gateway sends
-        // one on connect and one per subscription change, so counting
+        // one on connect and one per `subscribe` message, so counting
         // messages counted a cold load as two returns.
         connections:
           event.message.type === "snapshot" && !state.greeted

@@ -381,7 +381,10 @@ export function registerMarketGateway(
       // this call. **Measured 2026-09-26: 149 bytes**, against the 56.9 KiB a
       // subscribed mid-session snapshot carries. So a connection produces
       // **two** snapshots — this one and the one answering the first subscribe
-      // — plus one per subscription change after that.
+      // — plus one per readable `subscribe` MESSAGE after that. Not one
+      // per *change*: the listener below does not compare, so a browser
+      // re-asserting an unchanged subscription is answered with another
+      // snapshot. The reconnect path does exactly that, by design.
       //
       // **Why it is not deleted as a duplicate.** It is the only frame an
       // unsubscribed browser receives, and it carries `feed`. Every browser is

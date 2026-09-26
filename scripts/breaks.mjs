@@ -1509,6 +1509,54 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "mentions the overview frame",
   },
+  // **The second break for one check, and it exists because a review broke
+  // the FIRST version of that check three ways** (Task 4.2.1). The original
+  // sliced its regions by counting braces from the next `{` after a marker,
+  // and an ordinary refactor — destructuring the handler's parameter — made
+  // the "body" the destructuring pattern, so an overview publish on the line
+  // after `publishFeedState()` reported `30 invariants hold.`
+  //
+  // The check no longer looks for a brace; this entry is what says so. It is
+  // the shape somebody actually produces, not an adversarial one: nothing
+  // about `({ phase, subscribedSymbols }) =>` is wrong, and the whole point
+  // is that the guard must survive it.
+  //
+  // `CLAUDE.md`: *a fix nobody has seen fail is the thing this repository
+  // refuses.*
+  {
+    name: "the-destructured-handler-hides-the-overview-frame",
+    proves:
+      "The heartbeat guard can be walked past by destructuring a parameter. " +
+      "With a brace-counting region slice, " +
+      "`onConnectionChange: ({ phase, subscribedSymbols }) => {` makes the " +
+      "inspected region the destructuring pattern rather than the handler " +
+      "body \u2014 so a publish on the line after `gateway.publishFeedState()` " +
+      "is invisible, on the exact ~332-frames-a-minute path the check exists " +
+      "to refuse (Task 4.1.6, measured on the deployed gateway). Going red " +
+      "is what proves the regions are delimited by the file's formatted " +
+      "shape instead.",
+    file: "apps/backend/src/index.ts",
+    find:
+      "    onConnectionChange: (connection) => {\n" +
+      "      app.log.debug(\n" +
+      "        { phase: connection.phase, symbols: connection.subscribedSymbols },\n" +
+      '        "market stream connection changed",\n' +
+      "      );\n" +
+      "      gateway.publishFeedState();\n" +
+      "    },",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    onConnectionChange: ({ phase, subscribedSymbols }) => {\n" +
+      "      app.log.debug(\n" +
+      "        { phase, symbols: subscribedSymbols },\n" +
+      '        "market stream connection changed",\n' +
+      "      );\n" +
+      "      gateway.publishFeedState();\n" +
+      '      gateway.publishOverview({ type: "overview" });\n' +
+      "    },",
+    command: ["pnpm", "invariants"],
+    expect: "mentions the overview frame",
+  },
   {
     name: "a-second-subscriber-on-the-upstream-socket",
     proves:
