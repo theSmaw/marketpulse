@@ -240,13 +240,18 @@ export function App() {
             <Routes>
               {/* The landing route reads the overview frame and declares the
                   four proxies it needs prices for — the same two props the
-                  Security Explorer takes, for the same reason. */}
+                  Security Explorer takes, for the same reason. `marketFeed`
+                  joined them in Task 4.2.7 and is the same value for the same
+                  reason as the Explorer's: the screen's one source note has to
+                  know what the chrome is already claiming so it can avoid
+                  claiming it twice (`PROVENANCE.md` §1.3). */}
               <Route
                 path={PATHS.overview}
                 element={
                   <MarketOverview
                     liveFeed={liveFeed}
                     onLiveSymbols={setLiveSymbols}
+                    marketFeed={marketFeed}
                   />
                 }
               />

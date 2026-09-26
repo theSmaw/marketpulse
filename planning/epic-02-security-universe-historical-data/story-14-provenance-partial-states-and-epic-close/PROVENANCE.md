@@ -255,6 +255,56 @@ per screen stops being one claim — two series can differ in feed, adjustment a
 retrieval age — and the note has to move onto each series or onto each row of a
 legend.
 
+#### Amended 2026-09-26 by Task 4.2.7 — **the trigger's SUBSTANCE is live two epics early, and the letter of it has still not fired**
+
+The Market Overview shows **four securities' figures** at once — `SPY`, `QQQ`,
+`DIA`, `IWM` — and it gained a source note of its own on 2026-09-26, at the foot
+of its region group, in the position and the grain this section settled. The
+trigger above does **not** fire on its letter: these are figures rather than
+series, they carry no window, no adjustment and no retrieval age, and nothing on
+that screen draws two series on one axis. Epic 8's comparison chart is still the
+named candidate and the trigger is unchanged.
+
+**What is live here is the substance behind it: one note cannot speak for
+figures whose provenance differs.** `SPY` can be a live IEX observation while
+`DIA` is yesterday's consolidated close, in the same strip, at the same moment —
+which is the ordinary state of the free plan rather than a fault (§7.6 measured
+a median symbol producing a bar in 65.1% of minutes). So the screen-level note
+would over-claim for one of them whichever tape it named.
+
+**The resolution is a division of labour rather than a move, and it is what the
+comparison chart should reach for first when the trigger does fire.** Three
+grains, and nothing is stated at two of them:
+
+| Grain      | What states it                          | What it says                                                                  |
+| ---------- | --------------------------------------- | ----------------------------------------------------------------------------- |
+| the screen | the **note**                            | both tapes — the feed behind the observed figures, the tape behind the closes |
+| the figure | the **tile**, from the wire's own state | which of the two this one is, and the session a stored close belongs to       |
+| nowhere    | —                                       | which tape a _particular_ tile's tape is, as prose                            |
+
+A region-level note was weighed and declined: it does not resolve the
+disagreement, it pushes it down one level and arrives at the same over-claim
+with three copies of it. **The wire was also not extended** —
+`WireMarketOverview.feeds` describes the observed figures only and deliberately
+never carries `sip`, because a frame that named one tape beside a percentage
+derived from two would be _displayed, never implied_ failing in the direction
+that looks most correct (Task 4.2.4's amendment).
+
+**What this screen added to the rule rather than inherited:** its clause terms
+are `Observed prices` and `Closing prices` — **not** `Live prices`, which was
+the first spelling and was caught in a unit test. A term reading `LIVE PRICES`
+in the micro-label's capitals states a **connection** on the one screen where
+exactly one surface is allowed to, and would go on stating it while the status
+bar three hundred pixels below read `DISCONNECTED`. Two true halves, one
+contradiction — Task 3.4.9's defect arriving by a new door.
+
+**`one-provenance-note-on-the-landing-route` is the mechanism**, in
+`one-caller-of-the-market-clock`'s shape: the note is rendered in exactly one
+place and that place is the route, and its terms have one producer. The second
+conjunct exists because `one-home-for-the-feed-words` would be silent about the
+likelier failure — a region reading `MARKET_FEED_DESCRIPTIONS` and drawing its
+own caption invents no literal at all. Three `pnpm break` entries prove it.
+
 ---
 
 ## 2. Decision 2 — the wording when a series' sources disagree

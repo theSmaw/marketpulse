@@ -1,0 +1,113 @@
+/*
+ * The landing screen's source note (Task 4.2.7).
+ *
+ * `VISUAL-LANGUAGE.md`'s Provenance section is the specification and this is
+ * the second rendering of it: **one note per screen, at the foot of the region
+ * group, in the micro type, on the page ground.** No token is added — the same
+ * decision `SourceNote` recorded, and for the same reason: a token introduced
+ * here would be one designed against no consumer.
+ *
+ * ## Why this is a second stylesheet rather than a shared one
+ *
+ * `SourceNote.module.css` draws the same shell and then a great deal this note
+ * has no use for — a subgrid ledger, a right-aligned count column, the live
+ * stretch's mark. What is genuinely shared is six declarations of arrangement,
+ * and lifting them into a fourth `styles/` layer today would be a shared layer
+ * designed against two consumers, one of which uses half of it.
+ *
+ * **The trigger is a condition, not a preference: the third screen-level source
+ * note.** At three, the shell is a pattern rather than a coincidence and it
+ * moves into `styles/`, with both of these composing it — which is the same
+ * shape `type.module.css` already has. Recorded here because the next author to
+ * add one is the person who should make that move.
+ *
+ * **Nothing here is red or green**, and nothing here is a connection word. A
+ * single-venue feed is not a fault (`PRODUCT_SPEC.md` §36) and this surface
+ * makes no claim about whether data is arriving — that is the status bar's, and
+ * it has one home.
+ */
+
+/*
+ * A definition list on the page ground, separated from the region group by a
+ * hairline rather than boxed — which is what a footnote is. A `Panel` here
+ * would rank an account of the seven regions beside the seven, and this recedes
+ * by size, position and the label column instead: **receding, like standing
+ * out, is a job for weight and hierarchy, never for ink outside the contrast
+ * floor.**
+ */
+.note {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-8) var(--space-16);
+  align-items: baseline;
+  margin: 0;
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--rule-hairline);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The label column — the uppercase letterspaced micro-label, which is what
+ * makes fine print read as a structure rather than as a paragraph somebody
+ * shrank.
+ *
+ * **`color` is the only declaration beside the `composes:`, and that is
+ * deliberate.** `composes:` concatenates class names and does not cascade, so a
+ * declaration here loses to `type.module.css` wherever the two collide.
+ * `microLabel` sets the size, the line height, the tracking and the transform
+ * and sets no colour — so this one property is the one that can safely live
+ * here, and a size or a tracking added later would silently do nothing.
+ */
+.term {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+}
+
+.definition {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* One reading per line. A label and the sentence that explains it are two
+   readings, so the sentence gets its own. */
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+/*
+ * The feed's own label, at the weight that makes it the word on the line a
+ * reader lands on. It is an affordance from a shared vocabulary rather than
+ * this component's word.
+ */
+.value {
+  color: var(--ink-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.sentence,
+.retrieved {
+  color: var(--ink-secondary);
+}
+
+/*
+ * At 390 the label column and its value stop sharing a line: a term, a feed
+ * label and a 77-character sentence in two columns leaves the sentence four
+ * words wide. Nothing is truncated at any width — a provenance claim with an
+ * ellipsis in it is a provenance claim a reader cannot check.
+ */
+@media (width < 30rem) {
+  .note {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .term {
+    margin-top: var(--space-8);
+  }
+}

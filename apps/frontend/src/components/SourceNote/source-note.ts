@@ -6,6 +6,7 @@ import {
   marketDateAt,
 } from "@marketpulse/shared";
 
+import { chromeAlreadyNames } from "../../feed-claim.js";
 import type { BarSeriesView } from "../../market/index.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
 import type { SecuritiesView } from "../../use-securities.js";
@@ -405,16 +406,22 @@ function drawnProvenance(shown: BarSeriesView): SeriesProvenance | null {
   }
 }
 
+/**
+ * Whether this note names the series' feed at all.
+ *
+ * **The rule moved into `feed-claim.ts` on 2026-09-26** (Task 4.2.7), when the
+ * landing page grew a source note of its own: the choice was two
+ * implementations of §1.3's suppression rule or one predicate two notes call,
+ * and this repository has shipped the first shape four times and named it the
+ * two-surfaces defect each time. The rule is unchanged, its argument is in that
+ * module, and this is the negation of it because *the chrome already says so*
+ * and *the note says nothing* are the same fact read from the two ends.
+ */
 function namesFeeds(
   provenance: SeriesProvenance,
   feed: MarketFeedView,
 ): boolean {
-  const feeds = distinctSeriesFeeds(provenance);
-
-  if (feeds.length > 1) return true;
-  if (feed.state === "checking") return false;
-
-  return !(feed.state === "configured" && feeds[0] === feed.feed);
+  return !chromeAlreadyNames(distinctSeriesFeeds(provenance), feed);
 }
 
 /**

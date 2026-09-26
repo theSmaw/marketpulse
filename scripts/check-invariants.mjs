@@ -165,6 +165,35 @@ function sourceFilesUnder(directory) {
 }
 
 /**
+ * **Every shipped source file in the workspace, comments removed** — the
+ * corpus for *where is this sentence written* (Task 4.2.7).
+ *
+ * Three trees, tests and stories excluded, read through {@link withoutComments}
+ * because this repository writes more prose than code and a check a comment can
+ * trip is a check nobody can keep green.
+ *
+ * **It exists because a hard-coded file list is a check that cannot see the
+ * file the claim is about.** `one-home-for-the-feed-words` walked the trees
+ * from the day it was written; `the-consolidated-word-has-one-producer` and
+ * `the-market-claiming-sentence-has-one-home` each carried a hand-written
+ * array of the files that happened to discuss their literal at the time, so a
+ * component added afterwards was outside both — and both stayed green while
+ * spelling the words. Task 4.2.7 proved that with a defect before repairing
+ * it. One corpus, one place, and a new file is in it by existing.
+ */
+function shippedSourceFiles() {
+  return [
+    resolve(REPO_ROOT, "apps/frontend/src"),
+    resolve(REPO_ROOT, "apps/backend/src"),
+    resolve(REPO_ROOT, "packages/shared/src"),
+  ].flatMap((directory) =>
+    sourceFilesUnder(directory)
+      .filter(({ path }) => !/\.(?:test|stories)\.tsx?$/u.test(path))
+      .map(({ path, text }) => ({ path, text: withoutComments(text) })),
+  );
+}
+
+/**
  * The seven recorded market bodies, by a string distinctive to each.
  *
  * These are the *names* `CLAUDE.md`'s entry gives, kept as names rather than
@@ -1165,15 +1194,10 @@ const INVARIANTS = [
         { literal: "after-hours", home: CONNECTION_VOCABULARY },
       ];
 
-      const shipped = [
-        resolve(REPO_ROOT, "apps/frontend/src"),
-        resolve(REPO_ROOT, "apps/backend/src"),
-        resolve(REPO_ROOT, "packages/shared/src"),
-      ].flatMap((directory) =>
-        sourceFilesUnder(directory)
-          .filter(({ path }) => !/\.(?:test|stories)\.tsx?$/u.test(path))
-          .map(({ path, text }) => ({ path, text: withoutComments(text) })),
-      );
+      // The corpus is `shippedSourceFiles`' since Task 4.2.7 — this check
+      // built it inline and was the only one that walked, which is how its
+      // two array-driven neighbours went unnoticed.
+      const shipped = shippedSourceFiles();
 
       for (const { literal, home: VOCABULARY } of LITERALS) {
         const homes = shipped
@@ -1638,6 +1662,102 @@ const INVARIANTS = [
   },
 
   {
+    id: "one-provenance-note-on-the-landing-route",
+    claim:
+      "The Market Overview renders exactly one source note, and its clause " +
+      "terms are produced in one place — so a region cannot grow a second.",
+    check() {
+      // **`PROVENANCE.md` §1.3's one-note-per-screen rule, as a check** (Task
+      // 4.2.7), in the shape of `one-caller-of-the-market-clock`: the two are
+      // the same rule about different subjects, and a reader meeting one
+      // should recognise the other.
+      //
+      // **Why the rule needs a mechanism here specifically.** Three regions
+      // on this screen are still deferrals and each of 4.3, 4.4 and 4.5
+      // lands one with figures in it — so the screen is about to grow three
+      // surfaces, each of which has a true and correct provenance fact to
+      // state. Five correct additions made one at a time is exactly how a
+      // footnote pile is built, and Task 3.10.9 deleted a duplicate ledger
+      // that got there that way.
+      //
+      // **Two conjuncts, because there are two ways to get a second note and
+      // `one-home-for-the-feed-words` catches neither.** That check stops a
+      // second renderer inventing the feed *labels*; it says nothing about a
+      // second note assembled out of the shared vocabulary, which is the
+      // likelier shape — a region reading `MARKET_FEED_DESCRIPTIONS` and
+      // drawing its own caption spells no literal of its own at all.
+      //
+      //  - the note is **rendered** in exactly one place, and that place is
+      //    the route rather than a component inside it;
+      //  - its **terms** are written in exactly one place, so a second note
+      //    that says the same things in the same words goes red even if it
+      //    imports nothing from here.
+      const RENDERER = "apps/frontend/src/routes/MarketOverview.tsx";
+      const WORDS =
+        "apps/frontend/src/components/OverviewSourceNote/" +
+        "overview-source-note.ts";
+
+      const shipped = shippedSourceFiles();
+
+      const renders = [];
+      for (const { path, text } of shipped) {
+        const where = relative(REPO_ROOT, path);
+        for (const match of text.matchAll(/<OverviewSourceNote[\s/>]/gu)) {
+          renders.push(`${where} (offset ${String(match.index)})`);
+        }
+      }
+
+      if (renders.length !== 1 || !renders[0].startsWith(RENDERER)) {
+        throw new InvariantFailure(
+          `The landing screen's source note is rendered in ` +
+            `${String(renders.length)} place(s), expected exactly 1 in ` +
+            `${RENDERER}:\n      ` +
+            (renders.length === 0
+              ? "(none — if the component was renamed, rename it here too: a " +
+                "grep that matches nothing looks exactly like a grep that " +
+                "passes)"
+              : renders.join("\n      ")) +
+            "\n    One note for the SCREEN, at the foot of the region group " +
+            "(`PROVENANCE.md` §1.3). A second one inside a region is the " +
+            "footnote pile that rule exists to prevent.",
+        );
+      }
+
+      // **A term, not a phrase** — and the distinction was measured rather
+      // than anticipated. The first version matched the bare substring and
+      // went red on `UniverseTable.tsx`, which says *"Closing prices are from
+      // the 2026-09-11 session."* — a different sentence about the same
+      // subject, correctly owned by the surface that draws the column. So a
+      // term is matched in the two shapes a term can take: a quoted constant
+      // and inline JSX text.
+      //
+      // **What that cannot see, stated rather than discovered**: a second note
+      // whose terms are assembled rather than written — a template literal, a
+      // concatenation, a record keyed elsewhere. This check is the cheapest
+      // honest proxy for *one note per screen*, not the claim itself, and the
+      // conjunct above it is what covers the likelier shape.
+      for (const term of ["Observed prices", "Closing prices"]) {
+        const spellings = [`"${term}"`, `>${term}<`];
+        const homes = shipped
+          .filter(({ text }) =>
+            spellings.some((spelling) => text.includes(spelling)),
+          )
+          .map(({ path }) => relative(REPO_ROOT, path));
+
+        if (homes.length !== 1 || homes[0] !== WORDS) {
+          throw new InvariantFailure(
+            `${JSON.stringify(term)} should be written only in ${WORDS}, ` +
+              `and is in:\n      ` +
+              (homes.join("\n      ") || "(nowhere — was a term renamed?)") +
+              "\n    A second surface saying what this note says, in this " +
+              "note's words, is a second note however it was assembled.",
+          );
+        }
+      }
+    },
+  },
+
+  {
     id: "the-consolidated-word-has-one-producer",
     claim:
       "`All US exchanges` is produced by exactly one place — `sip`'s label in " +
@@ -1657,25 +1777,28 @@ const INVARIANTS = [
       // is either a second producer or a hard-coded copy. Comments are read
       // out first, because the argument for the words is worth keeping and is
       // not a producer.
-      const files = [
-        "packages/shared/src/market-provenance.ts",
-        "packages/shared/src/feed-words.ts",
-        "apps/frontend/src/components/SourceNote/SourceNote.tsx",
-        "apps/frontend/src/components/SourceNote/source-note.ts",
-        "apps/frontend/src/components/BarSeriesPanel/BarSeriesPanel.tsx",
-        "apps/frontend/src/components/PriceChart/chart-alternative.ts",
-        "apps/frontend/src/components/FeedProvenance/FeedProvenance.tsx",
-      ];
+      //
+      // **A WALK, since 2026-09-26, and it was a seven-path array until then**
+      // (Task 4.2.7). The list named the files that happened to discuss the
+      // word on the day it was written, so a component added afterwards was
+      // outside it and **this check stayed green while spelling the most
+      // coverage-claiming string in the product** — which is this
+      // repository's named recurring defect, a claim about a mechanism
+      // reading identically whether the mechanism covers the new case or not.
+      // Verified rather than suspected: the landing page's note was written
+      // with the literal in it, and the run reported `1 of 34 invariants
+      // failed` with this one **passing**.
+      //
+      // The walk is the same corpus `one-home-for-the-feed-words` reads, and
+      // the overlap is deliberate rather than accidental — see the note under
+      // `pnpm break a-second-component-spells-the-consolidated-word`.
+      const HOME = "packages/shared/src/market-provenance.ts";
 
-      const producers = files.filter((file) => {
-        const full = resolve(REPO_ROOT, file);
-        if (!existsSync(full)) return false;
-        return withoutComments(readFileSync(full, "utf8")).includes(
-          "All US exchanges",
-        );
-      });
+      const producers = shippedSourceFiles()
+        .filter(({ text }) => text.includes("All US exchanges"))
+        .map(({ path }) => relative(REPO_ROOT, path));
 
-      if (producers.length !== 1 || producers[0] !== files[0]) {
+      if (producers.length !== 1 || producers[0] !== HOME) {
         throw new InvariantFailure(
           `\`All US exchanges\` is produced in ${producers.length} place(s) ` +
             `(${producers.join(", ") || "none"}), and it must be produced in ` +
@@ -1710,23 +1833,20 @@ const INVARIANTS = [
       // reason: rendering a state proves that ONE state does not say it.
       // Comments are read out first, because the argument for the words is
       // worth keeping and is not a producer.
-      const files = [
-        "packages/shared/src/market-provenance.ts",
-        "apps/frontend/src/components/PriceChart/VolumeReading.tsx",
-        "apps/frontend/src/components/PriceChart/chart-alternative.ts",
-        "apps/frontend/src/components/PriceChart/VolumeChart.tsx",
-        "apps/frontend/src/components/PriceChart/ChartReading.tsx",
-      ];
+      //
+      // **A WALK, since 2026-09-26** (Task 4.2.7), for its neighbour's reason
+      // and with a sharper edge here: `All US exchanges` has a second guard
+      // in `one-home-for-the-feed-words` and this sentence has **none**, so
+      // for this literal the five-path array was the only thing standing
+      // between the product and a second copy — and it could not see a file
+      // added after the day it was written.
+      const HOME = "packages/shared/src/market-provenance.ts";
 
-      const producers = files.filter((file) => {
-        const full = resolve(REPO_ROOT, file);
-        if (!existsSync(full)) return false;
-        return withoutComments(readFileSync(full, "utf8")).includes(
-          "No shares changed hands",
-        );
-      });
+      const producers = shippedSourceFiles()
+        .filter(({ text }) => text.includes("No shares changed hands"))
+        .map(({ path }) => relative(REPO_ROOT, path));
 
-      if (producers.length !== 1 || producers[0] !== files[0]) {
+      if (producers.length !== 1 || producers[0] !== HOME) {
         throw new InvariantFailure(
           `\`No shares changed hands\` is produced in ${producers.length} ` +
             `place(s) (${producers.join(", ") || "none"}), and it must be ` +
