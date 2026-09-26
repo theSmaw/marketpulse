@@ -2626,9 +2626,9 @@ const INVARIANTS = [
   {
     id: "the-proxy-strip-dates-a-figure-from-a-calendar",
     claim:
-      "The strip decides whether a figure is current from the trading " +
-      "calendar and never from an elapsed time — so `market-proxies.ts` " +
-      "reads `marketSessionStateAt` and holds no number at all.",
+      "The strip decides whether a figure is current by READING THE TRADING " +
+      "CALENDAR: `market-proxies.ts` calls `marketSessionStateAt`, which is " +
+      "ADR 0028's instrument and the only thing here that is not a duration.",
     check() {
       // **`LIVE-DATA.md` §11.2 refused a per-security staleness threshold
       // with a measurement behind it**: the ordinary maximum gap between one
@@ -2637,50 +2637,51 @@ const INVARIANTS = [
       // day. Story 3.10 held that line and `ProxyReading.note` says so in as
       // many words — *an age, never a verdict*.
       //
-      // The obvious way to reintroduce it is not a verdict word, it is a
-      // number: `if (now - instant > FIVE_MINUTES)`. That reads as a repair
-      // rather than as a reversal, it is one line, and it is invisible in a
-      // green suite because every fixture in this file is inside whatever
-      // window the author picks.
+      // The regression is not a verdict word, it is the calendar being
+      // **replaced** by arithmetic: `if (now - instant > FIVE_MINUTES)`. That
+      // reads as a repair, it is one line, and it is invisible in a green
+      // suite because every fixture in this file is inside whatever window
+      // its author picked. What is left behind is a file with no calendar
+      // read in it, which is what this asserts and what the break performs.
       //
-      // **So the check is that the file contains no numeric literal but `0`
-      // and `1`.** Those two are the length and emptiness comparisons every
-      // module in this repository writes — `figures.length > 0` — and they
-      // cannot express a duration. Everything else here is either a threshold
-      // or a magic constant, and both are worth a conversation, which is what
-      // a red check is.
+      // ## What this DOESN'T assert, and why the second half was deleted
       //
-      // Blunt on purpose, and cheap to satisfy: nothing this module does is
-      // arithmetic.
+      // It shipped for one review round with a second clause: *and the file
+      // holds no numeric literal but `0` and `1`*. That was a tripwire with a
+      // hole at both ends and it is gone.
+      //
+      // It **missed** the thing it was for — `3e5` and `0x493e0` are 300,000
+      // and neither matches `\b\d[\d_]*\b` as a bare integer, so
+      // `const STALE_AFTER_MS = 3e5;` satisfied it. And it would have gone
+      // **red for nothing**, repeatedly: `withoutComments` strips only
+      // full-line `//`, so a trailing comment carrying a digit — this file's
+      // house style — trips it, as do `slice(0, 10)`, `toFixed(2)`, a
+      // `/\d{4}-\d{2}/` regex and any string containing a year. Its own
+      // first version went red on `figures.length > 0`.
+      //
+      // A check that fires on an innocent edit long before it fires on the
+      // defect is a check somebody eventually deletes in a hurry, and the
+      // honest version is the clause above: the calendar is read here, and a
+      // reviewer reads what it is read FOR.
       const path = "apps/frontend/src/market/market-proxies.ts";
       const text = withoutComments(
         readFileSync(resolve(REPO_ROOT, path), "utf8"),
       );
 
-      if (!text.includes("marketSessionStateAt")) {
+      // **The CALL rather than the name**, so an import left behind by a
+      // substitution does not satisfy it — which is exactly the residue the
+      // break leaves and the shape the real regression takes.
+      if (!text.includes("marketSessionStateAt(")) {
         throw new InvariantFailure(
-          `${path} no longer reads \`marketSessionStateAt\`. The absolute ` +
+          `${path} no longer CALLS \`marketSessionStateAt\`. The absolute ` +
             "staleness rule is keyed on ADR 0028's instrument — the last " +
             "session whose bell has rung — and nothing else in this " +
             "repository answers that question without a clock in the browser " +
-            "(`a-second-clock-on-the-landing-page` refuses one on this route).",
-        );
-      }
-
-      const numbers = [...text.matchAll(/\b\d[\d_]*\b/gu)]
-        .map((match) => match[0])
-        .filter((number) => number !== "0" && number !== "1");
-
-      if (numbers.length > 0) {
-        throw new InvariantFailure(
-          `${path} contains ${String(numbers.length)} numeric literal(s) ` +
-            `(${[...new Set(numbers)].join(", ")}), and it must contain ` +
-            "none. `LIVE-DATA.md` §11.2 measured an ordinary maximum gap of " +
-            "187 minutes between one security's bars and refused a staleness " +
-            "threshold on that measurement; a number in this file is that " +
-            "threshold arriving as a repair. If the number is not a " +
-            "threshold, it is still a constant with no home — say which in " +
-            "the task, then move it.",
+            "(`a-second-clock-on-the-landing-page` refuses one on this " +
+            "route). A rule that has stopped reading the calendar is reading " +
+            "a duration, and `LIVE-DATA.md` §11.2 refused one with a " +
+            "measurement behind it: an ordinary maximum gap of 187 minutes " +
+            "between one security's bars.",
         );
       }
     },

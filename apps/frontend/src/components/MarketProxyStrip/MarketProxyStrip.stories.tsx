@@ -9,7 +9,7 @@ import type {
 import gridStyles from "../stories.module.css";
 import { MarketProxyStrip } from "./MarketProxyStrip.js";
 
-// Nine states, one box, and nothing jumps between any two of them.
+// Ten states, one box, and nothing jumps between any two of them.
 //
 // `Market proxies.dc.html` §04 is the drawing and this is the grid it asks for.
 // Two rules govern the whole set. **ADR 0029**: a surface that owns nothing
@@ -17,7 +17,7 @@ import { MarketProxyStrip } from "./MarketProxyStrip.js";
 // its own data is present, so a fully-formed qualifier about zero figures is a
 // false impression rather than a courtesy. **Story 3.10's one-home rule**:
 // `live | stale | disconnected` has exactly one home and it is the status bar.
-// Seven of the nine below are therefore states of the *data*, and the strip
+// Eight of the ten below are therefore states of the *data*, and the strip
 // says nothing about the feed in any of them — including the two Task 4.2.6
 // added, which are about the **calendar** and the **store** rather than about
 // whether anything is arriving.
@@ -171,12 +171,44 @@ export const AllStored: Story = {
  * **It says nothing about whether the market is open.** That is the masthead's
  * clock, and this line is a property of the figures rather than of the market.
  *
+ * **The clause does NOT fire in extended hours** — see `ExtendedHoursPrice`.
+ * `marketSessionStateAt` answers `before_open` at 07:42, so an earlier version
+ * of this rule put `pre-market` and `last prices of the session` three words
+ * apart in one sentence, the first saying the session had not started and the
+ * second that it had ended — and in the pre-market case the second was simply
+ * false about today's print.
+ *
  * **This is the longest sentence the strip produces**, and it is therefore the
  * story the two-line qualifier reserve at 390 is measured against. Review it
  * at 390.
  */
 export const SessionClosed: Story = {
   args: { overview: frameOnSaturday(LIVE.figures) },
+};
+
+/**
+ * **An extended-hours price, which is the deployed landing page for about nine
+ * and a half hours of every trading day** — 04:00–09:30 and 16:00–20:00 ET,
+ * because the backend stores and streams extended-hours bars.
+ *
+ * The shipped `pre-market` word says when the price is from, which is a fact
+ * about the **figure**. The closed-session clause is suppressed here and that
+ * is the correction rather than an omission: it would have said the session had
+ * ended three words after `pre-market` said it had not started, about a figure
+ * that is *today's*.
+ */
+export const ExtendedHoursPrice: Story = {
+  args: {
+    overview: {
+      ...frame([
+        observed("SPY", 774.03, 0.42, "11:42"),
+        observed("QQQ", 601.88, 0.71, "11:42"),
+        observed("DIA", 452.17, -0.18, "11:42"),
+        observed("IWM", 243.6, 0, "11:42"),
+      ]),
+      computedAt: "2026-09-25T11:42:00.000Z",
+    },
+  },
 };
 
 /**
@@ -403,6 +435,18 @@ export const AllPermutations: Story = {
           [
             "the session’s bell has rung — the absolute rule",
             frameOnSaturday(LIVE.figures),
+          ],
+          [
+            "an extended-hours price — no closed-session clause",
+            {
+              ...frame([
+                observed("SPY", 774.03, 0.42, "11:42"),
+                observed("QQQ", 601.88, 0.71, "11:42"),
+                observed("DIA", 452.17, -0.18, "11:42"),
+                observed("IWM", 243.6, 0, "11:42"),
+              ]),
+              computedAt: "2026-09-25T11:42:00.000Z",
+            },
           ],
           [
             "two stored sessions — each cell carries its own",

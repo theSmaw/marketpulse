@@ -436,10 +436,16 @@ describe("marketProxyStrip", () => {
     );
   });
 
-  it("dates a proxy behind the shared line when it is from an earlier session", () => {
+  it("dates a proxy behind the shared line, in the product's own spelling", () => {
     // `from 12:07` under a line reading `Sep 25 · 14:01 EDT` says *two hours
     // behind* when the truth is *a day and two hours behind*. Still an age and
-    // never a verdict — the date joins the time, no threshold appears.
+    // never a verdict — the instant joins, no threshold appears.
+    //
+    // **The whole instant goes through `formatBarInstant`**, which is how
+    // every other dated instant in this product is spelled and is what carries
+    // the zone. A hand-built `from 2026-09-24 12:07` was a third spelling with
+    // no zone in it, a few pixels under a line spelling the same kind of fact
+    // as `Sep 25 · 14:01 EDT`.
     const strip = marketProxyStrip(
       frame([
         observed("SPY"),
@@ -450,26 +456,116 @@ describe("marketProxyStrip", () => {
     );
 
     expect(strip.cells[1]?.reading).toMatchObject({
-      note: "from 2026-09-24 12:07",
+      note: "from Sep 24 · 12:07 EDT",
     });
   });
 
-  it("makes no staleness claim it cannot establish", () => {
-    // Two refusals, one answer: an unreadable `computedAt`, and an instant
-    // outside the trading calendar's covered range. An unsupported input is a
-    // reason to say less, never a licence to assert something this function
-    // could not establish — and propagating `MarketCalendarRangeError` out of
-    // a render is a blank page.
-    for (const computedAt of ["not an instant", "2029-01-02T14:00:00.000Z"]) {
-      const strip = marketProxyStrip(
-        frameAt(computedAt, [
+  it("borrows the shared line's date when the cell is in the same session", () => {
+    const strip = marketProxyStrip(
+      frame([
+        observed("SPY"),
+        observed("DIA", { at: "2026-09-25T16:07:00.000Z" }),
+      ]),
+      NO_OBSERVATIONS,
+      NO_SNAPSHOT,
+    );
+
+    expect(strip.cells[1]?.reading).toMatchObject({ note: "from 12:07" });
+  });
+
+  it("says nothing about the session ending while the price is an extended-hours one", () => {
+    // **The correction.** `marketSessionStateAt` answers `before_open` at
+    // 07:42, so the clause used to fire — and `pre-market` says the session has
+    // NOT STARTED three words before `last prices of the session` said it had
+    // ended. Worse than odd: that figure is TODAY's pre-market print, and the
+    // clause invites a reader to take it for the previous session's close.
+    //
+    // The backend stores and streams extended-hours bars, so this was the
+    // deployed landing page 04:00–09:30 and 16:00–20:00 ET every weekday.
+    const preMarket = marketProxyStrip(
+      frameAt("2026-09-28T11:42:00.000Z", [
+        observed("SPY", { at: "2026-09-28T11:42:00.000Z" }),
+      ]),
+      NO_OBSERVATIONS,
+      NO_SNAPSHOT,
+    );
+
+    expect(preMarket.qualifier).toBe(
+      "Sep 28 · 07:42 EDT · pre-market · change from 2026-09-24's close",
+    );
+
+    const afterHours = marketProxyStrip(
+      frameAt("2026-09-25T20:12:00.000Z", [
+        observed("SPY", { at: "2026-09-25T20:12:00.000Z" }),
+      ]),
+      NO_OBSERVATIONS,
+      NO_SNAPSHOT,
+    );
+
+    expect(afterHours.qualifier).toBe(
+      "Sep 25 · 16:12 EDT · after-hours · change from 2026-09-24's close",
+    );
+  });
+
+  it("stays silent rather than false about a Friday after-hours print read on the Saturday", () => {
+    // The recorded residue of the rule above: the figure is dated and correct
+    // and one clause shorter than it could be. A sentence that is silent beats
+    // one that is false.
+    const strip = marketProxyStrip(
+      frameAt("2026-09-26T14:00:00.000Z", [
+        observed("SPY", { at: "2026-09-25T20:12:00.000Z" }),
+      ]),
+      NO_OBSERVATIONS,
+      NO_SNAPSHOT,
+    );
+
+    expect(strip.qualifier).toBe(
+      "Sep 25 · 16:12 EDT · after-hours · change from 2026-09-24's close",
+    );
+  });
+
+  it("makes no staleness claim it cannot establish, from EITHER instant", () => {
+    // Three refusals, one answer: an unreadable `computedAt`, and either
+    // instant outside the trading calendar's covered range. An unsupported
+    // input is a reason to say less, never a licence to assert something this
+    // function could not establish — and propagating `MarketCalendarRangeError`
+    // out of a render is a blank page: nothing above `App` catches one, so
+    // `main` and all seven regions go with it.
+    //
+    // **`at` is the case that arrives and the one the guard used to miss.**
+    // `extendedHoursAt(at)` was called unguarded two lines before the guarded
+    // call was reached, and this test varied only `computedAt` — so it passed
+    // over the hazard while the identical class of input threw out of render.
+    const outOfRange = "2030-01-05T14:00:00.000Z";
+
+    const byComputedAt = () =>
+      marketProxyStrip(
+        frameAt("not an instant", [
           observed("SPY", { at: "2026-09-25T19:59:00.000Z" }),
         ]),
         NO_OBSERVATIONS,
         NO_SNAPSHOT,
       );
 
-      expect(strip.qualifier).not.toContain("last prices");
+    const byFarComputedAt = () =>
+      marketProxyStrip(
+        frameAt(outOfRange, [
+          observed("SPY", { at: "2026-09-25T19:59:00.000Z" }),
+        ]),
+        NO_OBSERVATIONS,
+        NO_SNAPSHOT,
+      );
+
+    const byObservationInstant = () =>
+      marketProxyStrip(
+        frame([observed("SPY", { at: outOfRange })]),
+        NO_OBSERVATIONS,
+        NO_SNAPSHOT,
+      );
+
+    for (const read of [byComputedAt, byFarComputedAt, byObservationInstant]) {
+      expect(read).not.toThrow();
+      expect(read().qualifier).not.toContain("last prices");
     }
   });
 

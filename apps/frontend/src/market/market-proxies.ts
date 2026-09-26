@@ -5,6 +5,7 @@ import {
   marketDateAt,
   marketSessionStateAt,
   type Bar,
+  type ExtendedHours,
   type MarketDate,
   type WireMarketOverview,
   type WireOverviewFigure,
@@ -325,15 +326,28 @@ function readingOf(
 }
 
 /**
- * `from 12:07`, or `from 2026-09-24 12:07`, or nothing.
+ * `from 12:07`, or `from Sep 24 · 12:07 EDT`, or nothing.
  *
- * **The date joins the time when this figure is from a different session from
+ * **The whole instant joins when this figure is from a different session from
  * the one the shared line names**, which is the absolute rule at the grain of a
  * cell and needs no clock at all — it is two instants compared with each other.
  * A bare `from 12:07` under a line reading `Sep 25 · 15:59 EDT` says *three
  * hours behind* when the truth may be *a day and three hours behind*, and
  * `currentMarketState` is not cleared on a session boundary, so a proxy whose
  * last bar was yesterday is a state this map can hold.
+ *
+ * **Two spellings, and the rule is which fact is being stated.** The short form
+ * is a **time borrowed from the line above**: same session, so the date and the
+ * zone are already on screen a few pixels away and repeating them is the
+ * paragraph the shared claim exists to prevent. The long form is a **whole
+ * instant** and therefore goes through `formatBarInstant`, which is how every
+ * other dated instant in this product is spelled and is what carries the zone.
+ * A hand-built `from 2026-09-24 12:07` shipped for one review round and was a
+ * third spelling with no zone in it.
+ *
+ * A **session name** is a different kind of value and keeps the store's
+ * spelling — `2026-09-11 close`, `change from 2026-09-24's close` — which is
+ * `SecurityIdentity`'s and the wire's.
  *
  * **Still an age and never a verdict**: no threshold, no status word, and the
  * shared claim above does not bend to accommodate it (§11.2 measured an
@@ -347,10 +361,10 @@ function behindNote(shared: SharedClaim): string | undefined {
   }
 
   const at = new Date(instant);
-  const session = marketDateAt(at);
-  const time = formatSessionTime(at);
 
-  return session === newestSession ? `from ${time}` : `from ${session} ${time}`;
+  return marketDateAt(at) === newestSession
+    ? `from ${formatSessionTime(at)}`
+    : `from ${formatBarInstant(at, "1m")}`;
 }
 
 /**
@@ -391,8 +405,9 @@ function sharedClosingSession(
  * see {@link sharedClosingSession}, and the cells carry their own where it is
  * not.
  *
- * **Something observed**: the instant, then the extended-hours word, then
- * {@link closedSessionClause}, then the basis.
+ * **Something observed**: the instant, then the extended-hours word, then the
+ * closed-session clause, then the basis — the last two decided together by
+ * {@link sessionTiming}, which is also the one place the calendar is read.
  *
  * The strip **does not say whether the market is open** — that is the
  * masthead's clock, and Task 4.2.5's constraint holds. Every clause here is a
@@ -412,7 +427,7 @@ function qualifierOf(
   }
 
   const at = new Date(newest);
-  const extended = extendedHoursAt(at);
+  const { extended, closed } = sessionTiming(at, computedAt);
   const basis = sharedBasis(figures);
 
   return [
@@ -427,26 +442,52 @@ function qualifierOf(
     // bar. The words are `feed-words.ts`'s and a second spelling of either is
     // refused by `one-home-for-the-feed-words`.
     extended === undefined ? undefined : EXTENDED_HOURS_WORDS[extended],
-    closedSessionClause(at, computedAt),
+    closed ? CLOSED_SESSION : undefined,
     basis,
   ]
     .filter((clause) => clause !== undefined)
     .join(" · ");
 }
 
+/** The absolute rule's own words. See {@link sessionTiming}. */
+const CLOSED_SESSION = "last prices of the session";
+
 /**
- * **The absolute rule** — `last prices of the session`, or nothing.
+ * **The absolute rule**, and the one guarded reading of the trading calendar.
  *
- * The question is *does the newest observation belong to a session that is
- * running right now*, and it is answered from ADR 0028's calendar rather than
- * from any elapsed time. Two ways to fail it and they are one clause:
+ * Two facts, answered together because they are two questions about the same
+ * instant and because **both calls can throw the same error** — see the
+ * refusals below.
  *
- *  - the market is not open at `computedAt` at all — a weekend, a holiday, an
- *    evening, a morning before the bell, which between them are about 80% of
- *    the week; or
- *  - it is open, and the newest figure is from an **earlier** session than the
- *    one that is running, which `currentMarketState` produces for any security
- *    that has not traded today because it is not cleared on a session boundary.
+ * `extended` is the shipped extended-hours word for `at`; `closed` is whether
+ * the newest observation belongs to a session that is **not running**, which is
+ * the clause `Market proxies` gets and `LastCell` deliberately does not.
+ *
+ * ## `closed` is false in extended hours, and that is a correction
+ *
+ * The clause shipped for one review round firing whenever `marketSessionStateAt`
+ * was not `open` — which includes `before_open` and `after_close`, so on any
+ * weekday between 04:00 and 09:30 and between 16:00 and 20:00 ET it produced:
+ *
+ *     Sep 28 · 07:42 EDT · pre-market · last prices of the session · change …
+ *
+ * **Two clauses three words apart contradicting each other**: `pre-market` says
+ * the session has not started and `last prices of the session` says it has
+ * ended. And in the pre-market case the sentence is not merely odd, it is
+ * **wrong** — that figure is *today's* pre-market print, and the clause invites
+ * a reader to take it for the previous session's close. The backend stores and
+ * streams extended-hours bars, so this was the deployed landing page for about
+ * nine and a half hours of every trading day, against the weekend state the
+ * rule was written for.
+ *
+ * So `extended` **suppresses** `closed` rather than sitting beside it. The
+ * extended-hours word already says when the price is from, which is the fact
+ * the reader needs, and it is a fact about the figure rather than a claim about
+ * the session's having ended. The residue is recorded rather than hidden: a
+ * Friday after-hours print read on the Saturday renders `Sep 25 · 16:12 EDT ·
+ * after-hours` with no closed-session clause — dated, correct, and one clause
+ * shorter than it could be. A sentence that is silent is better than one that
+ * is false.
  *
  * ## Why `computedAt` and not a clock in the browser
  *
@@ -463,33 +504,75 @@ function qualifierOf(
  * Saturday. It is **not** a clock a status is derived from — this is not a
  * status, it is the calendar question asked at the instant the figures were
  * joined, and `the-send-instant-is-not-a-clock` guards the three files where
- * that distinction is load-bearing.
+ * that distinction is load-bearing. Both instants are server-origin, so no
+ * browser clock is read and skew is not a hazard.
  *
  * What it cannot do is move on a page nobody is reloading: a tab held open
  * across the closing bell keeps the last frame's `computedAt` until the next
  * one arrives. The figures on it are equally frozen, they carry the instant
  * they were true at, and a feed that has stopped delivering has exactly one
- * home (Story 3.10). So the stale case reads *the last prices we have, at
- * 15:59* rather than a claim that it is still the session.
+ * home (Story 3.10).
  *
- * ## The two refusals, both of which mean "make no claim"
+ * ## The refusals, and why they are in ONE function
  *
- * An unreadable `computedAt`, and an instant outside the trading calendar's
- * covered range (2024–2028), both fall back to the clause being absent. An
+ * An unreadable `computedAt`, and either instant falling outside the trading
+ * calendar's covered range (2024–2028), all mean *make no claim*. An
  * unsupported input is a reason to say less, never a licence to assert
- * staleness this function could not establish — and the alternative,
- * propagating `MarketCalendarRangeError` out of a render, is a blank page.
+ * something this function could not establish — and the alternative,
+ * propagating `MarketCalendarRangeError` out of a render, is a blank page:
+ * nothing above `App` catches one, so `main` and all seven regions go with it.
+ *
+ * **The guard used to be on one of the two calls, which made it inert.**
+ * `extendedHoursAt(at)` was called unguarded by {@link qualifierOf} two lines
+ * before the guarded call was reached, so an out-of-range `at` threw before the
+ * `catch` existed — and the test written for the refusal varied only
+ * `computedAt`, so it passed over the hazard. Both readings are inside the
+ * guard now because they are one guard's subject: *what the calendar says about
+ * these two instants, or nothing*.
  */
-function closedSessionClause(at: Date, computedAt: string): string | undefined {
-  const now = Date.parse(computedAt);
-  if (Number.isNaN(now)) return undefined;
+interface SessionTiming {
+  readonly extended: ExtendedHours | undefined;
+  readonly closed: boolean;
+}
 
+/** What the calendar cannot answer: no word, and no claim. */
+const NO_TIMING: SessionTiming = { extended: undefined, closed: false };
+
+function sessionTiming(at: Date, computedAt: string): SessionTiming {
+  return (
+    withinCalendar<SessionTiming>(() => {
+      // **First, and inside the guard, because it is the range check for
+      // `at`.** A refusal has to be a property of the instant as a whole:
+      // `marketDateAt` is a timezone conversion and answers happily for the
+      // year 2030, so a version that caught only this call and carried on
+      // reached the comparison below with a date the calendar cannot classify
+      // and asserted `last prices of the session` about it. Found by varying
+      // `at` in the refusal test, which is the half the first guard missed.
+      const extended = extendedHoursAt(at);
+      if (extended !== undefined) return { extended, closed: false };
+
+      const now = Date.parse(computedAt);
+      if (Number.isNaN(now)) return NO_TIMING;
+
+      const state = marketSessionStateAt(new Date(now));
+      const running =
+        state.status === "open" && state.session.date === marketDateAt(at);
+
+      return { extended: undefined, closed: !running };
+    }) ?? NO_TIMING
+  );
+}
+
+/**
+ * Read the trading calendar, or answer `undefined` where it does not reach.
+ *
+ * Only {@link MarketCalendarRangeError} is caught. Anything else is a fault in
+ * this product rather than an unsupported input, and swallowing it here would
+ * turn a bug into a missing clause nobody can see.
+ */
+function withinCalendar<T>(read: () => T): T | undefined {
   try {
-    const state = marketSessionStateAt(new Date(now));
-    const running =
-      state.status === "open" && state.session.date === marketDateAt(at);
-
-    return running ? undefined : "last prices of the session";
+    return read();
   } catch (error) {
     if (error instanceof MarketCalendarRangeError) return undefined;
     throw error;

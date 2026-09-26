@@ -2233,18 +2233,24 @@ export const BREAKS = [
       "`LIVE-DATA.md` \u00a711.2 refused a per-security staleness threshold " +
       "with a measurement behind it \u2014 an ordinary maximum gap of 187 " +
       "minutes between one security's bars, p50 one minute \u2014 and the " +
-      "obvious way to reintroduce it is not a verdict word but a NUMBER. " +
-      "`if (age > FIVE_MINUTES)` reads as a repair, is one line, and is " +
-      "invisible in a green suite because every fixture in the file is " +
-      "inside whatever window its author picked.",
+      "regression is not a verdict word but the CALENDAR being replaced by " +
+      "arithmetic. `if (age > FIVE_MINUTES)` reads as a repair, is one line, " +
+      "and is invisible in a green suite because every fixture in the file " +
+      "is inside whatever window its author picked.\n\n" +
+      "**Repointed 2026-09-26 in the same change that deleted the check's " +
+      "second half.** It used to add a `const STALE_AFTER_MS` and prove a " +
+      "no-numeric-literal rule \u2014 a tripwire that `3e5` walked straight " +
+      "through and that a trailing comment with a digit in it would have " +
+      "turned red for nothing. It now performs the actual substitution: the " +
+      "calendar read replaced by a duration comparison, which is what the " +
+      "surviving clause sees.",
     file: "apps/frontend/src/market/market-proxies.ts",
-    find: "/** A formatted change and the direction `PriceChange` pairs with a glyph. */",
+    find: "    const state = marketSessionStateAt(new Date(now));",
     replace:
-      "// pnpm break: reverted automatically\n" +
-      "const STALE_AFTER_MS = 300_000;\n\n" +
-      "/** A formatted change and the direction `PriceChange` pairs with a glyph. */",
+      "    // pnpm break: reverted automatically\n" +
+      '    const state = { status: now - at.getTime() < 300_000 ? "open" : "x" };',
     command: ["node", "scripts/check-invariants.mjs"],
-    expect: "numeric literal",
+    expect: "no longer CALLS",
   },
   {
     name: "a-break-that-can-no-longer-land",
