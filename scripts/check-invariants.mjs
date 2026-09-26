@@ -2044,6 +2044,274 @@ const INVARIANTS = [
   },
 
   {
+    id: "one-home-for-the-live-change",
+    claim:
+      "`previousClose` is read as a change BASIS in exactly one module — " +
+      "`packages/shared/src/live-change.ts` — and every shipped file that " +
+      "has both a `SecurityLastClose` and a `Bar` in front of it calls " +
+      "`changeFromClose` rather than subtracting for itself.",
+    check() {
+      // **A producer walk, not a call-site count** (Task 4.2.3), in
+      // `the-consolidated-word-has-one-producer`'s family. More callers of
+      // `changeFromClose` is the DESIRED state here — it is now called by two
+      // processes — so counting them would be a check that goes red when the
+      // thing it protects is working.
+      //
+      // ## What the defect actually looks like
+      //
+      // Not a second copy of the function. A backend author who needs *the
+      // change since the previous close*, has the live map and has the stored
+      // closes, writes `(live.close - close.close) / close.close` and gets a
+      // correct-looking number for most of the day. What they do not write is
+      // the **same-session branch**: the nightly backfill writes today, so
+      // between it and the next open the store's last session and the live
+      // bar's session MEET, and that expression reports ≈0.00% for every
+      // security on the screen — well-formed, correctly-formatted,
+      // correctly-coloured numbers saying the market did not move.
+      //
+      // So there are two clauses, and the second is the one that catches it:
+      // a re-implementation that reads only `close.close` never mentions
+      // `previousClose` at all.
+      const SOURCE_ROOTS = [
+        "apps/backend/src",
+        "apps/frontend/src",
+        "packages/shared/src",
+      ];
+
+      // `.stories.` is excluded with the tests: a story builds a
+      // `SecurityLastClose` literal to render a state, which is a fixture
+      // rather than a producer.
+      const shipped = [];
+
+      const walk = (dir) => {
+        for (const child of readdirSync(dir)) {
+          const path = resolve(dir, child);
+          if (statSync(path).isDirectory()) {
+            if (child !== "fixtures" && child !== "node_modules") walk(path);
+            continue;
+          }
+          if (!/\.tsx?$/u.test(child)) continue;
+          if (/\.(?:test|process|database|stories)\.tsx?$/u.test(child))
+            continue;
+          shipped.push({
+            path: relative(REPO_ROOT, path),
+            text: withoutComments(readFileSync(path, "utf8")),
+          });
+        }
+      };
+
+      for (const root of SOURCE_ROOTS) walk(resolve(REPO_ROOT, root));
+
+      // ## Clause one — where the basis field may be READ
+      //
+      // Three modules, and only one of them is reading it for its VALUE. The
+      // other two carry the field across a boundary and are named with the
+      // reason, because a bare "exactly one module" is not true of this tree
+      // and never was: the shaping note for this task recorded *zero
+      // occurrences outside `last-close.ts`*, and the measured answer on
+      // 2026-09-26 was five modules. A check written from that premise would
+      // have been red on the day it landed.
+      //
+      // `previousClose:` as a property — the type declaration in
+      // `securities-response.ts` and `market-bars.ts`, the response schema,
+      // the row mapper — is deliberately NOT counted. Declaring and writing a
+      // field is carriage; `.previousClose` is somebody deciding what to
+      // measure from.
+      const BASIS_READERS = [
+        {
+          path: "packages/shared/src/live-change.ts",
+          why: "the one basis choice",
+        },
+        {
+          path: "packages/shared/src/securities-response.ts",
+          why: "the wire predicate, which checks the field's TYPE",
+        },
+        {
+          path: "apps/backend/src/routes/securities.ts",
+          why: "the row-to-wire mapper, which copies the field untouched",
+        },
+      ];
+
+      const readers = shipped.filter((file) =>
+        /\.previousClose\b/u.test(file.text),
+      );
+
+      // The anchor. Every named reader must still contain a read, or this
+      // check is asserting the absence of something that has simply moved —
+      // `CLAUDE.md`'s *a grep that matches nothing looks exactly like a grep
+      // that passes*.
+      for (const { path, why } of BASIS_READERS) {
+        if (!readers.some((file) => file.path === path)) {
+          throw new InvariantFailure(
+            `${path} no longer reads \`.previousClose\`, and it is this ` +
+              `check's anchor for ${why}. If the basis moved, repoint this ` +
+              "check in the same change; a list of expected readers that " +
+              "matches nothing passes vacuously.",
+          );
+        }
+      }
+
+      const extra = readers
+        .map((file) => file.path)
+        .filter((path) => !BASIS_READERS.some((known) => known.path === path));
+
+      if (extra.length > 0) {
+        throw new InvariantFailure(
+          `${String(extra.length)} shipped module(s) outside the three that ` +
+            "carry `previousClose` read it as a basis:\n      " +
+            extra.join("\n      ") +
+            "\n    The basis choice is `changeFromClose`'s and it is one " +
+            "function for both processes. A second reader is a second " +
+            "same-session branch, or — far likelier — the absence of one.",
+        );
+      }
+
+      // ## Clause two — anything holding both halves of the join must call it
+      //
+      // A file with a `SecurityLastClose` and a `Bar` in front of it is one
+      // keystroke from the join. It must go through the one function.
+      //
+      // A **re-export** is not a consumer, and the exemption is written as a
+      // shape rather than as a filename so that any future barrel is covered:
+      // `packages/shared/src/index.ts` names both types and the function and
+      // calls nothing.
+      const joins = shipped.filter(
+        (file) =>
+          /\bSecurityLastClose\b/u.test(file.text) &&
+          /\bBar\b/u.test(file.text),
+      );
+
+      if (joins.length < 3) {
+        throw new InvariantFailure(
+          `Only ${String(joins.length)} shipped file(s) hold both a ` +
+            "`SecurityLastClose` and a `Bar`, and there were five on " +
+            "2026-09-26. Either the types were renamed or this walk stopped " +
+            "finding the tree; both look identical to a pass.",
+        );
+      }
+
+      const reimplementers = joins
+        .filter(
+          (file) =>
+            !file.text.includes("changeFromClose(") &&
+            !/export\s*\{[^}]*\bchangeFromClose\b/u.test(file.text),
+        )
+        .map((file) => file.path);
+
+      if (reimplementers.length > 0) {
+        throw new InvariantFailure(
+          `${String(reimplementers.length)} shipped file(s) hold both a ` +
+            "`SecurityLastClose` and a `Bar` and never call " +
+            "`changeFromClose`:\n      " +
+            reimplementers.join("\n      ") +
+            "\n    That is the shape of the re-implementation: it reads " +
+            "`close.close`, it is right for most of the day, and on the " +
+            "evening the backfill catches up it reports ≈0.00% for " +
+            "everything. The arithmetic is " +
+            "`packages/shared/src/live-change.ts`'s, for both processes.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "one-producer-of-the-overview-aggregate",
+    claim:
+      "`buildMarketOverview` has at most one call site in shipped backend " +
+      "code — one computation for every browser.",
+    check() {
+      // **Task 4.1.1's decision 1, held mechanically**: the aggregate is
+      // computed once where `currentMarketState` already lives, not
+      // recomputed per page and not recomputed twice on the way out.
+      //
+      // ## It guards a symbol with no caller yet, on purpose
+      //
+      // Task 4.2.3 builds the join; Task 4.2.4 wires it to a frame. So the
+      // count today is **zero**, and the claim is *at most one* rather than
+      // *exactly one*. A check that only becomes meaningful after the code it
+      // guards is written is a check that is written after the defect.
+      //
+      // What makes the zero case non-vacuous is the anchor below: the
+      // DEFINITION must exist, exactly once. If the builder is renamed and
+      // this is not repointed, the check fails rather than passing on an
+      // absence.
+      //
+      // ## Call sites, never files
+      //
+      // `one-subscriber-on-the-upstream-socket` recorded this lesson the
+      // expensive way: its first version counted files, and
+      // `pnpm break a-second-subscriber-on-the-upstream-socket` caught it
+      // immediately, because a second subscription added BESIDE the first one
+      // left the count at 1 and the check green. That is also the likeliest
+      // shape of the real regression here — a second publish added next to
+      // the existing one.
+      const sources = [];
+
+      const walk = (dir) => {
+        for (const child of readdirSync(dir)) {
+          const path = resolve(dir, child);
+          if (statSync(path).isDirectory()) {
+            if (child !== "fixtures" && child !== "node_modules") walk(path);
+            continue;
+          }
+          if (!child.endsWith(".ts")) continue;
+          // **Widened past `.test.ts`, deliberately.** `index.process.test.ts`
+          // and `market-bars.database.test.ts` both end in `.test.ts` today,
+          // so the narrow test would have covered them — and the naming is a
+          // convention nothing enforces (`CLAUDE.md`: a process-style test
+          // named `foo.test.ts` runs in the fast suite). Spelling all three
+          // means a `market-overview.database.ts` cannot quietly add a
+          // counted call site.
+          if (/\.(?:test|process|database)\.ts$/u.test(child)) continue;
+          sources.push({
+            path: relative(REPO_ROOT, path),
+            text: withoutComments(readFileSync(path, "utf8")),
+          });
+        }
+      };
+
+      walk(resolve(REPO_ROOT, "apps/backend/src"));
+
+      const definitions = [];
+      const sites = [];
+
+      for (const source of sources) {
+        for (const match of source.text.matchAll(
+          /(?<lead>function\s+)?\bbuildMarketOverview\s*\(/gu,
+        )) {
+          const where = `${source.path} offset ${String(match.index)}`;
+          if (match.groups?.lead === undefined) sites.push(where);
+          else definitions.push(where);
+        }
+      }
+
+      if (definitions.length !== 1) {
+        throw new InvariantFailure(
+          `${String(definitions.length)} definitions of ` +
+            "`buildMarketOverview` in apps/backend/src, expected exactly 1" +
+            (definitions.length === 0
+              ? ". This check refuses a second CALL site, so it must be able " +
+                "to find the thing being called: a grep that matches nothing " +
+                "looks exactly like a grep that passes. If the builder was " +
+                "renamed or moved, repoint this check in the same change."
+              : `:\n      ${definitions.join("\n      ")}`),
+        );
+      }
+
+      if (sites.length > 1) {
+        throw new InvariantFailure(
+          `${String(sites.length)} call sites build the market overview, ` +
+            "expected at most 1:\n      " +
+            sites.join("\n      ") +
+            "\n    One computation for every browser (Task 4.1.1's decision " +
+            "1). A second is a second answer to one question, and the two " +
+            "disagree the moment anything reads both.",
+        );
+      }
+    },
+  },
+
+  {
     id: "every-break-can-still-land",
     claim:
       "Every entry in `scripts/breaks.mjs` substitutes text that still exists " +

@@ -143,8 +143,10 @@ export type SecuritiesView =
        *
        * The map holds the wire record as it arrived, prices and a session date.
        * Nothing here computes the change: that is arithmetic on two numbers,
-       * done where the claim is made, which is `last-close.ts` beside the table
-       * that renders it.
+       * done by `changePercent` and `changeFromClose`. Those lived in
+       * `last-close.ts` beside the table that renders them until 2026-09-26,
+       * and are `@marketpulse/shared`'s since Task 4.2.3 made the backend
+       * their third consumer.
        */
       readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
     }

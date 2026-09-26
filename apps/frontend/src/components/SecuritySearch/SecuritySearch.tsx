@@ -3,7 +3,7 @@ import type {
   SecurityCoverage,
   SecurityLastClose,
 } from "@marketpulse/shared";
-import { SECTOR_LABELS } from "@marketpulse/shared";
+import { SECTOR_LABELS, changePercent } from "@marketpulse/shared";
 import type { KeyboardEvent } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -27,7 +27,7 @@ import { Badge } from "../Badge/Badge.js";
 import { Marker } from "../Marker/Marker.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import { TextField } from "../TextField/TextField.js";
-import { changePercent, commonSession } from "../UniverseTable/last-close.js";
+import { commonSession } from "../UniverseTable/last-close.js";
 import a11y from "../../styles/a11y.module.css";
 import styles from "./SecuritySearch.module.css";
 
