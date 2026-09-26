@@ -73,6 +73,16 @@ the subject documents or the code.
 - **Advisory roles never edit files.** You write the task and story files;
   parallel agents editing one file collide. Only `developer` and `tester`
   write, and only to code, tests and their own instruments.
+- **`DesignSync` is unreachable from every subagent, so YOU proxy the canvas.**
+  The tool is absent from the subagent registry entirely — this is not the
+  `list_projects` trap, and removing the agent definition's `tools:` allowlist
+  does not fix it. So: you read the canvas files the designer names, hand the
+  content over, and write the authored file back. A large `get_file` persists
+  to a local file rather than into context, so pass the designer that path and
+  let it Read from disk. **Writing to the canvas is pre-authorised** — draw and
+  upload as part of the task, and report it afterwards rather than asking
+  first. Reach the project with `get_project` / `list_files`, **never**
+  `list_projects`.
 - **Just in time, not up front.** Engage only the roles a task actually
   touches. A pure data-layer task needs no designer; a copy change needs no
   architect. Over-spawning is the failure mode here.
