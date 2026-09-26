@@ -2055,6 +2055,45 @@ export const BREAKS = [
     expect: "never call `changeFromClose`",
   },
   {
+    name: "a-second-join-in-a-second-file",
+    proves:
+      "**The defect the first draft of this guard walked straight past**, " +
+      "and the shape Story 4.3 will actually write: a join in a file that " +
+      "is not `market-overview.ts`, holding `LastClose` rather than the wire " +
+      "type, with both operands INFERRED. The first version of " +
+      "`one-home-for-the-live-change` selected on `SecurityLastClose` and " +
+      "reported `32 invariants hold.` against exactly this. The other three " +
+      "breaks all edit the file where the check already works; this one is " +
+      "the second file (Task 4.2.3 review).",
+    // `current-market-state.ts` and not a new file, because a break is a
+    // substitution in a committed file — and it is the *right* second file
+    // anyway: this module's own note says a derivation belongs beside it
+    // rather than on it, which is precisely the line somebody crosses here.
+    file: "apps/backend/src/current-market-state.ts",
+    find: "export const snapshotOf = (",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export function sectorMove(\n" +
+      "  state: CurrentMarketState,\n" +
+      "  closes: ReadonlyMap<Ticker, LastClose>,\n" +
+      ") {\n" +
+      "  const moves = [];\n" +
+      "  for (const [symbol, observed] of state.all()) {\n" +
+      "    const close = closes.get(symbol);\n" +
+      "    if (close === undefined) continue;\n" +
+      "    moves.push({\n" +
+      "      symbol,\n" +
+      "      percent:\n" +
+      "        ((observed.bar.close - close.close) / close.close) * 100,\n" +
+      "    });\n" +
+      "  }\n" +
+      "  return moves;\n" +
+      "}\n\n" +
+      "export const snapshotOf = (",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "can reach both halves of the join and never call",
+  },
+  {
     name: "a-second-basis-is-read",
     proves:
       "The basis field is read outside the one function that chooses a " +
