@@ -92,3 +92,32 @@ and where the store holds nothing at all.
 4. The strip's height is identical across every state at each of the four
    widths, measured with `pnpm probe` and the figures recorded
 5. A second definition of any of the words used here fails `pnpm invariants`
+
+## Amended by Task 4.2.5 — 2026-09-26: the gap is a missing NOUN, not a repeated date
+
+**Four copies of `2026-09-11` on a developer's machine is honest but
+repetitive, and consolidating it will not fix the real defect.**
+
+**Row 3 carries two grammars and only one of them is labelled.** The exception
+reads `from 12:07` — a preposition, so a reader knows it is an observation
+time. The stored state reads a bare `2026-09-11`: no preposition, no noun.
+And **nothing in the entire strip, in that state, contains the word _close_ or
+_closing_** — `qualifierOf` returns `undefined` when nothing is observed, so
+the one sentence that would supply the noun is suppressed.
+
+So a reader meets `764.29` under a heading saying `Market proxies`, with a
+date beneath it, and is left to infer that the figure is a **session close**
+rather than a price observed at some point that day. A listener gets
+`SPY. 764.29. 2026-09-11.` — a symbol, an unlabelled number and an unlabelled
+date.
+
+**The requirement is therefore _supply the missing noun_, not _deduplicate the
+date_.** This task's drawn sentence already does it (`… 16:00 EDT · closing
+prices · …`); what must not happen is a consolidation that removes three dates
+and leaves the fourth still unlabelled.
+
+**And confirm the two-line qualifier reserve at 390 is still right.** Task
+4.2.5 kept it per the canvas, and noted that today's longest produced sentence
+fits one line — the extended-hours and absolute-rule sentences are the ones
+that need the second. This task writes the longest of them, so this task is
+where the reserve is either justified or reclaimed.
