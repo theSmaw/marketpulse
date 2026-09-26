@@ -1,6 +1,6 @@
 # Task 4.1.6 — The measurement the denominator decision cannot be taken without
 
-**Status:** **Instrument built, rehearsed and RUNNING — 2026-09-25. The curve itself is owed to this session's close, ~16:00 ET.** `scripts/coverage-curve.mjs` is subscribed to all 518 securities on the deployed gateway and sampling every minute through today's session; it was rehearsed twice against the shut market first, which is where its three findings came from. **The sentence is drafted.** What is not yet decided is **M**, because the number that decides it is being measured as this is written.
+**Status:** **Complete — 2026-09-25. M = 5 minutes, measured rather than argued, and the instrument is deleted.** The curve ran 07:13 → 16:02 ET and sampled **390 of the session's 390 minutes with no gap inside it**. The 2-minute window reads **57.5% at 13:00** — a reader meets that as a fault — while 5 minutes holds **90% median and never below 86.1% in any hour**. Written into Story 4.4's own file with the curve and the argument. **The 1-minute window is structurally zero** and that is a property of the wire, not of the feed. **And the instrument found a defect it was not looking for**: the gateway sends a `feed` frame per inbound vendor item to every browser regardless of subscription — 131,214 frames against 130,413 observations — handed to Story 4.7 with its cost, and unrepaired on purpose.
 **Story:** [4.1 The Decisions & the Overview Shell](STORY.md)
 **Depends on:** 4.1.1
 
@@ -329,3 +329,260 @@ rather than publishing a curve with a caveat nobody will read.
 `ALPACA.md` §11's shape is **run it, record the findings, delete it**, and the
 verbatim frames already in this record are what make that safe. The close
 confirms it happened; **this task does it.**
+
+## The curve, first reading — 2026-09-25, the first 25 minutes of the session
+
+**The instrument came alive at the bell and the shape is already decisive.**
+
+| ET    | held | 1 min | 2 min | 5 min | 15 min | 60 min |
+| ----- | ---: | ----: | ----: | ----: | -----: | -----: |
+| 09:44 |  506 | **0** |   324 |   448 |    506 |    506 |
+| 09:49 |  513 | **0** |   340 |   460 |    506 |    513 |
+| 09:54 |  513 | **0** |   307 |   443 |    504 |    513 |
+
+### The one-minute window is structurally empty, and that is the finding
+
+**`1m` is not thin. It is zero, and it will always be zero.**
+
+A bar's `startsAt` is **the start of the minute it describes**, and the bar
+arrives about half a second after that minute has **ended** — so at any sampling
+instant the newest observation's own instant is already **60 to 120 seconds
+old**. A window of 60 seconds measured against `startsAt` can never contain
+anything.
+
+> **This product has hit that exact shape before and paid for it.** Task 3.3.4
+> found `live` **unreachable in session** because the 60 s staleness comparison
+> was measured from the interval's **start** rather than its end
+> (`LIVE-DATA.md` §11.2's second amendment). The same offset, one surface over,
+> found again by an instrument that did not know to look for it.
+
+### So the sentence has a decision in it that nobody had noticed
+
+**The window means different things depending on what it is measured against**,
+and both are defensible:
+
+| Measured against                   | Reads as                                         | Smallest honest M |
+| ---------------------------------- | ------------------------------------------------ | ----------------- |
+| the bar's own instant (`startsAt`) | _we have a price from within the last M minutes_ | **2 minutes**     |
+| when the observation **arrived**   | _we heard from it within the last M minutes_     | under a minute    |
+
+**The first is what a browser's map actually holds** and what every figure on
+this screen is computed from, so it is the one the sentence should mean — and
+the sentence must therefore never offer a window shorter than two minutes,
+because such a window is not thin, it is empty.
+
+**Handed to Story 4.4** along with M itself.
+
+### Where the curve is heading
+
+At 25 minutes into the session, against 518 tracked: **2 min ≈ 62%**, **5 min ≈
+87%**, **15 min ≈ 97%**, **60 min ≈ 99%**. The 2-minute figure lines up with
+`LIVE-DATA.md` §7.6's **65.1% median per-symbol minute coverage**, measured
+first-hand on the stream a fortnight ago and from an entirely different angle,
+which is the best kind of agreement.
+
+**The reading that decides M is still owed**: the lunchtime trough is the case a
+round number gets wrong, and it has not happened yet.
+
+### The summariser was rehearsed against the partial log, and it found a trap in its own output
+
+**The arithmetic that produces the final answer was run mid-flight**, against
+the log as it stood at 122 samples, rather than trusted to work at 20:00 when
+the run ends and the process exits. It works. But reading its output early is
+what exposed the trap:
+
+```text
+curve: 1m {median 0}  2m {median 1}  5m {median 3}  15m {median 9}  60m {median 19}
+by market hour:
+  07  1m 0   2m 0     5m 0     15m 0     60m 0
+  08  1m 0   2m 0     5m 2     15m 6     60m 13
+  09  1m 0   2m 4     5m 8     15m 13    60m 24
+  10  1m 0   2m 361   5m 447   15m 504   60m 515
+```
+
+**The aggregate `curve` is not merely less informative than the by-hour shape —
+against this log it is actively wrong.** A run started at 07:13 ET spends
+**two hours and seventeen minutes before the bell**, during which the honest
+answer is zero at every window, and those samples are in the same median as the
+session's. `2m`'s aggregate median of **1** and its `10` o'clock median of
+**361** are the same window on the same day.
+
+**So M is chosen from `shapeByMarketHour`, restricted to the hours 09:30–16:00**,
+and the aggregate line is quoted only with its start time beside it. This is the
+same failure the socket count made — _count by URL, never by event_ — with the
+denominator changed: **a median is a claim about its population, and an
+instrument that samples outside the thing it measures has a population nobody
+chose.**
+
+## The instrument found something it was not looking for — 2026-09-25
+
+**The gateway sends a `feed` frame per inbound VENDOR ITEM, to every attached
+browser, regardless of what that browser subscribed to.** Found by reading the
+coverage log's own frame counts, confirmed in source, and then re-measured from
+a second socket subscribed to **one** symbol.
+
+### The measurement
+
+Over 3h48m on the deployed gateway, from a client subscribed to all 518:
+
+```text
+feed frames: 30541      by status: { live: 30531, disconnected: 10 }
+distinct payloads: 3
+consecutive payloads identical: 30865      different: 21
+per-minute rate, pre-market (n=89 minutes):  median 2
+per-minute rate, session   (n=90 minutes):  median 332   min 3   max 385
+```
+
+**They arrive as one burst at the top of the minute.** In the five minutes from
+14:00 UTC, **1,734 of 1,746 frames landed in second `:00`**, nine of sixty
+seconds were occupied at all, and the median inter-frame gap was **0 ms**.
+
+### And the subscription does not scope them
+
+A second socket, subscribed to **`NVDA` alone**, for 75 seconds:
+
+```text
+feed frames in 75.0s with ONE symbol subscribed: 310
+```
+
+**119 bytes each**, verbatim:
+
+```json
+{
+  "type": "feed",
+  "version": 1,
+  "sentAt": "2026-09-25T15:04:22.667Z",
+  "feed": { "status": "live", "feed": "iex", "marketOpen": true }
+}
+```
+
+So a phone on a security page showing one number receives **~250 identical
+frames a minute** — **~30 KB/min, ~1.8 MB/hour, ~11.6 MB over a session**, of
+which the information content is three distinct payloads in 3h48m.
+
+### The mechanism, in source rather than inferred
+
+`alpaca-stream.ts:255` calls `apply(...)` **inside the per-item loop** over the
+inbound vendor message. `apply` (line 214) advances the connection and then
+notifies **unconditionally**:
+
+```ts
+connection = advanceStreamConnection(connection, event);
+subscriber?.onConnectionChange(connection);
+```
+
+`index.ts:791` answers `onConnectionChange` with `gateway.publishFeedState()`,
+which `broadcast`s `feedMessage()` to every client. The keepalive is
+`KEEPALIVE_INTERVAL_MS = 120_000` and accounts for **0.5 frames a minute** of
+the 332 measured; the other ~331 are one per vendor item.
+
+**The connection genuinely changed** — `lastFrameAt` moved — so nothing here is
+lying. What is wrong is that a change to the **watchdog's** private bookkeeping
+is published as a change to the **browser's** feed state, and those are not the
+same object.
+
+### Why nobody has seen it, which is the part that generalises
+
+**`sameLiveFeedView` suppresses the render.** The frontend already collapses a
+feed view that has not changed, so 250 no-op frames a minute cost a browser
+almost no script and produce no visible symptom. **The mitigation for the
+symptom was built before anybody measured the cause**, and it made the cause
+invisible for the whole of Epic 3.
+
+This is the deferral pattern `PROVENANCE.md` §14 recorded, with the arrow
+turned: there, a surface armed itself for a day that had already come; here, a
+suppression worked so well that the thing it suppresses was never counted.
+
+### It contradicts a stated constraint
+
+**ADR 0033's fourth constraint on `sentAt` is _one per frame, 36 bytes
+measured, never one per security._** That rule was written about the field.
+The **frame carrying it** is, in this path, one per security — so the constraint
+holds in the letter and fails in the spirit, and the ADR owes a dated amendment
+rather than a rewrite.
+
+### What was NOT done, deliberately
+
+**Nothing was repaired.** Epic 3 is closed, this is shipped behaviour on the
+live feed, and the change — notify only when the published view differs — is a
+product decision with a measurement behind it, not an overnight edit. It is
+handed to **Story 4.7** with the figures above, in that story's own words,
+because 4.7 owns the degraded set and already owns the browser-side liveness
+question this sits beside.
+
+> **And it sharpens 4.7's other number.** The "browser's own heartbeat" row in
+> that story's decision table reads _every 20–50 s_. The honest statement is
+> **bimodal**: ~2 frames a minute out of hours, ~332 during a session. A
+> browser-side liveness threshold must be derived from the **quiet** case,
+> because that is the floor — the session rate is an artefact of this defect
+> and will drop to the keepalive's 0.5/min the moment it is repaired.
+
+## The reading, at the close — 2026-09-25
+
+**Stopped at the bell with `SIGINT`, which wrote its own summary.** The run
+covered **07:13 → 16:02 ET**, 482 samples, **390 of the regular session's 390
+minutes with no gap over 90 s inside the session**. Two holes of 17 and 30
+minutes exist in the log and **both are pre-market**, which is exactly the
+shortfall between the elapsed minutes and the sample count.
+
+**M = 5 minutes**, written into Story 4.4's own file with the curve, the
+by-hour shape and the argument. The short version: the 2-minute window reads
+**57.5% at 13:00** and a reader meets that as a fault, while 5 minutes holds
+**90% median and never below 86.1% in any hour**, with a whole-day band ten
+points wide. 15 minutes buys 8.5 points and costs the word _live_.
+
+### The instrument's own summary, verbatim
+
+```text
+samples   : 482
+why       : interrupted
+startedAt : 2026-09-25T11:13:25.162Z
+endedAt   : 2026-09-25T20:02:09.699Z
+tracked   : 518
+reconnects: 3
+frames    : {'snapshot': 8, 'bars': 4113, 'feed': 131214, 'observations': 130413}
+```
+
+**That last line settles the feed defect by arithmetic rather than by
+inference**: **131,214 `feed` frames against 130,413 observations.** One per
+observation, near enough exactly, over 8h49m — against 4,113 `bars` frames,
+which is what the count would be if the frame were published per change or even
+per batch.
+
+### One bars frame, kept verbatim
+
+```json
+{
+  "type": "bars",
+  "version": 1,
+  "sentAt": "2026-09-25T12:25:00.013Z",
+  "observations": {
+    "INTC": {
+      "startsAt": "2026-09-25T12:24:00.000Z",
+      "open": 127.84,
+      "high": 127.84,
+      "low": 127.84,
+      "close": 127.84,
+      "volume": 100
+    }
+  }
+}
+```
+
+**A single-security batch, and the offset visible in one frame**: `startsAt`
+12:24:00 delivered at `sentAt` 12:25:00.013 — the bar for a minute arriving
+13 ms after that minute **ended**. That is the whole of why the 1-minute window
+is structurally zero, in one recorded frame rather than in an argument.
+
+### The instrument
+
+**Deleted**, which is this repository's shape for a throwaway.
+
+**And the evidence is only what is quoted above.** The log and the summary sit
+under `.capture/`, which is **gitignored** — so they exist on one machine and in
+no clone. That is the established arrangement and it is exactly why this section
+quotes the summary and a whole `bars` frame **verbatim** rather than citing
+them: `ALPACA.md` §11's lesson is that a findings section recording a
+_behaviour_ without the bytes that carried it reads complete until somebody
+needs the evidence rather than the conclusion, by which point the instrument is
+gone. Assume the files are gone.

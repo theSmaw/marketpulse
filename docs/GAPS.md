@@ -718,3 +718,44 @@ grep -rn "validate constraint" apps/backend/migrations
 **Owner: a condition** — **the first migration added to `market_bars` after
 `0010`.** Read it for `validate`, `cluster`, a non-concurrent index or a
 rewrite, and measure it against 10 MiB/s before it is written.
+
+## Nothing counts the frames the gateway sends, so "never one per security" is a rule about a field while the frame carrying it is one per security
+
+**Measured 2026-09-25, from the deployed gateway, by Task 4.1.6's coverage
+instrument and a second one-symbol socket.** A `feed` frame goes out **per
+inbound vendor item, to every attached client, unscoped by the subscription**:
+median **332 a minute** during the session against **2** out of hours, three
+distinct payloads in 3h48m, 30,865 consecutive frames identical. A socket
+subscribed to `NVDA` alone took **310 frames in 75 seconds** at **119 bytes**
+each — ~30 KB/min, ~1.8 MB/hour, ~11.6 MB a session, per browser.
+
+**The cause is one unconditional notify.** `alpaca-stream.ts:255` calls
+`apply()` inside the per-item loop; `apply` notifies `onConnectionChange`
+whether or not the published view changed; `index.ts:791` answers with a
+broadcast. The connection genuinely changed — `lastFrameAt` moved — so the
+frame is not a lie, it is the watchdog's private bookkeeping published as the
+browser's feed state.
+
+**What made it invisible is the part worth keeping.** `sameLiveFeedView`
+already collapses a feed view that has not changed, so the no-op frames cost a
+browser almost no script and show no symptom. The mitigation for the symptom
+was built before anybody counted the cause, and it hid the cause for a whole
+epic.
+
+**What nothing mechanical sees:** `pnpm invariants` holds `sentAt` out of
+`feed-liveness.ts` and both adapters, which is ADR 0033's constraint as a
+grep — but a grep cannot count frames. The ADR's fourth constraint reads _one
+per frame, 36 bytes measured, never one per security_; the **field** obeys it
+and the **frame** does not, and no check in this repository can tell.
+
+**Re-measure** — during a session, against the deployed gateway, subscribing to
+ONE symbol, counting `"type":"feed"` frames over 75 s. Anything above the
+keepalive's rate (`KEEPALIVE_INTERVAL_MS = 120_000`, so **0.5 a minute**) is
+this defect. Out of hours the measurement cannot see it: with no vendor items
+arriving there is nothing to over-publish, which is why three stories of
+quiet-socket rehearsals never met it.
+
+**Owner: Story 4.7**, which has the figures, the repair (notify only when the
+published view differs) and the client cost in its own file — and which must
+not derive a browser-side liveness threshold from the 332, because that rate is
+this defect's and disappears with it.

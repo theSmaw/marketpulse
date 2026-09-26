@@ -142,3 +142,136 @@ not cry wolf on a 46 s deploy.
 rather than on `/`: the landing page has no moving figures until Story 4.2, and
 _do you notice it while reading a figure_ needs a figure. Task 4.1.7 carries the
 protocol.
+
+### One data point for the table above, taken overnight — 2026-09-25
+
+**A browser's experience of a deploy is nothing like the backend's.** Across the
+rollout of 2026-09-25T12:34Z, a page on the deployed site read:
+
+```text
+12:28:13  LIVE
+12:37:40  DISCONNECTED
+12:37:45  LIVE
+```
+
+**Five seconds**, against the **45.8 s / 46.5 s** the backend's upstream socket
+was refused. They are different quantities and the difference is the point: the
+gateway's new replica serves browsers long before its own feed is connected, and
+the browser's reconnect is **500 ms on `1001 going away`** by design (Task
+3.5.5).
+
+> **It is a coarse reading and it is labelled as one**: the word was sampled
+> every five seconds, so `≤ 5 s` is the resolution rather than the measurement,
+> and the frame log that would have given the exact inter-frame gap was
+> **broken at the time** by the drain defect found the same night. The fixed
+> instrument is running and the next deploy gives the precise figure.
+
+**What it already changes about the options**: the row that says _the socket
+closing → flaps on a deploy_ is the one to re-examine. If a deploy costs a
+browser five seconds rather than forty-six, then reporting on the socket's own
+state may not flap at all — and the threshold conversation is about a phone in
+a tunnel rather than about our rollouts.
+
+### And the figure the table was missing — 2026-09-25, overnight
+
+**On an idle connection out of hours, a browser's longest silence between
+inbound frames is 54.0 s.** Measured over 5.5 minutes on the deployed site with
+a fixed instrument: **17 frames — 3 snapshots, 12 `feed` heartbeats and 2
+`bars`** (extended-hours prints), longest gap **54.0 s**.
+
+**That 54 s is not a coincidence.** It is the upstream Alpaca heartbeat —
+53.96–54.85 s across 82 intervals, `LIVE-DATA.md` §6.3 — arriving at the
+browser as a `feed` frame. **The gateway's quiet-market traffic is paced by the
+vendor's heartbeat**, so the browser's floor is the same number the 165 s
+threshold was derived from, seen from one hop further away.
+
+**So the three numbers the decision needs now exist:**
+
+|                                                 | Measured                 |
+| ----------------------------------------------- | ------------------------ |
+| longest browser silence, **idle, out of hours** | **54.0 s** (n = 5.5 min) |
+| browser's visible outage **across a deploy**    | **≤ 5 s**                |
+| the watchdog                                    | **165 s**                |
+
+> **165 s is a 3× margin over the worst thing a healthy browser does**, and the
+> deploy it was protecting against costs a browser five seconds rather than
+> forty-six. A browser-side threshold around **90 s** would keep a 1.6× margin
+> on the idle gap and still not flap — and would halve the window in which a
+> phone in a tunnel is told its prices are live.
+>
+> **This is one 5.5-minute sample and it says so.** ADR 0036's rule is that
+> these numbers are dated observations to be re-derived rather than tuned, so
+> the decision owes a longer idle sample — and the instrument that takes it now
+> works, which it did not this morning.
+
+## Handed to this story by Task 4.1.6 — 2026-09-25: the gateway's feed frame is one per vendor item
+
+**This story owns a browser-side liveness threshold, and the number it would be
+derived from has just been measured properly. It is bimodal, and the session
+half is an artefact of a defect.**
+
+### The measurement
+
+Against the deployed gateway on 2026-09-25, from a client subscribed to all 518
+securities for 3h48m:
+
+| Condition          | `feed` frames per minute (median) |
+| ------------------ | --------------------------------- |
+| out of hours       | **2**                             |
+| during the session | **332** (min 3, max 385)          |
+
+They arrive as **one burst in second `:00` of the minute** — 1,734 of 1,746
+frames in a five-minute slice, median inter-frame gap **0 ms**.
+
+**The subscription does not scope them.** A socket subscribed to `NVDA` alone
+received **310 frames in 75 seconds**, each **119 bytes**:
+
+```json
+{
+  "type": "feed",
+  "version": 1,
+  "sentAt": "2026-09-25T15:04:22.667Z",
+  "feed": { "status": "live", "feed": "iex", "marketOpen": true }
+}
+```
+
+**Three distinct payloads in 3h48m**; 30,865 consecutive frames identical, 21
+different.
+
+### The cause, confirmed in source
+
+`alpaca-stream.ts:255` calls `apply()` inside the **per-item** loop over the
+inbound vendor message, and `apply` notifies `onConnectionChange`
+**unconditionally** (line 214). `index.ts:791` answers that with
+`gateway.publishFeedState()`, a broadcast to every client. The keepalive
+(`KEEPALIVE_INTERVAL_MS = 120_000`) accounts for 0.5 frames a minute of the 332.
+
+**Nothing is lying** — the connection's `lastFrameAt` really did move. The fault
+is that a change to the watchdog's private bookkeeping is published as a change
+to the browser's feed state.
+
+**It is invisible because `sameLiveFeedView` already suppresses the no-op
+render.** The mitigation for the symptom predates any count of the cause.
+
+### What this story must do with it
+
+1. **Do not derive a browser-side threshold from the 332.** It is a defect's
+   rate and disappears when the defect does. The floor this product can rely on
+   is the **keepalive**, and that is `120_000` ms — which is the number a
+   browser-side threshold has to clear, not 20–50 s.
+2. **The repair is one condition**, and it is this story's to take or refuse:
+   notify only when the **published** view differs from the last published one.
+   `sameLiveFeedView` is the comparison and already exists on the frontend; the
+   question is whether the backend gets its own or lifts that one.
+3. **Price the client cost in the decision**, because it is the argument: ~250
+   frames/min at 119 bytes is **~30 KB/min, ~1.8 MB/hour, ~11.6 MB a session**
+   per attached browser — on a screen this story is measuring at 390 on a phone.
+4. **ADR 0033 owes a dated amendment.** Its fourth constraint reads _one per
+   frame, 36 bytes measured, never one per security_. The field obeys it; the
+   frame carrying the field does not.
+
+> **And the repair moves this story's own baseline.** If the keepalive becomes
+> the only routine `feed` frame, a browser's inbound traffic during a quiet
+> minute is one frame every two minutes — which is the case a 165 s monotonic
+> threshold was already uncomfortably close to. Re-derive both together or
+> neither.

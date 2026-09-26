@@ -1,6 +1,6 @@
 # Task 4.1.7 — The 390 question, asked with a phone in hand
 
-**Status:** **Measured — 2026-09-25. The question was wrong, and the answer is worse than the question.** _Below the fold_ is not what happens: the status bar is **sticky**, on screen at any scroll, and when the feed drops it **grows from four lines to six**. What is actually wrong is the timing — a client that loses its network reads **`LIVE` for exactly 165 seconds** before anything changes. **Nobody fails to notice the fold, because for two minutes forty-five seconds there is nothing to notice.** The decision is Story 4.7's, with the alternatives priced. **The person's half is booked for tonight's session, on `/securities`** — the protocol is below.
+**Status:** **Measured — 2026-09-25. The question was wrong, and the answer is worse than the question.** _Below the fold_ is not what happens: the status bar is **sticky**, on screen at any scroll, and when the feed drops it **grows from four lines to six**. What is actually wrong is the timing — a client that loses its network reads **`LIVE` for exactly 165 seconds** before anything changes. **Nobody fails to notice the fold, because for two minutes forty-five seconds there is nothing to notice.** The decision is Story 4.7's, with the alternatives priced. ~~**The person's half is booked for tonight's session**~~ — **the owner went to bed before the open on 2026-09-25, so it is owed rather than booked.** The protocol below stands unchanged and takes five minutes; **owner and condition rather than a date: the owner, the next session they are awake for with a phone to hand.** Story 4.7 inherits it, which is where the overview's own degraded states get produced anyway.
 **Story:** [4.1 The Decisions & the Overview Shell](STORY.md)
 **Depends on:** 4.1.3
 
@@ -242,3 +242,26 @@ This is the last measurement the landing page's foundations needed. What remains
 is the close — and then four pieces of work, each ending with something new on
 the screen: the index summary, the sectors, the breadth of the market, and the
 day's biggest movers.
+
+## Amended the same evening — the sitting did not happen, and the reason is worth recording
+
+**The owner went to bed before 21:30 local**, which is the open. That is the
+ordinary case rather than a failure: this product is built from Asia/Singapore
+against a market that trades 21:30–04:00 local, and Epic 3 spent **nine
+stories** discovering that a criterion needing a person awake in that window is
+a criterion that does not get met by hoping.
+
+**What Epic 3 learned, applied here:**
+
+- **It is owed with an owner and a condition**, never a date — _the owner, the
+  next session they are awake for with a phone to hand_.
+- **Everything that did not need the person was taken first**, which is why
+  this task is _measured_ rather than _not started_: the 165 s reading, the
+  sticky-bar confirmation, the grows-to-six-lines observation and the
+  correction to `EPIC.md` are all done and none of them waited.
+- **The remaining half is five minutes**, not an evening, and the protocol is
+  written so it can be done without re-reading this file.
+
+> **This is the shape Epic 3's close settled**: the machine takes everything a
+> machine can take, the person's half is stated as exactly what it is, and the
+> ledger says which kind each row is rather than implying they are the same.
