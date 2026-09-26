@@ -1846,6 +1846,167 @@ const INVARIANTS = [
   },
 
   {
+    id: "the-overview-frame-is-not-a-heartbeat",
+    claim:
+      "The overview frame is built in at most one place in " +
+      "`market-gateway.ts`, and the word `overview` appears nowhere in " +
+      "`feedMessage`, `publishFeedState`, the keepalive callback, or " +
+      "`index.ts`'s `onConnectionChange` handler.",
+    check() {
+      // **Written BEFORE the frame it guards** (Task 4.2.1), which is the only
+      // ordering in which it can be proved against the real defect rather
+      // than against a memory of one.
+      //
+      // ## The defect it forbids, measured
+      //
+      // Task 4.1.6 measured `alpaca-stream.ts` calling `apply()` inside the
+      // per-vendor-item loop and `index.ts` answering `onConnectionChange`
+      // with `publishFeedState()` — **~332 `feed` frames a minute, broadcast
+      // to every browser regardless of subscription**. That is unrepaired on
+      // purpose and handed to Story 4.7. The `feed` frame is 119–127 bytes
+      // and `sameLiveFeedView` collapses the render, which is why it survived
+      // a whole epic unnoticed.
+      //
+      // **An overview frame on that path inherits the rate and none of the
+      // mercy.** It would be sent ~332 times a minute instead of once, it
+      // carries an aggregate over 518 securities rather than three enum
+      // fields, and `sameLiveFeedView` does not cover it — a new field is a
+      // new comparison, and a frame carrying a recomputed count changes on
+      // most of those 332.
+      //
+      // ## Why the rule is about the WORD rather than about a name
+      //
+      // The symbol does not exist yet, so a check keyed on one name would be
+      // a check whose target the implementing task is free to spell
+      // differently — and it would then pass for ever. What is guarded
+      // instead is the **frame** (`type: "overview"`, which the wire fixes)
+      // and the **regions** it may not appear in.
+      //
+      // ## The zero case, which is today's case
+      //
+      // Nothing here matches yet and that is expected. **A grep that matches
+      // nothing looks exactly like a grep that passes**, so the anchors below
+      // are what make this non-vacuous: if `feedMessage`, `publishFeedState`
+      // or the keepalive stop being findable, this fails rather than passing
+      // on an absence. Move them, move this.
+      const path = "apps/backend/src/market-gateway.ts";
+      const text = withoutComments(readAnchored(resolve(REPO_ROOT, path)));
+
+      // **The balanced body of the thing named, so a region is a region
+      // rather than a line.** The defect this guards puts a send *inside* a
+      // handler, and a line-based grep cannot see nesting.
+      const bodyAfter = (marker) => {
+        const start = text.indexOf(marker);
+        if (start === -1) return undefined;
+
+        const open = text.indexOf("{", start + marker.length);
+        if (open === -1) return undefined;
+
+        let depth = 0;
+        for (let i = open; i < text.length; i += 1) {
+          if (text[i] === "{") depth += 1;
+          else if (text[i] === "}") {
+            depth -= 1;
+            if (depth === 0) return text.slice(open, i + 1);
+          }
+        }
+        return undefined;
+      };
+
+      const REGIONS = [
+        ["feedMessage", "const feedMessage = "],
+        ["the keepalive callback", "const keepalive = setTimer("],
+        ["publishFeedState", "publishFeedState()"],
+      ];
+
+      for (const [name, marker] of REGIONS) {
+        const body = bodyAfter(marker);
+
+        if (body === undefined) {
+          throw new InvariantFailure(
+            `${path} no longer has a readable \`${name}\` body (looked for ` +
+              `\`${marker}\`). This check refuses a path, so it must be able ` +
+              "to find the path: a grep that matches nothing looks exactly " +
+              "like a grep that passes. If the feed broadcast was renamed or " +
+              "restructured, repoint this check in the same change.",
+          );
+        }
+
+        if (/overview/iu.test(body)) {
+          throw new InvariantFailure(
+            `${path}'s \`${name}\` mentions the overview frame. The feed ` +
+              "broadcast runs ~332 times a minute (Task 4.1.6, measured on " +
+              "the deployed gateway), it goes to every browser regardless of " +
+              "subscription, and `sameLiveFeedView` does not suppress an " +
+              "overview change the way it suppresses an unchanged `feed`. " +
+              "The overview rides the `bars` path, on its own publish.",
+          );
+        }
+      }
+
+      // **One place builds the frame.** Counting encode sites rather than
+      // files is `one-subscriber-on-the-upstream-socket`'s recorded lesson:
+      // counting files left a second subscriber added beside the first
+      // invisible, and a second publish added beside the first is the same
+      // shape. Zero is the state until Story 4.2 adds the frame.
+      const built = [...text.matchAll(/type:\s*"overview"/gu)].map(
+        (match) => `offset ${String(match.index)}`,
+      );
+
+      if (built.length > 1) {
+        throw new InvariantFailure(
+          `${String(built.length)} places in ${path} build an \`overview\` ` +
+            "frame, expected at most 1:\n      " +
+            built.join("\n      ") +
+            "\n    One computation for every browser (Task 4.1.1's decision " +
+            "1). A second encode is a second cadence nobody chose.",
+        );
+      }
+
+      // `index.ts` answers a connection-state change with the feed
+      // broadcast, and that handler is the ~332/minute one. Nothing about
+      // the overview belongs in it.
+      const wiring = "apps/backend/src/index.ts";
+      const process_ = withoutComments(
+        readAnchored(resolve(REPO_ROOT, wiring)),
+      );
+
+      const handler = (() => {
+        const start = process_.indexOf("onConnectionChange:");
+        if (start === -1) return undefined;
+        const open = process_.indexOf("{", start);
+        if (open === -1) return undefined;
+        let depth = 0;
+        for (let i = open; i < process_.length; i += 1) {
+          if (process_[i] === "{") depth += 1;
+          else if (process_[i] === "}") {
+            depth -= 1;
+            if (depth === 0) return process_.slice(open, i + 1);
+          }
+        }
+        return undefined;
+      })();
+
+      if (handler === undefined) {
+        throw new InvariantFailure(
+          `${wiring} has no readable \`onConnectionChange\` handler. This ` +
+            "check refuses a path and cannot refuse one it cannot find — a " +
+            "grep that matches nothing looks exactly like a grep that passes.",
+        );
+      }
+
+      if (/overview/iu.test(handler)) {
+        throw new InvariantFailure(
+          `${wiring}'s \`onConnectionChange\` handler mentions the overview ` +
+            "frame. That handler fires on every upstream connection-state " +
+            "change — ~332 times a minute, measured — and it is the path " +
+            "`publishFeedState` already rides. The overview frame does not.",
+        );
+      }
+    },
+  },
+
+  {
     id: "every-break-can-still-land",
     claim:
       "Every entry in `scripts/breaks.mjs` substitutes text that still exists " +

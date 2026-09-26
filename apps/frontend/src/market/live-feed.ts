@@ -170,11 +170,10 @@ export interface LiveFeedConnection {
    */
   readonly fromSnapshot: ReadonlySet<string>;
   /**
-   * How many snapshots this connection has been sent (Task 3.10.7).
+   * How many **sockets** have greeted this page with a snapshot (Task 3.10.7,
+   * corrected by Task 4.2.1).
    *
-   * The gateway sends one on **every** connection, first or fiftieth (Task
-   * 3.5.5), so this counts connections rather than messages — and the count
-   * is the only thing in this store that distinguishes *we have just come
+   * This is the only thing in this store that distinguishes *we have just come
    * back* from *we have been here all along*. A page that watched the feed
    * drop and return has a **hole** in the minutes it accumulated, and the
    * repair needs an edge to fire on rather than a level to poll.
@@ -183,8 +182,40 @@ export interface LiveFeedConnection {
    * minute are two resumes and a flag set by the first is still set when the
    * second lands — which is the same shape as the announcement defect Task
    * 3.10.6 found one file away.
+   *
+   * ## It counts SOCKETS, and it used to count snapshot MESSAGES
+   *
+   * **The premise that made those the same number is false.** This field was
+   * written under *the gateway sends one snapshot on every connection, first
+   * or fiftieth*. It sends **two per connection, plus one per subscription
+   * change** — Task 4.2.1 measured three on an ordinary cold load and quoted
+   * the frames: `market-gateway.ts` calls `sendSnapshot()` once in the
+   * `upgrade` handler (structurally empty, 149 bytes) and once at the foot of
+   * every `message` listener, and `App.tsx` subscribes twice because
+   * `liveSymbols` starts `[]` and the route fills it after mount.
+   *
+   * So `snapshots - 1` read **2 on a page that had never lost anything**,
+   * which fired `use-bar-series`'s gap-fill refetch on every cold load —
+   * suppressed only by `if (inFlight.current) return`, a timing race.
+   *
+   * The repair is {@link LiveFeedConnection.greeted}: only the **first**
+   * snapshot after a socket opens increments this, so a subscription change
+   * is not a return. Two reconnections are still two.
    */
-  readonly snapshots: number;
+  readonly connections: number;
+  /**
+   * Whether the socket currently open has already sent its snapshot.
+   *
+   * **The whole of the Task 4.2.1 repair** — it is what turns a count of
+   * snapshot *messages* into a count of *connections*. Cleared by `opened`
+   * and by `closed`, set by the first snapshot after either.
+   *
+   * It is on the state rather than in the hook because `advanceLiveFeed` is
+   * the only place that sees the event sequence, and a flag held beside the
+   * reducer would be a second piece of connection state with a second
+   * lifetime — the shape §12.1 walked and refused.
+   */
+  readonly greeted: boolean;
   /** The server's last word about its own feed, or `undefined` before the snapshot. */
   readonly server: WireFeedState | undefined;
   /**
@@ -214,7 +245,8 @@ export const initialLiveFeed: LiveFeedConnection = {
   since: 0,
   observations: new Map(),
   fromSnapshot: new Set(),
-  snapshots: 0,
+  connections: 0,
+  greeted: false,
   lastInboundAt: undefined,
   lastObservationAt: undefined,
   server: undefined,
@@ -337,7 +369,12 @@ export function advanceLiveFeed(
 
   switch (event.kind) {
     case "opened":
-      return { ...state, socket: "open" };
+      // **`greeted` is cleared here, not only on `closed`** (Task 4.2.1). A
+      // socket that opens is a new conversation with the gateway whatever the
+      // previous one did, and the next snapshot on it is that socket's
+      // greeting. Clearing on `closed` alone would miss the case where a
+      // close event never arrives.
+      return { ...state, socket: "open", greeted: false };
 
     case "unreadable":
       return {
@@ -350,7 +387,7 @@ export function advanceLiveFeed(
       // **No reconnection.** Story 3.10 owns retry, and this is exactly where
       // somebody adds a loop without noticing it is a policy. Report it
       // honestly and stop.
-      return { ...inbound, socket: "closed" };
+      return { ...inbound, socket: "closed", greeted: false };
 
     case "message": {
       const { bars, newest } = observedIn(event.message);
@@ -370,10 +407,15 @@ export function advanceLiveFeed(
           bars,
           event.message.type,
         ),
-        snapshots:
-          event.message.type === "snapshot"
-            ? state.snapshots + 1
-            : state.snapshots,
+        // **The FIRST snapshot on this socket is the connection; the rest
+        // are subscribe acknowledgements** (Task 4.2.1). The gateway sends
+        // one on connect and one per subscription change, so counting
+        // messages counted a cold load as two returns.
+        connections:
+          event.message.type === "snapshot" && !state.greeted
+            ? state.connections + 1
+            : state.connections,
+        greeted: state.greeted || event.message.type === "snapshot",
         lastObservationAt:
           newest === undefined
             ? state.lastObservationAt
@@ -437,7 +479,9 @@ export interface LiveFeedView {
   readonly fromSnapshot: ReadonlySet<string>;
   /**
    * How many times this feed has come **back**, which is one fewer than the
-   * snapshots it has been sent (Task 3.10.7).
+   * number of sockets that have greeted it with a snapshot (Task 3.10.7,
+   * corrected by Task 4.2.1 — it used to be one fewer than the count of
+   * snapshot *messages*, and the gateway sends two per connection).
    *
    * `0` while the page has connected at most once, whatever the connection is
    * doing now — a page that has never reached the gateway and a page on its
@@ -530,10 +574,10 @@ export function liveFeedView(
     // because a socket died.
     observations: state.observations,
     fromSnapshot: state.fromSnapshot,
-    // The first snapshot is a connection, not a return. `Math.max` rather
-    // than a subtraction alone so a browser that has been told nothing yet
-    // reads `0` rather than `-1`.
-    resumes: Math.max(0, state.snapshots - 1),
+    // The first connection is not a return. `Math.max` rather than a
+    // subtraction alone so a browser that has been told nothing yet reads
+    // `0` rather than `-1`.
+    resumes: Math.max(0, state.connections - 1),
   } as const;
 
   // We cannot hear the backend, so nothing it last said is evidence of

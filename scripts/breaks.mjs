@@ -1464,6 +1464,51 @@ export const BREAKS = [
     ],
     expect: "tracked universe rather than a literal",
   },
+  // **The break is written before the frame it forbids** (Task 4.2.1), so it
+  // cannot substitute a wrong call for a right one — there is no right one
+  // yet. It **creates** the shape instead: an overview frame broadcast from
+  // `publishFeedState`, which is precisely the defect, written the way
+  // somebody would plausibly write it (beside the existing broadcast, in the
+  // handler that already has a `broadcast` in scope).
+  //
+  // The substituted code does not typecheck — `"overview"` is not on the wire
+  // union yet — and that is fine: `pnpm invariants` is a grep over the source
+  // and needs no build, which is why this entry has no `build: true`. When
+  // Story 4.2 adds the frame type, this break stops being a compile error and
+  // starts being exactly the merge somebody could make.
+  {
+    name: "the-overview-frame-rides-the-heartbeat",
+    proves:
+      "The overview frame is broadcast from `publishFeedState`, the path Task " +
+      "4.1.6 measured at **~332 `feed` frames a minute** on the deployed " +
+      "gateway \u2014 `alpaca-stream.ts` calls `apply()` inside the " +
+      "per-vendor-item loop and `index.ts` answers every `onConnectionChange` " +
+      "with `publishFeedState()`. That defect is survivable for the `feed` " +
+      "frame (119\u2013127 bytes, and `sameLiveFeedView` collapses the " +
+      "render) and is unrepaired on purpose, handed to Story 4.7. An " +
+      "aggregate over 518 securities on the same path would be sent ~332 " +
+      "times a minute instead of once, to every browser regardless of " +
+      "subscription, with no suppression covering it.",
+    file: "apps/backend/src/market-gateway.ts",
+    find:
+      "    publishFeedState() {\n" +
+      "      broadcast(feedMessage());\n" +
+      "    },",
+    replace:
+      "    publishFeedState() {\n" +
+      "      // pnpm break: reverted automatically\n" +
+      "      broadcast(feedMessage());\n" +
+      "      broadcast(\n" +
+      "        encodeMarketStreamMessage({\n" +
+      '          type: "overview",\n' +
+      "          version: MARKET_STREAM_PROTOCOL_VERSION,\n" +
+      "          sentAt: sentAt(),\n" +
+      "        }),\n" +
+      "      );\n" +
+      "    },",
+    command: ["pnpm", "invariants"],
+    expect: "mentions the overview frame",
+  },
   {
     name: "a-second-subscriber-on-the-upstream-socket",
     proves:

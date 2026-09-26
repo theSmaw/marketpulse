@@ -372,6 +372,27 @@ export function registerMarketGateway(
       // minute and, for `ERIE`, 187. The snapshot is what makes the first paint
       // honest, and `{}` after a restart is the TRUE answer rather than a
       // degraded one. Empty here too, until this client subscribes.
+      //
+      // **This call is STRUCTURALLY EMPTY, and it stays** (Task 4.2.1). The
+      // line above sets an empty subscription, so `wanted.has(symbol)` is
+      // false for all 518 and `observations` is `{}` whatever the market state
+      // holds — there is no path that makes it otherwise, because the
+      // `message` listener that would populate `wanted` is registered below
+      // this call. **Measured 2026-09-26: 149 bytes**, against the 56.9 KiB a
+      // subscribed mid-session snapshot carries. So a connection produces
+      // **two** snapshots — this one and the one answering the first subscribe
+      // — plus one per subscription change after that.
+      //
+      // **Why it is not deleted as a duplicate.** It is the only frame an
+      // unsubscribed browser receives, and it carries `feed`. Every browser is
+      // unsubscribed for the first moments of every connection and every
+      // reconnect (`App.tsx` starts with no symbols), and the next thing such
+      // a browser would hear is the 120 s keepalive — two minutes in which
+      // §11.2's watchdog is already counting silence. The alternative
+      // considered and rejected was sending a `feed` message here instead: it
+      // saves 22 bytes and moves the browser's *this is a connection* edge
+      // onto a frame that also arrives on a timer. Story 4.2's `STORY.md`
+      // carries the decision.
       sendSnapshot();
 
       client.on("message", (raw: unknown) => {

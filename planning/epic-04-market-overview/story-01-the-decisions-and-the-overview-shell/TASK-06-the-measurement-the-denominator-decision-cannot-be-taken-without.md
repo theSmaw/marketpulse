@@ -188,6 +188,22 @@ once.** Mid-session a snapshot carries every subscribed security, so a spare
 one is not free. **Handed to Story 4.2**, which owns the seam and will be
 adding a frame type to this wire.
 
+> **Amended 2026-09-26 by Task 4.2.1 — the count above is right; the inference
+> in the last two sentences is not.** `snapshot: 2` was reproduced and is
+> real. What was inferred from it — that the spare frame is a mid-session
+> snapshot carrying every subscribed security, and therefore _not free_ — is
+> wrong. The gateway calls `sendSnapshot()` **twice by construction**, and the
+> first call is structurally empty: `clients.set(client, new Set())` runs
+> above it in the `upgrade` handler, so it filters against an empty
+> subscription and `observations` is `{}` whatever the market state holds. The
+> second is the one answering the subscribe, and it is the frame that was
+> always going to be large. Measured against a running gateway on 2026-09-26:
+> the connect-time frame is **149 bytes**, verbatim
+> `{"type":"snapshot","version":1,"sentAt":"2026-09-26T00:46:53.049Z","observations":{},"feed":{"status":"disconnected","feed":null,"marketOpen":false}}`.
+> The rule is **two snapshots per connection plus one per subscription
+> change**. Nothing above is rewritten; Story 4.2's `STORY.md` carries the
+> correction and the decision that the empty frame **stays**.
+
 ### The sentence, drafted
 
 > **Of the 518 securities we track, 341 were heard from in the last 5 minutes.**
