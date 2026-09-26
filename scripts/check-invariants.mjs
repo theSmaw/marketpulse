@@ -2808,6 +2808,58 @@ const INVARIANTS = [
   },
 
   {
+    id: "the-landing-route-has-a-spec-that-drives-a-figure",
+    claim:
+      "A browser spec drives an `overview` frame and asserts the figure it " +
+      "carries — because a spec that only checks the seven regions are NAMED " +
+      "passes long before any of them holds a number.",
+    check() {
+      // **Written because the spec it guards went missing from the PR named
+      // after it.** Story 4.2's close, 2026-09-26. Task 4.2.8 wrote a 584-line
+      // spec, ran it green, and recorded it in its task file, in
+      // `docs/GAPS.md` and in a commit message — and the commit staged
+      // `planning` and `docs` only, so `main` received the prose and not the
+      // mechanism. `pnpm verify` and `pnpm e2e` were both green without it,
+      // because a suite cannot miss a file it has never heard of.
+      //
+      // That is `CLAUDE.md`'s own shape: a claim about a mechanism reads
+      // identically whether the mechanism is there or not.
+      //
+      // **It keys on the FRAME rather than on a filename or a test id.** A
+      // filename makes a rename look like a regression; a `data-testid` is not
+      // how this spec locates anything (it reaches the cell through the row
+      // holding the symbol). Driving `type: "overview"` is the one thing only a
+      // spec that actually exercises this wire can do — `landing-route.spec.ts`
+      // scores zero on it, which is the discrimination this check needs.
+      // `sourceFilesUnder` returns `{ path, text }` and throws an
+      // InvariantFailure of its own if the directory is empty or gone — so the
+      // "a glob that matches nothing looks like a pass" case is already
+      // covered upstream and is not re-implemented here.
+      const specs = sourceFilesUnder(resolve(REPO_ROOT, "e2e/specs")).filter(
+        ({ path }) => path.endsWith(".spec.ts"),
+      );
+
+      const driving = specs.filter(({ text }) => {
+        const body = withoutComments(text);
+        return (
+          body.includes('type: "overview"') &&
+          /toHaveText|toContainText|innerText|textContent/u.test(body)
+        );
+      });
+
+      if (driving.length === 0) {
+        throw new InvariantFailure(
+          "no spec under e2e/specs drives an `overview` frame and asserts the " +
+            "figure it carries. Asserting the seven region NAMES is not this: " +
+            "a region is named long before it holds a number, and the spec " +
+            "that asserted a proxy figure was once written, run green, " +
+            "recorded in three documents and never committed.",
+        );
+      }
+    },
+  },
+
+  {
     id: "every-break-can-still-land",
     claim:
       "Every entry in `scripts/breaks.mjs` substitutes text that still exists " +

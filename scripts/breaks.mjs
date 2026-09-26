@@ -2284,6 +2284,29 @@ export const BREAKS = [
     expect: "should be written only in",
   },
   {
+    name: "the-landing-spec-stops-driving-the-frame",
+    proves:
+      "The one browser spec that drives an `overview` frame stops driving it " +
+      "\u2014 which is how the landing route lost its only figure assertion " +
+      "once already. Task 4.2.8 wrote this spec, ran it green, and recorded " +
+      "it in its task file, in `docs/GAPS.md` and in a commit message; the " +
+      "commit staged `planning` and `docs` only, so `main` received three " +
+      "documents describing a mechanism and not the mechanism. `pnpm verify` " +
+      "and `pnpm e2e` were both green without it, because a suite cannot miss " +
+      "a file it has never heard of, and `landing-route.spec.ts` asserting " +
+      "the seven region NAMES passes long before any region holds a number.\n\n" +
+      "The substitution is the surviving half of that failure: the file is " +
+      "present and no longer exercises the wire. It is keyed on the FRAME " +
+      "rather than the filename, so renaming the spec is not a regression " +
+      "and deleting its reason for existing is.",
+    file: "e2e/specs/overview-proxy-live-update.spec.ts",
+    find: '      type: "overview",',
+    replace:
+      "      // pnpm break: reverted automatically\n" + '      type: "bars",',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "drives an `overview` frame and asserts the figure",
+  },
+  {
     name: "a-staleness-threshold-in-milliseconds",
     proves:
       "`LIVE-DATA.md` \u00a711.2 refused a per-security staleness threshold " +

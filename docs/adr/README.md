@@ -56,6 +56,7 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0035](0035-both-tapes-are-kept-and-what-a-record-is.md)                                                   | Both tapes are kept: what a stored bar is a record of, and what that costs                      | Accepted |
 | [0036](0036-two-clocks-and-what-a-liveness-threshold-must-not-read.md)                                     | Two clocks, and what a liveness threshold must not read                                         | Accepted |
 | [0037](0037-what-this-deployments-shape-costs-in-money-and-in-feed.md)                                     | What this deployment's shape costs, in money and in feed                                        | Accepted |
+| [0038](0038-the-overview-aggregate-one-join-one-frame.md)                                                  | The overview aggregate: one join, one frame, and what a derived figure on this wire owes        | Accepted |
 
 **0024 was written on 2026-09-11, out of order, and the gap it filled is worth
 remembering.** It was reserved by Story 2.11 and three planning documents cited it by

@@ -5,7 +5,7 @@ import {
 } from "@marketpulse/shared";
 
 import { chromeAlreadyNames } from "../../feed-claim.js";
-import { formatMarketInstant } from "../BarSeriesPanel/series-facts.js";
+import { formatBarInstant } from "../../market/index.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
 
 // What the landing screen says about where its numbers came from, assembled
@@ -235,8 +235,20 @@ function closesClause(overview: WireMarketOverview): FeedClause | null {
  * a session and **unbounded when the feed dies**, so the send instant would
  * report an afternoon-old aggregate as current.
  *
- * **A whole instant with its zone**, which is `formatMarketInstant`'s spelling
- * and this product's for anything that is a moment rather than a session. It
+ * **A whole instant with its zone, spelled by `formatBarInstant`** — this
+ * product's spelling for anything that is a moment rather than a session, and
+ * the one the status bar's `Showing data through …` already uses a hundred
+ * pixels below this note at 390. **Changed 2026-09-26 at Story 4.2's close**,
+ * from `formatMarketInstant(…, "minute")`: both produce a market instant to the
+ * minute with its zone, so the screen carried two spellings of one KIND of
+ * value — which is drift rather than distinction, and it made the screen's
+ * genuine distinction (an instant against a session name) read as
+ * inconsistency by association. `formatMarketInstant` exists because a WINDOW
+ * bound needs seconds; `COMPUTED` is not a window bound.
+ *
+ * The minute-precision argument below survives the move intact, because
+ * `formatBarInstant` drops seconds by construction — which is why the precision
+ * parameter had to be added to the other formatter rather than to this one. It
  * is not the figures' own instant — the strip states that, per figure and in
  * its shared line — it is when *this arithmetic* was done, which nothing else
  * on the screen says and which is the only way to tell a frozen aggregate from
@@ -278,7 +290,7 @@ function computedClause(overview: WireMarketOverview): string | null {
   const instant = Date.parse(overview.computedAt);
   if (Number.isNaN(instant)) return null;
 
-  return formatMarketInstant(new Date(instant), "minute");
+  return formatBarInstant(new Date(instant), "1m");
 }
 
 /**

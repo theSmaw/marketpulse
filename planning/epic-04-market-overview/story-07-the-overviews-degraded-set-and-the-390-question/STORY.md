@@ -275,3 +275,29 @@ render.** The mitigation for the symptom predates any count of the cause.
 > minute is one frame every two minutes — which is the case a 165 s monotonic
 > threshold was already uncomfortably close to. Re-derive both together or
 > neither.
+
+## Handed here by Story 4.2's close — 2026-09-26: the strip's degraded states are already photographed, and one new instant needs a verdict
+
+**1. Inherit the grid rather than re-producing it.** Task 4.2.8 produced **16
+states × 4 widths plus greyscale at 1440 — 80 photographs** — at
+`.capture/proxy-states/`, with `readings.json` carrying the strip text, the
+source-note text and the feed-cell text per state per width. Every row was
+reached through the shipped socket path. **No two states read identically**,
+with two documented exceptions worth knowing: `overview === undefined` and
+`figures: []` are **one state on screen** by decision, and `all-stored-one-session`
+against `no-provider-configured` are identical on the strip **and** the note and
+told apart **by the chrome alone** — which is ADR 0029's one-home rule working
+rather than a gap.
+
+**2. `computedAt` is a new instant on the wire and you own what it says when the
+feed has stopped.** The aggregate is computed once per applied batch, so every
+figure on the landing page is as of `computedAt` — frozen between bursts, and
+**unbounded when nothing arrives**. The strip says nothing about the connection
+by decision; the source note renders `COMPUTED …` at **minute** precision. So a
+reader of a dead feed sees figures, a stale `COMPUTED`, and the connection word
+only in the status bar. **Decide whether that is enough**, and note the 165 s
+watchdog means the word itself lags.
+
+**3. The ~332 `feed` frames a minute are still yours**, unrepaired and now
+guarded from acquiring a passenger: `the-overview-frame-is-not-a-heartbeat`
+refuses an overview publish on the feed-state path, with two breaks behind it.

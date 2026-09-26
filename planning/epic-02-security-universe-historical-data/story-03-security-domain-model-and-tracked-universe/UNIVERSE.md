@@ -2104,3 +2104,44 @@ that is not an index — the moment membership stops being decidable from a publ
 the fetcher and the licence question come back.
 
 ---
+
+## `Market proxies` is the display word for `kind: "index_etf"`, and it has four drawn sites — 2026-09-26
+
+**Added at Story 4.2's close**, because the landing page's new region made this
+word appear on a third screen and nothing recorded how the sites relate.
+
+**Three of the four derive from the KIND and cannot drift apart:**
+
+| Site                         | Words                                                               | Derived from                                   |
+| ---------------------------- | ------------------------------------------------------------------- | ---------------------------------------------- |
+| `/`'s region heading         | `Market proxies`                                                    | `indexProxyTickers()` → `kind === "index_etf"` |
+| `/securities`' group heading | `Market proxies` + _"Whole-market ETFs, which belong to no sector"_ | `bands.ts`' `market-proxies` band, same `kind` |
+| `/securities`' rail link     | `Market proxies`                                                    | the same band                                  |
+
+Add a fifth index ETF to `UNIVERSE` and the table group, the rail link and the
+landing strip all grow together, by construction. `market-overview.ts` takes its
+symbols as a **parameter** precisely so the strip is one caller of the seam
+rather than the seam's definition, and `indexProxyTickers` is explicit that a
+second literal would be the second home this repository keeps finding.
+
+**The fourth site derives from a different predicate**, and that is the seam
+worth knowing about. The **singular** `Market proxy`, on the security page's
+classification line and in search, is
+`security.sector === null ? "Market proxy" : SECTOR_LABELS[security.sector]`.
+
+Today `sector === null ⟺ kind === "index_etf"` — but **only because
+`EquitySecurity.sector` is non-nullable and `SectorEtfSecurity` carries its
+own.** The type is the whole of what holds the two predicates together. The
+failure it admits is legible: the first security kind whose sector is genuinely
+**unknown** would render `Market proxy` on the security page and in search while
+being absent from every `Market proxies` group — two words, one spelling, two
+populations.
+
+**Reversal trigger, as a condition:** the first `Security` variant whose `sector`
+may be `null` and whose `kind` is not `index_etf`. At that point the singular
+moves onto `kind` and the two predicates stop being one. It fires on a type
+change a compiler will already be showing somebody.
+
+**And a consequence for the browser suite:** `Market proxies` is now a homonym
+across two routes, so `getByRole("region", { name: "Market proxies" })` is
+ambiguous and **any region locator on `/securities` must be scoped**.

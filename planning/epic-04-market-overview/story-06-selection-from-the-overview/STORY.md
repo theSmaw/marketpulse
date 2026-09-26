@@ -75,3 +75,27 @@ figures move on their own.
 
 Investigation entry points (Epic 7+), the topology's own selection (Epic 6),
 and multi-select or comparison (Epic 8).
+
+## Handed here by Story 4.2's close — 2026-09-26: two things the first click will meet
+
+**1. The first thing that makes a proxy activatable must not be a natively
+`disabled` control carrying an `aria-describedby`.** A description is read when
+a control is **reached**, and a natively `disabled` control is not focusable —
+so the sentence is unreachable by any key press. This shipped for two tasks
+once; `TextField` renders `aria-disabled` + `readOnly` product-wide because of
+it. And the consequence has to be followed: the state stops being inactive, so
+WCAG 1.4.11's and 1.4.3's exemptions stop covering its border and its ink.
+
+**2. `Market proxies` is now a HOMONYM, so any region locator on `/securities`
+must be scoped.** It is the landing page's region, the universe table's group
+heading, and a rail link — the same four securities and the product's existing
+word, so it is consistent rather than wrong. But `getByRole("region", { name:
+"Market proxies" })` is now ambiguous across routes, and a selection spec is
+exactly the shape that will write one.
+
+**3. The strip is content, not controls.** It adds **zero** tab stops today —
+the region is already one stop as a `Panel scrollable`, and nothing inside it is
+focusable. Whatever you add is the first, so it is also the first chance to get
+the sticky-edge focus behaviour wrong: `scroll-padding-top`/`-bottom` exist, and
+`docs/GAPS.md` records that they are short by exactly `--focus-width +
+--focus-offset`.

@@ -119,3 +119,34 @@ computation in the browser over 518 securities.
   main-thread task** on the page `PRODUCT_SPEC.md` §28 is least able to afford
   one. That is the measured reason the decision went the way it did, not a
   preference.
+
+## Handed here by Story 4.2's close — 2026-09-26: the seam exists, and two decisions are yours
+
+**The join is built and you are its second consumer.**
+`apps/backend/src/market-overview.ts`'s `buildMarketOverview` takes a **symbol
+list**, the current-state map, a `closesAsOf(session)` lookup and an `asOf`
+instant, and returns a three-member union per symbol — `observed` (with the
+change already computed), `stored`, `unknown`. It is **pure**: no clock, no
+socket, no repository handle, which is what makes invariant 4 structural rather
+than remembered. **Do not give it a handle.**
+
+**Decision 1: do sectors share the `overview` frame, or get their own type?**
+One screen at one cadence should carry one `computedAt`, which argues for one
+frame with optional sections — but four regions widening one payload is a bag.
+Either way it is a wire decision and **ADR 0038**
+governs it.
+
+**Decision 2: `one-producer-of-the-overview-aggregate` permits at most ONE call
+site.** Wiring a second aggregate means either routing through the existing
+builder or changing that invariant **and re-running its break**.
+
+**And the defect its sibling guard was written against is the one you are most
+likely to commit.** `one-home-for-the-live-change` exists because an author
+reaching for `readLastCloses` holds `LastClose` — same shape as the wire's
+`SecurityLastClose`, **no `session`**, different name — and therefore cannot
+call `changeFromClose` without converting first. A hand-written
+`sector-performance.ts` doing `((observed.bar.close - close.close) / close.close) * 100`
+was written out and **passed green** until the guard was keyed on the _readers_
+of the closes and on **the division itself**. Convert, then call
+`changeFromClose` from `packages/shared`. A second implementation fails the
+build.
