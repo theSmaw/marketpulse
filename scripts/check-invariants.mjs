@@ -2327,7 +2327,17 @@ const INVARIANTS = [
         // **It is safe because clause three does not honour it.** A file that
         // called the builder and also divided by a close would still be
         // caught there, by the arithmetic itself, whatever it is named.
-        if (/\bbuildMarketOverview\(/u.test(file.text)) {
+        //
+        // **It must not cover the module that DECLARES the builder**, which
+        // is how the first version of this exemption was written and what
+        // `pnpm break the-proxies-do-their-own-arithmetic` caught in the same
+        // session: `market-overview.ts` contains `buildMarketOverview(` in
+        // its own signature, so the exemption swallowed the one file the
+        // break targets and the substitution went red on clause three alone.
+        if (
+          /\bbuildMarketOverview\(/u.test(file.text) &&
+          !/function\s+buildMarketOverview\b/u.test(file.text)
+        ) {
           return "a wiring site that hands both halves to the one producer";
         }
 
