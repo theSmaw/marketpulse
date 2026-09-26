@@ -100,8 +100,11 @@ const PAGE_COUNT = (() => {
 const NARRATIVE = ["NVDA", "AAPL", "SPY", "ERIE"];
 
 // The widths a person would look at, and 390 is the one Task 3.10.9 flagged:
-// three pairs of degraded states are told apart by the status bar alone, which
-// at 390 is below the fold.
+// three pairs of degraded states are told apart by the status bar alone.
+// NOTE (Task 4.1.8, 2026-09-25): 3.10.9 said that bar is "below the fold" at
+// 390 and it is NOT — it is sticky, on screen at any scroll, and it grows from
+// four wrapped lines to six when the feed drops. The real fault is 165 s of
+// `LIVE` before the word changes. `docs/GAPS.md` carries it; Story 4.7 owns it.
 const WIDTHS = [1440, 768, 390];
 
 const OUT = resolve(REPO_ROOT, ".capture/sitting");
@@ -415,10 +418,11 @@ async function photograph(context, why, detail) {
         });
         await page.waitForTimeout(2_500);
         // **At 390 BOTH shots are taken, and the viewport one is the answer.**
-        // Task 3.10.9's finding is that the status bar — the only surface that
+        // Task 3.10.9's finding was that the status bar — the only surface that
         // tells three pairs of degraded states apart — is below the fold at
-        // 390. A `fullPage` screenshot shows everything and therefore answers
-        // the opposite question: it is the record, and `-fold` is the evidence.
+        // 390. That is FALSE (Task 4.1.8, 2026-09-25): the bar is sticky and is
+        // in the viewport shot. Both shots are still worth taking, because the
+        // viewport one is what a reader sees and `fullPage` is the record.
         const file = resolve(OUT, `${why}-${String(width)}-${String(at)}.png`);
         await page.screenshot({ path: file });
         shotsTaken.push({ why, width, file });

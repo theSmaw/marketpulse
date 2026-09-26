@@ -131,9 +131,9 @@ against 10 MiB/s before it is written.
 break the-tape-check-gets-validated`, `pnpm break
 the-tape-default-lies-about-the-past`, `pnpm break
 the-writer-stamps-a-constant` (a literal `sip` in the writer reddens the
-  `synthetic` read-back), `pnpm break a-second-tape-overwrites-the-first`,
-  `pnpm break a-second-provider-is-relabelled` and `pnpm break
-the-second-tape-is-folded-into-the-first` (the run split disabled). Two
+  `synthetic` read-back), `pnpm break the-second-tape-is-folded-into-the-first`,
+  `pnpm break a-second-provider-is-relabelled` and the same break with the run
+  split disabled. Two
   more prove `pnpm invariants` rather than a test:
   `the-sources-are-written-by-hand` and `the-ledgers-tape-is-read-again`.
 - **It does not certify** that the deployed migration finished inside 120 s —
