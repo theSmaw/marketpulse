@@ -649,6 +649,21 @@ were the edit. Each of these cost real time that session.
 
 **Measure rather than cite.** A stated invariant that nothing checks quietly stops being true; re-take a figure rather than carrying one forward, especially one from this file. Corollaries learned the hard way:
 
+- **Before attributing a flake to a branch, run the branch commit that contains
+  no code.** Added 2026-09-26, and it is the cheapest control available in any
+  branch-versus-`main` comparison. Task 4.2.6 was declared a regression on the
+  strength of `main` passing a spec 12/12 and the branch failing it 3/12 — same
+  command, same settled machine, back to back. It was not a regression: the
+  branch's **first** commit differs from `main` by **one line in a planning
+  Markdown file**, with byte-identical runtime trees, and it **failed 2 of 12**.
+  The spec fails on `main` at **14 / 120 ≈ 12%**, and three consecutive runs on
+  one checkout gave `48 passed`, then 5, 5 and 3 failures. **At 12% per
+  execution, `P(0 failures in 6) ≈ 0.46`** — so a clean `main` beside a failing
+  branch at `--repeat-each=6` is an ordinary pair of draws from one
+  distribution. **n=6 cannot separate a 12% flake from a regression; n=24,
+  repeated on one checkout, can.** Note what went wrong twice over: waiting for
+  the machine to settle correctly killed the _contention_ explanation and was
+  then mistaken for having established the _regression_ one.
 - **A break that does not go red is not evidence the check works** — it is equally evidence the break did not land. Verify the substitution.
 - **A figure that has moved looks exactly like a figure that was mis-recorded.** Only rebuilding the old commit tells them apart.
 - **A throwaway instrument's findings section must quote at least one frame, body or row VERBATIM.** _Run it, record the findings, delete it_ is the established shape (`ALPACA.md` §11) and it works — measured on 2026-09-18, a fortnight after Epic 3's harness was deleted, at **12 of the 14 frames a downstream story needed**. The two it missed came from the one section that recorded a **behaviour** without quoting the bytes that carried it, and the failure is invisible at the time: the finding is complete and the argument sound **until somebody needs the evidence rather than the conclusion**, by which point the instrument is gone. Cost: a fixture with an inferred shape, and a `docs/GAPS.md` entry to retire it.

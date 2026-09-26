@@ -148,3 +148,36 @@ became visible when a rule that had only ever held digits was given a **word**.
 `.descriptor`'s computed `font-size` in a browser against the 9px the source
 declares. **Owner: its own task** — it is a chrome change on every route, and
 the 201px re-measure travels with it.
+
+## Amended by Task 4.2.6 — 2026-09-26: a fourth `docs/GAPS.md` entry, and it is not this story's defect
+
+**`security-gap-fill.spec.ts:165` fails on `main` about one time in eight, and
+nothing records it.** Measured while establishing that Task 4.2.6 had **not**
+regressed it: **14 failures in 120 executions of that test on `main`** (≈12%),
+with three consecutive runs on one unchanged checkout giving `48 passed`, then
+5, 5 and 3 failures.
+
+The assertion is
+`expect(panels.filter((count) => count > 0)).toHaveLength(0)` — **no pending
+panel appears while the refill runs** — which is Story 3.9's promise that _a
+refill is quiet_, against ADR 0028's measured **160 ms** cover threshold.
+**Neither number is a tuning knob and neither should be relaxed to make this
+green.**
+
+**The mechanism is a hypothesis, not a measurement**, and is recorded as such:
+the failing page's snapshot contains the **full 518-row universe table**,
+because `/securities/:symbol` renders the Explorer shell — and `CLAUDE.md`
+already records that every cold load of that route spends one main-thread task
+of **50–76 ms**, that it is the table rather than the chart, and that it is
+**Epic 14's by name**. A 160 ms threshold sitting on top of a documented
+50–76 ms task that lands at a variable moment is a plausible source of a ~12%
+flake. Nobody has measured where the 160 ms actually goes.
+
+`Re-measure:` `pnpm e2e e2e/specs/security-gap-fill.spec.ts --repeat-each=6`
+**four times on one checkout, on a machine below load 4** — and count failures
+per execution rather than per run. A single `--repeat-each=6` is worthless
+here: at 12% it comes back clean 46% of the time.
+
+**Owner: a condition rather than a story number — the first task that measures
+where the security page's refill spends its 160 ms**, which is the same
+measurement Epic 14 owes for the cold load and should be taken once for both.
