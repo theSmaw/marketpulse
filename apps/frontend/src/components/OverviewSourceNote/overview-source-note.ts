@@ -173,7 +173,7 @@ export function toOverviewSourceNote(
   return {
     observed: observedClause(overview.feeds, feed),
     closes: closesClause(overview),
-    computed: computedClause(overview.computedAt),
+    computed: computedClause(overview),
   };
 }
 
@@ -246,8 +246,20 @@ function closesClause(overview: WireMarketOverview): FeedClause | null {
  * answers `NaN` for what it cannot read and `new Date(NaN)` formats without
  * complaining, which is how `Invalid Date` reaches a screen.
  */
-function computedClause(computedAt: string): string | null {
-  const instant = Date.parse(computedAt);
+function computedClause(overview: WireMarketOverview): string | null {
+  // **A claim about data requires data, and this clause's data is the
+  // figures.** A frame whose every figure is `unknown` is a truthful aggregate
+  // over nothing — which is exactly the state CI's store puts all four proxies
+  // in, and the state a restarted backend is in before its first read. An
+  // instant under a strip saying it holds nothing is `SOURCE_OF_NOTHING`'s
+  // defect one screen along: a hairline and a line of fine print that a reader
+  // takes as a claim about the figures above them.
+  const describesSomething = overview.figures.some(
+    (figure) => figure.state !== "unknown",
+  );
+  if (!describesSomething) return null;
+
+  const instant = Date.parse(overview.computedAt);
   if (Number.isNaN(instant)) return null;
 
   return formatMarketInstant(new Date(instant));

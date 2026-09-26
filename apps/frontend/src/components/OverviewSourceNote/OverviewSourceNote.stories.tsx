@@ -186,6 +186,26 @@ export const TwoObservedTapes: Story = {
 };
 
 /**
+ * **CI's state, and a restarted backend's: a frame about nothing.**
+ *
+ * Every figure is `unknown` — the store holds nothing for any of them — so the
+ * strip above says so and this says nothing at all. A lone `COMPUTED` line
+ * would be a truthful instant under a surface holding no figures, which is
+ * `SOURCE_OF_NOTHING`'s defect one screen along.
+ */
+export const AnAggregateOverNothing: Story = {
+  args: {
+    overview: frame(
+      [
+        { state: "unknown", symbol: "SPY" },
+        { state: "unknown", symbol: "QQQ" },
+      ],
+      [],
+    ),
+  },
+};
+
+/**
  * **First paint: no frame, no note.** Not an empty box with a hairline over
  * it — a claim about data requires data, and there is no data.
  *

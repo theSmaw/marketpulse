@@ -173,6 +173,18 @@ describe("toOverviewSourceNote", () => {
     ).toBe("2026-09-25 14:01:32 EDT");
   });
 
+  it("says nothing at all about an aggregate over nothing", () => {
+    // CI's store is 518 securities and zero bars, so every proxy is `unknown`
+    // there. A lone `Computed` line under a strip saying it holds nothing is a
+    // truthful instant making a false impression.
+    const note = toOverviewSourceNote(
+      frame([unknown("SPY"), unknown("QQQ")]),
+      NOT_CONFIGURED,
+    );
+
+    expect(hasOverviewClauses(note)).toBe(false);
+  });
+
   it("skips an instant it cannot read rather than printing Invalid Date", () => {
     const note = toOverviewSourceNote(
       { computedAt: "not an instant", feeds: [], figures: [stored("SPY")] },
