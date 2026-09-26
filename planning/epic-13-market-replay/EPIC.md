@@ -289,6 +289,20 @@ connection has one home and that home is sticky at the **foot** of the
 viewport, at 390 the distinction between _the feed stopped_ and _the market is
 shut_ is below the fold. No check can see it.
 
+> **Amended 2026-09-25 by Task 4.1.8 — both halves of that were wrong, and the
+> entry it names now exists.** _Below the fold_ is false: the status bar is
+> **sticky**, on screen at 390 at any scroll, and when the feed drops it
+> **grows from four wrapped lines to six** — a size change that moves the page,
+> which is a stronger peripheral signal than a word swap. And `docs/GAPS.md`
+> held **no such entry** until this task wrote one; four `EPIC.md` files and an
+> ADR had pointed at a record that never existed.
+>
+> **What is actually wrong is the timing**: a client that loses its network
+> reads **`LIVE` for exactly 165 seconds** before anything changes, because the
+> word is driven by the monotonic watchdog rather than by the socket closing.
+> Nobody fails to notice the fold; for two minutes forty-five seconds there is
+> nothing to notice. **Owner: Story 4.7**, with four alternatives priced.
+
 **And the question this epic has to answer rather than inherit: a replay has no
 feed to disconnect.** Several states above are **unrepresentable** under a
 replay clock — there is no socket, so no `disconnected`, no `stale`, no gap to

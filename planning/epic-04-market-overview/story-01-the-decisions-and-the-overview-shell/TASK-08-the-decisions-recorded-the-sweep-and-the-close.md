@@ -1,6 +1,6 @@
 # Task 4.1.8 — The decisions recorded, the sweep, and the close
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-25. Story 4.1 is closed, with four items shipping open under an owner and a condition.** The hand-off enumeration found **six** missing — its sixth run, and it has caught something every time — of which the worst is that Story 4.5 had not been told the denominator, and a _ranking_ computed on 466 of 518 can be flatly wrong rather than merely low. The `below the fold` sentence had been copied into **nine** documents with **two** errors in it; eight sites are amended and the `docs/GAPS.md` entry five documents had promised for a day **was written rather than deleted**, which made four `EPIC.md` files and an ADR true retroactively. The overview frame **does** owe an ADR (ADR 0031 does not cover frame types) and it is Story 4.2's to write.
 **Story:** [4.1 The Decisions & the Overview Shell](STORY.md)
 **Depends on:** 4.1.5, 4.1.6, 4.1.7
 
@@ -343,3 +343,251 @@ one day and the tree moves.
 > obligations**, which is `CLAUDE.md`'s _recording a correction and propagating
 > it are two obligations_ with the word changed — and the reason it keeps
 > happening is that the first one feels like finishing.
+
+---
+
+## What was done — 2026-09-25
+
+### The hand-off enumeration: SIX missing, and the first one can make a ranking wrong
+
+**The count across six runs now reads 1, 6, 3, 6, 2, 6.** It has caught
+something every time it has run, and this run is tied for the worst.
+
+| #   | Decision or constraint             | Owed to    | Was it there? |
+| --- | ---------------------------------- | ---------- | ------------- |
+| 1   | The denominator                    | **4.5**    | **no**        |
+| 2   | Where an aggregate is computed     | **4.3**    | **no**        |
+| 3   | Where an aggregate is computed     | **4.4**    | **no**        |
+| 4   | Where an aggregate is computed     | **4.5**    | **no**        |
+| 5   | The interim layout's reversal      | **Epic 6** | **no**        |
+| 6   | The reserved region + 2 components | **Epic 5** | **no**        |
+
+Present and correct: the denominator in 4.3 and 4.4, the 390 answer in 4.7, the
+re-ranking decision in 4.5 and 4.3.
+
+**The one worth arguing about is #1.** Story 4.5 ranks the day's movers, and a
+ranking is the worst possible place to lose part of the denominator: breadth
+computed over 466 of 518 **understates a count**, but a top-ten computed over
+466 of 518 can show **ten names that are not the ten biggest movers**, with
+nothing on screen saying so. That is `EPIC.md`'s _an aggregate is the one kind
+of number that can be wrong while looking right_ in its sharpest form, and 4.5's
+file did not carry it. Written in now, with the decision it forces named:
+**what is a mover with no recent price** — excluded and counted, or included on
+its last stored close with the staleness shown. Both defensible; silently
+dropping it is not.
+
+### The `below the fold` propagation: nine sites, one had been corrected
+
+**Task 4.1.7 amended the file its brief named and nobody ran the grep.** Eight
+live sites remained. All eight are now amended — a dated amendment beside the
+original, never a rewrite:
+
+`planning/epic-05-anomaly-detection/EPIC.md`,
+`planning/epic-10-ai-assisted-investigations/EPIC.md`,
+`planning/epic-13-market-replay/EPIC.md`, `docs/adr/0029`, `CLAUDE.md`,
+this story's own `STORY.md`, `LIVE-REHEARSAL.md`'s 3.10.9 item, and **two
+comments in `scripts/session-sitting.mjs`** — comments are code and rot the
+same way.
+
+**Two sites were deliberately left alone**: `security-price-chart.spec.ts:985`
+and `ChartVacancy.tsx:26` say _below the fold_ about a **chart region**. A
+blind substitution would have corrupted two correct sentences, which is the
+renumbering rule's hazard arriving on a different subject.
+
+### The `docs/GAPS.md` entry: written, not deleted
+
+**Five documents promised an entry that had never existed.** The choice recorded
+in the amendment was to write it rather than delete the promise, and that is
+what was done — _The word `LIVE` survives a dead connection for 165 seconds, and
+no test in this repository waits for a clock_.
+
+**Writing it made four `EPIC.md` files and an ADR true retroactively**, which is
+why it was the better half of the choice. It carries the 165 s reading verbatim,
+the reason the number was derived for a different socket, a `Re-measure:` that
+needs five seconds of sampling and 165 seconds of waiting, and the instruction
+**not to tune it from there** — including that it must be re-derived together
+with the feed-frame defect, because repairing that changes a browser's routine
+inbound rate from ~332 frames a minute to one every two minutes.
+
+### `PRODUCT_SPEC.md` §9's sketch: amended with three differences
+
+The sketch is a **live claim** and the screen differs from it in three ways, all
+now recorded beside it: two regions in Epic 4's scope that the sketch does not
+draw (`Market summary`, `Sector performance`); `LIVE` and `10:42:16 ET` being
+the **application's** masthead rather than this route's — the thing a reader
+building from the sketch reaches for, and which `one-caller-of-the-market-clock`
+now refuses by name; and the topology not yet being the centre of gravity,
+under an explicitly interim layout with a condition to revert on.
+
+### Two sweep items that were wrong in the brief
+
+- **`CLAUDE.md` never described the landing route.** This task's own list said
+  it _"still describes a landing route that is a placeholder naming Epic 4"_ —
+  it does not; `landing route` appears nowhere in the file. **The real work was
+  the opposite of an amendment**: the section had no paragraph for a screen that
+  now exists, and one was added.
+- **The route file's comments were already correct.** Task 4.1.4 rewrote them
+  when it removed the render check. Nothing owed.
+
+> **Both are the same shape as the `docs/GAPS.md` entry that did not exist: a
+> task brief asserting the state of a document it had not read.** Three in one
+> story. The cheap defence is the one that worked here — **check the document
+> before acting on a sentence that describes it**, including a sentence in your
+> own task file.
+
+### The namespace grep: one real catch out of thirteen candidates
+
+**84 breaks and 29 invariants are registered.** Every kebab-case identifier in
+backticks across `docs/`, `planning/` and `CLAUDE.md` that looks like a check
+name was compared against both registries.
+
+**Eleven of the thirteen hits were ESLint rule names** — `no-restricted-syntax`,
+`no-floating-promises` and friends — which is the false-positive shape the
+amendment predicted, and the reason **no checker was built for this**. A one-off
+grep at the close was the right answer, and this is it, recorded with its result.
+
+**The one real catch is a rotted re-measure**: `TAPE.md` §7 told a reader to run
+`pnpm break a-second-tape-overwrites-the-first`, a break that was **retired** and
+replaced by `the-second-tape-is-folded-into-the-first`. `TAPE.md` is a subject
+document, so that was a live instruction pointing at nothing —
+**corrected**. The same name at `TAPE.md:300` is inside a dated _What was
+measured_ paragraph and was **left standing**, because that is a record of what
+was run on the day and correcting it would destroy the record.
+
+### The ADR question, decided: YES, and it is Story 4.2's to write
+
+**The overview frame owes an ADR.** Checked rather than assumed: ADR 0031's own
+_What this ADR does not decide_ lists reconnection, fan-out and Epic 10's field
+map — **frame types are not among them**, so _which frames exist on this wire_
+has no home in `docs/adr/` at all. Today it lives in a union type and in story
+files.
+
+**The precedent settles the weight.** ADR 0033 was written for a **field**,
+`sentAt`, and carries four constraints. A frame type is bigger, and the wire is
+a contract three epics already read.
+
+**Story 4.2 writes it** — this task decides, 4.2 builds and documents. What it
+must carry, at minimum: that an aggregate is computed on the backend and
+arrives as a frame rather than through a second fetch; what the frame's cadence
+is and what bounds it; and that it is **one frame for the screen**, not one per
+region, which is ADR 0033's _never one per security_ with the noun changed —
+and a lesson this product has now paid for, since the gateway's `feed` frame is
+currently one per vendor item.
+
+### The orphaned components: kept, with an owner and a condition
+
+**`SecurityRow` is rendered by nothing shipped and `AnomalyBadge`'s only shipped
+renderer is `SecurityRow`.** Task 4.1.4 removed their last consumer.
+
+**Disposition: keep, knowingly, and hand them to Epic 5 by name** — written into
+that epic's `EPIC.md` rather than left here. `AnomalyBadge` renders §11's 0–100
+band with its explanation, in **four named bands rather than a gradient**
+because a band can be labelled and a gradient cannot; deleting it would throw
+away a decision Epic 5 would have to re-take.
+
+**The mechanical check was weighed and NOT built.** A grep for _every component
+under `src/components/` is rendered by something shipped_ has a false-positive
+shape that needs a **transitive** walk — a component rendered only by another
+orphan looks used — and `pnpm stories` asserts the opposite direction, so the
+two would read as a contradiction. **The condition that would change the
+answer: a second pair of components going unrendered.** One pair is a list; two
+pairs is a check.
+
+### The close
+
+**Story 4.1's acceptance criteria are met**, with the instruments named:
+
+| Criterion                            | Verdict  | Instrument                                           |
+| ------------------------------------ | -------- | ---------------------------------------------------- |
+| Four decisions taken in writing      | met      | 4.1.1, and the enumeration above                     |
+| The shell drawn, every region honest | met      | 4.1.3, `pnpm probe` at four widths                   |
+| Story 1.4's render check retired     | met      | 4.1.4, `the-workspace-package-reaches-the-bundle`    |
+| No second clock or connection word   | met      | 4.1.5, `one-caller-of-the-market-clock` (proved red) |
+| The denominator measured             | met      | 4.1.6, 390 of 390 session minutes                    |
+| The 390 question asked               | **part** | 4.1.7 — machine's half done, person's half owed      |
+
+**What ships open, with an owner and a condition rather than a story number:**
+
+1. **The 390 sitting** — five minutes on a phone, `/securities`, the protocol in
+   Task 4.1.7. **Owner: the owner, the next session they are awake for with a
+   phone to hand.** The machine's half is complete and the close did not wait
+   for it, which is Task 3.11.1's rule.
+2. **The feed-frame defect** — unrepaired on purpose. **Owner: Story 4.7**, with
+   the figures, the repair and the client cost in its file, and a `docs/GAPS.md`
+   entry.
+3. **`SecurityRow` and `AnomalyBadge`** — knowingly unrendered. **Owner: Epic
+   5**, told in its own `EPIC.md`. **Condition for a mechanical check: a second
+   pair.**
+4. **The overview frame's ADR** — decided yes. **Owner: Story 4.2.**
+
+### Gates
+
+`pnpm verify` green, **29 invariants**. `pnpm links` green — 452 documents, 1,638
+cross-file links, 0 broken. `pnpm format:check` green.
+
+**`pnpm e2e` was not re-run locally, deliberately.** This task changed **no
+application code** — the only non-Markdown edit is two comments in
+`scripts/session-sitting.mjs`, which is a throwaway instrument outside every
+build. The browser suite ran on this branch in CI, which is the evidence, and a
+five-minute local run against an unchanged frontend would measure the runner.
+
+## For a stakeholder — a status report, 2026-09-25
+
+### What this was
+
+**The tidying-up job at the end of a piece of work, which is where this project
+keeps finding its real problems.**
+
+The landing page is built. This task's job was to make sure the decisions taken
+while building it actually reached the four pieces of work that need them, and
+that nothing we wrote down along the way had quietly become untrue.
+
+### What it found
+
+**Six decisions had not reached the work that needs them** — our sixth such
+check, and it has found something every single time. The most serious: the piece
+of work that will show _the day's biggest movers_ had not been told that our
+market feed only hears from about 466 of the 518 companies at any moment.
+
+> **That one matters more than it sounds.** For a count — "42% advancing" — a
+> gap makes the number slightly low. **For a ranked list it can make the answer
+> simply wrong**: the actual biggest mover might be one of the companies we
+> hadn't heard from, and a "top ten" would show ten names with total confidence
+> and no hint that it had been computed on partial information.
+
+**And one sentence had been copied into nine documents with two errors in it.**
+It claimed a status indicator was hidden at the bottom of a phone screen (it is
+not — we measured it twice), and it claimed the problem was _recorded_ in our
+register of known gaps. **It was not. That entry had never existed**, and five
+documents had been pointing at it for a day.
+
+> **That is the third time in eight days we have found a safeguard that was a
+> sentence rather than a mechanism**, and all three were found by somebody going
+> to _use_ the thing rather than by reading. We have now written the missing
+> entry — which makes those five documents honest — and corrected all nine
+> copies of the wrong sentence.
+
+### The thing we deliberately did not do
+
+**We did not fix the feed problem found overnight**, where our server sends a
+browser about 250 pointless status messages a minute. It is real and it costs a
+phone roughly 12 MB over a trading day. But it is live behaviour in a part of
+the product we declared finished, and changing it is a decision with a
+measurement behind it — not something to slip in at the end of a tidying task.
+It is booked, priced, and handed to the piece of work that owns it.
+
+### Where this leaves the product
+
+**The landing page's foundations are finished.** The screen exists, every region
+on it is honest about what it is waiting for, and the four decisions that would
+have been argued about four separate times are settled once.
+
+**What comes next is the part a stakeholder can watch**: the index summary, then
+the eleven sectors, then the breadth of the market, then the day's biggest
+movers. Each one turns a placeholder into a live figure, on a screen that is
+already drawn.
+
+**One thing is still owed by a person, and it is five minutes**: opening the site
+on a real phone during a trading session and telling us how long it takes to
+notice when the prices stop. Everything a machine could measure about that
+question is done; that part genuinely needs a human being.

@@ -290,9 +290,57 @@ connection has one home and that home is sticky at the **foot** of the
 viewport, at 390 the distinction between _the feed stopped_ and _the market is
 shut_ is below the fold. No check can see it.
 
+> **Amended 2026-09-25 by Task 4.1.8 — both halves of that were wrong, and the
+> entry it names now exists.** _Below the fold_ is false: the status bar is
+> **sticky**, on screen at 390 at any scroll, and when the feed drops it
+> **grows from four wrapped lines to six** — a size change that moves the page,
+> which is a stronger peripheral signal than a word swap. And `docs/GAPS.md`
+> held **no such entry** until this task wrote one; four `EPIC.md` files and an
+> ADR had pointed at a record that never existed.
+>
+> **What is actually wrong is the timing**: a client that loses its network
+> reads **`LIVE` for exactly 165 seconds** before anything changes, because the
+> word is driven by the monotonic watchdog rather than by the socket closing.
+> Nobody fails to notice the fold; for two minutes forty-five seconds there is
+> nothing to notice. **Owner: Story 4.7**, with four alternatives priced.
+
 **What this epic must not do with it:** compute a score over a window whose
 data stopped arriving and present it as current. A score is a claim about _now_
 and the series behind it can be degraded in any of the ways above — including
 a gap in the middle that is **indistinguishable from a quiet security**, by
 decision and with the measurement behind it (Task 3.10.5). `PRODUCT_SPEC.md`
 §11's _every score must carry its explanation_ is where that belongs.
+
+## Handed to this epic by Task 4.1.8 — 2026-09-25: a region on the landing page is reserved for you, and two components are being kept for you
+
+**Epic 4 built the market overview at `/` and left a named region — _Unusual
+Activity_ — reserved for this epic.** It is drawn today in the product's
+`reserved` state, naming this epic as the thing that fills it, which is ADR
+0029's defer rule in a component rather than a spinner that never resolves.
+
+**What you inherit, specifically:**
+
+- **The region exists, is named, and holds its place in the grid** at every
+  width. It does not have to be designed into the layout; it has to be filled.
+- **The regions keep their names, order and landmarks** when the layout changes
+  for Epic 6's topology, so nothing you build against them moves.
+- **Story 4.5 ranks the day's movers** and settles whether the overview
+  re-orders under live data. An unusual-activity feed is the second ranked
+  surface on that screen and should not re-take that decision.
+
+**And two components from Story 1.4 are being kept rather than deleted, for
+this epic:**
+
+- **`AnomalyBadge`** renders `PRODUCT_SPEC.md` §11's 0–100 band **with its
+  explanation**, which is that section's own requirement. It was built with
+  **four named bands rather than a gradient**, deliberately, because a band can
+  be labelled and a gradient cannot. Deleting it would throw away a decision
+  this epic would have to re-take.
+- **`SecurityRow`** is the ancestor of `UniverseTable`'s rows and the place the
+  anomaly band met a price.
+
+**Both are currently rendered by nothing shipped** — Task 4.1.4 removed their
+last consumer — and `pnpm verify` cannot see that, because `pnpm stories`
+asserts the opposite direction. **They are knowingly unrendered, not forgotten**,
+and the disposition is this epic's: adopt them, or delete them and record where
+the decisions went.

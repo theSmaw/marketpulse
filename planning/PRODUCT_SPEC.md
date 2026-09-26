@@ -461,6 +461,30 @@ The desktop layout should approximately consist of:
 
 The visualization should be the product's visual centre of gravity.
 
+> **Amended 2026-09-25 by Story 4.1 — what was built, and the three ways it
+> differs from this sketch.** The screen at `/` now draws **seven** named
+> regions: `Market summary`, `Market topology`, `Sector performance`, `Movers`,
+> `Unusual activity`, `Market breadth` and `Current investigations`. All seven
+> are in place; the ones with no data yet say so in the product's own words
+> rather than showing a spinner that never resolves (ADR 0029's defer rule).
+>
+> **1. Two regions this sketch does not draw are in Epic 4's scope and are
+> built**: `Market summary` (the index proxies) and `Sector performance`, both
+> from §8.1. A reader working only from this picture would miss them.
+>
+> **2. `LIVE` and `10:42:16 ET` are in the masthead, and they are the
+> APPLICATION's, not this route's.** Both shipped in Epic 2 and gained the
+> connection word in Epic 3. A reader building from this sketch reaches for a
+> clock in the route, and `pnpm invariants` now refuses one by name —
+> `one-caller-of-the-market-clock`. The connection has one home and the landing
+> route is not it.
+>
+> **3. The topology is not yet the centre of gravity, deliberately.** It is a
+> reserved band under an explicitly **interim** layout, and the end state —
+> this sketch's proportions — is drawn on the design canvas and reverts to it
+> on a condition: the first commit that renders a graph node. Epic 6 has been
+> told, in its own `EPIC.md`.
+
 ---
 
 # 10. Market topology visualization

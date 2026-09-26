@@ -415,3 +415,12 @@ a new rule.
 sticky bar, means that at 390 the distinction between _the feed stopped_ and
 _the market is shut_ is below the fold. `docs/GAPS.md`; owner a person before
 Epic 4.
+
+> **Amended 2026-09-25 by Task 4.1.8.** The cost is real and the description was
+> wrong. The bar is **sticky** — on screen at 390 at any scroll — and it **grows
+> from four wrapped lines to six** when the feed drops, so nothing is below the
+> fold. The measured cost is **165 seconds of `LIVE`** after a client loses its
+> network, because the word is driven by the monotonic watchdog rather than by
+> the socket closing. The `docs/GAPS.md` entry this sentence named **did not
+> exist** until the same task wrote it. Owner: **Story 4.7**; the person's half
+> is owed under an owner and a condition rather than an epic.

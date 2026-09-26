@@ -73,6 +73,20 @@ Five routes, a **one-row masthead** carrying the navigation and the market
 clock, a **sticky status bar** at the foot of the viewport reporting the market
 feed and backend health, and a **Security Explorer** a person can use rather
 than only read.
+
+**And since 2026-09-25 the landing page is a page rather than a placeholder.**
+`/` draws **seven named regions** — `Market summary`, `Market topology`,
+`Sector performance`, `Movers`, `Unusual activity`, `Market breadth`,
+`Current investigations` — laid out on a grid that restates its spans at every
+breakpoint and collapses to one column at 390 with **breadth first**. **Nothing
+on it holds a figure yet**, and that is the point: each region says what it is
+waiting for, in the `reserved` state Story 4.1 added to `Panel`, which is ADR
+0029's defer rule as a component rather than a spinner that never resolves. Two
+of the seven belong to later epics by name — the topology is Epic 6's and
+unusual activity is Epic 5's — and the layout running there is explicitly
+**interim**, reverting to the canvas's end state on a condition: the first
+commit that renders a graph node. What the screen must **not** grow is a second
+clock or a second connection word; `pnpm invariants` refuses both by name.
 They can type `nv` and open NVDA; the address becomes `/securities/NVDA` and a
 cold link works. **The field that does it is on the page's heading row since
 2026-09-16**, opposite the title rather than under it, which is also what
@@ -298,7 +312,12 @@ grid by construction** — every row was reached by producing it — and re-owne
 with its condition for the renderer-side grids that remain. And a standing item
 was added rather than repaired: **the whole difference between _the feed
 stopped_ and _the market is shut_ rests on one cell at the foot of the
-viewport**, which at 390 is below the fold. Three tasks decided, with
+viewport**, ~~which at 390 is below the fold~~ — **false, measured twice and
+corrected 2026-09-25**: the bar is **sticky**, on screen at 390 at any scroll,
+and it **grows from four wrapped lines to six** when the feed drops. What is
+true is that the cell reads **`LIVE` for 165 seconds** after a client loses its
+network, which is the monotonic watchdog and is `docs/GAPS.md`'s and Story
+4.7's. Three tasks decided, with
 measurements, that every surface above it stays quiet; reversing that is a
 conversation rather than a fix.
 

@@ -1,6 +1,6 @@
 # Story 4.1 — The Decisions This Screen Cannot Be Built Without, & the Overview Shell
 
-**Status:** **Split into eight tasks — 2026-09-25.** The order puts a **visible change third** and keeps the two expensive unknowns — the denominator curve and the phone — off the critical path of the screen itself, because neither blocks drawing it and both block the four stories after it.
+**Status:** **COMPLETE — 2026-09-25, eight tasks.** The landing route is a real screen: seven named regions on a grid that restates its spans at every breakpoint, each one honest about what it is waiting for, no second clock and no second connection word (both refused by `pnpm invariants`). The four decisions are taken and written into the stories that act on them. **Four items ship open, each with an owner and a condition** — the 390 sitting (a person, five minutes), the feed-frame defect (Story 4.7), two knowingly-unrendered components (Epic 5) and the overview frame's ADR (Story 4.2). Originally split as: The order puts a **visible change third** and keeps the two expensive unknowns — the denominator curve and the phone — off the critical path of the screen itself, because neither blocks drawing it and both block the four stories after it.
 
 | #     | Task                                                                                                                                                                             | Visible?                          |
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
@@ -141,11 +141,15 @@ live. Story 4.2 builds whichever is chosen; it must not be discovered.
 
 ### 3. The 390 fold, which `EPIC.md` says is owed a person BEFORE this epic ships a screen
 
-`docs/GAPS.md` records that at 390 the distinction between _the feed stopped_
-and _the market is shut_ is below the fold, and that no check can see it.
+~~`docs/GAPS.md` records that at 390 the distinction between _the feed
+stopped_ and _the market is shut_ is below the fold, and that no check can see
+it.~~ — **answered 2026-09-25 by Task 4.1.7, and the question was wrong.** The
+bar is **sticky** and **grows from four lines to six**, so nothing is below the
+fold; what is wrong is **165 seconds of `LIVE`** before anything changes. And
+`docs/GAPS.md` recorded nothing at all until Task 4.1.8 wrote the entry.
 **This screen is where it matters most** — its whole subject is _right now_.
-Story 4.7 owns the repair; **this story owns asking the question**, because a
-shell designed without the answer is a shell that may have to move.
+Story 4.7 owns the repair; **this story owned asking the question**, and the
+shell did not have to move.
 
 ### 4. Whether this screen re-orders under live data
 

@@ -209,3 +209,26 @@ hide it when it dips, and do not colour it — it is a property of the IEX plan
 > **65.1% median per-symbol minute coverage** a fortnight ago by a different
 > method, and the 2-minute figure here is 62.7%. Two measurements, two methods,
 > two weeks apart, agreeing.
+
+## Handed to this story by Task 4.1.8 — 2026-09-25: where an aggregate is computed
+
+**The hand-off enumeration found this story's file did not carry it.** The
+decision was taken in Task 4.1.1 and this story is one of the four that acts on
+it.
+
+**An aggregate is computed on the BACKEND and arrives as a new frame on the
+existing market-stream socket.** Not a second fetch, not a poll, and not a
+computation in the browser over 518 securities.
+
+**Three things follow, and they are what this story has to build against:**
+
+- **There is no request to make.** The socket the chrome already holds is the
+  transport; this story's surface subscribes and renders what arrives. A
+  `useEffect` that fetches is the wrong shape and will look right in every test
+  below `pnpm e2e`.
+- **The frame is Story 4.2's to define and document**, including whether it
+  owes an ADR of its own. This story reads it.
+- **A browser that recomputes an aggregate over 518 rows on every tick is a
+  main-thread task** on the page `PRODUCT_SPEC.md` §28 is least able to afford
+  one. That is the measured reason the decision went the way it did, not a
+  preference.

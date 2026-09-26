@@ -759,3 +759,74 @@ quiet-socket rehearsals never met it.
 published view differs) and the client cost in its own file — and which must
 not derive a browser-side liveness threshold from the 332, because that rate is
 this defect's and disappears with it.
+
+## The word `LIVE` survives a dead connection for 165 seconds, and no test in this repository waits for a clock
+
+**Five documents have promised this entry since 2026-09-24 and it has never
+existed** — Epics 4, 5, 10 and 13 each carry _"one unrepaired consequence,
+recorded in `docs/GAPS.md`"_, and ADR 0029 points here too. Written 2026-09-25
+by Task 4.1.8, with the claim corrected on the way in.
+
+**The claim those documents make is wrong.** They say that at 390 the
+distinction between _the feed stopped_ and _the market is shut_ is **below the
+fold**. Measured twice — Task 3.11.8 and Task 4.1.7 — the status bar is
+**sticky**, on screen at 390 at any scroll position, about four wrapped lines,
+and when the feed drops it **grows to six** with `BACKEND SERVICE` reading
+`UNREACHABLE` beside it. A size change that moves the page is a **stronger**
+peripheral signal than a word swap.
+
+**What is actually true is worse.** Measured on the deployed site at 390 by
+removing the browser's network and sampling the status bar every five seconds:
+
+```text
+t=0s   connected: LIVE
+t=20s  LIVE
+…
+t=160s LIVE
+t=165s DISCONNECTED
+```
+
+**Exactly 165 seconds, reproducibly.** `DISCONNECTED_AFTER_MS` is the monotonic
+watchdog — _no inbound frame of any kind_ — and it governs the browser's view as
+well as the backend's. The socket closing does not flip the word: the client
+detects that immediately and uses it only to start reconnecting.
+
+**So nobody fails to notice the fold, because for two minutes forty-five seconds
+there is nothing to notice.**
+
+### What nothing mechanical can see, which is why this is an entry
+
+**Every liveness test in this repository injects the state rather than waiting
+for the clock**, which is correct — a test that waits 165 s is a test nobody
+runs — and it means the _duration_ is asserted nowhere. The nine degraded states
+of Task 3.10.9 were all produced, and each was produced by making the state
+true, not by letting it become true.
+
+**And the second half is a person**: whether a reader notices a four-line strip
+growing to six, at the bottom of a phone, while reading a figure at the top.
+That is unanswerable from a DOM.
+
+### The number was derived for a different socket
+
+165 s comes from **Alpaca's upstream heartbeat** — 53.96–54.85 s across 82
+intervals — and protects against flapping during a deploy, measured at ~46 s of
+feed outage. Both facts are about the **backend's** connection to its vendor.
+The browser's own socket has a different floor: the gateway's keepalive is
+`KEEPALIVE_INTERVAL_MS = 120_000`. **A browser could know its gateway socket is
+dead well before 165 s and still not cry wolf on a 46-second deploy.**
+
+> **Do not tune it from here.** ADR 0036's rule is that the two-clock shape is
+> the durable half and the numbers are **dated observations that get
+> re-derived**. A browser-side threshold is a third number and needs its own
+> derivation — and it must be re-derived **together with** the feed-frame defect
+> recorded above, because repairing that changes a browser's routine inbound
+> rate from ~332 frames a minute to one every two minutes.
+
+**Re-measure** — open the deployed site at 390, take the network away, and time
+the word. Five seconds of sampling; 165 s of waiting.
+
+**Owner: Story 4.7**, which owns the overview's degraded set and has the four
+alternatives priced in its own file — today's 165 s, a shorter browser-side
+threshold, retries-failing-for-N, or the socket closing. The **person's** half
+is owed under an owner and a condition: the owner, the next session they are
+awake for with a phone to hand.

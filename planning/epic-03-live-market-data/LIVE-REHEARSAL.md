@@ -319,12 +319,27 @@ minutes.
 
 **And one item added 2026-09-24 by Task 3.10.9, which needs a phone.** Three
 pairs of degraded states are told apart by **one surface only**, usually the
-sticky status bar at the foot of the viewport — and **at 390 that cell is below
-the fold**. So the whole difference between _the feed stopped_ and _the market
-is shut_ may sit unseen. No check can see it: every assertion reads the DOM,
-where the cell is present whether or not anybody has looked. **Open the
+sticky status bar at the foot of the viewport — and ~~**at 390 that cell is
+below the fold**~~. So the whole difference between _the feed stopped_ and _the
+market is shut_ may sit unseen. No check can see it: every assertion reads the
+DOM, where the cell is present whether or not anybody has looked. **Open the
 deployed site on a real phone during a session, kill the feed, and time how
 long it takes to notice.**
+
+> **Amended 2026-09-25 by Task 4.1.8 — the machine's half of this row is taken,
+> and it moved the question.** _Below the fold_ is false, measured twice: the
+> bar is **sticky**, on screen at 390 at any scroll, and it **grows from four
+> wrapped lines to six** when the feed drops. What is true is that a client
+> which loses its network reads **`LIVE` for exactly 165 seconds** first — so
+> the answer to _how long does it take to notice_ has a floor of 2m45s that has
+> nothing to do with looking.
+>
+> **The person's half is still owed and it is five minutes**: `/securities`
+> rather than `/` (the landing page has no moving figures until Story 4.2),
+> read the rows, airplane mode on without watching for it, say when you first
+> notice anything, then two minutes as a control with nothing turned off. The
+> protocol is in Task 4.1.7. **Owner and condition rather than a date: the
+> owner, the next session they are awake for with a phone to hand.**
 
 ### Notes on the 2026-09-22 sitting
 

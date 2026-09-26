@@ -105,3 +105,47 @@ it does not permit a target moving out from under a click.
 > **Take it against real movement.** Story 3.4 settled the first motion
 > decision in front of four treatments running on the real component at 1×
 > against replayed bars, and that is the bar this decision inherits.
+
+## Handed to this story by Task 4.1.8 — 2026-09-25: two decisions this story is missing, and the first one can make a ranking wrong
+
+**The hand-off enumeration found both, and this story's file carried neither.**
+
+### 1. The denominator, and why a RANKING is the worst place to ignore it
+
+**Measured on the deployed gateway across a whole session on 2026-09-25**: of
+518 tracked securities, the number heard from inside the last **5 minutes** has
+a median of **466** and a worst hour of **446**. At two minutes it is **325**,
+and at 13:00 it is **298**.
+
+**So on any given tick this screen has no recent price for roughly 50 of the 518.** For breadth that understates a count. **For a ranking it can be flatly
+wrong**: the day's biggest mover may be one of the securities not heard from,
+and a top-ten computed over the ~466 that were heard from will show ten names
+that are **not** the ten biggest movers, with nothing on screen saying so.
+
+**This is `EPIC.md`'s _an aggregate is the one kind of number that can be wrong
+while looking right_ in its sharpest form** — a ranked list looks equally
+confident whether its input was complete or not.
+
+**What this story owes, therefore:**
+
+- **State the denominator beside the ranking**, in the words Story 4.4 settles
+  — _N of 518 in the last 5 minutes_ — and not in the connection's vocabulary.
+  A sentence reaching for `live`, `stale` or `disconnected` would trip
+  `one-home-for-the-feed-words`, and **would deserve to**.
+- **Decide, in writing, what a mover with no recent price is.** Excluded and
+  counted, or included on its last stored close with the staleness shown. Both
+  are defensible; silently dropping it is not.
+- **M is 5 minutes and is not this story's to re-choose.** The curve, the
+  by-hour shape and the argument are in Story 4.4's file.
+
+### 2. Where an aggregate is computed
+
+**Story 4.2 builds the seam and this story uses it.** The decision taken in
+Task 4.1.1 is **a new frame on the existing socket** — not a second fetch, not a
+poll, and not a computation in the browser over 518 rows. When this story needs
+the movers, it reads them off that frame.
+
+> **The reason it is a decision rather than an implementation detail**: a
+> browser that ranks 518 securities on every tick is a main-thread task on the
+> page `PRODUCT_SPEC.md` §28 is least able to afford one, and this product has
+> already paid for that lesson once on the securities table.
