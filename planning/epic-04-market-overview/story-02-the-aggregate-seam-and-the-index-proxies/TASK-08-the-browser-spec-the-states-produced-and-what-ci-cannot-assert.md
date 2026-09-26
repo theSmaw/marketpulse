@@ -1,6 +1,6 @@
 # Task 4.2.8 — The browser spec, the states produced, and what CI cannot assert
 
-**Status:** **In progress — 2026-09-26.**
+**Status:** **Complete — 2026-09-26.** Four browser tests, **80 photographs** across 16 states and four widths plus greyscale, four `docs/GAPS.md` entries and two listening-backlog entries. **Entry 13's second half had never been run in this repository**, and running it found **two reachable states missing from a grid published four days earlier** — both shipping. Two owners-by-condition discharged and re-armed.
 **Story:** [4.2 The Aggregate Seam, & the Index Proxies That Move](STORY.md)
 **Depends on:** 4.2.7
 
@@ -181,3 +181,151 @@ here: at 12% it comes back clean 46% of the time.
 **Owner: a condition rather than a story number — the first task that measures
 where the security page's refill spends its 160 ms**, which is the same
 measurement Epic 14 owes for the cold load and should be taken once for both.
+
+---
+
+## What was done — 2026-09-26
+
+### The spec — `e2e/specs/overview-proxy-live-update.spec.ts`
+
+Four tests, **4 passed (6.6 s)** scoped and green in the full suite. Every
+figure it asserts is one **it served**, on its own `overview` frame, so nothing
+depends on the store.
+
+**Why `pnpm store:bare` was not needed, established by instrument rather than
+argument.** The landing route makes exactly three backend calls —
+`GET /health`, `GET /market-data`, and the market-stream socket (plus Vite's
+HMR socket, **counted by URL** per Task 3.11.2's lesson). The spec serves two of
+the three and asserts nothing that reads `/health`. `/` never touches the store,
+so CI's bare shape cannot change a single assertion.
+
+The harness reproduces the gateway's **real** sequence — empty snapshot plus an
+unscoped overview on connect, then a scoped snapshot and an overview per
+`subscribe` — which the strip needs, because its symbols come from the first
+overview frame. Narrowness is inherited and made **mechanical**: one `VENUE`
+value feeds `GET /market-data`, the `feed` frame and the overview's `feeds`, and
+`push` **throws** for a symbol the page has not subscribed to.
+
+**Two findings about what does not transfer from the universe-table spec.**
+
+- **Its "moves nothing else" assertion fails on the product working
+  correctly.** Written as a whole-cell comparison, the test went red because the
+  moment SPY moves to 14:02 the three cells still at 14:01 are _behind the
+  newest observation_ and each correctly grow `from 14:01`. **The strip's third
+  row is a relative exception; the table's `Last` cell is not.** The spec asserts
+  the figure row unchanged **and** the exception appearing.
+- **The chrome cannot be pinned to `live`.** A bar on a fixed instant is weeks
+  old and staleness is 60 s of wall clock, so the cell reads `STALE` — which
+  Task 3.10.9's instrument once reported as a defect before working out the
+  chrome was right. Producing `live` would put a 60 s threshold under every
+  reading, so the word is matched as a **set**, because the claim under test is
+  _one home_ rather than which word.
+
+### The grid — 80 photographs, and one pair that is one state
+
+`.capture/proxy-states/`: **16 states × 4 widths, plus greyscale at 1440**, with
+`readings.json` carrying the strip text, the note text and the feed-cell text
+per state per width. Every row produced through the shipped socket path.
+
+Compared as strings: **one identical pair, and it is documented as one state** —
+`overview === undefined` and `figures: []` differ only in how long it is honest
+to wait, and `MarketProxyStrip`'s own docblock says _"They are one state on
+screen, because what a reader can see is identical."_ Two further states are
+identical on the strip **and** the note and told apart by the **chrome** alone
+(`all-stored-one-session` against `no-provider-configured`), which is ADR 0029
+working rather than failing: the connection and the venue have one home.
+
+No state's strip text differs across widths. Greyscale at 1440 confirms `▲`/`▼`
+plus the sign carry direction with no hue.
+
+### Entry 13's second half had never been run, and it found two missing states
+
+Entry 13 asks two things. The first — _was every row reached by producing it_ —
+is satisfied by construction here. **The second, walking the producers, had
+never been performed in this repository**, and doing it against **Task 4.2.6's
+seven-row table, published four days earlier**, found **two reachable states
+with no row**:
+
+- an observed figure with **no measurable change** — the strip shows a bare
+  price and the source note collapses to `COMPUTED …` alone;
+- **two bases disagreeing** — `sharedBasis` correctly drops the clause.
+
+**Both ship today and neither was named.** A grid is incomplete far more
+quietly than it is wrong. The verdict is written into entry 13 beside 3.10.9's.
+
+### The two owners-by-condition
+
+**`EPIC.md`'s _a named region says something when its subject is missing_ —
+discharged mechanically, and re-armed.** 4.2.5 met it in substance but shipped
+no assertion; test 4 produces exactly that state — a socket answered with the
+connect snapshot and **no overview frame ever** — and asserts the region says
+`No prices yet.` with all seven regions non-empty. The general form re-arms for
+**the next route that adds a region with a subject**.
+
+**Entry 13's sibling — discharged by construction, re-owned, and it is what
+found the two missing states above.**
+
+### The deployed sweep is an absence rather than a rot
+
+`e2e/specs-deployed/` names **no region on the landing route**, so the rename
+had no second copy to miss. But `security-explorer-journey.spec.ts` asserts for
+the **other** route that every region is present and says something, and **the
+deployed store is the only place the strip's live states occur at all** — on CI
+every proxy is `unknown` for ever. Recorded as the **fourth occasion** on the
+two-directories entry, with the decision handed to Task 4.2.9.
+
+`Market proxies` is now a **homonym** — this region, the universe table's group
+heading, and a rail link. Consistent rather than colliding, but any future
+region locator on `/securities` must be scoped.
+
+### Gates
+
+`pnpm verify` exit 0 — **35 invariants hold**, 470 documents / 0 broken links,
+shared 345 / backend 973 / frontend 1,225 / process 41, no `Unhandled Errors`.
+`pnpm e2e` **170 passed, 15 skipped, 0 failed (2.7 m)**.
+
+**Neither characterised flake fired, and that is not evidence either is fixed** —
+at ~12% per execution a clean run is the likelier outcome, which is the entry's
+whole point. Nothing was re-run to chase a colour and the 160 ms threshold was
+not touched.
+
+## For a stakeholder — a status report, 2026-09-26
+
+### What this was
+
+**Proving the four figures work, and writing down what we still cannot prove.**
+A browser test now drives a real price into the page and checks it changes; and
+sixteen different states of the strip were photographed at four screen widths,
+including in greyscale, to confirm no two of them look the same to a reader.
+
+### What we found
+
+**A catalogue of states we published four days ago was already missing two of
+them.** Our own standing rule says a list of states must be checked from _both_
+ends — by producing each one, and by walking the code to see which states it can
+produce. Only the first half had ever been done, here or anywhere. Doing the
+second half found two states that ship today and appear in no list.
+
+The line worth keeping: **a catalogue is incomplete far more quietly than it is
+wrong.**
+
+### One test that failed because the product was right
+
+Copying an existing test for the 518-row table onto the new strip made it fail —
+and the product was correct. On the big table, a row that has not updated shows
+nothing extra. On the four-figure strip, a proxy that has not updated _correctly
+gains a line_ saying how old it is. The test was asserting an absence that
+should not exist.
+
+### What we wrote down rather than fixed
+
+Four known weaknesses, none of them caused by this work: a focus outline clipped
+by a few pixels at the top and bottom of every screen; a text size in the page
+header that renders larger than its stylesheet says, which matters because a
+layout decision was measured against it; and two browser tests that fail
+occasionally for reasons we have now diagnosed rather than guessed. Each has a
+named owner and instructions for re-measuring it.
+
+### Where this leaves the work
+
+**One task left** — the decision record, the sweeps and the close.
