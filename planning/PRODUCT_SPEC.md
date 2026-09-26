@@ -463,13 +463,20 @@ The visualization should be the product's visual centre of gravity.
 
 > **Amended 2026-09-25 by Story 4.1 — what was built, and the three ways it
 > differs from this sketch.** The screen at `/` now draws **seven** named
-> regions: `Market summary`, `Market topology`, `Sector performance`, `Movers`,
+> regions: `Market proxies`, `Market topology`, `Sector performance`, `Movers`,
 > `Unusual activity`, `Market breadth` and `Current investigations`. All seven
 > are in place; the ones with no data yet say so in the product's own words
 > rather than showing a spinner that never resolves (ADR 0029's defer rule).
 >
+> **The first name was `Market summary` until 2026-09-26**, when Task 4.2.5 put
+> figures in it and renamed it. `Market proxies` is already this product's word
+> for exactly these four — the `/securities` group heading, and `Market proxy`
+> on the security page's classification line — and on a screen where three
+> later regions summarise all 518, `Market summary` promised the broadest view
+> and delivered the narrowest.
+>
 > **1. Two regions this sketch does not draw are in Epic 4's scope and are
-> built**: `Market summary` (the index proxies) and `Sector performance`, both
+> built**: `Market proxies` (the index proxies) and `Sector performance`, both
 > from §8.1. A reader working only from this picture would miss them.
 >
 > **2. `LIVE` and `10:42:16 ET` are in the masthead, and they are the

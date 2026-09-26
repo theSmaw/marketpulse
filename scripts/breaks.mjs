@@ -2058,9 +2058,15 @@ export const BREAKS = [
       "caller re-renders every second on the page that is about to hold four " +
       "aggregates over 518 securities.",
     file: "apps/frontend/src/routes/MarketOverview.tsx",
-    find: "export function MarketOverview() {",
+    // **Re-anchored 2026-09-26 by Task 4.2.5**, which gave this route two props
+    // and moved the line this entry had named since Task 4.1.4. `CLAUDE.md`:
+    // *when you move or reformat anything a break names, run the break* — and
+    // the reason it is a rule is that nothing goes red in the meantime. The
+    // check is still provable; it was `every-break-can-still-land` that would
+    // have said otherwise, an hour later, in the failing direction.
+    find: "}: MarketOverviewProps = {}) {",
     replace:
-      "export function MarketOverview() {\n" +
+      "}: MarketOverviewProps = {}) {\n" +
       "  // pnpm break: reverted automatically\n" +
       "  useMarketClock();",
     command: ["pnpm", "invariants"],

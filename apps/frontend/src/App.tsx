@@ -238,7 +238,18 @@ export function App() {
             detail="The rest of the application is unaffected — try again, or use the navigation above."
           >
             <Routes>
-              <Route path={PATHS.overview} element={<MarketOverview />} />
+              {/* The landing route reads the overview frame and declares the
+                  four proxies it needs prices for — the same two props the
+                  Security Explorer takes, for the same reason. */}
+              <Route
+                path={PATHS.overview}
+                element={
+                  <MarketOverview
+                    liveFeed={liveFeed}
+                    onLiveSymbols={setLiveSymbols}
+                  />
+                }
+              />
               <Route
                 path={PATHS.investigations}
                 element={<InvestigationWorkspace />}

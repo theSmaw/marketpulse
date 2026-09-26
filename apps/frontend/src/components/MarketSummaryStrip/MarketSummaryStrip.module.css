@@ -1,0 +1,275 @@
+/*
+ * The four index proxies, side by side.
+ *
+ * `Market proxies.dc.html` §01 and §03. Two rules govern the whole file and
+ * both of them are about a screen somebody is watching rather than reading:
+ *
+ *  1. **Every track list is stated and none is inherited.** A `span N` item
+ *     wider than the explicit grid is not clamped — it grows implicit columns —
+ *     and nothing below `pnpm e2e` can see a layout at all.
+ *  2. **Nothing appears and pushes.** `.regions` begins immediately below this
+ *     strip in a flex column, so the strip's height moves the entire
+ *     seven-region grid. Every slot is reserved in every state.
+ */
+
+/*
+ * --- The grid ---
+ *
+ * **`repeat(4, …)` and never `auto-fit`.** `MetricStrip`'s own stylesheet
+ * carries the argument and this strip is the case it was written for:
+ * `auto-fit` answers a shortage of width by dropping a column, which is right
+ * for a strip whose length is a property of its data and wrong for one whose
+ * four members are a set. It would also reach `3 + 1` somewhere between 1440
+ * and 390, which is the orphan that comment forbids. A set of four wraps as
+ * 2×2 or not at all.
+ *
+ * **`minmax(0, 1fr)` rather than `1fr`, and it earns its keep here in a way it
+ * does not on a static strip.** These figures change. A bare `1fr` carries a
+ * `min-width: auto` floor, so the moment one price crosses `999.99` to
+ * `1000.00` its column widens and **all four move** — a layout shift caused by
+ * a digit, once, on a screen whose whole job is to be watched.
+ */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-12) var(--space-20);
+  margin: 0;
+}
+
+/* First paint. The box, and nothing in it — see `FirstPaint`. */
+.reserved {
+  visibility: hidden;
+}
+
+/*
+ * --- One cell, three rows ---
+ *
+ * No row gap: each row is already a line box of a stated height, and a gap
+ * between them is a fourth number to keep in step across four widths. The cell
+ * is therefore 16 + 26 + 16 and is the same in every state.
+ */
+.cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/*
+ * Row 1 — the symbol, then the mark's slot.
+ *
+ * **The symbol sits on top**, which is the opposite of `MetricStrip`'s
+ * `column-reverse` and is the right way round here: `TRACKED` is a category and
+ * `518` is the point, but `SPY` is not a category, it is the **subject**. This
+ * product already sets a security's symbol above its figure, in
+ * `SecurityIdentity`. It also puts the mark **above** the figure it belongs to.
+ */
+.term {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font-family: var(--font-data);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+.symbol {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The mark's slot: 8 px, always, whether or not a mark is running.
+ *
+ * `flex: none` so it cannot be squeezed out of a `minmax(0, 1fr)` column, and
+ * the height is stated as well as the width so an empty slot and a full one are
+ * the same box.
+ */
+.markSlot {
+  flex: none;
+  width: var(--space-8);
+  height: var(--space-8);
+}
+
+/*
+ * The disc itself. **Position only** — the appearance, the `opacity: 0` base
+ * and the 900 ms decay all come from the motion layer and are never
+ * re-declared here.
+ *
+ * That base is not tidiness: reduced motion resolves the decay to `0ms`, and an
+ * animation of zero duration applies **no keyframe styles at all**, so without
+ * it the mark renders at `1` and four permanent dots sit at the top of the
+ * landing page for a reader who asked for less motion.
+ */
+.arrival {
+  composes: arrivalMark from "../../styles/motion.module.css";
+  display: block;
+}
+
+/*
+ * Row 2 — the figure, and the change on its baseline.
+ *
+ * **The font size is set here and the change inherits it**, which is the size
+ * seam and is why `PriceChange` needed no new prop: `.change` composes
+ * `dataCell`, which states the face, the tabular figures and the tracking and
+ * deliberately states no size. The figure overrides it with `.dataMetric`.
+ */
+.valueRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-primary);
+}
+
+/*
+ * **Not `--font-size-display`.** `VISUAL-LANGUAGE.md` spends it once per
+ * screen; four of them spends it four times and makes the topology's reserved
+ * band — §9's stated centre of gravity — read as a footnote under a row of
+ * headlines. `.dataMetric` is named for exactly this job, and it brings
+ * `tabular-nums` with it: a proportional digit changing its advance width on
+ * every tick is the same defect as a layout shift, one glyph at a time.
+ */
+.figure {
+  composes: dataMetric from "../../styles/type.module.css";
+  white-space: nowrap;
+}
+
+/*
+ * `None stored`, in words rather than digits — which is what tells it apart
+ * from a figure. The line height is the figure's, so the row does not change
+ * height when a price arrives.
+ */
+.absent {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-metric);
+  color: var(--ink-secondary);
+}
+
+/*
+ * Row 3 — the exception, or nothing.
+ *
+ * Reserved in both states, which is the universe table's `sessionReserved`
+ * idiom: a non-breaking space behind `aria-hidden`, so that arriving costs no
+ * height.
+ */
+.note {
+  composes: microLabel from "../../styles/type.module.css";
+  margin: 0;
+  color: var(--ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Sentence case: this is a date or an instant, not a stamp. */
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.noteReserved {
+  composes: note;
+  visibility: hidden;
+}
+
+/*
+ * --- The one shared line ---
+ *
+ * Four copies of the instant is a paragraph, and at 390 it is four paragraphs
+ * stacked two by two. One line is the right answer and it is the idiom the
+ * universe table already uses: a shared claim, with an exception on the row
+ * that disagrees.
+ */
+.qualifier {
+  composes: microLabel from "../../styles/type.module.css";
+  margin: var(--space-12) 0 0;
+  color: var(--ink-secondary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.qualifierReserved {
+  composes: qualifier;
+  visibility: hidden;
+}
+
+/*
+ * The no-figures sentence. Prose rather than a stamp, and deliberately on the
+ * **micro line box** so that the strip is the same height whichever of the two
+ * this line is — the state where nothing is stored must not be a shorter page.
+ */
+.sentence {
+  composes: qualifier;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-dense);
+}
+
+/*
+ * --- 768 and below: four across, and the change steps down ---
+ *
+ * 163 px a column at 768 clears the 112 px floor with room, so the shape does
+ * not change — the tracks are restated rather than inherited. What changes is
+ * the change: at the micro size it stops being the thing that decides whether
+ * a figure and its move share a line.
+ *
+ * **The figure never steps**, at any width. It is the number the region exists
+ * to show, and the width where a reader has the least context is the last place
+ * to shrink it.
+ */
+@media (width <= 48rem) {
+  .strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .valueRow {
+    font-size: var(--font-size-micro);
+    line-height: var(--line-height-micro);
+  }
+}
+
+/*
+ * --- Below 37rem: two by two ---
+ *
+ * **The threshold is arithmetic rather than a taste**, so a width this product
+ * adds tomorrow answers itself. Four across survives while every column clears
+ * the floor `MetricStrip`'s comment names — 7 rem, 112 px, the width at which a
+ * six-glyph price and its label stop sharing a line. Four columns plus three
+ * 20 px gaps needs a content box of `4 × 112 + 60 = 508 px`.
+ *
+ * A region's content box is the viewport less `main`'s 48 px, the panel's 2 px
+ * of border and its 32 px of padding — so 508 px of content is 590 px of
+ * viewport, and `37rem` (592 px) is the first round number above it.
+ *
+ * At 390 that gives `(342 − 2 − 32 − 20) / 2 = 144 px` a column against a
+ * four-digit price and its change at 138. Four across would be 62 px, which
+ * cannot render **one** of the four figures, let alone its change.
+ *
+ * A horizontal scroller was rejected: it hides two of four facts behind a
+ * gesture, on the one screen whose job is a picture of the whole market, and
+ * this product has already shipped that defect once — a masthead reading
+ * `Market O` at 390 with no affordance saying it continued.
+ */
+@media (width < 37rem) {
+  .strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .valueRow {
+    font-size: var(--font-size-micro);
+    line-height: var(--line-height-micro);
+  }
+
+  /*
+   * **Reserved for two lines**, because the shared line is at its longest at
+   * the width where it has the least room and a qualifier that wraps on one
+   * state and not another moves every region below it.
+   */
+  .qualifier {
+    min-height: calc(2 * var(--line-height-micro));
+  }
+}
