@@ -22,6 +22,17 @@ is the payoff, and it is the next task.
 
 ## Work
 
+- **What the frame carries, settled at Gate 1 and stated here so it is not
+  inferred.** The owner chose the **joined figures**, not the basis: Task 4.2.3
+  moves `changeFromClose` into `packages/shared`, the backend calls that one
+  implementation, and the frame carries the **computed change** per proxy
+  alongside the price, the instant it is as of, and an `observed` / `stored`
+  discriminant. The browser renders; it does not re-derive. The rejected
+  alternative — the frame carries `{session, close, previousClose}` and the
+  browser computes — kept `changeFromClose` where it was but left the join in
+  the browser, which Stories 4.3–4.5 would have rebuilt server-side within one
+  epic. **AC 2 is satisfied more strongly this way, not less**: one
+  implementation, now called by two processes.
 - **The discriminant is the string literal `"overview"`** — decided here on
   2026-09-26 rather than left to the implementer, because Task 4.2.1's
   `the-overview-frame-is-not-a-heartbeat` guard is already in the tree and
@@ -112,3 +123,41 @@ is the payoff, and it is the next task.
 6. The frame is sent once per applied batch, on connect and on subscribe, and
    never from the feed-state path — `the-overview-frame-is-not-a-heartbeat` green
 7. `sameLiveFeedView` gates the new field, with a test asserting the negative
+
+## Amended by Task 4.2.3 — 2026-09-26: three things this task inherits from the join
+
+**1. `closesAsOf` is synchronous, session-keyed, and returns `SecurityLastClose`
+— and implementing it is yours.** `buildMarketOverview` takes the lookup as an
+argument; nothing supplies one yet.
+
+- **Synchronous is load-bearing rather than stylistic.** An `async` lookup puts
+  an `await` back on the socket callback, which is the one path where an
+  unhandled rejection kills the process.
+- **The currency is `SecurityLastClose`, the shared type, and that is
+  accepted** rather than a third domain type between `market-bars.ts`'s
+  `LastClose` and the wire. One consumer does not earn a third type.
+  **Reversal trigger, as a condition: the first consumer of the join that needs
+  a field `SecurityLastClose` does not carry.** At that point the third type
+  earns its keep and this decision is re-taken.
+- **The `observedAt → session` conversion is therefore yours too.** `LastClose`
+  carries `observedAt: Date`; `SecurityLastClose` carries a session.
+  `toWireLastClose` in `routes/securities.ts` is the existing precedent —
+  follow it rather than inventing a second conversion, and remember
+  `marketDateAt` is the only module allowed to do it.
+
+**2. The closes cache is this task's, not 4.2.3's — deliberately.** All three
+of its rules are about process lifecycle: _load at startup_ is `index.ts`
+wiring, _refresh on the first burst whose market date differs_ needs the burst,
+and _never empty on a failed refresh_ is a property of the object the publish
+path reads. None is decidable without the frame, and building it in 4.2.3 would
+have been an exported module nothing imports — the scaffolding-ahead shape
+`CLAUDE.md` names by hand. **A stale-but-true denominator beats no figure**, so
+a failed refresh keeps what it has.
+
+**3. A `docs/GAPS.md` entry becomes owed the moment you write the production
+lookup**, and not before. The implementation will ignore its `session`
+argument and return the latest close we hold — correct live, and **future
+information under a replay**. Right now there is no claim to guard because
+there is no implementation; the moment it lands it is a claim about a
+mechanism, and this repository's rule is that such a claim owes something
+mechanical in the same change. Do not let it fall between the two tasks.

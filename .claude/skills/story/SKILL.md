@@ -150,6 +150,12 @@ directory — the template is at the end of this file.
 
 One task at a time, in dependency order. For each:
 
+**0. Set the status, before anything else.** Open the task file and change
+`**Status:**` to `**In progress — YYYY-MM-DD**`. Do it as the first action of
+the task, not alongside the first commit — a task file that reads
+`Not started` while three agents are working on it is a lie to anyone who opens
+the directory, and this is the one field a reader checks first.
+
 **1. Understand.** Not "is the specification complete?" but "do we understand
 enough to begin?" An obvious product question goes to the human now, not later.
 
@@ -187,6 +193,11 @@ application, the automated tests are appropriate and passing, the agreed
 acceptance behaviour is verified, and nothing unresolved is left that belongs
 to this task. Then:
 
+- **Set `**Status:**` to `**Complete — YYYY-MM-DD**`, with the one thing worth
+  knowing in the same line.** Not just the word: the status line is what a
+  reader sees before deciding whether to read the task, so it carries the
+  finding — what was measured, what turned out false, what shipped open. Do
+  this in the same edit as the record, never later.
 - **Write the record into the task file** — `What was done`, `Gates`, and the
   `For a stakeholder` status report. Verbatim figures; a throwaway instrument's
   findings must quote at least one frame, body or row **verbatim**, because the
@@ -278,6 +289,10 @@ and open its PR.
 - **Decisions are recorded with their alternatives and a reversal trigger**,
   and a trigger is a _condition_, never a story number.
 - **A check you add owes a break**, in the same change.
+- **A task file's `Status:` is always current.** `In progress` when work
+  starts, `Complete` with its date and its finding when it ends, and amended in
+  place if it is blocked or handed on. A stale status is the cheapest possible
+  lie and the first thing a reader trusts.
 - **Never touch `notes.txt`.**
 - **Never ship replayed or synthetic data to the deployed site**, at any hour.
 - Report outcomes faithfully. A failed suite is reported with its output; a
