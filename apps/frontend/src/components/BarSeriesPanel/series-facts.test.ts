@@ -131,6 +131,23 @@ describe("formatMarketInstant", () => {
     );
   });
 
+  it("drops the seconds at minute precision, and keeps the zone", () => {
+    // Task 4.2.7: the landing screen's aggregate is rebuilt up to sixteen
+    // times a minute over data that arrives once, so a seconds field there
+    // ticks while nothing behind it has changed. The zone is not optional at
+    // either precision — it is what stops a reader in another country
+    // assuming the timestamp is theirs.
+    expect(
+      formatMarketInstant(new Date("2026-09-04T13:30:47.000Z"), "minute"),
+    ).toBe("2026-09-04 09:30 EDT");
+  });
+
+  it("keeps the seconds by default, because a window has one in it", () => {
+    expect(formatMarketInstant(new Date("2026-09-04T13:30:47.000Z"))).toBe(
+      "2026-09-04 09:30:47 EDT",
+    );
+  });
+
   it("follows the market's own clock across the standard-time boundary", () => {
     // The same wall-clock hour, six weeks apart, is a different UTC instant —
     // and this module knows that only because `market-time.ts` does.

@@ -398,6 +398,62 @@ export const BREAKS = [
     expect: "is produced in 2 place(s)",
   },
   {
+    name: "a-new-component-spells-the-consolidated-word",
+    proves:
+      "A component written AFTER the guard was — the landing screen's source " +
+      "note — spells `All US exchanges` itself. This is the case the check " +
+      "could not see until 2026-09-26: it read a hard-coded seven-path array " +
+      "of the files that happened to discuss the word on the day it was " +
+      "written, so any file added later was outside it and the check stayed " +
+      "green. Verified before it was repaired, with this exact edit: the run " +
+      "reported `1 of 34 invariants failed` and " +
+      "`the-consolidated-word-has-one-producer` was not among them " +
+      "(Task 4.2.7).",
+    file: "apps/frontend/src/components/OverviewSourceNote/overview-source-note.ts",
+    find: 'const STORED_CLOSE_FEED: MarketFeed = "sip";',
+    replace:
+      'const STORED_CLOSE_FEED: MarketFeed = "sip";\n' +
+      'const STORED_CLOSE_LABEL = "All US exchanges"; // pnpm break: reverted automatically',
+    command: ["pnpm", "invariants"],
+    expect: "is produced in 2 place(s)",
+  },
+  {
+    name: "a-region-grows-its-own-source-note",
+    proves:
+      "A second provenance note appears on the landing screen — the footnote " +
+      "pile `PROVENANCE.md` §1.3's one-note-per-screen rule exists to " +
+      "prevent, and the duplicate Task 3.10.9 found and deleted, arriving " +
+      "this time inside a region rather than beside a chart. Three regions " +
+      "on that screen are deferrals today and 4.3, 4.4 and 4.5 each land one " +
+      "with figures in it, so this is the next likely instance rather than a " +
+      "hypothetical (Task 4.2.7).",
+    file: "apps/frontend/src/components/MarketProxyStrip/MarketProxyStrip.tsx",
+    find: "export function MarketProxyStrip({",
+    replace:
+      "export function StripSourceNote() {\n" +
+      '  return <OverviewSourceNote overview={undefined} feed={{ state: "checking" }} />;\n' +
+      "} // pnpm break: reverted automatically\n" +
+      "export function MarketProxyStrip({",
+    command: ["pnpm", "invariants"],
+    expect: "is rendered in 2 place(s)",
+  },
+  {
+    name: "a-second-surface-says-the-notes-terms",
+    proves:
+      "A region draws its own caption out of the SHARED vocabulary — no new " +
+      "literal for a feed, so `one-home-for-the-feed-words` is silent, and " +
+      "the reader gets the same provenance facts twice on one screen. That " +
+      "is the likelier shape of a second note than a renderer inventing a " +
+      "feed's label, and nothing caught it before Task 4.2.7.",
+    file: "apps/frontend/src/components/MarketProxyStrip/MarketProxyStrip.tsx",
+    find: "export function MarketProxyStrip({",
+    replace:
+      'const STRIP_TERM = "Closing prices"; // pnpm break: reverted automatically\n' +
+      "export function MarketProxyStrip({",
+    command: ["pnpm", "invariants"],
+    expect: "should be written only in",
+  },
+  {
     name: "the-market-claiming-sentence-gets-a-second-home",
     proves:
       "The silent-window sentence goes back to being a literal in the drawn " +

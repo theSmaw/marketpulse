@@ -3,8 +3,10 @@ import { useEffect, useMemo } from "react";
 import type { Bar } from "@marketpulse/shared";
 
 import { MarketProxyStrip } from "../components/MarketProxyStrip/MarketProxyStrip.js";
+import { OverviewSourceNote } from "../components/OverviewSourceNote/OverviewSourceNote.js";
 import { Region } from "../components/Region/Region.js";
 import type { LiveFeedView } from "../market/index.js";
+import type { MarketFeedView } from "../use-market-feed.js";
 import styles from "./MarketOverview.module.css";
 
 // PRODUCT_SPEC.md §8.1 — "What is happening?", and the spec's landing screen,
@@ -49,11 +51,23 @@ export interface MarketOverviewProps {
   readonly liveFeed?: LiveFeedView | undefined;
   /** See `SecurityExplorer`'s: the page declares what it needs prices for. */
   readonly onLiveSymbols?: ((symbols: readonly string[]) => void) | undefined;
+  /**
+   * What the chrome claims about this deployment's feed, threaded in rather
+   * than fetched again (Task 4.2.7).
+   *
+   * The source note needs it to avoid claiming a second time what the status
+   * bar already claims — `PROVENANCE.md` §1.3 — and `App`'s rule is that a
+   * hook making a network request is called there. Optional for the same
+   * reason `liveFeed` is: a story renders this route with nothing at all, and
+   * `checking` is what an absent answer looks like.
+   */
+  readonly marketFeed?: MarketFeedView | undefined;
 }
 
 export function MarketOverview({
   liveFeed,
   onLiveSymbols,
+  marketFeed,
 }: MarketOverviewProps = {}) {
   const overview = liveFeed?.overview;
 
@@ -202,9 +216,39 @@ export function MarketOverview({
           filledBy="Investigations in flight — running, awaiting input and completed. Epic 10 lets the agent start them."
         />
       </div>
+
+      {/*
+       * **One source note for the screen** (Task 4.2.7), after the last region
+       * and before `AppFooter` — the position and the grain the Security
+       * Explorer already uses, last in reading order because it qualifies
+       * everything above it.
+       *
+       * **Not one per region and not one inside the strip.** `PROVENANCE.md`
+       * §1.3's rule transfers verbatim, and it exists because five correct
+       * additions made one at a time produce a footnote pile — which is
+       * precisely what would happen here, with 4.3, 4.4 and 4.5 each landing a
+       * region with figures in it. `one-provenance-note-on-the-landing-route`
+       * refuses a second.
+       *
+       * It is handed the **same frame the strip is drawing**, so the note and
+       * the picture cannot describe different answers.
+       */}
+      <OverviewSourceNote overview={overview} feed={marketFeed ?? CHECKING} />
     </>
   );
 }
+
+/**
+ * What the note is told when the route is rendered without a feed answer — a
+ * story, or a test that renders the route bare.
+ *
+ * `checking` rather than `not-configured`, because *nobody has asked yet* and
+ * *the deployment has no provider* are different facts and only the first is
+ * true of a route with no prop. It is also the one state that suppresses the
+ * feed clause without a positive match (`chromeAlreadyNames`), so an absent
+ * answer makes the note say less rather than claim more.
+ */
+const CHECKING: MarketFeedView = { state: "checking" };
 
 // Stable empties, so a route rendered without a feed does not hand the strip a
 // new Map on every render.
