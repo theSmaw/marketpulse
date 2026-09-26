@@ -47,6 +47,7 @@ const view = (over: Partial<LiveFeedView> = {}): LiveFeedView => ({
   observations: NO_OBSERVATIONS,
   fromSnapshot: NO_SNAPSHOT,
   resumes: 0,
+  overview: undefined,
   ...over,
 });
 

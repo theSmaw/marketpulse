@@ -830,3 +830,52 @@ alternatives priced in its own file — today's 165 s, a shorter browser-side
 threshold, retries-failing-for-N, or the socket closing. The **person's** half
 is owed under an owner and a condition: the owner, the next session they are
 awake for with a phone to hand.
+
+## The overview's closes lookup takes a session and ignores it, so the aggregate reads the LATEST closes whatever instant it is asked about
+
+**Added 2026-09-26 (Task 4.2.4), the moment the production lookup was written
+and not before.** Task 4.2.3 built `buildMarketOverview` with a
+`closesAsOf: (session: MarketDate) => …` parameter and supplied no
+implementation; while there was no implementation there was no claim to guard.
+There is one now, in `apps/backend/src/last-closes-cache.ts`, and it is a claim
+about a **mechanism** — so it owes something mechanical, which is what this
+entry is instead of.
+
+**What the shape says and what the code does.** `market-overview.ts` converts
+its `asOf` to a market date with `marketDateAt` and passes it to the lookup —
+_the replay seam, in one line_, in its own words. The cache takes that argument,
+compares it against the session it last loaded **for**, and returns the closes
+it holds. Those closes are `readLastCloses("1d")`'s answer: **the latest daily
+bar per security in the store**, with no `observed_at` bound at all.
+
+**Correct live, and future information under a replay.** During a session the
+latest stored close _is_ the close as of today, so the two answers coincide and
+nothing on any screen is wrong. Replaying 2026-03-04 would measure every proxy's
+change against **September's** close — a well-formed, correctly-coloured,
+completely fictional number, which is the failure class this repository keeps
+naming: not a crash, not a blank, a plausible figure.
+
+**Why the parameter exists anyway.** ADR 0015's gap 4 — _the temporal seam holds
+only while no unplugged handle is exported_ — and invariant 4's requirement that
+temporal isolation be structural. The question is asked in the shape Epic 13
+needs so that its plugin changes **one implementation** rather than hunting a
+call site with no way to ask. `market-overview.ts`'s own note says so and names
+the plugin's author directly.
+
+**What is mechanical, and what it cannot see.** `pnpm invariants` holds
+`one-producer-of-the-overview-aggregate` — the aggregate has **at most one**
+call site in shipped backend code — so there is exactly one place a replay clock
+has to reach, and a second one fails the build. That is the half that can be
+checked. What nothing can check is that the lookup **honours** the session it is
+given: an implementation that ignores its argument and one that respects it are
+indistinguishable to every test in this repository, because there is no replay
+to run them under.
+
+**Re-measure** —
+`grep -n "session" apps/backend/src/last-closes-cache.ts`. The lookup honours
+its argument the day `readLastCloses` grows an `asOf` bound and that bound is
+passed; until then the function's body uses `session` only to decide **when to
+refresh**, never **what to return**, and this entry stands.
+
+**Owner: Epic 13's temporal plugin**, by condition rather than by story number:
+**the first caller of `closesAsOf` whose `asOf` is not the wall clock.**

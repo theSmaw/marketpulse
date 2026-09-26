@@ -988,6 +988,26 @@ export const trackedTickers = (
   trackedSecurities(universe).map((security) => security.symbol);
 
 /**
+ * **The four index proxies, in `PRODUCT_SPEC.md` §6's order** (Task 4.2.4).
+ *
+ * Derived from {@link UNIVERSE} by `kind` rather than written out again: §6
+ * names them once and {@link INDEX_PROXIES} is that list, so a second literal
+ * here would be the second home this repository keeps finding — and the order
+ * is the declaration order, which is §6's.
+ *
+ * `active` only, through {@link trackedSecurities}, because the overview is a
+ * computation over *the market we track now* — `UNIVERSE.md` §12.2's rule for
+ * a reader not in its table, and the same side of it `current-market-state.ts`
+ * is on.
+ */
+export const indexProxyTickers = (
+  universe: readonly Security[] = UNIVERSE,
+): readonly Ticker[] =>
+  trackedSecurities(universe)
+    .filter((security) => security.kind === "index_etf")
+    .map((security) => security.symbol);
+
+/**
  * The tracked symbols as a set, for membership tests.
  *
  * A `Set` rather than an array because both callers ask *is this symbol one of

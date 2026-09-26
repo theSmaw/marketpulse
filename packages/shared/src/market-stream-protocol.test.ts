@@ -9,7 +9,10 @@ import {
   toWireObservations,
   type BarsMessage,
   type FeedMessage,
+  type OverviewMessage,
   type SnapshotMessage,
+  type WireMarketOverview,
+  type WireOverviewFigure,
 } from "./market-stream-protocol.js";
 
 const OBSERVATION = {
@@ -228,6 +231,12 @@ describe("the send instant, which is the one field added after the wire froze", 
   );
 
   it("still names an unknown type as unknown, stamp or no stamp", () => {
+    // **Amended 2026-09-26 by Task 4.2.4.** The disposition changed from
+    // `unreadable` to `unsupported`; what this test is about is unchanged and
+    // is the reason it survives — the missing stamp must not swallow the type,
+    // so the frame is still reported by what it IS rather than by what it
+    // lacks. The old expectation is recorded here so the change is visible
+    // rather than inferred: it was `unknown message type "ticks"`.
     const decoded = decodeMarketStreamMessage(
       JSON.stringify({
         type: "ticks",
@@ -235,9 +244,7 @@ describe("the send instant, which is the one field added after the wire froze", 
       }),
     );
 
-    expect(decoded.kind === "unreadable" && decoded.reason).toBe(
-      'unknown message type "ticks"',
-    );
+    expect(decoded).toEqual({ kind: "unsupported", type: "ticks" });
   });
 });
 
@@ -245,7 +252,6 @@ describe("decoding, which must never throw", () => {
   it.each([
     ["not JSON", "{not json"],
     ["not an object", "[1,2,3]"],
-    ["an unknown type", '{"type":"wat","version":1}'],
     ["a wrong version", '{"type":"feed","version":99,"feed":{}}'],
     ["a malformed feed", '{"type":"feed","version":1,"feed":{"status":7}}'],
   ])("returns a value for %s", (_label, raw) => {
@@ -253,6 +259,17 @@ describe("decoding, which must never throw", () => {
 
     expect(decoded.kind).toBe("unreadable");
     expect(decoded.kind === "unreadable" && decoded.reason).toBeTruthy();
+  });
+
+  // **An unknown type left this table on 2026-09-26** (Task 4.2.4) and is now
+  // asserted below under its own heading. It is not a defect and must not be
+  // counted as one; it is the ordinary state of a tab left open across a
+  // deploy that rolls the backend first.
+  it("returns a value for an unknown type, and it is not a defect", () => {
+    expect(decodeMarketStreamMessage('{"type":"wat","version":1}')).toEqual({
+      kind: "unsupported",
+      type: "wat",
+    });
   });
 
   it("never throws, whatever it is handed", () => {
@@ -348,5 +365,254 @@ describe("the round trip", () => {
     ]);
 
     expect(Object.keys(toWireObservations(bars))).toEqual(["NVDA"]);
+  });
+});
+
+// --------------------------------------------------- the overview frame (4.2.4)
+
+const OVERVIEW_AT = "2026-09-26T14:02:00.000Z";
+
+const overviewMessage = (
+  overview: Partial<WireMarketOverview> = {},
+): OverviewMessage => ({
+  type: "overview",
+  version: MARKET_STREAM_PROTOCOL_VERSION,
+  sentAt: SENT_AT,
+  overview: {
+    computedAt: OVERVIEW_AT,
+    feeds: ["iex"],
+    figures: [],
+    ...overview,
+  },
+});
+
+describe("the overview frame, which carries the first DERIVED value on this wire", () => {
+  it("does not emit a property hung off a NESTED figure", () => {
+    // **Where ADR 0031's obligation is actually at risk.** A top-level leak
+    // was already covered; a nested object passed through `asIs` satisfies
+    // the compiler and carries whatever is on it. Each member of the figure
+    // union has its own field map, so this is the assertion that says the
+    // maps are being walked rather than the values.
+    const figure = {
+      state: "observed",
+      symbol: "SPY",
+      at: OVERVIEW_AT,
+      price: 655.2,
+      // Not on `WireObservedFigure`. On HTTP this is stripped; on a socket
+      // nothing strips it, which is the whole inversion.
+      internalRetrievedAt: "2026-09-26T14:02:00.400Z",
+      previousClose: 651.1,
+    } as unknown as WireOverviewFigure;
+
+    const wire = encodeMarketStreamMessage(
+      overviewMessage({ figures: [figure] }),
+    );
+
+    expect(wire).not.toContain("internalRetrievedAt");
+    expect(wire).not.toContain("previousClose");
+    expect(wire).toContain('"symbol":"SPY"');
+  });
+
+  it("OMITS an absent change from the encoded STRING, not merely from the object", () => {
+    // **Asserted on the string on purpose** (Done when 2). A decoded object
+    // would report `undefined` for an omitted key and for a key encoded as
+    // `null` alike, and it would pass just as happily over a `0` — which is
+    // the one value this wire must never use for *we cannot say*.
+    const wire = encodeMarketStreamMessage(
+      overviewMessage({
+        figures: [
+          { state: "observed", symbol: "SPY", at: OVERVIEW_AT, price: 655.2 },
+        ],
+      }),
+    );
+
+    expect(wire).not.toContain("changePercent");
+    expect(wire).not.toContain("changeBasis");
+    expect(wire).not.toContain("null");
+  });
+
+  it("carries a change and its basis when there is one", () => {
+    const wire = encodeMarketStreamMessage(
+      overviewMessage({
+        figures: [
+          {
+            state: "observed",
+            symbol: "SPY",
+            at: OVERVIEW_AT,
+            price: 655.2,
+            changePercent: 0.63,
+            changeBasis: "2026-09-25",
+          },
+        ],
+      }),
+    );
+
+    expect(wire).toContain('"changePercent":0.63');
+    expect(wire).toContain('"changeBasis":"2026-09-25"');
+  });
+
+  it("round-trips all three figure states in order", () => {
+    const figures: readonly WireOverviewFigure[] = [
+      {
+        state: "observed",
+        symbol: "SPY",
+        at: OVERVIEW_AT,
+        price: 655.2,
+        changePercent: 0.63,
+        changeBasis: "2026-09-25",
+      },
+      { state: "stored", symbol: "QQQ", session: "2026-09-25", close: 589.4 },
+      { state: "unknown", symbol: "DIA" },
+    ];
+
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(overviewMessage({ figures })),
+    );
+
+    expect(decoded.kind).toBe("message");
+    if (decoded.kind !== "message") return;
+    expect(decoded.message.type).toBe("overview");
+    if (decoded.message.type !== "overview") return;
+    expect(decoded.message.overview.figures).toEqual(figures);
+    expect(decoded.message.overview.computedAt).toBe(OVERVIEW_AT);
+    // The order is the answer — four proxies are reported in §6's order.
+    expect(decoded.message.overview.figures.map((f) => f.symbol)).toEqual([
+      "SPY",
+      "QQQ",
+      "DIA",
+    ]);
+  });
+
+  it("OMITS a non-finite percentage rather than defaulting it", () => {
+    // A change percentage is the most `Infinity`-prone number this product
+    // produces, and `Infinity` survives `JSON.parse` as `null` — which the
+    // `typeof === "number"` check would read as absent anyway, and which a
+    // hand-written reader would read as `0`. `Number.isFinite` is the check.
+    const raw = JSON.stringify({
+      type: "overview",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: SENT_AT,
+      overview: {
+        computedAt: OVERVIEW_AT,
+        feeds: ["iex"],
+        figures: [
+          {
+            state: "observed",
+            symbol: "SPY",
+            at: OVERVIEW_AT,
+            price: 655.2,
+            // `Infinity` written as an expression rather than as a literal
+            // `1e400`, which ESLint refuses for losing precision — and which
+            // would be `Infinity` anyway. `JSON.stringify` writes it as
+            // `null`, which is exactly the shape that arrives on the wire.
+            changePercent: Number.POSITIVE_INFINITY,
+            changeBasis: "2026-09-25",
+          },
+        ],
+      },
+    });
+
+    const decoded = decodeMarketStreamMessage(raw);
+    expect(decoded.kind).toBe("message");
+    if (decoded.kind !== "message") return;
+    if (decoded.message.type !== "overview") return;
+    const [figure] = decoded.message.overview.figures;
+    expect(figure).toEqual({
+      state: "observed",
+      symbol: "SPY",
+      at: OVERVIEW_AT,
+      price: 655.2,
+    });
+    expect(figure).not.toHaveProperty("changePercent");
+    // And the basis does not survive alone: a date describing a figure that
+    // is not there is a false impression one field wide.
+    expect(figure).not.toHaveProperty("changeBasis");
+  });
+
+  it("drops one malformed figure and keeps the rest", () => {
+    const raw = JSON.stringify({
+      type: "overview",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: SENT_AT,
+      overview: {
+        computedAt: OVERVIEW_AT,
+        feeds: ["iex"],
+        figures: [
+          { state: "observed", symbol: "SPY", at: OVERVIEW_AT, price: null },
+          { state: "unknown", symbol: "QQQ" },
+        ],
+      },
+    });
+
+    const decoded = decodeMarketStreamMessage(raw);
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    expect(decoded.message.overview.figures).toEqual([
+      { state: "unknown", symbol: "QQQ" },
+    ]);
+  });
+
+  it("drops a feed slug this bundle has no words for", () => {
+    const raw = JSON.stringify({
+      type: "overview",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: SENT_AT,
+      overview: { computedAt: OVERVIEW_AT, feeds: ["iex", "otc"], figures: [] },
+    });
+
+    const decoded = decodeMarketStreamMessage(raw);
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    expect(decoded.message.overview.feeds).toEqual(["iex"]);
+  });
+
+  it("is unreadable without a send instant, like every other frame", () => {
+    const raw = JSON.stringify({
+      type: "overview",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      overview: { computedAt: OVERVIEW_AT, feeds: [], figures: [] },
+    });
+    expect(decodeMarketStreamMessage(raw)).toEqual({
+      kind: "unreadable",
+      reason: "no send instant",
+    });
+  });
+});
+
+describe("a type this bundle has never heard of", () => {
+  it("is `unsupported` — neither a message nor a defect", () => {
+    // **The stale tab's case.** The deploy rolls the backend first, so a tab
+    // on the previous bundle meets a type it predates. Under `unreadable`
+    // that tab counts a defect in a field documented as *"Zero on every
+    // healthy deployment"*, and that field is in `sameLiveFeedView` — so it
+    // would re-render the whole application on every such frame, for ever.
+    const raw = JSON.stringify({
+      type: "breadth",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: SENT_AT,
+    });
+
+    expect(decodeMarketStreamMessage(raw)).toEqual({
+      kind: "unsupported",
+      type: "breadth",
+    });
+  });
+
+  it("does NOT bump the protocol version to say so", () => {
+    // Recorded as an assertion rather than as prose (Done when 5). Bumping is
+    // the obvious-looking move and is strictly worse: the version is checked
+    // BEFORE the type, so a stale tab would reject every frame — losing its
+    // prices, its feed word and its snapshot — rather than ignoring one.
+    expect(MARKET_STREAM_PROTOCOL_VERSION).toBe(1);
+
+    const stale = JSON.stringify({
+      type: "overview",
+      version: 2,
+      sentAt: SENT_AT,
+      overview: { computedAt: OVERVIEW_AT, feeds: [], figures: [] },
+    });
+    expect(decodeMarketStreamMessage(stale).kind).toBe("unreadable");
   });
 });

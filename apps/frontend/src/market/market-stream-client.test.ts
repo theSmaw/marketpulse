@@ -120,6 +120,28 @@ describe("what reaches the state above", () => {
     expect(events[0]).toMatchObject({ kind: "unreadable" });
   });
 
+  it("DROPS a message type this bundle predates rather than counting it", () => {
+    // **A stale tab's ordinary state, not a defect** (Task 4.2.4). The deploy
+    // rolls the backend first, so a tab left open meets a gateway sending a
+    // type its bundle has never heard of. Counting it as `unreadable` would
+    // tick a field documented as *"Zero on every healthy deployment"* — and
+    // that field is in `sameLiveFeedView`, so the count changing re-renders
+    // the whole application on **every** such frame, indefinitely.
+    const { socket, events } = connect();
+
+    socket.emit("open");
+    socket.emit("message", {
+      data: JSON.stringify({
+        type: "breadth",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
+      }),
+    });
+
+    // The open, and nothing else. No message, and no defect.
+    expect(events.map((event) => event.kind)).toEqual(["opened"]);
+  });
+
   it("treats a non-text frame as unreadable rather than crashing on it", () => {
     // A browser can be handed a Blob or an ArrayBuffer as readily as a string.
     const { socket, events } = connect();

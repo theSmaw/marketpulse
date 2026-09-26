@@ -5,6 +5,7 @@ import {
   STALE_AFTER_MS,
   type MarketStreamMessage,
   type WireFeedState,
+  type WireMarketOverview,
 } from "@marketpulse/shared";
 import { connectionWordFor } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
@@ -844,5 +845,178 @@ describe("resumes", () => {
     ]);
 
     expect(view(gone)).toBe(0);
+  });
+});
+
+describe("the overview frame (Task 4.2.4)", () => {
+  const overviewFrame = (
+    computedAt: string,
+    figures: WireMarketOverview["figures"] = [],
+  ): MarketStreamMessage => ({
+    type: "overview",
+    version: MARKET_STREAM_PROTOCOL_VERSION,
+    sentAt: SENT_AT,
+    overview: { computedAt, feeds: ["iex"], figures },
+  });
+
+  it("does NOT advance `lastObservationAt` — an aggregate is not an observation", () => {
+    // **The defect this refuses is a dead feed reading `LIVE`.** The gateway
+    // rebuilds the overview on every connect, every subscribe and every
+    // applied batch, over a map that may not have moved. Feeding §11.2's
+    // 60 s staleness rule with it would mean the chrome said `LIVE` for as
+    // long as anybody kept opening tabs.
+    const before = healthy();
+    const after = advanceLiveFeed(before, {
+      kind: "message",
+      at: 120_000,
+      message: overviewFrame("2026-09-16T14:03:00.000Z"),
+    });
+
+    expect(after.lastObservationAt).toBe(before.lastObservationAt);
+    // It IS evidence the socket is alive, which is a different question and
+    // a true one.
+    expect(after.lastInboundAt).toBe(120_000);
+  });
+
+  it("goes stale on schedule despite a stream of overview frames", () => {
+    // The behavioural half of the assertion above: §11.2's 60 s threshold is
+    // measured from the last OBSERVATION, and sixty seconds of aggregates is
+    // sixty seconds with no market data in it.
+    let state = healthy();
+    for (let at = 61_000; at <= 180_000; at += 5_000) {
+      state = advanceLiveFeed(state, {
+        kind: "message",
+        at,
+        message: overviewFrame(new Date(BAR_ARRIVED + at).toISOString()),
+      });
+    }
+
+    expect(at(state, 180_000, BAR_ARRIVED + 180_000).status).toBe("stale");
+  });
+
+  it("leaves the server's last word about the feed alone", () => {
+    // `bars` and `overview` say nothing about the feed's state, so the last
+    // word stands. Written as a test because the ternary that decides it had
+    // to be rewritten to name the types that CARRY `feed` rather than to
+    // exclude the one that does not.
+    const state = advanceLiveFeed(healthy({ status: "live" }), {
+      kind: "message",
+      at: 61_000,
+      message: overviewFrame("2026-09-16T14:03:00.000Z"),
+    });
+
+    expect(state.server?.status).toBe("live");
+    expect(state.server?.feed).toBe("iex");
+  });
+
+  it("holds the aggregate whole, by reference, and replaces it only on a new one", () => {
+    const first = advanceLiveFeed(healthy(), {
+      kind: "message",
+      at: 61_000,
+      message: overviewFrame("2026-09-16T14:03:00.000Z"),
+    });
+    const held = first.overview;
+    expect(held?.computedAt).toBe("2026-09-16T14:03:00.000Z");
+
+    // A keepalive is not an aggregate.
+    const keepalive = advanceLiveFeed(first, {
+      kind: "message",
+      at: 62_000,
+      message: {
+        type: "feed",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
+        feed: feedState(),
+      },
+    });
+    expect(keepalive.overview).toBe(held);
+
+    const second = advanceLiveFeed(keepalive, {
+      kind: "message",
+      at: 63_000,
+      message: overviewFrame("2026-09-16T14:04:00.000Z"),
+    });
+    expect(second.overview).not.toBe(held);
+  });
+
+  // **The gate, asserted as a negative**, which is the shape Task 3.4.1
+  // established for the observations Map and Task 3.10.7 repeated for
+  // `resumes`. A field added to the store without being added to
+  // `sameLiveFeedView` is correct in the reducer and **never reaches a
+  // consumer**: the comment in that function records what that looked like
+  // the first time — *a first moving price that does not move, with every
+  // test green*.
+  it("makes an arriving aggregate a change even when nothing else moved", () => {
+    const before = advanceLiveFeed(healthy(), {
+      kind: "message",
+      at: 61_000,
+      message: overviewFrame("2026-09-16T14:03:00.000Z"),
+    });
+    const after = advanceLiveFeed(before, {
+      kind: "message",
+      at: 61_500,
+      message: overviewFrame("2026-09-16T14:04:00.000Z", [
+        { state: "unknown", symbol: "SPY" },
+      ]),
+    });
+
+    const a = at(before, 61_600, BAR_ARRIVED + 61_600);
+    const b = at(after, 61_600, BAR_ARRIVED + 61_600);
+
+    // Everything else agrees — the aggregate is the only field that moved.
+    expect(a.status).toBe(b.status);
+    expect(a.feed).toBe(b.feed);
+    expect(a.observedAt).toBe(b.observedAt);
+    expect(a.observations).toBe(b.observations);
+    expect(a.fromSnapshot).toBe(b.fromSnapshot);
+    expect(a.resumes).toBe(b.resumes);
+    expect(a.unreadable).toBe(b.unreadable);
+
+    expect(sameLiveFeedView(a, b)).toBe(false);
+  });
+
+  it("does not report a change when no aggregate arrived", () => {
+    // The other half: the reference is the signal, so a keepalive over an
+    // unchanged aggregate must still cost a comparison rather than a render.
+    const state = advanceLiveFeed(healthy(), {
+      kind: "message",
+      at: 61_000,
+      message: overviewFrame("2026-09-16T14:03:00.000Z"),
+    });
+    const keepalive = advanceLiveFeed(state, {
+      kind: "message",
+      at: 62_000,
+      message: {
+        type: "feed",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
+        feed: feedState(),
+      },
+    });
+
+    expect(
+      sameLiveFeedView(
+        at(state, 62_100, BAR_ARRIVED + 62_100),
+        at(keepalive, 62_100, BAR_ARRIVED + 62_100),
+      ),
+    ).toBe(true);
+  });
+
+  it("survives a degradation with the aggregate still on screen", () => {
+    // §36: a feed that has stopped still holds the last figures it saw, and
+    // blanking them would be the product removing true information because a
+    // socket died. `computedAt` is what dates them.
+    const state = advanceLiveFeed(
+      advanceLiveFeed(healthy(), {
+        kind: "message",
+        at: 61_000,
+        message: overviewFrame("2026-09-16T14:03:00.000Z"),
+      }),
+      { kind: "closed", at: 62_000 },
+    );
+
+    const view = at(state, 300_000, BAR_ARRIVED + 300_000);
+    expect(view.status).toBe("disconnected");
+    expect(view.overview?.computedAt).toBe("2026-09-16T14:03:00.000Z");
   });
 });

@@ -4,6 +4,7 @@ import {
   type MarketFeed,
   type MarketStreamMessage,
   type WireFeedState,
+  type WireMarketOverview,
   feedStatusFrom,
   fromWireObservation,
   worseFeedStatus,
@@ -223,6 +224,23 @@ export interface LiveFeedConnection {
   /** The server's last word about its own feed, or `undefined` before the snapshot. */
   readonly server: WireFeedState | undefined;
   /**
+   * **The market aggregate the backend computed**, or `undefined` before the
+   * first overview frame (Task 4.2.4).
+   *
+   * Held whole and by reference. It is the first **derived** thing this
+   * browser has ever been sent — every other payload is a raw observation or
+   * a connection word — and the browser deliberately does not re-derive any
+   * of it: the change percentage was computed by `changeFromClose` in the
+   * backend, from an IEX numerator and a consolidated-SIP denominator the
+   * browser cannot see.
+   *
+   * **`computedAt` is inside it and is not a clock.** It says when the
+   * aggregate was **true**, which during a session is bounded at about a
+   * minute behind and after a dead feed is unbounded — so a surface that
+   * wants to date these figures reads it, and nothing about liveness does.
+   */
+  readonly overview: WireMarketOverview | undefined;
+  /**
    * How many messages this browser could not read.
    *
    * **The decided disposition for `unreadable`** (Task 3.3.1 made it a value
@@ -254,6 +272,7 @@ export const initialLiveFeed: LiveFeedConnection = {
   lastInboundAt: undefined,
   lastObservationAt: undefined,
   server: undefined,
+  overview: undefined,
   unreadable: 0,
   lastUnreadableReason: undefined,
 };
@@ -314,7 +333,22 @@ function withDelivery(
 }
 
 function observedIn(message: MarketStreamMessage): Observed {
-  if (message.type === "feed") return NOTHING_OBSERVED;
+  // **The types that CARRY observations, named** — rather than excluding the
+  // ones that do not (Task 4.2.4). A fourth message type turned the old
+  // `type === "feed"` exclusion into a compile error here, which is the check
+  // working; writing it the other way round is what makes a fifth one fail in
+  // the same place instead of quietly reading `undefined`.
+  //
+  // **An aggregate is not an observation, and `NOTHING_OBSERVED` is the whole
+  // point.** The overview frame is a derivation over a map that may not have
+  // moved — the gateway recomputes it on connect, on subscribe and on every
+  // applied batch. Letting it advance `lastObservationAt` would feed §11.2's
+  // 60 s staleness rule with the gateway's own activity, so a **dead feed
+  // would read `LIVE`** for as long as somebody kept opening tabs. It may
+  // advance `lastInboundAt`, which is a fact about the socket and is true.
+  if (message.type !== "snapshot" && message.type !== "bars") {
+    return NOTHING_OBSERVED;
+  }
 
   const bars = new Map<string, Bar>();
   let newest: number | undefined;
@@ -399,8 +433,21 @@ export function advanceLiveFeed(
       return {
         ...inbound,
         socket: "open",
+        // **The types that carry `feed`, named rather than excluded** — the
+        // same repair as `observedIn`'s, forced in the same change by the
+        // same fourth message type. `bars` and `overview` say nothing about
+        // the feed's state, so the last word stands.
         server:
-          event.message.type === "bars" ? state.server : event.message.feed,
+          event.message.type === "snapshot" || event.message.type === "feed"
+            ? event.message.feed
+            : state.server,
+        // **A new reference exactly when an overview arrives**, and the same
+        // one otherwise — `withObservations`' idiom, and the property
+        // `sameLiveFeedView` compares by identity.
+        overview:
+          event.message.type === "overview"
+            ? event.message.overview
+            : state.overview,
         observations: withObservations(state.observations, bars),
         // **A snapshot sets the baseline; a bar changes it.** A `bars` message
         // clears the flag for exactly the symbols it carries, so the first
@@ -497,6 +544,11 @@ export interface LiveFeedView {
    * acting on is the return.
    */
   readonly resumes: number;
+  /**
+   * The backend's market aggregate, or `undefined` until the first one lands
+   * (Task 4.2.4). **Nothing renders it yet** — Task 4.2.5 is the payoff.
+   */
+  readonly overview: WireMarketOverview | undefined;
   /** Messages this browser could not read. Zero on every healthy deployment. */
   readonly unreadable: number;
 }
@@ -578,6 +630,10 @@ export function liveFeedView(
     // because a socket died.
     observations: state.observations,
     fromSnapshot: state.fromSnapshot,
+    // **Carried into every branch, including the degraded ones**, for the
+    // observations' own reason: §36 keeps true figures on screen when a feed
+    // stops, labelled rather than blanked. `computedAt` is what labels them.
+    overview: state.overview,
     // The first connection is not a return. `Math.max` rather than a
     // subtraction alone so a browser that has been told nothing yet reads
     // `0` rather than `-1`.
@@ -664,6 +720,17 @@ export function sameLiveFeedView(a: LiveFeedView, b: LiveFeedView): boolean {
     // that does not reach a consumer is a gap that is never filled, and it
     // would look exactly like the feed working: every number on screen is
     // correct, and the minutes nobody watched simply stay missing.
-    a.resumes === b.resumes
+    a.resumes === b.resumes &&
+    // **Added with the field itself, in the same change** (Task 4.2.4) — the
+    // comment above says what happens otherwise, and it happened to the Map:
+    // the reducer updates correctly while the screen never changes, with
+    // every test green, because nothing renders. The test that catches it
+    // asserts the **negative**: an overview frame causes a render.
+    //
+    // **By reference, and that is sound rather than lucky.**
+    // `advanceLiveFeed` replaces this exactly when an overview frame arrives
+    // and keeps the same reference otherwise, so the reference IS the change
+    // signal — `withObservations`' property, obtained the same way.
+    a.overview === b.overview
   );
 }
