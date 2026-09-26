@@ -93,17 +93,42 @@ export function changePercent(prices: SeriesPrices): number | null {
 }
 
 /**
- * One instant, in market time, as `2026-09-04 09:30:00 EDT`.
+ * One instant, in market time, as `2026-09-04 09:30:00 EDT` — or
+ * `2026-09-04 09:30 EDT` at {@link InstantPrecision} `minute`.
  *
  * The zone abbreviation is **not** decoration: without it this is a bare
  * timestamp that a reader in another country will assume is theirs. It comes
  * off `marketWallClockAt`, so it says `EDT` in summer and `EST` in winter
  * without this file knowing that either exists.
+ *
+ * ## Why the precision is a parameter rather than a second function
+ *
+ * Added 2026-09-26 by Task 4.2.7, and it is `formatBarInstant`'s own argument
+ * for taking a timeframe: the alternative is a fourth spelling of an instant
+ * in a fourth module, and this product has already paid for one of those —
+ * a hand-built `from 2026-09-24 12:07` shipped for a review round with no zone
+ * in it.
+ *
+ * **Seconds are the default because a WINDOW has a second in it.** A window
+ * running to `16:00:00` is a half-open bound and dropping its seconds would
+ * make the bound unreadable. What does **not** have a second in it is a value
+ * that only changes once a minute: the landing screen's aggregate is rebuilt
+ * up to sixteen times a minute over data that arrives once, so seconds there
+ * tick visibly while nothing behind them moves — churn advertised as
+ * information, on a screen whose motion vocabulary marks arrivals deliberately
+ * and marks nothing else.
  */
-export function formatMarketInstant(instant: Date): string {
+export type InstantPrecision = "second" | "minute";
+
+export function formatMarketInstant(
+  instant: Date,
+  precision: InstantPrecision = "second",
+): string {
   const wall = marketWallClockAt(instant);
+  const seconds = precision === "second" ? `:${pad(wall.second)}` : "";
+
   return (
-    `${wall.date} ${pad(wall.hour)}:${pad(wall.minute)}:${pad(wall.second)} ` +
+    `${wall.date} ${pad(wall.hour)}:${pad(wall.minute)}${seconds} ` +
     wall.offset.abbreviation
   );
 }

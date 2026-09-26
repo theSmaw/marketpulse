@@ -242,6 +242,22 @@ function closesClause(overview: WireMarketOverview): FeedClause | null {
  * on the screen says and which is the only way to tell a frozen aggregate from
  * a current one.
  *
+ * **To the MINUTE, and the seconds were taken off deliberately.** The gateway
+ * rebuilds this aggregate up to sixteen times a minute over data that arrives
+ * once a minute, so a seconds field ticks visibly while nothing behind it has
+ * changed — churn advertised as information, and a second ticking number on a
+ * screen where the strip's own advancing instant is the one the design chose
+ * to carry *the feed is still arriving*. At minute precision two consecutive
+ * aggregates inside one minute read the same, which is the honest reading:
+ * nothing new had arrived.
+ *
+ * **`Computed` rather than `Retrieved`, and the neighbouring surface's verb
+ * was rejected rather than overlooked.** `SourceNote` renders `Retrieved 8
+ * September 2026` about bars that were fetched; nothing is fetched here. An
+ * aggregate is assembled from what this process already holds, so *retrieved*
+ * would be false — which is worth knowing before anybody makes the two
+ * surfaces match.
+ *
  * A malformed instant is skipped rather than poisoning the note: `Date.parse`
  * answers `NaN` for what it cannot read and `new Date(NaN)` formats without
  * complaining, which is how `Invalid Date` reaches a screen.
@@ -262,7 +278,7 @@ function computedClause(overview: WireMarketOverview): string | null {
   const instant = Date.parse(overview.computedAt);
   if (Number.isNaN(instant)) return null;
 
-  return formatMarketInstant(new Date(instant));
+  return formatMarketInstant(new Date(instant), "minute");
 }
 
 /**

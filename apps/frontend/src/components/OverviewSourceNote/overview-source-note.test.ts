@@ -170,7 +170,7 @@ describe("toOverviewSourceNote", () => {
   it("renders the aggregate's own instant, whole and in market time", () => {
     expect(
       toOverviewSourceNote(frame([stored("SPY")]), NOT_CONFIGURED).computed,
-    ).toBe("2026-09-25 14:01:32 EDT");
+    ).toBe("2026-09-25 14:01 EDT");
   });
 
   it("says nothing at all about an aggregate over nothing", () => {

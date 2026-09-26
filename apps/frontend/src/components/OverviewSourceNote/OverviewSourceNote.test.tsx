@@ -106,7 +106,7 @@ describe("OverviewSourceNote", () => {
     const terms = screen.getAllByRole("term").map((term) => term.textContent);
 
     expect(terms).toEqual(["Observed prices", "Closing prices", "Computed"]);
-    expect(definitionOf("Computed")).toBe("2026-09-25 14:01:32 EDT");
+    expect(definitionOf("Computed")).toBe("2026-09-25 14:01 EDT");
   });
 
   it("says no connection word in any state", () => {
