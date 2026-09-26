@@ -21,7 +21,7 @@ import {
 //
 // ## Why this is a function and not the component
 //
-// `MarketSummaryStrip` draws three rows in a grid and nothing in this file
+// `MarketProxyStrip` draws three rows in a grid and nothing in this file
 // knows that. What is here is the part a test can hold without a browser: which
 // of the three wire states a cell is in, how its figure is spelled, what the one
 // shared qualifier may honestly claim about four separate observations, and
@@ -115,11 +115,22 @@ export interface MarketProxyStrip {
    * instant is a paragraph, and a line that disappears moves every region below
    * the strip.
    *
-   * **It is built from the newest observed figure**, because that is the only
-   * claim one line can make about four separate observations without over-
-   * claiming for the others — and the ones it does not cover say so themselves,
-   * in {@link ProxyReading} `note`. That is the universe table's shipped idiom:
-   * a shared claim in the heading, an exception on the row that disagrees.
+   * **Its instant is the newest observed one**, because that is the only claim
+   * one line can make about four separate observations without over-claiming
+   * for the others — and the ones it does not cover carry their own instant in
+   * {@link ProxyReading} `note`. That is the universe table's shipped idiom: a
+   * shared claim in the heading, an exception on the row that disagrees.
+   *
+   * **Its BASIS is not, and this file asserted otherwise for a few hours.**
+   * `changeBasis` is per security: a gapped store gives two proxies previous
+   * closes in different sessions, which is ordinary enough that
+   * `pnpm bars:check` exists for it. Taking the newest figure's basis and
+   * printing it unqualified under all four made one of them true and the rest
+   * a claim nobody computed — and `note` could not rescue it, because `note`
+   * carries an **instant** and only for a proxy that is *behind*, so a proxy
+   * that is current and measured from a different session got no exception at
+   * all. The clause is therefore dropped when the observed figures disagree;
+   * see {@link sharedBasis}.
    */
   readonly qualifier: string | undefined;
   /**
@@ -234,17 +245,9 @@ function qualifierOf(
 ): string | undefined {
   if (newest === undefined) return undefined;
 
-  const leader = figures.find(
-    (figure) =>
-      figure.state === "observed" && instants.get(figure.symbol) === newest,
-  );
-  // The second half is a narrowing rather than a second question: `find`
-  // returns the union, and `newest` being defined already guarantees a member
-  // in the `observed` state.
-  if (leader?.state !== "observed") return undefined;
-
   const at = new Date(newest);
   const extended = extendedHoursAt(at);
+  const basis = sharedBasis(figures);
 
   return [
     // **The instant, always, and it is the first clause.** §10.3's rule: every
@@ -258,15 +261,51 @@ function qualifierOf(
     // bar. The words are `feed-words.ts`'s and a second spelling of either is
     // refused by `one-home-for-the-feed-words`.
     extended === undefined ? undefined : EXTENDED_HOURS_WORDS[extended],
-    // The basis, which is the thing a bare percentage cannot say. Omitted with
-    // the percentage — a sentence about a comparison that was not made is
-    // ADR 0029's false impression rather than a courtesy.
-    leader.changePercent === undefined
-      ? undefined
-      : leader.changeBasis === undefined
-        ? "change from the previous close"
-        : `change from ${leader.changeBasis}'s close`,
+    basis,
   ]
     .filter((clause) => clause !== undefined)
     .join(" · ");
+}
+
+/**
+ * The basis clause, **only when every measured figure agrees about it**.
+ *
+ * A shared line may say *change from 2026-09-24's close* only if that is true
+ * of all of them. Where it is not, the line says **nothing** about the basis
+ * rather than one proxy's answer — ADR 0029's rule that a clause renders only
+ * when its own data is present, applied to a clause whose data is four values
+ * rather than one.
+ *
+ * **Only figures that carry a `changePercent` are consulted**, because only
+ * they assert a basis. A proxy with a price and no measurable change has an
+ * opinion about nothing and must not be able to suppress a clause that is true
+ * of the ones that do.
+ *
+ * `undefined` as a basis is itself a value here and not a gap: it is
+ * `LiveChange.basis`'s same-session case, *the previous close* — a number with
+ * no date beside it. So a strip where one proxy measures from a named session
+ * and another from an unnamed previous close is a **disagreement**, which is
+ * the case a `?? "…"` default would have silently spelled as agreement.
+ */
+function sharedBasis(
+  figures: readonly WireOverviewFigure[],
+): string | undefined {
+  const measured = figures.filter(
+    (figure) =>
+      figure.state === "observed" && figure.changePercent !== undefined,
+  );
+  if (measured.length === 0) return undefined;
+
+  const [first] = measured;
+  if (first?.state !== "observed") return undefined;
+
+  const agreed = first.changeBasis;
+  for (const figure of measured) {
+    if (figure.state !== "observed") return undefined;
+    if (figure.changeBasis !== agreed) return undefined;
+  }
+
+  return agreed === undefined
+    ? "change from the previous close"
+    : `change from ${agreed}'s close`;
 }

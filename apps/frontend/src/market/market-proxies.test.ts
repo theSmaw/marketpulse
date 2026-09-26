@@ -213,6 +213,70 @@ describe("marketProxyStrip", () => {
     );
   });
 
+  it("drops the basis clause when the observed figures disagree about it", () => {
+    // `changeBasis` is PER SECURITY, and a gapped store gives two proxies
+    // previous closes in different sessions ordinarily enough that
+    // `pnpm bars:check` exists for it. One line under all four saying
+    // `change from 2026-09-24's close` would be true of one and invented for
+    // the rest — and `note` cannot rescue it, because `note` carries an
+    // instant and only for a proxy that is BEHIND.
+    const strip = marketProxyStrip(
+      frame([
+        observed("SPY", { changeBasis: "2026-09-24" }),
+        observed("QQQ", { changeBasis: "2026-09-18" }),
+      ]),
+      NO_OBSERVATIONS,
+      NO_SNAPSHOT,
+    );
+
+    expect(strip.qualifier).toBe("Sep 25 · 14:01 EDT");
+  });
+
+  it("treats a named session and an unnamed previous close as a disagreement", () => {
+    // `undefined` is a VALUE here — `LiveChange.basis`'s same-session case —
+    // rather than a gap to be defaulted away.
+    const strip = marketProxyStrip(
+      frame([
+        observed("SPY", { changeBasis: "2026-09-24" }),
+        observed("QQQ", { changeBasis: undefined }),
+      ]),
+      NO_OBSERVATIONS,
+      NO_SNAPSHOT,
+    );
+
+    expect(strip.qualifier).toBe("Sep 25 · 14:01 EDT");
+  });
+
+  it("keeps the clause when a proxy with no measurable change disagrees about nothing", () => {
+    // Only figures carrying a `changePercent` assert a basis. A price with no
+    // measurable change has an opinion about nothing and must not suppress a
+    // clause that is true of the ones that do.
+    const strip = marketProxyStrip(
+      frame([
+        observed("SPY", { changeBasis: "2026-09-24" }),
+        observed("QQQ", { changePercent: undefined, changeBasis: undefined }),
+      ]),
+      NO_OBSERVATIONS,
+      NO_SNAPSHOT,
+    );
+
+    expect(strip.qualifier).toBe(
+      "Sep 25 · 14:01 EDT · change from 2026-09-24's close",
+    );
+  });
+
+  it("reports an overview about nothing as no cells and no shared claim", () => {
+    // `figures: []` used to fall through to the ordinary path, where the grid
+    // rendered at height 0 and the region said nothing at all.
+    const strip = marketProxyStrip(frame([]), NO_OBSERVATIONS, NO_SNAPSHOT);
+
+    expect(strip.cells).toHaveLength(0);
+    expect(strip.qualifier).toBeUndefined();
+    // Not `nothingStored`: that sentence is a claim about the store, and an
+    // overview about no securities says nothing about the store.
+    expect(strip.nothingStored).toBe(false);
+  });
+
   it("marks a price from outside the regular session with the shipped word", () => {
     const strip = marketProxyStrip(
       frame([observed("SPY", { at: "2026-09-25T11:42:00.000Z" })]),

@@ -7,7 +7,7 @@ import type {
 } from "@marketpulse/shared";
 
 import gridStyles from "../stories.module.css";
-import { MarketSummaryStrip } from "./MarketSummaryStrip.js";
+import { MarketProxyStrip } from "./MarketProxyStrip.js";
 
 // Seven states, one box, and nothing jumps between any two of them.
 //
@@ -74,15 +74,15 @@ const NO_OBSERVATIONS = new Map<string, Bar>();
 const NO_SNAPSHOT = new Set<string>();
 
 const meta = {
-  title: "Market/MarketSummaryStrip",
-  component: MarketSummaryStrip,
+  title: "Market/MarketProxyStrip",
+  component: MarketProxyStrip,
   parameters: { layout: "padded" },
   args: {
     overview: LIVE,
     observations: NO_OBSERVATIONS,
     fromSnapshot: NO_SNAPSHOT,
   },
-} satisfies Meta<typeof MarketSummaryStrip>;
+} satisfies Meta<typeof MarketProxyStrip>;
 
 export default meta;
 
@@ -171,17 +171,42 @@ export const NothingStored: Story = {
 };
 
 /**
- * **It should be rare and it should be short**, because the gateway sends an
- * overview on connect, unscoped — a browser has one before it has subscribed to
- * anything. It is drawn anyway, because *rare* is not *absent* and because the
- * alternative — four blank cells — looks like the no-figures state and must
- * not.
+ * **The first fraction of a second, and it should be rare and short** — the
+ * gateway sends an overview on connect, unscoped, so a browser has one before
+ * it has subscribed to anything. Measured 2026-09-26 against a local pair, five
+ * runs: **277, 174, 182, 193, 184 ms** from navigation to a figure on screen.
  *
  * The symbols are not drawn, and that is the set being **served** rather than
  * hard-coded: before the first frame this browser does not know which
  * securities the overview is about.
+ *
+ * Storybook holds this state still. **In the application it has a floor** —
+ * after two seconds it becomes `NoFiguresAtAll` below, because `overview` is
+ * only ever written by an overview frame and a frame that never arrives makes
+ * this the *terminal* state rather than a flash.
  */
 export const FirstPaint: Story = { args: { overview: undefined } };
+
+/**
+ * **What the region says when nothing arrives**, which is the same state
+ * `figures: []` produces and is a different fact from every other empty answer
+ * on this screen.
+ *
+ * `overview` is only ever written by an overview frame, so an unreachable
+ * backend, a proxy blocking the socket or the deploy window leaves the strip
+ * reserved and empty **for ever** — a 1392×183 panel with a heading and nothing
+ * in it, while the six regions below are hatched and each say what they are
+ * waiting for. That is `docs/GAPS.md` entry 13 exactly, and its owner is a
+ * condition — *the next story that adds a region*.
+ *
+ * `No prices yet.` rather than `No prices stored for these four yet.`: the
+ * second is a claim about the **store**, and in this state we have not been
+ * told anything about the store. It names no feed, no venue and no connection
+ * word — whether the socket is up has one home and it is the status bar.
+ */
+export const NoFiguresAtAll: Story = {
+  args: { overview: frame([]) },
+};
 
 /**
  * **Byte-identical to `Live`, and that is the decision rather than an
@@ -234,13 +259,28 @@ export const ArrivalMark: Story = {
 };
 
 /**
- * **The binding case at 390, and it is a four-digit price rather than today's.**
- * `1234.56` at the metric size is 84 px and a 13 px change beside it needs 55
- * plus an 8 px gap — 147 against the 144 a 390 column actually measures. That
- * is why the change steps to `--font-size-micro` below 37rem and the **figure
- * never steps**, at any width.
+ * **The binding case, and it did not fit when this story was written.**
  *
- * Review this one at 390 rather than here.
+ * Measured 2026-09-26 in Chromium, this story, `1234.56` in all four cells:
+ * the figure is **82.61 px** at every width, `PriceChange` is **62.03** at
+ * `--font-size-dense` and **54.95** at `--font-size-micro`. So a cell needs
+ * `82.61 + gap + change` — **145.56 px** at the micro size with an 8 px gap.
+ *
+ * The threshold this component shipped with was derived from `4 × 112 + 60`,
+ * where 112 px is where a **six**-glyph price stops sharing a line. Against a
+ * seven-glyph one a 700 px viewport overflowed by 6 px and a 593 px one by 33,
+ * and **390's two-up column of 144 was 1.6 px short**. The micro step does not
+ * close that, because the 55 px above already *is* the micro size — an earlier
+ * version of this docblock said it did, and was wrong.
+ *
+ * The repair is in the stylesheet and is two numbers: four across now stops at
+ * **48rem** (`4 × 146 + 60 = 644` content, 726 px of viewport, rounded up to an
+ * existing breakpoint), and below it the inner gap closes to `--space-4` —
+ * `82.61 + 4 + 54.95 = 141.56` against 144, clearing by 2.44 px.
+ *
+ * **The figure never steps**, at any width.
+ *
+ * Review this one at 390 and at 700 rather than here.
  */
 export const FourDigitPrices: Story = {
   args: {
@@ -301,11 +341,12 @@ export const AllPermutations: Story = {
             ]),
           ],
           ["first paint — before the first frame", undefined],
+          ["no figures at all — the floor", frame([])],
         ] as const
       ).map(([label, overview]) => (
         <div className={gridStyles.stackItem} key={label}>
           <p className={gridStyles.label}>{label}</p>
-          <MarketSummaryStrip
+          <MarketProxyStrip
             overview={overview}
             observations={NO_OBSERVATIONS}
             fromSnapshot={NO_SNAPSHOT}

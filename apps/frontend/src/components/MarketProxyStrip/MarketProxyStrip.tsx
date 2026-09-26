@@ -3,7 +3,8 @@ import type { Bar, WireMarketOverview } from "@marketpulse/shared";
 import { cx } from "../../cx.js";
 import { marketProxyStrip, type ProxyCell } from "../../market/index.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
-import styles from "./MarketSummaryStrip.module.css";
+import styles from "./MarketProxyStrip.module.css";
+import { useWaited } from "./use-waited.js";
 
 // The four index proxies, side by side and moving (Task 4.2.5).
 //
@@ -52,11 +53,19 @@ import styles from "./MarketSummaryStrip.module.css";
 // Until then nothing here is announced, and what is open is whether it is
 // pleasant to go and read, which is a listener's question rather than a DOM's.
 
-// The reserved strip's cell count — see `FirstPaint`. It is the stylesheet's
+// The reserved strip's cell count — see `NoFigures`. It is the stylesheet's
 // `repeat(4, …)` expressed in markup, not `PRODUCT_SPEC.md` §6's list.
 const RESERVED_SLOTS = [0, 1, 2, 3] as const;
 
-export interface MarketSummaryStripProps {
+// **A NON-BREAKING space, and the character is the mechanism.** Every reserved
+// row holds one so that filling it costs no height; a plain space in a `<p>`
+// collapses to nothing, and the reservation would then rest on however a
+// browser resolves an empty line box. Named rather than inlined so that it
+// cannot be "tidied" into `" "` by somebody who cannot see the difference —
+// which is the whole hazard with this character.
+const NBSP = "\u00a0";
+
+export interface MarketProxyStripProps {
   /**
    * The aggregate the backend computed, or `undefined` before the first frame.
    *
@@ -71,18 +80,37 @@ export interface MarketSummaryStripProps {
   readonly fromSnapshot: ReadonlySet<string>;
 }
 
-export function MarketSummaryStrip({
+export function MarketProxyStrip({
   overview,
   observations,
   fromSnapshot,
-}: MarketSummaryStripProps) {
-  if (overview === undefined) return <FirstPaint />;
+}: MarketProxyStripProps) {
+  /*
+   * **Two ways to have no figures, and they were one guard apart.**
+   *
+   * `overview === undefined` is *no frame has arrived*. `figures: []` is *a
+   * frame arrived and is about nothing* — and it fell straight through to the
+   * ordinary path, where the grid rendered at height **0**, `nothingStored` was
+   * false because of its own `length > 0` conjunct, the qualifier was
+   * `undefined`, and the region drew one hidden paragraph and **said nothing at
+   * all** — taking 70–112 px out from under `.regions` with it.
+   *
+   * They are one state on screen, because what a reader can see is identical:
+   * this strip has no figures. They differ only in how long it is honest to
+   * wait before saying so, which is {@link useWaited}'s whole subject.
+   */
+  const nothingArrived = overview === undefined;
+  const waited = useWaited(nothingArrived);
+
+  if (nothingArrived) return <NoFigures saying={waited} />;
 
   const { cells, qualifier, nothingStored } = marketProxyStrip(
     overview,
     observations,
     fromSnapshot,
   );
+
+  if (cells.length === 0) return <NoFigures saying />;
 
   return (
     <>
@@ -112,7 +140,7 @@ export function MarketSummaryStrip({
          * rather than a courtesy (ADR 0029), and never a skeleton of a sentence.
          */
         <p className={cx(styles.qualifierReserved)} aria-hidden="true">
-          {" "}
+          {NBSP}
         </p>
       ) : (
         <p className={cx(styles.qualifier)}>{qualifier}</p>
@@ -213,7 +241,7 @@ function Cell({
        */}
       {note === undefined ? (
         <p className={cx(styles.noteReserved)} aria-hidden="true">
-          {" "}
+          {NBSP}
         </p>
       ) : (
         <p className={cx(styles.note)}>{note}</p>
@@ -223,12 +251,33 @@ function Cell({
 }
 
 /**
- * Before the first frame: the box, and nothing in it.
+ * No figures: the box, and either nothing in it or one sentence.
+ *
+ * **`saying` is the floor rather than a variant.** For the first fraction of a
+ * second this is a genuine wait and the honest drawing is an empty reserved
+ * box; after `SAY_NOTHING_ARRIVED_AFTER_MS` it is a region that has been
+ * sitting at full height with a heading and nothing under it, which is the
+ * thing `docs/GAPS.md` entry 13 is about. The sentence goes in the slot the
+ * qualifier already reserves, so the floor costs no height.
+ *
+ * **`No prices yet.` and not one of the other two**, which is the difference
+ * between the three empty answers this strip and its neighbours can give.
+ * `No prices stored for these four yet.` is a claim about the **store**, and
+ * we have not been told anything about the store — making it here would be
+ * inventing the very fact that is missing. The security page's *no history
+ * stored for NVDA yet* and *no bars stored for this window* both name a
+ * subject this region does not have. What is left is the `No … yet` shape the
+ * product already uses (`No close yet`, `None stored`) with nothing after it,
+ * because nothing after it is what we know.
+ *
+ * It names **no feed, no venue and no connection word**. Whether the socket is
+ * up has exactly one home and it is the status bar; this sentence says only
+ * that this region has no figures, which is true however that came about.
  *
  * **The symbols are not known yet**, because the set is served rather than
  * hard-coded — `kind === "index_etf"`, derived in the backend, carried in the
- * frame's own order. So this cannot be four labelled skeletons; it is one
- * reserved cell holding the strip's three rows open.
+ * frame's own order. So this cannot be four labelled skeletons; it is four
+ * reserved cells holding the strip's three rows open.
  *
  * `visibility: hidden` plus `aria-hidden` rather than em dashes or grey bars:
  * the shipped `FiguresReservation` idiom, and the one that does not invite a
@@ -247,30 +296,34 @@ function Cell({
  *
  * The count is not a claim about *which* securities the overview is about —
  * those are still entirely the frame's, and nothing here names one. It is the
- * same four the track list in `MarketSummaryStrip.module.css` already states,
+ * same four the track list in `MarketProxyStrip.module.css` already states,
  * and the day that number stops being right the tracks are wrong in the same
  * change.
  */
-function FirstPaint() {
+function NoFigures({ saying }: { readonly saying: boolean }) {
   return (
     <>
       <div className={cx(styles.strip, styles.reserved)} aria-hidden="true">
         {RESERVED_SLOTS.map((slot) => (
           <div className={cx(styles.cell)} key={slot}>
             <p className={cx(styles.term)}>
-              <span className={cx(styles.symbol)}>{" "}</span>
+              <span className={cx(styles.symbol)}>{NBSP}</span>
               <span className={cx(styles.markSlot)} />
             </p>
             <p className={cx(styles.valueRow)}>
-              <span className={cx(styles.figure)}>{" "}</span>
+              <span className={cx(styles.figure)}>{NBSP}</span>
             </p>
-            <p className={cx(styles.noteReserved)}>{" "}</p>
+            <p className={cx(styles.noteReserved)}>{NBSP}</p>
           </div>
         ))}
       </div>
-      <p className={cx(styles.qualifierReserved)} aria-hidden="true">
-        {" "}
-      </p>
+      {saying ? (
+        <p className={cx(styles.sentence)}>No prices yet.</p>
+      ) : (
+        <p className={cx(styles.qualifierReserved)} aria-hidden="true">
+          {NBSP}
+        </p>
+      )}
     </>
   );
 }

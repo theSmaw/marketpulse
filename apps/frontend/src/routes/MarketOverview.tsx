@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 
 import type { Bar } from "@marketpulse/shared";
 
-import { MarketSummaryStrip } from "../components/MarketSummaryStrip/MarketSummaryStrip.js";
+import { MarketProxyStrip } from "../components/MarketProxyStrip/MarketProxyStrip.js";
 import { Region } from "../components/Region/Region.js";
 import type { LiveFeedView } from "../market/index.js";
 import styles from "./MarketOverview.module.css";
@@ -151,7 +151,7 @@ export function MarketOverview({
          * the tag is a string and a string has to be deleted.
          */}
         <Region name="Market proxies">
-          <MarketSummaryStrip
+          <MarketProxyStrip
             overview={overview}
             observations={liveFeed?.observations ?? EMPTY_OBSERVATIONS}
             fromSnapshot={liveFeed?.fromSnapshot ?? EMPTY_SNAPSHOT}

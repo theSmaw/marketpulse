@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   Bar,
@@ -7,7 +7,8 @@ import type {
   WireOverviewFigure,
 } from "@marketpulse/shared";
 
-import { MarketSummaryStrip } from "./MarketSummaryStrip.js";
+import { MarketProxyStrip } from "./MarketProxyStrip.js";
+import { SAY_NOTHING_ARRIVED_AFTER_MS } from "./use-waited.js";
 
 // What a test here can and cannot see is worth stating, because the component's
 // whole subject is a layout.
@@ -45,14 +46,14 @@ const strip = (
   fromSnapshot = NO_SNAPSHOT,
 ) =>
   render(
-    <MarketSummaryStrip
+    <MarketProxyStrip
       overview={overview}
       observations={observations}
       fromSnapshot={fromSnapshot}
     />,
   );
 
-describe("MarketSummaryStrip", () => {
+describe("MarketProxyStrip", () => {
   it("draws every proxy the frame carried, with its figure", () => {
     strip(frame([observed("SPY", 774.03), observed("QQQ", 601.88)]));
 
@@ -186,7 +187,72 @@ describe("MarketSummaryStrip", () => {
 
     // The symbols are not known yet: the set is served rather than hard-coded.
     expect(screen.queryByText("SPY")).toBeNull();
-    // And nothing in it is offered to a reader as a value.
+    // And nothing in it is offered to a reader as a value. The reserved rows
+    // hold non-breaking spaces, which is what keeps the box its own height —
+    // so the text is whitespace rather than absent.
     expect(container.textContent.trim()).toBe("");
+  });
+
+  it("reserves every row with a NON-BREAKING space, which is the mechanism", () => {
+    // A plain space in a `<p>` collapses to nothing and the whole reservation
+    // scheme would then rest on however a browser resolves an empty line box.
+    // The stylesheet's comments name this character; this asserts it is there.
+    const { container } = strip(undefined);
+
+    expect(container.textContent).toContain("\u00a0");
+    expect(container.textContent).not.toMatch(/ /u);
+  });
+
+  it("says one sentence when an overview arrives about nothing", () => {
+    // `figures: []` used to render a grid of height 0 under a heading, with the
+    // region saying nothing at all — `docs/GAPS.md` entry 13.
+    strip({
+      computedAt: "2026-09-25T18:01:00.000Z",
+      feeds: [],
+      figures: [],
+    });
+
+    expect(screen.getByText("No prices yet.")).toBeTruthy();
+    // Not the store's sentence: nothing here is a claim about the store.
+    expect(
+      screen.queryByText("No prices stored for these four yet."),
+    ).toBeNull();
+  });
+
+  describe("when no frame ever arrives", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("stays silent for the wait a real first frame takes", () => {
+      strip(undefined);
+
+      act(() => {
+        vi.advanceTimersByTime(SAY_NOTHING_ARRIVED_AFTER_MS - 1);
+      });
+
+      // Measured 2026-09-26: 174–277 ms from navigation to a figure on screen,
+      // five runs against a local pair. The ordinary case never gets here.
+      expect(screen.queryByText("No prices yet.")).toBeNull();
+    });
+
+    it("gives the terminal state a floor rather than a permanent empty box", () => {
+      strip(undefined);
+
+      act(() => {
+        vi.advanceTimersByTime(SAY_NOTHING_ARRIVED_AFTER_MS);
+      });
+
+      const sentence = screen.getByText("No prices yet.");
+      // It names no feed, no venue and no connection word — whether the socket
+      // is up has one home and it is the status bar.
+      for (const word of ["LIVE", "DISCONNECTED", "feed", "socket", "IEX"]) {
+        expect(sentence.textContent).not.toContain(word);
+      }
+    });
   });
 });
