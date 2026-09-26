@@ -1,6 +1,6 @@
 # Task 4.2.8 — The browser spec, the states produced, and what CI cannot assert
 
-**Status:** Not started
+**Status:** **In progress — 2026-09-26.**
 **Story:** [4.2 The Aggregate Seam, & the Index Proxies That Move](STORY.md)
 **Depends on:** 4.2.7
 
