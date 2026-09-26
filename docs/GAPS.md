@@ -206,7 +206,7 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
    - **That a shared sentence vocabulary is read through every one of its members.** `chart-alternative.ts`'s `Mark` lets one coverage clause serve both plots, which is what stops the two pictures describing two windows — and it shipped with the plural subject parameterised and a verb three clauses later left singular, so the volume sentence said _"The columns cover the first 780 of 990 trading minutes and **stops** at 16:00"_. Nothing saw it because **`volumeAlternative` had no unit test at all**: the price chart's suite reads the same clause through `LINE`, where every verb is singular and correct, and the browser suite asserts the volume sentence **exists** rather than what it says. It now has one. The residue is the rule rather than the bug: a vocabulary with two members has to be read in both, and nothing enforces that. Re-measure: make any verb in `Mark` singular for `COLUMNS` and confirm _agrees with its own subject, in every clause that has a verb_ goes red.
    - **That two axis labels are not drawn on top of each other.** Found by looking at the rendered holiday week, which read `12:00Nov 30`: a session closing at 13:00 puts its midday tick 60 slots of 1,770 — 3.4% of the axis, 32 px — from the next session's date, and two centred labels need about 47 px. Repaired with `MIN_TICK_SEPARATION` in `chart-time-axis.ts`, and the **general** hazard stays: nothing anywhere compares a tick's position against a neighbour's rendered width, at any density, in any chart. jsdom computes no layout and Playwright's visibility check is a non-empty bounding box, so an overlap is invisible to both. Re-measure: set `MIN_TICK_SEPARATION` to 0 and confirm _drops a midday that would be drawn on top of the next session's date_ goes red — then look at `Market/ChartAxis → HolidayWeek`, because the unit test knows the number and only a person knows it collided.
    - **That a listener is told the feed died at all.** Added 2026-09-24 by Task 3.10.2, which made it sharper rather than discovered it. The status strip is a plain `<footer>`: `AppFooter`, `FeedIndicator` and `FeedProvenance` carry **no `aria-live` and no `role`** between them, so the connection word changing from `live` to `disconnected` — and the sentence that appears beside it — are **announced to nobody**. `FeedProvenance`'s _Not a live region_ comment argues the case correctly for the **venue**, whose value _"cannot change at all without a deploy and a reload"_; the **connection** half changes while a page is open, which is the opposite case and has never been argued. And Task 3.10.2 closed the other escape route: criterion 3 is now held by `security-feed-degraded.spec.ts` asserting that `main`'s entire text is **byte-identical** either side of an outage — correct, deliberate, and it means a listener who is not in the footer has **nothing whatever** to notice. The numbers they are reading silently become stale. `Live in the chrome.dc.html`'s own _what this did not decide_ said this list should be _"one entry longer"_ on 2026-09-19 and it never arrived here, which is this file's standing lesson about recording a correction and propagating it being two obligations. **Owner: Story 3.10**, which owns what the cell says in every connection state — Task 3.10.6 by name. Re-measure: open a security page, kill the gateway, and read the accessibility tree for any node whose content changed outside `contentinfo`.
-   - **That a spoken sentence can be spoken in the time the pacing allows for it.** `READING_ANNOUNCEMENT_MIN_GAP_MS` is **1,500**, argued in Task 2.12.6 as roughly how long a screen reader takes to read one of these sentences — and Task 2.13.5 then added a volume clause, taking the sentence to **25 words**, which is about **8 seconds** at a default rate. The floor was not revisited. Measured 2026-09-13 by driving the live region: two arrow presses announce at 477 ms and 1,981 ms, so the region changes about four times faster than it can be read. Whether that queues or replaces is **reader-dependent and unanswerable without a real screen reader**, and if it queues the volume clause is the first thing lost because it is last. `VOLUME-AND-WINDOW.md` §45.1 carries the repair (split the sentence; do not raise the floor). **Amended 2026-09-13 by Task 2.13.10: the answer is still owed, and the owner is now a person rather than a task.** That close performed every half of this that an instrument can — the clause is present, it is last, the region does change every 477 ms — and established that the deciding half is not measurable at all: queue-versus-replace is a property of a specific screen reader on a specific platform, readable from neither the DOM nor a timing nor by an agent. It is raised with a condition rather than re-deferred to a story (§65), because a story number is a deadline nobody is standing behind. Re-measure the arithmetic: count the words in `readingAnnouncement`'s output and divide by three words a second, then compare against the floor. **Amended 2026-09-24 by Task 3.9.6 — a FIFTH entry, and the first where the region changes with NO key pressed at all.** Since Task 3.9.2 the chart extends on its own, and a **revision of the bar under the crosshair** rewrites this region unprompted — measured in a browser: a _new_ bar changes nothing here (the reading holds its instant, so the sentence is the same sentence), and a revision of the bar being read changes the close and the direction word while the instant stays put. That is **0.1062%** of bars with **37.6%** of those moving the close — re-measured over a whole session on 2026-09-24, against the 0.064% / 35.3% this entry cited until then (`LIVE-DATA.md` §14.1 carries both) — so it is rare — and it is the one case where speaking is arguably **right**, because the number under the reader's cursor has just changed. What is unanswerable is the same thing as above, arriving by a new route: **an unprompted polite update landing while a sentence is in progress** either queues or replaces, reader by reader, and no DOM and no timing can say which. Every half an instrument can do is done, in `security-live-edge.spec.ts`. **Owner: the same person with the same screen reader**, and this entry is why the pass is worth booking rather than deferring again. Re-measure: with a reading on the chart, push a revision of the bar it names and listen. **Amended 2026-09-24 by Task 3.10.6 — a SIXTH entry, and the first that is not the chart's.** The market-feed cell now announces a **degradation** — `live → stale`, `live → disconnected`, `stale → disconnected` — through a visually hidden `role="status"` in `FeedIndicator`, and is silent on mount and on any recovery. Task 3.10.5 made this cell the **only** surface on a security page that says the feed stopped, so this region is a listener's whole notice. Three things only a person with a reader can answer, and all three were reasoned rather than heard. **Does a `role="status"` region that is EMPTY on mount and later filled get spoken at all**, or does a reader that took its initial snapshot treat the fill as a first render? **Does a sentence that is written once and then held get re-read** if the listener moves focus, or is it a one-shot? And the same queue-versus-replace question as every entry above, arriving here from a **footer** while the listener is reading something in `main` — which is the case this cell exists for, because Task 3.10.2's criterion 3 asserts `main` is byte-identical either side of an outage. Every half an instrument can do is done: the sentence's presence, its content and its silence on mount and recovery are asserted in `security-feed-degraded.spec.ts`, and the defect that made it live for exactly one render was caught there. **Owner: the same person with the same screen reader.** Re-measure: load a security page, kill the backend, and listen for `Market feed disconnected. …` without touching the keyboard.
+   - **That a spoken sentence can be spoken in the time the pacing allows for it.** `READING_ANNOUNCEMENT_MIN_GAP_MS` is **1,500**, argued in Task 2.12.6 as roughly how long a screen reader takes to read one of these sentences — and Task 2.13.5 then added a volume clause, taking the sentence to **25 words**, which is about **8 seconds** at a default rate. The floor was not revisited. Measured 2026-09-13 by driving the live region: two arrow presses announce at 477 ms and 1,981 ms, so the region changes about four times faster than it can be read. Whether that queues or replaces is **reader-dependent and unanswerable without a real screen reader**, and if it queues the volume clause is the first thing lost because it is last. `VOLUME-AND-WINDOW.md` §45.1 carries the repair (split the sentence; do not raise the floor). **Amended 2026-09-13 by Task 2.13.10: the answer is still owed, and the owner is now a person rather than a task.** That close performed every half of this that an instrument can — the clause is present, it is last, the region does change every 477 ms — and established that the deciding half is not measurable at all: queue-versus-replace is a property of a specific screen reader on a specific platform, readable from neither the DOM nor a timing nor by an agent. It is raised with a condition rather than re-deferred to a story (§65), because a story number is a deadline nobody is standing behind. Re-measure the arithmetic: count the words in `readingAnnouncement`'s output and divide by three words a second, then compare against the floor. **Amended 2026-09-24 by Task 3.9.6 — a FIFTH entry, and the first where the region changes with NO key pressed at all.** Since Task 3.9.2 the chart extends on its own, and a **revision of the bar under the crosshair** rewrites this region unprompted — measured in a browser: a _new_ bar changes nothing here (the reading holds its instant, so the sentence is the same sentence), and a revision of the bar being read changes the close and the direction word while the instant stays put. That is **0.1062%** of bars with **37.6%** of those moving the close — re-measured over a whole session on 2026-09-24, against the 0.064% / 35.3% this entry cited until then (`LIVE-DATA.md` §14.1 carries both) — so it is rare — and it is the one case where speaking is arguably **right**, because the number under the reader's cursor has just changed. What is unanswerable is the same thing as above, arriving by a new route: **an unprompted polite update landing while a sentence is in progress** either queues or replaces, reader by reader, and no DOM and no timing can say which. Every half an instrument can do is done, in `security-live-edge.spec.ts`. **Owner: the same person with the same screen reader**, and this entry is why the pass is worth booking rather than deferring again. Re-measure: with a reading on the chart, push a revision of the bar it names and listen. **Amended 2026-09-24 by Task 3.10.6 — a SIXTH entry, and the first that is not the chart's.** The market-feed cell now announces a **degradation** — `live → stale`, `live → disconnected`, `stale → disconnected` — through a visually hidden `role="status"` in `FeedIndicator`, and is silent on mount and on any recovery. Task 3.10.5 made this cell the **only** surface on a security page that says the feed stopped, so this region is a listener's whole notice. Three things only a person with a reader can answer, and all three were reasoned rather than heard. **Does a `role="status"` region that is EMPTY on mount and later filled get spoken at all**, or does a reader that took its initial snapshot treat the fill as a first render? **Does a sentence that is written once and then held get re-read** if the listener moves focus, or is it a one-shot? And the same queue-versus-replace question as every entry above, arriving here from a **footer** while the listener is reading something in `main` — which is the case this cell exists for, because Task 3.10.2's criterion 3 asserts `main` is byte-identical either side of an outage. Every half an instrument can do is done: the sentence's presence, its content and its silence on mount and recovery are asserted in `security-feed-degraded.spec.ts`, and the defect that made it live for exactly one render was caught there. **Owner: the same person with the same screen reader.** Re-measure: load a security page, kill the backend, and listen for `Market feed disconnected. …` without touching the keyboard. **Amended 2026-09-26 by Task 4.2.8 — a SEVENTH and an EIGHTH entry, the first two that are not on a security page.** The `Market proxies` strip on `/` is four figures with no drawn label and no column heading, and both entries are properties of the sentence a listener is handed rather than of the DOM. **The figure is spoken as a bare unlabelled number** — `SPY. 774.03. up +0.42%.` — because the symbol occupies the slot the security page gives to `LATEST PRICE`, so nothing in the cell says _what kind of figure this is_; the noun is in the shared line **beneath all four** (`2026-09-11 · closing prices`), which a reader's eye takes in at a glance and a listener reaches four cells later. And **the shared basis clause is heard after the four changes it qualifies** — `… · change from 2026-09-15's close` is correct visually as a footnote and is the reverse order aurally, so a listener is given four percentages and then told what they were measured against. Neither is answerable from a DOM and neither is a defect anything mechanical can see: the strings are present, correct, in the right document order, and `MarketProxyStrip` deliberately has **no live region** (its own docblock carries the reversal trigger). **Owner: the same person with the same screen reader.** Re-measure: open `/` with a reader and navigate the strip by element and by line, in the stored state and in the observed one — the two have different sentences.
 
    Three added at Task 2.13.9's measurement, and the first is the most useful thing that task found:
 
@@ -411,6 +411,12 @@ Each is _something that exists in one layer and cannot be reached from the next_
 
 **Verdict 2026-09-24 by Task 3.10.9, which published one: discharged for that grid and RE-OWNED rather than closed.** Story 3.10's nine-state grid is discharged **by construction** — every row in it was reached by driving the shipped path (a real socket close, a real `feed` frame, a real `{"feed": null}`), so a row nothing can produce could not have appeared in it. The instrument builds rows by producing them, which is this entry's re-measure performed rather than promised. **What is still unchecked is unchanged**: `CHARTING.md`'s chart states and `PROVENANCE.md`'s failure-and-partial-state tables are renderer-side grids, and the condition stands for the next story that publishes one.
 
+**Verdict 2026-09-26 by Task 4.2.8, which published one: discharged for that grid, and the re-measure's SECOND half failed on a grid published four days earlier.** Story 4.2's sixteen-state grid for `Market proxies` is discharged **by construction** — every row was produced by driving the shipped socket path (a real `overview` frame, a real `snapshot`, a real `bars` frame, answered through `page.routeWebSocket` in the sequence the gateway uses), so a row nothing can produce could not have appeared in it.
+
+**What the pass found is the half nobody has run before: _every reachable pair has a row_.** This entry's re-measure has two directions and only the first — _is every published row reachable_ — has ever been performed. Taking the producers here and comparing them against the **seven-row table Task 4.2.6 published four days earlier** turned up **two reachable states with no row in it**: an observed figure carrying **no measurable change** (`changePercent` omitted, which is `changeFromClose`'s documented answer when there is no previous close — the strip reads `SPY 774.03` with no percentage and the source note collapses to `COMPUTED …` alone), and **two proxies measured from different sessions**, where `sharedBasis` correctly drops the basis clause and the shared line reads `Sep 16 · 14:01 EDT` with nothing after it. Both are renderings the product produces and nothing had ever named. **A grid is incomplete far more quietly than it is wrong**, and the direction that finds it is enumerating the producers rather than reading the table.
+
+**Re-owned rather than closed, condition unchanged**: `CHARTING.md`'s chart states and `PROVENANCE.md`'s failure-and-partial-state tables are still renderer-side grids, and the next story that publishes one inherits it — **in both directions**.
+
 14. **That a tick on the universe table stays under §28's 50 ms — the duration, as opposed to the mechanism.** Added 2026-09-22 by Task 3.6.5, which found the steady state breached (46–49 ms of script per frame plus 40 ms every 30 s from the health poll re-rendering the route) and repaired it with two memo boundaries. **The mechanism is mechanical**: `UniverseTable.render-cost.test.tsx` counts the router's `Link` renders and asserts a price arriving re-renders none and a re-render with nothing changed re-renders no row — `pnpm break a-price-re-renders-every-symbol-link` proves it goes red. **The duration cannot be**: jsdom has no layout, CI's store has zero bars and no socket, and a timing on a shared runner is noise. What nothing guards is the figure itself — a change to what a live cell renders, or a third state update at `App` level, could put a tick back over the line with the render-count test green. **Re-measure:** `pnpm build`, the backend on `MARKET_DATA_PROVIDER=fixture NON_LIVE_MARKET_DATA=permitted CORS_ORIGIN=http://localhost:4173`, `vite preview`; open `/securities` at 1440 with a `PerformanceObserver` on `long-animation-frame` installed from an `addInitScript`; wait for two `bars` frames and read `scripts[].duration` against 50 — the invoker is `MessagePort.onmessage`, the React scheduler. The 2026-09-22 reading was 37–40 ms with all 518 rows changing; anything over 50 is a regression, and anything with more than one long animation frame per minute is a second state update to find with a counter on `__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot`.
 
 15. **That a browser test asserting an ABSENCE is asserting anything at all.** Added 2026-09-25 by Task 3.11.11, from Task 3.11.1's decision 3.
@@ -478,6 +484,8 @@ Task 3.6.1 made the universe table's column heading read `Last` once any row hol
 **This entry is a candidate to become mechanical and has not been made so yet.** The check that would do it — _no string literal in `e2e/specs-deployed/` asserted absent may equal a member of an exported shipped-word set_ — is a real `pnpm invariants` grep, and it owes a `pnpm break` entry. It is left as prose deliberately: the rule needs the **asserted-absent** half to be legible to a grep, and today the absence is spelled `toHaveCount(0)` several lines away from the literal. **Owner: the next story that adds a word to a status cell** — a condition, not a story number.
 
 **Re-measure the narrower claim too:** that the deployed suite's assertions still describe a working deployment rather than a broken one. `pnpm e2e:deployed` with the feed genuinely live is the only thing that can tell, and before 2026-09-21 that had never once been true.
+
+**FOURTH OCCASION, 2026-09-26, and it is an ABSENCE rather than a rot.** Story 4.2 put the product's first live figures on `/`, renaming that route's first region from `Market summary` to `Market proxies`. The sweep found **nothing stale** — `e2e/specs-deployed/` names no region on the landing route at all, so there was no second copy of the list to miss — and that is the finding rather than the relief. The deployed suite visits `/` three times (`two-halves.spec.ts` for the dialled origin, for the feed cell and for the axe **report**) and asserts nothing about what `main` contains, while `security-explorer-journey.spec.ts` asserts for the **other** route that every region `PRODUCT_SPEC.md` §8.3 names is present **and says something** — `expect(region).not.toBeEmpty()`, structure and no figure, which is exactly ADR 0029's rule for a deployed assertion. The landing route now has a region with a subject and no such check, which matters because the deployed store is the only one where the strip's live states occur at all: on CI every proxy is `unknown` for ever. **Re-measure:** `grep -rn "getByRole(\"region\"" e2e/specs-deployed/` and read the answer against the routes this product serves. **Owner: the next task that touches `e2e/specs-deployed/`**, which is a condition and, at the time of writing, Story 4.2's own close.
 
 ## An empty default that is also a true answer hides a design event until the day it stops being empty
 
@@ -912,3 +920,157 @@ for the instrument, and the deployed log for whether it has ever fired.
 `GET /diagnostics/freshness` reports the store a session behind **after 09:30
 ET**, which is the same evidence that says the backfill missed a night and is
 the only circumstance in which this window is reachable.
+
+## The focus ring is clipped by exactly `--focus-width + --focus-offset` at both sticky edges, on every route
+
+**Added 2026-09-26 (Task 4.2.5's verification, transcribed here by Task 4.2.8).
+Not this story's to repair — it is a `base.css` fact affecting every screen.**
+
+`scroll-padding-top` and `scroll-padding-bottom` read the published chrome
+heights **exactly** — 57/33 at 1440, 57/53 at 768, **94/73 at 390** — with no
+slack, while `--focus-width: 2px` and `--focus-offset: 2px` put the ring **4 px
+outside the border box**. So any region the browser scrolls flush against a
+sticky edge has its ring clipped by the chrome or by the status bar.
+
+Measured on `/` during the 4.2.5 walk: `Sector performance` at 768 landed at
+`top=56` against a masthead bottom of 57 — **5 px of ring behind the chrome**;
+`Movers` at 390 the same; `Market topology` at 390 landed at `bottom=708`
+against a footer top of 707. `Market proxies` is unaffected at every width,
+being the first region in `main`.
+
+**The 2026-09-11 repair works and is under-provisioned by exactly the ring's own
+geometry.** Those stops were whole-element occlusions before it and are a ring
+edge now. The cure is one line —
+`calc(var(--sticky-chrome-height, 0px) + var(--focus-width) + var(--focus-offset))`
+— and it belongs beside `CLAUDE.md`'s sticky-edge record with its own
+`pnpm break`.
+
+**Nothing below `pnpm e2e` can see it**: jsdom computes no layout, axe reads
+zero violations throughout, and `search-keyboard.spec.ts` asserts that no _stop_
+lands behind the chrome, which is true.
+
+**Re-measure:** a Tab **and a Shift+Tab** walk of `/` at 1440, 768 and 390,
+reading each focused element's box against `--sticky-chrome-height` and
+`--sticky-footer-height`. **The reverse walk is the one that finds it**; a
+forward walk alone does not.
+
+**Owner: its own task, on the story that next touches `base.css`'s scroll
+padding** — a condition rather than a story number.
+
+## `AppHeader`'s descriptor renders at 11px/16px against a declared 9px/1, and the 201 px measurement that decided what wraps at 390 was taken against it
+
+**Added 2026-09-26 (Task 4.2.6, transcribed here by Task 4.2.8). Shipping
+today, on every route.** Found by sweeping all 37 CSS modules for the
+`composes`-cascade shape the proxy strip hit, and **proven from the built bundle
+rather than argued**:
+
+```text
+apps/frontend/src/components/AppHeader/AppHeader.module.css:91
+  .descriptor { composes: microLabel from "../../styles/type.module.css";
+                line-height: 1; font-size: 9px; }
+
+dist/assets/index-*.css
+  offset  4759  ._descriptor_…{color:…;margin:0;font-size:9px;line-height:1}
+  offset 42523  ._microLabel_…{font-size:var(--font-size-micro);line-height:var(--line-height-micro);…}
+```
+
+Equal specificity, `microLabel` later in the sheet, so **`microLabel` wins** —
+`composes` concatenates class names and does **not** cascade, so a declaration
+written under it loses to the composed stylesheet's own.
+
+**Why it matters beyond a font size.** This is the element
+`AppHeader.module.css`'s own comment calls _"the longest string in the chrome —
+201px at 1440"_, in the argument that decided **what wraps at 390**. That
+measurement was taken against an element rendering larger than its stylesheet
+says, so the wrap decision rests on a figure whose provenance is now in doubt.
+
+**Nothing asserts a font size anywhere in this product**, and no test, axe run
+or screenshot comparison of the existing states can see it — the strip's version
+of this defect was invisible for a day for the same reason, and only became
+visible when a rule that had only ever held digits was given a **word**.
+
+**Re-measure:** `pnpm build`, then read `dist/assets/index-*.css` for
+`_descriptor_` and `_microLabel_` and compare their offsets — the later one
+wins. Or measure `.descriptor`'s computed `font-size` in a browser against the
+9px the source declares.
+
+**Owner: its own task** — it is a chrome change on every route, and the 201 px
+re-measure travels with it.
+
+## `security-gap-fill.spec.ts`'s `the chart is never blanked or covered while the gap is filled` fails on `main` about one time in eight, and nothing records it
+
+**Added 2026-09-26 (measured by Task 4.2.6, transcribed here by Task 4.2.8).**
+`e2e/specs/security-gap-fill.spec.ts:165` — the test is named here as well as
+numbered, because a line number rots and this entry has to survive an edit above
+it.
+
+**14 failures in 120 executions of that test on `main` (≈12%)**, established
+while proving that Task 4.2.6 had **not** regressed it: three consecutive runs
+on one unchanged checkout gave `48 passed`, then 5, 5 and 3 failures, and the
+branch commit that contains **no code at all** — one line of Markdown — failed
+2 of 12.
+
+The assertion is
+`expect(panels.filter((count) => count > 0)).toHaveLength(0)` — **no pending
+panel appears while the refill runs** — which is Story 3.9's promise that _a
+refill is quiet_, against ADR 0028's measured **160 ms** cover threshold.
+**Neither number is a tuning knob and neither may be relaxed to make this
+green.**
+
+**The mechanism is a hypothesis, not a measurement**, and is recorded as such:
+the failing page's snapshot contains the **full 518-row universe table**,
+because `/securities/:symbol` renders the Explorer shell — and this document
+already records that every cold load of that route spends one main-thread task
+of **50–76 ms**, that it is the table rather than the chart, and that it is
+**Epic 14's by name**. A 160 ms threshold sitting on top of a documented
+50–76 ms task that lands at a variable moment is a plausible source of a ~12%
+flake. **Nobody has measured where the 160 ms actually goes.**
+
+**Re-measure:**
+`pnpm e2e e2e/specs/security-gap-fill.spec.ts --repeat-each=6` **four times on
+one checkout, on a machine below load 4** — and count failures **per execution**
+rather than per run. A single `--repeat-each=6` is worthless here: at 12% it
+comes back clean **46%** of the time and reads as proof.
+
+**Owner: a condition rather than a story number — the first task that measures
+where the security page's refill spends its 160 ms**, which is the same
+measurement Epic 14 owes for the cold load and should be taken once for both.
+
+## `security-feed-degraded.spec.ts`'s `killing the feed leaves the page exactly as it was` compares a live page against a baseline taken before the kill
+
+**Added 2026-09-26 (diagnosed by Task 4.2.7, transcribed here by Task 4.2.8).
+The same class as the entry above and it is worth naming as a class: a
+byte-identical-text assertion over a page that is still settling.**
+
+`e2e/specs/security-feed-degraded.spec.ts:141` captures `main`'s whole text —
+`const before = await main.innerText()` — and after `feed.drop()` asserts
+`expect(after).toBe(before)`. That is criterion 3 and it is the right assertion:
+§36's hardest promise is that a degradation changes **nothing** outside the
+chrome. What makes it flaky is that the baseline is a **snapshot of a page that
+has more than one thing in flight**: any sentence still resolving at that
+instant — a pending panel, a live region being filled, a figure arriving from a
+request the spec did not serve — is baked into `before` and cannot survive into
+`after`, and the test then fails on the page having _finished loading_ rather
+than on the outage having changed anything.
+
+**The spec already carries one repair of exactly this shape and it is not
+general.** A comment above the capture records that waiting only for the
+chrome's `live` word let a `before` miss a figure the `after` had, so the spec
+now waits for the snapshot's price to be on the page first. That fixed the one
+surface somebody thought of. The class is _everything else that is still
+arriving_, and the landing route is about to make the class bigger: `/` now has
+an aggregate, a strip, a source note and six deferrals settling together.
+
+**Not repaired here**, because the repair is a decision rather than a patch —
+either the assertion narrows to the surfaces the outage could plausibly reach
+(and stops being criterion 3's whole-page claim), or the page is driven to a
+quiescent state that nothing currently defines.
+
+**Re-measure:** `pnpm e2e e2e/specs/security-feed-degraded.spec.ts
+--repeat-each=6`, four times on one settled checkout, counting failures **per
+execution**. Run it on a **loaded** machine as well as an idle one: both
+occasions this has been seen were under load, which is CI's ordinary state and
+a developer's rarest.
+
+**Owner: the same condition as the entry above** — the first task that measures
+where a degraded page's remaining work goes, taken once for both.

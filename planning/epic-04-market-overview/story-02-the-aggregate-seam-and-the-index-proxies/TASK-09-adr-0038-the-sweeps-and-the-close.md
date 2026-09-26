@@ -96,3 +96,36 @@ built this way.
 4. `docs/GAPS.md` carries the point-in-time universe entry
 5. `pnpm verify`, `pnpm e2e` and `pnpm test:database` are green, and anything
    not run is named
+
+## Amended by Task 4.2.8 — 2026-09-26: one decision this close owns, and three things to carry
+
+**1. Decide whether `/` gets a deployed region check, and it is this close's call
+because it is the only task that can take it.** `e2e/specs-deployed/` names **no
+region on the landing route**, so the rename had no second copy to miss — an
+absence rather than a rot. But `security-explorer-journey.spec.ts` asserts, for
+the **other** route, that every §8.3 region is present **and says something**,
+and `/` now has a region with a subject and no equivalent. **And the deployed
+store is the only place the strip's live states occur at all**: on CI every
+proxy is `unknown` for ever, so a deployed check is the only mechanical reader
+of the states this story exists to produce. Recorded as the **fourth occasion**
+on `docs/GAPS.md`'s two-directories entry, with that entry's owner naming this
+close. A deployed spec is a **report** rather than a gate — it runs after the
+merge — so it cannot block anything, which is the argument both for and against.
+
+**2. `Market proxies` is now a homonym, and a future locator will collide.** It
+is the landing region, the universe table's group heading, and a rail link —
+the same four securities and the product's existing word, so it is consistent
+rather than wrong. But **any future region locator on `/securities` must be
+scoped**, and nothing says so yet outside this line.
+
+**3. Retiring a check is on this close's desk.** After 4.2.7's repair,
+`the-consolidated-word-has-one-producer` is a **strict duplicate** of one of
+`one-home-for-the-feed-words`' literals — same corpus, same home, different
+message. Deferred here deliberately, because retiring a guard wants the whole
+story's inventory in view and this is the task that has it.
+
+**4. One design note, not a defect.** When one proxy ticks, **three of four
+cells carry an exception line** — at n=4 the shared-claim-with-exceptions idiom
+inverts and the exception becomes the majority. It misstates nothing, and the
+gateway usually applies a batch, so it is a note for whoever next designs a
+shared claim over a small set.
