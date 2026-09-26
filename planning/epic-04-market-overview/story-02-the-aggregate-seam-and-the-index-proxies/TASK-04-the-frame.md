@@ -1,6 +1,6 @@
 # Task 4.2.4 — The frame: a fourth message type on a wire with no schema layer
 
-**Status:** Not started
+**Status:** **In progress — 2026-09-26.**
 **Story:** [4.2 The Aggregate Seam, & the Index Proxies That Move](STORY.md)
 **Depends on:** 4.2.1, 4.2.3
 
