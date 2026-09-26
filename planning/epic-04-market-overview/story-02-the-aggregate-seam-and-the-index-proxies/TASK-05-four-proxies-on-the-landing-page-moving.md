@@ -85,3 +85,52 @@ next task.
    `one-home-for-the-feed-words` is green
 6. `pnpm probe` output is recorded in the task, and the 390 arrangement is the
    one the canvas drew
+
+## Amended by Task 4.2.2 — 2026-09-26: ten constraints off the drawing, in words this task can act on
+
+1. **Track lists are stated at every width and inherited at none:**
+   `repeat(4, minmax(0, 1fr))` at 1440, 1024 and 768; `repeat(2, minmax(0, 1fr))`
+   at 390. **Never `auto-fit`.** The threshold rule is a content box of
+   **508 px** (`4 × 112 + 60`), so a future width answers itself rather than
+   being re-argued.
+2. **Reserve the mark's 8 px slot statically, in the flow, in the label row
+   after the symbol.** `composes: arrivalMark from
+"../../styles/motion.module.css"` and declare **position only** — never
+   re-declare the disc, its ink, its `opacity: 0` base or the 900 ms decay.
+   That base is what stops reduced motion leaving four permanent dots at the
+   top of the landing page: a zero-duration animation applies no keyframes at
+   all. Both shipped geometries are absolute into a right-hand slack that
+   already existed (a measured 26 px gutter; a right-aligned cell); a
+   four-across grid of left-aligned columns has neither, which is why this one
+   is in the flow.
+3. **The acceptance on the mark is `0` layout shift at 1440, 1024, 768 and
+   390**, measured in a browser — `The motion vocabulary.dc.html` §10's own
+   words, _measured in the browser, never drawn_. Not inferred from a green
+   unit run.
+4. **Re-take the strip's height at all four widths with `pnpm probe /` and
+   record the DELTA, not the absolute.** The reserved region is 103/103/103/121;
+   the drawing intends ~158/~158/~158/~236. `.regions` is a flex column
+   immediately below, so the delta is what every region on the page moves by.
+5. **At 390 the change steps to `--font-size-micro` and the figure does not
+   step at all.** The binding case is a four-digit price: render `1234.56` in
+   all four cells at 390 and read the boxes — 138 of 149 px. If `PriceChange`
+   has no size seam, adding one is a small change and not a new token.
+6. **This is a new component, not `MetricStrip` with props.** Borrow the
+   arrangement and the type (`.dataMetric`, `.microLabel`), not the element.
+7. **The strip names no feed, no venue and no connection word, in any state.**
+   It states an instant and a change basis, both true of either tape — which is
+   the only AC 5 answer available without a second venue word on a screen that
+   already has one.
+8. **The exception line occupies row 3 — the index name's slot.** No new row,
+   no growth, no re-flow of the other three cells.
+9. **Nothing in the no-figures state may assert a window.** Its sentence is
+   distinct from both of the security page's empty answers; four named
+   securities have no window to change.
+10. **`tabular-nums` on the figure.** A proportional digit changing its advance
+    width on every tick is the same defect as a layout shift, one glyph at a
+    time.
+
+**And one correction to this story's own arithmetic:** the 390 figure quoted
+during decomposition (85 px a column) ignored the border, the padding and the
+gaps. It is **64.5 px**, which cannot render one of the four figures, let alone
+four. Two by two gives 149 px.

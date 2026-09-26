@@ -68,3 +68,34 @@ components**, and it only stays true if a close walks it.
 ## Out of scope
 
 Epic 5's anomaly work, which fills the region this epic leaves named.
+
+## Handed here by Task 4.2.2 — 2026-09-26: the rehearsal row for the proxy strip must say WHICH of two things was watched
+
+**The proxy strip's arrival mark fires on up to four cells at once, and
+whether that reads as _four facts arriving_ or as _the page refreshing_ depends
+on a fact nobody has measured.**
+
+Task 4.2.1 established that the gateway sends **up to ~16 `bars` frames a
+minute**, not one — the story's own premise, corrected. Each security still
+produces one bar a minute, but **whether `SPY`, `QQQ`, `DIA` and `IWM` arrive
+in ONE of those frames or spread across several decides the question**: four
+marks in one frame is a synchronised wave, and four across several frames is a
+stagger the data genuinely has, arriving free.
+
+**So read it from the gateway BEFORE the sitting and write the answer beside
+the row.** A rehearsal that cannot say which of the two the watcher saw cannot
+answer anything — and this is the shape of defect this epic has already paid
+for once, where an instrument counted every socket on a page and two of three
+were Vite's.
+
+**The inherited reversal trigger is live here.** `The mark multiplied by five
+hundred.dc.html` shipped 518 simultaneous marks with the synchrony risk
+recorded as **accepted rather than disproved** — _"whether a synchronised wave
+reads as a market breathing or as a page flashing … a judgement only a person
+watching a real session can return"_ — under a two-clause trigger: _the first
+rehearsal in which a reader describes the minute tick as a **flash** rather
+than as a **pulse**_, **or the first surface where the burst stops being once
+a minute**. The second clause is the one to watch, because this strip is four
+subjects rather than 518, and the defence that carried the table — twelve
+discs scattered in a viewport reading as texture — needs a density four cells
+on one horizontal line do not have.

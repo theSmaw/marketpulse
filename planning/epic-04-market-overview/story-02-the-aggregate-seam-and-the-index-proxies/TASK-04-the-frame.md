@@ -22,6 +22,14 @@ is the payoff, and it is the next task.
 
 ## Work
 
+- **The discriminant is the string literal `"overview"`** — decided here on
+  2026-09-26 rather than left to the implementer, because Task 4.2.1's
+  `the-overview-frame-is-not-a-heartbeat` guard is already in the tree and
+  counts encode sites of `type: "overview"`. A different spelling would make
+  that half of the guard match zero **for ever**, silently, which is the exact
+  failure mode this repository calls _a grep that matches nothing looks exactly
+  like a grep that passes_. If a later task wants a different word, it changes
+  the invariant in the same commit and re-runs the break.
 - **A fourth member of the protocol union**, in
   `packages/shared/src/market-stream-protocol.ts` beside the other three — it
   cannot live in the backend, because `MARKET_STREAM_MESSAGE_TYPES` is a closed

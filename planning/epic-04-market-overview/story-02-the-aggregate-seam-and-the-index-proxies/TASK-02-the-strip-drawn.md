@@ -100,3 +100,117 @@ build against. Task 4.2.5 is the payoff.
    argument for moving it
 4. `Market overview.dc.html` shows the strip filled and named `Market proxies`
 5. No value on the drawing requires a token that does not exist
+
+---
+
+## What was done — 2026-09-26
+
+**Two files on the canvas: `Market proxies.dc.html` (new, 601 lines, seven
+sections) and `Market overview.dc.html` (amended, 50,365 → 55,957 bytes).**
+
+### The drawing found two defects on the canvas itself
+
+**The canvas is the source of truth (ADR 0026), and §01 already drew this strip
+filled — wrongly, in the exact way this task's own constraint was written to
+prevent.** It used `grid-template-columns: repeat(4, 1fr)`. A bare `1fr`
+carries a `min-width: auto` floor, so the first price crossing
+`999.99 → 1000.00` widens its column and **moves all four**. The constraint
+citing `minmax(0, 1fr)` was sitting one document away from a drawing that
+contradicted it. Corrected, together with the vertical rules it drew: divider
+plus padding is where the same shift creeps back, and the gap and the
+left-aligned label already carry the separation.
+
+**And §04 said the strip drops to two per row at 1024, annotating 768 as
+`2×2`.** False, with the arithmetic now on the drawing: at 768 the region's
+content box is **694 px**, giving **163 px** a column against `MetricStrip`'s
+own stated 7 rem (112 px) floor. Only 390 cannot hold four. What gives way at
+1024 is the **index name**, not a column. The correction is flagged in the
+amended prose rather than silently overwritten, because this task file had read
+§04's `2×2` as a decided 2×2 at 768 and it was not one.
+
+### One figure in this task file was loose, in the safe direction
+
+`342 ÷ 4 = 85 px` ignores the frame's border, its 22 px of padding and three
+20 px gaps. **The honest figure at 390 is 64.5 px**, and a six-glyph price at
+`--font-size-metric` is 72 px on its own — so four across at 390 cannot render
+**one** of the four figures. Two by two gives **149 px**.
+
+**And the binding case at 390 is not today's prices.** `1234.56` at 20 px mono
+is 84 px; a 13 px change beside it needs 55 px plus an 8 px gap — **147 against
+149**, two pixels of margin. So the change steps to `--font-size-micro` at 390
+(138 px, eleven to spare) and **the figure never steps down**.
+
+### The threshold rule, so a future width answers itself
+
+Four across survives while every column clears the 112 px floor, which needs a
+content box of **`4 × 112 + 60 = 508 px`**. Stated on the drawing rather than
+left as four breakpoint facts.
+
+### The synchrony question: narrowed, not settled — and a prior question found
+
+`The mark multiplied by five hundred.dc.html` does **not** overrule the
+objection, and its own panel is why. Its defence of 518 simultaneous marks is
+**rate** — §7.4's 332 bars inside a 243 ms burst, so the trigger's words
+(_fires more than once a second_) were never met — which is an argument about
+cost, and four marks cost nothing. The one perceptual reading it offers is
+discs at full density forming _"a vertical column that reads more like
+furniture than like events"_, and **that needs density to work**. Twelve marks
+scattered down a table at 1440 is a texture; four on one horizontal line in a
+103 px strip is a row of lights. That page files the whole question under
+**"THE RISK THAT IS ACCEPTED RATHER THAN DISPROVED"**, answerable only by a
+person watching a real session.
+
+So §05 draws the shipped vocabulary, unchanged and unstaggered, and says the
+drawing has not settled it.
+
+**But a prior question may dissolve it, and it is cheap.** Task 4.2.1
+established the gateway sends **up to ~16 `bars` frames a minute**, not one.
+Each security still produces one bar a minute — but **whether SPY, QQQ, DIA and
+IWM land in one of those frames or in four is unmeasured, and it decides the
+question.** Four bars across four frames is a stagger the data genuinely has,
+arriving free, and the objection evaporates. Four in one frame is the row of
+lights. **Measure it from the gateway before the rehearsal**, not during: a
+sitting that cannot say which of the two the watcher saw cannot answer
+anything.
+
+### The division of labour, and why it is a decision rather than an inherited rule
+
+**The disc says a fact arrived; the advancing instant says it is still
+arriving** — and they fail differently, which is the argument. When the feed
+stops, the discs simply stop firing, an absence nobody notices; the instant
+stops advancing and stays visibly wrong.
+
+### Decisions taken here rather than deferred
+
+- **The canvas file is `Market proxies.dc.html`**, not the name this task
+  originally mandated. All three residues the designer flagged as out of scope
+  turned out to be references to the **filename**, so the naming question and
+  the residue question were one: a canvas whose §01 says `Market proxies` under
+  a file called `Market summary …` cannot be told from a missed sweep.
+  `Market overview.dc.html` is likewise named for its screen.
+- **At 1024 the index name is dropped**, not truncated or abbreviated. An
+  abbreviation appearing at one width is a fourth spelling of four names.
+- **This is a new component rather than `MetricStrip` with props.**
+  `MetricStrip`'s own header declines the job, and a three-part cell in fixed
+  vertical order is reachable only through `display: contents`, which its
+  comment refuses. Borrow the arrangement and the type, not the element.
+
+### Gates
+
+The canvas has no suite. Both files were written through `DesignSync`
+(`finalize_plan` → `write_files`, 2 written) and `list_files` confirms
+`Market proxies.dc.html` present and `Market overview.dc.html` updated. Tag
+balance was checked per element type before writing. No repository file
+changed, so no repository gate applies.
+
+### A tooling finding that outlives this task
+
+**`DesignSync` is unreachable from every subagent**, and it is not the
+`list_projects` trap `CLAUDE.md` warns about three times — the tool is absent
+from the subagent's registry entirely, so there is no method to call and fail.
+Removing the agent definition's `tools:` allowlist did not fix it. The working
+arrangement is that the **orchestrator proxies**: it reads the canvas, hands
+the content over, and writes the authored file back. A large `get_file`
+persists to a local file rather than into context, so the cost is small — but
+it is a workflow constraint rather than a preference, and it belongs in the
+`/story` skill.
