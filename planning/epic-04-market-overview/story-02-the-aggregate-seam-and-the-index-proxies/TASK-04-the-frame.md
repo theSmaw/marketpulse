@@ -1,6 +1,6 @@
 # Task 4.2.4 — The frame: a fourth message type on a wire with no schema layer
 
-**Status:** **In progress — 2026-09-26.**
+**Status:** **Complete — 2026-09-26.** A fourth message type, built through `toWire`, with the closes cache 4.2.3 deferred. **The serialiser was putting `null` on a wire whose stated rule is omission** — predicted by `encodeFigure`'s own doc comment as _"a refactor away"_, and it was **one caller away**; the guard now lives in the serialiser and the producer's copy was removed rather than kept. `unsupported` no longer swallows a **typeless** frame, which is our own gateway malfunctioning rather than a newer one. **Three breaks rotted in this change and `every-break-can-still-land` could only see one.**
 **Story:** [4.2 The Aggregate Seam, & the Index Proxies That Move](STORY.md)
 **Depends on:** 4.2.1, 4.2.3
 
@@ -161,3 +161,191 @@ information under a replay**. Right now there is no claim to guard because
 there is no implementation; the moment it lands it is a claim about a
 mechanism, and this repository's rule is that such a claim owes something
 mechanical in the same change. Do not let it fall between the two tasks.
+
+---
+
+## What was done — 2026-09-26
+
+### The frame
+
+```ts
+export interface OverviewMessage {
+  readonly type: "overview";
+  readonly version: number; // 1 — deliberately unchanged
+  readonly sentAt: string;
+  readonly overview: WireMarketOverview;
+}
+export interface WireMarketOverview {
+  readonly computedAt: string; // when the aggregate was TRUE
+  readonly feeds: readonly MarketFeed[]; // observed figures only
+  readonly figures: readonly WireOverviewFigure[]; // in reporting order
+}
+```
+
+with `WireOverviewFigure` a three-member union — `observed` (price, instant,
+and an **optional** change and basis), `stored` (session and close), `unknown`.
+
+**Verbatim off the local gateway against the real store, 431 bytes:**
+
+```text
+{"type":"overview","version":1,"sentAt":"2026-09-26T02:33:11.611Z","overview":{"computedAt":"2026-09-26T02:33:11.611Z","feeds":[],"figures":[{"state":"stored","symbol":"SPY","session":"2026-09-11","close":764.29},{"state":"stored","symbol":"QQQ","session":"2026-09-11","close":714.88},{"state":"stored","symbol":"DIA","session":"2026-09-11","close":525.79},{"state":"stored","symbol":"IWM","session":"2026-09-11","close":288.89}]}}
+```
+
+Three shape decisions: **`overview` is nested rather than spread**, so ADR
+0031's field-map obligation has somewhere to land and the browser holds **one**
+reference to gate a render on; **`unknown` is a member of the union rather than
+an omission**, because _absence is omission_ governs **fields** and `unknown`
+is a state — and it is also what carries the **order**, since a renderer cannot
+draw four proxies in §6's order from a record that omits the ones we know
+nothing about; and the subject is derived from `UNIVERSE` by
+`kind === "index_etf"`, so §6's order exists once rather than twice.
+
+### The serialiser was putting `null` on the wire, and its own comment said so
+
+`encodeFigure` carried the line _"a serialiser that returns one is a refactor
+away from putting a `null` on a wire whose stated rule is that absence is
+omission."_ **It was not a refactor away — it was one caller away.**
+`JSON.stringify` writes `null` for a non-finite number, and the only thing
+standing there was a `Number.isFinite` check in `toWireMarketOverview`, a
+different module in a different package, held by convention. ADR 0031's whole
+argument is that the guarantee belongs in the **serialiser**.
+
+Two rules now, split by whether the field is required. **Optional and
+non-finite is omitted** — a true price with no measurable move, which the union
+already has words for. **Required and non-finite drops the whole figure**,
+through a `flatMap` so it is absent rather than a hole: that is `readFigure`'s
+rule at the other end, and it avoids `json-schema.ts`'s measured trap arriving
+on a transport with no schema to blame — **`"price":null` reads as absent to a
+strict reader and as `0` to a lenient one, and `0` is a plausible price.**
+
+**The producer's check was removed rather than kept as a belt.** Two homes for
+one rule is what this repository refuses, and the second home is the one that
+gets forgotten — it also means the new branch is exercised in situ rather than
+shadowed.
+
+**The acceptance criterion had been met by an untested branch.** Nineteen tests
+on `toWireMarketOverview` and none of them the non-finite one; the existing
+assertion was on the **decoded object**, where an omitted key and a present
+`undefined` look identical. Six new tests assert on the **encoded string**, and
+the orchestrator re-verified independently against the built module: no `null`
+on any path, and a non-finite price leaves `"figures":[]`.
+
+### Two decoder gaps, both about what a stale tab means
+
+**`unsupported` was swallowing our own gateway malfunctioning.** The new
+`default` branch returned `unsupported` for _any_ unrecognised type, including
+an absent or non-string one, so `{"version":1}` decoded as
+`{ kind: "unsupported", type: "" }` and was dropped — where it used to be
+counted as `unreadable`. **A typeless frame is not a newer gateway; it is us.**
+Now conditional on `typeof parsed.type === "string"`, everything else falling
+through to `unreadable`.
+
+**And an `unsupported` frame advanced nothing**, against `advanceLiveFeed`'s
+own rule two files away — _"Every inbound message — including one we could not
+read — is evidence the socket is alive."_ A fourth event kind now moves
+`lastInboundAt` without touching the `unreadable` counter, asserted
+behaviourally: a diet of frames this bundle predates for 400 s leaves
+`backendReachable` true, where silence for the same period would not.
+
+### The cache, and one limitation stated rather than repaired
+
+`closesAsOf(session)` triggers its own refresh — no second method and no second
+caller to forget — replacing `held` only after a successful read, so a failure
+has nothing to undo. **A test caught a design defect in the first version**: it
+stamped every read, so the 60 s floor throttled _successes_ and a session
+change within a minute of startup was ignored. It is a **backoff** cleared on
+success, not a poll interval.
+
+**`loadedFor` records what was asked for, not what was read**, because the
+query has no `observed_at` bound. A refresh that wins a race with the backfill
+would pin a stale denominator for the rest of the day. **Not repaired, and the
+reasoning is the deliverable**: the only correct condition depends on the
+backfill's timing, which nothing in this repository asserts, and every cheaper
+condition becomes a poll — the obvious one (retry when a read did not advance
+the newest session) behaves on a weekday and **degenerates on a Sunday**, 518
+rows once a minute all day, which is the schedule rule 2 refuses. The window is
+made **observable** instead, with a warning when a refresh does not move the
+newest session, and `docs/GAPS.md`'s entry gained a section. Reversal trigger,
+as a condition: **the first deployment where `GET /diagnostics/freshness`
+reports the store a session behind after 09:30 ET.**
+
+### Three breaks rotted, and the registry check could only see one
+
+`the-send-instant-becomes-a-clock`'s `expect` rotted on a reworded claim;
+`a-resume-does-not-reach-the-page`'s `find` took a bare comparison and left a
+trailing `&&` in a comment; and `the-proxies-do-their-own-arithmetic` was
+swallowed by a new exemption. **`every-break-can-still-land` asserts the text
+is still present, not that the substitution still expresses the defect** — its
+own documented limit, confirmed twice in one change. The second of those went
+red as a **parse error**, which proves nothing; the review re-ran it at the
+runner rather than the verdict line and confirmed an assertion failure with 47
+other tests collecting.
+
+**71 of 92 registry entries were re-run and all passed**, so the rot was this
+change's rather than a standing decay.
+
+### Gates
+
+`pnpm verify` **exit 0**, `32 invariants hold.`, shared 345 / backend 973 /
+frontend 1,156 / `test:process` 41, no unhandled errors.
+`pnpm test:database` **211 passed** — run despite no schema or query change,
+because the cache reads the data layer and it costs 4 s.
+`pnpm e2e` **166 passed, 15 skipped**. The first run had two failures under a
+load average of **31.1 across 8 cores**; rather than accept a scoped re-run —
+this repository records a flake that read as contention for four bisecting runs
+and was not — the **whole suite** was re-run at load 10.95 and passed clean.
+All 18 breaks touching a changed file re-run red and restored byte-identical.
+
+## For a stakeholder — a status report, 2026-09-26
+
+### What this was
+
+**The message that carries the four index figures to the browser** — the last
+piece of plumbing before anything appears on screen.
+
+### What we found
+
+**Our own code had written down the bug a year before it happened.** A comment
+in the message-building code warned that a future change was "a refactor away"
+from putting an empty value onto a wire whose entire rule is that missing
+things are left out rather than sent as blanks. It turned out not to be a
+refactor away: it was one step away, and the only thing preventing it was a
+check in a different part of the system entirely, kept there by habit rather
+than by anything enforcing it.
+
+Left alone, the failure would have looked like this: a price that could not be
+calculated arrives at the browser as an empty value, and a lenient reader turns
+an empty value into **zero** — a plausible-looking price of nothing. We moved
+the protection into the message builder itself, and deleted the old one rather
+than keeping both, because two copies of a rule is how one of them gets
+forgotten.
+
+**We also found the acceptance test for this was not testing it.** Nineteen
+tests covered the surrounding code and none covered this case.
+
+### The part worth telling
+
+**Three of our deliberate self-sabotage checks silently stopped working during
+this change, and the safeguard that watches them could only see one.** Those
+checks exist to prove our safeguards actually fail when something is wrong; the
+watcher confirms the sabotage text is still present, but not that it still
+_means_ anything. One of them had degraded to breaking the file outright, which
+fails for the wrong reason and would have read as success.
+
+We re-ran 71 of the 92 to confirm the damage was confined to this change, and
+the limitation is now written down as a known gap rather than assumed away.
+
+### One thing we chose not to fix
+
+There is a narrow overnight window — after a failed evening data refresh — in
+which yesterday's comparison figure could be held a day too long. The correct
+fix depends on stating exactly what our data store is expected to contain and
+when, which nothing currently does, and every shortcut turns into a query
+running once a minute all weekend for nothing. **We made the window visible
+instead**, with a warning when it occurs and a written condition for when the
+real repair becomes necessary.
+
+### Where this leaves the work
+
+**The next task puts four live index figures on the landing page.** Everything
+behind them is now built, guarded and measured.
