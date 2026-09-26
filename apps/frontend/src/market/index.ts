@@ -246,3 +246,14 @@ export { arrivalKey, observationIdentity } from "./arrival.js";
 
 export { LIVE_FEED_TICK_MS, useLiveFeed } from "./use-live-feed.js";
 export type { UseLiveFeedOptions } from "./use-live-feed.js";
+
+// **The four index proxies, read off the overview frame** (Task 4.2.5). The
+// pure half is exported beside nothing else because the component that draws it
+// lives under `src/components/` and this module's `index.ts` is its only API.
+export { marketProxyStrip } from "./market-proxies.js";
+export type {
+  MarketProxyStrip,
+  ProxyCell,
+  ProxyChange,
+  ProxyReading,
+} from "./market-proxies.js";

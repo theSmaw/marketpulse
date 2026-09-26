@@ -74,3 +74,39 @@ what is not covered.
    each with a `Re-measure:` line naming a file or a command
 6. `grep -rn "Market proxies" e2e/` — over `e2e/`, never `e2e/specs/` — returns
    what it should
+
+## Amended by Task 4.2.5 — 2026-09-26: two `docs/GAPS.md` entries this story now owes
+
+**1. The focus ring is clipped by exactly `--focus-width + --focus-offset` at
+both sticky edges, on every route.** Found by a Tab and Shift+Tab walk during
+4.2.5's verification, and it is **not** this story's to repair — it is a
+`base.css` fact affecting every screen.
+
+`scroll-padding-top` / `-bottom` read the published chrome heights exactly
+(57/33 at 1440, 57/53 at 768, **94/73 at 390**) with **no slack**, while
+`--focus-width: 2px` and `--focus-offset: 2px` put the ring **4 px outside the
+border box**. So any region the browser scrolls flush against an edge has its
+ring clipped. Measured: `Sector performance` at 768 landed at `top=56` against
+a masthead bottom of 57 — **5 px of ring behind the chrome**; `Movers` at 390
+the same; `Market topology` at 390 landed at `bottom=708` against a footer top
+of 707.
+
+**The 2026-09-11 repair works** — these were whole-stop occlusions before and
+are now a ring edge — **and it is under-provisioned by exactly the ring's own
+geometry.** The cure is one line,
+`calc(var(--sticky-chrome-height, 0px) + var(--focus-width) + var(--focus-offset))`,
+and it belongs beside `CLAUDE.md`'s sticky-edge record with its own
+`pnpm break`. `Market proxies` is unaffected at every width, being the first
+region in `main`.
+
+`Re-measure:` a Tab and a **Shift+Tab** walk of `/` at 1440/768/390, reading
+each focused element's box against `--sticky-chrome-height` and
+`--sticky-footer-height`. The reverse walk is the one that finds it; a forward
+walk alone does not.
+
+**2. Two more entries for the listening backlog**, owner unchanged — a person
+with a screen reader. The strip's figure is spoken as a **bare unlabelled
+number** (`SPY. 774.03 up +0.42%`), because the symbol occupies the slot the
+security page gives to `LATEST PRICE`; and the **shared basis clause is heard
+after the four changes it qualifies**, which is correct visually as a footnote
+and is the reverse order aurally. Neither is answerable from a DOM.

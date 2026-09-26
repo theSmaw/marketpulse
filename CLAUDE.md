@@ -75,13 +75,19 @@ feed and backend health, and a **Security Explorer** a person can use rather
 than only read.
 
 **And since 2026-09-25 the landing page is a page rather than a placeholder.**
-`/` draws **seven named regions** — `Market summary`, `Market topology`,
+`/` draws **seven named regions** — `Market proxies`, `Market topology`,
 `Sector performance`, `Movers`, `Unusual activity`, `Market breadth`,
 `Current investigations` — laid out on a grid that restates its spans at every
-breakpoint and collapses to one column at 390 with **breadth first**. **Nothing
-on it holds a figure yet**, and that is the point: each region says what it is
-waiting for, in the `reserved` state Story 4.1 added to `Panel`, which is ADR
-0029's defer rule as a component rather than a spinner that never resolves. Two
+breakpoint and collapses to one column at 390 with **breadth first**.
+~~**Nothing on it holds a figure yet**~~ — **false since 2026-09-26: the first
+region holds four.** Task 4.2.5 filled `Market proxies` with `SPY`, `QQQ`,
+`DIA` and `IWM`, and **renamed it** from `Market summary`, which was a second
+word for a concept the product already had (the `/securities` group heading,
+and `Market proxy` on the security page) and which promised the broadest view
+on a screen where three later regions summarise all 518. The other six still
+say what they are waiting for, in the `reserved` state Story 4.1 added to
+`Panel`, which is ADR 0029's defer rule as a component rather than a spinner
+that never resolves. Two
 of the seven belong to later epics by name — the topology is Epic 6's and
 unusual activity is Epic 5's — and the layout running there is explicitly
 **interim**, reverting to the canvas's end state on a condition: the first

@@ -1,4 +1,10 @@
+import { useEffect, useMemo } from "react";
+
+import type { Bar } from "@marketpulse/shared";
+
+import { MarketProxyStrip } from "../components/MarketProxyStrip/MarketProxyStrip.js";
 import { Region } from "../components/Region/Region.js";
+import type { LiveFeedView } from "../market/index.js";
 import styles from "./MarketOverview.module.css";
 
 // PRODUCT_SPEC.md §8.1 — "What is happening?", and the spec's landing screen,
@@ -27,11 +33,62 @@ import styles from "./MarketOverview.module.css";
 // that anything *asserted* it — so `pnpm invariants` now does, over the built
 // bundle, with a `pnpm break` entry proving it goes red.
 //
-// Everything below is §9's regions. Nothing in this file renders a figure yet:
-// the market summary is Story 4.2's, sectors 4.3's, breadth 4.4's and the
-// movers 4.5's, and each says so on screen.
+// Everything below is §9's regions. **One of them holds figures since
+// 2026-09-26** — `Market proxies`, Story 4.2's — and sectors are 4.3's, breadth
+// 4.4's and the movers 4.5's, each still saying so on screen.
 
-export function MarketOverview() {
+export interface MarketOverviewProps {
+  /**
+   * What the socket has said. `App` owns it, for the reason recorded there: a
+   * hook that makes a network request is called in `App`.
+   *
+   * Optional, because three of the five routes are rendered without it and a
+   * story renders this route with nothing at all. The strip's own first-paint
+   * state is what an absent frame looks like, so there is no second answer.
+   */
+  readonly liveFeed?: LiveFeedView | undefined;
+  /** See `SecurityExplorer`'s: the page declares what it needs prices for. */
+  readonly onLiveSymbols?: ((symbols: readonly string[]) => void) | undefined;
+}
+
+export function MarketOverview({
+  liveFeed,
+  onLiveSymbols,
+}: MarketOverviewProps = {}) {
+  const overview = liveFeed?.overview;
+
+  /*
+   * **The set is served and this route renders what it is given.** The overview
+   * frame is not scoped to a subscription — the gateway broadcasts it — so the
+   * symbols arrive before this page has asked for anything, and what it asks
+   * for afterwards is exactly the set the frame reported, in the frame's order.
+   * A four-symbol array written here would be the second home for a list
+   * `PRODUCT_SPEC.md` §6 already owns and `indexProxyTickers` already derives.
+   *
+   * **Keyed on the joined string rather than on the frame**, which is not a
+   * micro-optimisation: the gateway recomputes the overview up to sixteen times
+   * a minute, every one of them a new array, and an effect that re-ran on each
+   * would push a new array into `App`'s state and re-render the whole tree at
+   * that rate. `use-live-feed` already depends on a joined string for the same
+   * reason one layer down.
+   */
+  const symbolKey = (overview?.figures ?? [])
+    .map((figure) => figure.symbol)
+    .join(",");
+  const liveSymbols = useMemo(
+    () => (symbolKey === "" ? [] : symbolKey.split(",")),
+    [symbolKey],
+  );
+
+  // Declared here and withdrawn on unmount, which is `SecurityExplorer`'s rule:
+  // a screen that stops being shown stops asking.
+  useEffect(() => {
+    onLiveSymbols?.(liveSymbols);
+    return () => {
+      onLiveSymbols?.([]);
+    };
+  }, [liveSymbols, onLiveSymbols]);
+
   return (
     <>
       {/*
@@ -80,11 +137,26 @@ export function MarketOverview() {
        * to hold four figures.
        */}
       <div className={styles.summary}>
-        <Region
-          name="Market summary"
-          awaiting="Story 4.2"
-          filledBy="SPY, QQQ, DIA and IWM — the last price and the change from the previous session’s close."
-        />
+        {/*
+         * **`Market proxies`, renamed from `Market summary` on 2026-09-26.** It
+         * is already the product's word for exactly these four — the
+         * `/securities` group heading, and `Market proxy` on the security
+         * page's classification line — and on a screen where three later
+         * regions summarise all 518, `Market summary` promises the broadest
+         * view and delivers the narrowest.
+         *
+         * **No `filledBy` and no `awaiting`.** The sentence was a caption for
+         * something a reader can now see, and `Region` keys `reserved` on
+         * `children === undefined` so the state cannot linger by accident — but
+         * the tag is a string and a string has to be deleted.
+         */}
+        <Region name="Market proxies">
+          <MarketProxyStrip
+            overview={overview}
+            observations={liveFeed?.observations ?? EMPTY_OBSERVATIONS}
+            fromSnapshot={liveFeed?.fromSnapshot ?? EMPTY_SNAPSHOT}
+          />
+        </Region>
       </div>
 
       <div className={styles.regions}>
@@ -133,3 +205,8 @@ export function MarketOverview() {
     </>
   );
 }
+
+// Stable empties, so a route rendered without a feed does not hand the strip a
+// new Map on every render.
+const EMPTY_OBSERVATIONS: ReadonlyMap<string, Bar> = new Map<string, Bar>();
+const EMPTY_SNAPSHOT: ReadonlySet<string> = new Set();

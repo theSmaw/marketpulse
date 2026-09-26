@@ -55,8 +55,10 @@ import { expectNothingFailedToRender } from "../support/app.js";
 // feed — *unusual is not largest*, and a mover list standing in for an anomaly
 // feed teaches a reader the wrong thing on the one screen whose job is
 // explaining this product.
+// **`Market summary` became `Market proxies` on 2026-09-26** (Task 4.2.5),
+// when the region stopped being a deferral and started holding four figures.
 const REGION_NAMES = [
-  "Market summary",
+  "Market proxies",
   "Market topology",
   "Sector performance",
   "Movers",
