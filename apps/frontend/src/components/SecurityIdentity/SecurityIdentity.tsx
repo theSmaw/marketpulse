@@ -4,6 +4,8 @@ import type { Bar, Security, SecurityLastClose } from "@marketpulse/shared";
 import {
   EXTENDED_HOURS_WORDS,
   SECTOR_LABELS,
+  changeFromClose,
+  changePercent,
   extendedHoursAt,
 } from "@marketpulse/shared";
 
@@ -12,7 +14,6 @@ import type { SecuritiesView } from "../../use-securities.js";
 import { Badge } from "../Badge/Badge.js";
 import { Marker } from "../Marker/Marker.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
-import { changeFromClose, changePercent } from "../UniverseTable/last-close.js";
 import {
   directionOf,
   formatBarInstant,

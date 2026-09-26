@@ -2023,6 +2023,124 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "call sites use",
   },
+  // ## Story 4.2's three, all on the join (Task 4.2.3)
+  //
+  // The first two prove `one-home-for-the-live-change` and the third proves
+  // `one-producer-of-the-overview-aggregate`. All three edit
+  // `market-overview.ts`, because that is where the next author of an
+  // aggregate over this seam will be standing.
+  {
+    name: "the-proxies-do-their-own-arithmetic",
+    proves:
+      "Somebody with the live map and the stored closes in the same function " +
+      "writes the subtraction inline. It is right for most of the day, and " +
+      "on the evening the nightly backfill catches up the store's last " +
+      "session and the live bar's session MEET \u2014 so every figure on the " +
+      "screen reads \u22480.00%: well-formed, correctly-formatted, " +
+      "correctly-coloured numbers saying the market did not move. " +
+      "`changeFromClose`'s same-session branch is the thing that is lost, " +
+      "and losing it is invisible (Task 4.2.3).",
+    file: "apps/backend/src/market-overview.ts",
+    find: "        change: changeFromClose(observed.bar, close),",
+    replace:
+      "        change: {\n" +
+      "          percent:\n" +
+      "            close === undefined\n" +
+      "              ? null\n" +
+      "              : ((observed.bar.close - close.close) / close.close) *\n" +
+      "                100,\n" +
+      "          basis: close?.session ?? null,\n" +
+      "        },",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "never call `changeFromClose`",
+  },
+  {
+    name: "a-second-join-in-a-second-file",
+    proves:
+      "**The defect the first draft of this guard walked straight past**, " +
+      "and the shape Story 4.3 will actually write: a join in a file that " +
+      "is not `market-overview.ts`, holding `LastClose` rather than the wire " +
+      "type, with both operands INFERRED. The first version of " +
+      "`one-home-for-the-live-change` selected on `SecurityLastClose` and " +
+      "reported `32 invariants hold.` against exactly this. The other three " +
+      "breaks all edit the file where the check already works; this one is " +
+      "the second file (Task 4.2.3 review).",
+    // `current-market-state.ts` and not a new file, because a break is a
+    // substitution in a committed file — and it is the *right* second file
+    // anyway: this module's own note says a derivation belongs beside it
+    // rather than on it, which is precisely the line somebody crosses here.
+    file: "apps/backend/src/current-market-state.ts",
+    find: "export const snapshotOf = (",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export function sectorMove(\n" +
+      "  state: CurrentMarketState,\n" +
+      "  closes: ReadonlyMap<Ticker, LastClose>,\n" +
+      ") {\n" +
+      "  const moves = [];\n" +
+      "  for (const [symbol, observed] of state.all()) {\n" +
+      "    const close = closes.get(symbol);\n" +
+      "    if (close === undefined) continue;\n" +
+      "    moves.push({\n" +
+      "      symbol,\n" +
+      "      percent:\n" +
+      "        ((observed.bar.close - close.close) / close.close) * 100,\n" +
+      "    });\n" +
+      "  }\n" +
+      "  return moves;\n" +
+      "}\n\n" +
+      "export const snapshotOf = (",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "can reach both halves of the join and never call",
+  },
+  {
+    name: "a-second-basis-is-read",
+    proves:
+      "The basis field is read outside the one function that chooses a " +
+      "basis. `previousClose` is not a price, it is the answer to *measure " +
+      "from what* \u2014 and a second module asking that question is a second " +
+      "same-session policy that nothing holds to the first. Clause one of " +
+      "`one-home-for-the-live-change` (Task 4.2.3).",
+    file: "apps/backend/src/market-overview.ts",
+    find: "    const close = closes.get(symbol);",
+    replace:
+      "    const close = closes.get(symbol);\n" +
+      "    // pnpm break: reverted automatically\n" +
+      "    const basis = close?.previousClose ?? close?.close ?? null;\n" +
+      "    void basis;",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "read it as a basis",
+  },
+  {
+    name: "a-second-overview-aggregate",
+    proves:
+      "A second call to the builder, added **in the file that already has " +
+      "one** \u2014 which is the shape the real regression takes, and the " +
+      "shape a count of FILES cannot see. " +
+      "`one-subscriber-on-the-upstream-socket` learned that the expensive " +
+      "way; this entry is what stops the same check being written twice " +
+      "(Task 4.2.3).\n\n" +
+      "Note what it can and cannot claim today: there is no legitimate call " +
+      "site yet \u2014 Task 4.2.4 adds the first \u2014 so this substitution " +
+      "adds TWO at once, in one plausible edit, and what goes red is the " +
+      "counter reporting 2. The day a real caller exists, a one-call " +
+      "version of this entry is the stronger break.",
+    file: "apps/backend/src/market-overview.ts",
+    find: "export function buildMarketOverview(\n  inputs: MarketOverviewInputs,\n): readonly MarketOverviewEntry[] {",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export function overviewOrRetry(\n" +
+      "  inputs: MarketOverviewInputs,\n" +
+      "): readonly MarketOverviewEntry[] {\n" +
+      "  const first = buildMarketOverview(inputs);\n" +
+      "  return first.length > 0 ? first : buildMarketOverview(inputs);\n" +
+      "}\n\n" +
+      "export function buildMarketOverview(\n" +
+      "  inputs: MarketOverviewInputs,\n" +
+      "): readonly MarketOverviewEntry[] {",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "call sites build the market overview",
+  },
   {
     name: "a-break-that-can-no-longer-land",
     proves:

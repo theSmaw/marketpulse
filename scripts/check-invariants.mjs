@@ -199,6 +199,27 @@ function withoutComments(text) {
     .replace(/^[ \t]*\/\/.*$/gmu, "");
 }
 
+/**
+ * A **trailing** `//` comment removed as well — for the checks that read text
+ * and would otherwise be exempted by a comment.
+ *
+ * `withoutComments` deliberately leaves these, and its own note argues the
+ * asymmetry is the safe direction because *the worst it can do is report a
+ * match*. That judgement **inverts** the moment a check treats the presence of
+ * a token as a PASS: `return { percent: null }; // cf. changeFromClose(a, b)`
+ * is then an exemption written in a comment. Task 4.2.1 hit the same asymmetry
+ * from the other side, in front of a brace matcher, and solved it with a local
+ * stripper; this is that stripper, promoted to a second consumer rather than
+ * copied.
+ *
+ * **`https://` is not a comment**, so the `//` must not be preceded by a `:`.
+ * A stripper that cuts a line at a URL inside a string would hide a real match,
+ * which is the direction that costs something.
+ */
+function withoutTrailingComments(text) {
+  return withoutComments(text).replace(/(^|[^:])\/\/[^\n]*/gu, "$1");
+}
+
 const RECORDED_BODIES = [
   { fixture: "bar-series/default", pattern: /2026-09-04T13:3[0-9]/u },
   { fixture: "securities/universe", pattern: /Agilent Technologies/u },
@@ -2038,6 +2059,432 @@ const INVARIANTS = [
             built.join("\n      ") +
             "\n    One computation for every browser (Task 4.1.1's decision " +
             "1). A second encode is a second cadence nobody chose.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "one-home-for-the-live-change",
+    claim:
+      "`previousClose` is read as a change BASIS in exactly one module — " +
+      "`packages/shared/src/live-change.ts` — and no shipped file that can " +
+      "reach both halves of the join, or that divides by a close, computes " +
+      "the move itself instead of calling `changeFromClose`.",
+    check() {
+      // **A producer walk, not a call-site count** (Task 4.2.3), in
+      // `the-consolidated-word-has-one-producer`'s family. More callers of
+      // `changeFromClose` is the DESIRED state here — it is now called by two
+      // processes — so counting them would be a check that goes red when the
+      // thing it protects is working.
+      //
+      // ## What the defect actually looks like
+      //
+      // Not a second copy of the function. A backend author who needs *the
+      // change since the previous close*, has the live map and has the stored
+      // closes, writes `(live.close - close.close) / close.close` and gets a
+      // correct-looking number for most of the day. What they do not write is
+      // the **same-session branch**: the nightly backfill writes today, so
+      // between it and the next open the store's last session and the live
+      // bar's session MEET, and that expression reports ≈0.00% for every
+      // security on the screen — well-formed, correctly-formatted,
+      // correctly-coloured numbers saying the market did not move.
+      //
+      // So there are two clauses, and the second is the one that catches it:
+      // a re-implementation that reads only `close.close` never mentions
+      // `previousClose` at all.
+      const SOURCE_ROOTS = [
+        "apps/backend/src",
+        "apps/frontend/src",
+        "packages/shared/src",
+      ];
+
+      // `.stories.` is excluded with the tests: a story builds a
+      // `SecurityLastClose` literal to render a state, which is a fixture
+      // rather than a producer.
+      const shipped = [];
+
+      const walk = (dir) => {
+        for (const child of readdirSync(dir)) {
+          const path = resolve(dir, child);
+          if (statSync(path).isDirectory()) {
+            if (child !== "fixtures" && child !== "node_modules") walk(path);
+            continue;
+          }
+          if (!/\.tsx?$/u.test(child)) continue;
+          if (/\.(?:test|process|database|stories)\.tsx?$/u.test(child))
+            continue;
+          shipped.push({
+            path: relative(REPO_ROOT, path),
+            // `withoutTrailingComments`, not `withoutComments`: every clause
+            // below treats the PRESENCE of `changeFromClose(` as a pass, so a
+            // trailing comment naming it is an exemption anybody can write.
+            text: withoutTrailingComments(readFileSync(path, "utf8")),
+          });
+        }
+      };
+
+      for (const root of SOURCE_ROOTS) walk(resolve(REPO_ROOT, root));
+
+      // ## Clause one — where the basis field may be READ
+      //
+      // Three modules, and only one of them is reading it for its VALUE. The
+      // other two carry the field across a boundary and are named with the
+      // reason, because a bare "exactly one module" is not true of this tree
+      // and never was: the shaping note for this task recorded *zero
+      // occurrences outside `last-close.ts`*, and the measured answer on
+      // 2026-09-26 was five modules. A check written from that premise would
+      // have been red on the day it landed.
+      //
+      // `previousClose:` as a property — the type declaration in
+      // `securities-response.ts` and `market-bars.ts`, the response schema,
+      // the row mapper — is deliberately NOT counted. Declaring and writing a
+      // field is carriage; `.previousClose` is somebody deciding what to
+      // measure from.
+      const BASIS_READERS = [
+        {
+          path: "packages/shared/src/live-change.ts",
+          why: "the one basis choice",
+        },
+        {
+          path: "packages/shared/src/securities-response.ts",
+          why: "the wire predicate, which checks the field's TYPE",
+        },
+        {
+          path: "apps/backend/src/routes/securities.ts",
+          why: "the row-to-wire mapper, which copies the field untouched",
+        },
+      ];
+
+      const readers = shipped.filter((file) =>
+        /\.previousClose\b/u.test(file.text),
+      );
+
+      // The anchor. Every named reader must still contain a read, or this
+      // check is asserting the absence of something that has simply moved —
+      // `CLAUDE.md`'s *a grep that matches nothing looks exactly like a grep
+      // that passes*.
+      for (const { path, why } of BASIS_READERS) {
+        if (!readers.some((file) => file.path === path)) {
+          throw new InvariantFailure(
+            `${path} no longer reads \`.previousClose\`, and it is this ` +
+              `check's anchor for ${why}. If the basis moved, repoint this ` +
+              "check in the same change; a list of expected readers that " +
+              "matches nothing passes vacuously.",
+          );
+        }
+      }
+
+      const extra = readers
+        .map((file) => file.path)
+        .filter((path) => !BASIS_READERS.some((known) => known.path === path));
+
+      if (extra.length > 0) {
+        throw new InvariantFailure(
+          `${String(extra.length)} shipped module(s) outside the three that ` +
+            "carry `previousClose` read it as a basis:\n      " +
+            extra.join("\n      ") +
+            "\n    The basis choice is `changeFromClose`'s and it is one " +
+            "function for both processes. A second reader is a second " +
+            "same-session branch, or — far likelier — the absence of one.",
+        );
+      }
+
+      // ## Clause two — anything that can REACH both halves must call it
+      //
+      // **Rewritten 2026-09-26 after a review demonstrated the defect walking
+      // straight through the first version.** That one selected on
+      // `SecurityLastClose`, the WIRE type. The backend's own closes type is
+      // `LastClose` (`market-bars.ts`), returned by `readLastCloses` — same
+      // shape, no `session`, different name. So the file Story 4.3 will
+      // actually write:
+      //
+      //     const observations = currentMarketState.all();
+      //     const closes = await readLastCloses("1d");
+      //     …((observed.bar.close - close.close) / close.close) * 100
+      //
+      // held neither name — `close` and `observed` are INFERRED — mentioned
+      // `previousClose` nowhere, and the run said `32 invariants hold.` The
+      // author of that file is also the likeliest re-implementer, because
+      // holding a `LastClose` they cannot call `changeFromClose` without
+      // converting first.
+      //
+      // So the population is keyed on the READERS of the closes rather than
+      // on a type name, and there is a second, independent clause below keyed
+      // on the arithmetic itself — because F2 is unfixable by greps: nothing
+      // requires an author to write either type name anywhere.
+      //
+      // **What this therefore cannot see**, stated so the next reader does
+      // not over-trust it: a join whose closes arrive through a parameter of
+      // an inferred type, from a helper in a third file, with no mention of
+      // `readLastCloses`, `closesAsOf`, `LastClose` or a division by a
+      // `close`. That file is invisible here and always will be.
+      const CLOSES_SIDE =
+        /\b(?:SecurityLastClose|LastClose|readLastCloses|closesAsOf)\b/u;
+      const LIVE_SIDE = /\b(?:Bar|CurrentObservation|currentMarketState)\b/u;
+
+      const joins = shipped.filter(
+        (file) => CLOSES_SIDE.test(file.text) && LIVE_SIDE.test(file.text),
+      );
+
+      // Raised from 3 to the measured figure, because a floor well under the
+      // population lets two sites stop matching unnoticed.
+      const JOIN_SITES_ON_2026_09_26 = 6;
+
+      if (joins.length < JOIN_SITES_ON_2026_09_26) {
+        throw new InvariantFailure(
+          `Only ${String(joins.length)} shipped file(s) can reach both ` +
+            "halves of the join, and there were " +
+            `${String(JOIN_SITES_ON_2026_09_26)} on 2026-09-26. Either the ` +
+            "types and readers were renamed or this walk stopped finding the " +
+            "tree; both look identical to a pass.",
+        );
+      }
+
+      /**
+       * Is this file exempt from clause two, and why?
+       *
+       * Two exemptions, both written as SHAPES rather than filenames so a
+       * future file of the same kind is covered — and both tightened after a
+       * review slipped a full inline implementation through the first draft.
+       */
+      const exemption = (file) => {
+        // **A pure re-export barrel.** The first draft exempted any file
+        // matching `export { … changeFromClose … }`, which exempts the WHOLE
+        // FILE: a re-export line at the top and a complete `sectorMove`
+        // underneath was green. A barrel has no statement body at all, so
+        // that is what is required — no arrow, no `function`, no `return`.
+        // True of `packages/shared/src/index.ts`, the only intended
+        // beneficiary.
+        if (
+          /export\s*\{[^}]*\bchangeFromClose\b/u.test(file.text) &&
+          !/=>/u.test(file.text) &&
+          !/\bfunction\b/u.test(file.text) &&
+          !/\breturn\b/u.test(file.text)
+        ) {
+          return "a re-export barrel with no statement body";
+        }
+
+        // **The closes PRODUCER.** `market-bars.ts` declares `LastClose` and
+        // implements `readLastCloses`; it supplies one half of the join and
+        // performs none of it. Detected by the declaration rather than by
+        // name, so the exemption moves if the type does.
+        if (/export\s+interface\s+LastClose\b/u.test(file.text)) {
+          return "the module that DECLARES the closes type";
+        }
+
+        return undefined;
+      };
+
+      const reimplementers = joins
+        .filter(
+          (file) =>
+            !file.text.includes("changeFromClose(") &&
+            exemption(file) === undefined,
+        )
+        .map((file) => file.path);
+
+      if (reimplementers.length > 0) {
+        throw new InvariantFailure(
+          `${String(reimplementers.length)} shipped file(s) can reach both ` +
+            "halves of the join and never call `changeFromClose`:\n      " +
+            reimplementers.join("\n      ") +
+            "\n    That is the shape of the re-implementation: it reads " +
+            "`close.close`, it is right for most of the day, and on the " +
+            "evening the backfill catches up it reports ≈0.00% for " +
+            "everything. The arithmetic is " +
+            "`packages/shared/src/live-change.ts`'s, for both processes.",
+        );
+      }
+
+      // ## Clause three — a division by a close is this arithmetic
+      //
+      // Independent of the two type names, because an author writes neither
+      // and TypeScript never asks them to. What they cannot avoid writing is
+      // the division, and a percentage move whose denominator is a close is
+      // the thing `changeFromClose` exists to be.
+      //
+      // Anchored on the one legitimate site: if `live-change.ts` stops
+      // matching, the pattern has rotted and this clause is asserting the
+      // absence of a shape it can no longer recognise.
+      const CLOSE_DENOMINATOR =
+        /\/\s*(?:[A-Za-z_$][\w$]*\.)?(?:close|previousClose|previous|basis\w*)\b/u;
+
+      const dividers = shipped.filter((file) =>
+        CLOSE_DENOMINATOR.test(file.text),
+      );
+
+      const ARITHMETIC_ANCHOR = "packages/shared/src/live-change.ts";
+
+      if (!dividers.some((file) => file.path === ARITHMETIC_ANCHOR)) {
+        throw new InvariantFailure(
+          `${ARITHMETIC_ANCHOR} no longer divides by a close, and it is this ` +
+            "clause's anchor. The pattern that recognises the arithmetic has " +
+            "rotted, and a pattern matching nothing passes vacuously.",
+        );
+      }
+
+      const dividing = dividers
+        .filter((file) => !file.text.includes("changeFromClose("))
+        .map((file) => file.path);
+
+      if (dividing.length > 0) {
+        throw new InvariantFailure(
+          `${String(dividing.length)} shipped file(s) divide by a close ` +
+            "without calling `changeFromClose`:\n      " +
+            dividing.join("\n      ") +
+            "\n    A percentage move measured from a close is " +
+            "`changeFromClose`, whatever the operands are named. The branch " +
+            "an inline version omits is the same-session one, and omitting " +
+            "it is invisible until the evening the backfill catches up.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "one-producer-of-the-overview-aggregate",
+    claim:
+      "`buildMarketOverview` has at most one call site in shipped backend " +
+      "code — one computation for every browser.",
+    check() {
+      // **Task 4.1.1's decision 1, held mechanically**: the aggregate is
+      // computed once where `currentMarketState` already lives, not
+      // recomputed per page and not recomputed twice on the way out.
+      //
+      // ## It guards a symbol with no caller yet, on purpose
+      //
+      // Task 4.2.3 builds the join; Task 4.2.4 wires it to a frame. So the
+      // count today is **zero**, and the claim is *at most one* rather than
+      // *exactly one*. A check that only becomes meaningful after the code it
+      // guards is written is a check that is written after the defect.
+      //
+      // What makes the zero case non-vacuous is the anchor below: the
+      // DEFINITION must exist, exactly once. If the builder is renamed and
+      // this is not repointed, the check fails rather than passing on an
+      // absence.
+      //
+      // ## Call sites, never files
+      //
+      // `one-subscriber-on-the-upstream-socket` recorded this lesson the
+      // expensive way: its first version counted files, and
+      // `pnpm break a-second-subscriber-on-the-upstream-socket` caught it
+      // immediately, because a second subscription added BESIDE the first one
+      // left the count at 1 and the check green. That is also the likeliest
+      // shape of the real regression here — a second publish added next to
+      // the existing one.
+      const sources = [];
+
+      const walk = (dir) => {
+        for (const child of readdirSync(dir)) {
+          const path = resolve(dir, child);
+          if (statSync(path).isDirectory()) {
+            if (child !== "fixtures" && child !== "node_modules") walk(path);
+            continue;
+          }
+          if (!child.endsWith(".ts")) continue;
+          // **Widened past `.test.ts`, deliberately.** `index.process.test.ts`
+          // and `market-bars.database.test.ts` both end in `.test.ts` today,
+          // so the narrow test would have covered them — and the naming is a
+          // convention nothing enforces (`CLAUDE.md`: a process-style test
+          // named `foo.test.ts` runs in the fast suite). Spelling all three
+          // means a `market-overview.database.ts` cannot quietly add a
+          // counted call site.
+          if (/\.(?:test|process|database)\.ts$/u.test(child)) continue;
+          sources.push({
+            path: relative(REPO_ROOT, path),
+            // Trailing comments too. Today the count is 0 against a bound of
+            // "at most 1", so a phantom call site in a comment is absorbed —
+            // and the day Task 4.2.4 adds the real one, a comment naming
+            // `buildMarketOverview(` would turn this red for nothing.
+            text: withoutTrailingComments(readFileSync(path, "utf8")),
+          });
+        }
+      };
+
+      walk(resolve(REPO_ROOT, "apps/backend/src"));
+
+      // ## Classifying every occurrence, after a review walked past the
+      // first version
+      //
+      // That one matched `buildMarketOverview\s*\(` and split on a
+      // `function ` lead. **A second exported `const buildMarketOverview =
+      // (…) => …` in a new backend file was invisible to both branches** —
+      // neither a definition nor a call site — so it neither disturbed the
+      // real definition's count nor added one of its own. Green.
+      //
+      // So the scan is over the NAME, and every occurrence is classified.
+      // Anything the classifier does not recognise is ignored (an import
+      // specifier, a type position, an `export {}` line), and the two shapes
+      // that hide call sites are refused outright.
+      const definitions = [];
+      const sites = [];
+      const aliases = [];
+
+      for (const source of sources) {
+        for (const match of source.text.matchAll(/\bbuildMarketOverview\b/gu)) {
+          const at = match.index;
+          const before = source.text.slice(Math.max(0, at - 24), at);
+          const after = source.text.slice(at + "buildMarketOverview".length);
+          const where = `${source.path} offset ${String(at)}`;
+
+          // `import { buildMarketOverview as build }` — every call site is
+          // then spelled `build(` and this check cannot see one. Refused
+          // rather than counted, because the alternative is a count that is
+          // silently wrong.
+          if (/^\s+as\s+\w/u.test(after)) {
+            aliases.push(where);
+            continue;
+          }
+
+          // `function buildMarketOverview(`, `const buildMarketOverview = (`,
+          // and `buildMarketOverview = ` (a reassignment is a redefinition).
+          // `==` and `=>` are excluded so a comparison is not a definition.
+          if (
+            /(?:function|const|let|var)\s+$/u.test(before) ||
+            /^\s*=[^=>]/u.test(after)
+          ) {
+            definitions.push(where);
+            continue;
+          }
+
+          if (/^\s*\(/u.test(after)) sites.push(where);
+        }
+      }
+
+      if (aliases.length > 0) {
+        throw new InvariantFailure(
+          `${String(aliases.length)} place(s) rename \`buildMarketOverview\` ` +
+            "on import:\n      " +
+            aliases.join("\n      ") +
+            "\n    An alias spells every call site as some other name, which " +
+            "this check cannot count. A count that is silently wrong is " +
+            "worse than no count, so the alias is refused rather than " +
+            "followed.",
+        );
+      }
+
+      if (definitions.length !== 1) {
+        throw new InvariantFailure(
+          `${String(definitions.length)} definitions of ` +
+            "`buildMarketOverview` in apps/backend/src, expected exactly 1" +
+            (definitions.length === 0
+              ? ". This check refuses a second CALL site, so it must be able " +
+                "to find the thing being called: a grep that matches nothing " +
+                "looks exactly like a grep that passes. If the builder was " +
+                "renamed or moved, repoint this check in the same change."
+              : `:\n      ${definitions.join("\n      ")}`),
+        );
+      }
+
+      if (sites.length > 1) {
+        throw new InvariantFailure(
+          `${String(sites.length)} call sites build the market overview, ` +
+            "expected at most 1:\n      " +
+            sites.join("\n      ") +
+            "\n    One computation for every browser (Task 4.1.1's decision " +
+            "1). A second is a second answer to one question, and the two " +
+            "disagree the moment anything reads both.",
         );
       }
     },

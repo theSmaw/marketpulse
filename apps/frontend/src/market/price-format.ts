@@ -19,9 +19,14 @@
 //
 // The note named six values. **Five moved.** `changePercent` stayed where it
 // was, in both homes, and that is a decision rather than an oversight: the two
-// are not one function. `last-close.ts` computes a move between two *sessions'*
-// closes from a `SecurityLastClose`; `series-facts.ts` computes a move across
-// the *bars of one window* from a `SeriesPrices`. They share an arithmetic
+// are not one function. One computes a move between two *sessions'* closes
+// from a `SecurityLastClose`; `series-facts.ts` computes a move across the
+// *bars of one window* from a `SeriesPrices`. (**Amended 2026-09-26**: the
+// first of those left `UniverseTable/last-close.ts` for
+// `packages/shared/src/live-change.ts` with `changeFromClose`, when Story
+// 4.2's backend join became its third consumer — Task 4.2.3. The judgement
+// below is untouched: they are still two functions over two subjects, and
+// they are now in two packages.) They share an arithmetic
 // shape — `(a − b) / b` — and share no subject, and a single function over both
 // would need a parameter type that is the union of two unrelated records. The
 // duplication that was worth removing is the one where two files would have

@@ -1,6 +1,6 @@
 # Task 4.2.2 — The strip drawn: four figures side by side, and what 390 does with them
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-26.** `Market proxies.dc.html` is on the canvas and `Market overview.dc.html` is amended. The drawing found **two defects on the canvas itself** — §01 drew the strip with `repeat(4, 1fr)`, whose `min-width: auto` floor produces the exact column shift the written constraint forbids, and §04 claimed a 2×2 at 768 where the arithmetic gives 163 px a column against a 112 px floor. The synchrony question is **narrowed, not settled**, and turns on a frame-arrival fact nobody has measured.
 **Story:** [4.2 The Aggregate Seam, & the Index Proxies That Move](STORY.md)
 **Depends on:** nothing — runs beside 4.2.1
 

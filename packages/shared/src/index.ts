@@ -283,6 +283,22 @@ export type {
 export { TIMEFRAMES } from "./bar.js";
 export type { Bar, Timeframe } from "./bar.js";
 
+// The change between a stored close and a price — one implementation, called
+// by **two processes** since 2026-09-26 (Task 4.2.3). It lived in
+// `apps/frontend/src/components/UniverseTable/last-close.ts` from Task 2.9.7
+// until Story 4.2's backend join became its third consumer, and it is here
+// for `market-time.ts`'s reason rather than for tidiness: a second
+// implementation on the other side of the wire would carry the *same-session*
+// branch or it would not, and the version that does not produces 518
+// correctly-formatted numbers saying the market did not move.
+//
+// It knows nothing about spelling a figure — `formatChangePercent` and
+// `directionOf` are the frontend's, because a spelling is a property of a
+// surface. `commonSession` deliberately stayed behind: it is a question about
+// one view of one response, not about the arithmetic.
+export { changeFromClose, changePercent } from "./live-change.js";
+export type { LiveChange } from "./live-change.js";
+
 // The window a request is made over (Task 2.6.2). One type rather than two
 // parameters, because two can be swapped at a call site and nothing notices;
 // BRANDED, because a bare interface fixes only the positional half of that and

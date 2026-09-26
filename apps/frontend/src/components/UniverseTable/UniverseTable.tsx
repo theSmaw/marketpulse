@@ -1,4 +1,10 @@
-import { SECTOR_ETFS, SECTOR_LABELS, SECTORS } from "@marketpulse/shared";
+import {
+  SECTOR_ETFS,
+  SECTOR_LABELS,
+  SECTORS,
+  changeFromClose,
+  changePercent,
+} from "@marketpulse/shared";
 import type {
   Bar,
   MarketDate,
@@ -36,7 +42,7 @@ import {
   formatDepth,
   summariseCoverage,
 } from "./coverage.js";
-import { changeFromClose, changePercent, commonSession } from "./last-close.js";
+import { commonSession } from "./last-close.js";
 import {
   arrivalKey,
   directionOf,

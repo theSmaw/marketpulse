@@ -222,8 +222,9 @@ function pad(value: number): string {
 // **`changePercent` did not move, and that is the same judgement made again.**
 // The note called the two copies near-twins, and the formatting halves were.
 // This one computes a move across the bars of one window from a `SeriesPrices`;
-// `last-close.ts`'s computes a move between two sessions' closes from a
-// `SecurityLastClose`. One function over both would take a parameter type that
+// the other computes a move between two sessions' closes from a
+// `SecurityLastClose` — in `UniverseTable/last-close.ts` when this was
+// written, and in `packages/shared/src/live-change.ts` since 2026-09-26. One function over both would take a parameter type that
 // is the union of two unrelated records, which is a module named after a shape
 // rather than a meaning — the thing the note was avoiding in the first place.
 //
