@@ -1,6 +1,6 @@
 # Task 4.2.5 — Four proxies on the landing page, moving
 
-**Status:** Not started
+**Status:** **In progress — 2026-09-26.**
 **Story:** [4.2 The Aggregate Seam, & the Index Proxies That Move](STORY.md)
 **Depends on:** 4.2.2, 4.2.4
 
