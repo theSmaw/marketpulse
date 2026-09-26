@@ -616,3 +616,100 @@ describe("a type this bundle has never heard of", () => {
     expect(decodeMarketStreamMessage(stale).kind).toBe("unreadable");
   });
 });
+
+describe("a non-finite number never reaches this wire, and the SERIALISER is what says so", () => {
+  // **These assert on the encoded STRING, both of them**, because a decoded
+  // `undefined` and an omitted key are indistinguishable — and because the
+  // guarantee under test is the encoder's own. The producer
+  // (`toWireMarketOverview`) no longer checks: ADR 0031's argument is that a
+  // transport with no schema layer owes its guarantee where the encoding
+  // happens, not at whichever call site remembers.
+
+  it.each([
+    ["Infinity", Number.POSITIVE_INFINITY],
+    ["-Infinity", Number.NEGATIVE_INFINITY],
+    ["NaN", Number.NaN],
+  ])("OMITS a %s percentage rather than writing `null`", (_label, value) => {
+    const wire = encodeMarketStreamMessage(
+      overviewMessage({
+        figures: [
+          {
+            state: "observed",
+            symbol: "SPY",
+            at: OVERVIEW_AT,
+            price: 655.2,
+            changePercent: value,
+            changeBasis: "2026-09-25",
+          },
+        ],
+      }),
+    );
+
+    expect(wire).not.toContain("null");
+    expect(wire).not.toContain("changePercent");
+    // And the basis does not survive the percentage it describes.
+    expect(wire).not.toContain("changeBasis");
+    expect(wire).toContain('"price":655.2');
+  });
+
+  it.each([
+    ["Infinity", Number.POSITIVE_INFINITY],
+    ["NaN", Number.NaN],
+  ])("DROPS a figure whose %s price cannot be written", (_label, value) => {
+    // A `"price":null` is read as absent by a strict reader and as **`0`** by
+    // a lenient one, and `0` is a plausible price. `json-schema.ts` measured
+    // that trap on the HTTP wire; here there is no schema to blame.
+    const wire = encodeMarketStreamMessage(
+      overviewMessage({
+        figures: [
+          { state: "observed", symbol: "SPY", at: OVERVIEW_AT, price: value },
+          { state: "unknown", symbol: "QQQ" },
+        ],
+      }),
+    );
+
+    expect(wire).not.toContain("null");
+    expect(wire).not.toContain("SPY");
+    expect(wire).toContain('{"state":"unknown","symbol":"QQQ"}');
+    // `flatMap`, not `map` — a dropped figure is absent from the array
+    // rather than a hole in it.
+    expect(wire).toContain('"figures":[{');
+  });
+
+  it("DROPS a stored figure whose close cannot be written", () => {
+    const wire = encodeMarketStreamMessage(
+      overviewMessage({
+        figures: [
+          {
+            state: "stored",
+            symbol: "DIA",
+            session: "2026-09-25",
+            close: Number.NaN,
+          },
+        ],
+      }),
+    );
+
+    expect(wire).toContain('"figures":[]');
+    expect(wire).not.toContain("null");
+  });
+});
+
+describe("a frame with no type at all is US, not a newer gateway", () => {
+  it.each([
+    ["absent", '{"version":1}'],
+    ["a number", '{"type":7,"version":1}'],
+    ["null", '{"type":null,"version":1}'],
+  ])("reports a %s type as unreadable rather than unsupported", (_l, raw) => {
+    // **Corrected after review.** The first version answered `unsupported`
+    // for anything that fell through, so a typeless frame — which only our
+    // own gateway can produce, and only by being broken — was dropped by the
+    // browser and invisible on every surface. Only a NAMED type earns the
+    // forward-compatible disposition.
+    const decoded = decodeMarketStreamMessage(raw);
+    expect(decoded.kind).toBe("unreadable");
+    expect(decoded.kind === "unreadable" && decoded.reason).toContain(
+      "unknown message type",
+    );
+  });
+});

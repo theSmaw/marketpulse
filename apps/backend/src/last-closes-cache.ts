@@ -22,10 +22,40 @@ import type { LastClose, MarketBarsRepository } from "./market-bars.js";
  *
  * 1. **Loaded at startup**, by `index.ts`, off the hot path entirely.
  * 2. **Refreshed on a condition, never on a schedule.** The condition is the
- *    first burst whose **market date** differs from the one the held map was
- *    loaded for — which is the only thing that can make these closes wrong,
- *    because the nightly backfill writes a new session and nothing else moves
- *    them. A timer would be a poll with a number nobody measured.
+ *    first ask whose **market date** differs from the one the held map was
+ *    loaded for. A timer would be a poll with a number nobody measured.
+ *
+ *    **What that condition cannot see, stated rather than discovered**
+ *    (added 2026-09-26 after review). `loadedFor` records the session we
+ *    were **asked about**, not the session the data we got back belongs to —
+ *    and the query is `readLastCloses("1d")`, which has no `observed_at`
+ *    bound and simply answers *the newest daily bar per security*. So a
+ *    refresh that runs **after midnight ET and before the nightly backfill**
+ *    reads yesterday's closes, records today's date against them, and can
+ *    never fire again that day: `session !== loadedFor` is false for the
+ *    rest of it. The symptom is every proxy's change measured across **two**
+ *    sessions — a well-formed, correctly-coloured, wrong number.
+ *
+ *    **Why it is accepted rather than repaired here.** The only correct
+ *    condition is *the newest close we hold is older than the newest close
+ *    that should exist*, and the right-hand side is a calendar question this
+ *    module would have to answer — the store holds the **previous** session
+ *    during a live session and today's after the nightly run, which is a
+ *    property of the backfill's timing that nothing in this repository
+ *    asserts and that this task could not measure. Every cheaper version
+ *    turns the condition into a poll: retrying whenever the read *did not
+ *    advance* is one 518-row query a minute for the whole of every weekend,
+ *    because a Sunday has no new close to find.
+ *
+ *    **So the window is made OBSERVABLE instead**, which is the half that
+ *    can be honest today: a refresh whose newest session did not move is
+ *    logged by name, so the state can be seen in production rather than
+ *    inferred from a wrong percentage. `docs/GAPS.md` carries the claim.
+ *
+ *    **Reversal trigger, as a condition:** the first deployment where
+ *    `GET /diagnostics/freshness` reports the store a session behind after
+ *    09:30 ET — which is the same evidence that says the backfill missed a
+ *    night, and is the only circumstance in which this window is reachable.
  * 3. **A failed refresh never empties it.** A stale-but-true denominator beats
  *    no figure: the alternative is four proxies that had a change percentage a
  *    moment ago and now do not, because a database hiccuped. The held map is
@@ -112,6 +142,22 @@ const toSecurityLastClose = (close: LastClose): SecurityLastClose => ({
   previousClose: close.previousClose,
 });
 
+/**
+ * The newest session any of these closes belongs to, or `undefined` for none.
+ *
+ * A `MarketDate` is `YYYY-MM-DD`, so the lexical maximum is the latest — no
+ * parsing, and nothing here reads a clock.
+ */
+const newestSessionIn = (
+  closes: ReadonlyMap<Ticker, SecurityLastClose>,
+): MarketDate | undefined => {
+  let newest: MarketDate | undefined;
+  for (const close of closes.values()) {
+    if (newest === undefined || close.session > newest) newest = close.session;
+  }
+  return newest;
+};
+
 export function createLastClosesCache(
   options: LastClosesCacheOptions,
 ): LastClosesCache {
@@ -131,6 +177,8 @@ export function createLastClosesCache(
    * which a second session arriving within a minute of startup was ignored.
    */
   let lastFailureAt: number | undefined;
+  /** The newest session the held map actually covers. For the log in `read`. */
+  let newestHeld: MarketDate | undefined;
 
   const read = async (session: MarketDate): Promise<void> => {
     inFlight = true;
@@ -140,7 +188,20 @@ export function createLastClosesCache(
       for (const [symbol, close] of rows) {
         next.set(symbol, toSecurityLastClose(close));
       }
+      // **`newestSessionIn` is read for the LOG and not for the
+      // condition**, deliberately — see rule 2. Deciding whether to refresh
+      // from it needs a calendar; saying out loud that it did not move needs
+      // only the two values we already have.
+      const newest = newestSessionIn(next);
+      if (loadedFor !== undefined && newest === newestHeld) {
+        warn(
+          { session, newestSession: newest ?? null, securities: next.size },
+          "last closes refreshed and the newest session did not move",
+        );
+      }
+
       held = next;
+      newestHeld = newest;
       loadedFor = session;
       lastFailureAt = undefined;
     } catch (error) {

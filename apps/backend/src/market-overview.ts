@@ -295,21 +295,23 @@ export function toWireMarketOverview(
       at: entry.bar.startsAt.toISOString(),
       price: entry.bar.close,
       // **Omission, in two branches.** `exactOptionalPropertyTypes` is on, so
-      // *absent* and *present as `undefined`* are different types and only the
-      // first is what this wire means. `Number.isFinite` is asked here as well
-      // as in the decoder because the producing side is where a division that
-      // has already been guarded twice could still arrive as an `Infinity` —
-      // and a figure that fails is **omitted**, never defaulted to zero, which
-      // would claim the price has not moved.
-      ...(percent === null || !Number.isFinite(percent)
-        ? {}
-        : { changePercent: percent }),
+      // *absent* and *present as `undefined`* are different types and only
+      // the first is what this wire means.
+      //
+      // **`null` is the DOMAIN absence and is this module's to spell**:
+      // `LiveChange.percent` is `null` when there is nothing to measure from,
+      // which is §36's partial answer rather than a zero. **A non-finite
+      // number is the WIRE's problem and is deliberately not checked here** —
+      // `encodeFigure` omits one, in the serialiser, because ADR 0031's
+      // argument is that a transport with no schema layer owes its guarantee
+      // where the encoding happens and not at whichever call site happens to
+      // remember. A `Number.isFinite` here as well would be one rule with two
+      // homes, and the second is the one that gets forgotten.
+      ...(percent === null ? {} : { changePercent: percent }),
       // The basis names the session a figure was measured from, so it does
       // not travel without one — a date describing a percentage that is not
       // there is ADR 0029's false impression, one field wide.
-      ...(percent === null || !Number.isFinite(percent) || basis === null
-        ? {}
-        : { changeBasis: basis }),
+      ...(percent === null || basis === null ? {} : { changeBasis: basis }),
     });
   }
 

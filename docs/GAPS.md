@@ -879,3 +879,36 @@ refresh**, never **what to return**, and this entry stands.
 
 **Owner: Epic 13's temporal plugin**, by condition rather than by story number:
 **the first caller of `closesAsOf` whose `asOf` is not the wall clock.**
+
+### And the same absent bound has a second consequence, today rather than under a replay
+
+**Added 2026-09-26 after review, in the same entry because it is the same
+missing `observed_at`.** The cache records `loadedFor` — the session it was
+**asked about** — against whatever the unbounded read returned. So a refresh
+running **after midnight ET and before the nightly backfill** reads yesterday's
+closes, stamps today's date on them, and can never fire again that day, because
+`session !== loadedFor` is false for the rest of it. Every proxy's change is
+then measured across **two** sessions: a well-formed, correctly-coloured, wrong
+number.
+
+**Not repaired, and the reason is that the correct condition needs a fact
+nothing here asserts.** It is _the newest close we hold is older than the newest
+close that should exist_, and the right-hand side is the backfill's timing — the
+store holds the **previous** session during a live session and today's after the
+nightly run. Every cheaper condition becomes a poll: retrying whenever a read
+did not advance is one 518-row query a minute for the whole of every weekend,
+because a Sunday has no new close to find.
+
+**What was done instead is to make the window observable.** A refresh whose
+newest session did not move is logged by name —
+`last closes refreshed and the newest session did not move` — so the state is
+visible in production rather than inferred from a wrong percentage.
+
+**Re-measure** —
+`grep -n "the newest session did not move" apps/backend/src/last-closes-cache.ts`
+for the instrument, and the deployed log for whether it has ever fired.
+
+**Reversal trigger, as a condition:** the first deployment where
+`GET /diagnostics/freshness` reports the store a session behind **after 09:30
+ET**, which is the same evidence that says the backfill missed a night and is
+the only circumstance in which this window is reachable.

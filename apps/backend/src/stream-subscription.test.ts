@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { STREAM_SYMBOLS } from "./market-stream.js";
 import {
   UNIVERSE,
+  indexProxyTickers,
   trackedSecurities,
   trackedSymbols,
   trackedTickers,
@@ -78,5 +79,35 @@ describe("the symbols this backend subscribes to", () => {
     expect(trackedTickers(universe)).toEqual([toTicker("AAA")]);
     expect([...trackedSymbols(universe)]).toEqual(["AAA"]);
     expect(trackedSecurities(universe)).toHaveLength(1);
+  });
+});
+
+describe("the index proxies the overview is about (Task 4.2.4)", () => {
+  it("is §6's four names, in §6's order", () => {
+    // **The one place this contract is stated**, and the only supplier of the
+    // landing page's proxy list. `UNIVERSE.md` §8's rule against asserting a
+    // count does not reach here: this is not *how many securities do we
+    // track*, it is `PRODUCT_SPEC.md` §6 naming four by hand — a closed set
+    // with a published order, which the strip renders left to right.
+    //
+    // A fifth `index_etf` added to `universe.ts`, or one of these four
+    // marked `untracked`, changes the top of the landing page and breaks
+    // this. That is the intent: the proxy set is a universe change and not a
+    // layout choice, and this is where it announces itself.
+    expect(indexProxyTickers()).toEqual(["SPY", "QQQ", "DIA", "IWM"]);
+  });
+
+  it("filters on `status`, which is the invisible predicate", () => {
+    // `UNIVERSE.md` §12.2: filter when computing over the market we track
+    // NOW, and never when showing something we stored. An overview of what
+    // is happening right now is squarely the first — the same side
+    // `current-market-state.ts` is on.
+    const retired: readonly Security[] = UNIVERSE.map((security) =>
+      security.symbol === "DIA"
+        ? { ...security, status: "untracked" as const }
+        : security,
+    );
+
+    expect(indexProxyTickers(retired)).toEqual(["SPY", "QQQ", "IWM"]);
   });
 });

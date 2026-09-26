@@ -199,18 +199,28 @@ export function connectMarketStream(
 
     const decoded = decodeMarketStreamMessage(event.data);
 
-    // **A frame this bundle has no type for is DROPPED, not counted** (Task
-    // 4.2.4). It is neither a message nor a defect: the deploy rolls the
-    // backend first, so a tab left open on the previous bundle meets a
-    // gateway sending a type it predates, and that tab is working perfectly.
+    // **A frame this bundle has no type for is not counted — and is still
+    // reported** (Task 4.2.4, corrected after review). It is neither a
+    // message nor a defect: the deploy rolls the backend first, so a tab left
+    // open on the previous bundle meets a gateway sending a type it predates,
+    // and that tab is working perfectly.
     //
     // Counting it as `unreadable` would tick a field `LiveFeedView`
     // documents as *"Zero on every healthy deployment"*, and that field is in
     // `sameLiveFeedView` — so the count changing would re-render the whole
-    // application on **every** such frame, indefinitely. Nothing is lost by
-    // dropping it: a message this bundle cannot name is a message it has no
-    // reader for.
-    if (decoded.kind === "unsupported") return;
+    // application on **every** such frame, indefinitely.
+    //
+    // **But it must not be swallowed either.** The first version returned
+    // here, so the frame advanced nothing — and `advanceLiveFeed`'s stated
+    // rule is that *every inbound message, including one we could not read,
+    // is evidence the socket is alive*. A tab whose traffic was mostly a
+    // frame type it predates would read `DISCONNECTED` on a healthy socket.
+    // So it goes up as its own event kind, which moves the instant and
+    // touches nothing else.
+    if (decoded.kind === "unsupported") {
+      listen({ kind: "unsupported", at });
+      return;
+    }
 
     listen(
       decoded.kind === "message"

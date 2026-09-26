@@ -655,33 +655,77 @@ const unknownFigureFields: WireFields<WireUnknownFigure> = {
 };
 
 /**
- * A figure to its wire object — **and the one place an omitted field is
- * actually omitted.**
+ * A figure to its wire object, or **`undefined` for a figure that cannot be
+ * honestly encoded** — and the one place an omitted field is actually
+ * omitted.
  *
  * `toWire` walks the **map's** keys, so a key in the map is a key on the wire
  * whatever it holds — which is exactly the property that makes a leak
  * impossible and is therefore also the property that makes an optional field
  * unrepresentable through it. So the two optional fields are handled by name,
  * in **two branches** rather than by assigning `undefined`:
- * `exactOptionalPropertyTypes` is on, and `undefined` is not a JSON value —
- * `JSON.stringify` drops it from an object and writes `null` for it inside an
- * array, so a serialiser that returns one is a refactor away from putting a
- * `null` on a wire whose stated rule is that absence is omission.
+ * `exactOptionalPropertyTypes` is on, and `undefined` is not a JSON value.
+ *
+ * ## The non-finite guard is HERE and not at the call site, and that is ADR 0031
+ *
+ * **Corrected 2026-09-26, after review, and the correction is this comment's
+ * own prediction coming true one step early.** The first version said a
+ * serialiser returning `undefined` was *"a refactor away"* from putting a
+ * `null` on this wire — and it was not a refactor away, it was **one caller
+ * away**: `JSON.stringify` writes `null` for a non-finite number, so
+ * `changePercent: Infinity` reached the wire as `"changePercent":null` and
+ * `price: NaN` as `"price":null`. The only thing preventing it was a
+ * `Number.isFinite` check in `toWireMarketOverview`, **a different module in
+ * a different package**, held there by convention.
+ *
+ * ADR 0031's whole argument is that a transport without a schema layer owes
+ * its guarantee in the **serialiser** rather than at the call site, because
+ * the call site is where the next author stands. So:
+ *
+ * - a non-finite **optional** number is **omitted**, which is a state the
+ *   union already has words for — a true price with no measurable move;
+ * - a non-finite **required** number makes the whole **figure** undefined,
+ *   which is `readFigure`'s own rule at the other end of the wire: an entry
+ *   that cannot carry its number is **not an entry**. A `"price":null` would
+ *   be read as absent by a strict reader and as **`0`** by a lenient one, and
+ *   `0` is a plausible price. This is `json-schema.ts`'s measured trap —
+ *   *a `null` under `"number"` reaches the wire as `0`* — arriving on a
+ *   transport that has no schema to blame.
+ *
+ * A change percentage is the most `Infinity`-prone number this product
+ * produces: `live-change.ts` guards a zero basis twice and calls
+ * `"+Infinity%"` the most alarming figure on the page.
  *
  * **The required half stays exhaustive.** `Omit` is what keeps that true: a
  * field added to {@link WireObservedFigure} lands in the omitted type and the
  * map fails to compile, naming it.
  */
-const encodeFigure = (figure: WireOverviewFigure): JsonValue => {
-  if (figure.state === "stored") return toWire(storedFigureFields, figure);
+const finiteOr = (value: number): number | undefined =>
+  Number.isFinite(value) ? value : undefined;
+
+const encodeFigure = (figure: WireOverviewFigure): JsonValue | undefined => {
+  if (figure.state === "stored") {
+    if (finiteOr(figure.close) === undefined) return undefined;
+    return toWire(storedFigureFields, figure);
+  }
+
   if (figure.state === "unknown") return toWire(unknownFigureFields, figure);
+
+  if (finiteOr(figure.price) === undefined) return undefined;
+
+  // `changeBasis` travels only with a percentage, here as well as in
+  // `toWireMarketOverview`: a date describing a figure that is not there is
+  // ADR 0029's false impression one field wide, and a non-finite percentage
+  // has just made it not there.
+  const percent =
+    figure.changePercent === undefined
+      ? undefined
+      : finiteOr(figure.changePercent);
 
   return {
     ...toWire(observedFigureFields, figure),
-    ...(figure.changePercent === undefined
-      ? {}
-      : { changePercent: figure.changePercent }),
-    ...(figure.changeBasis === undefined
+    ...(percent === undefined ? {} : { changePercent: percent }),
+    ...(percent === undefined || figure.changeBasis === undefined
       ? {}
       : { changeBasis: figure.changeBasis }),
   };
@@ -690,7 +734,13 @@ const encodeFigure = (figure: WireOverviewFigure): JsonValue => {
 const overviewFields: WireFields<WireMarketOverview> = {
   computedAt: asIs,
   feeds: (feeds) => [...feeds],
-  figures: (figures) => figures.map(encodeFigure),
+  // **`flatMap` rather than `map`**, so a dropped figure is absent rather
+  // than a `null` in the array — which is the same defect one container out.
+  figures: (figures) =>
+    figures.flatMap((figure) => {
+      const wire = encodeFigure(figure);
+      return wire === undefined ? [] : [wire];
+    }),
 };
 
 const overviewMessageFields: WireFields<OverviewMessage> = {
@@ -1013,13 +1063,26 @@ export function decodeMarketStreamMessage(raw: string): DecodedMessage {
       };
     }
     default:
-      // **Neither a message nor a defect.** A type we do not know is a newer
-      // gateway talking to an older bundle, which is an ordinary state during
-      // every deploy — see {@link DecodedMessage}'s `unsupported` member for
-      // what counting it as a defect costs.
+      // **Neither a message nor a defect — but only for a frame that NAMES a
+      // type.** A type we do not know is a newer gateway talking to an older
+      // bundle, which is an ordinary state during every deploy.
+      //
+      // **A frame with no type, or a type that is not a string, is us being
+      // broken** (corrected 2026-09-26 after review). The first version
+      // answered `unsupported` for anything that fell through, so
+      // `{"version":1}` decoded as `{ kind: "unsupported", type: "" }` and
+      // the browser dropped it silently — a malfunction of **our own
+      // gateway** made invisible on every surface, where it had previously
+      // been counted. Only a named type earns the forward-compatible
+      // disposition; everything else falls through to `unreadable`, which is
+      // what the count in `LiveFeedView` is for.
+      if (typeof parsed.type === "string") {
+        return { kind: "unsupported", type: parsed.type };
+      }
+
       return {
-        kind: "unsupported",
-        type: typeof parsed.type === "string" ? parsed.type : "",
+        kind: "unreadable",
+        reason: `unknown message type ${JSON.stringify(parsed.type)}`,
       };
   }
 }

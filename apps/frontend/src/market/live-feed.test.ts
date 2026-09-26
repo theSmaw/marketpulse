@@ -1002,6 +1002,36 @@ describe("the overview frame (Task 4.2.4)", () => {
     ).toBe(true);
   });
 
+  it("an unsupported frame keeps the socket alive without counting a defect", () => {
+    // **`advanceLiveFeed`'s own rule, applied to the new kind**: every
+    // inbound message is evidence the socket is alive, whatever its contents
+    // turn out to be. A stale tab whose traffic is mostly a frame type it
+    // predates must not read `DISCONNECTED` on a healthy socket — and must
+    // not tick a counter documented as *"Zero on every healthy deployment"*.
+    const before = healthy();
+    const after = advanceLiveFeed(before, { kind: "unsupported", at: 200_000 });
+
+    expect(after.lastInboundAt).toBe(200_000);
+    expect(after.unreadable).toBe(before.unreadable);
+    expect(after.lastUnreadableReason).toBe(before.lastUnreadableReason);
+    expect(after.observations).toBe(before.observations);
+    expect(after.overview).toBe(before.overview);
+    expect(after.lastObservationAt).toBe(before.lastObservationAt);
+  });
+
+  it("keeps the backend reachable on a diet of frames this bundle predates", () => {
+    // The behavioural half. 165 s of silence is `disconnected`; 165 s of
+    // frames we have no reader for is a working socket.
+    let state = healthy();
+    for (let at = 60_000; at <= 400_000; at += 30_000) {
+      state = advanceLiveFeed(state, { kind: "unsupported", at });
+    }
+
+    expect(at(state, 400_000, BAR_ARRIVED + 400_000).backendReachable).toBe(
+      true,
+    );
+  });
+
   it("survives a degradation with the aggregate still on screen", () => {
     // §36: a feed that has stopped still holds the last figures it saw, and
     // blanking them would be the product removing true information because a

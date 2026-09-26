@@ -75,6 +75,29 @@ export type LiveFeedEvent =
       readonly at: number;
     }
   /**
+   * **A message this bundle has no type for** (Task 4.2.4) — a newer gateway
+   * talking to an older tab, which is an ordinary state during every deploy.
+   *
+   * ## Why it is an event at all, rather than being dropped in the transport
+   *
+   * Because of the rule three lines into {@link advanceLiveFeed}: *every
+   * inbound message — including one we could not read — is evidence the
+   * socket is alive.* The first version returned from the transport before
+   * `listen`, so an unsupported frame advanced **nothing** — harmless while a
+   * stale tab still receives `bars` and the keepalive, and a **false
+   * `DISCONNECTED` on a perfectly healthy socket** the day a future frame
+   * type carries a meaningful share of such a tab's traffic. §6.4's lesson
+   * does not care whether we understood the bytes.
+   *
+   * It carries no `reason` and is **not counted**: it is not a defect, and
+   * the field that counts defects is documented as *"Zero on every healthy
+   * deployment"* and is compared in `sameLiveFeedView`.
+   */
+  | {
+      readonly kind: "unsupported";
+      readonly at: number;
+    }
+  /**
    * The socket closed.
    *
    * **`code` was added by Task 3.5.5 and it is not a reversal of §8.5.** That
@@ -421,6 +444,12 @@ export function advanceLiveFeed(
         lastUnreadableReason: event.reason,
       };
 
+    // **The socket is alive and we have nothing to do with the contents.**
+    // `inbound` is the whole answer: `lastInboundAt` moves, the defect count
+    // does not, and no other field is touched.
+    case "unsupported":
+      return inbound;
+
     case "closed":
       // **No reconnection.** Story 3.10 owns retry, and this is exactly where
       // somebody adds a loop without noticing it is a policy. Report it
@@ -727,10 +756,25 @@ export function sameLiveFeedView(a: LiveFeedView, b: LiveFeedView): boolean {
     // every test green, because nothing renders. The test that catches it
     // asserts the **negative**: an overview frame causes a render.
     //
-    // **By reference, and that is sound rather than lucky.**
-    // `advanceLiveFeed` replaces this exactly when an overview frame arrives
-    // and keeps the same reference otherwise, so the reference IS the change
-    // signal — `withObservations`' property, obtained the same way.
+    // **By reference, and the comparison is DELIBERATELY coarser than the
+    // Map's.** `withObservations` returns the same reference when nothing
+    // arrived, so its identity check is exact. This one is not:
+    // `advanceLiveFeed` stores whatever the decoder built, and the decoder
+    // builds a **new object for every overview frame** — so an aggregate
+    // whose figures are byte-identical to the last one still reports a
+    // change, and the application re-renders.
+    //
+    // That is accepted rather than overlooked, on two grounds. The frame
+    // carries `computedAt`, which moves on every rebuild, so two consecutive
+    // aggregates are never genuinely identical — a deep comparison would
+    // have to be told to ignore a field that is part of the answer. And the
+    // rate is the `bars` cadence, ~16 a minute (§9.5), against a gate whose
+    // job is to stop the 120 s keepalive rendering — which it still does,
+    // because a keepalive carries no aggregate and leaves this reference
+    // alone.
+    //
+    // **The direction of the error is the safe one**: over-eager renders,
+    // never a silent miss. A miss is the defect the comment above records.
     a.overview === b.overview
   );
 }

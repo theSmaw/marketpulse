@@ -127,6 +127,11 @@ describe("what reaches the state above", () => {
     // tick a field documented as *"Zero on every healthy deployment"* — and
     // that field is in `sameLiveFeedView`, so the count changing re-renders
     // the whole application on **every** such frame, indefinitely.
+    //
+    // **And it must still be reported**, because `advanceLiveFeed`'s rule is
+    // that every inbound message is evidence the socket is alive. Dropping
+    // it here — the first version — would be a false `DISCONNECTED` on a
+    // healthy socket the day such a frame carries real traffic.
     const { socket, events } = connect();
 
     socket.emit("open");
@@ -138,8 +143,22 @@ describe("what reaches the state above", () => {
       }),
     });
 
-    // The open, and nothing else. No message, and no defect.
-    expect(events.map((event) => event.kind)).toEqual(["opened"]);
+    // Its own kind: not a message, and not a defect.
+    expect(events.map((event) => event.kind)).toEqual([
+      "opened",
+      "unsupported",
+    ]);
+    expect(events[1]).not.toHaveProperty("reason");
+  });
+
+  it("reports a frame with NO type as a defect, because that one is ours", () => {
+    const { socket, events } = connect();
+
+    socket.emit("message", {
+      data: JSON.stringify({ version: MARKET_STREAM_PROTOCOL_VERSION }),
+    });
+
+    expect(events[0]).toMatchObject({ kind: "unreadable" });
   });
 
   it("treats a non-text frame as unreadable rather than crashing on it", () => {

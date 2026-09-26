@@ -77,3 +77,30 @@ will after 4.4, because each clause renders only when its own data is present.
 4. The note's clauses each render only when their own data is present, shown on
    a store with no live figures
 5. `PROVENANCE.md` §1.3 carries the dated amendment
+
+## Amended by Task 4.2.4 — 2026-09-26: the wire can name one tape and not the other, and this task is where that is resolved
+
+**The frame carries `feeds: readonly MarketFeed[]`, and it describes the
+OBSERVED figures only.** On the deployed gateway during a session it is
+`["iex"]`; on any deployment with no provider it is `[]`. **It is never
+`["sip"]`**, because a stored close's tape deliberately does not appear in it.
+
+**So the wire can say _these figures are IEX_ and cannot say _and the
+denominators are consolidated_** — which is the whole of invariant 6 on this
+screen, and it is this task's to resolve rather than the frame's.
+
+**Do not add a second field to the wire for it.** The resolution is already the
+shape this task was written to: the screen's **one source note** states both
+tapes — the feed behind the live figures in `MARKET_FEED_DESCRIPTIONS`' own
+words, and the consolidated tape behind the stored closes — while each tile
+says only **which of the two it is**, through the `observed` / `stored`
+discriminant the frame already carries and the session date a stored figure
+already renders. The note speaks for the screen; the discriminant speaks for
+the figure; neither repeats the other.
+
+**The trap this avoids is measured rather than theoretical.** A change
+percentage on this screen has an **IEX numerator and a consolidated-SIP
+denominator**. That is already true of the universe table and is not new — but
+this is the first surface to compute it centrally, and a frame that named one
+tape beside a figure derived from two would be the "displayed, never implied"
+clause failing in the direction that looks most correct.
