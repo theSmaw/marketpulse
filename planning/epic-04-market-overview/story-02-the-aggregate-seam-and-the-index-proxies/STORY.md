@@ -1,6 +1,6 @@
 # Story 4.2 — The Aggregate Seam, & the Index Proxies That Move
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-26**
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.1
 **Epic scope covered:** major ETF/index proxy summary; the one place an aggregate is computed
@@ -278,3 +278,71 @@ into; **`MARKET_STREAM_PROTOCOL_VERSION` is not bumped**, because the deploy
 rolls the backend first and bumping makes a stale tab reject every frame rather
 than ignore one; and the empty connect-time snapshot **stays**, being the only
 frame an unsubscribed browser gets before the 120 s keepalive.
+
+## Closed 2026-09-26 — nine tasks, and what a green run does not certify
+
+**Four index proxies are on the landing page and they move.** `SPY`, `QQQ`,
+`DIA`, `IWM`, each with a price, a change measured by the one shared
+`changeFromClose`, the shipped arrival mark, an honest sentence in every absence
+state, and one source note for the screen naming both tapes. The region is
+`Market proxies`.
+
+**The seam is the JOIN**, and calling it an aggregate is what hid it for a
+decomposition: nothing in this backend could join a live observation to the
+previous session's stored close. It is a **pure** function — the map, a closes
+lookup and an `asOf` as arguments, no clock, no handle, no socket — which is what
+makes invariant 4 structural rather than instructed, and every later aggregate
+inherits it. [ADR 0038](../../../docs/adr/0038-the-overview-aggregate-one-join-one-frame.md).
+
+### The six acceptance criteria
+
+| #   | Verdict                                                                          |
+| --- | -------------------------------------------------------------------------------- |
+| 1   | **Met for the stored half.** The live half is **unobserved by anything**         |
+| 2   | **Met, and stronger than written** — one implementation, two processes           |
+| 3   | **Met as restated**: the story named two absence states, the product ships three |
+| 4   | **Met as restated** — a producer walk and four breaks, not a test                |
+| 5   | **Met.** Guarded mechanically in part, by reading in part                        |
+| 6   | **Met only after the close found the spec had never been committed**             |
+
+### What no gated machine has ever seen
+
+**Nothing, machine or person, has watched a proxy figure move against a real
+feed.** On CI every proxy is `unknown` for ever — 518 securities, zero bars — so
+`observed`, `stored` and the two-tape source note occur on **no gated machine**,
+and the two-feed note exists **mid-session only**. Every browser assertion drives
+a socket this repository writes the frames for; every unit suite runs against a
+corpus we wrote. `LIVE-REHEARSAL.md` has no row for this story.
+
+### Five things this story found that were not its own defects
+
+- **The spec for criterion 6 was written, run green, recorded in three documents
+  and never committed** — a PR titled after it merged three files and no spec.
+  Found by the acceptance verification, by no check. `pnpm verify` and `pnpm e2e`
+  were green throughout, because a suite cannot miss a file it has never heard of.
+- **Four consecutive tasks shipped a guard that passed green on the exact defect
+  it forbade**, each caught only by writing the offending file first. All four had
+  breaks and all four breaks went red, because a break edits the file the check
+  was written around.
+- **`composes:` does not give the composing rule the last word** — it
+  concatenates class names and does not cascade, so `text-transform: none` under
+  `composes: microLabel` lost. Invisible for a day because every string those
+  classes had held was digits; the first **word** rendered `· CLOSING PRICES`.
+  A sweep of all 37 modules found a second live instance in `AppHeader`.
+- **A browser failure that read as machine contention was a ~12% pre-existing
+  flake**, established by running the branch commit that contains **no code** —
+  one line of Markdown, byte-identical runtime trees, and it failed 2 of 12.
+- **`docs/GAPS.md` entry 13's second half had never been run in this
+  repository.** Running it found **two reachable states missing from a grid
+  published four days earlier**, both shipping.
+
+### Left open, each with an owner
+
+Six `docs/GAPS.md` entries — the focus ring clipped by its own geometry at both
+sticky edges; `AppHeader`'s composes defect, which inflated the element whose
+201 px decided what wraps at 390; two diagnosed browser flakes; the closes
+cache's stale denominator, whose trigger was **corrected at this close** because
+it could not fire in the case it was written for; and the whole-tree re-render on
+four routes that nothing owns. Two listening-backlog entries. Six sibling
+constraints written into 4.3–4.8's own files — **all six were missing**, which is
+the sideways-sweep rule earning its place.

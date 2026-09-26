@@ -80,8 +80,18 @@ than only read.
 `Current investigations` — laid out on a grid that restates its spans at every
 breakpoint and collapses to one column at 390 with **breadth first**.
 ~~**Nothing on it holds a figure yet**~~ — **false since 2026-09-26: the first
-region holds four.** Task 4.2.5 filled `Market proxies` with `SPY`, `QQQ`,
-`DIA` and `IWM`, and **renamed it** from `Market summary`, which was a second
+region holds four, and they move.** **Story 4.2 is complete** — the landing page
+carries `SPY`, `QQQ`, `DIA` and `IWM` with a price, a change measured by the one
+shared `changeFromClose`, the shipped arrival mark, an honest sentence in every
+absence state, and **one source note for the screen** naming both tapes. Behind
+them is the seam four later stories go through: **the join** — a pure function
+over the live map, a closes lookup and an `asOf`, which is what makes invariant 4
+structural rather than instructed — carried to the browser on a fourth
+market-stream frame type ([ADR 0038](docs/adr/0038-the-overview-aggregate-one-join-one-frame.md)).
+**What no gated machine has ever seen is a proxy figure move against a real
+feed**: on CI every proxy is `unknown` for ever, so `observed` and `stored` occur
+only on a store with bars and the two-tape note only mid-session. Task 4.2.5
+**renamed** the region from `Market summary`, which was a second
 word for a concept the product already had (the `/securities` group heading,
 and `Market proxy` on the security page) and which promised the broadest view
 on a screen where three later regions summarise all 518. The other six still
@@ -642,6 +652,27 @@ were the edit. Each of these cost real time that session.
   same change and run `pnpm break <name>`. A check that has never failed has
   never been tested, and the harness restores the tree so there is no reason not
   to.
+- **A break proves the check works on the code you were looking at. Write the
+  defect somebody ELSE will write, and confirm the check passes WRONGLY first.**
+  Added 2026-09-26 after **four consecutive tasks in one story** shipped a guard
+  that was green on the exact defect it forbids — a brace matcher walked past by
+  a destructured parameter, a population keyed on the wire type while the next
+  author holds the backend one, a serialiser rule held by a check in another
+  package, and a corpus that was a hard-coded file list. **Every one of them had
+  a break and every break went red**, because a break edits the file the check
+  was written around. The procedure: **write the file the next story would
+  write, run the check, keep the transcript of it passing, then fix, then
+  confirm red, then delete the file.** Four minutes, and it caught what reading
+  the check twice did not, four times. Prefer a clause the re-implementer
+  **cannot avoid writing** — the division, not the type name.
+- **Red for the wrong reason reads exactly like proof.** A break that has
+  decayed into a parse error, or into breaking the file outright, fails loudly
+  and certifies nothing. Read the runner's output rather than the verdict line:
+  **an assertion failure with other tests still collecting** is the only red that
+  proves a check works. Produced 2026-09-26 — one rotted break's substitution
+  left a trailing `&&` inside a comment, and `every-break-can-still-land` cannot
+  see it, because it asserts the `find` text is present and not that the
+  substitution still expresses the defect.
 
 **Every story and task states what the user will be able to see**, and the honest answer is often "nothing". Three rules: say "nothing visible" plainly and name the story that pays it off; describe what is _on the screen_ rather than what was built; and say what the user still cannot do.
 

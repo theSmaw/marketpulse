@@ -2302,8 +2302,7 @@ export const BREAKS = [
     file: "e2e/specs/overview-proxy-live-update.spec.ts",
     find: '      type: "overview",',
     replace:
-      '      // pnpm break: reverted automatically\n' +
-      '      type: "bars",',
+      "      // pnpm break: reverted automatically\n" + '      type: "bars",',
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "drives an `overview` frame and asserts the figure",
   },

@@ -912,14 +912,53 @@ newest session did not move is logged by name —
 `last closes refreshed and the newest session did not move` — so the state is
 visible in production rather than inferred from a wrong percentage.
 
+**Corrected 2026-09-26 at Story 4.2's close — the trigger below could not fire
+in the case it was written for, and the instrument has two holes.** Found by the
+coherence review, not by running anything.
+
+**The trigger was wrong.** It read _the first deployment where
+`GET /diagnostics/freshness` reports the store a session behind **after 09:30
+ET**, which is … the only circumstance in which this window is reachable._ It is
+not. `backfill.yml` runs at **21:00 UTC (17:00 ET, before midnight ET)** and
+again at **08:00 UTC (04:00 ET)**. The window opens when the **evening** run
+fails and a refresh happens before the catch-up repairs the store — and the
+04:00 ET run then succeeds, so freshness is **clean** at 09:30 while the cache
+holds a two-session-old denominator for the rest of the day. As written the
+trigger fires only when **both** runs fail, which is strictly narrower than the
+defect.
+
+**The instrument has two holes, and the second is the one that makes the
+re-measure misleading.**
+
+- **A restart inside the window is silent for a whole session.** The warning is
+  suppressed on the first load (`loadedFor !== undefined`), so a deploy at
+  01:00 ET after a failed evening backfill loads D−2 closes, stamps D, never
+  warns, never refreshes again that day, and leaves freshness clean after 04:00.
+- **It fires harmlessly twice a week.** `newest === newestHeld` is true every
+  weekend and every holiday — the first connect on a Sunday asks for Sunday and
+  the read returns Friday's closes unchanged. So _has it ever fired_ is not the
+  question the log can answer. **That is the same Sunday asymmetry the code cites
+  as its reason for refusing a polling condition**, and the warning has the
+  identical property.
+
+**And one divergence this entry did not name.** `readLastCloses` now has **two
+readers with different freshness**: `GET /securities` reads it **per request**,
+while the aggregate reads a 60 s-backoff cache refreshed on a date comparison. In
+the window above the universe table's SPY change is right and the strip's is
+wrong, from one fact through two paths. Not on one screen today — **it will be
+when Story 4.4's breadth counts 518 securities off the cache.**
+
 **Re-measure** —
 `grep -n "the newest session did not move" apps/backend/src/last-closes-cache.ts`
-for the instrument, and the deployed log for whether it has ever fired.
+for the instrument. **Do not read the deployed log for whether it has fired**:
+it fires every weekend. Read it for a firing on a **weekday between 00:00 and
+09:30 ET**, which is the only signal that means anything, and remember a restart
+inside the window produces none.
 
-**Reversal trigger, as a condition:** the first deployment where
-`GET /diagnostics/freshness` reports the store a session behind **after 09:30
-ET**, which is the same evidence that says the backfill missed a night and is
-the only circumstance in which this window is reachable.
+**Reversal trigger, as a condition — restated:** the first deployment where the
+**evening** backfill run fails, or `GET /diagnostics/freshness` reports the store
+a session behind **at any hour between 00:00 and 09:30 ET**. Both are evidence
+the window is open; neither requires the catch-up run to have failed as well.
 
 ## The focus ring is clipped by exactly `--focus-width + --focus-offset` at both sticky edges, on every route
 
@@ -1074,3 +1113,43 @@ a developer's rarest.
 
 **Owner: the same condition as the entry above** — the first task that measures
 where a degraded page's remaining work goes, taken once for both.
+
+## Every open tab on every route now re-renders up to sixteen times a minute, and only `/` has an owner
+
+**Added 2026-09-26 at Story 4.2's close, by the coherence review.** Not a defect
+in itself — the decision is recorded and its error direction is the safe one —
+but the consequence is unmeasured on four of the five routes and unowned on all
+four.
+
+`useLiveFeed` is called in `App`, so **every** route holds the live feed. The
+overview frame's `overview` field is compared in `sameLiveFeedView` **by
+identity**, and the decoder builds a new object per frame — and `computedAt`
+moves on every rebuild, so two consecutive aggregates are never byte-identical
+and the gate **cannot** collapse them by construction. That was accepted
+deliberately: a deep comparison would have to be told to ignore part of the
+answer, and over-eager renders are the safe direction against the silent miss
+`sameLiveFeedView`'s own comment records.
+
+**The consequence: a security page subscribed to one symbol went from about one
+whole-tree render a minute to up to sixteen.** That is the same category as the
+40 ms-every-30-s health-poll re-render Task 3.6.5 found and repaired with two
+memo boundaries — `PRODUCT_SPEC.md` §28's **routine** word, not the once-per-visit
+cold load Epic 14 owns.
+
+**Story 4.8 owns the per-tick cost of `/`. Nothing owns `/securities`,
+`/securities/:symbol`, `/investigations` or `/replay`**, and the last two are
+placeholders today, which is exactly why this will be discovered late.
+
+The byte cost is not the issue and is recorded for completeness: 431 bytes
+measured × ~16 a minute ≈ **6.9 KiB/min per attached browser**, about 12% on top
+of a 518-subscribed client and roughly **3× the inbound bytes of a one-symbol
+security page**.
+
+**Re-measure** — a production build, `/securities/:symbol` open with the feed
+running, and the frame's script cost per tick against §28's 50 ms **routine**
+line. Task 3.6.5's instrument is the shape; its figures (46–49 ms a tick before
+two memo boundaries, 37–40 ms after) are the comparison.
+
+**Owner: a condition rather than a story number — the first story that measures
+a per-tick cost on any route other than `/`.** Story 4.8 is the first candidate
+and its scope is `/` only, so if it takes this it is widening deliberately.

@@ -232,3 +232,48 @@ computation in the browser over 518 securities.
   main-thread task** on the page `PRODUCT_SPEC.md` §28 is least able to afford
   one. That is the measured reason the decision went the way it did, not a
   preference.
+
+## Handed here by Story 4.2's close — 2026-09-26: three constraints on the denominator sentence
+
+**1. It must not reach for `live`, `stale` or `disconnected`.** Those words have
+one home — the status bar — and `one-home-for-the-feed-words` would trip on a
+second speller **and would deserve to**. The denominator qualifies **the
+coverage of one figure**; the connection is a different fact, and a healthy
+`LIVE` feed with 341 of 518 heard from in five minutes is the ordinary state of
+IEX rather than a fault.
+
+**2. The count is FROZEN between bursts, and that is unbounded when the feed
+dies.** The aggregate is computed once per applied batch, so a coverage figure
+is as of `computedAt` — **bounded at about a minute during a session and
+unbounded when nothing is arriving**. The frame carries `computedAt` for exactly
+this reader; a surface that renders a decayed count as current is asserting
+something it cannot establish. Read it.
+
+**3. The screen already has a source note and it is at the foot of the region
+group.** `OverviewSourceNote` states the feed behind the live figures, the tape
+behind the stored closes and when the aggregate was computed, and **each clause
+renders only when its own data is present** (ADR 0029), so it **grows** as your
+region lands rather than being rewritten. Do not add a second note; add your
+clause to that one.
+
+## And one more, from Story 4.2's integrated review — the ≤860 px reorder becomes real HERE
+
+**At `width <= 860px` the overview grid reorders VISUALLY** through
+`grid-template-areas` while DOM order is unchanged. So the eye meets
+`Market breadth` **second** and the keyboard and a screen reader meet it
+**sixth**.
+
+**Today that mismatch is unperceivable and this story is what makes it real.**
+Every one of the six reordered regions is a `reserved` placeholder with no
+figure and no focusable content — there is not one tab stop inside `.regions` at
+any width — so a keyboard user cannot land on the disagreement and a listener
+gets seven coherent region names either way. `Market proxies` sits outside
+`.regions` and is first in both orders, so Story 4.2 did not change it.
+
+**`Market breadth` is the region the reorder promotes to second visually and
+demotes to sixth in the DOM, and it is this story.** `Sector performance` is
+third in both and will not fire it. So the trigger is: **the first of the six
+reordered regions to gain a figure or a focusable control — which is this one,
+by name.** At that moment the eye's second region and the keyboard's sixth are
+the same panel, and it becomes a WCAG 1.3.2 / 2.4.3 question rather than a
+latent one. Decide it here rather than inheriting it.

@@ -71,3 +71,31 @@ commit message.
 
 The topology's own performance (Epic 6 and §27's WebGL targets), and Epic 14's
 existing two exceptions, which stay quote-only.
+
+## Handed here by Story 4.2's close — 2026-09-26: what the overview costs, and where to look
+
+**1. The aggregate is computed ONCE per applied batch and broadcast**, not per
+client — the payload is identical for every browser, unlike `bars`. So the
+backend cost does not scale with connections; the **browser** cost does, because
+every overview frame is a new object reference and therefore **a render on every
+route**, including pages that display no overview. That was accepted
+deliberately (the error direction is over-eager renders rather than a silent
+miss) and it is a figure you should take rather than inherit.
+
+**2. `bars` is up to ~16 frames a minute, not one.** This was corrected in
+Task 4.2.1 after three stories had carried the wrong figure; the arrival mark
+fires as one burst a minute, the **frames** do not. Anything sized against "one
+frame a minute" is sized against a premise that was false.
+
+**3. The strip's own per-tick cost is small and measured**: the region is
+1392×183 at 1440 and 342×269 at 390, ten states all at one height, and a firing
+mark shifts nothing. **What is not measured is the landing page with four
+aggregates on it** — and Epic 14's trigger is a condition, _the first time a
+second surface on that page renders per-row markup at universe scale_, which
+`Movers` will be.
+
+**4. `docs/GAPS.md` carries two browser flakes on the security page** that will
+muddy any measurement taken with the full suite running —
+`security-gap-fill.spec.ts` at **14 failures in 120 executions (~12%)** and
+`security-feed-degraded.spec.ts` comparing a live page against a baseline taken
+before the state it compares. Count failures per **execution**, not per run.

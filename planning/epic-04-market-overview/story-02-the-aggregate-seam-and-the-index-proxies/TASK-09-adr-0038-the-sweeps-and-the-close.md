@@ -1,6 +1,6 @@
 # Task 4.2.9 — ADR 0038, the sweeps, and the close
 
-**Status:** **In progress — 2026-09-26.**
+**Status:** **Complete — 2026-09-26.** ADR 0038 written and indexed. **The sideways sweep found six of six sibling constraints missing.** Two corrections landed here rather than being inherited: the closes cache's reversal trigger **could not fire in the case it was written for**, and the source note carried a second spelling of one kind of instant. And the close found acceptance criterion 6's spec had **never been committed** — written, run green, recorded three times, absent from `main`.
 **Story:** [4.2 The Aggregate Seam, & the Index Proxies That Move](STORY.md)
 **Depends on:** 4.2.8
 

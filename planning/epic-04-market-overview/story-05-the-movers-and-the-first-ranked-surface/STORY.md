@@ -149,3 +149,32 @@ the movers, it reads them off that frame.
 > browser that ranks 518 securities on every tick is a main-thread task on the
 > page `PRODUCT_SPEC.md` §28 is least able to afford one, and this product has
 > already paid for that lesson once on the securities table.
+
+## Handed here by Story 4.2's close — 2026-09-26: the fourth design test is live here, and a measurement is owed first
+
+**1. The fourth design test — _does it feel alive_ — is unanswered for a small
+set, and a measurement decides it before any judgement can.** `The mark
+multiplied by five hundred.dc.html` defends 518 simultaneous arrival marks on
+**rate** (332 bars inside a 243 ms burst, so the page is still for 59.7 seconds)
+and files the perceptual question under **"THE RISK THAT IS ACCEPTED RATHER THAN
+DISPROVED"** — its one perceptual reading is that discs at full density read as
+texture, which **needs density that a handful of cells on one line does not
+have**.
+
+**Before the rehearsal, read from the gateway whether a small set's bars arrive
+in ONE `bars` frame or spread across several of the ~16 a minute.** Four in one
+frame is a synchronised wave; four across several is a stagger the data
+genuinely has, arriving free. **A sitting that cannot say which the watcher saw
+cannot answer anything.** The inherited trigger's second clause is the live one:
+_the first surface where the burst stops being once a minute_.
+
+**2. A ranked list over 518 candidates once a minute is a ROUTINE per-tick
+cost**, in `PRODUCT_SPEC.md` §28's own word — the same category as the 40 ms
+every 30 s that Task 3.6.5 found and repaired with two memo boundaries, not the
+once-per-visit cold load Epic 14 owns. Size it against 518 from the first line.
+
+**3. A shared claim inverts on a small set.** On the proxy strip, when one of
+four ticks, **three of four cells carry an exception line** — the
+shared-claim-with-exceptions idiom makes the exception the majority. It
+misstates nothing, but a ranked surface that adopts the idiom should know it
+degrades as the set shrinks.
