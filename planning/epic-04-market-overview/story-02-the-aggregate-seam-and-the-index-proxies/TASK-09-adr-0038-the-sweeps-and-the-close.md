@@ -1,6 +1,6 @@
 # Task 4.2.9 — ADR 0038, the sweeps, and the close
 
-**Status:** Not started
+**Status:** **In progress — 2026-09-26.**
 **Story:** [4.2 The Aggregate Seam, & the Index Proxies That Move](STORY.md)
 **Depends on:** 4.2.8
 
