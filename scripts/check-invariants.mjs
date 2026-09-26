@@ -1846,6 +1846,204 @@ const INVARIANTS = [
   },
 
   {
+    id: "the-overview-frame-is-not-a-heartbeat",
+    claim:
+      "The overview frame is built in at most one place in " +
+      "`market-gateway.ts`, and the word `overview` appears nowhere in " +
+      "`feedMessage`, `publishFeedState`, the keepalive callback, or " +
+      "`index.ts`'s `onConnectionChange` handler.",
+    check() {
+      // **Written BEFORE the frame it guards** (Task 4.2.1), which is the only
+      // ordering in which it can be proved against the real defect rather
+      // than against a memory of one.
+      //
+      // ## The defect it forbids, measured
+      //
+      // Task 4.1.6 measured `alpaca-stream.ts` calling `apply()` inside the
+      // per-vendor-item loop and `index.ts` answering `onConnectionChange`
+      // with `publishFeedState()` — **~332 `feed` frames a minute, broadcast
+      // to every browser regardless of subscription**. That is unrepaired on
+      // purpose and handed to Story 4.7. The `feed` frame is 127 bytes and
+      // `sameLiveFeedView` collapses the render, which is why it survived a
+      // whole epic unnoticed.
+      //
+      // **An overview frame on that path inherits the rate and none of the
+      // mercy.** It would be sent ~332 times a minute instead of once, it
+      // carries an aggregate over 518 securities rather than three enum
+      // fields, and `sameLiveFeedView` does not cover it.
+      //
+      // ## Why the rule is about the WORD and the FRAME rather than a name
+      //
+      // The symbol does not exist yet, so a check keyed on one name would be
+      // a check whose target the implementing task is free to spell
+      // differently — and it would then pass for ever. What is guarded
+      // instead is the **frame** (`type: "overview"`, which the wire fixes)
+      // and the **regions** it may not appear in.
+      //
+      // ## Why the regions are sliced by their PRETTIER SHAPE, not by braces
+      //
+      // **The first draft counted braces from the next `{` after a marker,
+      // and a review demonstrated three ways through it** — all of them
+      // ordinary rather than adversarial:
+      //
+      //  1. A destructured parameter. `onConnectionChange: ({ phase }) => {`
+      //     made the "body" the destructuring pattern, so a publish on the
+      //     line after `publishFeedState()` passed.
+      //  2. A `}` in a trailing comment, a string, a template or a regex
+      //     literal truncated the region. `withoutComments` leaves trailing
+      //     `//` deliberately — its own note argues the asymmetry is the safe
+      //     direction because *the worst this can do is report a match* — and
+      //     that judgement **inverts** in front of a brace matcher.
+      //  3. `indexOf("publishFeedState()")` found the method only because no
+      //     call site precedes it in the file.
+      //
+      // So there is no parser here. Every region is delimited by a **start
+      // marker and an end marker taken from the file's Prettier-formatted
+      // indentation**, which no parameter list, comment or string can move —
+      // and each region must contain a **sentinel** proving the slice is the
+      // block meant rather than a shorter one that happened to terminate
+      // early. A missing marker or a missing sentinel is a FAILURE, because a
+      // grep that matches nothing looks exactly like a grep that passes.
+      //
+      // ## The zero case, which is today's case
+      //
+      // Nothing matches `overview` yet and that is expected. The anchors
+      // above are what make that non-vacuous.
+
+      /**
+       * The text between two markers, or a reason it could not be taken.
+       *
+       * One helper rather than the two identical copies the first draft had:
+       * four rotted breaks in one week is what a second copy of a hand-rolled
+       * matcher costs here.
+       */
+      const regionBetween = (text, { from, to }) => {
+        const start = text.indexOf(from);
+        if (start === -1) return { missing: `start marker \`${from}\`` };
+
+        const rest = start + from.length;
+        const stop = text.indexOf(to, rest);
+        if (stop === -1) return { missing: `end marker \`${to}\`` };
+
+        return { body: text.slice(start, stop + to.length) };
+      };
+
+      /**
+       * Trailing `//` comments removed, **for this consumer only**.
+       *
+       * `withoutComments` deliberately leaves them and that is right for
+       * every other check; here a comment saying *the overview does not ride
+       * this path* inside `publishFeedState` would otherwise fail the build
+       * for saying the true thing.
+       */
+      const withoutTrailingComments = (body) =>
+        body.replace(/\/\/[^\n]*/gu, "");
+
+      const REGIONS = [
+        {
+          where: "apps/backend/src/market-gateway.ts",
+          name: "feedMessage",
+          from: "\n  const feedMessage = ",
+          to: "\n    });",
+          sentinel: "encodeMarketStreamMessage(",
+        },
+        {
+          where: "apps/backend/src/market-gateway.ts",
+          name: "the keepalive callback",
+          from: "\n  const keepalive = setTimer(",
+          to: "\n  }, KEEPALIVE_INTERVAL_MS);",
+          sentinel: "broadcast(",
+        },
+        {
+          // **`\n    publishFeedState() {` rather than `publishFeedState()`.**
+          // The leading newline and four spaces pin it to a method definition
+          // in the returned object literal, and the trailing ` {` is
+          // something no call site can be followed by — so a call added above
+          // this point cannot retarget the region.
+          where: "apps/backend/src/market-gateway.ts",
+          name: "publishFeedState",
+          from: "\n    publishFeedState() {",
+          to: "\n    },",
+          sentinel: "broadcast(",
+        },
+        {
+          // **The parameter list is inside the slice and that is harmless
+          // now**, because nothing here looks for a brace: a destructured
+          // handler reads the same as a named one.
+          where: "apps/backend/src/index.ts",
+          name: "the `onConnectionChange` handler",
+          from: "\n    onConnectionChange:",
+          to: "\n    },",
+          sentinel: "publishFeedState()",
+        },
+      ];
+
+      const sources = new Map();
+      const readOnce = (where) => {
+        const cached = sources.get(where);
+        if (cached !== undefined) return cached;
+        const text = withoutComments(readAnchored(resolve(REPO_ROOT, where)));
+        sources.set(where, text);
+        return text;
+      };
+
+      for (const { where, name, from, to, sentinel } of REGIONS) {
+        const taken = regionBetween(readOnce(where), { from, to });
+
+        if (taken.body === undefined) {
+          throw new InvariantFailure(
+            `${where}: cannot delimit \`${name}\` — no ${taken.missing}. ` +
+              "This check refuses a path, so it must be able to find the " +
+              "path: a grep that matches nothing looks exactly like a grep " +
+              "that passes. If the feed broadcast was renamed or " +
+              "reformatted, repoint this check in the same change.",
+          );
+        }
+
+        if (!taken.body.includes(sentinel)) {
+          throw new InvariantFailure(
+            `${where}: the slice taken for \`${name}\` does not contain ` +
+              `\`${sentinel}\`, so the end marker \`${to}\` matched earlier ` +
+              "than the block it delimits. The region is shorter than the " +
+              "code it is meant to refuse, which is the silent-pass shape.",
+          );
+        }
+
+        if (/overview/iu.test(withoutTrailingComments(taken.body))) {
+          throw new InvariantFailure(
+            `${where}: \`${name}\` mentions the overview frame. The feed ` +
+              "broadcast runs ~332 times a minute (Task 4.1.6, measured on " +
+              "the deployed gateway), it goes to every browser regardless " +
+              "of subscription, and `sameLiveFeedView` does not suppress an " +
+              "overview change the way it suppresses an unchanged `feed`. " +
+              "The overview rides the `bars` path, on its own publish.",
+          );
+        }
+      }
+
+      // **One place builds the frame.** Counting encode sites rather than
+      // files is `one-subscriber-on-the-upstream-socket`'s recorded lesson:
+      // counting files left a second subscriber added beside the first
+      // invisible, and a second publish added beside the first is the same
+      // shape. Zero is the state until Story 4.2 adds the frame.
+      const gateway = "apps/backend/src/market-gateway.ts";
+      const built = [...readOnce(gateway).matchAll(/type:\s*"overview"/gu)].map(
+        (match) => `offset ${String(match.index)}`,
+      );
+
+      if (built.length > 1) {
+        throw new InvariantFailure(
+          `${String(built.length)} places in ${gateway} build an ` +
+            "`overview` frame, expected at most 1:\n      " +
+            built.join("\n      ") +
+            "\n    One computation for every browser (Task 4.1.1's decision " +
+            "1). A second encode is a second cadence nobody chose.",
+        );
+      }
+    },
+  },
+
+  {
     id: "every-break-can-still-land",
     claim:
       "Every entry in `scripts/breaks.mjs` substitutes text that still exists " +

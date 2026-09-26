@@ -217,7 +217,10 @@ not fire from here.
 
 **What you have to aggregate over.** The browser holds one `Map` of the
 latest observation per security (`LiveFeedView.observations`), filled by a
-snapshot on connect and one `bars` frame a minute, with §7.6's coverage: about
+snapshot on connect and a stream of `bars` frames — **up to ~16 a minute, one
+per upstream batch, not one a minute** (corrected 2026-09-26 by Task 4.2.1;
+`market-stream-protocol.ts` §9.5, and 4,113 frames over 8h49m on 4.1.6's
+deployed run) — with §7.6's coverage: about
 332 of 518 securities in a given minute, 65.1% median per symbol, and every
 observation carrying its own `startsAt` — the current-state map never expires
 one, so a breadth denominator has to decide what _current_ means rather than

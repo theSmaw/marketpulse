@@ -338,6 +338,23 @@ against a module that does not exist would be a number about a probe.
   unfired: the refill deduplicates nothing across components, because there
   is one chart.
 
+  > **Amended 2026-09-26 by Task 4.2.1 — `resumes` is no longer a count of
+  > snapshots, and the clause above is left standing because everything else
+  > in it holds.** The premise underneath it was false: the gateway sends
+  > **two snapshots per connection, plus one per readable `subscribe`
+  > message**, not one per connection — measured, three frames on an ordinary
+  > cold load, because `App.tsx` starts with `liveSymbols = []` and the route
+  > fills it after mount. So `snapshots - 1` read **2 on a page that had
+  > never disconnected**, and the gap-fill refetch this paragraph describes
+  > fired on **every cold load**, suppressed only by `use-bar-series`'s
+  > `if (inFlight.current) return` — a timing race rather than a rule.
+  >
+  > `resumes` now counts the **first snapshot on each socket**
+  > (`LiveFeedConnection.connections`, gated by `greeted`). **Nothing else
+  > here changes**: it is still an edge, still on a value the store derives,
+  > still no clock, and two reconnections are still two fills. The trigger
+  > still has not fired.
+
 ---
 
 ## 3. Where the selected symbol and window live — the URL

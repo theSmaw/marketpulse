@@ -666,14 +666,19 @@ describe("which symbols are sitting on a snapshot baseline (Task 3.5.4)", () => 
 });
 
 // **What tells "we have just come back" from "we have been here all along"**
-// (Task 3.10.7).
+// (Task 3.10.7, corrected by Task 4.2.1).
 //
-// The gateway sends a snapshot on **every** connection (Task 3.5.5), so the
-// count of snapshots is the count of connections — and the count of
-// connections after the first is the number of holes this page has in the
-// minutes it accumulated. Nothing else in this store knows that: the socket
-// is `open` either way, the observations are correct either way, and the
-// minutes nobody watched simply are not there.
+// The count of **connections** after the first is the number of holes this
+// page has in the minutes it accumulated. Nothing else in this store knows
+// that: the socket is `open` either way, the observations are correct either
+// way, and the minutes nobody watched simply are not there.
+//
+// **This used to count snapshot MESSAGES, and that was wrong.** The gateway
+// sends **two snapshots per connection plus one per `subscribe` message** —
+// one from the `upgrade` handler (structurally empty) and one at the foot of
+// every `message` listener. Measured 2026-09-26: three frames on an ordinary
+// cold load. So the first snapshot on each socket is the connection and every
+// later one is a subscribe acknowledgement.
 describe("resumes", () => {
   const view = (state: LiveFeedConnection): number =>
     liveFeedView(state, {
@@ -755,6 +760,80 @@ describe("resumes", () => {
     expect(a.observedAt).toBe(b.observedAt);
     expect(a.observations).toBe(b.observations);
     expect(sameLiveFeedView(a, b)).toBe(false);
+  });
+
+  // **The cold load this product actually performs** (Task 4.2.1), which is
+  // the case the old `snapshots - 1` got wrong by two. `App.tsx` holds
+  // `liveSymbols` in state starting `[]` and the route fills it after mount,
+  // so the transport sends `subscribe []` on open and `subscribe [symbols]`
+  // a tick later — and the gateway answers **each** with a snapshot, on top
+  // of the one it already sent from the `upgrade` handler.
+  //
+  // Nothing here has disconnected. A non-zero reading fires
+  // `use-bar-series`'s gap-fill refetch against a page with no gap.
+  it("is zero on a cold load, which sends three snapshots and loses nothing", () => {
+    const cold = walk([
+      { kind: "opened", at: 0 },
+      // 1 — the `upgrade` handler's, structurally empty.
+      { kind: "message", at: 10, message: snapshot(feedState()) },
+      // 2 — answering `subscribe []`, still empty.
+      { kind: "message", at: 12, message: snapshot(feedState()) },
+      // 3 — answering `subscribe ["NVDA"]`, and this one carries something.
+      {
+        kind: "message",
+        at: 760,
+        message: snapshot(feedState(), {
+          NVDA: { startsAt: "2026-09-16T14:01:00Z" },
+        }),
+      },
+    ]);
+
+    expect(cold.connections).toBe(1);
+    expect(view(cold)).toBe(0);
+  });
+
+  // **And the resume edge still fires exactly once after a cold load that
+  // drops**, rather than being swallowed by the flag the repair introduced.
+  it("counts one return after a cold load with three snapshots", () => {
+    const back = walk([
+      { kind: "opened", at: 0 },
+      { kind: "message", at: 10, message: snapshot(feedState()) },
+      { kind: "message", at: 12, message: snapshot(feedState()) },
+      { kind: "message", at: 760, message: snapshot(feedState()) },
+      { kind: "closed", at: 2_000 },
+      { kind: "opened", at: 4_000 },
+      // The reconnect repeats the whole sequence: connect, re-subscribe.
+      { kind: "message", at: 4_010, message: snapshot(feedState()) },
+      { kind: "message", at: 4_020, message: snapshot(feedState()) },
+    ]);
+
+    expect(view(back)).toBe(1);
+  });
+
+  // A subscription change on a **live** socket — a navigation between
+  // securities — is answered with a snapshot and is not a return.
+  it("does not count a subscription change as a return", () => {
+    const navigated = walk([
+      { kind: "opened", at: 0 },
+      { kind: "message", at: 10, message: snapshot(feedState()) },
+      { kind: "message", at: 12, message: snapshot(feedState()) },
+      {
+        kind: "message",
+        at: 30_000,
+        message: snapshot(feedState(), {
+          AAPL: { startsAt: "2026-09-16T14:01:00Z" },
+        }),
+      },
+      {
+        kind: "message",
+        at: 60_000,
+        message: snapshot(feedState(), {
+          TSLA: { startsAt: "2026-09-16T14:01:00Z" },
+        }),
+      },
+    ]);
+
+    expect(view(navigated)).toBe(0);
   });
 
   it("does not count a disconnection on its own", () => {
