@@ -1947,10 +1947,38 @@ export const BREAKS = [
       "dropout are simply never filled. This is Task 3.4.1's defect shape " +
       "with a different field (Task 3.10.7).",
     file: "apps/frontend/src/market/live-feed.ts",
-    find: "    a.resumes === b.resumes",
-    replace: "    true // pnpm break: reverted automatically",
+    // **Repointed 2026-09-26 by Task 4.2.4**, which added a term after this
+    // one. The old pair took the bare comparison and left the trailing `&&`
+    // inside a trailing comment, so the substitution was a PARSE ERROR rather
+    // than a missing check — red, but for the wrong reason, which
+    // `break-verify.mjs` correctly refuses as evidence. The `&&` now travels
+    // with the term.
+    find: "    a.resumes === b.resumes &&",
+    replace: "    true && // pnpm break: reverted automatically",
     command: ["pnpm", "--filter", "@marketpulse/frontend", "test", "live-feed"],
     expect: "makes a reconnection a change even when nothing else moved",
+  },
+  // **The same defect shape, a third time** (Task 4.2.4) — Task 3.4.1's for
+  // the observations Map, Task 3.10.7's for `resumes`, and this one for the
+  // overview aggregate. It is a separate entry rather than a widening because
+  // what is LOST differs: there, a gap never filled; here, four figures at the
+  // top of the landing page that update in the store and never reach a screen.
+  {
+    name: "the-aggregate-does-not-reach-the-page",
+    proves:
+      "The overview arrives, the reducer holds it correctly, and the render " +
+      "gate upstream of the reducer does not compare it \u2014 so nothing " +
+      "ever draws it. `sameLiveFeedView`'s own comment records what this " +
+      "looked like the first time: *a first moving price that does not " +
+      "move, with every test green*, because the reducer is right and " +
+      "nothing renders. The field was added to the gate in the same change " +
+      "as the field itself, which is the only ordering in which this is not " +
+      "found by a person looking at a still page (Task 4.2.4).",
+    file: "apps/frontend/src/market/live-feed.ts",
+    find: "    a.overview === b.overview",
+    replace: "    true // pnpm break: reverted automatically",
+    command: ["pnpm", "--filter", "@marketpulse/frontend", "test", "live-feed"],
+    expect: "makes an arriving aggregate a change even when nothing else moved",
   },
   {
     name: "a-stream-without-a-feed-word",
