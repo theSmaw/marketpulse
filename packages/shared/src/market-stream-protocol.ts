@@ -1,5 +1,7 @@
 import type { Bar } from "./bar.js";
 import type { FeedStatus } from "./feed-status.js";
+import { MARKET_FEEDS } from "./market-provenance.js";
+
 import type { MarketFeed } from "./market-provenance.js";
 import type { Ticker } from "./ticker.js";
 import {
@@ -16,6 +18,13 @@ import {
  * **Decided in Story 3.1 §11.1 and implemented here — not re-decided.** A
  * **snapshot on connect, then one message per upstream frame**. Three message
  * types, a `type` discriminant and a protocol version.
+ *
+ * **Amended 2026-09-26 (Task 4.2.4): there are FOUR.** `overview` carries the
+ * first **derived** value this wire has ever held — an aggregate computed once
+ * in the backend and sent identically to every browser — and the version was
+ * deliberately **not** bumped: the deploy rolls the backend first, and a bump
+ * makes a stale tab reject every frame rather than ignore one. See
+ * {@link OverviewMessage} and `DecodedMessage`'s `unsupported` member.
  *
  * ## Why a snapshot at all, which is not an optimisation
  *
@@ -89,11 +98,12 @@ export const MARKET_STREAM_PATH = "/market-stream";
 
 export const MARKET_STREAM_PROTOCOL_VERSION = 1;
 
-/** The three message types, closed. */
+/** The four message types, closed. */
 export const MARKET_STREAM_MESSAGE_TYPES = [
   "snapshot",
   "bars",
   "feed",
+  "overview",
 ] as const;
 
 export type MarketStreamMessageType =
@@ -224,7 +234,168 @@ export interface FeedMessage {
   readonly feed: WireFeedState;
 }
 
-export type MarketStreamMessage = SnapshotMessage | BarsMessage | FeedMessage;
+/**
+ * One security's place in the market overview, as it travels (Task 4.2.4).
+ *
+ * **A union with three members, because the backend's own join has three and
+ * collapsing them on the wire would be the wire deciding a product question.**
+ * `market-overview.ts` argues it at length: *we have heard nothing about SPY*
+ * and *we hold no stored close for SPY* are different facts with different
+ * remedies, and neither is a zero or a null price.
+ *
+ * ## `unknown` is a STATE, not an absence, and that is not a hole in §11.1
+ *
+ * This module's rule is that absence is expressed by **omission** — and it is
+ * honoured here for every *field*: an unmeasurable change is omitted rather
+ * than sent as `null`. `unknown` is the other thing: an entry saying *this
+ * security is in the overview and we hold nothing about it*, which is the
+ * state CI's store puts all 518 securities in and the true answer after a
+ * restart. It is ADR 0029's three-member `StoredHistory` applied to a figure,
+ * and it is also what carries the reporting **order** — a renderer cannot draw
+ * four proxies in order from a map that omits the ones it knows nothing about.
+ *
+ * ## Each member has its own field map, and that is ADR 0031's actual demand
+ *
+ * `WireFields<T>` is a mapped type over `keyof T`, and `keyof` a union is the
+ * **intersection** of its members' keys — so one map over the union would
+ * cover `state` and `symbol` and let everything else through unexamined. The
+ * encoder switches on `state` and uses the member's own map, which is
+ * `encodeObservations`' reason one level in.
+ */
+export type WireOverviewFigure =
+  WireObservedFigure | WireStoredFigure | WireUnknownFigure;
+
+/** A security we have heard from. **The figure a person reads as *now*.** */
+export interface WireObservedFigure {
+  readonly state: "observed";
+  readonly symbol: string;
+  /**
+   * The observation's own instant — the **start** of the minute it covers
+   * (§7.3), ISO 8601.
+   *
+   * **Never `sentAt` and never `computedAt`.** It is a fact about the market;
+   * those two are facts about this process. A renderer that showed a price
+   * without it would be rendering Friday's close as today's, which is
+   * `current-market-state.ts`'s property 2 carried across the wire.
+   */
+  readonly at: string;
+  /** The observed close of that minute. */
+  readonly price: number;
+  /**
+   * The move since the basis close, as a signed percentage — **omitted when
+   * there is nothing to measure from**, never `null` and never `0`.
+   *
+   * Computed by `changeFromClose` in `packages/shared`, called by the backend
+   * (Story 4.2 AC 2). The browser renders it and does not re-derive it: the
+   * numerator is IEX and the denominator is the consolidated tape, and a
+   * second implementation of that join is the ≈0.00% defect
+   * `one-home-for-the-live-change` exists to refuse.
+   */
+  readonly changePercent?: number;
+  /**
+   * The session whose close the percentage was measured from, `YYYY-MM-DD`
+   * market-local — **omitted when the basis has no session name**.
+   *
+   * That absence is `LiveChange.basis`'s own: the same-session case measures
+   * from `previousClose`, which is a number with no date beside it, and a
+   * caller renders *the previous close* rather than inventing a date.
+   */
+  readonly changeBasis?: string;
+}
+
+/**
+ * A security we have heard nothing about, for which we hold a stored close.
+ *
+ * On IEX this is ordinary rather than broken (§7.6) and it is every security
+ * for some minutes after a restart. **The session travels with the number**,
+ * so a surface cannot show this price without the date it belongs to.
+ */
+export interface WireStoredFigure {
+  readonly state: "stored";
+  readonly symbol: string;
+  /** The session the close belongs to, `YYYY-MM-DD` market-local. */
+  readonly session: string;
+  readonly close: number;
+}
+
+/** Nothing observed and nothing stored. A true answer, not a degraded one. */
+export interface WireUnknownFigure {
+  readonly state: "unknown";
+  readonly symbol: string;
+}
+
+/**
+ * The aggregate itself, **nested rather than spread over the envelope**.
+ *
+ * Two reasons, and the second is the one that bites. It gives ADR 0031's
+ * field-map obligation somewhere to land — a nested object needs its own map
+ * or `asIs` leaks whatever is hanging off it. And it gives the browser **one
+ * reference** to hold and to gate a render on: `sameLiveFeedView` compares by
+ * identity, and a fact spread over three envelope fields is three comparisons
+ * somebody adds two of.
+ */
+export interface WireMarketOverview {
+  /**
+   * **When the aggregate was true**, by the server's clock — ISO 8601.
+   *
+   * ## A new field, never a second meaning for `sentAt`
+   *
+   * ADR 0033's first constraint, generalised: `sentAt` is when the gateway
+   * *sent*, and they differ by the encode and the broadcast. What makes the
+   * difference load-bearing rather than pedantic is the **cadence**: this
+   * frame is built once per applied batch, so the figures are frozen between
+   * bursts — bounded at about a minute during a session, and **unbounded when
+   * the feed dies**. A surface that wants to say *these figures are as of …*
+   * has to read this one; reading `sentAt` would report a dead feed's
+   * afternoon-old aggregate as current.
+   *
+   * **It is not a clock a status is derived from.** `pnpm invariants` holds
+   * both this word and `sentAt` out of `feed-liveness.ts`,
+   * `stream-connection.ts` and `live-feed.ts`
+   * (`the-send-instant-is-not-a-clock`).
+   */
+  readonly computedAt: string;
+
+  /**
+   * The distinct tapes behind the **observed** figures, in first-seen order.
+   *
+   * **Per frame for the tapes, per figure for the discriminant** — invariant
+   * 6 displayed rather than implied, in `market-provenance.ts`'s own
+   * vocabulary rather than a second spelling. The uncomfortable fact this
+   * exists to state is that a change percentage here has an **IEX numerator
+   * and a consolidated-SIP denominator**, and a bare `changePercent: 1.42` has
+   * no way to say so.
+   *
+   * Empty when nothing has been observed, which is §11.1's `observations: {}`
+   * — the **true** answer after a restart rather than a degraded one.
+   */
+  readonly feeds: readonly MarketFeed[];
+
+  /**
+   * One entry per security the overview is **about**, in the order it reports
+   * them. An array rather than a map, because the order is the answer.
+   */
+  readonly figures: readonly WireOverviewFigure[];
+}
+
+/**
+ * **The first DERIVED value this wire has ever carried** (Task 4.2.4) — every
+ * other payload is a raw observation or a connection word.
+ *
+ * Sent on the observations path, on connect and on subscribe; **never from the
+ * feed-state path and never on the keepalive**, which Task 4.1.6 measured at
+ * ~332 frames a minute. `the-overview-frame-is-not-a-heartbeat` refuses it.
+ */
+export interface OverviewMessage {
+  readonly type: "overview";
+  readonly version: number;
+  /** See the note above {@link SnapshotMessage}. */
+  readonly sentAt: string;
+  readonly overview: WireMarketOverview;
+}
+
+export type MarketStreamMessage =
+  SnapshotMessage | BarsMessage | FeedMessage | OverviewMessage;
 
 /**
  * **What a browser says to the gateway** (Task 3.5.6).
@@ -455,6 +626,131 @@ const feedFields: WireFields<FeedMessage> = {
 };
 
 /**
+ * One map per member of {@link WireOverviewFigure}, because `keyof` a union is
+ * the **intersection** of its members' keys.
+ *
+ * A single map over the union would type-check against `state` and `symbol`
+ * alone and wave the rest of every member through — which is the leak ADR
+ * 0031 describes, arriving through the type system rather than past it.
+ */
+const observedFigureFields: WireFields<
+  Omit<WireObservedFigure, "changePercent" | "changeBasis">
+> = {
+  state: asIs,
+  symbol: asIs,
+  at: asIs,
+  price: asIs,
+};
+
+const storedFigureFields: WireFields<WireStoredFigure> = {
+  state: asIs,
+  symbol: asIs,
+  session: asIs,
+  close: asIs,
+};
+
+const unknownFigureFields: WireFields<WireUnknownFigure> = {
+  state: asIs,
+  symbol: asIs,
+};
+
+/**
+ * A figure to its wire object, or **`undefined` for a figure that cannot be
+ * honestly encoded** — and the one place an omitted field is actually
+ * omitted.
+ *
+ * `toWire` walks the **map's** keys, so a key in the map is a key on the wire
+ * whatever it holds — which is exactly the property that makes a leak
+ * impossible and is therefore also the property that makes an optional field
+ * unrepresentable through it. So the two optional fields are handled by name,
+ * in **two branches** rather than by assigning `undefined`:
+ * `exactOptionalPropertyTypes` is on, and `undefined` is not a JSON value.
+ *
+ * ## The non-finite guard is HERE and not at the call site, and that is ADR 0031
+ *
+ * **Corrected 2026-09-26, after review, and the correction is this comment's
+ * own prediction coming true one step early.** The first version said a
+ * serialiser returning `undefined` was *"a refactor away"* from putting a
+ * `null` on this wire — and it was not a refactor away, it was **one caller
+ * away**: `JSON.stringify` writes `null` for a non-finite number, so
+ * `changePercent: Infinity` reached the wire as `"changePercent":null` and
+ * `price: NaN` as `"price":null`. The only thing preventing it was a
+ * `Number.isFinite` check in `toWireMarketOverview`, **a different module in
+ * a different package**, held there by convention.
+ *
+ * ADR 0031's whole argument is that a transport without a schema layer owes
+ * its guarantee in the **serialiser** rather than at the call site, because
+ * the call site is where the next author stands. So:
+ *
+ * - a non-finite **optional** number is **omitted**, which is a state the
+ *   union already has words for — a true price with no measurable move;
+ * - a non-finite **required** number makes the whole **figure** undefined,
+ *   which is `readFigure`'s own rule at the other end of the wire: an entry
+ *   that cannot carry its number is **not an entry**. A `"price":null` would
+ *   be read as absent by a strict reader and as **`0`** by a lenient one, and
+ *   `0` is a plausible price. This is `json-schema.ts`'s measured trap —
+ *   *a `null` under `"number"` reaches the wire as `0`* — arriving on a
+ *   transport that has no schema to blame.
+ *
+ * A change percentage is the most `Infinity`-prone number this product
+ * produces: `live-change.ts` guards a zero basis twice and calls
+ * `"+Infinity%"` the most alarming figure on the page.
+ *
+ * **The required half stays exhaustive.** `Omit` is what keeps that true: a
+ * field added to {@link WireObservedFigure} lands in the omitted type and the
+ * map fails to compile, naming it.
+ */
+const finiteOr = (value: number): number | undefined =>
+  Number.isFinite(value) ? value : undefined;
+
+const encodeFigure = (figure: WireOverviewFigure): JsonValue | undefined => {
+  if (figure.state === "stored") {
+    if (finiteOr(figure.close) === undefined) return undefined;
+    return toWire(storedFigureFields, figure);
+  }
+
+  if (figure.state === "unknown") return toWire(unknownFigureFields, figure);
+
+  if (finiteOr(figure.price) === undefined) return undefined;
+
+  // `changeBasis` travels only with a percentage, here as well as in
+  // `toWireMarketOverview`: a date describing a figure that is not there is
+  // ADR 0029's false impression one field wide, and a non-finite percentage
+  // has just made it not there.
+  const percent =
+    figure.changePercent === undefined
+      ? undefined
+      : finiteOr(figure.changePercent);
+
+  return {
+    ...toWire(observedFigureFields, figure),
+    ...(percent === undefined ? {} : { changePercent: percent }),
+    ...(percent === undefined || figure.changeBasis === undefined
+      ? {}
+      : { changeBasis: figure.changeBasis }),
+  };
+};
+
+const overviewFields: WireFields<WireMarketOverview> = {
+  computedAt: asIs,
+  feeds: (feeds) => [...feeds],
+  // **`flatMap` rather than `map`**, so a dropped figure is absent rather
+  // than a `null` in the array — which is the same defect one container out.
+  figures: (figures) =>
+    figures.flatMap((figure) => {
+      const wire = encodeFigure(figure);
+      return wire === undefined ? [] : [wire];
+    }),
+};
+
+const overviewMessageFields: WireFields<OverviewMessage> = {
+  type: asIs,
+  version: asIs,
+  sentAt: asIs,
+  overview: (overview) => toWire(overviewFields, overview),
+};
+
+/**
  * A message to the string that goes on the wire.
  *
  * **The named serialiser §11.1 requires.** Never `JSON.stringify(message)` — a
@@ -471,6 +767,8 @@ export function encodeMarketStreamMessage(
       return JSON.stringify(toWire(barsFields, message));
     case "feed":
       return JSON.stringify(toWire(feedFields, message));
+    case "overview":
+      return JSON.stringify(toWire(overviewMessageFields, message));
     default: {
       // Exhaustive: a fourth message type fails the build here rather than
       // being silently unserialisable, which is `createMarketDataProvider`'s
@@ -491,7 +789,32 @@ export function encodeMarketStreamMessage(
  */
 export type DecodedMessage =
   | { readonly kind: "message"; readonly message: MarketStreamMessage }
-  | { readonly kind: "unreadable"; readonly reason: string };
+  | { readonly kind: "unreadable"; readonly reason: string }
+  /**
+   * **A message type this bundle has never heard of** (Task 4.2.4) — neither a
+   * message nor a defect, and the reason it is a third kind rather than a
+   * reason on the second.
+   *
+   * ## The defect it removes, which is a stale tab's and not ours
+   *
+   * A deploy rolls the backend first, so for as long as somebody leaves a tab
+   * open, a **previous bundle** meets a gateway sending a type it predates.
+   * Under `unreadable` that tab counts every one of them in a field
+   * `LiveFeedView` documents as *"Zero on every healthy deployment"* — and
+   * `unreadable` is compared in `sameLiveFeedView`, so the count changing is a
+   * **render of the whole application on every overview frame, indefinitely**.
+   * The tab is not broken and nothing is wrong with the frame; the browser
+   * simply has no use for it.
+   *
+   * **Bumping `MARKET_STREAM_PROTOCOL_VERSION` is the obvious-looking move and
+   * is strictly worse**: the version is checked before the type, so a stale
+   * tab would reject *every* frame rather than ignore one — losing its prices,
+   * its feed word and its snapshot. It is deliberately unchanged.
+   *
+   * Counted by nobody and reported to nobody. `type` travels for a log line
+   * only.
+   */
+  | { readonly kind: "unsupported"; readonly type: string };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -554,6 +877,86 @@ const readFeedState = (value: unknown): WireFeedState | undefined => {
     feed: raw.feed as MarketFeed | null,
     marketOpen: raw.marketOpen,
   };
+};
+
+/**
+ * One figure, or `undefined` — **and a figure that fails is dropped rather
+ * than defaulted**, which is `readObservation`'s rule one level out.
+ *
+ * `Number.isFinite`, never `typeof === "number"`: `NaN` and `Infinity` both
+ * survive `JSON.parse`, and a **change percentage** is the most
+ * `Infinity`-prone number this product produces — `live-change.ts` guards a
+ * zero basis twice and calls `"+Infinity%"` the most alarming figure on the
+ * page. A non-finite percentage is **omitted**, leaving a true price with no
+ * measurable move, which is a state the union already has words for.
+ */
+const readFigure = (value: unknown): WireOverviewFigure | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (typeof value.symbol !== "string") return undefined;
+  const symbol = value.symbol;
+
+  if (value.state === "unknown") return { state: "unknown", symbol };
+
+  if (value.state === "stored") {
+    if (typeof value.session !== "string") return undefined;
+    if (!finite(value.close)) return undefined;
+    return {
+      state: "stored",
+      symbol,
+      session: value.session,
+      close: value.close,
+    };
+  }
+
+  if (value.state !== "observed") return undefined;
+  if (typeof value.at !== "string") return undefined;
+  if (!finite(value.price)) return undefined;
+
+  // Two branches, not one spread of a possibly-`undefined` value:
+  // `exactOptionalPropertyTypes` makes *absent* and *present as `undefined`*
+  // different types, and only the first is what this wire means.
+  const percent = finite(value.changePercent) ? value.changePercent : undefined;
+  const basis =
+    typeof value.changeBasis === "string" ? value.changeBasis : undefined;
+
+  return {
+    state: "observed",
+    symbol,
+    at: value.at,
+    price: value.price,
+    ...(percent === undefined ? {} : { changePercent: percent }),
+    // A basis with no percentage would be a date describing a figure that is
+    // not there, so it travels only with one.
+    ...(percent === undefined || basis === undefined
+      ? {}
+      : { changeBasis: basis }),
+  };
+};
+
+const readOverview = (value: unknown): WireMarketOverview | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (typeof value.computedAt !== "string") return undefined;
+  if (!Array.isArray(value.feeds)) return undefined;
+  if (!Array.isArray(value.figures)) return undefined;
+
+  // **Lenient about the vocabulary, strict about the shape.** An unrecognised
+  // feed slug is invariant 6's caption problem and `bar-series-response.ts`
+  // refuses one on the HTTP wire — here the only reader is a renderer that
+  // looks the word up, so an unknown one is dropped rather than failing the
+  // frame that carries four true prices.
+  const feeds = value.feeds.filter((feed): feed is MarketFeed =>
+    (MARKET_FEEDS as readonly string[]).includes(feed as string),
+  );
+
+  const figures: WireOverviewFigure[] = [];
+  for (const entry of value.figures) {
+    const figure = readFigure(entry);
+    // One bad figure does not discard three good ones — `readObservations`'
+    // rule, and the same reason: the frame is a batch.
+    if (figure !== undefined) figures.push(figure);
+  }
+
+  return { computedAt: value.computedAt, feeds, figures };
 };
 
 export function decodeMarketStreamMessage(raw: string): DecodedMessage {
@@ -643,7 +1046,40 @@ export function decodeMarketStreamMessage(raw: string): DecodedMessage {
         },
       };
     }
+    case "overview": {
+      if (sentAt === undefined) return NO_SEND_INSTANT;
+      const overview = readOverview(parsed.overview);
+      if (overview === undefined) {
+        return { kind: "unreadable", reason: "malformed overview" };
+      }
+      return {
+        kind: "message",
+        message: {
+          type: "overview",
+          version: MARKET_STREAM_PROTOCOL_VERSION,
+          sentAt,
+          overview,
+        },
+      };
+    }
     default:
+      // **Neither a message nor a defect — but only for a frame that NAMES a
+      // type.** A type we do not know is a newer gateway talking to an older
+      // bundle, which is an ordinary state during every deploy.
+      //
+      // **A frame with no type, or a type that is not a string, is us being
+      // broken** (corrected 2026-09-26 after review). The first version
+      // answered `unsupported` for anything that fell through, so
+      // `{"version":1}` decoded as `{ kind: "unsupported", type: "" }` and
+      // the browser dropped it silently — a malfunction of **our own
+      // gateway** made invisible on every surface, where it had previously
+      // been counted. Only a named type earns the forward-compatible
+      // disposition; everything else falls through to `unreadable`, which is
+      // what the count in `LiveFeedView` is for.
+      if (typeof parsed.type === "string") {
+        return { kind: "unsupported", type: parsed.type };
+      }
+
       return {
         kind: "unreadable",
         reason: `unknown message type ${JSON.stringify(parsed.type)}`,

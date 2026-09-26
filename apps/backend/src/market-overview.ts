@@ -5,8 +5,11 @@ import type {
   BarSource,
   LiveChange,
   MarketDate,
+  MarketFeed,
   SecurityLastClose,
   Ticker,
+  WireMarketOverview,
+  WireOverviewFigure,
 } from "@marketpulse/shared";
 import type { CurrentObservation } from "./current-market-state.js";
 
@@ -224,4 +227,93 @@ export function buildMarketOverview(
 
     return { state: "unknown", symbol };
   });
+}
+
+/**
+ * The overview as it travels — **the aggregate's one wire conversion** (Task
+ * 4.2.4), and `snapshotOf`'s sibling one module over.
+ *
+ * ## Why the conversion is here and not in the gateway
+ *
+ * The gateway knows about sockets, subscriptions and backpressure and knows
+ * nothing about a join; this module holds the join and is pure. Putting the
+ * mapping here keeps the gateway's new code to *encode this and send it*, and
+ * keeps the one place that reads a `LiveObservation` or a `SecurityLastClose`
+ * the one place that decides what a browser is allowed to see.
+ *
+ * ## The derived figures carry NEITHER of the things they were derived from
+ *
+ * A {@link CurrentObservation} holds a six-field `Bar`, a `BarSource` with a
+ * provider and a retrieval instant, and an `ageMs` computed on read; a
+ * `SecurityLastClose` holds a `previousClose` which is *the answer to measure
+ * from what* rather than a price anybody should render. **None of it goes on
+ * the wire.** ADR 0031: on HTTP a field on the object and not on the type is
+ * stripped, and on a socket it **leaks** — so the figure is built field by
+ * field rather than spread, and every nested object has its own field map in
+ * `market-stream-protocol.ts`.
+ *
+ * ## `computedAt` is the caller's `asOf`, not a clock read here
+ *
+ * This module reads no clock (invariant 4, and the note at the top of this
+ * file), so the instant the aggregate was true is the instant the caller said
+ * it was about. Under a replay that is the replay clock.
+ */
+export function toWireMarketOverview(
+  entries: readonly MarketOverviewEntry[],
+  asOf: Date,
+): WireMarketOverview {
+  const figures: WireOverviewFigure[] = [];
+
+  // First-seen order, and only for figures that are actually **observed** —
+  // a stored close's tape is not this frame's provenance, and claiming it
+  // would be invariant 6 implied rather than displayed.
+  const feeds: MarketFeed[] = [];
+
+  for (const entry of entries) {
+    if (entry.state === "unknown") {
+      figures.push({ state: "unknown", symbol: entry.symbol });
+      continue;
+    }
+
+    if (entry.state === "stored") {
+      figures.push({
+        state: "stored",
+        symbol: entry.symbol,
+        session: entry.close.session,
+        close: entry.close.close,
+      });
+      continue;
+    }
+
+    if (!feeds.includes(entry.source.feed)) feeds.push(entry.source.feed);
+
+    const { percent, basis } = entry.change;
+
+    figures.push({
+      state: "observed",
+      symbol: entry.symbol,
+      at: entry.bar.startsAt.toISOString(),
+      price: entry.bar.close,
+      // **Omission, in two branches.** `exactOptionalPropertyTypes` is on, so
+      // *absent* and *present as `undefined`* are different types and only
+      // the first is what this wire means.
+      //
+      // **`null` is the DOMAIN absence and is this module's to spell**:
+      // `LiveChange.percent` is `null` when there is nothing to measure from,
+      // which is §36's partial answer rather than a zero. **A non-finite
+      // number is the WIRE's problem and is deliberately not checked here** —
+      // `encodeFigure` omits one, in the serialiser, because ADR 0031's
+      // argument is that a transport with no schema layer owes its guarantee
+      // where the encoding happens and not at whichever call site happens to
+      // remember. A `Number.isFinite` here as well would be one rule with two
+      // homes, and the second is the one that gets forgotten.
+      ...(percent === null ? {} : { changePercent: percent }),
+      // The basis names the session a figure was measured from, so it does
+      // not travel without one — a date describing a percentage that is not
+      // there is ADR 0029's false impression, one field wide.
+      ...(percent === null || basis === null ? {} : { changeBasis: basis }),
+    });
+  }
+
+  return { computedAt: asOf.toISOString(), feeds, figures };
 }

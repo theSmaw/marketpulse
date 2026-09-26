@@ -4,6 +4,7 @@ import {
   type MarketFeed,
   type MarketStreamMessage,
   type WireFeedState,
+  type WireMarketOverview,
   feedStatusFrom,
   fromWireObservation,
   worseFeedStatus,
@@ -71,6 +72,29 @@ export type LiveFeedEvent =
   | {
       readonly kind: "unreadable";
       readonly reason: string;
+      readonly at: number;
+    }
+  /**
+   * **A message this bundle has no type for** (Task 4.2.4) — a newer gateway
+   * talking to an older tab, which is an ordinary state during every deploy.
+   *
+   * ## Why it is an event at all, rather than being dropped in the transport
+   *
+   * Because of the rule three lines into {@link advanceLiveFeed}: *every
+   * inbound message — including one we could not read — is evidence the
+   * socket is alive.* The first version returned from the transport before
+   * `listen`, so an unsupported frame advanced **nothing** — harmless while a
+   * stale tab still receives `bars` and the keepalive, and a **false
+   * `DISCONNECTED` on a perfectly healthy socket** the day a future frame
+   * type carries a meaningful share of such a tab's traffic. §6.4's lesson
+   * does not care whether we understood the bytes.
+   *
+   * It carries no `reason` and is **not counted**: it is not a defect, and
+   * the field that counts defects is documented as *"Zero on every healthy
+   * deployment"* and is compared in `sameLiveFeedView`.
+   */
+  | {
+      readonly kind: "unsupported";
       readonly at: number;
     }
   /**
@@ -223,6 +247,23 @@ export interface LiveFeedConnection {
   /** The server's last word about its own feed, or `undefined` before the snapshot. */
   readonly server: WireFeedState | undefined;
   /**
+   * **The market aggregate the backend computed**, or `undefined` before the
+   * first overview frame (Task 4.2.4).
+   *
+   * Held whole and by reference. It is the first **derived** thing this
+   * browser has ever been sent — every other payload is a raw observation or
+   * a connection word — and the browser deliberately does not re-derive any
+   * of it: the change percentage was computed by `changeFromClose` in the
+   * backend, from an IEX numerator and a consolidated-SIP denominator the
+   * browser cannot see.
+   *
+   * **`computedAt` is inside it and is not a clock.** It says when the
+   * aggregate was **true**, which during a session is bounded at about a
+   * minute behind and after a dead feed is unbounded — so a surface that
+   * wants to date these figures reads it, and nothing about liveness does.
+   */
+  readonly overview: WireMarketOverview | undefined;
+  /**
    * How many messages this browser could not read.
    *
    * **The decided disposition for `unreadable`** (Task 3.3.1 made it a value
@@ -254,6 +295,7 @@ export const initialLiveFeed: LiveFeedConnection = {
   lastInboundAt: undefined,
   lastObservationAt: undefined,
   server: undefined,
+  overview: undefined,
   unreadable: 0,
   lastUnreadableReason: undefined,
 };
@@ -314,7 +356,22 @@ function withDelivery(
 }
 
 function observedIn(message: MarketStreamMessage): Observed {
-  if (message.type === "feed") return NOTHING_OBSERVED;
+  // **The types that CARRY observations, named** — rather than excluding the
+  // ones that do not (Task 4.2.4). A fourth message type turned the old
+  // `type === "feed"` exclusion into a compile error here, which is the check
+  // working; writing it the other way round is what makes a fifth one fail in
+  // the same place instead of quietly reading `undefined`.
+  //
+  // **An aggregate is not an observation, and `NOTHING_OBSERVED` is the whole
+  // point.** The overview frame is a derivation over a map that may not have
+  // moved — the gateway recomputes it on connect, on subscribe and on every
+  // applied batch. Letting it advance `lastObservationAt` would feed §11.2's
+  // 60 s staleness rule with the gateway's own activity, so a **dead feed
+  // would read `LIVE`** for as long as somebody kept opening tabs. It may
+  // advance `lastInboundAt`, which is a fact about the socket and is true.
+  if (message.type !== "snapshot" && message.type !== "bars") {
+    return NOTHING_OBSERVED;
+  }
 
   const bars = new Map<string, Bar>();
   let newest: number | undefined;
@@ -387,6 +444,12 @@ export function advanceLiveFeed(
         lastUnreadableReason: event.reason,
       };
 
+    // **The socket is alive and we have nothing to do with the contents.**
+    // `inbound` is the whole answer: `lastInboundAt` moves, the defect count
+    // does not, and no other field is touched.
+    case "unsupported":
+      return inbound;
+
     case "closed":
       // **No reconnection.** Story 3.10 owns retry, and this is exactly where
       // somebody adds a loop without noticing it is a policy. Report it
@@ -399,8 +462,21 @@ export function advanceLiveFeed(
       return {
         ...inbound,
         socket: "open",
+        // **The types that carry `feed`, named rather than excluded** — the
+        // same repair as `observedIn`'s, forced in the same change by the
+        // same fourth message type. `bars` and `overview` say nothing about
+        // the feed's state, so the last word stands.
         server:
-          event.message.type === "bars" ? state.server : event.message.feed,
+          event.message.type === "snapshot" || event.message.type === "feed"
+            ? event.message.feed
+            : state.server,
+        // **A new reference exactly when an overview arrives**, and the same
+        // one otherwise — `withObservations`' idiom, and the property
+        // `sameLiveFeedView` compares by identity.
+        overview:
+          event.message.type === "overview"
+            ? event.message.overview
+            : state.overview,
         observations: withObservations(state.observations, bars),
         // **A snapshot sets the baseline; a bar changes it.** A `bars` message
         // clears the flag for exactly the symbols it carries, so the first
@@ -497,6 +573,11 @@ export interface LiveFeedView {
    * acting on is the return.
    */
   readonly resumes: number;
+  /**
+   * The backend's market aggregate, or `undefined` until the first one lands
+   * (Task 4.2.4). **Nothing renders it yet** — Task 4.2.5 is the payoff.
+   */
+  readonly overview: WireMarketOverview | undefined;
   /** Messages this browser could not read. Zero on every healthy deployment. */
   readonly unreadable: number;
 }
@@ -578,6 +659,10 @@ export function liveFeedView(
     // because a socket died.
     observations: state.observations,
     fromSnapshot: state.fromSnapshot,
+    // **Carried into every branch, including the degraded ones**, for the
+    // observations' own reason: §36 keeps true figures on screen when a feed
+    // stops, labelled rather than blanked. `computedAt` is what labels them.
+    overview: state.overview,
     // The first connection is not a return. `Math.max` rather than a
     // subtraction alone so a browser that has been told nothing yet reads
     // `0` rather than `-1`.
@@ -664,6 +749,32 @@ export function sameLiveFeedView(a: LiveFeedView, b: LiveFeedView): boolean {
     // that does not reach a consumer is a gap that is never filled, and it
     // would look exactly like the feed working: every number on screen is
     // correct, and the minutes nobody watched simply stay missing.
-    a.resumes === b.resumes
+    a.resumes === b.resumes &&
+    // **Added with the field itself, in the same change** (Task 4.2.4) — the
+    // comment above says what happens otherwise, and it happened to the Map:
+    // the reducer updates correctly while the screen never changes, with
+    // every test green, because nothing renders. The test that catches it
+    // asserts the **negative**: an overview frame causes a render.
+    //
+    // **By reference, and the comparison is DELIBERATELY coarser than the
+    // Map's.** `withObservations` returns the same reference when nothing
+    // arrived, so its identity check is exact. This one is not:
+    // `advanceLiveFeed` stores whatever the decoder built, and the decoder
+    // builds a **new object for every overview frame** — so an aggregate
+    // whose figures are byte-identical to the last one still reports a
+    // change, and the application re-renders.
+    //
+    // That is accepted rather than overlooked, on two grounds. The frame
+    // carries `computedAt`, which moves on every rebuild, so two consecutive
+    // aggregates are never genuinely identical — a deep comparison would
+    // have to be told to ignore a field that is part of the answer. And the
+    // rate is the `bars` cadence, ~16 a minute (§9.5), against a gate whose
+    // job is to stop the 120 s keepalive rendering — which it still does,
+    // because a keepalive carries no aggregate and leaves this reference
+    // alone.
+    //
+    // **The direction of the error is the safe one**: over-eager renders,
+    // never a silent miss. A miss is the defect the comment above records.
+    a.overview === b.overview
   );
 }

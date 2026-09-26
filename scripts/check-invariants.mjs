@@ -1002,9 +1002,10 @@ const INVARIANTS = [
   {
     id: "the-send-instant-is-not-a-clock",
     claim:
-      "The wire's `sentAt` is read by no liveness or staleness rule, on " +
-      "either side of the socket. It is a third clock reading, for " +
-      "measurement only.",
+      "Neither of the wire's process clocks — `sentAt` and `computedAt` — is " +
+      "read by any liveness or staleness rule, on either side of the socket. " +
+      "They are third and fourth clock readings, for measurement and for " +
+      "dating an aggregate.",
     check() {
       // **Task 3.6.4 put a server-stamped instant on every frame** so that
       // `PRODUCT_SPEC.md` §28's p95 could be taken at all, and the constraint
@@ -1031,17 +1032,47 @@ const INVARIANTS = [
         "apps/frontend/src/market/live-feed.ts",
       ];
 
+      // **Two words since 2026-09-26 (Task 4.2.4), and the second is the one
+      // with a live defect behind it.** `computedAt` says when the overview
+      // aggregate was TRUE, and it is worse than `sentAt` for a threshold
+      // rather than merely as bad: the frame is rebuilt on connect, on
+      // subscribe and on every applied batch, so it moves whenever a browser
+      // opens a tab. A staleness rule keyed on it would read a **dead feed as
+      // `LIVE`** for as long as the gateway kept recomputing — the exact
+      // inversion the 60 s rule exists to prevent, and it is also why the
+      // browser's `observedIn` returns `NOTHING_OBSERVED` for an overview.
+      //
+      // Both words are one list because they are one rule: a clock reading
+      // about THIS PROCESS is never evidence about the MARKET.
+      const CLOCKS = [
+        {
+          word: "sentAt",
+          what:
+            "the send instant. It is a measurement field (Task 3.6.4, ADR " +
+            "0033) and a server clock read on a browser's machine, so it is " +
+            "skew as readily as latency",
+        },
+        {
+          word: "computedAt",
+          what:
+            "the aggregate's own instant (Task 4.2.4). It moves every time " +
+            "the gateway rebuilds the overview — on every connect and every " +
+            "subscribe — so a rule keyed on it reports a dead feed as live",
+        },
+      ];
+
       for (const path of GUARDED) {
         const text = withoutComments(
           readFileSync(resolve(REPO_ROOT, path), "utf8"),
         );
-        if (text.includes("sentAt")) {
-          throw new InvariantFailure(
-            `${path} reads the send instant. \`sentAt\` is a measurement ` +
-              "field on the wire and must not become a clock a status is " +
-              "derived from — `STREAM-SEAM.md` §3 is what happened last " +
-              "time two clocks were merged (ADR 0033).",
-          );
+        for (const { word, what } of CLOCKS) {
+          if (text.includes(word)) {
+            throw new InvariantFailure(
+              `${path} reads \`${word}\` — ${what}. It must not become a ` +
+                "clock a status is derived from: `STREAM-SEAM.md` §3 is what " +
+                "happened last time two clocks were merged (ADR 0033).",
+            );
+          }
         }
       }
     },
@@ -2154,6 +2185,16 @@ const INVARIANTS = [
           path: "apps/backend/src/routes/securities.ts",
           why: "the row-to-wire mapper, which copies the field untouched",
         },
+        {
+          // Added 2026-09-26 by Task 4.2.4. The same kind as the entry above
+          // and for the same reason: `toSecurityLastClose` is a row-to-wire
+          // mapper that copies the field untouched so `changeFromClose` can
+          // choose a basis from it later. It is the SECOND such mapper in the
+          // tree, which is recorded beside it as a condition — a third is the
+          // trigger to merge them.
+          path: "apps/backend/src/last-closes-cache.ts",
+          why: "the cache's row-to-wire mapper, which copies it untouched",
+        },
       ];
 
       const readers = shipped.filter((file) =>
@@ -2181,8 +2222,8 @@ const INVARIANTS = [
 
       if (extra.length > 0) {
         throw new InvariantFailure(
-          `${String(extra.length)} shipped module(s) outside the three that ` +
-            "carry `previousClose` read it as a basis:\n      " +
+          `${String(extra.length)} shipped module(s) outside the named ` +
+            "carriers of `previousClose` read it as a basis:\n      " +
             extra.join("\n      ") +
             "\n    The basis choice is `changeFromClose`'s and it is one " +
             "function for both processes. A second reader is a second " +
@@ -2271,6 +2312,33 @@ const INVARIANTS = [
         // name, so the exemption moves if the type does.
         if (/export\s+interface\s+LastClose\b/u.test(file.text)) {
           return "the module that DECLARES the closes type";
+        }
+
+        // **A file that hands both halves to the one producer** (added
+        // 2026-09-26 by Task 4.2.4, which is the task this clause was written
+        // one task ahead of). `index.ts` holds `currentMarketState` and
+        // constructs the closes cache, so it matches both sides — and it
+        // performs no arithmetic at all: it passes them to
+        // `buildMarketOverview`, whose own call count is held at one by
+        // `one-producer-of-the-overview-aggregate`. Delegating to the one
+        // implementation is the DESIRED state, and a clause that goes red on
+        // it is a clause that goes red when the thing it protects is working.
+        //
+        // **It is safe because clause three does not honour it.** A file that
+        // called the builder and also divided by a close would still be
+        // caught there, by the arithmetic itself, whatever it is named.
+        //
+        // **It must not cover the module that DECLARES the builder**, which
+        // is how the first version of this exemption was written and what
+        // `pnpm break the-proxies-do-their-own-arithmetic` caught in the same
+        // session: `market-overview.ts` contains `buildMarketOverview(` in
+        // its own signature, so the exemption swallowed the one file the
+        // break targets and the substitution went red on clause three alone.
+        if (
+          /\bbuildMarketOverview\(/u.test(file.text) &&
+          !/function\s+buildMarketOverview\b/u.test(file.text)
+        ) {
+          return "a wiring site that hands both halves to the one producer";
         }
 
         return undefined;

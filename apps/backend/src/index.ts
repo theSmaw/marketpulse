@@ -20,7 +20,8 @@ import {
   pingDatabase,
 } from "./database.js";
 import { readFeedDiagnostic, readFeedState } from "./feed-diagnostic.js";
-import { MARKET_STREAM_PATH } from "@marketpulse/shared";
+import { MARKET_STREAM_PATH, marketDateAt } from "@marketpulse/shared";
+import type { WireMarketOverview } from "@marketpulse/shared";
 
 import { registerMarketGateway } from "./market-gateway.js";
 import type { MarketDataStream } from "./market-data-stream.js";
@@ -29,6 +30,12 @@ import {
   snapshotOf,
 } from "./current-market-state.js";
 import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
+import {
+  buildMarketOverview,
+  toWireMarketOverview,
+} from "./market-overview.js";
+import { createLastClosesCache } from "./last-closes-cache.js";
+import { indexProxyTickers } from "./universe.js";
 import { streamLogTo } from "./stream-log.js";
 import { ReplayDuringSessionError } from "./replay-stream.js";
 import { resolveMarketData } from "./market-data.js";
@@ -672,8 +679,69 @@ const currentMarketState = createCurrentMarketState();
 // exists only for a security actually **observed**, so a freshly restarted
 // process sends almost nothing and `{}` stays the TRUE answer rather than a
 // degraded one. *Present but empty* is unspellable at the source.
+// ------------------------------------------------------- the aggregate seam
+//
+// **Where an aggregate over the universe is computed** (Story 4.2, Task
+// 4.1.1's decision 1): once, here, beside the map it reads — never per page
+// and never in a browser. `PRODUCT_SPEC.md` §5.1 is the reason it cannot be
+// the browser's: every number a user sees comes from deterministic backend
+// code, and §17's analytical tools are backend tools, so Epic 5's scores
+// could not live there either.
+//
+// **The closes are cached and the observations are not**, which is the whole
+// shape of the seam: `currentMarketState` is written by the socket and read
+// synchronously, and the denominator is a 518-row database read that changes
+// once a night. `last-closes-cache.ts` holds the second so the producer below
+// can be called from inside the socket's own callback without an `await`.
+const lastCloses = createLastClosesCache({
+  bars: createMarketBarsRepository(database),
+  warn: (fields, message) => {
+    app.log.warn(fields, message);
+  },
+});
+
+/**
+ * **The one call site of `buildMarketOverview` in shipped backend code**, held
+ * there by `one-producer-of-the-overview-aggregate`.
+ *
+ * `new Date()` is read **here** rather than inside the builder, which is the
+ * module's own temporal rule: it takes `asOf` as an argument, reads no clock,
+ * and is therefore already replay-ready. Under a replay this line is the one
+ * that changes.
+ */
+const marketOverview = (): WireMarketOverview => {
+  const asOf = new Date();
+  return toWireMarketOverview(
+    buildMarketOverview({
+      symbols: indexProxyTickers(),
+      observations: currentMarketState.all(),
+      closesAsOf: lastCloses.closesAsOf,
+      asOf,
+    }),
+    asOf,
+  );
+};
+
+// **Loaded at startup, and it does not block the server** (Task 4.2.4). A
+// deployment whose database is unreachable still serves — the paragraph above
+// `pingDatabase` argues that at length — and an overview with no closes is a
+// live price with no measurable move, which is an honest partial answer
+// rather than a failure. The refresh condition lives in the cache.
+void lastCloses.load(marketDateAt(new Date())).then(
+  () => {
+    app.log.info(
+      { securities: lastCloses.size() },
+      "last closes loaded for the market overview",
+    );
+  },
+  (error: unknown) => {
+    app.log.warn({ err: error }, "last closes could not be loaded");
+  },
+);
+
 const gateway = registerMarketGateway(app, {
   snapshot: () => snapshotOf(currentMarketState),
+  overview: marketOverview,
   feedState: () => {
     const state = readFeedState(config, new Date(), marketStream);
     // `null` — no stream configured — reads as `disconnected` on the wire,

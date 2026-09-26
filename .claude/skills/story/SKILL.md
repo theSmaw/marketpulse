@@ -31,8 +31,11 @@ STORY
  └── Phase 3  end-to-end story verification → the sweep ──► ⏸ GATE 2: the human accepts
 ```
 
-**Two gates and no others.** Between them it runs, stopping only for a genuine
-question or for something irreversible. It is **iterative** — a task may go
+**Two gates and no others.** Between them it runs — **including from one task
+straight into the next, without asking.** Do not stop to ask whether to
+continue: finish a task, merge its PR, start the following one, and check in
+when the work is done or when something genuinely uncertain arrives. Stop only
+for a real question or for something irreversible. It is **iterative** — a task may go
 round implement→verify more than once — and **recursive** — a task that turns
 out to be two tasks gets decomposed rather than allowed to grow.
 
@@ -205,9 +208,16 @@ to this task. Then:
 - **Commit** in the house style:
   `<title> (N.M.K) — <what was found>`, with the driving prompts quoted
   verbatim in the body, ending with the attribution line this session was given.
-- **Open a PR** and lead your reply to the human with its URL. Branch task
-  `K+1` off task `K`'s branch while its PR is open, and say in the PR that it
-  is stacked; rebase onto `main` once the human merges.
+- **Open a PR, wait for its checks, and merge it** —
+  `gh pr merge <n> --squash --delete-branch`. Lead your reply with the URL.
+  A PR reading `BLOCKED` is CI still running; `MERGEABLE` plus green is ready.
+- **Branch each task off `main`, never off the previous task's branch.**
+  Squash-merging guarantees a conflict otherwise: `main` ends up holding the
+  parent as one squashed commit while the child still carries the originals.
+  If it happens anyway, cherry-pick the child's own commits onto a fresh branch
+  off `main` — **not** `git rebase --autostash`, which stashes `notes.txt` and
+  is forbidden — confirm with `git diff <old> <new>` that the tree is identical,
+  and force-push with `--force-with-lease` so the PR keeps its number.
 
 **10. Reassess the remaining tasks.** This is not optional and it is where most
 of the value is. Completing one task routinely changes what the others should

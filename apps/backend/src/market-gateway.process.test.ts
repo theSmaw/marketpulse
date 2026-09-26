@@ -7,7 +7,7 @@ import {
   toWireObservation,
 } from "@marketpulse/shared";
 import { WebSocket as WsWebSocket } from "ws";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   MAX_BUFFERED_BYTES,
@@ -17,7 +17,11 @@ import {
 import { buildServer } from "./server.js";
 
 import type { FastifyInstance } from "fastify";
-import type { Bar, WireObservation } from "@marketpulse/shared";
+import type {
+  Bar,
+  WireMarketOverview,
+  WireObservation,
+} from "@marketpulse/shared";
 import type { LiveObservation } from "./market-data-stream.js";
 import type { MarketGateway } from "./market-gateway.js";
 
@@ -63,13 +67,23 @@ const observation = (startsAt: string, close: number): LiveObservation => ({
   supersedes: false,
 });
 
+/** The aggregate an unwired test does not care about. Empty is a true state. */
+const EMPTY_OVERVIEW: WireMarketOverview = {
+  computedAt: "2026-09-26T14:02:00.000Z",
+  feeds: [],
+  figures: [],
+};
+
+interface ReceivedFrame {
+  type: string;
+  sentAt?: string;
+  observations?: Record<string, unknown>;
+  overview?: Record<string, unknown>;
+}
+
 interface Client {
   readonly socket: WsWebSocket;
-  readonly received: {
-    type: string;
-    sentAt?: string;
-    observations?: Record<string, unknown>;
-  }[];
+  readonly received: ReceivedFrame[];
   waitFor: (type: string) => Promise<void>;
   /** Wait for the Nth message of a type — see the note on the implementation. */
   waitForCount: (type: string, count: number) => Promise<void>;
@@ -101,23 +115,13 @@ afterEach(async () => {
 
 /** Connect one browser to a listening gateway and collect what it is sent. */
 async function connectClient(port: number): Promise<Client> {
-  const received: {
-    type: string;
-    sentAt?: string;
-    observations?: Record<string, unknown>;
-  }[] = [];
+  const received: ReceivedFrame[] = [];
   const socket = new WsWebSocket(
     `ws://127.0.0.1:${String(port)}${MARKET_STREAM_PATH}`,
   );
 
   socket.on("message", (data: Buffer) => {
-    received.push(
-      JSON.parse(data.toString("utf8")) as {
-        type: string;
-        sentAt?: string;
-        observations?: Record<string, unknown>;
-      },
-    );
+    received.push(JSON.parse(data.toString("utf8")) as ReceivedFrame);
   });
 
   /**
@@ -174,6 +178,7 @@ async function connectClient(port: number): Promise<Client> {
 async function attach(
   snapshot: ReadonlyMap<string, WireObservation> = new Map(),
   wallNow?: () => number,
+  overview: () => WireMarketOverview = () => EMPTY_OVERVIEW,
 ): Promise<Attached> {
   const app = buildServer({
     logLevel: "silent",
@@ -184,6 +189,7 @@ async function attach(
   const gateway = registerMarketGateway(app, {
     snapshot: () => snapshot,
     feedState: () => ({ status: "live", feed: "iex", marketOpen: true }),
+    overview,
     // `exactOptionalPropertyTypes`: absent and `undefined` are different types.
     ...(wallNow === undefined ? {} : { wallNow }),
   });
@@ -623,10 +629,19 @@ describe("every frame is stamped from the gateway's clock at the send (Task 3.6.
     ]);
     await a.waitFor("bars");
 
+    // **The overview frames were added to this expectation on 2026-09-26**
+    // (Task 4.2.4) rather than filtered out of it, because the list is also
+    // the record of what a browser receives and in what order: one aggregate
+    // beside each snapshot, and one ahead of each batch of bars. Every one of
+    // them carries the same stamp as the frame it accompanies, from this
+    // clock, at its own send.
     const stamps = a.received.map((m) => [m.type, m.sentAt]);
     expect(stamps).toEqual([
       ["snapshot", "2026-09-16T14:02:00.500Z"],
+      ["overview", "2026-09-16T14:02:00.500Z"],
       ["snapshot", "2026-09-16T14:02:00.750Z"],
+      ["overview", "2026-09-16T14:02:00.750Z"],
+      ["overview", "2026-09-16T14:02:01.000Z"],
       ["bars", "2026-09-16T14:02:01.000Z"],
     ]);
   });
@@ -668,5 +683,135 @@ describe("every frame is stamped from the gateway's clock at the send (Task 3.6.
     expect(stampA).toBeDefined();
     expect(stampB).toBeDefined();
     expect(stampA).not.toBe(stampB);
+  });
+});
+
+describe("the overview frame, over a real socket (Task 4.2.4)", () => {
+  /** A copy of the helper in the subscription block, which is block-scoped. */
+  const subscribe = (client: Client, symbols: readonly string[]): void => {
+    client.socket.send(
+      encodeMarketStreamClientMessage({
+        type: "subscribe",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        symbols,
+      }),
+    );
+  };
+
+  const figures: WireMarketOverview = {
+    computedAt: "2026-09-26T14:02:00.000Z",
+    feeds: ["iex"],
+    figures: [
+      {
+        state: "observed",
+        symbol: "SPY",
+        at: "2026-09-26T14:01:00.000Z",
+        price: 655.2,
+        changePercent: 0.63,
+        changeBasis: "2026-09-25",
+      },
+      { state: "unknown", symbol: "QQQ" },
+    ],
+  };
+
+  // **These run against `registerMarketGateway`, not against the codec.**
+  // `market-gateway.test.ts` hand-builds frames and never constructs a
+  // gateway, so an assertion added there would prove the DECODER and say
+  // nothing about which path the frame rides.
+
+  it("arrives on connect, before the browser has asked for anything", async () => {
+    // The overview is not scoped to a subscription, so a browser that
+    // connects mid-session would otherwise hold no figures until the next
+    // upstream batch — §11.1's own argument one level up.
+    const a = await attach(new Map(), undefined, () => figures);
+    await a.waitFor("overview");
+
+    const frame = a.received.find((m) => m.type === "overview");
+    expect(frame?.overview).toEqual(figures);
+    expect(frame?.sentAt).toEqual(expect.any(String));
+    // `computedAt` is a field of its own and not a second meaning for
+    // `sentAt`: the aggregate was true before the frame was sent.
+    expect(frame?.overview?.computedAt).toBe("2026-09-26T14:02:00.000Z");
+  });
+
+  it("arrives again on subscribe", async () => {
+    const a = await attach(new Map(), undefined, () => figures);
+    await a.waitFor("overview");
+    subscribe(a, ["SPY"]);
+    await a.waitForCount("overview", 2);
+  });
+
+  it("is broadcast once per applied batch, to every attached browser", async () => {
+    const a = await attach(new Map(), undefined, () => figures);
+    const b = await a.join();
+    await a.waitFor("overview");
+    await b.waitFor("overview");
+    a.received.length = 0;
+    b.received.length = 0;
+
+    a.gateway.publishObservations([
+      observation("2026-09-16T14:01:00Z", 214.75),
+    ]);
+    await a.waitFor("overview");
+    await b.waitFor("overview");
+
+    // **Every browser, including the one that asked for nothing.** `b` has
+    // sent no `subscribe`, so it receives no `bars` — and it is still on the
+    // landing page, which is what the aggregate is for.
+    expect(a.received.filter((m) => m.type === "overview")).toHaveLength(1);
+    expect(b.received.filter((m) => m.type === "overview")).toHaveLength(1);
+    expect(b.received.some((m) => m.type === "bars")).toBe(false);
+  });
+
+  it("does NOT ride the feed-state path", async () => {
+    // Task 4.1.6 measured that path at ~332 frames a minute on the deployed
+    // gateway. `the-overview-frame-is-not-a-heartbeat` refuses the word
+    // there; this is the behavioural half, over a socket.
+    const a = await attach(new Map(), undefined, () => figures);
+    await a.waitFor("overview");
+    a.received.length = 0;
+
+    a.gateway.publishFeedState();
+    await a.waitFor("feed");
+    await new Promise((resolve) => setTimeout(resolve, 80));
+
+    expect(a.received.some((m) => m.type === "overview")).toBe(false);
+  });
+
+  it("is not built at all when there is nothing to publish", async () => {
+    // `publishObservations([])` returns before anything is encoded, so an
+    // empty batch cannot produce an aggregate nobody asked for.
+    const built = vi.fn(() => figures);
+    const a = await attach(new Map(), undefined, built);
+    await a.waitFor("overview");
+    const onConnect = built.mock.calls.length;
+
+    a.gateway.publishObservations([]);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+
+    expect(built.mock.calls.length).toBe(onConnect);
+  });
+
+  it("builds the aggregate ONCE for two browsers, unlike `bars`", async () => {
+    const built = vi.fn(() => figures);
+    const a = await attach(new Map(), undefined, built);
+    const b = await a.join();
+    await a.waitFor("overview");
+    await b.waitFor("overview");
+    subscribe(a, ["NVDA"]);
+    subscribe(b, ["NVDA"]);
+    await a.waitForCount("overview", 2);
+    await b.waitForCount("overview", 2);
+    built.mockClear();
+
+    a.gateway.publishObservations([
+      observation("2026-09-16T14:01:00Z", 214.75),
+    ]);
+    await a.waitFor("bars");
+    await b.waitFor("bars");
+
+    // One compute, one broadcast — Task 4.1.1's decision 1. A `bars` payload
+    // genuinely differs per client; this one does not.
+    expect(built).toHaveBeenCalledOnce();
   });
 });

@@ -62,10 +62,16 @@ export type {
   MarketStreamClientMessage,
   MarketStreamMessage,
   MarketStreamMessageType,
+  OverviewMessage,
   SnapshotMessage,
   SubscribeMessage,
   WireFeedState,
+  WireMarketOverview,
   WireObservation,
+  WireObservedFigure,
+  WireOverviewFigure,
+  WireStoredFigure,
+  WireUnknownFigure,
 } from "./market-stream-protocol.js";
 export { asInstant, asIs, toWire } from "./wire-serialiser.js";
 export type { JsonValue, WireFields } from "./wire-serialiser.js";

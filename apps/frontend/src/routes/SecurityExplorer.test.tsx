@@ -24,6 +24,7 @@ const NO_LIVE_FEED = {
   observations: new Map(),
   fromSnapshot: new Set<string>(),
   resumes: 0,
+  overview: undefined,
 } as const;
 
 // The route's tests drive the real component against a stubbed `fetch`, so the

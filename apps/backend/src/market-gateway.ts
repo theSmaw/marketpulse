@@ -9,6 +9,7 @@ import {
   encodeMarketStreamMessage,
   toWireObservation,
   type WireFeedState,
+  type WireMarketOverview,
   type WireObservation,
 } from "@marketpulse/shared";
 
@@ -128,6 +129,20 @@ export interface MarketGatewayOptions {
   readonly snapshot: () => ReadonlyMap<string, WireObservation>;
   /** The feed's state, for the snapshot and for every `feed` message. */
   readonly feedState: () => WireFeedState;
+  /**
+   * **The aggregate, built once per send** (Task 4.2.4).
+   *
+   * A function rather than a value, for the reason every other seam here is
+   * one: the gateway decides *when* a browser is told something and must not
+   * decide *what* is true. `index.ts` supplies the producer, which is the one
+   * call site of `buildMarketOverview` in shipped backend code
+   * (`one-producer-of-the-overview-aggregate`).
+   *
+   * **Required rather than optional.** An optional producer would make a
+   * wiring mistake silent — a gateway that simply never sends the frame, on a
+   * deployment where nothing else would say so.
+   */
+  readonly overview: () => WireMarketOverview;
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
   readonly clearTimer?: (timer: NodeJS.Timeout) => void;
   /**
@@ -184,6 +199,7 @@ export function registerMarketGateway(
   const {
     snapshot,
     feedState,
+    overview,
     setTimer = (fn, ms) => setInterval(fn, ms),
     clearTimer = (timer) => {
       clearInterval(timer);
@@ -319,6 +335,27 @@ export function registerMarketGateway(
       feed: feedState(),
     });
 
+  /**
+   * The aggregate frame — **the one place it is built** (Task 4.2.4).
+   *
+   * `the-overview-frame-is-not-a-heartbeat` counts `type: "overview"` encode
+   * sites in this file and allows at most one, which is Task 4.1.1's decision
+   * 1 held mechanically: one computation for every browser. The three callers
+   * below are three *sends* of one shape, not three cadences.
+   *
+   * **It is not scoped to a subscription**, unlike `bars`. The overview is an
+   * aggregate over securities a browser never asked for by name, so every
+   * attached client gets the identical payload — which is also why
+   * `publishObservations` encodes it once outside its per-client loop.
+   */
+  const overviewMessage = (): string =>
+    encodeMarketStreamMessage({
+      type: "overview",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: sentAt(),
+      overview: overview(),
+    });
+
   app.server.on("upgrade", (request, socket, head) => {
     // Path-matched here rather than by the library, so an upgrade to any other
     // path is refused rather than silently accepted. `request.url` includes a
@@ -365,6 +402,14 @@ export function registerMarketGateway(
             feed: feedState(),
           }),
         );
+
+        // **And the aggregate, beside the snapshot and for the same reason.**
+        // The overview is not scoped to a subscription, so a browser that
+        // connects at 11:20 would otherwise hold no figures until the next
+        // upstream batch — §11.1's own argument one level up, and the wait it
+        // removes is the same wait. It rides this call rather than a call of
+        // its own so that *on connect* and *on subscribe* cannot come apart.
+        send(client, overviewMessage());
       };
 
       // **The snapshot, on connect.** §11.1: a browser connecting under
@@ -442,6 +487,18 @@ export function registerMarketGateway(
 
     publishObservations(observations) {
       if (observations.length === 0) return;
+
+      // **One compute, one broadcast** (Task 4.1.1's decision 1), and the
+      // contrast with the loop below is the whole reason it is written first:
+      // a `bars` payload genuinely differs per client, and this one does not.
+      // Encoding it inside the loop would build the identical string once per
+      // attached browser.
+      //
+      // **This is the observations path**, which is the only cadence the
+      // aggregate may ride. The feed-state path sends ~332 frames a minute
+      // (Task 4.1.6, measured on the deployed gateway) and
+      // `the-overview-frame-is-not-a-heartbeat` refuses the word there.
+      broadcast(overviewMessage());
 
       // **One message per client rather than one for everybody** (Task 3.5.6).
       // The encode happens per client because the payloads genuinely differ;

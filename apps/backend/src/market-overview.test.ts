@@ -1,7 +1,10 @@
 import { toMarketDate, toTicker } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
-import { buildMarketOverview } from "./market-overview.js";
+import {
+  buildMarketOverview,
+  toWireMarketOverview,
+} from "./market-overview.js";
 
 import type {
   Bar,
@@ -9,8 +12,10 @@ import type {
   MarketDate,
   SecurityLastClose,
   Ticker,
+  WireMarketOverview,
 } from "@marketpulse/shared";
 import type { CurrentObservation } from "./current-market-state.js";
+import type { MarketOverviewEntry } from "./market-overview.js";
 
 // **No Fastify instance, no database, no clock, and that is the assertion
 // rather than the setup** (Done-when 2). Every input this module reads is an
@@ -58,6 +63,8 @@ function storedClose(
     previousClose: over.previousClose ?? null,
   };
 }
+
+const ASOF = new Date("2026-09-14T17:00:00.000Z");
 
 const closesOf = (
   ...records: readonly SecurityLastClose[]
@@ -233,5 +240,175 @@ describe("buildMarketOverview", () => {
 
     if (entry?.state !== "live") throw new Error("expected a live entry");
     expect(entry.source).toEqual(source);
+  });
+});
+
+// ------------------------------------------- the wire conversion (Task 4.2.4)
+
+describe("toWireMarketOverview", () => {
+  const overview = (
+    entries: readonly MarketOverviewEntry[],
+  ): WireMarketOverview => toWireMarketOverview(entries, ASOF);
+
+  it("carries NEITHER of the things the figures were derived from", () => {
+    // **ADR 0031's obligation, asserted where it is at risk.** The backend
+    // holds a `LiveObservation` with a provider, a retrieval instant and an
+    // age computed on read, and a `SecurityLastClose` whose `previousClose`
+    // is *the answer to measure from what* rather than a price anybody should
+    // render. On a socket nothing strips an undeclared field.
+    const wire = overview(
+      buildMarketOverview({
+        symbols: [SPY, QQQ],
+        observations: new Map([
+          [SPY, observation(SPY, bar(605.5, duringSession("2026-09-14")))],
+        ]),
+        closesAsOf: () =>
+          closesOf(
+            storedClose(SPY, {
+              close: 600,
+              session: "2026-09-11",
+              previousClose: 598,
+            }),
+            storedClose(QQQ, {
+              close: 589.4,
+              session: "2026-09-11",
+              previousClose: 585,
+            }),
+          ),
+        asOf: duringSession("2026-09-14"),
+      }),
+    );
+
+    const json = JSON.stringify(wire);
+    expect(json).not.toContain("previousClose");
+    expect(json).not.toContain("retrievedAt");
+    expect(json).not.toContain("ageMs");
+    expect(json).not.toContain("provider");
+    expect(json).not.toContain("barCount");
+    // The bar's other five fields are not a price anybody asked for either.
+    expect(json).not.toContain("volume");
+    expect(json).not.toContain('"high"');
+  });
+
+  it("reports the three states in the order it was asked about them", () => {
+    const wire = overview(
+      buildMarketOverview({
+        symbols: [SPY, QQQ, DIA],
+        observations: new Map([
+          [SPY, observation(SPY, bar(605.5, duringSession("2026-09-14")))],
+        ]),
+        closesAsOf: () =>
+          closesOf(
+            storedClose(SPY, { close: 600, session: "2026-09-11" }),
+            storedClose(QQQ, { close: 589.4, session: "2026-09-11" }),
+          ),
+        asOf: duringSession("2026-09-14"),
+      }),
+    );
+
+    expect(wire.figures).toEqual([
+      {
+        state: "observed",
+        symbol: "SPY",
+        at: duringSession("2026-09-14").toISOString(),
+        price: 605.5,
+        // The figure itself is `changeFromClose`'s and is asserted where
+        // that function is; here the question is the shape and the order.
+        changePercent: 0.9166666666666666,
+        changeBasis: "2026-09-11",
+      },
+      { state: "stored", symbol: "QQQ", session: "2026-09-11", close: 589.4 },
+      { state: "unknown", symbol: "DIA" },
+    ]);
+  });
+
+  it("omits the change when there is no basis, rather than sending a zero", () => {
+    const wire = overview(
+      buildMarketOverview({
+        symbols: [SPY],
+        observations: new Map([
+          [SPY, observation(SPY, bar(605.5, duringSession("2026-09-14")))],
+        ]),
+        closesAsOf: () => closesOf(),
+        asOf: duringSession("2026-09-14"),
+      }),
+    );
+
+    expect(wire.figures).toEqual([
+      {
+        state: "observed",
+        symbol: "SPY",
+        at: duringSession("2026-09-14").toISOString(),
+        price: 605.5,
+      },
+    ]);
+  });
+
+  it("omits the basis when the same-session branch has no session to name", () => {
+    // `changeFromClose` measures from `previousClose` and reports `basis:
+    // null`, because `previousClose` is a number with no date beside it. A
+    // date describing a figure measured from something else would be worse
+    // than no date.
+    const wire = overview(
+      buildMarketOverview({
+        symbols: [SPY],
+        observations: new Map([
+          [SPY, observation(SPY, bar(606, duringSession("2026-09-14")))],
+        ]),
+        closesAsOf: () =>
+          closesOf(
+            storedClose(SPY, {
+              close: 604,
+              session: "2026-09-14",
+              previousClose: 600,
+            }),
+          ),
+        asOf: duringSession("2026-09-14"),
+      }),
+    );
+
+    const [figure] = wire.figures;
+    expect(figure).toHaveProperty("changePercent");
+    expect(figure).not.toHaveProperty("changeBasis");
+  });
+
+  it("names the tapes once per frame, for the OBSERVED figures only", () => {
+    // Invariant 6 displayed rather than implied — and a stored close's tape
+    // is not this frame's provenance, so it does not appear.
+    const wire = overview(
+      buildMarketOverview({
+        symbols: [SPY, QQQ, DIA],
+        observations: new Map([
+          [SPY, observation(SPY, bar(605.5, duringSession("2026-09-14")))],
+          [QQQ, observation(QQQ, bar(589.9, duringSession("2026-09-14")))],
+        ]),
+        closesAsOf: () =>
+          closesOf(storedClose(DIA, { close: 445, session: "2026-09-11" })),
+        asOf: duringSession("2026-09-14"),
+      }),
+    );
+
+    expect(wire.feeds).toEqual(["iex"]);
+  });
+
+  it("is empty-but-true when nothing has been observed and nothing stored", () => {
+    const wire = overview(
+      buildMarketOverview({
+        symbols: [SPY],
+        observations: new Map(),
+        closesAsOf: () => closesOf(),
+        asOf: duringSession("2026-09-14"),
+      }),
+    );
+
+    expect(wire.feeds).toEqual([]);
+    expect(wire.figures).toEqual([{ state: "unknown", symbol: "SPY" }]);
+  });
+
+  it("dates the aggregate from `asOf` and not from a clock of its own", () => {
+    // `computedAt` is when the aggregate was TRUE. It is the caller's instant
+    // — the replay clock under a replay — because this module reads none.
+    const wire = overview([]);
+    expect(wire.computedAt).toBe(duringSession("2026-09-14").toISOString());
   });
 });

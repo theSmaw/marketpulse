@@ -830,3 +830,85 @@ alternatives priced in its own file — today's 165 s, a shorter browser-side
 threshold, retries-failing-for-N, or the socket closing. The **person's** half
 is owed under an owner and a condition: the owner, the next session they are
 awake for with a phone to hand.
+
+## The overview's closes lookup takes a session and ignores it, so the aggregate reads the LATEST closes whatever instant it is asked about
+
+**Added 2026-09-26 (Task 4.2.4), the moment the production lookup was written
+and not before.** Task 4.2.3 built `buildMarketOverview` with a
+`closesAsOf: (session: MarketDate) => …` parameter and supplied no
+implementation; while there was no implementation there was no claim to guard.
+There is one now, in `apps/backend/src/last-closes-cache.ts`, and it is a claim
+about a **mechanism** — so it owes something mechanical, which is what this
+entry is instead of.
+
+**What the shape says and what the code does.** `market-overview.ts` converts
+its `asOf` to a market date with `marketDateAt` and passes it to the lookup —
+_the replay seam, in one line_, in its own words. The cache takes that argument,
+compares it against the session it last loaded **for**, and returns the closes
+it holds. Those closes are `readLastCloses("1d")`'s answer: **the latest daily
+bar per security in the store**, with no `observed_at` bound at all.
+
+**Correct live, and future information under a replay.** During a session the
+latest stored close _is_ the close as of today, so the two answers coincide and
+nothing on any screen is wrong. Replaying 2026-03-04 would measure every proxy's
+change against **September's** close — a well-formed, correctly-coloured,
+completely fictional number, which is the failure class this repository keeps
+naming: not a crash, not a blank, a plausible figure.
+
+**Why the parameter exists anyway.** ADR 0015's gap 4 — _the temporal seam holds
+only while no unplugged handle is exported_ — and invariant 4's requirement that
+temporal isolation be structural. The question is asked in the shape Epic 13
+needs so that its plugin changes **one implementation** rather than hunting a
+call site with no way to ask. `market-overview.ts`'s own note says so and names
+the plugin's author directly.
+
+**What is mechanical, and what it cannot see.** `pnpm invariants` holds
+`one-producer-of-the-overview-aggregate` — the aggregate has **at most one**
+call site in shipped backend code — so there is exactly one place a replay clock
+has to reach, and a second one fails the build. That is the half that can be
+checked. What nothing can check is that the lookup **honours** the session it is
+given: an implementation that ignores its argument and one that respects it are
+indistinguishable to every test in this repository, because there is no replay
+to run them under.
+
+**Re-measure** —
+`grep -n "session" apps/backend/src/last-closes-cache.ts`. The lookup honours
+its argument the day `readLastCloses` grows an `asOf` bound and that bound is
+passed; until then the function's body uses `session` only to decide **when to
+refresh**, never **what to return**, and this entry stands.
+
+**Owner: Epic 13's temporal plugin**, by condition rather than by story number:
+**the first caller of `closesAsOf` whose `asOf` is not the wall clock.**
+
+### And the same absent bound has a second consequence, today rather than under a replay
+
+**Added 2026-09-26 after review, in the same entry because it is the same
+missing `observed_at`.** The cache records `loadedFor` — the session it was
+**asked about** — against whatever the unbounded read returned. So a refresh
+running **after midnight ET and before the nightly backfill** reads yesterday's
+closes, stamps today's date on them, and can never fire again that day, because
+`session !== loadedFor` is false for the rest of it. Every proxy's change is
+then measured across **two** sessions: a well-formed, correctly-coloured, wrong
+number.
+
+**Not repaired, and the reason is that the correct condition needs a fact
+nothing here asserts.** It is _the newest close we hold is older than the newest
+close that should exist_, and the right-hand side is the backfill's timing — the
+store holds the **previous** session during a live session and today's after the
+nightly run. Every cheaper condition becomes a poll: retrying whenever a read
+did not advance is one 518-row query a minute for the whole of every weekend,
+because a Sunday has no new close to find.
+
+**What was done instead is to make the window observable.** A refresh whose
+newest session did not move is logged by name —
+`last closes refreshed and the newest session did not move` — so the state is
+visible in production rather than inferred from a wrong percentage.
+
+**Re-measure** —
+`grep -n "the newest session did not move" apps/backend/src/last-closes-cache.ts`
+for the instrument, and the deployed log for whether it has ever fired.
+
+**Reversal trigger, as a condition:** the first deployment where
+`GET /diagnostics/freshness` reports the store a session behind **after 09:30
+ET**, which is the same evidence that says the backfill missed a night and is
+the only circumstance in which this window is reachable.

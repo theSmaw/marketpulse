@@ -1341,7 +1341,39 @@ export const BREAKS = [
       "// pnpm break: reverted automatically\n" +
       "export const sentAt = STALE_AFTER_MS;",
     command: ["pnpm", "invariants"],
-    expect: "reads the send instant",
+    // Repointed 2026-09-26 by Task 4.2.4: the failure message names the word
+    // now that the check guards two of them.
+    expect: "reads `sentAt`",
+  },
+  // **The second word in `the-send-instant-is-not-a-clock`** (Task 4.2.4).
+  // It is a separate entry rather than a widening of the one above because
+  // the two words fail differently: `sentAt` is skew, and `computedAt`
+  // **moves whenever a browser opens a tab** — so a threshold keyed on it
+  // does not merely misfire, it reports a dead feed as healthy for as long as
+  // anybody keeps connecting.
+  //
+  // The substitution is `feed-liveness.ts` rather than `live-feed.ts` for the
+  // first entry's reason: the shared rule is where a fourth clock would
+  // actually be adopted, and it is the file the guard names first.
+  {
+    name: "the-aggregate-instant-becomes-a-clock",
+    proves:
+      "The overview's `computedAt` reaches the liveness rule. It is the " +
+      "instant the AGGREGATE was true, and the gateway rebuilds the " +
+      "aggregate on every connect, every subscribe and every applied batch " +
+      "\u2014 so it advances whenever somebody opens a tab, with no market " +
+      "data behind it at all. A staleness threshold keyed on it reads a " +
+      "**dead feed as `LIVE`** for as long as the gateway keeps " +
+      "recomputing, which is the exact inversion the 60 s rule exists to " +
+      "prevent (Task 4.2.4, ADR 0033's first constraint generalised).",
+    file: "packages/shared/src/feed-liveness.ts",
+    find: "export const STALE_AFTER_MS = 60_000;",
+    replace:
+      "export const STALE_AFTER_MS = 60_000;\n" +
+      "// pnpm break: reverted automatically\n" +
+      "export const computedAt = STALE_AFTER_MS;",
+    command: ["pnpm", "invariants"],
+    expect: "reads `computedAt`",
   },
   {
     name: "a-deploy-strands-every-open-tab",
@@ -1915,10 +1947,38 @@ export const BREAKS = [
       "dropout are simply never filled. This is Task 3.4.1's defect shape " +
       "with a different field (Task 3.10.7).",
     file: "apps/frontend/src/market/live-feed.ts",
-    find: "    a.resumes === b.resumes",
-    replace: "    true // pnpm break: reverted automatically",
+    // **Repointed 2026-09-26 by Task 4.2.4**, which added a term after this
+    // one. The old pair took the bare comparison and left the trailing `&&`
+    // inside a trailing comment, so the substitution was a PARSE ERROR rather
+    // than a missing check — red, but for the wrong reason, which
+    // `break-verify.mjs` correctly refuses as evidence. The `&&` now travels
+    // with the term.
+    find: "    a.resumes === b.resumes &&",
+    replace: "    true && // pnpm break: reverted automatically",
     command: ["pnpm", "--filter", "@marketpulse/frontend", "test", "live-feed"],
     expect: "makes a reconnection a change even when nothing else moved",
+  },
+  // **The same defect shape, a third time** (Task 4.2.4) — Task 3.4.1's for
+  // the observations Map, Task 3.10.7's for `resumes`, and this one for the
+  // overview aggregate. It is a separate entry rather than a widening because
+  // what is LOST differs: there, a gap never filled; here, four figures at the
+  // top of the landing page that update in the store and never reach a screen.
+  {
+    name: "the-aggregate-does-not-reach-the-page",
+    proves:
+      "The overview arrives, the reducer holds it correctly, and the render " +
+      "gate upstream of the reducer does not compare it \u2014 so nothing " +
+      "ever draws it. `sameLiveFeedView`'s own comment records what this " +
+      "looked like the first time: *a first moving price that does not " +
+      "move, with every test green*, because the reducer is right and " +
+      "nothing renders. The field was added to the gate in the same change " +
+      "as the field itself, which is the only ordering in which this is not " +
+      "found by a person looking at a still page (Task 4.2.4).",
+    file: "apps/frontend/src/market/live-feed.ts",
+    find: "    a.overview === b.overview",
+    replace: "    true // pnpm break: reverted automatically",
+    command: ["pnpm", "--filter", "@marketpulse/frontend", "test", "live-feed"],
+    expect: "makes an arriving aggregate a change even when nothing else moved",
   },
   {
     name: "a-stream-without-a-feed-word",
@@ -2120,20 +2180,19 @@ export const BREAKS = [
       "`one-subscriber-on-the-upstream-socket` learned that the expensive " +
       "way; this entry is what stops the same check being written twice " +
       "(Task 4.2.3).\n\n" +
-      "Note what it can and cannot claim today: there is no legitimate call " +
-      "site yet \u2014 Task 4.2.4 adds the first \u2014 so this substitution " +
-      "adds TWO at once, in one plausible edit, and what goes red is the " +
-      "counter reporting 2. The day a real caller exists, a one-call " +
-      "version of this entry is the stronger break.",
+      "**Strengthened 2026-09-26 by Task 4.2.4, which added the first " +
+      "legitimate call site.** The entry used to add TWO calls at once, " +
+      "because there were none; it now adds exactly ONE, which is the real " +
+      "regression and the weaker signal \u2014 a counter that has to notice " +
+      "1 \u2192 2 rather than 0 \u2192 2.",
     file: "apps/backend/src/market-overview.ts",
     find: "export function buildMarketOverview(\n  inputs: MarketOverviewInputs,\n): readonly MarketOverviewEntry[] {",
     replace:
       "// pnpm break: reverted automatically\n" +
-      "export function overviewOrRetry(\n" +
+      "export function overviewOrEmpty(\n" +
       "  inputs: MarketOverviewInputs,\n" +
       "): readonly MarketOverviewEntry[] {\n" +
-      "  const first = buildMarketOverview(inputs);\n" +
-      "  return first.length > 0 ? first : buildMarketOverview(inputs);\n" +
+      "  return buildMarketOverview(inputs);\n" +
       "}\n\n" +
       "export function buildMarketOverview(\n" +
       "  inputs: MarketOverviewInputs,\n" +
