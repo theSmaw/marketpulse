@@ -395,3 +395,52 @@ rather than only at the one it was derived from, and `auto auto` was replaced wi
 `repeat(2, minmax(min-content, 1fr))` because `auto` sizes the two rows
 independently (274 / 256 today, and a filled sectors row takes its height **out
 of** movers). **The whole layout probe is byte-identical at all four widths.**
+
+## Amended by Task 4.3.2 — 2026-09-27: the retirement's arithmetic used 383 and the drawn region is 433
+
+**The decision above is unchanged; one number in its argument is not.** The
+retirement of Task 4.1.4's reserved-equals-filled rule was argued against a
+**975 px** grid — row 1 at 161, two rows at 383, two 24 px gaps. Task 4.3.2 drew
+the row and 383 turned out to be **a bare list with nothing under it**. The row
+itself is exactly the 26 px the placeholder assumed; what the placeholder had no
+way to include is the **printed ladder** (24 px, required by AC 2 — a length is a
+claim about a quantity, so the quantity is printed) and the **claim line** (28 px,
+the benchmark sentence the footer carries at every width).
+
+**Drawn: 433 px at 1440, 1024 and 768; 425 at 390** (no bar, so no ladder). At 433
+the grid is **161 + 433 + 433 + 48 = 1075** rather than 975, so the one-time
+recomposition when 4.3.5 lands is **+337 px at 1440 rather than +237**.
+
+**Both halves of the retirement survive the bigger number**, which is why this is
+an amendment rather than a re-opening. The safety argument was never about the
+magnitude: at every one of the four widths, everything that moves when this region
+fills is **another reserved panel or the source note**, and no figure and no
+sentence a reader is reading changes position. And the free half is unchanged —
+the two lower rows still share one `fr` ratio, so `Movers` still pre-pays to the
+same height and Story 4.5 still moves nothing. **What is owed is a measurement
+rather than a decision**, and it is written into Task 4.3.5's file in words that
+task can act on, with the instruction that a moving figure or sentence returns to
+the owner.
+
+## Amended by Task 4.3.2 — 2026-09-27: a sixth owner decision — the ladder resets at the bell
+
+**The bar's stepped ladder starts again each session.** `±1 / ±2 / ±5 / ±10%`,
+smallest step containing all eleven, **stepping outward only within a session** and
+**reset at the opening bell**. Taken by the owner on 2026-09-27, against carrying
+the step overnight.
+
+The argument: a step that survived the night opens every quiet Tuesday on the
+previous Friday's rotation scale — **eleven stubs against a printed ±5%**, which
+says _nothing is happening_ in the room it takes to say _a lot could_. The
+accepted cost is **one visible step-out in the first half hour of a heavy day**, a
+change a reader can see the reason for. What is given up is comparability across
+days, and **nothing else on this screen is comparable across days**, so the reset
+costs a property this region would have been the first to have.
+
+**Reversal trigger** — a condition: _the first reader who asks whether today's
+bars are drawn at the same scale as yesterday's._
+
+The consequence is a code one and is written into **Task 4.3.4's** file: the step
+is **state with a session lifetime**, not a function of the frame, so it cannot be
+a `Math.max` over the figures — that is the frame-max normalisation this story
+rejects — and the session boundary has to come from the market calendar.

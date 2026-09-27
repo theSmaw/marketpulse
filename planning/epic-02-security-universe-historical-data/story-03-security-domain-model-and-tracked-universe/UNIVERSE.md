@@ -81,10 +81,22 @@ and Epic 5 must not assume one.
 
 **Two limitations to carry, stated rather than discovered later.**
 
-- **The sector SPDRs hold S&P 500 constituents only.** So a tracked equity that is not in
+- ~~**The sector SPDRs hold S&P 500 constituents only.** So a tracked equity that is not in
   the S&P 500 has a sector, has a benchmark, and is _not a constituent of that benchmark_.
   That is fine for a relative-move comparison and wrong for anything that treats the ETF
-  as the sector's complete membership. Epic 5 reads this paragraph.
+  as the sector's complete membership. Epic 5 reads this paragraph.~~
+
+  > **DISSOLVED 2026-09-08 by Task 2.8.2; the amendment is marked here on 2026-09-27 by
+  > Task 4.3.2, nineteen days late.** The universe _is_ the S&P 500, so the equity this
+  > warns about does not exist. §5 has carried the dated amendment since 2026-09-08 and §16
+  > supersedes this section — but **this bullet is the one a reader arrives at**, it says
+  > _Epic 5 reads this paragraph_, and it was cited verbatim in shipped source
+  > (`packages/shared/src/security.ts`) and drawn as copy on the design canvas. Both are
+  > corrected in the same change. **The caveat that survives is WEIGHTING rather than
+  > membership**: a sector SPDR is capitalisation-weighted, so its move is not the average
+  > of its members' moves — which is why Story 4.3 is subtitled _the Benchmark That Is Not
+  > an Average_, and it is the sentence Epic 5 should read instead of this one.
+
 - **The Technology / Communication Services / Consumer Discretionary boundary is
   genuinely arguable**, and it is the boundary the demo runs through. Whatever Task 2.3.4
   assigns, the assignment is a recorded claim with a provenance of `curated` (see §5), not
