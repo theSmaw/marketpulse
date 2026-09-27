@@ -10,8 +10,37 @@
 **Eleven sector SPDRs, ranked by today's move — and the caveat that makes this
 screen honest rather than merely correct.**
 
-`UNIVERSE.md` §5, quoted in this epic's own `EPIC.md`: **the sector SPDRs hold
-S&P 500 constituents only.** A tracked equity outside the index has a sector,
+~~`UNIVERSE.md` §5, quoted in this epic's own `EPIC.md`: **the sector SPDRs hold
+S&P 500 constituents only.**~~
+
+> **Falsified 2026-09-27, and swept the same day.** The claim above is **not
+> true and has not been since 2026-09-08.** `UNIVERSE.md` §5 carries a dated
+> amendment: the universe **is** the S&P 500 (503 equities plus the eleven
+> sector SPDRs and four index proxies), the classification comes from that
+> index's own published GICS assignment, and _"the objection this section raises
+> against ETF-derived sectors — that the SPDRs hold index constituents only — is
+> **dissolved rather than worked around, because the universe IS the index**."_
+> §16.3 records **127 of 127 sub-industries mapped, 0 sector mismatches**. There
+> is no tracked equity outside the index to have a sector and not be a
+> constituent.
+>
+> **The decision it was used to justify is unaffected** — a sector row is the
+> ETF's own move — but its reason changes, and **the caveat that actually
+> survives is WEIGHTING**: XLK is cap-weighted, and the technology names we
+> track counted equal-weighted are a different number. That divergence is
+> permanent and has nothing to do with membership. The second survivor is that
+> **the fifteen ETFs' own classification is hand-curated** (§16.3 — neither
+> source classifies a fund), which is the only live thread to
+> `classification_retrieved_at`.
+>
+> **How it survived: §5 was cited without its amendment being read** — including
+> by the 2026-09-27 reassessment, which quoted it as a live constraint. That is
+> the citing-rather-than-measuring failure `CLAUDE.md` names, and the amendment
+> had been sitting at the top of the cited section for nineteen days.
+
+**The original framing, kept because the decision below rests on it:**
+
+**The sector SPDRs hold S&P 500 constituents only.** A tracked equity outside the index has a sector,
 has a benchmark, and **is not a constituent of that benchmark**. That is fine
 for a relative-move comparison and wrong for anything treating the ETF as the
 sector's complete membership — _"which a sector-performance panel is exactly
@@ -166,7 +195,9 @@ denominator problem, because you do not have one. What you are is **the first
 surface in this product ranked by a live value**, which is why you still come
 first.
 
-> **And the sector ETFs hold S&P 500 constituents only** (`UNIVERSE.md` §5). A
+> ~~**And the sector ETFs hold S&P 500 constituents only** (`UNIVERSE.md` §5)~~
+> — **false, see the falsification at the top of this file; the surviving
+> caveat is weighting, not membership.** A
 > tracked equity outside the index has a sector, has a benchmark, and is **not a
 > constituent of it**. Labelling the row as the **benchmark** is what keeps that
 > honest; anything implying the ETF is the sector's complete membership is the

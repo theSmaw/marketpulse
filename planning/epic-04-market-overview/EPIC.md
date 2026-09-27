@@ -126,7 +126,14 @@ recorded here because each lives in a document this epic has no reason to open.
   bars. So "how many securities are negative right now" has a denominator
   question in it: a name with no recent IEX bar is not a name that did not move.
 
-- **The sector SPDRs hold S&P 500 constituents only.** A tracked equity outside
+- ~~**The sector SPDRs hold S&P 500 constituents only.**~~ — **FALSIFIED
+  2026-09-27.** `UNIVERSE.md` §5's amendment of **2026-09-08** says the
+  objection is _"dissolved rather than worked around, because the universe IS
+  the index"_; §16.3 records 127 of 127 sub-industries mapped and 0 sector
+  mismatches. **The surviving caveat is WEIGHTING** — a cap-weighted fund
+  against an equal-weighted count of the names we track — and the hand-curated
+  classification of the fifteen ETFs themselves. The original text is kept
+  below because Story 4.3's decision was taken against it. A tracked equity outside
   the index has a sector, has a benchmark, and is **not a constituent of that
   benchmark** (`UNIVERSE.md` §5). That is fine for a relative-move comparison
   and wrong for anything treating the ETF as the sector's complete membership —
