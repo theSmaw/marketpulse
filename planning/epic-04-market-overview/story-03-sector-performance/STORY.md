@@ -444,3 +444,67 @@ The consequence is a code one and is written into **Task 4.3.4's** file: the ste
 is **state with a session lifetime**, not a function of the frame, so it cannot be
 a `Math.max` over the figures — that is the frame-max normalisation this story
 rejects — and the session boundary has to come from the market calendar.
+
+## Amended by Task 4.3.3 — 2026-09-27: three more owner decisions, and the measurement that decided them was already in the record
+
+**The re-order treatment is settled.** The two events — a figure changing and a
+position changing — are **separated in TIME rather than in space**:
+`--motion-duration-settle` of stillness, then `--motion-duration-settle` of travel.
+**The same existing token twice; no new token, no new number, no new limb.**
+
+**What decided it was not the measurement this task went to take.** The task asked
+whether the eleven sector ETFs arrive in one `bars` frame or several. They arrive
+in **several** — the vendor batches a minute into **8.8 frames at the open, 6.8 at
+midday, 16.1 at the close** (`LIVE-DATA.md` §9.5/§10.2), and our code adds no
+coalescing. That sounds like the good answer and is not one: §7.4 (**n=445
+minutes**, all 518 symbols) bounds the intra-minute first-to-last spread at **243 ms
+p50 / 511 p95**, the eleven are a subset so they are bounded above by it, and
+against a 900 ms decay **all eleven discs are lit together for ~650 ms however many
+frames carried them.** Frame count and perceptual grain come apart, and the
+deciding figure had been in the record for nineteen days.
+
+**The three decisions, all taken by the owner on 2026-09-27:**
+
+1. **Accept the 240 ms delay before the travel.** Cost: the order lags its cause by
+   240 ms — below a reader's threshold for _lag_, above it for _separate_ — with the
+   printed ordinal committing with the **figure** rather than the travel, so nothing
+   is stale during the pause. Rejected: drawing them coincident and handing the
+   judgement to a person (the proxy strip's posture, refused because **neither of
+   that page's comforts reaches eleven rows** — its rate argument is about cost and
+   its texture argument needs a density eleven rows do not have); and anything
+   louder, including a stagger, which encodes an order the data does not have and
+   lengthens the gesture to 640 ms.
+2. **Accept that reduced motion loses the fact that the order changed.** That reader
+   gets the complete order exactly and not the event. The only repair is a fourth
+   mark existing _only_ for them — a treatment nobody reviews, on the rows where
+   least data arrived.
+3. **Ship on the derived half of the wave argument.** That a minute's move is small
+   against the gap between ranks is **derivation, not measurement** — labelled as
+   such, with **the adjacent-rank gap distribution per minute** owed at the close,
+   in the same sitting as the frame count. The treatment is safe either way,
+   because it is designed for the worst case where all eleven move.
+
+**Reversal trigger** — a condition: _the first sitting in which a person reports the
+sector region as flashing or refreshing rather than as facts arriving._ **The lever
+is the disc, not the motion**, because a ranked list's aliveness is its order. **The
+anti-lever: never slow the motion down.**
+
+### Two things this task found that outlive it
+
+**A replay cannot answer a question about frame grain, structurally.**
+`replay-bar-source.ts` emits **one slice per minute across every symbol**, so a
+replay returns _one frame, 0 ms spread_ **100% of the time, at any speed** — proved
+at 60× and at 1×. And every observation in a replayed frame **shares one
+`startsAt`**, so a split minute cannot be expressed at all. The comment claiming the
+replay's shape matched the live feed's was corrected the same day. **What a replay
+certifies is the wiring and never the loop**, which is the second time that lesson
+has cost a measurement.
+
+**The `.held` badge on `The ranked list.dc.html` used a colour this product does not
+have** — `#9a6400`, the canvas page's own drawing palette, in no stylesheet here —
+and **none of the three ambers that do exist can replace it**: `--palette-amber` is
+measured at **1.73:1** on the page ground and **1.92:1** at 12 px, and
+`--palette-amber-deep` is not a text ink. Amended to `--ink-primary` at
+`--font-weight-strong` inside a `--rule-strong` hairline. **The intent adopted, the
+value refused** — and the settled rule applied: standing out is a job for weight and
+hierarchy, never for ink outside the contrast floor.

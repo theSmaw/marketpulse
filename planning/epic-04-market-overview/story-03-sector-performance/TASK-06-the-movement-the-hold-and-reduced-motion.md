@@ -65,3 +65,102 @@ hold, the figures and ranks keep updating, and the region says `ORDER HELD`.
    **paired**, one test with the preference and one without, because an absence
    assertion alone passes against a treatment that never worked
 5. DOM order equals visual order in every state, asserted
+
+## Amended by Task 4.3.3 — 2026-09-27: the treatment is drawn and the owner took it — three things you implement rather than decide, and two traps that fail silently
+
+**`The order that changes.dc.html` is the drawing. Read it before writing a line.**
+What follows is the part that is a decision rather than a picture.
+
+### 1. The two events are separated in TIME, and it is one token used twice
+
+**`--motion-duration-settle` of stillness, then `--motion-duration-settle` of
+travel.** No new token, no new number, no new limb. Taken by the owner on
+2026-09-27 against drawing them coincident and against anything louder.
+
+**Why**, on a measurement rather than a worry: `LIVE-DATA.md` §7.4 (**n=445
+minutes**, all 518 symbols) bounds the intra-minute first-to-last spread at **p50
+243 ms, p95 511, p99 616, max 770**, and the eleven are a subset so their spread is
+bounded above by it. Against the mark's **900 ms** decay that is ~650 ms of
+**eleven simultaneous discs, however many frames carried them** — and eleven discs
+plus a whole-list re-order inside the same quarter-second is the gesture a page
+makes when it **reloads**.
+
+**Implement it as the same token twice and not as a delay plus a duration.** Under
+`prefers-reduced-motion` both halves must resolve to `0 ms` **together**; a
+hard-coded delay leaves an empty pause where the reader who asked for less motion
+waits for nothing.
+
+**The printed ordinal commits with the FIGURE, not with the travel.** Nothing on
+screen may be stale during the 240 ms pause — that is what makes the lag legible
+rather than wrong.
+
+### 2. Two reduced-motion traps, and both are this repository's own shipped defects
+
+- **A zero-duration animation applies no keyframes at all**, which is why the
+  mark's `opacity: 0` base is load-bearing. Without it the disc stays on screen
+  for ever.
+- **A zero-duration transition may not fire `transitionend`.** A treatment that
+  clears its transform on that event leaves a row **stuck under a transform** —
+  drawn on the canvas as rank 3 sitting 81 px down on rank 6's line **with every
+  printed ordinal correct**, which is exactly what makes it survive a review.
+  **Clear the transform without relying on `transitionend`.**
+
+Both fail in the same direction: **a reader who asked for less motion gets a worse
+page than one who did not.** Assert both in a browser; neither is visible below
+`pnpm e2e`.
+
+### 3. The mark's trigger stays `arrivalKey` — and getting this wrong is invisible
+
+**A row can mark without moving, and move without marking.** The second is the
+correctness argument: its neighbour's bar arrived and overtook it, and **this row
+received nothing**, so marking it would claim data that did not arrive.
+
+**So the disc must keep firing off the observation's own identity, never off a
+changed rank.** Firing it off the rank produces a disc in combination C —
+moved-and-not-marked — and **nothing below `pnpm e2e` separates the two**, because
+both render a disc beside a row that changed position. If you add a check, this is
+the one worth having, and it owes a break; prefer a clause the re-implementer
+cannot avoid writing.
+
+### 4. The FLIP, as drawn
+
+Measure, commit, invert, release. **Every offset is a multiple of 27 px** (the
+26 px row plus its 1 px separator), so the inverse is an integer and no row lands
+on a half-pixel. **Transform only** — animating `top`, `order` or `grid-row` is
+per-frame layout on the page §28 can least afford it, and re-ordering in CSS while
+the DOM stays put hands a screen reader **a different ranking from the one drawn**,
+invisible to axe, to jsdom and to a screenshot. **DOM order equals visual order.**
+**Rows keyed by `symbol`, never by index**, or React rewrites nodes rather than
+moving them and destroys hover, focus and any in-flight decay.
+
+**No stagger.** Refused twice: it encodes an order the data does not have, and it
+lengthens the gesture from 240 ms to **640**.
+
+### 5. Reduced motion loses the fact that the order changed, and that is accepted
+
+A reader with the preference gets **the complete order exactly**; what they do not
+get is **that it moved**. The owner accepted that rather than repairing it — the
+only repair is the fourth mark the drawing refused, which would then exist _only_
+for that reader: a treatment nobody reviews, on the rows where least data arrived.
+**Do not add it.** If it comes back it is a change to the vocabulary, not to this
+component.
+
+### 6. The hold is not a second mode
+
+`ORDER HELD` is `stateMark`'s **third consumer** (_a state PERSISTS_) and the first
+use of that limb for something **a reader caused**. The finding from the drawing:
+**the ordinary treatment IS the hold with step 4 put back.** One path, one commit —
+**the hold gates the movement, not the ranking.** Figures and printed ranks update
+underneath it; the disagreement between the ordinals and the list order **is** the
+pending re-order. The head slot reserves the wider badge so nothing moves when it
+appears. The release is the largest movement this component can make **and the
+safest, because the reader caused it**.
+
+### 7. The reversal trigger, and the anti-lever
+
+> **The first sitting in which a person reports the sector region as flashing or
+> refreshing rather than as facts arriving.**
+
+**The lever is the disc, not the motion** — the strip cannot lose its disc, because
+four barely-changing figures need a _look_, but a ranked list can, because **its
+aliveness is its order**. **The anti-lever is named: never slow the motion down.**

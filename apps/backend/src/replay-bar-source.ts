@@ -60,8 +60,27 @@ export function createStoredReplaySource(
     const range = toTimeRange(from, end);
     // Grouped by the bar's own instant, so a slice is *a minute across
     // symbols* rather than *a symbol across minutes* — which is the shape the
-    // engine replays and the shape the live feed arrives in (§7.2: the vendor
-    // batches a minute's bars together).
+    // engine replays.
+    //
+    // **Corrected 2026-09-27 by Task 4.3.3: it is NOT the shape the live feed
+    // arrives in, and the citation was coarser than the measurement.** This
+    // comment used to end *"and the shape the live feed arrives in (§7.2: the
+    // vendor batches a minute's bars together)"*. The vendor does batch, but
+    // `LIVE-DATA.md` §9.5/§10.2 measured it batching a minute into **8.8 frames
+    // at the open (332 bars), 6.8 at midday (284) and 16.1 at the close
+    // (450)** — around 7% of the universe per frame, never one frame a minute.
+    // A replay emits **one slice per minute across every symbol**, so it
+    // produces a grain the live feed does not have.
+    //
+    // Two consequences a reader needs before measuring anything against a
+    // replay. **A replay cannot express a split minute at all** — every
+    // observation in a replayed frame shares one `startsAt`, the presented
+    // instant, so minute identity is not recoverable from the frame. And
+    // therefore **a replay cannot answer a question about frame grain**: it
+    // returns "one frame, 0 ms spread" 100% of the time, at any speed,
+    // whatever the market did. Task 4.3.3 confirmed that against this code —
+    // 40 frames at 60× and 4 at 1×, eleven of eleven symbols in every one.
+    // What a replay certifies is the wiring, never the loop.
     const byInstant = new Map<number, Map<Ticker, Bar>>();
 
     for (const symbol of symbols) {
