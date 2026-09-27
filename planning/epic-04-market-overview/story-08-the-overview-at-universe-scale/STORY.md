@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
-**Depends on:** 4.7
+**Depends on:** 4.6 — **re-ordered 2026-09-27**, see below
 **Epic scope covered:** none new — the epic's numbers, measured
 
 ## Description
@@ -99,3 +99,45 @@ muddy any measurement taken with the full suite running —
 `security-gap-fill.spec.ts` at **14 failures in 120 executions (~12%)** and
 `security-feed-degraded.spec.ts` comparing a live page against a baseline taken
 before the state it compares. Count failures per **execution**, not per run.
+
+## Reassessed 2026-09-27 — you run BEFORE 4.7, and your scope widens to all five routes
+
+**You moved ahead of 4.7** because 4.7 needs a phone during a real session and
+you need neither, and Epic 3 stayed open for nine stories with that ordering the
+wrong way round. The identifiers did not change — `CLAUDE.md` forbids a renumber
+without remapping every reference in the same change, and four sibling files plus
+`docs/GAPS.md` name `Story 4.7` for the degraded set.
+
+**What that costs you, stated rather than discovered:** 4.7's
+~332-`feed`-frames-a-minute repair now lands **after** you measure, so your
+decode-side figure is an **upper bound**. That is the safe direction — those
+frames are already collapsed by `sameLiveFeedView`, so they cost decode and
+comparison but **no render** — and 4.9 re-checks rather than re-measures. Record
+the caveat with the repair named.
+
+### Your scope is now all five routes, not `/`
+
+**Story 4.2 introduced a per-tick cost on four routes that display no overview at
+all.** `useLiveFeed` is called in `App`; the overview field is compared in
+`sameLiveFeedView` **by identity**; the decoder builds a new object per frame and
+`computedAt` moves on every rebuild — so **the gate cannot collapse it by
+construction**. A security page subscribed to one symbol went from about **one
+whole-tree render a minute to up to sixteen**.
+
+That was accepted deliberately and its error direction is the safe one
+(over-eager renders, never a silent miss), **but the consequence on four routes
+is measured nowhere and owned by nothing.** It is §28's **routine** word — the
+same category as the 40 ms-every-30-s health-poll re-render Task 3.6.5 found and
+repaired with two memo boundaries — not the once-per-visit cold load Epic 14
+owns. `docs/GAPS.md`'s owner for it is a condition: _the first story that
+measures a per-tick cost on any route other than `/`_.
+
+**Epic 4 introduced it, so Epic 4 measures it**, which is this story's own
+argument: _a figure taken after the epic is called done is a figure nobody
+re-takes._ You will already have the instrument up, the production build up and
+the feed running; `/securities/:symbol` is minutes more.
+
+The byte cost is not the issue and is recorded so nobody re-derives it: 431 bytes
+× ~16 a minute ≈ **6.9 KiB/min per attached browser**, ~12% on top of a
+518-subscribed client and roughly **3× the inbound bytes of a one-symbol security
+page**.

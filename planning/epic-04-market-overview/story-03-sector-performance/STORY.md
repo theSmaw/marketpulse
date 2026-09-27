@@ -150,3 +150,79 @@ was written out and **passed green** until the guard was keyed on the _readers_
 of the closes and on **the division itself**. Convert, then call
 `changeFromClose` from `packages/shared`. A second implementation fails the
 build.
+
+## Reassessed 2026-09-27 — a decision taken, a decision moved here, and a task added
+
+**A sector row is the sector ETF's own move, labelled as the benchmark.** The
+owner decided this rather than an aggregate of the names we track. Eleven named
+securities through `buildMarketOverview({ symbols: theElevenSectorETFs, … })`,
+exact, complete, and **checkable by eye against any public quote** — so this
+story has **no denominator at all** and is one more caller of the seam rather
+than a new mechanism.
+
+**That makes `EPIC.md`'s original reason for putting you before 4.4 false**, and
+it has been replaced there rather than left standing: you do not rehearse 4.4's
+denominator problem, because you do not have one. What you are is **the first
+surface in this product ranked by a live value**, which is why you still come
+first.
+
+> **And the sector ETFs hold S&P 500 constituents only** (`UNIVERSE.md` §5). A
+> tracked equity outside the index has a sector, has a benchmark, and is **not a
+> constituent of it**. Labelling the row as the **benchmark** is what keeps that
+> honest; anything implying the ETF is the sector's complete membership is the
+> defect a sector panel is shaped to commit.
+
+### You now own the ranked list and the re-order treatment — 4.5 does not
+
+Your AC 5 deferred the rule to **Story 4.5, two stories later**, which left three
+bad options: an untreated re-order (the defect Task 3.6.3 forbade in as many
+words — _a row that moves while it is being read is a row that cannot be read_),
+no ranking at all, or a rule invented and retracted.
+
+**Decide it here, on eleven rows**, which is a smaller and safer set than a
+top-N over 518. What is unsettled and is now yours: what the mark is, how long it
+lasts, what happens when several rows move at once, what `prefers-reduced-motion`
+leaves, and **what protects a row under a pointer or a focus ring**. The motion
+vocabulary is settled and is not reopened — work in progress LOOPS, a state
+PERSISTS, a fact arriving DECAYS — and `The mark multiplied by five hundred.dc.html`
+records a synchrony risk as **accepted rather than disproved**, which is live
+here at eleven.
+
+**Also inherited from 4.2:** before any sitting, **read from the gateway whether
+a small set's bars arrive in one `bars` frame or across several** of the ~16 a
+minute. Four in one frame is a synchronised wave; four across several is a
+stagger the data genuinely has. A rehearsal that cannot say which was watched
+cannot answer anything.
+
+### The frame-grain decision is yours, and it must be taken across all four payloads
+
+ADR 0038 hands you the re-take of _one frame with optional sections vs one type
+per region_ — **and your own payload cannot inform it.** From ADR 0038's verbatim
+frame, 431 bytes for four figures, ≈108 bytes each:
+
+| Region                   | Naive per-figure payload        | At up to ~16 frames/min      |
+| ------------------------ | ------------------------------- | ---------------------------- |
+| proxies (today)          | 431 B                           | **6.9 KiB/min**, measured    |
+| **sectors, 11 figures**  | ~1.2 KB                         | ~19 KiB/min                  |
+| **breadth, 518 figures** | **~56 KB**                      | **~875 KiB/min per browser** |
+| movers, top-N            | small **if** ranked server-side | small                        |
+
+**Sectors is the only region where the naive answer survives contact.** So the
+rule to state is _each region ships the smallest thing that answers it_ —
+breadth ships **counts**, movers ships **the top N** rather than the ranking's
+input. A grain decided at eleven and discovered wrong at 518 is a wire change
+across four decoder branches and `sameLiveFeedView`. And **every overview frame
+is decoded on all five routes**, so a 56 KB frame would reach `/replay`.
+
+### One task added: the index label in the proxy strip's third row
+
+The canvas draws `S&P 500` / `Nasdaq 100` / `Dow 30` / `Russell 2000` in each
+proxy cell's third row; the product has no such field, so the row is permanently
+blank in the ordinary live state and a cell fills **20–48% of a 325 px track** at 1440. **Four curated labels beside the index-proxy set** — no migration and **no
+wire field**, because a name is a static property of a symbol rather than a
+reading, and `sentAt`'s third constraint is the precedent.
+
+**Declare it as _the index this fund tracks_**, so it is visibly a different fact
+from the fund's legal `name` (`Invesco QQQ Trust, Series 1`) rather than a second
+home for the same one — which is the judgement the owner took on 2026-09-27 and
+the thing this product otherwise refuses.

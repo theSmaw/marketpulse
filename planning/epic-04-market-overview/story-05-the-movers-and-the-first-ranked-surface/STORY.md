@@ -178,3 +178,20 @@ four ticks, **three of four cells carry an exception line** — the
 shared-claim-with-exceptions idiom makes the exception the majority. It
 misstates nothing, but a ranked surface that adopts the idiom should know it
 degrades as the set shrinks.
+
+## Reassessed 2026-09-27 — scope reduced: the ranked list and the motion are 4.3's
+
+**You no longer own the ranked-list component or the re-order treatment.** Story
+4.3's AC 5 deferred the rule to you, two stories ahead of itself, which left 4.3
+with no honest option. The decision moved to 4.3, where it is taken on **eleven
+rows** rather than on a top-N over 518, and **you apply it and test it at a mover
+list's density** — which is the harder half and the one your own inherited note
+is about: _a shared claim inverts on a small set_, with the sign flipped.
+
+**What stays is substantial and is yours alone.** The **denominator in a ranking
+is the sharpest form of the honesty problem in this epic** — a top ten computed
+over the ~466 names heard from may show ten securities that are **not** the ten
+biggest movers, with nothing on screen saying so. Plus the _what is a mover with
+no recent price_ decision, the **top-N-computed-server-side** payload (ADR 0038's
+grain rule: ship the smallest thing that answers the region, not the ranking's
+input), and Epic 14's trigger firing on your per-row markup.
