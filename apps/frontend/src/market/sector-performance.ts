@@ -1,0 +1,289 @@
+import {
+  SECTOR_LABELS,
+  sectorOfEtf,
+  sectorRankingKey,
+  type Bar,
+  type SectorLadderStep,
+  type WireMarketOverview,
+  type WireOverviewFigure,
+} from "@marketpulse/shared";
+
+import { arrivalKey } from "./arrival.js";
+import {
+  directionOf,
+  formatChangePercent,
+  type PriceDirection,
+} from "./price-format.js";
+
+// What the eleven sector rows read as, from the overview frame alone
+// (Task 4.3.5).
+//
+// ## Nothing here ranks, rounds or scales
+//
+// Three facts arrive already decided and this module reads them rather than
+// reproducing them, because each one has a checkable invariant hanging off it:
+//
+//   - **The order** is `rankSectorFigures`' in `packages/shared`, computed
+//     server-side. The array is mapped in place; there is no `sort` in this
+//     file and there must not be, because *two figures equal at displayed
+//     precision never swap* is a property of that comparator.
+//   - **Which field a move lives in** is `sectorRankingKey`'s. An `observed`
+//     figure's move is `changePercent` and a `stored` figure's is
+//     `sessionChangePercent` — different bases, deliberately different names —
+//     and a renderer reaching for the wrong one finds nothing. This file asks
+//     the shared function and never names either field.
+//   - **The rung** is `overview.sectorLadderStep`, ratcheted server-side with a
+//     session lifetime. A `Math.max` here would be the frame-max normalisation
+//     `The ranked list.dc.html` §03 rejected on two grounds.
+//
+// The one arithmetic this file does is the **rank**, and it is a count rather
+// than a comparison: the first keyed figure is 1, and a keyless figure gets no
+// number at all. `sector-ranking.ts`'s absent-key rule is what makes that
+// sound — every keyless figure already sorts after every keyed one, so a
+// running count cannot hand a number to a figure that has no key.
+//
+// ## Why a rank is absent rather than defaulted
+//
+// ADR 0029's false impression, expressed as a position. A sector we have heard
+// nothing about and hold no close for has not moved 0%: a number would place it
+// among the genuinely flat ones and claim exactly the thing that is missing. So
+// the rank is `undefined` and the row says what it has instead of a figure.
+//
+// **The absence words are three rather than one, because three different
+// things are missing.** Task 4.3.7 owns the honest states and may reword any of
+// them; what this file fixes is that they are produced in one place and are
+// told apart by what the store actually holds.
+//
+// ## It names no feed, no venue and no connection word
+//
+// `LIVE` / `STALE` / `DISCONNECTED` have one home and it is the status bar
+// (Story 3.10), and `one-home-for-the-feed-words` covers this route. What a
+// sector row may state is an instant, an age, a basis, a session and a tape;
+// what it states today is a **session**, through {@link SectorRow.absent}, in
+// the spelling `MarketProxyStrip` already uses for a stored close.
+
+/**
+ * **The region's footer, in two clauses — the benchmark claim and the bar's
+ * scale.**
+ *
+ * ## What the claim says, and the sentence it replaces
+ *
+ * It states the **weighting**, not the membership, and the difference is a
+ * falsification rather than a preference. This region was specified to draw
+ * `Each row is the sector's benchmark ETF — S&P 500 constituents only`, and the
+ * second clause stopped being true on **2026-09-08**, when the universe was
+ * defined **as** the S&P 500: the equity that clause warns about — one with a
+ * sector and a benchmark it is not in — **does not exist**. `UNIVERSE.md` §5 has
+ * carried the dated amendment ever since, and the claim came within one task of
+ * being drawn on the landing page as shipped copy.
+ *
+ * **A membership claim is not written here even in corrected form.** It would be
+ * true and it would be noise: the universe being the index is why the mapping is
+ * total by construction, which is a fact about our curation rather than about
+ * the figure on the row.
+ *
+ * What survives, and it is the more interesting claim — **the story's own
+ * subtitle**: a sector SPDR is capitalisation-weighted, so **its move is not the
+ * average of its members' moves**. Two securities in one sector contribute
+ * unequally to the benchmark they are compared against, and a reader who takes
+ * the figure as *what the average stock in this sector did* is wrong for that
+ * reason and for no other.
+ *
+ * **It must not imply the eleven sum to the market.** They partition the S&P 500
+ * exactly, which is a narrower thing than *the market*, and `Market proxies` two
+ * hundred pixels above is what speaks for the broad indices. So the sentence
+ * says nothing about coverage at all.
+ *
+ * ## What it must not restate
+ *
+ * The change basis, the instant, the feed and the adjustment, all of which the
+ * screen's one source note or the chrome already own — and no connection word,
+ * which has one home and is guarded by name. One clause, so the region cannot
+ * grow a second sentence.
+ *
+ * ## Why the scale clause is separate
+ *
+ * ADR 0029: the scale clause renders only when the bar does, and **whether the
+ * bar is drawn is a decision the stylesheet takes** (there is none below 37rem,
+ * where 25 px each side of zero is a tick). So it is its own string for the
+ * stylesheet to hide, rather than a width the arithmetic here has to know about.
+ */
+export const SECTOR_CLAIM =
+  "Each row is the sector’s benchmark ETF — capitalisation-weighted, not the average of its members";
+
+/** The figure on a row, or the words that stand where one would be. */
+export interface SectorRow {
+  /**
+   * The benchmark ETF's symbol — printed on the row, and the React key.
+   *
+   * **Keyed by symbol rather than by position**, which is Task 4.3.6's
+   * requirement rather than a convention: a row that keeps its identity across
+   * a re-order is what lets the travel be measured, and a row keyed by index is
+   * a row that is recycled into somebody else's place.
+   *
+   * It is printed because the owner's whole argument for the ETF row is that it
+   * is checkable by eye against a public quote, and it is the only thing on the
+   * row that can contradict a **permutation** — eleven correct figures against
+   * eleven wrong labels satisfies every arithmetic guard and is invisible in
+   * greyscale.
+   */
+  readonly symbol: string;
+  /**
+   * The full `SECTOR_LABELS` string, never abbreviated and never derived by
+   * transform — `Health Care` and `Healthcare` are the same slug and different
+   * words.
+   *
+   * A symbol the shared inverse does not know is **labelled with itself**
+   * rather than with a guess. The producer sends the eleven, so this cannot
+   * happen from our own gateway; inventing a name for an unrecognised fund
+   * would be the one thing a fixed 144 px label column cannot survive being
+   * wrong about.
+   */
+  readonly label: string;
+  /** `1`-based among the figures that have a move, or `undefined`. */
+  readonly rank: number | undefined;
+  /**
+   * The move, the way it will be read — **one object, so the bar's length and
+   * the printed figure cannot disagree**.
+   *
+   * `The ranked list.dc.html` §05's inherited gap is two speakers in one box
+   * contradicting each other, and a `percent` held beside a formatted string is
+   * exactly that shape. The direction is `directionOf`'s, which decides on the
+   * **rounded** figure, so a +0.001% move cannot draw an up arrow beside
+   * `0.00%` — nor a bar beside it, since the same value decides both.
+   */
+  readonly move: SectorMove | undefined;
+  /**
+   * What the figure column says when {@link SectorRow.move} is absent — words
+   * rather than digits, which is what tells it apart from a figure.
+   */
+  readonly absent: string | undefined;
+  /** `arrivalKey`'s, unchanged. A snapshot is not an arrival. */
+  readonly arrival: string | undefined;
+}
+
+/** A move, formatted, with the direction and the raw percentage together. */
+export interface SectorMove {
+  /** The signed percentage as the screen shows it — `+1.84%`, `−0.44%`. */
+  readonly change: string;
+  readonly direction: PriceDirection;
+  /**
+   * The same number, unformatted, for the bar's length.
+   *
+   * It is the **bar's** input and never the figure's: the figure is
+   * {@link SectorMove.change}, already rounded through
+   * `PERCENT_DISPLAY_DECIMALS`. Both come from this one value, which is the
+   * whole reason they travel together.
+   */
+  readonly percent: number;
+}
+
+/** Eleven rows and the rung they are drawn against. */
+export interface SectorPerformance {
+  readonly rows: readonly SectorRow[];
+  readonly step: SectorLadderStep;
+}
+
+/** Nothing observed and nothing stored — `MarketProxyStrip`'s own words. */
+const NONE_STORED = "None stored";
+
+/**
+ * A live price with nothing to measure it from.
+ *
+ * Distinct from {@link NONE_STORED} because something **is** stored — we have
+ * just heard from this fund — and the thing that is missing is the basis. The
+ * proxy strip's answer to the same state is to draw the price and no change,
+ * which this region cannot do: its one column is a move.
+ */
+const NO_BASIS = "No stored close";
+
+/**
+ * Read the overview frame's sector section as rows.
+ *
+ * `undefined` is **the absence of the section**, which a renderer draws as the
+ * region's reserved state rather than as eleven unknowns. Three ways to reach
+ * it and they are one state on screen:
+ *
+ *   - no frame has arrived at all (first paint);
+ *   - the frame carries no `sectors` — *this gateway does not send sectors*,
+ *     which is a **rollback pinning a previous image** rather than a fault, so
+ *     the read side keeps both fields optional on purpose;
+ *   - the frame carries sectors and no readable rung. The wire only ever sends
+ *     the two together, so this is a frame we cannot draw a bar for — and
+ *     choosing a rung here would be inventing the scale the server holds
+ *     precisely so that every reader shares one.
+ *
+ * An empty array is the absence too. `MarketProxyStrip` learned that one the
+ * expensive way: *a frame arrived and is about nothing* fell through to the
+ * ordinary path and rendered a grid of height 0 that said nothing at all.
+ */
+export function sectorPerformance(
+  overview: WireMarketOverview | undefined,
+  observations: ReadonlyMap<string, Bar>,
+  fromSnapshot: ReadonlySet<string>,
+): SectorPerformance | undefined {
+  const figures = overview?.sectors;
+  const step = overview?.sectorLadderStep;
+  if (figures === undefined || figures.length === 0 || step === undefined) {
+    return undefined;
+  }
+
+  let ranked = 0;
+
+  return {
+    step,
+    rows: figures.map((figure) => {
+      const move = moveOf(figure);
+      if (move !== undefined) ranked += 1;
+
+      return {
+        symbol: figure.symbol,
+        label: labelOf(figure.symbol),
+        rank: move === undefined ? undefined : ranked,
+        move,
+        absent: move === undefined ? absenceOf(figure) : undefined,
+        arrival: arrivalKey(
+          observations.get(figure.symbol),
+          fromSnapshot.has(figure.symbol),
+        ),
+      };
+    }),
+  };
+}
+
+/** The label, or the symbol standing in for one it does not have. */
+function labelOf(symbol: string): string {
+  const sector = sectorOfEtf(symbol);
+  return sector === undefined ? symbol : SECTOR_LABELS[sector];
+}
+
+/**
+ * The move, read through the **shared** key rather than off a field name.
+ *
+ * This is the one line in the frontend that would have reached for
+ * `changePercent` on a stored figure and found nothing.
+ */
+function moveOf(figure: WireOverviewFigure): SectorMove | undefined {
+  const percent = sectorRankingKey(figure);
+  if (percent === undefined) return undefined;
+
+  return {
+    change: formatChangePercent(percent),
+    direction: directionOf(percent),
+    percent,
+  };
+}
+
+/**
+ * What is missing, in the store's own terms.
+ *
+ * A `stored` figure with no move names its **session**, in the spelling
+ * `MarketProxyStrip` uses for the same fact (`2026-09-11 close`): we hold that
+ * session's close and hold nothing before it to measure against. It is a
+ * session rather than a verdict, which is the rule every surface in this
+ * product follows about a figure that is behind.
+ */
+function absenceOf(figure: WireOverviewFigure): string {
+  if (figure.state === "stored") return `${figure.session} close`;
+  return figure.state === "observed" ? NO_BASIS : NONE_STORED;
+}

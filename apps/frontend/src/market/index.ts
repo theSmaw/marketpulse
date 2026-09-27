@@ -257,3 +257,16 @@ export type {
   ProxyChange,
   ProxyReading,
 } from "./market-proxies.js";
+
+// **The eleven sector benchmarks, read off the overview frame** (Task 4.3.5),
+// beside the signed bar's arithmetic. The same shape as `market-proxies.ts` one
+// region along: the pure half is exported and the component that draws it lives
+// under `src/components/`.
+export { SECTOR_CLAIM, sectorPerformance } from "./sector-performance.js";
+export type {
+  SectorMove,
+  SectorPerformance,
+  SectorRow,
+} from "./sector-performance.js";
+export { barFraction, ladderClause, ladderTicks } from "./ranked-bar.js";
+export type { LadderTick } from "./ranked-bar.js";

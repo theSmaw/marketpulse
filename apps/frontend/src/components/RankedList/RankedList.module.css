@@ -1,0 +1,451 @@
+/*
+ * The ranked list — `The ranked list.dc.html` §01, §03 and §04.
+ *
+ * Three rules govern the whole file:
+ *
+ *  1. **Every track left of the bar is a fixed length.** If any of them sized to
+ *     its content the bar's left edge would depend on which sector happened to
+ *     be in the row, so a re-order would move all eleven bars' origins — and
+ *     eleven bars whose origins move are eleven bars you cannot compare. That
+ *     defect is invisible to jsdom, to axe, to every unit test and to a
+ *     screenshot of one state.
+ *  2. **Every width states its own track list and none inherits.** A `span N`
+ *     item wider than the explicit grid is not clamped — it grows implicit
+ *     columns — and nothing below `pnpm e2e` computes a layout at all. Two of
+ *     the four widths below come out identical and are restated anyway.
+ *  3. **The zero anchor never moves**, and the one whole-list geometry change
+ *     this component permits is the ladder stepping outward. It must not touch
+ *     the anchor, the label column or the figure column, which is why all three
+ *     are lengths that know nothing about the rung.
+ *
+ * Arithmetic worth having beside the tracks: `15.6 + 144 + 52 + 78 = 289.6`
+ * plus four 12 px gaps is **337.6 px before the bar begins**, at every width
+ * above 37rem. That number is never typed — the rule overlay and the ladder are
+ * grid items in the bar's own column, so they take its geometry from the same
+ * track list the rows do.
+ */
+
+/*
+ * --- The plot: the five tracks, stated once ---
+ *
+ * `minmax(0, 1fr)` rather than `1fr` for the bar, because a bare `1fr` carries
+ * a `min-width: auto` floor — the same trap `MarketProxyStrip`'s stylesheet
+ * spells out, and it earns its keep here for a second reason: the bar's content
+ * is absolutely positioned, so an `auto` floor would resolve against nothing
+ * and the track's behaviour would be a property of the browser rather than of
+ * the design.
+ *
+ * Two rows, and both are content-sized: the list, then the ladder.
+ */
+.plot {
+  display: grid;
+  grid-template-columns: 2ch 144px 52px 78px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: var(--space-12);
+}
+
+/* The bar off — Story 4.5's use. Four tracks, and the figure takes the slack so
+   its right edge is the region's rather than 78 px from the label. */
+.plain {
+  grid-template-columns: 2ch 144px 52px minmax(78px, 1fr);
+}
+
+/*
+ * --- The list ---
+ *
+ * `subgrid` twice: the `<ol>` adopts the plot's five columns and each `<li>`
+ * adopts the `<ol>`'s. **A subgrid inherits the parent's gaps as well as its
+ * tracks**, which is the whole point — `column-gap` is stated once above and
+ * the 337.6 px is never restated anywhere.
+ *
+ * Measured in **Chromium only**, which is the one browser this repository
+ * tests. If it ever has to go, the fallback is one restated inset with a comment
+ * saying it is a second statement of the same arithmetic.
+ *
+ * `z-index: 1` puts the rows in front of the rule overlay. Both are grid items
+ * in the same area; DOM order would already do it and the index is stated so
+ * that moving the overlay cannot silently paint a hairline over a figure.
+ */
+.list {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: subgrid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * One row: 26 px, and it is the figure every height on this screen is derived
+ * from — `var(--space-4)` + `var(--line-height-dense)` + `var(--space-4)`.
+ * Eleven of them with ten 1 px separators is 296 px.
+ */
+.row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding-block: var(--space-4);
+  border-bottom: 1px solid var(--rule-hairline);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+/*
+ * --- The rank: a printed tabular ordinal ---
+ *
+ * **The keystone of the component.** It converts position from something
+ * encoded only by y-coordinate into a stated fact that survives reduced motion,
+ * greyscale, a screenshot and a reader who looked away — which is what makes
+ * this list structurally different from the 518-row table Task 3.6.3 froze,
+ * where no ordinal is printed and a move is therefore unrecoverable.
+ *
+ * `2ch` because the widest rank is `11` and `ch` in a monospaced face is exactly
+ * the glyph advance. It does not step at any width: a two-digit ordinal at 11px
+ * would be a 13 px target beside a 44 px ticker.
+ */
+.rank {
+  composes: dataCell from "../../styles/type.module.css";
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  text-align: right;
+  color: var(--ink-secondary);
+}
+
+/*
+ * --- The label: 144 px, fixed, never truncated ---
+ *
+ * The full `SECTOR_LABELS` string. `Communication Services` measures 143.75 px
+ * at 13 px in the text face, so 144 is the label rather than a round number —
+ * and it does not step at any width, because shrinking it would be shrinking
+ * the thing the fixed track exists to hold.
+ *
+ * `--font-weight-medium` rather than the body weight: the label is the row's
+ * subject and the figure is its point, and the two need to read as a pair.
+ */
+.label {
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-primary);
+  white-space: nowrap;
+}
+
+/*
+ * --- The ticker and the mark's slot: 52 px ---
+ *
+ * `XLRE` is the widest ticker at four glyphs (30.7 px measured), so the track is
+ * 46.7 needed against **52 stated** — because a cold load renders the fallback
+ * face and it is not monospaced.
+ *
+ * The gap is `var(--space-8)`, which is `MarketProxyStrip`'s shipped `.term`
+ * rule unchanged.
+ */
+.ticker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+  font-family: var(--font-data);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  letter-spacing: var(--letter-spacing-micro);
+  color: var(--ink-secondary);
+}
+
+.symbol {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/*
+ * The mark's slot: 8 px, **always**, whether or not a mark is running. Geometry
+ * C, reused rather than invented — three geometries for one mark is a
+ * vocabulary, four is a habit.
+ *
+ * `flex: none` so it cannot be squeezed out, and the height is stated as well
+ * as the width so an empty slot and a full one are the same box. The defect
+ * `pnpm probe` caught in 4.2.5 was one cell reserved instead of four, invisible
+ * at three widths of four — a reservation that exists in a drawing and not in a
+ * stylesheet looks identical to one that works.
+ */
+.markSlot {
+  flex: none;
+  width: var(--space-8);
+  height: var(--space-8);
+}
+
+/*
+ * The disc. **Position only** — the appearance, the `opacity: 0` base and the
+ * 900 ms decay all come from the motion layer and are never re-declared here.
+ *
+ * That base is load-bearing rather than tidy: reduced motion resolves the decay
+ * to `0ms`, and an animation of zero duration applies **no keyframe styles at
+ * all**, so without it eleven permanent dots would sit in the middle of the
+ * landing page for a reader who asked for less motion.
+ */
+.arrival {
+  composes: arrivalMark from "../../styles/motion.module.css";
+  display: block;
+}
+
+/*
+ * --- The figure: a fixed reserve, right-aligned ---
+ *
+ * `+0.9%` and `−12.34%` must not move the bar's right edge, so the track is a
+ * length rather than content-sized. 78 is arithmetic: `PriceChange`'s glyph box
+ * is `--space-12` wide with `--space-4` of margin (16 px), and `−12.34%` is 8
+ * mono glyphs at a measured 7.67.
+ *
+ * The **size** is set here and `PriceChange` inherits it — that is the size seam
+ * the proxy strip established, and it is why `PriceChange` needed no new prop:
+ * `.change` composes `dataCell`, which states the face and the tabular figures
+ * and deliberately states no size.
+ */
+.figure {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+/*
+ * Words where a figure would be — which is what tells an absence apart from a
+ * number, rather than ink outside the contrast floor. `--ink-secondary` at
+ * 4.48:1 rather than `--ink-disabled`: this is a sentence a person has to read.
+ *
+ * The line height is the figure's, so a row does not change height when a move
+ * arrives.
+ */
+.absent {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-dense);
+  color: var(--ink-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * --- The bar: one 6 px band in the row's line box ---
+ *
+ * 6 px rather than the full line box, because the bar is a comparison and the
+ * figure beside it is the claim; a band as tall as the type would read as the
+ * row's subject.
+ *
+ * The two fills are `--price-positive` and `--price-negative` — **the same two
+ * values the figure beside them uses, and never the washes**. At 1.15:1 against
+ * the page ground an 8 px band of wash is not a light bar, it is an invisible
+ * one, and a bar nobody can see is worse than no bar because the layout still
+ * says there is one. There is no track behind the bar either: a filled track
+ * plus a wash plus a zero rule is three greys in a 6 px band, and the gridlines
+ * do the track's job while saying what they mean.
+ */
+.bar {
+  position: relative;
+  height: 6px;
+  align-self: center;
+}
+
+.positive {
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  background: var(--price-positive);
+}
+
+.negative {
+  position: absolute;
+  inset-block: 0;
+  right: 50%;
+  background: var(--price-negative);
+}
+
+/*
+ * A reading of exactly zero: a 1 px tick, two pixels taller than the band,
+ * centred on the rule.
+ *
+ * **It exists to tell a reading of zero apart from a row with no reading at
+ * all**, where the bar cell is genuinely empty. Achromatic deliberately — a
+ * `0.00` tinted green or red is a direction the market did not move — and
+ * `--price-unchanged` is the same token the figure beside it uses.
+ */
+.anchorTick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 50%;
+  width: 1px;
+  margin-left: -1px;
+  background: var(--price-unchanged);
+}
+
+/*
+ * --- The rule overlay: one element for the whole list ---
+ *
+ * A grid item in row 1 of the bar's column, so it is exactly as tall as the
+ * list and exactly as wide as the bars — **without restating the track
+ * arithmetic**. It stretches by default; nothing here may add `align-self`.
+ */
+.rules {
+  position: relative;
+  grid-area: 1 / 5;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* The anchor. A full-height hairline down all eleven rows rather than eleven
+   26 px segments with a 1 px break at every separator. */
+.zero {
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 1px;
+  margin-left: -1px;
+  background: var(--rule-control);
+}
+
+/* The ladder's midpoints. The lines are the reading and the labels are the
+   annotation, which is why these stay at every width and the labels do not. */
+.gridline {
+  position: absolute;
+  inset-block: 0;
+  width: 1px;
+  background: var(--rule-soft);
+}
+
+.gridlineLow {
+  left: 25%;
+}
+
+.gridlineHigh {
+  left: 75%;
+}
+
+/*
+ * --- The printed ladder ---
+ *
+ * Row 2 of the bar's column, `--space-8` below the list and one micro line box
+ * tall: 24 px, which AC 2 requires rather than offers. A length is a claim about
+ * a quantity, so the quantity is printed.
+ *
+ * An ordinary block rather than anything sticky — see `RankedList.tsx`.
+ */
+.ladder {
+  position: relative;
+  grid-area: 2 / 5;
+  height: var(--line-height-micro);
+  margin-top: var(--space-8);
+}
+
+.ladderTick {
+  composes: dataCell from "../../styles/type.module.css";
+  position: absolute;
+  top: 0;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  color: var(--ink-secondary);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/*
+ * --- 860 < width ≤ 1180: the midpoint labels drop ---
+ *
+ * **The band is the one where the region is narrowest, and it is neither the
+ * narrowest viewport nor a taste.** `MarketOverview.module.css` goes two-column
+ * at `5fr / 3fr` below 1180 and one-column below 860, so the sector region is
+ * 1026 px at 1440, **595 at 1024**, 720 at 768 and 342 at 390 — the third width
+ * is wider than the second, and this is the band the second one falls in.
+ *
+ * At 595 the bar is 223 px, 112 a side, which puts `−1` 56 px from both `−2%`
+ * and `0` and turns the ladder into a row of digits. The gridlines stay.
+ */
+@media (860px < width <= 1180px) {
+  .ladderMid {
+    display: none;
+  }
+}
+
+/*
+ * --- Below 37rem: no bar, and the figure steps down ---
+ *
+ * With 308 px of row at 390 and 144 of it spoken for by a label that may not
+ * shrink, the bar track would be about **50 px — 25 px each side of zero**. That
+ * is a tick rather than a bar, and the comparison it offers says less than the
+ * ordered list already does: at one column the order *is* the ranking, and the
+ * printed ordinal states it. So the bar, the rule overlay and the ladder are all
+ * absent.
+ *
+ * **The ticker does not go with it.** The owner's whole argument for the ETF row
+ * is that it is checkable by eye against a public quote, and `Technology
+ * +0.42%` is checkable against nothing; it is also the only defence against a
+ * permutation. At 390 it is 44 px of the 308 and it is the best-spent 44 px on
+ * the row.
+ *
+ * The threshold differs from the proxy strip's 64rem and the difference is real:
+ * the strip's binding case is a four-across column of 145 px, and this row is
+ * one column whose binding case is a 144 px fixed label.
+ *
+ * Arithmetic: `15.6 + 144 + 44 + 68 + 3 × 8 = 295.6` against 308 — **12.4 px of
+ * margin**, which Task 4.3.5 re-took in the browser rather than inheriting.
+ *
+ * **The last track is `minmax(68px, 1fr)` rather than the drawn `68px`**, and
+ * that is a departure with a measurement behind it. The drawing states the
+ * tracks at 390, where 68 and the leftover coincide to within 12.4 px; a literal
+ * `68px` leaves **213 px of dead space** to the right of the figure at 591, the
+ * top of this band, with the figure stranded mid-row. The minimum is the reserve
+ * the constraint asks for and the `1fr` keeps the figure's right edge on the
+ * region's, at every width in the band.
+ */
+@media (width < 37rem) {
+  .plot,
+  .plain {
+    grid-template-columns: 2ch 144px 44px minmax(68px, 1fr);
+    column-gap: var(--space-8);
+  }
+
+  /*
+   * **`.bar` is in this list, and leaving it out was a 7 px defect on every
+   * row** — found by `pnpm probe /` at 390 and by nothing else.
+   *
+   * The track list above has four columns; the bar is the row's **fifth**
+   * child and it does not stop existing because its track did. A grid item
+   * with nowhere to go is placed in an implicit track, and in a `subgrid`
+   * — which cannot grow columns beyond the range it adopts — that implicit
+   * track is a **second row of the `<li>`**. So every row came out 33 px
+   * instead of 26, the list 362 instead of 296, and the region **503 instead
+   * of 461**.
+   *
+   * It is the measured trap `CLAUDE.md` names, one axis over: *a `span N` item
+   * wider than the explicit grid is not clamped — it grows implicit columns*.
+   * Nothing below `pnpm e2e` can see it, the page is not wrong on screen, and
+   * a height assertion taken at 1440 never visits the width where it happens.
+   */
+  .rules,
+  .ladder,
+  .bar {
+    display: none;
+  }
+
+  .ticker {
+    gap: var(--space-4);
+  }
+
+  /*
+   * The figure steps to the micro size, which is exactly what
+   * `MarketProxyStrip` does to its change below 64rem. **The line height does
+   * not step**: the row is 26 px at every width, and the whole seven-region
+   * grid is sized off that.
+   */
+  .figure {
+    font-size: var(--font-size-micro);
+  }
+}

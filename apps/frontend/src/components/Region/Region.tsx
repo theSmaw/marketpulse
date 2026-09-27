@@ -111,8 +111,15 @@ export function Region({
    * already see — and it costs the picture a paragraph of height at every width.
    * Where there is nothing useful to say, nothing is said rather than something
    * being written to fill the slot.
+   *
+   * **`| undefined` since 2026-09-27**, so a caller can decide per render
+   * rather than per element. `Sector performance` says what belongs in it while
+   * it has nothing to draw and says nothing once it does, and under
+   * `exactOptionalPropertyTypes` *absent* and *present as `undefined`* are
+   * different types — so without this the route would need two `<Region>`
+   * elements for one region.
    */
-  readonly filledBy?: string;
+  readonly filledBy?: string | undefined;
   /**
    * Whose work fills this region — `Epic 6`, `Story 4.3` — as a tag at the
    * right-hand end of the header.

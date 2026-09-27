@@ -5,7 +5,8 @@ import type { Bar } from "@marketpulse/shared";
 import { MarketProxyStrip } from "../components/MarketProxyStrip/MarketProxyStrip.js";
 import { OverviewSourceNote } from "../components/OverviewSourceNote/OverviewSourceNote.js";
 import { Region } from "../components/Region/Region.js";
-import type { LiveFeedView } from "../market/index.js";
+import { SectorPerformance } from "../components/SectorPerformance/SectorPerformance.js";
+import { sectorPerformance, type LiveFeedView } from "../market/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
 import styles from "./MarketOverview.module.css";
 
@@ -70,6 +71,29 @@ export function MarketOverview({
   marketFeed,
 }: MarketOverviewProps = {}) {
   const overview = liveFeed?.overview;
+  const observations = liveFeed?.observations ?? EMPTY_OBSERVATIONS;
+  const fromSnapshot = liveFeed?.fromSnapshot ?? EMPTY_SNAPSHOT;
+
+  /*
+   * **The sector rows, derived once per frame — the first of this task's two
+   * memo boundaries** (AC 6, and Task 3.6.5's two boundaries are the
+   * precedent). `RankedList` and its `Row` are the second and third.
+   *
+   * The boundary earns its keep on this route rather than in theory: Task 3.6.5
+   * measured the backend-health poll re-rendering this tree every 30 s and the
+   * live feed costing 46–49 ms of script a minute, and Stories 4.4 and 4.5 land
+   * two more regions on the same page. `liveFeed` is a new object on every tick
+   * whether or not the aggregate moved, so the dependency is the **frame**
+   * rather than the view: `sameLiveFeedView` keeps `overview`'s identity stable
+   * across ticks that did not change it.
+   *
+   * `observations` is in the dependency list because the arrival mark reads it,
+   * and that is the one input that genuinely changes every burst.
+   */
+  const sectors = useMemo(
+    () => sectorPerformance(overview, observations, fromSnapshot),
+    [overview, observations, fromSnapshot],
+  );
 
   /*
    * **The set is served and this route renders what it is given.** The overview
@@ -167,8 +191,8 @@ export function MarketOverview({
         <Region name="Market proxies">
           <MarketProxyStrip
             overview={overview}
-            observations={liveFeed?.observations ?? EMPTY_OBSERVATIONS}
-            fromSnapshot={liveFeed?.fromSnapshot ?? EMPTY_SNAPSHOT}
+            observations={observations}
+            fromSnapshot={fromSnapshot}
           />
         </Region>
       </div>
@@ -181,12 +205,39 @@ export function MarketOverview({
           filledBy="The securities graph, in WebGL — 518 nodes clustered by sector, sized by liquidity, moving with the market. It takes this column when it arrives."
         />
 
+        {/*
+         * **Eleven sectors, ranked — Story 4.3, and the first thing on this
+         * screen a reader could not have got from a security page.**
+         *
+         * `awaiting` is gone because the work has landed: `Region` renders the
+         * tag only while `children === undefined`, but a forgotten
+         * `awaiting="Story 4.3"` beside shipped sector data is exactly the
+         * claim that component's comment says nothing in this repository can
+         * read. `filledBy` stays for the one state where there is nothing to
+         * draw and is narrower than it was — *each carrying what its figure is
+         * computed over* described the **aggregate** option, and the owner chose
+         * the ETF's own move, so this region has no denominator at all.
+         *
+         * **`sectors === undefined` is a state rather than an error.** The read
+         * side keeps `sectors` and `sectorLadderStep` optional because a
+         * rollback pins a previous image, so a new bundle can legitimately meet
+         * an old gateway that sends no such section — and that draws as the
+         * region's own reserved panel, which is the vocabulary this screen
+         * already has for *nothing here yet*.
+         */}
         <Region
           className={styles.areaSectors}
           name="Sector performance"
-          awaiting="Story 4.3"
-          filledBy="Eleven sector ETFs ranked by today’s move, each carrying what its figure is computed over."
-        />
+          filledBy={
+            sectors === undefined
+              ? "Eleven sector benchmark ETFs, ranked by today’s move."
+              : undefined
+          }
+        >
+          {sectors === undefined ? undefined : (
+            <SectorPerformance view={sectors} />
+          )}
+        </Region>
 
         <Region
           className={styles.areaMovers}

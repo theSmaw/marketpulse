@@ -2369,6 +2369,38 @@ export const BREAKS = [
     expect: "no longer CALLS",
   },
   {
+    name: "the-region-grid-is-capped-again",
+    proves:
+      "Task 4.1.3's fixed grid comes back \u2014 `height: 82vh` with three " +
+      "proportional rows \u2014 and `Sector performance` is capped at 265 px " +
+      "with eleven rows, a printed ladder and a two-line footer inside it. " +
+      "Because `Region` passes `scrollable` unconditionally the page does not " +
+      "look broken: the box reads correct and is SHORT BY SIX ROWS, with the " +
+      "weakest sectors below a fold nobody can see the edge of. Measured " +
+      "under the break: 264.5 px of box against 443 px of content.",
+    // **The defect somebody else will write, rather than the one I just fixed.**
+    // Task 4.1.3 argued for a fixed `height` in as many words, for Epic 6's
+    // WebGL canvas, and the first person to give the topology a resolved box
+    // will reach for it again. Nothing about that edit looks wrong.
+    //
+    // **One substitution has to land both halves, because either alone is
+    // harmless** — which is the shipped repair being belt and braces rather
+    // than a weakness in the break. With `min-height` the `fr` rows size to
+    // max-content whatever their minimum is (measured: still 461 px with
+    // `minmax(0, 1fr)`), and with `minmax(min-content, 1fr)` the tracks hold
+    // their content even against a definite height. It takes the pair to cap
+    // the region, so the `replace` writes the pair.
+    //
+    // **Restart the dev server before running this one.** The target is a CSS
+    // module and `CLAUDE.md` records the symptom under `pnpm break`: a guard
+    // reported as absent when it is there.
+    file: "apps/frontend/src/routes/MarketOverview.module.css",
+    find: "    repeat(2, minmax(min-content, 1fr));",
+    replace: "    repeat(2, minmax(0, 1fr));\n  height: 82vh;",
+    command: ["pnpm", "e2e", "overview-sector-region.spec.ts", "--anyway"],
+    expect: "does not scroll them",
+  },
+  {
     name: "a-break-that-can-no-longer-land",
     proves:
       "A break whose `find` no longer matches proves nothing, and nothing " +

@@ -164,3 +164,28 @@ safest, because the reader caused it**.
 **The lever is the disc, not the motion** — the strip cannot lose its disc, because
 four barely-changing figures need a _look_, but a ranked list can, because **its
 aliveness is its order**. **The anti-lever is named: never slow the motion down.**
+
+## Amended by Task 4.3.5 — 2026-09-27: the region head's slot is yours to open, and the rows are built so you cannot be foreclosed
+
+**Two things 4.3.5 deliberately did NOT build, because they are yours:**
+
+**1. The region head's count slot.** `11 · RANKED` was not built, and the reason is
+that **it is the same slot `ORDER HELD` goes in** — and it needs a `Region` /
+`Panel` change to exist at all. Opening that slot twice, once for a count and once
+for a badge, is two changes to a shared component for one idea. **Open it once,
+here**, and reserve the **wider** of the two strings so nothing moves when the
+badge replaces the count — `The ranked list.dc.html` §05 state 7 draws it.
+
+**2. The rows are already built not to foreclose you.** Keyed by `symbol`, DOM
+order equal to visual order, and the `<ol>`/`<li>` markup the FLIP needs. **The row
+pitch is 27 px** — a 26 px row plus its 1 px separator — which is the multiple your
+offsets must be, measured rather than assumed. A transform does not change a row's
+height, so **the region's 461 px is not yours to move** and 4.3.5's probe figures
+stand.
+
+**3. What 4.3.5 shipped that you must not duplicate.** `PriceChange` carries
+direction and the list spells **neither the sign nor the glyph**; the arrival mark
+composes `arrivalMark` **position only**; and the three absence strings have one
+home in `market/sector-performance.ts`. Your two events are a figure changing
+(which fires the shipped disc, **keyed on `arrivalKey`, never on a changed rank**)
+and a position changing (carried by the movement). Neither needs a new string.

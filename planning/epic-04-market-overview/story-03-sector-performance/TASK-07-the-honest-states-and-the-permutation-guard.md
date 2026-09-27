@@ -73,3 +73,46 @@ eleven named sectors and one sentence rather than a ranking of nothing.
 4. A hand-written second ticker→sector literal fails `pnpm invariants`, proved by
    a break that went red **after** being shown to pass wrongly
 5. The label↔ticker↔figure triple is asserted with eleven distinguishable figures
+
+## Amended by Task 4.3.5 — 2026-09-27: the minimum shipped, and exactly what is left for you
+
+**The region could not render at all without something in the figure column for a
+keyless row, and CI's entire state is keyless** — 518 securities, zero bars, so all
+eleven are `unknown` there for ever. So 4.3.5 shipped the minimum rather than
+leaving a hole, and drew the boundary explicitly.
+
+**Shipped, and produced in ONE place (`market/sector-performance.ts`) — review the
+wording, do not re-home it:**
+
+- an **em-dash rank** for a keyless row;
+- **`2026-09-25 close`** for a stored figure with no prior close — the proxy
+  strip's own spelling, reused rather than invented;
+- **`None stored`** for `unknown` — the proxy strip's words;
+- **`No stored close`** for an observed price with no basis. **This is the one
+  genuinely new string in the region** and it is the one to read hardest: it
+  describes a state where a price arrived and the thing to measure it against did
+  not, which no other surface in this product has had to say.
+
+**Still yours, in full:**
+
+1. **The trailing quiet group** with its `--rule-control` divider — keyless rows
+   below the rule in symbol order, **bar cell empty rather than zero-length**
+   (a zero-length bar is a claim of no movement; an absent bar is not), and the
+   em-dash rank. `The ranked list.dc.html` §05 state 3.
+2. **The first-paint state** — `visibility: hidden`, the shipped `FirstPaint`
+   idiom. §05 state 6.
+3. **The wording review of all three absence strings above.**
+4. **The permutation guard**, which is the defect class where **every number is
+   right**: the frame carries `symbol` and the screen shows `Technology`, so one
+   wrong key in the inverse map puts XLV's figure on the Financials row —
+   invisible to every guard, every test and every greyscale pass. The ticker is on
+   the row for this reason. Note `one-pairing-of-a-sector-and-its-benchmark`
+   already forbids a **second** pairing table; what it cannot see is the map being
+   read correctly and **applied** to the wrong row.
+
+**And the height is settled, so your states must not move it.** The region is
+**461 px at 1440/1024/768 and 437 at 390**, measured, with the footer reserving two
+lines at every width precisely so the rung's own width cannot change it. Done-when
+4 of 4.3.5 is already asserted in `overview-sector-region.spec.ts` — _the region is
+the same height with eleven figures and with none_ — so **that test is what tells
+you if a state you add breaks it.**
