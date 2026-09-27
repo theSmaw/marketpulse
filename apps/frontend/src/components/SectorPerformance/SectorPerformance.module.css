@@ -65,6 +65,29 @@
 }
 
 /*
+ * The scale clause with **no bar anywhere to describe** — ADR 0029 again, and
+ * `visibility` rather than `display` on purpose: the words keep their inline
+ * room, so the sentence wraps identically whether or not the feed has spoken and
+ * the region's height cannot become a function of the store. On CI this is the
+ * permanent state.
+ */
+.scaleReserved {
+  visibility: hidden;
+}
+
+/*
+ * --- The paint before the first frame ---
+ *
+ * The whole region's geometry, held and invisible, from the real component and
+ * the real footer — see `SectorPerformanceReservation`. `visibility: hidden`
+ * rather than `display: none`, which is the entire point: `display: none` would
+ * hold nothing, which is the state this exists to replace.
+ */
+.reserved {
+  visibility: hidden;
+}
+
+/*
  * --- The region head's right-hand slot ---
  *
  * One slot, two strings — `The ranked list.dc.html` §05 state 7 and

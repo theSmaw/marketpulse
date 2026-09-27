@@ -108,20 +108,35 @@
    * sector region takes its height *out of* the movers row, shrinking it to
    * 134. `minmax(min-content, 1fr)` keeps §9's equal rows: measured, every box
    * on this page at all four widths is **unchanged to the pixel** by this
-   * change, and eleven rows at 13/18 take the pair to **461** together — which
+   * change, and eleven rows at 13/18 take the pair to **486** together — which
    * pre-pays `Movers`' reserved height for free, so Story 4.5 filling it moves
    * nothing. The `min-content` is load-bearing and `auto` will not do: the
    * automatic minimum size of a scroll container is zero, so `1fr` alone
    * (which is `minmax(auto, 1fr)`) sizes the track to its share and hands the
    * overflow back to the scroller, which is the defect above.
    *
-   * **The figure is 461, MEASURED, since Task 4.3.5 drew the region — and the
-   * two estimates before it are left here because the gap is instructive.**
+   * **The figure is 486, MEASURED, since Task 4.3.7 added the quiet group's
+   * heading — and the three figures before it are left here because the gap
+   * between an estimate and a measurement is the instructive part.**
+   *
+   * 4.3.5 built the region and measured **461**. 4.3.7 added the `Not ranked`
+   * heading and had to **reserve its room in every state**, because without the
+   * reserve the region is 461 with eleven figures and 486 with none — and
+   * `overview-sector-region.spec.ts` asserts it is *the same height with eleven
+   * figures and with none*. The owner took **one height always, +25 px** over
+   * **two heights and a 25 px step the first time a sector goes quiet
+   * mid-session**, which is the movement this story spent three tasks designing
+   * out. The 25 is `8 padding + 16 micro line + 1 rule`.
+   *
+   * **And there was no slack to absorb it**: 461 was `min-content`, not a share
+   * of the `1fr`. That was measured rather than assumed.
+   *
    * 4.3.1 measured **383** with a throwaway that rendered eleven `<li>` and
    * nothing else. 4.3.2 drew the region properly and predicted **433**, adding
    * AC 2's printed ladder (24) and the benchmark claim line (28). The shipped
-   * figure is `2 + 47 + 16 + 16 + 296 + 24 + 44 + 16 = 461` at 1440, 1024 and
-   * 768, and **437 at 390** where there is no bar and therefore no ladder.
+   * figure was `2 + 47 + 16 + 16 + 296 + 24 + 44 + 16 = 461` at 1440, 1024 and
+   * 768, and **437 at 390** where there is no bar and therefore no ladder —
+   * before the quiet group's 25 px took it to **486 / 486 / 486 / 462**.
    *
    * The 28 px the drawing did not know about: the header is **47** rather than
    * 51 (51 included an `awaiting` tag that no longer renders), `Region` adds a
@@ -134,7 +149,7 @@
    * which is the one movement this story designed out.
    *
    * **What the shared ratio bought, measured rather than predicted:** filling
-   * this region raised `Movers` **and** `Market breadth` from 265 to 461 at
+   * this region raised `Movers` **and** `Market breadth` from 265 to 486 at
    * 1440 and 1024, because the second column's areas sit on the same rows. So
    * Story 4.5 filling `Movers` and Story 4.4 filling `Market breadth` now move
    * **nothing at all** at those widths. At 768 and 390 the grid is

@@ -408,30 +408,38 @@ test("a pointer over the region holds the order, the figures keep updating, and 
   const send = await serveSectors(page);
   await expect(rowsIn(page)).toHaveCount(FIRST.length);
 
-  await expect(
-    sectorRegion(page).getByText("Ranked", { exact: false }),
-  ).toBeVisible();
-
-  // **The head's slot and the first row, before the badge exists.** `Order
-  // held` with its disc is wider than `11 · Ranked`, so the slot reserves the
-  // wider of the two — and a badge appearing into an unreserved slot would move
-  // the region's name, the head's height and all eleven rows under it, on
-  // pointer enter, which is the one thing this treatment must not do.
-  const slot = () =>
-    sectorRegion(page).getByText("Ranked", { exact: false }).boundingBox();
+  // **The head and the first row, before the badge exists.** The badge shares
+  // one reserved slot with the ranked count, and the slot holds the wider of
+  // the two — so a badge appearing must move neither the region's name beside
+  // it nor the eleven rows under it, on pointer enter, which is the one thing
+  // this treatment must not do.
+  //
+  // **Measured against the region's NAME rather than against the count**
+  // (amended by Task 4.3.7): the count now speaks only in the mixed state, and
+  // this fixture ranks all eleven, so the slot is deliberately empty here. The
+  // name is the thing on the other end of the head's flex row and is what a
+  // slot growing would push, so it is the better subject in any case.
+  const title = () =>
+    sectorRegion(page)
+      .getByRole("heading", { name: "Sector performance" })
+      .boundingBox();
   const firstRow = () => rowsIn(page).first().boundingBox();
 
-  const quiet = { slot: await slot(), row: await firstRow() };
+  // Nothing is claimed about the count with every row ranked — `11 of 11` is a
+  // fact nobody needs, permanently.
+  await expect(
+    sectorRegion(page).getByText("of 11 ranked", { exact: false }),
+  ).toHaveCount(0);
 
-  // The reader arrives. The region says so, in the slot the count was in.
+  const quiet = { title: await title(), row: await firstRow() };
+
+  // The reader arrives. The region says so, in the slot the count would be in.
   await rowsIn(page).nth(4).hover();
   const badge = sectorRegion(page).getByText("Order held");
   await expect(badge).toBeVisible();
 
-  // The badge is **wider and to the left of** the count's right edge — one
-  // slot, right-aligned — and the row beneath has not moved a pixel.
-  const held = await badge.boundingBox();
-  expect(held?.width ?? 0).toBeGreaterThan(quiet.slot?.width ?? 0);
+  // Neither the name nor the row beneath has moved a pixel.
+  expect(await title()).toEqual(quiet.title);
   expect(await firstRow()).toEqual(quiet.row);
 
   send(SECOND);

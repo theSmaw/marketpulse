@@ -2,6 +2,7 @@ import { memo } from "react";
 
 import { cx } from "../../cx.js";
 import {
+  RESERVED_SECTORS,
   SECTOR_CLAIM,
   ladderClause,
   rowsInPinnedOrder,
@@ -57,6 +58,18 @@ export const SectorPerformance = memo(function SectorPerformance({
   view,
   pinned,
 }: SectorPerformanceProps) {
+  /*
+   * **Whether any row drew a bar, which is what licenses the scale clause**
+   * (ADR 0029, Task 4.3.7).
+   *
+   * `bars to ±1%` under eleven rows that drew no bar describes a scale for a
+   * quantity nothing on screen shows — the fully-formed record about zero rows,
+   * and on CI it is the permanent state. `RankedList` takes the same decision
+   * about the printed ladder from the same fact, and the two agree because they
+   * are the same predicate read off the same rows rather than two thresholds.
+   */
+  const anyBar = view.rows.some((row) => row.move !== undefined);
+
   return (
     <>
       <RankedList
@@ -81,11 +94,55 @@ export const SectorPerformance = memo(function SectorPerformance({
        */}
       <p className={cx(styles.claim)}>
         {SECTOR_CLAIM}{" "}
-        <span className={cx(styles.scale)}>· {ladderClause(view.step)}</span>
+        {/*
+         * **Hidden rather than removed where there is no bar to describe.** The
+         * clause keeps its inline room, so the sentence wraps the same way in
+         * every state and the region's height cannot depend on whether the feed
+         * has spoken — which is the whole point of `.claim`'s two-line reserve
+         * one rule below, taken here for the same reason.
+         */}
+        <span
+          className={cx(
+            styles.scale,
+            anyBar ? undefined : styles.scaleReserved,
+          )}
+          aria-hidden={anyBar ? undefined : true}
+        >
+          · {ladderClause(view.step)}
+        </span>
       </p>
     </>
   );
 });
+
+/**
+ * **The paint before the first frame: the region's own geometry, held and
+ * invisible** (Task 4.3.7, `The ranked list.dc.html` §05 state 6).
+ *
+ * ## Why it is the real component rather than a measured box
+ *
+ * Because the height it has to hold is eleven rows, a ladder, a reserved group
+ * heading and a two-line claim, and **every one of those numbers already exists
+ * exactly once**. A `min-height` here would be a second home for all four, wrong
+ * the first time any of them changes and wrong silently — nothing below
+ * `pnpm e2e` computes a layout. So the reservation *is* `SectorPerformance`,
+ * drawn from `RESERVED_SECTORS`, with the whole subtree taken out of both the
+ * picture and the accessibility tree.
+ *
+ * `visibility: hidden` plus `aria-hidden`, never `display: none` — which is the
+ * entire point — and never a skeleton row, a grey bar or an em dash, because a
+ * fully-formed placeholder is what invites a reader to read a value that is not
+ * there.
+ */
+export const SectorPerformanceReservation = memo(
+  function SectorPerformanceReservation() {
+    return (
+      <div className={cx(styles.reserved)} aria-hidden="true">
+        <SectorPerformance view={RESERVED_SECTORS} />
+      </div>
+    );
+  },
+);
 
 /**
  * **The region head's right-hand slot: the count, or `Order held`** — one slot,
@@ -98,18 +155,24 @@ export const SectorPerformance = memo(function SectorPerformance({
  * been two changes to a shared component for that one idea, which is why 4.3.5
  * deliberately built neither. `The ranked list.dc.html` §05 state 7 draws it.
  *
- * ## The count is the RANKED rows, not the rows
+ * ## The count is the RANKED rows, and it says nothing in the two states where
+ * it would be noise
  *
- * `11 · Ranked` over eleven rows that all say `None stored` would be two true
+ * `11 of 11 ranked` over a complete list is a fact nobody needs and a permanent
+ * one; `0 of 11 ranked` over eleven rows that all say `None stored` is two true
  * halves and one contradiction — the shape `docs/GAPS.md` entry 13's sibling is
- * about — so the count is the number of rows that actually have a rank, and when
- * that is **zero the slot says nothing at all**. ADR 0029's rule as a clause: a
- * claim about data requires data, and a surface that owns nothing defers. The
- * reserve is the stylesheet's, so an empty slot is the same width as a full one
- * and the badge still moves nothing when it appears.
+ * about — and in that state the trailing group's own heading already says
+ * `Not ranked` over every row there is. So the slot speaks **only in the mixed
+ * state**, which is the only state in which the count is news. ADR 0029's rule as
+ * a clause: a claim about data requires data, and a surface that owns nothing
+ * defers.
  *
- * Task 4.3.7 owns the trailing quiet group, where the honest head is
- * `8 Ranked · 3 Quiet`; this states the half that is true in every state today.
+ * **`N of 11 ranked` rather than a bare `N`** because the denominator is what
+ * makes it a claim about the region rather than about the list — Story 4.3's own
+ * *a figure over 24 of 30 names is a different claim from one over 30*, with the
+ * total read off the rows rather than typed. The reserve is the stylesheet's, so
+ * an empty slot is the same width as a full one and the badge still moves nothing
+ * when it appears.
  *
  * ## The badge's ink, and the value that was refused
  *
@@ -138,6 +201,7 @@ export const SectorPerformanceMeta = memo(function SectorPerformanceMeta({
   readonly held: boolean;
 }) {
   const ranked = view.rows.filter((row) => row.rank !== undefined).length;
+  const total = view.rows.length;
 
   return (
     <span className={cx(styles.slot)}>
@@ -146,8 +210,10 @@ export const SectorPerformanceMeta = memo(function SectorPerformanceMeta({
           <span className={cx(styles.disc)} aria-hidden="true" />
           {ORDER_HELD}
         </span>
-      ) : ranked === 0 ? undefined : (
-        <span className={cx(styles.count)}>{`${String(ranked)} · Ranked`}</span>
+      ) : ranked === 0 || ranked === total ? undefined : (
+        <span className={cx(styles.count)}>
+          {`${String(ranked)} of ${String(total)} ranked`}
+        </span>
       )}
     </span>
   );

@@ -179,6 +179,66 @@ describe("RankedList", () => {
     expect(text).not.toContain(MARKET_FEED_DESCRIPTIONS.sip.label);
   });
 
+  it("puts a row with no rank in a SECOND list, never at the tail of the ordered one", () => {
+    // Positions 10 and 11 of an `<ol>` are a claim made by markup rather than
+    // by prose — a listener is told *item 10 of 11* over a row this product is
+    // refusing to rank, and nothing drawn in the rank column reaches that
+    // announcement.
+    draw([...THREE, row("XLV", "Health Care", undefined, undefined)]);
+
+    const ranked = screen.getByRole("list", { name: "Sectors" });
+    expect(within(ranked).getAllByRole("listitem")).toHaveLength(3);
+    expect(ranked.tagName).toBe("OL");
+
+    const quiet = screen.getByRole("list", { name: "Not ranked" });
+    expect(quiet.tagName).toBe("UL");
+    expect(within(quiet).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(quiet).getByText("None stored")).toBeTruthy();
+  });
+
+  it("draws no ordered list at all when nothing is ranked", () => {
+    // CI's permanent state — 518 securities and zero bars, so all eleven are
+    // `unknown` there for ever. The eleven rows still render: the set is known
+    // from the universe and does not depend on any observation.
+    const { container } = draw(
+      THREE.map((entry) =>
+        row(entry.symbol, entry.label, undefined, undefined),
+      ),
+    );
+
+    expect(container.querySelector("ol")).toBeNull();
+    expect(
+      within(screen.getByRole("list", { name: "Not ranked" })).getAllByRole(
+        "listitem",
+      ),
+    ).toHaveLength(3);
+  });
+
+  it("prints no ladder tick where no bar was drawn, and keeps the ladder's room", () => {
+    // ADR 0029 one clause wider than the figure column: a printed ±2% under
+    // rows that drew no bar is a scale for a quantity nothing on screen shows.
+    const { container } = draw([row("XLB", "Materials", undefined, undefined)]);
+
+    expect(container.textContent).not.toContain("+2%");
+    expect(container.querySelector("i")).toBeNull();
+  });
+
+  it("says nothing about a rank in the trailing group beyond the group's own heading", () => {
+    // The em dash in the rank column is `aria-hidden`, so what a listener gets
+    // from a quiet row is a label, a ticker and the words that stand where a
+    // figure would — and the group heading, once.
+    draw([...THREE, row("XLV", "Health Care", undefined, undefined)]);
+
+    const quiet = screen.getByRole("list", { name: "Not ranked" });
+    const drawn = within(quiet).getAllByRole("listitem")[0]?.textContent ?? "";
+
+    // No ordinal anywhere on the row, in any form — done-when 2, as a rank
+    // position rather than as a `0.00%`.
+    expect(drawn).not.toMatch(/\d/u);
+    expect(drawn).toContain("Health Care");
+    expect(drawn).toContain("None stored");
+  });
+
   it("moves a row's own DOM node to its new place rather than rewriting it", () => {
     // **Keyed by `symbol`, never by index**, and this is the assertion that
     // says so: keyed by index React would recycle row 1's element into row 2's
