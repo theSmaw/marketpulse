@@ -72,7 +72,52 @@
 .regions {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 0.7fr) minmax(0, 1.15fr) minmax(0, 1.15fr);
+  /*
+   * **Row 1 is a resolved length, and rows 2 and 3 keep their ratio but can no
+   * longer be shorter than their contents — Task 4.3.1.** This reverses half of
+   * the paragraph below it.
+   *
+   * **What was wrong.** Three `fr` rows against a fixed `height` made
+   * `.areaSectors` **265 px whatever was in it**, which after the border, the
+   * 51 px header and 2 × 16 px of body padding leaves **180 px** — **16.4 px a
+   * row** for the eleven sector rows Story 4.3 puts there, against this
+   * product's own dense leading of 13/18. And `Region` passes `scrollable`
+   * unconditionally, so the *default* behaviour of a region that does not fit
+   * is a silent scroller hiding the weakest sector: a region that reads correct
+   * and is short by one row.
+   *
+   * **Row 1 keeps a resolved box because Epic 6's canvas needs one** — that is
+   * the half of Task 4.1.3's argument that survives, and it is the only half
+   * that was ever about the topology. The length is the height that row
+   * measured under the `fr` rows, derived rather than typed: 0.7 of three
+   * shares of the grid's height *after* the two gaps have come out of it. So it
+   * is unchanged at every viewport height rather than only at 900 — measured
+   * 1026×161 before this change and 1026×161 after, at 1440 and 1024.
+   *
+   * **`19vh` was the arithmetic this decision was taken with, and it is 10 px
+   * out**: `0.7/3 × 82vh` is 172 px at a 900 px viewport, but the `fr` rows
+   * never divided 82vh — they divided 82vh minus `2 × gap`, which is 161. The
+   * gap is read from the token rather than spelled `48px` so the two cannot
+   * drift.
+   *
+   * **`minmax(min-content, 1fr)` rather than `auto`, and it is the difference
+   * between two products rather than a refinement.** Both let a filled region
+   * grow. `auto` lets the two rows size independently, so today's reserved
+   * panels come out **274 and 256** instead of the 265 they were (the leftover
+   * space is distributed on top of each row's own content height) and a filled
+   * sector region takes its height *out of* the movers row, shrinking it to
+   * 134. `minmax(min-content, 1fr)` keeps §9's equal rows: measured, every box
+   * on this page at all four widths is **unchanged to the pixel** by this
+   * change, and eleven rows at 13/18 take the pair to **383** together — which
+   * pre-pays `Movers`' reserved height for free, so Story 4.5 filling it moves
+   * nothing. The `min-content` is load-bearing and `auto` will not do: the
+   * automatic minimum size of a scroll container is zero, so `1fr` alone
+   * (which is `minmax(auto, 1fr)`) sizes the track to its share and hands the
+   * overflow back to the scroller, which is the defect above.
+   */
+  grid-template-rows:
+    calc((82vh - 2 * var(--space-24)) * 7 / 30)
+    repeat(2, minmax(min-content, 1fr));
   grid-template-areas:
     "topology unusual"
     "sectors breadth"
@@ -85,17 +130,27 @@
    * grid itself has a height — so the grid takes one, and each region scrolls
    * its own overflow instead of pushing its neighbours.
    *
-   * `height` rather than `min-height`, and the difference is the whole layout:
-   * with a minimum the `fr` rows still size to their content, the primary area
-   * grows as tall as whatever is in it, and §9's proportions disappear the
-   * moment one region holds more than another. A height makes the ratios real
-   * and hands the overflow to the region.
-   *
    * Raised from 70vh to 82vh by Task 4.1.3: three rows rather than two, and a
    * deferred region has a floor below which its heading and its sentence stop
    * fitting at all.
+   *
+   * **`min-height` since Task 4.3.1, and Task 4.1.3 argued against it in as
+   * many words**: *with a minimum the `fr` rows still size to their content,
+   * the primary area grows as tall as whatever is in it, and §9's proportions
+   * disappear the moment one region holds more than another.* That is now the
+   * wanted behaviour rather than a fault — one region **does** hold more than
+   * another from Story 4.3 on, and the alternative is the 16.4 px row above.
+   * What the argument was protecting is the topology's resolved box, and row 1
+   * still has one.
+   *
+   * **And §9's proportions survive on today's screen**: the two `fr` rows
+   * resolve against this minimum exactly as they resolved against the height,
+   * so six reserved panels give the 161 / 265 / 265 they gave before. What the
+   * minimum buys is the one case the height got wrong — a row whose contents
+   * are taller than its share now takes the height it needs and the grid grows,
+   * instead of the region scrolling.
    */
-  height: 82vh;
+  min-height: 82vh;
 }
 
 .areaTopology {
@@ -156,6 +211,14 @@
       "topology"
       "unusual"
       "investigations";
-    height: auto;
+    /*
+     * **`min-height`, matching the base rule since Task 4.3.1.** It has to be
+     * restated: with the base declaring a *minimum* rather than a height,
+     * leaving `height: auto` here would leave `min-height: 82vh` in force on a
+     * one-column layout — invisible at a tall viewport, because the column is
+     * already taller than that, and 82vh of padding under six panels on a short
+     * one.
+     */
+    min-height: auto;
   }
 }

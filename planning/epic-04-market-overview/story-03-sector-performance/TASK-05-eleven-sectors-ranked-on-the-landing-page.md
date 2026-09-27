@@ -78,3 +78,56 @@ performance"` at all four widths, and take every tolerance from its output.
 4. The region's height is identical across its states at each width, measured
 5. `pnpm probe` figures and the delta recorded; `pnpm e2e` green, and
    `overview-proxy-live-update.spec.ts`'s four-cell assertion still passes
+
+## Amended by Task 4.3.1 — 2026-09-27: you inherit the only assertion that can guard the grid, and you are the change that must measure the movement
+
+**1. The grid's shape is guarded by nothing until you land, and the guard is
+yours to write.** Task 4.3.1 changed `.regions` from `height: 82vh` with three
+`fr` rows to `min-height: 82vh` with a resolved row 1 and
+`repeat(2, minmax(min-content, 1fr))`. It added **no check**, deliberately and
+correctly: a browser assertion that row 1 is resolved while rows 2–3 grow passes
+**identically against the reverted stylesheet** while row 2 is empty, because
+with no content the two shapes resolve to the same 161 / 265 / 265. **The
+assertion that goes red on a revert exists only once the sector list does.** So
+write it here: a browser assertion that the sector region's rendered height
+**exceeds the 265 px the old fixed grid would have given it**, and that its
+`scrollHeight` equals its `clientHeight` — the second is the real defect, which is
+a region that reads correct and is **short by one row**. Take the numbers from
+`pnpm probe` rather than from this file. A check owes a break.
+
+**2. You are the change that draws the content, so you own the movement report.**
+Task 4.1.4's rule — _nothing on the screen moves when `Sector performance`
+fills_ — was **retired by the owner on 2026-09-27** rather than honoured, and its
+replacement puts the obligation on you in as many words:
+
+> A reserved region's floor is set by the change that DRAWS its content, and that
+> change measures and reports the movement before it merges.
+
+So `pnpm probe /` at 1440/1024/768/390 before and after, and the delta per width
+in your record. **The movement is already predicted, from a throwaway that
+rendered eleven rows at 13/18 leading** — re-measure it rather than citing it:
+
+| width | sectors       | movers          | `.regions`     | `main`          |
+| ----- | ------------- | --------------- | -------------- | --------------- |
+| 1440  | 265 → **383** | 265 → **383**   | 738 → **975**  | 1203 → **1440** |
+| 1024  | 265 → **383** | 265 → **383**   | 738 → **975**  | 1203 → **1440** |
+| 768   | 103 → **383** | 103 (unchanged) | 756 → **1036** | 1241 → **1521** |
+| 390   | 121 → **383** | 121 (unchanged) | 900 → **1162** | 1543 → **1805** |
+
+**Everything in those columns that moves is another reserved panel or the source
+note** — that is what made the retirement safe, and it is the claim your probe
+either confirms or breaks. If a figure or a sentence a reader is reading moves,
+the retirement was wrong and it comes back to the owner.
+
+**3. Filling this region also fixes `Movers`, for free.** Rows 2 and 3 share one
+`fr` ratio, so raising sectors to 383 raises the `Movers` reserved panel to 383
+too. **State that in your record**: Story 4.5 filling `Movers` then moves nothing
+at all at 1440 and 1024, and that is a debt this task discharges for a story that
+has not started.
+
+**4. The row height that produces 383 is 26 px, and it is a placeholder.** It came
+from an instrument: eleven `<li>` at 13 px/18 px with
+`padding-block: var(--space-4)`. **Task 4.3.3's row design is authoritative**, and
+if the real row is not 26 px then every figure above moves and the reserved
+floor — which nobody set, by decision — was never pinned to it. That is the whole
+reason the floor was not written in 4.3.1.

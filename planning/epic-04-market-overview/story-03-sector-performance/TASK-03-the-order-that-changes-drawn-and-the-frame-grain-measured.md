@@ -100,3 +100,25 @@ the next two tasks behave.
 4. The reversal trigger is written as a condition, and names the disc as the
    lever
 5. Reduced motion's surviving channel is drawn, not asserted
+
+## Amended by Task 4.3.1 — 2026-09-27: your row height is load-bearing outside this task, and one number is currently a placeholder standing in for it
+
+**A throwaway instrument set the sector region's filled height, and your design
+replaces it.** Task 4.3.1 needed to know whether eleven rows fit, so it rendered
+eleven `<li>` at 13 px/18 px with `padding-block: var(--space-4)` — **26 px a
+row** — and measured the region at **383 px**, of which 298 is list. That 383 is
+now quoted in three places: this story's `STORY.md`, Task 4.3.5's movement table,
+and the dated amendment on `Market overview.dc.html` §03.
+
+**None of them is pinned to it, deliberately.** No reserved floor was written from
+that number, precisely so that your row design is not built backwards from a
+measurement instrument. But **state your row's own height explicitly in your
+record**, because if it is not 26 px then every figure in 4.3.5's table moves, and
+the retirement of Task 4.1.4's reserved-equals-filled rule was argued against a
++237 px recomposition at 1440 that would then be a different size.
+
+**The grid will not fight you.** Since 4.3.1 the two lower rows are
+`minmax(min-content, 1fr)` against a `min-height` rather than shares of a fixed
+height, so a taller row makes the grid grow rather than making the panel scroll —
+and the region has **298 px of body at 26 px a row with room above it**, not a
+ceiling you have to design under.

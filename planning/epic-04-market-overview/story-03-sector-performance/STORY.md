@@ -1,6 +1,6 @@
 # Story 4.3 — Sector Performance, & the Benchmark That Is Not an Average
 
-**Status:** **In progress — 2026-09-27.** Decomposed into eight tasks; four decisions taken at Gate 1.
+**Status:** **In progress — 2026-09-27.** Decomposed into eight tasks; four decisions taken at Gate 1, and a fifth in 4.3.1 — **Task 4.1.4's reserved-equals-filled rule is retired.** 4.3.1 complete.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.2
 **Epic scope covered:** sector performance
@@ -359,3 +359,39 @@ auto`.** Measured: the sector region is **265 px**, leaving ~**180 px** of
 - **Epic 14's trigger does NOT fire.** Its condition is _per-row markup at
   universe scale_ and eleven is not that. Recorded in writing because somebody
   will claim it fired.
+
+## Amended by Task 4.3.1 — 2026-09-27: a fifth owner decision, and the Gate 1 arithmetic was 10 px out
+
+**Task 4.1.4's rule is retired, by the owner, and its replacement is a rule about
+WHO measures rather than about what a panel reserves.** The rule was _nothing on
+the screen moves when `Sector performance` fills_, written three weeks ago against
+a claim that the region is _"a tall hatched panel today"_. **Measured, that claim
+was false when it was written**: the region is 265 px at 1440 and 1024, 103 at 768
+and **121 at 390** — shorter than four of its six siblings at 390, where 121 px is
+a header plus a wrapped sentence rather than a held band. Filled with eleven rows
+it is **383 px**.
+
+Honouring the rule means a 383 px floor on `Sector performance` **and** `Movers`
+now, which puts a **975 px grid with five hatched panels** on the live landing
+page for the three tasks before the list exists, and sets the sector row's height
+from a placeholder typed to take a measurement. The owner took retirement:
+
+> **A reserved region's floor is set by the change that DRAWS its content, and
+> that change measures and reports the movement before it merges.**
+
+**Reversal trigger** — a condition rather than a story: _the first reserved region
+whose filling would move a figure or a sentence a reader is reading, rather than
+another reserved panel._ At all four widths on this screen, everything that moves
+when sectors fills is hatch or the source note, which is the whole reason the
+retirement is safe here. The obligation now sits in **Task 4.3.5's** file, in
+words it can act on.
+
+**And the Gate 1 height was wrong by 10 px.** `grid-template-rows: 19vh auto auto`
+was taken on the arithmetic `0.7/3 × 82vh`, but the `fr` rows never divided
+`82vh` — they divided `82vh` minus **two gaps**, which is 161 px at a 900 px
+viewport against `19vh`'s 172. The shipped row is
+`calc((82vh - 2 * var(--space-24)) * 7 / 30)`, exact at every viewport height
+rather than only at the one it was derived from, and `auto auto` was replaced with
+`repeat(2, minmax(min-content, 1fr))` because `auto` sizes the two rows
+independently (274 / 256 today, and a filled sectors row takes its height **out
+of** movers). **The whole layout probe is byte-identical at all four widths.**
