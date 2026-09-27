@@ -1105,9 +1105,20 @@ either the assertion narrows to the surfaces the outage could plausibly reach
 (and stops being criterion 3's whole-page claim), or the page is driven to a
 quiescent state that nothing currently defines.
 
+**Seen a THIRD time on 2026-09-27**, on CI, against a branch whose entire diff
+was comment lines and planning Markdown — filtering the one source file's diff to
+non-comment lines returned nothing, so the runtime tree was behaviourally
+identical to `main`. It passed on a re-run of the same commit with no change.
+**The baseline that failed contained `A newer answer is on its way`**, which is a
+pending state: direct confirmation of the mechanism above rather than a
+restatement of it. Cost: one round trip and a re-run the operator had to
+authorise. **Three sightings, all three under load, none reproduced on an idle
+machine** — which is the pattern the re-measure below is written to catch, and it
+now has a fourth data point saying the load correlation is not a coincidence.
+
 **Re-measure:** `pnpm e2e e2e/specs/security-feed-degraded.spec.ts
 --repeat-each=6`, four times on one settled checkout, counting failures **per
-execution**. Run it on a **loaded** machine as well as an idle one: both
+execution**. Run it on a **loaded** machine as well as an idle one: all three
 occasions this has been seen were under load, which is CI's ordinary state and
 a developer's rarest.
 
@@ -1153,3 +1164,65 @@ two memo boundaries, 37–40 ms after) are the comparison.
 **Owner: a condition rather than a story number — the first story that measures
 a per-tick cost on any route other than `/`.** Story 4.8 is the first candidate
 and its scope is `/` only, so if it takes this it is widening deliberately.
+
+## Nothing checks that the sector ladder's ratchet has exactly ONE holder, and two holders would draw two scales with every figure still correct
+
+**Added 2026-09-27 by Task 4.3.4.** The bar's stepped ladder — `±1 / ±2 / ±5 / ±10%`,
+smallest rung containing all eleven, stepping **outward only within a session** and
+reset at the bell — is **state with a session lifetime**, held by exactly one
+`createSectorLadderRatchet()` in `apps/backend/src/index.ts`. The arithmetic is pure
+in `packages/shared/src/sector-ladder.ts` and holds no `let`; the one mutable
+binding is the backend module's.
+
+**A second holder anywhere would produce two rungs**, and because the ratchet only
+ever steps **outward** the divergence is **permanent for the session** rather than
+self-correcting. Every figure on screen would still be right, every test would
+pass, and the only symptom is two bars of different lengths for the same
+percentage — which is invisible unless both are on screen at once, and they never
+are.
+
+**This is `one-producer-of-the-overview-aggregate`'s shape for a new symbol**, and
+it was not made mechanical here because that is a second check and a second break
+beyond the task's brief. Today there is one holder beside the one producer, and the
+producer's own invariant is what keeps them together: a second aggregate call site
+is refused, and a ratchet is only useful beside one.
+
+**Owner: the first change that adds a second stateful holder to the overview
+producer** — a breadth ratchet, a movers scale, or anything else with a session
+lifetime. At that point the check is worth generalising over _holders_ rather than
+writing twice.
+
+**Re-measure:** `grep -rn "createSectorLadderRatchet" apps/backend/src --include=*.ts`
+and confirm exactly one call outside the module's own tests.
+
+## No gated machine has ever seen a sector figure, and CI cannot ever see one
+
+**Added 2026-09-27 by Task 4.3.4.** The same shape as Story 4.2's proxy entry and
+worth stating separately because the set is eleven rather than four and the
+consequences are wider.
+
+**CI's store is 518 securities and zero bars**, so on every gated run all eleven
+sector figures are `unknown`, for ever. Which means:
+
+- **`sessionChangePercent` never occurs there.** A stored figure's close-to-close
+  move needs a store with closes, so Gate 1's decision 2 — the thing that makes the
+  region honest outside a session — is exercised by **unit tests only**.
+- **The ladder is `±1` for ever on CI**, because `fitSectorLadder` over eleven
+  absent keys has nothing to fit. The ratchet's stepping-outward behaviour and its
+  reset at the bell are proved in unit tests and by nothing a browser has run.
+- **The comparator's keyed branches are unreached.** The all-eleven-`unknown` case
+  is the one combination CI _does_ prove, and it is the one that needs proving
+  least: it asserts the declared `SECTORS` order, which is the input order.
+
+**What this does NOT undermine**: the absent-key rule is the branch CI exercises, so
+the defect that would place an unheard-from sector among the genuinely flat ones is
+the one thing a gated run does cover.
+
+**Owner: Task 4.3.5**, which puts the region on screen and is the first thing that
+can produce a keyed figure in a browser — and `LIVE-REHEARSAL.md` for the rest,
+because a ranking that is _correct_ and a ranking that _reads_ correctly are
+different claims and only a person can take the second.
+
+**Re-measure:** `pnpm store:bare`, then `DATABASE_NAME=marketpulse_bare pnpm dev`,
+and read `/`'s overview frame — every sector figure should be `unknown` and
+`sectorLadderStep` should be 1.

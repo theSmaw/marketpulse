@@ -57,6 +57,25 @@ import type { SecurityLastClose } from "./securities-response.js";
 // `last-close.ts`.
 
 /**
+ * How many decimal places a percentage is **shown** to, and therefore the
+ * precision at which two moves are the same move.
+ *
+ * Two, which is what `formatChangePercent` has always used. It lives here
+ * rather than in the frontend module that formats, because since Task 4.3.4
+ * the **backend** needs it: the sector ranking is computed server-side and its
+ * no-swap rule is keyed on the displayed figure — *the displayed order never
+ * contradicts the displayed figures* — so the producer of the number and the
+ * speller of it have to agree about where it rounds. Two constants both
+ * spelling `2` is one fact with two homes, and the half that rots is the one
+ * nobody re-reads.
+ *
+ * It is not a price's precision. `PRICE_DECIMALS` in the frontend's
+ * `price-format.ts` is a separate fact that happens to share a value, and
+ * collapsing them would make a change to one a silent change to the other.
+ */
+export const PERCENT_DISPLAY_DECIMALS = 2;
+
+/**
  * The move since the session before, as a signed percentage.
  *
  * `null` when there is nothing to compare against — a security we hold one

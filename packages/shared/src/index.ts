@@ -302,8 +302,34 @@ export type { Bar, Timeframe } from "./bar.js";
 // `directionOf` are the frontend's, because a spelling is a property of a
 // surface. `commonSession` deliberately stayed behind: it is a question about
 // one view of one response, not about the arithmetic.
-export { changeFromClose, changePercent } from "./live-change.js";
+export {
+  PERCENT_DISPLAY_DECIMALS,
+  changeFromClose,
+  changePercent,
+} from "./live-change.js";
 export type { LiveChange } from "./live-change.js";
+
+// How eleven sector benchmarks are ordered, and the ladder their bars are drawn
+// against (Task 4.3.4). **Shared rather than the browser's** for the reason
+// Story 4.5 ranks server-side: a top-N over 518 computed in a browser means
+// shipping the ranking's input to every tab, so a browser-side comparator could
+// never be the rule — and the ladder is on the server so every reader shares one
+// scale rather than one per tab.
+export {
+  SECTOR_BY_ETF,
+  compareSectorFigures,
+  displayedPercent,
+  rankSectorFigures,
+  sectorOfEtf,
+  sectorRankingKey,
+} from "./sector-ranking.js";
+export {
+  SECTOR_LADDER_STEPS,
+  fitSectorLadder,
+  isSectorLadderStep,
+  ratchetSectorLadder,
+} from "./sector-ladder.js";
+export type { SectorLadder, SectorLadderStep } from "./sector-ladder.js";
 
 // The window a request is made over (Task 2.6.2). One type rather than two
 // parameters, because two can be swapped at a call site and nothing notices;

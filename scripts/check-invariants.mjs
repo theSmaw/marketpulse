@@ -2531,6 +2531,149 @@ const INVARIANTS = [
   },
 
   {
+    id: "one-pairing-of-a-sector-and-its-benchmark",
+    claim:
+      "Which ETF is a sector's benchmark is written down in exactly one " +
+      "place — `SECTOR_ETFS` in `packages/shared/src/security.ts` — and no " +
+      "other shipped file pairs those tickers with anything.",
+    check() {
+      // **The defect is a PERMUTATION, and it is invisible** (Task 4.3.4).
+      // `SECTOR_ETFS` is `Record<Sector, Ticker>`; the overview frame carries a
+      // `symbol`, so somebody needs the inverse. A hand-written one — the
+      // obvious thing to write, in the module that renders eleven rows — puts
+      // XLV's figure on the Financials row with **every number on the screen
+      // still right**: it satisfies every arithmetic guard in this repository,
+      // passes every state grid, and is invisible in greyscale. The only thing
+      // on the row that can contradict it is the printed ticker.
+      //
+      // ## Keyed on the tickers, because they are what cannot be avoided
+      //
+      // A re-implementer writes neither `SECTOR_ETFS` nor `Sector`, and
+      // TypeScript never asks them to. What they cannot avoid writing is the
+      // **symbols themselves**, more than one of them — an inverse map, a
+      // `switch`, a lookup array and an `if` chain all do. So the clause is:
+      // **no shipped file outside the one home names two or more of the
+      // eleven.** One is an example (`sectorOfEtf("XLK")` in a docblock is not
+      // a pairing); two is a table.
+      //
+      // **The first version of this clause required the ticker to be QUOTED,
+      // and it passed green on the exact defect it forbids.** The file Task
+      // 4.3.5 would write is
+      // `Record<string, string> = { XLK: "Technology", XLV: "Health Care", … }`
+      // — eleven bare identifier keys, not one of them a string literal, and
+      // `pnpm break` would have proved nothing because a break edits the file
+      // the check was written around. Produced and kept: `37 invariants hold.`
+      // against all eleven pairings sitting in
+      // `apps/frontend/src/components/SectorList/`. So the scan is over the
+      // **word**, on comment-stripped text — a bare `XLK` token in code is a
+      // key, an identifier or a string, and all three are the table.
+      //
+      // ## The corpus is derived, never a list here
+      //
+      // The eleven tickers are read out of `SECTOR_ETFS`' own literal. A
+      // hard-coded list in this file would be the twelfth home of the thing
+      // the check forbids, and `CLAUDE.md` records a check whose corpus was a
+      // hard-coded file list as one of four guards that shipped green on the
+      // defect they forbade.
+      const HOME = "packages/shared/src/security.ts";
+      const homeText = readFileSync(resolve(REPO_ROOT, HOME), "utf8");
+
+      const record = /export const SECTOR_ETFS[^=]*=\s*\{([\s\S]*?)\n\};/u.exec(
+        homeText,
+      );
+
+      if (record === null) {
+        throw new InvariantFailure(
+          `${HOME} no longer declares \`SECTOR_ETFS\` in the shape this ` +
+            "check reads, so the corpus of tickers is empty and every clause " +
+            "below would pass vacuously. Repoint it.",
+        );
+      }
+
+      const tickers = [...record[1].matchAll(/"([A-Z]{2,5})"/gu)].map(
+        (match) => match[1],
+      );
+
+      const sectors = /export const SECTORS = \[([\s\S]*?)\] as const;/u.exec(
+        homeText,
+      );
+      const declared =
+        sectors === null ? 0 : [...sectors[1].matchAll(/"[a-z_]+"/gu)].length;
+
+      // The anchor: as many benchmarks as sectors, or the parse has rotted.
+      if (declared === 0 || tickers.length !== declared) {
+        throw new InvariantFailure(
+          `read ${String(tickers.length)} benchmark ticker(s) against ` +
+            `${String(declared)} declared sector(s) in ${HOME}. The two must ` +
+            "agree — `SECTOR_ETFS` is total over the union by construction — " +
+            "so a mismatch means this check is reading the wrong text.",
+        );
+      }
+
+      // Word boundaries rather than quotes, so a bare object key counts —
+      // and `\bXLE\b` does not match inside `XLRE`, which is the one pair in
+      // this set where a substring match would double-count.
+      const named = new RegExp(`\\b(?:${tickers.join("|")})\\b`, "gu");
+
+      const offenders = [];
+
+      const walk = (dir) => {
+        for (const child of readdirSync(dir)) {
+          const path = resolve(dir, child);
+          if (statSync(path).isDirectory()) {
+            if (child !== "fixtures" && child !== "node_modules") walk(path);
+            continue;
+          }
+          if (!/\.tsx?$/u.test(child)) continue;
+          // Tests and stories are excluded with the fixtures: a test naming
+          // three ETFs is a fixture, and `one-home-for-the-live-change` draws
+          // the same line for the same reason.
+          if (/\.(?:test|process|database|stories)\.tsx?$/u.test(child)) {
+            continue;
+          }
+
+          const relativePath = relative(REPO_ROOT, path);
+          if (relativePath === HOME) continue;
+
+          // Comments stripped, trailing ones included: this file's own
+          // docblocks name `XLK` and `XLV` in prose, `universe.ts` explains at
+          // length why it does not type them out, and `UniverseTable.tsx`
+          // quotes an accessible name containing one. None of those is a
+          // pairing, and this clause treats two occurrences as proof.
+          const text = withoutTrailingComments(readFileSync(path, "utf8"));
+          const found = new Set([...text.matchAll(named)].map((m) => m[0]));
+
+          if (found.size > 1) {
+            offenders.push(`${relativePath} (${[...found].sort().join(", ")})`);
+          }
+        }
+      };
+
+      for (const root of [
+        "apps/backend/src",
+        "apps/frontend/src",
+        "packages/shared/src",
+      ]) {
+        walk(resolve(REPO_ROOT, root));
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} shipped file(s) name more than one ` +
+            "sector benchmark ticker:\n      " +
+            offenders.join("\n      ") +
+            `\n    Two or more of those symbols in one file is a second copy ` +
+            `of ${HOME}'s table, whatever it is spelled as. Derive it: ` +
+            "`SECTOR_BY_ETF` in `packages/shared/src/sector-ranking.ts` is " +
+            "the inverse, built once by mapping over `SECTORS`. A " +
+            "hand-written pairing is where a permutation comes from, and a " +
+            "permutation leaves every figure on the screen correct.",
+        );
+      }
+    },
+  },
+
+  {
     id: "one-producer-of-the-overview-aggregate",
     claim:
       "`buildMarketOverview` has at most one call site in shipped backend " +

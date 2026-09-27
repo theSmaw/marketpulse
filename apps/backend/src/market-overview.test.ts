@@ -248,7 +248,8 @@ describe("buildMarketOverview", () => {
 describe("toWireMarketOverview", () => {
   const overview = (
     entries: readonly MarketOverviewEntry[],
-  ): WireMarketOverview => toWireMarketOverview(entries, ASOF);
+  ): WireMarketOverview =>
+    toWireMarketOverview({ proxies: entries, asOf: ASOF });
 
   it("carries NEITHER of the things the figures were derived from", () => {
     // **ADR 0031's obligation, asserted where it is at risk.** The backend
@@ -410,5 +411,180 @@ describe("toWireMarketOverview", () => {
     // — the replay clock under a replay — because this module reads none.
     const wire = overview([]);
     expect(wire.computedAt).toBe(duringSession("2026-09-14").toISOString());
+  });
+});
+
+// ----------------------------- the two sections and the stored move (4.3.4)
+
+describe("the sector section", () => {
+  const XLK = toTicker("XLK");
+  const XLV = toTicker("XLV");
+  const XLF = toTicker("XLF");
+
+  const sectorsOf = (
+    symbols: readonly Ticker[],
+    observations: ReadonlyMap<Ticker, CurrentObservation>,
+    closes: ReadonlyMap<Ticker, SecurityLastClose>,
+  ): readonly MarketOverviewEntry[] =>
+    buildMarketOverview({
+      symbols,
+      observations,
+      closesAsOf: () => closes,
+      asOf: duringSession("2026-09-14"),
+    });
+
+  it("is a NEW key, and `figures` still carries exactly the proxies", () => {
+    // **Done-when 1.** Appending eleven sector ETFs to `figures` would join
+    // them to the proxy strip — which folds over that whole array in five
+    // places — moving `newest` and breaking `sharedBasis` and
+    // `sharedClosingSession`, with no compile error and no test failure.
+    const wire = toWireMarketOverview({
+      proxies: sectorsOf(
+        [SPY, QQQ],
+        new Map([
+          [SPY, observation(SPY, bar(605.5, duringSession("2026-09-14")))],
+        ]),
+        closesOf(storedClose(SPY, { close: 600, session: "2026-09-11" })),
+      ),
+      sectors: sectorsOf(
+        [XLK, XLV],
+        new Map([
+          [XLK, observation(XLK, bar(220, duringSession("2026-09-14")))],
+        ]),
+        closesOf(storedClose(XLK, { close: 200, session: "2026-09-11" })),
+      ),
+      asOf: ASOF,
+    });
+
+    expect(wire.figures.map((figure) => figure.symbol)).toEqual(["SPY", "QQQ"]);
+    expect(wire.sectors?.map((figure) => figure.symbol)).toEqual([
+      "XLK",
+      "XLV",
+    ]);
+  });
+
+  it("arrives in RANK order rather than the order it was asked about", () => {
+    const sectors = sectorsOf(
+      [XLK, XLV, XLF],
+      new Map([
+        [XLK, observation(XLK, bar(201, duringSession("2026-09-14")))],
+        [XLV, observation(XLV, bar(206, duringSession("2026-09-14")))],
+      ]),
+      closesOf(
+        storedClose(XLK, { close: 200, session: "2026-09-11" }),
+        storedClose(XLV, { close: 200, session: "2026-09-11" }),
+      ),
+    );
+
+    const wire = toWireMarketOverview({ proxies: [], sectors, asOf: ASOF });
+
+    // XLV +3%, XLK +0.5%, and XLF heard-of-never last — keyless, not flat.
+    expect(wire.sectors?.map((figure) => figure.symbol)).toEqual([
+      "XLV",
+      "XLK",
+      "XLF",
+    ]);
+  });
+
+  it("is absent — not empty — when the caller passes none", () => {
+    const wire = toWireMarketOverview({ proxies: [], asOf: ASOF });
+    expect(wire).not.toHaveProperty("sectors");
+    expect(wire).not.toHaveProperty("sectorLadderStep");
+  });
+
+  it("names the tapes once for the whole frame, across both sections", () => {
+    const wire = toWireMarketOverview({
+      proxies: sectorsOf(
+        [SPY],
+        new Map([
+          [SPY, observation(SPY, bar(605, duringSession("2026-09-14")))],
+        ]),
+        closesOf(),
+      ),
+      sectors: sectorsOf(
+        [XLK],
+        new Map([
+          [XLK, observation(XLK, bar(200, duringSession("2026-09-14")))],
+        ]),
+        closesOf(),
+      ),
+      asOf: ASOF,
+    });
+
+    expect(wire.feeds).toEqual(["iex"]);
+  });
+
+  it("carries the rung the caller's ratchet answers with, and only beside sectors", () => {
+    const wire = toWireMarketOverview({
+      proxies: [],
+      sectors: sectorsOf([XLK], new Map(), closesOf()),
+      // A callback rather than a value, because the rung is state and this
+      // module is pure — `closesAsOf`'s shape, for the same reason.
+      sectorLadderStep: (ranked) => {
+        expect(ranked.map((figure) => figure.symbol)).toEqual(["XLK"]);
+        return 5;
+      },
+      asOf: ASOF,
+    });
+
+    expect(wire.sectorLadderStep).toBe(5);
+  });
+});
+
+describe("a stored figure's completed-session move", () => {
+  const XLV = toTicker("XLV");
+
+  const storedWire = (over: {
+    readonly close: number;
+    readonly session: string;
+    readonly previousClose?: number | null;
+  }) =>
+    toWireMarketOverview({
+      proxies: buildMarketOverview({
+        symbols: [XLV],
+        observations: new Map(),
+        closesAsOf: () => closesOf(storedClose(XLV, over)),
+        asOf: duringSession("2026-09-14"),
+      }),
+      asOf: ASOF,
+    }).figures[0];
+
+  it("is the close-to-close move of the session it names", () => {
+    // **The owner's Gate 1 decision, and the only way AC 1 can pass**: the
+    // market is shut for roughly 80% of the week, and a ranking needs a key.
+    // The arithmetic is `changePercent`'s, in `packages/shared` — the same
+    // function `/securities`' table has always used for this figure.
+    expect(
+      storedWire({ close: 202, session: "2026-09-11", previousClose: 200 }),
+    ).toEqual({
+      state: "stored",
+      symbol: "XLV",
+      session: "2026-09-11",
+      close: 202,
+      sessionChangePercent: 1,
+    });
+  });
+
+  it("is an ABSENCE rather than a zero when there is no prior close", () => {
+    // **Done-when 2.** A session we hold one daily bar for has no move to
+    // report; `0` would say the market did not move.
+    const figure = storedWire({
+      close: 202,
+      session: "2026-09-11",
+      previousClose: null,
+    });
+    expect(figure).not.toHaveProperty("sessionChangePercent");
+    expect(figure).toEqual({
+      state: "stored",
+      symbol: "XLV",
+      session: "2026-09-11",
+      close: 202,
+    });
+  });
+
+  it("is an absence when the prior close is zero, rather than `Infinity`", () => {
+    expect(
+      storedWire({ close: 202, session: "2026-09-11", previousClose: 0 }),
+    ).not.toHaveProperty("sessionChangePercent");
   });
 });
