@@ -1,6 +1,6 @@
 # Task 4.3.1 — The grid's height, and the reserved panel that lied
 
-**Status:** Not started
+**Status:** **In progress — 2026-09-27.**
 **Story:** [4.3 Sector Performance, & the Benchmark That Is Not an Average](STORY.md)
 **Depends on:** nothing
 
