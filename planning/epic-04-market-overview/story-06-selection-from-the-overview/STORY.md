@@ -99,3 +99,23 @@ focusable. Whatever you add is the first, so it is also the first chance to get
 the sticky-edge focus behaviour wrong: `scroll-padding-top`/`-bottom` exist, and
 `docs/GAPS.md` records that they are short by exactly `--focus-width +
 --focus-offset`.
+
+## Reassessed 2026-09-27 — your AC 4 is falsified today, and the repair is yours
+
+**AC 4 — _focus is never occluded by the sticky chrome at any width_ — cannot
+pass as the tree stands.** `scroll-padding-top` and `-bottom` read the published
+chrome heights **exactly**, with no slack, while `--focus-width: 2px` and
+`--focus-offset: 2px` put the ring **4 px outside the border box**. Measured on
+`/` during Story 4.2's verification: `Sector performance` at 768 landed at
+`top=56` against a masthead bottom of 57 — **5 px of ring behind the chrome**;
+`Movers` at 390 the same; `Market topology` at 390 clipped by the status bar.
+
+**It is yours for three reasons.** You add the **first focusable content inside
+`.regions`** — the proxy strip adds zero tab stops, measured. Your AC 4 is the
+acceptance criterion the defect falsifies. And `docs/GAPS.md`'s owner for it is a
+condition you meet: _the story that next touches `base.css`'s scroll padding_.
+
+The repair is one line —
+`calc(var(--sticky-chrome-height, 0px) + var(--focus-width) + var(--focus-offset))`
+— plus a `pnpm break`, plus a **Tab and Shift+Tab** walk at 1440/768/390.
+**The reverse walk is the one that finds it**; a forward walk alone does not.

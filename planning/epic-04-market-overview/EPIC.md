@@ -1,6 +1,6 @@
 # Epic 4 — Market Overview
 
-**Status:** Not started
+**Status:** **In progress — two of nine complete.** 4.1 (the shell) closed 2026-09-25; 4.2 (the seam and the proxies) closed 2026-09-26.
 **Sequence:** 4 of 15 — follows Epic 3 (Live Market Data)
 **Spec references:** PRODUCT_SPEC.md §8.1 (Market Overview), §9 (overview layout)
 
@@ -42,8 +42,8 @@ the screen they sit on has to exist before any of them can be incremental.
 | 4.4 | [Breadth, & the Denominator on Screen](story-04-breadth-and-the-denominator-on-screen/STORY.md)                                   | 4.3        | **Yes — how broad today is**         |
 | 4.5 | [The Movers, & the First Surface That Ranks by a Live Value](story-05-the-movers-and-the-first-ranked-surface/STORY.md)           | 4.4        | **Yes — who is actually moving**     |
 | 4.6 | [Selection From the Overview](story-06-selection-from-the-overview/STORY.md)                                                      | 4.5        | **Yes — the screen becomes a start** |
-| 4.7 | [The Overview's Degraded Set, & the 390 Question Answered](story-07-the-overviews-degraded-set-and-the-390-question/STORY.md)     | 4.6        | **Yes — honest when the feed stops** |
-| 4.8 | [The Overview at Universe Scale, & Epic 14's Trigger](story-08-the-overview-at-universe-scale/STORY.md)                           | 4.7        | no — and a screen that stays fast    |
+| 4.7 | [The Overview's Degraded Set, & the 390 Question Answered](story-07-the-overviews-degraded-set-and-the-390-question/STORY.md)     | **4.8**    | **Yes — honest when the feed stops** |
+| 4.8 | [The Overview at Universe Scale, & Epic 14's Trigger](story-08-the-overview-at-universe-scale/STORY.md)                           | **4.6**    | no — and a screen that stays fast    |
 | 4.9 | [The Rehearsal, the Sweep, & Epic 4's Close](story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md)                        | 4.8        | no                                   |
 
 ### Why this order, and not the spec's own listing order
@@ -90,7 +90,10 @@ is a figure nobody re-takes.
 
 ### What this epic leaves named rather than built
 
-`PRODUCT_SPEC.md` §9's landing page has six regions and **this epic fills
+`PRODUCT_SPEC.md` §9's landing page has **seven** regions — corrected
+2026-09-27; this paragraph said _six_ and then named seven, and `CLAUDE.md`,
+`landing-route.spec.ts`'s `REGION_NAMES` and the shipped route all say seven —
+and **this epic fills
 four**. The **market topology** is Epic 6's and the **unusual-activity feed** is
 Epic 5's; **current investigations** is Epic 7's. Each renders as a region that
 names the epic that fills it, in the idiom the security page already uses for
@@ -123,7 +126,14 @@ recorded here because each lives in a document this epic has no reason to open.
   bars. So "how many securities are negative right now" has a denominator
   question in it: a name with no recent IEX bar is not a name that did not move.
 
-- **The sector SPDRs hold S&P 500 constituents only.** A tracked equity outside
+- ~~**The sector SPDRs hold S&P 500 constituents only.**~~ — **FALSIFIED
+  2026-09-27.** `UNIVERSE.md` §5's amendment of **2026-09-08** says the
+  objection is _"dissolved rather than worked around, because the universe IS
+  the index"_; §16.3 records 127 of 127 sub-industries mapped and 0 sector
+  mismatches. **The surviving caveat is WEIGHTING** — a cap-weighted fund
+  against an equal-weighted count of the names we track — and the hand-curated
+  classification of the fifteen ETFs themselves. The original text is kept
+  below because Story 4.3's decision was taken against it. A tracked equity outside
   the index has a sector, has a benchmark, and is **not a constituent of that
   benchmark** (`UNIVERSE.md` §5). That is fine for a relative-move comparison
   and wrong for anything treating the ETF as the sector's complete membership —
@@ -289,3 +299,102 @@ shut_ is below the fold. No check can see it.
 is happening right now_, so a feed that has quietly stopped is a worse lie here
 than on a security page — and the 390 consequence above is owed a person's
 judgement **before** this epic ships a screen.
+
+## Reassessed 2026-09-27 after Story 4.2 — four amendments, one re-order, nothing deleted
+
+**The epic's shape survives. Its order had one defect and its governing prose had
+three factual errors.** Nothing was split, merged or deleted: no remaining story
+was made redundant by 4.2, and the closest candidate — 4.7's state production —
+is reduced in **mechanics** (it inherits an 80-photograph grid and the comparison
+method) rather than in substance.
+
+### The execution order is now 4.6 → 4.8 → 4.7 → 4.9, and the NUMBERS DO NOT MOVE
+
+**4.7 is the only story in this epic that cannot be finished without an external
+event** — a real phone, during a real session, in a booked sitting. Sequenced
+ahead of 4.8 it gated a measurement story that runs at any hour on any day.
+**Epic 3's record is precisely this failure**: it stayed open for nine stories
+because a calendar-dependent obligation sat in front of work that needed no
+calendar.
+
+**The numbers are deliberately NOT renumbered.** `CLAUDE.md`: _renumbering a
+story means remapping every reference in the same change_, and a blind
+substitution corrupts data. `docs/GAPS.md`, ADR 0033's owed amendment,
+`LIVE-DATA.md` and four sibling story files all name `Story 4.7` for the
+degraded set and the 165-second question. **So the dependency lines moved and
+the identifiers did not** — 4.8 depends on 4.6, 4.7 depends on 4.8. A reader
+following the table's `Depends on` column gets the execution order; a reader
+grepping `Story 4.7` still finds the degraded set.
+
+**What it costs, stated rather than discovered:** 4.7's ~332-frames-a-minute
+repair now lands **after** 4.8 measures, so 4.8's decode-side figure is an
+**upper bound**. That is the safe direction — the frames are already collapsed by
+`sameLiveFeedView`, so they cost decode and comparison but **no render** — and
+4.9 re-checks rather than re-measures. Written into 4.8's own file.
+
+### The four decisions Story 4.1 took are all taken, and here is where each landed
+
+This section is written in the present tense above and all four are settled.
+Recorded here because three consecutive stories in Epic 3 reached a wrong
+conclusion when the sentence that would have prevented it was one file further
+than anybody looked.
+
+| Decision                           | Where it landed                                                                                                                                                                                                                          |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The denominator**                | **M = 5 minutes**, taken against a measured by-hour coverage curve (Task 4.1.6). The sentence's three constraints are in 4.4's own file                                                                                                  |
+| **Where an aggregate is computed** | **The join**, a pure backend function on a fourth market-stream frame — [ADR 0038](../../docs/adr/0038-the-overview-aggregate-one-join-one-frame.md)                                                                                     |
+| **The 390 fold**                   | **The question was wrong and is replaced** (Task 4.1.7): the status bar is sticky and grows from four wrapped lines to six, so nothing is below the fold — but a client reads `LIVE` for **165 seconds** after losing its network. 4.7's |
+| **Whether this screen re-orders**  | **It does**, and after 2026-09-27 the treatment is **4.3's** rather than 4.5's — see below                                                                                                                                               |
+
+### Why 4.3 comes before 4.4 — the original argument is FALSE and is replaced
+
+This file said: _"Sectors come before breadth because eleven rows are a
+denominator problem a person can sanity-check, and a single percentage over 518
+names is not."_ **That is only true if a sector row is an aggregate of our
+tracked names.** The owner decided on 2026-09-27 that **a sector row is the
+sector ETF's own move, labelled as the benchmark** — eleven named securities
+through the existing join, exact, complete, and checkable by eye against any
+public quote. So **4.3 has no denominator at all**, and it does not rehearse
+4.4's problem.
+
+**The order is still right, for two different reasons.** 4.3 is now small — one
+more caller of the join — so it is the cheapest way to prove the seam serves a
+set rather than four names. And it is **the first surface in this product ranked
+by a live value**, which is the decision 4.4, 4.5 and 4.6 all depend on.
+
+### Story 4.3 gains the re-order treatment, and 4.5 loses it
+
+4.3's acceptance criterion 5 deferred the ranking rule to **Story 4.5, which runs
+two stories later** — a backwards dependency that left 4.3 three bad options:
+ship an untreated re-order (the defect Task 3.6.3 forbade in as many words — _a
+row that moves while it is being read is a row that cannot be read_), ship no
+ranking and lose its payoff, or invent a rule and retract it.
+
+**4.3 now owns the ranked-list component and the re-order treatment**; 4.5
+applies it and tests it at a mover list's density. Eleven rows is a smaller,
+safer set on which to take a motion decision than a top-N over 518.
+
+### Story 4.8 widens from `/` to all five routes
+
+4.2 introduced a cost on four routes that display no overview at all: `useLiveFeed`
+is called in `App`, the overview is compared **by identity**, and `computedAt`
+moves on every rebuild, so the gate cannot collapse it — **a security page
+subscribed to one symbol went from about one whole-tree render a minute to up to
+sixteen.** That is §28's **routine** word, not Epic 14's cold load. **Epic 4
+introduced it, so Epic 4 measures it**, which is 4.8's own argument — _a figure
+taken after the epic is called done is a figure nobody re-takes._
+
+### Three additions, each a task inside an existing story rather than a new story
+
+- **The index label in the strip's third row** → a task in **4.3**. Four curated
+  labels beside the proxy set, no migration and **no wire field**, because a name
+  is a static property of a symbol rather than a reading. Row 3 is permanently
+  blank in the ordinary live state today and a cell fills 20–48% of a 325 px
+  track at 1440.
+- **`AppHeader`'s `composes` defect** → a task in **4.7**. It renders 11px/16px
+  against a declared 9px/1 and **it inflated the element whose measured 201 px
+  decided what wraps at 390**, which is 4.7's own subject; the repair and the
+  re-measure travel together.
+- **The focus ring clipped at both sticky edges** → a task in **4.6**, which adds
+  the first focusable content inside `.regions` and whose AC 4 (_focus is never
+  occluded at any width_) **cannot pass without it**.

@@ -10,8 +10,37 @@
 **Eleven sector SPDRs, ranked by today's move — and the caveat that makes this
 screen honest rather than merely correct.**
 
-`UNIVERSE.md` §5, quoted in this epic's own `EPIC.md`: **the sector SPDRs hold
-S&P 500 constituents only.** A tracked equity outside the index has a sector,
+~~`UNIVERSE.md` §5, quoted in this epic's own `EPIC.md`: **the sector SPDRs hold
+S&P 500 constituents only.**~~
+
+> **Falsified 2026-09-27, and swept the same day.** The claim above is **not
+> true and has not been since 2026-09-08.** `UNIVERSE.md` §5 carries a dated
+> amendment: the universe **is** the S&P 500 (503 equities plus the eleven
+> sector SPDRs and four index proxies), the classification comes from that
+> index's own published GICS assignment, and _"the objection this section raises
+> against ETF-derived sectors — that the SPDRs hold index constituents only — is
+> **dissolved rather than worked around, because the universe IS the index**."_
+> §16.3 records **127 of 127 sub-industries mapped, 0 sector mismatches**. There
+> is no tracked equity outside the index to have a sector and not be a
+> constituent.
+>
+> **The decision it was used to justify is unaffected** — a sector row is the
+> ETF's own move — but its reason changes, and **the caveat that actually
+> survives is WEIGHTING**: XLK is cap-weighted, and the technology names we
+> track counted equal-weighted are a different number. That divergence is
+> permanent and has nothing to do with membership. The second survivor is that
+> **the fifteen ETFs' own classification is hand-curated** (§16.3 — neither
+> source classifies a fund), which is the only live thread to
+> `classification_retrieved_at`.
+>
+> **How it survived: §5 was cited without its amendment being read** — including
+> by the 2026-09-27 reassessment, which quoted it as a live constraint. That is
+> the citing-rather-than-measuring failure `CLAUDE.md` names, and the amendment
+> had been sitting at the top of the cited section for nineteen days.
+
+**The original framing, kept because the decision below rests on it:**
+
+**The sector SPDRs hold S&P 500 constituents only.** A tracked equity outside the index has a sector,
 has a benchmark, and **is not a constituent of that benchmark**. That is fine
 for a relative-move comparison and wrong for anything treating the ETF as the
 sector's complete membership — _"which a sector-performance panel is exactly
@@ -150,3 +179,81 @@ was written out and **passed green** until the guard was keyed on the _readers_
 of the closes and on **the division itself**. Convert, then call
 `changeFromClose` from `packages/shared`. A second implementation fails the
 build.
+
+## Reassessed 2026-09-27 — a decision taken, a decision moved here, and a task added
+
+**A sector row is the sector ETF's own move, labelled as the benchmark.** The
+owner decided this rather than an aggregate of the names we track. Eleven named
+securities through `buildMarketOverview({ symbols: theElevenSectorETFs, … })`,
+exact, complete, and **checkable by eye against any public quote** — so this
+story has **no denominator at all** and is one more caller of the seam rather
+than a new mechanism.
+
+**That makes `EPIC.md`'s original reason for putting you before 4.4 false**, and
+it has been replaced there rather than left standing: you do not rehearse 4.4's
+denominator problem, because you do not have one. What you are is **the first
+surface in this product ranked by a live value**, which is why you still come
+first.
+
+> ~~**And the sector ETFs hold S&P 500 constituents only** (`UNIVERSE.md` §5)~~
+> — **false, see the falsification at the top of this file; the surviving
+> caveat is weighting, not membership.** A
+> tracked equity outside the index has a sector, has a benchmark, and is **not a
+> constituent of it**. Labelling the row as the **benchmark** is what keeps that
+> honest; anything implying the ETF is the sector's complete membership is the
+> defect a sector panel is shaped to commit.
+
+### You now own the ranked list and the re-order treatment — 4.5 does not
+
+Your AC 5 deferred the rule to **Story 4.5, two stories later**, which left three
+bad options: an untreated re-order (the defect Task 3.6.3 forbade in as many
+words — _a row that moves while it is being read is a row that cannot be read_),
+no ranking at all, or a rule invented and retracted.
+
+**Decide it here, on eleven rows**, which is a smaller and safer set than a
+top-N over 518. What is unsettled and is now yours: what the mark is, how long it
+lasts, what happens when several rows move at once, what `prefers-reduced-motion`
+leaves, and **what protects a row under a pointer or a focus ring**. The motion
+vocabulary is settled and is not reopened — work in progress LOOPS, a state
+PERSISTS, a fact arriving DECAYS — and `The mark multiplied by five hundred.dc.html`
+records a synchrony risk as **accepted rather than disproved**, which is live
+here at eleven.
+
+**Also inherited from 4.2:** before any sitting, **read from the gateway whether
+a small set's bars arrive in one `bars` frame or across several** of the ~16 a
+minute. Four in one frame is a synchronised wave; four across several is a
+stagger the data genuinely has. A rehearsal that cannot say which was watched
+cannot answer anything.
+
+### The frame-grain decision is yours, and it must be taken across all four payloads
+
+ADR 0038 hands you the re-take of _one frame with optional sections vs one type
+per region_ — **and your own payload cannot inform it.** From ADR 0038's verbatim
+frame, 431 bytes for four figures, ≈108 bytes each:
+
+| Region                   | Naive per-figure payload        | At up to ~16 frames/min      |
+| ------------------------ | ------------------------------- | ---------------------------- |
+| proxies (today)          | 431 B                           | **6.9 KiB/min**, measured    |
+| **sectors, 11 figures**  | ~1.2 KB                         | ~19 KiB/min                  |
+| **breadth, 518 figures** | **~56 KB**                      | **~875 KiB/min per browser** |
+| movers, top-N            | small **if** ranked server-side | small                        |
+
+**Sectors is the only region where the naive answer survives contact.** So the
+rule to state is _each region ships the smallest thing that answers it_ —
+breadth ships **counts**, movers ships **the top N** rather than the ranking's
+input. A grain decided at eleven and discovered wrong at 518 is a wire change
+across four decoder branches and `sameLiveFeedView`. And **every overview frame
+is decoded on all five routes**, so a 56 KB frame would reach `/replay`.
+
+### One task added: the index label in the proxy strip's third row
+
+The canvas draws `S&P 500` / `Nasdaq 100` / `Dow 30` / `Russell 2000` in each
+proxy cell's third row; the product has no such field, so the row is permanently
+blank in the ordinary live state and a cell fills **20–48% of a 325 px track** at 1440. **Four curated labels beside the index-proxy set** — no migration and **no
+wire field**, because a name is a static property of a symbol rather than a
+reading, and `sentAt`'s third constraint is the precedent.
+
+**Declare it as _the index this fund tracks_**, so it is visibly a different fact
+from the fund's legal `name` (`Invesco QQQ Trust, Series 1`) rather than a second
+home for the same one — which is the judgement the owner took on 2026-09-27 and
+the thing this product otherwise refuses.

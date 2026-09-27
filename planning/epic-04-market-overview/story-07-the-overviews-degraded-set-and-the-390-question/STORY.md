@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
-**Depends on:** 4.6
+**Depends on:** 4.8 — **re-ordered 2026-09-27**, see below
 **Epic scope covered:** live market status indicators, on the screen where they matter most
 
 ## Description
@@ -301,3 +301,44 @@ watchdog means the word itself lags.
 **3. The ~332 `feed` frames a minute are still yours**, unrepaired and now
 guarded from acquiring a passenger: `the-overview-frame-is-not-a-heartbeat`
 refuses an overview publish on the feed-state path, with two breaks behind it.
+
+## Reassessed 2026-09-27 — you now run AFTER 4.8, and you gain one task
+
+**You are the only story in this epic that cannot be finished without an external
+event** — a real phone, during a real session, in a booked sitting. Sequenced
+ahead of 4.8 you gated a measurement story that runs at any hour on any day, and
+**Epic 3's record is exactly that failure**: it stayed open for nine stories
+because a calendar-dependent obligation sat in front of work that needed no
+calendar. Execution order is now `4.6 → 4.8 → 4.7 → 4.9`.
+
+**The numbers were deliberately not changed.** `CLAUDE.md`'s rule is that
+renumbering means remapping every reference in the same change, and
+`docs/GAPS.md`, ADR 0033's owed amendment, `LIVE-DATA.md` and four sibling story
+files all name `Story 4.7` for the degraded set and the 165-second question. The
+dependency moved; the identifier did not.
+
+### One task added: `AppHeader`'s `composes` defect, because it corrupted YOUR measurement
+
+`.descriptor` composes `microLabel` and then declares `font-size: 9px;
+line-height: 1` — and **loses**, because `composes` concatenates class names
+rather than cascading and `type.module.css` lands later. Proven from the built
+bundle: it renders at **11px/16px**.
+
+**It is yours rather than anyone's because of what it corrupted.** That element
+is the one `AppHeader.module.css`'s own comment calls _"the longest string in the
+chrome — 201 px at 1440"_, in the argument that decided **what wraps at 390** —
+which is your subject. The repair and the 201 px re-measure travel together.
+Nothing in this product asserts a font size, so no test and no screenshot of the
+existing states can see it.
+
+### What you inherit from 4.2, so nothing is produced twice
+
+**16 states × 4 widths + greyscale at 1440 — 80 photographs** at
+`.capture/proxy-states/`, with `readings.json` carrying the strip text, the
+source-note text and the feed-cell text per state per width, every row reached
+through the shipped socket path. Your ACs 1–2 become **extension** rather than
+production. Two documented exceptions travel with it: `overview === undefined`
+and `figures: []` are **one state on screen** by decision, and
+`all-stored-one-session` against `no-provider-configured` are identical on the
+strip **and** the note and told apart **by the chrome alone** — which is ADR
+0029's one-home rule working rather than a gap.

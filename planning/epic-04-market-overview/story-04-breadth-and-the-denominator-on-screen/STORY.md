@@ -277,3 +277,32 @@ reordered regions to gain a figure or a focusable control — which is this one,
 by name.** At that moment the eye's second region and the keyboard's sixth are
 the same panel, and it becomes a WCAG 1.3.2 / 2.4.3 question rather than a
 latent one. Decide it here rather than inheriting it.
+
+## Reassessed 2026-09-27 — one vocabulary defect, one tension, and the scope of the reorder task
+
+**1. `unobserved` is a fourth word with no home, and it is not a synonym for
+`unknown`.** This file uses it twice as a screen-level distinction. The shipped
+wire vocabulary is **`observed` / `stored` / `unknown`**, where `unknown` means
+_nothing observed **and** nothing stored_ — so a security with a stored close and
+no observation is **`stored`**, which is unobserved but not unknown.
+
+So `unobserved` genuinely names something the three members do not: the union
+`stored ∪ unknown`. **Express it as that union rather than introducing a fourth
+word.** This file is right that _unchanged_ and _not heard from_ must be
+distinguishable on screen — but a fourth word beside three already on the wire
+leaves nobody able to say which of the four a reader is looking at. If a single
+word for the union turns out to be necessary, it needs **one home and a sweep**,
+which is a task rather than a phrase.
+
+**2. AC 4 reads against the denominator decision, and a reader will not see
+why.** AC 4 says that with the market shut the region reports _the last session's
+close-to-close breadth_ — and Task 4.1.1's amendment records _last session's
+close-to-close_ as a **rejected** option for the denominator. They are different
+questions (the denominator during a session versus the market-shut state) and the
+distinction needs one sentence here, or it reads as a contradiction.
+
+**3. The ≤860 px reorder repair is a change to 4.1's GRID, not to your region.**
+The trigger is written above and fires on your region by name. But if the answer
+is _reorder the DOM rather than `grid-template-areas`_, it moves **all seven
+regions at three breakpoints** and wants `pnpm probe` at four widths. Scope it as
+a grid-level task, so it is not attempted as a breadth-panel fix.
