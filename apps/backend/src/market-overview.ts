@@ -1,4 +1,9 @@
-import { changeFromClose, marketDateAt } from "@marketpulse/shared";
+import {
+  changeFromClose,
+  changePercent,
+  marketDateAt,
+  rankSectorFigures,
+} from "@marketpulse/shared";
 
 import type {
   Bar,
@@ -6,6 +11,7 @@ import type {
   LiveChange,
   MarketDate,
   MarketFeed,
+  SectorLadderStep,
   SecurityLastClose,
   Ticker,
   WireMarketOverview,
@@ -258,62 +264,147 @@ export function buildMarketOverview(
  * file), so the instant the aggregate was true is the instant the caller said
  * it was about. Under a replay that is the replay clock.
  */
+export interface WireMarketOverviewInputs {
+  /**
+   * The index proxies, in the order they are reported — `overview.figures`.
+   *
+   * Named `proxies` rather than `figures` since Task 4.3.4, because the frame
+   * now has two sections and *figures* stopped being unambiguous at the call
+   * site.
+   */
+  readonly proxies: readonly MarketOverviewEntry[];
+
+  /**
+   * The sector benchmarks, **which this function ranks**.
+   *
+   * Absent means *no sector section on this frame*, which is not the same as an
+   * empty one: a renderer draws the first as the region's reserved state and the
+   * second as eleven figures it knows nothing about.
+   *
+   * The caller passes them in `SECTORS`' declared order and gets them back in
+   * rank order — the ordering is `rankSectorFigures`', from `packages/shared`,
+   * because the declared order is the tie-break for two figures that read the
+   * same on screen and a stable sort is the whole mechanism.
+   */
+  readonly sectors?: readonly MarketOverviewEntry[];
+
+  /**
+   * The ladder's rung, **from the ranked figures** — a callback because the
+   * ratchet is state and this module is pure.
+   *
+   * `closesAsOf`'s shape for the same reason: the rung depends on the previous
+   * rung and on the session, so something has to remember, and it must not be
+   * this module. `sector-ladder-ratchet.ts` is the cell; this is the seam it
+   * reaches the frame through, and a caller with no ladder passes nothing.
+   */
+  readonly sectorLadderStep?: (
+    ranked: readonly WireOverviewFigure[],
+  ) => SectorLadderStep;
+
+  /** The instant the aggregate was true — the caller's, never a clock here. */
+  readonly asOf: Date;
+}
+
 export function toWireMarketOverview(
-  entries: readonly MarketOverviewEntry[],
-  asOf: Date,
+  inputs: WireMarketOverviewInputs,
 ): WireMarketOverview {
-  const figures: WireOverviewFigure[] = [];
+  const { proxies, sectors, sectorLadderStep, asOf } = inputs;
 
   // First-seen order, and only for figures that are actually **observed** —
   // a stored close's tape is not this frame's provenance, and claiming it
-  // would be invariant 6 implied rather than displayed.
+  // would be invariant 6 implied rather than displayed. **One list for the
+  // whole frame**, across both sections: the tapes are a property of the
+  // observations this aggregate was built from, and the sector ETFs arrive on
+  // the same socket from the same batch.
   const feeds: MarketFeed[] = [];
 
-  for (const entry of entries) {
-    if (entry.state === "unknown") {
-      figures.push({ state: "unknown", symbol: entry.symbol });
-      continue;
-    }
+  const encode = (
+    entries: readonly MarketOverviewEntry[],
+  ): WireOverviewFigure[] => entries.map((entry) => figureOf(entry, feeds));
 
-    if (entry.state === "stored") {
-      figures.push({
-        state: "stored",
-        symbol: entry.symbol,
-        session: entry.close.session,
-        close: entry.close.close,
-      });
-      continue;
-    }
+  const figures = encode(proxies);
+  const ranked =
+    sectors === undefined ? undefined : rankSectorFigures(encode(sectors));
 
-    if (!feeds.includes(entry.source.feed)) feeds.push(entry.source.feed);
+  const step =
+    ranked === undefined || sectorLadderStep === undefined
+      ? undefined
+      : sectorLadderStep(ranked);
 
-    const { percent, basis } = entry.change;
+  return {
+    computedAt: asOf.toISOString(),
+    feeds,
+    figures,
+    // Two branches rather than one spread of a possibly-`undefined` value:
+    // `exactOptionalPropertyTypes` is on, *absent* and *present as `undefined`*
+    // are different types, and only the first is what this wire means.
+    ...(ranked === undefined ? {} : { sectors: ranked }),
+    ...(step === undefined ? {} : { sectorLadderStep: step }),
+  };
+}
 
-    figures.push({
-      state: "observed",
-      symbol: entry.symbol,
-      at: entry.bar.startsAt.toISOString(),
-      price: entry.bar.close,
-      // **Omission, in two branches.** `exactOptionalPropertyTypes` is on, so
-      // *absent* and *present as `undefined`* are different types and only
-      // the first is what this wire means.
-      //
-      // **`null` is the DOMAIN absence and is this module's to spell**:
-      // `LiveChange.percent` is `null` when there is nothing to measure from,
-      // which is §36's partial answer rather than a zero. **A non-finite
-      // number is the WIRE's problem and is deliberately not checked here** —
-      // `encodeFigure` omits one, in the serialiser, because ADR 0031's
-      // argument is that a transport with no schema layer owes its guarantee
-      // where the encoding happens and not at whichever call site happens to
-      // remember. A `Number.isFinite` here as well would be one rule with two
-      // homes, and the second is the one that gets forgotten.
-      ...(percent === null ? {} : { changePercent: percent }),
-      // The basis names the session a figure was measured from, so it does
-      // not travel without one — a date describing a percentage that is not
-      // there is ADR 0029's false impression, one field wide.
-      ...(percent === null || basis === null ? {} : { changeBasis: basis }),
-    });
+/**
+ * One entry to one wire figure, **appending its tape to the frame's list**.
+ *
+ * Extracted from the loop by Task 4.3.4 so the two sections cannot diverge: a
+ * second copy of this mapping is a second answer to *what may a browser see*,
+ * and the one that gets forgotten is the one added later.
+ */
+function figureOf(
+  entry: MarketOverviewEntry,
+  feeds: MarketFeed[],
+): WireOverviewFigure {
+  if (entry.state === "unknown") {
+    return { state: "unknown", symbol: entry.symbol };
   }
 
-  return { computedAt: asOf.toISOString(), feeds, figures };
+  if (entry.state === "stored") {
+    // **The completed session's own close-to-close move** (Task 4.3.4, the
+    // owner's Gate 1 decision): outside a session this is the only key a
+    // ranking has, and the market is shut for roughly 80% of the week.
+    //
+    // `changePercent` is `packages/shared`'s — the *same* function
+    // `/securities`' table has always used for this figure, and the one module
+    // permitted to read `previousClose` as a basis. It returns `null` when
+    // there is nothing behind the session we hold, and that travels as an
+    // **omission**: a zero would say the market did not move.
+    const move = changePercent(entry.close);
+
+    return {
+      state: "stored",
+      symbol: entry.symbol,
+      session: entry.close.session,
+      close: entry.close.close,
+      ...(move === null ? {} : { sessionChangePercent: move }),
+    };
+  }
+
+  if (!feeds.includes(entry.source.feed)) feeds.push(entry.source.feed);
+
+  const { percent, basis } = entry.change;
+
+  return {
+    state: "observed",
+    symbol: entry.symbol,
+    at: entry.bar.startsAt.toISOString(),
+    price: entry.bar.close,
+    // **Omission, in two branches.** `exactOptionalPropertyTypes` is on, so
+    // *absent* and *present as `undefined`* are different types and only
+    // the first is what this wire means.
+    //
+    // **`null` is the DOMAIN absence and is this module's to spell**:
+    // `LiveChange.percent` is `null` when there is nothing to measure from,
+    // which is §36's partial answer rather than a zero. **A non-finite
+    // number is the WIRE's problem and is deliberately not checked here** —
+    // `encodeFigure` omits one, in the serialiser, because ADR 0031's
+    // argument is that a transport with no schema layer owes its guarantee
+    // where the encoding happens and not at whichever call site happens to
+    // remember. A `Number.isFinite` here as well would be one rule with two
+    // homes, and the second is the one that gets forgotten.
+    ...(percent === null ? {} : { changePercent: percent }),
+    // The basis names the session a figure was measured from, so it does
+    // not travel without one — a date describing a percentage that is not
+    // there is ADR 0029's false impression, one field wide.
+    ...(percent === null || basis === null ? {} : { changeBasis: basis }),
+  };
 }

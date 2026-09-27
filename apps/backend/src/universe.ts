@@ -1008,6 +1008,40 @@ export const indexProxyTickers = (
     .map((security) => security.symbol);
 
 /**
+ * **The eleven sector benchmark ETFs, in `SECTORS`' order** (Task 4.3.4).
+ *
+ * `indexProxyTickers`' sibling, and the same argument twice: derived from
+ * {@link UNIVERSE} by `kind` rather than written out, because a second literal
+ * list of eleven tickers here is precisely the second home
+ * {@link SECTOR_ETF_PROFILES}' own docblock argues against at length — and the
+ * copy would be the one a reader of this file believes.
+ *
+ * **The order comes from `SECTORS` and the membership from the universe**, which
+ * is a stronger statement than filtering in file order: the declared order is
+ * this product's order for this set (`security.ts`'s own), it is the sector
+ * region's tie-break when two figures read the same on screen, and it must not
+ * become *whatever order the universe file happens to list the funds in*. A
+ * fund that is not tracked, or is no longer `active`, simply is not there —
+ * `UNIVERSE.md` §12.2's rule, the same side of it `indexProxyTickers` is on.
+ *
+ * Reading `SECTOR_ETFS` for the order is not a second pairing: it is the **one**
+ * pairing, and `one-pairing-of-a-sector-and-its-benchmark` holds it to that.
+ */
+export const sectorEtfTickers = (
+  universe: readonly Security[] = UNIVERSE,
+): readonly Ticker[] => {
+  const tracked = new Set(
+    trackedSecurities(universe)
+      .filter((security) => security.kind === "sector_etf")
+      .map((security) => security.symbol as string),
+  );
+
+  return SECTORS.map((sector) => SECTOR_ETFS[sector]).filter((symbol) =>
+    tracked.has(symbol),
+  );
+};
+
+/**
  * The tracked symbols as a set, for membership tests.
  *
  * A `Set` rather than an array because both callers ask *is this symbol one of

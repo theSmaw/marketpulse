@@ -39,6 +39,8 @@
 // market module, and `directionOf` returning a type owned by a component was
 // the coupling pointing the wrong way. `PriceChange` now imports it.
 
+import { PERCENT_DISPLAY_DECIMALS } from "@marketpulse/shared";
+
 /**
  * The three directions a move can have.
  *
@@ -60,6 +62,13 @@ export type PriceDirection = (typeof PRICE_DIRECTIONS)[number];
  * decision and the value it rounds is never fed back into anything.
  */
 const PRICE_DECIMALS = 2;
+
+// **A percentage's precision is `packages/shared`'s since Task 4.3.4**, and the
+// two constants are deliberately not collapsed. A price's decimals are this
+// module's business; a *percentage's* are now shared with the backend, because
+// the sector ranking is computed there and its no-swap rule is keyed on the
+// displayed figure — the displayed order must never contradict the displayed
+// figures, which needs both processes rounding in the same place.
 
 /**
  * The minus sign, U+2212, and not a hyphen.
@@ -103,7 +112,7 @@ export function formatPrice(price: number): string {
  * `+0.00%` claims a direction the rounding threw away, and `−0.00%` is worse.
  */
 export function formatChangePercent(percent: number): string {
-  const figure = `${Math.abs(percent).toFixed(PRICE_DECIMALS)}%`;
+  const figure = `${Math.abs(percent).toFixed(PERCENT_DISPLAY_DECIMALS)}%`;
   if (directionOf(percent) === "unchanged") return figure;
   return `${percent > 0 ? "+" : MINUS}${figure}`;
 }
@@ -118,7 +127,7 @@ export function formatChangePercent(percent: number): string {
  * other in the one component built so they cannot.
  */
 export function directionOf(percent: number): PriceDirection {
-  const rounded = Number(percent.toFixed(PRICE_DECIMALS));
+  const rounded = Number(percent.toFixed(PERCENT_DISPLAY_DECIMALS));
   if (rounded > 0) return "positive";
   if (rounded < 0) return "negative";
   return "unchanged";

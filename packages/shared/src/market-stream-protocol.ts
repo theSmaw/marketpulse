@@ -3,6 +3,12 @@ import type { FeedStatus } from "./feed-status.js";
 import { MARKET_FEEDS } from "./market-provenance.js";
 
 import type { MarketFeed } from "./market-provenance.js";
+// The ladder's rungs, so this module can refuse a value that is not one of
+// them. The back edge — `sector-ranking.ts` importing `WireOverviewFigure` from
+// here — is **type-only** and is erased, so there is no runtime cycle.
+import { isSectorLadderStep } from "./sector-ladder.js";
+
+import type { SectorLadderStep } from "./sector-ladder.js";
 import type { Ticker } from "./ticker.js";
 import {
   asInstant,
@@ -316,6 +322,41 @@ export interface WireStoredFigure {
   /** The session the close belongs to, `YYYY-MM-DD` market-local. */
   readonly session: string;
   readonly close: number;
+  /**
+   * **That session's own close-to-close move**, as a signed percentage —
+   * omitted when we hold no close before it (Task 4.3.4, the owner's Gate 1
+   * decision).
+   *
+   * ## A different field from `changePercent`, on purpose
+   *
+   * `WireObservedFigure.changePercent` is live-against-a-close: what a market
+   * screen means by *today*, and a number that moves while somebody watches
+   * it. This one is **close-against-the-previous-close for a session that is
+   * over** — it will never change again. They are the same units on the same
+   * scale, which is what makes ranking one against the other honest, and they
+   * are different claims, which is why reading them through one field name is
+   * not. A renderer that reached for `changePercent` on a stored figure and
+   * found one would print Friday's move as today's.
+   *
+   * ## Why the wire carries it at all
+   *
+   * The market is shut for roughly 80% of the week, and outside a session the
+   * sector region is the only surface answering `EPIC.md`'s exit criterion.
+   * Story 4.3's AC 1 asks for eleven sectors *ranked … from the store outside
+   * one*, and with no move on this member that was unsatisfiable: a ranking
+   * needs a key, and the alternative was ranking by close price, which is a
+   * ranking of share prices.
+   *
+   * Computed by `changePercent` in `packages/shared/src/live-change.ts` —
+   * the **same** function `/securities`' table has always used for this
+   * figure, called once, by the backend. `one-home-for-the-live-change`'s
+   * first clause is why: `previousClose` is read as a basis in exactly one
+   * module.
+   *
+   * **Omitted rather than zero** when there is nothing behind it — a session
+   * we hold one daily bar for. `0` there would claim the market did not move.
+   */
+  readonly sessionChangePercent?: number;
 }
 
 /** Nothing observed and nothing stored. A true answer, not a degraded one. */
@@ -374,8 +415,71 @@ export interface WireMarketOverview {
   /**
    * One entry per security the overview is **about**, in the order it reports
    * them. An array rather than a map, because the order is the answer.
+   *
+   * **The four index proxies, and nothing else.** Eleven sector benchmarks
+   * travel in {@link sectors} rather than here, and that is a decision with
+   * two silent failure modes behind it: `market-proxies.ts` folds over this
+   * whole array in **five** places, so sector ETFs joining it would move
+   * `newest` and break `sharedBasis` and `sharedClosingSession` with no
+   * compile error and no test failure — and the name cannot be reused either,
+   * because `readOverview` requires `figures` and a stale tab would decode the
+   * frame as `unreadable`, re-rendering the application on every frame.
    */
   readonly figures: readonly WireOverviewFigure[];
+
+  /**
+   * The eleven sector benchmark ETFs, **in rank order** — a new section rather
+   * than more entries in {@link figures} (Task 4.3.4).
+   *
+   * ## Why a section on this frame rather than a frame of its own
+   *
+   * `STORY.md`'s grain table, and the rule it states: *each region ships the
+   * smallest thing that answers it*. Eleven figures is ~1.2 KB, ~19 KiB/min at
+   * the vendor's rate, and is the only region where the naive per-figure
+   * answer survives contact — breadth over 518 would be ~56 KB a frame and
+   * ~875 KiB/min per browser, decoded on all five routes including `/replay`,
+   * so breadth will ship **counts** and the movers will ship **the top N**.
+   * One screen at one cadence carries one `computedAt`, and these figures are
+   * derived from the same applied batch as the proxies by the same join.
+   *
+   * ## Optional on both ends, and the read side is the half that matters
+   *
+   * The deploy rolls the backend first, so an old bundle meeting a new gateway
+   * is the ordinary case — but a **rollback pins a previous image**, so a new
+   * bundle can legitimately meet an old gateway that sends no such section.
+   * Absent means *this gateway does not send sectors*, which a renderer draws
+   * as the region's reserved state rather than as eleven unknowns.
+   *
+   * **The order is the answer here too, and it is not the declared one.**
+   * `rankSectorFigures` in `sector-ranking.ts` produces it, server-side, for
+   * the reason Story 4.5 ranks server-side: a top-N in a browser means
+   * shipping the ranking's input.
+   */
+  readonly sectors?: readonly WireOverviewFigure[];
+
+  /**
+   * The rung the sector bars are drawn against — `1 | 2 | 5 | 10`, the
+   * **half-range** in percent.
+   *
+   * A scalar beside {@link sectors} rather than a field inside a wrapper
+   * object, because wrapping an already-mapped union in an object adds an
+   * ADR 0031 field-map obligation that a bare array does not.
+   *
+   * **It is state rather than a function of this frame**, which is the whole
+   * of the owner's 2026-09-27 decision: it steps outward only within a session
+   * and starts again at the opening bell, so two frames a minute apart can
+   * carry different rungs and the later one is never smaller.
+   * `sector-ladder.ts` holds the arithmetic and `sector-ladder-ratchet.ts` in
+   * the backend holds the cell that remembers.
+   *
+   * **On the server, so every reader shares one scale.** A browser-side
+   * ratchet is per-tab — two readers of the same market would see two scales —
+   * and would be asked to step up to ~16 times a minute on the **subset** of
+   * the eleven that happened to arrive in each frame.
+   *
+   * Omitted whenever {@link sectors} is, and read only beside it.
+   */
+  readonly sectorLadderStep?: SectorLadderStep;
 }
 
 /**
@@ -642,7 +746,9 @@ const observedFigureFields: WireFields<
   price: asIs,
 };
 
-const storedFigureFields: WireFields<WireStoredFigure> = {
+const storedFigureFields: WireFields<
+  Omit<WireStoredFigure, "sessionChangePercent">
+> = {
   state: asIs,
   symbol: asIs,
   session: asIs,
@@ -706,7 +812,22 @@ const finiteOr = (value: number): number | undefined =>
 const encodeFigure = (figure: WireOverviewFigure): JsonValue | undefined => {
   if (figure.state === "stored") {
     if (finiteOr(figure.close) === undefined) return undefined;
-    return toWire(storedFigureFields, figure);
+
+    // The completed session's move is **optional**, so it is spread in a
+    // branch rather than carried by the map — `toWire` walks the map's keys and
+    // a key in the map is a key on the wire whatever it holds, which is the
+    // property that makes a leak impossible and an omission unrepresentable.
+    // Non-finite is omitted for `changePercent`'s reason: a true close with no
+    // measurable move is a state this union already has words for.
+    const move =
+      figure.sessionChangePercent === undefined
+        ? undefined
+        : finiteOr(figure.sessionChangePercent);
+
+    return {
+      ...toWire(storedFigureFields, figure),
+      ...(move === undefined ? {} : { sessionChangePercent: move }),
+    };
   }
 
   if (figure.state === "unknown") return toWire(unknownFigureFields, figure);
@@ -731,23 +852,61 @@ const encodeFigure = (figure: WireOverviewFigure): JsonValue | undefined => {
   };
 };
 
-const overviewFields: WireFields<WireMarketOverview> = {
+/**
+ * An array of figures to its wire form — **extracted rather than copied**
+ * (Task 4.3.4).
+ *
+ * The non-finite drop rule used to live inline in `overviewFields.figures`,
+ * and the sectors section is the second array of the same union: copying the
+ * closure would give one rule two homes, and the second is the one that gets
+ * forgotten.
+ *
+ * **`flatMap` rather than `map`**, so a dropped figure is absent rather than a
+ * `null` in the array — which is the same defect one container out.
+ */
+const encodeFigures = (figures: readonly WireOverviewFigure[]): JsonValue[] =>
+  figures.flatMap((figure) => {
+    const wire = encodeFigure(figure);
+    return wire === undefined ? [] : [wire];
+  });
+
+const overviewFields: WireFields<
+  Omit<WireMarketOverview, "sectors" | "sectorLadderStep">
+> = {
   computedAt: asIs,
   feeds: (feeds) => [...feeds],
-  // **`flatMap` rather than `map`**, so a dropped figure is absent rather
-  // than a `null` in the array — which is the same defect one container out.
-  figures: (figures) =>
-    figures.flatMap((figure) => {
-      const wire = encodeFigure(figure);
-      return wire === undefined ? [] : [wire];
-    }),
+  figures: (figures) => encodeFigures(figures),
 };
+
+/**
+ * The aggregate to its wire object, with the **optional sector section spread
+ * in a branch** — `encodeFigure`'s idiom one container out.
+ *
+ * The two optional fields cannot be keys of `overviewFields`, for the reason
+ * that map's own note gives: `toWire` walks the map's keys, so a key in it is a
+ * key on the wire whatever it holds. `exactOptionalPropertyTypes` is on and
+ * `undefined` is not a JSON value.
+ *
+ * **The rung travels only with the figures it scales.** A ladder beside no
+ * sectors is a scale for nothing — ADR 0029's false impression, one field wide,
+ * and the same rule that keeps `changeBasis` from travelling without a
+ * percentage.
+ */
+const encodeOverview = (overview: WireMarketOverview): JsonValue => ({
+  ...toWire(overviewFields, overview),
+  ...(overview.sectors === undefined
+    ? {}
+    : { sectors: encodeFigures(overview.sectors) }),
+  ...(overview.sectors === undefined || overview.sectorLadderStep === undefined
+    ? {}
+    : { sectorLadderStep: overview.sectorLadderStep }),
+});
 
 const overviewMessageFields: WireFields<OverviewMessage> = {
   type: asIs,
   version: asIs,
   sentAt: asIs,
-  overview: (overview) => toWire(overviewFields, overview),
+  overview: (overview) => encodeOverview(overview),
 };
 
 /**
@@ -900,11 +1059,18 @@ const readFigure = (value: unknown): WireOverviewFigure | undefined => {
   if (value.state === "stored") {
     if (typeof value.session !== "string") return undefined;
     if (!finite(value.close)) return undefined;
+    // The completed session's move is optional and non-finite is absent — two
+    // branches rather than one spread of a possibly-`undefined` value, for
+    // `changePercent`'s reason below.
+    const move = finite(value.sessionChangePercent)
+      ? value.sessionChangePercent
+      : undefined;
     return {
       state: "stored",
       symbol,
       session: value.session,
       close: value.close,
+      ...(move === undefined ? {} : { sessionChangePercent: move }),
     };
   }
 
@@ -933,6 +1099,23 @@ const readFigure = (value: unknown): WireOverviewFigure | undefined => {
   };
 };
 
+/**
+ * Every readable figure in an array, **dropping the ones that are not**.
+ *
+ * One bad figure does not discard three good ones — `readObservations`' rule,
+ * and the same reason: the frame is a batch. Extracted with the encoder for the
+ * encoder's reason, since the sectors section is the second array of this
+ * union.
+ */
+const readFigures = (values: readonly unknown[]): WireOverviewFigure[] => {
+  const figures: WireOverviewFigure[] = [];
+  for (const entry of values) {
+    const figure = readFigure(entry);
+    if (figure !== undefined) figures.push(figure);
+  }
+  return figures;
+};
+
 const readOverview = (value: unknown): WireMarketOverview | undefined => {
   if (!isRecord(value)) return undefined;
   if (typeof value.computedAt !== "string") return undefined;
@@ -948,15 +1131,35 @@ const readOverview = (value: unknown): WireMarketOverview | undefined => {
     (MARKET_FEEDS as readonly string[]).includes(feed as string),
   );
 
-  const figures: WireOverviewFigure[] = [];
-  for (const entry of value.figures) {
-    const figure = readFigure(entry);
-    // One bad figure does not discard three good ones — `readObservations`'
-    // rule, and the same reason: the frame is a batch.
-    if (figure !== undefined) figures.push(figure);
-  }
+  const figures = readFigures(value.figures);
 
-  return { computedAt: value.computedAt, feeds, figures };
+  // **The sector section is optional on the READ side too**, and that is not
+  // symmetry for its own sake: the deploy rolls the backend first, so a new
+  // gateway meeting an old bundle is the ordinary case — but a **rollback pins
+  // a previous image**, so a new bundle can legitimately meet a gateway that
+  // sends no sectors. Absent stays absent; a present-but-unreadable section is
+  // the same absence rather than a discarded frame carrying four true prices.
+  const sectors = Array.isArray(value.sectors)
+    ? readFigures(value.sectors)
+    : undefined;
+
+  // The rung is read **only beside the figures it scales**, which is the
+  // encoder's own rule: a scale for nothing is ADR 0029's false impression one
+  // field wide. An unrecognised rung is dropped rather than failing the frame —
+  // `feeds`' leniency, for the same reason, since the only reader is a renderer
+  // that would otherwise draw an axis nobody has reviewed.
+  const step =
+    sectors !== undefined && isSectorLadderStep(value.sectorLadderStep)
+      ? value.sectorLadderStep
+      : undefined;
+
+  return {
+    computedAt: value.computedAt,
+    feeds,
+    figures,
+    ...(sectors === undefined ? {} : { sectors }),
+    ...(step === undefined ? {} : { sectorLadderStep: step }),
+  };
 };
 
 export function decodeMarketStreamMessage(raw: string): DecodedMessage {

@@ -34,8 +34,12 @@ import {
   buildMarketOverview,
   toWireMarketOverview,
 } from "./market-overview.js";
+// The ladder's cell, beside the producer because it IS the producer's state:
+// the rung is a fact about the sequence of frames this process has sent, not
+// about the frame it is building.
+import { createSectorLadderRatchet } from "./sector-ladder-ratchet.js";
 import { createLastClosesCache } from "./last-closes-cache.js";
-import { indexProxyTickers } from "./universe.js";
+import { indexProxyTickers, sectorEtfTickers } from "./universe.js";
 import { streamLogTo } from "./stream-log.js";
 import { ReplayDuringSessionError } from "./replay-stream.js";
 import { resolveMarketData } from "./market-data.js";
@@ -709,17 +713,41 @@ const lastCloses = createLastClosesCache({
  * and is therefore already replay-ready. Under a replay this line is the one
  * that changes.
  */
+const sectorLadder = createSectorLadderRatchet();
+
+// **The two symbol sets, resolved once.** Both are derived from `UNIVERSE` by
+// `kind`, so they are constant for the life of the process, and the membership
+// set below is what splits one call's answer into two sections.
+const proxySymbols = indexProxyTickers();
+const sectorSymbols = sectorEtfTickers();
+const isSectorSymbol = new Set<string>(sectorSymbols);
+
 const marketOverview = (): WireMarketOverview => {
   const asOf = new Date();
-  return toWireMarketOverview(
-    buildMarketOverview({
-      symbols: indexProxyTickers(),
-      observations: currentMarketState.all(),
-      closesAsOf: lastCloses.closesAsOf,
-      asOf,
-    }),
+
+  // **One call, for two sections** —
+  // `one-producer-of-the-overview-aggregate` permits exactly one, and the
+  // reason is Task 4.1.1's decision 1 rather than tidiness: the aggregate is
+  // computed once where `currentMarketState` already lives, and a second call
+  // beside this one is the shape the real regression takes.
+  const entries = buildMarketOverview({
+    symbols: [...proxySymbols, ...sectorSymbols],
+    observations: currentMarketState.all(),
+    closesAsOf: lastCloses.closesAsOf,
     asOf,
-  );
+  });
+
+  // **Split by MEMBERSHIP, never by a slice.** A fifth index proxy — or a
+  // twelfth sector, which `SECTOR_ETFS` makes a compile error to add without
+  // its fund — would silently shift a boundary written as `entries.slice(4)`,
+  // and the symptom is a sector ETF in the proxy strip with every number on it
+  // correct.
+  return toWireMarketOverview({
+    proxies: entries.filter((entry) => !isSectorSymbol.has(entry.symbol)),
+    sectors: entries.filter((entry) => isSectorSymbol.has(entry.symbol)),
+    sectorLadderStep: (ranked) => sectorLadder.stepFor(ranked, asOf),
+    asOf,
+  });
 };
 
 // **Loaded at startup, and it does not block the server** (Task 4.2.4). A

@@ -1,10 +1,11 @@
-import { toTicker } from "@marketpulse/shared";
+import { SECTOR_ETFS, SECTORS, toTicker } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
 import { STREAM_SYMBOLS } from "./market-stream.js";
 import {
   UNIVERSE,
   indexProxyTickers,
+  sectorEtfTickers,
   trackedSecurities,
   trackedSymbols,
   trackedTickers,
@@ -109,5 +110,37 @@ describe("the index proxies the overview is about (Task 4.2.4)", () => {
     );
 
     expect(indexProxyTickers(retired)).toEqual(["SPY", "QQQ", "IWM"]);
+  });
+});
+
+describe("the sector benchmarks the overview is about (Task 4.3.4)", () => {
+  it("is the eleven, in `SECTORS`' declared order, derived from `SECTOR_ETFS`", () => {
+    // The order matters beyond tidiness: it is the sector region's tie-break
+    // when two figures read the same on screen, so it must be the product's
+    // declared order rather than whatever order `universe.ts` lists the funds
+    // in. Written here through the mapping rather than as eleven literals —
+    // a second literal pairing is the permutation
+    // `one-pairing-of-a-sector-and-its-benchmark` refuses.
+    expect(sectorEtfTickers()).toEqual(SECTORS.map((s) => SECTOR_ETFS[s]));
+  });
+
+  it("holds no symbol the index proxies hold — the split is by membership", () => {
+    // The producer calls the join ONCE with both lists and splits the answer
+    // by membership. Overlapping sets would put a figure in two sections.
+    const proxies = new Set<string>(indexProxyTickers());
+    for (const symbol of sectorEtfTickers()) {
+      expect(proxies.has(symbol)).toBe(false);
+    }
+  });
+
+  it("filters on `status`, like every other computation over the market NOW", () => {
+    const retired: readonly Security[] = UNIVERSE.map((security) =>
+      security.symbol === "XLV"
+        ? { ...security, status: "untracked" as const }
+        : security,
+    );
+
+    expect(sectorEtfTickers(retired)).not.toContain("XLV");
+    expect(sectorEtfTickers(retired)).toHaveLength(SECTORS.length - 1);
   });
 });

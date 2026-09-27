@@ -167,3 +167,52 @@ everything that moves is still another reserved panel or the source note, no
 figure and no sentence a reader is reading changes position — **but the magnitude
 is yours to measure and state, and if anything a reader is reading does move, it
 goes back to the owner rather than into your record.**
+
+## Amended by Task 4.3.4 — 2026-09-27: the frame is ready, and four things about it are not what you would guess
+
+**`overview.sectors` exists and carries eleven figures in rank order.** What you
+render, and the traps:
+
+**1. The move on a `stored` figure is `sessionChangePercent`, NOT `changePercent`.**
+There is no previous-session **date** anywhere on `SecurityLastClose` — only
+`previousClose`, a number with no date — so a `changeBasis` for it would have to be
+invented by a calendar walk in the wire conversion, and it is not. The field name
+carries the meaning instead: beside the existing `session`, `sessionChangePercent`
+says _this session's own close-to-close move_. **A renderer reaching for
+`changePercent` on a stored figure finds nothing**, which is the failure mode a
+shared field name would have invited — and the label is **yours to draw**.
+
+**2. Both new wire fields are optional on the READ side, and that is deliberate.**
+The deploy rolls the backend first, but **a rollback pins a previous image**, so a
+new bundle can legitimately meet an old gateway. `sectors` is read only when it **is
+an array**, and `sectorLadderStep` **only beside sectors**. Render the absence as a
+state, not as an error.
+
+**3. The ladder's rung arrives on the frame — do not compute one.**
+`overview.sectorLadderStep` is `1 | 2 | 5 | 10`, held **server-side** so every
+reader shares one scale, stepping **outward only within a session** and reset at the
+bell. **It saturates above ±10%** by the owner's decision: a sector past 10% draws a
+bar clipped at the top rung while **the row's own figure stays exact**. So the
+printed ladder and a row's figure can disagree in magnitude on an extreme day, and
+that is correct — say nothing about it in the UI, because the figure is the claim and
+the bar is the comparison.
+
+**4. Rank position is already decided; do not re-sort.** The array arrives ranked
+through the one comparator in `packages/shared`. **A figure with no move is ranked
+nowhere** — every keyless figure sorts after every keyed one and holds the declared
+`SECTORS` order — and **two figures equal at DISPLAYED precision do not swap**, which
+is why `PERCENT_DISPLAY_DECIMALS` now lives in `packages/shared` and
+`formatChangePercent` reads it. **If you round differently anywhere, the drawn order
+can contradict the drawn figures.**
+
+### What CI cannot show you, and it is more than last time
+
+**Every sector figure is `unknown` on CI, for ever** — 518 securities, zero bars. So
+`sessionChangePercent` never occurs there, **the ladder is `±1` for ever**, and the
+comparator's keyed branches are reached by unit tests only. The one combination CI
+does prove is all-eleven-`unknown`, which asserts the declared order.
+
+**So a browser assertion about a sector's position or its figure is an assertion
+about data the runner does not have.** `pnpm store:bare` reproduces it locally in
+seconds, and `docs/GAPS.md` now carries the entry. **You are the first thing that can
+produce a keyed figure in a browser** — that is your entry's named owner.

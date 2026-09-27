@@ -13,6 +13,7 @@ import {
   type SnapshotMessage,
   type WireMarketOverview,
   type WireOverviewFigure,
+  type WireStoredFigure,
 } from "./market-stream-protocol.js";
 
 const OBSERVATION = {
@@ -578,6 +579,202 @@ describe("the overview frame, which carries the first DERIVED value on this wire
       kind: "unreadable",
       reason: "no send instant",
     });
+  });
+});
+
+// ------------------------------------------ the sector section (Task 4.3.4)
+
+describe("the sector section, which is a NEW key rather than more figures", () => {
+  const sector = (symbol: string, percent: number): WireOverviewFigure => ({
+    state: "observed",
+    symbol,
+    at: OVERVIEW_AT,
+    price: 100,
+    changePercent: percent,
+  });
+
+  const roundTrip = (overview: Partial<WireMarketOverview>) => {
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(overviewMessage(overview)),
+    );
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    return decoded.message.overview;
+  };
+
+  it("survives the round trip in the order it was given, beside the proxies", () => {
+    // Done-when 1's wire half: `figures` still carries the proxies and only
+    // the proxies. Appending eleven sector ETFs to that array would move
+    // `newest` in `market-proxies.ts` and break `sharedBasis` and
+    // `sharedClosingSession`, with no compile error and no test failure.
+    const overview = roundTrip({
+      figures: [sector("SPY", 0.2)],
+      sectors: [sector("XLE", 1.4), sector("XLK", -0.3)],
+      sectorLadderStep: 2,
+    });
+
+    expect(overview.figures.map((figure) => figure.symbol)).toEqual(["SPY"]);
+    expect(overview.sectors?.map((figure) => figure.symbol)).toEqual([
+      "XLE",
+      "XLK",
+    ]);
+    expect(overview.sectorLadderStep).toBe(2);
+  });
+
+  it("is ABSENT on a frame that carries none, on both sides of the wire", () => {
+    // **The read side is the half that matters.** The deploy rolls the backend
+    // first, but a rollback pins a previous image — so a new bundle can
+    // legitimately meet an old gateway that sends no such section.
+    const wire = encodeMarketStreamMessage(
+      overviewMessage({ figures: [sector("SPY", 0.2)] }),
+    );
+    expect(wire).not.toContain("sectors");
+    expect(wire).not.toContain("sectorLadderStep");
+
+    const overview = roundTrip({ figures: [sector("SPY", 0.2)] });
+    expect(overview).not.toHaveProperty("sectors");
+    expect(overview).not.toHaveProperty("sectorLadderStep");
+  });
+
+  it("drops the rung when there are no sectors to scale", () => {
+    // A ladder beside no figures is a scale for nothing — ADR 0029's false
+    // impression, one field wide, and `changeBasis`' rule with a second
+    // subject.
+    const wire = encodeMarketStreamMessage(
+      overviewMessage({ figures: [], sectorLadderStep: 5 }),
+    );
+    expect(wire).not.toContain("sectorLadderStep");
+
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({
+        type: "overview",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
+        overview: {
+          computedAt: OVERVIEW_AT,
+          feeds: [],
+          figures: [],
+          sectorLadderStep: 5,
+        },
+      }),
+    );
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    expect(decoded.message.overview).not.toHaveProperty("sectorLadderStep");
+  });
+
+  it("drops a rung that is not one of the four, and keeps the figures", () => {
+    // `feeds`' leniency, for its reason: the only reader is a renderer that
+    // would otherwise draw an axis nobody has reviewed, and the frame carries
+    // true prices.
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({
+        type: "overview",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
+        overview: {
+          computedAt: OVERVIEW_AT,
+          feeds: [],
+          figures: [],
+          sectors: [{ state: "unknown", symbol: "XLK" }],
+          sectorLadderStep: 3,
+        },
+      }),
+    );
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    expect(decoded.message.overview.sectors).toHaveLength(1);
+    expect(decoded.message.overview).not.toHaveProperty("sectorLadderStep");
+  });
+
+  it("drops one unreadable sector rather than the section, or the frame", () => {
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({
+        type: "overview",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
+        overview: {
+          computedAt: OVERVIEW_AT,
+          feeds: [],
+          figures: [],
+          sectors: [
+            { state: "observed", symbol: "XLK", at: OVERVIEW_AT, price: null },
+            { state: "unknown", symbol: "XLV" },
+          ],
+        },
+      }),
+    );
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    expect(decoded.message.overview.sectors).toEqual([
+      { state: "unknown", symbol: "XLV" },
+    ]);
+  });
+});
+
+describe("a stored figure's completed-session move", () => {
+  const storedFigure = (
+    over: Partial<WireStoredFigure> = {},
+  ): WireStoredFigure => ({
+    state: "stored",
+    symbol: "XLV",
+    session: "2026-09-25",
+    close: 140.2,
+    ...over,
+  });
+
+  it("travels when it exists and is absent when it does not", () => {
+    expect(
+      encodeMarketStreamMessage(
+        overviewMessage({
+          sectors: [storedFigure({ sessionChangePercent: -0.42 })],
+        }),
+      ),
+    ).toContain('"sessionChangePercent":-0.42');
+
+    expect(
+      encodeMarketStreamMessage(overviewMessage({ sectors: [storedFigure()] })),
+    ).not.toContain("sessionChangePercent");
+  });
+
+  it("is OMITTED rather than nulled when it is not finite", () => {
+    // `Infinity` reaches this wire as `null` through `JSON.stringify`, and a
+    // `null` under a number is read as `0` by a lenient reader — a figure
+    // claiming the session was flat. The serialiser owns the guarantee
+    // (ADR 0031), not the call site.
+    const wire = encodeMarketStreamMessage(
+      overviewMessage({
+        sectors: [
+          storedFigure({ sessionChangePercent: Number.POSITIVE_INFINITY }),
+        ],
+      }),
+    );
+    expect(wire).not.toContain("sessionChangePercent");
+    expect(wire).toContain('"close":140.2');
+  });
+
+  it("is dropped on the way in when it is not finite", () => {
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({
+        type: "overview",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
+        overview: {
+          computedAt: OVERVIEW_AT,
+          feeds: [],
+          figures: [],
+          sectors: [{ ...storedFigure(), sessionChangePercent: null }],
+        },
+      }),
+    );
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    expect(decoded.message.overview.sectors?.[0]).toEqual(storedFigure());
   });
 });
 

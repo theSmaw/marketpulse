@@ -2234,6 +2234,43 @@ export const BREAKS = [
     expect: "read it as a basis",
   },
   {
+    name: "a-second-pairing-of-a-sector-and-its-benchmark",
+    proves:
+      "The inverse of `SECTOR_ETFS` is written by hand, in the module that " +
+      "renders eleven rows \u2014 which is where an author is standing when " +
+      "they need a label for the symbol the frame carries. One wrong key puts " +
+      "XLV's figure on the Financials row and **every number on the screen is " +
+      "still right**: it satisfies every arithmetic guard here, passes every " +
+      "state grid and is invisible in greyscale. The only thing on the row " +
+      "that can contradict it is the printed ticker (Task 4.3.4).\n\n" +
+      "**The first version of the check required the ticker to be QUOTED and " +
+      'passed green on this exact defect** \u2014 `{ XLK: "Technology", ' +
+      "\u2026 }` has eleven bare identifier keys and not one string literal. " +
+      "It was found by writing the file Task 4.3.5 would write rather than by " +
+      "reading the check, and the substitution below is a bare key for that " +
+      "reason.",
+    // **The surface that already renders the relationship**, rather than the
+    // module that derives it. `UniverseTable.tsx`'s own docblock says
+    // *`SECTOR_ETFS` is the table that says XLK is what Technology is measured
+    // against, and this page is the first thing in the product to render it* —
+    // so a component reaching for a local copy is this file's own temptation
+    // and not a hypothetical one. It is also the honest target under the rule
+    // that a break editing the file the check was written around proves the
+    // least.
+    file: "apps/frontend/src/components/UniverseTable/UniverseTable.tsx",
+    find: 'const NOT_APPLICABLE = "\u2014";',
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "const BENCHMARK_LABELS: Record<string, string> = {\n" +
+      '  XLK: "Technology",\n' +
+      '  XLV: "Health Care",\n' +
+      "};\n" +
+      "void BENCHMARK_LABELS;\n\n" +
+      'const NOT_APPLICABLE = "\u2014";',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "name more than one sector benchmark ticker",
+  },
+  {
     name: "a-second-overview-aggregate",
     proves:
       "A second call to the builder, added **in the file that already has " +
