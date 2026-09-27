@@ -2401,6 +2401,39 @@ export const BREAKS = [
     expect: "does not scroll them",
   },
   {
+    name: "the-settle-becomes-a-delay-plus-a-duration",
+    proves:
+      "The sector list's two events \u2014 a figure changing and a position " +
+      "changing \u2014 are separated in TIME: one settle of stillness, then " +
+      "one settle of travel. Written as a literal in the delay position it " +
+      "looks identical on screen and is a different product under " +
+      "`prefers-reduced-motion`: `tokens.css` resolves the token to `0ms` at " +
+      "the one layer that answers the preference, so a literal leaves the " +
+      "reader who asked for LESS motion waiting 240\u00a0ms in front of a " +
+      "list that is not moving.",
+    // **The defect the next author writes, rather than the one just fixed.**
+    // `transition: transform 240ms ease 240ms` is what anybody reaches for
+    // first, and the token spelling looks like pedantry until you read the
+    // `@media` block in `tokens.css`. Nothing about the edit looks wrong: the
+    // gesture is byte-identical for every reader without the preference set,
+    // which is every reviewer.
+    //
+    // **The same substitution also turns `overview-sector-order.spec.ts`'s
+    // reduced-motion half red**, at `expect(await transformsSeen(page)).toBe(0)`
+    // \u2014 the row is held under its inverse transform for 240\u00a0ms with
+    // nothing happening, which is the whole defect, sampled every animation
+    // frame. The registered command is the invariant because it needs no pair
+    // running.
+    //
+    // No dev-server restart is needed for this one although its target is a CSS
+    // module: the command reads the file, not the page.
+    file: "apps/frontend/src/components/RankedList/RankedList.module.css",
+    find: "    var(--motion-ease-standard) var(--motion-duration-settle);",
+    replace: "    var(--motion-ease-standard) 240ms;",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "not twice",
+  },
+  {
     name: "a-break-that-can-no-longer-land",
     proves:
       "A break whose `find` no longer matches proves nothing, and nothing " +

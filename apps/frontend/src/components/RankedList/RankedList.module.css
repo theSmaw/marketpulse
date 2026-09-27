@@ -96,6 +96,47 @@
 }
 
 /*
+ * --- The movement: one settle of stillness, then one settle of travel ---
+ *
+ * `The order that changes.dc.html` §03 and §04's treatment, and **the whole of
+ * it is this one declaration**. The FLIP in `RankedList.tsx` writes the inverse
+ * transform and removes it in one commit; this is what turns the removal into
+ * 240 ms of travel, and the delay is what keeps it out of the frame the arrival
+ * discs fire in.
+ *
+ * **`--motion-duration-settle` twice — the same token in the duration and the
+ * delay — and never a number in either position.** The two events are separated
+ * in **time** rather than in space because they cannot be separated in space:
+ * `LIVE-DATA.md` §7.4 bounds the intra-minute first-to-last spread at 243 ms p50
+ * over n=445 minutes, so against a 900 ms decay all eleven discs are lit
+ * together for ~650 ms however many frames carried them — and eleven discs plus
+ * a whole-list re-order inside the same quarter-second is the gesture a page
+ * makes when it **reloads**. Put in series it is a wave, then a movement.
+ *
+ * The token rather than `240ms 240ms` is the load-bearing part, and it is a
+ * reduced-motion decision rather than a tidiness one: `tokens.css` resolves
+ * **both** halves to `0ms` under `prefers-reduced-motion`, together, at the one
+ * layer that answers the preference. A hard-coded delay would leave a 240 ms
+ * pause with nothing in it for exactly the reader who asked for less motion —
+ * the same direction of failure as the two traps `motion.module.css` and
+ * `.arrival` above already carry.
+ *
+ * **`transform` only**, never `top`, `order` or `grid-row`: those are per-frame
+ * layout on the page `PRODUCT_SPEC.md` §28 can least afford one, and the last
+ * two are worse than slow — they divorce the accessibility tree from the screen
+ * and hand a screen reader a different ranking from the one drawn, invisibly to
+ * axe, to jsdom and to a screenshot.
+ *
+ * One declaration for all eleven rows, so there is **no stagger**: refused
+ * twice, because it encodes an order the data does not have and lengthens the
+ * gesture from 240 ms to 640.
+ */
+.row {
+  transition: transform var(--motion-duration-settle)
+    var(--motion-ease-standard) var(--motion-duration-settle);
+}
+
+/*
  * --- The rank: a printed tabular ordinal ---
  *
  * **The keystone of the component.** It converts position from something

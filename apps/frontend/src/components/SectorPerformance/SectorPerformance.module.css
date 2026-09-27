@@ -63,3 +63,106 @@
     display: none;
   }
 }
+
+/*
+ * --- The region head's right-hand slot ---
+ *
+ * One slot, two strings — `The ranked list.dc.html` §05 state 7 and
+ * `The order that changes.dc.html` §07.
+ *
+ * **The reserve is here rather than in either string**, because the point of it
+ * is that neither may move the other: `Order held` with its disc is wider than
+ * `11 · Ranked`, and a badge that appears when a pointer enters the region must
+ * not shift the region's name, the row beneath it, or the head's own height.
+ *
+ * **100 px is measured rather than derived** — `pnpm probe --story
+ * market-sectorperformance--order-held` reports the badge at **100×22** at 1440
+ * and at 390 alike, because every glyph in it is fixed. The count is narrower,
+ * so the slot holds the badge's width in both states and the count sits at its
+ * right edge.
+ *
+ * **The height is the head's own line box, and that is a defect repaired rather
+ * than a preference.** Drawn with the canvas's `4px 6px` padding the badge came
+ * out 26 px against `Panel`'s 22 px title line, so the head grew four pixels on
+ * pointer enter and **moved all eleven rows** — the one thing this treatment
+ * must not do. Found in a browser and by nothing else:
+ * `expect(await firstRow()).toEqual(quiet.row)` reported `y: 637` against
+ * `y: 641`, and neither jsdom, nor axe, nor a screenshot of one state can see
+ * it. So the badge is exactly `--line-height-subheading` tall, which is the
+ * token `Panel.title` sets its line from: the head cannot grow, because the
+ * thing that would grow it is the same height as the thing already there.
+ */
+.slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 100px;
+  min-height: var(--line-height-subheading);
+}
+
+/*
+ * The count, in the head's own idiom — `Region`'s `awaiting` tag one slot over,
+ * without the box. It is a quiet statement of fact and it must not compete with
+ * the region's name.
+ */
+.count {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+
+/*
+ * `Order held`, and it is the loudest thing in the region head by **weight and
+ * hierarchy** rather than by ink.
+ *
+ * The canvas drew it in `#9a6400` inside a `#9a6400` border. That value is in no
+ * stylesheet here, and the three ambers that exist cannot replace it —
+ * `--palette-amber` measures **1.73:1** on the page ground and **1.92:1** at
+ * 12 px, and `--palette-amber-deep` is not a text ink. So this is ADR 0026's
+ * standing exception again: **the intent adopted and the value refused**, with
+ * the settled rule carrying it — standing out, like receding, is a job for
+ * weight and hierarchy, never for ink outside the contrast floor.
+ *
+ * Near-black on a panel inside a `--rule-strong` hairline is the most
+ * distinctive idiom in this language, and the refresh's own rule for it is *one
+ * panel is a statement* — one badge, present only while a reader is in the
+ * region, is exactly that.
+ */
+.held {
+  composes: microLabel from "../../styles/type.module.css";
+  display: inline-flex;
+  /*
+   * **Baseline, not centre**, and it is the shared disc that decides: the
+   * `stateMark` class carries `translateY(-0.25em)`, which centres it against
+   * the **x-height** of the run it sits in — a nudge written for a baseline
+   * row (`SourceNote.live`'s, unchanged). Centring the flex line instead
+   * applies that nudge on top of an already-centred box and the disc reads as
+   * a superscript dot. Nothing is overridden here to fix it, deliberately: a
+   * declaration under `composes` does not reliably win, because `composes`
+   * concatenates class names and stylesheet order decides.
+   */
+  align-items: baseline;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  height: var(--line-height-subheading);
+  padding-inline: var(--space-8);
+  font-weight: var(--font-weight-strong);
+  color: var(--ink-primary);
+  white-space: nowrap;
+  border: var(--border-width) solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+/*
+ * `stateMark`'s third consumer — **appearance and behaviour from the shared
+ * motion layer, position from here**, which is that vocabulary's own rule.
+ *
+ * *A state PERSISTS*, and the behaviour **is** the absence of animation: the
+ * disc is still, it lasts exactly as long as the reader is in the region, and it
+ * is neither progress nor a fact arriving. Nothing is declared here because a
+ * mark inside a flex run needs no position of its own — `SourceNote.liveDisc`'s
+ * precedent, unchanged.
+ */
+.disc {
+  composes: stateMark from "../../styles/motion.module.css";
+}

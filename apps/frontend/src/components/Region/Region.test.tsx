@@ -1,8 +1,8 @@
 // A region is a named landmark with a boundary *inside* it, and that placement
 // is the decision this file protects.
 
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { Region } from "./Region.js";
 
@@ -107,5 +107,83 @@ describe("Region", () => {
     expect(screen.getAllByRole("region")).toHaveLength(2);
     expect(screen.getAllByRole("alert")).toHaveLength(1);
     expect(screen.getByText("still here")).toBeDefined();
+  });
+
+  it("shows the awaiting tag only while empty, and the meta slot only while filled", () => {
+    // **One slot, one occupant, and the two can never disagree.** A tag naming
+    // the work that will fill a region cannot outlive that work — the day
+    // Story 4.3 landed, a forgotten `awaiting="Story 4.3"` beside real sector
+    // data would have promised work already shipped, which is exactly the kind
+    // of claim nothing in this repository can read.
+    const { rerender } = render(
+      <Region
+        name="Sector performance"
+        awaiting="Story 4.3"
+        meta={<i>11</i>}
+      />,
+    );
+
+    expect(screen.getByText("Story 4.3")).toBeDefined();
+    expect(screen.queryByText("11")).toBeNull();
+
+    rerender(
+      <Region name="Sector performance" awaiting="Story 4.3" meta={<i>11</i>}>
+        <p>eleven rows</p>
+      </Region>,
+    );
+
+    expect(screen.getByText("11")).toBeDefined();
+    expect(screen.queryByText("Story 4.3")).toBeNull();
+  });
+
+  it("reports a reader entering and leaving it, by pointer and by focus alike", () => {
+    // `:hover` and `:focus-within` on the region's **own box**, as one boolean,
+    // because they are one fact: somebody is reading this. Scoped to the region
+    // and never to a row — a row-scoped hold lets rows move out from under an
+    // *approaching* pointer — and the section is the region's only tab stop
+    // today, because `Region` passes `scrollable`.
+    const within_ = vi.fn<(value: boolean) => void>();
+    render(
+      <Region name="Sector performance" onReaderWithin={within_}>
+        <p>eleven rows</p>
+      </Region>,
+    );
+
+    const region = screen.getByRole("region", { name: "Sector performance" });
+
+    fireEvent.pointerEnter(region);
+    expect(within_).toHaveBeenLastCalledWith(true);
+
+    // **Focus arriving while the pointer is still there is not a second
+    // hold**, and the pointer leaving afterwards must not release one the
+    // keyboard is still holding.
+    fireEvent.focusIn(region);
+    expect(within_).toHaveBeenLastCalledWith(true);
+
+    fireEvent.pointerLeave(region);
+    expect(within_).toHaveBeenLastCalledWith(true);
+
+    fireEvent.focusOut(region);
+    expect(within_).toHaveBeenLastCalledWith(false);
+  });
+
+  it("releases the reader when it unmounts, so no pin outlives the region", () => {
+    // Without this a consumer unmounting mid-hover — a rollback replacing the
+    // frame, a route change — leaves a held order nobody can release, and the
+    // list is frozen with no pointer anywhere near it.
+    const within_ = vi.fn<(value: boolean) => void>();
+    const { unmount } = render(
+      <Region name="Sector performance" onReaderWithin={within_}>
+        <p>eleven rows</p>
+      </Region>,
+    );
+
+    fireEvent.pointerEnter(
+      screen.getByRole("region", { name: "Sector performance" }),
+    );
+    expect(within_).toHaveBeenLastCalledWith(true);
+
+    unmount();
+    expect(within_).toHaveBeenLastCalledWith(false);
   });
 });

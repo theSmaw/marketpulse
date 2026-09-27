@@ -32,6 +32,9 @@ import { RankedList } from "./RankedList.js";
 // size, so a treatment written twice would diverge and nobody would ever see
 // both versions together to notice.
 
+/** The one basis these rows share — see {@link SectorRow.basis}. */
+const BASIS = "observed:2026-09-15";
+
 const row = (
   rank: number | undefined,
   label: string,
@@ -46,6 +49,7 @@ const row = (
         move: undefined,
         absent: "None stored",
         arrival: undefined,
+        basis: undefined,
       }
     : {
         symbol,
@@ -58,6 +62,10 @@ const row = (
         },
         absent: undefined,
         arrival: undefined,
+        // One basis for every ranked row here — a list whose rows disagree about
+        // what they measured from is `sector-performance.ts`'s to produce and
+        // this file's to draw.
+        basis: BASIS,
       };
 
 /**

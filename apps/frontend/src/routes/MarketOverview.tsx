@@ -5,7 +5,11 @@ import type { Bar } from "@marketpulse/shared";
 import { MarketProxyStrip } from "../components/MarketProxyStrip/MarketProxyStrip.js";
 import { OverviewSourceNote } from "../components/OverviewSourceNote/OverviewSourceNote.js";
 import { Region } from "../components/Region/Region.js";
-import { SectorPerformance } from "../components/SectorPerformance/SectorPerformance.js";
+import {
+  SectorPerformance,
+  SectorPerformanceMeta,
+} from "../components/SectorPerformance/SectorPerformance.js";
+import { useOrderHold } from "../components/SectorPerformance/use-order-hold.js";
 import { sectorPerformance, type LiveFeedView } from "../market/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
 import styles from "./MarketOverview.module.css";
@@ -94,6 +98,17 @@ export function MarketOverview({
     () => sectorPerformance(overview, observations, fromSnapshot),
     [overview, observations, fromSnapshot],
   );
+
+  /*
+   * **The order the sector list is holding, if a reader is in the region**
+   * (Task 4.3.6).
+   *
+   * It is here because the region's head and the region's contents are two
+   * different slots of one `<Region>`, and a badge that said `ORDER HELD` over a
+   * list that was re-ordering is the two-speakers-disagreeing defect this screen
+   * has already paid for once. One value, read by both.
+   */
+  const hold = useOrderHold(sectors?.rows);
 
   /*
    * **The set is served and this route renders what it is given.** The overview
@@ -233,9 +248,22 @@ export function MarketOverview({
               ? "Eleven sector benchmark ETFs, ranked by today’s move."
               : undefined
           }
+          /*
+           * **The hold is scoped to the region, never to a row.** A row-scoped
+           * hold lets rows move out from under an *approaching* pointer, and the
+           * region's own box is the only element here a keyboard reader can be
+           * at: `Region` passes `scrollable`, which makes the section the
+           * region's one tab stop.
+           */
+          onReaderWithin={hold.onReaderWithin}
+          meta={
+            sectors === undefined ? undefined : (
+              <SectorPerformanceMeta view={sectors} held={hold.held} />
+            )
+          }
         >
           {sectors === undefined ? undefined : (
-            <SectorPerformance view={sectors} />
+            <SectorPerformance view={sectors} pinned={hold.pinned} />
           )}
         </Region>
 

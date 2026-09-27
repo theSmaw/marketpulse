@@ -262,7 +262,11 @@ export type {
 // beside the signed bar's arithmetic. The same shape as `market-proxies.ts` one
 // region along: the pure half is exported and the component that draws it lives
 // under `src/components/`.
-export { SECTOR_CLAIM, sectorPerformance } from "./sector-performance.js";
+export {
+  SECTOR_CLAIM,
+  rowsInPinnedOrder,
+  sectorPerformance,
+} from "./sector-performance.js";
 export type {
   SectorMove,
   SectorPerformance,

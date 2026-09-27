@@ -133,3 +133,45 @@ claimed otherwise was corrected on 2026-09-27; **the entry this owes is the gene
 form — what a replay certifies is the wiring and never the loop**, which is the
 same lesson as the quiet-system rehearsal already in `CLAUDE.md` and has now cost a
 second measurement.
+
+## The SIDEWAYS sweep, performed early — 2026-09-27, during Task 4.3.6 rather than at the close
+
+**Done early on purpose.** `CLAUDE.md`'s rule is that a hand-off sweeps sideways
+and **a story close does not reach it** — a close sweeps the documents the story
+_wrote_, and a constraint one story measures for another lives in a document the
+**owning** story does not own. The last time this was left to a close it was got
+wrong **in the same document that warned about it**.
+
+**Enumerated by grepping this story's documents for every `Story N.M` and `Owner:`
+line**, then checking each against that story's own file. The count, which is the
+part worth recording:
+
+| referenced    | times | what that story's `STORY.md` already carried                                            | verdict     |
+| ------------- | ----- | --------------------------------------------------------------------------------------- | ----------- |
+| **Story 4.5** | 13    | the phrase _"two uses"_, once. **No `RankedList`, no 461, no comparator, no re-order.** | **missing** |
+| **Story 4.6** | 3     | one line about the region being `Panel scrollable`. Nothing on the keyboard rule.       | **missing** |
+| **Story 4.4** | 1     | **nothing at all**                                                                      | **missing** |
+| Story 4.2     | 6     | complete — this story was handed by 4.2's own close                                     | fine        |
+
+**Three of three were missing**, and two of them were about a measurement made
+_for_ them: `Movers` and `Market breadth` both rose to **461 px for free** when
+4.3.5 filled the sector region, so neither story moves anything when it lands —
+which neither story knew.
+
+**Written in, in words those stories can act on**, never a link back:
+
+- **Story 4.4** — the free 461 at 1440/1024, the 103/121 at 768/390 which **will**
+  grow the page, the rule that replaced Task 4.1.4's, and the warning that rows 2
+  and 3 are tied so a taller breadth region **takes the whole grid with it**.
+- **Story 4.5** — `RankedList`'s existence and its `"none"` bar slot; **why the bar
+  is refused for movers** (one quantity versus four, not eleven versus ten) with an
+  explicit instruction to re-argue rather than inherit; the free 461; the comparator
+  and its **absent-key rule**; that `PERCENT_DISPLAY_DECIMALS` is shared so rounding
+  elsewhere makes the drawn order contradict the drawn figures; the re-order
+  treatment and the 243 ms measurement behind it, with the note that **at 518 the
+  synchrony is worse rather than better**; and what CI cannot show.
+- **Story 4.6** — owed, and deliberately deferred until Task 4.3.6 reports, because
+  the rule it inherits (one tab stop, arrow keys within the list, a roving
+  `tabIndex` keyed on the **symbol** never the index, activation resolved against
+  **identity** never position) is being written by that task now. **This is the one
+  outstanding sideways item and it must not be left to the close.**

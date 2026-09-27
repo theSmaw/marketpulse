@@ -6,7 +6,12 @@ import type {
   WireOverviewFigure,
 } from "@marketpulse/shared";
 
-import { SECTOR_CLAIM, sectorPerformance } from "./sector-performance.js";
+import {
+  SECTOR_CLAIM,
+  rowsInPinnedOrder,
+  sectorPerformance,
+} from "./sector-performance.js";
+import type { SectorRow } from "./sector-performance.js";
 
 const NO_OBSERVATIONS = new Map<string, Bar>();
 const NO_SNAPSHOT = new Set<string>();
@@ -162,6 +167,86 @@ describe("sectorPerformance", () => {
 
     expect(marked?.rows[0]?.arrival).toBeDefined();
     expect(marked?.rows[1]?.arrival).toBeUndefined();
+  });
+});
+
+describe("a row's basis", () => {
+  it("pairs the member the move came from with the session it measured from", () => {
+    // **The whole point is that it CHANGES at the bell**, which is the one
+    // moment the list legitimately re-arranges wholesale: every figure stops
+    // being *that session's close-to-close move* and starts being *today
+    // against yesterday's close*. A row whose basis changed had no previous
+    // rank under this one, so it is a new list rather than eleven simultaneous
+    // re-orders.
+    const shut = read(frame([stored("XLK", 1.32)], 2));
+    const open = read(frame([observed("XLK", 1.32)], 2));
+
+    expect(shut?.rows[0]?.basis).toBeDefined();
+    expect(open?.rows[0]?.basis).toBeDefined();
+    expect(shut?.rows[0]?.basis).not.toBe(open?.rows[0]?.basis);
+  });
+
+  it("is the same for two rows measuring from the same session, and absent with no move", () => {
+    // Two `observed` figures on one frame share a basis, so a swap between them
+    // travels. A row with no move has no rank to have had, so it has no basis
+    // either — and `undefined === undefined` is deliberately NOT a licence to
+    // move, because a row with no rank is never in the ordered set at all.
+    const view = read(
+      frame([observed("XLK", 1.32), observed("XLE", 0.4), stored("XLU")], 2),
+    );
+
+    expect(view?.rows[0]?.basis).toBe(view?.rows[1]?.basis);
+    expect(view?.rows[2]?.basis).toBeUndefined();
+  });
+});
+
+describe("rowsInPinnedOrder", () => {
+  const row = (symbol: string, rank: number): SectorRow => ({
+    symbol,
+    label: symbol,
+    rank,
+    move: undefined,
+    absent: "None stored",
+    arrival: undefined,
+    basis: "observed:2026-09-25",
+  });
+
+  const LIVE = [row("XLE", 1), row("XLK", 2), row("XLC", 3)];
+
+  it("draws the pinned order and keeps every row's own rank", () => {
+    // **The hold gates the movement, not the ranking.** The ordinals go on
+    // updating while the list stands still, and the disagreement between them
+    // and the order of the rows IS the pending re-order.
+    const held = rowsInPinnedOrder(LIVE, ["XLK", "XLC", "XLE"]);
+
+    expect(held.map((entry) => entry.symbol)).toEqual(["XLK", "XLC", "XLE"]);
+    expect(held.map((entry) => entry.rank)).toEqual([2, 3, 1]);
+  });
+
+  it("returns the live order itself when nothing is held", () => {
+    expect(rowsInPinnedOrder(LIVE, undefined)).toBe(LIVE);
+  });
+
+  it("drops no row the pin has never seen", () => {
+    // It cannot happen from our own gateway, which sends the same eleven every
+    // frame. What it must not do is lose one: a sector that vanished from a
+    // held list would be a missing row nobody could explain.
+    const held = rowsInPinnedOrder(LIVE, ["XLC"]);
+
+    expect(held.map((entry) => entry.symbol)).toEqual(["XLC", "XLE", "XLK"]);
+  });
+
+  it("never reads a figure, so it cannot reorder two rows the comparator tied", () => {
+    // The file's only `sort`, and it sorts by a position a reader pinned. Two
+    // figures that read the same on screen never swap — that is a property of
+    // `rankSectorFigures` in `packages/shared`, and this keeps it one.
+    const tied = [row("XLK", 1), row("XLE", 1), row("XLC", 1)];
+
+    expect(
+      rowsInPinnedOrder(tied, ["XLK", "XLE", "XLC"]).map(
+        (entry) => entry.symbol,
+      ),
+    ).toEqual(["XLK", "XLE", "XLC"]);
   });
 });
 

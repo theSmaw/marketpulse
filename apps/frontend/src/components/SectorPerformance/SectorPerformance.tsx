@@ -4,6 +4,7 @@ import { cx } from "../../cx.js";
 import {
   SECTOR_CLAIM,
   ladderClause,
+  rowsInPinnedOrder,
   type SectorPerformance as SectorPerformanceView,
 } from "../../market/index.js";
 import { RankedList } from "../RankedList/RankedList.js";
@@ -37,15 +38,29 @@ import styles from "./SectorPerformance.module.css";
 export interface SectorPerformanceProps {
   /** The rows and the rung, from `sectorPerformance`. */
   readonly view: SectorPerformanceView;
+  /**
+   * The order a reader is holding, from `useOrderHold` — absent while nothing
+   * is held.
+   *
+   * **The hold is applied here rather than in `RankedList`**, and that is what
+   * keeps it one code path: the list draws the order it is handed, so a held
+   * list is a props order that did not change, the FLIP does nothing, and the
+   * release is one ordinary re-order carrying every pending move. `RankedList`
+   * knows nothing about holds and `rowsInPinnedOrder` reads no figure, so *two
+   * figures equal at displayed precision never swap* stays a property of the one
+   * comparator in `packages/shared`.
+   */
+  readonly pinned?: readonly string[] | undefined;
 }
 
 export const SectorPerformance = memo(function SectorPerformance({
   view,
+  pinned,
 }: SectorPerformanceProps) {
   return (
     <>
       <RankedList
-        rows={view.rows}
+        rows={rowsInPinnedOrder(view.rows, pinned)}
         bar={{ kind: "signed", scale: view.step }}
         name="Sectors ranked by today’s move"
       />
@@ -71,3 +86,85 @@ export const SectorPerformance = memo(function SectorPerformance({
     </>
   );
 });
+
+/**
+ * **The region head's right-hand slot: the count, or `Order held`** — one slot,
+ * two strings, and the wider of them is reserved so neither moves the other.
+ *
+ * ## Why they share a slot
+ *
+ * Because they are one idea: *what this list is doing*. Opening `Region`'s head
+ * twice — once for a count in Task 4.3.5 and once for a badge here — would have
+ * been two changes to a shared component for that one idea, which is why 4.3.5
+ * deliberately built neither. `The ranked list.dc.html` §05 state 7 draws it.
+ *
+ * ## The count is the RANKED rows, not the rows
+ *
+ * `11 · Ranked` over eleven rows that all say `None stored` would be two true
+ * halves and one contradiction — the shape `docs/GAPS.md` entry 13's sibling is
+ * about — so the count is the number of rows that actually have a rank, and when
+ * that is **zero the slot says nothing at all**. ADR 0029's rule as a clause: a
+ * claim about data requires data, and a surface that owns nothing defers. The
+ * reserve is the stylesheet's, so an empty slot is the same width as a full one
+ * and the badge still moves nothing when it appears.
+ *
+ * Task 4.3.7 owns the trailing quiet group, where the honest head is
+ * `8 Ranked · 3 Quiet`; this states the half that is true in every state today.
+ *
+ * ## The badge's ink, and the value that was refused
+ *
+ * `The ranked list.dc.html` drew this in `#9a6400`, which is in no stylesheet in
+ * this repository, and **no amber this product has could carry it**:
+ * `--palette-amber` measures 1.73:1 on the page ground and 1.92:1 at 12 px, and
+ * `--palette-amber-deep` is not a text ink. So the intent is adopted and the
+ * value is not — ADR 0026's standing exception, for the fifth time — and what
+ * carries it instead is the settled rule: standing out, like receding, is a job
+ * for **weight and hierarchy**, never for ink outside the contrast floor.
+ *
+ * ## `stateMark`'s third consumer, and its first reader-caused one
+ *
+ * *A state PERSISTS*: the disc is still, and the behaviour **is** the absence of
+ * animation. The first two consumers were the product saying something about the
+ * data; this one says something about **what the reader is doing**, which is a
+ * widening of the limb rather than a new one — a fourth consumer should be
+ * checked against both readings.
+ */
+export const SectorPerformanceMeta = memo(function SectorPerformanceMeta({
+  view,
+  held,
+}: {
+  readonly view: SectorPerformanceView;
+  /** From `useOrderHold`. The same value that pins the order the list draws. */
+  readonly held: boolean;
+}) {
+  const ranked = view.rows.filter((row) => row.rank !== undefined).length;
+
+  return (
+    <span className={cx(styles.slot)}>
+      {held ? (
+        <span className={cx(styles.held)}>
+          <span className={cx(styles.disc)} aria-hidden="true" />
+          {ORDER_HELD}
+        </span>
+      ) : ranked === 0 ? undefined : (
+        <span className={cx(styles.count)}>{`${String(ranked)} · Ranked`}</span>
+      )}
+    </span>
+  );
+});
+
+/**
+ * What the head says while the order is held.
+ *
+ * **Sentence case in the DOM, uppercase on screen** — `microLabel` does the
+ * second, which is `Region`'s `awaiting` tag one slot over and the reason it is
+ * an idiom rather than a choice: a string stored uppercase is a string some
+ * screen readers spell out a letter at a time.
+ *
+ * **The words are the state and not an instruction**, which is the difference
+ * between this and a tooltip: the region is not asking to be released, it is
+ * saying what is true — the figures and the ranks are current and the order is
+ * the one the reader arrived to. Present tense, no verb for the reader, and no
+ * mention of the pointer that caused it, because focus causes it too.
+ */
+const ORDER_HELD = "Order held";

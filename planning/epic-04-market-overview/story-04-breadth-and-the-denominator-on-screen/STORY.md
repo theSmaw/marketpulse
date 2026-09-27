@@ -306,3 +306,43 @@ The trigger is written above and fires on your region by name. But if the answer
 is _reorder the DOM rather than `grid-template-areas`_, it moves **all seven
 regions at three breakpoints** and wants `pnpm probe` at four widths. Scope it as
 a grid-level task, so it is not attempted as a breadth-panel fix.
+
+## Handed here by Story 4.3 — 2026-09-27: your region's height is already paid for, and you move nothing
+
+**`Market breadth` rose from 265 px to 461 px on 2026-09-27 without anybody
+intending it, and the consequence is yours to keep rather than rediscover.**
+
+Task 4.3.1 replaced `.regions`' fixed `height: 82vh` with `min-height: 82vh` and
+`grid-template-rows: <resolved row 1>, repeat(2, minmax(min-content, 1fr))`. Rows 2
+and 3 therefore **share one `fr` ratio**, and the second column's areas sit on the
+same rows as the first — so when Task 4.3.5 filled `Sector performance` with eleven
+rows, **`Market breadth` and `Movers` grew to exactly the same 461 px**. Measured,
+before and after, at all four widths.
+
+**What that buys you: filling this region moves nothing at all at 1440 and 1024.**
+The hatched panel you replace is already the height your content will take, so the
+page does not re-compose when you land. That is Task 4.1.4's
+_nothing-moves-when-it-fills_ rule satisfied **for free** — the rule itself was
+**retired** by the owner on 2026-09-27, so you do not inherit the obligation, but
+you do inherit the outcome.
+
+**Two things that are not free:**
+
+1. **At 768 and 390 the grid is `grid-template-rows: none`**, so neighbours are
+   auto-sized and this region is **103 px and 121 px**. Filling it there **will**
+   grow the page. That is expected and fine — but it is yours to measure and report,
+   under the rule that replaced 4.1.4's: _a reserved region's floor is set by the
+   change that DRAWS its content, and that change measures and reports the movement
+   before it merges._ `pnpm probe /` at all four widths, before and after.
+2. **If your content needs more than 461 px, you take the whole grid with you.**
+   Rows 2 and 3 are tied, so a taller `Market breadth` raises `Sector performance`
+   and `Movers` too. That is the ratio working as designed, not a fault — but it
+   means your height is a **page-level** decision rather than a regional one, and
+   the number to beat is 461.
+
+**And the one thing that must not move**: at every width, everything that moved
+when 4.3.5 landed was **another reserved panel or the source note** — the proxy
+strip, its four cells and its qualifier were **byte-identical in position and
+size**. That is the claim the retirement rests on. **If filling this region moves a
+figure or a sentence a reader is reading, stop and raise it with the owner** rather
+than recording it.

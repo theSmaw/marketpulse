@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { useId, type ReactNode, type Ref } from "react";
 
 import { cx } from "../../cx.js";
 import styles from "./Panel.module.css";
@@ -114,6 +114,24 @@ export interface PanelProps {
    */
   readonly className?: string | undefined;
 
+  /**
+   * The panel's own box, for a behaviour that belongs to the **whole surface**
+   * rather than to anything on it.
+   *
+   * Added 2026-09-27 by Task 4.3.6, for one caller and one reason: the sector
+   * region holds its order while a reader is in it, and *in it* is
+   * `:hover` / `:focus-within` on **this** element — the section is the region's
+   * only tab stop today, because `scrollable` makes it one, so scoping the
+   * question to anything inside would miss a keyboard reader entirely.
+   *
+   * **A ref rather than four handler props**, which was the alternative: a
+   * surface component that accepted `onPointerEnter` would be a surface with
+   * opinions about pointers, and the next behaviour would add four more. This
+   * hands the element over and says nothing about what is done with it. `Region`
+   * is the only caller and it combines the two halves itself.
+   */
+  readonly ref?: Ref<HTMLElement>;
+
   readonly children: ReactNode;
 }
 
@@ -126,6 +144,7 @@ export function Panel({
   scrollable = false,
   reserved = false,
   className,
+  ref,
   children,
 }: PanelProps) {
   // `useId` rather than a slug of the title: two panels called "Market data" on
@@ -138,6 +157,7 @@ export function Panel({
 
   return (
     <section
+      ref={ref}
       className={cx(
         styles.panel,
         scrollable ? styles.scrollable : undefined,

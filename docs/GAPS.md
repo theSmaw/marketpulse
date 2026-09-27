@@ -1226,3 +1226,46 @@ different claims and only a person can take the second.
 **Re-measure:** `pnpm store:bare`, then `DATABASE_NAME=marketpulse_bare pnpm dev`,
 and read `/`'s overview frame — every sector figure should be `unknown` and
 `sectorLadderStep` should be 1.
+
+## The sequenced pair is bounded by measurement and read by nobody
+
+**Added 2026-09-27 by Task 4.3.6.** The sector list's two events — a figure
+arriving and a position changing — are separated in **time**: one
+`--motion-duration-settle` of stillness, then one of travel. `pnpm invariants`
+holds the **mechanism** (`the-settle-is-one-token-twice` — the same token in both
+positions, no timer, no `transitionend`, no Web Animations API), and
+`overview-sector-order.spec.ts` holds the **outcome** in both motion preferences,
+paired.
+
+**What neither can say is whether it reads as two events.** Every measurement
+behind the decision bounds the **stimulus** — `LIVE-DATA.md` §7.4's 243 ms p50
+intra-minute spread over n=445, the 900 ms decay, the 480 ms gesture inside 60 s
+of stillness — and **none of them reads the reading**. A DOM cannot answer it, a
+timing cannot, a screenshot cannot, and an agent cannot: it is the epic's fourth
+design test, in front of a real session.
+
+**Two further things a green run does not certify here**, both of them
+structural rather than neglected:
+
+- **No gated machine has ever seen this list re-order against a real feed.** CI's
+  store is 518 securities and zero bars, so every sector figure there is
+  `unknown` for ever and no rank exists to change. The browser spec **serves its
+  own frames** for exactly that reason, which makes it a proof about the
+  treatment and not about the data.
+- **A replay cannot stand in for the session.** `replay-bar-source.ts` emits one
+  slice per minute across every symbol, so a replay returns _one frame, 0 ms
+  spread_ 100% of the time at any speed, and every observation in it shares one
+  `startsAt` — the split minute the treatment is designed against is **absent
+  from the data structure**. A replay certifies the wiring and never the loop.
+
+**Owner: a person, in front of a live session** — the reversal trigger is a
+condition and is phrased as what would be **reported** rather than what would be
+measured: _the first sitting in which a person reports the sector region as
+flashing or refreshing rather than as facts arriving._ If it fires, **the lever
+is the disc, not the motion**, and the anti-lever is named: never slow the
+movement down.
+
+**Re-measure:** `pnpm e2e overview-sector-order.spec.ts` for the mechanism, and
+`LIVE-REHEARSAL.md`'s next sitting for the reading — with the adjacent-rank gap
+distribution per minute, which is Task 4.3.8's and is the number the _whole list
+does not re-arrange_ half of the argument actually rests on.

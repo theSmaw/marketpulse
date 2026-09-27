@@ -195,3 +195,102 @@ biggest movers, with nothing on screen saying so. Plus the _what is a mover with
 no recent price_ decision, the **top-N-computed-server-side** payload (ADR 0038's
 grain rule: ship the smallest thing that answers the region, not the ranking's
 input), and Epic 14's trigger firing on your per-row markup.
+
+## Handed here by Story 4.3 — 2026-09-27: the component you reuse exists, your region's height is already paid for, and two decisions were taken on your behalf
+
+**Story 4.3 built `RankedList` for two uses, and you are the second.** This section
+is what you can act on without reading Story 4.3's task files.
+
+### 1. `RankedList` exists, with a slot shaped for you
+
+`apps/frontend/src/components/RankedList/` — `<ol>`/`<li>`, DOM order equal to
+visual order, rows keyed by `symbol`, rank printed as a tabular `2ch` ordinal, and
+three memo boundaries of which `memo(Row)` on **primitive** props is the one that
+holds per tick. It composes `PriceChange` for direction and **spells neither the
+sign nor the glyph**; a second speller is a second thing to keep in step with the
+palette.
+
+**The bar prop is a union, and `"none"` is yours:**
+
+```ts
+export type RankedListBar =
+  | { readonly kind: "signed"; readonly scale: SectorLadderStep }
+  | { readonly kind: "none"; readonly scale?: never };
+```
+
+**The bar is refused for movers, and the reason is not "eleven versus ten".** It is
+**one quantity versus four**: eleven sector ETFs all carry today's percent change
+on the same basis over the same interval, so the ratio of two bars **is** the ratio
+of two moves. Movers is not that — it is a top-N over a mixed set, where a bar
+invites a comparison the data does not support. **Take that decision on its own
+terms if you want to revisit it; do not inherit either answer without re-arguing.**
+
+**`name` is a required prop** because you have **two lists on one screen** and each
+`<ol>` needs its own accessible name.
+
+### 2. Your region's height is already paid for — you move nothing
+
+`Movers` rose from **265 px to 461 px** on 2026-09-27 without anybody buying it.
+Task 4.3.1 made rows 2 and 3 **share one `fr` ratio**, so filling `Sector
+performance` raised `Movers` to the same height. **Measured at all four widths,
+before and after.** So filling this region **moves nothing at all at 1440 and
+1024**.
+
+**At 768 and 390 the grid is `grid-template-rows: none`** and this region is
+**103 px and 121 px**, so filling it there **will** grow the page — yours to measure
+and report under the rule that replaced Task 4.1.4's: _a reserved region's floor is
+set by the change that DRAWS its content, and that change measures and reports the
+movement before it merges._ And if your content needs more than 461, **you take
+`Sector performance` and `Market breadth` with you**, because the rows are tied.
+
+### 3. Ranking is server-side, and the comparator is already written
+
+**`packages/shared/src/sector-ranking.ts` holds the one comparator.** It was put in
+`packages/shared` rather than in the frontend **precisely because of you**: a top-N
+over 518 in a browser means shipping the 518-figure input, so you rank server-side,
+and a browser-only comparator would have set the wrong precedent at eleven.
+
+**Its absent-key rule is the part to reuse rather than re-derive:**
+
+> A figure with no move has **no ranking key**. Every keyless figure sorts after
+> every keyed one, and keyless figures hold the order they arrived in. **There is no
+> default and no `?? 0` anywhere.**
+
+`?? 0` would place a security we have not heard from **among the genuinely flat
+ones** — ADR 0029's false impression expressed as a **rank position**. A non-finite
+value counts as absent too, because a comparator returning `NaN` leaves
+`Array.prototype.sort` with no defined order at all.
+
+**And two figures equal at DISPLAYED precision do not swap** — which is why
+`PERCENT_DISPLAY_DECIMALS` lives in `packages/shared` and `formatChangePercent`
+reads it. **If you round anywhere else, the drawn order can contradict the drawn
+figures.**
+
+### 4. The re-order treatment moved to Story 4.3 and was decided there
+
+It used to be yours. It was moved so it could be decided on **eleven rows rather
+than a top-N over 518**, and it is now drawn (`The order that changes.dc.html`) and
+implemented. **Inherit it rather than re-deciding it**: a FLIP, transform only,
+offsets a multiple of the row pitch, one settle for the whole list, **no stagger**,
+and the two events separated in **time** — `--motion-duration-settle` of stillness
+then `--motion-duration-settle` of travel, the same token twice.
+
+**The measurement behind it, so you do not re-take it**: the intra-minute spread
+between the first and last bar of a minute is **243 ms p50 / 511 p95** over
+**n=445** minutes and all 518 symbols, so against a **900 ms** decay all the discs
+in a burst are lit together for ~650 ms **however many frames carried them**. Frame
+count and perceptual grain come apart. **At your scale that is worse rather than
+better**, and the treatment is the one place to check it still holds.
+
+**The hold** — `ORDER HELD`, scoped to the **region** via `:hover`/`:focus-within`,
+never to the row, because row scoping lets rows move out from under an
+**approaching** pointer.
+
+### 5. What CI cannot show you, which is more than you would think
+
+**CI's store is 518 securities and zero bars.** Every overview figure is `unknown`
+there **for ever**, so a browser assertion about a position or a figure is an
+assertion about data the runner does not have. `pnpm store:bare` reproduces it
+locally in seconds. Assert **structure** and the all-`unknown` state on CI; prove
+the keyed states through the shipped socket path, the way
+`overview-proxy-live-update.spec.ts` and `overview-sector-region.spec.ts` do.

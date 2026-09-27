@@ -119,3 +119,75 @@ The repair is one line —
 `calc(var(--sticky-chrome-height, 0px) + var(--focus-width) + var(--focus-offset))`
 — plus a `pnpm break`, plus a **Tab and Shift+Tab** walk at 1440/768/390.
 **The reverse walk is the one that finds it**; a forward walk alone does not.
+
+## Handed here by Story 4.3 — 2026-09-27: the keyboard rule for a list that RE-ORDERS, written before you need it
+
+**The sector region re-orders under live data**, and that changes what its keyboard
+model may be. This was written down in Task 4.3.6 rather than left for you to
+invent, because every clause below is a defect that is invisible until a re-order
+happens while somebody's hands are still on the keys. It also lives in
+`RankedList.tsx`'s header, but a pointer is what a reader follows when they already
+know to look — so it is here in words you can act on.
+
+**1. One tab stop for the region, not eleven.** The region is already one stop as a
+`Panel scrollable`. Rows are reached by **arrow keys within the list** when they
+become activatable.
+
+**2. A roving `tabIndex` keyed on the SYMBOL, never on the index.** This is the
+clause that matters most and it has no symptom until the list moves: with an
+index-keyed roving stop, **a re-order moves focus to a different sector while the
+reader's hands are still**. They arrow down expecting Industrials and get Energy,
+because the row that was third is now fifth and the stop stayed at three.
+
+**3. Activation resolved against identity, never position.** Same defect one step
+later: a reader presses Enter on the row they are looking at, the frame lands
+between the keydown and the handler, and position-resolved activation opens the
+wrong sector. **Every number on screen is right throughout.**
+
+**4. `aria-disabled` rather than `disabled` on anything carrying a description.** A
+natively `disabled` control is **not focusable**, so anything `aria-describedby`
+hangs off it is **unreachable** — a description is read when a control is
+_reached_. This product shipped that defect for two tasks on search's unavailable
+states: a correct, attached, visible sentence that no key press could get to.
+`TextField` renders `aria-disabled` + `readOnly` product-wide for this reason, and
+**the consequence has to be followed**: the state stops being inactive, so WCAG
+1.4.11's and 1.4.3's exemptions stop covering its border and its ink.
+
+### What already exists that you should not rebuild
+
+- **The hold is shipped.** With a pointer over the region or focus inside it, the
+  order **holds** — `ORDER HELD` in the panel's `meta`, scoped to the **region** via
+  `:hover`/`:focus-within`, never to the row (row scoping lets rows move out from
+  under an **approaching** pointer). It is unbounded in time and bounded by the
+  reader rather than by a timer, and it settles in one 240 ms when they leave.
+  **So a reader who has tabbed into the region already has a still list** — your
+  activation work happens against a frozen order by construction, which removes
+  most of the race above but **not the clause**: focus can leave and return, and
+  `tabIndex` survives the gap.
+- **`Region` has `onReaderWithin?: (within: boolean) => void`**, four native
+  listeners (`pointerenter/leave`, `focusin/out`) combined into one boolean and
+  released on unmount, **off unless a caller asks**. If you need to know a reader is
+  in a region, this exists.
+- **The head slot is open** — `Region`'s `meta?: ReactNode`, mutually exclusive with
+  `awaiting` in one expression, with a **100 px × `--line-height-subheading`
+  reserve** so nothing moves when a badge replaces the count. That reserve is not
+  decoration: the badge drawn at the canvas's `4px 6px` padding came out **26 px
+  against `Panel`'s 22 px title line**, and **all eleven rows moved 4 px on pointer
+  enter** — found by a browser and by nothing else.
+
+### One state the hold cannot enter, which you may meet
+
+A reader whose pointer is **already resting over the region before the first frame
+arrives** enters with nothing to pin, so they get **no hold and no badge** until
+their next pointer or focus event. Nothing false is shown — the badge and the gate
+are one value — and the alternative was re-pinning from an effect, which the React
+Compiler's `set-state-in-effect` rejects. Documented in
+`components/SectorPerformance/use-order-hold.ts`.
+
+### And the question you inherit rather than the answer
+
+`Region` passes `scrollable` unconditionally, so every region is a tab stop. Since
+Task 4.3.1 that is a **backstop** rather than the default behaviour of a region
+that does not fit — measured: **no region on `/` scrolls at any of the four
+widths**. Whether it should become conditional is **yours**, because you own the
+focus order on this screen. Task 4.3.1 explicitly declined to decide it.

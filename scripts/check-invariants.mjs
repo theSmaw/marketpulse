@@ -3003,6 +3003,127 @@ const INVARIANTS = [
   },
 
   {
+    id: "the-settle-is-one-token-twice",
+    claim:
+      "The sector list's travel states `--motion-duration-settle` TWICE — as " +
+      "the delay and as the duration — with no time literal in the " +
+      "stylesheet and no timer or `transitionend` in the component, so " +
+      "`prefers-reduced-motion` collapses both halves together.",
+    check() {
+      // **The defect is a delay, and every re-implementation of this treatment
+      // writes one.**
+      //
+      // The two events the sector region shows — a figure changing and a
+      // position changing — are separated in **time**: one settle of stillness,
+      // then one settle of travel. `LIVE-DATA.md` §7.4 is why (n=445 minutes,
+      // intra-minute spread 243 ms p50 against a 900 ms decay, so all eleven
+      // discs are lit together for ~650 ms however many frames carried them),
+      // and the owner took it on 2026-09-27 against drawing them coincident.
+      //
+      // What makes it safe under `prefers-reduced-motion` is **one token in
+      // both positions**: `tokens.css` resolves `--motion-duration-settle` to
+      // `0ms` at the one layer that answers the preference, so the pause and
+      // the travel vanish together. Any other spelling leaves a reader who
+      // asked for less motion **waiting 240 ms for nothing** — a literal
+      // `240ms` in the delay, a `transition-delay` of its own, a
+      // `setTimeout` before the release, or a release hung off `transitionend`
+      // (which at `0ms` may never fire at all, leaving the row under a
+      // transform nobody cleared, on its neighbour's line, with every printed
+      // ordinal correct).
+      //
+      // **Three clauses, because the delay has three homes and only one of
+      // them is the obvious one.** A check over the stylesheet alone is green
+      // against a `setTimeout` in the component, which is exactly where the
+      // next author will put it: the sequencing reads as logic rather than as
+      // style.
+      const STYLES =
+        "apps/frontend/src/components/RankedList/RankedList.module.css";
+      const COMPONENT =
+        "apps/frontend/src/components/RankedList/RankedList.tsx";
+
+      const css = readFileSync(resolve(REPO_ROOT, STYLES), "utf8");
+
+      // The declaration itself, whatever Prettier did to its line breaks.
+      const declaration = /transition:[^;]*;/gu;
+      const transitions = [...css.matchAll(declaration)].map(([text]) =>
+        text.replaceAll(/\s+/gu, " "),
+      );
+
+      if (transitions.length !== 1) {
+        throw new InvariantFailure(
+          `${STYLES} holds ${String(transitions.length)} \`transition\` ` +
+            "declarations; this check reads one. **One declaration for all " +
+            "eleven rows is also what makes a stagger unrepresentable** — " +
+            "refused twice, because it encodes an order the data does not " +
+            "have and lengthens the gesture from 240 ms to 640.",
+        );
+      }
+
+      const [travel = ""] = transitions;
+      const settles = travel.split("var(--motion-duration-settle)").length - 1;
+
+      if (settles !== 2) {
+        throw new InvariantFailure(
+          `${STYLES}'s travel names \`--motion-duration-settle\` ` +
+            `${String(settles)} times, not twice:\n      ${travel}\n` +
+            "    The stillness and the travel are the SAME token in the delay " +
+            "and the duration. Anything else — a literal, a second token, a " +
+            "`transition-delay` of its own — is a pause reduced motion cannot " +
+            "collapse, and the reader who asked for less motion waits 240 ms " +
+            "for nothing.",
+        );
+      }
+
+      // A time literal anywhere in the declaration is the same defect wearing
+      // the token's clothes: `240ms 240ms` reads identically on screen and is
+      // 240 ms of nothing under the preference.
+      if (/\d\s*m?s\b/u.test(travel)) {
+        throw new InvariantFailure(
+          `${STYLES}'s travel carries a time literal:\n      ${travel}\n` +
+            "    Reduced motion is answered at the token layer, once. A " +
+            "component that spells a duration is the only way to get that " +
+            "wrong.",
+        );
+      }
+
+      const source = readFileSync(resolve(REPO_ROOT, COMPONENT), "utf8");
+
+      // **The call forms rather than the words**, so the comments that explain
+      // why neither is used do not trip it: `withoutComments` here strips only
+      // full-line `//`, and this file argues both traps in block comments.
+      const timers = [
+        ["setTimeout(", "a timer before the release"],
+        ['transitionend"', "a release hung off `transitionend`"],
+        ["onTransitionEnd", "a release hung off `transitionend`"],
+        // **The Web Animations API is the re-implementation this check would
+        // otherwise be green on**, and it is the likeliest one: a FLIP written
+        // with `element.animate([...], { duration: 240, delay: 240 })` is a
+        // textbook FLIP, it needs no stylesheet at all, and **it does not
+        // consult `prefers-reduced-motion`** — so the reader who asked for less
+        // motion gets the whole gesture, at full length, with nothing in the
+        // tree saying so.
+        [".animate(", "the Web Animations API, which reads no media query"],
+      ].filter(([token = ""]) => source.includes(token));
+
+      if (timers.length > 0) {
+        throw new InvariantFailure(
+          `${COMPONENT} reaches for ${timers
+            .map(([, what]) => what)
+            .join(" and ")}. The inverse and its release are written in ONE ` +
+            "commit — applied with the transition suppressed, one forced " +
+            "reflow, then removed — so the element's resting state is " +
+            "`transform: none` before the effect returns and there is nothing " +
+            "left to clear. A timer is a delay JavaScript owns, which reduced " +
+            "motion cannot resolve to zero; `transitionend` at `0ms` may not " +
+            "fire at all, and the row is left sitting on its neighbour's line " +
+            "with every printed ordinal correct — which is what would make it " +
+            "survive a review.",
+        );
+      }
+    },
+  },
+
+  {
     id: "every-break-can-still-land",
     claim:
       "Every entry in `scripts/breaks.mjs` substitutes text that still exists " +

@@ -24,6 +24,9 @@ import { RankedList } from "./RankedList.js";
 // ordinal, the ticker that is the only defence against a permutation, and the
 // absence of any connection word.
 
+/** The one basis these rows share — see {@link SectorRow.basis}. */
+const BASIS = "observed:2026-09-15";
+
 const row = (
   symbol: string,
   label: string,
@@ -38,6 +41,7 @@ const row = (
         move: undefined,
         absent: "None stored",
         arrival: undefined,
+        basis: undefined,
       }
     : {
         symbol,
@@ -51,12 +55,23 @@ const row = (
         },
         absent: undefined,
         arrival: undefined,
+        // One basis for every ranked row here — a list whose rows disagree about
+        // what they measured from is `sector-performance.ts`'s to produce and
+        // this file's to draw.
+        basis: BASIS,
       };
 
 const THREE: readonly SectorRow[] = [
   row("XLK", "Technology", 1, 1.84),
   row("XLB", "Materials", 2, 0),
   row("XLE", "Energy", 3, -1.27),
+];
+
+/** The same three after a frame in which energy ran — every row changes place. */
+const REORDERED: readonly SectorRow[] = [
+  row("XLE", "Energy", 1, 2.4),
+  row("XLK", "Technology", 2, 1.85),
+  row("XLB", "Materials", 3, 0.01),
 ];
 
 const draw = (rows: readonly SectorRow[] = THREE) =>
@@ -162,5 +177,61 @@ describe("RankedList", () => {
     }
     expect(text).not.toContain(MARKET_FEED_DESCRIPTIONS.iex.label);
     expect(text).not.toContain(MARKET_FEED_DESCRIPTIONS.sip.label);
+  });
+
+  it("moves a row's own DOM node to its new place rather than rewriting it", () => {
+    // **Keyed by `symbol`, never by index**, and this is the assertion that
+    // says so: keyed by index React would recycle row 1's element into row 2's
+    // content, so the element a reader is hovering would become a different
+    // sector under their pointer — and the FLIP would measure a box that never
+    // moved. It also destroys any in-flight decay, on exactly the row the
+    // reader was looking at.
+    //
+    // **Nothing here can see the travel**: jsdom computes no layout, so every
+    // `offsetTop` is 0 and the treatment inverts nothing. What this level CAN
+    // see is the identity of the node, which is what the travel is applied to.
+    const { rerender } = draw();
+
+    const energy = screen
+      .getAllByRole("listitem")
+      .find((item) => item.textContent.includes("XLE"));
+
+    rerender(
+      <RankedList
+        rows={REORDERED}
+        bar={{ kind: "signed", scale: 2 }}
+        name="Sectors"
+      />,
+    );
+
+    const after = screen.getAllByRole("listitem");
+    expect(after[0]).toBe(energy);
+    expect(after[0]?.textContent).toContain("XLE");
+  });
+
+  it("leaves no row under a transform, and the DOM order is the new order", () => {
+    // The worst outcome of the whole treatment is a row left sitting on its
+    // neighbour's line with every printed ordinal correct — which is what
+    // would make it survive a review. This level can only see the inline style
+    // the effect writes and removes; `overview-sector-order.spec.ts` is where
+    // it is seen **at rest in a browser**, in both motion preferences, because
+    // jsdom applies no stylesheet and runs no animation.
+    const { rerender } = draw();
+
+    rerender(
+      <RankedList
+        rows={REORDERED}
+        bar={{ kind: "signed", scale: 2 }}
+        name="Sectors"
+      />,
+    );
+
+    const after = screen.getAllByRole("listitem");
+    expect(after.map((item) => item.style.transform)).toEqual(["", "", ""]);
+    expect(after.map((item) => item.textContent.includes("XLE"))).toEqual([
+      true,
+      false,
+      false,
+    ]);
   });
 });

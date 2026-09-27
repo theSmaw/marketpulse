@@ -1,6 +1,6 @@
 # Task 4.3.6 — The order that changes: the movement, the hold, and reduced motion
 
-**Status:** Not started
+**Status:** **Complete — 2026-09-27. The whole treatment is ONE CSS declaration and no JavaScript knows a number. The new invariant passed GREEN against a textbook WAAPI FLIP until a fourth clause was added — and the `ORDER HELD` badge, drawn to the canvas's own padding, moved all eleven rows 4 px on pointer enter: the exact thing the hold exists to prevent, caused by the badge announcing it.**
 **Story:** [4.3 Sector Performance, & the Benchmark That Is Not an Average](STORY.md)
 **Depends on:** 4.3.3, 4.3.5
 
@@ -189,3 +189,217 @@ composes `arrivalMark` **position only**; and the three absence strings have one
 home in `market/sector-performance.ts`. Your two events are a figure changing
 (which fires the shipped disc, **keyed on `arrivalKey`, never on a changed rank**)
 and a position changing (carried by the movement). Neither needs a new string.
+
+---
+
+## What was done — 2026-09-27
+
+### The treatment is one declaration, and no JavaScript knows a number
+
+```css
+.row {
+  transition: transform var(--motion-duration-settle)
+    var(--motion-ease-standard) var(--motion-duration-settle);
+}
+```
+
+**Duration and delay are the same token.** That is what makes both halves collapse
+to `0 ms` **together** under `prefers-reduced-motion` — a hard-coded delay would
+leave the reader who asked for less motion waiting through an empty pause.
+
+The FLIP writes the inverse with `transition: none`, forces **one** reflow for the
+whole list, then removes both inline declarations — **so what the browser
+transitions is the REMOVAL**, and the element's resting inline state is _no
+transform_ before the layout effect returns:
+
+```js
+item.style.transition = "none";
+item.style.transform = `translateY(${from - to}px)`;
+void element.offsetHeight; // one forced reflow for the whole list
+item.style.transition = "";
+item.style.transform = "";
+```
+
+**That is how the `transitionend` trap is avoided rather than handled: there is
+nothing left to clear.** Proved at two levels — jsdom (`after.map(i =>
+i.style.transform)` is `["","",""]` after a re-order) and the browser
+(`getComputedStyle(row).transform === "none"` for all eleven, at rest, in **both**
+motion preferences and after the hold's release).
+
+**`offsetTop` rather than `getBoundingClientRect`, on purpose**: a rect includes
+the transform, so a second re-order mid-travel would invert the wrong distance.
+
+**Row pitch measured rather than assumed**: rows at `…738, 765, 792, 819…` = **27
+px**, last row 26.
+
+### The paired reduced-motion assertion — and what each half alone would miss
+
+- **_the rows travel: at least one is transformed while the list settles_** catches
+  **the treatment never ran** — no transform applied, the wrong element measured,
+  the FLIP skipped. The absence test passes **trivially** against all of those.
+- **_under `prefers-reduced-motion` the treatment does not run…_** catches the
+  preference being ignored (WAAPI, a JS timer, a literal delay) **and both shipped
+  traps**: a row left transformed (`transformsNow` all `"none"`) with the order and
+  ordinals still correct.
+
+**Each would pass against the other's defect. Only together do they mean
+anything** — which is done-when 4's own argument and the same shape as _confirm the
+check passes wrongly first_.
+
+**Proof that both halves collapse together**: an rAF sampler runs the same re-order
+in both preferences. Without the preference it sees transformed rows
+(`toBeGreaterThan(1)`); with `emulateMedia({ reducedMotion: "reduce" })` it sees
+**0** — which is only possible if **the delay went to zero as well**, since a
+240 ms delay holds a row under its full inverse for 240 ms of rAF ticks.
+
+### The break — green against a textbook FLIP
+
+**The defect the next author writes**, put in the tree before the check was
+finished: a WAAPI FLIP, `item.animate([...], { duration: 240, delay: 240 })`, which
+**reads no media query**.
+
+```
+=== THE DEFECT IS IN THE TREE. The check as first written says: ===
+38 invariants hold.
+=== exit: 0 ===
+```
+
+**Green, with a treatment that hands a reduced-motion reader the whole gesture.**
+A fourth clause was added; same defect, same command:
+
+```
+  ✗ the-settle-is-one-token-twice
+    apps/frontend/src/components/RankedList/RankedList.tsx reaches for the Web
+    Animations API, which reads no media query. …
+1 of 38 invariants failed.
+```
+
+**Four defect variants now go red**, each an assertion failure with the other
+checks still collecting:
+
+| variant                                  | what it reports                                     |
+| ---------------------------------------- | --------------------------------------------------- |
+| **A** literal in the delay               | `names --motion-duration-settle 1 times, not twice` |
+| **B** separate `transition-delay: 240ms` | same clause, red                                    |
+| **C** `setTimeout` before the release    | _a timer before the release_                        |
+| **D** WAAPI                              | the clause above                                    |
+
+Registered as `the-settle-becomes-a-delay-plus-a-duration` (variant A), and
+`every-break-can-still-land` confirms the `find` matches exactly once.
+
+### The badge that announced the hold moved the list it was holding
+
+**Found by a browser and by nothing else.** Drawn at the canvas's own `4px 6px`
+padding, the `ORDER HELD` badge came out **26 px against `Panel`'s 22 px title
+line** — so the head grew and **all eleven rows moved 4 px on pointer enter**:
+`expect(await firstRow()).toEqual(quiet.row)` reporting `y: 637` against `y: 641`.
+
+**That is the exact thing the hold exists to prevent, caused by the badge
+announcing it.** Repaired: the badge is exactly `--line-height-subheading` tall
+(measured 100×22 at 1440 **and** 390 through
+`pnpm probe --story market-sectorperformance--order-held`) and the slot reserves
+100 px. **The rule that generalises: a badge that replaces a count must be measured
+against the line it replaces, not drawn to its own padding.**
+
+**And one thing only a person looking could catch**: the `stateMark` disc needed
+`align-items: baseline`, not `center`. The shared class's `translateY(-0.25em)` is
+written for a baseline row, and centring made it a **superscript dot**. Nothing was
+overridden — _a declaration under `composes` does not reliably win_.
+
+### The hold
+
+Scoped to the **region** via `:hover`/`:focus-within`, never to the row — row
+scoping lets rows move out from under an **approaching** pointer. Unbounded in time
+and bounded by the reader rather than a timer. Figures and ranks stay true
+underneath; **the mismatch between the printed ranks and the vertical order IS the
+pending re-order**, which is why no fourth mark is needed.
+
+`Region` gained `onReaderWithin?: (within: boolean) => void` — four native
+listeners (`pointerenter/leave`, `focusin/out`) combined into one boolean, released
+on unmount, **off unless a caller asks** — and `meta?: ReactNode` for the head slot,
+mutually exclusive with `awaiting` in one expression. `Panel` gained one prop, a
+forwarded `ref`.
+
+**One path, not two modes**: `rowsInPinnedOrder(rows, pinned)` is the file's only
+`sort`, **by a pinned position, reading no figure**. The hold **gates the movement,
+not the ranking** — which is the drawing's own finding that the ordinary treatment
+is the hold with one step put back.
+
+**One state the hold cannot enter, documented rather than hidden**: a reader whose
+pointer is **already resting over the region before the first frame arrives** has
+nothing to pin, so they get **no hold and no badge** until their next pointer or
+focus event. Nothing false is shown — the badge and the gate are one value — and
+the alternative was re-pinning from an effect, which the React Compiler's
+`set-state-in-effect` rejects.
+
+### Geometry, and an assertion made to mean something
+
+`pnpm probe /` on the final tree: `areaSectors` **1026×461** at 1440, **595×461** at
+1024, **720×461** at 768, **342×437** at 390 — **identical to 4.3.5's**, and
+`overview-sector-region.spec.ts` is untouched and green.
+
+**`scrollTop` never moves — but the region never scrolls, so that assertion was
+worth nothing as written.** It was made to mean something instead: the spec
+**scrolls the page 200 px first**, then asserts `window.scrollY` and
+`document.body.scrollHeight` are unchanged across the re-order, **plus** the
+region's own box and its `scrollTop`.
+
+### The cost of a FLIP over eleven rows — §09's owed figure
+
+Throwaway instrument, run over **20 re-orders**, recorded and deleted. Verbatim:
+
+```
+INSTRUMENT {"tasks":[],"frames":1098,"p50":16.699999809265137,"p95":17.59999990463257,"worst":37.5,"over50":0}
+```
+
+**Zero long tasks. 1,098 rAF gaps, p50 16.7 ms, p95 17.6, worst 37.5, zero over
+§28's 50 ms.** Caveat stated rather than buried: **a dev server** — this suite's
+only target — and **a frame gap is a proxy for the task**, not the task.
+
+### Gates
+
+- **`pnpm verify` — exit 0.** `All matched files use Prettier code style!` ·
+  `39 components, 39 stories files.` · `479 documents, 1661 cross-file links, 39
+anchor links, 0 broken.` · **`38 invariants hold.`** · shared 385, backend 990,
+  frontend **1272**, process 41. **No `Unhandled Errors` block, no `stderr`, no
+  rejection lines** — grepped rather than inferred.
+- **`pnpm e2e` — 177 passed (3.5m), 15 skipped, exit 0.** Scoped:
+  `pnpm e2e overview-sector` — **7 passed (8.1s)**, this task's four plus 4.3.5's
+  three.
+- **A failure reported rather than hidden.** The **previous** full run came back
+  `1 failed … security-gap-fill.spec.ts:165`, 176 passed. **Two candidate causes
+  and neither was picked**: it is the spec that fails on `main` at ~12% per
+  execution, **and** two `pnpm probe` invocations had been run while that suite was
+  in flight, against the rule. Re-run clean at 177/177 — **one further draw, not a
+  disproof**; n is too small either way.
+- `pnpm test:database` not run — no data-layer file touched.
+- **`pnpm break` refused a dirty target** (`RankedList.module.css has uncommitted
+changes`), so the substitution was performed by hand byte-identically to the
+  registered entry. **Run after the commit landed** — see the gate log below.
+
+## For a stakeholder — a status report, 2026-09-27
+
+**The sector list now re-orders as the market moves, and stops when you look at
+it.** Each row travels to its new place over a quarter of a second with its rank
+number changing alongside; put a pointer over the region or tab into it and the
+order **holds** while the figures keep updating, with `ORDER HELD` in the region's
+header saying so. Move away and it settles.
+
+The interesting part is the quarter-second of **stillness before** the travel. All
+eleven price markers fire within about 243 milliseconds of each other — measured on
+a real session — so eleven markers flashing _and_ the whole list re-arranging at
+once is the gesture a page makes when it **reloads**. Separating them in time buys
+two readable events instead of one flash, and it costs a duration the product
+already had, used twice.
+
+Two things were found rather than built. **A new guard passed green against a
+perfectly ordinary implementation** — the textbook way to animate a re-order reads
+no accessibility preference at all, so a reader who asked for less motion would
+have got the whole gesture, and the check said everything was fine until a fourth
+clause was added. That is the sixth time in this story's run that a guard has been
+green on its own defect.
+
+And **the badge that announces the hold was moving the list it was holding**. Drawn
+to its own padding it came out four pixels taller than the line it replaces, so
+every row shifted the moment a pointer arrived — the precise thing the feature
+exists to prevent. No test could see it; a browser measurement could.
