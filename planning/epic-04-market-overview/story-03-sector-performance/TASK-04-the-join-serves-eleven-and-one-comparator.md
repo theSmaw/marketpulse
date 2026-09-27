@@ -92,3 +92,35 @@ unknown` union, **in rank order**. Never appended to `figures` and never
    pairing fails a check
 5. `one-producer-of-the-overview-aggregate` still reports one call site, and its
    break has been re-run
+
+## Amended by Task 4.3.2 — 2026-09-27: the ladder's step resets at the opening bell, and that is a decision about state rather than about drawing
+
+**The owner took it on 2026-09-27 and it lands in your code, not on the canvas.**
+The bar's scale is a **stepped ladder** — `±1 / ±2 / ±5 / ±10%`, the smallest step
+containing all eleven figures — and it **steps outward only within a session**, so
+eleven bars never rescale on a tick. The question the drawing could not answer is
+what happens overnight, and the answer is: **the step resets at the bell.**
+
+**Why**, in the owner's own terms: a step that survived the night would open every
+quiet Tuesday on the previous Friday's rotation scale — **eleven stubs against a
+printed ±5%**, a picture that says _nothing is happening_ using the room it takes
+to say _a lot could_. The accepted cost is **one visible step-out somewhere in the
+first half hour of a heavy day**, which is a change a reader can see the reason
+for. Rejected: carrying the step, which would make the region comparable across
+days — and **nothing else on this screen is**, so it would be the first.
+
+**Reversal trigger**, a condition rather than a story: _the first reader who asks
+whether today's bars are drawn at the same scale as yesterday's_ — which is the
+comparison the reset gives up, and the only one it costs.
+
+**What that means for what you build.** The step is **derived from a session**, so
+it is state with a lifetime and a key rather than a pure function of the figures:
+two frames in the same session may produce different steps and the later one may
+not be smaller, while the first frame of a new session starts again at the
+smallest step that fits. **Do not let it be a `Math.max` over the frame** — that
+is the frame-max normalisation the drawing rejects on two grounds, and it would
+rescale all eleven bars every minute. Whether the ratchet lives in the join, on
+the wire or in the browser is yours to decide with the frame-grain decision Task
+4.3.3 owns; **whichever you choose, the session boundary has to be the reset and
+the market calendar is what knows where one is** (`packages/shared/src/market-calendar.ts`,
+reached through `market-time.ts`, which is the only module allowed to convert).

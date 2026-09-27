@@ -108,7 +108,10 @@
    * sector region takes its height *out of* the movers row, shrinking it to
    * 134. `minmax(min-content, 1fr)` keeps §9's equal rows: measured, every box
    * on this page at all four widths is **unchanged to the pixel** by this
-   * change, and eleven rows at 13/18 take the pair to **383** together — which
+   * change, and eleven rows at 13/18 take the pair to **383** together (Task
+   * 4.3.2 drew the region and the figure is **433** — 383 was a bare list, and
+   * the printed ladder AC 2 requires and the benchmark claim line add 24 and 28;
+   * the consequence below is unchanged, only the number) — which
    * pre-pays `Movers`' reserved height for free, so Story 4.5 filling it moves
    * nothing. The `min-content` is load-bearing and `auto` will not do: the
    * automatic minimum size of a scroll container is zero, so `1fr` alone

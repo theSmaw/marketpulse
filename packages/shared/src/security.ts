@@ -142,10 +142,22 @@ export type EtfKind = (typeof ETF_KINDS)[number];
  * are the same slug and different words, and a transform picks one silently.
  *
  * Two limitations to carry, both from `UNIVERSE.md` §1 and both stated rather
- * than discovered later. **The sector SPDRs hold S&P 500 constituents only**,
+ * than discovered later. ~~**The sector SPDRs hold S&P 500 constituents only**,
  * so a tracked equity outside the index has a sector, has a benchmark, and is
  * not a constituent of it — fine for a relative-move comparison and wrong for
- * anything treating the ETF as the sector's complete membership. And **the
+ * anything treating the ETF as the sector's complete membership.~~
+ * **DISSOLVED 2026-09-08 by Task 2.8.2, corrected here 2026-09-27 by Task
+ * 4.3.2 — the universe IS the index, so the equity this warns about does not
+ * exist.** The universe is the S&P 500 (503 equities) and the classification is
+ * that index's own published GICS assignment, read at curation time;
+ * `UNIVERSE.md` §5 carries the dated amendment and §16 supersedes §1. **The
+ * caveat that survives is WEIGHTING rather than membership**: a sector SPDR is
+ * capitalisation-weighted, so its move is not the average of its members' moves
+ * and two securities in one sector contribute unequally to the benchmark they
+ * are compared against. Anything treating a sector ETF's figure as _what the
+ * average stock in this sector did_ is wrong for that reason and not for this
+ * one. The falsified sentence is left struck through because it was cited,
+ * unread, nineteen days after it stopped being true. And **the
  * technology / communication services / consumer discretionary boundary is
  * genuinely arguable**, which is the boundary the flagship demo runs through;
  * whatever Task 2.3.4 assigns is a recorded claim with a provenance of

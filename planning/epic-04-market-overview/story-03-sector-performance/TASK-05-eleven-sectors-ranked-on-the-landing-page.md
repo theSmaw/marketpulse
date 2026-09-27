@@ -131,3 +131,39 @@ from an instrument: eleven `<li>` at 13 px/18 px with
 if the real row is not 26 px then every figure above moves and the reserved
 floor — which nobody set, by decision — was never pinned to it. That is the whole
 reason the floor was not written in 4.3.1.
+
+## Amended by Task 4.3.2 — 2026-09-27: the movement table above is superseded — 383 was a bare list and the drawn region is 433
+
+**The figure in the table above is falsified by the drawing, and the row height is
+not why.** Task 4.3.1's 383 px was measured on eleven `<li>` and nothing else:
+`2 + 51 + 32 + 298` is the frame, the header, the padding and the list. The row
+Task 4.3.2 drew **is** 26 px — eleven rows with ten 1 px separators is 296 px
+against the 298 measured, a 2 px difference that is the placeholder's own
+separator accounting — so the list is right and **two more lines are not
+optional**:
+
+- the **printed ladder** (`--space-8` + 16 = **24 px**), which AC 2 requires: a
+  length is a claim about a quantity, so the quantity is printed;
+- the **claim line** (`--space-12` + 16 = **28 px**), which is the benchmark
+  sentence the footer carries at every width.
+
+| width | region, drawn | why                                                       |
+| ----- | ------------- | --------------------------------------------------------- |
+| 1440  | **433**       | `2 + 51 + 16 + 296 + 24 + 28 + 16`                        |
+| 1024  | **433**       | same tracks, narrower bar                                 |
+| 768   | **433**       | same                                                      |
+| 390   | **425**       | no bar, therefore no ladder; the claim reserves two lines |
+
+**Re-measure rather than cite these.** They are drawn figures, and your probe is
+what turns them into measurements — that is your own done-when 5.
+
+**The knock-on you must report, because it is bigger than the number the
+retirement was argued against.** Task 4.1.4's rule was retired on an estimate of
+a **975 px** grid at a 900 px viewport (row 1 at 161, two rows at 383, two 24 px
+gaps). At 433 the same arithmetic is **161 + 433 + 433 + 48 = 1075**, so the grid
+grows by **337 px rather than 237**, and the pair of lower rows is ~866 rather
+than ~766. **The retirement's safety argument is unaffected** — at every width
+everything that moves is still another reserved panel or the source note, no
+figure and no sentence a reader is reading changes position — **but the magnitude
+is yours to measure and state, and if anything a reader is reading does move, it
+goes back to the owner rather than into your record.**
