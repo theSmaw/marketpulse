@@ -117,10 +117,29 @@ looks right.
   claims. The curation guarantees one industry group deep enough for that
   sentence to be true of something (semiconductors); it guarantees no ETF to
   measure it against.
-- **The sector SPDRs hold S&P 500 constituents only**, so a tracked equity
+- ~~**The sector SPDRs hold S&P 500 constituents only**, so a tracked equity
   outside the index is measured against a benchmark it is not in
   (`UNIVERSE.md` §5). Fine for a relative move; wrong for anything treating the
-  ETF as the sector's membership.
+  ETF as the sector's membership.~~
+
+  > **DISSOLVED 2026-09-08 by Task 2.8.2; struck here 2026-09-27 by Task 4.3.2's
+  > sweep, nineteen days late. Read the replacement, because this epic computes
+  > `relative move vs. sector` and the caveat it needs is a different one.** The
+  > universe **is** the S&P 500, so the equity this warned about — one with a
+  > sector and a benchmark it is not in — **does not exist**, and the eleven
+  > sector SPDRs partition the tracked list exactly.
+  >
+  > **The caveat that survives is WEIGHTING, not membership.** A sector SPDR is
+  > **capitalisation-weighted**, so **its move is not the average of its members'
+  > moves**. For this epic that is the sharper constraint rather than a softer
+  > one: _relative to sector_ measures a security against a benchmark its own
+  > largest constituents dominate, so **a mega-cap is largely being compared with
+  > itself** and its relative move is structurally damped, while a small
+  > constituent's is structurally amplified. Anomaly scores computed from that
+  > ratio are **not comparable across securities of different weight** unless
+  > something accounts for it. Nothing in this repository measures the effect yet;
+  > Story 4.3 is subtitled _the Benchmark That Is Not an Average_ for the same
+  > reason and states it on the screen rather than quantifying it.
 
 **And the floor exists for this epic's sake**: a minimum of six equities per
 sector, because below that a breadth percentage is arithmetic over so few names

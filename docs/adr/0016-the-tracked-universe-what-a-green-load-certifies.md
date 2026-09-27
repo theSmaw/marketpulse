@@ -69,6 +69,29 @@ constituents only**, so a tracked equity outside the index has a sector, has a b
 and is not _in_ that benchmark. And **eleven sectors is coarse** — see decision 12 and
 the open question in _What the universe is not_.
 
+> **Amended 2026-09-27 by Task 4.3.2's sweep — the first of those two limitations no
+> longer describes this tree.** The decision above is not rewritten and its record stands:
+> it was taken at ~100 curated rows, where a tracked equity outside the S&P 500 was an
+> ordinary case. **Task 2.8.2 defined the universe AS the index on 2026-09-08** (503
+> equities plus 15 ETFs), which **dissolves** that limitation rather than working around
+> it — the equity it warns about does not exist, and the eleven sector SPDRs partition the
+> tracked list exactly. `UNIVERSE.md` §5 and §16.2 are the amendment; this note exists
+> because an ADR is where a reader goes to find out what is still true.
+>
+> **The caveat that replaces it is WEIGHTING**: a sector SPDR is capitalisation-weighted,
+> so **its move is not the average of its members' moves**, and two securities in one
+> sector contribute unequally to the benchmark they are measured against. Anything
+> treating a sector ETF's figure as _what the average stock in this sector did_ is wrong
+> for that reason and not for the membership one. Epic 5's `relative move vs. sector`
+> inherits it, and its own `EPIC.md` carries the consequence.
+>
+> **Why this amendment is dated nineteen days after the fact.** The correction was
+> recorded in `UNIVERSE.md` on the day it was taken and **not propagated** — recording a
+> correction and propagating it are two obligations, and the second was not met until a
+> task went to _use_ the claim and found it about to become shipped UI copy. Five sites
+> carried it; two were struck on 2026-09-27 by Task 4.3.2 and **three more, including this
+> one, were found only when Task 4.3.5 opened.**
+
 ### 2. `SECURITY_KINDS` has three members, not two
 
 `equity | sector_etf | index_etf`. The original scope line said two (`equity | etf`) and

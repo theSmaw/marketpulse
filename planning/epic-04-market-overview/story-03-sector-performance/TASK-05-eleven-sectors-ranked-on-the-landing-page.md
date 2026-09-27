@@ -1,6 +1,6 @@
 # Task 4.3.5 — Eleven sectors, ranked, on the landing page
 
-**Status:** Not started
+**Status:** **In progress — 2026-09-27.**
 **Story:** [4.3 Sector Performance, & the Benchmark That Is Not an Average](STORY.md)
 **Depends on:** 4.3.1, 4.3.2, 4.3.4
 
@@ -61,11 +61,11 @@ performance"` at all four widths, and take every tolerance from its output.
 - **No live region**, and the reversal trigger recorded as a condition: _the
   first ranked surface on this screen whose order answers something the reader
   asked for._
-- **The region's footer carries the benchmark claim and the bar's scale** —
-  `Each row is the sector's benchmark ETF — S&P 500 constituents only · bars to
-±2%` — and **must not** restate the change basis, the instant, the feed or the
-  adjustment, all of which the source note or the chrome own. The scale clause
-  renders only when the bar does (ADR 0029).
+- **The region's footer carries the benchmark claim and the bar's scale**, and
+  **must not** restate the change basis, the instant, the feed or the adjustment,
+  all of which the source note or the chrome own. The scale clause renders only
+  when the bar does (ADR 0029). **The copy this constraint used to specify is
+  FALSIFIED — see the 4.3.2 amendment below before writing a word of it.**
 
 ## Done when
 
@@ -216,3 +216,35 @@ does prove is all-eleven-`unknown`, which asserts the declared order.
 about data the runner does not have.** `pnpm store:bare` reproduces it locally in
 seconds, and `docs/GAPS.md` now carries the entry. **You are the first thing that can
 produce a keyed figure in a browser** — that is your entry's named owner.
+
+## Amended by Task 4.3.2's sweep — 2026-09-27: the footer copy this task specified is FALSIFIED, and the surviving caveat is WEIGHTING
+
+**The constraint above used to tell you to draw `Each row is the sector's
+benchmark ETF — S&P 500 constituents only · bars to ±2%`. Do not.** The second
+clause stopped being true on **2026-09-08**, when Task 2.8.2 defined the universe
+**as** the S&P 500 — so the equity that clause warns about, one with a sector and a
+benchmark it is not in, **does not exist**. `UNIVERSE.md` §5 has carried the dated
+amendment ever since; Task 4.3.2 struck the claim in `packages/shared/src/security.ts`
+and in `UNIVERSE.md` §1, and **missed this file**, which is how it came within one
+task of being drawn on the landing page as shipped copy.
+
+**What is true, and it is the more interesting claim**: a sector SPDR is
+**capitalisation-weighted**, so **its move is not the average of its members'
+moves**. Two securities in one sector contribute unequally to the benchmark they are
+compared against, and a reader who takes the figure as _what the average stock in
+this sector did_ is wrong — for that reason, and not for the membership one. **This
+is the story's own subtitle** — _the Benchmark That Is Not an Average_ — and the
+footer is where it becomes a sentence a reader can see.
+
+**So the footer's benchmark clause states the weighting**, not the membership. The
+exact wording is yours with the designer, against `The ranked list.dc.html` §05's
+claim line, which is the 28 px this region reserves at every width. Keep it to the
+one clause: the region must not grow a second sentence, and **the claim must not
+imply the eleven sum to the market** — they partition the S&P 500 exactly, which is
+a different and narrower thing than _the market_, and `Market proxies` two hundred
+pixels above is what speaks for the broad indices.
+
+**Do not write a membership claim at all**, even a corrected one. It would be true
+and it would be noise: the universe being the index is why the mapping is total by
+construction, which is a fact about our curation rather than about the figure on the
+row.
