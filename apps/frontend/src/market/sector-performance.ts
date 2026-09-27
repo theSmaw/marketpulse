@@ -24,9 +24,16 @@ import {
 // reproducing them, because each one has a checkable invariant hanging off it:
 //
 //   - **The order** is `rankSectorFigures`' in `packages/shared`, computed
-//     server-side. The array is mapped in place; there is no `sort` in this
-//     file and there must not be, because *two figures equal at displayed
-//     precision never swap* is a property of that comparator.
+//     server-side. The array is mapped in place, and **nothing here compares
+//     two figures** — *two figures equal at displayed precision never swap* is a
+//     property of that comparator and must stay one.
+//
+//     {@link rowsInPinnedOrder} added the file's only `sort` on 2026-09-27
+//     (Task 4.3.6) and it does not weaken that: it sorts by a **position a
+//     reader pinned**, reads no figure and can produce no order the comparator
+//     did not already produce — it reproduces an order the comparator produced
+//     one frame earlier. A comparison of `move.percent` anywhere in this file
+//     would be the defect the sentence above is about.
 //   - **Which field a move lives in** is `sectorRankingKey`'s. An `observed`
 //     figure's move is `changePercent` and a `stored` figure's is
 //     `sessionChangePercent` — different bases, deliberately different names —
@@ -160,6 +167,32 @@ export interface SectorRow {
   readonly absent: string | undefined;
   /** `arrivalKey`'s, unchanged. A snapshot is not an arrival. */
   readonly arrival: string | undefined;
+  /**
+   * **What this row's rank was measured against** — the identity of the basis,
+   * not a number and never drawn.
+   *
+   * It exists for one rule, and the rule is `arrivalKey`'s with one word
+   * changed: **a row moves only if it had a previous rank under the same
+   * basis.** So the first order a browser draws is drawn flat, and the opening
+   * bell — where all eleven figures stop being *that session's close-to-close
+   * move* and start being *today against yesterday's close* — is a **new list**
+   * rather than eleven simultaneous re-orders, which is the one moment the whole
+   * list legitimately does change position at once.
+   *
+   * **Per row rather than per list**, which is the more precise rule and the
+   * cheaper one: a single sector crossing from `stored` to `observed` mid-morning
+   * arrives at its new place without travelling, while the rows it displaced
+   * travel, because their own ranks are comparable either side of that frame. A
+   * digest over all eleven would have frozen the whole gesture on that frame.
+   *
+   * The value pairs the member with the session it measured from, because those
+   * are the two things that can change: `sectorRankingKey` reads
+   * `changePercent` on an `observed` figure and `sessionChangePercent` on a
+   * `stored` one, and those are different claims in the same units (see
+   * `WireStoredFigure.sessionChangePercent`). A row with no move has no basis
+   * and no rank.
+   */
+  readonly basis: string | undefined;
 }
 
 /** A move, formatted, with the direction and the raw percentage together. */
@@ -242,6 +275,7 @@ export function sectorPerformance(
         rank: move === undefined ? undefined : ranked,
         move,
         absent: move === undefined ? absenceOf(figure) : undefined,
+        basis: move === undefined ? undefined : basisOf(figure),
         arrival: arrivalKey(
           observations.get(figure.symbol),
           fromSnapshot.has(figure.symbol),
@@ -272,6 +306,71 @@ function moveOf(figure: WireOverviewFigure): SectorMove | undefined {
     direction: directionOf(percent),
     percent,
   };
+}
+
+/**
+ * The identity of the basis a row's rank was measured against — see
+ * {@link SectorRow.basis}.
+ *
+ * **It is derived from the same two members `moveOf` reads**, which is what
+ * makes it unable to disagree with the figure: the state decides which field
+ * carries the move, and the session decides what the move is measured from. A
+ * third thing to keep in step would be a third thing to get wrong.
+ */
+function basisOf(figure: WireOverviewFigure): string | undefined {
+  if (figure.state === "observed") {
+    // `changeBasis` is **omitted** on the same-session case, which is a real
+    // value rather than a gap (`LiveChange.basis`) — so the empty string here
+    // stands for *the previous close, unnamed* and is still a basis this row
+    // shares with every other row measuring from it.
+    return `observed:${figure.changeBasis ?? ""}`;
+  }
+  return figure.state === "stored" ? `stored:${figure.session}` : undefined;
+}
+
+/**
+ * The rows in a **held** order: the one the list already had, with the figures
+ * and the ranks that arrived since.
+ *
+ * ## The hold gates the movement, not the ranking
+ *
+ * `The order that changes.dc.html` §07's finding, and it is why this is four
+ * lines rather than a second mode: every row keeps the `rank` the comparator
+ * gave it and only its **position in this array** is pinned, so the printed
+ * ordinals go on updating while the list stands still. The disagreement between
+ * the ordinals and the order of the rows **is** the pending re-order — the same
+ * disagreement every other reader sees for 240 ms and does not notice.
+ *
+ * ## Why it is here and not in `RankedList`
+ *
+ * Because `RankedList` never sorts, and that is a property worth keeping: the
+ * order it is handed is the order it draws, so *two figures equal at displayed
+ * precision never swap* stays a property of one comparator in
+ * `packages/shared`. The hold is an order the **caller** chooses, and the
+ * movement follows from it with no code in the list at all — the FLIP sees a
+ * props order that did not change, so no row travels, and on release it sees
+ * every pending move in one frame.
+ *
+ * A symbol the pin does not know keeps its ranked position relative to the rows
+ * that follow it. That cannot happen from our own gateway, which sends the same
+ * eleven every frame; what it must not do is drop a row.
+ */
+export function rowsInPinnedOrder(
+  rows: readonly SectorRow[],
+  pinned: readonly string[] | undefined,
+): readonly SectorRow[] {
+  if (pinned === undefined) return rows;
+
+  const positions = new Map(pinned.map((symbol, index) => [symbol, index]));
+  const held = rows.map((row, index) => ({
+    row,
+    // A row the pin never saw sorts by where the comparator put it, offset past
+    // the pinned block so it lands after the rows whose position is known.
+    at: positions.get(row.symbol) ?? pinned.length + index,
+  }));
+
+  held.sort((left, right) => left.at - right.at);
+  return held.map(({ row }) => row);
 }
 
 /**

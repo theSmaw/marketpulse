@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { ErrorBoundary } from "../ErrorBoundary/ErrorBoundary.js";
 import { Panel } from "../Panel/Panel.js";
@@ -87,6 +87,8 @@ export function Region({
   name,
   filledBy,
   awaiting,
+  meta,
+  onReaderWithin,
   children,
 }: {
   /**
@@ -143,8 +145,115 @@ export function Region({
    * adding a second one is why this treatment costs one prop.
    */
   readonly awaiting?: string;
+  /**
+   * The right-hand end of the head **while the region holds content** — a
+   * count, a state, anything that qualifies the region rather than being in it.
+   *
+   * **Opened once, by Task 4.3.6, for two strings that share one slot.** The
+   * sector region wanted `11 · RANKED` and `ORDER HELD` there, and opening a
+   * shared component's head twice — once for a count and once for a badge —
+   * would be two changes for one idea. So the slot takes a node and the caller
+   * decides which of its strings is true, which is also what lets it reserve the
+   * wider of the two so nothing moves when one replaces the other.
+   *
+   * It is the same `Panel` slot {@link awaiting} renders into, and the two are
+   * mutually exclusive by construction rather than by rule: a tag naming the work
+   * that will fill a region shows only while the region is empty, and this shows
+   * only while it is not.
+   */
+  readonly meta?: ReactNode;
+  /**
+   * Called when a reader **enters or leaves this region** — a pointer over it,
+   * or focus anywhere inside it.
+   *
+   * `:hover` / `:focus-within` on the region's own box, reported as one boolean,
+   * because the two are one fact: *somebody is reading this*. The sector region
+   * holds its order while it is true (Task 4.3.6); everything else on this screen
+   * ignores it.
+   *
+   * **Scoped to the region and never to a row.** A row-scoped hold lets rows
+   * move out from under an **approaching** pointer, which is the failure the
+   * whole treatment exists to prevent — and the section is the region's only tab
+   * stop today, so it is also the only element at which a keyboard reader can be
+   * said to be here.
+   *
+   * **Absent by default, and then nothing is listened for**: six of the seven
+   * regions on the landing page have nothing to hold, and a region that reported
+   * this anyway would be four listeners and a state change per pointer crossing
+   * on every route.
+   */
+  readonly onReaderWithin?: (within: boolean) => void;
   readonly children?: ReactNode;
 }) {
+  const box = useRef<HTMLElement | null>(null);
+
+  /*
+   * **Native listeners rather than React's handlers, and the two halves
+   * combined here rather than upstream.**
+   *
+   * `pointerenter` / `pointerleave` do not bubble and `focusin` / `focusout`
+   * do, which is exactly the pair of semantics `:hover` and `:focus-within`
+   * have — so the four events answer the question without any filtering. The
+   * two booleans are plain locals in the effect's closure rather than state:
+   * nothing here renders differently, and the only consumer of the answer is
+   * the callback.
+   *
+   * The effect re-subscribes only when the callback's identity changes, which
+   * is why `useOrderHold` returns a stable one. A callback rebuilt per frame
+   * would tear the listeners down sixteen times a minute and lose the two
+   * locals with them.
+   */
+  useEffect(() => {
+    const element = box.current;
+    if (element === null || onReaderWithin === undefined) return;
+
+    let pointer = false;
+    let focus = false;
+    const report = () => {
+      onReaderWithin(pointer || focus);
+    };
+
+    const entered = () => {
+      pointer = true;
+      report();
+    };
+    const left = () => {
+      pointer = false;
+      report();
+    };
+    const focused = () => {
+      focus = true;
+      report();
+    };
+    const blurred = () => {
+      focus = false;
+      report();
+    };
+
+    element.addEventListener("pointerenter", entered);
+    element.addEventListener("pointerleave", left);
+    element.addEventListener("focusin", focused);
+    element.addEventListener("focusout", blurred);
+
+    return () => {
+      element.removeEventListener("pointerenter", entered);
+      element.removeEventListener("pointerleave", left);
+      element.removeEventListener("focusin", focused);
+      element.removeEventListener("focusout", blurred);
+
+      // **A region that stops listening stops holding.** Without this, a
+      // consumer unmounting mid-hover — a rollback replacing the frame, a route
+      // change — would leave a pin nobody can release, and the list would be
+      // frozen with no pointer anywhere near it.
+      onReaderWithin(false);
+    };
+  }, [onReaderWithin]);
+
+  const tag =
+    awaiting === undefined ? undefined : (
+      <span className={styles.awaiting}>{awaiting}</span>
+    );
+
   return (
     // `scrollable` is `Panel`'s name for the pair this component has carried
     // since Task 1.13.4: `overflow: auto` **and** `tabIndex={0}`, together,
@@ -153,6 +262,7 @@ export function Region({
     // the ones currently overflowing — which of the four scrolls is a function
     // of the viewport and of what Epics 4 to 7 put in them.
     <Panel
+      ref={box}
       className={className}
       scrollable
       title={name}
@@ -173,12 +283,14 @@ export function Region({
        * sector data, promising work that has already landed — and nothing in
        * this repository would say so, because prose on a screen is exactly the
        * kind of claim no check can read.
+       *
+       * **And the slot holds one thing at a time**, which is why the two are one
+       * expression rather than two props: an empty region tags the work that
+       * will fill it, and a filled one carries whatever qualifies its contents.
+       * There is no state in which both are true and none in which the head has
+       * to choose.
        */
-      meta={
-        awaiting === undefined || children !== undefined ? undefined : (
-          <span className={styles.awaiting}>{awaiting}</span>
-        )
-      }
+      meta={children === undefined ? tag : meta}
     >
       {filledBy === undefined ? null : (
         <p className={styles.filledBy}>{filledBy}</p>

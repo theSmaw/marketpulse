@@ -8,7 +8,10 @@ import type {
 
 import { sectorPerformance } from "../../market/index.js";
 import { Region } from "../Region/Region.js";
-import { SectorPerformance } from "./SectorPerformance.js";
+import {
+  SectorPerformance,
+  SectorPerformanceMeta,
+} from "./SectorPerformance.js";
 
 // The sector region, in the states the join can actually produce.
 //
@@ -135,7 +138,21 @@ const meta = {
   parameters: { layout: "padded" },
   args: { view: view(LIVE) },
   render: (args) => (
-    <Region name="Sector performance">
+    /*
+     * **The head slot is part of every state**, because it is where the count
+     * and `Order held` share one reserve — and a story that left it out would
+     * be reviewing the box without the thing that decides whether the head
+     * moves when the badge arrives.
+     */
+    <Region
+      name="Sector performance"
+      meta={
+        <SectorPerformanceMeta
+          view={args.view}
+          held={args.pinned !== undefined}
+        />
+      }
+    >
       <SectorPerformance {...args} />
     </Region>
   ),
@@ -290,6 +307,59 @@ export const HeavyDay: Story = {
           observed("XLK", 187.67, -4.88),
         ],
         5,
+      ),
+    ),
+  },
+};
+
+/**
+ * **The order held — a pointer is over the region, or focus is inside it.**
+ *
+ * The figures and the printed ranks are current; only the vertical order is the
+ * one the reader arrived to. So **nothing on screen is false**, and the
+ * disagreement between the ordinals and the order of the rows **is** the
+ * pending re-order — readable with no motion, in greyscale, and in a
+ * screenshot, which is the whole reason no fourth mark was needed.
+ *
+ * Read the ordinals down the column. Three are out of step and they are the
+ * three pending moves.
+ *
+ * Two things to check side by side against `RankedLive`: the head's slot is the
+ * same width with the badge in it as with the count, and the first row is at
+ * the same y. A badge that moved either would move all eleven rows on pointer
+ * enter, which is the one thing this treatment must not do.
+ */
+export const OrderHeld: Story = {
+  args: {
+    pinned: [
+      "XLK",
+      "XLC",
+      "XLY",
+      "XLI",
+      "XLF",
+      "XLV",
+      "XLB",
+      "XLP",
+      "XLU",
+      "XLRE",
+      "XLE",
+    ],
+    view: view(
+      frame(
+        [
+          observed("XLE", 96.11, 2.4),
+          observed("XLK", 187.67, 1.85),
+          observed("XLC", 112.6, 0.97),
+          observed("XLY", 112.96, 0.64),
+          observed("XLI", 172.37, 0.42),
+          observed("XLF", 57.25, 0.32),
+          observed("XLV", 148.22, 0.13),
+          observed("XLB", 50.95, 0.01),
+          observed("XLP", 83.38, -0.17),
+          observed("XLU", 91.04, -0.43),
+          observed("XLRE", 43.42, -0.86),
+        ],
+        2,
       ),
     ),
   },

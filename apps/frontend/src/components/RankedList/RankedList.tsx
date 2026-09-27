@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useLayoutEffect, useRef } from "react";
 
 import type { SectorLadderStep } from "@marketpulse/shared";
 
@@ -75,11 +75,11 @@ import styles from "./RankedList.module.css";
 //
 // ## What is deliberately not here
 //
-//   - **The re-order treatment** (Task 4.3.6). This component draws the anatomy
-//     that treatment moves — fixed origins, a printed ordinal, DOM order equal
-//     to visual order — and holds no previous order.
 //   - **`ORDER HELD`** (Task 4.3.6), which is a badge in the region's head
-//     rather than anything in this list.
+//     rather than anything in this list — and **the hold needs no code here at
+//     all**, which is the finding worth keeping. A held list is a props order
+//     that did not change, so the FLIP below does nothing and the release is one
+//     ordinary re-order carrying every pending move. One path, one commit.
 //   - **No fourth mark.** A mark saying *this row moved* is information a reader
 //     can only use by remembering where it was; the movement carries both
 //     positions and the ordinal is the persistent record.
@@ -90,9 +90,177 @@ import styles from "./RankedList.module.css";
 //   - **No hover affordance and no pointer cursor.** Nothing here navigates
 //     until Story 4.6, and a row that looks clickable and is not is worse than
 //     one that plainly is not.
+//
+// ## The rule Story 4.6 inherits, written down so it cannot be invented
+//
+// The day these rows become activatable, four things are already decided by the
+// treatment above and none of them is a preference (Task 4.3.6):
+//
+//   - **One tab stop for the region**, not eleven. The region's own box is the
+//     stop today, because `Panel` makes a `scrollable` section focusable, and
+//     eleven more would put a ranked list between a reader and the rest of the
+//     page.
+//   - **Rows are reached with the arrow keys**, inside the list.
+//   - **The roving `tabIndex` is keyed on the `symbol`, never on the index** —
+//     for the same reason the React key is. A re-order that moved focus by
+//     position moves it to a **different sector** while the reader's hands are
+//     still, and the hold does not save them: focus inside the region holds the
+//     order, so the dangerous case is the frame that lands as focus arrives.
+//   - **Activation resolves against identity, never position**, and anything
+//     carrying a description gets `aria-disabled` rather than `disabled` —
+//     a natively disabled control is not focusable, so a description hung off
+//     one is unreachable. That shipped for two tasks once already.
 
 /** The em dash a row with no rank shows. `UniverseTable`'s own constant. */
 const NOT_APPLICABLE = "—";
+
+/** What was on screen before this commit: the symbols drawn, and their bases. */
+interface DrawnOrder {
+  /** `symbol` → the index it was drawn at. */
+  readonly at: ReadonlyMap<string, number>;
+  /** `symbol` → {@link SectorRow.basis}, so a changed basis can refuse to move. */
+  readonly basis: ReadonlyMap<string, string | undefined>;
+}
+
+const drawnOrderOf = (rows: readonly SectorRow[]): DrawnOrder => ({
+  at: new Map(rows.map((row, index) => [row.symbol, index])),
+  basis: new Map(rows.map((row) => [row.symbol, row.basis])),
+});
+
+/**
+ * **The movement: measure, commit, invert, release** — `The order that
+ * changes.dc.html` §03, and the commit is React's.
+ *
+ * ## Four steps, and step 2 has already happened when this runs
+ *
+ * A layout effect runs after the DOM has been re-ordered and the ordinals have
+ * changed with it, which is the drawing's step 2 — *the moment the list becomes
+ * true*. So the order of the remaining three is inverted from the naive reading:
+ * the boxes are measured **after** the commit and the previous **index** is what
+ * is remembered, which is the same arithmetic from the other end and one that
+ * cannot hold a stale rectangle. Eleven `offsetTop` reads, **once per re-order**
+ * — a frame that changes no positions returns before touching the DOM at all.
+ *
+ * `offsetTop` rather than `getBoundingClientRect`: a rect **includes the
+ * transform**, so a second re-order arriving mid-travel would measure a box part
+ * way through its own gesture and invert the wrong distance. `offsetTop` is the
+ * layout position, which is the only thing the FLIP is about.
+ *
+ * ## The two events are separated in time, and it is one token used twice
+ *
+ * `--motion-duration-settle` of stillness, then `--motion-duration-settle` of
+ * travel — stated **once**, in `.row`'s `transition` shorthand, as the same
+ * token in the delay and the duration positions. Nothing here knows a number:
+ * a hard-coded delay would leave a reader who asked for less motion waiting
+ * 240 ms for nothing, because the stylesheet resolves both halves to `0ms`
+ * together and no JavaScript can see that it did.
+ *
+ * ## Nothing is ever left transformed, and there is no `transitionend`
+ *
+ * The inverse and its release are written in **one commit**: the transform is
+ * applied with the transition suppressed, one forced reflow makes that the
+ * before-change style, and then both inline declarations are **removed** — so
+ * the element's resting state is `transform: none` before this function
+ * returns, and what the transition animates is the removal. There is nothing
+ * left to clear, on a timer or on an event.
+ *
+ * That is the whole answer to the trap the drawing draws: a zero-duration
+ * transition may not fire `transitionend`, and a treatment that cleared its
+ * inverse there leaves a row sitting 81 px down on its neighbour's line **with
+ * every printed ordinal correct** — which is what would make it survive a
+ * review. Under `prefers-reduced-motion` the removal simply takes effect, and
+ * the row is in its new place with its new number.
+ *
+ * ## A first order is not a re-order
+ *
+ * `arrivalKey`'s shipped rule with one word changed: a row travels only if it
+ * had a previous position **under the same basis** (see
+ * {@link SectorRow.basis}). So a browser's first order is drawn flat, and the
+ * opening bell's wholesale basis change is a new list rather than eleven
+ * simultaneous re-orders.
+ *
+ * ## And it is not the mark
+ *
+ * A row can move without marking and mark without moving. The disc keeps firing
+ * off `arrivalKey` — the observation's own identity — because a disc on a row
+ * that only changed rank claims data that did not arrive, and **nothing below
+ * `pnpm e2e` separates the two**. This function never touches it.
+ */
+function useSettle(rows: readonly SectorRow[]) {
+  const list = useRef<HTMLOListElement | null>(null);
+
+  // Written and read **only inside the effect below**, which is the line the
+  // React Compiler's `refs` rule draws: a ref read during render is what it
+  // rejected in `SecuritySearch`, correctly.
+  const drawn = useRef<DrawnOrder | null>(null);
+
+  useLayoutEffect(() => {
+    const element = list.current;
+    if (element === null) return;
+
+    const previous = drawn.current;
+    drawn.current = drawnOrderOf(rows);
+
+    // The first order a browser draws is drawn flat.
+    if (previous === null) return;
+
+    // **The cheap comparison first, before any layout is read.** Most frames
+    // change no positions at all — a frame carries about 7% of the universe —
+    // and the whole cost of this treatment on those frames is this loop.
+    const moved = rows.filter((row, index) => {
+      const was = previous.at.get(row.symbol);
+      return (
+        was !== undefined &&
+        was !== index &&
+        previous.basis.get(row.symbol) === row.basis
+      );
+    });
+
+    if (moved.length === 0) return;
+
+    const items = [...element.children].filter(
+      (child): child is HTMLElement => child instanceof HTMLElement,
+    );
+
+    // Every slot's layout position, read once. The rows occupy the same set of
+    // positions before and after — only which row is in which slot changed — so
+    // one array answers both ends, and every offset comes out a multiple of the
+    // row pitch.
+    const tops = items.map((item) => item.offsetTop);
+
+    const inverted: HTMLElement[] = [];
+
+    for (const [index, row] of rows.entries()) {
+      if (!moved.includes(row)) continue;
+
+      const was = previous.at.get(row.symbol);
+      const from = was === undefined ? undefined : tops[was];
+      const to = tops[index];
+      const item = items[index];
+      if (from === undefined || to === undefined || item === undefined)
+        continue;
+      if (from === to) continue;
+
+      item.style.transition = "none";
+      item.style.transform = `translateY(${String(from - to)}px)`;
+      inverted.push(item);
+    }
+
+    if (inverted.length === 0) return;
+
+    // One forced reflow for the whole list, which is what makes the inverse the
+    // **before-change style** the transition runs from. Reading a layout
+    // property is the flush; the value is deliberately discarded.
+    void element.offsetHeight;
+
+    for (const item of inverted) {
+      item.style.transition = "";
+      item.style.transform = "";
+    }
+  }, [rows]);
+
+  return list;
+}
 
 /**
  * The bar, and the scale it is drawn against — **one prop, so a scale for no
@@ -142,6 +310,7 @@ export const RankedList = memo(function RankedList({
   name,
 }: RankedListProps) {
   const signed = bar.kind === "signed";
+  const settle = useSettle(rows);
 
   return (
     <div className={cx(styles.plot, signed ? undefined : styles.plain)}>
@@ -169,7 +338,7 @@ export const RankedList = memo(function RankedList({
         </div>
       )}
 
-      <ol className={cx(styles.list)} aria-label={name}>
+      <ol className={cx(styles.list)} aria-label={name} ref={settle}>
         {rows.map((row) => (
           <Row
             key={row.symbol}
