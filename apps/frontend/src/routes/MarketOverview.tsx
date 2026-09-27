@@ -8,6 +8,7 @@ import { Region } from "../components/Region/Region.js";
 import {
   SectorPerformance,
   SectorPerformanceMeta,
+  SectorPerformanceReservation,
 } from "../components/SectorPerformance/SectorPerformance.js";
 import { useOrderHold } from "../components/SectorPerformance/use-order-hold.js";
 import { sectorPerformance, type LiveFeedView } from "../market/index.js";
@@ -233,18 +234,30 @@ export function MarketOverview({
          * computed over* described the **aggregate** option, and the owner chose
          * the ETF's own move, so this region has no denominator at all.
          *
-         * **`sectors === undefined` is a state rather than an error.** The read
-         * side keeps `sectors` and `sectorLadderStep` optional because a
-         * rollback pins a previous image, so a new bundle can legitimately meet
-         * an old gateway that sends no such section — and that draws as the
-         * region's own reserved panel, which is the vocabulary this screen
-         * already has for *nothing here yet*.
+         * **`sectors === undefined` is TWO states rather than one, and Task
+         * 4.3.7 tells them apart.** The read side keeps `sectors` and
+         * `sectorLadderStep` optional because a rollback pins a previous image,
+         * so a new bundle can legitimately meet an old gateway that sends no such
+         * section. That gateway will never send one, so the honest answer is the
+         * region's own reserved panel and its sentence — *nothing here yet*, the
+         * vocabulary this screen already has.
+         *
+         * **No frame at all is the other state, and it lasts a few hundred
+         * milliseconds on every load.** The same sentence there would be a
+         * promise the next frame breaks, and the panel it sits in is **103 px at
+         * 768 and 121 at 390** against 461 and 437 filled — so the landing page
+         * stepped ~316 px on a phone a moment after it painted. So that state
+         * holds the region's real geometry, invisibly
+         * (`SectorPerformanceReservation`), and says nothing at all. The
+         * discriminator is the **frame** rather than the section: `overview`
+         * present with no readable sectors is the rollback; `overview` absent is
+         * the first paint.
          */}
         <Region
           className={styles.areaSectors}
           name="Sector performance"
           filledBy={
-            sectors === undefined
+            sectors === undefined && overview !== undefined
               ? "Eleven sector benchmark ETFs, ranked by today’s move."
               : undefined
           }
@@ -262,7 +275,11 @@ export function MarketOverview({
             )
           }
         >
-          {sectors === undefined ? undefined : (
+          {sectors === undefined ? (
+            overview === undefined ? (
+              <SectorPerformanceReservation />
+            ) : undefined
+          ) : (
             <SectorPerformance view={sectors} pinned={hold.pinned} />
           )}
         </Region>

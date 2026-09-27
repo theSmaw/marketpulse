@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useRef } from "react";
+import { memo, useId, useLayoutEffect, useRef } from "react";
 
 import type { SectorLadderStep } from "@marketpulse/shared";
 
@@ -113,6 +113,31 @@ import styles from "./RankedList.module.css";
 
 /** The em dash a row with no rank shows. `UniverseTable`'s own constant. */
 const NOT_APPLICABLE = "—";
+
+/**
+ * **The trailing group's heading, and the reason it is a heading rather than a
+ * twelfth row** (Task 4.3.7).
+ *
+ * Rows with no rankable figure are a **separate list with its own heading, not
+ * the tail of the `<ol>`**. Positions 10 and 11 of an ordered list are a claim
+ * made by *markup* rather than by prose: a screen reader announces
+ * *"item 10 of 11"* over a row this product is explicitly refusing to rank, and
+ * no amount of drawn em dash in the rank column reaches that announcement.
+ * ADR 0029's rule is that a claim about data requires data, and an ordinal is a
+ * claim.
+ *
+ * **The words are `Ranked`'s own negation**, which is why nothing is invented
+ * here: the region head's slot says `8 of 11 ranked` and this says `Not ranked`,
+ * so a reader meets one vocabulary twice rather than two words for one idea. It
+ * says nothing about *why* — the reason differs per row and the row's own figure
+ * column carries it (`None stored`, `No stored close`, a session's close) —
+ * and it names no feed, no venue and no connection word, which have one home
+ * two hundred pixels below.
+ */
+const NOT_RANKED = "Not ranked";
+
+/** The reserved heading's content — room and nothing else. */
+const NBSP = "\u00a0";
 
 /** What was on screen before this commit: the symbols drawn, and their bases. */
 interface DrawnOrder {
@@ -310,7 +335,44 @@ export const RankedList = memo(function RankedList({
   name,
 }: RankedListProps) {
   const signed = bar.kind === "signed";
-  const settle = useSettle(rows);
+
+  /*
+   * **The split, and it is a partition rather than a filter with a fallback.**
+   *
+   * A row has a rank or it has not; `sector-ranking.ts`'s absent-key rule
+   * guarantees the ranked ones come first, so `ranked` is a prefix and `quiet`
+   * is the tail — nothing is re-ordered here and no figure is read, which is
+   * what keeps *two figures equal at displayed precision never swap* a property
+   * of the one comparator in `packages/shared`.
+   */
+  const ranked = rows.filter((row) => row.rank !== undefined);
+  const quiet = rows.filter((row) => row.rank === undefined);
+
+  /*
+   * **The settle sees the ranked rows only, and that is a correctness
+   * requirement rather than a tidy-up.** The FLIP indexes into
+   * `element.children`, so the array it measures must be exactly the `<ol>`'s
+   * children — handed all eleven while the list holds eight, every `to`
+   * position would be read off the wrong row and rows would travel to places
+   * they were never in. A row crossing from quiet to ranked cannot animate
+   * either way, because its `basis` was `undefined` and is now not.
+   */
+  const settle = useSettle(ranked);
+
+  /*
+   * **Whether a bar is drawn anywhere, which is what licenses the axis and the
+   * ladder** (ADR 0029, and Task 4.3.7's done-when 2 one clause wider than the
+   * figure column).
+   *
+   * A printed `±1%` ladder under eleven rows that drew no bar is a scale for a
+   * quantity nothing on screen shows — the fully-formed record about zero rows.
+   * On CI that is the permanent state. So the axis is not drawn and the ladder's
+   * ticks are not printed, while the ladder's **room** is kept, because the room
+   * is what keeps this region one height in every state.
+   */
+  const anyBar = signed && ranked.length > 0;
+
+  const quietHeadingId = useId();
 
   return (
     <div className={cx(styles.plot, signed ? undefined : styles.plain)}>
@@ -330,7 +392,7 @@ export const RankedList = memo(function RankedList({
        * measured, the viewport top came back −400 px. The ladder below is
        * therefore an ordinary block.
        */}
-      {signed && (
+      {anyBar && (
         <div className={cx(styles.rules)} aria-hidden="true">
           <span className={cx(styles.gridline, styles.gridlineLow)} />
           <span className={cx(styles.gridline, styles.gridlineHigh)} />
@@ -338,22 +400,33 @@ export const RankedList = memo(function RankedList({
         </div>
       )}
 
-      <ol className={cx(styles.list)} aria-label={name} ref={settle}>
-        {rows.map((row) => (
-          <Row
-            key={row.symbol}
-            symbol={row.symbol}
-            label={row.label}
-            rank={row.rank}
-            change={row.move?.change}
-            direction={row.move?.direction}
-            percent={row.move?.percent}
-            absent={row.absent}
-            arrival={row.arrival}
-            scale={bar.scale}
-          />
-        ))}
-      </ol>
+      {/*
+       * **No `<ol>` at all when nothing is ranked**, which is what makes CI's
+       * permanent state coherent rather than a ranking of nothing: 518
+       * securities and zero bars means all eleven are `unknown` there for ever,
+       * and an ordered list of eleven unranked rows is the false impression with
+       * a role attribute on it. The eleven rows still render — the **set** is
+       * known from the universe and does not depend on any observation, which is
+       * the sharpest difference between this region and a movers list.
+       */}
+      {ranked.length === 0 ? undefined : (
+        <ol className={cx(styles.list)} aria-label={name} ref={settle}>
+          {ranked.map((row) => (
+            <Row
+              key={row.symbol}
+              symbol={row.symbol}
+              label={row.label}
+              rank={row.rank}
+              change={row.move?.change}
+              direction={row.move?.direction}
+              percent={row.move?.percent}
+              absent={row.absent}
+              arrival={row.arrival}
+              scale={bar.scale}
+            />
+          ))}
+        </ol>
+      )}
 
       {/*
        * **The printed ladder, which AC 2 requires rather than offers**: a
@@ -361,26 +434,109 @@ export const RankedList = memo(function RankedList({
        * it the bar means nothing outside this one screen — and with the
        * frame-max normalisation the drawing rejected, a ±0.1% day and a ±5% day
        * are the same picture.
+       *
+       * **The room is kept and the ticks are not printed when no bar was
+       * drawn.** Both halves matter: a scale for a quantity nothing shows is
+       * ADR 0029's false impression, and a region whose height depends on
+       * whether the feed has spoken is the one thing this drawing's geometry was
+       * settled to prevent.
        */}
       {signed && (
-        <div className={cx(styles.ladder)} aria-hidden="true">
-          {ladderTicks(bar.scale).map((tick) =>
-            tick.label === undefined ? undefined : (
-              <span
-                key={tick.at}
-                className={cx(
-                  styles.ladderTick,
-                  tick.at === 25 || tick.at === 75
-                    ? styles.ladderMid
-                    : undefined,
-                )}
-                style={{ left: `${String(tick.at)}%` }}
-              >
-                {tick.label}
-              </span>
-            ),
+        <div
+          className={cx(
+            styles.ladder,
+            anyBar ? undefined : styles.ladderTrailing,
           )}
+          aria-hidden="true"
+        >
+          {!anyBar
+            ? undefined
+            : ladderTicks(bar.scale).map((tick) =>
+                tick.label === undefined ? undefined : (
+                  <span
+                    key={tick.at}
+                    className={cx(
+                      styles.ladderTick,
+                      tick.at === 25 || tick.at === 75
+                        ? styles.ladderMid
+                        : undefined,
+                    )}
+                    style={{ left: `${String(tick.at)}%` }}
+                  >
+                    {tick.label}
+                  </span>
+                ),
+              )}
         </div>
+      )}
+
+      {/*
+       * **The trailing quiet group: its own heading, its own list, below the
+       * rule.**
+       *
+       * ## The heading's room is reserved in every state, and that is measured
+       *
+       * The drawing has no heading when every row is ranked and one when a row
+       * is not — so a live page would grow this region the first time a sector
+       * went quiet, and shrink it again when the feed caught up. At 1440 and
+       * 1024 the region's height is the grid's `1fr` share and nothing would
+       * move; at 390 the row is content-sized and the region **is** its content,
+       * so the whole lower page would step 20 px on a figure arriving. The
+       * reserve is `.rail`'s idiom and the region head's slot's, one row down,
+       * and it is what keeps *the region is the same height with eleven figures
+       * and with none* an assertion about this component rather than about which
+       * state a runner happened to reach.
+       *
+       * ## `aria-labelledby` rather than a repeated `aria-label`
+       *
+       * The heading is on screen and a listener gets the same words from the
+       * same string — one fact, one home. `useId` because two ranked lists on
+       * one page (sectors and, from Story 4.5, movers) would otherwise share an
+       * id, which is `Panel`'s own reason for it.
+       */}
+      {quiet.length === 0 ? (
+        <p className={cx(styles.quietHeadReserved)} aria-hidden="true">
+          {NBSP}
+        </p>
+      ) : (
+        <h3
+          className={cx(
+            styles.quietHead,
+            ranked.length === 0 ? styles.quietHeadAlone : undefined,
+          )}
+          id={quietHeadingId}
+        >
+          {NOT_RANKED}
+        </h3>
+      )}
+
+      {quiet.length === 0 ? undefined : (
+        <ul className={cx(styles.quiet)} aria-labelledby={quietHeadingId}>
+          {quiet.map((row) => (
+            <Row
+              key={row.symbol}
+              symbol={row.symbol}
+              label={row.label}
+              rank={undefined}
+              change={row.move?.change}
+              direction={row.move?.direction}
+              percent={row.move?.percent}
+              absent={row.absent}
+              arrival={row.arrival}
+              /*
+               * **No bar cell at all in this group, which is what gives the
+               * words their room.** A keyless row has nothing to draw there —
+               * `Bar` already returned `null` for every one of them — and the
+               * empty cell was costing the absence words the only slack on the
+               * row: `2026-09-25 close` needs 82 px and the figure column is
+               * 78, so it ellipsised to `2026-09-25 cl…` at 1440, 1024 and 768
+               * and fitted only at 390, where that column takes the slack.
+               * Found by looking at the picture; every test was green.
+               */
+              scale={undefined}
+            />
+          ))}
+        </ul>
       )}
     </div>
   );

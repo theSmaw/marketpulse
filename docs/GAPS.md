@@ -1269,3 +1269,86 @@ movement down.
 `LIVE-REHEARSAL.md`'s next sitting for the reading — with the adjacent-rank gap
 distribution per minute, which is Task 4.3.8's and is the number the _whole list
 does not re-arrange_ half of the argument actually rests on.
+
+## Nothing forbids a SECOND comparator over a figure's move, and the obvious clause is red against shipped code
+
+**Added 2026-09-27 by Task 4.3.7**, which was asked to write the guard and did
+not, because the version it was asked for fails on correct code and the versions
+that do not are worse than nothing.
+
+**The claim:** the order eleven sector benchmarks are reported in is decided in
+exactly one place — `compareSectorFigures` in
+`packages/shared/src/sector-ranking.ts` — and _two figures equal at displayed
+precision never swap_ is a property of that comparator. A second comparator over
+the same figures, anywhere, silently un-holds it.
+
+**What is covered and by what.** The ranking itself is server-side and
+`one-producer-of-the-overview-aggregate` bounds where the aggregate is built;
+`one-pairing-of-a-sector-and-its-benchmark` forbids a second ticker→sector table;
+`sector-performance.ts`'s own tests assert that `rowsInPinnedOrder` reads no
+figure. **None of those sees a second sort keyed on a move.**
+
+**Why no invariant was added.** Task 4.3.7's file proposes _no shipped file both
+imports the figure type and calls `.sort(`/`.toSorted(` outside the one comparator
+module_. That is **red today**: `apps/frontend/src/market/sector-performance.ts`
+imports `WireOverviewFigure` and calls `held.sort(…)` — Task 4.3.6's hold, which
+sorts by a **position a reader pinned** and reads no figure at all. The two
+repairs available are both bad in a way this repository has already paid for:
+exempting that file by name exempts **the most likely site of the defect**, and
+matching the comparator's own body inside a window after `.sort(` is a pattern
+that rots into matching nothing, which looks exactly like a pass. Measured, a
+file-level clause over `.sort(` plus a move-field name also flags
+`UniverseTable.tsx`, where `changePercent` is an imported **function** rather than
+the wire field.
+
+**Owner: the first story that ranks anything server-side other than the eleven** —
+Story 4.5's movers by name. It writes the second caller, so it is the change that
+can say what the two have in common and key a clause on that rather than on this
+one's incidentals.
+
+**Re-measure:**
+`grep -rlE "\.(sort|toSorted)\(" apps/backend/src apps/frontend/src packages/shared/src --include=*.ts --include=*.tsx | xargs grep -lE "changePercent|sessionChangePercent|sectorRankingKey"`
+— today that is `sector-ranking.ts` (the home), `sector-performance.ts` (the
+hold) and `UniverseTable.tsx` (a different `changePercent`). A fourth file is the
+thing to read.
+
+## A second browser-suite flake source, and this one is a test sitting at two-thirds of its own timeout
+
+**Added 2026-09-28 by Task 4.3.7.** `security-gap-fill.spec.ts` has been the known
+flake at **~12% per execution** since 2026-09-26. There is a second, and it has a
+different mechanism worth naming separately, because the cure is different too.
+
+**`e2e/specs/securities-route.spec.ts:855` — _a query that matches nothing …_ —
+failed a full-suite run with `Test timeout of 30000ms exceeded`.** Scoped and
+re-run `--repeat-each=6`: **6 passed**, at **19.8 / 19.9 / 19.9 / 20.0 / 11.3 /
+11.6 seconds** against a **30 s** ceiling.
+
+**So it is not flaky in the usual sense — it is a test that takes two-thirds of its
+timeout when the machine is quiet, and has nothing left when the machine is not.**
+Under full-suite load the same work crosses 30 s. That is a headroom problem rather
+than a race, and it will get worse every time the suite grows: **the failure arrives
+in whichever spec happens to be running when the runner is busiest**, which is why
+it reads as random.
+
+**Note the bimodality in the six samples** — four at ~20 s and two at ~11.5 s — which
+says the run itself has two paths, and nobody has established which. That is where
+a repair would start.
+
+**Why it is not repaired here.** Task 4.3.7 renders no part of that route, and a
+timeout ceiling is a suite-wide decision rather than a spec's: raising it hides the
+headroom problem, and lowering the work needs somebody who owns that spec's
+subject. Attributing it to a change with no mechanism is the failure this file
+already warns about twice.
+
+**Owner: the first task that touches `securities-route.spec.ts` or the browser
+suite's timeouts** — and, ahead of that, anyone diagnosing a full-suite failure
+should check this entry **before** attributing one to their branch. Two known
+sources now compound: at ~12% and at a load-dependent ceiling, **a clean full run is
+not the common case**, and `CLAUDE.md`'s rule stands — count failures per
+**execution**, and run the branch commit that contains no code before calling
+anything a regression.
+
+**Re-measure:** `pnpm e2e securities-route.spec.ts -g "matches nothing"
+--repeat-each=6` on an idle machine, reading the **durations** rather than the
+verdict, then again with a second heavy job running. The number that matters is the
+margin against 30,000 ms, not the pass.

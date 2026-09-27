@@ -2401,6 +2401,72 @@ export const BREAKS = [
     expect: "does not scroll them",
   },
   {
+    name: "a-figure-lands-on-the-wrong-row",
+    proves:
+      "The permutation with the MAP INNOCENT \u2014 the residual half, and " +
+      "the one no grep can reach. `SECTOR_ETFS` is right, the derived " +
+      "inverse is right, it is read correctly, and the renderer pairs a row " +
+      "with its neighbour's move: rows 5 and 6 exchange figures and every " +
+      "other row is untouched. Produced under the break: `5 / Financials / " +
+      "XLF / \u25b2 up / +0.12%` \u2014 a real figure for a real sector, on " +
+      "the wrong row, with the printed ordinals still ascending and the " +
+      "figures no longer descending.",
+    // **This is the break the new assertion actually owes, and the one beside
+    // it is not.** `two-sectors-swap-their-benchmarks` goes red against the
+    // spec Task 4.3.5 shipped, which already asserted the label beside the
+    // ticker; what 4.3.7 added is the **figure** in the triple, and this is
+    // the defect that separates them. Recorded because it was produced:
+    // against the 4.3.5 spec this substitution passes **3 of 3**, green, with
+    // two sectors wearing each other's moves.
+    //
+    // Rows 5 and 6 rather than 1 and 2 on purpose: the old spec asserted the
+    // first and last rows' figures by hand, so a transposition at either end
+    // was already covered and a break there would prove less than it looked.
+    file: "apps/frontend/src/market/sector-performance.ts",
+    find: "    rows: figures.map((figure) => {\n      const move = moveOf(figure);",
+    replace:
+      "    rows: figures.map((figure, index) => {\n" +
+      "      const move = moveOf(\n" +
+      "        (index === 4 ? figures[5] : index === 5 ? figures[4] : figure) ??\n" +
+      "          figure,\n" +
+      "      );",
+    command: ["pnpm", "e2e", "overview-sector-region.spec.ts", "--anyway"],
+    expect: "OWN label, ticker and figure",
+  },
+  {
+    name: "two-sectors-swap-their-benchmarks",
+    proves:
+      "The permutation \u2014 the one defect class where every individual " +
+      "number on the screen is correct. One transposition in the sector " +
+      "\u2192 benchmark map and XLF's figure carries the Health Care label: " +
+      "it compiles, it lints, it satisfies every arithmetic guard, it sums " +
+      "correctly, it appears in no state grid and it survives greyscale. " +
+      "Produced under the break: `5 / Health Care / XLF / \u25b2 up / " +
+      "+0.31%` \u2014 the rank, the ticker and the figure all XLF's own, and " +
+      "the word wrong. `one-pairing-of-a-sector-and-its-benchmark` cannot " +
+      "see it, because there is still exactly one table and it is still read " +
+      "correctly; only a browser spec that asserts the LABEL beside the " +
+      "TICKER beside the FIGURE, over eleven distinguishable figures, can.",
+    // **The defect somebody else will write.** Nobody hand-writes an inverse
+    // any more \u2014 the invariant refuses one \u2014 so what is left is a
+    // transposition in the one table, which is what a twelfth sector, a fund
+    // change or an alphabetical tidy-up produces. The substitution is a swap
+    // rather than an edit for that reason: one wrong key would leave a ticker
+    // unmapped and the row would label itself with its own symbol, which is a
+    // visibly different failure and an easier one.
+    //
+    // **The assertion this proves is only as good as its figures.** A shared
+    // or repeated value passes against any permutation, so the spec asserts
+    // eleven distinct figures BEFORE it asserts the triple; if that
+    // distinctness assertion is ever weakened this break goes green with the
+    // map still transposed.
+    file: "packages/shared/src/security.ts",
+    find: '  health_care: toTicker("XLV"),\n  financials: toTicker("XLF"),',
+    replace: '  health_care: toTicker("XLF"),\n  financials: toTicker("XLV"),',
+    command: ["pnpm", "e2e", "overview-sector-region.spec.ts", "--anyway"],
+    expect: "OWN label, ticker and figure",
+  },
+  {
     name: "the-settle-becomes-a-delay-plus-a-duration",
     proves:
       "The sector list's two events \u2014 a figure changing and a position " +

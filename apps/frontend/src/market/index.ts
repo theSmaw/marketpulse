@@ -263,6 +263,7 @@ export type {
 // region along: the pure half is exported and the component that draws it lives
 // under `src/components/`.
 export {
+  RESERVED_SECTORS,
   SECTOR_CLAIM,
   rowsInPinnedOrder,
   sectorPerformance,
