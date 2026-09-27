@@ -1,0 +1,65 @@
+/*
+ * The sector region's footer.
+ *
+ * `The ranked list.dc.html` §01's claim line, and one deliberate departure from
+ * it that is measured rather than argued — see `.claim`'s reserve below.
+ */
+
+/*
+ * The claim, at the micro size in sentence case.
+ *
+ * **The two micro properties are SPELLED rather than composed**, which is a
+ * defect `MarketProxyStrip` repaired on 2026-09-26 and this file inherits the
+ * lesson from: `composes: microLabel` followed by `text-transform: none` reads
+ * like an override and is not one — `composes` concatenates class names, so
+ * which rule wins is decided by stylesheet order, `type.module.css` lands last,
+ * and the uppercase would win. It was invisible there for a day because every
+ * string those classes had ever held was digits and punctuation; this line is a
+ * sentence, so it would have shown immediately — which is luck rather than a
+ * reason to compose.
+ *
+ * **Two lines are reserved at every width, and the drawing reserves two only at
+ * 390.** The departure is taken on a mechanism rather than a taste: the scale
+ * clause's own width is a function of the **rung** (`bars to ±1%` against `bars
+ * to ±10%`), and the rung steps outward during a session. A one-line reserve
+ * therefore makes the region's height depend on how heavy the day is — the one
+ * thing done-when 4 asks it not to do — and it puts the wrap at a character
+ * count somebody has to re-measure every time the sentence changes. 16 px buys a
+ * height that does not depend on which sentence is true or which rung is in
+ * force, which is `.rail`'s idiom and the proxy strip's own `<37rem` rule
+ * applied where the same hazard exists.
+ */
+.claim {
+  margin: var(--space-12) 0 0;
+  min-height: calc(2 * var(--line-height-micro));
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+  /*
+   * `balance` for the reason the strip's qualifier takes it: left to itself a
+   * browser breaks a long line wherever the last opportunity falls, and the
+   * clauses here are separated by an em dash and a `·` that both read as break
+   * opportunities. It is a hint rather than a guarantee; without it the line
+   * wraps worse and the layout is unchanged, because the height is reserved.
+   */
+  text-wrap: balance;
+}
+
+/*
+ * The scale clause — **dropped exactly where the bar is**.
+ *
+ * ADR 0029: a clause renders only when its own data is present, and a scale for
+ * a bar nobody drew is a false impression one clause wide. Below 37rem
+ * `RankedList` has no bar, no rule overlay and no ladder, so there is nothing
+ * for this to describe. The threshold is stated here as well as there because
+ * the two must agree and neither can read the other.
+ */
+.scale {
+  white-space: nowrap;
+}
+
+@media (width < 37rem) {
+  .scale {
+    display: none;
+  }
+}

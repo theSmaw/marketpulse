@@ -1,0 +1,166 @@
+import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
+import {
+  CONNECTION_DESCRIPTIONS,
+  FEED_STATUSES,
+  MARKET_FEED_DESCRIPTIONS,
+} from "@marketpulse/shared";
+
+import type { SectorRow } from "../../market/index.js";
+import { RankedList } from "./RankedList.js";
+
+// What a test here can and cannot see, because this component's whole subject
+// is a layout.
+//
+// **No stylesheet is applied in this environment.** jsdom computes no boxes,
+// resolves no grid tracks and renders a 144 px label column identically to a
+// `max-content` one — so every claim about the tracks, the 8 px mark slot, the
+// bar's length and the zero anchor is `pnpm probe`'s and `pnpm e2e`'s, and none
+// of it is asserted below.
+//
+// What is left is what a **screen reader** is handed and what the **structure**
+// commits to: the list semantics, DOM order equal to visual order, the printed
+// ordinal, the ticker that is the only defence against a permutation, and the
+// absence of any connection word.
+
+const row = (
+  symbol: string,
+  label: string,
+  rank: number | undefined,
+  percent: number | undefined,
+): SectorRow =>
+  percent === undefined
+    ? {
+        symbol,
+        label,
+        rank: undefined,
+        move: undefined,
+        absent: "None stored",
+        arrival: undefined,
+      }
+    : {
+        symbol,
+        label,
+        rank,
+        move: {
+          change: `${percent > 0 ? "+" : "−"}${Math.abs(percent).toFixed(2)}%`,
+          direction:
+            percent > 0 ? "positive" : percent < 0 ? "negative" : "unchanged",
+          percent,
+        },
+        absent: undefined,
+        arrival: undefined,
+      };
+
+const THREE: readonly SectorRow[] = [
+  row("XLK", "Technology", 1, 1.84),
+  row("XLB", "Materials", 2, 0),
+  row("XLE", "Energy", 3, -1.27),
+];
+
+const draw = (rows: readonly SectorRow[] = THREE) =>
+  render(
+    <RankedList
+      rows={rows}
+      bar={{ kind: "signed", scale: 2 }}
+      name="Sectors"
+    />,
+  );
+
+describe("RankedList", () => {
+  it("is a real list, so a listener is told how many items and which one", () => {
+    // The rank channel at zero cost — *"list, 3 items, item 2"* from the
+    // platform rather than from an announcement, which is one of the three
+    // reasons this region has no live region at all.
+    draw();
+
+    const list = screen.getByRole("list", { name: "Sectors" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it("puts the rows in DOM order equal to the order it was given", () => {
+    // **A correctness requirement rather than a preference.** Re-ordering with
+    // CSS `order` or `grid-row` would divorce the accessibility tree from the
+    // screen and hand a screen reader a *different ranking* — invisible to axe,
+    // to jsdom and to a screenshot. Task 4.3.6 inherits this.
+    draw();
+
+    const items = screen.getAllByRole("listitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      expect.stringContaining("Technology") as unknown as string,
+      expect.stringContaining("Materials") as unknown as string,
+      expect.stringContaining("Energy") as unknown as string,
+    ]);
+  });
+
+  it("prints the rank and the ticker on every row", () => {
+    // The ordinal is the one channel that survives greyscale, reduced motion, a
+    // screenshot and a reader who looked away; the ticker is the only thing on
+    // the row that can contradict a **permutation** — eleven correct figures
+    // against eleven wrong labels satisfies every arithmetic guard and is
+    // invisible in greyscale.
+    draw();
+
+    const first = screen.getAllByRole("listitem")[0];
+    expect(first?.textContent).toContain("1");
+    expect(first?.textContent).toContain("XLK");
+  });
+
+  it("hands the direction to a listener in words, and never as a glyph", () => {
+    // `PriceChange`'s, not this list's — a second speller is a second thing to
+    // keep in step with a palette that differs by 1.04:1 in greyscale.
+    draw();
+
+    expect(screen.getAllByRole("listitem")[0]?.textContent).toContain("up ");
+    expect(screen.getAllByRole("listitem")[2]?.textContent).toContain("down ");
+  });
+
+  it("says words rather than a number where there is no move, and draws no bar", () => {
+    // The bar cell is **empty** rather than zero-length: a zero-length band is a
+    // claim of no movement, and telling that apart from *we have heard nothing*
+    // is the whole job of the anchor tick beside it.
+    const { container } = draw([row("XLB", "Materials", undefined, undefined)]);
+
+    expect(screen.getByText("None stored")).toBeTruthy();
+    expect(container.querySelectorAll("i")).toHaveLength(0);
+  });
+
+  it("draws the anchor tick and nothing else for a reading of exactly zero", () => {
+    const { container } = draw([row("XLB", "Materials", 2, 0)]);
+
+    const drawn = container.querySelectorAll("i");
+    expect(drawn).toHaveLength(1);
+    expect(drawn[0]?.getAttribute("style")).toBeNull();
+  });
+
+  it("draws no bar cell at all when the bar is off", () => {
+    // Story 4.5's use. The track is absent rather than empty — a track reserved
+    // for a picture that is never drawn is 654 px of nothing.
+    const { container } = render(
+      <RankedList rows={THREE} bar={{ kind: "none" }} name="Gainers" />,
+    );
+
+    expect(container.querySelectorAll("i")).toHaveLength(0);
+    expect(screen.getByRole("list", { name: "Gainers" })).toBeTruthy();
+  });
+
+  it("names no feed, no venue and no connection word, in any state", () => {
+    // Story 3.10's one-home rule. `one-home-for-the-feed-words` guards the
+    // literals in the source; this guards the **rendered** output, which is the
+    // half a grep cannot see.
+    const { container } = draw([
+      ...THREE,
+      row("XLV", "Health Care", undefined, undefined),
+    ]);
+
+    const text = container.textContent;
+    for (const status of FEED_STATUSES) {
+      expect(text.toLowerCase()).not.toContain(
+        CONNECTION_DESCRIPTIONS[status].label.toLowerCase(),
+      );
+    }
+    expect(text).not.toContain(MARKET_FEED_DESCRIPTIONS.iex.label);
+    expect(text).not.toContain(MARKET_FEED_DESCRIPTIONS.sip.label);
+  });
+});

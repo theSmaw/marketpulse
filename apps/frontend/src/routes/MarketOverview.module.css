@@ -108,15 +108,37 @@
    * sector region takes its height *out of* the movers row, shrinking it to
    * 134. `minmax(min-content, 1fr)` keeps §9's equal rows: measured, every box
    * on this page at all four widths is **unchanged to the pixel** by this
-   * change, and eleven rows at 13/18 take the pair to **383** together (Task
-   * 4.3.2 drew the region and the figure is **433** — 383 was a bare list, and
-   * the printed ladder AC 2 requires and the benchmark claim line add 24 and 28;
-   * the consequence below is unchanged, only the number) — which
+   * change, and eleven rows at 13/18 take the pair to **461** together — which
    * pre-pays `Movers`' reserved height for free, so Story 4.5 filling it moves
    * nothing. The `min-content` is load-bearing and `auto` will not do: the
    * automatic minimum size of a scroll container is zero, so `1fr` alone
    * (which is `minmax(auto, 1fr)`) sizes the track to its share and hands the
    * overflow back to the scroller, which is the defect above.
+   *
+   * **The figure is 461, MEASURED, since Task 4.3.5 drew the region — and the
+   * two estimates before it are left here because the gap is instructive.**
+   * 4.3.1 measured **383** with a throwaway that rendered eleven `<li>` and
+   * nothing else. 4.3.2 drew the region properly and predicted **433**, adding
+   * AC 2's printed ladder (24) and the benchmark claim line (28). The shipped
+   * figure is `2 + 47 + 16 + 16 + 296 + 24 + 44 + 16 = 461` at 1440, 1024 and
+   * 768, and **437 at 390** where there is no bar and therefore no ladder.
+   *
+   * The 28 px the drawing did not know about: the header is **47** rather than
+   * 51 (51 included an `awaiting` tag that no longer renders), `Region` adds a
+   * **16 px `.content` margin-top** that no drawing models and
+   * `MarketProxyStrip` pays too, and the footer reserves **two** lines at every
+   * width rather than one. That last is a decision the owner took: the scale
+   * clause's width is a function of the **rung** (`bars to ±1%` against
+   * `bars to ±10%`) and the rung steps **during a session**, so a one-line
+   * reserve would make this region's height depend on how heavy the day is —
+   * which is the one movement this story designed out.
+   *
+   * **What the shared ratio bought, measured rather than predicted:** filling
+   * this region raised `Movers` **and** `Market breadth` from 265 to 461 at
+   * 1440 and 1024, because the second column's areas sit on the same rows. So
+   * Story 4.5 filling `Movers` and Story 4.4 filling `Market breadth` now move
+   * **nothing at all** at those widths. At 768 and 390 the grid is
+   * `grid-template-rows: none`, so neighbours are auto-sized and unchanged.
    */
   grid-template-rows:
     calc((82vh - 2 * var(--space-24)) * 7 / 30)
