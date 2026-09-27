@@ -38,7 +38,7 @@ the screen they sit on has to exist before any of them can be incremental.
 | --- | --------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------ |
 | 4.1 | [The Decisions This Screen Cannot Be Built Without, & the Overview Shell](story-01-the-decisions-and-the-overview-shell/STORY.md) | Epic 3     | **Yes — the landing page exists**    |
 | 4.2 | [The Aggregate Seam, & the Index Proxies That Move](story-02-the-aggregate-seam-and-the-index-proxies/STORY.md)                   | 4.1        | **Yes — four figures, moving**       |
-| 4.3 | [Sector Performance, & the Benchmark That Is Not a Membership](story-03-sector-performance/STORY.md)                              | 4.2        | **Yes — eleven sectors, ranked**     |
+| 4.3 | [Sector Performance, & the Benchmark That Is Not an Average](story-03-sector-performance/STORY.md)                                | 4.2        | **Yes — eleven sectors, ranked**     |
 | 4.4 | [Breadth, & the Denominator on Screen](story-04-breadth-and-the-denominator-on-screen/STORY.md)                                   | 4.3        | **Yes — how broad today is**         |
 | 4.5 | [The Movers, & the First Surface That Ranks by a Live Value](story-05-the-movers-and-the-first-ranked-surface/STORY.md)           | 4.4        | **Yes — who is actually moving**     |
 | 4.6 | [Selection From the Overview](story-06-selection-from-the-overview/STORY.md)                                                      | 4.5        | **Yes — the screen becomes a start** |

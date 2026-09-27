@@ -1,6 +1,6 @@
-# Story 4.3 — Sector Performance, & the Benchmark That Is Not a Membership
+# Story 4.3 — Sector Performance, & the Benchmark That Is Not an Average
 
-**Status:** Not started
+**Status:** **In progress — 2026-09-27.** Decomposed into eight tasks; four decisions taken at Gate 1, and a fifth in 4.3.1 — **Task 4.1.4's reserved-equals-filled rule is retired.** 4.3.1 complete.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.2
 **Epic scope covered:** sector performance
@@ -257,3 +257,141 @@ reading, and `sentAt`'s third constraint is the precedent.
 from the fund's legal `name` (`Invesco QQQ Trust, Series 1`) rather than a second
 home for the same one — which is the judgement the owner took on 2026-09-27 and
 the thing this product otherwise refuses.
+
+## Decomposed 2026-09-27 — eight tasks, and the title changed with the premise
+
+**Renamed from _"The Benchmark That Is Not a Membership"_.** That premise was
+falsified — see the strike-through above — and the caveat that survives is
+**weighting**: XLK is cap-weighted, and the technology names we track counted
+equal-weighted are a different number, permanently, and for reasons that have
+nothing to do with membership. The directory name never carried the subtitle, so
+no path or cross-reference remap was needed.
+
+### The four decisions the owner took at Gate 1
+
+1. **`.regions` becomes `min-height: 82vh` with `grid-template-rows: 19vh auto
+auto`.** Measured: the sector region is **265 px**, leaving ~**180 px** of
+   body for eleven rows — **16.4 px a row**, below this product's own dense
+   leading — and `Region` passes `scrollable` unconditionally, so the default
+   behaviour was a silent scroller hiding the weakest sector. Row 1 keeps a
+   resolved box for Epic 6's canvas. **This reverses part of Task 4.1.3**, whose
+   `height` was argued against `min-height` explicitly — but that argument is
+   about the topology's WebGL box, and its closing clause (_"§9's proportions
+   disappear the moment one region holds more than another"_) describes the
+   correct behaviour rather than a fault. It also fixes `Movers`, which has the
+   identical box and needs ten rows plus two headings.
+2. **Outside a session a stored figure carries the last completed session's
+   close-to-close move**, labelled as such. `WireStoredFigure` carries no change
+   today, so AC 1's _"ranked … from the store outside one"_ was **unsatisfiable**
+   — and the market is shut for roughly 80% of the week, which is when this
+   region is the only surface answering `EPIC.md`'s exit criterion.
+3. **The order is held while a pointer is over the list or focus is inside it**,
+   labelled `ORDER HELD`, with the figures and the rank numbers **still
+   updating**. This is narrower than the _freeze the ranking while hovered_
+   option rejected at Task 4.1.1: nothing on screen becomes false, and the
+   mismatch between printed ranks and vertical order **is** the pending
+   re-order, readable with no motion and in greyscale.
+4. **The title.**
+
+### Taken from the record without a question, and recorded so they are not re-opened
+
+- **The rank is printed as a number.** The keystone: it converts position from
+  something encoded only by y-coordinate into a **stated fact** that survives
+  `prefers-reduced-motion`, greyscale, a screenshot and a reader who looked
+  away — and it is what makes this list structurally different from the 518-row
+  table Task 3.6.3 froze, which prints no ordinal and where a move is therefore
+  unrecoverable.
+- **The ticker is on the row.** The owner's whole argument for the ETF row is
+  that it is checkable by eye against a public quote, and `Technology +0.42%` is
+  checkable against nothing. It is also the only defence against a
+  **permutation** — eleven correct figures against eleven wrong labels, which
+  satisfies every arithmetic guard, passes every state grid and is invisible in
+  greyscale.
+- **Two figures that read the same on screen never swap.** Eleven sector ETFs
+  cluster tightly; two sectors 0.003% apart would trade places on every frame,
+  ~16 times a minute, both reading `+0.41%` throughout. Keyed on display
+  precision rather than a chosen threshold, and it buys a checkable invariant:
+  **the displayed order never contradicts the displayed figures.**
+- **`overview.sectors` is a new key.** Never appended to `figures` —
+  `marketProxyStrip` folds over that whole array in **five** places, so eleven
+  sector ETFs would join the proxy strip, move `newest`, and silently break
+  `sharedBasis` and `sharedClosingSession`, with no compile error and no test
+  failure. And never renamed, because `readOverview` requires `figures` and a
+  stale tab would decode the frame as `unreadable`, re-rendering the application
+  on every frame.
+- **The label column is fixed at 144 px, never `max-content`** — otherwise a
+  re-order moves all eleven bars' origins, invisibly to everything below a
+  browser. `Communication Services` measures 143.75 px at 13 px in the text
+  face.
+- **No fourth mark.** A mark saying _this row moved_ is information a reader can
+  only use by remembering where it was. The **movement** carries both positions;
+  the **ordinal** is the persistent record; under reduced motion the row simply
+  is in its new place with its new number, and nothing is lost.
+- **The bar is adopted, and the reason is not "eleven instead of four".** Story
+  4.2 refused it because four indices are not proportions of one shared
+  quantity. Eleven sector ETFs all carry today's percent change on the same
+  basis over the same interval, so **the ratio of two bars is the ratio of two
+  moves** — a true statement. Central zero anchor, a printed stepped ladder
+  (`±1 / ±2 / ±5 / ±10%`, smallest step containing all eleven, stepping outward
+  only within a session), **no** frame-max normalisation, and **no bar at 390**,
+  where 25 px each side of zero is a tick rather than a bar.
+- **Bar off for movers** — a top-N over 518 has a far wider dynamic range and
+  the top five are near the top of it by construction, so a bar over them
+  carries almost no information. A real difference, not a taste.
+- **No `classification_retrieved_at`.** No security's curated `sector` field
+  enters the figure. Reversal trigger, as a condition: **the first sector figure
+  on this screen computed over securities' `sector` field.**
+- **No live region**, on **three** reasons rather than four: `/` has **zero**
+  today (counted — all three `role="status"` regions are on the security
+  routes), so `FRONTEND-STATE.md` §7's region-count reason does not apply here,
+  and the strongest surviving reason is different — the rank is a printed number
+  inside a real `<ol>`, so a listener gets _"list, 11 items, item 3 of 11"_ from
+  the platform.
+- **Never re-order with CSS `order` or `grid-row`.** That divorces the
+  accessibility tree from the screen and hands a screen reader a **different
+  ranking** — invisible to axe, to jsdom and to a screenshot. DOM order equals
+  visual order is a correctness requirement here, not a preference.
+- **A first order is not a re-order.** `arrivalKey`'s shipped rule with one word
+  changed: a row is marked only if it had a previous rank **under the same
+  basis**, so the first order a browser draws is drawn flat and the opening
+  bell's wholesale basis change is a new list rather than eleven simultaneous
+  re-orders.
+- **Epic 14's trigger does NOT fire.** Its condition is _per-row markup at
+  universe scale_ and eleven is not that. Recorded in writing because somebody
+  will claim it fired.
+
+## Amended by Task 4.3.1 — 2026-09-27: a fifth owner decision, and the Gate 1 arithmetic was 10 px out
+
+**Task 4.1.4's rule is retired, by the owner, and its replacement is a rule about
+WHO measures rather than about what a panel reserves.** The rule was _nothing on
+the screen moves when `Sector performance` fills_, written three weeks ago against
+a claim that the region is _"a tall hatched panel today"_. **Measured, that claim
+was false when it was written**: the region is 265 px at 1440 and 1024, 103 at 768
+and **121 at 390** — shorter than four of its six siblings at 390, where 121 px is
+a header plus a wrapped sentence rather than a held band. Filled with eleven rows
+it is **383 px**.
+
+Honouring the rule means a 383 px floor on `Sector performance` **and** `Movers`
+now, which puts a **975 px grid with five hatched panels** on the live landing
+page for the three tasks before the list exists, and sets the sector row's height
+from a placeholder typed to take a measurement. The owner took retirement:
+
+> **A reserved region's floor is set by the change that DRAWS its content, and
+> that change measures and reports the movement before it merges.**
+
+**Reversal trigger** — a condition rather than a story: _the first reserved region
+whose filling would move a figure or a sentence a reader is reading, rather than
+another reserved panel._ At all four widths on this screen, everything that moves
+when sectors fills is hatch or the source note, which is the whole reason the
+retirement is safe here. The obligation now sits in **Task 4.3.5's** file, in
+words it can act on.
+
+**And the Gate 1 height was wrong by 10 px.** `grid-template-rows: 19vh auto auto`
+was taken on the arithmetic `0.7/3 × 82vh`, but the `fr` rows never divided
+`82vh` — they divided `82vh` minus **two gaps**, which is 161 px at a 900 px
+viewport against `19vh`'s 172. The shipped row is
+`calc((82vh - 2 * var(--space-24)) * 7 / 30)`, exact at every viewport height
+rather than only at the one it was derived from, and `auto auto` was replaced with
+`repeat(2, minmax(min-content, 1fr))` because `auto` sizes the two rows
+independently (274 / 256 today, and a filled sectors row takes its height **out
+of** movers). **The whole layout probe is byte-identical at all four widths.**
