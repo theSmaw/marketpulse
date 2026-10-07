@@ -1610,3 +1610,56 @@ endpoint, and the ladder is `aria-hidden`.
 **Owner: the same person with the same screen reader.** Re-measure: open `/` with a
 reader, navigate the `Market breadth` region by heading and by element, and confirm
 the sentence is reached and the set is not heard as a stutter.
+
+## At ≥861 the landing route's focus order is deliberately NOT its visual order, and nothing can check a decision
+
+**Added 2026-10-07 by Task 4.4.7**, which moved the landing route's six regions
+into the **≤860 order** — `breadth, sectors, movers, topology, unusual,
+investigations` — and changed no CSS.
+
+**Why there is a gap at all.** Each region names its own `grid-area`, so **source
+order and drawn order are two independent facts** and source order can express
+exactly one of the three layouts. It expresses the one where order _is_ the
+hierarchy: at ≤860 the stylesheet's own comment is that _order is the only
+hierarchy left_, and `overview-region-order.spec.ts` now asserts DOM order against
+geometric top-to-bottom order at **768**, with the break
+`the-narrow-grid-is-re-laid-without-the-dom`.
+
+**What that leaves standing.** At 1440 and 1024 the grid reads `topology unusual /
+sectors breadth / movers investigations`, so a keyboard reader's six tab stops —
+`Region` passes `scrollable` unconditionally and `Panel` renders
+`tabIndex={scrollable ? 0 : undefined}` — run `breadth → sectors → movers →
+topology → unusual → investigations` **across** a column-major screen. The
+argument for accepting it is that in two columns the eye is not performing a
+sequence, so there is no reading order there to disagree with; the argument
+against is WCAG 1.3.2 and 2.4.3, which do not distinguish by viewport. **Nothing
+mechanical can adjudicate that, and no assertion should try**: a spec asserting
+agreement at 1440 would assert the opposite of the shipped decision, and one
+asserting disagreement would pin a cost rather than a claim. The decision, its
+argument and its reversal trigger are in `MarketOverview.tsx` beside the regions.
+
+**Three things this leaves to a person.**
+
+- Whether the ≥861 order is experienced as a defect by somebody who tabs the
+  screen at 1440. The product's own answer is _no, because there is no sequence
+  there_, and that is an argument rather than an observation.
+- Whether the ≤860 sequence is **meaningful** rather than merely matching. The
+  spec can see agreement; only a listener can hear whether six region names in
+  that order explain the screen. This is the standing screen-reader item's
+  territory and it is **not** a seventh entry there — it is about an order, not
+  about an announcement.
+- Whether `Market proxies`, which sits outside the grid and is first in every
+  order, still reads as the screen's opening at ≤860 now that `Market breadth`
+  follows it rather than `Market topology`.
+
+**Reversal trigger for the decision** (not for this entry): the first region on
+this screen whose content a reader must traverse in order **at a wide width** — a
+numbered sequence, a stepper, a form, or two regions where one's figure is read
+against the other's. At that point the wide layout acquires a reading order and
+the choice is owed a re-take.
+
+**Re-measure:** `pnpm probe / --widths 1440,1024,768,390` and read each region's
+`@x,y` against the source order in `MarketOverview.tsx`. At 768 and 390 the two
+orders must agree — which `overview-region-order.spec.ts` holds for 768 and
+**nothing holds for 390** — and at 1440 and 1024 they must disagree, which is the
+accepted cost rather than a finding.

@@ -300,8 +300,17 @@ clause to that one.
 Every one of the six reordered regions is a `reserved` placeholder with no
 figure and no focusable content — there is not one tab stop inside `.regions` at
 any width — so a keyboard user cannot land on the disagreement and a listener
-gets seven coherent region names either way. `Market proxies` sits outside
-`.regions` and is first in both orders, so Story 4.2 did not change it.
+gets seven coherent region names either way.
+
+> **FALSE, and corrected below — see _And this story's own premise was false_
+> (2026-09-27).** There are **six** tab stops inside `.regions` at every width,
+> and breadth was the **fifth** rather than the sixth. The paragraph above is
+> left standing as the record of Story 4.2's review; the mismatch was shipped
+> and live from Task 4.1.3, and **Task 4.4.7 resolved it on 2026-10-07** by
+> moving the DOM into the ≤860 order.
+
+`Market proxies` sits outside `.regions` and is first in both orders, so Story
+4.2 did not change it.
 
 **`Market breadth` is the region the reorder promotes to second visually and
 demotes to sixth in the DOM, and it is this story.** `Sector performance` is
