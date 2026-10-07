@@ -369,3 +369,59 @@ strip, its four cells and its qualifier were **byte-identical in position and
 size**. That is the claim the retirement rests on. **If filling this region moves a
 figure or a sentence a reader is reading, stop and raise it with the owner** rather
 than recording it.
+
+## Reassessed 2026-10-07 after Story 4.3 shipped — two of your criteria have mechanisms already, and one defect class is waiting for you
+
+**You are the next story that adds a region, and Story 4.3 found what that costs.**
+
+### A region can stay silent for ever, and yours will unless you stop it
+
+Task 4.3.8's state grid **produced** a case nobody had drawn: a socket answered with
+the gateway's connect snapshot and **no overview frame ever** — an unreachable
+aggregate, a half-rolled deploy, a proxy holding the socket open. `Sector
+performance` rendered a titled, **empty ~440 px box indefinitely**, byte-identical
+at 600 ms and at 12 s, while `Market proxies` 200 px above it said `No prices yet.`
+**Two regions, one screen, one state: one explained itself and one did not.**
+
+**The repair is already built and you reuse it rather than inventing a second
+floor**: `useWaited(waiting)` from `MarketProxyStrip/use-waited.js`, at
+`SAY_NOTHING_ARRIVED_AFTER_MS` (2,000 ms, against a first frame measured at
+174–277 ms, so the ordinary load never reaches it). The sentence sits in room the
+reservation **already holds** — `position: absolute` over the hatched rows — so
+**nothing moves when it appears**.
+
+**And the words are yours to choose rather than copy.** Sectors says `No sector
+moves yet.` and not the strip's `No prices yet.`, deliberately: a price is a price,
+and a sector's figure is a **move**. Breadth is a **count**, which is a third thing
+again — say what breadth has none of, not what the strip has none of.
+
+This is `docs/GAPS.md`'s standing entry — _nothing checks that a named region says
+something when its subject is missing_ — whose owner is **the next story that adds a
+region**. That is you.
+
+### Two criteria have mechanisms that already exist
+
+**AC 3** — _one computation, not three, with a test that fails if a second one
+appears_. **The test exists**: `one-producer-of-the-overview-aggregate` permits
+**exactly one** call site of `buildMarketOverview` and is break-verified. Story 4.3
+added eleven sectors through that **same** call, splitting the returned entries **by
+membership rather than by a slice** — a slice would silently shift when a fifth
+index proxy appeared. **Do the same**, and do not widen the invariant's bound: its
+break is the weak 1→2 signal and would pass silently under a wider one.
+
+**AC 4** — _with the market shut the region is honest rather than empty_. Story 4.3
+met the same criterion with a **new wire field** rather than a frontend fallback:
+`WireStoredFigure.sessionChangePercent`, the last completed session's close-to-close
+move, **omitted rather than zero** when there is no prior close. If breadth needs
+the equivalent, it is a wire change and belongs in the join — **and note there is no
+previous-session DATE on `SecurityLastClose`**, only a number, which is why the
+field name had to carry the meaning.
+
+### The geometry you inherit, corrected
+
+Your region's reserved height is **486 px**, not the 461 an earlier amendment in
+this file says — Task 4.3.7's quiet-group heading added 25 px, and `Market breadth`
+rose with it because rows 2 and 3 share one `fr` ratio. **So filling this region
+still moves nothing at 1440 and 1024.** At 768 and 390 the grid is
+`grid-template-rows: none` and this region is 103 px and 121 px, so filling it there
+**will** grow the page — yours to measure and report.
