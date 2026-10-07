@@ -109,3 +109,44 @@ invariant `each-overview-section-names-its-own-set`, over the _shape_ of the spl
    `use-live-feed` keys its resubscribe on `symbols.join(",")`. **Do not add 518
    symbols to it**: breadth ships counts, not figures, and the page must keep
    asking for fifteen.
+
+## Amended by Task 4.4.3 — 2026-10-07: `breadth` is REQUIRED on the frame, and the owner took it for a reason that lands on the region
+
+**Gate 1 left it open and the drawing closed it.** `overview.breadth` is a
+**required** key, not an optional one — which is the opposite of `sectors` and
+`sectorLadderStep`, so the wire is deliberately not internally uniform here and the
+docblock must say why.
+
+**The reason is a state that otherwise cannot be reached by any floor.** If
+`breadth` were optional, a frame can arrive carrying figures and no breadth —
+at which point `waiting` is **false**, so `useWaited`'s 2,000 ms silence floor
+**never fires**, and the region sits reserved and **silent for ever**. That is
+precisely the defect Task 4.3.8 produced against `Sector performance` and repaired.
+**Required makes the state not exist** rather than needing a sentence nobody has
+written.
+
+**What is still optional, and must stay so:** the **whole `overview.breadth`
+section is absent** on a frame from a **previous image** — the deploy rolls the
+backend first but a rollback pins an old one, so a new bundle can meet a gateway
+that never heard of breadth. **That is the no-section path and it already has its
+floor**, because the browser treats it as the reserved state. So:
+
+- **required on the producer** — every frame this backend builds carries breadth;
+- **tolerated as absent on the read side** — a frame without it decodes, and the
+  region draws reserved rather than zeros.
+
+**Do not express "required" by sending zeros.** A `breadth` section carrying
+`advancing: 0, declining: 0, unchanged: 0` is a **claim** — _nothing in the market
+went up_ — and it is the `json-schema` trap arriving on a schemaless transport: a
+plausible, readable, wrong figure. The honest encoding of _we counted and heard
+nothing_ is `measured: 0` with the three counts also zero **and the basis saying
+which question was asked**; the honest encoding of _this gateway does not send
+breadth_ is the section's absence.
+
+### And the clause placement is settled, which bears on what you encode
+
+**The window travels on the frame** (`windowMinutes`), because the sentence is
+drawn in the browser and the count is computed on the server — **two spellings of
+5 is the shape this repository refuses**, and a rollback can put them two values
+apart. The **region's footer** carries the definition of _heard from_;
+`OverviewSourceNote` keeps `computedAt` and **gains no breadth clause**.

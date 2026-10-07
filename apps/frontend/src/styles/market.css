@@ -68,18 +68,42 @@
    * belonging to either: it reads as a highlighter against a cool grey, and its
    * 5.26:1 was always the thinnest margin in this file.
    *
-   * `#046a38` is an emerald from the same family as the refresh reference's
+   * ~~`#046a38` is an emerald from the same family as the refresh reference's
    * `#005b2e`, and it measures 6.28 on the page ground, 6.72 on white and 6.00
-   * on sunken. Chosen with margin rather than at the first value that scrapes
-   * past 4.5, and deliberately close to the negative red's 6.03 so that neither
+   * on sunken.~~ Chosen with margin rather than at the first value that scrapes
+   * past 4.5, and deliberately close to the negative red so that neither
    * direction of a price move shouts louder than the other.
+   *
+   * **AMENDED 2026-10-07 by Task 4.4.3 — every figure in the struck sentence
+   * describes a colour this file does not declare.** The argued value was
+   * `#046a38`; the **declared** value is `#0f7b50`, which is the canvas's
+   * `--mp-up` and is on every staged page. So this reads as **ADR 0026 working**
+   * — the canvas is the source of truth and the token followed it — **with the
+   * comment left unswept**, which is this repository's own note that *recording
+   * a correction and propagating it are two obligations*.
+   *
+   * **Re-measured 2026-10-07, and nothing on screen is wrong — the document
+   * was**: `#0f7b50` is **5.29 on white and 4.77 on sunken** (derived
+   * independently and agreeing to 0.01 with the drawing's figure). It clears
+   * 4.5 everywhere it is used and clears the **3:1** that a band carrying
+   * magnitude must meet. What it does **not** have is the 6.0+ margin the
+   * sentence above claims, and the pairing argument survives on the real
+   * numbers: the negative red measures **5.80 / 5.23**, so the two are within
+   * ~0.5 of each other rather than 0.25.
+   *
+   * **The figure to cite is the measured one.** Anything sizing a decision
+   * against 6.28 or 6.72 is sizing it against a colour that was never shipped.
    */
   --palette-green-strong: #0f7b50;
 
-  /* Negative red: 6.03 on the page ground, 6.46 on white, 5.76 on sunken. It
-     passes everywhere it is used, and it is paired with the green above rather
-     than picked beside it — the two are within 0.25 of each other, so a rise
-     and a fall carry the same visual weight.
+  /* ~~Negative red: 6.03 on the page ground, 6.46 on white, 5.76 on sunken.~~
+     **Amended 2026-10-07 by Task 4.4.3 — same defect as the green above, and
+     found in the same pass.** Re-measured, `#c5221f` is **5.80 on white and
+     5.23 on sunken**. It still passes everywhere it is used and still clears
+     3:1 as a band. It is paired with the green above rather than picked beside
+     it — on the real figures the two are within **~0.5** of each other rather
+     than 0.25, so a rise and a fall still carry comparable visual weight and
+     the argument is unchanged by the correction.
 
      It is **not** `--brand-ink`, which is a hair away from it in hue and lives
      in `brand.css` under a rule that keeps it off every datum. See that file:
