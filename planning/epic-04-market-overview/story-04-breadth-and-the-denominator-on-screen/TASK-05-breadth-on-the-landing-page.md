@@ -58,3 +58,43 @@ A headline figure above them.
 4. The region's height is identical across its states at each width, measured
 5. `pnpm probe` deltas recorded per width; the proxy strip byte-identical in
    position and size; `pnpm e2e` green
+
+## Amended by Task 4.4.4 — 2026-10-07: the frame is ready, the geometry figure in STORY.md is wrong, and four specs now need a line
+
+**`overview.breadth` exists**, required on the producer and tolerated as absent on
+the read side. What you render, and the four things that would otherwise cost you a
+round trip:
+
+**1. `Market breadth` is 139 px at 390, not the 121 `STORY.md` records.** Measured
+2026-10-07 with `pnpm probe /`. **Measure your delta from 139.** At 1440 and 1024 it
+is 486, and the drawing fits in 486 **exactly** — 378 px of content against 389
+available, with the 11 px of slack in one declared gap — so **nothing moves at those
+two widths**. At 768 and 390 the rows are untied and filling **will** grow the page;
+that is yours to measure and report.
+
+**2. Four furnished-frame browser specs now send overview frames with NO breadth**,
+which is the legitimate _previous image_ state. **Add breadth to them, or your
+region draws reserved inside those specs** and you will read it as a defect. They
+are the ones that build an `overview` object by hand.
+
+**3. The shut-market member names ONE session and excludes stragglers.** A security
+the nightly backfill missed sits outside both the count and `measured`, so
+`measured` can legitimately be **less than 503 with the market shut** — and that is
+the honest reading rather than a fault. Do not draw it as one.
+
+**4. With an empty store the section reads `measured: 0` beside the date asked
+about** — on a Saturday, a Saturday. **This is CI's state on every run**, so it is
+the state your browser spec will meet. `measured: 0` is what says we hold nothing;
+the date says which day was asked about. **You may choose to draw the sentence
+rather than the date in that state** — that is a rendering decision and it is yours.
+
+### And what the frame does NOT carry
+
+**No percentages.** Counts only, by Gate 1 — three independently-rounded
+percentages sum to 99 or 101. If you draw a percentage it is derived in **one**
+place from `measured`, and it never replaces a count.
+
+**No instant.** `computedAt` is already on the frame and already drawn by
+`OverviewSourceNote` under `Computed`. **The region prints no instant** — the
+window travels as `windowMinutes` and belongs in the region's **footer**, which is
+the Gate 1 resolution of the two documents that read as though they disagreed.

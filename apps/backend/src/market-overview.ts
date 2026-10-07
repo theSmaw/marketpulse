@@ -14,6 +14,7 @@ import type {
   SectorLadderStep,
   SecurityLastClose,
   Ticker,
+  WireMarketBreadth,
   WireMarketOverview,
   WireOverviewFigure,
 } from "@marketpulse/shared";
@@ -110,6 +111,36 @@ export type MarketOverviewEntry =
       /** Per-observation provenance. Invariant 6 is displayed, never implied. */
       readonly source: BarSource;
       readonly change: LiveChange;
+      /**
+       * **The close the change was measured against, when we hold one**
+       * (Task 4.4.4) — the same `SecurityLastClose` the `stored` member
+       * carries, on the member that has an observation as well.
+       *
+       * ## Why it is here rather than looked up again by whoever needs it
+       *
+       * Breadth's `session` basis is a close-to-close count, and **the market
+       * is shut for roughly 80% of the week** — during which this process is
+       * still holding the session's observations, so most of the 503 are
+       * `live` and not `stored`. A count over the `stored` entries alone would
+       * therefore be taken over whatever happens to have gone quiet, and it
+       * would be *well-formed, small and silent* rather than visibly broken:
+       * the exact shape of defect this story exists to prevent.
+       *
+       * The alternative was a sibling aggregate reading `closesAsOf` a second
+       * time, which is a second home for a lookup this join has already done —
+       * and the second home is the one that stops being filtered.
+       *
+       * **Absent, not `null`**, when there is no stored close for the symbol.
+       * `exactOptionalPropertyTypes` is on, so that is a different type from
+       * present-and-`undefined`, and the builder spreads it in a branch.
+       *
+       * **It does not reach the wire.** `figureOf` builds the `observed`
+       * figure field by field and never spreads an entry — ADR 0031 — so
+       * adding a field here adds nothing to a browser's view. A
+       * `previousClose` is *the answer to measure from what*, not a price
+       * anybody should render.
+       */
+      readonly close?: SecurityLastClose;
     }
   | {
       /**
@@ -226,6 +257,10 @@ export function buildMarketOverview(
         bar: observed.bar,
         source: observed.source,
         change: changeFromClose(observed.bar, close),
+        // Two branches rather than one spread of a possibly-`undefined`
+        // value: `exactOptionalPropertyTypes` is on and *absent* is what the
+        // field means. See the member's own note for why it is carried at all.
+        ...(close === undefined ? {} : { close }),
       };
     }
 
@@ -301,6 +336,23 @@ export interface WireMarketOverviewInputs {
     ranked: readonly WireOverviewFigure[],
   ) => SectorLadderStep;
 
+  /**
+   * **How broad the move is — and it is NOT optional** (Task 4.4.4).
+   *
+   * `WireMarketOverview.breadth` is optional and this is not, which is the
+   * whole mechanism: the **read** side has to tolerate a frame from a previous
+   * image, and the **producer** must not be able to build one without a count.
+   * A frame carrying figures and no breadth leaves the region's `waiting`
+   * false, so its 2,000 ms silence floor never fires and the panel sits
+   * reserved and silent for ever — Task 4.3.8's produced defect, made
+   * unreachable by a missing property being a compile error here.
+   *
+   * The counts are `market-breadth.ts`'. The serialiser may still drop the
+   * section, for a non-finite count, and that is ADR 0031 holding its guarantee
+   * where the encoding happens.
+   */
+  readonly breadth: WireMarketBreadth;
+
   /** The instant the aggregate was true — the caller's, never a clock here. */
   readonly asOf: Date;
 }
@@ -308,7 +360,7 @@ export interface WireMarketOverviewInputs {
 export function toWireMarketOverview(
   inputs: WireMarketOverviewInputs,
 ): WireMarketOverview {
-  const { proxies, sectors, sectorLadderStep, asOf } = inputs;
+  const { proxies, sectors, sectorLadderStep, breadth, asOf } = inputs;
 
   // First-seen order, and only for figures that are actually **observed** —
   // a stored close's tape is not this frame's provenance, and claiming it
@@ -335,6 +387,7 @@ export function toWireMarketOverview(
     computedAt: asOf.toISOString(),
     feeds,
     figures,
+    breadth,
     // Two branches rather than one spread of a possibly-`undefined` value:
     // `exactOptionalPropertyTypes` is on, *absent* and *present as `undefined`*
     // are different types, and only the first is what this wire means.

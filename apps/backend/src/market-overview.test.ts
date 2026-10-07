@@ -12,6 +12,7 @@ import type {
   MarketDate,
   SecurityLastClose,
   Ticker,
+  WireMarketBreadth,
   WireMarketOverview,
 } from "@marketpulse/shared";
 import type { CurrentObservation } from "./current-market-state.js";
@@ -65,6 +66,24 @@ function storedClose(
 }
 
 const ASOF = new Date("2026-09-14T17:00:00.000Z");
+
+/**
+ * A breadth section, so these tests can say nothing about one.
+ *
+ * `WireMarketOverviewInputs.breadth` is **required** — see its note — so every
+ * frame built here has to carry a count. It is a constant rather than a
+ * computed one because this file is about the join and the sections, and
+ * `market-breadth.test.ts` is about the count. A literal here cannot drift
+ * from the producer, because no assertion below reads it.
+ */
+const BREADTH: WireMarketBreadth = {
+  basis: "observed",
+  advancing: 0,
+  declining: 0,
+  unchanged: 0,
+  measured: 0,
+  windowMinutes: 5,
+};
 
 const closesOf = (
   ...records: readonly SecurityLastClose[]
@@ -249,7 +268,7 @@ describe("toWireMarketOverview", () => {
   const overview = (
     entries: readonly MarketOverviewEntry[],
   ): WireMarketOverview =>
-    toWireMarketOverview({ proxies: entries, asOf: ASOF });
+    toWireMarketOverview({ proxies: entries, breadth: BREADTH, asOf: ASOF });
 
   it("carries NEITHER of the things the figures were derived from", () => {
     // **ADR 0031's obligation, asserted where it is at risk.** The backend
@@ -453,6 +472,7 @@ describe("the sector section", () => {
         ]),
         closesOf(storedClose(XLK, { close: 200, session: "2026-09-11" })),
       ),
+      breadth: BREADTH,
       asOf: ASOF,
     });
 
@@ -476,7 +496,12 @@ describe("the sector section", () => {
       ),
     );
 
-    const wire = toWireMarketOverview({ proxies: [], sectors, asOf: ASOF });
+    const wire = toWireMarketOverview({
+      proxies: [],
+      sectors,
+      breadth: BREADTH,
+      asOf: ASOF,
+    });
 
     // XLV +3%, XLK +0.5%, and XLF heard-of-never last — keyless, not flat.
     expect(wire.sectors?.map((figure) => figure.symbol)).toEqual([
@@ -487,7 +512,11 @@ describe("the sector section", () => {
   });
 
   it("is absent — not empty — when the caller passes none", () => {
-    const wire = toWireMarketOverview({ proxies: [], asOf: ASOF });
+    const wire = toWireMarketOverview({
+      proxies: [],
+      breadth: BREADTH,
+      asOf: ASOF,
+    });
     expect(wire).not.toHaveProperty("sectors");
     expect(wire).not.toHaveProperty("sectorLadderStep");
   });
@@ -508,6 +537,7 @@ describe("the sector section", () => {
         ]),
         closesOf(),
       ),
+      breadth: BREADTH,
       asOf: ASOF,
     });
 
@@ -524,6 +554,7 @@ describe("the sector section", () => {
         expect(ranked.map((figure) => figure.symbol)).toEqual(["XLK"]);
         return 5;
       },
+      breadth: BREADTH,
       asOf: ASOF,
     });
 
@@ -546,6 +577,7 @@ describe("a stored figure's completed-session move", () => {
         closesAsOf: () => closesOf(storedClose(XLV, over)),
         asOf: duringSession("2026-09-14"),
       }),
+      breadth: BREADTH,
       asOf: ASOF,
     }).figures[0];
 

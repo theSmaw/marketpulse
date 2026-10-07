@@ -11,8 +11,11 @@ import {
   type FeedMessage,
   type OverviewMessage,
   type SnapshotMessage,
+  type WireMarketBreadth,
   type WireMarketOverview,
+  type WireObservedBreadth,
   type WireOverviewFigure,
+  type WireSessionBreadth,
   type WireStoredFigure,
 } from "./market-stream-protocol.js";
 
@@ -713,6 +716,160 @@ describe("the sector section, which is a NEW key rather than more figures", () =
     expect(decoded.message.overview.sectors).toEqual([
       { state: "unknown", symbol: "XLV" },
     ]);
+  });
+});
+
+describe("the breadth section, required on the producer and optional here", () => {
+  const counts = {
+    advancing: 284,
+    declining: 167,
+    unchanged: 15,
+    measured: 466,
+  } as const;
+
+  const OBSERVED: WireObservedBreadth = {
+    basis: "observed",
+    ...counts,
+    windowMinutes: 5,
+  };
+
+  const SESSION: WireSessionBreadth = {
+    basis: "session",
+    ...counts,
+    session: "2026-09-15",
+  };
+
+  const roundTrip = (
+    breadth: WireMarketBreadth,
+  ): WireMarketOverview["breadth"] => {
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(overviewMessage({ breadth })),
+    );
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    return decoded.message.overview.breadth;
+  };
+
+  it("carries each member's own discriminating field through the round trip", () => {
+    // **The ADR 0031 failure this is really about**: `WireFields<T>` is a
+    // mapped type over `keyof T` and `keyof` a union is the INTERSECTION of
+    // its members' keys — so one map over this union covers the counts and
+    // `basis` and waves `windowMinutes` and `session` through unexamined.
+    // Those are the two fields that say which question was asked, which makes
+    // the single map exactly the wrong map. One map per member is what these
+    // two assertions are about.
+    expect(roundTrip(OBSERVED)).toEqual(OBSERVED);
+    expect(roundTrip(SESSION)).toEqual(SESSION);
+  });
+
+  it("does not let the OTHER member's field through", () => {
+    // The leak the per-member maps prevent, stated as bytes: a `session` hung
+    // off an observed count, or a window hung off a session count, is a frame
+    // claiming to answer both questions at once.
+    const wire = encodeMarketStreamMessage(
+      overviewMessage({
+        breadth: { ...OBSERVED, session: "2026-09-15" } as WireMarketBreadth,
+      }),
+    );
+
+    expect(wire).toContain('"windowMinutes":5');
+    expect(wire).not.toContain("2026-09-15");
+  });
+
+  it("drops the WHOLE section for a non-finite count, never a field and never a zero", () => {
+    // `encodeFigure`'s rule at a second grain. `JSON.stringify` writes `null`
+    // for a non-finite number and a lenient reader turns that into **`0`** —
+    // and `0` under `advancing` is a plausible, readable, wrong figure saying
+    // *nothing in the market went up*. There is no partial breadth, so the
+    // unit dropped is the section.
+    for (const field of [
+      "advancing",
+      "declining",
+      "unchanged",
+      "measured",
+      "windowMinutes",
+    ] as const) {
+      const wire = encodeMarketStreamMessage(
+        overviewMessage({ breadth: { ...OBSERVED, [field]: Number.NaN } }),
+      );
+
+      expect(wire).not.toContain("breadth");
+      expect(wire).not.toContain("null");
+    }
+  });
+
+  it("is ABSENT on a frame from a gateway that never heard of it", () => {
+    // The rollback case, and the only reason the wire property is optional:
+    // the deploy rolls the backend first, but a rollback pins a previous
+    // image, so a new bundle can legitimately meet a gateway sending no
+    // breadth. Absent means *this gateway does not send breadth*, which the
+    // region draws as its reserved state — and it is a different state from
+    // `measured: 0`, which means *we counted and heard nothing*.
+    const wire = encodeMarketStreamMessage(overviewMessage({}));
+    expect(wire).not.toContain("breadth");
+
+    const decoded = decodeMarketStreamMessage(wire);
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    expect(decoded.message.overview).not.toHaveProperty("breadth");
+  });
+
+  it("carries a zero count, because that is a DIFFERENT claim from absence", () => {
+    const empty: WireMarketBreadth = {
+      basis: "session",
+      advancing: 0,
+      declining: 0,
+      unchanged: 0,
+      measured: 0,
+      session: "2026-09-15",
+    };
+
+    expect(roundTrip(empty)).toEqual(empty);
+  });
+
+  it("refuses a section whose counts do not sum to its denominator", () => {
+    // The one cross-field check on this wire. On the producer the sum is true
+    // by construction — one pass, three accumulators, their sum — so a section
+    // where it is false did not come from a producer this bundle understands,
+    // and the figure it would draw is WRONG rather than old. Refusing draws
+    // the reserved state; accepting draws a total a reader can see is wrong.
+    expect(roundTrip({ ...OBSERVED, measured: 465 })).toBeUndefined();
+  });
+
+  it("refuses a basis it has never heard of, and a count with no window", () => {
+    expect(
+      roundTrip({
+        ...OBSERVED,
+        basis: "guessed",
+      } as unknown as WireMarketBreadth),
+    ).toBeUndefined();
+
+    const windowless: Record<string, unknown> = { ...OBSERVED };
+    delete windowless.windowMinutes;
+
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({
+        type: "overview",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
+        overview: {
+          computedAt: OVERVIEW_AT,
+          feeds: [],
+          figures: [],
+          breadth: windowless,
+        },
+      }),
+    );
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+
+    // A frame that still carries its figures: one unreadable section does not
+    // discard four true prices.
+    expect(decoded.message.overview).not.toHaveProperty("breadth");
+    expect(decoded.message.overview.computedAt).toBe(OVERVIEW_AT);
   });
 });
 
