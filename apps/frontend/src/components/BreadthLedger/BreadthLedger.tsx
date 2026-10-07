@@ -91,13 +91,79 @@ const BUCKET_BAND: Readonly<Record<BreadthBucket, string | undefined>> = {
 };
 
 /**
- * What the headline figure is, said once above it.
+ * What the headline figure is, said once above it — **and it drops its
+ * direction at the one value where that direction is denied.**
  *
  * It prints the one thing the three rows do not — *how one-sided* — and it
  * cannot disagree with them, being `advancing − declining` over two of the
  * three counts the same value produced.
+ *
+ * ## Why there are two captions — the owner's call, 2026-10-08
+ *
+ * `Net advancing` is the measure's **name**, and a name that holds at every
+ * value is the ordinary way to label one: a thermometer stays labelled
+ * *temperature* at zero. But Task 4.4.8's produced state grid drew the value
+ * where the name reads as a claim rather than as a label — at
+ * `advancing === declining` the headline said **`NET ADVANCING`** over
+ * **`— unchanged 0`**, a caption naming a direction the figure beneath it
+ * denies. **Two of the eighteen states reach it** (`09` at N = 2 and `12` at
+ * 220/220/11) and **neither had ever been drawn** before that walk; every
+ * channel was individually correct, which is exactly why nothing mechanical
+ * found it.
+ *
+ * Put to the owner at Gate 2 against *leave it* and against replacing the
+ * figure with `evenly split`. The owner chose the neutral caption: **the
+ * caption loses its direction, and only at zero.** The figure, the glyph and
+ * the word are untouched — they already said `unchanged` — so this is one
+ * word changing in one state rather than a second shape for the headline.
+ *
+ * ## The cost, stated because it is real
+ *
+ * **The caption now changes under the reader as well as the figure.** On a
+ * live feed `advancing − declining` can cross zero, so a reader watching the
+ * region sees the label itself flicker between `NET` and `NET ADVANCING` at
+ * the crossing. That was the argument for *leave it* and it was heard. It is
+ * bounded by how rarely an exact tie occurs across 503 names, and by the fact
+ * that the two captions share their first word and their position.
+ *
+ * **Reversal trigger**: the first sighting of the caption changing more than
+ * once in a sitting — which is a thing only the live rehearsal can report, and
+ * is written into this story's `LIVE-REHEARSAL.md` row.
+ *
+ * ## Why the pivot is `direction` and not the digits
+ *
+ * `direction` is `directionOf(net) ?? "unchanged"`, the one shared comparator
+ * (Task 4.4.2), and it is **the same value `PriceChange` renders the word
+ * from**. So the caption and the word beneath it cannot disagree: there is no
+ * second test of *is this zero* to drift out of step with the first. Reading
+ * the digits instead — `change === "0"` — would be that second test, and it
+ * would be the defect `one-direction-one-home` exists to forbid.
  */
 const NET_CAPTION = "Net advancing";
+
+/**
+ * The caption at a net of zero: the measure's name with its direction removed.
+ *
+ * Not `Net unchanged` — that would be a second word for what the figure beside
+ * it already says, and it would read as a count of unchanged securities, which
+ * is the `Unchanged` row three lines below. `Net` alone names the quantity and
+ * claims nothing about its sign.
+ */
+const NET_CAPTION_AT_ZERO = "Net";
+
+/**
+ * Which caption the headline carries, keyed on the figure's own direction.
+ *
+ * `undefined` is no headline at all (N = 0, nothing to subtract), and the
+ * caller suppresses the whole block there, so the value this returns is never
+ * read in that state — it is given the neutral caption rather than a
+ * directional one anyway, because a held element should not hold a claim.
+ */
+function captionFor(net: MarketBreadth["net"]): string {
+  return net === undefined || net.direction === "unchanged"
+    ? NET_CAPTION_AT_ZERO
+    : NET_CAPTION;
+}
 
 /**
  * **What this region has none of, when nothing ever arrives** — Task 4.4.6,
@@ -177,7 +243,7 @@ export const BreadthLedger = memo(function BreadthLedger({
   return (
     <div className={cx(styles.plot)}>
       <div className={cx(styles.headline, counted ? undefined : styles.held)}>
-        <p className={cx(styles.headlineCaption)}>{NET_CAPTION}</p>
+        <p className={cx(styles.headlineCaption)}>{captionFor(view.net)}</p>
         <p className={cx(styles.headlineFigure)}>
           {view.net === undefined ? undefined : (
             <PriceChange

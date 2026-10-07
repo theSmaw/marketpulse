@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type {
@@ -104,6 +104,60 @@ describe("BreadthLedger", () => {
     expect(screen.getByText("up")).toBeDefined();
     expect(screen.getByText("+132")).toBeDefined();
     expect(screen.getByText("Net advancing")).toBeDefined();
+  });
+
+  it("drops the caption's direction at a net of zero, and only there", () => {
+    // **The owner's call at Gate 2, 2026-10-08.** Task 4.4.8's produced state
+    // grid drew `NET ADVANCING` over `— unchanged 0` — a caption naming a
+    // direction the figure beneath it denies — and two of the eighteen states
+    // reach it. Every channel was individually correct, which is why nothing
+    // mechanical found it and why this test exists.
+    //
+    // Both halves in one test, because the claim is a **difference**: a test
+    // of the zero case alone would stay green if the caption lost its
+    // direction everywhere, which is the other way to get this wrong.
+    draw();
+    expect(screen.getByText("Net advancing")).toBeDefined();
+    expect(screen.queryByText("Net")).toBeNull();
+
+    cleanup();
+
+    // 220 / 220 / 11 — state `12`, a perfectly split market. `measured` is
+    // their sum, so the section is readable and the headline is drawn.
+    draw({
+      ...OBSERVED,
+      advancing: 220,
+      declining: 220,
+      unchanged: 11,
+      measured: 451,
+    });
+
+    // The caption loses its direction; the figure, the glyph and the spoken
+    // word are untouched, because they already said `unchanged`.
+    expect(screen.getByText("Net")).toBeDefined();
+    expect(screen.queryByText("Net advancing")).toBeNull();
+    // Scoped to the headline's own paragraph: `0` occurs more than once in
+    // this region (the net, and any bucket that counts none), and an unscoped
+    // match would be ambiguous in exactly the state this test is about.
+    const headline = screen.getByText("unchanged").closest("p");
+    expect(headline?.textContent).toContain("0");
+  });
+
+  it("keeps the caption neutral where there is no net at all", () => {
+    // N = 0: nothing to subtract, so the headline is suppressed entirely and
+    // this caption is never read. It is asserted anyway because the element is
+    // still in the DOM, held rather than removed (the 1 px rule and its 16 px
+    // margin stay in the budget) — and **a held element must not hold a
+    // claim**, which is the same ADR 0029 clause the suppressed figures take.
+    draw({
+      ...OBSERVED,
+      advancing: 0,
+      declining: 0,
+      unchanged: 0,
+      measured: 0,
+    });
+
+    expect(screen.queryByText("Net advancing")).toBeNull();
   });
 
   it("spells no glyph in the ledger, where the label is the direction", () => {
