@@ -5,6 +5,7 @@ import {
 import type {
   MarketFeed,
   WireFeedState,
+  WireMarketBreadth,
   WireObservation,
 } from "@marketpulse/shared";
 import type { Page, WebSocketRoute } from "@playwright/test";
@@ -219,3 +220,32 @@ export async function serveFeed(
     },
   };
 }
+
+/**
+ * **A breadth section, so a furnished frame does not draw a region as
+ * reserved** (Task 4.4.5).
+ *
+ * `WireMarketOverviewInputs.breadth` is **required** on the producer — every
+ * frame the gateway can build carries a count — so a spec that builds an
+ * overview by hand and omits it is modelling the one state the server cannot
+ * send: a pinned rollback. `Market breadth` then draws its reserved panel in
+ * four specs that are about something else entirely, and the next reader reads
+ * it as a defect.
+ *
+ * **One home rather than four copies**, which is the point of it being here:
+ * the day the section gains a field, four specs stop compiling at one line.
+ *
+ * The figures are the drawing's placeholders and **nothing asserts them** —
+ * `overview-breadth-region.spec.ts` is where breadth is the subject. They are
+ * internally consistent because `readOverview` refuses a section whose counts
+ * do not sum to its denominator or whose denominator exceeds its set.
+ */
+export const FURNISHED_BREADTH: WireMarketBreadth = {
+  basis: "observed",
+  advancing: 284,
+  declining: 152,
+  unchanged: 15,
+  measured: 451,
+  tracked: 503,
+  windowMinutes: 5,
+};

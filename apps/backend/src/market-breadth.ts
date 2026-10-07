@@ -193,6 +193,12 @@ const observedBreadth = (
   return {
     basis: "observed",
     ...tally(percents),
+    // **The set, counted rather than named** — the browser draws
+    // `tracked − measured` below a rule and its heading names the set, so the
+    // figure has to be the length of the array this function was handed. A
+    // `503` typed in either process is a lie with no symptom the day a
+    // security is delisted.
+    tracked: entries.length,
     windowMinutes: BREADTH_WINDOW_MINUTES,
   };
 };
@@ -256,6 +262,9 @@ const sessionBreadth = (
   return {
     basis: "session",
     ...tally(percents),
+    // The same set, however few of it this session's closes cover — see
+    // `observedBreadth`.
+    tracked: entries.length,
     // `marketDateAt` is the one module permitted to convert an instant to a
     // market date, and this is the only clock reading in the function — of an
     // instant handed in.

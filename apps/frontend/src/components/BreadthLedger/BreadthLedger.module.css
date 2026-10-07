@@ -1,0 +1,481 @@
+/*
+ * The breadth ledger — `The breadth ledger.dc.html` §01 to §04, §13.
+ *
+ * Three rules govern the whole file, and all three are `RankedList`'s, taken
+ * across because this is that geometry with a different subject:
+ *
+ *  1. **Every track left of the band is a fixed length.** If either of them
+ *     sized to its content the band's origin would depend on which row it was
+ *     in, and three bands whose origins differ are three bands you cannot
+ *     compare. The count track is fixed for the second reason it is fixed on
+ *     every strip in this product: a figure crossing `99` to `100` must not
+ *     widen its column and move the band.
+ *  2. **Every width states its own track list and none inherits.** A `span N`
+ *     item wider than the explicit grid is not clamped — it grows implicit
+ *     columns — and nothing below `pnpm e2e` computes a layout at all. Here all
+ *     four widths come out identical, which is restated rather than assumed:
+ *     breadth sits in the grid's **second** column, so its region is
+ *     342 / 357 / 720 / 342 px and **1440 and 390 are the same width to the
+ *     pixel**.
+ *  3. **The origin never moves.** The one whole-region geometry change this
+ *     component permits is the ladder's right endpoint changing its digits,
+ *     which is why it is right-aligned on the track rather than centred on a
+ *     value.
+ *
+ * Arithmetic worth having beside the tracks: `80 + 4ch` plus two 12 px gaps is
+ * **135 px before the band begins**, at every one of the four widths. That
+ * number is never typed — the `<dl>`s and the rows adopt the plot's columns
+ * through `subgrid`, and the origin overlay and the ladder are grid items in
+ * the band's own column, so they take its geometry from the same track list.
+ *
+ * The height budget, which is a **page-level** constraint rather than a
+ * regional one — rows 2 and 3 of `.regions` share one `fr` ratio, so exceeding
+ * it raises `Sector performance` and `Movers` too:
+ *
+ *   headline  16 + 4 + 26 + 12 + 1 + 16 =  75
+ *   ledger    3 × (16 + 18 + 16) + 2    = 152
+ *   ladder    8 + 16                    =  24
+ *   gap       --space-16, floored       =  16
+ *   heading   1 + 8 + 16                =  25
+ *   quiet row 12 + 18 + 12              =  42
+ *   claim     12 + 2 × 16               =  44
+ *                                        ---
+ *                                         378  against a 389 px ceiling
+ */
+
+/*
+ * --- The plot: the three tracks, stated once ---
+ *
+ * `minmax(0, 1fr)` rather than `1fr` for the band, because a bare `1fr` carries
+ * a `min-width: auto` floor — the trap `MarketProxyStrip`'s stylesheet spells
+ * out — and it earns its keep twice here: the band's content is absolutely
+ * positioned, so an `auto` floor would resolve against nothing and the track's
+ * behaviour would be a property of the browser rather than of the design.
+ *
+ * **The data face and the dense size are on the container, and that is what
+ * makes `4ch` mean what the budget says it means.** `ch` is the `0` advance of
+ * *this element's* font, so a track declared in `ch` on a container inheriting
+ * the sans face is a track measured in the wrong face — 4ch comes out 30.68 px
+ * at 13 px in JetBrains Mono and something else in Hanken Grotesk. Every text
+ * child that is not a figure therefore states its own family.
+ *
+ * Eight rows, in reading order, and the fifth is the only flexible one. **All
+ * the slack lives in that one gap**: eleven pixels distributed over four rows
+ * is 2.75 px a row, which would make the row pitch depend on the grid — so the
+ * component would measure differently at 768 and the row rhythm would be a
+ * property of the viewport. One declared gap keeps every row at a stated pitch
+ * at every width and leaves the slack where there is nothing to look at.
+ */
+.plot {
+  display: grid;
+  grid-template-columns: 80px 4ch minmax(0, 1fr);
+  grid-template-rows:
+    auto
+    auto
+    auto
+    auto
+    minmax(var(--space-16), 1fr)
+    auto
+    auto
+    auto;
+  column-gap: var(--space-12);
+
+  font-family: var(--font-data);
+  font-size: var(--font-size-dense);
+}
+
+/*
+ * --- The headline: the region's one metric ---
+ *
+ * The three counts sit at `--font-size-dense` and this at
+ * `--font-size-metric`, so the hierarchy is one metric and three dense figures
+ * rather than four of a size — which is the settled rule that *standing out,
+ * like receding, is a job for weight and hierarchy*, and the reason the
+ * headline needs no rule, no tint and no box to read as the headline.
+ *
+ * **Not `--font-size-display`.** That size is spent once per screen and the
+ * landing route's title has it; `MarketProxyStrip`'s stylesheet refused it for
+ * exactly this and the argument transfers — a 28 px figure here would make the
+ * topology's reserved band, `PRODUCT_SPEC.md` §9's stated centre of gravity,
+ * read as a footnote under a headline.
+ */
+.headline {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin: 0 0 var(--space-12);
+}
+
+/*
+ * The caption. **The micro properties are spelled rather than composed**: a
+ * `text-transform` under `composes: microLabel` is not an override, because
+ * `composes` concatenates class names and `type.module.css` lands later in
+ * stylesheet order. Nothing in this region wants the composed value, and
+ * spelling is what keeps that true if one ever does.
+ */
+.headlineCaption {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+}
+
+/*
+ * The figure's line box, and the **size seam** `MarketProxyStrip` established:
+ * `PriceChange.change` composes `dataCell`, which states the face and the
+ * tabular figures and deliberately states no size, so the size is set by the
+ * parent and the component needed no new prop.
+ *
+ * The room is held in every state — the figure is suppressed at N = 0 and the
+ * region's height may not depend on whether anything was counted.
+ */
+.headlineFigure {
+  margin: 0;
+  min-height: var(--line-height-metric);
+  font-size: var(--font-size-metric);
+  line-height: var(--line-height-metric);
+}
+
+/*
+ * The rule under the headline. `--rule-hairline` rather than the quiet group's
+ * `--rule-control`: this one separates a figure from the list it is derived
+ * from, and that one separates two lists.
+ */
+.headlineRule {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: var(--border-width);
+  margin-bottom: var(--space-16);
+  background: var(--rule-hairline);
+}
+
+/*
+ * --- The two lists ---
+ *
+ * `subgrid` twice, as on the ranked list: the `<dl>` adopts the plot's three
+ * columns and each row adopts the `<dl>`'s. **A subgrid inherits the parent's
+ * gaps as well as its tracks**, which is the whole point — the 135 px is
+ * stated nowhere.
+ *
+ * Measured in **Chromium only**, which is the one browser this repository
+ * tests, and the relative already ships on it.
+ *
+ * `z-index: 1` puts the rows in front of the origin overlay. Both are grid
+ * items in the same area; DOM order would already do it and the index is
+ * stated so that moving the overlay cannot silently paint a hairline over a
+ * figure.
+ */
+.ledger,
+.quiet {
+  grid-column: 1 / -1;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: subgrid;
+  margin: 0;
+  padding: 0;
+}
+
+.ledger {
+  grid-row: 3;
+}
+
+.quiet {
+  grid-row: 7;
+}
+
+/*
+ * One ledger row: **50 px** — `--space-16` + `--line-height-dense` +
+ * `--space-16` — with a hairline between rows and none after the last. Three of
+ * them with two separators is 152 px.
+ */
+.row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding-block: var(--space-16);
+  border-bottom: var(--border-width) solid var(--rule-hairline);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+/*
+ * The quiet row: `--space-12` rather than `--space-16`, and no rule of its own.
+ * **It is a different kind of row and it reads as one** — the rule above the
+ * group is what separates it, and a second hairline under a group of one would
+ * divide it from the claim.
+ */
+.quietRow {
+  padding-block: var(--space-12);
+  border-bottom: 0;
+}
+
+/*
+ * --- The label: 80 px, fixed, never truncated ---
+ *
+ * **It is the row's direction channel** — a word, not a colour and not a glyph
+ * — so it is never abbreviated and never ellipsised. The three ledger labels
+ * are nine glyphs each; 80 px is the fallback face's figure for nine glyphs
+ * plus 7 px of margin, and it does not step at any width, because shrinking it
+ * would be shrinking the thing the fixed track exists to hold.
+ *
+ * `--font-weight-medium` and the sans face: the label is the row's subject and
+ * the count is its point, and the two need to read as a pair. The family is
+ * stated because the container carries the data face for the `4ch` track.
+ */
+.label {
+  font-family: var(--font-sans);
+  line-height: var(--line-height-dense);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-primary);
+  white-space: nowrap;
+}
+
+/*
+ * --- The count: a printed integer, right-aligned, achromatic ---
+ *
+ * **4ch rather than 3**: the widest count today is the size of the set, and the
+ * fourth glyph is what keeps the column from moving the day the universe passes
+ * 999.
+ *
+ * `--ink-primary` in every row, and the count carries **no colour at all**.
+ * Tinting it would put the price palette on a figure that is not a price and
+ * not a change — a count of securities — and the three bands are one grey in
+ * greyscale anyway, so hue buys a reader nothing the label has not already
+ * given them.
+ */
+.count {
+  composes: dataCell from "../../styles/type.module.css";
+  margin: 0;
+  line-height: var(--line-height-dense);
+  font-weight: var(--font-weight-medium);
+  text-align: right;
+  color: var(--ink-primary);
+}
+
+/*
+ * The remainder's row recedes: regular weight and secondary ink against the
+ * ledger's medium and primary. Two of the six channels that tell *a reading of
+ * exactly zero* apart from *a row we have heard nothing about*; the other four
+ * are the group, the heading, the absent band track and the origin rule
+ * stopping above it.
+ */
+.quietLabel,
+.quietCount {
+  font-weight: var(--font-weight-regular);
+  color: var(--ink-secondary);
+}
+
+/*
+ * --- The band: one 6 px band grown from the left ---
+ *
+ * 6 px rather than the full line box, because the band is a comparison and the
+ * count beside it is the claim; a band as tall as the type would read as the
+ * row's subject. There is **no filled track behind it** — at a 173 px band
+ * track with a 2 px floor, a track plus a band plus an origin rule would be
+ * three greys inside 6 px of height, with the smallest real mark on the drawing
+ * competing against two of them. The origin rule does the track's job and says
+ * what it means.
+ */
+.band {
+  position: relative;
+  height: 6px;
+  margin: 0;
+  align-self: center;
+}
+
+/*
+ * **The 2 px floor, and it is the sharpest measurement on this component.**
+ *
+ * At 1440 and at 390 the band track is ~173 px for ~451 securities, so one
+ * security is **0.384 px** — below a device pixel — and counts of 1 through 5
+ * all round to a band under 2 px. The floor is accepted with its cost: a count
+ * of 1 looks like about five securities, and the **printed count is why that is
+ * acceptable**, because Gate 1's decision is *counts, not percentages* — the
+ * count is the claim and the band is the picture of it, so the band is never
+ * the only speaker about a magnitude on its row.
+ *
+ * The alternative is worse: a 1 px band is indistinguishable from the origin
+ * rule, which is 1 px of `--rule-control` running down the same column, and
+ * **a band that reads as a gridline is worse than a short one**. The 2 px band
+ * is told apart from the rule by three channels at once — 6 px tall against the
+ * rule's full row height, a price ink against the rule's neutral, and in front
+ * of it rather than under it.
+ *
+ * **Solid price ink, never the washes.** `--price-positive-wash` is 1.15:1 on
+ * the page ground, so a 6 px band of wash is not a light band, it is an
+ * invisible one — and a band nobody can see is worse than no band, because the
+ * layout still says there is one. Measured against the 3:1 floor on both
+ * grounds a band can stand on: positive 5.28 / 4.77, negative 5.80 / 5.23,
+ * unchanged 9.32 / 8.42, the origin rule 4.48 / 4.05. All four clear it, so
+ * ADR 0026's standing exception does not fire on this component.
+ */
+.fill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  min-width: 2px;
+}
+
+.advancing {
+  background: var(--price-positive);
+}
+
+.declining {
+  background: var(--price-negative);
+}
+
+/*
+ * `--price-unchanged` resolves to `--ink-secondary`, so this band is already
+ * achromatic and does not change under `grayscale(1)` at all — which is the
+ * honest encoding of a state that has no direction.
+ */
+.unchangedBand {
+  background: var(--price-unchanged);
+}
+
+/*
+ * --- The origin rule: one element for the whole ledger ---
+ *
+ * A grid item in row 3 of the band's column, so it is exactly as tall as the
+ * three rows and exactly as wide as the bands **without restating the track
+ * arithmetic**. It stretches by default; nothing here may add `align-self`.
+ *
+ * `--rule-control`, which is `.zero`'s own role on the ranked list — and it is
+ * at the band track's **left** edge rather than its centre, because a count is
+ * not signed. One full-height hairline rather than three 50 px segments with a
+ * 1 px break at every separator.
+ */
+.rules {
+  position: relative;
+  grid-area: 3 / 3;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.origin {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 1px;
+  background: var(--rule-control);
+}
+
+/*
+ * --- The printed ladder: two endpoints and nothing between them ---
+ *
+ * Row 4 of the band's column, `--space-8` below the list and one micro line box
+ * tall: 24 px. An ordinary block, **never anything sticky** — the relative
+ * measured that `position: sticky` does nothing inside a `Panel` and fails
+ * silently, because the panel is the nearest scrollport.
+ *
+ * `0` is left-aligned under the origin rule and **N is right-aligned on the
+ * track's right edge** rather than centred on a value, so the digits changing
+ * from three to two cannot move anything.
+ */
+.ladder {
+  position: relative;
+  grid-area: 4 / 3;
+  height: var(--line-height-micro);
+  margin-top: var(--space-8);
+}
+
+.tick {
+  composes: dataCell from "../../styles/type.module.css";
+  position: absolute;
+  top: 0;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+
+.tickZero {
+  left: 0;
+}
+
+.tickFull {
+  right: 0;
+}
+
+/*
+ * --- The trailing group's heading ---
+ *
+ * **Always drawn, never reserved**, which is the one place this component is
+ * simpler than its relative: Task 4.3.7 had to hold its heading's room in every
+ * state because a sector list's quiet group has between nought and eleven
+ * members, and breadth's group has exactly one in every state there is.
+ *
+ * `--rule-control` rather than the rows' `--rule-hairline`: it separates two
+ * lists rather than two rows. The micro properties are spelled rather than
+ * composed, for the reason `.headlineCaption` records — and `h3`'s UA bold is
+ * refused, because it would make the quietest thing in the region the heaviest.
+ */
+.quietHead {
+  grid-column: 1 / -1;
+  grid-row: 6;
+  margin: 0;
+  padding-top: var(--space-8);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-secondary);
+  border-top: var(--border-width) solid var(--rule-control);
+}
+
+/*
+ * --- The footer clause ---
+ *
+ * **Two lines reserved at every width**, which is `SectorPerformance.claim`'s
+ * own departure from its drawing and is taken here for the same mechanism
+ * rather than for symmetry: the clause's length is a function of a value that
+ * moves — the window on one basis, the session date on the other — so a
+ * one-line reserve would make the region's height depend on which sentence is
+ * true, and at 390 the grid row is content-sized so the whole lower page would
+ * step. 32 px buys a height that does not depend on the state of the store.
+ *
+ * Sentence case in the sans face at the micro size, and **both properties
+ * spelled** rather than composed: this is the first string in the region to
+ * contain words, which is exactly the content that makes the `composes`
+ * ordering trap visible, and Task 4.2.6 lost a day to it.
+ */
+.claim {
+  grid-column: 1 / -1;
+  grid-row: 8;
+  margin: var(--space-12) 0 0;
+  min-height: calc(2 * var(--line-height-micro));
+  font-family: var(--font-sans);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink-secondary);
+  /*
+   * `balance` for the reason the proxy strip's qualifier takes it: left to
+   * itself a browser breaks a long line wherever the last opportunity falls. It
+   * is a hint rather than a guarantee; without it the line wraps worse and the
+   * layout is unchanged, because the height is reserved.
+   */
+  text-wrap: balance;
+}
+
+/*
+ * --- Room and nothing else ---
+ *
+ * The N = 0 suppression and the pre-frame reservation are the same declaration,
+ * which is the point: ADR 0029 says a surface may make a claim only when the
+ * data licensing it is present, and *nothing has been counted* and *nothing has
+ * arrived* are both that. `visibility: hidden` rather than `display: none`
+ * because the room is the whole purpose — the region's height may not depend on
+ * whether the feed has spoken.
+ */
+.held,
+.reserved {
+  visibility: hidden;
+}

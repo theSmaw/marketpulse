@@ -82,6 +82,7 @@ const BREADTH: WireMarketBreadth = {
   declining: 0,
   unchanged: 0,
   measured: 0,
+  tracked: 0,
   windowMinutes: 5,
 };
 

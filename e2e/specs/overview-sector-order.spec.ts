@@ -14,6 +14,7 @@ import type { Locator, Page } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
 import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
+import { FURNISHED_BREADTH } from "../support/feed.js";
 
 // **The order that changes: the movement, the hold, and reduced motion**
 // (Task 4.3.6).
@@ -128,6 +129,10 @@ const overviewOf = (
   figures: [],
   sectors: ranked.map(([symbol, percent]) => observed(symbol, percent)),
   sectorLadderStep,
+  // Required on the producer, so a frame without it models a state the server
+  // cannot send — and `Market breadth` would draw reserved inside a spec about
+  // the sector order. See `FURNISHED_BREADTH`.
+  breadth: FURNISHED_BREADTH,
 });
 
 /**

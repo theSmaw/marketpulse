@@ -19,6 +19,7 @@ import type { Locator, Page, WebSocketRoute } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
 import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
+import { FURNISHED_BREADTH } from "../support/feed.js";
 
 // **A live update landing in an index proxy, in a real browser** (Task 4.2.8 —
 // Story 4.2's criterion 6).
@@ -157,6 +158,9 @@ const overviewOf = (
   computedAt,
   feeds: figures.some((figure) => figure.state === "observed") ? [VENUE] : [],
   figures,
+  // See `FURNISHED_BREADTH`: required on the producer, and this spec asserts
+  // nothing about it.
+  breadth: FURNISHED_BREADTH,
 });
 
 interface ServedProxies {

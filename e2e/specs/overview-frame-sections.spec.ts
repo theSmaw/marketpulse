@@ -19,6 +19,7 @@ import type { Locator, Page, WebSocketRoute } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
 import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
+import { FURNISHED_BREADTH } from "../support/feed.js";
 
 // **The two things about this frame that no other spec can see** (Task 4.4.1).
 //
@@ -268,6 +269,10 @@ async function serveBothSections(page: Page): Promise<ServedOverview> {
     figures,
     sectors,
     sectorLadderStep: SECTOR_STEP,
+    // See `FURNISHED_BREADTH`. This frame is the one that models what the
+    // gateway really sends, so leaving a required section off it would be the
+    // most misleading omission of the four.
+    breadth: FURNISHED_BREADTH,
   };
 
   const overviewFrame = (): string =>
