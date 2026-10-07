@@ -570,7 +570,7 @@ function BarFigures({
           <span className={styles.label}>Bar</span>
           <PriceChange
             change={formatChangePercent(percent)}
-            direction={directionOf(percent)}
+            direction={directionOf(percent) ?? "unchanged"}
           />
         </span>
       )}

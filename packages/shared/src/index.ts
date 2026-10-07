@@ -298,16 +298,32 @@ export type { Bar, Timeframe } from "./bar.js";
 // branch or it would not, and the version that does not produces 518
 // correctly-formatted numbers saying the market did not move.
 //
-// It knows nothing about spelling a figure — `formatChangePercent` and
-// `directionOf` are the frontend's, because a spelling is a property of a
-// surface. `commonSession` deliberately stayed behind: it is a question about
-// one view of one response, not about the arithmetic.
+// It knows nothing about spelling a figure — `formatPrice` and
+// `formatChangePercent` are the frontend's, because a spelling is a property
+// of a surface. **`directionOf` was in that sentence until 2026-10-07 and is
+// not any more** (Task 4.4.2): deciding which of three buckets a move falls
+// into is not a spelling, breadth counts those buckets server-side, and the
+// vocabulary is two lines below. `commonSession` deliberately stayed behind:
+// it is a question about one view of one response, not about the arithmetic.
 export {
   PERCENT_DISPLAY_DECIMALS,
   changeFromClose,
   changePercent,
 } from "./live-change.js";
 export type { LiveChange } from "./live-change.js";
+
+// Which of three buckets a move falls into, and the one rounding that decides
+// it (Task 4.4.2). **Here rather than in the browser that draws an arrow**,
+// for the reason the comparator below is here: breadth is counted over 518
+// figures server-side, so the browser's copy could never have been the rule —
+// and the frontend's `market/price-format.ts` re-exports these three names, so
+// every component that imported them still does.
+export {
+  PRICE_DIRECTIONS,
+  directionOf,
+  displayedPercent,
+} from "./price-direction.js";
+export type { PriceDirection } from "./price-direction.js";
 
 // How eleven sector benchmarks are ordered, and the ladder their bars are drawn
 // against (Task 4.3.4). **Shared rather than the browser's** for the reason
@@ -318,7 +334,6 @@ export type { LiveChange } from "./live-change.js";
 export {
   SECTOR_BY_ETF,
   compareSectorFigures,
-  displayedPercent,
   rankSectorFigures,
   sectorOfEtf,
   sectorRankingKey,

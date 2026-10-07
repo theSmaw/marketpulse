@@ -64,39 +64,43 @@ describe("formatChangePercent", () => {
     expect(formatChangePercent(0.001)).toBe("0.00%");
     expect(formatChangePercent(-0.001)).toBe("0.00%");
   });
-});
 
-describe("directionOf", () => {
-  it.each([
-    [0.836, "positive"],
-    [-2.51, "negative"],
-    [0, "unchanged"],
-  ])("calls %s %s", (percent, expected) => {
-    expect(directionOf(percent)).toBe(expected);
-  });
-
-  // **The reason this is a function and not `percent > 0`.** By sign these are
-  // a rise and a fall; rendered they are both `0.00%`. A `positive` here would
-  // put an up arrow, a green tint and a figure saying nothing moved in the one
-  // component built so its channels cannot disagree.
-  it("agrees with the figure, not with the raw sign", () => {
-    expect(directionOf(0.001)).toBe("unchanged");
-    expect(directionOf(-0.001)).toBe("unchanged");
-  });
-
-  it("still calls a move that rounds to two places directional", () => {
-    expect(directionOf(0.005)).toBe("positive");
-    expect(directionOf(-0.005)).toBe("negative");
+  // **The same rule reaching the only other input with no direction to
+  // claim** (Task 4.4.2). `directionOf` answers `undefined` for a non-finite
+  // figure, so no sign is spelled — `NaN%` is byte-identical to what this
+  // function returned before the move, and `Infinity%` is the one output that
+  // changed: it was `+Infinity%`. Neither is reachable from a surface, because
+  // `changePercent` and `changeFromClose` both answer `null` rather than
+  // dividing by a zero close; these are asserted so the shape is recorded
+  // rather than discovered.
+  it("spells a non-finite figure without claiming a sign", () => {
+    expect(formatChangePercent(Number.NaN)).toBe("NaN%");
+    expect(formatChangePercent(Infinity)).toBe("Infinity%");
+    expect(formatChangePercent(-Infinity)).toBe("Infinity%");
   });
 });
 
-describe("PRICE_DIRECTIONS", () => {
-  // The vocabulary and the function that produces it now live in one file, so
-  // this is checkable rather than a convention: every direction `directionOf`
-  // can return is a member, and there is no fourth member nothing produces.
-  it("is exactly what directionOf returns", () => {
-    expect(new Set(PRICE_DIRECTIONS)).toEqual(
-      new Set([directionOf(1), directionOf(-1), directionOf(0)]),
-    );
+// **`directionOf` and `PRICE_DIRECTIONS` were tested here until 2026-10-07**
+// (Task 4.4.2). Those two blocks moved, unedited, to
+// `packages/shared/src/price-direction.test.ts` with the functions they are
+// about — a test left behind by a move is a test of a re-export, which is what
+// the block at the top of this file is for and all it claims.
+
+// **The re-export is asserted rather than assumed** (Task 4.4.2). The
+// direction left this module for `packages/shared/src/price-direction.ts` and
+// is published from here so that no component's import changed; a re-export
+// that silently stopped resolving would leave every assertion below green,
+// because nothing in this file would notice the names were gone.
+describe("the direction, re-exported", () => {
+  it("is still reachable under the names this module published", () => {
+    expect(PRICE_DIRECTIONS).toEqual(["positive", "negative", "unchanged"]);
+    expect(directionOf(1)).toBe("positive");
+  });
+
+  // The behaviour itself is asserted beside the function, in
+  // `packages/shared/src/price-direction.test.ts`. Repeating it here would be
+  // a second copy of a rule that has just been given one home.
+  it("is the shared one and not a local copy", () => {
+    expect(directionOf(Number.NaN)).toBeUndefined();
   });
 });

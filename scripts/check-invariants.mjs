@@ -3227,6 +3227,242 @@ const INVARIANTS = [
   },
 
   {
+    id: "one-classifier-for-the-direction-of-a-move",
+    claim:
+      "Which of three buckets a move falls into is decided in exactly one " +
+      "place — `directionOf` in `packages/shared/src/price-direction.ts` " +
+      "— and no other shipped file classifies a percentage by comparing " +
+      "it against zero.",
+    check() {
+      // **The three existing guards on this seam cannot see a second
+      // classifier, and that is measured rather than assumed** (Task 4.4.2).
+      //
+      //   - `one-producer-of-the-overview-aggregate` counts join call sites
+      //     and `type: "overview"` encodes;
+      //   - `one-home-for-the-live-change`'s strongest clause keys on **a
+      //     division by a close** — and a count classifies by
+      //     **comparison**, so it has no division to match;
+      //   - `one-pairing-of-a-sector-and-its-benchmark` is about the ticker
+      //     table.
+      //
+      // So `percent > 0 ? "advancing" : percent < 0 ? "declining" :
+      // "unchanged"` passes all three. Produced before this check existed, in
+      // `apps/backend/src/market-breadth.ts`, and the run said
+      // `39 invariants hold.`
+      //
+      // ## What the defect costs, which is why a comparison is worth a guard
+      //
+      // Two things, and the second is the one nothing else would catch.
+      //
+      // **It classifies on the raw sign.** A +0.004% move prints `0.00%` and
+      // would be counted an advancer — a breadth figure reading *312
+      // advancing* beside 312 rows reading `0.00%`, which is the same
+      // three-channels-disagreeing defect `PriceChange` was built to prevent,
+      // one level up and expressed as a total.
+      //
+      // **And `NaN > 0` and `NaN < 0` are both false**, so every non-finite
+      // figure lands in the final `else`. In a renderer that is an em dash
+      // beside `NaN%`; in a count it is the sentence *"518 unchanged, 0
+      // advancing, 0 declining"* — a confident, well-formed claim that the
+      // market did not move, which is ADR 0029's false impression as a total.
+      // `directionOf` answers `undefined` and a count leaves the figure out of
+      // every bucket.
+      //
+      // ## Keyed on the comparison, because it is what cannot be avoided
+      //
+      // A re-implementer writes neither `PriceDirection` nor `directionOf` and
+      // TypeScript never asks them to — `CLAUDE.md`'s rule is to prefer a
+      // clause the author cannot avoid writing, *the division, not the type
+      // name*. Here it is the **comparison of a move against zero**. An `if`
+      // chain, a ternary, a `switch (Math.sign(…))` and a `reduce` all
+      // contain one.
+      //
+      // Narrowed to an operand that NAMES a move, because `> 0` on its own is
+      // every length check in the tree. Measured on 2026-10-07: the pattern
+      // matched **nothing** in `apps/backend/src`, `apps/frontend/src`,
+      // `packages/shared/src` or `e2e` before the home was written —
+      // including `formatChangePercent`, whose `percent > 0 ? "+" : MINUS` was
+      // rewritten in the same task to read the classifier instead. That is the
+      // whole reason this clause needs **no exemption list**: there is no
+      // legitimate second site to exempt, so there is no escape hatch for the
+      // next author to widen.
+      //
+      // **What it therefore cannot see**, stated so nobody over-trusts it: a
+      // classifier whose operand is named `p`, `value` or `x`. Clause three
+      // closes the one realistic version of that — rounding first and then
+      // comparing a short-named local — and a bare `if (x > 0)` over a
+      // percentage is invisible here and always will be.
+      const HOME = "packages/shared/src/price-direction.ts";
+
+      // The three SHIPPED roots, which is `one-home-for-the-live-change`'s
+      // population and is deliberate rather than copied. **`e2e/specs` was in
+      // this list for one run and came out**: the first red named
+      // `overview-sector-region.spec.ts`, whose `shown()` helper spells a
+      // figure from `percent > 0` under a docblock saying *written out here
+      // rather than imported — importing it would assert that the
+      // application agrees with itself*. A browser spec's job is to restate
+      // the expected answer independently, so a guard against a second
+      // implementation must not reach one. The finding is kept because it is
+      // the distinction the check rests on: a second **producer** drifts, a
+      // second **assertion** is the point.
+      const SOURCE_ROOTS = [
+        "apps/backend/src",
+        "apps/frontend/src",
+        "packages/shared/src",
+      ];
+
+      const shipped = [];
+
+      const walk = (dir) => {
+        for (const child of readdirSync(dir)) {
+          const path = resolve(dir, child);
+          if (statSync(path).isDirectory()) {
+            if (child !== "fixtures" && child !== "node_modules") walk(path);
+            continue;
+          }
+          if (!/\.tsx?$/u.test(child)) continue;
+          if (/\.(?:test|process|database|stories)\.tsx?$/u.test(child))
+            continue;
+          shipped.push({
+            path: relative(REPO_ROOT, path),
+            // Comment-stripped, or the prose above — which spells the
+            // defect out in full, twice — would be the first match.
+            text: withoutTrailingComments(readFileSync(path, "utf8")),
+          });
+        }
+      };
+
+      for (const root of SOURCE_ROOTS) walk(resolve(REPO_ROOT, root));
+
+      // ## Clause one — one declaration
+      //
+      // The cheap half, and it is not redundant: a second `directionOf` in a
+      // second package would be imported by name and read as the one home at
+      // every call site.
+      const declarations = shipped.filter((file) =>
+        /\bfunction\s+directionOf\b/u.test(file.text),
+      );
+
+      if (declarations.length !== 1 || declarations[0].path !== HOME) {
+        throw new InvariantFailure(
+          `\`directionOf\` is declared in ${String(declarations.length)} ` +
+            "shipped file(s) and the one home is " +
+            `${HOME}:\n      ` +
+            (declarations.map((file) => file.path).join("\n      ") ||
+              "(nowhere)") +
+            "\n    A second declaration is a second rule, read as the first " +
+            "one at every call site. A re-export is fine and is what " +
+            "`apps/frontend/src/market/price-format.ts` does.",
+        );
+      }
+
+      // ## Clause two — the comparison
+      // **The first draft of this pattern read
+      // `[A-Za-z_$][\w$]*(?:percent|change|move)` and passed green on the
+      // probe file — `40 invariants hold.` against
+      // `if (percent > 0) advancing += 1;`** It required at least one
+      // character BEFORE the word, so it matched `changePercent` and
+      // `sessionChangePercent` and missed the one identifier an author is
+      // likeliest to use: `percent` itself. Kept here because it is
+      // `CLAUDE.md`'s own warning arriving on the one check written to obey
+      // it — a break would never have found it, since a break edits the
+      // file the check was written around, and this was found by writing the
+      // file the next author would write.
+      //
+      // The optional `(…)` is the call form: `displayedPercent(percent) > 0`
+      // is the same classification with the rounding inlined.
+      const CLASSIFY =
+        /\b[\w$]*(?:percent|change|move)[\w$]*(?:\([^()]*\))?\s*[<>]=?\s*0\b/iu;
+      const SIGN_OF = /\bMath\.sign\s*\(\s*[^)]*(?:percent|change|move)/iu;
+
+      // The anchor. If the home stops matching, the pattern has rotted and
+      // every clause below it passes vacuously — `CLAUDE.md`'s *a grep
+      // that matches nothing looks exactly like a grep that passes*.
+      const home = shipped.find((file) => file.path === HOME);
+
+      if (home === undefined || !CLASSIFY.test(home.text)) {
+        throw new InvariantFailure(
+          `${HOME} no longer compares a named move against zero, and it is ` +
+            "this check's anchor. Either the classifier moved or the pattern " +
+            "that recognises one has rotted; repoint it in the same change.",
+        );
+      }
+
+      const classifiers = shipped
+        .filter(
+          (file) =>
+            file.path !== HOME &&
+            (CLASSIFY.test(file.text) || SIGN_OF.test(file.text)),
+        )
+        .map((file) => file.path);
+
+      if (classifiers.length > 0) {
+        throw new InvariantFailure(
+          `${String(classifiers.length)} shipped file(s) classify a move by ` +
+            "comparing it against zero:\n      " +
+            classifiers.join("\n      ") +
+            "\n    Which bucket a move falls into is `directionOf`'s, for " +
+            "both processes. A comparison on the RAW sign counts a +0.004% " +
+            "move as an advancer while its own row prints `0.00%`, and it " +
+            "counts every non-finite figure as unchanged — which in a " +
+            "total is the sentence *518 unchanged, 0 advancing, 0 declining*.",
+        );
+      }
+
+      // ## Clause three — rounded first, then compared
+      //
+      // The one realistic way to write the defect with a short-named local,
+      // and the version an author who has READ `price-direction.ts` writes:
+      //
+      //     const shown = displayedPercent(percent);
+      //     if (shown > 0) advancing += 1;
+      //
+      // Clause two cannot see `shown > 0`. But reaching for
+      // `displayedPercent` and then comparing against zero is the
+      // classification whatever the local is called, so the rounding helper's
+      // own call sites are a second, independent population. Legitimate
+      // callers compare moves against **each other** (`compareSectorFigures`)
+      // or take a magnitude (`fitSectorLadder`); none of them compares one
+      // against zero.
+      const rounders = shipped.filter(
+        (file) =>
+          file.path !== HOME && /\bdisplayedPercent\s*\(/u.test(file.text),
+      );
+
+      const ROUNDER_ANCHORS = [
+        "packages/shared/src/sector-ranking.ts",
+        "packages/shared/src/sector-ladder.ts",
+      ];
+
+      for (const path of ROUNDER_ANCHORS) {
+        if (!rounders.some((file) => file.path === path)) {
+          throw new InvariantFailure(
+            `${path} no longer calls \`displayedPercent\`, and it is this ` +
+              "clause's anchor: a population of zero rounders passes " +
+              "vacuously whatever anybody writes.",
+          );
+        }
+      }
+
+      const roundThenCompare = rounders
+        .filter((file) => /[<>]=?\s*0\b/u.test(file.text))
+        .map((file) => file.path);
+
+      if (roundThenCompare.length > 0) {
+        throw new InvariantFailure(
+          `${String(roundThenCompare.length)} shipped file(s) round a ` +
+            "percentage to the displayed precision and then compare it " +
+            "against zero:\n      " +
+            roundThenCompare.join("\n      ") +
+            "\n    That is `directionOf` written out with the guard left " +
+            "off. Rounding first fixes the +0.004% half and leaves the " +
+            "non-finite half: `displayedPercent(NaN)` is `NaN`, and it " +
+            "compares false both ways.",
+        );
+      }
+    },
+  },
+  {
     id: "every-break-can-still-land",
     claim:
       "Every entry in `scripts/breaks.mjs` substitutes text that still exists " +

@@ -57,7 +57,7 @@ const row = (
         rank,
         move: {
           change: formatChangePercent(percent),
-          direction: directionOf(percent),
+          direction: directionOf(percent) ?? "unchanged",
           percent,
         },
         absent: undefined,

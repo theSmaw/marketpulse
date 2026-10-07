@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { SECTOR_ETFS, SECTORS } from "./security.js";
+import { displayedPercent } from "./price-direction.js";
 import {
   SECTOR_BY_ETF,
   compareSectorFigures,
-  displayedPercent,
   rankSectorFigures,
   sectorOfEtf,
   sectorRankingKey,

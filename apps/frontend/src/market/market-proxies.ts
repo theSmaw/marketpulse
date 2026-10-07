@@ -319,7 +319,7 @@ function readingOf(
             // +0.001% move cannot render an up arrow beside a figure reading
             // `0.00%`. `directionOf` owns that; the table met it first.
             change: formatChangePercent(figure.changePercent),
-            direction: directionOf(figure.changePercent),
+            direction: directionOf(figure.changePercent) ?? "unchanged",
           },
     note: behindNote(shared),
   };

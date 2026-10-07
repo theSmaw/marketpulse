@@ -288,7 +288,8 @@ function lastClose(close: number, percent: number | null): string {
   const direction = directionOf(percent);
   const figure = formatChangePercent(percent).replace(/^[+−]/u, "");
 
-  if (direction === "unchanged")
+  // See `chart-alternative.ts`’ `move`: `undefined` is not "down".
+  if (direction !== "positive" && direction !== "negative")
     return `Last close ${formatPrice(close)}, unchanged.`;
 
   return `Last close ${formatPrice(close)}, ${direction === "positive" ? "up" : "down"} ${figure}.`;

@@ -866,7 +866,7 @@ function ChangeCell({
     <td className={cx(styles.cell, styles.numeric)}>
       <PriceChange
         change={formatChangePercent(percent)}
-        direction={directionOf(percent)}
+        direction={directionOf(percent) ?? "unchanged"}
       />
     </td>
   );

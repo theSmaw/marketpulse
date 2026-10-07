@@ -17,11 +17,22 @@ import styles from "./PriceChange.module.css";
 // arithmetic on a number both sides already have.
 //
 // **That argument is why they left this file on 2026-09-11.** `PriceDirection`
-// and `PRICE_DIRECTIONS` now live in `market/price-format.ts` beside
-// `directionOf`, which produces them: arithmetic on a market number is market
-// vocabulary, and a function in the market module returning a type owned by a
-// component was the coupling pointing the wrong way. What stays here is what
-// this component alone decides — the colour, the glyph and the spoken word.
+// and `PRICE_DIRECTIONS` went to `market/price-format.ts` beside `directionOf`,
+// which produces them: arithmetic on a market number is market vocabulary, and
+// a function in the market module returning a type owned by a component was the
+// coupling pointing the wrong way. What stays here is what this component alone
+// decides — the colour, the glyph and the spoken word.
+//
+// **Amended 2026-10-07 (Task 4.4.2): the first paragraph is now false and is
+// left standing because it is the argument that expired.** All three are in
+// `@marketpulse/shared` — `price-direction.ts` — and *both sides already have
+// the number* turned out to be the condition under which a second
+// implementation appears rather than a reason against sharing one: Story 4.4
+// counts breadth over 518 figures server-side, where the browser's copy was
+// unreachable. `market/index.ts` still publishes the names, so the import below
+// is unchanged, and the sentence that still holds is the last one — **the
+// colour, the glyph and the spoken word are this component's and are not in
+// the shared module.**
 
 // The colour, and the glyph carrying the same information without it. Neither
 // is optional, and the pairing lives here rather than at each call site so that
