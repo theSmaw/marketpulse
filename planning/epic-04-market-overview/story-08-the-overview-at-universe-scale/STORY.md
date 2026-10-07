@@ -194,3 +194,50 @@ question above.**
   COMPOSITION, only counts.** You will have the instrument up and the feed running;
   logging each `bars` frame's **symbol list** is minutes more, and it is the one
   measurement a replay **structurally cannot** produce.
+
+## Handed here by Story 4.4 — 2026-10-07: the first universe-scale per-tick computation exists, and its cost is already attributed
+
+**The thing this story was written to measure now exists**, and Story 4.4 took a
+first reading so you are not starting from zero.
+
+**The join runs over all 518 on every applied batch**, ~16 a minute, **inside the
+socket callback**. Measured on `dist/`, 400 timed iterations after 300 warm-up, two
+reproducible runs, **all 518 observed** — the worst case, against ~332 in a median
+minute:
+
+|                                          | median       | p95   | max   |
+| ---------------------------------------- | ------------ | ----- | ----- |
+| before, the fifteen, no breadth          | **0.118 ms** | 0.150 | 0.187 |
+| after, 518 + breadth                     | **3.497 ms** | 3.768 | 4.552 |
+| the join alone, breadth removed          | 3.423 ms     | 3.526 | 3.685 |
+| **the breadth count alone**, 503 entries | **0.041 ms** | 0.044 | 0.183 |
+| the equity filter alone, over 518        | 0.006 ms     | 0.007 | 0.011 |
+| join over 518, **nothing** observed      | 0.016 ms     | 0.016 | 0.087 |
+| join over 518, observed, **no closes**   | 0.019 ms     | 0.022 | 0.071 |
+
+≈ **56 ms of script a minute**. The frame grew **6–8 bytes**, because breadth ships
+counts rather than figures.
+
+### The attribution is the part worth having, and it names a candidate for Epic 14
+
+**The count is 1.2% of it.** Nothing observed → 0.016 ms. Observed with no closes,
+so `changeFromClose` returns before its session comparison → 0.019 ms. With closes
+→ **3.42 ms**.
+
+**That 3.4 ms is 518 `marketDateAt` calls** — one `Intl` conversion per live entry
+at ~6.6 µs — inside `changeFromClose`'s same-session branch. **It is not breadth's
+and it was not Story 4.4's to fix.** It is the whole cost of the widening, and it is
+a **named candidate** for Epic 14 if this path ever runs at a higher cadence.
+
+**These are local figures on a dev build.** Your production-build measurement
+supersedes them; what they give you is **where to look** rather than a number to
+carry forward.
+
+### And Epic 14's trigger still has the hole Story 4.3 found
+
+Recorded here at 4.3's close and unresolved: the trigger is worded _"a second
+surface on **this** page"_, and **on `/` there is no first surface at universe scale
+at all**. Breadth does not change that — it renders **four rows**, three counts and a
+remainder, over a computation across 503. **So the gap between _universe-scale
+computation_ and _universe-scale markup_ is now concrete rather than hypothetical,
+and it is this story's to resolve.**

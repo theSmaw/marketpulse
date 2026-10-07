@@ -1622,8 +1622,11 @@ order and drawn order are two independent facts** and source order can express
 exactly one of the three layouts. It expresses the one where order _is_ the
 hierarchy: at ≤860 the stylesheet's own comment is that _order is the only
 hierarchy left_, and `overview-region-order.spec.ts` now asserts DOM order against
-geometric top-to-bottom order at **768**, with the break
-`the-narrow-grid-is-re-laid-without-the-dom`.
+geometric top-to-bottom order at **768 and at 390**, with the break
+`the-narrow-grid-is-re-laid-without-the-dom`. Both widths, not one: 768 covers the
+**rule** — one media query, one areas list — and 390 covers the **width**, which
+this product has already paid for once, in the subgrid defect of Task 4.3.5 that
+was visible at 390 and at no other width with `pnpm verify` green.
 
 **What that leaves standing.** At 1440 and 1024 the grid reads `topology unusual /
 sectors breadth / movers investigations`, so a keyboard reader's six tab stops —
@@ -1660,6 +1663,148 @@ the choice is owed a re-take.
 
 **Re-measure:** `pnpm probe / --widths 1440,1024,768,390` and read each region's
 `@x,y` against the source order in `MarketOverview.tsx`. At 768 and 390 the two
-orders must agree — which `overview-region-order.spec.ts` holds for 768 and
-**nothing holds for 390** — and at 1440 and 1024 they must disagree, which is the
+orders must agree — which `overview-region-order.spec.ts` holds at both widths —
+and at 1440 and 1024 they must disagree, which is the
 accepted cost rather than a finding.
+
+## Every breadth figure is checked against this repository and nothing else, and the 503 it counts are on no frame a browser can see
+
+**Added 2026-10-07 by Task 4.4.8.**
+
+**What is guarded.** The arithmetic, exhaustively: Task 4.4.8 enumerated every
+`(advancing, declining, unchanged)` triple summing to N for N from 0 to 503 and
+asserted the displayed identity on each. The wire's own cross-field check refuses
+`measured > tracked`. `marketBreadth` is a single pass with three accumulators
+whose sum **is** `measured`, so the numerator and the denominator cannot be
+measured over different sets. A pass-through browser spec asserts
+`advancing + declining + unchanged === measured` off the server's own frame.
+
+**What that leaves standing — and it is the largest gap this epic has opened.**
+Every one of those checks is **internal**. Breadth is a _reduction_: the backend
+counts 503 securities and the browser receives five integers. **There is no
+recoverable input on the frame at all** — a reader, a spec, a screen-reader pass
+and a person at a live session all see the same five numbers, and none of them
+can recompute one. So the claim _451 of the 503 we track were heard from in the
+last 5 minutes_ is checked against:
+
+- **the join's own entries**, which the same process produced; and
+- **one one-sided cross-check**, which is worth having and is weak: the four
+  proxies and eleven sectors ride the **same frame** and are inside the 518, so
+  the number of those fifteen that are `observed` with a positive move is a
+  **lower bound** on `advancing`. It goes red on an inverted sign, a transposed
+  bucket, or breadth computed over the wrong symbol set — and it is silent on
+  every error that is off by less than the fifteen.
+
+Nothing compares a breadth count with **any figure produced outside this
+repository**. There is no second implementation, no vendor breadth number, and
+no stored history of the counts to compare a session against. A systematic error
+— the window off by a minute, the equity set off by a handful, `unchanged`
+absorbing a bucket it should not — would render as five well-formed integers
+drawing a plausible picture.
+
+**Re-measure:** during a regular session, read `GET /diagnostics/feed` for the
+observed count, take the overview frame's `breadth` from the deployed socket, and
+compare `measured` against the count of entries with a bar inside the window from
+a direct query of `market_bars`. That is still this repository checking itself,
+one layer down; the only external check available is a published breadth figure
+for the same minute from a source this product does not use, read by a person.
+
+## No gated machine has ever seen a breadth figure at all — not a wrong one, an absent one
+
+**Added 2026-10-07 by Task 4.4.8.** The sibling of the sector entry above, with a
+sharper edge.
+
+CI's store is **518 securities and zero bars**, and nothing on a runner connects
+to a market socket. So in every gated run `measured` is **0**: the region renders
+its honest-nothing state — `Of the 503 companies we track, none were heard from
+in the last 5 minutes.` — and the three counts, the ladder, the band track and
+the net headline are **all suppressed or zero**. The sector entry could at least
+say CI draws eleven rows of `unknown`; here the states a gated run reaches are
+`reserved` and `N = 0`, and **nothing else**.
+
+**The consequence, stated plainly: every browser assertion about a breadth
+_number_ is an assertion about data CI does not have.** That is why the
+pass-through spec asserts an **identity** (`0 + 0 + 0 === 0` holds, and
+`0 !== 503` is a real distinction), a **bound** (`measured <= 503`), a **count of
+figures** (exactly four proxies — the one assertion that catches the
+negative-filter regression of Task 4.4.1), and **convergence on the latest
+recorded frame**, rather than any figure.
+
+What follows is that the states a reader actually meets — a ladder with a real
+scale, a net headline with a sign, the two grammars, a remainder that is not the
+whole population — exist on a developer's store, in Storybook, in the produced
+state grid, and **in production**. They are covered by component tests over the
+view builder and by photographs. They are not covered by anything that runs
+before a merge against real counts.
+
+**Re-measure:** `pnpm store:bare`, then `DATABASE_NAME=marketpulse_bare pnpm dev`
+and `pnpm probe / --within "Market breadth"` — that is what CI sees. Then the
+same probe against a developer's store during a session for what it does not.
+
+## The remainder row cannot distinguish _we did not hear_ from _it did not trade_, and the honest word for it was chosen rather than derived
+
+**Added 2026-10-07 by Task 4.4.8.**
+
+`tracked - measured` is drawn as a quiet row below the rule, and Task 4.4.6 gave
+it two grammars keyed on the **basis the wire sent**: `Not heard from` under the
+observed basis, and a close-to-close wording under the session one, because
+_nothing is heard from out of hours_ and the out-of-hours figure is really _how
+much of the store is behind_.
+
+**What neither grammar can say is why an individual security is in that
+remainder**, and there are at least four reasons with one number:
+
+- it did not trade in the window — common and correct, and most of the 503 on a
+  quiet five minutes;
+- it traded on a venue our tape does not carry — the live stream is **IEX only**,
+  which is invariant 6's whole subject, and a security trading briskly elsewhere
+  is silent to us;
+- its bar arrived and was refused — `directionOf` answers `undefined` for a
+  non-finite percentage, so such a figure is in **no bucket and outside
+  `measured`**, which is correct and indistinguishable;
+- it has no stored close to measure against, so `changeFromClose` cannot produce
+  a percentage at all.
+
+The first is a fact about the market. The second and fourth are facts about
+**our reach**. They are summed into one integer and drawn under one label, and
+**the label names the only one of the four a reader could act on**. `Not heard
+from` is the honest word for the sum — it claims a limit of ours rather than a
+property of the market, which is the right direction to err in — but it is a
+chosen word and not a derived one.
+
+**Re-measure:** a per-security breakdown would answer it, and is deliberately
+not built: it is 503 rows of a fact nobody asked for. Until something asks,
+check the direction of the claim rather than its composition — grep the region's
+copy for any word that attributes the remainder to the **market** rather than to
+us.
+
+## The denominator sentence's clipping at 390 is mechanically invisible, and the longest string is the one the N = 0 state draws
+
+**Added 2026-10-07 by Task 4.4.8**, and it is the same class as the sector
+region's clipped absence sentence above — with one difference that matters: there
+it is the _absence_ sentence, and here the sentence is **shipped copy in the
+state a gated machine always renders**.
+
+**Which string is at risk, which is easy to get wrong.** The long sentence is
+normally the **spoken** twin. At `measured > 0` the drawn claim is a short method
+clause — `Heard from means at least one observation in the last 5 minutes.` (64
+characters) — and the full `Of the 503 companies we track, …` sentence is read by
+a screen reader only. **At `measured === 0` the two collapse into one string and
+the long sentence is drawn**: `Of the 503 companies we track, none were heard
+from in the last 5 minutes.` — 74 characters, the longest string the region
+holds, in the state CI renders every run and a reader meets out of hours.
+
+**Why nothing can see it.** The DOM holds the full string whatever the box does.
+`textContent` is identical whether the sentence wraps to three lines, is clipped
+by `overflow: hidden`, or overflows its panel. jsdom computes no layout; the
+browser suite is told not to assert a pixel; and a greyscale or deuteranopia
+pass reads colour, not geometry. **A screenshot is the only instrument, and a
+person looking at it is the only reader.**
+
+**Re-measure:** `pnpm probe / --widths 390 --within "Market breadth"` and **open
+the screenshot in `.probe/`** — the box figures alone will not show a clipped
+glyph. Take it in both states: against a store with bars for the method clause,
+and against `marketpulse_bare` for the long sentence. The two grammars double it
+again: the session-basis string is `Of the 503 companies we track, none had a
+close-to-close move on 2026-10-07.`, which is **76** characters and is therefore
+the real worst case.

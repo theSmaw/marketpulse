@@ -1,6 +1,6 @@
 # Story 4.4 — Breadth, & the Denominator on Screen
 
-**Status:** **In progress — 2026-10-07.** Decomposed into eight tasks; five decisions taken at Gate 1.
+**Status:** **Complete — 2026-10-07**, pending the owner's acceptance at Gate 2. Eight tasks, eight PRs (#509–#517). `/` draws three counts, a remainder and a net headline over **503 equities**, with the population stated in words. The join now sees all 518 through a **positive** membership set; the window is **5 minutes, measured**; the widening cost **0.118 → 3.497 ms** a batch of which the count is **0.041 ms (1.2%)**. **One open figure**: Task 4.1.6's coverage band was measured over 518 and is unusable as a figure over 503 — the re-measure is owed. **One sitting owed**: no person, and no gated machine, has ever seen a breadth figure.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.3
 **Epic scope covered:** advancers / decliners; market breadth
