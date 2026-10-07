@@ -398,3 +398,48 @@ taken after the epic is called done is a figure nobody re-takes._
 - **The focus ring clipped at both sticky edges** → a task in **4.6**, which adds
   the first focusable content inside `.regions` and whose AC 4 (_focus is never
   occluded at any width_) **cannot pass without it**.
+
+## Reassessed 2026-10-07 after Story 4.3 — four amendments, one sequence defect, nothing added or deleted
+
+**Story 4.3 shipped eight tasks and changed what three later stories should do.**
+The reassessment is recorded here so the next reader can see that it happened and
+what it concluded, rather than finding four unexplained amendments.
+
+| Story    | Verdict                                           | Why                                                                                                                                                                                                                           |
+| -------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **4.4**  | **Amended**                                       | It is the next story that adds a region, and 4.3 produced the defect that costs: a region can stay **silent for ever**. Also told which two of its criteria already have mechanisms, and given the corrected 486 px geometry. |
+| **4.5**  | **Amended, substantially**                        | **Three of its six acceptance criteria are already met by 4.3**, and its description still presents a decision 4.3 took.                                                                                                      |
+| **4.8**  | **Amended**                                       | Epic 14's trigger was evaluated a third time and **did not fire** — and the evaluation exposed that the trigger, as worded, **cannot fire on `/` at all**.                                                                    |
+| **4.9**  | **Amended, and a real sequence defect corrected** | It depended on **4.8**, but **4.7 runs after 4.8**. The close was unblocked before the last feature story.                                                                                                                    |
+| 4.6, 4.7 | unchanged                                         | 4.6 was swept on 2026-09-27 with the keyboard rule; 4.7 already inherits the degraded-set technique and is unaffected.                                                                                                        |
+
+**Nothing added and nothing deleted**, and both deserve a sentence rather than
+silence.
+
+**Why nothing was added.** The obvious candidate is the **three characterised
+flakes** that now compound across every merge — one of which failed `verify` on
+`main` and caused a `deploy` to be **skipped** on 2026-10-07. That is a real
+engineering problem with a real cost, and it is **not market-overview scope**. Two
+were repaired the same day; the third is recorded and unowned. Making it a story
+here would be scope creep into an epic about a screen, so it is handed to **Story
+4.9's close as a verdict to return** — _are this epic's own suites trustworthy_ —
+with a named owner outside this epic if the answer is no.
+
+**Why nothing was deleted.** Story 4.5 shrank considerably and is still a story:
+the top-N over 518, the agreement with breadth by construction, the bar re-argued
+on its own terms, and whether 4.3's treatment survives at its scale. **Its risk is
+now the opposite of what it was** — not that the decision is unmade, but that it
+will be **inherited without being re-checked** at a scale where the synchrony is
+worse rather than better.
+
+### The sequence, stated once, because the numbers no longer match the order
+
+> 4.1 → 4.2 → 4.3 → 4.4 → 4.5 → 4.6 → **4.8 → 4.7** → 4.9
+
+4.7 and 4.8 were swapped on 2026-09-27 and **deliberately not renumbered**, because
+a renumber means remapping every reference in the same change and four sibling files
+plus `docs/GAPS.md` name `Story 4.7` for the degraded set. The 2026-10-07
+reassessment found that the swap **missed 4.9's dependency line** — which is the
+cost of not renumbering, landing exactly where that trade-off predicted it would,
+and found by reading the chain rather than by anything mechanical. **Nothing checks
+a dependency line against the story it names.**

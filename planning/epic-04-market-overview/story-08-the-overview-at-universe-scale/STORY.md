@@ -141,3 +141,56 @@ The byte cost is not the issue and is recorded so nobody re-derives it: 431 byte
 × ~16 a minute ≈ **6.9 KiB/min per attached browser**, ~12% on top of a
 518-subscribed client and roughly **3× the inbound bytes of a one-symbol security
 page**.
+
+## Reassessed 2026-10-07 after Story 4.3 shipped — Epic 14's trigger was evaluated a third time, and it exposed a property of the trigger itself
+
+**The verdict is recorded in Epic 14's own file, as your criterion 3 requires, and
+is repeated here because you are the story that has to defend it.**
+
+**It did NOT fire.** Story 4.3 put **eleven** sector rows on `/`, each with a rank,
+a label, a ticker, a reserved mark slot, a figure and a bar — the first ranked
+per-row surface outside `/securities`. Eleven is **2.1% of 518**, so this is not
+_universe scale_ by two orders of magnitude, and the condition's own word is what
+rules it out rather than a figure arriving under a line.
+
+### The property nobody had noticed, and it is yours to resolve
+
+**The trigger is worded against a page, and every previous evaluation was about the
+other one.** Its words are _"the first time a second surface on **this** page
+renders per-row markup at universe scale"_, and it was written when `/securities`
+and its 518-row table were the subject.
+
+**On `/` there is no first surface at universe scale at all.** The proxy strip is
+four rows; the sector list eleven. So **the trigger as worded cannot fire on the
+landing page until something there renders 518 of anything** — four aggregate
+regions could ship without firing it, because each renders a _summary_ rather than
+per-row markup.
+
+**That is the trigger working as designed and it is also a gap**, because this
+epic's cost is real and lands on a page the trigger cannot see. **You are where it
+gets resolved**: either the trigger is re-worded to name a _computation_ at universe
+scale rather than markup, or this epic's cost is owned here and the trigger is left
+alone for `/securities`. Record which, in Epic 14's file, with the argument.
+
+### What Story 4.5 will hand you, and why it is not the answer either
+
+`Movers` ranks a **top-N over all 518** — so the **computation** is at universe
+scale while the **rendered** rows are ten or twenty. On a strict reading of the
+trigger's words that still does not fire it. **That asymmetry is the whole of the
+question above.**
+
+### Two figures from Story 4.3 you should not re-derive
+
+- **The sector region's own per-tick cost is measured and is not a breach**: one
+  FLIP over eleven rows, 20 re-orders — **1,098 rAF gaps, p50 16.7 ms, p95 17.6,
+  worst 37.5, zero over 50 ms, zero long tasks.** Caveats recorded with it and worth
+  keeping when you quote it: **a dev server**, and **a frame gap is a proxy for the
+  task rather than the task**. Your production-build measurement supersedes it.
+- **The `bars` frame count for the eleven sector ETFs is still unmeasured**, and no
+  machine available to Story 4.3 could measure it. The vendor batches a minute into
+  **8.8 frames at the open** (332 bars), 6.8 at midday, 16.1 at the close, with
+  **no coalescing anywhere** in our code — so the eleven land in somewhere between 1
+  and 11 frames and **nothing in this repository has ever recorded frame
+  COMPOSITION, only counts.** You will have the instrument up and the feed running;
+  logging each `bars` frame's **symbol list** is minutes more, and it is the one
+  measurement a replay **structurally cannot** produce.

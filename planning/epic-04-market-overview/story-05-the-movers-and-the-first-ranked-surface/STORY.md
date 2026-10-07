@@ -317,3 +317,79 @@ assertion about data the runner does not have. `pnpm store:bare` reproduces it
 locally in seconds. Assert **structure** and the all-`unknown` state on CI; prove
 the keyed states through the shipped socket path, the way
 `overview-proxy-live-update.spec.ts` and `overview-sector-region.spec.ts` do.
+
+## Reassessed 2026-10-07 after Story 4.3 shipped — THREE of your acceptance criteria are already met, and your description contradicts your own hand-off
+
+**Read this before the description at the top of this file, which is now the
+oldest thing in it.** Story 4.3 built the ranked surface first and took the
+decision this story's description presents as open.
+
+### Your description's four-option table is decided, and 4.3 is where
+
+The table — _re-rank on every frame_ / _on a cadence_ / _freeze while hovered_ /
+_re-rank and MARK what moved_ — was answered on 2026-09-27 against **eleven rows
+and a measurement**, not by reasoning:
+
+- **Freezing while hovered or focused is what shipped** (`ORDER HELD`, scoped to
+  the region via `:hover`/`:focus-within`, **never to the row** — row scoping lets
+  rows move out from under an **approaching** pointer).
+- **The fourth option — marking what moved — was explicitly REFUSED**, for a
+  reason that applies to your lists with more force than to sectors: a _moved_
+  mark lands disproportionately on rows that **received nothing**, so it decorates
+  the stalest figures on screen.
+- **The movement itself** is a FLIP, transform only, one settle for the whole
+  list, **no stagger**, with the two events separated in **time**:
+  `--motion-duration-settle` of stillness then the same token again of travel.
+
+### So three acceptance criteria are already satisfied — by another story
+
+| AC                                                                                                           | Status                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **2.** _the re-ranking decision taken against real moving numbers, with alternatives and a reversal trigger_ | **MET by Task 4.3.3.** Taken on `LIVE-DATA.md` §7.4's **243 ms p50 intra-minute spread, n=445 minutes**, with the alternatives recorded and a condition-shaped reversal trigger: _the first sitting in which a person reports the region as flashing or refreshing rather than as facts arriving._ |
+| **3.** _a row does not move out from under a pointer or a focus ring_                                        | **MET by Task 4.3.6** — the hold, unbounded in time and bounded by the reader.                                                                                                                                                                                                                     |
+| **4.** _`prefers-reduced-motion` gets a legible version, asserted in a browser_                              | **MET by Task 4.3.6**, and asserted **paired** — one test with the preference and one without, because an absence assertion alone passes against a treatment that never ran.                                                                                                                       |
+
+**Do not re-take them. Re-CHECK them at your scale**, which is the part that is
+genuinely yours and is stated below.
+
+### What is still yours, and it is sharper than it was
+
+1. **The top-N computation over 518**, agreeing with breadth by construction.
+2. **Whether the treatment survives 518.** 4.3's measurement is the eleven's, and
+   the synchrony risk is **worse at your scale, not better** — more rows arriving
+   in the same ~243 ms burst. The trigger above is the thing to watch, and **the
+   lever is the disc, not the motion**: a ranked list's aliveness is its order.
+3. **The bar, re-argued on its own terms.** It is adopted for sectors and
+   **refused for movers**, and the reason is _one quantity versus four_ rather than
+   _eleven versus ten_: eleven sector ETFs carry today's percent change on the same
+   basis over the same interval, so the ratio of two bars **is** the ratio of two
+   moves. A top-N over a mixed set is not that. **Re-argue it; do not inherit
+   either answer.**
+4. **Two lists on one screen**, which is why `RankedList`'s `name` prop is
+   required — each `<ol>` needs its own accessible name.
+
+### Two instructions in your Design work that are now false
+
+- _"One ranked-list component, two uses … **the canvas gets the component and its
+  states**"_ — **done**. `The ranked list.dc.html` exists with the row anatomy, the
+  four widths and the states; `The order that changes.dc.html` has the treatment.
+  You **consume** these.
+- _"The re-order treatment … belongs beside the others in
+  `The motion vocabulary.dc.html` **rather than in a new file**, because the
+  vocabulary's value is that it is one page."_ — **This instruction was not
+  followed, and the disagreement is unresolved rather than settled.** Task 4.3.3
+  drew `The order that changes.dc.html` as its own page. The argument for one page
+  still stands and **nothing on the motion vocabulary page references the
+  re-order**, so the vocabulary is currently four limbs on one page and a fifth
+  somewhere else. **Owner: whoever next touches either page** — either
+  cross-reference it or move it, but the present state is the one both arguments
+  were against.
+
+### And a testing lesson that would otherwise cost you a story
+
+**Four overview specs passed against a server with the ranking deleted.** Each one
+**furnished** the order it then checked, so it was asserting its own fixture. Your
+lists are ranked server-side for the same reason sectors are — a top-N in a browser
+means shipping the 518-figure input — so **a spec that supplies your `movers` array
+cannot see your comparator at all.** `overview-sector-ranking.spec.ts` is the
+pass-through shape that can; copy it rather than the furnished harness.

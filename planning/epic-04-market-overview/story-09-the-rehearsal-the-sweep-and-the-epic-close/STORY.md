@@ -2,7 +2,7 @@
 
 **Status:** Not started
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
-**Depends on:** 4.8
+**Depends on:** 4.7 — **corrected 2026-10-07**, see the amendment at the foot
 **Epic scope covered:** the close
 
 ## Description
@@ -99,3 +99,55 @@ a minute**. The second clause is the one to watch, because this strip is four
 subjects rather than 518, and the defence that carried the table — twelve
 discs scattered in a viewport reading as texture — needs a density four cells
 on one horizontal line do not have.
+
+## Corrected 2026-10-07 after Story 4.3 — this story depended on 4.8, and 4.7 runs AFTER 4.8
+
+**The close could have run before the epic's last feature story.** On 2026-09-27
+Stories 4.7 and 4.8 were re-ordered: **4.7 now depends on 4.8**, because 4.7 needs
+a phone during a real session and 4.8 needs neither. The identifiers were
+deliberately **not** renumbered — `CLAUDE.md` forbids a renumber without remapping
+every reference in the same change, and four sibling files plus `docs/GAPS.md` name
+`Story 4.7` for the degraded set.
+
+**What that re-order missed is this file.** It left `Depends on: 4.8` here, so the
+dependency graph said the close was unblocked the moment 4.8 finished — **with 4.7
+still to ship.** The real order is:
+
+> 4.1 → 4.2 → 4.3 → 4.4 → 4.5 → 4.6 → **4.8 → 4.7** → 4.9
+
+Corrected to **4.7**. This is exactly the trap this repository warns about in as
+many words — _a sequence whose numbers do not reflect its order is a trap for every
+future reader_ — and it was found by reading the chain rather than by anything
+mechanical, because **nothing checks a dependency line against the story it names.**
+
+**One consequence for your own criterion 1**, which reads _every criterion in
+Stories 4.1–4.8 has a verdict_: that range is written in **numbers** and the
+**order** now differs from them. It should say _4.1 through 4.8 inclusive, which
+ends with 4.7_ or simply _every other story in this epic_. Left as a note rather
+than edited, because the criterion is correct as a set and only misleads about
+sequence.
+
+### And two items this story inherits from Story 4.3's close
+
+**1. `LIVE-REHEARSAL.md` has two OPEN rows and you own closing them.** Story 4.2's
+and Story 4.3's, both opened on 2026-09-27 rather than at a close, because that
+ledger's own history is empty rows accumulating and then being filled by a headless
+browser. **Neither can be filled by an instrument**:
+
+- **4.2 is the first row in the ledger for a DERIVED figure.** Every row above it
+  watches a number that arrived; a proxy's change is **computed**. The failure mode
+  is new with it — the arithmetic can be wrong while every input is right, and the
+  screen looks entirely normal.
+- **4.3 is the first where a RANK moves**, which is the first thing a person can be
+  wrong about **while every number is right**. Three questions only a person at a
+  live session can answer are written into that row.
+
+**2. Three characterised flakes now compound across a merge** — ~12% on
+`security-gap-fill`, a load-dependent 30 s ceiling on `securities-route:855`, and
+one inside `pnpm verify` itself (`market-gateway.process.test.ts`). **A clean full
+run is not the common case.** Two were repaired on 2026-10-07 and **the repair of
+the first is reasoned rather than proven** — breaking it deliberately on an idle
+machine changed nothing, because every sighting was under load. **This is not Epic
+4 scope and should not become it**; what this close owes is a verdict on whether
+the epic's own suites are trustworthy, and a named owner outside this epic if they
+are not.
