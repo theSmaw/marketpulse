@@ -280,12 +280,97 @@ export function MarketOverview({
       </div>
 
       <div className={styles.regions}>
+        {/*
+         * **SOURCE ORDER IS THE ≤860 ORDER — Task 4.4.7, and it is a decision
+         * with a cost rather than a tidy-up.**
+         *
+         * The six regions below are written in the order the one-column layout
+         * draws them: `breadth, sectors, movers, topology, unusual,
+         * investigations`. Every one of them names its own grid area, so this
+         * file's order decides nothing visual at any width — the stylesheet's
+         * three `grid-template-areas` blocks do — and what it decides is the
+         * **focus and reading order**, which is not a free variable: there are
+         * six tab stops inside `.regions`, because `Region` passes `scrollable`
+         * unconditionally and `Panel` renders `tabIndex={scrollable ? 0 :
+         * undefined}`.
+         *
+         * **Story 4.4's own premise said there was not one tab stop here. There
+         * are six, and the mismatch had been shipped since Task 4.1.3** —
+         * Story 4.6's `STORY.md`, `Panel.tsx`'s docblock and `RankedList.tsx`
+         * all already said so. What breadth changed is only that the stop the
+         * eye meets second became the first one with a figure under it.
+         *
+         * **Why the ≤860 order and not the wide one.** Source order can express
+         * exactly one layout, so it should express the one where order *is* the
+         * meaning. At ≤860 the stylesheet's own comment is that *order is the
+         * only hierarchy left* — one column, six regions, a reader meeting them
+         * in sequence. At 1440 and 1024 the grid is two-dimensional and
+         * column-major, so there is no single visual sequence for the DOM to
+         * agree or disagree with.
+         *
+         * **The cost, stated rather than hidden.** At ≥861 a keyboard reader
+         * now gets `breadth → sectors → movers → topology → unusual →
+         * investigations` against a grid whose rows read `topology unusual /
+         * sectors breadth / movers investigations`. So at those widths focus
+         * order is not visual order. Accepted because in two columns the eye is
+         * not performing a sequence: there is no reading order there to
+         * disagree with, and the alternative — a source order matching the wide
+         * grid — puts the ≤860 mismatch back on the layout where sequence is
+         * the entire hierarchy, and on the narrower viewport.
+         *
+         * **Reversal trigger**: the first region on this screen whose content a
+         * reader must traverse in order *at a wide width* — a numbered sequence,
+         * a stepper, a form, or two regions where one's figure is read against
+         * the other's. At that point the wide layout acquires a reading order
+         * and this decision is owed a re-take; today it has none.
+         *
+         * `overview-region-order.spec.ts` asserts the DOM order against the
+         * geometric top-to-bottom order at 768, which is the half of this that
+         * a machine can check.
+         */}
+        {/*
+         * **The breadth ledger — Story 4.4, and the first thing on this screen
+         * that answers whether a 2% index move is everything or five names.**
+         *
+         * `awaiting` is gone because the work has landed. `filledBy` stays for
+         * the one state where there is nothing to draw, and is narrower than it
+         * was: *how much of the market* was the sentence this region's own
+         * denominator exists to refuse — the count is over the **503 equities**
+         * we track, which is the S&P 500 by curation and is a narrower thing
+         * than the market.
+         *
+         * **`breadth === undefined` is two states, and they are told apart by
+         * the frame rather than by the section** — `Sector performance`'s rule
+         * one region across, for the same reason. `overview` present with no
+         * readable breadth is a **rollback pinning a previous image**: that
+         * gateway will never send a section, so the honest answer is the
+         * region's own sentence. `overview` absent is the **first paint**, a few
+         * hundred milliseconds on every load, where the same sentence would be
+         * a promise the next frame breaks — and the panel it sits in is 103 px
+         * at 768 and 139 at 390 against the filled height, so saying nothing
+         * and holding the room is what keeps the lower page still.
+         *
+         * **The sentence for the state where nothing EVER arrives is Task
+         * 4.4.6's**, together with the `useWaited` floor the sibling already
+         * reuses.
+         */}
         <Region
-          className={styles.areaTopology}
-          name="Market topology"
-          awaiting="Epic 6"
-          filledBy="The securities graph, in WebGL — 518 nodes clustered by sector, sized by liquidity, moving with the market. It takes this column when it arrives."
-        />
+          className={styles.areaBreadth}
+          name="Market breadth"
+          filledBy={
+            breadth === undefined && overview !== undefined
+              ? "Advancing, declining and unchanged among the 503 companies we track, over the number of them the count could see."
+              : undefined
+          }
+        >
+          {breadth === undefined ? (
+            overview === undefined ? (
+              <BreadthLedgerReservation />
+            ) : undefined
+          ) : (
+            <BreadthLedger view={breadth} />
+          )}
+        </Region>
 
         {/*
          * **Eleven sectors, ranked — Story 4.3, and the first thing on this
@@ -358,55 +443,18 @@ export function MarketOverview({
         />
 
         <Region
+          className={styles.areaTopology}
+          name="Market topology"
+          awaiting="Epic 6"
+          filledBy="The securities graph, in WebGL — 518 nodes clustered by sector, sized by liquidity, moving with the market. It takes this column when it arrives."
+        />
+
+        <Region
           className={styles.areaUnusual}
           name="Unusual activity"
           awaiting="Epic 5"
           filledBy="Every tracked security scored 0–100 for how unusual its behaviour is, ranked, each score carrying its explanation."
         />
-
-        {/*
-         * **The breadth ledger — Story 4.4, and the first thing on this screen
-         * that answers whether a 2% index move is everything or five names.**
-         *
-         * `awaiting` is gone because the work has landed. `filledBy` stays for
-         * the one state where there is nothing to draw, and is narrower than it
-         * was: *how much of the market* was the sentence this region's own
-         * denominator exists to refuse — the count is over the **503 equities**
-         * we track, which is the S&P 500 by curation and is a narrower thing
-         * than the market.
-         *
-         * **`breadth === undefined` is two states, and they are told apart by
-         * the frame rather than by the section** — `Sector performance`'s rule
-         * one region across, for the same reason. `overview` present with no
-         * readable breadth is a **rollback pinning a previous image**: that
-         * gateway will never send a section, so the honest answer is the
-         * region's own sentence. `overview` absent is the **first paint**, a few
-         * hundred milliseconds on every load, where the same sentence would be
-         * a promise the next frame breaks — and the panel it sits in is 103 px
-         * at 768 and 139 at 390 against the filled height, so saying nothing
-         * and holding the room is what keeps the lower page still.
-         *
-         * **The sentence for the state where nothing EVER arrives is Task
-         * 4.4.6's**, together with the `useWaited` floor the sibling already
-         * reuses.
-         */}
-        <Region
-          className={styles.areaBreadth}
-          name="Market breadth"
-          filledBy={
-            breadth === undefined && overview !== undefined
-              ? "Advancing, declining and unchanged among the 503 companies we track, over the number of them the count could see."
-              : undefined
-          }
-        >
-          {breadth === undefined ? (
-            overview === undefined ? (
-              <BreadthLedgerReservation />
-            ) : undefined
-          ) : (
-            <BreadthLedger view={breadth} />
-          )}
-        </Region>
 
         <Region
           className={styles.areaInvestigations}

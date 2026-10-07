@@ -2781,4 +2781,35 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "expected exactly 1",
   },
+  // **The narrow grid is re-laid and the DOM is not — Task 4.4.7.**
+  //
+  // The landing route's six regions each name a grid area, so source order and
+  // drawn order are two independent facts: the stylesheet can be re-laid
+  // without touching the route. Task 4.4.7's decision is that the DOM holds the
+  // **≤860 order**, because that is the layout where sequence *is* the
+  // hierarchy — and there are six tab stops inside the grid, so the order is a
+  // keyboard reader's route through the screen rather than a detail of markup.
+  //
+  // The substitution is the edit the next author makes: **two lines of
+  // `grid-template-areas` swapped at ≤860**, which is `CLAUDE.md`'s own
+  // *every breakpoint that narrows a grid must restate its areas* arriving one
+  // step later — the areas get restated and the DOM does not follow. It is
+  // chosen over re-ordering the JSX deliberately: a reverted JSX order is
+  // caught by the spec's *names* assertion, which is the half already proved by
+  // construction, while this reaches the **geometric** half, which only a
+  // browser can see. jsdom computes no layout, so every unit and component test
+  // in this repository passes against it.
+  {
+    name: "the-narrow-grid-is-re-laid-without-the-dom",
+    proves:
+      "The landing route's \u2264860 reading order stops matching its source " +
+      "order, so a keyboard reader and a screen reader meet the regions in an " +
+      "order the screen does not show \u2014 a WCAG 1.3.2 / 2.4.3 defect that is " +
+      "structurally invisible below a real browser (Task 4.4.7).",
+    file: "apps/frontend/src/routes/MarketOverview.module.css",
+    find: '      "breadth"\n      "sectors"',
+    replace: '      "sectors"\n      "breadth"',
+    command: ["pnpm", "e2e", "overview-region-order.spec.ts", "--anyway"],
+    expect: "is not below Market breadth",
+  },
 ];
