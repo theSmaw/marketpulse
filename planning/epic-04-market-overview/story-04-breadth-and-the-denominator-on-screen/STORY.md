@@ -1,6 +1,6 @@
 # Story 4.4 — Breadth, & the Denominator on Screen
 
-**Status:** Not started
+**Status:** **In progress — 2026-10-07.** Decomposed into eight tasks; five decisions taken at Gate 1.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.3
 **Epic scope covered:** advancers / decliners; market breadth
@@ -425,3 +425,112 @@ rose with it because rows 2 and 3 share one `fr` ratio. **So filling this region
 still moves nothing at 1440 and 1024.** At 768 and 390 the grid is
 `grid-template-rows: none` and this region is 103 px and 121 px, so filling it there
 **will** grow the page — yours to measure and report.
+
+## Decomposed 2026-10-07 — eight tasks, five owner decisions, and two defects found before a line was written
+
+**Phase 1 engaged six roles and two of them independently found the same shipped
+defect**, which is why the first task repairs rather than builds.
+
+### The five decisions the owner took at Gate 1
+
+**1. Counts, not percentages** — `Advancing 284`, with a percentage permitted
+beside a count but never replacing one. **This makes AC 5 true by construction**:
+three integers summing to N exactly, at every rounding, with nothing to round.
+Three independently-rounded percentages sum to 99 or 101 — at N = 466 with an even
+split, `33.3 + 33.3 + 33.5 = 100.1`. Rejected: percentages only (needs
+largest-remainder apportionment and an exhaustive test over ~23M triples), and
+both always (costs horizontal room in a region that is 103 px at 768).
+**`PRODUCT_SPEC.md` §9 draws percentages and owes a dated amendment.**
+
+**2. The count is over the 503 equities, not all 518.** A count that includes SPY
+and the eleven sector SPDRs alongside their own constituents answers no question a
+reader has, and makes this region and `Market proxies` **non-independent** — in a
+one-sided market all fifteen fall the same way, shifting the figure by up to ~2.9
+points toward the majority. **The cost is that the decided sentence's noun
+changes** — _of the 503 companies we track_ — and **Task 4.1.6's measured band
+(446–498, worst hour 446) was taken over 518**, so it is restated at roughly
+`N − 15` and **owes a re-measure rather than a subtraction**.
+
+**3. Session-driven, with the wire saying which count it sent.** A two-member
+union on the frame: `observed` with its five-minute coverage, or `session` with the
+session date. **The market is shut ~80% of the week, so this is the common path
+rather than an edge case.** Rejected: data-driven (the measured five-minute minimum
+is **5 of 518**, so thin extended hours would produce a breadth figure over five
+names, which a reader will believe), and saying nothing outside a session (blank
+whenever the market is, which is what this epic's exit criterion worries about).
+
+**4. The ≤860 px reorder is repaired by reordering the DOM**, so the one-column
+order is the declared order and `grid-template-areas` places the wide layouts — as
+it already does by name. **Scoped as a grid-level task on Story 4.1's grid**: all
+seven regions, three breakpoints, `pnpm probe` at four widths.
+
+**5. The shape is the breadth ledger** — three rows of `label · count · bar` on
+`RankedList`'s geometry, **`Not heard from` in a trailing group below a rule** in
+the idiom Task 4.3.7 shipped for `Not ranked`, plus one headline figure. **It
+survives greyscale twice over** (a word per row, and the row's own label on its own
+bar) and reuses shipped geometry rather than inventing. Rejected: a four-segment
+partition bar — the better **picture** and the worse **product**, because
+advancing and declining differ by **1.04:1** with a _moving_ boundary, so even
+fixed order does not recover direction, and `unchanged` at 15 of 466 is a **10 px
+sliver** that vanishes at zero, leaving a two-segment bar that reads as complete.
+And four figures in a row, which gives up proportion entirely — the region's stated
+job is _how broad, at a glance_.
+
+### Two defects found during shaping, before any code was written
+
+**1. The sector arrival mark cannot fire on the deployed page — a defect in Story
+4.3's shipped code.** The landing route subscribes to `overview.figures` only
+(`MarketOverview.tsx`: `symbolKey` is the four proxies), the gateway scopes both
+`bars` and `snapshot` to what a client asked for (`if (!wanted.has(…)) continue`),
+and the eleven sector ETFs ride in `overview.sectors` — **which never reaches the
+subscription**. So `observations.get("XLK")` is permanently `undefined` and
+`SectorRow.arrival` can never fire. **Invisible to every test**, because the unit
+tests hand `sectorPerformance` an observations map directly and the browser specs
+furnish their own frames. Found independently by the technical analyst and the
+tester. **Task 4.4.1.**
+
+**2. The proxy filter is a NEGATIVE membership test, and this story springs it.**
+`index.ts` splits the join's answer with `entries.filter(e => !isSectorSymbol.has(e.symbol))`.
+Breadth needs the join to see all 518 — and against a negative filter **every
+non-sector security lands in `overview.figures`**: hundreds of cells in the strip,
+a ~56 KB frame, `newest` and `sharedBasis` folding over 507 figures. **No compile
+error, no failing test.** Story 4.3's comment there warns against a _slice_ and
+does not cover this, because the sector predicate is positive and the proxy one is
+not. **Task 4.4.1 closes it before Task 4.4.4 widens the join.**
+
+### And this story's own premise was false
+
+The ≤860 amendment says _"there is not one tab stop inside `.regions` at any
+width."_ **There are six.** `Region` passes `scrollable` unconditionally and
+`Panel` renders `tabIndex={scrollable ? 0 : undefined}`. Verified in the tree, and
+three other documents already say so — Story 4.6's `STORY.md`, `Panel.tsx`'s
+docblock and `RankedList.tsx`. **So the visual/DOM mismatch is shipped and live
+rather than latent, and the trigger fired at Task 4.1.3 rather than here.** What
+breadth changes is that the stop the eye meets second and the keyboard meets fifth
+becomes the first one with a figure under it.
+
+**Corrected:** the trigger is a present-tense defect, not a prediction.
+
+### Four more corrections owed, recorded here so a task does not re-derive them
+
+- **AC 3 is not falsifiable as written.** It asserts breadth agrees with the sector
+  rows about a denominator, and `EPIC.md`'s 2026-09-27 reassessment removed the
+  denominator from 4.3 (_"a sector row is the sector ETF's own move … 4.3 has no
+  denominator at all"_). **Restated** as: one call to the join and one direction
+  function, so a sector row's drawn direction and the bucket it is counted in
+  cannot disagree.
+- **`unobserved` stays out of the tree and off the screen.** It is the union
+  `stored ∪ unknown`, it is `503 − N`, and **it is never labelled** — the sentence
+  is written in the positive and the three counts are taken over N. A fourth figure
+  beside `Unchanged` is the adjacency this story exists to prevent.
+- **Two coverage figures in this file measure different things and it does not say
+  so.** The description's _"about 332 of 518 in a median minute, 65.1% per-symbol"_
+  and Task 4.1.6's _"1-minute window is 0 in every one of 390 samples"_ are both
+  true — bars attributable to a minute, versus observations newer than 60 s at a
+  sampling instant. A reader taking the first as the 1-minute denominator is 332
+  away from the truth.
+- **`directionOf` and `PRICE_DIRECTIONS` must move to `packages/shared`**, because
+  breadth is counted on the backend and the frontend module is unreachable from
+  there. This is the `changeFromClose` precedent firing exactly as recorded, and
+  `price-format.ts`'s own note that direction is _"arithmetic on a number both
+  sides already hold"_ is the sentence that expires here. **Task 4.4.2.**
