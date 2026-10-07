@@ -64,11 +64,12 @@ const AT = "2026-09-16T18:01:00Z";
 /**
  * A live count, mid-session.
  *
- * **Every figure is a placeholder pending Task 4.4.6's re-measure over the
- * 503** — Task 4.1.6's band of 446–498 was taken over 518 and nobody may cite
- * it as a figure over 503. Nothing here depends on the figures being realistic;
- * what they have to be is internally consistent, because `readOverview` refuses
- * a section whose counts do not sum to its denominator.
+ * **Every figure is an inference and the re-measure over the 503 is still
+ * owed** — Task 4.1.6's band of 446–498 was taken over 518 and nobody may cite
+ * it as a figure over 503; it needs a session, and Task 4.4.6 met a shut
+ * market. Nothing here depends on the figures being realistic; what they have
+ * to be is internally consistent, because `readOverview` refuses a section
+ * whose counts do not sum to its denominator.
  */
 const OBSERVED: WireMarketBreadth = {
   basis: "observed",

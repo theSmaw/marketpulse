@@ -466,6 +466,20 @@
 }
 
 /*
+ * **The spoken twin of the drawn clause** — the clip-rect idiom from the shared
+ * accessibility layer, never `display: none` and never `visibility: hidden`,
+ * both of which take an element out of the accessibility tree as well as off
+ * the screen and are therefore the exact opposite of what this is for.
+ *
+ * It is `position: absolute` and 1×1, so it contributes nothing to the two-line
+ * reserve above: the `<p>`'s height is the drawn span's, in every state and at
+ * every width.
+ */
+.spoken {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}
+
+/*
  * --- Room and nothing else ---
  *
  * The N = 0 suppression and the pre-frame reservation are the same declaration,
@@ -474,8 +488,54 @@
  * arrived* are both that. `visibility: hidden` rather than `display: none`
  * because the room is the whole purpose — the region's height may not depend on
  * whether the feed has spoken.
+ *
+ * **`.held` covers two triggers since Task 4.4.6** — `measured === 0` for the
+ * headline and the ledger, and *no scale* for the origin rule and the printed
+ * ladder, which also fires at N = 1. One declaration, because the reason is one
+ * reason: a surface that cannot establish a thing holds its room and says
+ * nothing.
  */
 .held,
 .reserved {
   visibility: hidden;
+}
+
+/*
+ * --- The state where nothing EVER arrives (Task 4.4.6) ---
+ *
+ * The room the reservation holds, as a **position** as well as a hidden box, so
+ * the sentence sits inside that room rather than adding to it: nothing moves
+ * when it appears, which is what lets a terminal sentence share a box with a
+ * geometry reserve.
+ *
+ * It is an outer box with the hidden one inside it, deliberately — see
+ * `BreadthLedgerReservation`. `visibility` is inherited, so putting the
+ * sentence and the reserve on one element means un-hiding the reserve to show
+ * the sentence.
+ */
+.reservedRoom {
+  position: relative;
+}
+
+/*
+ * The sentence itself, centred in the region's own room rather than placed on a
+ * row, because it is about the region and not about any count.
+ *
+ * `--font-size-dense` and the sans face, matching the sibling two regions up:
+ * it is prose a reader is meant to read, not the micro stamp the footer clause
+ * is. The family is stated because `.plot` carries the data face for the `4ch`
+ * track — but this element is **outside** `.plot`, so it inherits the page's
+ * sans and the declaration is a statement of intent rather than a correction.
+ */
+.nothingArrived {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-secondary);
 }

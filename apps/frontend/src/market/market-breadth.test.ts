@@ -77,7 +77,7 @@ describe("the two scales, which are deliberately different", () => {
     // fourth state. The fractions sum to 1 exactly, because the counts sum to
     // `measured` — which the wire's own cross-field check guarantees.
     const view = marketBreadth(frame(OBSERVED));
-    const fractions = view?.rows.map((row) => row.fraction) ?? [];
+    const fractions = view?.rows.map((row) => row.fraction ?? 0) ?? [];
 
     expect(fractions[0]).toBeCloseTo(284 / 451, 10);
     expect(fractions.reduce((sum, part) => sum + part, 0)).toBeCloseTo(1, 10);
@@ -87,8 +87,52 @@ describe("the two scales, which are deliberately different", () => {
     const view = marketBreadth(frame(OBSERVED));
 
     expect(view?.measured).toBe(451);
+    expect(view?.scale).toBe(451);
     expect(view?.tracked).toBe(503);
     expect(view?.setHeading).toBe("Of the 503 we track");
+  });
+
+  it("draws no proportional picture at all over one security", () => {
+    // **N = 1 is where the arithmetic is sound and the picture lies.** One
+    // security in one bucket is a fraction of `1`, which fills the whole track
+    // — *the market is entirely advancing*, from one name. So there is no
+    // scale, no fraction and therefore no band, no origin rule and no printed
+    // ladder; the counts stay, because `Advancing 1` is what we know.
+    const view = marketBreadth(
+      frame({
+        ...OBSERVED,
+        advancing: 1,
+        declining: 0,
+        unchanged: 0,
+        measured: 1,
+      }),
+    );
+
+    expect(view?.measured).toBe(1);
+    expect(view?.scale).toBeUndefined();
+    expect(view?.rows.map((row) => row.fraction)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    // The count is still there, and so is the remainder it reconciles with.
+    expect(view?.rows.map((row) => row.count)).toEqual([1, 0, 0]);
+    expect(view?.unheard).toBe(502);
+  });
+
+  it("draws a picture from two, which is the smallest scale with a shape", () => {
+    const view = marketBreadth(
+      frame({
+        ...OBSERVED,
+        advancing: 1,
+        declining: 1,
+        unchanged: 0,
+        measured: 2,
+      }),
+    );
+
+    expect(view?.scale).toBe(2);
+    expect(view?.rows.map((row) => row.fraction)).toEqual([0.5, 0.5, 0]);
   });
 
   it("draws the remainder as a subtraction of two printed figures", () => {
@@ -148,32 +192,153 @@ describe("the headline", () => {
     );
 
     expect(view?.net).toBeUndefined();
-    expect(view?.rows.map((row) => row.fraction)).toEqual([0, 0, 0]);
+    expect(view?.scale).toBeUndefined();
+    expect(view?.rows.map((row) => row.fraction)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
     expect(view?.unheard).toBe(503);
   });
 });
 
 describe("the two grammars, keyed on the basis the wire sent", () => {
   it("reads the window off the frame and never spells a five", () => {
-    expect(marketBreadth(frame(OBSERVED))?.claim).toBe(
+    expect(marketBreadth(frame(OBSERVED))?.claim.drawn).toBe(
       "Heard from means at least one observation in the last 5 minutes.",
     );
     expect(
-      marketBreadth(frame({ ...OBSERVED, windowMinutes: 15 }))?.claim,
+      marketBreadth(frame({ ...OBSERVED, windowMinutes: 15 }))?.claim.drawn,
+    ).toContain("15 minutes");
+    expect(
+      marketBreadth(frame({ ...OBSERVED, windowMinutes: 15 }))?.claim.spoken,
     ).toContain("15 minutes");
   });
 
   it("agrees with itself about a one-minute window", () => {
     expect(
-      marketBreadth(frame({ ...OBSERVED, windowMinutes: 1 }))?.claim,
+      marketBreadth(frame({ ...OBSERVED, windowMinutes: 1 }))?.claim.drawn,
     ).toContain("1 minute.");
   });
 
   it("names the session rather than a window with the market shut", () => {
     const view = marketBreadth(frame(SESSION));
 
-    expect(view?.claim).toBe("Close to close on 2026-10-06.");
-    expect(view?.claim).not.toContain("minute");
+    expect(view?.claim.drawn).toBe("Close to close on 2026-10-06.");
+    expect(view?.claim.drawn).not.toContain("minute");
+    expect(view?.claim.spoken).not.toContain("minute");
+  });
+
+  it("hands a listener the denominator, which nothing else in the region does", () => {
+    // **The finding Task 4.4.5 recorded and this one repairs.** N is printed
+    // once, as the ladder's right endpoint, and the ladder is `aria-hidden` —
+    // so without this clause a listener gets the three counts with nothing to
+    // measure them against. Every figure in it is read off the frame.
+    expect(marketBreadth(frame(OBSERVED))?.claim.spoken).toBe(
+      "Of the 503 companies we track, 451 were heard from in the last 5 minutes.",
+    );
+    expect(marketBreadth(frame(SESSION))?.claim.spoken).toBe(
+      "Of the 503 companies we track, 501 had a close-to-close move on 2026-10-06.",
+    );
+  });
+
+  it("neither basis can render the other's", () => {
+    // Not a convention: `windowMinutes` does not exist on the session member
+    // and `session` does not exist on the observed one, so a renderer reaching
+    // for the wrong one does not compile. What this asserts is the consequence
+    // — no window in the session grammar, no session in the live one, in both
+    // renderings.
+    const observed = marketBreadth(frame(OBSERVED))?.claim;
+    const session = marketBreadth(frame(SESSION))?.claim;
+
+    for (const clause of [observed?.drawn, observed?.spoken]) {
+      expect(clause).not.toContain("close-to-close");
+      expect(clause).not.toContain("2026-");
+    }
+    for (const clause of [session?.drawn, session?.spoken]) {
+      expect(clause).not.toContain("heard from");
+      expect(clause).not.toContain("minute");
+    }
+  });
+
+  it("writes a word rather than a zero, and agrees with a count of one", () => {
+    // `0 were heard from` is a figure where a word belongs, and `1 were` is the
+    // defect a count's own grammar invites — reachable, because the measured
+    // five-minute minimum during a session was 5.
+    const one = marketBreadth(
+      frame({
+        ...OBSERVED,
+        advancing: 1,
+        declining: 0,
+        unchanged: 0,
+        measured: 1,
+      }),
+    );
+    const none = marketBreadth(
+      frame({
+        ...OBSERVED,
+        advancing: 0,
+        declining: 0,
+        unchanged: 0,
+        measured: 0,
+      }),
+    );
+
+    expect(one?.claim.spoken).toContain("1 was heard from");
+    expect(none?.claim.spoken).toContain("none were heard from");
+    // The session grammar's past tense needs no agreement at all, which is why
+    // it is `had`.
+    expect(
+      marketBreadth(
+        frame({
+          ...SESSION,
+          advancing: 1,
+          declining: 0,
+          unchanged: 0,
+          measured: 1,
+        }),
+      )?.claim.spoken,
+    ).toContain("1 had a close-to-close move");
+  });
+
+  it("draws the sentence itself at N = 0, where there is no ladder to defer to", () => {
+    // The drawn half is short because N is 24 px above it on the axis. At N = 0
+    // the ladder is suppressed, so there is no printed endpoint and the drawn
+    // half becomes the sentence — which is then the one sentence that state
+    // draws, the quiet group two lines above carrying the set and the
+    // remainder.
+    const none = marketBreadth(
+      frame({
+        ...SESSION,
+        advancing: 0,
+        declining: 0,
+        unchanged: 0,
+        measured: 0,
+      }),
+    );
+
+    expect(none?.claim.drawn).toBe(none?.claim.spoken);
+    expect(none?.claim.drawn).toBe(
+      "Of the 503 companies we track, none had a close-to-close move on 2026-10-06.",
+    );
+  });
+
+  it("defers to the ladder again the moment there is one", () => {
+    const one = marketBreadth(
+      frame({
+        ...OBSERVED,
+        advancing: 1,
+        declining: 0,
+        unchanged: 0,
+        measured: 1,
+      }),
+    );
+
+    // N = 1 has no ladder either — and the drawn half still defers, because the
+    // reason it is short is that a *count* is on screen, which it is.
+    expect(one?.claim.drawn).toBe(
+      "Heard from means at least one observation in the last 5 minutes.",
+    );
   });
 
   it("does not call the remainder `Not heard from` about a closed market", () => {
@@ -208,7 +373,7 @@ describe("the region says nothing it cannot establish", () => {
     );
 
     expect(counted).not.toBeUndefined();
-    expect(counted?.claim).toBe("Close to close on 2026-10-06.");
+    expect(counted?.claim.spoken).toContain("none had a close-to-close move");
   });
 
   it("names no feed, no venue, no instant and no connection word", () => {
@@ -242,7 +407,10 @@ describe("the reservation", () => {
     expect(RESERVED_BREADTH.net).toBeUndefined();
     expect(RESERVED_BREADTH.setHeading).toBe(" ");
     expect(RESERVED_BREADTH.unheardLabel).toBe(" ");
-    expect(RESERVED_BREADTH.claim).toBe(" ");
+    expect(RESERVED_BREADTH.claim).toEqual({ drawn: " ", spoken: " " });
+    // No scale either, so the reservation draws no ladder endpoint and no band
+    // — which is what makes `0` the only digit in it.
+    expect(RESERVED_BREADTH.scale).toBeUndefined();
   });
 
   it("is the same shape as a counted view, so the room it holds is the real one", () => {

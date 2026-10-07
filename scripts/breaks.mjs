@@ -2754,4 +2754,31 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "does not name",
   },
+  {
+    name: "the-denominator-is-drawn-and-not-spoken",
+    proves:
+      "The breadth region's footer carries two renderings of one sentence in " +
+      "one `<p>` — a drawn method clause and a visually-hidden denominator " +
+      "sentence — and the next reader deletes the second as a duplicate. It " +
+      "reads like one. The ladder that prints N is `aria-hidden`, so after " +
+      "that edit the denominator this story exists to put on screen reaches " +
+      "NO LISTENER: the three counts arrive with nothing to measure them " +
+      "against. The DOM is correct either way, every component test passes, " +
+      "every browser spec passes, and axe is silent — the only instrument " +
+      "that can see it is `Accessibility.getFullAXTree` in a real browser.",
+    // **Chosen over the two other plausible edits**, both of which this check
+    // also refuses and both of which were produced before it was registered:
+    // `aria-hidden` swept onto the spoken span from the drawn sibling beside
+    // it, and `.spoken` "simplified" from the clip-rect idiom to
+    // `display: none`. This one is the likeliest, because it is the one a
+    // reader makes while believing they are removing a duplicate — the other
+    // two need somebody to be editing accessibility deliberately.
+    file: "apps/frontend/src/components/BreadthLedger/BreadthLedger.tsx",
+    find:
+      "            <span className={cx(styles.spoken)}>" +
+      "{view.claim.spoken}</span>\n",
+    replace: "            {/* pnpm break: reverted automatically */}\n",
+    command: ["pnpm", "invariants"],
+    expect: "expected exactly 1",
+  },
 ];

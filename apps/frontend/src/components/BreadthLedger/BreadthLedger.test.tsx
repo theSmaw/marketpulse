@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type {
   WireMarketBreadth,
@@ -7,6 +7,7 @@ import type {
 } from "@marketpulse/shared";
 
 import { marketBreadth } from "../../market/index.js";
+import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
 import { BreadthLedger, BreadthLedgerReservation } from "./BreadthLedger.js";
 
 // **What this level cannot see**, which is why the browser spec and `pnpm
@@ -142,6 +143,51 @@ describe("BreadthLedger", () => {
     expect(ticks).toEqual(["0", "451"]);
   });
 
+  it("hands a listener the denominator the ladder cannot", () => {
+    // **The finding Task 4.4.5 recorded**: N is printed once, at the ladder's
+    // right endpoint, and the ladder is `aria-hidden` — so this clause is the
+    // only route by which the number this story exists to put on screen reaches
+    // a listener. Verified in a browser from the accessibility tree; what is
+    // assertable here is that the two renderings are there and are not the
+    // same string.
+    const { container } = draw();
+    const claim = [...container.querySelectorAll("p")].at(-1);
+    const [drawn, spoken] = [...(claim?.querySelectorAll("span") ?? [])];
+
+    expect(drawn?.getAttribute("aria-hidden")).toBe("true");
+    expect(drawn?.textContent).toBe(
+      "Heard from means at least one observation in the last 5 minutes.",
+    );
+    expect(spoken?.getAttribute("aria-hidden")).toBeNull();
+    expect(spoken?.textContent).toBe(
+      "Of the 503 companies we track, 451 were heard from in the last 5 minutes.",
+    );
+  });
+
+  it("draws no band, no origin rule and no ladder over one security", () => {
+    // **N = 1 is where the arithmetic is sound and the picture lies**: one
+    // security is a fraction of `1` and fills the whole track, which reads as
+    // *the market is entirely advancing*. The counts stay and the picture goes,
+    // together, and the room is held exactly as at N = 0.
+    const { container } = draw({
+      ...OBSERVED,
+      advancing: 1,
+      declining: 0,
+      unchanged: 0,
+      measured: 1,
+    });
+
+    expect(screen.getByText("Advancing").nextElementSibling?.textContent).toBe(
+      "1",
+    );
+    expect(
+      container.querySelectorAll("dd[aria-hidden='true'] > i"),
+    ).toHaveLength(0);
+    // The ladder's endpoint is empty rather than `1` — nothing is drawn against
+    // a scale, so the scale is not printed.
+    expect(container.textContent).not.toContain("01");
+  });
+
   it("suppresses the headline at N = 0 rather than drawing a net over nothing", () => {
     // ADR 0029, and CI's permanent state. The quiet group is the only thing
     // with content; everything else keeps its room.
@@ -162,6 +208,29 @@ describe("BreadthLedger", () => {
     ).toBe("503");
   });
 
+  it("draws the sentence itself at N = 0, where there is no ladder", () => {
+    // Done-when: *the sentence, no figures.* The quiet group above it carries
+    // the set and the remainder; this is the one sentence the state draws, and
+    // a second one over the held rows would be the same fact a third time.
+    const { container } = draw({
+      basis: "session",
+      advancing: 0,
+      declining: 0,
+      unchanged: 0,
+      measured: 0,
+      tracked: 503,
+      session: "2026-10-07",
+    });
+    const claim = [...container.querySelectorAll("p")].at(-1);
+
+    expect(claim?.textContent).toBe(
+      "Of the 503 companies we track, none had a close-to-close move on 2026-10-07.",
+    );
+    // **One string, so one element** — a hidden twin of an identical string
+    // would put the sentence in `textContent` twice.
+    expect(claim?.querySelectorAll("span")).toHaveLength(0);
+  });
+
   it("states the window and no instant, and names no connection word", () => {
     const { container } = draw();
     const text = container.textContent;
@@ -177,14 +246,44 @@ describe("BreadthLedger", () => {
     }
   });
 
-  it("takes the whole reservation out of the accessibility tree", () => {
+  it("takes the held geometry out of the accessibility tree", () => {
     const { container } = render(<BreadthLedgerReservation />);
 
-    expect(container.firstElementChild?.getAttribute("aria-hidden")).toBe(
-      "true",
-    );
+    // The hidden box is the inner one, and it is hidden in every state — the
+    // sentence is a sibling in the room it holds, never the same element, or
+    // showing the sentence would un-hide three row labels with it.
+    expect(
+      container.querySelector('[aria-hidden="true"]')?.firstElementChild,
+    ).not.toBeNull();
     // Three rows of room, and no word a reader could assert.
     expect(container.querySelectorAll("dl > div")).toHaveLength(4);
     expect(container.textContent).not.toContain("Not heard from");
+  });
+
+  it("says nothing until the floor has elapsed, and then says what it has none of", async () => {
+    // **`useWaited`'s floor reused rather than a second one invented** — 2,000
+    // ms against a first frame measured at 174–277 ms, so the ordinary load
+    // never shows this. What it guards is the state a reader actually meets: an
+    // unreachable aggregate, where `overview` is never written and the
+    // reservation is **terminal** rather than a flash.
+    vi.useFakeTimers();
+    try {
+      render(<BreadthLedgerReservation />);
+      expect(screen.queryByText("No count yet.")).toBeNull();
+
+      await act(async () => {
+        vi.advanceTimersByTime(SAY_NOTHING_ARRIVED_AFTER_MS + 1);
+        await Promise.resolve();
+      });
+
+      // **The words are breadth's own.** The strip has no *prices* and sectors
+      // have no *moves*; breadth has no **count**, which is a third quantity
+      // and the thing that tells a reader which region went quiet.
+      expect(screen.getByText("No count yet.")).toBeDefined();
+      expect(screen.queryByText("No prices yet.")).toBeNull();
+      expect(screen.queryByText("No sector moves yet.")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

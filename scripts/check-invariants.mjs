@@ -3563,6 +3563,126 @@ const INVARIANTS = [
     },
   },
   {
+    id: "the-denominator-reaches-a-listener",
+    claim:
+      "The breadth region's spoken denominator sentence is rendered, and is " +
+      "rendered into the accessibility tree — the printed ladder that carries " +
+      "N is `aria-hidden`, so that clause is the only route by which the " +
+      "denominator reaches a listener.",
+    check() {
+      // **Task 4.4.6, and the finding it repairs is a defect in no file.**
+      //
+      // N is printed exactly once on this region — the ladder's right endpoint
+      // — and the ladder is `aria-hidden`, which is `RankedList`'s decision at
+      // its own ladder, inherited correctly. The counts are correctly labelled,
+      // the heading names the set, nothing is missing from the DOM. Read from
+      // the **accessibility tree** rather than from the DOM, a listener gets
+      // the three counts with nothing to measure them against — which is the
+      // exact shape `EPIC.md` was written to prevent, arriving by the one route
+      // nobody checked, on the story whose whole subject is the denominator.
+      //
+      // So the repair is a second *rendering* of one string, and the thing that
+      // must not quietly stop being true is that the second rendering is **in
+      // the tree**. Three ways it stops, all of them plausible and all of them
+      // invisible to every test below a browser reading the a11y tree:
+      //
+      //   1. the spoken span is deleted as a duplicate — the two renderings sit
+      //      in one `<p>` and read as one string said twice;
+      //   2. the spoken span gains `aria-hidden`, by being swept with the
+      //      sibling it sits beside, which legitimately has it;
+      //   3. `.spoken` is "simplified" from the clip-rect idiom to
+      //      `display: none` or `visibility: hidden`, both of which take an
+      //      element out of the accessibility tree as well as off the screen —
+      //      `a11y.module.css`'s own warning, which it says has been copied
+      //      into three components and would have been three chances to make
+      //      it.
+      //
+      // **A grep rather than a spec**, because the DOM is correct in every one
+      // of those states and the only instrument that can tell them apart is
+      // `Accessibility.getFullAXTree` in a real browser.
+      const component = resolve(
+        REPO_ROOT,
+        "apps/frontend/src/components/BreadthLedger/BreadthLedger.tsx",
+      );
+      const text = withoutComments(readFileSync(component, "utf8"));
+
+      // Every JSX expression rendering the spoken clause, with the opening tag
+      // it sits inside. The tag is everything back to the nearest `<`, which is
+      // robust to Prettier wrapping the attributes across lines.
+      const rendered = [
+        ...text.matchAll(/<([^<>]*)>\s*\{\s*[\w.]*claim\.spoken\s*\}/gu),
+      ];
+
+      if (rendered.length !== 1) {
+        throw new InvariantFailure(
+          `BreadthLedger.tsx renders \`claim.spoken\` in ` +
+            `${String(rendered.length)} elements, expected exactly 1. The ` +
+            "printed ladder that carries N is `aria-hidden`, so this clause " +
+            "is the only delivery of the denominator to a listener — and a " +
+            "region that drops it is a story about a denominator with no " +
+            "denominator in it for that audience. A grep that matches " +
+            "nothing looks exactly like a pass, so a missing one is reported " +
+            "rather than tolerated.",
+        );
+      }
+
+      const tag = rendered[0][1];
+
+      if (/aria-hidden/u.test(tag)) {
+        throw new InvariantFailure(
+          `BreadthLedger.tsx hides the spoken denominator clause from the ` +
+            `accessibility tree:\n      <${tag}>\n    It is the only route ` +
+            "by which N reaches a listener; the element beside it carries " +
+            "`aria-hidden` because it is the drawn twin, and sweeping both " +
+            "silences the region's denominator entirely.",
+        );
+      }
+
+      if (!/styles\.spoken/u.test(tag)) {
+        throw new InvariantFailure(
+          `BreadthLedger.tsx renders the spoken denominator clause without ` +
+            `the visually-hidden class:\n      <${tag}>\n    It must be in ` +
+            "the accessibility tree and not on the screen — N is already " +
+            "printed 24 px above it at the ladder's right endpoint, and the " +
+            "same number twice inside 24 px reads as a mistake.",
+        );
+      }
+
+      // And the class has to be the clip-rect idiom rather than either of the
+      // two ways of hiding that take an element out of the tree with it.
+      const stylesheet = resolve(
+        REPO_ROOT,
+        "apps/frontend/src/components/BreadthLedger/BreadthLedger.module.css",
+      );
+      const rule = /\.spoken\s*\{([^}]*)\}/u.exec(
+        withoutComments(readFileSync(stylesheet, "utf8")),
+      );
+
+      if (rule === null) {
+        throw new InvariantFailure(
+          "BreadthLedger.module.css has no `.spoken` rule. It is the class " +
+            "the spoken denominator clause is rendered with, and a CSS " +
+            "module class name that resolves to nothing is completely " +
+            "silent: it typechecks, lints, builds and renders unstyled — " +
+            "which here means the sentence is drawn on the screen beside a " +
+            "ladder that already prints the same number.",
+        );
+      }
+
+      if (!/composes:\s*visuallyHidden/u.test(rule[1])) {
+        throw new InvariantFailure(
+          `BreadthLedger.module.css's \`.spoken\` does not compose ` +
+            `\`visuallyHidden\`:\n      {${rule[1].trim()}}\n    ` +
+            "`display: none` and `visibility: hidden` remove an element from " +
+            "the accessibility tree as well as from the page, which is the " +
+            "exact opposite of what this class is for. The clip-rect idiom " +
+            "has one home, in `styles/a11y.module.css`.",
+        );
+      }
+    },
+  },
+
+  {
     id: "every-break-can-still-land",
     claim:
       "Every entry in `scripts/breaks.mjs` substitutes text that still exists " +
