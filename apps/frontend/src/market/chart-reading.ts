@@ -214,7 +214,7 @@ export function readingAnnouncement(
   const direction =
     percent === null
       ? "change not stated for this bar"
-      : `${DIRECTION_WORDS[directionOf(percent)]} ` +
+      : `${DIRECTION_WORDS[directionOf(percent) ?? "unchanged"]} ` +
         `${formatChangePercent(percent).replace(SIGNS, "")} on the bar`;
 
   return (

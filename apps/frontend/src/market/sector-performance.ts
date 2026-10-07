@@ -348,7 +348,7 @@ function moveOf(figure: WireOverviewFigure): SectorMove | undefined {
 
   return {
     change: formatChangePercent(percent),
-    direction: directionOf(percent),
+    direction: directionOf(percent) ?? "unchanged",
     percent,
   };
 }

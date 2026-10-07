@@ -43,10 +43,19 @@ import type { SecurityLastClose } from "./securities-response.js";
 //
 // ## What is deliberately not here
 //
-// **No formatting, no colour and no direction.** `formatPrice`,
-// `formatChangePercent` and `directionOf` are the frontend's
-// `market/price-format.ts` and stay there: a spelling is a property of a
-// surface, and the backend has no surface. This module produces figures.
+// **No formatting and no colour.** `formatPrice` and `formatChangePercent` are
+// the frontend's `market/price-format.ts` and stay there: a spelling is a
+// property of a surface, and the backend has no surface. This module produces
+// figures.
+//
+// **Amended 2026-10-07 (Task 4.4.2): `directionOf` WAS in that sentence and is
+// not any more.** It is `./price-direction.js`, next door, and the correction
+// is worth the amendment rather than a silent edit because the sentence was
+// right about spelling and wrong about **classification**: which of three
+// buckets a move falls into is not a property of a surface, and Story 4.4
+// counts those buckets server-side over 518 figures. The paragraph above is
+// this module's own precedent firing again — the third consumer is a different
+// process.
 //
 // **No absolute change.** The percentage is the comparable figure across a
 // column of securities trading between $3 and $700.

@@ -403,7 +403,14 @@ function move(percent: number | null): string {
   const direction = directionOf(percent);
   const figure = formatChangePercent(percent).replace(SIGNS, "");
 
-  if (direction === "unchanged") return ", unchanged across the window";
+  // **`!== positive && !== negative` rather than `=== "unchanged"`**
+  // (2026-10-07, Task 4.4.2). `directionOf` answers `undefined` for a
+  // non-finite move, and a bare equality test would have let it fall
+  // through to the ternary below and been spoken as *down* — the one
+  // shape where widening the return type is a silent wrong answer rather
+  // than a type error.
+  if (direction !== "positive" && direction !== "negative")
+    return ", unchanged across the window";
   return `, ${direction === "positive" ? "up" : "down"} ${figure} across the window`;
 }
 

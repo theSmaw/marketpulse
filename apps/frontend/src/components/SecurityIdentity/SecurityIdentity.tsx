@@ -400,7 +400,7 @@ function Close({
           {percent === null ? undefined : (
             <PriceChange
               change={formatChangePercent(percent)}
-              direction={directionOf(percent)}
+              direction={directionOf(percent) ?? "unchanged"}
             />
           )}
         </p>
@@ -473,7 +473,7 @@ function Close({
         ) : (
           <PriceChange
             change={formatChangePercent(percent)}
-            direction={directionOf(percent)}
+            direction={directionOf(percent) ?? "unchanged"}
           />
         )}
       </p>

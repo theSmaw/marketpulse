@@ -2233,6 +2233,87 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "read it as a basis",
   },
+  // ## Story 4.4's two, both on the classifier (Task 4.4.2)
+  //
+  // One per clause of `one-classifier-for-the-direction-of-a-move`, because
+  // the two clauses recognise the defect by different means and a single
+  // break would leave one of them unproven. The first edits
+  // `market-overview.ts` — where the next author of an aggregate over
+  // this seam is standing — and the second edits `sector-ranking.ts`,
+  // which is where clause three's population lives.
+  //
+  // **Neither of these is the break that found the real defect in the check.**
+  // `CLAUDE.md`: *a break proves the check works on the code you were looking
+  // at.* The first draft of clause two required a character BEFORE the word,
+  // so it matched `changePercent` and missed `percent` — and both breaks
+  // below would have gone red anyway, because both name a property. It was
+  // found by writing the file the next author would write, in
+  // `apps/backend/src/market-breadth.ts`, and keeping the transcript of
+  // `40 invariants hold.`
+  {
+    name: "breadth-counted-on-the-raw-sign",
+    proves:
+      "A breadth count beside the join classifies each figure itself, with a " +
+      "comparison rather than through `directionOf`. Two things go wrong and " +
+      "neither looks wrong: a +0.004% move is counted an advancer while its " +
+      "own row prints `0.00%` — the three-channels-disagreeing defect " +
+      "`PriceChange` exists to prevent, expressed as a total — and " +
+      "`NaN > 0` and `NaN < 0` are both false, so every non-finite figure " +
+      "lands in the final `else`. In a count that is the sentence *518 " +
+      "unchanged, 0 advancing, 0 declining*: a confident, well-formed claim " +
+      "that the market did not move. Clause two (Task 4.4.2).",
+    file: "apps/backend/src/market-overview.ts",
+    find: "export function buildMarketOverview(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export function countBreadth(entries: readonly { change: " +
+      "{ percent: number | null } }[]) {\n" +
+      "  let advancing = 0;\n" +
+      "  let declining = 0;\n" +
+      "  let unchanged = 0;\n" +
+      "  for (const entry of entries) {\n" +
+      "    const percent = entry.change.percent;\n" +
+      "    if (percent === null) continue;\n" +
+      "    if (percent > 0) advancing += 1;\n" +
+      "    else if (percent < 0) declining += 1;\n" +
+      "    else unchanged += 1;\n" +
+      "  }\n" +
+      "  return { advancing, declining, unchanged };\n" +
+      "}\n\n" +
+      "export function buildMarketOverview(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "classify a move by comparing it against zero",
+  },
+  {
+    name: "breadth-rounded-then-counted",
+    proves:
+      "The same count written by somebody who HAS read " +
+      "`price-direction.ts`: they reach for `displayedPercent`, which fixes " +
+      "the +0.004% half, bind it to a short local and compare that — so " +
+      "clause two's pattern cannot see it, and the non-finite half is still " +
+      "open, because `displayedPercent(NaN)` is `NaN` and compares false " +
+      "both ways. Clause three, which is keyed on the rounding helper's own " +
+      "call sites rather than on an identifier's name (Task 4.4.2).",
+    file: "packages/shared/src/sector-ranking.ts",
+    find: "export function rankSectorFigures(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export function countBreadth(moves: readonly number[]) {\n" +
+      "  let advancing = 0;\n" +
+      "  let declining = 0;\n" +
+      "  let unchanged = 0;\n" +
+      "  for (const value of moves) {\n" +
+      "    const shown = displayedPercent(value);\n" +
+      "    if (shown > 0) advancing += 1;\n" +
+      "    else if (shown < 0) declining += 1;\n" +
+      "    else unchanged += 1;\n" +
+      "  }\n" +
+      "  return { advancing, declining, unchanged };\n" +
+      "}\n\n" +
+      "export function rankSectorFigures(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "round a percentage to the displayed precision and then compare",
+  },
   {
     name: "a-second-pairing-of-a-sector-and-its-benchmark",
     proves:

@@ -43,7 +43,7 @@
  * drawing them as flat.
  */
 
-import { PERCENT_DISPLAY_DECIMALS } from "./live-change.js";
+import { displayedPercent } from "./price-direction.js";
 import { SECTOR_ETFS, SECTORS } from "./security.js";
 
 import type { Sector } from "./security.js";
@@ -119,23 +119,11 @@ export function sectorRankingKey(
   return undefined;
 }
 
-/**
- * A percentage as the screen will show it.
- *
- * The rounding is what buys `STORY.md`'s checkable invariant — **the displayed
- * order never contradicts the displayed figures**. Eleven sector ETFs cluster
- * tightly, so two sectors 0.003% apart would trade places on every frame, up
- * to ~16 times a minute, both reading `+0.41%` throughout: a list visibly
- * re-ordering with nothing on it changing.
- *
- * Keyed on the **displayed** precision rather than on a chosen epsilon, which
- * is the difference between a rule a reader can verify by looking and a
- * threshold somebody picked. `PERCENT_DISPLAY_DECIMALS` is shared with
- * `formatChangePercent`, so the two cannot drift apart.
- */
-export function displayedPercent(percent: number): number {
-  return Number(percent.toFixed(PERCENT_DISPLAY_DECIMALS));
-}
+// **`displayedPercent` left this module on 2026-10-07** (Task 4.4.2), for
+// `price-direction.ts` beside `directionOf` — which had the same rounding
+// expression written out a second time, and breadth would have been the third.
+// It is still exported from this package's barrel under the same name; what
+// moved is where the rounding is decided. The comparator below calls it.
 
 /**
  * The comparator itself — strongest first, keyless last, display-equal never

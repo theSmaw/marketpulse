@@ -37,7 +37,8 @@
  * the server rather than in a browser is argued there.
  */
 
-import { displayedPercent, sectorRankingKey } from "./sector-ranking.js";
+import { displayedPercent } from "./price-direction.js";
+import { sectorRankingKey } from "./sector-ranking.js";
 
 import type { MarketDate } from "./market-time.js";
 import type { WireOverviewFigure } from "./market-stream-protocol.js";

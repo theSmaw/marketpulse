@@ -396,7 +396,7 @@ function Figures({ screen }: { readonly screen: BarSeriesScreen }) {
           <span className={styles.headlineChange}>
             <PriceChange
               change={formatChangePercent(percent)}
-              direction={directionOf(percent)}
+              direction={directionOf(percent) ?? "unchanged"}
             />
           </span>
         )}

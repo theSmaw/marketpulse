@@ -38,20 +38,32 @@
 // already have" rather than backend vocabulary — which is an argument for the
 // market module, and `directionOf` returning a type owned by a component was
 // the coupling pointing the wrong way. `PriceChange` now imports it.
+//
+// ## Amended 2026-10-07 (Task 4.4.2): the direction left this module
+//
+// `PRICE_DIRECTIONS`, `PriceDirection` and `directionOf` are now
+// `packages/shared/src/price-direction.ts`', and the paragraph above is left
+// standing because the argument it makes is the one that **expired**. "Both
+// sides already hold the number" is the condition under which two
+// implementations appear, not a reason against sharing one: Story 4.4 counts
+// breadth over 518 figures **server-side**, which made the bucket rule
+// unreachable from the process that needs it. The third consumer is a
+// different process — exactly what `changeFromClose`'s own note predicted.
+//
+// They are re-exported from here, so every component's import is unchanged and
+// `market/index.ts` still publishes them. What stays behind is the **spelling**
+// — `formatPrice` and `formatChangePercent` — because the backend has no
+// surface, and `PRICE_DECIMALS`, which is a price's precision and not a
+// percentage's.
 
-import { PERCENT_DISPLAY_DECIMALS } from "@marketpulse/shared";
+import { PERCENT_DISPLAY_DECIMALS, directionOf } from "@marketpulse/shared";
 
-/**
- * The three directions a move can have.
- *
- * Not in `@marketpulse/shared`, unlike `AnomalyBand` and `FeedStatus`, and that
- * line is `PriceChange`'s own: a band name is a decision the backend makes and
- * reports, whereas the direction of a move is arithmetic on a number both sides
- * already hold.
- */
-export const PRICE_DIRECTIONS = ["positive", "negative", "unchanged"] as const;
-
-export type PriceDirection = (typeof PRICE_DIRECTIONS)[number];
+// **A re-export rather than a second declaration**, which is what keeps the
+// frontend's public surface identical across the move. `pnpm invariants`'
+// `one-classifier-for-the-direction-of-a-move` is what holds the other half:
+// a re-export is not a second classifier, and a comparison would be.
+export { PRICE_DIRECTIONS, directionOf } from "@marketpulse/shared";
+export type { PriceDirection } from "@marketpulse/shared";
 
 /**
  * How many decimal places a price is shown to.
@@ -113,22 +125,18 @@ export function formatPrice(price: number): string {
  */
 export function formatChangePercent(percent: number): string {
   const figure = `${Math.abs(percent).toFixed(PERCENT_DISPLAY_DECIMALS)}%`;
-  if (directionOf(percent) === "unchanged") return figure;
-  return `${percent > 0 ? "+" : MINUS}${figure}`;
-}
 
-/**
- * Which of the three directions a percentage is.
- *
- * **Decided on the rounded figure, not on the raw one**, and that is the whole
- * reason this is a function rather than `percent > 0`. A move of +0.001% is
- * `positive` by sign and renders as `0.00%`: an up arrow, a green tint and a
- * figure saying nothing moved, which is three channels disagreeing with each
- * other in the one component built so they cannot.
- */
-export function directionOf(percent: number): PriceDirection {
-  const rounded = Number(percent.toFixed(PERCENT_DISPLAY_DECIMALS));
-  if (rounded > 0) return "positive";
-  if (rounded < 0) return "negative";
-  return "unchanged";
+  // **The sign is read off the one classifier, never off the raw sign**
+  // (tightened 2026-10-07 by Task 4.4.2; it was `percent > 0` here). The
+  // output is unchanged for every figure a surface can reach — `directionOf`
+  // already decided whether a sign is claimed at all — and the reason to spell
+  // it this way is that `percent > 0` in this file *is* a second
+  // classification of a move, which is the shape
+  // `one-classifier-for-the-direction-of-a-move` exists to refuse. A figure
+  // with no direction gets no sign, which is `+0.00%`'s rule arriving at the
+  // only other input that has no direction to claim.
+  const direction = directionOf(percent);
+  if (direction === "positive") return `+${figure}`;
+  if (direction === "negative") return `${MINUS}${figure}`;
+  return figure;
 }
