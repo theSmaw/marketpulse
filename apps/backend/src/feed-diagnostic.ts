@@ -93,8 +93,18 @@ export function readFeedDiagnostic(
  * `check-deployed.mjs` demand a connected feed on a date nobody can say is a
  * trading day. Reporting `false` is the claim we can defend: *we cannot say this
  * is a session*.
+ *
+ * **Exported since 2026-10-07 (Task 4.4.4), which gives it a second reader and
+ * makes it the one home for the question.** Story 4.4's breadth count is
+ * session-driven — the live five-minute count while the regular session is
+ * open, the last stored session's close-to-close count otherwise — and the
+ * alternative was a second `marketSessionStateAt` call with a second
+ * `try`/`catch` around it, which is the copy that stops failing closed. The
+ * fail-closed answer is right for breadth too: *we cannot say this is a
+ * session* reports what the store holds rather than counting a live feed
+ * nobody can date.
  */
-function isMarketOpen(at: Date): boolean {
+export function isMarketOpen(at: Date): boolean {
   try {
     return marketSessionStateAt(at).status === "open";
   } catch {

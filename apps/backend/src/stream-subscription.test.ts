@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { STREAM_SYMBOLS } from "./market-stream.js";
 import {
   UNIVERSE,
+  equityTickers,
   indexProxyTickers,
   sectorEtfTickers,
   trackedSecurities,
@@ -142,5 +143,66 @@ describe("the sector benchmarks the overview is about (Task 4.3.4)", () => {
 
     expect(sectorEtfTickers(retired)).not.toContain("XLV");
     expect(sectorEtfTickers(retired)).toHaveLength(SECTORS.length - 1);
+  });
+});
+
+describe("the equities breadth is counted over (Task 4.4.4)", () => {
+  it("is every tracked security that is not a fund, and nothing states how many", () => {
+    // **No literal 503 anywhere**, here or in `universe.ts` — a hard-coded
+    // figure becomes a lie with no symptom the first time a constituent is
+    // delisted, on a screen whose whole claim is *of the N companies we
+    // track*. What is asserted is the partition: the three derivations cover
+    // the universe exactly once each.
+    const funds = new Set<string>([
+      ...indexProxyTickers(),
+      ...sectorEtfTickers(),
+    ]);
+
+    for (const symbol of equityTickers()) {
+      expect(funds.has(symbol)).toBe(false);
+    }
+
+    expect(
+      equityTickers().length +
+        indexProxyTickers().length +
+        sectorEtfTickers().length,
+    ).toBe(trackedTickers().length);
+  });
+
+  it("filters on `status`, like every other computation over the market NOW", () => {
+    const retired: readonly Security[] = UNIVERSE.map((security) =>
+      security.symbol === "AAPL"
+        ? { ...security, status: "untracked" as const }
+        : security,
+    );
+
+    expect(equityTickers(retired)).not.toContain("AAPL");
+    expect(equityTickers(retired)).toHaveLength(equityTickers().length - 1);
+  });
+
+  it("leaves each section's DECLARED order intact when the join is filtered", () => {
+    // **The claim the 2026-10-07 widening rests on, and it is not obvious.**
+    // Until Task 4.4.4 the join was handed `[...proxies, ...sectors]`, so
+    // each section's order was the order it was asked in. It is now handed
+    // `trackedTickers()` — universe-file order — and both sections are taken
+    // from that answer by a filter, which **preserves the order of the list
+    // being filtered rather than the order of the set**.
+    //
+    // So this asserts the two are the same: `PRODUCT_SPEC.md` §6's order for
+    // the strip, and `SECTORS`' declared order for the sector ranking's
+    // tie-break. If `universe.ts` ever lists the funds in another order both
+    // would silently change — a permutation leaving every figure on screen
+    // correct, which is precisely what
+    // `one-pairing-of-a-sector-and-its-benchmark` exists for one layer up.
+    const isProxy = new Set<string>(indexProxyTickers());
+    const isSector = new Set<string>(sectorEtfTickers());
+    const joined = trackedTickers();
+
+    expect(joined.filter((symbol) => isProxy.has(symbol))).toEqual(
+      indexProxyTickers(),
+    );
+    expect(joined.filter((symbol) => isSector.has(symbol))).toEqual(
+      sectorEtfTickers(),
+    );
   });
 });

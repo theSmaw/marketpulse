@@ -366,6 +366,111 @@ export interface WireUnknownFigure {
 }
 
 /**
+ * **How broad the market's move is, as COUNTS** — the owner's Gate 1 decision
+ * 1 for Story 4.4, and a two-member union because the question the count
+ * answers changes when the bell rings.
+ *
+ * ## Counts, never percentages, and that is acceptance criterion 5 held by the
+ * shape
+ *
+ * Three independently-rounded percentages do not sum to 100: at N = 466 with an
+ * even split, `33.3 + 33.3 + 33.5 = 100.1`, and a reader can see that is wrong.
+ * Three integers summing to {@link WireMarketBreadth} `measured` are exact at
+ * every rounding because there is nothing to round. A surface may draw a
+ * percentage **beside** a count; the wire carries no percentage at all, so there
+ * is no second figure for one to disagree with.
+ *
+ * ## Why a labelled union rather than a `breadth` object with an optional
+ * window
+ *
+ * **The market is shut for roughly 80% of the week**, so the second member is
+ * the common path rather than an edge case, and the two counts answer different
+ * questions: *how many of the names we have heard from in the last five minutes
+ * are up* and *how many of the names we hold a close-to-close move for on the
+ * last session we hold were up*. Those have different denominators and
+ * different remedies, and a renderer must not draw one as the other —
+ * `MarketOverviewEntry`'s three-member argument, one container out.
+ *
+ * ## Why the WINDOW travels on the frame
+ *
+ * The count is computed on the server and the sentence — *of the 503 companies
+ * we track, N were heard from in the last 5 minutes* — is drawn in the browser.
+ * Two spellings of `5` is one fact with two homes, and a rollback can put them
+ * two values apart: a gateway from a previous image counting a different window
+ * than the bundle's sentence names. `windowMinutes` is the producer's own
+ * figure, so the sentence cannot be wrong about the count beside it.
+ */
+export type WireMarketBreadth = WireObservedBreadth | WireSessionBreadth;
+
+/**
+ * The fields both members carry: three buckets and the denominator they sum to.
+ *
+ * **`measured` is the sum, and that is a property of the producer's single
+ * pass** rather than a claim this type can make — `market-breadth.ts`
+ * accumulates the three and adds them, so the stated denominator and the
+ * counted numerator cannot disagree. `readOverview` refuses a section
+ * where they do, which is the one cross-field check on this wire.
+ *
+ * **There is no fourth count**, and that is deliberate: *not heard from* is
+ * `503 − measured`, it is never labelled, and a figure beside `unchanged` is
+ * the adjacency Story 4.4 exists to prevent — *unchanged* and *not heard from*
+ * are different facts and a reader who meets them in one row of four cannot
+ * tell which is which.
+ */
+interface WireBreadthCounts {
+  /** Securities whose move is positive **at the precision the screen shows**. */
+  readonly advancing: number;
+  readonly declining: number;
+  /**
+   * Securities whose move rounds to zero at `PERCENT_DISPLAY_DECIMALS`.
+   *
+   * **Not *we heard nothing*.** `directionOf` is keyed on the displayed figure,
+   * so a +0.004% move is counted here and its row prints `0.00%`; a security
+   * nobody has heard from is in no bucket and outside `measured`.
+   */
+  readonly unchanged: number;
+  /**
+   * **N** — the number of securities the three counts are over, and the
+   * denominator the surface must state.
+   *
+   * `0` is a true answer: *we counted and heard nothing*, which is CI's store
+   * and every process for its first minutes. It is not the same as the whole
+   * section being absent, which says *this gateway does not send breadth*.
+   */
+  readonly measured: number;
+}
+
+/** A count over what the live feed has delivered inside a window. */
+export interface WireObservedBreadth extends WireBreadthCounts {
+  readonly basis: "observed";
+  /**
+   * How many minutes back *heard from* reaches, measured on each bar's **own
+   * instant** against the aggregate's `computedAt`.
+   *
+   * Five, from Task 4.1.6's curve over 390 sampled minutes: a one-minute window
+   * is structurally **0** (a bar arrives after the minute it describes has
+   * ended), two minutes reads as a fault at 57.5% after lunch, and fifteen buys
+   * 8.5 points and costs the word *live*.
+   */
+  readonly windowMinutes: number;
+}
+
+/** A count over the last completed session we hold closes for. */
+export interface WireSessionBreadth extends WireBreadthCounts {
+  readonly basis: "session";
+  /**
+   * The session every one of the three counts is about, `YYYY-MM-DD`
+   * market-local — close-to-close, so it will never change again.
+   *
+   * **One session, filtering the numerator and the denominator together.** A
+   * security whose latest stored close is an older session is in no bucket and
+   * outside `measured`, because a count mixing two sessions' moves is a figure
+   * about neither.
+   */
+  readonly session: string;
+}
+
+/**
  * The aggregate itself, **nested rather than spread over the envelope**.
  *
  * Two reasons, and the second is the one that bites. It gives ADR 0031's
@@ -491,6 +596,47 @@ export interface WireMarketOverview {
    * Omitted whenever {@link sectors} is, and read only beside it.
    */
   readonly sectorLadderStep?: SectorLadderStep;
+
+  /**
+   * **How broad the move is — counts over the 503 equities** (Task 4.4.4).
+   *
+   * ## REQUIRED on the producer and OPTIONAL here, which is the opposite of
+   * {@link sectors}
+   *
+   * The wire is deliberately not internally uniform at this field, and the
+   * reason lands on the screen rather than on the type. If breadth were
+   * optional on the producer, a frame can arrive carrying figures and no
+   * breadth — at which point the region's `waiting` is **false**, so the
+   * 2,000 ms silence floor `useWaited` gives it never fires, and the panel
+   * sits reserved and **silent for ever**. That is the defect Task 4.3.8
+   * produced against `Sector performance`; required makes the state not exist
+   * rather than needing a sentence nobody has written.
+   *
+   * **So the obligation is held one level in, by
+   * `WireMarketOverviewInputs.breadth`, which is not optional**: the backend
+   * cannot build a frame without a count. This property is optional because
+   * the **read** side must tolerate its absence — the deploy rolls the backend
+   * first, but a **rollback pins a previous image**, so a new bundle can
+   * legitimately meet a gateway that never heard of breadth. Absent means
+   * *this gateway does not send breadth*, which a renderer draws as the
+   * region's reserved state.
+   *
+   * ## Absence is never expressed as zeros
+   *
+   * A section carrying `advancing: 0, declining: 0, unchanged: 0` is a
+   * **claim** — *nothing in the market went up* — and it is `json-schema.ts`'s
+   * measured trap arriving on a transport with no schema to blame: a
+   * plausible, readable, wrong figure. `measured: 0` **with the basis saying
+   * which question was asked** is the honest spelling of *we counted and heard
+   * nothing*; the section's absence is the honest spelling of *this gateway
+   * does not send breadth*. They are different states and they are spelled
+   * differently.
+   *
+   * **A non-finite count drops the whole section**, never a field and never a
+   * zero — in the serialiser, which is ADR 0031's own argument. See
+   * `encodeBreadth`.
+   */
+  readonly breadth?: WireMarketBreadth;
 }
 
 /**
@@ -881,8 +1027,86 @@ const encodeFigures = (figures: readonly WireOverviewFigure[]): JsonValue[] =>
     return wire === undefined ? [] : [wire];
   });
 
+/**
+ * One map per member of {@link WireMarketBreadth}, for
+ * {@link observedFigureFields}' reason at a second grain: `WireFields<T>` is a
+ * mapped type over `keyof T`, and `keyof` a union is the **intersection** of
+ * its members' keys — so a single map over this union would cover the three
+ * counts, `measured` and `basis`, and wave `windowMinutes` and `session`
+ * through **unexamined**. Those are the two discriminating fields, which makes
+ * the one map over the union exactly the wrong map.
+ *
+ * Every field of both members is required, so there is no `Omit` here and a
+ * field added to either member fails to compile naming itself.
+ */
+const observedBreadthFields: WireFields<WireObservedBreadth> = {
+  basis: asIs,
+  advancing: asIs,
+  declining: asIs,
+  unchanged: asIs,
+  measured: asIs,
+  windowMinutes: asIs,
+};
+
+const sessionBreadthFields: WireFields<WireSessionBreadth> = {
+  basis: asIs,
+  advancing: asIs,
+  declining: asIs,
+  unchanged: asIs,
+  measured: asIs,
+  session: asIs,
+};
+
+/**
+ * The breadth section to its wire object, or **`undefined` for a count that
+ * cannot be honestly encoded** — which drops the **whole section** rather than
+ * a field.
+ *
+ * ## Why the whole section, and why `0` is the wrong answer
+ *
+ * `encodeFigure`'s rule says a non-finite **required** number makes the whole
+ * figure undefined, because `JSON.stringify` writes `null` for a non-finite
+ * number and a lenient reader turns that `null` into **`0`**. Every number here
+ * is required and `0` is the most dangerous value any of them can take: `0`
+ * under `advancing` is a plausible, readable, wrong figure saying *nothing in
+ * the market went up*, and `0` under `measured` would divide every percentage a
+ * surface derives. There is no partial breadth — two counts and a missing third
+ * is not a count of anything — so the unit that is dropped is the section.
+ *
+ * The guard is **here** rather than at the call site for ADR 0031's reason: a
+ * transport with no schema layer owes its guarantee where the encoding happens,
+ * because the call site is where the next author stands. `market-breadth.ts`
+ * therefore contains no `Number.isFinite`, deliberately — one rule, one home.
+ */
+const encodeBreadth = (breadth: WireMarketBreadth): JsonValue | undefined => {
+  const counts = [
+    breadth.advancing,
+    breadth.declining,
+    breadth.unchanged,
+    breadth.measured,
+  ];
+
+  if (counts.some((count) => finiteOr(count) === undefined)) return undefined;
+
+  switch (breadth.basis) {
+    case "observed":
+      return finiteOr(breadth.windowMinutes) === undefined
+        ? undefined
+        : toWire(observedBreadthFields, breadth);
+    case "session":
+      return toWire(sessionBreadthFields, breadth);
+    default: {
+      // Exhaustive: a third basis fails the build here rather than being
+      // silently unserialisable, which is `encodeMarketStreamMessage`'s own
+      // mechanism one container in.
+      const unhandled: never = breadth satisfies never;
+      return unhandled;
+    }
+  }
+};
+
 const overviewFields: WireFields<
-  Omit<WireMarketOverview, "sectors" | "sectorLadderStep">
+  Omit<WireMarketOverview, "sectors" | "sectorLadderStep" | "breadth">
 > = {
   computedAt: asIs,
   feeds: (feeds) => [...feeds],
@@ -903,15 +1127,28 @@ const overviewFields: WireFields<
  * and the same rule that keeps `changeBasis` from travelling without a
  * percentage.
  */
-const encodeOverview = (overview: WireMarketOverview): JsonValue => ({
-  ...toWire(overviewFields, overview),
-  ...(overview.sectors === undefined
-    ? {}
-    : { sectors: encodeFigures(overview.sectors) }),
-  ...(overview.sectors === undefined || overview.sectorLadderStep === undefined
-    ? {}
-    : { sectorLadderStep: overview.sectorLadderStep }),
-});
+const encodeOverview = (overview: WireMarketOverview): JsonValue => {
+  // Built outside the map and spread in a branch, like the sector section
+  // below and for the same reason: `toWire` walks the **map's** keys, so a key
+  // in the map is a key on the wire whatever it holds — which is the property
+  // that makes a leak impossible and an omission unrepresentable through it.
+  const breadth =
+    overview.breadth === undefined
+      ? undefined
+      : encodeBreadth(overview.breadth);
+
+  return {
+    ...toWire(overviewFields, overview),
+    ...(overview.sectors === undefined
+      ? {}
+      : { sectors: encodeFigures(overview.sectors) }),
+    ...(overview.sectors === undefined ||
+    overview.sectorLadderStep === undefined
+      ? {}
+      : { sectorLadderStep: overview.sectorLadderStep }),
+    ...(breadth === undefined ? {} : { breadth }),
+  };
+};
 
 const overviewMessageFields: WireFields<OverviewMessage> = {
   type: asIs,
@@ -1127,6 +1364,62 @@ const readFigures = (values: readonly unknown[]): WireOverviewFigure[] => {
   return figures;
 };
 
+/**
+ * The breadth section, or `undefined` — **and `undefined` is a state the region
+ * already draws**, which is what makes dropping it safe.
+ *
+ * A frame from a **previous image** carries no `breadth` at all (a rollback
+ * pins one), and an unreadable one is the same absence rather than a discarded
+ * frame carrying four true prices — {@link readFigures}' rule and
+ * `sectors`'.
+ *
+ * ## The one cross-field check on this wire
+ *
+ * The three counts must sum to `measured`. On the producer that is true by
+ * construction — one pass, three accumulators and their sum — so a section
+ * where it is false did not come from a producer this bundle understands, and
+ * the figure it would draw is wrong rather than old. **Refusing it draws the
+ * reserved state; accepting it draws a total a reader can see is wrong**, which
+ * is acceptance criterion 5 at the browser's end of the wire.
+ *
+ * It is deliberately a check rather than a derivation: `measured` is not
+ * recomputed here, because a surface stating a denominator it derived itself is
+ * a second home for the count.
+ */
+const readBreadth = (value: unknown): WireMarketBreadth | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (!finite(value.advancing)) return undefined;
+  if (!finite(value.declining)) return undefined;
+  if (!finite(value.unchanged)) return undefined;
+  if (!finite(value.measured)) return undefined;
+
+  const counts = {
+    advancing: value.advancing,
+    declining: value.declining,
+    unchanged: value.unchanged,
+    measured: value.measured,
+  };
+
+  if (
+    counts.advancing + counts.declining + counts.unchanged !==
+    counts.measured
+  )
+    return undefined;
+
+  if (value.basis === "session") {
+    if (typeof value.session !== "string") return undefined;
+    return { basis: "session", ...counts, session: value.session };
+  }
+
+  if (value.basis !== "observed") return undefined;
+  // The window is what the sentence beside the count is written from, so a
+  // count with no window is a count nobody can qualify — refused rather than
+  // defaulted to a `5` this bundle would then be spelling itself.
+  if (!finite(value.windowMinutes)) return undefined;
+
+  return { basis: "observed", ...counts, windowMinutes: value.windowMinutes };
+};
+
 const readOverview = (value: unknown): WireMarketOverview | undefined => {
   if (!isRecord(value)) return undefined;
   if (typeof value.computedAt !== "string") return undefined;
@@ -1164,12 +1457,15 @@ const readOverview = (value: unknown): WireMarketOverview | undefined => {
       ? value.sectorLadderStep
       : undefined;
 
+  const breadth = readBreadth(value.breadth);
+
   return {
     computedAt: value.computedAt,
     feeds,
     figures,
     ...(sectors === undefined ? {} : { sectors }),
     ...(step === undefined ? {} : { sectorLadderStep: step }),
+    ...(breadth === undefined ? {} : { breadth }),
   };
 };
 

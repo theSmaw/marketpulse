@@ -2724,4 +2724,34 @@ export const BREAKS = [
     expect: "exactly the four index proxies",
     build: true,
   },
+  {
+    name: "the-breadth-count-includes-the-funds",
+    proves:
+      "Breadth is counted over the join's WHOLE answer rather than over the " +
+      "503 equities — which since Task 4.4.4 widened the join to 518 is the " +
+      "shortest thing to write, because `entries` is sitting there already " +
+      "in the right shape. The count then includes `SPY` and the eleven " +
+      "sector SPDRs ALONGSIDE their own constituents, which makes " +
+      "`Market breadth` and `Market proxies` non-independent: in a " +
+      "one-sided market all fifteen fall the same way as the names inside " +
+      "them, shifting the figure by up to ~2.9 points toward the majority. " +
+      "No compile error, no failing test, three plausible counts, and every " +
+      "number on screen individually correct.",
+    // **This check's own first draft was green on this substitution**, and
+    // that is why the clause it tests is the SET rather than the derivation:
+    // a draft asserting the section was taken from `entries` is satisfied by
+    // the defect being the defect. Task 4.4.4 kept the transcript.
+    //
+    // A grep rather than a browser, deliberately: the counts are
+    // well-formed in both states and the difference is fifteen out of ~500,
+    // so nothing a spec can assert tells them apart — and on CI, with zero
+    // bars, every figure is `unknown` and both states count zero.
+    file: "apps/backend/src/index.ts",
+    find: "    breadth: marketBreadth(equities, { asOf, marketOpen }),",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    breadth: marketBreadth(entries, { asOf, marketOpen }),",
+    command: ["pnpm", "invariants"],
+    expect: "does not name",
+  },
 ];

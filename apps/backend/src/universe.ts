@@ -1008,6 +1008,36 @@ export const indexProxyTickers = (
     .map((security) => security.symbol);
 
 /**
+ * **The companies, and nothing that holds them** — the 503 equities (Task
+ * 4.4.4).
+ *
+ * `indexProxyTickers`' and `sectorEtfTickers`' third sibling, derived by `kind`
+ * for the same reason: a literal count is the thing that goes quietly wrong.
+ * **Nothing here spells 503**, and that is the point — one delisting makes a
+ * hard-coded figure a lie with no symptom, on a screen whose whole claim is
+ * *of the N companies we track*.
+ *
+ * ## Why breadth is counted over this set rather than over the universe
+ *
+ * The owner's Gate 1 decision for Story 4.4. A count that includes `SPY` and
+ * the eleven sector SPDRs **alongside their own constituents** makes the
+ * breadth region and `Market proxies` non-independent — in a one-sided market
+ * all fifteen funds fall the same way as the names inside them, shifting the
+ * figure by up to ~2.9 points toward the majority — and it answers no question
+ * a reader has.
+ *
+ * `active` only, through {@link trackedSecurities}: `UNIVERSE.md` §12.2's rule
+ * for a computation over *the market we track now*, the same side of it the
+ * other two are on.
+ */
+export const equityTickers = (
+  universe: readonly Security[] = UNIVERSE,
+): readonly Ticker[] =>
+  trackedSecurities(universe)
+    .filter((security) => security.kind === "equity")
+    .map((security) => security.symbol);
+
+/**
  * **The eleven sector benchmark ETFs, in `SECTORS`' order** (Task 4.3.4).
  *
  * `indexProxyTickers`' sibling, and the same argument twice: derived from

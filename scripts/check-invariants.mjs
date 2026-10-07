@@ -3106,6 +3106,106 @@ const INVARIANTS = [
   },
 
   {
+    id: "breadth-is-counted-over-the-equities-alone",
+    claim:
+      "Breadth is counted over the 503 EQUITIES, by positive membership — " +
+      "never over the join's whole answer, which holds the four index " +
+      "proxies and the eleven sector SPDRs beside their own constituents.",
+    check() {
+      // **The owner's Gate 1 decision 2 for Story 4.4, and the defect it
+      // guards is the shortest thing to write.** Task 4.4.4 widened the join
+      // to all 518 because breadth is the first consumer that needs the whole
+      // universe — so `entries` is now sitting there, already the right shape,
+      // and `marketBreadth(entries, …)` compiles, runs, and produces three
+      // plausible counts over the wrong set.
+      //
+      // What is wrong with it is not an error anybody can see: a count that
+      // includes `SPY` and the eleven sector SPDRs **alongside their own
+      // constituents** makes this region and `Market proxies` non-independent
+      // — in a one-sided market all fifteen fall the same way as the names
+      // inside them, shifting the figure by up to ~2.9 points toward the
+      // majority. Every number on screen is individually correct and the
+      // region answers a question no reader asked.
+      //
+      // **This check's own first draft passed wrongly on exactly that**, and
+      // the transcript is in Task 4.4.4: it asserted the `breadth:` section
+      // was derived from `entries`, which the defect satisfies by being the
+      // defect. The clause that catches it is the one the re-implementer
+      // cannot avoid writing — the SET, named positively — so the check is in
+      // two halves: the section must name the binding, and the binding must
+      // name the set.
+      //
+      // ## No match is a FAILURE, for `each-overview-section-names-its-own-set`'s
+      // reason
+      //
+      // A grep whose anchor has moved returns nothing and reads exactly like a
+      // pass. Both halves are therefore "exactly one, or report it".
+      const path = resolve(REPO_ROOT, "apps/backend/src/index.ts");
+      const text = withoutTrailingComments(readFileSync(path, "utf8"));
+
+      /**
+       * The two statements, each as a property or binding and everything to
+       * the end of its line, with the clause that line must contain.
+       *
+       * The call is Prettier-formatted, so each is one line; a line that
+       * wrapped would read short here and fail on its clause rather than pass
+       * on a truncation.
+       */
+      const CLAUSES = [
+        ["breadth:", /\bbreadth:([^\n]*)/gu, /\bequities\b/u],
+        [
+          "const equities =",
+          /\bconst equities =([^\n]*)/gu,
+          /\bisEquitySymbol\b/u,
+        ],
+      ];
+
+      for (const [what, where, owns] of CLAUSES) {
+        const found = [...text.matchAll(where)];
+
+        if (found.length !== 1) {
+          throw new InvariantFailure(
+            `apps/backend/src/index.ts has ${String(found.length)} ` +
+              `\`${what}\` statements, expected exactly 1. This check reads ` +
+              "the one place the breadth count is taken and the one place " +
+              "its set is derived; it cannot read either if it has moved or " +
+              "been duplicated, and a grep that matches nothing looks " +
+              "exactly like a pass.",
+          );
+        }
+
+        if (!owns.test(found[0][1])) {
+          throw new InvariantFailure(
+            `\`${what}\` does not name ${String(owns)}:\n      ${what}` +
+              `${found[0][1]}\n    Breadth is counted over the 503 equities, ` +
+              "derived from `UNIVERSE` by `kind` and tested positively. The " +
+              "join sees all 518 since Task 4.4.4, so the whole answer is " +
+              "sitting there in the right shape — and a count over it " +
+              "includes the fifteen funds beside their own constituents, " +
+              "which makes this region and `Market proxies` " +
+              "non-independent and shifts the figure by up to ~2.9 points " +
+              "with every number on screen individually correct.",
+          );
+        }
+      }
+
+      // And positively: a complement of the two fund sets is the same defect
+      // spelled as a filter, and it grows the day a sixteenth fund is tracked.
+      const binding = [...text.matchAll(/\bconst equities =([^\n]*)/gu)][0][1];
+
+      if (/!/u.test(binding) || /\.slice\(/u.test(binding)) {
+        throw new InvariantFailure(
+          `the equity set is taken by negation or by position:\n      ` +
+            `const equities =${binding}\n    Positive membership only — ` +
+            "`equityTickers()` derives it from `UNIVERSE` by `kind`. *Not a " +
+            "fund* is a definition of everything else, which is what the " +
+            "proxy section already cost once.",
+        );
+      }
+    },
+  },
+
+  {
     id: "the-settle-is-one-token-twice",
     claim:
       "The sector list's travel states `--motion-duration-settle` TWICE — as " +

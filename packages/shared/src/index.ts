@@ -66,10 +66,13 @@ export type {
   SnapshotMessage,
   SubscribeMessage,
   WireFeedState,
+  WireMarketBreadth,
   WireMarketOverview,
   WireObservation,
+  WireObservedBreadth,
   WireObservedFigure,
   WireOverviewFigure,
+  WireSessionBreadth,
   WireStoredFigure,
   WireUnknownFigure,
 } from "./market-stream-protocol.js";

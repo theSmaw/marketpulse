@@ -19,7 +19,11 @@ import {
   createDatabasePool,
   pingDatabase,
 } from "./database.js";
-import { readFeedDiagnostic, readFeedState } from "./feed-diagnostic.js";
+import {
+  isMarketOpen,
+  readFeedDiagnostic,
+  readFeedState,
+} from "./feed-diagnostic.js";
 import { MARKET_STREAM_PATH, marketDateAt } from "@marketpulse/shared";
 import type { WireMarketOverview } from "@marketpulse/shared";
 
@@ -39,7 +43,13 @@ import {
 // about the frame it is building.
 import { createSectorLadderRatchet } from "./sector-ladder-ratchet.js";
 import { createLastClosesCache } from "./last-closes-cache.js";
-import { indexProxyTickers, sectorEtfTickers } from "./universe.js";
+import { marketBreadth } from "./market-breadth.js";
+import {
+  equityTickers,
+  indexProxyTickers,
+  sectorEtfTickers,
+  trackedTickers,
+} from "./universe.js";
 import { streamLogTo } from "./stream-log.js";
 import { ReplayDuringSessionError } from "./replay-stream.js";
 import { resolveMarketData } from "./market-data.js";
@@ -740,12 +750,29 @@ const isSectorSymbol = new Set<string>(sectorSymbols);
  * adjacent so that widening the first without reading the second takes an
  * effort. `pnpm break the-proxy-section-is-taken-negatively` performs exactly
  * that edit.
+ *
+ * **And it was widened, on 2026-10-07 by Task 4.4.4: the join now sees all
+ * 518.** Breadth is the first consumer that needs the whole universe, and
+ * every one of the three sections below names its own set — the four proxies,
+ * the eleven benchmarks, and the 503 equities the count is taken over. The
+ * flood the paragraph above predicted is now a **live** tripwire rather than a
+ * latent one: `overview-frame-sections.spec.ts` asserts, on a frame off this
+ * product's own server, that `figures` carries exactly four, and with the
+ * negation restored it carries **507** (measured by `pnpm break
+ * a-section-is-handed-the-join-whole`).
+ *
+ * `trackedTickers()` is `active` only, which is `UNIVERSE.md` §12.2's rule for
+ * a computation over *the market we track now* — the same side of it
+ * `STREAM_SYMBOLS` and `current-market-state.ts` are on, and the reason no
+ * literal count appears anywhere here.
  */
-const overviewSymbols = [...proxySymbols, ...sectorSymbols];
+const overviewSymbols = trackedTickers();
 const isProxySymbol = new Set<string>(proxySymbols);
+const isEquitySymbol = new Set<string>(equityTickers());
 
 const marketOverview = (): WireMarketOverview => {
   const asOf = new Date();
+  const marketOpen = isMarketOpen(asOf);
 
   // **One call, for two sections** —
   // `one-producer-of-the-overview-aggregate` permits exactly one, and the
@@ -770,9 +797,22 @@ const marketOverview = (): WireMarketOverview => {
   // widened. Each section names the set it is about; only breadth reads the
   // answer whole. See `overviewSymbols` above for what that cost before it was
   // repaired.
+  // **The 503 companies, and nothing that holds them** — the owner's Gate 1
+  // decision for Story 4.4, and a POSITIVE membership test for the reason the
+  // two sections below are: *not a fund* is a definition of everything else.
+  // A count over all 518 includes `SPY` and the eleven sector SPDRs **beside
+  // their own constituents**, which makes this region and `Market proxies`
+  // non-independent — in a one-sided market all fifteen fall the same way —
+  // and shifts the figure by up to ~2.9 points with every number on screen
+  // individually correct. `breadth-is-counted-over-the-equities-alone` holds
+  // both halves of this: the binding names the set, and the section names the
+  // binding.
+  const equities = entries.filter((entry) => isEquitySymbol.has(entry.symbol));
+
   return toWireMarketOverview({
     proxies: entries.filter((entry) => isProxySymbol.has(entry.symbol)),
     sectors: entries.filter((entry) => isSectorSymbol.has(entry.symbol)),
+    breadth: marketBreadth(equities, { asOf, marketOpen }),
     sectorLadderStep: (ranked) => sectorLadder.stepFor(ranked, asOf),
     asOf,
   });
