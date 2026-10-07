@@ -393,3 +393,55 @@ lists are ranked server-side for the same reason sectors are — a top-N in a br
 means shipping the 518-figure input — so **a spec that supplies your `movers` array
 cannot see your comparator at all.** `overview-sector-ranking.spec.ts` is the
 pass-through shape that can; copy it rather than the furnished harness.
+
+## Handed here by Story 4.4 — 2026-10-07: the join already sees 518, and the cost is measured and attributed
+
+**Four things exist now that did not when Story 4.3 wrote to this file**, and two
+of them remove work from your estimate.
+
+**1. The join already sees all 518.** Story 4.4 widened the one call site to
+`trackedTickers()`, so your top-N has the whole universe available **without
+another widening and without a second call site**. `one-producer-of-the-overview-aggregate`
+is unchanged at one, and **do not widen its bound** — its break is the weak 1→2
+signal and would pass silently under a wider one.
+
+**2. The split is positive membership on every section, and there is a check.**
+`isProxySymbol`, `isSectorSymbol` and `isEquitySymbol` are named sets declared
+beside the symbol list. **Add yours the same way** — `each-overview-section-names-its-own-set`
+asserts it, and the e2e tripwire `overview-frame-sections.spec.ts` asserts `figures`
+has exactly four. Both exist because the negative filter 4.4.1 replaced would have
+put **518 figures** on the wire against four, in a 60,636-byte frame, with no
+compile error.
+
+**3. `directionOf` is in `packages/shared`** since Task 4.4.2, keyed on the
+**displayed** figure, returning `undefined` for a non-finite move. **Use it.** A
+second classifier is refused by `one-classifier-for-the-direction-of-a-move`, and
+that check exists because its own first draft was green on the defect: it matched
+`changePercent` and missed the bare `percent` an author is likeliest to type.
+
+**4. The per-batch cost is measured, and the attribution is what you need.**
+
+|                                 | median       |
+| ------------------------------- | ------------ |
+| before, the fifteen             | **0.118 ms** |
+| after, 518 + breadth            | **3.497 ms** |
+| the breadth count alone         | **0.041 ms** |
+| join over 518, nothing observed | 0.016 ms     |
+
+**The 3.4 ms is 518 `marketDateAt` calls** at ~6.6 µs each, inside
+`changeFromClose`'s same-session branch — **not the counting, which is 1.2%.** So
+**a top-N over the same entries is nearly free**: the expensive part is already
+paid, once, by the join you are reading. **Do not re-derive a move** — rank on the
+figure that arrived.
+
+### And the spec shape, which Story 4.3 told you about and 4.4 paid for twice
+
+**A furnished frame cannot see a server-side computation.** 4.3 found four overview
+specs passing against a server with the ranking deleted; 4.4 then found its own
+first-draft checks green on their own defects **twice more** — the breadth-set check
+and the region-order check. `overview-sector-ranking.spec.ts`'s
+`openWithRecordedStream` is the pass-through shape, and `overview-breadth-region.spec.ts`
+is a second example of it.
+
+**Your lists are ranked server-side**, so a spec that supplies your `movers` array
+is asserting its own fixture.

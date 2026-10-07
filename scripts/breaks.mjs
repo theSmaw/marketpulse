@@ -2643,6 +2643,92 @@ export const BREAKS = [
     build: true,
   },
   {
+    name: "the-population-is-stated-as-a-literal",
+    proves:
+      "No shipped sentence states the size of the tracked universe as a " +
+      "figure. Every surface naming the population reads it off the frame, " +
+      "so this product cannot say *503* on a screen where the frame said " +
+      "something else \u2014 which it did, for a day, in the one story whose " +
+      "entire subject is the denominator. `MarketOverview.tsx` read " +
+      '*"among the 503 companies we track"* in the state where the frame ' +
+      "arrived and its breadth section was REFUSED, which is precisely the " +
+      "state with no readable denominator; Task 4.4.8's produced state grid " +
+      "drew a frame carrying `tracked: 400`, its section refused, and the " +
+      "region saying 503. The repair was NO number rather than a different " +
+      "one \u2014 ADR 0029's defer rule applied to a clause.",
+    // **The clause is `we track`, not the number**, because `CLAUDE.md` says to
+    // prefer one the re-implementer cannot avoid writing. A grep for `503`
+    // rots the day the curation changes size, says nothing about `518`, and
+    // would fire on an HTTP status — of which this frontend discusses
+    // several. `we track` is this product's own phrase for the population,
+    // written identically in the ledger's heading, in its spoken claim and in
+    // the region's sentence.
+    //
+    // **The break is deliberately in a DIFFERENT file from the defect that
+    // shipped**, and a different number. The real defect was in
+    // `MarketOverview.tsx` and said 503; this one is in the view builder's
+    // heading and says 518 — because a break that edits the file the check
+    // was written around proves only that the check sees that file. Both were
+    // run at the time this entry was added and both went red.
+    file: "apps/frontend/src/market/market-breadth.ts",
+    find: "    setHeading: `Of the ${String(tracked)} we track`,",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      '    setHeading: "Of the 518 we track",',
+    command: ["pnpm", "invariants"],
+    expect: "state the population as a figure rather than reading it off",
+    // No `build:` \u2014 unlike its neighbour this check reads SOURCE, so the
+    // bundle is irrelevant and a rebuild either side would be four minutes
+    // spent proving nothing.
+  },
+  {
+    name: "the-breadth-buckets-are-transposed",
+    proves:
+      "The breadth count's one translation is wrong. `directionOf` answers " +
+      "`positive | negative | unchanged` about a NUMBER and the market's words " +
+      "for the same three facts are *advancing*, *declining* and *unchanged*, " +
+      "so `bucketOf` is the single place the two vocabularies meet \u2014 and a " +
+      "transposition there is a count that is individually well-formed in " +
+      "every field: the identity still holds, `measured` is still the sum of " +
+      "its own accumulators, `tracked` is still the set, the screen still " +
+      "agrees with the frame, and the headline's glyph, word and sign all " +
+      "still agree with each other. Nothing in a browser can see it from the " +
+      "frame alone, because breadth is a REDUCTION and the frame carries no " +
+      "recoverable input. Produced under the break: `advancing: 166, " +
+      "declining: 335` against a recount of `advancing: 335, declining: 166` " +
+      "taken from `GET /securities`' own closes \u2014 an assertion failure " +
+      "with the file's other two tests still passing, which is the design: a " +
+      "partition claim is not a direction claim.",
+    // **The defect the next author writes**, and it is why the clause is the
+    // translation rather than the tally: nobody inverts an accumulator, but the
+    // three wire names are not the three direction names, and this `switch` is
+    // the one place somebody has to write the pairing out. Its own docblock
+    // says so.
+    //
+    // **It only goes red on a store that holds closes.** The recount reads
+    // `GET /securities`' `lastCloses`, so on CI's store \u2014 518 securities,
+    // zero bars \u2014 the test SKIPS with its reason printed rather than
+    // passing vacuously, and this break is unprovable there. That is the same
+    // shape as `the-producer-forgets-to-rank-the-sectors`, which needs a ranked
+    // order no gated machine can produce.
+    //
+    // `build: true` for that entry's recorded reason: `pnpm e2e` drives the dev
+    // pair, which serves `dist/`, and a watch loop that rebuilds on the break
+    // and not on the restore leaves byte-identical source beside a broken
+    // `dist/` \u2014 a red suite that reads exactly like a flake.
+    file: "apps/backend/src/market-breadth.ts",
+    find:
+      '    case "positive":\n      return "advancing";\n' +
+      '    case "negative":\n      return "declining";',
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      '    case "positive":\n      return "declining";\n' +
+      '    case "negative":\n      return "advancing";',
+    command: ["pnpm", "e2e", "overview-breadth-counts.spec.ts", "--anyway"],
+    expect: "recounted from the store's own closes",
+    build: true,
+  },
+  {
     name: "the-landing-page-asks-only-for-the-proxies",
     proves:
       "The landing route's subscription is built from `overview.figures` " +

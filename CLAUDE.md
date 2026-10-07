@@ -90,14 +90,45 @@ structural rather than instructed — carried to the browser on a fourth
 market-stream frame type ([ADR 0038](docs/adr/0038-the-overview-aggregate-one-join-one-frame.md)).
 **What no gated machine has ever seen is a proxy figure move against a real
 feed**: on CI every proxy is `unknown` for ever, so `observed` and `stored` occur
-only on a store with bars and the two-tape note only mid-session. Task 4.2.5
+only on a store with bars and the two-tape note only mid-session.
+
+**And since 2026-09-27 two more of the seven hold figures, which is the half of
+the page that computes over the whole universe rather than over fifteen
+symbols.** `Sector performance` draws **eleven ranked sectors** (Story 4.3) and
+`Market breadth` draws **three counts, a remainder and a net headline over 503
+equities** (Story 4.4, 2026-10-07). Four things from them are load-bearing
+further on. **The join sees all 518** since Task 4.4.4 — one call site,
+`trackedTickers()`, with the fifteen proxies selected by a **positive**
+membership set, because the negative filter it replaced would silently admit
+every symbol a later story adds. **Breadth ships counts with a stated
+population, not percentages** — `PRODUCT_SPEC.md` §9's sketch drew three
+figures summing to 100 and carries a dated amendment saying why the shipped
+region does not: a percentage hides its denominator, and the denominator is
+_the part of the market we heard from in the last five minutes_, which on IEX
+is a fact about our reach. The window is **5 minutes, measured** (Task 4.1.6),
+applied to each bar's own `startsAt` and never to `ageMs`. And **the widening
+cost 0.118 → 3.497 ms a batch**, of which the breadth count is **0.041 ms** —
+**1.2%** — the rest being 518 `marketDateAt` calls inside `changeFromClose`,
+handed to Epic 14 by name. **What no gated machine has ever seen is a breadth
+figure at all**: CI's store has zero bars, so `measured` is 0 and every gated
+run renders the honest-nothing state. Since Task 4.4.7 the **DOM order is the
+≤860 order** — `breadth, sectors, movers, topology, unusual, investigations` —
+so at ≥861 the six tab stops deliberately run across a column-major grid;
+that cost, its argument and its reversal trigger are in `MarketOverview.tsx`
+and `docs/GAPS.md`.
+
+Task 4.2.5
 **renamed** the region from `Market summary`, which was a second
 word for a concept the product already had (the `/securities` group heading,
 and `Market proxy` on the security page) and which promised the broadest view
-on a screen where three later regions summarise all 518. The other six still
-say what they are waiting for, in the `reserved` state Story 4.1 added to
+on a screen where three later regions summarise all 518. ~~The other six still
+say what they are waiting for~~, in the `reserved` state Story 4.1 added to
 `Panel`, which is ADR 0029's defer rule as a component rather than a spinner
-that never resolves. Two
+that never resolves~~ — **false since 2026-10-07: three of the six do, and the
+other three hold figures.** `Market topology`, `Unusual activity` and
+`Current investigations` are still `reserved`; `Sector performance`, `Movers`
+and `Market breadth` are Stories 4.3, 4.5 and 4.4, of which two have shipped.
+Two
 of the seven belong to later epics by name — the topology is Epic 6's and
 unusual activity is Epic 5's — and the layout running there is explicitly
 **interim**, reverting to the canvas's end state on a condition: the first

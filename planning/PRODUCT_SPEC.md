@@ -461,6 +461,33 @@ The desktop layout should approximately consist of:
 
 The visualization should be the product's visual centre of gravity.
 
+> **Amended 2026-10-07 by Story 4.4 — the breadth sketch above draws three
+> percentages and no denominator, and the shipped region draws neither.**
+>
+> **Percentages were refused because the sketch's own arithmetic cannot be made
+> honest.** Three independently-rounded percentages sum to 99 or 101 — at a
+> measured N of 466 with an even split, `33.3 + 33.3 + 33.5 = 100.1` — and the
+> sketch's `42 / 56 / 2` sums to 100 only because it was drawn without the
+> rounding in mind. **Counts make the story's own acceptance criterion** — _the
+> three figures never sum to something a reader can see is wrong at any
+> rounding_ — **true by construction**, with nothing to round.
+>
+> **And the sketch has no denominator, which is the thing `EPIC.md` was mostly
+> written about.** `Advancing 42%` of _what_ is the question the live feed makes
+> unavoidable: IEX observes about two-thirds of the universe in a given minute,
+> so a percentage with no stated population is a claim the data does not
+> support. The shipped region states it — **_Of the 503 companies we track, 451
+> were heard from in the last 5 minutes_** — and draws the remainder as a row of
+> its own, below a rule, rather than leaving it to arithmetic the reader must do.
+>
+> **The set is the 503 equities, not all 518 tracked securities.** A count that
+> included `SPY` and the eleven sector SPDRs alongside their own constituents
+> would make this region and `Market proxies` non-independent.
+>
+> **What survives the sketch unchanged**: the three buckets and their names —
+> `Advancing`, `Declining`, `Unchanged` — and the region's position. What is
+> added is the fourth figure the sketch has no row for, and the sentence.
+
 > **Amended 2026-09-25 by Story 4.1 — what was built, and the three ways it
 > differs from this sketch.** The screen at `/` now draws **seven** named
 > regions: `Market proxies`, `Market topology`, `Sector performance`, `Movers`,

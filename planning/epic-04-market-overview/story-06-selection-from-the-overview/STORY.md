@@ -191,3 +191,54 @@ Task 4.3.1 that is a **backstop** rather than the default behaviour of a region
 that does not fit — measured: **no region on `/` scrolls at any of the four
 widths**. Whether it should become conditional is **yours**, because you own the
 focus order on this screen. Task 4.3.1 explicitly declined to decide it.
+
+## Handed here by Story 4.4 — 2026-10-07: the focus order you inherit is no longer the one your own file describes
+
+**The DOM was reordered on 2026-10-07, so the keyboard order on this screen
+changed.** Your file's keyboard rule is unaffected — it is about a list that
+re-orders — but the **page-level** order it sits inside is different, and the
+difference is deliberate.
+
+### What changed, and what it costs you
+
+**The source order is now the one-column order**: `breadth, sectors, movers,
+topology, unusual, investigations`. No CSS changed; `grid-template-areas` places
+the wide layouts, as it already did by name. **Every region's box is identical at
+all four widths**, verified box-for-box before and after.
+
+- **At ≤860 the keyboard, the heading order, the swipe order and the visual order
+  now all agree.** That mismatch was **shipped and live** — this story's own
+  premise that _"there is not one tab stop inside `.regions` at any width"_ was
+  false, there are **six**, and `Panel` renders `tabIndex={0}` for each.
+- **At ≥861 the keyboard order deliberately does NOT match the visual order.**
+  Accepted: in two columns the eye is not performing a sequence, so there is no
+  reading order there to disagree with, and the alternative puts the mismatch back
+  where sequence **is** the entire hierarchy.
+
+**The reversal trigger is a condition and it is yours to watch**: _the first region
+on this screen whose content a reader must traverse in order at a wide width_ — a
+numbered sequence, a stepper, a form, or **two regions where one's figure is read
+against the other's.** Selection may well be what creates that, so read it before
+you add a control.
+
+### And the question Task 4.3.1 declined is still open and still yours
+
+`Region` passes `scrollable` unconditionally, so **every region is a tab stop** —
+and the measurement behind that rule does not apply here: **no region on `/` scrolls
+at any of the four widths**. So six tab stops exist to satisfy a rule about
+scrolling that nothing on this page triggers.
+
+**Making it conditional is not a substitute for anything 4.4 did** — breadth has
+content and would still be a stop — and it is a product-wide change to a shared
+component, where getting it wrong reintroduces a real WCAG 2.1.1 failure
+(`scrollable-region-focusable`) at a viewport nobody tested. **It is yours because
+you own the focus order, and it was explicitly declined twice rather than
+forgotten.**
+
+### One assertion exists now that did not
+
+`e2e/specs/overview-region-order.spec.ts` asserts DOM order against **geometric**
+top-to-bottom order, at **768 and 390**. It will go red if you reorder the regions
+or restate the narrow areas list without moving the DOM with it. **It deliberately
+does not run at 1440**: an assertion of agreement there would assert the opposite of
+the decision above, and one of disagreement would pin a cost rather than a claim.

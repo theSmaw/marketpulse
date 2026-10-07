@@ -253,3 +253,49 @@ the caveats.
 
 **The two exceptions this epic owns are unchanged** and were last re-taken by Task
 3.6.5: the cold load at **50–56 ms** (7 in 10) and `Expand all` at **65–86 ms**.
+
+## Handed here by Story 4.4 — 2026-10-07: a named candidate, and it is not the aggregate
+
+**The trigger still has not fired** and nothing here changes that: Story 4.4's
+breadth region renders **four rows** — three counts and a remainder — over a
+computation across 503 securities, so it is a summary rather than per-row markup,
+exactly as the paragraph above predicted of an aggregate region.
+
+**What is new is a measured cost with an attribution, and the attribution names
+something that is this epic's rather than Epic 4's.** Task 4.4.4 widened the one
+overview call site from fifteen symbols to all 518, inside the socket callback,
+~16 applied batches a minute. Measured on `dist/`, 400 timed iterations after 300
+warm-up, two reproducible runs, **all 518 observed** — the worst case, against
+~332 in a median minute:
+
+|                                          | median       | p95   | max   |
+| ---------------------------------------- | ------------ | ----- | ----- |
+| before, the fifteen, no breadth          | **0.118 ms** | 0.150 | 0.187 |
+| after, 518 + breadth                     | **3.497 ms** | 3.768 | 4.552 |
+| **the breadth count alone**, 503 entries | **0.041 ms** | 0.044 | 0.183 |
+| join over 518, **nothing** observed      | 0.016 ms     | 0.016 | 0.087 |
+| join over 518, observed, **no closes**   | 0.019 ms     | 0.022 | 0.071 |
+
+≈ **56 ms of script a minute**, and **the count is 1.2% of it.**
+
+**The candidate: 518 `Intl` conversions per applied batch.** Nothing observed →
+0.016 ms. Observed with no closes, so `changeFromClose` returns before its
+session comparison → 0.019 ms. With closes → **3.42 ms**. That 3.4 ms is **518
+`marketDateAt` calls at ~6.6 µs each**, one per live entry, inside
+`changeFromClose`'s same-session branch — `packages/shared/src/market-time.ts` is
+the only module in this repository permitted to construct an
+`Intl.DateTimeFormat`, and this path constructs one per entry per batch.
+
+**It is not a breach today and was not Story 4.4's to fix.** 3.5 ms is well
+inside §28 and the path runs ~16 times a minute. It becomes this epic's the
+moment either of two things happens: **the cadence rises** — a per-trade or
+per-quote subscription rather than per-minute bars — or **a second universe-scale
+per-tick computation is added to the same callback**, which Story 4.5's top-N and
+Story 4.8's measurement both approach. The obvious repair is a memoised
+conversion keyed on the UTC minute, which is one lookup per batch rather than
+518; it was deliberately not taken here because a cache inside the one module
+that owns market time is an architectural change rather than an optimisation.
+
+**These are local figures on a dev machine against a `dist/` build.** Re-take them
+with the production build and the instrument up; what they give this epic is
+**where to look**, not a number to carry forward.

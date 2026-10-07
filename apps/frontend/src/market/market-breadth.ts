@@ -270,13 +270,27 @@ export interface MarketBreadth {
  * Read the overview frame's breadth section.
  *
  * `undefined` is **the absence of the section**, which a renderer draws as the
- * region's reserved state rather than as three zeros. Two ways to reach it and
- * they are one state on screen: no frame has arrived at all, or the frame
- * carries no readable `breadth` — *this gateway does not send breadth*, which
- * is a rollback pinning a previous image rather than a fault. `readBreadth`
- * refuses a section whose counts do not sum to its denominator or whose
- * denominator exceeds its set, so an unreadable section arrives here as the
- * same absence.
+ * region's reserved state rather than as three zeros. `readBreadth` refuses a
+ * section whose counts do not sum to its denominator or whose denominator
+ * exceeds its set, so an unreadable section arrives here as the same absence.
+ *
+ * **Two ways to reach that absence, and they are TWO states on screen rather
+ * than one.** This docblock said *one* until 2026-10-07, when Task 4.4.8's
+ * produced state grid drew both and they read differently — and
+ * `MarketOverview.tsx` had been telling them apart, deliberately and with its
+ * own comment saying so, since Task 4.4.6. The caller's branch is the authority:
+ *
+ * - **No frame at all** — the first paint, a few hundred milliseconds on every
+ *   load. The region holds its room and says **nothing**, because the region's
+ *   own sentence would be a promise the next frame breaks.
+ * - **A frame with no readable `breadth`** — *this gateway does not send
+ *   breadth*, a rollback pinning a previous image rather than a fault. That
+ *   gateway will never send a section, so the region draws **its own
+ *   sentence**.
+ *
+ * This function cannot tell them apart and is not asked to: it is handed the
+ * frame, and `overview === undefined` is the caller's question rather than
+ * this reader's.
  *
  * **Absence is never expressed as zeros, and `measured: 0` is not absence.**
  * A section reading `advancing: 0, declining: 0, unchanged: 0, measured: 0` is

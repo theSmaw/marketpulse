@@ -353,13 +353,33 @@ export function MarketOverview({
          * **The sentence for the state where nothing EVER arrives is Task
          * 4.4.6's**, together with the `useWaited` floor the sibling already
          * reuses.
+         *
+         * ## This sentence carries NO figure, and it carried one for a day
+         *
+         * **Corrected 2026-10-07 by Task 4.4.8, found by producing the state
+         * rather than by reading the line.** It read *"among the 503 companies
+         * we track"*, and the state it renders in is **precisely the state
+         * where this screen has no readable denominator**: the frame arrived
+         * and its breadth section was refused. The grid's
+         * `17-measured-over-tracked` drew the consequence — a frame carrying
+         * **`tracked: 400`**, its section refused, and the region saying
+         * **503**. Reachable by rollback.
+         *
+         * Everywhere else in this story the set size is read off the frame,
+         * because `BreadthClaim`'s own docblock says a literal `503` is *a lie
+         * with no symptom the day a constituent is delisted* — and here there
+         * is nothing to read it off, which is the whole reason the section was
+         * refused. So the repair is not a different number: it is **no
+         * number**, which is ADR 0029's defer rule applied to the clause rather
+         * than to the region. The sentence says what the region is for; the
+         * population is stated by `BreadthLedger` in the states that have one.
          */}
         <Region
           className={styles.areaBreadth}
           name="Market breadth"
           filledBy={
             breadth === undefined && overview !== undefined
-              ? "Advancing, declining and unchanged among the 503 companies we track, over the number of them the count could see."
+              ? "Advancing, declining and unchanged among the companies we track, over the number of them the count could see."
               : undefined
           }
         >

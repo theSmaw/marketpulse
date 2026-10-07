@@ -363,3 +363,61 @@ last consumer — and `pnpm verify` cannot see that, because `pnpm stories`
 asserts the opposite direction. **They are knowingly unrendered, not forgotten**,
 and the disposition is this epic's: adopt them, or delete them and record where
 the decisions went.
+
+## Handed here by Story 4.4 — 2026-10-07: breadth exists, its window is measured, and its denominator problem is already solved
+
+**`PRODUCT_SPEC.md` §11 names breadth as one of the four anomaly factors, and as
+of 2026-10-07 this product computes one.** Four things 4.4 settled that this epic
+should inherit rather than re-decide.
+
+**1. The module, and it is a sibling of the join rather than part of it.**
+`apps/backend/src/market-breadth.ts` exports
+`marketBreadth(entries, { asOf, marketOpen })` over `MarketOverviewEntry[]` — a
+**pure** function, every input an argument, no clock and no repository handle,
+which is what makes invariant 4 structural here. It is called from the one
+overview call site in `index.ts` over the **503 equities** (the 518 less the
+fifteen proxies, selected by a **positive** membership set). A sector-level or
+industry-level breadth is the same function over a filtered `entries`, and it
+costs **0.041 ms median over 503 entries** — measured, and 1.2% of the join it
+sits on, so a per-sector fan-out of eleven calls is free.
+
+**2. The window is 5 minutes and it was MEASURED, not chosen.**
+`BREADTH_WINDOW_MINUTES = 5`, from Task 4.1.6's 390 sampled minutes of a session.
+The window is applied to each bar's **own instant** (`bar.startsAt`) against the
+aggregate's `asOf` — **never `CurrentObservation.ageMs`**, which is computed on
+read with its own wall clock and would both put a second clock in a pure function
+and be wrong under a replay. A bar arrives ~0.5 s **after** the minute it
+describes has ended, so a window keyed on anything but `startsAt` shifts every
+figure by a minute.
+
+**3. The same window must filter the numerator AND the denominator, and this is
+the failure the whole story exists to prevent.** `marketBreadth` is one pass with
+three accumulators whose **sum is `measured`**. If the buckets folded over the
+whole map while `measured` was windowed, the surplus would land in `unchanged` —
+**collapsing _unchanged_ into _not heard from_**, invisibly, with every number
+well-formed. Any breadth this epic computes over a subset owes the same property,
+and the cheapest way to have it is to compute the denominator as the sum rather
+than as a second measurement.
+
+**4. §11's example is a PERCENTAGE and this product ships COUNTS, deliberately.**
+§11's wording is _82% of semiconductor securities currently negative_, and §9's
+sketch drew three percentages. **The shipped region draws counts with a stated
+population** — _"Of the 503 companies we track, 451 were heard from in the last
+5 minutes"_ — and §9 now carries a dated amendment saying why. The reason
+transfers directly to an anomaly factor: **a percentage hides its denominator**,
+and the denominator here is not the sector's membership but _the part of it we
+heard from in the window_, which on IEX is a fact about our reach rather than
+about the market. If this epic's breadth factor is normalised into a 0–100 score,
+the score's **explanation** — which invariant 1's _every score carries its
+explanation_ requires — has to state the population it counted over, or `82% of
+semiconductors are negative` will be said about however few of that industry
+group were heard from — and the floor this epic already owns is **six equities
+per sector**, so the arithmetic can be over a handful by design.
+`docs/GAPS.md` carries the entry on the four distinct reasons a security can be
+in the unheard remainder; three of the four are facts about our tape.
+
+**And `directionOf` is in `packages/shared`** since Task 4.4.2 — the single
+definition of what _up_, _down_ and _unchanged_ mean, keyed on the **displayed**
+percentage rather than the raw one, so a figure that renders `0.00%` counts as
+unchanged. A breadth factor that classifies with its own comparator will disagree
+with every glyph on every screen at the rounding boundary.

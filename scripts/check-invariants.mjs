@@ -3771,6 +3771,95 @@ const INVARIANTS = [
       });
     },
   },
+  {
+    id: "the-population-is-never-a-literal",
+    claim:
+      "No shipped sentence states the size of the tracked universe as a " +
+      "literal. Every surface that names the population reads it off the " +
+      "frame, so the phrase `we track` never appears in a string literal " +
+      "beside a digit.",
+    check() {
+      // **Task 4.4.8, and it is a defect that shipped for a day in the one
+      // story whose entire subject is the denominator.**
+      //
+      // `MarketOverview.tsx` read *"Advancing, declining and unchanged among
+      // the 503 companies we track"* in the state where the frame arrived and
+      // its breadth section was **refused** — which is precisely the state
+      // where this screen has no readable denominator. The produced state grid
+      // drew the consequence: a frame carrying `tracked: 400`, its section
+      // refused, and the region saying **503**. Reachable by rollback.
+      //
+      // Everywhere else in Story 4.4 the set size is read off the frame,
+      // because `BreadthClaim`'s own docblock says a literal is *a lie with no
+      // symptom the day a constituent is delisted* — and a sentence is the one
+      // place that rule has no compiler behind it. The repair was **no number**
+      // rather than a different one, which is ADR 0029's defer rule applied to
+      // a clause.
+      //
+      // ## Why the clause is `we track` rather than the number
+      //
+      // `CLAUDE.md`'s rule: prefer a clause the re-implementer **cannot avoid
+      // writing**. A grep for `503` rots the day the universe changes size and
+      // says nothing about `518`, `500` or whatever the next curation holds —
+      // and it would fire on an HTTP status, of which this frontend discusses
+      // several. **`we track` is this product's own phrase for the
+      // population**, written identically in the ledger's heading, in its
+      // spoken claim and in the region's sentence, and anybody stating the
+      // population in words will write it. So the check is: a string or
+      // template literal containing that phrase may not contain a digit.
+      //
+      // An interpolation is how the honest version is written and reads as no
+      // digit at all — `` `Of the ${String(tracked)} we track` `` passes,
+      // `"Of the 503 we track"` does not.
+      const files = shippedSourceFiles();
+
+      // Every string and template literal in shipped source, with its file.
+      // Three quote styles, each refusing its own delimiter and honouring a
+      // backslash escape — enough for this tree, and a literal spanning a
+      // newline inside quotes is a syntax error in the two that could.
+      const literals = files.flatMap(({ path, text }) =>
+        [
+          ...text.matchAll(
+            /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/gu,
+          ),
+        ].map((match) => ({ path, literal: match[0] })),
+      );
+
+      const naming = literals.filter(({ literal }) =>
+        /we track/u.test(literal),
+      );
+
+      // **The anchor.** A population of zero passes vacuously, and the phrase
+      // moving or being reworded is exactly the change that would make this
+      // check silent while the defect it forbids becomes writable again.
+      if (naming.length === 0) {
+        throw new InvariantFailure(
+          "No shipped literal contains the phrase `we track`, and this " +
+            "clause is anchored on it. Either the population sentence was " +
+            "reworded — in which case repoint this check at the new phrase — " +
+            "or it was deleted, and a region that counts over a universe no " +
+            "longer says which universe.",
+        );
+      }
+
+      const withDigits = naming.filter(({ literal }) => /\d/u.test(literal));
+
+      if (withDigits.length > 0) {
+        throw new InvariantFailure(
+          `${String(withDigits.length)} shipped literal(s) state the ` +
+            "population as a figure rather than reading it off the frame:\n      " +
+            withDigits
+              .map(({ path, literal }) => `${path}\n        ${literal}`)
+              .join("\n      ") +
+            "\n    A literal population is a lie with no symptom the day a " +
+            "constituent is delisted — and in the state where the breadth " +
+            "section is REFUSED there is no denominator to state at all, so " +
+            "the honest sentence carries no number. Interpolate the frame's " +
+            "own `tracked`, or say nothing.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];
