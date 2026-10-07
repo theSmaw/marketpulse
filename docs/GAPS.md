@@ -1100,10 +1100,65 @@ surface somebody thought of. The class is _everything else that is still
 arriving_, and the landing route is about to make the class bigger: `/` now has
 an aggregate, a strip, a source note and six deferrals settling together.
 
-**Not repaired here**, because the repair is a decision rather than a patch —
+~~**Not repaired here**, because the repair is a decision rather than a patch —
 either the assertion narrows to the surfaces the outage could plausibly reach
 (and stops being criterion 3's whole-page claim), or the page is driven to a
-quiescent state that nothing currently defines.
+quiescent state that nothing currently defines.~~
+
+> **REPAIR ATTEMPTED 2026-10-07 by Task 4.3.8 — and it is REASONED RATHER THAN
+> PROVEN, which is stated first because the opposite claim would be the more
+> comfortable one.** The second option was taken: the page is now driven to a
+> quiescent state, and the state is DEFINED. The definition
+> is deliberately not a list of things to wait for — it is **_the text stopped
+> changing_**: `settledText()` reads `main`, reads it again, and accepts the
+> value only when two consecutive reads agree. A page with anything still
+> arriving fails that and is polled again; a quiet page passes on the second
+> read.
+>
+> **Criterion 3 is not narrowed.** The assertion is still `after === before` over
+> the whole of `main`, which is §36's hardest promise and the reason the first
+> option was refused — narrowing it would have traded a flaky true claim for a
+> reliable weaker one.
+>
+> **What forced the repair was the fourth sighting, and it broke `main` rather
+> than a branch**: `verify` failed on the merge of PR #506 and **`deploy` was
+> skipped**, so the flake stopped being noise and started gating releases. The
+> sentence that did it was the chart's `A newer answer is on its way.` — **a bar
+> series request the spec never served and had no reason to name**, which is
+> precisely why the previous repair (wait for the snapshot's price) was
+> insufficient: it fixed the one surface somebody thought of, and this entry
+> said so at the time.
+>
+> **The lesson worth keeping is about the shape of the first repair.** Waiting
+> for a _specific_ thing to appear is a fix for one instance of the class;
+> waiting for _change to stop_ is a fix for the class. The first reads as more
+> precise and is strictly weaker.
+>
+> **What was actually established, and what was not.** The repaired spec ran
+> **24/24 green** on the target test and **six full-file runs of 54 executions
+> each**, with one failure whose test was not captured. Then the helper was
+> **deliberately broken** — made to return the first read instead of requiring
+> two to agree — and it **also passed 24/24**. So the break did not go red, and
+> **this machine cannot tell the repair from a quiet afternoon**: every one of
+> the four sightings was under load, which is CI's ordinary state and a
+> developer's rarest. `CLAUDE.md`'s rule applies to this entry's own repair — _a
+> break that does not go red is not evidence the check works_ — and here the
+> break demonstrably landed, so what it proves is that **the condition does not
+> occur on an idle machine**, not that the repair is sound.
+>
+> **Why it was shipped anyway, argued rather than assumed:** waiting for _change
+> to stop_ strictly dominates waiting for _one string to appear_ — it cannot
+> admit a baseline the old code would have rejected, and it rejects baselines the
+> old code accepted. It cannot make the flake more likely. **The proving ground
+> is CI under load, and the next full run on `main` is the measurement.** If it
+> fails there again, this entry is wrong and the first option — narrowing
+> criterion 3 — is what remains.
+>
+> **Still true, and the reason this entry is amended rather than deleted**: a
+> green run of this spec certifies that the page did not change across an
+> outage, **not** that it had finished arriving before the baseline — those are
+> now the same thing only because `settledText` makes them so, and that helper is
+> the single point where it could regress.
 
 **Seen a THIRD time on 2026-09-27**, on CI, against a branch whose entire diff
 was comment lines and planning Markdown — filtering the one source file's diff to
@@ -1118,9 +1173,12 @@ now has a fourth data point saying the load correlation is not a coincidence.
 
 **Re-measure:** `pnpm e2e e2e/specs/security-feed-degraded.spec.ts
 --repeat-each=6`, four times on one settled checkout, counting failures **per
-execution**. Run it on a **loaded** machine as well as an idle one: all three
-occasions this has been seen were under load, which is CI's ordinary state and
-a developer's rarest.
+execution**. Run it on a **loaded** machine as well as an idle one: all four
+occasions this was seen were under load, which is CI's ordinary state and a
+developer's rarest. **To prove the repair rather than the weather, break
+`settledText` first** — return the first read instead of requiring two to agree —
+and confirm the flake comes back under load. A repair to a 12% flake that is only
+ever observed passing has not been distinguished from a quiet afternoon.
 
 **Owner: the same condition as the entry above** — the first task that measures
 where a degraded page's remaining work goes, taken once for both.
@@ -1164,6 +1222,75 @@ two memo boundaries, 37–40 ms after) are the comparison.
 **Owner: a condition rather than a story number — the first story that measures
 a per-tick cost on any route other than `/`.** Story 4.8 is the first candidate
 and its scope is `/` only, so if it takes this it is widening deliberately.
+
+## The closes cache's two-session window can now RE-ORDER a ranking, not only skew a percentage
+
+**Added 2026-10-07 by Task 4.3.8 — an amendment in consequence to the closes-lookup
+entry above rather than a sibling of it.** The mechanism is unchanged and is
+documented there: the overview's `closesAsOf` takes a session and reads the latest
+closes whatever instant it is asked about.
+
+**What changed on 2026-09-27 is who reads the result.** When that entry was written,
+a stale close skewed **a percentage on one of four proxy cells** — a wrong figure,
+visible as a wrong figure, in a strip where each cell stands alone. Story 4.3 feeds
+the same lookup to **eleven sectors that are then RANKED against each other**, and a
+ranking is a comparison: a close that is one session stale for **one** sector does
+not merely make that row's figure wrong, **it moves that row past rows whose figures
+are right**. The defect stops being local to a cell and becomes a property of the
+list.
+
+**Three consequences worth stating, because none is obvious from the entry above:**
+
+1. **The error is not bounded by the stale row.** A sector displaced by one position
+   displaces another in the opposite direction, so one stale close produces **two
+   wrong rank positions** and neither row says anything is wrong.
+2. **It survives every guard this story shipped.** The permutation assertion
+   (`a-figure-lands-on-the-wrong-row`) catches a figure landing on the wrong **row**;
+   this is the right figure on the right row, computed from the wrong **basis**.
+   `one-home-for-the-live-change` is satisfied — the division happened in the one
+   permitted place, with a stale input.
+3. **The displayed basis would not disagree.** A `stored` figure carries its session
+   and an `observed` one carries the shared basis line, so a reader comparing the
+   footer against the row finds them consistent. **The two agree and are both
+   derived from the same stale read.**
+
+**Why it is not repaired here**: the repair is the one named in the entry above —
+make the lookup honour the session it is handed — and it is the same repair for both
+readers. This entry exists so that whoever takes it knows the blast radius is now a
+**ranking** rather than a figure, which changes how it should be tested.
+
+**Re-measure:** with the pair running, serve an overview frame whose sectors span a
+day boundary — `pnpm store:bare` then a seeded store, or a replay across a session
+edge — and compare the rendered order against `rankSectorFigures` run over the same
+figures with the correct per-session closes. **The order, not the figures.**
+
+## Two sectors displaying an identical figure are ordered by a value nobody can see
+
+**Added 2026-10-07 by Task 4.3.8.** The comparator's no-swap rule is keyed on the
+**displayed** figure — two moves equal at `PERCENT_DISPLAY_DECIMALS` return `0`, so
+the input order survives a stable sort. That is deliberate and it is what stops the
+drawn order contradicting the drawn figures.
+
+**The consequence is that the tie is broken by something invisible.** Two sectors
+both reading `+0.40%` are ordered by whichever arrived first in `SECTORS`' declared
+order, and **a reader comparing the two rows has no information that would explain
+why one is above the other.** They are not equal — one is `0.3999999999999999` and
+the other `0.40000000000000013` — but the screen says they are.
+
+**This is correct behaviour and the alternative is worse**: ordering by the
+undisplayed precision would make the list re-order on a difference no reader can
+see, which is the frame-max defect in a different costume. It is recorded because it
+is a **claim the screen makes that it cannot support** — adjacency implies an
+ordering, and here the ordering is real but unreadable.
+
+**Nothing mechanical can guard it**, because the honest version is the shipped one.
+What would change the disposition is a reader asking why two equal figures are
+ordered — at which point the answer is either a tie-break the screen _can_ show
+(volume, name) or an explicit statement that ties hold their declared order.
+
+**Re-measure:** render two sectors whose moves differ below the second decimal and
+confirm they do not swap on a tick — `packages/shared/src/sector-ranking.test.ts`
+holds that pair as a fixture with a comment saying it is the rule's own proof.
 
 ## Nothing checks that the sector ladder's ratchet has exactly ONE holder, and two holders would draw two scales with every figure still correct
 
@@ -1352,3 +1479,68 @@ anything a regression.
 --repeat-each=6` on an idle machine, reading the **durations** rather than the
 verdict, then again with a second heavy job running. The number that matters is the
 margin against 30,000 ms, not the pass.
+
+## A THIRD flake, and this one is inside `pnpm verify` rather than the browser suite
+
+**Added 2026-10-07 by Task 4.3.8.** The two characterised flakes are both in
+`pnpm e2e`. This one is in **`pnpm test:process`**, which is a `verify` step — so
+unlike the other two it can fail the **required** gate without a browser being
+involved at all.
+
+**`apps/backend/src/market-gateway.process.test.ts` — _a slow browser is dropped
+rather than tolerated › leaves a HEALTHY client on the same process untouched_**,
+failing `expected +0 to be 1` at line 567.
+
+**Characterised rather than attributed**: **6/6 green** running
+`pnpm --filter @marketpulse/backend test:process` alone, green on the repeat
+`pnpm verify`, and **1 failure in 2 loaded full runs**. So the signature is the
+same family as the other two — **it fails under load and not in isolation** — but
+the mechanism is unexamined, and a test about **dropping a slow client** is
+exactly the kind that would be sensitive to a machine that is already slow.
+
+**Nothing was attributed to it and nothing was repaired.** The change in flight
+touched `e2e/specs/` and `scripts/breaks.mjs`; this test is in the backend. Saying
+so is the point — `CLAUDE.md`'s rule is to run the branch commit that contains no
+code before calling anything a regression, and the cheaper version of that rule is
+to notice when your diff cannot reach the file that failed.
+
+**Why it matters more than its rate suggests.** Three known flakes now compound
+across a merge: ~12% on `security-gap-fill`, a load-dependent 30 s ceiling on
+`securities-route`, and this one. **A clean full run is not the common case**, and
+the failure mode is a real green change being read as broken — which has now cost
+one re-run, one diagnosis and one blocked deploy.
+
+**Re-measure:** `pnpm --filter @marketpulse/backend test:process` ×6 on an idle
+machine, then again with a second heavy job running. Read the **durations** as well
+as the verdict: if the healthy client's assertion is racing a timeout, the passing
+runs will be close to it.
+
+## The sector region's absence sentence is clipped at 390, and the repair for it cannot reach that width
+
+**Added 2026-10-07 by Task 4.3.8, and accepted by the owner rather than repaired.**
+
+`2026-09-25 close` renders as **`2026-09-25 cl…` at 390 and in full at 1440, 1024
+and 768** — the inverse of what Task 4.3.7's record claims, which is corrected in
+the same change.
+
+**The mechanism is exact and is the repair's own shape.** 4.3.7 widened the quiet
+row's figure cell with `grid-column: 4 / -1`, which spans it into the **bar
+column**. Above 37rem the track list has five columns, so the cell takes the figure
+column _and_ the bar column. **At 390 there is no bar column** — the track list is
+`2ch 144px 44px minmax(68px, 1fr)` — so `4 / -1` resolves to **column 4 alone**.
+The repair buys nothing precisely where the column is narrowest.
+
+**Why it was accepted**: the **date survives**, and the date is the information;
+`close` is the word lost. Every alternative costs something the story deliberately
+bought — a second line breaks the same-height-in-every-state guarantee the region
+paid 25 px for, a narrower label column re-opens the 144 px decision taken at Gate
+1 (where `Communication Services` already overflows by 0.70 px in the loaded face),
+and a shorter string at 390 only would give one sentence two homes.
+
+**It is invisible to every text assertion**, because the DOM holds the full string
+and the clip is CSS. It was found by **photographing the state**, which is the only
+instrument that can see it.
+
+**Re-measure:** `pnpm probe / --widths 390` with a stored figure that has no prior
+close, and read the rendered text rather than the DOM — or compare
+`.capture/sector-states/08-the-mixed-state-390.png` against `-768.png`.

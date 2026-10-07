@@ -2526,4 +2526,39 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "can no longer land",
   },
+  {
+    name: "the-producer-forgets-to-rank-the-sectors",
+    proves:
+      "The sector ranking actually runs between the server and the screen. " +
+      "`rankSectorFigures` is called in exactly one place in shipped code \u2014 " +
+      "`toWireMarketOverview`, which is handed the eleven in `SECTORS`' " +
+      "declared order \u2014 and **nothing in the browser ranks**, so a frame " +
+      "that arrives unranked is drawn faithfully, in the wrong order, with " +
+      "every figure on it correct and every printed ordinal ascending. The " +
+      "three sector specs that serve their own already-ranked frames all stay " +
+      "green under this substitution, which is why this one exists: it is the " +
+      "only spec in the suite that reads a frame the real gateway produced. " +
+      "Produced under the break: the drawn figures came back " +
+      "`1.32, -0.18, 0.67, 0.89, 0.99, 1.07, 0.35, 0.32, -0.31, 0.86, 0.37` " +
+      "against a descending expectation \u2014 an assertion failure with the " +
+      "file's other test still passing.",
+    // **The defect the next author writes.** Nobody deletes a comparator; what
+    // happens is that a second section is added to the aggregate and the new
+    // one is encoded without going through the rank \u2014 which is this exact
+    // line with `rankSectorFigures` missing. The clause is the **call**, not
+    // the function, for that reason.
+    //
+    // **`build: true` is load-bearing here and the reason cost a diagnosis.**
+    // `pnpm e2e` drives the running dev pair, which serves `dist/`, and the
+    // backend's watch loop did **not** rebuild on the restore during Task
+    // 4.3.8 \u2014 leaving a byte-identical source beside a broken `dist/`,
+    // which is a red suite that looks exactly like a flake. The harness builds
+    // both ways, so the tree and the process it drives cannot disagree.
+    file: "apps/backend/src/market-overview.ts",
+    find: "sectors === undefined ? undefined : rankSectorFigures(encode(sectors));",
+    replace: "sectors === undefined ? undefined : encode(sectors);",
+    command: ["pnpm", "e2e", "overview-sector-ranking.spec.ts", "--anyway"],
+    expect: "strongest first, keyless last",
+    build: true,
+  },
 ];
