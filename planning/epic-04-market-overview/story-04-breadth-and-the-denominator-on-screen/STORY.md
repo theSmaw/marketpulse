@@ -195,10 +195,43 @@ lunch:
   by a fifteen-minute window is not describing a live market, and this screen's
   whole claim is that it is current.
 
-**So the sentence's shape is _N of 518 in the last 5 minutes_, with N typically
-around 466 and legitimately as low as ~446 after lunch.** Do not round N, do not
+~~**So the sentence's shape is _N of 518 in the last 5 minutes_, with N typically
+around 466 and legitimately as low as ~446 after lunch.**~~ Do not round N, do not
 hide it when it dips, and do not colour it — it is a property of the IEX plan
 (`PRODUCT_SPEC.md` §7.1), stated calmly, not a warning.
+
+> **AMENDED 2026-10-07 at Gate 1 — every figure in this section was measured over
+> the WRONG SET, and the set is now 503.** The owner chose to count **the 503
+> equities** rather than all 518: a count that includes `SPY` and the eleven
+> sector SPDRs alongside their own constituents makes this region and
+> `Market proxies` non-independent, and in a one-sided market all fifteen fall the
+> same way.
+>
+> **The curve, the by-hour table and the worst-hour argument above are unchanged
+> as a RECORD of what was measured**, and the choice of **M = 5** does not move —
+> it was decided on the _shape_ of the curve (1 minute structurally impossible, 2
+> minutes reading as a fault at 57.5%, 5 minutes never below 86% in any hour), and
+> removing fifteen of the most liquid names in the market changes no part of that
+> argument.
+>
+> **What does move is every absolute figure, and it owes a RE-MEASURE rather than
+> a subtraction.** The fifteen funds are the most liquid names tracked and are
+> effectively always observed, so the honest first estimate is `N − 15` — about
+> **451 median and ~431 at the worst hour, against 503** — but that is an
+> inference about which the instrument said nothing. **Nobody may cite ~466 or
+> 446–498 as a figure over 503.**
+>
+> **The re-measure is cheap and is owed before the sentence ships**, because the
+> sentence states N and a reader will compare it to the band this file publishes.
+> Task 4.1.6's instrument is the one to re-run — a Node client on the deployed
+> gateway, subscribed to the 503, sampling every 60 s through a session — and it
+> belongs to **Task 4.4.6**, which already owes a measurement of the
+> heard-from-but-unmeasurable set from the same sitting.
+>
+> **And the sentence's noun changes with the set**: _of the 503 companies we
+> track_, not _of the 518 we track_. `518` must not be spelled as a literal in any
+> rendered string — the set is read, and one delisting makes a hard-coded figure a
+> lie with no symptom.
 
 > **And the floor is a floor.** Every figure here is a **lower bound**: a
 > revision for a superseded minute never reaches a browser and is invisible to

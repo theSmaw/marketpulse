@@ -60,3 +60,31 @@ that says what it has none of when nothing ever arrives.
 4. The region's height is unchanged across every state added here
 5. The heard-from-but-unmeasurable set is measured on a real store and the figure
    recorded
+
+## Amended at Gate 1 — 2026-10-07: you owe a RE-MEASURE, not a subtraction, and it is the same sitting as the one you already owe
+
+**Gate 1's choice of the 503 equities invalidated every absolute figure in Task
+4.1.6's coverage curve**, because that instrument sampled **518**. The choice of
+**M = 5 does not move** — it rests on the _shape_ of the curve and removing fifteen
+of the most liquid names in the market changes no part of that argument — but the
+band does.
+
+**What is now unusable as a figure over 503:** `N typically ~466`, the whole-day
+band `446–498`, and the worst-hour `446`. The honest first estimate is `N − 15`
+(~451 median, ~431 worst hour, against 503) **and that is an inference the
+instrument never made.** Do not ship the sentence against a band nobody measured.
+
+**The re-measure is Task 4.1.6's instrument re-run against the 503** — a Node
+client on the deployed gateway, sampling every 60 s through a regular session —
+and **it is the same sitting as the measurement this task already owes**: how large
+the heard-from-but-unmeasurable set is on a real store. One session answers both,
+and both are figures the sentence depends on.
+
+**Why it matters more than a tidy-up**: the sentence _states_ N, and this file
+publishes a band a reader can compare it to. A sentence reading `431 of 503` beside
+a published expectation of `446–498` reads as a fault in the product rather than as
+a different denominator.
+
+**And the noun changes with the set** — _of the 503 companies we track_. `518` is
+never spelled as a literal in a rendered string: the set is **read**, and one
+delisting makes a hard-coded figure a lie with no symptom.

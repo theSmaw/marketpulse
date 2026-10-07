@@ -69,3 +69,43 @@ payoff.
    is excluded from both the count and N
 5. `one-producer-of-the-overview-aggregate` still reports one call site, its bound
    unchanged, and its break re-run
+
+## Amended by Task 4.4.1 — 2026-10-07: the trap is closed, and the number it would have cost is measured
+
+**You can widen the join safely now, and here is what it would have cost if you
+had done it first.** The proxy split was a **negative** membership test
+(`!isSectorSymbol.has(…)`); it is now positive (`isProxySymbol.has(…)`), with
+`overviewSymbols` and `isProxySymbol` declared as an adjacent pair so the set a
+section names sits beside the set the join is given.
+
+**Measured by performing your defect by hand, in three states:**
+
+| state                                       | `figures` on the wire |
+| ------------------------------------------- | --------------------- |
+| negation alone, today's fifteen-symbol join | 4                     |
+| **negation + your widening to 518**         | **507**               |
+| positive filter + your widening             | 4                     |
+
+**507 figures on the wire** — the ~56 KB frame and the five folds over 507 entries
+are now measured rather than predicted.
+
+**And the guard that protects you is in two halves, deliberately.** The e2e
+assertion (`overview-frame-sections.spec.ts`, pass-through, `figures` has exactly
+four) is **blind today** — with only fifteen symbols joined, the negative and
+positive filters return byte-identical arrays and it passes 2/2. It becomes the
+tripwire **the moment you widen the join**. The half that is red today is the grep
+invariant `each-overview-section-names-its-own-set`, over the _shape_ of the split.
+
+**So when you widen `overviewSymbols` to `trackedTickers()`:**
+
+1. **Every section's split must consult a positive set.** Breadth is the only
+   consumer of the whole answer; anything that lands in a _section_ names its own
+   membership.
+2. **Run `pnpm break a-section-is-handed-the-join-whole` after widening.** Today it
+   reports `Expected length: 4 / Received length: 15`; after your change it should
+   report 507, which is the number that proves the tripwire is live.
+3. **The subscription is already correct and sorted.** `symbolKey` spans
+   `figures` **and** `sectors`, sorted — because `sectors` arrives rank-ordered and
+   `use-live-feed` keys its resubscribe on `symbols.join(",")`. **Do not add 518
+   symbols to it**: breadth ships counts, not figures, and the page must keep
+   asking for fifteen.
