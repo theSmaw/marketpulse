@@ -6,6 +6,7 @@ import {
   type BreadthBucket,
   type MarketBreadth,
 } from "../../market/index.js";
+import { useWaited } from "../MarketProxyStrip/use-waited.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import styles from "./BreadthLedger.module.css";
 
@@ -98,8 +99,33 @@ const BUCKET_BAND: Readonly<Record<BreadthBucket, string | undefined>> = {
  */
 const NET_CAPTION = "Net advancing";
 
+/**
+ * **What this region has none of, when nothing ever arrives** — Task 4.4.6,
+ * reusing `useWaited` rather than inventing a second floor.
+ *
+ * ## The words are breadth's own
+ *
+ * `MarketProxyStrip` says `No prices yet.` and `SectorPerformance` says `No
+ * sector moves yet.`, each naming the quantity it draws. Breadth draws neither:
+ * a count of securities is a **third** quantity, so saying *prices* or *moves*
+ * here would name something this region has never shown. Three sentences, three
+ * nouns, one per region — which is also what tells a reader which region went
+ * quiet when two of them do at once.
+ *
+ * ## And it is a different state from `measured: 0`
+ *
+ * *We counted and heard nothing* has a count — zero — and a basis saying which
+ * question was asked, so it draws the denominator sentence
+ * ({@link MarketBreadth.claim}) and the quiet group's real figures. **This**
+ * state has no frame at all: no basis, no set size, no window and nothing to
+ * subtract, which is why its sentence can only say that there is no count. The
+ * two look identical on screen and must not read identically — the brief's
+ * third look-alike.
+ */
+const NOTHING_ARRIVED = "No count yet.";
+
 export interface BreadthLedgerProps {
-  /** The counts and the four strings, from `marketBreadth`. */
+  /** The counts, the scale and the strings, from `marketBreadth`. */
   readonly view: MarketBreadth;
 }
 
@@ -128,6 +154,26 @@ export const BreadthLedger = memo(function BreadthLedger({
    */
   const counted = view.measured > 0;
 
+  /*
+   * **Whether a proportional PICTURE may be drawn, which is a narrower
+   * question than whether anything was counted** (Task 4.4.6).
+   *
+   * `scale` is `undefined` at N = 0 and at N = 1, and the second one is the
+   * interesting case: the arithmetic is sound and the picture lies. One
+   * security in one bucket is a fraction of `1`, which draws a band across the
+   * **whole** track — *the market is entirely advancing*, from one name. The
+   * count beside it says `1`, and `MarketBreadth.scale` records why that is not
+   * enough: what a reader takes from a band is proportion, and a full track is
+   * the strongest proportional claim the shape can make.
+   *
+   * So the bands, the origin rule and the printed ladder go together, as one
+   * decision with one trigger, and their room is held exactly as it is at
+   * N = 0. The three counts stay: `Advancing 1 / Declining 0 / Unchanged 0` is
+   * what we know, and the ledger's whole argument is that the count is the
+   * claim and the band is a picture of it.
+   */
+  const scaled = view.scale !== undefined;
+
   return (
     <div className={cx(styles.plot)}>
       <div className={cx(styles.headline, counted ? undefined : styles.held)}>
@@ -141,7 +187,18 @@ export const BreadthLedger = memo(function BreadthLedger({
           )}
         </p>
       </div>
-      <div className={cx(styles.headlineRule)} aria-hidden="true" />
+      {/*
+       * **The rule goes with the headline it separates** (Task 4.4.6). At
+       * N = 0 the headline above it and the ledger below it are both suppressed
+       * and a hairline across an otherwise empty box is a divider between two
+       * things that are not there — the same ADR 0029 clause as the figures,
+       * one element over. `.held` rather than removal, so the 1 px and its
+       * 16 px margin stay in the budget.
+       */}
+      <div
+        className={cx(styles.headlineRule, counted ? undefined : styles.held)}
+        aria-hidden="true"
+      />
 
       {/*
        * **The origin rule: one element for the whole ledger**, a grid item in
@@ -155,7 +212,7 @@ export const BreadthLedger = memo(function BreadthLedger({
        * already present in every row.
        */}
       <div
-        className={cx(styles.rules, counted ? undefined : styles.held)}
+        className={cx(styles.rules, scaled ? undefined : styles.held)}
         aria-hidden="true"
       >
         <span className={cx(styles.origin)} />
@@ -179,7 +236,7 @@ export const BreadthLedger = memo(function BreadthLedger({
                * stylesheet's, and it is load-bearing at this granularity —
                * 0.384 px a security at 1440.
                */}
-              {row.count === 0 ? undefined : (
+              {row.fraction === undefined || row.count === 0 ? undefined : (
                 <i
                   className={cx(styles.fill, BUCKET_BAND[row.bucket])}
                   style={{ width: `${String(row.fraction * 100)}%` }}
@@ -207,13 +264,11 @@ export const BreadthLedger = memo(function BreadthLedger({
        * track, M were heard from*.
        */}
       <div
-        className={cx(styles.ladder, counted ? undefined : styles.held)}
+        className={cx(styles.ladder, scaled ? undefined : styles.held)}
         aria-hidden="true"
       >
         <span className={cx(styles.tick, styles.tickZero)}>0</span>
-        <span className={cx(styles.tick, styles.tickFull)}>
-          {view.measured}
-        </span>
+        <span className={cx(styles.tick, styles.tickFull)}>{view.scale}</span>
       </div>
 
       {/*
@@ -265,7 +320,45 @@ export const BreadthLedger = memo(function BreadthLedger({
        * qualifies is a footnote nobody reads the footnote of, which is the
        * sentence this story opens with.
        */}
-      <p className={cx(styles.claim)}>{view.claim}</p>
+      <p className={cx(styles.claim)}>
+        {/*
+         * **Two renderings of one string, and the only delivery of N to a
+         * listener** (Task 4.4.6).
+         *
+         * The ladder above is `aria-hidden` — `RankedList`'s decision at its
+         * own ladder, inherited correctly — so **N reaches no listener from
+         * anywhere else in this region**: read from the accessibility tree, a
+         * listener gets the three counts, the set heading, the remainder and
+         * this clause. The denominator this story exists to put on screen is
+         * not on screen for them, and that is a defect in no file.
+         *
+         * So the drawn half states the method and defers to the printed
+         * endpoint 24 px above it; the spoken half is the owner's whole
+         * sentence, because for a listener there is no endpoint to defer to.
+         * `marketBreadth` builds both from the same three fields, which is what
+         * makes them unable to disagree.
+         *
+         * **Verified by reading the accessibility tree rather than the DOM**
+         * (`Accessibility.getFullAXTree`), which is the only instrument that
+         * can see this: the DOM is correct in both versions.
+         */}
+        {view.claim.drawn === view.claim.spoken ? (
+          /*
+           * **One string, so one element.** At N = 0 there is no ladder for the
+           * drawn half to defer to, so `marketBreadth` makes both renderings
+           * the sentence — and splitting an identical string across a hidden
+           * span and a spoken one would put it in `textContent` twice, which is
+           * one `expect` away from being asserted and reads as a duplicate to
+           * anything walking the DOM.
+           */
+          view.claim.drawn
+        ) : (
+          <>
+            <span aria-hidden="true">{view.claim.drawn}</span>
+            <span className={cx(styles.spoken)}>{view.claim.spoken}</span>
+          </>
+        )}
+      </p>
     </div>
   );
 });
@@ -294,9 +387,43 @@ export const BreadthLedger = memo(function BreadthLedger({
  */
 export const BreadthLedgerReservation = memo(
   function BreadthLedgerReservation() {
+    // **The floor is the proxy strip's own and not a second one** (Task 4.4.6,
+    // and `SectorPerformanceReservation`'s decision one region across).
+    //
+    // The reservation is right for the case it was written against — a frame
+    // arrives in 174–277 ms, so the hold is a flash nobody sees. It is wrong
+    // for the case a reader actually meets: an unreachable aggregate, a
+    // half-rolled deploy, a proxy holding the socket open. `overview` is only
+    // ever written by an overview frame, so when none arrives this is the
+    // **terminal** state and the region sits at its full height saying nothing,
+    // while five regions below it each say what they are waiting for. Task
+    // 4.3.8 produced exactly that for `Sector performance` — byte-identical at
+    // 600 ms and at 12 s — and this region would have inherited it.
+    //
+    // 2,000 ms against a first frame of 174–277 ms, so the ordinary load never
+    // reaches it.
+    const waited = useWaited(true);
+
+    /*
+     * **Two boxes rather than one, and the nesting is the decision.** The held
+     * geometry keeps `visibility: hidden` and `aria-hidden` of its own, in
+     * every state; the sentence is a sibling in the room that box is holding.
+     *
+     * The one-box version — `visibility: visible` back on the same element once
+     * the floor elapses — is the obvious shape and it **un-hides the reserved
+     * ledger with it**, because `visibility` is inherited and a child that
+     * never set it has nothing to lose. A reader would then meet three real
+     * row labels, a `0`, a non-breaking space where a heading goes and a
+     * sentence on top of them.
+     */
     return (
-      <div className={cx(styles.reserved)} aria-hidden="true">
-        <BreadthLedger view={RESERVED_BREADTH} />
+      <div className={cx(styles.reservedRoom)}>
+        <div className={cx(styles.reserved)} aria-hidden="true">
+          <BreadthLedger view={RESERVED_BREADTH} />
+        </div>
+        {waited ? (
+          <p className={cx(styles.nothingArrived)}>{NOTHING_ARRIVED}</p>
+        ) : undefined}
       </div>
     );
   },

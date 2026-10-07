@@ -6,6 +6,7 @@ import type {
 } from "@marketpulse/shared";
 
 import { marketBreadth } from "../../market/index.js";
+import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
 import { Region } from "../Region/Region.js";
 import { BreadthLedger, BreadthLedgerReservation } from "./BreadthLedger.js";
 
@@ -31,8 +32,12 @@ import { BreadthLedger, BreadthLedgerReservation } from "./BreadthLedger.js";
 // rule stopping above the rule, the weight and the ink — and **not one of them
 // is colour**, which is what the greyscale story is for.
 //
-// Task 4.4.6 owns the honest states: the wording of both grammars, the sentence
-// for the state where nothing ever arrives, and the N = 1 rule.
+// **Task 4.4.6 worded the honest states and they are all below.** Three states
+// look identical on screen and must read differently — no `breadth` section at
+// all (the region's own reserved panel, which is the route's decision and not
+// this component's), `measured: 0`, and **no frame ever**, which is the one that
+// needs a clock. The fourth thing it added is the N = 1 rule, which is the only
+// state where the arithmetic is sound and the picture lies.
 
 const frame = (breadth: WireMarketBreadth): WireMarketOverview => ({
   computedAt: "2026-10-07T18:01:38.000Z",
@@ -52,10 +57,13 @@ const view = (breadth: WireMarketBreadth) => {
 /**
  * A live count, mid-session.
  *
- * **Every figure here is a placeholder pending Task 4.4.6's re-measure over the
- * 503.** Task 4.1.6's band of 446–498 was taken over **518** and nobody may
- * cite it as a figure over 503; the inferred first estimate is `N − 15`, which
- * is what these stories use.
+ * **Every figure here is an inference and the re-measure is still owed.** Task
+ * 4.1.6's band of 446–498 was taken over **518** and nobody may cite it as a
+ * figure over 503; `N − 15` is the honest first estimate and it is an inference
+ * the instrument never made. Task 4.4.6 could not take the re-measure — it
+ * needs a Node client on the deployed gateway sampling through a **regular
+ * session**, and the market was shut. Nothing on this component depends on the
+ * figures being realistic; what they have to be is internally consistent.
  */
 const OBSERVED: WireMarketBreadth = {
   basis: "observed",
@@ -217,6 +225,36 @@ export const NothingHeardFrom: Story = {
 };
 
 /**
+ * **N = 1: the counts stay and the picture goes.**
+ *
+ * The one state where every figure is right and the drawing is a lie. One
+ * security in one bucket is a fraction of `1`, so the band crosses the **whole**
+ * track — *the market is entirely advancing* — and that is what a reader takes
+ * from a band whatever the count beside it says. So the bands, the origin rule
+ * and the printed ladder go together, as one decision with one trigger, and
+ * their room is held exactly as it is at N = 0.
+ *
+ * Review it beside {@link TheBandFloorFires}, which is the **other** small
+ * number: a count of 1 inside a scale of 451 is a 2 px band and is honest,
+ * because there are 450 other securities on the same track to compare it with.
+ *
+ * Reachable rather than theoretical — Task 4.1.6 measured a five-minute minimum
+ * of 5 during a session, so single figures are an extended-hours or dying-feed
+ * reading.
+ */
+export const OneSecurityHeardFrom: Story = {
+  args: {
+    view: view({
+      ...OBSERVED,
+      advancing: 1,
+      declining: 0,
+      unchanged: 0,
+      measured: 1,
+    }),
+  },
+};
+
+/**
  * **The paint before the first frame: the region's geometry, held and
  * invisible.**
  *
@@ -227,6 +265,11 @@ export const NothingHeardFrom: Story = {
  *
  * It looks empty **on purpose**, and what is being reviewed is that the box is
  * the same box as every state above it.
+ *
+ * **It stops looking empty after two seconds**, which is the story below: the
+ * same component, photographed past `useWaited`'s floor. The ordinary load
+ * never gets there (first frame measured at 174–277 ms), so this story is the
+ * flash and that one is the state a reader actually meets.
  */
 export const BeforeTheFirstFrame: Story = {
   render: () => (
@@ -234,6 +277,40 @@ export const BeforeTheFirstFrame: Story = {
       <BreadthLedgerReservation />
     </Region>
   ),
+};
+
+/**
+ * **Nothing ever arrived — the same component, two seconds later.**
+ *
+ * `BreadthLedgerReservation` says nothing for the first 2,000 ms, because for a
+ * few hundred milliseconds a sentence would be a promise the next frame breaks.
+ * Past the floor it is the **terminal** state — an unreachable aggregate, a
+ * half-rolled deploy, a proxy holding the socket open — and a titled region at
+ * its full height with nothing in it is `docs/GAPS.md` entry 13 exactly. Task
+ * 4.3.8 produced it for `Sector performance`, byte-identical at 600 ms and at
+ * 12 s.
+ *
+ * **The words are breadth's own**: the strip has no *prices*, sectors have no
+ * *moves*, breadth has no **count**. Three nouns, one per region, which is also
+ * what tells a reader which region went quiet when two do at once.
+ *
+ * And the sentence sits in room the reservation **already holds** — nothing
+ * moves when it appears, which is what is being reviewed here against
+ * {@link BeforeTheFirstFrame}.
+ */
+export const NothingEverArrived: Story = {
+  render: () => (
+    <Region name="Market breadth">
+      <BreadthLedgerReservation />
+    </Region>
+  ),
+  play: async () => {
+    // The floor is a real `setTimeout` in a real browser, so the story waits
+    // past it rather than faking a clock there is no seam for.
+    await new Promise((resolve) => {
+      setTimeout(resolve, SAY_NOTHING_ARRIVED_AFTER_MS + 500);
+    });
+  },
 };
 
 /**

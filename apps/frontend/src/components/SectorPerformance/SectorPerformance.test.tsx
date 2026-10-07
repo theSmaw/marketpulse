@@ -174,9 +174,17 @@ describe("SectorPerformance, the honest states", () => {
     // whole lower page a moment after it painted.
     const { container } = render(<SectorPerformanceReservation />);
 
-    expect(container.firstElementChild?.getAttribute("aria-hidden")).toBe(
-      "true",
-    );
+    // **The held geometry carries its own `aria-hidden`, on its own box.**
+    // Amended 2026-10-07 by Task 4.4.6: this asserted the attribute on
+    // `firstElementChild`, which was the one box the reservation used to be —
+    // and that arrangement put `visibility: hidden` and its override on the
+    // same element, so past the floor the eleven rows un-hid along with it.
+    // The assertion's INTENT is unchanged and is the thing that matters: the
+    // rows are out of the accessibility tree. It now names the box that holds
+    // them rather than whichever box happens to be first.
+    const held = container.querySelector("[aria-hidden='true']");
+    expect(held).not.toBeNull();
+    expect(held?.querySelectorAll("li")).toHaveLength(11);
     expect(screen.queryAllByRole("listitem")).toHaveLength(0);
     expect(container.querySelectorAll("li")).toHaveLength(11);
     // No figure and no absence word: room, and nothing that reads as a value.

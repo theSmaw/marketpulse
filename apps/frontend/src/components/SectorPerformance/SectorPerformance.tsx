@@ -159,14 +159,36 @@ export const SectorPerformanceReservation = memo(
     const waited = useWaited(true);
 
     return (
-      <div
-        className={cx(
-          styles.reserved,
-          waited ? styles.reservedSpoken : undefined,
-        )}
-        aria-hidden={waited ? undefined : "true"}
-      >
-        <SectorPerformance view={RESERVED_SECTORS} />
+      <div className={cx(styles.reservedRoom)}>
+        {/*
+         * **Two boxes, and the one-box version was a live defect for ten days.**
+         *
+         * Task 4.3.8 put `visibility: hidden` and its `visible` override on the
+         * SAME element, with `aria-hidden` removed in the same branch — so past
+         * the floor the whole box un-hid, **including the eleven reserved rows
+         * it was only ever meant to be holding room for.** `visibility` is
+         * inherited by children that never set it, so they came back with it.
+         *
+         * Produced by Task 4.4.6 at 1440, `innerText`:
+         *
+         *     "Sector performance\nNOT RANKED\n—\nTechnology\ntechnology\n
+         *      —\nHealth Care\nhealth_care\n—\nFinancials\nfinancials…"
+         *
+         * The second column is `RESERVED_SECTORS`' **internal sector slugs**,
+         * sitting in the symbol column — which this module's own comment says
+         * "is the React key and is never read". So it is the *fully-formed
+         * placeholder invites a reader to read a value that is not there*
+         * failure this component forbids, **plus a slug leak**, and it was in
+         * the accessibility tree too.
+         *
+         * The held geometry now keeps its own `hidden` and its own
+         * `aria-hidden` unconditionally; the sentence is a **sibling** in the
+         * room it holds. Nothing can un-hide the rows, because nothing
+         * overrides them any more.
+         */}
+        <div className={cx(styles.reserved)} aria-hidden="true">
+          <SectorPerformance view={RESERVED_SECTORS} />
+        </div>
         {waited ? (
           <p className={cx(styles.nothingArrived)}>No sector moves yet.</p>
         ) : undefined}

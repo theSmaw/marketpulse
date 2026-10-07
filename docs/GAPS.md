@@ -1544,3 +1544,69 @@ instrument that can see it.
 **Re-measure:** `pnpm probe / --widths 390` with a stored figure that has no prior
 close, and read the rendered text rather than the DOM — or compare
 `.capture/sector-states/08-the-mixed-state-390.png` against `-768.png`.
+
+## The reserved panel's room and its override shared one element, so the held rows un-hid with it — and a SEVENTH screen-reader entry
+
+**Added 2026-10-07 by Task 4.4.6, which produced it while building the sibling
+region.** Two findings from one mechanism.
+
+### The defect, and it was live for ten days
+
+Task 4.3.8 gave `SectorPerformanceReservation` a silence floor by putting
+`visibility: hidden` and its `visible` override **on the same element**, with
+`aria-hidden` removed in the same branch. **`visibility` is inherited by children
+that never set it**, so past the floor the whole box un-hid — **including the
+eleven reserved rows it was only ever holding room for.**
+
+Produced at 1440, `innerText` verbatim:
+
+```
+"Sector performance\nNOT RANKED\n—\nTechnology\ntechnology\n—\nHealth Care\nhealth_care\n—\nFinancials\nfinancials\n…"
+```
+
+The second column is `RESERVED_SECTORS`' **internal sector slugs**, in the symbol
+column — which that module's own comment says _"is the React key and is never
+read"_. So it is **the fully-formed-placeholder failure the component's own
+docblock forbids, plus a slug leak**, and it was in the accessibility tree too.
+
+**Repaired in the same change** with two nested boxes: the held geometry keeps its
+own `hidden` and its own `aria-hidden` **unconditionally**, and the sentence is a
+**sibling** in the room it holds. Nothing can un-hide the rows, because nothing
+overrides them any more. `BreadthLedgerReservation` was built that way from the
+start, which is how the defect was found — **by writing the correct version next
+door.**
+
+**What nothing mechanical holds**: that a reserved box's override cannot reach its
+held content. The repair is structural rather than asserted, and a future author
+collapsing the two boxes back into one would reintroduce it with every test green —
+the unit test that covers it asserts `aria-hidden` on a box, and a one-box version
+still has one.
+
+**Re-measure:** render either reservation past `SAY_NOTHING_ARRIVED_AFTER_MS` and
+read `innerText`. It must contain the sentence and **nothing else** — no label, no
+slug, no em dash.
+
+### And a seventh entry for the standing screen-reader item
+
+`CLAUDE.md`'s _A listening pass with a real screen reader_ gains one, and it is the
+entry where getting it wrong **loses the story's subject**.
+
+The breadth region hands a listener `Of the 503 we track` as a **group heading**
+and, two nodes later, `Of the 503 companies we track, 451 were heard from in the
+last 5 minutes.` as the region's one sentence. **Both read `tracked` from one
+field**, so it is a restatement rather than a second home — **accepted by the owner
+on 2026-10-07**, because every arrangement has exactly one redundancy for a
+listener (the full sentence necessarily contains both the set and the window, and
+the region draws both), and restating the **set** keeps the quiet group's heading
+meaningful when read alone.
+
+**Two things only a listener can answer.** Whether that reads as _a heading followed
+by its qualifier_ or as _the set size said twice_. And whether **a 13-word clause at
+the foot of a 475 px region is reached at all** by somebody navigating by heading or
+by landmark — because **this sentence is the only delivery of the denominator to
+that audience**: the figure is otherwise printed once, as the ladder's right
+endpoint, and the ladder is `aria-hidden`.
+
+**Owner: the same person with the same screen reader.** Re-measure: open `/` with a
+reader, navigate the `Market breadth` region by heading and by element, and confirm
+the sentence is reached and the set is not heard as a stutter.

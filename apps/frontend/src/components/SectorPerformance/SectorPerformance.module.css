@@ -102,8 +102,16 @@
  * than `display` for the usual reason — the box keeps its room either way, so
  * the sentence appearing cannot re-compose the grid.
  */
-.reservedSpoken {
-  visibility: visible;
+/*
+ * **The room the reservation holds, so the sentence can sit in it.**
+ *
+ * Replaces `.reservedSpoken`, which was `visibility: visible` on the same
+ * element as the `hidden` — a one-box arrangement that un-hid the eleven
+ * reserved rows along with it, because `visibility` is inherited. See the
+ * comment in `SectorPerformance.tsx`; it was live for ten days.
+ */
+.reservedRoom {
+  position: relative;
 }
 
 /*
