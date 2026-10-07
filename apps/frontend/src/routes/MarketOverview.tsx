@@ -2,6 +2,10 @@ import { useEffect, useMemo } from "react";
 
 import type { Bar } from "@marketpulse/shared";
 
+import {
+  BreadthLedger,
+  BreadthLedgerReservation,
+} from "../components/BreadthLedger/BreadthLedger.js";
 import { MarketProxyStrip } from "../components/MarketProxyStrip/MarketProxyStrip.js";
 import { OverviewSourceNote } from "../components/OverviewSourceNote/OverviewSourceNote.js";
 import { Region } from "../components/Region/Region.js";
@@ -11,7 +15,11 @@ import {
   SectorPerformanceReservation,
 } from "../components/SectorPerformance/SectorPerformance.js";
 import { useOrderHold } from "../components/SectorPerformance/use-order-hold.js";
-import { sectorPerformance, type LiveFeedView } from "../market/index.js";
+import {
+  marketBreadth,
+  sectorPerformance,
+  type LiveFeedView,
+} from "../market/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
 import styles from "./MarketOverview.module.css";
 
@@ -110,6 +118,22 @@ export function MarketOverview({
    * has already paid for once. One value, read by both.
    */
   const hold = useOrderHold(sectors?.rows);
+
+  /*
+   * **Breadth, derived once per frame — the route's second memo boundary**
+   * (Task 4.4.5).
+   *
+   * Memoised on `overview`'s **identity** and not on `liveFeed`, which is a new
+   * object on every tick whether or not the aggregate moved: `sameLiveFeedView`
+   * keeps the frame's identity stable across ticks that did not change it, so a
+   * burst that carries no new overview re-renders nothing in this region.
+   *
+   * `observations` is deliberately **not** a dependency, unlike the sector
+   * rows'. There is no arrival mark here and nothing per-security to hang one
+   * off — `The breadth ledger.dc.html` §12 — so the one input that changes
+   * every burst is one this region does not read.
+   */
+  const breadth = useMemo(() => marketBreadth(overview), [overview]);
 
   /*
    * **The set is served and this route renders what it is given.** The overview
@@ -340,12 +364,49 @@ export function MarketOverview({
           filledBy="Every tracked security scored 0–100 for how unusual its behaviour is, ranked, each score carrying its explanation."
         />
 
+        {/*
+         * **The breadth ledger — Story 4.4, and the first thing on this screen
+         * that answers whether a 2% index move is everything or five names.**
+         *
+         * `awaiting` is gone because the work has landed. `filledBy` stays for
+         * the one state where there is nothing to draw, and is narrower than it
+         * was: *how much of the market* was the sentence this region's own
+         * denominator exists to refuse — the count is over the **503 equities**
+         * we track, which is the S&P 500 by curation and is a narrower thing
+         * than the market.
+         *
+         * **`breadth === undefined` is two states, and they are told apart by
+         * the frame rather than by the section** — `Sector performance`'s rule
+         * one region across, for the same reason. `overview` present with no
+         * readable breadth is a **rollback pinning a previous image**: that
+         * gateway will never send a section, so the honest answer is the
+         * region's own sentence. `overview` absent is the **first paint**, a few
+         * hundred milliseconds on every load, where the same sentence would be
+         * a promise the next frame breaks — and the panel it sits in is 103 px
+         * at 768 and 139 at 390 against the filled height, so saying nothing
+         * and holding the room is what keeps the lower page still.
+         *
+         * **The sentence for the state where nothing EVER arrives is Task
+         * 4.4.6's**, together with the `useWaited` floor the sibling already
+         * reuses.
+         */}
         <Region
           className={styles.areaBreadth}
           name="Market breadth"
-          awaiting="Story 4.4"
-          filledBy="How much of the market is advancing, declining and unchanged — with the number of securities the figure could see."
-        />
+          filledBy={
+            breadth === undefined && overview !== undefined
+              ? "Advancing, declining and unchanged among the 503 companies we track, over the number of them the count could see."
+              : undefined
+          }
+        >
+          {breadth === undefined ? (
+            overview === undefined ? (
+              <BreadthLedgerReservation />
+            ) : undefined
+          ) : (
+            <BreadthLedger view={breadth} />
+          )}
+        </Region>
 
         <Region
           className={styles.areaInvestigations}

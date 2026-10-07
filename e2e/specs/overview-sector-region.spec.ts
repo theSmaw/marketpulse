@@ -14,6 +14,7 @@ import type { Locator, Page } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
 import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
+import { FURNISHED_BREADTH } from "../support/feed.js";
 
 // **Eleven sectors on the landing page, and the assertion that guards the grid
 // they sit in** (Task 4.3.5).
@@ -137,6 +138,9 @@ const overviewOf = (
   figures: [],
   sectors,
   sectorLadderStep,
+  // See `FURNISHED_BREADTH`: required on the producer, so omitting it here
+  // would draw a neighbouring region as reserved in a spec about this one.
+  breadth: FURNISHED_BREADTH,
 });
 
 /**

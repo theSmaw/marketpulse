@@ -140,3 +140,30 @@ export function formatChangePercent(percent: number): string {
   if (direction === "negative") return `${MINUS}${figure}`;
   return figure;
 }
+
+/**
+ * A signed **count**, formatted — `+132`, `−78`, `0`.
+ *
+ * The breadth region's headline is `advancing − declining`, which is the one
+ * figure on this screen that is signed and is not a percentage. It is spelled
+ * here rather than in that region for the two reasons this module exists: the
+ * minus sign is {@link MINUS} and nothing outside this file may type one, and
+ * the decision about whether a sign is claimed at all is `directionOf`'s —
+ * `formatChangePercent` had the same pair of obligations and they are the same
+ * two lines.
+ *
+ * **No decimals and no grouping separator.** A count is an integer, and at
+ * three digits a separator buys nothing in a right-aligned figure —
+ * {@link formatPrice}'s own note, for the same reason.
+ *
+ * A net of zero gets **no sign**, which is `+0.00%`'s rule at a second input: a
+ * `+0` over a market where the advancers and the decliners are equal claims a
+ * direction the subtraction did not find.
+ */
+export function formatSignedCount(count: number): string {
+  const figure = String(Math.abs(count));
+  const direction = directionOf(count);
+  if (direction === "positive") return `+${figure}`;
+  if (direction === "negative") return `${MINUS}${figure}`;
+  return figure;
+}

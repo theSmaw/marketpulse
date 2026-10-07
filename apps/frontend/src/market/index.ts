@@ -125,6 +125,7 @@ export {
   directionOf,
   formatChangePercent,
   formatPrice,
+  formatSignedCount,
 } from "./price-format.js";
 export type { PriceDirection } from "./price-format.js";
 // The windows this product offers, and the one home of the timeframe mapping
@@ -273,5 +274,16 @@ export type {
   SectorPerformance,
   SectorRow,
 } from "./sector-performance.js";
+// **Breadth's read side** (Task 4.4.5, `The breadth ledger.dc.html`). Four
+// counts, a fraction per band and four strings, from the overview frame's own
+// section — the same split as the two regions above: the pure half is here and
+// `BreadthLedger` draws it.
+export { RESERVED_BREADTH, marketBreadth } from "./market-breadth.js";
+export type {
+  BreadthBucket,
+  BreadthNet,
+  BreadthRow,
+  MarketBreadth,
+} from "./market-breadth.js";
 export { barFraction, ladderClause, ladderTicks } from "./ranked-bar.js";
 export type { LadderTick } from "./ranked-bar.js";

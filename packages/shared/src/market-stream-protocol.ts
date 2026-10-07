@@ -403,16 +403,18 @@ export interface WireUnknownFigure {
 export type WireMarketBreadth = WireObservedBreadth | WireSessionBreadth;
 
 /**
- * The fields both members carry: three buckets and the denominator they sum to.
+ * The fields both members carry: three buckets, the denominator they sum to,
+ * and the size of the set that denominator is a part of.
  *
  * **`measured` is the sum, and that is a property of the producer's single
  * pass** rather than a claim this type can make — `market-breadth.ts`
  * accumulates the three and adds them, so the stated denominator and the
  * counted numerator cannot disagree. `readOverview` refuses a section
- * where they do, which is the one cross-field check on this wire.
+ * where they do, and refuses one whose `measured` exceeds its
+ * {@link WireBreadthCounts.tracked} — the wire's two cross-field checks.
  *
  * **There is no fourth count**, and that is deliberate: *not heard from* is
- * `503 − measured`, it is never labelled, and a figure beside `unchanged` is
+ * `tracked − measured`, it is never labelled, and a figure beside `unchanged` is
  * the adjacency Story 4.4 exists to prevent — *unchanged* and *not heard from*
  * are different facts and a reader who meets them in one row of four cannot
  * tell which is which.
@@ -438,6 +440,37 @@ interface WireBreadthCounts {
    * section being absent, which says *this gateway does not send breadth*.
    */
   readonly measured: number;
+  /**
+   * **The size of the set the count was taken over** — the 503 equities, and
+   * the only place that figure crosses the wire (Task 4.4.5).
+   *
+   * ## Why it travels rather than being spelled in the browser
+   *
+   * `windowMinutes`' reason exactly, at the other end of the same sentence.
+   * The region draws *not heard from* as `tracked − measured` below a rule, and
+   * the quiet group's heading names the set — so without this field the browser
+   * has to **type 503**, and one delisting makes a hard-coded figure a lie with
+   * no symptom. The producer counts the set it was handed
+   * (`entries.length` in `marketBreadth`), so the denominator and the
+   * remainder drawn from it cannot be about a different universe from the one
+   * the buckets were filled from.
+   *
+   * ## It is NOT a fourth count and it is never a bucket
+   *
+   * `tracked − measured` is *not heard from*, which is the union
+   * `stored ∪ unknown`, and it is **never labelled** `unobserved` — a fourth
+   * word beside three on the wire leaves nobody able to say which of the four
+   * a reader is looking at. The three buckets still sum to {@link
+   * WireBreadthCounts.measured} and nothing sums to this: the three partition
+   * N, the remainder sits below a rule, and the two scales are deliberately
+   * different (`The breadth ledger.dc.html` §03 and §10).
+   *
+   * **Added after `measured`, so a gateway from a previous image sends a
+   * section without it.** `readBreadth` drops the whole section in that case,
+   * which the region already draws — *this gateway does not send breadth* —
+   * rather than defaulting to a figure this bundle would then be inventing.
+   */
+  readonly tracked: number;
 }
 
 /** A count over what the live feed has delivered inside a window. */
@@ -1045,6 +1078,7 @@ const observedBreadthFields: WireFields<WireObservedBreadth> = {
   declining: asIs,
   unchanged: asIs,
   measured: asIs,
+  tracked: asIs,
   windowMinutes: asIs,
 };
 
@@ -1054,6 +1088,7 @@ const sessionBreadthFields: WireFields<WireSessionBreadth> = {
   declining: asIs,
   unchanged: asIs,
   measured: asIs,
+  tracked: asIs,
   session: asIs,
 };
 
@@ -1084,6 +1119,7 @@ const encodeBreadth = (breadth: WireMarketBreadth): JsonValue | undefined => {
     breadth.declining,
     breadth.unchanged,
     breadth.measured,
+    breadth.tracked,
   ];
 
   if (counts.some((count) => finiteOr(count) === undefined)) return undefined;
@@ -1373,9 +1409,10 @@ const readFigures = (values: readonly unknown[]): WireOverviewFigure[] => {
  * frame carrying four true prices — {@link readFigures}' rule and
  * `sectors`'.
  *
- * ## The one cross-field check on this wire
+ * ## The two cross-field checks on this wire
  *
- * The three counts must sum to `measured`. On the producer that is true by
+ * The three counts must sum to `measured`, and `measured` may not exceed
+ * `tracked`. On the producer that is true by
  * construction — one pass, three accumulators and their sum — so a section
  * where it is false did not come from a producer this bundle understands, and
  * the figure it would draw is wrong rather than old. **Refusing it draws the
@@ -1392,12 +1429,20 @@ const readBreadth = (value: unknown): WireMarketBreadth | undefined => {
   if (!finite(value.declining)) return undefined;
   if (!finite(value.unchanged)) return undefined;
   if (!finite(value.measured)) return undefined;
+  // **A section with no `tracked` is a section from a previous image** — the
+  // field joined this type in Task 4.4.5, after breadth had already shipped —
+  // and it is refused rather than defaulted, for `windowMinutes`' reason one
+  // field down: the remainder below the rule is `tracked − measured`, so a
+  // bundle that invented the set size would draw a count of securities nobody
+  // counted.
+  if (!finite(value.tracked)) return undefined;
 
   const counts = {
     advancing: value.advancing,
     declining: value.declining,
     unchanged: value.unchanged,
     measured: value.measured,
+    tracked: value.tracked,
   };
 
   if (
@@ -1405,6 +1450,14 @@ const readBreadth = (value: unknown): WireMarketBreadth | undefined => {
     counts.measured
   )
     return undefined;
+
+  // **The second cross-field check, and it guards a figure rather than a
+  // total**: *not heard from* is drawn as `tracked − measured`, and a negative
+  // remainder is a count of securities that cannot exist. On the producer the
+  // buckets are filled from the same array `tracked` is the length of, so
+  // `measured <= tracked` holds by construction — a frame where it does not
+  // did not come from a producer this bundle understands.
+  if (counts.measured > counts.tracked) return undefined;
 
   if (value.basis === "session") {
     if (typeof value.session !== "string") return undefined;

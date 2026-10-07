@@ -88,3 +88,53 @@ a different denominator.
 **And the noun changes with the set** — _of the 503 companies we track_. `518` is
 never spelled as a literal in a rendered string: the set is **read**, and one
 delisting makes a hard-coded figure a lie with no symptom.
+
+## Amended by Task 4.4.5 — 2026-10-07: N reaches NO LISTENER, which is this story's own thesis failing for one audience
+
+**The denominator is printed once, as the ladder's right endpoint — and the ladder
+is `aria-hidden`.** That is `RankedList`'s decision at its own ladder, inherited
+correctly, and the consequence is specific to breadth: **a screen reader gets the
+three counts, the set heading and the remainder, and never the denominator.**
+
+**This story exists to put a denominator on screen.** For a listener it is not on
+screen. The counts arrive with nothing to measure them against, which is the exact
+shape `EPIC.md` was written to prevent — _a percentage with a footnote is a
+percentage nobody reads the footnote of_ — arriving by the one route nobody checked.
+
+**Your grammar is what carries it.** The sentence _of the 503 companies we track, N
+were heard from in the last 5 minutes_ is the thing that reaches a listener, so the
+wording is not a tidy-up — **it is the only delivery of the denominator to that
+audience.** Task 4.4.5 wrote that into the component's comment rather than
+inventing wording.
+
+**It is a hand-off a story close would not sweep**, because it is not a defect in
+any file: the ladder is correctly hidden, the counts are correctly labelled, and
+nothing is missing from the DOM. It is a fact about what a listener is handed.
+
+### What 4.4.5 shipped that you are wording rather than placing
+
+**Four strings exist at a realistic length, each with one home, and neither basis
+can render the other's.** They are **placement**, not copy:
+
+| basis      | footer clause                                                      | quiet row's label |
+| ---------- | ------------------------------------------------------------------ | ----------------- |
+| `observed` | `Heard from means at least one observation in the last 5 minutes.` | `Not heard from`  |
+| `session`  | `Close to close on 2026-10-06.`                                    | `No prior close`  |
+
+`Not heard from` is **false about a closed market**, and CI plus ~80% of the week
+are on the `session` basis — which is why shipping only the live grammar would have
+been a hole rather than a deferral.
+
+**And the N = 0 suppression is already in**, because ADR 0029 is not negotiable:
+without it CI draws `Advancing 0 / Declining 0 / Unchanged 0` against a 0–0 scale,
+which is a fully-formed partition over zero observations. The ledger, ladder and
+headline give up their content and **keep their room**; the quiet group carries the
+whole truth. **The sentence that belongs in the room that suppression holds is
+yours.**
+
+### And the figure to measure
+
+`STORY.md` still records **121 px at 390**; the region measured **139** before this
+task and **475** after. The deltas 4.4.5 recorded are `0 / 0 / +372 / +336`, and
+**nothing moved at 1440 or 1024** — every region byte-identical, and the proxy strip
+byte-identical at all four widths.

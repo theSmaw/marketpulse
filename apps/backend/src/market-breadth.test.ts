@@ -107,6 +107,7 @@ describe("the observed count, while the regular session is open", () => {
       declining: 1,
       unchanged: 1,
       measured: 4,
+      tracked: 4,
       windowMinutes: BREADTH_WINDOW_MINUTES,
     });
   });
@@ -239,6 +240,7 @@ describe("the observed count, while the regular session is open", () => {
       declining: 0,
       unchanged: 0,
       measured: 0,
+      tracked: 0,
       windowMinutes: BREADTH_WINDOW_MINUTES,
     });
   });
@@ -261,6 +263,7 @@ describe("the session count, which is the state the market is in ~80% of the wee
       declining: 1,
       unchanged: 1,
       measured: 3,
+      tracked: 3,
       session: "2026-09-16",
     });
   });
@@ -334,6 +337,11 @@ describe("the session count, which is the state the market is in ~80% of the wee
       declining: 0,
       unchanged: 0,
       measured: 1,
+      // **The set is the array it was handed, not the count it made of it.**
+      // The security a session behind is outside `measured` and inside
+      // `tracked`, which is the remainder the region draws below its rule —
+      // and the honest reading of a backfill that missed one.
+      tracked: 2,
       session: "2026-09-16",
     });
   });
@@ -363,8 +371,47 @@ describe("the session count, which is the state the market is in ~80% of the wee
       declining: 0,
       unchanged: 0,
       measured: 0,
+      tracked: 0,
       session: "2026-09-16",
     });
+  });
+});
+
+describe("`tracked` is the set it was handed, on both bases", () => {
+  // **The one figure in the section that is not a count of anything measured.**
+  // The browser draws `tracked − measured` below a rule and its heading names
+  // the set, so this has to be the length of the array — a `503` typed in
+  // either process is a lie with no symptom the day a security is delisted, and
+  // the one call site is held to the equities by
+  // `breadth-is-counted-over-the-equities-alone`.
+  //
+  // The interesting half is that it may legitimately **exceed** `measured` by a
+  // lot: the window excludes a security nobody has heard from, and the session
+  // basis excludes one the backfill missed. That difference is the remainder,
+  // and it is a product state rather than a fault.
+  it("counts the entries rather than the buckets, while the session is open", () => {
+    const entries = [
+      live("AAPL", { percent: 1.2 }),
+      live("MSFT", { percent: 1.4, minutesAgo: 90 }),
+      live("KO", { percent: null }),
+    ];
+
+    expect(marketBreadth(entries, OPEN)).toMatchObject({
+      measured: 1,
+      tracked: 3,
+    });
+  });
+
+  it("counts the entries rather than the buckets, with the market shut", () => {
+    expect(
+      marketBreadth(
+        [
+          stored("AAPL", { close: 101, previousClose: 100 }),
+          stored("MSFT", { close: 90, previousClose: null }),
+        ],
+        SHUT,
+      ),
+    ).toMatchObject({ measured: 1, tracked: 2 });
   });
 });
 

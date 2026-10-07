@@ -725,6 +725,7 @@ describe("the breadth section, required on the producer and optional here", () =
     declining: 167,
     unchanged: 15,
     measured: 466,
+    tracked: 503,
   } as const;
 
   const OBSERVED: WireObservedBreadth = {
@@ -823,6 +824,7 @@ describe("the breadth section, required on the producer and optional here", () =
       declining: 0,
       unchanged: 0,
       measured: 0,
+      tracked: 503,
       session: "2026-09-15",
     };
 
