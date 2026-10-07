@@ -239,6 +239,20 @@ It measures **82 px against the figure column's fixed 78**, and rendered as
 **`2026-09-25 cl…`** at 1440, 1024 **and** 768 — fitting only at 390, where that
 column takes the row's slack. **Every test was green.**
 
+> **CORRECTED 2026-10-07 by Task 4.3.8's state grid — the repair's reach is the
+> INVERSE of what this record claims.** Photographed at all four widths: the
+> sentence renders **in full at 1440, 1024 and 768, and is clipped at 390**. The
+> mechanism is the repair's own shape — `grid-column: 4 / -1` spans the quiet
+> row's figure cell into the **bar column**, and **at 390 there is no bar column**
+> (`2ch 144px 44px minmax(68px, 1fr)`), so `4 / -1` resolves to **column 4
+> alone**. The repair buys nothing precisely where the column is narrowest.
+>
+> The sentence above describes the state **before** the repair and reads as a
+> description of the state after it. **Accepted by the owner rather than
+> repaired** — the date survives and the date is the information — with the
+> alternatives in `docs/GAPS.md`. Found by **photographing** the state, which is
+> the only instrument that can see a CSS clip over a complete DOM.
+
 The repair uses room that already exists rather than widening a column all eleven
 rows pay for: **a quiet row has no bar by construction**, so its figure cell spans
 to the end of the row and the words are **left-aligned** — flush right would park

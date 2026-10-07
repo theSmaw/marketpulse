@@ -1,5 +1,7 @@
 import { memo } from "react";
 
+import { useWaited } from "../MarketProxyStrip/use-waited.js";
+
 import { cx } from "../../cx.js";
 import {
   RESERVED_SECTORS,
@@ -136,9 +138,38 @@ export const SectorPerformance = memo(function SectorPerformance({
  */
 export const SectorPerformanceReservation = memo(
   function SectorPerformanceReservation() {
+    // **The floor, and it is the proxy strip's own — not a second one.**
+    //
+    // Produced by Task 4.3.8's state grid rather than reasoned about: with a
+    // socket answered by the gateway's connect snapshot and **no overview frame
+    // ever** — an unreachable aggregate, a half-rolled deploy, a proxy holding
+    // the socket open — this region rendered a titled, empty ~440 px box
+    // **indefinitely**, byte-identical at 600 ms and at 12 s, while
+    // `Market proxies` 200 px above it said `No prices yet.` **Two regions, one
+    // screen, one state: one explained itself and one did not.**
+    //
+    // The reservation's original argument — that a sentence here would be *a
+    // promise the next frame breaks* — is right for the few-hundred-millisecond
+    // case and says nothing about the never case, which is the one a reader
+    // actually meets. `useWaited` is exactly that distinction expressed as a
+    // clock, so this reuses it rather than inventing a second floor: the
+    // ordinary load never reaches it (first frame measured at 174–277 ms
+    // against a 2,000 ms floor), and a region that is still empty after two
+    // seconds says so.
+    const waited = useWaited(true);
+
     return (
-      <div className={cx(styles.reserved)} aria-hidden="true">
+      <div
+        className={cx(
+          styles.reserved,
+          waited ? styles.reservedSpoken : undefined,
+        )}
+        aria-hidden={waited ? undefined : "true"}
+      >
         <SectorPerformance view={RESERVED_SECTORS} />
+        {waited ? (
+          <p className={cx(styles.nothingArrived)}>No sector moves yet.</p>
+        ) : undefined}
       </div>
     );
   },

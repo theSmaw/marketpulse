@@ -85,6 +85,48 @@
  */
 .reserved {
   visibility: hidden;
+
+  /*
+   * **The reserved panel is a position as well as a hidden box since Task
+   * 4.3.8**, so the sentence below can sit inside the room it is already
+   * holding rather than adding to it. Nothing moves when the sentence appears
+   * — the region's height is the reservation's, which is the eleven rows it
+   * reserves, and `overview-sector-region.spec.ts` asserts that height is the
+   * same with figures and with none.
+   */
+  position: relative;
+}
+
+/*
+ * **Visible once the floor has elapsed and not before.** `visibility` rather
+ * than `display` for the usual reason — the box keeps its room either way, so
+ * the sentence appearing cannot re-compose the grid.
+ */
+.reservedSpoken {
+  visibility: visible;
+}
+
+/*
+ * The sentence itself, over the hatched rows it replaces.
+ *
+ * **`No sector moves yet.` and not the strip's own words**, which is a decision
+ * rather than an oversight: `No prices yet.` is true of four figures that are
+ * each a price, and these eleven are **moves** — a percentage against a close.
+ * Saying *prices* here would name a quantity this region does not draw.
+ *
+ * It is centred in the region's own room rather than placed on a row, because
+ * it is about the region rather than about any sector.
+ */
+.nothingArrived {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
 }
 
 /*

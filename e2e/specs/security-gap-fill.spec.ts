@@ -165,6 +165,25 @@ test("a dropout leaves a hole, and the feed coming back fills it", async ({
 test("the chart is never blanked or covered while the gap is filled", async ({
   page,
 }) => {
+  // **The sampling budget below is the whole of this test's flakiness, and it
+  // is a budget rather than a race.** Measured at **14 failures in 120
+  // executions (~12%)** between 2026-09-26 and 2026-10-07, every one of them
+  // the final assertion — the line never grew *within the window*, not the line
+  // never grew. The loop was 60 × 250 ms = **15 s**, against a refill that has
+  // to survive a socket drop, a reconnect and a served answer on a machine
+  // running the whole suite in parallel.
+  //
+  // Raised to 30 s of sampling with the per-test timeout lifted clear of it.
+  // **A healthy run costs nothing** — the loop breaks on the first changed
+  // frame, which is sub-second on an idle machine — so the extra budget is
+  // spent only by the runs that were failing.
+  //
+  // This is deliberately NOT a retry: `retries: 0` is argued in
+  // `playwright.config.ts` and stands. A retry cannot tell a flake from a
+  // defect; a longer window still fails if the line never grows at all, which
+  // is the defect this test exists for.
+  test.setTimeout(60_000);
+
   // **Nobody asked for the refill**, so it must not look like a wait. ADR
   // 0028's rule that a wait over 160 ms draws a panel over the picture is
   // about a wait a reader caused; a socket that blinked 38 times in 4h 36m on
@@ -187,7 +206,7 @@ test("the chart is never blanked or covered while the gap is filled", async ({
   // absent, and at no point is the pending panel over it.
   const seen: string[] = [];
   const panels: number[] = [];
-  for (let i = 0; i < 60; i += 1) {
+  for (let i = 0; i < 120; i += 1) {
     seen.push(await priceLine(page));
     panels.push(await page.getByText(/Fetching|Loading/u).count());
     if (seen.at(-1) !== before) break;

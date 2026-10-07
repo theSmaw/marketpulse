@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
 import { serveFeed } from "../support/feed.js";
@@ -138,6 +138,57 @@ test("a quiet socket says so without claiming data it never had", async ({
   await expectNothingFailedToRender(page);
 });
 
+/**
+ * `main`'s text, once it has STOPPED CHANGING — not merely once it is populated.
+ *
+ * **This exists because a byte-identical-text assertion over a page that is
+ * still settling is a flake generator, and it generated one four times.** The
+ * baseline below compares `main`'s whole text either side of an outage, which is
+ * criterion 3 and is the right assertion. What made it flaky is that `before`
+ * was a **snapshot of a page with work still in flight**: any sentence still
+ * resolving at that instant is baked into `before` and cannot survive into
+ * `after`, so the test fails on the page having *finished loading* rather than
+ * on the outage having changed anything.
+ *
+ * **The repair this replaces was specific and therefore incomplete.** It waited
+ * for the snapshot's price to be on the page — which fixed the one surface
+ * somebody thought of, and left the class. The sentence that actually broke
+ * `main` on 2026-10-07 was the chart's `A newer answer is on its way.`, a bar
+ * series request the spec never served and had no reason to name.
+ *
+ * **So this waits for the page to stop changing rather than for any particular
+ * thing to appear**, which is the whole class in one clause: read the text,
+ * read it again, and accept it only when two consecutive reads agree. A page
+ * with anything still arriving fails that and is polled again; a quiet page
+ * passes on the second read.
+ *
+ * It deliberately does NOT assert on a duration or a threshold — the gap
+ * between reads is the poll's, and the only claim is *equal twice*, which is a
+ * transition rather than an absence across a window.
+ */
+async function settledText(main: Locator): Promise<string> {
+  let previous: string | undefined;
+
+  await expect
+    .poll(
+      async () => {
+        const current = ((await main.innerText()) || "")
+          .replace(/\s+/gu, " ")
+          .trim();
+        const settled = current.length > 40 && current === previous;
+        previous = current;
+        return settled;
+      },
+      {
+        message:
+          "main's text never stopped changing, so no baseline could be taken",
+      },
+    )
+    .toBe(true);
+
+  return previous ?? "";
+}
+
 test("killing the feed leaves the page exactly as it was", async ({ page }) => {
   // **Criterion 3**, which Task 3.10.1 measured and nothing held. §36's hardest
   // promise: degrade locally, never collapse. The comparison is the whole
@@ -154,13 +205,11 @@ test("killing the feed leaves the page exactly as it was", async ({ page }) => {
   // The chrome says `live` as soon as the socket greets the browser, which is
   // before the identity block has rendered the observation that greeting
   // carried — so a `before` taken on the chrome's word alone can miss a figure
-  // the `after` has, and the comparison fails on the page having *finished
-  // loading* rather than on the outage changing anything. Found on a full-suite
-  // run under load; the assertion was right and the fixture was racing it.
+  // the `after` has. Necessary, and — proved on 2026-10-07 — not sufficient:
+  // see `settledText`, which waits for everything ELSE that is still arriving.
   await expect(main).toContainText("230.25");
 
-  const before = ((await main.innerText()) || "").replace(/\s+/gu, " ").trim();
-  expect(before.length).toBeGreaterThan(40);
+  const before = await settledText(main);
 
   feed.drop();
   await expect(feedCell(page)).toContainText(/disconnected/iu);

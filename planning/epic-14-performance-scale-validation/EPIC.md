@@ -201,3 +201,55 @@ at the worst case — every one of 517 rows behind, every instant drawn —
 **The two exceptions this epic owns are unchanged** and were last re-taken by
 Task 3.6.5 with the feed running: the cold load at **50–56 ms** (7 in 10) and
 `Expand all` at **65–86 ms**.
+
+## The trigger evaluated a THIRD time — 2026-10-07 by Task 4.3.8, and this is the first evaluation on a different page
+
+The condition is **the first time a second surface on that page renders per-row
+markup at universe scale**. Story 4.3 put **eleven sector rows** on `/`, each with
+a rank, a label, a ticker, a reserved mark slot, a figure and a bar — the first
+ranked, per-row surface this product has shipped outside `/securities`.
+
+**It did NOT fire, and the arithmetic is not close.** Eleven rows is **2.1% of 518**,
+so this is not _universe scale_ by two orders of magnitude; the condition's own word
+is what rules it out rather than a figure coming in under a line. **The verdict is
+recorded here because somebody will reasonably ask** — a per-row ranked list on a
+page is exactly the shape the trigger describes, and the only thing that saves it is
+the row count.
+
+**Two things make this worth more than a one-line "no".**
+
+**1. The trigger is written against a page, and this is the OTHER page.** Its words
+are _"a second surface on **this** page"_, and every previous evaluation was about
+`/securities`, where the 518-row table already is. **On `/` there is no first surface
+at universe scale at all** — the proxy strip is four rows, the sector list eleven. So
+the trigger as worded **cannot fire on the landing page until something there renders
+518 of anything**, however many surfaces accumulate. Four aggregate regions over the
+whole universe could ship on `/` without firing it, because each renders a _summary_
+rather than per-row markup.
+
+**That is the trigger working as designed and it is worth saying out loud**, because
+the next reader may assume Epic 4 fired it simply by being Epic 4. It did not, and
+the thing that would is named below.
+
+**2. What WOULD fire it is already in this epic's sequence: `Movers`.** Story 4.5
+ranks a top-N over all 518 securities. The **rendered** rows are ten or twenty, so
+**on a strict reading it still does not fire** — but the _computation_ is at universe
+scale, and Story 4.8 (`The Overview at Universe Scale`) exists to measure exactly
+that. **Story 4.8 is where this question is properly answered**, with the instrument
+up and the production build running, and its own file already carries the figures and
+the caveats.
+
+### What this epic should NOT inherit from Story 4.3, stated so it is not re-litigated
+
+- **The per-tick cost on `/` is Story 4.8's**, not this epic's. Epic 4 introduced an
+  overview frame that re-renders on four routes that display no overview, and that
+  consequence is **owned by name** in Story 4.8's `STORY.md` — it is §28's _routine_
+  word, the same category as the 40 ms-every-30-s health poll Task 3.6.5 repaired,
+  rather than the once-per-visit cold load this epic owns.
+- **The sector region's own cost was measured and is not a breach.** One FLIP over
+  eleven rows, 20 re-orders: **1,098 rAF gaps, p50 16.7 ms, p95 17.6, worst 37.5,
+  zero over 50 ms, zero long tasks** (Task 4.3.6). Caveats recorded with it: **a dev
+  server**, and **a frame gap is a proxy for the task rather than the task**.
+
+**The two exceptions this epic owns are unchanged** and were last re-taken by Task
+3.6.5: the cold load at **50–56 ms** (7 in 10) and `Expand all` at **65–86 ms**.
