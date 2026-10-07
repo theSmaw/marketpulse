@@ -173,6 +173,41 @@ export const AReadingOfExactlyZero: Story = {
 };
 
 /**
+ * **A perfectly split market — the one value where the caption loses its
+ * direction.**
+ *
+ * 220 advancing, 220 declining, 11 unchanged. The headline's figure, glyph and
+ * spoken word all say `unchanged`, and the caption above them reads **`NET`**
+ * rather than `NET ADVANCING`, because a caption naming a direction the figure
+ * beneath it denies is the one thing in this headline that could be read as a
+ * claim.
+ *
+ * **This state had never been drawn until Task 4.4.8 produced it**, which is
+ * the whole argument for walking the producer rather than reasoning about the
+ * states: every channel was individually correct, so nothing mechanical could
+ * have found it and no existing story showed it. The owner chose the neutral
+ * caption at Gate 2 over leaving it and over replacing the figure with a
+ * phrase. The accepted cost is that on a live feed the caption itself changes
+ * as the net crosses zero; the reversal trigger is the first sighting of it
+ * changing more than once in a sitting, and that is the live rehearsal's to
+ * report.
+ *
+ * Review it beside {@link ObservedMidSession}, where the same headline carries
+ * `NET ADVANCING` and a signed figure.
+ */
+export const APerfectlySplitMarket: Story = {
+  args: {
+    view: view({
+      ...OBSERVED,
+      advancing: 220,
+      declining: 220,
+      unchanged: 11,
+      measured: 451,
+    }),
+  },
+};
+
+/**
  * **Everything we track was heard from — the remainder reads `0` and the row
  * still renders.**
  *

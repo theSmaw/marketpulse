@@ -1,6 +1,6 @@
 # Story 4.4 — Breadth, & the Denominator on Screen
 
-**Status:** **Complete — 2026-10-07**, pending the owner's acceptance at Gate 2. Eight tasks, eight PRs (#509–#517). `/` draws three counts, a remainder and a net headline over **503 equities**, with the population stated in words. The join now sees all 518 through a **positive** membership set; the window is **5 minutes, measured**; the widening cost **0.118 → 3.497 ms** a batch of which the count is **0.041 ms (1.2%)**. **One open figure**: Task 4.1.6's coverage band was measured over 518 and is unusable as a figure over 503 — the re-measure is owed. **One sitting owed**: no person, and no gated machine, has ever seen a breadth figure.
+**Status:** **Complete — accepted by the owner at Gate 2 on 2026-10-08**, with one change taken there: the headline's caption **loses its direction at a net of zero**. Eight tasks, eight PRs (#509–#517). `/` draws three counts, a remainder and a net headline over **503 equities**, with the population stated in words. The join now sees all 518 through a **positive** membership set; the window is **5 minutes, measured**; the widening cost **0.118 → 3.497 ms** a batch of which the count is **0.041 ms (1.2%)**. **One open figure**: Task 4.1.6's coverage band was measured over 518 and is unusable as a figure over 503 — the re-measure is owed. **One sitting owed**: no person, and no gated machine, has ever seen a breadth figure.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.3
 **Epic scope covered:** advancers / decliners; market breadth
@@ -576,3 +576,55 @@ becomes the first one with a figure under it.
   there. This is the `changeFromClose` precedent firing exactly as recorded, and
   `price-format.ts`'s own note that direction is _"arithmetic on a number both
   sides already hold"_ is the sentence that expires here. **Task 4.4.2.**
+
+## Decided at Gate 2 — 2026-10-08: the headline's caption loses its direction at zero
+
+**The owner accepted Story 4.4 with one change**, and it is the only thing in
+this story decided after the tasks closed.
+
+### What was wrong
+
+At `advancing === declining` the headline read **`NET ADVANCING`** over
+**`— unchanged 0`** — a caption naming a direction the figure beneath it
+denies. **Two of the eighteen produced states reach it** (`09` at N = 2, `12`
+at 220/220/11) and **neither had ever been drawn** before Task 4.4.8's producer
+walk. Every channel was individually correct — the glyph, the word and the sign
+all agreed with each other and with `a − d = 0` — which is precisely why
+nothing mechanical found it and no existing story showed it.
+
+### The three options, and why the middle one
+
+| Option                                        | Argument for                                                                                                                                                                                            | Argument against                                                                                                                                |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Leave it**                                  | `Net advancing` is the measure's **name**, and a name that holds at every value is the ordinary way to label one — a thermometer stays labelled _temperature_ at zero. Costs nothing and adds no state. | A stranger reads a caption as a claim, not as a column header, and this one is denied three glyphs to its right.                                |
+| **Neutral caption at zero** — **CHOSEN**      | One word changes, in one state, and only the word that was wrong. The figure, the glyph and the spoken word are untouched because they already said `unchanged`.                                        | **The caption now changes under the reader as well as the figure** — see the cost below.                                                        |
+| **Say the balance in words** (`evenly split`) | Most legible to a stranger.                                                                                                                                                                             | The most invention: a sentence this product does not have, and the headline's **shape** would differ between states rather than one word of it. |
+
+### The accepted cost, stated because it is real
+
+**On a live feed the label itself flickers.** `advancing − declining` can cross
+zero during a session, and at the crossing a reader watching the region sees
+the caption move between `NET` and `NET ADVANCING`. That was the argument for
+_leave it_ and it was heard. It is bounded by how rarely an exact tie occurs
+across 503 names and by the two captions sharing their first word and their
+position.
+
+**Reversal trigger**: the first sighting of the caption changing **more than
+once in a sitting**. That is a thing only the live rehearsal can report, and it
+is written into this story's `LIVE-REHEARSAL.md` row rather than left here.
+
+### The one implementation note worth carrying
+
+**The pivot is `direction`, never the digits.** `net.direction` is
+`directionOf(net) ?? "unchanged"` — the one shared comparator Task 4.4.2 put in
+`packages/shared` — and it is **the same value `PriceChange` renders the word
+from**. So the caption and the word beneath it cannot disagree: there is no
+second test of _is this zero_ to drift out of step with the first. Reading the
+digits instead (`change === "0"`) would be that second test, and it is exactly
+what `one-direction-one-home` exists to forbid.
+
+Covered by `BreadthLedger.test.tsx`, **in both directions in one test** —
+because a test of the zero case alone stays green if the caption loses its
+direction everywhere, which is the other way to get this wrong. Proved red both
+ways before the close. The state is a story: `APerfectlySplitMarket`, to be
+reviewed beside `ObservedMidSession`.
