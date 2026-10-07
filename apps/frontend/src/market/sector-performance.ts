@@ -1,4 +1,5 @@
 import {
+  SECTORS,
   SECTOR_LABELS,
   sectorOfEtf,
   sectorRankingKey,
@@ -284,6 +285,50 @@ export function sectorPerformance(
     }),
   };
 }
+
+/**
+ * **Eleven rows of held room, for the paint before the first frame** (Task
+ * 4.3.7, `The ranked list.dc.html` §05 state 6).
+ *
+ * ## Why a reservation exists at all, measured rather than assumed
+ *
+ * The region draws its reserved panel until an `overview` frame lands, which on
+ * a warm page is a few hundred milliseconds. At 1440 and 1024 that costs
+ * nothing, because the region's height is the grid's `1fr` share and a reserved
+ * panel and a filled one are both 461 px. At **768 and 390 the row is
+ * content-sized**: measured 2026-09-27, a reserved region is **103 px** at 768
+ * and **121 px** at 390 against **461** and **437** filled — so the landing page
+ * stepped **~316 px** on a phone a moment after it painted, taking the two
+ * regions below it and the source note with it. `MarketProxyStrip`'s
+ * `NoFigures` is the same repair for the same reason one region above, and the
+ * 70 px version of it there was invisible at three of the four widths too.
+ *
+ * ## It names eleven SECTORS and not one ticker
+ *
+ * The set is known from the universe and does not depend on any observation,
+ * which is this region's sharpest difference from a movers list — so unlike the
+ * proxy strip's reservation this one can hold the real labels. What it must not
+ * hold is a **benchmark**: naming two of the eleven funds here would be a second
+ * pairing of a sector with its ETF, and `pnpm invariants` refuses one by name.
+ * `symbol` therefore carries the sector's own slug, which is the React key and
+ * is never read: the whole subtree is `visibility: hidden` and `aria-hidden`.
+ *
+ * `step` is the narrowest rung, and nothing is drawn against it — no row has a
+ * move, so no bar, no axis and no printed ladder, which is ADR 0029 in the state
+ * where it matters most.
+ */
+export const RESERVED_SECTORS: SectorPerformance = {
+  step: 1,
+  rows: SECTORS.map((sector) => ({
+    symbol: sector,
+    label: SECTOR_LABELS[sector],
+    rank: undefined,
+    move: undefined,
+    absent: undefined,
+    arrival: undefined,
+    basis: undefined,
+  })),
+};
 
 /** The label, or the symbol standing in for one it does not have. */
 function labelOf(symbol: string): string {

@@ -11,6 +11,7 @@ import { Region } from "../Region/Region.js";
 import {
   SectorPerformance,
   SectorPerformanceMeta,
+  SectorPerformanceReservation,
 } from "./SectorPerformance.js";
 
 // The sector region, in the states the join can actually produce.
@@ -363,4 +364,23 @@ export const OrderHeld: Story = {
       ),
     ),
   },
+};
+
+/**
+ * **The paint before the first frame** — the region's own geometry, held and
+ * invisible.
+ *
+ * There is nothing to see here, and that is the story: the panel is the height
+ * it will be when the frame lands, so the landing page does not step. Before it
+ * existed the region was 103 px at 768 and 121 at 390 against 461 and 437
+ * filled, and every load moved the two regions below it and the source note a
+ * moment after painting. Review it beside `RankedLive` at 390 — the two panels
+ * must be the same size.
+ */
+export const FirstPaint: Story = {
+  render: () => (
+    <Region name="Sector performance">
+      <SectorPerformanceReservation />
+    </Region>
+  ),
 };

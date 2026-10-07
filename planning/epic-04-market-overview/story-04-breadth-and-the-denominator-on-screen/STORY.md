@@ -340,6 +340,29 @@ you do inherit the outcome.
    means your height is a **page-level** decision rather than a regional one, and
    the number to beat is 461.
 
+#### Amended by Task 4.3.7 — 2026-09-27: the number is **486**, not 461
+
+**The figure above is a historical record and the live constraint is 25 px
+bigger.** Task 4.3.7 added the trailing quiet group — rows with no rankable
+figure, in their own list with their own heading — and **reserved that heading's
+room in every state**, because without the reserve the region's height depends on
+whether the feed has spoken: at 1440 and 1024 that moves nothing, but at 390 the
+grid row is content-sized and the whole lower page steps the first time a sector
+goes quiet.
+
+**Measured with `pnpm probe /` on 2026-09-27, before and after, at all four
+widths:**
+
+| Width | `Sector performance` | this region                  |
+| ----- | -------------------- | ---------------------------- |
+| 1440  | 461 → **486**        | 461 → **486**                |
+| 1024  | 461 → **486**        | 461 → **486**                |
+| 768   | 461 → **486**        | 103 (unchanged, rows untied) |
+| 390   | 437 → **462**        | 121 (unchanged, rows untied) |
+
+Everything that moved was another reserved panel or the source note; the proxy
+strip is unchanged in position and content. **The number to beat is 486.**
+
 **And the one thing that must not move**: at every width, everything that moved
 when 4.3.5 landed was **another reserved panel or the source note** — the proxy
 strip, its four cells and its qualifier were **byte-identical in position and

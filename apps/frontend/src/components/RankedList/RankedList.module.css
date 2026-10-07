@@ -40,7 +40,18 @@
 .plot {
   display: grid;
   grid-template-columns: 2ch 144px 52px 78px minmax(0, 1fr);
-  grid-template-rows: auto auto;
+  /*
+   * Four rows, and the order is the reading order: the ranked list, the ladder
+   * that annotates its bars, the trailing group's heading, and the trailing
+   * group (Task 4.3.7).
+   *
+   * **The ladder sits with the plot it describes rather than at the foot**, so
+   * the quiet rows — which have no bar for it to describe — come after it. Every
+   * row is `auto`, so a state with no `<ol>` and a state with no quiet group
+   * each collapse the row they do not fill to nothing; what does **not** collapse
+   * is the heading, whose room is reserved in every state by the element itself.
+   */
+  grid-template-rows: auto auto auto auto auto;
   column-gap: var(--space-12);
 }
 
@@ -66,7 +77,8 @@
  * in the same area; DOM order would already do it and the index is stated so
  * that moving the overlay cannot silently paint a hairline over a figure.
  */
-.list {
+.list,
+.quiet {
   grid-column: 1 / -1;
   grid-row: 1;
   z-index: 1;
@@ -75,6 +87,96 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/*
+ * --- The trailing quiet group ---
+ *
+ * Rows with no rankable figure, below the rule, in their own list with their own
+ * heading (Task 4.3.7). It is the `<ol>`'s twin in every way but the row it
+ * occupies and the element it is: **positions 10 and 11 of an ordered list would
+ * be a claim made by markup**, spoken to a listener as *item 10 of 11* over a row
+ * this product is refusing to rank, and nothing drawn in the rank column reaches
+ * that announcement.
+ */
+.quiet {
+  grid-row: 4;
+}
+
+/*
+ * **The absence words take the bar's room, and they are left-aligned.**
+ *
+ * Two things, one cause. The words are longer than any figure — `2026-09-25
+ * close` measures 82 px against the figure column's 78 — so at 1440, 1024 and
+ * 768 the shipped state ellipsised an honest sentence into `2026-09-25 cl…`,
+ * and fitted only at 390, where that column takes the row's slack. No test
+ * could see it; the picture could.
+ *
+ * Every row in this group has an empty bar cell by construction, so the room is
+ * already there and no track changes: the cell spans to the end of the row, and
+ * `RankedList` renders no bar cell in this list so nothing is displaced.
+ *
+ * **Left-aligned rather than right**, which is the deliberate half: flush right
+ * across the bar's column would park the words 1,040 px from the ticker they
+ * belong to, and words are not figures — aligning them with a column of
+ * right-set numbers is what made them look like one.
+ */
+.quiet .figure {
+  grid-column: 4 / -1;
+  justify-content: flex-start;
+}
+
+/*
+ * The group's heading, and **its room is held in every state**.
+ *
+ * The reserve is the measurement rather than the taste: at 1440 and 1024 the
+ * region's height is the grid's `1fr` share and a 20 px heading appearing moves
+ * nothing, but at 390 the region **is** its content, so the first sector to go
+ * quiet mid-session would step the whole lower page — the source note and two
+ * reserved panels. `.rail`'s idiom, and the region head's slot's one row up.
+ *
+ * `--rule-control` rather than the rows' `--rule-hairline`: it separates two
+ * lists rather than two rows, and the drawing's §05 state 3 draws it as the
+ * heavier of the two. The rule is on the heading rather than on the first quiet
+ * row so that it is present in the reserved state too — a divider that appeared
+ * with its group is the same 1 px height change the reserve exists to prevent.
+ */
+.quietHead,
+.quietHeadReserved {
+  composes: microLabel from "../../styles/type.module.css";
+  grid-column: 1 / -1;
+  grid-row: 3;
+  margin: 0;
+  padding-top: var(--space-8);
+  /* `h3`'s UA bold would make the quietest thing in the region the heaviest. */
+  font-weight: var(--font-weight-medium);
+  border-top: var(--border-width) solid var(--rule-control);
+  color: var(--ink-secondary);
+}
+
+/*
+ * **The divider divides two lists, so it is not drawn when there is only one.**
+ *
+ * In the all-quiet state — CI's, for ever — the rule would sit a hairline below
+ * the panel head's own rule with nothing between them, dividing the group from
+ * nothing. `transparent` rather than `border-top: 0`: the 1 px is still in the
+ * box, so the region's height is the same in every state, which is the property
+ * the reserve above exists for.
+ */
+.quietHeadAlone {
+  border-top-color: transparent;
+}
+
+/*
+ * Room and nothing else — `visibility: hidden` rather than `display: none`,
+ * which is the entire point, and `MarketProxyStrip.qualifierReserved`'s idiom.
+ * The content is a non-breaking space rather than the heading's own words,
+ * because a hidden string is still in `textContent` and a reserve that reads
+ * `Not ranked` in the state where every row **is** ranked is a false impression
+ * one `expect` away from being asserted.
+ */
+.quietHeadReserved {
+  visibility: hidden;
 }
 
 /*
@@ -383,6 +485,25 @@
   grid-area: 2 / 5;
   height: var(--line-height-micro);
   margin-top: var(--space-8);
+}
+
+/*
+ * **Its room, when there is no bar to annotate, goes to the FOOT of the plot.**
+ *
+ * The room itself is not negotiable — it is what keeps this region one height in
+ * every state — but 24 px of it directly under the panel's title, above a group
+ * heading, reads as something that failed to render, and that state is what
+ * every gated machine and every cold store shows for ever. At the foot it reads
+ * as the space before the claim.
+ *
+ * Moving a **grid row** is forbidden for the rows of a list, because it divorces
+ * the accessibility tree from the screen and hands a listener a different
+ * ranking. This element is `aria-hidden` decoration with no accessible content
+ * at all, so there is no order to divorce — and in the state where it moves
+ * there is nothing printed in it either.
+ */
+.ladderTrailing {
+  grid-row: 5;
 }
 
 .ladderTick {

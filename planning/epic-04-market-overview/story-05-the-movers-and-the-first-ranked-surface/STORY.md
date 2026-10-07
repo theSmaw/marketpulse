@@ -243,6 +243,29 @@ set by the change that DRAWS its content, and that change measures and reports t
 movement before it merges._ And if your content needs more than 461, **you take
 `Sector performance` and `Market breadth` with you**, because the rows are tied.
 
+#### Amended by Task 4.3.7 — 2026-09-27: the number is **486**, not 461
+
+**The figure above is a historical record and the live constraint is 25 px
+bigger.** Task 4.3.7 added the trailing quiet group — rows with no rankable
+figure, in their own list with their own heading — and **reserved that heading's
+room in every state**, because without the reserve the region's height depends on
+whether the feed has spoken: at 1440 and 1024 that moves nothing, but at 390 the
+grid row is content-sized and the whole lower page steps the first time a sector
+goes quiet.
+
+**Measured with `pnpm probe /` on 2026-09-27, before and after, at all four
+widths:**
+
+| Width | `Sector performance` | this region                  |
+| ----- | -------------------- | ---------------------------- |
+| 1440  | 461 → **486**        | 461 → **486**                |
+| 1024  | 461 → **486**        | 461 → **486**                |
+| 768   | 461 → **486**        | 103 (unchanged, rows untied) |
+| 390   | 437 → **462**        | 121 (unchanged, rows untied) |
+
+Everything that moved was another reserved panel or the source note; the proxy
+strip is unchanged in position and content. **The number to beat is 486.**
+
 ### 3. Ranking is server-side, and the comparator is already written
 
 **`packages/shared/src/sector-ranking.ts` holds the one comparator.** It was put in

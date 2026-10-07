@@ -7,6 +7,7 @@ import { sectorPerformance } from "../../market/index.js";
 import {
   SectorPerformance,
   SectorPerformanceMeta,
+  SectorPerformanceReservation,
 } from "./SectorPerformance.js";
 import { useOrderHold } from "./use-order-hold.js";
 
@@ -87,7 +88,37 @@ describe("SectorPerformance", () => {
     // their printed ordinals are current, so the disagreement between the two
     // IS the pending re-order. It is also the same disagreement every other
     // reader sees for 240 ms and does not notice.
-    const view = sectorPerformance(frame(2), NO_OBSERVATIONS, NO_SNAPSHOT);
+    // **Both rows are ranked here, deliberately.** A row with no rankable
+    // figure is in the trailing group whatever a reader is holding — the hold
+    // pins a position inside the ranking, and the quiet group is not part of
+    // one — so a pin naming a quiet row can only be tested against a ranking it
+    // could actually reach.
+    const view = sectorPerformance(
+      {
+        computedAt: "2026-09-25T18:01:00.000Z",
+        feeds: [],
+        figures: [],
+        sectors: [
+          {
+            state: "observed",
+            symbol: "XLK",
+            at: "2026-09-25T18:01:00.000Z",
+            price: 187.67,
+            changePercent: 1.84,
+          },
+          {
+            state: "stored",
+            symbol: "XLE",
+            session: "2026-09-25",
+            close: 96.11,
+            sessionChangePercent: -0.4,
+          },
+        ],
+        sectorLadderStep: 2,
+      },
+      NO_OBSERVATIONS,
+      NO_SNAPSHOT,
+    );
     if (view === undefined) throw new Error("unreadable frame");
 
     render(<SectorPerformance view={view} pinned={["XLE", "XLK"]} />);
@@ -95,9 +126,66 @@ describe("SectorPerformance", () => {
     const rows = screen.getAllByRole("listitem");
     expect(rows[0]?.textContent).toContain("XLE");
     expect(rows[1]?.textContent).toContain("XLK");
-    // XLK is still rank 1 — the only ranked row on this frame — while sitting
+    // XLK is still rank 1 — the strongest figure on this frame — while sitting
     // second.
     expect(rows[1]?.textContent).toContain("1");
+  });
+});
+
+describe("SectorPerformance, the honest states", () => {
+  it("hides the scale clause where no bar was drawn, and keeps its room", () => {
+    // ADR 0029: `bars to ±1%` under eleven rows that drew no bar describes a
+    // scale for a quantity nothing on screen shows. Hidden rather than removed,
+    // so the sentence wraps the same way in every state — which is why this
+    // asserts the attribute rather than the absence of the words.
+    const nothing = sectorPerformance(
+      {
+        computedAt: "2026-09-25T18:01:00.000Z",
+        feeds: [],
+        figures: [],
+        sectors: [{ state: "unknown", symbol: "XLK" }],
+        sectorLadderStep: 1,
+      },
+      NO_OBSERVATIONS,
+      NO_SNAPSHOT,
+    );
+    if (nothing === undefined) throw new Error("unreadable frame");
+
+    render(<SectorPerformance view={nothing} />);
+
+    expect(screen.getByText(/bars to ±1%/u).getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+  });
+
+  it("states the rung where a bar WAS drawn", () => {
+    draw(2);
+
+    expect(
+      screen.getByText(/bars to ±2%/u).getAttribute("aria-hidden"),
+    ).toBeNull();
+  });
+
+  it("holds the region's own geometry before the first frame, and says nothing", () => {
+    // `SectorPerformanceReservation`: eleven rows, the ladder's room, the
+    // group heading's room and the claim, all of it out of the picture and out
+    // of the accessibility tree. A reserved panel is 103 px at 768 and 121 at
+    // 390 against 461 and 437 filled, so the state this replaces stepped the
+    // whole lower page a moment after it painted.
+    const { container } = render(<SectorPerformanceReservation />);
+
+    expect(container.firstElementChild?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+    expect(container.querySelectorAll("li")).toHaveLength(11);
+    // No figure and no absence word: room, and nothing that reads as a value.
+    // What the eleven rows carry is a label and the sector's own slug in the
+    // ticker column, both invisible and both out of the accessibility tree —
+    // which is what the zero `listitem` roles above says.
+    expect(container.textContent).not.toMatch(
+      /None stored|No stored close|[+−]\d/u,
+    );
   });
 });
 
@@ -108,14 +196,53 @@ describe("SectorPerformanceMeta", () => {
     return read;
   };
 
-  it("counts the RANKED rows rather than the rows", () => {
-    // `11 · Ranked` over eleven rows that all say `None stored` is two true
-    // halves and one contradiction — the shape that shipped on the market-feed
-    // cell for four days. This fixture has two sectors and one rank.
+  it("counts the RANKED rows against the rows there are", () => {
+    // `11 of 11 ranked` over eleven rows that all say `None stored` would be
+    // two true halves and one contradiction — the shape that shipped on the
+    // market-feed cell for four days. This fixture has two sectors and one
+    // rank, which is the mixed state and the only one the slot speaks in.
     render(<SectorPerformanceMeta view={view()} held={false} />);
 
-    expect(screen.getByText("1 · Ranked")).toBeDefined();
+    expect(screen.getByText("1 of 2 ranked")).toBeDefined();
     expect(screen.queryByText("Order held")).toBeNull();
+  });
+
+  it("says nothing when every row is ranked, because a full count is noise", () => {
+    // The denominator is what makes it a claim about the region rather than
+    // about the list, and `2 of 2` is a fact nobody needs, permanently.
+    const complete = sectorPerformance(
+      {
+        computedAt: "2026-09-25T18:01:00.000Z",
+        feeds: [],
+        figures: [],
+        sectors: [
+          {
+            state: "observed",
+            symbol: "XLK",
+            at: "2026-09-25T18:01:00.000Z",
+            price: 187.67,
+            changePercent: 1.84,
+          },
+          {
+            state: "stored",
+            symbol: "XLE",
+            session: "2026-09-25",
+            close: 96.11,
+            sessionChangePercent: -0.4,
+          },
+        ],
+        sectorLadderStep: 1,
+      },
+      NO_OBSERVATIONS,
+      NO_SNAPSHOT,
+    );
+    if (complete === undefined) throw new Error("unreadable frame");
+
+    const { container } = render(
+      <SectorPerformanceMeta view={complete} held={false} />,
+    );
+
+    expect(container.textContent).toBe("");
   });
 
   it("says nothing at all when nothing is ranked", () => {
@@ -149,7 +276,7 @@ describe("SectorPerformanceMeta", () => {
     render(<SectorPerformanceMeta view={view()} held={true} />);
 
     expect(screen.getByText("Order held")).toBeDefined();
-    expect(screen.queryByText("1 · Ranked")).toBeNull();
+    expect(screen.queryByText("1 of 2 ranked")).toBeNull();
   });
 });
 

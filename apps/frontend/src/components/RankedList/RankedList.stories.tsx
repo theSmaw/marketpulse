@@ -189,10 +189,15 @@ export const WidestAndNarrowest: Story = {
  * from.
  *
  * **This is what every gated machine sees, for ever.** CI's store is 518
- * securities and zero bars, so all eleven sector figures are `unknown` there and
- * the rung is `±1` — the ladder is drawn against a scale with nothing on it,
- * which is the honest answer for a list with nothing to draw. Task 4.3.7 owns
- * the trailing quiet group and the wording of each absence.
+ * securities and zero bars, so all eleven sector figures are `unknown` there.
+ *
+ * **There is no `<ol>` in this state**, which is what makes it coherent rather
+ * than a ranking of nothing — the eleven rows are the trailing group and the
+ * heading says so once. The rung is `±1` and **nothing is drawn against it**:
+ * no bar, no zero rule, no printed tick, because a scale for a quantity nothing
+ * on screen shows is ADR 0029's false impression. The ladder's **room** is kept
+ * and moves to the foot, so the region is the same height here as it is with
+ * eleven figures (Task 4.3.7).
  */
 export const NothingStored: Story = {
   args: {
@@ -200,6 +205,55 @@ export const NothingStored: Story = {
     rows: ELEVEN.map((entry) =>
       row(undefined, entry.label, entry.symbol, undefined),
     ),
+  },
+};
+
+/**
+ * **The mixed state, and the three absences told apart.**
+ *
+ * Eight ranked, three not — and the three say different things because three
+ * different things are missing: `None stored` (nothing observed and nothing
+ * held), `No stored close` (a price arrived and the thing to measure it against
+ * did not), and a **session** (we hold that close and nothing before it). None
+ * of them occupies a rank position, none of them reads as flat, and the bar
+ * cell is **absent rather than zero-length** — a zero-length bar is a claim of
+ * no movement.
+ *
+ * The absence words take the bar's room and are left-aligned: they are longer
+ * than any figure, and right-set in a 78 px column `2026-09-25 close`
+ * ellipsised to `2026-09-25 cl…` at three of the four widths.
+ */
+export const Mixed: Story = {
+  args: {
+    rows: [
+      row(1, "Technology", "XLK", 1.84),
+      row(2, "Communication Services", "XLC", 0.96),
+      row(3, "Consumer Discretionary", "XLY", 0.63),
+      row(4, "Industrials", "XLI", 0.41),
+      row(5, "Financials", "XLF", 0.31),
+      row(6, "Health Care", "XLV", 0.12),
+      row(7, "Consumer Staples", "XLP", -0.18),
+      row(8, "Energy", "XLE", -1.27),
+      {
+        symbol: "XLU",
+        label: "Utilities",
+        rank: undefined,
+        move: undefined,
+        absent: "2026-09-25 close",
+        arrival: undefined,
+        basis: undefined,
+      },
+      {
+        symbol: "XLRE",
+        label: "Real Estate",
+        rank: undefined,
+        move: undefined,
+        absent: "No stored close",
+        arrival: undefined,
+        basis: undefined,
+      },
+      row(undefined, "Materials", "XLB", undefined),
+    ],
   },
 };
 

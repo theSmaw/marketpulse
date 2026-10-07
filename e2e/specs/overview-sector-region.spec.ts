@@ -281,12 +281,100 @@ test("the region is the same height with eleven figures and with none", async ({
   await expectNothingFailedToRender(page);
 });
 
-test("the eleven are drawn in the order the frame sent, each with a rank and a ticker", async ({
+/**
+ * The figure as the screen sets it, **written out here rather than imported**.
+ *
+ * The formatter lives in the application and this spec is the independent
+ * statement of what the screen should say; importing it would assert that the
+ * application agrees with itself.
+ */
+const shown = (percent: number): string =>
+  percent === 0
+    ? "0.00%"
+    : `${percent > 0 ? "+" : "−"}${Math.abs(percent).toFixed(2)}%`;
+
+test("the region holds its full height before any frame has arrived", async ({
   page,
 }) => {
-  // **DOM order equals visual order**, read from the accessibility tree rather
-  // than from geometry — which is exactly the property a CSS `order` re-order
-  // would break invisibly, and Task 4.3.6 inherits it.
+  /*
+   * **The paint before the first frame** (Task 4.3.7). A reserved panel is
+   * 103 px at 768 and 121 at 390 against 461 and 437 filled, so every load of
+   * this page stepped the two regions below it and the source note a moment
+   * after painting — worst on a phone, where the grid row is content-sized.
+   *
+   * The reservation is the real component drawn from eleven rows of held room,
+   * so the height it holds cannot drift from the height it is holding for:
+   * this asserts that the two are the same number rather than that either is a
+   * particular one.
+   */
+  await page.route(MARKET_DATA_ROUTE_PATTERN, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ feed: VENUE }),
+    }),
+  );
+  await page.routeWebSocket(/\/market-stream$/u, (ws) => {
+    ws.send(
+      encodeMarketStreamMessage({
+        type: "snapshot",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: new Date().toISOString(),
+        observations: {},
+        feed: LIVE_FEED,
+      }),
+    );
+  });
+  await page.goto(OVERVIEW, { waitUntil: "networkidle" });
+
+  // Nothing is readable and nothing is announced: the eleven rows are out of
+  // the accessibility tree entirely.
+  await expect(rowsIn(page)).toHaveCount(0);
+  const reserved = await boxOf(sectorRegion(page));
+
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await serveSectors(
+    page,
+    RANKED.map(([symbol, , percent]) => observed(symbol, percent)),
+    2,
+  );
+  await page.goto(OVERVIEW, { waitUntil: "networkidle" });
+  await expect(rowsIn(page)).toHaveCount(RANKED.length);
+  const filled = await boxOf(sectorRegion(page));
+
+  expect(reserved.height).toBe(filled.height);
+  expect(reserved.height).toBeGreaterThan(FIXED_GRID_HEIGHT);
+
+  await expectNothingFailedToRender(page);
+});
+
+test("the eleven are drawn in the order the frame sent, each with its OWN label, ticker and figure", async ({
+  page,
+}) => {
+  /*
+   * **DOM order equals visual order**, read from the accessibility tree rather
+   * than from geometry — the property a CSS `order` re-order would break
+   * invisibly — and **the permutation**, which is the one defect class where
+   * every individual number on the screen is correct.
+   *
+   * The frame carries `symbol` and the row shows `Technology`, so one wrong key
+   * in the ticker → sector direction puts XLV's figure on the Financials row:
+   * it compiles, it lints, it satisfies every arithmetic guard, it sums
+   * correctly, it appears in no state grid and it survives greyscale. The
+   * owner's whole argument for printing the ticker is that the row is checkable
+   * by eye against a public quote, and this is that check performed
+   * mechanically. `one-pairing-of-a-sector-and-its-benchmark` forbids a second
+   * pairing **table**; what it cannot see is the one table being read correctly
+   * and applied to the wrong row, which is a test and not a grep.
+   *
+   * **Eleven distinguishable figures, asserted as such.** A shared or repeated
+   * value passes against any permutation — if every row read `+1.00%`, swapping
+   * two rows would change nothing observable — so distinctness is asserted
+   * first, at the two decimals the screen prints.
+   */
+  const figures = RANKED.map(([, , percent]) => shown(percent));
+  expect(new Set(figures).size).toBe(RANKED.length);
+
   await serveSectors(
     page,
     RANKED.map(([symbol, , percent]) => observed(symbol, percent)),
@@ -297,18 +385,109 @@ test("the eleven are drawn in the order the frame sent, each with a rank and a t
   const drawn = await rowsIn(page).allInnerTexts();
   expect(drawn).toHaveLength(RANKED.length);
 
-  RANKED.forEach(([symbol, label], index) => {
+  RANKED.forEach(([symbol, label, percent], index) => {
     const text = drawn[index] ?? "";
-    // The printed ordinal, the full label, and the ticker — which is the only
-    // thing on the row that can contradict a permutation of the other two.
+    // The whole triple on every row — the printed ordinal, the full label, the
+    // ticker, and the figure that belongs to that ticker.
     expect(text).toContain(String(index + 1));
     expect(text).toContain(label);
     expect(text).toContain(symbol);
+    expect(text).toContain(shown(percent));
+
+    // And **no other row's figure**, which is what a permutation of two rows
+    // leaves behind.
+    for (const other of figures.filter((entry) => entry !== shown(percent))) {
+      expect(text).not.toContain(other);
+    }
   });
 
-  // The figure the frame carried, formatted, beside the label it belongs to.
-  await expect(rowsIn(page).first()).toContainText("+1.84%");
-  await expect(rowsIn(page).last()).toContainText("−1.27%");
+  await expectNothingFailedToRender(page);
+});
+
+test("nothing is ranked on a store with no bars, and there is no ordered list at all", async ({
+  page,
+}) => {
+  /*
+   * **CI's permanent state**, and the one this spec proves best: 518 securities
+   * and zero bars means all eleven sector figures are `unknown` for ever. An
+   * `<ol>` of eleven unranked rows is the false impression with a role
+   * attribute on it — a listener is told *item 10 of 11* over a row the product
+   * is refusing to rank — so there is no ordered list at all, the eleven rows
+   * are the trailing group, and its heading says so once.
+   */
+  await serveSectors(page, DECLARED.map(unknown), 1);
+  await page.goto(OVERVIEW, { waitUntil: "networkidle" });
+
+  await expect(rowsIn(page)).toHaveCount(DECLARED.length);
+
+  expect(await sectorRegion(page).locator("ol").count()).toBe(0);
+
+  const quiet = sectorRegion(page).getByRole("list", { name: "Not ranked" });
+  await expect(quiet).toBeVisible();
+  await expect(quiet.getByRole("listitem")).toHaveCount(DECLARED.length);
+
+  const text = (await sectorRegion(page).innerText()).toLowerCase();
+
+  // No figure anywhere, and no scale for bars nobody drew.
+  expect(text).not.toContain("%");
+  expect(text).toContain("none stored");
+  // The claim survives, because it is about what a row IS.
+  expect(text).toContain("capitalisation-weighted");
+  // And the head says nothing: `0 of 11 ranked` is the contradiction the
+  // trailing group's own heading already resolves.
+  expect(text).not.toContain("of 11 ranked");
+
+  await expectNothingFailedToRender(page);
+});
+
+test("a mixed frame ranks what it can, counts it, and says what is missing per row", async ({
+  page,
+}) => {
+  /*
+   * **Three absences, three different sentences, and not one of them a rank
+   * position.** `None stored` is nothing observed and nothing held;
+   * `No stored close` is a price that arrived with nothing to measure it
+   * against; a **session** is a close we hold with nothing before it. None of
+   * them renders `0.00%`, which would report a sector as unmoved when the truth
+   * is that we have not heard.
+   */
+  await serveSectors(
+    page,
+    [
+      observed("XLK", 1.84),
+      observed("XLI", 0.41),
+      observed("XLP", -0.18),
+      { state: "observed", symbol: "XLV", at: AT, price: 148.22 },
+      { state: "stored", symbol: "XLU", session: "2026-09-25", close: 91.04 },
+      unknown("XLY"),
+      unknown("XLF"),
+      unknown("XLB"),
+      unknown("XLC"),
+      unknown("XLE"),
+      unknown("XLRE"),
+    ],
+    2,
+  );
+  await page.goto(OVERVIEW, { waitUntil: "networkidle" });
+
+  await expect(rowsIn(page)).toHaveCount(11);
+
+  await expect(
+    sectorRegion(page).locator("ol").getByRole("listitem"),
+  ).toHaveCount(3);
+
+  const quiet = sectorRegion(page).getByRole("list", { name: "Not ranked" });
+  await expect(quiet.getByRole("listitem")).toHaveCount(8);
+
+  const words = await quiet.innerText();
+  expect(words).toContain("No stored close");
+  expect(words).toContain("2026-09-25 close");
+  expect(words).toContain("None stored");
+  // Not one of the eight carries a figure.
+  expect(words).not.toContain("%");
+
+  // The count speaks only in the mixed state, and it carries its denominator.
+  await expect(sectorRegion(page).getByText("3 of 11 ranked")).toBeVisible();
 
   await expectNothingFailedToRender(page);
 });

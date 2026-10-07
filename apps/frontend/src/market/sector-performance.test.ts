@@ -7,6 +7,7 @@ import type {
 } from "@marketpulse/shared";
 
 import {
+  RESERVED_SECTORS,
   SECTOR_CLAIM,
   rowsInPinnedOrder,
   sectorPerformance,
@@ -108,6 +109,10 @@ describe("sectorPerformance", () => {
       "None stored",
     ]);
     expect(view?.rows.every((row) => row.move === undefined)).toBe(true);
+    // **And none of the three occupies a rank position** — done-when 1 and 2.
+    // A rank is a claim, and `?? 0` would place a sector we have heard nothing
+    // about between one that moved +0.01% and one that moved −0.01%.
+    expect(view?.rows.every((row) => row.rank === undefined)).toBe(true);
   });
 
   it("labels each row from SECTOR_LABELS and never by transform", () => {
@@ -269,5 +274,37 @@ describe("SECTOR_CLAIM", () => {
     expect(SECTOR_CLAIM).not.toMatch(
       /\bthe market\b|change from|EDT|EST|feed|IEX|exchanges|adjust/iu,
     );
+  });
+});
+
+describe("RESERVED_SECTORS", () => {
+  it("holds eleven rows and claims nothing about any of them", () => {
+    // The paint before the first frame. Every row is room: no rank, no move, no
+    // absence word — a fully-formed placeholder is what invites a reader to
+    // read a value that is not there, and the whole subtree is `aria-hidden`
+    // and `visibility: hidden` anyway.
+    expect(RESERVED_SECTORS.rows).toHaveLength(11);
+    expect(
+      RESERVED_SECTORS.rows.every(
+        (row) =>
+          row.rank === undefined &&
+          row.move === undefined &&
+          row.absent === undefined &&
+          row.arrival === undefined,
+      ),
+    ).toBe(true);
+  });
+
+  it("names eleven sectors and not one benchmark", () => {
+    // A second pairing of a sector with its fund is where a permutation comes
+    // from, and `one-pairing-of-a-sector-and-its-benchmark` refuses one by
+    // name. The reservation carries the sector's own slug in the ticker column,
+    // which is the React key and is never read.
+    expect(RESERVED_SECTORS.rows.map((row) => row.label)).toContain(
+      "Health Care",
+    );
+    expect(
+      RESERVED_SECTORS.rows.every((row) => !/^XL[A-Z]?$/u.test(row.symbol)),
+    ).toBe(true);
   });
 });
