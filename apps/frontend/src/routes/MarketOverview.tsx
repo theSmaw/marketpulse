@@ -115,9 +115,26 @@ export function MarketOverview({
    * **The set is served and this route renders what it is given.** The overview
    * frame is not scoped to a subscription — the gateway broadcasts it — so the
    * symbols arrive before this page has asked for anything, and what it asks
-   * for afterwards is exactly the set the frame reported, in the frame's order.
-   * A four-symbol array written here would be the second home for a list
-   * `PRODUCT_SPEC.md` §6 already owns and `indexProxyTickers` already derives.
+   * for afterwards is exactly the set the frame reported. A four-symbol array
+   * written here would be the second home for a list `PRODUCT_SPEC.md` §6
+   * already owns and `indexProxyTickers` already derives.
+   *
+   * **EVERY section the frame carries, not just `figures` — repaired 2026-10-07
+   * by Task 4.4.1, and it had been a shipped defect since Story 4.3.** The
+   * eleven sector benchmarks ride in `overview.sectors`, this route asked for
+   * the four proxies only, and the gateway scopes both `bars` and `snapshot` to
+   * what a client asked for (`if (!wanted.has(…)) continue`). So
+   * `observations.get("XLK")` was permanently `undefined` and the arrival mark
+   * Story 4.3 designed, drew and tested **could never fire on the deployed
+   * page**. It was invisible at every level below the browser, because the unit
+   * tests hand `sectorPerformance` an observations map directly and the browser
+   * specs furnish their own frames — so the only thing that can see it is a
+   * spec that lets the real gateway answer, which is what
+   * `overview-frame-sections.spec.ts` now does.
+   *
+   * The rule that replaces the old one: **a section added to this frame owes a
+   * line here**, because a region that draws a live figure or an arrival mark
+   * from `observations` is drawing from a map this effect fills.
    *
    * **Keyed on the joined string rather than on the frame**, which is not a
    * micro-optimisation: the gateway recomputes the overview up to sixteen times
@@ -125,9 +142,34 @@ export function MarketOverview({
    * would push a new array into `App`'s state and re-render the whole tree at
    * that rate. `use-live-feed` already depends on a joined string for the same
    * reason one layer down.
+   *
+   * **And SORTED, which the four-proxy version did not need to be.** `figures`
+   * arrives in `PRODUCT_SPEC.md` §6's declared order and never moves; `sectors`
+   * arrives **in rank order**, so it re-orders whenever two sector moves cross
+   * — and `use-live-feed` keys its own resubscribe on `symbols.join(",")`, also
+   * order-sensitive. Keyed on the frame's order, a re-rank would push a new
+   * array into `App`'s state and send a fresh `subscribe` for an identical set,
+   * up to sixteen times a minute. A subscription is a **set**: its order carries
+   * no meaning, so the key must not either.
+   *
+   * **Measured rather than argued** (Task 4.4.1, a throwaway Playwright
+   * instrument against the dev pair, deleted). Sixteen overview frames, each
+   * carrying the eleven sectors in a different rank order:
+   *
+   * | key          | `subscribe` messages on load | …across sixteen re-ranks |
+   * | ------------ | ---------------------------- | ------------------------ |
+   * | sorted       | 2 (`[]`, then the fifteen)   | **0**                    |
+   * | frame order  | 2                            | **16**                   |
+   *
+   * And the widening itself is free at this scale: forty bursts of fifteen
+   * observations produced **no long task at all** — `PerformanceObserver`
+   * reported zero `longtask` entries, so nothing came near
+   * `PRODUCT_SPEC.md` §28's 50 ms. The cost this route has to respect is the
+   * 518-row table's on the neighbouring page, not fifteen cells here.
    */
-  const symbolKey = (overview?.figures ?? [])
+  const symbolKey = [...(overview?.figures ?? []), ...(overview?.sectors ?? [])]
     .map((figure) => figure.symbol)
+    .sort()
     .join(",");
   const liveSymbols = useMemo(
     () => (symbolKey === "" ? [] : symbolKey.split(",")),

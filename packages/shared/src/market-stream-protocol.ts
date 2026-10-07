@@ -420,8 +420,19 @@ export interface WireMarketOverview {
    * travel in {@link sectors} rather than here, and that is a decision with
    * two silent failure modes behind it: `market-proxies.ts` folds over this
    * whole array in **five** places, so sector ETFs joining it would move
-   * `newest` and break `sharedBasis` and `sharedClosingSession` with no
-   * compile error and no test failure — and the name cannot be reused either,
+   * `newest` and break `sharedBasis` and `sharedClosingSession` with ~~no
+   * compile error and no test failure~~ — **amended 2026-10-07 by Task 4.4.1:
+   * there is a test failure and a check failure now, and the argument above is
+   * why they were written.** `overview-frame-sections.spec.ts` asserts, against
+   * a frame recorded off this product's own server, that `figures` carries
+   * exactly four; `each-overview-section-names-its-own-set` asserts that each
+   * section's split is a **positive** membership test. The second exists
+   * because the first is **blind today**: the join is handed only the fifteen,
+   * so inverting the proxy filter returns a byte-identical array and the spec
+   * passes 2/2. Widen the join — which Story 4.4 does — and the same inversion
+   * puts **507** entries here, measured. The spec is the tripwire for the day
+   * the flood is real; the check is the half that is red now — and the name
+   * cannot be reused either,
    * because `readOverview` requires `figures` and a stale tab would decode the
    * frame as `unreadable`, re-rendering the application on every frame.
    */

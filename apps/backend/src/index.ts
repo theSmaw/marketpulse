@@ -722,6 +722,28 @@ const proxySymbols = indexProxyTickers();
 const sectorSymbols = sectorEtfTickers();
 const isSectorSymbol = new Set<string>(sectorSymbols);
 
+/**
+ * **What the join is asked about, and which of its answers is the proxy
+ * strip's — written as one pair because they are one decision** (Task 4.4.1).
+ *
+ * Until 2026-10-07 the proxy section was taken as
+ * `!isSectorSymbol.has(entry.symbol)`, and the two lines lived twelve apart.
+ * That is a **negative** membership test over a list somebody is about to
+ * widen: Story 4.4's breadth count needs the join to see the 503 equities, and
+ * against a negative split **every non-sector security lands in `figures`** —
+ * hundreds of cells in a strip designed for four, a ~56 KB frame, and
+ * `market-proxies.ts`' five folds (`newest`, `sharedBasis`,
+ * `sharedClosingSession`) computing over 507 entries. No compile error, no
+ * failing test, and every number on screen individually correct.
+ *
+ * So both sections are positive membership now, and the two statements are
+ * adjacent so that widening the first without reading the second takes an
+ * effort. `pnpm break the-proxy-section-is-taken-negatively` performs exactly
+ * that edit.
+ */
+const overviewSymbols = [...proxySymbols, ...sectorSymbols];
+const isProxySymbol = new Set<string>(proxySymbols);
+
 const marketOverview = (): WireMarketOverview => {
   const asOf = new Date();
 
@@ -731,19 +753,25 @@ const marketOverview = (): WireMarketOverview => {
   // computed once where `currentMarketState` already lives, and a second call
   // beside this one is the shape the real regression takes.
   const entries = buildMarketOverview({
-    symbols: [...proxySymbols, ...sectorSymbols],
+    symbols: overviewSymbols,
     observations: currentMarketState.all(),
     closesAsOf: lastCloses.closesAsOf,
     asOf,
   });
 
-  // **Split by MEMBERSHIP, never by a slice.** A fifth index proxy — or a
-  // twelfth sector, which `SECTOR_ETFS` makes a compile error to add without
-  // its fund — would silently shift a boundary written as `entries.slice(4)`,
-  // and the symptom is a sector ETF in the proxy strip with every number on it
-  // correct.
+  // **Split by POSITIVE membership, never by a slice and never by a negation.**
+  // A fifth index proxy — or a twelfth sector, which `SECTOR_ETFS` makes a
+  // compile error to add without its fund — would silently shift a boundary
+  // written as `entries.slice(4)`, and the symptom is a sector ETF in the proxy
+  // strip with every number on it correct.
+  //
+  // And *not a sector* is not a definition of *a proxy*: it is a definition of
+  // *everything else*, which is the whole universe the moment the join is
+  // widened. Each section names the set it is about; only breadth reads the
+  // answer whole. See `overviewSymbols` above for what that cost before it was
+  // repaired.
   return toWireMarketOverview({
-    proxies: entries.filter((entry) => !isSectorSymbol.has(entry.symbol)),
+    proxies: entries.filter((entry) => isProxySymbol.has(entry.symbol)),
     sectors: entries.filter((entry) => isSectorSymbol.has(entry.symbol)),
     sectorLadderStep: (ranked) => sectorLadder.stepFor(ranked, asOf),
     asOf,

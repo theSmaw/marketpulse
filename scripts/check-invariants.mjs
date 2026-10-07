@@ -3003,6 +3003,109 @@ const INVARIANTS = [
   },
 
   {
+    id: "each-overview-section-names-its-own-set",
+    claim:
+      "The join's answer is split into sections by POSITIVE membership — each " +
+      "section names the set it is about — so widening the join cannot flood " +
+      "a section that was defined as `everything else`.",
+    check() {
+      // **Task 4.4.1, and it is a defect found by shaping Story 4.4 rather
+      // than by anything mechanical.** The proxy section was
+      // `entries.filter((entry) => !isSectorSymbol.has(entry.symbol))` — true
+      // of exactly the four index proxies while the join is handed fifteen
+      // symbols, and true of **every non-sector security in the universe** the
+      // moment Story 4.4's breadth count widens it to 503 equities. Hundreds
+      // of cells in a strip built for four, a ~56 KB frame, and
+      // `market-proxies.ts`' five folds (`newest`, `sharedBasis`,
+      // `sharedClosingSession`) computing over 507 entries. **No compile
+      // error, no failing test**, and every individual number on the screen
+      // correct.
+      //
+      // Story 4.3's comment there warned against a *slice* and could not cover
+      // this, because the sector predicate is positive and the proxy one was
+      // not — so the two sections looked symmetrical and were not.
+      //
+      // ## Why the claim is "names its own set" rather than "has no `!`"
+      //
+      // A negation is the shape the defect took, not the thing that is wrong
+      // with it. What is wrong is that *not a sector* is a definition of
+      // **everything else**, and a section of a frame is never everything
+      // else. So the check asserts the positive form: the `proxies:` predicate
+      // must consult a proxy set and the `sectors:` predicate a sector set,
+      // which is a clause the re-implementer cannot avoid writing — the
+      // property names are the wire's and the call is
+      // `toWireMarketOverview`'s.
+      //
+      // Three failure modes, and all three are red rather than absent: a
+      // negated predicate, a section handed the answer **whole**
+      // (`proxies: entries`), and a section taken by `.slice()`, which Story
+      // 4.3's own comment already argued against in prose with nothing
+      // checking it.
+      //
+      // ## No match is a FAILURE
+      //
+      // A grep whose anchor has moved returns nothing and reads exactly like a
+      // pass — `CLAUDE.md`'s own note about a prose re-measure rotting
+      // silently. So a missing `proxies:` or `sectors:` property, or more than
+      // one of either, is reported rather than tolerated.
+      const path = resolve(REPO_ROOT, "apps/backend/src/index.ts");
+      const text = withoutTrailingComments(readFileSync(path, "utf8"));
+
+      /** The set each section must consult, by the section's own name. */
+      const SECTIONS = [
+        ["proxies", /\bisProxySymbol\b/u],
+        ["sectors", /\bisSectorSymbol\b/u],
+      ];
+
+      for (const [section, owns] of SECTIONS) {
+        // The property and everything up to the end of its line. The call is
+        // Prettier-formatted, so one property is one line; a property that
+        // wrapped would read short here and fail on the positive clause rather
+        // than pass on a truncation.
+        const found = [
+          ...text.matchAll(new RegExp(`\\b${section}:([^\\n]*)`, "gu")),
+        ];
+
+        if (found.length !== 1) {
+          throw new InvariantFailure(
+            `apps/backend/src/index.ts has ${String(found.length)} ` +
+              `\`${section}:\` properties, expected exactly 1. This check ` +
+              "reads the one place the overview aggregate is split into " +
+              "sections; it cannot read a split that has moved or been " +
+              "duplicated, and a grep that matches nothing looks exactly " +
+              "like a pass.",
+          );
+        }
+
+        const predicate = found[0][1];
+
+        if (!owns.test(predicate)) {
+          throw new InvariantFailure(
+            `the overview's \`${section}:\` section does not name its own ` +
+              `set:\n      ${section}:${predicate}\n    It must consult ` +
+              `${String(owns)} — a POSITIVE membership test. A section ` +
+              "defined as the complement of another one, or handed the " +
+              "join's answer whole, is correct only for as long as nobody " +
+              "widens the join: Story 4.4's breadth count asks it about 503 " +
+              "equities, and a complement then puts all of them in the proxy " +
+              "strip with no compile error and no failing test.",
+          );
+        }
+
+        if (/!/u.test(predicate) || /\.slice\(/u.test(predicate)) {
+          throw new InvariantFailure(
+            `the overview's \`${section}:\` section is taken by negation or ` +
+              `by position:\n      ${section}:${predicate}\n    Positive ` +
+              "membership only. A negation is the complement of some other " +
+              "set and grows when the join does; a slice silently shifts the " +
+              "day a fifth index proxy or a twelfth sector is tracked.",
+          );
+        }
+      }
+    },
+  },
+
+  {
     id: "the-settle-is-one-token-twice",
     claim:
       "The sector list's travel states `--motion-duration-settle` TWICE — as " +

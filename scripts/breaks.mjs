@@ -2561,4 +2561,86 @@ export const BREAKS = [
     expect: "strongest first, keyless last",
     build: true,
   },
+  {
+    name: "the-landing-page-asks-only-for-the-proxies",
+    proves:
+      "The landing route's subscription is built from `overview.figures` " +
+      "alone — the four index proxies — while the page draws eleven " +
+      "sector rows from `overview.sectors`. The gateway scopes both `bars` " +
+      'and `snapshot` to what a client asked for, so `observations.get("XLK")` ' +
+      "is permanently `undefined` and the arrival mark Story 4.3 designed, " +
+      "drew, tested and shipped CANNOT FIRE on the deployed page. It shipped " +
+      "that way and was invisible to everything: the unit tests hand " +
+      "`sectorPerformance` an observations map directly, and the three " +
+      "furnished browser specs serve sector observations the gateway could " +
+      "never have sent. Produced under the break: `the page has not " +
+      "subscribed to XLK — it asked for DIA, IWM, QQQ, SPY`.",
+    // **The defect somebody else will write, and it is the one that shipped.**
+    // Nobody deletes a spread; what happens is that a section is added to this
+    // frame and nothing adds it here, because the subscription reads like a
+    // detail of the strip rather than the page's whole claim on the feed. So
+    // the substitution is *the frame's other sections dropped*, which is
+    // exactly the state Story 4.3 left behind.
+    //
+    // Vite serves this file from source, so no build is needed — unlike
+    // the two backend entries below.
+    file: "apps/frontend/src/routes/MarketOverview.tsx",
+    find: "  const symbolKey = [...(overview?.figures ?? []), ...(overview?.sectors ?? [])]",
+    replace: "  const symbolKey = [...(overview?.figures ?? [])]",
+    command: ["pnpm", "e2e", "overview-frame-sections.spec.ts", "--anyway"],
+    expect: "has not subscribed to XLK",
+  },
+  {
+    name: "the-proxy-section-is-taken-negatively",
+    proves:
+      "The proxy section of the overview frame is defined as the COMPLEMENT " +
+      "of the sector set rather than as the proxy set. It is observationally " +
+      "identical today — the join is handed fifteen symbols — and it " +
+      "is a loaded gun: Story 4.4's breadth count widens the join to the 503 " +
+      "equities, and a complement then puts every one of them in " +
+      "`overview.figures`. Hundreds of cells in a strip built for four, a " +
+      "~56 KB frame, and `market-proxies.ts`' five folds (`newest`, " +
+      "`sharedBasis`, `sharedClosingSession`) computing over 507 entries, " +
+      "with no compile error, no failing test and every individual number on " +
+      "screen correct. Story 4.3's comment there warned against a SLICE and " +
+      "could not cover this, because the sector predicate was positive and " +
+      "the proxy one was not.",
+    // **No browser can see this one and that is why the grep exists.** The
+    // two filters return identical arrays until the join widens, so the
+    // pass-through assertion in `overview-frame-sections.spec.ts` is green
+    // under both — verified by hand before this entry was written, and
+    // recorded in Task 4.4.1. The check is therefore over the SHAPE of the
+    // split rather than over its output, and this is the substitution it is
+    // written around.
+    file: "apps/backend/src/index.ts",
+    find: "    proxies: entries.filter((entry) => isProxySymbol.has(entry.symbol)),",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    proxies: entries.filter((entry) => !isSectorSymbol.has(entry.symbol)),",
+    command: ["pnpm", "invariants"],
+    expect: "does not name its own set",
+  },
+  {
+    name: "a-section-is-handed-the-join-whole",
+    proves:
+      "A section of the overview frame is handed the join's whole answer " +
+      "instead of its own members — which is the shortest thing to write " +
+      "when the next story needs the whole answer for a count, and it is " +
+      "wrong in the one direction nobody looks: the SECTION, not the " +
+      "aggregate. The strip then draws every security the join saw. This is " +
+      "the half `each-overview-section-names-its-own-set` cannot prove on its " +
+      "own, because what goes wrong is a number on the wire rather than a " +
+      "shape in a file.",
+    // **`build: true` for `the-producer-forgets-to-rank-the-sectors`' reason**,
+    // which cost a diagnosis there: `pnpm e2e` drives the dev pair, the pair
+    // serves `dist/`, and the backend's watch loop did not rebuild on the
+    // restore — a byte-identical source beside a broken build, which
+    // reads exactly like a flake.
+    file: "apps/backend/src/index.ts",
+    find: "entries.filter((entry) => isProxySymbol.has(entry.symbol))",
+    replace: "entries",
+    command: ["pnpm", "e2e", "overview-frame-sections.spec.ts", "--anyway"],
+    expect: "exactly the four index proxies",
+    build: true,
+  },
 ];
