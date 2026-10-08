@@ -233,12 +233,96 @@ describe("rowsInPinnedOrder", () => {
   });
 
   it("drops no row the pin has never seen", () => {
-    // It cannot happen from our own gateway, which sends the same eleven every
-    // frame. What it must not do is lose one: a sector that vanished from a
-    // held list would be a missing row nobody could explain.
+    // It cannot happen from our own gateway's SECTOR section, which sends the
+    // same eleven every frame. What it must not do is lose one: a row that
+    // vanished from a held list would be a missing row nobody could explain.
+    //
+    // **The expectation changed on 2026-10-08** (Task 4.5.7), and the old one
+    // was `["XLC", "XLE", "XLK"]` — every unknown row swept past the whole
+    // pinned block. See `rowsInPinnedOrder`' own note: a held MOVERS list can
+    // have a member replaced (0.22–0.45 a minute, measured), and that rule put
+    // a new #1 gainer at #5 with `1` printed beside it.
     const held = rowsInPinnedOrder(LIVE, ["XLC"]);
 
-    expect(held.map((entry) => entry.symbol)).toEqual(["XLC", "XLE", "XLK"]);
+    expect(held.map((entry) => entry.symbol)).toEqual(["XLE", "XLK", "XLC"]);
+  });
+
+  it("draws a new member in its ranked position among the rows it outranks", () => {
+    // The state a held movers list reaches 0.22–0.45 times a minute: the pin
+    // knows four of the five and the fifth is the new leader.
+    //
+    // **`NEW` is drawn FIRST**, which is the whole decision — and under the
+    // rule this replaced it was drawn LAST, four places below its own printed
+    // `1`.
+    const pinned = ["XLE", "XLK", "XLC"];
+    const live = [row("NEW", 1), row("XLE", 2), row("XLK", 3), row("XLC", 4)];
+
+    expect(
+      rowsInPinnedOrder(live, pinned).map((entry) => entry.symbol),
+    ).toEqual(["NEW", "XLE", "XLK", "XLC"]);
+  });
+
+  it("inserts a new member mid-list without disturbing the pinned order around it", () => {
+    // The pin is holding a PERMUTED order — `XLC` has climbed and the reader is
+    // reading, so the drawing is still the order they arrived to. A newcomer
+    // ranked third must land above the rows it outranks and must not re-order
+    // the four rows the pin placed.
+    const pinned = ["XLE", "XLK", "XLC"];
+    const live = [row("XLC", 1), row("XLE", 2), row("NEW", 3), row("XLK", 4)];
+
+    expect(
+      rowsInPinnedOrder(live, pinned).map((entry) => entry.symbol),
+    ).toEqual(["XLE", "NEW", "XLK", "XLC"]);
+  });
+
+  it("keeps two newcomers in their ranked order relative to each other", () => {
+    // Two members replaced in one frame. They share an insertion point, so the
+    // tie-break is the ranked index — stated in the implementation rather than
+    // inherited from `sort`'s stability over the input array.
+    const pinned = ["XLE", "XLK"];
+    const live = [row("UP", 1), row("ALSO", 2), row("XLE", 3), row("XLK", 4)];
+
+    expect(
+      rowsInPinnedOrder(live, pinned).map((entry) => entry.symbol),
+    ).toEqual(["UP", "ALSO", "XLE", "XLK"]);
+  });
+
+  it("sorts a newcomer that outranks nothing the pin knows past the pinned block", () => {
+    // The tail case, and the one place the old arithmetic survives: there is no
+    // pinned row below it to insert above, so *after everything placed* is the
+    // only answer that keeps the pinned rows still.
+    const pinned = ["XLE", "XLK"];
+    const live = [row("XLE", 1), row("XLK", 2), row("LAST", 3)];
+
+    expect(
+      rowsInPinnedOrder(live, pinned).map((entry) => entry.symbol),
+    ).toEqual(["XLE", "XLK", "LAST"]);
+  });
+
+  it("takes one concatenated pin across two lists without perturbing either", () => {
+    // **The two-list hold** (Task 4.5.7): `Movers` pins
+    // `[...gainers, ...losers]`, so gainers hold indices 0..N-1 and losers
+    // N..2N-1, and each list is drawn by applying the ONE pin to itself.
+    //
+    // The precondition is that the lists are **disjoint** — a symbol in both
+    // collides in the `Map` and last-write-wins would silently reorder a row.
+    // Asserted at the producer by `readMovers` and at the reader by
+    // `Movers.test.tsx`; what is asserted here is the consequence that makes
+    // the single pin correct at all.
+    const pin = ["UP1", "UP2", "DN1", "DN2"];
+
+    // A frame in which each list re-ranked internally. Neither list's pinned
+    // order may be disturbed by the other's presence in the pin.
+    expect(
+      rowsInPinnedOrder([row("UP2", 1), row("UP1", 2)], pin).map(
+        (entry) => entry.symbol,
+      ),
+    ).toEqual(["UP1", "UP2"]);
+    expect(
+      rowsInPinnedOrder([row("DN2", 1), row("DN1", 2)], pin).map(
+        (entry) => entry.symbol,
+      ),
+    ).toEqual(["DN1", "DN2"]);
   });
 
   it("never reads a figure, so it cannot reorder two rows the comparator tied", () => {

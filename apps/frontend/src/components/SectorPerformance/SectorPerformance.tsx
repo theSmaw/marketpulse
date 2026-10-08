@@ -10,6 +10,7 @@ import {
   rowsInPinnedOrder,
   type SectorPerformance as SectorPerformanceView,
 } from "../../market/index.js";
+import { OrderHeldBadge } from "../OrderHeldBadge/OrderHeldBadge.js";
 import { RankedList } from "../RankedList/RankedList.js";
 import styles from "./SectorPerformance.module.css";
 
@@ -254,6 +255,12 @@ export const SectorPerformanceReservation = memo(
  * data; this one says something about **what the reader is doing**, which is a
  * widening of the limb rather than a new one — a fourth consumer should be
  * checked against both readings.
+ *
+ * **The badge itself left this file on 2026-10-08** (Task 4.5.7), for
+ * `OrderHeldBadge` — `Movers` is the second region that holds an order, and a
+ * second copy of a badge is the defect `BarSeriesPanel` shipped for two years.
+ * What stays here is the **count**, which is this region's own and has no
+ * second home.
  */
 export const SectorPerformanceMeta = memo(function SectorPerformanceMeta({
   view,
@@ -269,10 +276,7 @@ export const SectorPerformanceMeta = memo(function SectorPerformanceMeta({
   return (
     <span className={cx(styles.slot)}>
       {held ? (
-        <span className={cx(styles.held)}>
-          <span className={cx(styles.disc)} aria-hidden="true" />
-          {ORDER_HELD}
-        </span>
+        <OrderHeldBadge />
       ) : ranked === 0 || ranked === total ? undefined : (
         <span className={cx(styles.count)}>
           {`${String(ranked)} of ${String(total)} ranked`}
@@ -281,19 +285,3 @@ export const SectorPerformanceMeta = memo(function SectorPerformanceMeta({
     </span>
   );
 });
-
-/**
- * What the head says while the order is held.
- *
- * **Sentence case in the DOM, uppercase on screen** — `microLabel` does the
- * second, which is `Region`'s `awaiting` tag one slot over and the reason it is
- * an idiom rather than a choice: a string stored uppercase is a string some
- * screen readers spell out a letter at a time.
- *
- * **The words are the state and not an instruction**, which is the difference
- * between this and a tooltip: the region is not asking to be released, it is
- * saying what is true — the figures and the ranks are current and the order is
- * the one the reader arrived to. Present tense, no verb for the reader, and no
- * mention of the pointer that caused it, because focus causes it too.
- */
-const ORDER_HELD = "Order held";

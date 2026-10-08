@@ -19,7 +19,7 @@ import {
   SectorPerformanceMeta,
   SectorPerformanceReservation,
 } from "../components/SectorPerformance/SectorPerformance.js";
-import { useOrderHold } from "../components/SectorPerformance/use-order-hold.js";
+import { useOrderHold } from "../components/OrderHeldBadge/use-order-hold.js";
 import {
   marketBreadth,
   marketMovers,
@@ -125,7 +125,7 @@ export function MarketOverview({
    * list that was re-ordering is the two-speakers-disagreeing defect this screen
    * has already paid for once. One value, read by both.
    */
-  const hold = useOrderHold(sectors?.rows);
+  const sectorHold = useOrderHold(sectors?.rows);
 
   /*
    * **Breadth, derived once per frame — the route's second memo boundary**
@@ -215,6 +215,42 @@ export function MarketOverview({
     () => marketMovers(overview, observations, fromSnapshot, names),
     [overview, observations, fromSnapshot, names],
   );
+
+  /*
+   * **The order BOTH movers lists are holding — one pin across two lists**
+   * (Task 4.5.7).
+   *
+   * ## One hold, and the per-list version is refused rather than unbuilt
+   *
+   * `Region.onReaderWithin` is the region's own signal: non-bubbling
+   * `pointerenter`/`pointerleave` on the region box plus bubbling
+   * `focusin`/`focusout`, so there is **no per-list signal** without adding
+   * listeners to each `<ol>`. That is not the reason it is one hold. A
+   * list-scoped hold is **row scoping one level up**: it lets the losers list
+   * move out from under a pointer that is *approaching* it diagonally across
+   * the region, which is the failure the whole treatment exists to prevent.
+   *
+   * ## Why the concatenation is here and `useOrderHold` is unchanged
+   *
+   * The hook pins *the order that was on screen when the reader arrived*, and
+   * for this region that order is two lists. One concatenated array makes the
+   * pin one value — gainers at `0..N-1`, losers at `N..2N-1` — and `Movers`
+   * applies it to each list separately, so neither list's internal order is
+   * perturbed by the other's presence in the pin. **Nothing in the hook or in
+   * `rowsInPinnedOrder` needed a second mode**; what did need new code is what
+   * happens to a member the pin has never seen, which is that function's own
+   * recorded decision.
+   *
+   * **It depends on the lists' identity rather than on the frame**, so it
+   * re-derives exactly when `movers` does — which is the memo boundary above,
+   * once per frame that moved the aggregate.
+   */
+  const moverRows = useMemo(
+    () =>
+      movers === undefined ? undefined : [...movers.gainers, ...movers.losers],
+    [movers],
+  );
+  const moversHold = useOrderHold(moverRows);
 
   /*
    * **The set is served and this route renders what it is given.** The overview
@@ -572,10 +608,10 @@ export function MarketOverview({
            * at: `Region` passes `scrollable`, which makes the section the
            * region's one tab stop.
            */
-          onReaderWithin={hold.onReaderWithin}
+          onReaderWithin={sectorHold.onReaderWithin}
           meta={
             sectors === undefined ? undefined : (
-              <SectorPerformanceMeta view={sectors} held={hold.held} />
+              <SectorPerformanceMeta view={sectors} held={sectorHold.held} />
             )
           }
         >
@@ -584,7 +620,7 @@ export function MarketOverview({
               <SectorPerformanceReservation />
             ) : undefined
           ) : (
-            <SectorPerformance view={sectors} pinned={hold.pinned} />
+            <SectorPerformance view={sectors} pinned={sectorHold.pinned} />
           )}
         </Region>
 
@@ -645,14 +681,27 @@ export function MarketOverview({
               ? "The largest moves among the companies we track, up and down, ranked while the session runs."
               : undefined
           }
-          meta={movers === undefined ? undefined : <MoversMeta view={movers} />}
+          /*
+           * **The hold is scoped to the region, never to a list and never to a
+           * row** (Task 4.5.7). `Region` passes `scrollable`, which makes the
+           * section the region's one tab stop, so this is also the only element
+           * at which a keyboard reader can be said to be *here* — and the four
+           * states it answers are pointer in neither, in gainers, in losers,
+           * and focus in one while the pointer is in the other.
+           */
+          onReaderWithin={moversHold.onReaderWithin}
+          meta={
+            movers === undefined ? undefined : (
+              <MoversMeta view={movers} held={moversHold.held} />
+            )
+          }
         >
           {movers === undefined ? (
             overview === undefined ? (
               <MoversReservation />
             ) : undefined
           ) : (
-            <Movers view={movers} />
+            <Movers view={movers} pinned={moversHold.pinned} />
           )}
         </Region>
 

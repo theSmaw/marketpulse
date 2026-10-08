@@ -3140,4 +3140,86 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "round a percentage to the displayed precision and sort",
   },
+  // **The hold at two lists — Task 4.5.7, three breaks.**
+  //
+  // All three were produced against the shipped files before they were
+  // registered, and each transcript is in `TASK-07`. The first two were run by
+  // hand rather than through `pnpm break`, because the tree was already dirty
+  // with the change they prove — a `break-verify` run refuses a dirty target,
+  // correctly.
+  {
+    name: "the-hold-is-scoped-to-one-list",
+    proves:
+      "The hold is wired to one of the region's two lists. This is the " +
+      "edit the next author makes without noticing: `Movers` draws two " +
+      "`RankedList`s from two arrays, so the pin has to be applied twice, " +
+      "and applying it once leaves a region whose head says `ORDER HELD` " +
+      "over a list that is re-ordering. It is `docs/GAPS.md` entry 13's " +
+      "sibling — two speakers, one contradiction — and it is the exact " +
+      "failure the region-scoped hold exists to prevent: the losers list " +
+      "moving out from under a pointer that is APPROACHING it diagonally " +
+      "across the region.\n\n" +
+      "Nothing below a browser can see it. jsdom has no pointer, so a " +
+      "component test can only pass the pin in as a prop — and " +
+      "`Movers.test.tsx` does, which is why it stays green against a region " +
+      "wired to one list only if the test happens to assert the other. The " +
+      "spec hovers one list and asserts the ORDER of both.",
+    file: "apps/frontend/src/components/Movers/Movers.tsx",
+    find: "          rows={withHeldRows(rowsInPinnedOrder(view.losers, pinned))}",
+    replace:
+      "          /* pnpm break: reverted automatically */\n" +
+      "          rows={withHeldRows(view.losers)}",
+    command: ["pnpm", "e2e", "overview-movers-hold.spec.ts", "--anyway"],
+    expect: "a pointer in EITHER list holds BOTH",
+  },
+  {
+    name: "a-new-member-is-swept-to-the-bottom",
+    proves:
+      "A member the pin has never seen is drawn after the whole pinned " +
+      "block instead of in its ranked position — which is **the arithmetic " +
+      "this repository shipped** until Task 4.5.7, correct for eleven fixed " +
+      "sectors and wrong the moment a list's membership can change. A new " +
+      "#1 gainer is then drawn at #5 with `1` printed beside it, under four " +
+      "rows printing `2`-`5`.\n\n" +
+      "It is the plausible re-write rather than an invented defect: " +
+      "`?? pinned.length + index` is three tokens, it reads as obviously " +
+      "safe, and every other assertion about the hold passes with it in " +
+      "place. The state it is wrong in occurs 0.22-0.45 times a minute " +
+      "(measured over three real sessions), so it is rare enough that " +
+      "nobody meets it while developing and common enough that a reader " +
+      "does.",
+    file: "apps/frontend/src/market/sector-performance.ts",
+    find: "    at: positions.get(row.symbol) ?? insertionPoint(index),",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    at: positions.get(row.symbol) ?? pinned.length + index,",
+    command: ["pnpm", "e2e", "overview-movers-hold.spec.ts", "--anyway"],
+    expect: "drawn in its ranked position",
+  },
+  {
+    name: "the-held-badge-grows-the-head",
+    proves:
+      "The movers head's slot reserves less room than the badge needs, so " +
+      "the slot GROWS when the badge replaces `Top 5 each way` on pointer " +
+      "enter. This is not a hypothetical: `min-width: 100px` is the figure " +
+      "Task 4.5.3 measured against the slot's own content (98 x 16) and " +
+      "carried over from the sector region, and the badge measures " +
+      "**100.33 x 22** — so the shipped reserve was 0.33 px short of the " +
+      "thing it exists to hold, for one task in this region and from Task " +
+      "4.3.6 in the other.\n\n" +
+      "It is invisible everywhere else. The region title's own box does not " +
+      "move at 1440, because the header has slack and the title is " +
+      "`flex: 0 1 auto`; jsdom computes no layout at all; and a screenshot " +
+      "of either state alone is correct. The assertion reads the slot's box " +
+      "with each string in it and requires them equal.\n\n" +
+      "**Restart the dev server before running this one.** It edits a CSS " +
+      "module, and a `composes` change does not reliably hot-reload — under " +
+      "`pnpm break` the symptom is a guard reported as ABSENT when it is " +
+      "there, which is the one direction that wastes a repair.",
+    file: "apps/frontend/src/components/Movers/Movers.module.css",
+    find: "  min-width: 101px;",
+    replace: "  min-width: 100px; /* pnpm break: reverted automatically */",
+    command: ["pnpm", "e2e", "overview-movers-hold.spec.ts", "--anyway"],
+    expect: "a pointer in EITHER list holds BOTH",
+  },
 ];

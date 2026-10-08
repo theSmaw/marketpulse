@@ -251,11 +251,11 @@ describe("Movers", () => {
     // footer carries the whole truth. A **short** list keeps it, because the
     // bound is exactly what says the list is not truncated.
     const { container, rerender } = render(
-      <MoversMeta view={viewOf([], [])} />,
+      <MoversMeta view={viewOf([], [])} held={false} />,
     );
     expect(container.textContent).toBe("");
 
-    rerender(<MoversMeta view={viewOf(GAINERS, [])} />);
+    rerender(<MoversMeta view={viewOf(GAINERS, [])} held={false} />);
     expect(container.textContent).toBe(
       `Top ${String(MOVERS_PER_SIDE)} each way`,
     );
@@ -275,7 +275,7 @@ describe("Movers", () => {
   it("says what the lists are a selection of, with the bound interpolated", () => {
     // Never typed: a badge saying five over six rows is a lie with no symptom,
     // which is `the-population-is-never-a-literal`'s rule one scale down.
-    render(<MoversMeta view={BOTH_ENDS} />);
+    render(<MoversMeta view={BOTH_ENDS} held={false} />);
 
     expect(screen.getByText(`Top ${String(MOVERS_PER_SIDE)} each way`));
   });
@@ -542,5 +542,134 @@ describe("the settle with held rows in the list", () => {
     } finally {
       restore();
     }
+  });
+});
+
+describe("the hold, at two lists", () => {
+  // **One pin across both lists** (Task 4.5.7). What this level can see is the
+  // DOM order, which is the order a screen reader is given and the order the
+  // FLIP indexes into — it cannot see the motion, which is
+  // `overview-movers-hold.spec.ts`'.
+
+  /**
+   * A row whose **only** capital letters are its symbol — `the settle with held
+   * rows` uses the same trick for the same reason: a real company name is
+   * mixed-case and would put the label's capitals in the row's own text.
+   */
+  const named = (symbol: string, percent: number, rank: number): SectorRow =>
+    row(symbol, `${symbol.toLowerCase()} holdings`, percent, rank);
+
+  const UP = [
+    named("SMCI", 9.14, 1),
+    named("FSLR", 6.72, 2),
+    named("NVDA", 3.41, 3),
+  ];
+  const DOWN = [named("MRNA", -8.37, 1), named("ALB", -5.94, 2)];
+
+  /** Each list's tickers, **in DOM order** — the order a screen reader is given. */
+  const tickersIn = (): readonly (readonly string[])[] =>
+    screen.getAllByRole("list").map((list) =>
+      within(list)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent.replace(/[^A-Z]/gu, ""))
+        .filter((symbol) => symbol !== ""),
+    );
+
+  it("applies ONE pin to each list separately, perturbing neither", () => {
+    // The frame re-ranked both ends at once: `NVDA` took the gainers' lead and
+    // `ALB` the losers'. The reader is holding the order they arrived to, so
+    // **neither list moves** — and the fact that the pin holds both lists'
+    // symbols is what would show up as a cross-contamination if the `Map` were
+    // read per list rather than per symbol.
+    const pin = [...UP, ...DOWN].map((entry) => entry.symbol);
+
+    const reranked = viewOf(
+      [named("NVDA", 3.41, 1), named("SMCI", 9.14, 2), named("FSLR", 6.72, 3)],
+      [named("ALB", -5.94, 1), named("MRNA", -8.37, 2)],
+    );
+
+    render(<Movers view={reranked} pinned={pin} />);
+
+    const [gainers, losers] = tickersIn();
+
+    // Gainers occupy pin indices 0..2 and losers 3..4; each list draws its own
+    // pinned order and nothing else.
+    expect(gainers).toEqual(["SMCI", "FSLR", "NVDA"]);
+    expect(losers).toEqual(["MRNA", "ALB"]);
+  });
+
+  it("draws a new member of either list in its ranked position", () => {
+    // The state 4.3 could not reach: eleven sectors are fixed, so a held list
+    // could only permute. A held movers list can have a member **replaced** —
+    // 0.22–0.45 a minute, measured — and the pin has never seen the newcomer.
+    //
+    // Under the rule this replaced (`?? pinned.length + index`) `TSLA` would be
+    // drawn **last** with `1` printed beside it, three places below its own
+    // number and with no re-order pending for it.
+    const pin = [...UP, ...DOWN].map((entry) => entry.symbol);
+
+    const withNewLeader = viewOf(
+      [named("TSLA", 11.2, 1), named("SMCI", 9.14, 2), named("FSLR", 6.72, 3)],
+      DOWN,
+    );
+
+    render(<Movers view={withNewLeader} pinned={pin} />);
+
+    const [gainers, losers] = tickersIn();
+
+    expect(gainers).toEqual(["TSLA", "SMCI", "FSLR"]);
+    // And the other list, which had no newcomer, is untouched.
+    expect(losers).toEqual(["MRNA", "ALB"]);
+  });
+
+  it("holds nothing when no pin is given, which is every state but a reader's", () => {
+    // The control. Without this the two assertions above pass against a
+    // component that ignores `pinned` and happens to receive a sorted view.
+    const reranked = viewOf(
+      [named("NVDA", 3.41, 1), named("SMCI", 9.14, 2), named("FSLR", 6.72, 3)],
+      [named("ALB", -5.94, 1), named("MRNA", -8.37, 2)],
+    );
+
+    render(<Movers view={reranked} />);
+
+    expect(tickersIn()).toEqual([
+      ["NVDA", "SMCI", "FSLR"],
+      ["ALB", "MRNA"],
+    ]);
+  });
+});
+
+describe("MoversMeta while the order is held", () => {
+  it("says `Order held` in the head slot, in place of the bound", () => {
+    // **One badge, in the region head, above both lists** — a badge per list
+    // would be two speakers who can disagree. And the badge **replaces** the
+    // bound rather than joining it, which is `SectorPerformanceMeta`'s decision
+    // one region up: the two strings are one idea and the slot holds one.
+    render(<MoversMeta view={viewOf(GAINERS, LOSERS)} held />);
+
+    expect(screen.getByText("Order held")).toBeTruthy();
+    expect(screen.queryByText(`Top ${String(MOVERS_PER_SIDE)} each way`)).toBe(
+      null,
+    );
+  });
+
+  it("says the bound when nothing is held", () => {
+    render(<MoversMeta view={viewOf(GAINERS, LOSERS)} held={false} />);
+
+    expect(screen.queryByText("Order held")).toBe(null);
+    expect(
+      screen.getByText(`Top ${String(MOVERS_PER_SIDE)} each way`),
+    ).toBeTruthy();
+  });
+
+  it("says `Order held` even with nothing selected, because the hold is not a claim about data", () => {
+    // The bound falls silent at a selection of none (Task 4.5.6) because it
+    // reads as a claim about a selection that selected nothing. The badge is
+    // **not** a claim about data — it says what the reader is doing — so it
+    // speaks wherever the hold is on, and `useOrderHold` cannot pin an empty
+    // order anyway.
+    render(<MoversMeta view={viewOf([], [])} held />);
+
+    expect(screen.getByText("Order held")).toBeTruthy();
   });
 });

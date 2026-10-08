@@ -330,3 +330,88 @@ describe("moverSymbols", () => {
     expect(moverSymbols(undefined)).toEqual([]);
   });
 });
+
+describe("the two lists are disjoint, which is the hold's precondition", () => {
+  // **Task 4.5.7's AC 2, at the READER.** `Movers` pins one concatenated array
+  // across both lists — gainers at `0..N-1`, losers at `N..2N-1` — and
+  // `rowsInPinnedOrder` keys that pin on a `Map` of symbol → position. A symbol
+  // in **both** lists collides in that `Map`, last-write-wins, and the gainers
+  // row silently takes the losers row's position: a re-order nobody asked for,
+  // with every figure on screen still correct.
+  //
+  // It is asserted rather than assumed at both ends. The producer's end is
+  // `readMovers`' check 3 and `market-stream-protocol.test.ts`' *refuses the
+  // same symbol in both lists*. **This is the other end**: that a frame
+  // carrying the violation never reaches `marketMovers` at all, which is the
+  // only thing that makes the precondition a property of this module rather
+  // than of a function in another package.
+
+  it("cannot be handed an overlapping section, because the decoder refuses the frame", async () => {
+    const { decodeMarketStreamMessage, encodeMarketStreamMessage } =
+      await import("@marketpulse/shared");
+
+    // One symbol at both ends — the state `selectMovers` cannot produce, since
+    // it decides each candidate's end through the one classifier.
+    const overlapping = section(
+      [observed("NVDA", 100, 2.4), observed("MRNA", 50, 1.1)],
+      [observed("NVDA", 100, -2.4)],
+    );
+
+    const message = decodeMarketStreamMessage(
+      encodeMarketStreamMessage({
+        type: "overview",
+        version: 1,
+        sentAt: "2026-10-07T18:01:00.000Z",
+        overview: frame(overlapping),
+      }),
+    );
+
+    // The frame survives — it may carry true proxy prices — and the **section**
+    // is gone, which is the absence the region already draws.
+    const decoded =
+      message.kind === "message" && message.message.type === "overview"
+        ? message.message.overview
+        : undefined;
+
+    expect(message.kind).toBe("message");
+    expect(decoded).toBeDefined();
+    expect(decoded?.movers).toBeUndefined();
+
+    // And so `marketMovers` returns the absence rather than two lists the pin
+    // could collide over.
+    expect(
+      marketMovers(decoded, NO_OBSERVATIONS, NO_SNAPSHOT, NAMES),
+    ).toBeUndefined();
+  });
+
+  it("gives every reachable view two lists with no symbol in common", () => {
+    // The positive half, over the states this reader can actually produce. A
+    // test that only asserted the refusal would pass against a reader that
+    // produced one empty list for ever.
+    const view = marketMovers(
+      frame(
+        section(
+          [observed("NVDA", 100, 2.4), observed("MRNA", 50, 1.1)],
+          [stored("AAPL", 180, -1.2), stored("MSFT", 400, -3.1)],
+        ),
+      ),
+      NO_OBSERVATIONS,
+      NO_SNAPSHOT,
+      NAMES,
+    );
+
+    const gainers = new Set((view?.gainers ?? []).map((row) => row.symbol));
+    const losers = (view?.losers ?? []).map((row) => row.symbol);
+
+    expect(gainers.size).toBe(2);
+    expect(losers).toHaveLength(2);
+    expect(losers.some((symbol) => gainers.has(symbol))).toBe(false);
+
+    // And the concatenation the route pins is therefore a `Map` with one entry
+    // per row — the arithmetic that makes gainers `0..N-1` and losers `N..2N-1`.
+    const pin = [...(view?.gainers ?? []), ...(view?.losers ?? [])].map(
+      (row) => row.symbol,
+    );
+    expect(new Set(pin).size).toBe(pin.length);
+  });
+});

@@ -148,9 +148,20 @@
  * badge — and **the reserve is on the slot rather than in either string**,
  * because the point of it is that neither may move the other.
  *
- * `100px` is `SectorPerformance.slot`'s measured figure for the same badge, and
- * the two strings here are both narrower than it at both widths it was measured
- * at (1440 and 390), so the slot holds the badge's width in every state. The
+ * **`101px`, and it is a RE-MEASURED figure rather than an inherited one** —
+ * Task 4.5.7, and the brief's assumption was wrong. The inherited value was
+ * `100px`, `SectorPerformance.slot`'s own, taken against a slot whose content
+ * measured 98 × 16. Measured in a browser on 2026-10-08 at 1440, with the
+ * badge actually rendered (`overview-movers-hold.spec.ts` carries the
+ * assertion): `Top 5 each way` is **98.05 × 16** and the `Order held` badge is
+ * **100.33 × 22**. So **the badge is the wider string**, by 2.28 px, and
+ * `100px` was 0.33 px short of it — the slot grew by exactly that on pointer
+ * enter, invisible in the title's own box because the header has slack at 1440
+ * and the title is `flex: 0 1 auto`.
+ *
+ * The sector region's reserve was raised to the same figure in the same change:
+ * the badge is one component since this task, so its width is one fact, and
+ * that slot had carried the same 0.33 px shortfall since Task 4.3.6. The
  * **height** is `--line-height-subheading`, which is the token `Panel.title`
  * sets its own line from: that is a defect repaired rather than a preference —
  * drawn with the canvas's `4px 6px` padding the badge came out 26 px against a
@@ -161,7 +172,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-width: 100px;
+  min-width: 101px;
   min-height: var(--line-height-subheading);
 }
 

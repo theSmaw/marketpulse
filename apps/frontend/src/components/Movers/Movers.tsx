@@ -5,10 +5,12 @@ import { MOVERS_PER_SIDE } from "@marketpulse/shared";
 import { cx } from "../../cx.js";
 import {
   RESERVED_MOVERS,
+  rowsInPinnedOrder,
   withHeldRows,
   type MarketMovers,
 } from "../../market/index.js";
 import { useWaited } from "../MarketProxyStrip/use-waited.js";
+import { OrderHeldBadge } from "../OrderHeldBadge/OrderHeldBadge.js";
 import { RankedList, type RankedListBar } from "../RankedList/RankedList.js";
 import styles from "./Movers.module.css";
 
@@ -172,9 +174,39 @@ const EmptySide = memo(function EmptySide({
 export interface MoversProps {
   /** The two ends, from the movers section of the overview frame (Task 4.5.4). */
   readonly view: MarketMovers;
+  /**
+   * **The order a reader is holding — ONE pin across BOTH lists**, from
+   * `useOrderHold`, absent while nothing is held (Task 4.5.7).
+   *
+   * ## One pin, two lists, and why that is not a compromise
+   *
+   * The route pins `[...gainers, ...losers]`, so gainers occupy indices
+   * `0..N-1` and losers `N..2N-1`, and each list below applies the **same** pin
+   * to itself. Neither list's internal order is perturbed by the other's
+   * presence in it, because `rowsInPinnedOrder` only ever reads the positions
+   * of the symbols it was handed.
+   *
+   * **Precondition: the two lists are disjoint**, or the pin's `Map` collides
+   * on a symbol and last-write-wins silently reorders a row. It holds by
+   * construction — Gate 1's direction-matching rule means a name is in at most
+   * one end — and it is **asserted rather than assumed**: at the producer by
+   * `readMovers`, and at the reader by `Movers.test.tsx`.
+   *
+   * ## There is no per-list hold, and that is the decision rather than a limit
+   *
+   * `Region.onReaderWithin` combines non-bubbling `pointerenter`/`pointerleave`
+   * on the region box with bubbling `focusin`/`focusout`, so the signal is the
+   * **region's**. A list-scoped hold would need listeners on each `<ol>` — and
+   * it is row scoping one level up: it lets the losers list move out from under
+   * a pointer that is **approaching** it diagonally across the region, which is
+   * the failure the whole treatment exists to prevent. One badge in the head
+   * says *this region's order*, for the same reason the region's name says
+   * *this region*; a badge per list is two speakers who can disagree.
+   */
+  readonly pinned?: readonly string[] | undefined;
 }
 
-export const Movers = memo(function Movers({ view }: MoversProps) {
+export const Movers = memo(function Movers({ view, pinned }: MoversProps) {
   // Two ids rather than one, because two lists on one screen each need their
   // own — and `useId` rather than a literal for `Panel`'s own reason: the same
   // component can be on a page twice.
@@ -194,7 +226,15 @@ export const Movers = memo(function Movers({ view }: MoversProps) {
       </h3>
       <EmptySide sentence={view.gainersEmpty}>
         <RankedList
-          rows={withHeldRows(view.gainers)}
+          /*
+           * **The pin first, the padding second**, and the order is a
+           * correctness requirement rather than a style: `withHeldRows`' pads
+           * are keyed on a run of non-breaking spaces and are positional, so a
+           * pin applied after them would place real rows around invented ones.
+           * The pin is over the REAL rows only — it is taken from the view, and
+           * a pad is geometry the reader never saw.
+           */
+          rows={withHeldRows(rowsInPinnedOrder(view.gainers, pinned))}
           bar={NO_BAR}
           name={{ labelledBy: gainersHeadingId }}
           quietGroup="impossible"
@@ -213,7 +253,7 @@ export const Movers = memo(function Movers({ view }: MoversProps) {
       </h3>
       <EmptySide sentence={view.losersEmpty}>
         <RankedList
-          rows={withHeldRows(view.losers)}
+          rows={withHeldRows(rowsInPinnedOrder(view.losers, pinned))}
           bar={NO_BAR}
           name={{ labelledBy: losersHeadingId }}
           quietGroup="impossible"
@@ -302,7 +342,20 @@ export const Movers = memo(function Movers({ view }: MoversProps) {
  * Task 4.3.6 found in a browser, where a four-pixel taller badge moved all
  * eleven rows on pointer enter. The badge itself is not built here.
  */
-export const MoversMeta = memo(function MoversMeta({ view }: MoversProps) {
+export const MoversMeta = memo(function MoversMeta({
+  view,
+  held,
+}: {
+  readonly view: MarketMovers;
+  /**
+   * From `useOrderHold`. **The same value that pins the order both lists
+   * draw** — so there is no state in which the head says `ORDER HELD` over a
+   * region that is re-ordering, which is `docs/GAPS.md` entry 13's sibling
+   * defect one region up and the reason this is one piece of state rather than
+   * two.
+   */
+  readonly held: boolean;
+}) {
   /*
    * **It falls silent when nothing was selected** — Task 4.5.6's decision, on
    * `SectorPerformanceMeta`'s precedent one region up, which speaks only in
@@ -330,7 +383,18 @@ export const MoversMeta = memo(function MoversMeta({ view }: MoversProps) {
 
   return (
     <span className={cx(styles.slot)}>
-      {selected ? (
+      {/*
+       * **The badge wins the slot while a reader is in the region** (Task
+       * 4.5.7), which is `SectorPerformanceMeta`'s precedent unchanged: the two
+       * strings are one idea — *what this region is doing* — and the louder one
+       * is the one that is only true for as long as somebody is reading.
+       *
+       * The slot reserves the wider of the two in the stylesheet, so neither
+       * moves the other and the head cannot grow on pointer enter.
+       */}
+      {held ? (
+        <OrderHeldBadge />
+      ) : selected ? (
         <span className={cx(styles.bound)}>
           {`Top ${String(MOVERS_PER_SIDE)} each way`}
         </span>

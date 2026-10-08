@@ -1,0 +1,70 @@
+/*
+ * --- `Order held` ---
+ *
+ * **Moved here from `SectorPerformance.module.css` on 2026-10-08** (Task
+ * 4.5.7), unchanged, because a second region now holds an order and the badge
+ * is one fact. The argument below is Task 4.3.6's and is kept verbatim: it is
+ * the fourth firing of ADR 0026's standing exception and the reasoning is what
+ * a reader needs, not the conclusion.
+ *
+ * `Order held` is the loudest thing in a region head by **weight and
+ * hierarchy** rather than by ink.
+ *
+ * The canvas drew it in `#9a6400` inside a `#9a6400` border. That value is in no
+ * stylesheet here, and the three ambers that exist cannot replace it —
+ * `--palette-amber` measures **1.73:1** on the page ground and **1.92:1** at
+ * 12 px, and `--palette-amber-deep` is not a text ink. So this is ADR 0026's
+ * standing exception again: **the intent adopted and the value refused**, with
+ * the settled rule carrying it — standing out, like receding, is a job for
+ * weight and hierarchy, never for ink outside the contrast floor.
+ *
+ * Near-black on a panel inside a `--rule-strong` hairline is the most
+ * distinctive idiom in this language, and the refresh's own rule for it is *one
+ * panel is a statement* — one badge, present only while a reader is in the
+ * region, is exactly that.
+ *
+ * **The height is `--line-height-subheading` and that is a repaired defect
+ * rather than a preference.** Drawn with the canvas's `4px 6px` padding the
+ * badge came out 26 px against a 22 px title line, so the head grew four pixels
+ * on pointer enter and **moved all eleven rows** — found in a browser and by
+ * nothing else. Both regions' `.slot` rules reserve the same token for the same
+ * reason, and Task 4.5.7 re-measured the width against `Movers`' own slot
+ * rather than inheriting it.
+ */
+.held {
+  composes: microLabel from "../../styles/type.module.css";
+  display: inline-flex;
+  /*
+   * **Baseline, not centre**, and it is the shared disc that decides: the
+   * `stateMark` class carries `translateY(-0.25em)`, which centres it against
+   * the **x-height** of the run it sits in — a nudge written for a baseline
+   * row (`SourceNote.live`'s, unchanged). Centring the flex line instead
+   * applies that nudge on top of an already-centred box and the disc reads as
+   * a superscript dot. Nothing is overridden here to fix it, deliberately: a
+   * declaration under `composes` does not reliably win, because `composes`
+   * concatenates class names and stylesheet order decides.
+   */
+  align-items: baseline;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  height: var(--line-height-subheading);
+  padding-inline: var(--space-8);
+  font-weight: var(--font-weight-strong);
+  color: var(--ink-primary);
+  white-space: nowrap;
+  border: var(--border-width) solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+/*
+ * `stateMark`'s third consumer — **appearance and behaviour from the shared
+ * motion layer, position from here**, which is that vocabulary's own rule.
+ *
+ * *A state PERSISTS*, and the behaviour **is** the absence of animation: the
+ * disc is still, it lasts exactly as long as the reader is in the region, and it
+ * says nothing about data arriving — which is what the arrival mark beside it on
+ * a row says, decaying, off a different fact.
+ */
+.disc {
+  composes: stateMark from "../../styles/motion.module.css";
+}
