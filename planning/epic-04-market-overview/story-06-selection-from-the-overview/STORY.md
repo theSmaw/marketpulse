@@ -1,6 +1,6 @@
 # Story 4.6 — Selection From the Overview
 
-**Status:** Not started
+**Status:** **In progress — 2026-10-08.** Decomposed into seven tasks; four decisions taken at Gate 1 and **five of six acceptance criteria reworded** — two contradicted each other, one is factually false, and one could not pass even after its repair. Shaping verified **two traps that would have shipped**: the reserved sector rows carry slugs and the held mover pads carry non-breaking spaces, so a naive link builds eleven `/securities/<sector-slug>` and ten `/securities/%C2%A0` — the latter in CI's permanent state.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.5
 **Epic scope covered:** security selection from the overview
@@ -314,3 +314,121 @@ inside `list, 5 items, item 1` — so **the printed rank is spoken and the
 platform announces the position as well**. At two lists that doubles on one
 screen. Whether it reads as emphasis or as a stutter is a listener's call and
 is on the standing screen-reader item rather than guessed at here.
+
+## Gate 1 — 2026-10-08: decomposed into seven tasks, five acceptance criteria reworded, and four decisions taken
+
+**Six roles shaped this.** What they returned reworded most of the acceptance
+criteria, found two traps that would have shipped on a first implementation,
+and closed a question that had been declined twice.
+
+### Five of six acceptance criteria could not pass as written
+
+| AC    | What was wrong                                                                                                                                                                                                                                                                                                                 | Reworded to                                                                                                                                                                                                                                                                                        |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | **Contradicts AC 3** — demands _every_ security-bearing figure be a destination while AC 3 permits a sector row not to be. Also demands it of the **price and the change**, which the Design section forbids. And _"one tab stop per region"_ **cannot hold for `Movers`**, which Story 4.5 requires to have two roving groups | Two halves: the destinations are **exactly the ticker tokens** of the proxy cells, sector rows and mover rows, each a `<Link>` built by `securityPath()` with the bare ticker as its accessible name; **and** the tab-stop count is the same in the reserved and filled states, stated as a figure |
+| **3** | First clause fine; _"a row that looks clickable and is not is worse"_ is a judgement nothing can fail                                                                                                                                                                                                                          | Keeps the decision, and adds the behaviour it was buying: **no element carries a hover, cursor or focus treatment implying activation unless it is an `<a>` with an href**                                                                                                                         |
+| **4** | **Falsified today**, and unfalsifiable even after the repair — _"at any width"_ is unbounded, and `CLAUDE.md` records that scroll-padding **cannot help a target taller than the viewport**, which a filled `Sector performance` panel at 390 is                                                                               | A **Tab and Shift+Tab** walk at 1440/1024/768/390 against the **focus-ring box**, with the stops taller than the scrollport **enumerated by name with their measured heights**                                                                                                                     |
+| **5** | **Cannot pass on CI at either end** — `eligible: 0` so no mover, zero bars so no figure                                                                                                                                                                                                                                        | Asserts the address and the destination's **identity**; the figure half skips with its reason printed                                                                                                                                                                                              |
+| **6** | **Second clause is factually false**                                                                                                                                                                                                                                                                                           | A live-region **count**, plus a screen-reader entry recording that the arrival announces nothing                                                                                                                                                                                                   |
+
+**AC 6's falsification, verified rather than taken on report**: `index.html`
+holds **one static `<title>MarketPulse</title>`**, `App.tsx` uses React Router
+in **declarative mode** with no route announcer, and the destination's `<h1>`
+is **`Security Explorer` on both routes** — the security's own symbol is an
+`<h2>`. So a listener activating a mover gets **no load event, no title
+change, no focus move and no announcement.**
+
+### Two traps that would have shipped
+
+Verified in the code, not predicted:
+
+- **`sector-performance.ts:444` — `symbol: sector`.** The reserved rows carry
+  the **slug**, so `securityPath(row.symbol)` builds **`/securities/technology`
+  ×11 on every first paint.**
+- **`movers.ts:487` — `symbol: NBSP.repeat(slot + 1)`.** The held pads build
+  **`/securities/%C2%A0` ×10** — in **CI's permanent state**, most of a
+  weekend, and the first minute of every session.
+
+### The question declined twice is closed, and the reframing is why
+
+**It was never _does this region scroll_. It is _can a tab stop appear and
+disappear under a reader_, and the answer must be no.** Conditional on actual
+overflow fails because overflow is a function of **height** and the
+measurement is four width/height pairs. Conditional on content being focusable
+— the better condition, and correct about 2.1.1 — **drops focus to `<body>`**:
+three regions' content is focusable only when a frame has landed, so the
+`Sector performance` stop would exist at paint, vanish when the first
+aggregate arrives, and return on a rollback. **ADR 0039 in Task 4.6.6.**
+
+And the blast radius was **smaller than the brief claimed**: `Panel` has
+**exactly one** production consumer, and `Region` is on **two** routes, not
+five.
+
+### The guard this story destroys
+
+**`scrollable-region-focusable` does not fire while a scrolling box contains
+something focusable** — which is why that defect stood five stories. Once rows
+in three regions are focusable, **axe can never report those regions again**,
+and _every region is reachable by keyboard_ becomes a sentence. Task 4.6.6
+replaces it with a `tabIndex` assertion on both routes.
+
+### Three defects that are nobody's fault
+
+- **A focused row can vanish under the hold.** The hold pins **order**; Task
+  4.5.7 deliberately let **membership** move beneath it. Together: the `<li>`
+  unmounts and focus drops to `<body>`.
+- **A keyboard reader can enter `useOrderHold`'s un-pinnable state.** The hook
+  documents it for a pointer resting before the first frame; tabbing in during
+  the same window is identical, and nothing said so.
+- **The hold engages for a keyboard reader and is announced to nobody** — the
+  mirror of the eighth screen-reader entry.
+
+### And one thing is better than feared
+
+With a real `<Link to={securityPath(symbol)}>` the destination resolves **at
+render, from the row's own identity**. The activation race the 4.3 hand-off
+warned about — _a frame lands between the keydown and the handler, the wrong
+security opens, and every number on screen is right throughout_ — **is not a
+risk to manage. It is unrepresentable.**
+
+### The ring forces the design
+
+`18 + 2 × (2 + 2) = 26` — **the row's padding box, to the pixel.** A row-height
+link gives a **34 px ring against a 27 px pitch**, crossing both neighbours and
+putting the row's own hairline inside the ring. **So the 18 px line-box target
+is a consequence, not a preference.** And **2.5.8 is met by the spacing
+exception**, which makes the **27 px row pitch the conformance argument**:
+shrink the row below 23 px and every ticker link fails, with nothing mechanical
+reporting it.
+
+### The owner's four decisions
+
+| Decision                           | Taken                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A sector row**                   | **The ticker opens its benchmark ETF.** The region's own footer already says _"Each row is the sector's benchmark ETF — capitalisation-weighted, not the average of its members"_, so the subject is declared on screen; scoping the target to the `XLK` cell means the thing pressed and the thing opened are the same four characters. Against: not a link at all, which loses the payoff in the region most likely to produce it; and the label opening a filtered `/securities`, which contradicts the shipped rail decision and fires `SEARCH-AND-SELECTION.md` §3's own trigger |
+| **The proxy target**               | **The symbol token, not the whole cell** — consistency with the ranked rows over the designer's recommendation. **The designer's measured objection stands and Task 4.6.3 must answer it**: a 16 px symbol link's ring **overhangs 4 px into the 26 px price row**, and whether that lands in the half-leading or on the glyphs is a measurement that task takes                                                                                                                                                                                                                      |
+| **The acceptance criteria**        | **Reworded as above**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **The arrival announcing nothing** | **Raise it, do not build it.** A per-route `document.title` is ~10 lines and is the mechanism screen readers do announce on — but it is product-wide, belongs beside a route-announcer decision, and `/securities`' 518 links have had the same hole for two epics. It becomes the **ninth** screen-reader entry, and it is the **inverse** of the other eight: those are unprompted updates, and this is a change the reader asked for, which is the one case where announcing is unambiguously right                                                                                |
+
+### The seven tasks
+
+| #     | Title                                                            | Visible                                   |
+| ----- | ---------------------------------------------------------------- | ----------------------------------------- |
+| 4.6.1 | The ring that does not fit, and the second site nobody connected | focus rings stop hiding behind the chrome |
+| 4.6.2 | The canvas: the figure is never the link                         | nothing                                   |
+| 4.6.3 | A proxy opens its security                                       | **the first four destinations**           |
+| 4.6.4 | A ranked row opens its security                                  | **~20 more, both ranked regions**         |
+| 4.6.5 | The states where there is nothing to open                        | honest behaviour everywhere               |
+| 4.6.6 | ADR 0039, and the guard axe can no longer give                   | nothing                                   |
+| 4.6.7 | The journey, the grid, the sweeps and the close                  | nothing                                   |
+
+**Not doing**: re-opening the ≥861 focus-order mismatch — 4.4.7's, and its
+trigger **does not fire**, because a mover row and a sector row are each
+self-contained destinations and neither is read against the other. Not making
+`scrollable` conditional. Not a sector page. Not the topology's selection.
+
+**Decided on unanimous advice**: the target is the **ticker**, never the figure
+and never the row; a real `<Link>` built only by `securityPath()`; the region
+tab stops stay; arrows clamp rather than wrap and do not cross between lists;
+and when a focused row's security leaves, focus moves to the row now at that
+rank.
