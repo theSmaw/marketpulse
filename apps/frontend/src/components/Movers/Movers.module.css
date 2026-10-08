@@ -1,0 +1,229 @@
+/*
+ * The movers region — `The movers.dc.html`, Task 4.5.3.
+ *
+ * Two headed lists as **peers**, the footer's room, and the head slot. The rows
+ * themselves are `RankedList.module.css`' `.movers` variant and nothing about
+ * their geometry is restated here: the five tracks, the pitch, the ellipsis and
+ * the two width bands all live in that file, which is the one that already pays
+ * for *every width states its own track list*.
+ *
+ * ## THE HEIGHT BUDGET, AND WHY THE ROW COUNT IS FIVE
+ *
+ * The region's content ceiling is **389 px** — not 486. The chrome above the
+ * first row is `2` (borders) + `47` (header) + `16` (`Panel.body` padding-top)
+ * + `16` (`Region.content` margin-top) + `16` (padding-bottom) = **97**.
+ * Corroborated from a second region: `BreadthLedger.module.css`' own head
+ * comment records *"378 against a 389 px ceiling"*.
+ *
+ *   chrome                            97
+ *   GAINERS heading       16        = 16
+ *   gainers, 5 rows       5×26 + 4  = 134
+ *   gap                   --space-16  16
+ *   LOSERS heading        1 + 8 + 16 = 25
+ *   losers, 5 rows        5×26 + 4  = 134
+ *   footer claim          12 + 2×16 = 44
+ *                                   ----
+ *                                    466  against a 486 px region
+ *
+ * **Twenty pixels of slack**, and it sits below the claim rather than inside
+ * the gap: `Panel.body` does not stretch, so the content is 466 tall in a
+ * 486 px box and the leftover is at the foot — which is where
+ * `.ladderTrailing` already argues room should go when there is nothing to put
+ * in it.
+ *
+ * **N = 6 IS 520 — OVER BY 34 — AND IT DRAGS TWO OTHER REGIONS WITH IT.**
+ * Rows 2 and 3 of `MarketOverview.module.css`' grid are
+ * `repeat(2, minmax(min-content, 1fr))`, so they share one ratio: a sixth row
+ * each way does not overflow this panel, it raises `Sector performance` and
+ * `Market breadth` to match. That is stated here, in the file somebody
+ * proposing a sixth row will have open, because the figure that bounds it
+ * (`MOVERS_PER_SIDE`) is three packages away and the consequence is not local
+ * to either.
+ *
+ * ## WHY NOTHING HERE IS A `min-height` ON A LIST
+ *
+ * The one-sided day is the hazard — each list holds only the rows whose
+ * direction matches it, so 5 → 2 is an ordinary state. At 1440 and 1024 the
+ * grid row resolves to 486 whatever the content is; at **768 and 390 the rows
+ * are untied and the region is its content**, so the shrink would be 81 px and
+ * would step the whole lower page. The fix is `withHeldRows` plus
+ * `RankedList`'s `.held`, so **the pitch comes from `.row` itself** and the
+ * arithmetic above has no second home. A `min-height` here would be that
+ * second home, wrong the first time the pitch changes and wrong silently.
+ */
+
+/*
+ * --- The two headings ---
+ *
+ * Micro size, uppercase, medium weight, secondary ink — and **every property
+ * spelled rather than composed**, which this file owes twice over.
+ *
+ * `composes: microLabel` concatenates class names; it does not cascade, so
+ * which declaration wins is decided by **stylesheet order** and
+ * `type.module.css` lands later. These are the first strings in this region to
+ * contain **words** rather than digits and punctuation, which is exactly the
+ * content that makes that trap visible — Task 4.2.6 lost a day to
+ * `2026-09-11 · CLOSING PRICES` at the top of this very page. And the element
+ * is an `h3`, so the weight has to beat `base.css`' UA-replacing bold: a
+ * `font-weight` written under a compose is safe only while the composed class
+ * happens not to set one, which is a property of another file.
+ *
+ * The display face is **inherited deliberately** and not overridden —
+ * `base.css` gives every heading `--font-display`, and `RankedList.quietHead`
+ * one region up is the same idiom at the same size, so the two ranked regions
+ * speak their sub-headings in one voice.
+ *
+ * `--ink-secondary` at 4.48:1: the heading says *which list this is*, and the
+ * figures are the region's point. Standing out, like receding, is a job for
+ * weight and hierarchy — never for ink outside the contrast floor.
+ */
+.head {
+  margin: 0;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-secondary);
+}
+
+/*
+ * **The second heading divides two LISTS, so it carries the heavier rule.**
+ *
+ * `--rule-control` rather than the rows' `--rule-hairline`, which is the
+ * distinction `RankedList.quietHead` already draws and this borrows: a hairline
+ * separates two rows, this separates two answers. The `--space-8` above the
+ * text is that rule's own breathing room, and the `--space-16` margin is the
+ * gap in the budget.
+ *
+ * **The first heading has neither**, and that is not symmetry forgone: a rule a
+ * hairline below `Panel`'s own `--rule-strong` — 32 px above — divides the
+ * first list from the header, which is a division the panel has already made in
+ * a heavier weight. `.quietHeadAlone`'s rule, one region over: a divider that
+ * divides nothing is not drawn.
+ *
+ * What this rule is **not** is a demotion. Everything below it draws primary
+ * ink, medium weight, a printed ordinal and `PriceChange` at full strength —
+ * see `Movers.tsx`. In the sector region the demotion is carried by the rows,
+ * and that is what makes the mechanism safe to borrow without the emphasis.
+ */
+.headSecond {
+  margin-top: var(--space-16);
+  padding-top: var(--space-8);
+  border-top: var(--border-width) solid var(--rule-control);
+}
+
+/*
+ * --- The footer's room, held and empty ---
+ *
+ * The denominator sentence is Task 4.5.6's; its **height** is this task's,
+ * because the budget above includes it and a region that grows 44 px when a
+ * sentence arrives is the movement three tasks of Story 4.3 were spent
+ * designing out.
+ *
+ * **Two lines at every width**, which is `SectorPerformance.claim`'s measured
+ * departure from its drawing, taken here for the same mechanism rather than for
+ * symmetry: the clause's length is a function of values that move — a window on
+ * one basis, a session date on the other, and two counts — so a one-line
+ * reserve makes the region's height depend on which sentence is true, and at
+ * 390 the row is content-sized so the whole lower page steps.
+ *
+ * The micro properties are spelled rather than composed, for the reason the
+ * headings above are, and `text-wrap: balance` is the proxy strip's hint for a
+ * clause whose break opportunities are an em dash and a `·`.
+ */
+.claim {
+  margin: var(--space-12) 0 0;
+  min-height: calc(2 * var(--line-height-micro));
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+  text-wrap: balance;
+}
+
+/*
+ * --- The region head's right-hand slot ---
+ *
+ * One slot, two strings — `Top 5 each way` here and Task 4.5.7's `ORDER HELD`
+ * badge — and **the reserve is on the slot rather than in either string**,
+ * because the point of it is that neither may move the other.
+ *
+ * `100px` is `SectorPerformance.slot`'s measured figure for the same badge, and
+ * the two strings here are both narrower than it at both widths it was measured
+ * at (1440 and 390), so the slot holds the badge's width in every state. The
+ * **height** is `--line-height-subheading`, which is the token `Panel.title`
+ * sets its own line from: that is a defect repaired rather than a preference —
+ * drawn with the canvas's `4px 6px` padding the badge came out 26 px against a
+ * 22 px title line, so the head grew four pixels on pointer enter and **moved
+ * all eleven rows**, found in a browser and by nothing else.
+ */
+.slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 100px;
+  min-height: var(--line-height-subheading);
+}
+
+/*
+ * `Top 5 each way`, in the head's own idiom — `Region.awaiting`'s voice without
+ * the box, and `SectorPerformance.count`'s treatment unchanged. It is a quiet
+ * statement of what the lists are a selection of and it must not compete with
+ * the region's name.
+ *
+ * `composes` is correct here and not in the two rules above, and the difference
+ * is the whole lesson: nothing in this rule overrides anything `microLabel`
+ * declares, so there is no declaration whose win depends on stylesheet order.
+ */
+.bound {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+
+/*
+ * --- The paint before the first frame ---
+ *
+ * The whole region's geometry, held and invisible, from the real component and
+ * the real footer — see `MoversReservation`. `visibility: hidden` rather than
+ * `display: none`, which is the entire point: `display: none` would hold
+ * nothing, which is the state this exists to replace.
+ */
+.reserved {
+  visibility: hidden;
+}
+
+/*
+ * **The room the reservation holds, so the sentence can sit in it.**
+ *
+ * Two boxes, never one: `visibility` is inherited by children that never set
+ * it, so putting the sentence and the reserve on one element means un-hiding
+ * ten held rows and two headings to show one sentence. That was a live defect
+ * for ten days on the sector region, and it leaked internal slugs into the
+ * accessibility tree.
+ */
+.reservedRoom {
+  position: relative;
+}
+
+/*
+ * The sentence itself, in the room the reservation is already holding — so
+ * nothing moves when it appears.
+ *
+ * Centred in the region rather than placed on a row, because it is about the
+ * region and not about any security. `--font-size-dense` in the sans face,
+ * matching the three siblings above it: it is prose a reader is meant to read,
+ * not the micro stamp the footer is.
+ */
+.nothingArrived {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-secondary);
+}

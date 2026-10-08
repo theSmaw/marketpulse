@@ -92,3 +92,37 @@ the hold's re-check at two lists (4.5.7). Not the spec or the grid (4.5.8).
 4. The before/after height table is in this file at all four widths, with the
    screenshots looked at
 5. `pnpm verify` and `pnpm e2e` green
+
+## Handed here by Task 4.5.3 — 2026-10-08: the region's height is measured, and your prediction holds
+
+**`466 px, at all four widths, in every shipped state.`** Taken with
+`pnpm probe --story market-movers--*` on 2026-10-08, inside a `Region` as this
+route draws it:
+
+| state                       | 1440    | 1024    | 768     | 390     |
+| --------------------------- | ------- | ------- | ------- | ------- |
+| both ends full (5 and 5)    | **466** | **466** | **466** | **466** |
+| a one-sided day (5 and 2)   | **466** | **466** | **466** | **466** |
+| one rankable name (1 and 0) | **466** | **466** | **466** | **466** |
+| nothing rankable (0 and 0)  | **466** | **466** | **466** | **466** |
+| before the first frame      | **466** | **466** | **466** | **466** |
+| a sixth row each way        | 520     | 520     | 520     | 520     |
+
+So **your prediction of `~466` at 768 and 390 is confirmed to the pixel**, the
+region is the same height at all four widths as you expected (no bar, so no
+ladder, so no 390 exception), and **the one-sided day moves nothing** — each
+list is padded to five with held rows.
+
+**What you still owe is the page**, not the region: the before/after table for
+`/` at all four widths, with everything that moved identified, and the
+screenshots looked at. At 1440 and 1024 the rows are tied and nothing should
+move at all; at 768 and 390 the page grows by roughly the 466 less the 121/103
+the reserved panel holds today.
+
+**Three things to wire.** `<Movers view={…} />` in the region's body,
+`<MoversMeta />` in its `meta` slot — it takes no props today and
+`MoversReservation` is the body when no frame has arrived, exactly as the sector
+region does it. The head slot reserves **100 px**, which is
+`SectorPerformance.slot`'s measured badge width, and `TOP 5 EACH WAY` measures
+**98×16** at both 1440 and 390 — so Task 4.5.7's badge fits the slot it already
+has, with 2 px to spare on the string beside it.

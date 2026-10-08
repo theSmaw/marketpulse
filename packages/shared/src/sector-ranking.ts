@@ -210,6 +210,31 @@ export function rankSectorFigures(
   return [...figures].sort(compareByMove);
 }
 
+/**
+ * **How many movers each end carries — five, and it is a HEIGHT rather than a
+ * taste** (Task 4.5.3).
+ *
+ * It lives beside {@link selectMovers} because the bound the selection is made
+ * to and the number of rows the region holds room for are **one fact**: the
+ * producer slices to it and the drawing pads to it, and the two cannot be
+ * allowed to be two numbers. There is no second home for it in either app.
+ *
+ * ## The arithmetic, which is the whole argument
+ *
+ * The region's content ceiling is **389 px** — 486 outer less 97 of chrome
+ * (2 borders + 47 header + 16 `Panel.body` + 16 `Region.content` + 16
+ * padding-bottom). Two headed lists at five rows is
+ * `16 + 134 + 16 + 25 + 134 + 44 = 369`, which with the chrome is **466**
+ * against **486**: twenty pixels of slack.
+ *
+ * **Six is 520 — over by 34** — and the overflow is not local: rows 2 and 3 of
+ * the landing grid share one `fr`, so a sixth row each way raises
+ * `Sector performance` and `Market breadth` with it. The figure is stated here
+ * and the ledger is in `Movers.module.css`, which is the file a reader
+ * proposing a sixth row will be looking at.
+ */
+export const MOVERS_PER_SIDE = 5;
+
 /** Both ends of a ranked population, each strongest-first. */
 export interface MoverSelection {
   /** Up to `limit` figures whose displayed move is **positive**, biggest first. */

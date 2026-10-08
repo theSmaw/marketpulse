@@ -336,6 +336,7 @@ export type { PriceDirection } from "./price-direction.js";
 // never be the rule — and the ladder is on the server so every reader shares one
 // scale rather than one per tab.
 export {
+  MOVERS_PER_SIDE,
   SECTOR_BY_ETF,
   compareByMove,
   moveRankingKey,

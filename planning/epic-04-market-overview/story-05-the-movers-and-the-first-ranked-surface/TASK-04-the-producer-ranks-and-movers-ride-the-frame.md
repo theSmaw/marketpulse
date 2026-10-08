@@ -184,3 +184,40 @@ signal and would pass silently under a wider one.
    frame quoted verbatim, and the producer's marginal cost re-measured against
    Story 4.4's 3.497 ms baseline
 6. `pnpm verify` and `pnpm e2e` green
+
+## Handed here by Task 4.5.3 — 2026-10-08: three things the drawing fixed for you
+
+**1. The bound is `MOVERS_PER_SIDE`, in `packages/shared/src/sector-ranking.ts`,
+beside `selectMovers`.** It is **five**, and the number is a **height**: two
+headed lists at five rows is 466 px against a 486 px region, measured at all
+four widths. Pass it to `selectMovers` rather than typing a limit — the producer
+slices to it and the drawing pads to it, and those are one fact. A sixth row
+each way measures **520** and does not overflow this panel; it raises
+`Sector performance` and `Market breadth` with it, because rows 2 and 3 of the
+landing grid share one `fr`.
+
+**2. The view the frontend draws is `MarketMovers` in
+`apps/frontend/src/market/movers.ts`** — `{ gainers, losers }`, each a
+`SectorRow[]` in rank order, each ranked **from 1**. The reader that turns your
+`WireMarketMovers` into it is yours. Two rules it inherits: a row with no move
+cannot appear at all (the drawing has `quietGroup="impossible"`, so a keyless
+row is **dropped silently** rather than drawn unranked — your filter is the only
+thing standing there), and **the producer must not pad**. The padding to five is
+geometry and is `withHeldRows`' job; a held row on the wire is a row every
+reader of the frame would have to know to ignore.
+
+**3. The price track is reserved and empty, and filling it is yours or 4.5.5's.**
+`RankedList.module.css` says the price cell arrives in _this_ task (4.5.3). It
+could not: `SectorRow` has no price and there was no producer for one, so
+drawing a figure there would have been inventing one. The 80 px track is held at
+1440/1024/768 and dropped at 390, measured. Filling it needs a field on the row,
+a cell in `Row`, and the price off `WireOverviewFigure` — which your section
+already carries.
+
+**4. The stories are typed, and they owe a re-point.**
+`Movers.stories.tsx` builds its rows by hand because no reader existed; every
+figure goes through `formatChangePercent` and `directionOf` so no story can hold
+a sign that disagrees with its number, but the **state** is still one somebody
+typed. When the reader exists, `view` in that file becomes a call to it over a
+real section, the way `BreadthLedger.stories.tsx` and
+`SectorPerformance.stories.tsx` already do.

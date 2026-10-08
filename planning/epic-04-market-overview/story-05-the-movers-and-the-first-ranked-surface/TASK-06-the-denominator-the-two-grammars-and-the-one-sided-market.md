@@ -99,3 +99,34 @@ Not the hold (4.5.7). Not the grid or the sweeps (4.5.8).
 5. The `securities we track` copy defect is repaired, and the invariant question
    is answered either with a clause or with a recorded reason it cannot be one
 6. `pnpm verify` green
+
+## Handed here by Task 4.5.3 — 2026-10-08: your sentence is the ONLY thing that will explain the empty state
+
+**Produced and photographed**: with both lists empty — **CI's permanent state,
+for ever, and most of a weekend** — the region draws its name, the head slot
+reading `TOP 5 EACH WAY`, the two headings `GAINERS` and `LOSERS`, a rule, and
+**nothing else at all**. 466 px of labelled, empty box. That is `docs/GAPS.md`
+entry 13 exactly, and your done-when 4 is the only thing in this story that
+closes it.
+
+Two specifics the picture adds to that criterion:
+
+- **The sentence has to be honest at zero**, because zero is the state a gated
+  machine and a weekend both reach: `of the 503 we track, 0 were heard from`
+  with the window is a true, complete explanation; a sentence that only renders
+  when something was ranked leaves this box silent.
+- **Decide what the head slot says there.** `Top 5 each way` states the
+  **bound** and is not false with nothing in the lists, but in that state it is
+  the only text on the screen besides two empty headings, and it reads as a
+  claim about a selection that selected nothing. The precedent for suppressing
+  it is one region up: `SectorPerformanceMeta` speaks **only in the mixed
+  state**, on the argument that a claim nobody needs is noise and a claim the
+  rows contradict is two true halves and one contradiction. `MoversMeta` takes
+  no props today; giving it the view is a one-line change and is deliberately
+  left to you, because it is the same judgement as the sentence and should be
+  taken once.
+
+**The sentence this task writes has no home yet**: `Movers.tsx` renders an
+empty `<p className={styles.claim} />` holding **44 px** (12 margin + two
+16 px micro lines), which is in the region's measured budget. Fill that
+element; do not add a second one.
