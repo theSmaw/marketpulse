@@ -1776,3 +1776,42 @@ and against `marketpulse_bare` for the long sentence. The two grammars double it
 again: the session-basis string is `Of the 503 companies we track, none had a
 close-to-close move on 2026-10-07.`, which is **76** characters and is therefore
 the real worst case.
+
+## No machine and no person has ever seen a movers list on the `observed` basis, and CI never will
+
+**Added 2026-10-08 by Task 4.5.4.** The movers section is a two-member union
+like breadth's, and only one of the two members has ever been produced outside a
+unit test.
+
+**What has been seen.** One real frame off this product's own gateway, on the
+**session** basis: `eligible: 503`, `tracked: 503`, five gainers from `HPE`
++12.44% down to `HPQ` +8.40% and five losers from `ALB` −3.76% to `EW` −2.77%,
+over a store whose newest session is eighteen trading days old. That exercises
+`sessionMoves`, the selection, both field maps, the encode and `readMovers`.
+
+**What has not.** The `observed` branch — the five-minute window on each bar's
+own `startsAt`, the `live` figures, and therefore `windowMinutes` on the wire —
+has been produced by **no** process. It needs a session **and** a store
+backfilled to the previous session, and the two have not coincided on any
+machine since the section existed. **CI cannot ever produce it**: 518 securities
+and zero bars means every figure is `unknown`, so `eligible` is `0` and both
+lists are empty on every run, for ever — the state the pass-through spec asserts
+is the only state it can assert a figure in.
+
+**And the thing no reader can see, stated so nobody over-trusts the wire's
+checks.** `readMovers` verifies that each list is in `compareByMove`'s own
+order, that the lists are disjoint, that every row has a ranking key, and that
+the selection is no bigger than the set it claims to be from. It **cannot** see
+a list that is correctly ordered over the **wrong population** — a top five of
+518 including `SPY` and the sector SPDRs is internally consistent in every one of
+those respects. That claim is held in-process instead, by
+`breadth-is-counted-over-the-equities-alone` (exactly one eligibility pass, over
+a binding that names `isEquitySymbol`) and on the frame by
+`overview-frame-sections.spec.ts`, which compares the movers' `tracked` against
+breadth's — the one assertion in that file that is sharp on a store with no bars.
+
+**Re-measure:** during a regular session, against a store backfilled to the
+previous session, capture one frame from `/market-stream` and check `basis`,
+`windowMinutes`, and that `eligible` is below `tracked` rather than equal to it —
+on the observed basis the gap between them is Task 4.1.8's ~50 securities and is
+the whole reason the denominator is drawn.

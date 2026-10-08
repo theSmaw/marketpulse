@@ -43,6 +43,15 @@ import type { MarketOverviewEntry } from "./market-overview.js";
  * exists to prevent.** There is no second measurement to disagree with the
  * first because there is no second measurement.
  *
+ * **Amended 2026-10-08 (Task 4.5.4): the pass is now shared, and that is a
+ * stronger version of the paragraph above rather than a dilution of it.**
+ * {@link eligibleMoves} decides *who has a measurable move on which basis* and
+ * is consumed twice — by the tally here and by `market-movers.ts`' top-N — so
+ * the ranked list and the count are not two filters that agree, they are one
+ * array. `movers.eligible` is its length and `breadth.measured` is its tally,
+ * and the only legitimate difference between the two is a figure with no
+ * **direction**, which is eligible and in no bucket.
+ *
  * ## No `Number.isFinite` anywhere in this module, deliberately
  *
  * A count is an integer this module produced by adding ones; the wire's
@@ -163,48 +172,111 @@ const tally = (percents: readonly number[]): Buckets & { measured: number } => {
 };
 
 /**
- * The live count: every security heard from inside the window whose move can
+ * **One security whose move can be measured, with the move itself** (Task
+ * 4.5.4).
+ *
+ * The entry travels beside the percentage because the movers section needs the
+ * **security** — it ships rows — and breadth needs only the **number**. One
+ * pass produces both, which is what makes the two sections' denominators the
+ * same number rather than two filters agreeing.
+ */
+export interface MeasuredMove {
+  readonly entry: MarketOverviewEntry;
+  readonly percent: number;
+}
+
+/**
+ * **What qualifies the set** — the basis, and the one fact that names it.
+ *
+ * It is the producer's half of `WireObservedBreadth.windowMinutes` and
+ * `WireSessionBreadth.session`: the window is spelled once, here, and both
+ * wire sections carry the copy this pass was taken with. A rollback can put a
+ * gateway and a bundle two values apart; it cannot put two sections of one
+ * frame two values apart.
+ */
+export type MoveQualifier =
+  | { readonly basis: "observed"; readonly windowMinutes: number }
+  | { readonly basis: "session"; readonly session: MarketDate };
+
+/**
+ * **The securities whose move can be measured, on one basis, in one pass** —
+ * the input both `Market breadth` and `Movers` are computed from (Task 4.5.4).
+ *
+ * ## Why this type exists at all, which is the whole of Task 4.5.4's AC 1
+ *
+ * A top-N and a count have to agree about **who** they are about, and the
+ * thing that can drift between them is not the loop — it is the **predicate**.
+ * {@link observedMoves} embeds `state === "live"`, the window on
+ * `bar.startsAt` and `change.percent !== null`; {@link sessionMoves} embeds
+ * two more. A `topMovers` that re-wrote either set would be a **second home
+ * for the window**, and the window is what the denominator sentence beside
+ * both regions is written from.
+ *
+ * So the pass is extracted and consumed twice, and `movers.eligible` and
+ * `breadth.measured` are the same number because they are the length and the
+ * tally of **one array**. Two caveats, both load-bearing: `measured` stays the
+ * **sum of the three accumulators** rather than this array's length (the
+ * docblock above makes that a property of the single tally, and
+ * `readBreadth`'s first cross-field check depends on it); and a figure with no
+ * **direction** — non-finite — is eligible here and in no bucket there, which
+ * is the one legitimate way the two can differ and is why `readMovers` checks
+ * `eligible` against the lists rather than against breadth.
+ */
+export interface EligibleMoves {
+  /** The basis, and the fact that names it. */
+  readonly qualifier: MoveQualifier;
+  /** The measurable securities, **in the order the join reported them**. */
+  readonly moves: readonly MeasuredMove[];
+  /**
+   * **The size of the set the pass was over** — the 503 equities, counted
+   * rather than named, and the only place that figure crosses the wire. See
+   * `WireBreadthCounts.tracked`.
+   */
+  readonly tracked: number;
+}
+
+/**
+ * The live set: every security heard from inside the window whose move can
  * be measured.
  *
- * **Heard from and measurable are different sets**, and the count is over the
- * second: a `live` entry with no stored close is a true price with no basis,
- * so it is in no bucket and outside `measured`. The size of that difference is
- * owed as a measurement by Task 4.4.6 and is not inferred here.
+ * **Heard from and measurable are different sets**, and both sections are over
+ * the second: a `live` entry with no stored close is a true price with no
+ * basis, so it is in no bucket and outside `measured`. The size of that
+ * difference is owed as a measurement by Task 4.4.6 and is not inferred here.
  */
-const observedBreadth = (
+const observedMoves = (
   entries: readonly MarketOverviewEntry[],
   asOf: Date,
-): WireMarketBreadth => {
+): EligibleMoves => {
   // Inclusive at the edge: an observation exactly `windowMinutes` old is
   // inside the window the sentence names. `startsAt` is the **start** of the
   // minute the bar describes, so the newest observation at any instant is
   // already 60–120 s old — see this module's note on the clock.
   const since = asOf.getTime() - BREADTH_WINDOW_MINUTES * MS_PER_MINUTE;
 
-  const percents: number[] = [];
+  const moves: MeasuredMove[] = [];
 
   for (const entry of entries) {
     if (entry.state !== "live") continue;
     if (entry.bar.startsAt.getTime() < since) continue;
     if (entry.change.percent === null) continue;
-    percents.push(entry.change.percent);
+    moves.push({ entry, percent: entry.change.percent });
   }
 
   return {
-    basis: "observed",
-    ...tally(percents),
+    qualifier: { basis: "observed", windowMinutes: BREADTH_WINDOW_MINUTES },
+    moves,
     // **The set, counted rather than named** — the browser draws
     // `tracked − measured` below a rule and its heading names the set, so the
     // figure has to be the length of the array this function was handed. A
     // `503` typed in either process is a lie with no symptom the day a
     // security is delisted.
     tracked: entries.length,
-    windowMinutes: BREADTH_WINDOW_MINUTES,
   };
 };
 
 /**
- * The shut-market count: the last completed session's close-to-close breadth.
+ * The shut-market set: the last completed session's close-to-close moves.
  *
  * ## One session, naming itself, filtering both halves
  *
@@ -231,10 +303,10 @@ const observedBreadth = (
  * one. It is **not** a claim that we hold that session: `measured: 0` beside it
  * is what says we do not.
  */
-const sessionBreadth = (
+const sessionMoves = (
   entries: readonly MarketOverviewEntry[],
   asOf: Date,
-): WireMarketBreadth => {
+): EligibleMoves => {
   let session: MarketDate | undefined;
 
   for (const entry of entries) {
@@ -244,7 +316,7 @@ const sessionBreadth = (
       session = close.session;
   }
 
-  const percents: number[] = [];
+  const moves: MeasuredMove[] = [];
 
   for (const entry of entries) {
     const close = closeOf(entry);
@@ -256,35 +328,71 @@ const sessionBreadth = (
     // security in no bucket rather than an unchanged one.
     const percent = changePercent(close);
     if (percent === null) continue;
-    percents.push(percent);
+    moves.push({ entry, percent });
   }
 
   return {
-    basis: "session",
-    ...tally(percents),
+    qualifier: {
+      basis: "session",
+      // `marketDateAt` is the one module permitted to convert an instant to a
+      // market date, and this is the only clock reading in the function — of
+      // an instant handed in.
+      session: session ?? marketDateAt(asOf),
+    },
+    moves,
     // The same set, however few of it this session's closes cover — see
-    // `observedBreadth`.
+    // `observedMoves`.
     tracked: entries.length,
-    // `marketDateAt` is the one module permitted to convert an instant to a
-    // market date, and this is the only clock reading in the function — of an
-    // instant handed in.
-    session: session ?? marketDateAt(asOf),
   };
 };
 
 /**
- * How broad the move is, over the securities it is handed.
+ * **Which securities have a measurable move, and on which basis** — the one
+ * pass `Market breadth` and `Movers` are both computed from (Task 4.5.4).
  *
  * **The caller decides the set**, and it is the 503 equities rather than the
  * universe: a count including `SPY` and the eleven sector SPDRs beside their
- * own constituents makes this region and `Market proxies` non-independent.
- * `breadth-is-counted-over-the-equities-alone` holds the one call site to it.
+ * own constituents makes `Market breadth` and `Market proxies`
+ * non-independent, and a **mover** that is a fund is `XLE` drawn a third time
+ * twenty-four pixels from a sector row asserting the same figure — one fact
+ * with two homes. `breadth-is-counted-over-the-equities-alone` holds the one
+ * call site to this, and `each-overview-section-names-its-own-set` holds the
+ * two sections to its answer.
+ *
+ * **The basis is session-driven rather than data-driven** — the owner's Gate 1
+ * decision 3 for Story 4.4, argued at {@link MarketBreadthOptions.marketOpen}.
  */
-export function marketBreadth(
+export function eligibleMoves(
   entries: readonly MarketOverviewEntry[],
   options: MarketBreadthOptions,
-): WireMarketBreadth {
+): EligibleMoves {
   return options.marketOpen
-    ? observedBreadth(entries, options.asOf)
-    : sessionBreadth(entries, options.asOf);
+    ? observedMoves(entries, options.asOf)
+    : sessionMoves(entries, options.asOf);
+}
+
+/**
+ * How broad the move is, over the set it is handed.
+ *
+ * **It takes the pass rather than the entries** (Task 4.5.4): the set is
+ * decided once, by {@link eligibleMoves}, so the count and the ranking beside
+ * it cannot be over two different populations. `measured` is still the **sum
+ * of the three accumulators** rather than `moves.length` — a figure with no
+ * direction is eligible and in no bucket, and `readBreadth`'s first
+ * cross-field check is that the three sum to the denominator.
+ */
+export function marketBreadth(eligible: EligibleMoves): WireMarketBreadth {
+  const counts = {
+    ...tally(eligible.moves.map((move) => move.percent)),
+    tracked: eligible.tracked,
+  };
+
+  const qualifier = eligible.qualifier;
+
+  // A branch rather than a spread of the union: spreading one would type-check
+  // and would leave *which fields a member carries* to inference, which is the
+  // thing ADR 0031's field maps exist to stop being inferred.
+  return qualifier.basis === "observed"
+    ? { basis: "observed", ...counts, windowMinutes: qualifier.windowMinutes }
+    : { basis: "session", ...counts, session: qualifier.session };
 }

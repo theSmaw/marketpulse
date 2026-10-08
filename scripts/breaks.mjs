@@ -2832,13 +2832,60 @@ export const BREAKS = [
     // well-formed in both states and the difference is fifteen out of ~500,
     // so nothing a spec can assert tells them apart — and on CI, with zero
     // bars, every figure is `unknown` and both states count zero.
+    //
+    // **Repointed 2026-10-08 by Task 4.5.4**, which extracted the eligibility
+    // pass so the movers could be a selection from the same array this count
+    // is a tally of. The substitution is the same defect written the new
+    // shortest way — the pass taken over the join's whole answer — and it is
+    // now red for two reasons rather than one: the `breadth:` line stops
+    // naming the binding, and `index.ts` holds two eligibility passes.
     file: "apps/backend/src/index.ts",
-    find: "    breadth: marketBreadth(equities, { asOf, marketOpen }),",
+    find: "    breadth: marketBreadth(eligible),",
     replace:
       "    // pnpm break: reverted automatically\n" +
-      "    breadth: marketBreadth(entries, { asOf, marketOpen }),",
+      "    breadth: marketBreadth(eligibleMoves(entries, { asOf, marketOpen })),",
     command: ["pnpm", "invariants"],
     expect: "does not name",
+  },
+  // ## Task 4.5.4's one, on the population a RANKING is taken over
+  //
+  // **The defect is a second eligibility pass, not a wrong filter**, and that
+  // is what the substitution had to be: `topMovers` takes `EligibleMoves`, so
+  // `movers: equities` does not compile and the type system already holds that
+  // door. What compiles, runs and looks right is a second **pass** — over the
+  // join's whole answer, because `entries` is sitting there in the right
+  // shape and the line reads like the one above it.
+  //
+  // What it costs is two things at once. The ranked list then holds `SPY` and
+  // `XLE` — drawn a third time, twenty-four pixels from a sector row and a
+  // proxy cell asserting the same figures, which is one fact with three homes
+  // — and its denominator becomes 518 beside a breadth count of 503 **on the
+  // same screen**, two regions apart. Both lists are well-formed, correctly
+  // ordered and individually correct.
+  //
+  // **Confirmed passing WRONGLY first**, which is the procedure `CLAUDE.md`
+  // added on 2026-09-26: the three-link chain in
+  // `breadth-is-counted-over-the-equities-alone` and the two-row `SECTIONS`
+  // table were both green against this exact line. The transcript is in
+  // `TASK-04`.
+  {
+    name: "a-mover-ranked-over-the-whole-universe",
+    proves:
+      "The movers are ranked over a SECOND eligibility pass, taken over the " +
+      "join's whole answer rather than over the one the breadth count is a " +
+      "tally of. The list then carries `SPY` and the sector SPDRs beside " +
+      "their own constituents — the same figures two other regions are " +
+      "already asserting, twenty-four pixels away — and states a denominator " +
+      "of 518 beside a breadth count of 503 on the same screen. It " +
+      "typechecks, it runs, every row is ordered correctly and every number " +
+      "on it is individually right (Task 4.5.4).",
+    file: "apps/backend/src/index.ts",
+    find: "    movers: eligible,",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    movers: eligibleMoves(entries, { asOf, marketOpen }),",
+    command: ["pnpm", "invariants"],
+    expect: "the one eligibility pass",
   },
   {
     name: "the-denominator-is-drawn-and-not-spoken",

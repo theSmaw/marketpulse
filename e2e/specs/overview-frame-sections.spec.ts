@@ -74,6 +74,18 @@ import { FURNISHED_BREADTH } from "../support/feed.js";
 // assertion is about the **sections**, which is a claim the all-`unknown` state
 // answers in full. The second test says everything about what the browser does
 // with a sector arrival and nothing about whether one arrives.
+//
+// ## Amended 2026-10-08 (Task 4.5.4): there are THREE, and the third is the
+// one that bites on CI
+//
+// The movers section rides this same frame and is built from the same
+// eligibility pass as the breadth count — so the two sections' `tracked` and
+// `eligible` figures are the same numbers by construction. That is the one
+// claim in this file a store with **zero bars** can still falsify: both lists
+// are empty there and both `eligible` figures are `0` for ever, but `tracked`
+// is read off the universe, so a movers section ranked over the join's whole
+// answer reads **518** beside breadth's **503**. The disjointness half — no
+// mover is a fund — is the reverse: vacuous on CI, sharp on a store with bars.
 
 const OVERVIEW = "/";
 
@@ -425,6 +437,69 @@ test("the frame this product's own server sends carries exactly the four index p
   await expect
     .poll(() => [...new Set(subscriptions.flat())].sort().join(","))
     .toBe([...PROXIES, ...SECTOR_BENCHMARKS].sort().join(","));
+
+  await expectNothingFailedToRender(page);
+});
+
+test("the movers section on this product's own frame is a selection from the very set its breadth count is a tally of", async ({
+  page,
+}) => {
+  /*
+   * **Task 4.5.4's acceptance criterion 1, stated against the server rather
+   * than against a stub.** The two sections are built from one eligibility
+   * pass over one array, so `movers.eligible` is that array's length and
+   * `breadth.measured` is its tally — and `tracked` is the same count of the
+   * same 503 equities. A second pass over the join's whole answer typechecks,
+   * runs, ranks the fifteen funds beside their own constituents, and shows up
+   * here as a `tracked` of 518 against breadth's 503.
+   *
+   * **It is the one assertion in this file that is sharp on CI**, where the
+   * store has 518 securities and zero bars: both lists are empty and both
+   * `eligible` figures are `0` for ever, but the two `tracked` figures are
+   * read off the universe and are not. The disjointness assertion below is
+   * the reverse — vacuous on CI and meaningful on a store with bars.
+   */
+  const { overviews } = await openWithRecordedStream(page);
+
+  await expect.poll(() => latest(overviews)?.movers !== undefined).toBe(true);
+
+  const frame = latest(overviews);
+  const movers = frame?.movers;
+  const breadth = frame?.breadth;
+
+  if (movers === undefined || breadth === undefined) {
+    throw new Error("expected a frame carrying both counted sections");
+  }
+
+  // One pass, two sections: the same population, the same basis, the same
+  // denominator. Three separate failures that fail differently.
+  expect(movers.tracked).toBe(breadth.tracked);
+  expect(movers.eligible).toBe(breadth.measured);
+  expect(movers.basis).toBe(breadth.basis);
+
+  // A selection cannot exceed the set it is from — the reader's own rule,
+  // restated here against a real frame rather than a hand-written one.
+  expect(movers.gainers.length + movers.losers.length).toBeLessThanOrEqual(
+    movers.eligible,
+  );
+  expect(movers.eligible).toBeLessThanOrEqual(movers.tracked);
+
+  // **And not one mover is a fund.** `XLE` in this list is the same figure a
+  // sector row is already asserting twenty-four pixels away, and `SPY` is the
+  // proxy strip's — one fact with three homes. The population is the 503
+  // companies, which contain no fund at all, so this is structurally
+  // impossible rather than merely unlikely.
+  const movedSymbols = [...movers.gainers, ...movers.losers].map(
+    (figure) => figure.symbol,
+  );
+
+  expect(
+    movedSymbols.filter(
+      (symbol) =>
+        (PROXIES as readonly string[]).includes(symbol) ||
+        SECTOR_BENCHMARKS.includes(symbol),
+    ),
+  ).toEqual([]);
 
   await expectNothingFailedToRender(page);
 });

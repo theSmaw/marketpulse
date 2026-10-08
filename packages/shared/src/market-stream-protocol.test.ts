@@ -12,10 +12,13 @@ import {
   type OverviewMessage,
   type SnapshotMessage,
   type WireMarketBreadth,
+  type WireMarketMovers,
   type WireMarketOverview,
   type WireObservedBreadth,
+  type WireObservedMovers,
   type WireOverviewFigure,
   type WireSessionBreadth,
+  type WireSessionMovers,
   type WireStoredFigure,
 } from "./market-stream-protocol.js";
 
@@ -872,6 +875,237 @@ describe("the breadth section, required on the producer and optional here", () =
     // discard four true prices.
     expect(decoded.message.overview).not.toHaveProperty("breadth");
     expect(decoded.message.overview.computedAt).toBe(OVERVIEW_AT);
+  });
+});
+
+describe("the movers section, whose ORDER is the answer", () => {
+  const mover = (symbol: string, percent: number): WireOverviewFigure => ({
+    state: "observed",
+    symbol,
+    at: OVERVIEW_AT,
+    price: 100,
+    changePercent: percent,
+  });
+
+  const GAINERS = [mover("NVDA", 4.12), mover("AVGO", 2.8)];
+  const LOSERS = [mover("KO", -3.4), mover("PG", -1.06)];
+
+  const lists = {
+    gainers: GAINERS,
+    losers: LOSERS,
+    eligible: 466,
+    tracked: 503,
+  } as const;
+
+  const OBSERVED: WireObservedMovers = {
+    basis: "observed",
+    ...lists,
+    windowMinutes: 5,
+  };
+
+  const SESSION: WireSessionMovers = {
+    basis: "session",
+    ...lists,
+    session: "2026-09-15",
+  };
+
+  const roundTrip = (
+    movers: WireMarketMovers,
+  ): WireMarketOverview["movers"] => {
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(overviewMessage({ movers })),
+    );
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    return decoded.message.overview.movers;
+  };
+
+  /** A section built by hand, so a refusal can be stated as raw JSON. */
+  const readRaw = (
+    movers: Record<string, unknown>,
+  ): WireMarketOverview["movers"] => {
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({
+        type: "overview",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
+        overview: { computedAt: OVERVIEW_AT, feeds: [], figures: [], movers },
+      }),
+    );
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    // A frame that still carries the rest of itself: one unreadable section
+    // does not discard four true prices.
+    expect(decoded.message.overview.computedAt).toBe(OVERVIEW_AT);
+    return decoded.message.overview.movers;
+  };
+
+  it("carries each member's own discriminating field through the round trip", () => {
+    // **Two field maps, one per member**, for the reason the breadth pair
+    // exists: `keyof` a union is the INTERSECTION of its members' keys, so one
+    // map over this union would cover the two lists, the two counts and
+    // `basis`, and wave `windowMinutes` and `session` through UNEXAMINED.
+    expect(roundTrip(OBSERVED)).toEqual(OBSERVED);
+    expect(roundTrip(SESSION)).toEqual(SESSION);
+  });
+
+  it("does not let the OTHER member's field through", () => {
+    const wire = encodeMarketStreamMessage(
+      overviewMessage({
+        movers: { ...OBSERVED, session: "2026-09-15" } as WireMarketMovers,
+      }),
+    );
+
+    expect(wire).toContain('"windowMinutes":5');
+    expect(wire).not.toContain("2026-09-15");
+  });
+
+  it("drops the WHOLE section for a non-finite count, never a field and never a zero", () => {
+    // `encodeBreadth`'s rule, and both counts here are denominators: a `null`
+    // under `eligible` is read as **`0`** by a lenient reader, which is a
+    // ranked list claiming to be a selection from nothing.
+    for (const field of ["eligible", "tracked", "windowMinutes"] as const) {
+      const wire = encodeMarketStreamMessage(
+        overviewMessage({ movers: { ...OBSERVED, [field]: Number.NaN } }),
+      );
+
+      expect(wire).not.toContain("movers");
+      expect(wire).not.toContain("null");
+    }
+  });
+
+  it("is ABSENT on a frame from a gateway that never heard of it", () => {
+    // The rollback case — the only reason the wire property is optional while
+    // the producer's input is not. Absent means *this gateway does not send
+    // movers*, which the region draws as its reserved state.
+    const wire = encodeMarketStreamMessage(overviewMessage({}));
+    expect(wire).not.toContain("movers");
+
+    const decoded = decodeMarketStreamMessage(wire);
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      throw new Error("expected an overview message");
+    }
+    expect(decoded.message.overview).not.toHaveProperty("movers");
+  });
+
+  it("carries two empty lists over an empty set, because that is a TRUE state", () => {
+    // CI's store — 518 securities and zero bars — and every process for its
+    // first minutes. `eligible: 0` says *we looked and nothing was
+    // measurable*; the section's absence says *this gateway does not send
+    // movers*. Different states, spelled differently.
+    const empty: WireMarketMovers = {
+      basis: "session",
+      gainers: [],
+      losers: [],
+      eligible: 0,
+      tracked: 503,
+      session: "2026-09-15",
+    };
+
+    expect(roundTrip(empty)).toEqual(empty);
+  });
+
+  it("refuses a selection bigger than the set it claims to be from", () => {
+    expect(readRaw({ ...OBSERVED, eligible: 3 })).toBeUndefined();
+  });
+
+  it("refuses an eligible set bigger than the universe it was taken over", () => {
+    // `readBreadth`'s rule, for its reason: the region draws *we could measure
+    // N of M*, and a negative remainder counts securities that cannot exist.
+    expect(readRaw({ ...OBSERVED, eligible: 600 })).toBeUndefined();
+  });
+
+  it("refuses the same symbol in both lists", () => {
+    // Reachable whenever `eligible < 2N`, and it is the one failure here that
+    // draws a visible contradiction: one row up among the gainers and the same
+    // row down among the losers.
+    expect(
+      readRaw({ ...OBSERVED, losers: [mover("NVDA", -3.4)] }),
+    ).toBeUndefined();
+  });
+
+  it("refuses a list that is not in the comparator's own order", () => {
+    // **The strongest check available here**, and the only one that can tell a
+    // ranked frame from a furnished one: the order is computed server-side, so
+    // a reader that does not verify it is taking the order on trust from
+    // exactly the place it cannot see.
+    expect(
+      readRaw({ ...OBSERVED, gainers: [...GAINERS].reverse() }),
+    ).toBeUndefined();
+
+    // And the losers' end is the same claim with the sign turned over —
+    // weakest first, so the biggest fall leads.
+    expect(
+      readRaw({ ...OBSERVED, losers: [...LOSERS].reverse() }),
+    ).toBeUndefined();
+  });
+
+  it("accepts a pair that is equal at DISPLAYED precision, in either order", () => {
+    // The order is verified through `compareByMove`, which answers `0` for two
+    // figures that read the same on screen — so ties keep the order they
+    // arrived in and neither arrangement is a contradiction. A raw comparison
+    // here would refuse one of these two frames and call a ranked list
+    // furnished.
+    const near = [mover("NVDA", 0.414), mover("AVGO", 0.409)];
+
+    expect(readRaw({ ...OBSERVED, gainers: near })).toBeDefined();
+    expect(
+      readRaw({ ...OBSERVED, gainers: [...near].reverse() }),
+    ).toBeDefined();
+  });
+
+  it("refuses a row with no ranking key at all", () => {
+    // A top-N is a SELECTION. A keyless member is a figure placed by a `?? 0`,
+    // which is ADR 0029's false impression expressed as a RANK POSITION —
+    // mid-table, between +0.01% and -0.01%, claiming a security we have heard
+    // nothing about did not move.
+    expect(
+      readRaw({
+        ...OBSERVED,
+        gainers: [...GAINERS, { state: "unknown", symbol: "ERIE" }],
+      }),
+    ).toBeUndefined();
+  });
+
+  it("refuses the whole list for ONE unreadable row, unlike the figure sections", () => {
+    // `readFigures` drops one bad entry out of up to 518 because the frame is a
+    // batch. A mover list is five rows whose order is the answer: dropping one
+    // leaves a list that is still ranked, still well-formed, and no longer the
+    // top five of anything.
+    expect(
+      readRaw({
+        ...OBSERVED,
+        gainers: [
+          { state: "observed", symbol: "NVDA", at: OVERVIEW_AT, price: null },
+          mover("AVGO", 2.8),
+        ],
+      }),
+    ).toBeUndefined();
+  });
+
+  it("refuses a basis it cannot qualify — no window, no session, no name", () => {
+    const windowless: Record<string, unknown> = { ...OBSERVED };
+    delete windowless.windowMinutes;
+    expect(readRaw(windowless)).toBeUndefined();
+
+    const sessionless: Record<string, unknown> = { ...SESSION };
+    delete sessionless.session;
+    expect(readRaw(sessionless)).toBeUndefined();
+
+    expect(readRaw({ ...OBSERVED, basis: "guessed" })).toBeUndefined();
+  });
+
+  it("does NOT refuse a gainer whose move is negative", () => {
+    // **A product rule rather than a wire rule**, and the owner's Gate 1
+    // decision settled it the other way: `selectMovers` decides each
+    // candidate's end through the one classifier, so the lists are disjoint by
+    // construction and a sign check here would be a SECOND classifier
+    // asserting what the order check already covers.
+    expect(
+      readRaw({ ...OBSERVED, gainers: [mover("NVDA", -0.4)] }),
+    ).toBeDefined();
   });
 });
 

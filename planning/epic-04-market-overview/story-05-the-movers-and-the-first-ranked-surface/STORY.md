@@ -192,9 +192,13 @@ is about: _a shared claim inverts on a small set_, with the sign flipped.
 is the sharpest form of the honesty problem in this epic** — a top ten computed
 over the ~466 names heard from may show ten securities that are **not** the ten
 biggest movers, with nothing on screen saying so. Plus the _what is a mover with
-no recent price_ decision, the **top-N-computed-server-side** payload (ADR 0038's
-grain rule: ship the smallest thing that answers the region, not the ranking's
-input), and Epic 14's trigger firing on your per-row markup.
+no recent price_ decision, the **top-N-computed-server-side** payload (ADR
+0038's grain rule — _each region ships the smallest thing that answers it, never
+the input its answer was computed from_ — which **this story's Task 4.5.4 put
+into ADR 0038 as a dated amendment**: until 2026-10-08 this citation pointed at
+that ADR's list of **rejected** alternatives, where _one frame type per region_
+sits beside the sentence handing the decision to Story 4.3 to re-take), and Epic
+14's trigger firing on your per-row markup.
 
 ## Handed here by Story 4.3 — 2026-09-27: the component you reuse exists, your region's height is already paid for, and two decisions were taken on your behalf
 
@@ -477,6 +481,15 @@ measurement to this story by name. Task 4.5.1.
 to re-take**: _"One frame type per region. … Story 4.3 re-takes this."_ 4.3
 answered by shipping a nested optional section and never amended the ADR. A
 reader who checks the citation finds the rejected alternative. Task 4.5.4.
+
+> **Closed 2026-10-08 by Task 4.5.4**, in the one change that also repointed the
+> citation: ADR 0038 carries a dated amendment under that very bullet, closing
+> its own named re-take with the one-frame verdict, stating the grain rule in
+> words, and giving the measured payload as its evidence — **3,256 B for a whole
+> frame carrying three regions, of which the movers are 1,243 B at 124.3 B a
+> row**, off this product's own gateway. Reversal trigger, as a condition: _the
+> first overview region whose cadence must differ from the applied-batch
+> cadence._
 
 **4. The bar's recorded reason is false.** Story 4.3 refused the bar for movers
 on _"one quantity versus four"_ — but a mover row carries today's percent change

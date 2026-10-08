@@ -18,7 +18,10 @@ import type {
   WireMarketOverview,
   WireOverviewFigure,
 } from "@marketpulse/shared";
+import { topMovers } from "./market-movers.js";
+
 import type { CurrentObservation } from "./current-market-state.js";
+import type { EligibleMoves } from "./market-breadth.js";
 
 /**
  * **The join** — a live observation against the previous session's stored
@@ -353,6 +356,21 @@ export interface WireMarketOverviewInputs {
    */
   readonly breadth: WireMarketBreadth;
 
+  /**
+   * **The set the movers are selected from — and it is NOT optional either**
+   * (Task 4.5.4), for {@link WireMarketOverviewInputs.breadth}'s recorded
+   * reason: a frame carrying figures and no movers section leaves the region's
+   * `waiting` false, so its 2,000 ms silence floor never fires and the panel
+   * sits reserved and silent for ever.
+   *
+   * It is the **eligibility pass**, not the lists: `eligibleMoves`' answer,
+   * the same array `breadth` was tallied from. The ranking and the slice are
+   * `market-movers.ts`'; the rows are built here, because `figureOf` is the
+   * one place entitled to say what a browser may see and the one place that
+   * records a figure's tape on the frame.
+   */
+  readonly movers: EligibleMoves;
+
   /** The instant the aggregate was true — the caller's, never a clock here. */
   readonly asOf: Date;
 }
@@ -360,7 +378,7 @@ export interface WireMarketOverviewInputs {
 export function toWireMarketOverview(
   inputs: WireMarketOverviewInputs,
 ): WireMarketOverview {
-  const { proxies, sectors, sectorLadderStep, breadth, asOf } = inputs;
+  const { proxies, sectors, sectorLadderStep, breadth, movers, asOf } = inputs;
 
   // First-seen order, and only for figures that are actually **observed** —
   // a stored close's tape is not this frame's provenance, and claiming it
@@ -375,6 +393,13 @@ export function toWireMarketOverview(
   ): WireOverviewFigure[] => entries.map((entry) => figureOf(entry, feeds));
 
   const figures = encode(proxies);
+
+  // **The movers' rows go through the same `figureOf`**, which is why the
+  // selection happens here rather than in `index.ts`: it is the one place
+  // entitled to decide what a browser sees, and it is what keeps the frame's
+  // `feeds` a description of the figures the frame actually carries.
+  const movements = topMovers(movers, (entry) => figureOf(entry, feeds));
+
   const ranked =
     sectors === undefined ? undefined : rankSectorFigures(encode(sectors));
 
@@ -388,6 +413,7 @@ export function toWireMarketOverview(
     feeds,
     figures,
     breadth,
+    movers: movements,
     // Two branches rather than one spread of a possibly-`undefined` value:
     // `exactOptionalPropertyTypes` is on, *absent* and *present as `undefined`*
     // are different types, and only the first is what this wire means.

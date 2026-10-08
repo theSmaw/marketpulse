@@ -3006,8 +3006,9 @@ const INVARIANTS = [
     id: "each-overview-section-names-its-own-set",
     claim:
       "The join's answer is split into sections by POSITIVE membership — each " +
-      "section names the set it is about — so widening the join cannot flood " +
-      "a section that was defined as `everything else`.",
+      "section names the set it is about, and the movers section names the " +
+      "one eligibility pass — so widening the join cannot flood a section " +
+      "that was defined as `everything else`.",
     check() {
       // **Task 4.4.1, and it is a defect found by shaping Story 4.4 rather
       // than by anything mechanical.** The proxy section was
@@ -3051,13 +3052,40 @@ const INVARIANTS = [
       const path = resolve(REPO_ROOT, "apps/backend/src/index.ts");
       const text = withoutTrailingComments(readFileSync(path, "utf8"));
 
-      /** The set each section must consult, by the section's own name. */
+      // ## The `movers` row, added 2026-10-08 by Task 4.5.4
+      //
+      // **It names a BINDING rather than a membership set, and that is the
+      // shape taken from `breadth-is-counted-over-the-equities-alone` rather
+      // than from the two rows above.** Two reasons it cannot be theirs: a
+      // top-N legitimately *is* a slice, which the refusal below forbids
+      // outright; and the movers section is not a subset of the join's answer
+      // picked by symbol, it is the **eligibility pass** over the equity
+      // subset — one array, shared with the breadth count, which is what makes
+      // `movers.eligible` and `breadth.measured` the same number rather than
+      // two filters agreeing.
+      //
+      // So the two halves live in two checks, deliberately: this one asserts
+      // the section names the one binding, and
+      // `breadth-is-counted-over-the-equities-alone` asserts that binding is
+      // one pass over the 503 equities. The defect this row refuses is
+      // `movers: eligibleMoves(entries, …)` — a **second** pass over the whole
+      // universe, which typechecks, runs, and draws five plausible rows
+      // including `SPY` and `XLE` beside the two regions already asserting
+      // those same figures, with a denominator that disagrees with the count
+      // directly above it on screen.
+      /**
+       * What each section's predicate must name, by the section's own name.
+       *
+       * `what` is the noun the failure message uses, because the three rows
+       * fail for two different reasons.
+       */
       const SECTIONS = [
-        ["proxies", /\bisProxySymbol\b/u],
-        ["sectors", /\bisSectorSymbol\b/u],
+        ["proxies", /\bisProxySymbol\b/u, "a POSITIVE membership test"],
+        ["sectors", /\bisSectorSymbol\b/u, "a POSITIVE membership test"],
+        ["movers", /\beligible\b/u, "the one eligibility pass"],
       ];
 
-      for (const [section, owns] of SECTIONS) {
+      for (const [section, owns, what] of SECTIONS) {
         // The property and everything up to the end of its line. The call is
         // Prettier-formatted, so one property is one line; a property that
         // wrapped would read short here and fail on the positive clause rather
@@ -3083,7 +3111,7 @@ const INVARIANTS = [
           throw new InvariantFailure(
             `the overview's \`${section}:\` section does not name its own ` +
               `set:\n      ${section}:${predicate}\n    It must consult ` +
-              `${String(owns)} — a POSITIVE membership test. A section ` +
+              `${String(owns)} — ${what}. A section ` +
               "defined as the complement of another one, or handed the " +
               "join's answer whole, is correct only for as long as nobody " +
               "widens the join: Story 4.4's breadth count asks it about 503 " +
@@ -3151,8 +3179,27 @@ const INVARIANTS = [
        * wrapped would read short here and fail on its clause rather than pass
        * on a truncation.
        */
+      /**
+       * **Re-scoped 2026-10-08 by Task 4.5.4, and deliberately rather than by
+       * widening a regex.**
+       *
+       * `marketBreadth` took the entries until that task extracted the
+       * eligibility pass so the movers could be a selection from the **same
+       * array** this count is a tally of. So `breadth:` no longer names
+       * `equities` directly and the old two-link chain would have gone **red
+       * on the desired state** — the failure mode where the honest repair is
+       * to make the check say less. It says more instead: the chain is now
+       * three links, and the middle one is the claim that was previously
+       * free.
+       *
+       *   breadth:  →  the eligible binding  →  equities  →  isEquitySymbol
+       *
+       * Each link is *exactly one, or report it*, for the reason below: a grep
+       * whose anchor has moved returns nothing and reads exactly like a pass.
+       */
       const CLAUSES = [
-        ["breadth:", /\bbreadth:([^\n]*)/gu, /\bequities\b/u],
+        ["breadth:", /\bbreadth:([^\n]*)/gu, /\beligible\b/u],
+        ["const eligible =", /\bconst eligible =([^\n]*)/gu, /\bequities\b/u],
         [
           "const equities =",
           /\bconst equities =([^\n]*)/gu,
@@ -3200,6 +3247,36 @@ const INVARIANTS = [
             "`equityTickers()` derives it from `UNIVERSE` by `kind`. *Not a " +
             "fund* is a definition of everything else, which is what the " +
             "proxy section already cost once.",
+        );
+      }
+
+      // ## And exactly ONE eligibility pass — the clause the chain above
+      // cannot hold on its own (Task 4.5.4)
+      //
+      // The three links say the breadth count is a tally of a pass over the
+      // equities. They say nothing about a **second** pass: `movers:
+      // eligibleMoves(entries, { asOf, marketOpen })` leaves every link
+      // intact, typechecks, runs, and ranks over all 518 — which puts `SPY`
+      // and `XLE` among the day's movers twenty-four pixels from two regions
+      // already asserting those same figures, and gives the ranked list a
+      // denominator that disagrees with the count directly below it.
+      //
+      // One pass is also the only thing that makes `movers.eligible` and
+      // `breadth.measured` the same number **by construction** rather than by
+      // two filters agreeing — and the thing that drifts between two filters
+      // is never the loop, it is the predicate: the five-minute window, the
+      // `state === "live"` test and the session filter all live inside it.
+      const passes = [...text.matchAll(/\beligibleMoves\(/gu)];
+
+      if (passes.length !== 1) {
+        throw new InvariantFailure(
+          `apps/backend/src/index.ts calls \`eligibleMoves(\` ` +
+            `${String(passes.length)} time(s), expected exactly 1. The ` +
+            "eligibility pass is shared: `Market breadth` tallies it and " +
+            "`Movers` ranks it, so a second call is two populations with one " +
+            "screen's worth of sentences about them. A pass over `entries` " +
+            "rather than `equities` ranks the fifteen funds beside their own " +
+            "constituents and still satisfies every clause above.",
         );
       }
     },
