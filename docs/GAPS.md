@@ -1397,47 +1397,15 @@ movement down.
 distribution per minute, which is Task 4.3.8's and is the number the _whole list
 does not re-arrange_ half of the argument actually rests on.
 
-## Nothing forbids a SECOND comparator over a figure's move, and the obvious clause is red against shipped code
+## ~~Nothing forbids a SECOND comparator over a figure's move~~ — discharged 2026-10-08
 
-**Added 2026-09-27 by Task 4.3.7**, which was asked to write the guard and did
-not, because the version it was asked for fails on correct code and the versions
-that do not are worse than nothing.
-
-**The claim:** the order eleven sector benchmarks are reported in is decided in
-exactly one place — `compareSectorFigures` in
-`packages/shared/src/sector-ranking.ts` — and _two figures equal at displayed
-precision never swap_ is a property of that comparator. A second comparator over
-the same figures, anywhere, silently un-holds it.
-
-**What is covered and by what.** The ranking itself is server-side and
-`one-producer-of-the-overview-aggregate` bounds where the aggregate is built;
-`one-pairing-of-a-sector-and-its-benchmark` forbids a second ticker→sector table;
-`sector-performance.ts`'s own tests assert that `rowsInPinnedOrder` reads no
-figure. **None of those sees a second sort keyed on a move.**
-
-**Why no invariant was added.** Task 4.3.7's file proposes _no shipped file both
-imports the figure type and calls `.sort(`/`.toSorted(` outside the one comparator
-module_. That is **red today**: `apps/frontend/src/market/sector-performance.ts`
-imports `WireOverviewFigure` and calls `held.sort(…)` — Task 4.3.6's hold, which
-sorts by a **position a reader pinned** and reads no figure at all. The two
-repairs available are both bad in a way this repository has already paid for:
-exempting that file by name exempts **the most likely site of the defect**, and
-matching the comparator's own body inside a window after `.sort(` is a pattern
-that rots into matching nothing, which looks exactly like a pass. Measured, a
-file-level clause over `.sort(` plus a move-field name also flags
-`UniverseTable.tsx`, where `changePercent` is an imported **function** rather than
-the wire field.
-
-**Owner: the first story that ranks anything server-side other than the eleven** —
-Story 4.5's movers by name. It writes the second caller, so it is the change that
-can say what the two have in common and key a clause on that rather than on this
-one's incidentals.
-
-**Re-measure:**
-`grep -rlE "\.(sort|toSorted)\(" apps/backend/src apps/frontend/src packages/shared/src --include=*.ts --include=*.tsx | xargs grep -lE "changePercent|sessionChangePercent|sectorRankingKey"`
-— today that is `sector-ranking.ts` (the home), `sector-performance.ts` (the
-hold) and `UniverseTable.tsx` (a different `changePercent`). A fourth file is the
-thing to read.
+**Replaced by `pnpm invariants`' `one-comparator-for-the-order-of-a-move`** (Task
+4.5.2, three clauses, two `pnpm break` entries) — which is keyed on two moves
+either side of one operator rather than on `.sort(`, so none of this entry's
+three recorded false starts applies. The argument, the measured populations and
+the transcript of `docs/GAPS.md`'s own candidate clause reporting
+`45 invariants hold.` against the file the next story would write are in the
+check's own comment.
 
 ## A second browser-suite flake source, and this one is a test sitting at two-thirds of its own timeout
 

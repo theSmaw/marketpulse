@@ -80,7 +80,7 @@ export type PriceDirection = (typeof PRICE_DIRECTIONS)[number];
  * rather than this one's: `Number(NaN.toFixed(2))` is `NaN` and
  * `Number(Infinity.toFixed(2))` is `Infinity`, so rounding is honest about an
  * unroundable number. Every caller either classifies through `directionOf` or
- * has already refused one (`sectorRankingKey`).
+ * has already refused one (`moveRankingKey`).
  */
 export function displayedPercent(percent: number): number {
   return Number(percent.toFixed(PERCENT_DISPLAY_DECIMALS));
@@ -113,7 +113,7 @@ export function displayedPercent(percent: number): number {
  * leaves the figure out of every bucket, which is what *we cannot say* means,
  * and `PRICE_DIRECTIONS` stays exhaustive over what can be drawn.
  *
- * **Closed here rather than in each caller**, for `sectorRankingKey`'s
+ * **Closed here rather than in each caller**, for `moveRankingKey`'s
  * recorded reason: the serialiser drops a non-finite number at the wire (ADR
  * 0031) and `readFigure` refuses one at the other end, but this function runs
  * **in-process, before the encode**, so it is inside that gap and has to close

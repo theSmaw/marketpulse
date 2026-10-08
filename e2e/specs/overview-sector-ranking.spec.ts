@@ -121,7 +121,7 @@ const displayed = (percent: number): number =>
 
 /**
  * A figure's ranking key, **read off the wire's own two fields** and not
- * through `sectorRankingKey`.
+ * through `moveRankingKey`.
  *
  * The same rule as the formatter above, and it matters more here: the function
  * this spec exists to judge reads these two fields, so asking it which one to
