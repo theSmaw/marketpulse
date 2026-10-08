@@ -241,6 +241,33 @@ export interface SectorRow {
    * At that point *what this figure is measured from* stops being statable once
    * per region and the clause has to move onto the row, where the 80 px track
    * cannot hold it and the geometry is owed a re-take.
+   *
+   * ## THE TRIGGER HAS ALREADY FIRED — found 2026-10-08 by Task 4.5.6
+   *
+   * The first reason above is **false**, and it was false when it was written.
+   * The `MoveQualifier` is uniform; the **rows** are not. On the `session`
+   * basis `eligibleMoves` reads a close off the `live` member too — explicitly
+   * and deliberately, because the process holds the session's observations for
+   * hours after the bell, and a count over `stored` entries alone would be a
+   * count over whatever happened to go quiet — and `figureOf` maps a `live`
+   * entry to an **`observed`** figure. So an evening frame is a **mixture**:
+   * some rows draw `price` (the last trade) and some draw `close` (the
+   * session's), their `basis` strings differ (`observed:…` beside
+   * `stored:2026-10-07`), and the two were never one claim.
+   *
+   * What follows is **not** that the clause moves onto the row today. The
+   * geometry argument is unchanged, and the sentence Task 4.5.6 wrote does not
+   * make the claim that would have been false: it names the **set and the
+   * question** — *of the 503 companies we track, 468 had a close-to-close move
+   * on 2026-10-07* — which is true of every row on either basis, rather than
+   * *every price here is that session's close*, which is not. So the region is
+   * honest and the **labelling** of the price cell is still open: a reader out
+   * of hours cannot tell which of the two a given row's figure is.
+   *
+   * It is re-raised rather than closed, with a narrower owner: **the first
+   * surface that needs a reader to know which of the two a row's price is.**
+   * The repair is a fact about the row and the track is 80 px, so it is a
+   * geometry question and not a sentence.
    */
   readonly price?: string;
   /**

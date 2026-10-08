@@ -7,7 +7,11 @@ import type {
   WireOverviewFigure,
 } from "@marketpulse/shared";
 
-import { marketMovers, type MarketMovers } from "../../market/index.js";
+import {
+  RESERVED_MOVERS,
+  marketMovers,
+  type MarketMovers,
+} from "../../market/index.js";
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
 import { Region } from "../Region/Region.js";
 import { Movers, MoversMeta, MoversReservation } from "./Movers.js";
@@ -90,20 +94,29 @@ const BAR: Bar = {
  * The section, through the **shipped reader** — the whole point of the
  * re-point.
  *
- * The denominators are real-ish figures from Task 4.1.6's measurement and
- * nothing here draws them yet (Task 4.5.6 writes the sentence); they are
- * stated rather than zeroed because a section is not readable without them.
+ * The denominators are real-ish figures from Task 4.1.6's measurement, and
+ * since Task 4.5.6 they are **drawn**: the footer states what the lists were
+ * ranked over, and `eligible` is what decides whether it says *both lists are
+ * ranked over those* or *there is nothing to rank*.
+ *
+ * @param eligible How many of the set had a measurable move. It is a parameter
+ * rather than a constant because it is the one figure that cannot be derived
+ * from the rows: a section can hold five names and a denominator of 466, and it
+ * can hold none and a denominator of **0**, and those two are different states
+ * with different sentences. A `gainers.length + losers.length` here would make
+ * the one state a gated machine lives in unreachable from a story.
  */
 const view = (
   gainers: readonly Entry[],
   losers: readonly Entry[],
+  eligible = 466,
 ): MarketMovers => {
   const movers: WireMarketMovers = {
     basis: "observed",
     windowMinutes: 5,
     gainers: gainers.map(figureOf),
     losers: losers.map(figureOf),
-    eligible: 466,
+    eligible,
     tracked: 503,
   };
 
@@ -161,7 +174,7 @@ const meta = {
      * sees the state inside, and two lists reviewed without the box hide the
      * one thing the box decides, which is whether the content fits.
      */
-    <Region name="Movers" meta={<MoversMeta />}>
+    <Region name="Movers" meta={<MoversMeta view={args.view} />}>
       <Movers {...args} />
     </Region>
   ),
@@ -275,6 +288,14 @@ export const EveryFigureIdentical: Story = {
  * because `LOSERS` labels a list that is empty rather than claiming anything
  * about the market: a heading is not a figure, and what a reader needs to know
  * is *which* of the two ends has nothing in it.
+ *
+ * **And since Task 4.5.6 the empty list says what it is** — `None of the names
+ * we measured declined.`, laid over the room the five held rows are already
+ * holding, so the region's height is untouched. It claims the **set**, never
+ * the market: `Nothing declined.` would be a statement about 503 companies, 37
+ * of which nobody heard from. Review it beside {@link NothingRankable}, where
+ * the set itself is empty and the sentence is suppressed in favour of the
+ * footer's.
  */
 export const OneRankableName: Story = {
   args: {
@@ -294,13 +315,27 @@ export const OneRankableName: Story = {
  * would have presented them as the day's biggest movers.
  *
  * **It is also most of a weekend and every process restart.** The region holds
- * its full height, both headings are drawn, and what says *why* is the footer —
- * whose words are Task 4.5.6's and whose room is reserved here and left empty.
- * Until then this state is a named region saying nothing about a missing
- * subject, which is `docs/GAPS.md` entry 13 exactly and is owed by name.
+ * its full height and both headings are drawn — and since Task 4.5.6 the footer
+ * says *why*: `Of the 503 companies we track, none were heard from in the last
+ * 5 minutes — there is nothing to rank.` That is `docs/GAPS.md` entry 13
+ * discharged for this region, and the sentence is honest **at zero**, which is
+ * the whole requirement: a clause that only rendered when something was ranked
+ * would leave 466 px of labelled, empty box silent.
+ *
+ * Three things are suppressed here and all three for ADR 0029's reason — a
+ * fully-formed claim about nothing is a false impression rather than a
+ * courtesy. The head slot's `Top 5 each way` goes, because a bound stated over
+ * a selection that selected nothing reads as a claim about the selection. And
+ * the two per-list sentences go, because the footer already carries the whole
+ * truth and three sentences saying it is the same fact three times in one box.
+ *
+ * `eligible` is **0** here rather than 466, which is the state's own
+ * discriminator: 466 with both lists empty is a different and much rarer thing
+ * — a set we measured, none of whose figures carried a ranking key — and it
+ * draws both per-list sentences, correctly.
  */
 export const NothingRankable: Story = {
-  args: { view: view([], []) },
+  args: { view: view([], [], 0) },
 };
 
 /**
@@ -327,7 +362,7 @@ export const NothingRankable: Story = {
  */
 export const BeforeTheFirstFrame: Story = {
   render: () => (
-    <Region name="Movers" meta={<MoversMeta />}>
+    <Region name="Movers" meta={<MoversMeta view={RESERVED_MOVERS} />}>
       <MoversReservation />
     </Region>
   ),
@@ -358,7 +393,7 @@ export const BeforeTheFirstFrame: Story = {
  */
 export const NothingEverArrived: Story = {
   render: () => (
-    <Region name="Movers" meta={<MoversMeta />}>
+    <Region name="Movers" meta={<MoversMeta view={RESERVED_MOVERS} />}>
       <MoversReservation />
     </Region>
   ),
@@ -400,7 +435,7 @@ class Throws extends Component {
  */
 export const TheRegionFailed: Story = {
   render: () => (
-    <Region name="Movers" meta={<MoversMeta />}>
+    <Region name="Movers" meta={<MoversMeta view={RESERVED_MOVERS} />}>
       <Throws />
     </Region>
   ),
@@ -424,7 +459,7 @@ export const TheRegionFailed: Story = {
 export const InGreyscale: Story = {
   render: (args) => (
     <div style={{ filter: "grayscale(1)" }}>
-      <Region name="Movers" meta={<MoversMeta />}>
+      <Region name="Movers" meta={<MoversMeta view={args.view} />}>
         <Movers {...args} />
       </Region>
     </div>

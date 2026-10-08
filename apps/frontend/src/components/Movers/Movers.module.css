@@ -227,3 +227,72 @@
   line-height: var(--line-height-dense);
   color: var(--ink-secondary);
 }
+
+/*
+ * --- One side's room, and the sentence over it when it is empty ---
+ *
+ * Task 4.5.6, and it is `.reservedRoom`'s two-box shape rather than a fourth
+ * idea: the positioned parent holds the room the list's five held rows already
+ * reserve, and the sentence is an absolutely-positioned sibling inside it.
+ *
+ * **Why over the list and not above it.** A sentence placed above the `<ol>`
+ * adds a sixth line to a region whose content is 466 px in a 486 px box, and at
+ * 768 and 390 the grid row is content-sized — so a market going one-sided would
+ * step the whole lower page, which is three times the 25 px Task 4.3.7 spent a
+ * task designing out. Laid over held rows it costs nothing, because the room is
+ * already reserved and already empty.
+ *
+ * The wrapper is **unconditional**, in every state and on both lists: a
+ * `position: relative` that comes and goes is a containing block that comes and
+ * goes, and the one thing an absolutely-positioned child must not do is find a
+ * different ancestor on a later render.
+ */
+.side {
+  position: relative;
+}
+
+/*
+ * `None of the names we measured declined.` — centred in the room the five held
+ * rows are holding.
+ *
+ * `--font-size-dense` in the sans face, which is `.nothingArrived`'s treatment
+ * twelve lines down and for its reason: this is prose a reader is meant to read
+ * rather than the micro stamp the footer is. `--ink-secondary` at 4.48:1,
+ * because it explains an absence rather than stating a figure.
+ *
+ * `text-align: center` as well as the flex centring: the sentence wraps at 390,
+ * and a two-line sentence centred as a block with its lines ragged-left reads
+ * as a layout accident.
+ */
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-secondary);
+  text-align: center;
+}
+
+/*
+ * **The spoken rendering of the footer clause, for the day it stops being equal
+ * to the drawn one.**
+ *
+ * `MoversClaim` is a pair built in one function and the two halves are
+ * identical in every state this region has today — it draws no ladder and
+ * prints no denominator, so the drawn half has nothing to defer to and
+ * `Movers.tsx` renders one element. The reversal trigger is a condition: the
+ * first printed figure in this region that states the denominator.
+ *
+ * **The clip-rect idiom, never `display: none` or `visibility: hidden`**, both
+ * of which take an element out of the **accessibility tree** as well as off the
+ * screen — which is the exact opposite of what this class is for, and is
+ * `a11y.module.css`'s own warning. One home, composed rather than copied.
+ */
+.spoken {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}

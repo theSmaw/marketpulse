@@ -4084,6 +4084,208 @@ const INVARIANTS = [
     },
   },
   {
+    id: "the-ranking-states-its-own-denominator",
+    claim:
+      "The movers region's footer clause is built from the MOVERS section's " +
+      "own `eligible` / `tracked` / window, never from the breadth section " +
+      "— and it is rendered into the accessibility tree, which is the only " +
+      "route by which a denominator reaches a listener in a region that " +
+      "prints none.",
+    check() {
+      // **Task 4.5.6, and both halves are defects that look exactly like
+      // correct code.**
+      //
+      // ## Half one — the figures must be the movers section's
+      //
+      // `breadth.measured` and `movers.eligible` are **the same number by
+      // construction**: one eligibility pass over one array, consumed twice,
+      // which `breadth-is-counted-over-the-equities-alone` permits exactly one
+      // of. So building the ranked region's sentence from the breadth section
+      // is numerically identical, draws the same words in every state anybody
+      // photographs, and is still wrong — `encodeBreadth` drops the **whole**
+      // breadth section on one non-finite count (ADR 0031), and the region
+      // then goes silent about its denominator in precisely the state
+      // `WireMoverLists.eligible` was added to survive. That is a ranked list
+      // with no denominator, which is the one thing Story 4.5 must not ship.
+      //
+      // The clause is the import rather than a field name, because a module
+      // cannot read a section it cannot reach: `movers.ts` may not import from
+      // a module named for breadth, and may not name the wire's `breadth`
+      // property at all. Both are things the re-implementer **cannot avoid
+      // writing** — the wire's field is called `breadth` and the only shipped
+      // builder of the breadth clause lives in `market-breadth.ts`.
+      //
+      // The positive half is the anchor: the builder must read all four of the
+      // section's own fields, so the window and the session are **read rather
+      // than spelled**. A `5` typed into the sentence is the second home for a
+      // number a rollback can move.
+      //
+      // ## Half two — the clause must reach the accessibility tree
+      //
+      // `the-denominator-reaches-a-listener` guards breadth's, where the
+      // repair was a second rendering. This region's shape is different and
+      // the hazard is sharper: it draws **no ladder and prints no
+      // denominator**, so the footer is the only delivery of the figure to
+      // **either** audience — and three of its siblings in the same region
+      // legitimately carry `aria-hidden` (`RankedList`'s `.rules` and
+      // `.ladder`). A sweep leaves the DOM correct, every component test
+      // green, axe silent, and the region's only denominator unreachable.
+      const reader = resolve(REPO_ROOT, "apps/frontend/src/market/movers.ts");
+      const words = resolve(
+        REPO_ROOT,
+        "apps/frontend/src/market/measured-set.ts",
+      );
+
+      // **Three files and four fields, each "or report it"**: a grep whose
+      // anchor has moved returns nothing and reads exactly like a pass.
+      //
+      // The split is the design: `movers.ts` reads the two **figures** off its
+      // own section and hands the qualifier whole to `measured-set.ts`, which
+      // is the one home for the WORDS both regions say. So the window and the
+      // session are named in the builder rather than at either call site —
+      // which is what makes them read and never spelled, and what makes the
+      // two sentences unable to disagree about the basis.
+      const ANCHORS = [
+        [reader, "eligible", /\beligible\b/u, "the denominator"],
+        [reader, "tracked", /\btracked\b/u, "the size of the set"],
+        [
+          reader,
+          "describeMeasuredSet",
+          /\bdescribeMeasuredSet\b/u,
+          "the one builder of the clause both regions state",
+        ],
+        [
+          words,
+          "windowMinutes",
+          /\bwindowMinutes\b/u,
+          "the live grammar's window",
+        ],
+        [words, "session", /\bsession\b/u, "the session grammar's session"],
+      ];
+
+      for (const [path, field, pattern, what] of ANCHORS) {
+        if (!pattern.test(withoutComments(readAnchored(path)))) {
+          throw new InvariantFailure(
+            `${relative(REPO_ROOT, path)} never names \`${field}\` — ` +
+              `${what}. Every figure in the region's footer is **read** off ` +
+              "the frame: a literal `503` is a lie with no symptom the day a " +
+              "constituent is delisted, and a literal `5` is a second home " +
+              "for a window a rollback can put two values apart from the " +
+              "gateway's. And a second builder is two sentences 200 px apart " +
+              "that can disagree about the window, the session, the set or " +
+              "the count. If the clause moved, repoint this check in the " +
+              "same change — a grep that matches nothing looks exactly like " +
+              "a pass.",
+          );
+        }
+      }
+
+      // And it may not reach the breadth section, by either route.
+      const movers = [
+        reader,
+        resolve(REPO_ROOT, "apps/frontend/src/components/Movers/Movers.tsx"),
+      ];
+
+      for (const path of movers) {
+        const text = withoutComments(readAnchored(path));
+        const reaching = text
+          .split("\n")
+          .filter((line) => /\bbreadth\b/iu.test(line));
+
+        if (reaching.length > 0) {
+          throw new InvariantFailure(
+            `${relative(REPO_ROOT, path)} reaches the breadth section:\n` +
+              `      ${reaching.map((line) => line.trim()).join("\n      ")}` +
+              "\n    `breadth.measured` and `movers.eligible` are the same " +
+              "number by construction — one eligibility pass, consumed " +
+              "twice — so this is invisible in every state anybody " +
+              "photographs. It is still wrong: `encodeBreadth` drops the " +
+              "whole breadth section on one non-finite count, and the ranked " +
+              "region then states no denominator at all in exactly the state " +
+              "`WireMoverLists.eligible` exists for. Read the movers " +
+              "section's own fields; the shared WORDS live in " +
+              "`measured-set.ts`, which names neither region.",
+          );
+        }
+      }
+
+      // ## The footer element, and the attribute that silences it
+      const component = withoutComments(
+        readAnchored(
+          resolve(REPO_ROOT, "apps/frontend/src/components/Movers/Movers.tsx"),
+        ),
+      );
+
+      // The opening tag of every element carrying the footer's class. The tag
+      // is everything back to the nearest `<`, which is robust to Prettier
+      // wrapping attributes across lines.
+      const footers = [
+        ...component.matchAll(/<([^<>]*styles\.claim[^<>]*)>/gu),
+      ];
+
+      if (footers.length !== 1) {
+        throw new InvariantFailure(
+          `Movers.tsx has ${String(footers.length)} elements carrying ` +
+            "`styles.claim`, expected exactly 1. It is the region's footer " +
+            "and the only place a denominator is stated on this surface; a " +
+            "grep that matches nothing looks exactly like a pass, so a " +
+            "missing one is reported rather than tolerated.",
+        );
+      }
+
+      // **And the string it renders is the VIEW's**, which is the escape the
+      // import clause above cannot see: `MarketOverview.tsx` already holds a
+      // `breadth` with a `claim` on it, so `<Movers view={movers}
+      // claim={breadth.claim} />` reaches the breadth section without either
+      // movers file ever naming it. Every rendering of the clause must be
+      // rooted at `view.claim`, whose only producer is `marketMovers`, which
+      // reads `overview.movers` — a closed path from the wire to the screen.
+      const renderings = [
+        ...component.matchAll(/([\w.]*)\bclaim\.(?:drawn|spoken)\b/gu),
+      ];
+
+      if (renderings.length === 0) {
+        throw new InvariantFailure(
+          "Movers.tsx renders neither `claim.drawn` nor `claim.spoken`. The " +
+            "footer clause is the region's only denominator; a grep that " +
+            "matches nothing looks exactly like a pass, so its absence is " +
+            "reported rather than tolerated.",
+        );
+      }
+
+      const foreign = renderings
+        .filter((match) => match[1] !== "view.")
+        .map((match) => match[0]);
+
+      if (foreign.length > 0) {
+        throw new InvariantFailure(
+          `Movers.tsx renders the footer clause from something other than ` +
+            `its own view:\n      ${foreign.join("\n      ")}\n    The ` +
+            "only producer of a `MarketMovers` is `marketMovers`, which " +
+            "reads `overview.movers` — so rooting every rendering at " +
+            "`view.claim` is what makes the path from the wire to the screen " +
+            "closed. `MarketOverview.tsx` holds a `breadth` with a `claim` " +
+            "on it two lines away, and handing that in reaches the droppable " +
+            "section without either movers file naming it.",
+        );
+      }
+
+      if (/aria-hidden/u.test(footers[0][1])) {
+        throw new InvariantFailure(
+          `Movers.tsx hides the region's only denominator from the ` +
+            `accessibility tree:\n      <${footers[0][1]}>\n    This ` +
+            "region draws no ladder and prints no figure the clause could " +
+            "defer to, so the footer is the whole delivery of *what the " +
+            "lists were ranked over* — to a listener and to everybody else. " +
+            "Three of its siblings legitimately carry `aria-hidden` " +
+            "(`RankedList`'s `.rules` and `.ladder`), which is what makes " +
+            "sweeping it the plausible edit; the DOM stays correct, every " +
+            "component test stays green and axe stays silent.",
+        );
+      }
+    },
+  },
+  {
     id: "the-population-is-never-a-literal",
     claim:
       "No shipped sentence states the size of the tracked universe as a " +

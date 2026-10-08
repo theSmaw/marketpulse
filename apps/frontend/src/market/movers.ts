@@ -1,11 +1,13 @@
 import { MOVERS_PER_SIDE } from "@marketpulse/shared";
 import type {
   Bar,
+  WireMarketMovers,
   WireMarketOverview,
   WireOverviewFigure,
 } from "@marketpulse/shared";
 
 import { arrivalKey } from "./arrival.js";
+import { describeMeasuredSet } from "./measured-set.js";
 import { formatPrice } from "./price-format.js";
 import { basisOf, moveOf, type SectorRow } from "./sector-performance.js";
 
@@ -101,6 +103,54 @@ export interface MarketMovers {
   readonly gainers: readonly SectorRow[];
   /** The biggest falls, biggest fall first. */
   readonly losers: readonly SectorRow[];
+  /**
+   * **What the two lists were ranked over** — the region's footer, in two
+   * renderings of one string. See {@link MoversClaim}.
+   */
+  readonly claim: MoversClaim;
+  /**
+   * **What an empty `GAINERS` says**, or `undefined` when the list has rows —
+   * see {@link emptySideOf}, which decides when there is a sentence at all.
+   */
+  readonly gainersEmpty: string | undefined;
+  /** What an empty `LOSERS` says. See {@link emptySideOf}. */
+  readonly losersEmpty: string | undefined;
+}
+
+/**
+ * **The footer clause, in two renderings of one string** — `BreadthClaim`'s
+ * idiom one region across, and Task 4.5.6's.
+ *
+ * ## Why a pair when the two halves are identical in every state today
+ *
+ * Breadth's drawn half may omit what its geometry already draws: N is printed
+ * 24 px above the clause as the ladder's right endpoint, so stating it again
+ * inside 24 px reads as a mistake. **This region draws no ladder and prints no
+ * denominator anywhere** — `bar: "none"`, because a selected tail has no range
+ * — so there is nothing for the drawn half to defer to and the whole sentence
+ * is what both audiences get.
+ *
+ * It is a pair anyway, built in one function from the same fields, because the
+ * two cannot then **diverge** the day one of them has somewhere to defer to.
+ * Reversal trigger, as a condition rather than a story number: **the first
+ * printed figure in this region that states the denominator** — a ladder, a
+ * count in the head slot, an `N of M` badge. At that point the drawn half
+ * shortens and the spoken half may not, and `Movers` already renders both.
+ *
+ * `one fact has one home` (ADR 0029) is satisfied as it is everywhere else in
+ * this product: a drawn sentence and its spoken twin are one string with two
+ * renderings.
+ */
+export interface MoversClaim {
+  /** What is on the screen, under the two lists. */
+  readonly drawn: string;
+  /**
+   * What a listener is handed. Identical to {@link MoversClaim.drawn} today,
+   * and the component renders **one element** when they are equal — splitting
+   * an identical string across a hidden span and a spoken one would put it in
+   * `textContent` twice.
+   */
+  readonly spoken: string;
 }
 
 /**
@@ -168,7 +218,160 @@ export function marketMovers(
     });
   };
 
-  return { gainers: rowsOf(movers.gainers), losers: rowsOf(movers.losers) };
+  const gainers = rowsOf(movers.gainers);
+  const losers = rowsOf(movers.losers);
+
+  return {
+    gainers,
+    losers,
+    claim: moversClaimOf(movers),
+    gainersEmpty: emptySideOf(gainers, movers.eligible, "rose"),
+    losersEmpty: emptySideOf(losers, movers.eligible, "declined"),
+  };
+}
+
+/**
+ * **What the two lists were ranked over, in the grammar of the basis the wire
+ * sent** — the ranking's honesty, and the only sentence in the region that
+ * carries a denominator.
+ *
+ * ## It reads the MOVERS section's own figures, never breadth's
+ *
+ * `eligible` and `tracked` are the same numbers as `breadth.measured` and
+ * `breadth.tracked` **by construction** — one eligibility pass over one array,
+ * consumed twice, which `breadth-is-counted-over-the-equities-alone` permits
+ * exactly one of. So reading breadth's would be numerically identical and
+ * still wrong: `encodeBreadth` drops the **whole** breadth section on one
+ * non-finite count, and this region would then go silent about its denominator
+ * in precisely the state `WireMoverLists.eligible` was added for. The
+ * substitution looks right in every state anybody photographs.
+ * `the-ranking-states-its-own-denominator` refuses it.
+ *
+ * ## The tail clause is what makes it the RANKING's sentence
+ *
+ * Breadth says what was counted. This says what was counted **and that the
+ * lists are a selection from it**, which is the whole difference between a
+ * denominator and a ranking's denominator: a top five over 446 of 503 looks
+ * exactly as confident as one over all of them.
+ *
+ * At `eligible === 0` the tail is *there is nothing to rank* instead, which is
+ * the honest and complete explanation of the one state a gated machine and a
+ * weekend both reach — CI holds 518 securities and zero bars, so the region is
+ * two headings, ten held rows and **this sentence**, for ever. A sentence that
+ * only rendered when something was ranked would leave that box silent, which
+ * is `docs/GAPS.md` entry 13 exactly.
+ *
+ * ## No feed word, no venue, no instant
+ *
+ * `live`, `stale` and `disconnected` have one home and it is the status bar
+ * (`one-home-for-the-feed-words` covers this route and would deserve to fire).
+ * `computedAt` is `OverviewSourceNote`'s, once for the screen.
+ *
+ * ## What it does NOT claim about the PRICE column
+ *
+ * Task 4.5.5 recorded that *out of hours every mover row is a stored close* and
+ * that the basis is uniform over the section, and handed this clause the job of
+ * saying so. **It is not uniform, and this sentence therefore does not make
+ * that claim.** On the `session` basis `eligibleMoves` reads a close off the
+ * `live` member too — deliberately, because the process holds the session's
+ * observations for hours after the bell — and `figureOf` maps a `live` entry to
+ * an `observed` figure, whose `price` is the last trade rather than the
+ * session's close. So a session-basis list is a **mixture** of `observed` and
+ * `stored` rows, their per-row `basis` strings differ, and *every price is that
+ * session's close* would be false for most of the evening.
+ *
+ * What the clause names instead is the **set and the question**: which
+ * securities had a measurable move, and on what. That is true of every row in
+ * either list on either basis. The per-row session is still nowhere on screen,
+ * and the trigger 4.5.5 recorded — *the first frame whose movers rows do not
+ * share one basis* — has therefore **already fired**; it is re-raised in that
+ * task's own file rather than silently satisfied here.
+ */
+function moversClaimOf(movers: WireMarketMovers): MoversClaim {
+  const lead = describeMeasuredSet({
+    qualifier: movers,
+    tracked: movers.tracked,
+    count: movers.eligible,
+  });
+
+  // **Two sentences, and the full stop is a decision rather than a style.** A
+  // `—` was drawn first and an em dash is this region's **absence glyph**: an
+  // unranked row draws one, and `Movers.test.tsx` asserts there is no em dash
+  // anywhere in the region precisely so that a refused rank cannot be confused
+  // with anything else. A clause joined by one would have been the second
+  // drawer of that glyph, twelve pixels below a list that reserves it, and the
+  // repair would have been to weaken somebody else's assertion.
+  const sentence = `${lead}. ${movers.eligible === 0 ? NOTHING_TO_RANK : RANKED_OVER}.`;
+
+  return { drawn: sentence, spoken: sentence };
+}
+
+/** The second sentence when there was something to rank. */
+const RANKED_OVER = "Both lists are ranked over those";
+
+/**
+ * The tail clause when there was not.
+ *
+ * It claims the **ranking**, not the market: *there is nothing to rank* is a
+ * fact about what reached this process, where *nothing moved* would be a
+ * statement about 503 companies we heard nothing from. The one shipped sentence
+ * in this product that ever made that mistake is `describeSilence`, and it took
+ * a task to make it honest.
+ */
+const NOTHING_TO_RANK = "There is nothing to rank";
+
+/**
+ * **What one side says when it is empty and the other is not** — the one-sided
+ * market, which is the state nothing in this product had ever drawn.
+ *
+ * Each list holds only the rows whose direction matches it, so on a strong
+ * trend day one list is full and the other is short or empty. That is honest,
+ * where the alternative draws five gains under a heading saying `LOSERS`. What
+ * it is not is self-explanatory: *a region whose content is legitimately
+ * conditional looks identical to one whose content silently disappeared*
+ * (`docs/GAPS.md` entry 13).
+ *
+ * ## It claims the set we measured, never the market
+ *
+ * `Nothing declined.` is a statement about 503 companies, most of which nobody
+ * heard from. `None of the names we measured declined.` is a statement about
+ * the set the footer two lines below defines, and it is the only form of this
+ * sentence that is true. *We measured* is this product's own word for it —
+ * `MeasuredMove`, `eligibleMoves`, `WireBreadthCounts.measured` — and it is
+ * deliberately **not** `we heard from`, which was the candidate in the brief
+ * and carries the exact falsehood the two grammars exist to avoid: out of hours
+ * nothing is heard from, and the whole list would then be explained by a clause
+ * that is false about every row in it.
+ *
+ * ## And it is suppressed when NOTHING was measured
+ *
+ * `BreadthClaim`'s rule at N = 0, for the same reason: with `eligible === 0`
+ * the footer carries the whole truth — *of the 503 we track, none were heard
+ * from in the last 5 minutes — there is nothing to rank* — and two more
+ * sentences saying the same thing per list would be the same fact three times
+ * in one 466 px box. What the sentence is **for** is the state where the set is
+ * real and one end of it is empty, which is the state a reader cannot tell from
+ * a region that broke.
+ *
+ * ## It agrees with breadth by construction
+ *
+ * An empty `GAINERS` beside breadth's `Advancing 0` is the two regions
+ * agreeing; five rows under `GAINERS` beside `Advancing 0` is the contradiction
+ * to design against, and it cannot arise — the lists are a selection from the
+ * same array breadth's buckets are a tally of, so a row in `GAINERS` **is** a
+ * security in `Advancing`.
+ *
+ * @param verb The direction in the past tense, which is the only thing that
+ * differs between the two sides. `directionOf` is not consulted: there is no
+ * figure here to classify, only the heading this sentence sits under.
+ */
+function emptySideOf(
+  rows: readonly SectorRow[],
+  eligible: number,
+  verb: "rose" | "declined",
+): string | undefined {
+  if (rows.length > 0 || eligible === 0) return undefined;
+  return `None of the names we measured ${verb}.`;
 }
 
 /**
@@ -301,4 +504,20 @@ export function withHeldRows(rows: readonly SectorRow[]): readonly SectorRow[] {
  * an answer, so its reservation is **the empty answer with its room held**, and
  * the room comes from the same padding every other state uses.
  */
-export const RESERVED_MOVERS: MarketMovers = { gainers: [], losers: [] };
+export const RESERVED_MOVERS: MarketMovers = {
+  gainers: [],
+  losers: [],
+  // **Room and nothing else**, which is `RESERVED_BREADTH`'s decision and its
+  // recorded reason: the whole subtree is `visibility: hidden` and
+  // `aria-hidden`, so nothing here is seen or spoken — but **a hidden string is
+  // still in `textContent`**, one `expect` away from being asserted. A word
+  // reads as a claim, and every clause this region can draw is a claim about a
+  // set nothing has been counted over. A non-breaking space is not.
+  claim: { drawn: NBSP, spoken: NBSP },
+  // Not `undefined` for the room's sake and not a sentence for honesty's: the
+  // two-line footer reserve is what holds the height, and the per-list
+  // sentences sit inside room the held rows already hold. See `emptySideOf` —
+  // `eligible` is unknown here, so there is no state to describe.
+  gainersEmpty: undefined,
+  losersEmpty: undefined,
+};

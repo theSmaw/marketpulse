@@ -273,6 +273,23 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
      are present **and** that the Volume region carries its deferral, which
      covers this screen and no other. Re-measure: refuse every request with
      `route.abort` and read each region's contents, not just its heading.
+     **Discharged for `Movers` on 2026-10-08 by Task 4.5.6, and by a sentence
+     that is honest at zero rather than by a widening.** That region's empty
+     state is not an accident a reader has to diagnose — it is CI's permanent
+     state (518 securities, zero bars), most of a weekend and the first minute
+     of every session — and until this task it drew two headings, ten held
+     rows and **nothing else at all**, 466 px of labelled, empty box. It now
+     carries its own footer in that state: _Of the 503 companies we track,
+     none were heard from in the last 5 minutes. There is nothing to rank._,
+     with every figure read off the frame and the head slot's bound suppressed
+     beside it. The **one-sided** state — one list full, the other empty —
+     gets the sibling sentence, `None of the names we measured declined.`,
+     which claims the set we measured and never the market.
+     `e2e/specs/overview-movers-denominator.spec.ts` asserts all three
+     branches, keyed on what the frame actually said so that neither CI nor a
+     backfilled store skips. **The general claim is unchanged and unowned**:
+     nothing compares a region's states against each other, and the next
+     region to ship inherits the same question.
    - ~~**That the defaulted note's invitation is still available.**~~ **Closed
      2026-09-16 by deleting the sentence**, which is worth recording because it
      is not how the trigger expected to fire. The entry read: `/securities` with

@@ -1,6 +1,6 @@
 # Task 4.5.6 — The denominator, the two grammars, and the one-sided market
 
-**Status:** Not started
+**Status:** **Complete — 2026-10-08.**
 **Story:** [4.5 The Movers, & the First Surface That Ranks by a Live Value](STORY.md)
 **Depends on:** 4.5.5
 
@@ -178,3 +178,203 @@ saying so. Note what changed about _when_ a reader sees it: the sentence now
 renders **only** in the rollback state — a frame present with no movers section
 — because the first-paint state draws `MoversReservation` and every ordinary
 frame draws the lists. It is rarer, not gone.
+
+---
+
+## What was done — 2026-10-08
+
+### The sentence, in both grammars
+
+One builder, `describeMeasuredSet` in the **new** `apps/frontend/src/market/measured-set.ts`,
+read by **both** regions. The lead clause is byte-identical in breadth's footer
+and in this one, because it is the same call; the movers footer adds a second
+sentence saying that the lists are a selection from it.
+
+- `observed` — _"Of the 503 companies we track, 466 were heard from in the last
+  5 minutes. Both lists are ranked over those."_
+- `session` — _"Of the 503 companies we track, 501 had a close-to-close move on
+  2026-10-06. Both lists are ranked over those."_
+- at `eligible === 0`, the tail becomes _"There is nothing to rank."_ and the
+  count becomes `none` — which is the state a gated machine and most of a
+  weekend reach.
+
+**Every figure is read.** `tracked`, `eligible` and `windowMinutes`/`session`
+all come off the frame's **movers** section, never breadth's. No feed word, no
+venue, no instant — asserted in a unit test and again in the browser.
+
+**The full stop is a decision, not a style.** The clause was drawn first as one
+sentence joined by an em dash, and `Movers.test.tsx` went red: an em dash is
+this region's **absence glyph** (an unranked row draws one) and the existing
+test asserts there is none anywhere in the region. A clause joined by one would
+have been the glyph's second drawer twelve pixels under a list that reserves
+it, and the repair would have been to weaken somebody else's assertion.
+
+### Why the figures are the MOVERS section's and not breadth's
+
+The brief left this to be decided and said why. The decision is the movers
+section's own `eligible` / `tracked`, and the reason is availability rather
+than arithmetic: the two are the same number **by construction** (one
+eligibility pass over one array, consumed twice, which
+`breadth-is-counted-over-the-equities-alone` permits exactly one of), but
+`encodeBreadth` drops the **whole** breadth section on one non-finite count —
+which is precisely what `WireMoverLists.eligible` was added to survive. Reading
+breadth's would be invisible in every state anybody photographs and would leave
+the ranked list with no denominator in the one state the field exists for.
+
+`measured-set.ts` is a third file rather than an export of `market-breadth.ts`
+for the same reason: a movers module importing from a module named for breadth
+is one refactor away from reading its figures.
+
+### The pair, and what it renders today
+
+`MoversClaim { drawn, spoken }`, built in one function. **They are equal in
+every state this region has**, because it draws no ladder and prints no
+denominator — there is nothing for the drawn half to defer to. `Movers.tsx`
+takes `BreadthLedger`'s equality branch and renders **one element** when they
+match; the inequality branch and `.spoken` (composing `visuallyHidden`) exist
+so the two cannot diverge the day a printed figure in this region states the
+denominator, and both branches are covered by a component test. Reversal
+trigger recorded as a condition.
+
+### The one-sided market
+
+`None of the names we measured rose.` / `None of the names we measured declined.`,
+laid **over** the room the five held rows already hold (a `position: relative`
+wrapper per list, the sentence absolutely positioned inside it) so a market
+going one-sided costs the region no height — which at 768 and 390 would have
+stepped the whole lower page.
+
+**The brief's candidate was `Nothing we heard from declined.` and it is not
+what shipped.** _Heard from_ is the live grammar's phrase and is false about a
+closed market, which is breadth's own recorded reason for having two grammars —
+so the candidate carries the exact falsehood the two grammars exist to avoid,
+in the state the market is in for 80% of the week. _We measured_ is true on
+both bases (`MeasuredMove`, `eligibleMoves`, `WireBreadthCounts.measured` are
+this product's own words for it), so the sentence needs no third grammar and
+the basis stays in the footer where it has one home.
+
+**It is suppressed when `eligible === 0`**, which is `BreadthClaim`'s rule at
+N = 0: the footer then carries the whole truth and two more sentences would be
+the same fact three times in one 466 px box.
+
+**It cannot contradict breadth**: the lists are a selection from the same array
+breadth's buckets are a tally of, so a row under `GAINERS` **is** a security in
+`Advancing`.
+
+### The head slot
+
+`MoversMeta` now takes the view and **falls silent when nothing was selected**
+— `SectorPerformanceMeta`'s precedent, which speaks only in the mixed state. A
+bound stated over two empty lists reads as a claim about a selection that
+selected nothing. A **short** list keeps it, because the bound is exactly what
+says a short list is short because the market was one-sided rather than because
+it was truncated. The slot's room is reserved by `.slot`, so nothing moves
+either way and Task 4.5.7's badge still arrives into held room.
+
+### The copy defect, and the invariant question answered
+
+`MarketOverview.tsx`'s `filledBy` now reads _"The largest moves among the
+**companies** we track…"_.
+
+**The invariant cannot be widened, and that is recorded rather than claimed.**
+`the-population-is-never-a-literal` fires on a **digit** inside a literal
+containing `we track`, and this sentence has none — the defect is a wrong noun
+with no figure anywhere near it. Two widenings were considered:
+
+- **refuse `securities we track` by name.** It is keyed on today's incidental
+  wording: green the day somebody writes _names we track_ or _tickers we
+  track_, red the day the product legitimately says `securities we track` about
+  the 518 — which it may, since `/securities` is a real surface about exactly
+  that set. It forbids a string rather than a defect.
+- **require the noun to be `companies`.** Same objection with the sign
+  reversed, and it would make a true sentence about the universe unwritable.
+
+There is no clause here the re-implementer cannot avoid writing: the population
+is named in prose, the two nouns are both real sets in this product, and which
+one is right depends on which set the **sentence** is about — which no grep can
+read. So the guard is a comment in `MarketOverview.tsx` beside the sentence,
+and this paragraph. **A claim about a mechanism reads identically whether the
+mechanism is there or not**, so it is stated as an absence.
+
+### The check, and the transcript of it passing wrongly
+
+`the-ranking-states-its-own-denominator`, five clauses:
+
+1. `movers.ts` names `eligible`, `tracked` and `describeMeasuredSet`;
+2. `measured-set.ts` names `windowMinutes` and `session` — so the window and
+   the session are read in the one builder rather than spelled at a call site;
+3. neither movers file names `breadth`, by import or by field;
+4. every rendering of the clause in `Movers.tsx` is rooted at `view.claim`;
+5. the footer element carries no `aria-hidden`.
+
+Each is _exactly one, or report it_.
+
+**Clause 4 is there because the first draft passed wrongly on the defect the
+next story writes.** Transcript, verbatim — the check as first written, against
+`Movers.tsx` taking a `claim: MoversClaim` prop and `MarketOverview.tsx`
+handing it `breadth.claim`:
+
+```
+=== first draft of the check, against the defect the next story writes ===
+46 invariants hold.
+```
+
+With clause 4 added, the same tree reports one failure, naming every rendering.
+
+**Two breaks registered** — `the-rankings-denominator-is-silenced` (the footer
+swept into `aria-hidden` beside siblings that legitimately carry one) and
+`the-ranking-reads-the-breadth-denominator` (`count: breadth.measured`). Both
+**went red** on the clause they prove. Note that `pnpm break` itself **refuses
+a dirty target** and this change is uncommitted, so the two were performed by
+hand with the registry's own `find` / `replace` text and the registered
+command; the harness run is owed on the commit.
+
+### The accessibility-tree evidence
+
+`Accessibility.getFullAXTree` over a CDP session against the deployed-shaped
+local page, verbatim:
+
+```
+=== AX nodes mentioning 'we track' ===
+heading      ignored=false  "OF THE 503 WE TRACK"
+StaticText   ignored=false  "Of the 503 companies we track, 503 had a close-to-close move on 2026-09-11."
+StaticText   ignored=false  "Of the 503 companies we track, 503 had a close-to-close move on 2026-09-11. Both lists are ranked over those."
+```
+
+The third is this region's, `ignored=false`, inside `region "Movers"`. It is
+now asserted permanently by
+`e2e/specs/overview-movers-denominator.spec.ts`'s second test, which reads the
+same tree rather than the DOM — `toContainText` passes over an `aria-hidden`
+subtree, so the DOM is correct in both the working and the broken version.
+
+### Geometry — measured, not argued
+
+`pnpm probe / --within Movers --all` at 1440, 1024, 768 and 390: `.claim` is
+**32 px at every width**, which is the two-line reserve exactly, and
+`Region.content` is **369 px** at every width — unchanged from before the
+sentence existed. The per-list sentence is absolutely positioned, so it adds
+nothing. Photographed at 390 in the empty state and at 1440 in the one-sided
+state.
+
+## What was found that the brief had wrong
+
+1. **4.5.5's hand-off is false where it says the basis is uniform over the
+   section.** The `MoveQualifier` is uniform; the **rows** are not. On the
+   `session` basis `eligibleMoves` reads a close off the `live` member too (by
+   design) and `figureOf` maps a `live` entry to an **`observed`** figure — so
+   an evening frame mixes rows drawing the last trade with rows drawing the
+   session's close, and their per-row `basis` strings differ. The clause this
+   task was handed — _say what session the prices are from_ — would therefore
+   have been **false for most of the evening**. The sentence that shipped names
+   the set and the question instead, which is true of every row on either
+   basis. The correction is written into `SectorRow.price`'s docblock and into
+   `TASK-05`'s own file, with the trigger re-raised and narrowed: _the first
+   surface that needs a reader to know which of the two a row's price is._
+2. **The brief's candidate empty-list sentence is basis-dependent** and would
+   be false out of hours — see above.
+3. **The brief asks for both clauses to "read the same frame fields".** They
+   read the **same words** from one builder and **different fields** of one
+   frame, deliberately, and the reason is the breadth section's droppability.
+   The thing a check can assert is the one producer, and it does.
+4. **An em dash was unavailable** for joining the clause — the region reserves
+   that glyph for a refused rank.
