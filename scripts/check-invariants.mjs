@@ -4521,6 +4521,156 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "the-universe-holds-no-ticker-wider-than-the-track",
+    claim:
+      "No symbol in the tracked universe is longer than five characters, and " +
+      "the movers row's ticker track is wide enough to draw a five-character " +
+      "one at both widths without clipping it.",
+    check() {
+      // **A claim about DATA, which is why it is here and not a comment**
+      // (Task 4.5.8). `Movers` is the first region in the product to draw an
+      // arbitrary equity ticker, and the width of its ticker track is sized to
+      // the widest symbol the universe holds. The sector region's track was
+      // sized the same way and its roster is eleven known funds; this one's
+      // roster is whatever somebody curates next.
+      //
+      // The defect this exists to catch is **not a code change**. It is a row
+      // added to `universe.ts` — `GOOGL.X`, a six-character symbol, a foreign
+      // listing — which compiles, lints, passes every unit test and every
+      // browser spec, and paints over the company name on one row of one
+      // region at one width. `.symbol` is `white-space: nowrap` with no
+      // `overflow`, and a grid item does not clip.
+      //
+      // ## The measurement, which is the only argument the numbers have
+      //
+      // Taken 2026-10-08 in the page's own `.symbol`, at `--font-size-dense`
+      // (13 px) with `--letter-spacing-micro` (1.04 px): a five-glyph ticker
+      // is **44.20 px** in the shipped face (`JetBrains Mono Variable`) and
+      // **50.73 px** in `ui-monospace`, which is what a cold load renders
+      // before the self-hosted face arrives and is the widest of the seven
+      // families in `--font-data`. Beside the symbol sit the 8 px mark slot
+      // and the flex gap before it — 8 px above 37rem, 4 below — so the track
+      // floors are `50.73 + 8 + 8` and `50.73 + 4 + 8`.
+      //
+      // **The per-glyph arithmetic is deliberately not generalised.** The
+      // cold-load face is proportional, not monospaced: `GOOGL` is 50.70 and
+      // `BRK.B` is 43.86 at the same five characters. So the limit below is a
+      // **character count** against a measured worst case, and a sixth
+      // character is a re-measure rather than a multiplication.
+      const MAX_TICKER_LENGTH = 5;
+
+      // `50.73 + 8 + 8` and `50.73 + 4 + 8`, rounded down to the pixel.
+      const TRACK_FLOOR = { wide: 66, narrow: 62 };
+
+      const universe = readAnchored(
+        resolve(REPO_ROOT, "apps/backend/src/universe.ts"),
+      );
+
+      // Every curated row is a `["SYM", "Name", "EXCHANGE"]` triple, and the
+      // symbol is the first member. Keyed on the shape rather than on a
+      // helper's name, because a row is added by typing a triple whatever the
+      // constructor around it is called.
+      // Measured 2026-10-08: **507** rows — the 503 equities and the four
+      // index proxies — of which `1:10, 2:46, 3:285, 4:163, 5:3`, the three
+      // being `BRK.B`, `CMCSA` and `GOOGL`. The eleven sector ETFs are not
+      // triples here: they come from `SECTOR_ETFS` in
+      // `packages/shared/src/security.ts`, they are the **sector** row's
+      // roster, and that row has a track of its own — recorded so nobody
+      // reads this population as the whole universe.
+      const symbols = [
+        ...universe.matchAll(/\[\s*"([^"]+)"\s*,\s*"[^"]*"\s*,/gu),
+      ].map((found) => found[1]);
+
+      // **The anchor.** The curated file is 500-odd rows; a population of a
+      // handful means the shape changed and the check is asserting nothing.
+      if (symbols.length < 100) {
+        throw new InvariantFailure(
+          `Only ${String(symbols.length)} curated row(s) were recognised in ` +
+            "apps/backend/src/universe.ts, and the file holds the tracked " +
+            'universe. The row shape this check reads — a `["SYM", ' +
+            '"Name", "EXCHANGE"]` triple — has changed; repoint it in the ' +
+            "same change rather than letting it pass over nothing.",
+        );
+      }
+
+      const tooWide = symbols.filter(
+        (symbol) => symbol.length > MAX_TICKER_LENGTH,
+      );
+
+      if (tooWide.length > 0) {
+        throw new InvariantFailure(
+          `${String(tooWide.length)} tracked symbol(s) are longer than ` +
+            `${String(MAX_TICKER_LENGTH)} characters:\n      ` +
+            tooWide.join(", ") +
+            "\n    `Movers` draws the ticker in a fixed track sized to a " +
+            "measured five-character worst case, and `.symbol` is " +
+            "`white-space: nowrap` with no `overflow` — so a sixth character " +
+            "paints over the mark slot and, at 390, over the company name. " +
+            "Re-measure the symbol in the page's own `.symbol` in " +
+            "`ui-monospace`, widen `.movers`' second track at BOTH widths, " +
+            "and state the cost to the name — the arithmetic is in " +
+            "RankedList.module.css beside `.movers`.",
+        );
+      }
+
+      // The other side of the same claim: the track has to still be wide
+      // enough. A check on the data alone is green the day somebody narrows
+      // the track back to the sector row's 52.
+      const css = readAnchored(
+        resolve(
+          REPO_ROOT,
+          "apps/frontend/src/components/RankedList/RankedList.module.css",
+        ),
+      );
+
+      const tracks = [
+        ...css
+          .replaceAll(/\/\*[\s\S]*?\*\//gu, "")
+          .matchAll(
+            /\.movers\s*\{[^}]*?grid-template-columns:\s*\S+\s+(\d+)px/gu,
+          ),
+      ].map((found) => Number(found[1]));
+
+      // **The second anchor**, and it is the one that rots: two `.movers`
+      // track lists exist because `every-row-variant-restates-its-tracks`
+      // requires them, the wide one first in the file and the narrow one
+      // inside the `@media` block. Anything else and the pairing below is
+      // reading the wrong numbers.
+      if (tracks.length !== 2) {
+        throw new InvariantFailure(
+          `${String(tracks.length)} \`.movers\` ticker track(s) were found ` +
+            "in RankedList.module.css and there should be exactly two — the " +
+            "wide one and the narrow restatement. Either the second track " +
+            "stopped being a `px` length or a third variant arrived; " +
+            "repoint this check at them.",
+        );
+      }
+
+      const floors = [TRACK_FLOOR.wide, TRACK_FLOOR.narrow];
+      const narrowed = tracks
+        .map((track, at) => ({ track, floor: floors[at] }))
+        .filter(({ track, floor }) => track < floor);
+
+      if (narrowed.length > 0) {
+        throw new InvariantFailure(
+          `${String(narrowed.length)} \`.movers\` ticker track(s) are ` +
+            "narrower than a five-character ticker needs:\n      " +
+            narrowed
+              .map(
+                ({ track, floor }) =>
+                  `${String(track)}px stated against a ${String(floor)}px floor`,
+              )
+              .join("\n      ") +
+            "\n    A five-glyph symbol measures 50.73 px in the cold-load " +
+            "face and the mark slot and its gap take 16 px above 37rem and " +
+            "12 below. `GOOGL`, `CMCSA` and `BRK.B` then overflow a track " +
+            "that does not clip — into the company name at 390, where the " +
+            "gap is 4 px. The measurement is beside `.movers`.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

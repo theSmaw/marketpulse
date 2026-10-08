@@ -137,10 +137,58 @@ describe("Movers", () => {
     const { container } = render(<Movers view={BOTH_ENDS} />);
 
     expect(container.textContent).not.toContain("Not ranked");
-    // No em dash anywhere: the only thing that draws one is a rank this
-    // component is refusing to print, and it refuses to draw the row instead.
+    // **No em dash anywhere in THIS view**, and the sentence this comment used
+    // to carry was wrong (corrected 2026-10-08, Task 4.5.8): it said *the only
+    // thing that draws one is a rank this component is refusing to print*.
+    // `PriceChange`'s glyph for the `unchanged` direction is an em dash too, so
+    // the region has **two meanings for one glyph** and what keeps the second
+    // out of reach is the producer rather than the renderer. The test below
+    // owns that state and says what reaches it.
     expect(container.textContent).not.toContain("—");
     expect(lists()).toHaveLength(2);
+  });
+
+  it("draws a display-flat row as a ranked row, which is the renderer's deliberate answer to a producer that sent one", () => {
+    // **The state no shipped producer can reach, recorded rather than
+    // refused** (Task 4.5.8's third finding).
+    //
+    // `selectMoversBy` classifies each candidate through `directionOf` on the
+    // **displayed** figure, so a row that prints `0.00%` is a candidate for
+    // neither end and cannot be in either list; and `readMovers` **does not
+    // refuse on sign**, which is the owner's Gate 1 decision and stands — a
+    // sign check in the reader would be a second classifier, the thing
+    // `one-classifier-for-the-direction-of-a-move` exists to refuse, asserting
+    // what check 5 already covers in the only grain that matters.
+    //
+    // So the state is reachable only from a **rolled-back or foreign
+    // producer**, and what it draws is this: an ordinary ranked row, the rank
+    // printed, the figure `0.00%`, and `PriceChange`'s `unchanged` glyph — an
+    // **em dash**, twelve pixels from where `RankedList` draws the same glyph
+    // for *not ranked*. That ambiguity is the reason this test exists: the
+    // alternative treatments were both worse. Dropping the row leaves a
+    // ranked list with four rows and a reader with no account of the fifth,
+    // and drawing it as *not ranked* is a claim about data — the figure is
+    // there and it is zero.
+    //
+    // **What the renderer may not do is disagree with the heading quietly**,
+    // and it does not: the row reads `0.00%` under `Gainers`, which is a
+    // visible contradiction a reader can see and report. A region that hid it
+    // would be the furnished-frame defect with the evidence removed.
+    const flat = row("KO", "Coca-Cola Company", 0, 4);
+
+    const { container } = render(
+      <Movers view={viewOf([...GAINERS, flat], LOSERS)} />,
+    );
+
+    const fourth = within(
+      screen.getByRole("list", { name: "Gainers" }),
+    ).getAllByRole("listitem")[3];
+    expect(fourth?.textContent).toContain("0.00%");
+    expect(fourth?.textContent).toContain("unchanged");
+    // The glyph, and the one thing that tells it apart from the absence glyph
+    // is the spoken word beside it — which is the row still being ranked.
+    expect(container.textContent).toContain("—");
+    expect(container.textContent).not.toContain("Not ranked");
   });
 
   it("pads a short list to the bound in the LIST and not in the accessibility tree", () => {

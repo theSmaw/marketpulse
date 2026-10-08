@@ -3,9 +3,10 @@ import { changePercent, directionOf, marketDateAt } from "@marketpulse/shared";
 import type {
   MarketDate,
   PriceDirection,
-  SecurityLastClose,
   WireMarketBreadth,
 } from "@marketpulse/shared";
+import { lastCloseOf } from "./market-overview.js";
+
 import type { MarketOverviewEntry } from "./market-overview.js";
 
 /**
@@ -137,16 +138,6 @@ const bucketOf = (direction: PriceDirection): keyof Buckets => {
       return "unchanged";
   }
 };
-
-/**
- * The close an entry was measured against, whatever state it is in.
- *
- * `undefined` for a security we hold no close for — a `live` entry whose
- * change is unmeasurable, or an `unknown` one, which is every security in CI's
- * store.
- */
-const closeOf = (entry: MarketOverviewEntry): SecurityLastClose | undefined =>
-  entry.state === "unknown" ? undefined : entry.close;
 
 /**
  * Count the three buckets and their sum.
@@ -310,7 +301,7 @@ const sessionMoves = (
   let session: MarketDate | undefined;
 
   for (const entry of entries) {
-    const close = closeOf(entry);
+    const close = lastCloseOf(entry);
     if (close === undefined) continue;
     if (session === undefined || close.session > session)
       session = close.session;
@@ -319,7 +310,7 @@ const sessionMoves = (
   const moves: MeasuredMove[] = [];
 
   for (const entry of entries) {
-    const close = closeOf(entry);
+    const close = lastCloseOf(entry);
     if (close === undefined || close.session !== session) continue;
     // `changePercent` is `packages/shared`'s — the **same** function
     // `/securities`' table and `WireStoredFigure.sessionChangePercent` use for

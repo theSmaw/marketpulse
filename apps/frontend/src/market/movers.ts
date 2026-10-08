@@ -271,21 +271,32 @@ export function marketMovers(
  *
  * Task 4.5.5 recorded that *out of hours every mover row is a stored close* and
  * that the basis is uniform over the section, and handed this clause the job of
- * saying so. **It is not uniform, and this sentence therefore does not make
- * that claim.** On the `session` basis `eligibleMoves` reads a close off the
- * `live` member too — deliberately, because the process holds the session's
- * observations for hours after the bell — and `figureOf` maps a `live` entry to
- * an `observed` figure, whose `price` is the last trade rather than the
- * session's close. So a session-basis list is a **mixture** of `observed` and
- * `stored` rows, their per-row `basis` strings differ, and *every price is that
- * session's close* would be false for most of the evening.
+ * saying so. **It was not uniform when 4.5.6 looked, and this sentence
+ * therefore does not make that claim.** On the `session` basis `eligibleMoves`
+ * reads a close off the `live` member too — deliberately, because the process
+ * holds the session's observations for hours after the bell — and `figureOf`
+ * mapped a `live` entry to an `observed` figure, whose `price` is the last
+ * trade rather than the session's close. So a session-basis list was a
+ * **mixture** of `observed` and `stored` rows, their per-row `basis` strings
+ * differed, and *every price is that session's close* would have been false for
+ * most of the evening.
  *
  * What the clause names instead is the **set and the question**: which
  * securities had a measurable move, and on what. That is true of every row in
- * either list on either basis. The per-row session is still nowhere on screen,
- * and the trigger 4.5.5 recorded — *the first frame whose movers rows do not
- * share one basis* — has therefore **already fired**; it is re-raised in that
- * task's own file rather than silently satisfied here.
+ * either list on either basis, which is why **the sentence did not change on
+ * 2026-10-08 when the mixture did**, and that is the point of having written it
+ * that way: a clause about the set survives a repair to the rows.
+ *
+ * **The mixture ended the same day** (Task 4.5.8). It was the visible half of a
+ * producer defect — the rows were ranked on the pass's close-to-close move and
+ * drew the live change against that close, two quantities in one list — and the
+ * repair makes a session-basis row the figure of the close the pass read. So
+ * the section is uniform again on that basis, by construction rather than by
+ * luck: every row `stored`, one `basis` string, every price that session's
+ * close. The trigger 4.5.5 recorded — *the first frame whose movers rows do not
+ * share one basis* — fired and is closed **for this region**; it stays open for
+ * `Sector performance`, whose rows are a roster rather than a selection and can
+ * still arrive mixed. `SectorRow.price` carries the owner.
  */
 function moversClaimOf(movers: WireMarketMovers): MoversClaim {
   const lead = describeMeasuredSet({

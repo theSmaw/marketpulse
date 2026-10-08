@@ -241,3 +241,69 @@ at all**. Breadth does not change that — it renders **four rows**, three count
 remainder, over a computation across 503. **So the gap between _universe-scale
 computation_ and _universe-scale markup_ is now concrete rather than hypothetical,
 and it is this story's to resolve.**
+
+## Handed here by Story 4.5 — 2026-10-08: the second universe-scale computation, and the trigger verdict you own
+
+**The join now carries two computations over the 503, not one**, and both are
+measured and attributed so you start from a reading rather than from zero.
+
+### The cost, with its control
+
+|                                                               | median                       |
+| ------------------------------------------------------------- | ---------------------------- |
+| the join with breadth and movers                              | **3.866 / 4.002 / 3.943 ms** |
+| the control — the same pipeline, movers' eligible set emptied | **3.494 / 3.722 / 3.534 ms** |
+| `selectMovers` alone over 503                                 | 0.123–0.129 ms               |
+
+**Marginal: 0.28–0.41 ms a batch**, ~8–12% on Story 4.4's figure, **~5–7 ms of
+script a minute** against §28's 50 ms routine line. n = 400 timed after 300
+warm-up, three runs, all 518 observed — the worst case, against ~332 in a
+median minute.
+
+**The control reproduces Story 4.4's 3.497 ms baseline to 0.1%**, which is the
+thing that makes the difference attributable rather than merely adjacent.
+**The maxima are unusable and are reported as unusable**: the control moved
+3.74 → 25.7 ms between runs while its median moved 0.23.
+
+### The structural change you should know about before measuring anything
+
+There is now **one eligibility pass**, not two: `eligibleMoves(entries, …)` →
+`marketBreadth(eligible)` and `topMovers(eligible, figureOf)`. So
+`movers.eligible` is the **length** of one array and `breadth.measured` the
+**tally** of the same one. **A third consumer joins that pass rather than
+walking `entries` again**, and if you measure a per-section cost, the pass
+itself is shared and must be attributed once.
+
+### Epic 14's trigger: a verdict, recorded rather than acted on
+
+**It does not fire.** Its words are _"the first time a second surface on
+**this** page renders per-row markup at universe scale"_ — `Movers` renders
+**ten rows** over a computation across 503, on `/` rather than `/securities`.
+Twenty rows is not universe scale and it is a different page.
+
+**And re-wording it is explicitly not this story's call — it is yours.** The
+architect's recommendation, recorded for you: **do not re-word it.** Three
+reasons. The trigger is quoted verbatim in **five live places**, so a rewrite
+changes retroactively what Epic 14 was told it owns. A trigger naming
+_computation_ at universe scale would **already have fired** — Task 4.4.4's
+widening did it on 2026-10-07 — which makes Epic 14 retroactively due for a
+**3.5 ms** cost against a 50 ms line. And the two costs want different
+repairs: Epic 14's candidates are DOM-size levers (`content-visibility`,
+collapsed bands, virtualisation) where `/`'s cost wants memo boundaries and a
+memoised `marketDateAt`. **One condition over two levers is how a trigger
+stops meaning anything.** The recommendation is a **second condition for `/`**,
+beside the first — and the fork is yours by plan.
+
+### The candidate that is still the whole of the cost
+
+Unchanged from Story 4.4 and worth re-stating because this story adds to the
+same callback: **3.4 of the 3.5 ms is 518 `marketDateAt` calls** at ~6.6 µs
+each inside `changeFromClose`'s same-session branch. Movers adds 0.3–0.4 ms on
+top of it. **Neither the counting nor the ranking is the cost**; one `Intl`
+conversion per live entry per batch is.
+
+Epic 14's own file carries the condition that would make it theirs: _the
+cadence rises_, or _a second universe-scale per-tick computation is added to
+the same callback_. **Story 4.5 added one** — and it ranks the figures the join
+already produced rather than re-deriving a move, which is why it is 0.3 ms and
+not another 3.4.

@@ -242,7 +242,14 @@ export interface SectorRow {
    * per region and the clause has to move onto the row, where the 80 px track
    * cannot hold it and the geometry is owed a re-take.
    *
-   * ## THE TRIGGER HAS ALREADY FIRED — found 2026-10-08 by Task 4.5.6
+   * ## THE TRIGGER FIRED AND WAS THEN CLOSED — 2026-10-08, Tasks 4.5.6 and
+   * 4.5.8
+   *
+   * **Read the amendment at the end of this section first: the mixture it
+   * describes no longer reaches a browser.** The account is left standing
+   * because it is why the repair was taken, and because the *sector* region
+   * can still produce a mixed section — its rows are a roster rather than a
+   * selection, and nothing filters them through an eligibility pass.
    *
    * The first reason above is **false**, and it was false when it was written.
    * The `MoveQualifier` is uniform; the **rows** are not. On the `session`
@@ -268,6 +275,23 @@ export interface SectorRow {
    * surface that needs a reader to know which of the two a row's price is.**
    * The repair is a fact about the row and the track is 80 px, so it is a
    * geometry question and not a sentence.
+   *
+   * ## Amended 2026-10-08 (Task 4.5.8): the MOVERS section is no longer mixed
+   *
+   * The mixture was the visible half of a defect in the producer rather than a
+   * state the product meant to draw: the section's rows were **ranked** on the
+   * close-to-close move the eligibility pass measured and **drew** the live
+   * price's change against that close, so the drawn order could contradict the
+   * drawn figures. `market-overview.ts`' movers encoder now builds a
+   * session-basis row from the close the pass read, which makes every row on
+   * that basis `stored` — one `basis` string for the section, and every price
+   * that session's close.
+   *
+   * So for `Movers` the question *which of the two is this row's price* has
+   * one answer per basis and the basis is stated in the region's footer. The
+   * item stays open for **`Sector performance`**, whose eleven rows are a
+   * roster and can still arrive as a mixture, with the same owner: the first
+   * surface that needs a reader to know which of the two a row's price is.
    */
   readonly price?: string;
   /**

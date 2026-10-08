@@ -1,6 +1,6 @@
 # Story 4.5 — The Movers, & the First Surface That Ranks by a Live Value
 
-**Status:** **In progress — 2026-10-08.** Decomposed into eight tasks; five decisions taken at Gate 1. Shaping found **two live defects** (a 518-vs-503 copy error in the shipped reserved sentence, and a label track 41.4% of company names overflow) and **one false citation** (this file cited ADR 0038 for a rule it does not contain).
+**Status:** **Complete — 2026-10-08**, pending the owner's acceptance at Gate 2. Eight tasks, eight PRs (#519–#526 and the close). `/` draws **two ranked lists over the 503 equities** — `GAINERS` and `LOSERS`, five rows each — from the **same single eligibility pass** `Market breadth` counts, with the region stating its own denominator. **466 px in every state at every width.** The ranking is server-side; the frame ships **1,243 bytes** rather than a 60,636-byte input. **Open**: nobody has seen the region on a live feed, because the observed basis exists only 09:30–16:00 ET and no gated machine runs then with data.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.4
 **Epic scope covered:** top gainers / losers

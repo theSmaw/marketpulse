@@ -151,3 +151,73 @@ machine changed nothing, because every sighting was under load. **This is not Ep
 4 scope and should not become it**; what this close owes is a verdict on whether
 the epic's own suites are trustworthy, and a named owner outside this epic if they
 are not.
+
+## Handed here by Story 4.5 — 2026-10-08: the suites verdict has evidence now, and the rehearsal has an eighth row
+
+**The prescribed sideways grep did not find you either** — Story 4.5's
+documents name you nowhere. Found by the second pass over this epic's own
+story list.
+
+### 1. Your verdict — _are this epic's own suites trustworthy_ — has data
+
+`EPIC.md` hands you that question with a named owner outside this epic if the
+answer is no. Story 4.5 produced the sharpest evidence yet, and it points at
+the **machine** rather than at the suites:
+
+| run                                         | result                                     |
+| ------------------------------------------- | ------------------------------------------ |
+| whole suite, 1                              | `201 passed, 15 skipped, 3 failed`         |
+| whole suite, 2 (after a clean pair restart) | `199 passed, 15 skipped, 5 failed`         |
+| whole suite, 3                              | `195 passed, 15 skipped, 7 failed`         |
+| the three failing specs alone               | **killed by the OS for memory**            |
+| **CI, same commit**                         | **`verify`, `e2e`, `database` all passed** |
+
+**Every failure in all three runs was `Test timeout of 30000ms exceeded` with
+zero assertion failures**, on the CPU-heaviest tests — axe on
+`securities-route` and `security-explorer-shell`, the accessibility-tree walk
+in `security-holiday-week` — with a **different failing set each time**, where
+a regression is deterministic. Machine: load **23 / 33 on 8 cores**, ~37 MB
+free, consumers a `Virtualization.framework` VM at 46.8% CPU, Docker Desktop
+at 44.8%, Teams VDI at 27.1%, WebStorm at 21.5%.
+
+**The distinction to carry into your verdict**: _the suite is flaky_ and _the
+machine cannot execute the suite_ look identical from a terminal, and only one
+of them is anybody's defect. On this evidence it is the second — but note the
+third run failed **more** than the first, so the two are not cleanly separable
+without a settled machine.
+
+**What is owed and was not taken, by name**: the `--repeat-each=6` × 4
+characterisation counting per execution, and the **code-free control commit**.
+Both need a machine this epic has not had, and **no story in this epic should
+claim a flake rate measured on it.**
+
+### 2. The rehearsal ledger's eighth row is open
+
+Story 4.5's row is written and unwatched. **What makes it different from every
+row above it**: a ranked list of ten tickers is something a person can check
+against **any public market screen in fifteen seconds** — which is the only
+genuinely **external** check this epic has ever had available. Breadth's five
+integers could be compared with nothing; a proxy's price could be compared
+with a quote but is one number. **Ten names and ten percentages is a list.**
+
+And what only a sitting can return, because a replay structurally cannot:
+`replay-bar-source.ts` emits one slice per minute across every symbol, so a
+replay returns **one frame, 0 ms spread, 100% of the time at any speed** —
+**the split minute the re-order treatment is designed against is absent from
+the data structure.** The live path was measured as a **stagger**: ten names
+land in ~6 of the 8.8 upstream messages a minute. So AC 2's re-check _is_ that
+row and nothing else.
+
+**The lever if it reads wrong is the disc, not the motion** — a ranked list's
+aliveness is its order.
+
+### 3. Three epic-level claims this story leaves standing
+
+- **No machine and no person has ever seen a movers list on the `observed`
+  basis.** CI's store has zero bars, so every gated run draws the empty state.
+- **The day's biggest mover may be a name we never heard from**, and nothing
+  on screen or off it can say whether it was — median 466 of 518 inside five
+  minutes, worst hour 446, **298 at 13:00**.
+- **The ranking is over a one-venue tape.** The live stream is IEX only, so
+  _the biggest movers_ is strictly _the biggest movers among the names one
+  venue told us about in the last five minutes_.

@@ -342,3 +342,72 @@ and `figures: []` are **one state on screen** by decision, and
 `all-stored-one-session` against `no-provider-configured` are identical on the
 strip **and** the note and told apart **by the chrome alone** — which is ADR
 0029's one-home rule working rather than a gap.
+
+## Handed here by Story 4.5 — 2026-10-08: a seventh region's states, and the 390 question has a new worst case
+
+**The prescribed sideways grep did not find you** — Story 4.5's documents name
+you nowhere. You were found by walking this epic's own story list and asking
+_did 4.5 measure anything 4.7 acts on_, which is the second pass Task 4.4.8
+recommended after its grep missed two of five. **Four of the five things below
+are measurements you would otherwise re-take.**
+
+### 1. The region is 466 px in EVERY state, at every width
+
+Measured, not predicted, across seven states including the reservation, the
+one-sided day and the empty one:
+
+| state                                                       | 1440    | 1024    | 768     | 390     |
+| ----------------------------------------------------------- | ------- | ------- | ------- | ------- |
+| full, one-sided, N=1, empty, identical figures, first paint | **466** | **466** | **466** | **466** |
+
+A one-sided day is padded with **held rows** — `visibility: hidden`,
+`aria-hidden`, in the array the FLIP is handed — so the short list costs no
+height. **Without that padding 5 → 2 shrinks the region by 81 px** and steps
+the whole lower page at 768 and 390, where the grid rows are untied.
+
+### 2. The page's new totals, so your degraded grid has a baseline
+
+`1646 / 1646 / 2359 / 2565` after, against `1646 / 1646 / 1996 / 2220` before.
+**Nothing at 1440 or 1024** — rows 2 and 3 share one `fr` — and **+363 / +345**
+at 768 and 390.
+
+### 3. The 390 question has a new worst case, and it is a NAME rather than a sentence
+
+Every previous 390 clipping item in this epic has been a **sentence**. This
+region's is a **company name**: `.label` is the one flexible track, and at 390
+it holds **191.45 px ≈ 24 characters** against a universe whose names are
+`p50 21, p75 26, p90 32, max 50`. So **roughly a quarter of the universe
+ellipsises at 390 by design** — and the price column is dropped there
+entirely, which is a decision rather than an overflow.
+
+**What is mechanically invisible, as ever**: `textContent` is identical whether
+a name wraps, clips, ellipsises or overflows. The longest name in the universe
+is `Cognizant Technology Solutions Corporation Class A` at **308 px**; measure
+against that, not against `NVDA`.
+
+### 4. The degraded states you inherit, and one is reachable on every gated run
+
+- **Both lists empty** — CI's permanent state, because the frame carries a
+  movers section with two empty lists when nothing is rankable. The region
+  draws its heading pair, the bound falls silent, and the footer says
+  _"…none were heard from… There is nothing to rank."_
+- **One list empty** — a one-sided market. It says
+  `None of the names we measured declined.` — **not** _heard from_, which is
+  the live grammar's phrase and is false about a closed market.
+- **No movers section on the frame** — a rollback pinning a previous image.
+  Distinct from _no frame at all_, which Story 4.4 learned the hard way after a
+  docblock called them one state for a fortnight.
+- **The feed stops**: the region is byte-identical and says nothing, which is
+  Story 3.10's settled posture. The status bar is the only surface that speaks,
+  and it reads `LIVE` for **165 seconds** after a client loses its network.
+
+### 5. The suite's own health, which is yours and 4.9's together
+
+Three whole-suite runs on 2026-10-08 failed 3, then 5, then 7 — **every
+failure a 30 s timeout, zero assertion failures**, on the CPU-heaviest tests
+(axe, the accessibility-tree walk), with a **different set each time**, while
+the machine sat at load **23–33 on 8 cores** with ~37 MB free. CI passed all
+three required checks. **The suite is not flaky and the change did not break
+it; the machine could not execute it** — and those two look identical from a
+terminal. The `--repeat-each=6` × 4 characterisation is **owed and not taken**,
+because it needs a settled machine.

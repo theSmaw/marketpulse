@@ -421,3 +421,53 @@ definition of what _up_, _down_ and _unchanged_ mean, keyed on the **displayed**
 percentage rather than the raw one, so a figure that renders `0.00%` counts as
 unchanged. A breadth factor that classifies with its own comparator will disagree
 with every glyph on every screen at the rounding boundary.
+
+## Handed here by Story 4.5 — 2026-10-08: the ranking rule has one home, and it is not named for sectors any more
+
+**Three things exist now that did not when Story 4.4 wrote to this file**, and
+all three are things an anomaly-ranked list would otherwise re-invent.
+
+**1. The comparator is renamed and is about a MOVE rather than a sector.**
+`sectorRankingKey` → **`moveRankingKey`** and `compareSectorFigures` →
+**`compareByMove`**, in `packages/shared/src/sector-ranking.ts`
+(`rankSectorFigures` keeps its name — it genuinely ranks the eleven roster).
+The rule is unchanged and is the one to reuse rather than re-derive:
+**descending by the figure's own move; a figure with no ranking key is not
+ranked among the ranked; two figures equal at displayed precision never
+swap**. No default and no `?? 0` anywhere.
+
+**2. There is a bounded two-ended selection, and a reason not to sort.**
+`selectMovers(figures, limit)` returns disjoint `{ gainers, losers }` in one
+pass. Measured over 503: **0.155 ms against a full sort's 0.57** — and the
+residue is _the price of one rule_, because the comparator takes two
+**figures**, so every comparison re-reads and re-rounds the key. **Caching
+that would need a comparator over keys, which is the second comparator the
+check below forbids**, and the cost is bought deliberately.
+
+**3. A second comparator is now refused by `pnpm invariants`.**
+`one-comparator-for-the-order-of-a-move` keys on **two moves either side of
+one operator** — subtraction or inequality, with a 32-character window on each
+side. Deliberately not keyed on `.sort(`: a second ranking needs neither the
+comparator nor the figure type nor `.sort(` (a heap, a `reduce`, a
+hand-rolled insert all qualify), **but every one of them puts two moves either
+side of an operator**. There is no exemption list, so there is no escape
+hatch.
+
+**What that means for an anomaly score.** If this epic ranks securities by a
+score rather than by a move, it is ranking a **different quantity** and the
+check will not see it — which is correct, and is also the moment to ask
+whether the score's ordering rule should share the three properties above.
+**The two that transfer regardless**: a security with no score has no rank
+(`?? 0` is ADR 0029's false impression expressed as a position), and two
+scores equal at displayed precision must not swap, or the drawn order
+contradicts the drawn figures.
+
+**And the denominator problem is sharper for a score than it was for a
+ranking.** `Movers` states _"Of the 503 companies we track, 466 were heard
+from in the last 5 minutes. Both lists are ranked over those."_ — because a
+top ten over an incomplete population **may not be the top ten**, and a ranked
+list looks equally confident either way. An anomaly list inherits that whole
+problem **plus** invariant 1's requirement that every score carries its
+explanation: the explanation has to state the population it was computed over,
+or `82% of semiconductors are negative` gets said about whatever few of that
+industry group were heard from.

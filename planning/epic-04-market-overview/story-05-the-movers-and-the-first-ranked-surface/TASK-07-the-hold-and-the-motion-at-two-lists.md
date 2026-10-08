@@ -608,3 +608,21 @@ contention reading is wrong and this task is not done.**
 **Not run, and owed**: the `--repeat-each=6` × 4 characterisation and the
 code-free control commit, both of which need a settled machine. Neither is
 this task's claim to make from here.
+
+### Resolved — CI's `e2e` passed on 2026-10-08, so the contention reading was right
+
+The claim above was conditional: _if CI's `e2e` fails, the contention reading
+is wrong and this task is not done._ It did not fail. PR #526's three required
+checks — `verify`, `e2e`, `database` — all passed on a dedicated runner with
+no competing VM.
+
+**So the suite is not flaky and the change did not break it; the machine could
+not execute it.** Worth separating, because the two look identical from a
+terminal and only one of them is anybody's defect.
+
+**What is still owed and is not discharged by this**: the `--repeat-each=6` × 4
+characterisation and the code-free control commit. CI passing once is a single
+draw, and at a 12% per-execution flake `P(0 failures)` is not small — it
+establishes that this change did not introduce a deterministic failure, which
+is what was in doubt, and nothing about the suite's underlying rate. Both
+remain a settled machine's to take.

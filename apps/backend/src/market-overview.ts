@@ -398,7 +398,40 @@ export function toWireMarketOverview(
   // selection happens here rather than in `index.ts`: it is the one place
   // entitled to decide what a browser sees, and it is what keeps the frame's
   // `feeds` a description of the figures the frame actually carries.
-  const movements = topMovers(movers, (entry) => figureOf(entry, feeds));
+  //
+  // **A mover row is encoded on the basis it was RANKED on** — Task 4.5.8's
+  // other half, and the rank key is only half the repair. `topMovers` now
+  // ranks on the move `eligibleMoves` measured, so on the `session` basis the
+  // order is a close-to-close order; if the row then **drew** the `observed`
+  // figure's live-against-close change, the drawn order would contradict the
+  // drawn figures, which is the one thing `sector-ranking.ts` exists to
+  // prevent. So the figure a session-basis mover carries is the figure of the
+  // **close the pass read** — one quantity measured once, ranked on, bucketed
+  // by and printed.
+  //
+  // Two consequences, both improvements and both worth knowing before
+  // changing this line. The section's rows are now **uniform** on the session
+  // basis — every one `stored`, every `basis` string `stored:<session>`, every
+  // price that session's close — where an evening frame used to be a mixture
+  // of `observed` and `stored` rows nothing on screen distinguished
+  // (`SectorRow.price`'s fired trigger, re-closed in the same change). And a
+  // mover row **contributes no tape to `feeds`** on this basis, because a
+  // stored close's tape deliberately never does.
+  const moverFigureOf = (entry: MarketOverviewEntry): WireOverviewFigure => {
+    if (movers.qualifier.basis === "observed") return figureOf(entry, feeds);
+
+    // `undefined` is unreachable from `topMovers` on this basis —
+    // `sessionMoves` admits only entries it read a close off — and it is
+    // delegated rather than thrown: `figureOf` is the one encoder, and this
+    // function is a **choice of basis**, never a second answer to what a
+    // browser may see.
+    const close = lastCloseOf(entry);
+    return close === undefined
+      ? figureOf(entry, feeds)
+      : storedFigureOf(entry.symbol, close);
+  };
+
+  const movements = topMovers(movers, moverFigureOf);
 
   const ranked =
     sectors === undefined ? undefined : rankSectorFigures(encode(sectors));
@@ -437,26 +470,8 @@ function figureOf(
     return { state: "unknown", symbol: entry.symbol };
   }
 
-  if (entry.state === "stored") {
-    // **The completed session's own close-to-close move** (Task 4.3.4, the
-    // owner's Gate 1 decision): outside a session this is the only key a
-    // ranking has, and the market is shut for roughly 80% of the week.
-    //
-    // `changePercent` is `packages/shared`'s — the *same* function
-    // `/securities`' table has always used for this figure, and the one module
-    // permitted to read `previousClose` as a basis. It returns `null` when
-    // there is nothing behind the session we hold, and that travels as an
-    // **omission**: a zero would say the market did not move.
-    const move = changePercent(entry.close);
-
-    return {
-      state: "stored",
-      symbol: entry.symbol,
-      session: entry.close.session,
-      close: entry.close.close,
-      ...(move === null ? {} : { sessionChangePercent: move }),
-    };
-  }
+  if (entry.state === "stored")
+    return storedFigureOf(entry.symbol, entry.close);
 
   if (!feeds.includes(entry.source.feed)) feeds.push(entry.source.feed);
 
@@ -486,4 +501,62 @@ function figureOf(
     // there is ADR 0029's false impression, one field wide.
     ...(percent === null || basis === null ? {} : { changeBasis: basis }),
   };
+}
+
+/**
+ * **The completed session's own close-to-close move**, as a wire figure (Task
+ * 4.3.4, the owner's Gate 1 decision): outside a session this is the only key
+ * a ranking has, and the market is shut for roughly 80% of the week.
+ *
+ * `changePercent` is `packages/shared`'s — the *same* function `/securities`'
+ * table has always used for this figure, and the one module permitted to read
+ * `previousClose` as a basis. It returns `null` when there is nothing behind
+ * the session we hold, and that travels as an **omission**: a zero would say
+ * the market did not move.
+ *
+ * **Extracted from {@link figureOf}'s `stored` branch by Task 4.5.8** so that
+ * the movers' session-basis encoder can reach it for an entry whose state is
+ * `live` — the pass read that entry's close, so the figure the row draws is
+ * the figure of **that close** rather than of the last trade. It takes the
+ * close rather than the entry for exactly that reason: the caller has decided
+ * which of an entry's two facts this figure is about, and a function taking
+ * the entry would have to decide again.
+ *
+ * It appends nothing to the frame's `feeds`, which is the other half of the
+ * same point: **a stored close's tape is not this frame's provenance**, and
+ * claiming it would be invariant 6 implied rather than displayed.
+ */
+function storedFigureOf(
+  symbol: Ticker,
+  close: SecurityLastClose,
+): WireOverviewFigure {
+  const move = changePercent(close);
+
+  return {
+    state: "stored",
+    symbol,
+    session: close.session,
+    close: close.close,
+    ...(move === null ? {} : { sessionChangePercent: move }),
+  };
+}
+
+/**
+ * **The close an entry was measured against, whatever state it is in** — or
+ * `undefined` for a security we hold no close for.
+ *
+ * Moved here from `market-breadth.ts` by Task 4.5.8, which gave it a second
+ * reader. It belongs beside {@link MarketOverviewEntry}: *which member carries
+ * a close* is a fact about that union, and the union is this module's — the
+ * same argument `moveRankingKey` makes about a figure's move one package over.
+ * A second spelling of the two-line branch is a second place to forget that
+ * the `live` member has one.
+ *
+ * `undefined` for a `live` entry whose change is unmeasurable, and for an
+ * `unknown` one, which is every security in CI's store.
+ */
+export function lastCloseOf(
+  entry: MarketOverviewEntry,
+): SecurityLastClose | undefined {
+  return entry.state === "unknown" ? undefined : entry.close;
 }

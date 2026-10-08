@@ -299,3 +299,64 @@ that owns market time is an architectural change rather than an optimisation.
 **These are local figures on a dev machine against a `dist/` build.** Re-take them
 with the production build and the instrument up; what they give this epic is
 **where to look**, not a number to carry forward.
+
+## Handed here by Story 4.5 — 2026-10-08: a second universe-scale computation in the same callback, and a verdict on the trigger
+
+**The condition this epic's own file wrote on 2026-10-07 has had its second
+clause approached, and it did not fire.**
+
+> _"It becomes this epic's the moment either of two things happens: **the
+> cadence rises** … or **a second universe-scale per-tick computation is added
+> to the same callback**, which Story 4.5's top-N and Story 4.8's measurement
+> both approach."_
+
+Story 4.5 added that second computation. **It costs 0.28–0.41 ms**, measured
+with a control, because it **ranks the figures the join already produced
+rather than re-deriving a move** — which is exactly what Story 4.4's
+attribution told it to do. Had it re-derived, it would have been a second
+3.4 ms of `Intl` conversions and the condition would have fired.
+
+|                                           | median                       |
+| ----------------------------------------- | ---------------------------- |
+| the join with breadth and movers          | **3.866 / 4.002 / 3.943 ms** |
+| the control, movers' eligible set emptied | **3.494 / 3.722 / 3.534 ms** |
+| `selectMovers` alone over 503             | 0.123–0.129 ms               |
+
+~**5–7 ms of script a minute** on top of the ~56 ms already there. The control
+reproduces Story 4.4's **3.497 ms** baseline **to 0.1%**. The **maxima are
+unusable** — the control moved 3.74 → 25.7 ms between runs while its median
+moved 0.23 — and are recorded as unusable rather than quoted.
+
+**So the candidate this epic was handed is unchanged and is still the whole of
+the cost**: 3.4 of the 3.5 ms is **518 `marketDateAt` calls** at ~6.6 µs each
+inside `changeFromClose`'s same-session branch. Two universe-scale
+computations now sit on top of that one conversion loop and **together they
+are under 0.4 ms.**
+
+### The trigger: the verdict, and the recommendation not to re-word it
+
+**It does not fire.** _"The first time a second surface on **this** page
+renders per-row markup at universe scale"_ — `Movers` renders **ten rows** on
+`/`, not per-row markup at universe scale on `/securities`.
+
+**And the recommendation is to leave the wording alone**, recorded here so it
+is not re-litigated at a keyboard:
+
+- the trigger is quoted **verbatim in five live places**, so a rewrite changes
+  retroactively what this epic was told it owns — `CLAUDE.md`'s rule is a
+  **dated amendment beside** a description that has become false, not a
+  rewrite;
+- a trigger naming _computation_ at universe scale would **already have
+  fired**, on Task 4.4.4's widening, making this epic retroactively due for a
+  **3.5 ms** cost against a 50 ms line — a trigger re-worded into firing on a
+  non-breach is worse than one scoped to a page;
+- and **the two costs want different repairs**. This epic's candidates are
+  DOM-size levers — `content-visibility`, collapsed bands, virtualisation —
+  where `/`'s cost wants memo boundaries and a memoised `marketDateAt`. **One
+  condition over two levers is how a trigger stops meaning anything.**
+
+The proposal is a **second condition for `/`**, beside the first, and that
+fork belongs to **Story 4.8** by plan. **Reversal trigger for this verdict, as
+a condition**: _the first surface on `/` that renders one element per tracked
+security_ — at which point the trigger as worded fires on the landing page too
+and the second condition becomes redundant.
