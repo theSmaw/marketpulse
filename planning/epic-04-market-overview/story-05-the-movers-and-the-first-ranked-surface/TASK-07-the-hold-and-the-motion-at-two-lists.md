@@ -158,3 +158,36 @@ no-stagger rule or the reduced-motion answer.
 8. `The motion vocabulary.dc.html` references the re-order, with the
    vocabulary-owns-the-grammar rule and its condition-shaped reversal trigger
 9. `pnpm verify` and `pnpm e2e` green
+
+## Handed here by Task 4.5.5 — 2026-10-08: the membership churn your done-when 4 is about has a measured figure
+
+**You do not have to take this one off recorded frames.** Task 4.5.5 measured
+the movers' membership churn to decide the page's **subscription**, and it is
+the same quantity your hold decision turns on — how often the ten names change
+while a reader is in the region. A throwaway instrument (deleted) replayed
+`market_bars` minute by minute over the 503 equities and ran the **shipped**
+`selectMovers`:
+
+| session    | minutes | membership changes | per minute | distinct names drawn |
+| ---------- | ------- | ------------------ | ---------- | -------------------- |
+| 2026-09-11 | 390     | 171                | **0.44**   | 39 of 514            |
+| 2026-09-10 | 390     | 105                | **0.27**   | 39 of 514            |
+| 2026-09-04 | 390     | 83                 | **0.21**   | 22 of 514            |
+
+Busiest ten-minute block of the three: **10 changes**, just after the open.
+What this does **not** answer is your question's other half — how often a
+**re-rank without a membership change** happens, which is what a hold actually
+gates and which the instrument did not count. Two things follow:
+
+- **A membership change under a hold is roughly a once-every-two-to-five-minutes
+  event**, not a per-frame one, so whatever you decide about a row that joins
+  or leaves while the order is pinned is a decision about a rare state — which
+  argues for the **simplest** rule rather than the cleverest.
+- `marketMovers` already gives every row a `basis` (the shared `basisOf`, the
+  same identity `sector-performance.ts` produces), so _a row moves only if it
+  had a previous rank under the same basis_ transfers to two lists with no new
+  code on the read side.
+
+**And the two lists are disjoint by construction at the reader too**: each row
+is read from its own array, so one symbol in both lists would be a producer
+defect, and the hold's `Map` cannot collide on one today.

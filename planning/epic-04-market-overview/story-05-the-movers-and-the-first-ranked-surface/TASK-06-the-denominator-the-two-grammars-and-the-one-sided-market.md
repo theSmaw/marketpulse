@@ -130,3 +130,51 @@ Two specifics the picture adds to that criterion:
 empty `<p className={styles.claim} />` holding **44 px** (12 margin + two
 16 px micro lines), which is in the region's measured budget. Fill that
 element; do not add a second one.
+
+## Handed here by Task 4.5.5 — 2026-10-08: the region is on screen, and your sentence now owes a **basis** clause as well as a denominator
+
+Three constraints, written here rather than linked, because a pointer is what a
+reader follows when they already know to look.
+
+### 1. Every row draws a PRICE now, and nothing on the screen says what session it is from
+
+The price cell is filled (`SectorRow.price`, read from `price` on an `observed`
+figure and `close` on a `stored` one). **Out of hours every mover row is a
+stored close**, which is roughly 80% of the week — and the row carries no
+session, no instant and no noun, deliberately:
+
+- the basis is **uniform over the whole section by construction** (the producer
+  takes one `MoveQualifier` for both lists), so it is one claim about the region
+  rather than ten claims about rows;
+- the price track is **80 px** and `2026-10-07 close` measures **82**, which is
+  the measurement `.quiet .figure` was widened for after an honest sentence
+  ellipsised into `2026-09-25 cl…`;
+- the **change** beside it already works this way, and so does `Sector
+performance` 200 px up, which has drawn session-basis moves with no per-row
+  session since Story 4.3.
+
+So the one home for _what these figures are measured from_ is **your footer**.
+Your two grammars already key on `basis`, which is the same discriminator — the
+clause you write for the `session` member is what makes the price honest, not
+only the denominator. The reversal trigger recorded beside the field is a
+condition: **the first frame whose movers rows do not share one basis**, at
+which point the clause has to move onto a row that cannot hold it and the
+geometry is owed a re-take.
+
+### 2. The empty state is now REACHABLE ON EVERY GATED RUN, not just photographable
+
+`marketMovers` deliberately does **not** collapse an empty section to
+`undefined` (unlike `sectorPerformance`, which treats `sectors: []` as the
+absence). So on CI — 518 securities, zero bars — the landing page draws your
+466 px of labelled, empty box **on every run of `pnpm e2e`**, and the
+`filledBy` sentence is gone there because the section is present. Task 4.5.3's
+hand-off above is therefore no longer a photograph of a state: it is what the
+browser suite looks at.
+
+### 3. The `securities we track` copy defect is still on screen and is still yours
+
+It was left **verbatim** by 4.5.5, with a comment in `MarketOverview.tsx`
+saying so. Note what changed about _when_ a reader sees it: the sentence now
+renders **only** in the rollback state — a frame present with no movers section
+— because the first-paint state draws `MoversReservation` and every ordinary
+frame draws the lists. It is rarer, not gone.

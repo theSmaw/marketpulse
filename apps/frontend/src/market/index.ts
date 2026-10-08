@@ -286,9 +286,15 @@ export type {
   MarketBreadth,
 } from "./market-breadth.js";
 // **The two movers lists** (Task 4.5.3) — the shape the region draws and the
-// padding that keeps it one height. There is no reader here yet: the frame
-// grows a movers section in Task 4.5.4, which owns the wire and the read.
-export { RESERVED_MOVERS, withHeldRows } from "./movers.js";
+// padding that keeps it one height, and since Task 4.5.5 the reader over the
+// frame's own section. `moverSymbols` is the subscription's half: a section
+// that draws an arrival mark owes `MarketOverview.tsx`' symbol key a line.
+export {
+  RESERVED_MOVERS,
+  marketMovers,
+  moverSymbols,
+  withHeldRows,
+} from "./movers.js";
 export type { MarketMovers } from "./movers.js";
 export { barFraction, ladderClause, ladderTicks } from "./ranked-bar.js";
 export type { LadderTick } from "./ranked-bar.js";

@@ -7,6 +7,11 @@ import {
   BreadthLedgerReservation,
 } from "../components/BreadthLedger/BreadthLedger.js";
 import { MarketProxyStrip } from "../components/MarketProxyStrip/MarketProxyStrip.js";
+import {
+  Movers,
+  MoversMeta,
+  MoversReservation,
+} from "../components/Movers/Movers.js";
 import { OverviewSourceNote } from "../components/OverviewSourceNote/OverviewSourceNote.js";
 import { Region } from "../components/Region/Region.js";
 import {
@@ -17,10 +22,13 @@ import {
 import { useOrderHold } from "../components/SectorPerformance/use-order-hold.js";
 import {
   marketBreadth,
+  marketMovers,
+  moverSymbols,
   sectorPerformance,
   type LiveFeedView,
 } from "../market/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
+import { useSecurities } from "../use-securities.js";
 import styles from "./MarketOverview.module.css";
 
 // PRODUCT_SPEC.md §8.1 — "What is happening?", and the spec's landing screen,
@@ -136,6 +144,79 @@ export function MarketOverview({
   const breadth = useMemo(() => marketBreadth(overview), [overview]);
 
   /*
+   * **The company names, and they are the one thing on this screen that does
+   * not come off the socket** (Task 4.5.5).
+   *
+   * A mover row prints a ticker and the company's name beside it, and the
+   * overview frame carries **no name**: `WireOverviewFigure` is a symbol, a
+   * state and a figure. The names live in `securities`, which reaches a browser
+   * through the request this hook already makes for the Security Explorer, so
+   * this route reads the same answer rather than growing a second source for
+   * one fact.
+   *
+   * ## What it costs, measured rather than assumed
+   *
+   * `GET /securities` against the dev pair on 2026-10-08: **190,701 bytes, and
+   * 20,034 with gzip**, in 124 ms, with an `ETag` and `cache-control: private,
+   * no-cache` — so a second load revalidates to a 304. It is the landing
+   * page's **only** HTTP request for market data and it is made for ten
+   * strings, which is the honest statement of the trade.
+   *
+   * ## Why not on the frame, and why not a narrower endpoint
+   *
+   * A name never changes and the aggregate is rebuilt up to sixteen times a
+   * minute, so putting ten names on it would re-send immutable data at the
+   * cadence of the most volatile thing on the page — and they would have to
+   * hang off `WireOverviewFigure`, which the proxy and sector sections share
+   * and neither needs. A `GET /securities/names` endpoint is the third option
+   * and it is premature: there is one consumer, and the response it would
+   * narrow is already cached and revalidated.
+   *
+   * **Reversal trigger**: the first surface on this screen needing a *second*
+   * field from the universe — a sector, a kind, an exchange. At that point the
+   * universe is this page's dependency rather than one region's context, and
+   * the three options are owed a comparison with a measurement.
+   *
+   * ## The failure is quiet, by construction
+   *
+   * `useSecurities` never throws and this route never reads its failure state:
+   * an unreachable universe leaves the map empty, every mover row is labelled
+   * with its own ticker, and the region keeps every figure it had. The name is
+   * context; the ticker is the identifier, and it is on the row either way.
+   * **No sentence, no retry and no `Try again` here** — Story 3.10's rule that
+   * every surface but the one that owns a fact stays quiet, and the row would
+   * otherwise grow an error state over a missing word.
+   */
+  const { view: universe } = useSecurities();
+  const names = useMemo(
+    () =>
+      universe.state === "loaded"
+        ? new Map(
+            universe.securities.map((security) => [
+              security.symbol,
+              security.name,
+            ]),
+          )
+        : EMPTY_NAMES,
+    [universe],
+  );
+
+  /*
+   * **The two movers lists, derived once per frame — the route's third memo
+   * boundary** (Task 4.5.5).
+   *
+   * The sector rows' dependency list exactly: the **frame** rather than
+   * `liveFeed`, because `sameLiveFeedView` keeps the frame's identity stable
+   * across ticks that did not move the aggregate, plus `observations`, which is
+   * the one input that genuinely changes every burst — and this region draws an
+   * arrival mark off it. `names` is the fourth, and it changes once per page.
+   */
+  const movers = useMemo(
+    () => marketMovers(overview, observations, fromSnapshot, names),
+    [overview, observations, fromSnapshot, names],
+  );
+
+  /*
    * **The set is served and this route renders what it is given.** The overview
    * frame is not scoped to a subscription — the gateway broadcasts it — so the
    * symbols arrive before this page has asked for anything, and what it asks
@@ -190,9 +271,61 @@ export function MarketOverview({
    * reported zero `longtask` entries, so nothing came near
    * `PRODUCT_SPEC.md` §28's 50 ms. The cost this route has to respect is the
    * 518-row table's on the neighbouring page, not fifteen cells here.
+   *
+   * ## The movers' ten, added 2026-10-08 by Task 4.5.5 — and this section's
+   * membership MOVES, which the other two do not
+   *
+   * `figures` arrives in `PRODUCT_SPEC.md` §6's declared order and never
+   * changes membership; `sectors` re-orders but is always the same eleven, so
+   * the sort above makes a re-rank free (measured at sectors: sixteen re-ranks,
+   * **0** resubscribes). A top-N is different in kind — **who is in it is the
+   * answer** — so every membership change sends a fresh `subscribe`, and
+   * `market-gateway.ts` answers every `subscribe` with a snapshot **plus a full
+   * `overviewMessage()` rebuild**, the ~3.9 ms join, per browser.
+   *
+   * ### Measured rather than reasoned, over three real sessions
+   *
+   * A throwaway instrument (deleted) replayed `market_bars` minute by minute
+   * over the 503 tracked equities, reproducing the eligibility window and
+   * running the **shipped** `selectMovers` at `MOVERS_PER_SIDE`, and counted
+   * how often the ten-symbol set changed:
+   *
+   * | session    | minutes | membership changes | per minute | distinct names drawn |
+   * | ---------- | ------- | ------------------ | ---------- | -------------------- |
+   * | 2026-09-11 | 390     | 171                | **0.44**   | 39 of 514            |
+   * | 2026-09-10 | 390     | 105                | **0.27**   | 39 of 514            |
+   * | 2026-09-04 | 390     | 83                 | **0.21**   | 22 of 514            |
+   *
+   * The busiest ten-minute block of the three was **10 changes**, just after
+   * the open, i.e. a peak near one a minute. So **the current top-N is
+   * subscribed to**, and the cost is 0.21–0.44 rebuilds a minute against the
+   * sixteen a minute the gateway performs anyway — **under 3%** of a load this
+   * page already imposes, for a subscription that is exactly the set on screen.
+   *
+   * ### The alternative, and why it lost
+   *
+   * A **stable superset** — the monotonic union of every name the lists have
+   * drawn since the page opened — was measured in the same run and is cheaper
+   * on this one axis: **12–24 resubscribes a session** rather than 83–171,
+   * because it settles after 22–39 distinct names. It was rejected because
+   * every one of those names then streams bars this page draws nothing from,
+   * for the rest of the session, and the subscription stops being *what this
+   * screen is showing* — which is the one thing a reader of this effect can
+   * check. A superset is also unbounded in principle: nothing says a volatile
+   * session's union is 39 rather than 300.
+   *
+   * **Reversal trigger**, as a condition: a measured membership rate above
+   * ~4 a minute sustained over a session — an order of magnitude on the
+   * figures above, and the point at which the resubscribes overtake the
+   * gateway's own cadence — **or** a second churning section on this frame,
+   * because two of them multiply on one key rather than adding.
    */
-  const symbolKey = [...(overview?.figures ?? []), ...(overview?.sectors ?? [])]
-    .map((figure) => figure.symbol)
+  const symbolKey = [
+    ...[...(overview?.figures ?? []), ...(overview?.sectors ?? [])].map(
+      (figure) => figure.symbol,
+    ),
+    ...moverSymbols(overview),
+  ]
     .sort()
     .join(",");
   const liveSymbols = useMemo(
@@ -455,12 +588,60 @@ export function MarketOverview({
           )}
         </Region>
 
+        {/*
+         * **The two ranked lists — Story 4.5, and the first thing on this
+         * screen that answers *where should I look*.**
+         *
+         * `awaiting` is gone because the work has landed; `filledBy` stays for
+         * the one state where there is nothing to draw. **Its wording is Task
+         * 4.5.6's** and is left exactly as Task 4.1.3 wrote it, including *the
+         * securities we track* — which the story's shaping found to be the
+         * 518-vs-503 copy error it is. The repair belongs with the denominator
+         * sentence, where the population is read off the frame rather than
+         * described in prose, and splitting it across two tasks is how one of
+         * the two copies gets fixed.
+         *
+         * **`movers === undefined` is TWO states, told apart by the FRAME
+         * rather than by the section** — the rule both regions above follow, and
+         * for the same reason. `overview` present with no readable movers
+         * section is a **rollback pinning a previous image**: that gateway will
+         * never send one, so the honest answer is the region's own sentence.
+         * `overview` absent is the **first paint**, a few hundred milliseconds
+         * on every load, where the same sentence is a promise the next frame
+         * breaks — and at 768 and 390 the grid row is content-sized, so the
+         * reservation is what keeps the lower page still.
+         *
+         * **An EMPTY section is neither**, and that is this region's one
+         * departure from its siblings: two empty lists are *nothing was
+         * rankable*, which is CI's permanent state, most of a weekend and the
+         * first minute of every session. `Movers` draws it — ten held rows and
+         * two headings, with its own sentence after `useWaited`'s floor — so
+         * the region says what it has rather than reserving itself invisibly
+         * for ever. `marketMovers` returns the empty lists rather than
+         * `undefined` precisely so that this branch cannot collapse them.
+         *
+         * `MoversMeta` takes no props today; the `ORDER HELD` badge beside it
+         * and the hold that produces it are Task 4.5.7's, and the slot's room
+         * is already reserved so nothing moves when it arrives.
+         */}
         <Region
           className={styles.areaMovers}
           name="Movers"
-          awaiting="Story 4.5"
-          filledBy="The largest moves among the securities we track, up and down, ranked while the session runs."
-        />
+          filledBy={
+            movers === undefined && overview !== undefined
+              ? "The largest moves among the securities we track, up and down, ranked while the session runs."
+              : undefined
+          }
+          meta={movers === undefined ? undefined : <MoversMeta />}
+        >
+          {movers === undefined ? (
+            overview === undefined ? (
+              <MoversReservation />
+            ) : undefined
+          ) : (
+            <Movers view={movers} />
+          )}
+        </Region>
 
         <Region
           className={styles.areaTopology}
@@ -520,4 +701,6 @@ const CHECKING: MarketFeedView = { state: "checking" };
 // Stable empties, so a route rendered without a feed does not hand the strip a
 // new Map on every render.
 const EMPTY_OBSERVATIONS: ReadonlyMap<string, Bar> = new Map<string, Bar>();
+/** The same, for the universe that has not arrived — see `names`. */
+const EMPTY_NAMES: ReadonlyMap<string, string> = new Map<string, string>();
 const EMPTY_SNAPSHOT: ReadonlySet<string> = new Set();
