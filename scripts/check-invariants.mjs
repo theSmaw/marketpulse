@@ -3860,6 +3860,153 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "every-row-variant-restates-its-tracks",
+    claim:
+      "In `RankedList.module.css`, every selector that states an explicit " +
+      "`grid-template-columns` outside the narrow block states one inside it " +
+      "too. No width inherits a track list.",
+    check() {
+      // **Rule 2 of that stylesheet, as a check rather than as a comment**
+      // (Task 4.5.1), and it is the one claim the movers row left standing
+      // that nothing guarded.
+      //
+      // The file's own header states it: *every width states its own track
+      // list and none inherits*, because a grid item with nowhere to go is
+      // placed in an implicit track — and inside a `subgrid`, which cannot
+      // grow columns beyond the range it adopts, that implicit track is a
+      // **second row of the `<li>`**. This repository has already paid for it
+      // once: leaving `.bar` out of the narrow block's hide list made every
+      // row 33 px instead of 26 and the region 503 instead of 461, found by
+      // `pnpm probe` and by nothing else. jsdom computes no layout, so every
+      // unit, component and integration test in this tree passes against it.
+      //
+      // ## Why the clause is the DIVISION rather than a class name
+      //
+      // `CLAUDE.md`: prefer a clause the re-implementer cannot avoid writing.
+      // A grep for `.movers` inside the narrow block is keyed on today's
+      // incidentals — it is green the day somebody adds a third variant and
+      // forgets it, which is exactly the defect, and it is red the day the
+      // class is renamed, which is not. What a re-implementer **cannot**
+      // avoid is the shape: a row variant *is* a `grid-template-columns`
+      // declaration, so the check pairs the declarations either side of the
+      // narrow block and reports any that exist only outside it.
+      //
+      // `subgrid` is excluded deliberately and is not an exception to the
+      // rule: a subgrid adopts the parent's tracks rather than stating any, so
+      // it has nothing to restate — `.list`, `.quiet` and `.row` are correct
+      // as they are, and a check that demanded their restatement would be
+      // demanding the bug.
+      const path = resolve(
+        REPO_ROOT,
+        "apps/frontend/src/components/RankedList/RankedList.module.css",
+      );
+      const css = readAnchored(path);
+
+      // Comments first, so a brace inside prose cannot move the parser — the
+      // file is mostly prose.
+      const source = css.replaceAll(/\/\*[\s\S]*?\*\//gu, "");
+
+      /** Every `prelude { body }` at one nesting level, brace-matched. */
+      const blocksIn = (text) => {
+        const blocks = [];
+        let index = 0;
+        let preludeStart = 0;
+
+        while (index < text.length) {
+          if (text[index] !== "{") {
+            index += 1;
+            continue;
+          }
+
+          let depth = 1;
+          let end = index + 1;
+          while (end < text.length && depth > 0) {
+            if (text[end] === "{") depth += 1;
+            else if (text[end] === "}") depth -= 1;
+            end += 1;
+          }
+
+          blocks.push({
+            prelude: text.slice(preludeStart, index).trim(),
+            body: text.slice(index + 1, end - 1),
+          });
+          index = end;
+          preludeStart = index;
+        }
+
+        return blocks;
+      };
+
+      /** The selectors in these blocks that state a real track list. */
+      const statingTracks = (blocks) =>
+        new Set(
+          blocks
+            .filter(({ prelude }) => !prelude.startsWith("@"))
+            .filter(({ body }) => {
+              const declared = /grid-template-columns\s*:\s*([^;]+);/u.exec(
+                body,
+              );
+              return declared !== null && !declared[1].includes("subgrid");
+            })
+            .flatMap(({ prelude }) =>
+              prelude.split(",").map((selector) =>
+                // One space between combinators, whatever the formatter did.
+                selector.trim().replaceAll(/\s+/gu, " "),
+              ),
+            ),
+        );
+
+      const top = blocksIn(source);
+
+      const narrow = top.find(
+        ({ prelude }) =>
+          prelude.startsWith("@media") && /width\s*<\s*37rem/u.test(prelude),
+      );
+
+      // **The anchor.** No narrow block means either the breakpoint moved — in
+      // which case this check must be repointed rather than passing — or the
+      // row stopped changing shape at one column, which is a design change
+      // nobody should make silently.
+      if (narrow === undefined) {
+        throw new InvariantFailure(
+          "RankedList.module.css has no `@media (width < 37rem)` block. The " +
+            "narrow row is where the bar, the rule overlay and the ladder " +
+            "come off and the tracks are restated; if the breakpoint moved, " +
+            "repoint this check at it.",
+        );
+      }
+
+      const wide = statingTracks(top);
+      const restated = statingTracks(blocksIn(narrow.body));
+
+      // The second anchor: a stylesheet that states no track list at all
+      // would satisfy the subset test vacuously.
+      if (wide.size === 0) {
+        throw new InvariantFailure(
+          "No selector in RankedList.module.css states a `grid-template-" +
+            "columns` outside the narrow block, so this check is asserting " +
+            "nothing. The row's tracks are its whole geometry — if they have " +
+            "moved to another file, this check moves with them.",
+        );
+      }
+
+      const inherited = [...wide].filter((selector) => !restated.has(selector));
+
+      if (inherited.length > 0) {
+        throw new InvariantFailure(
+          `${String(inherited.length)} row variant(s) state a track list ` +
+            "above 37rem and none below it, so that width inherits one:\n      " +
+            inherited.join("\n      ") +
+            "\n    A grid item with nowhere to go grows an implicit track, " +
+            "and inside a subgrid that implicit track is a second row of the " +
+            "`<li>` — 33 px instead of 26, on every row, invisible to " +
+            "everything below `pnpm probe`. Restate the tracks, even where " +
+            "two widths come out identical.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

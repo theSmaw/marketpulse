@@ -2898,4 +2898,45 @@ export const BREAKS = [
     command: ["pnpm", "e2e", "overview-region-order.spec.ts", "--anyway"],
     expect: "is not below Market breadth",
   },
+  // **The narrow row inherits its tracks — Task 4.5.1.**
+  //
+  // `every-row-variant-restates-its-tracks` holds rule 2 of
+  // `RankedList.module.css`: every selector stating an explicit track list
+  // above 37rem states one below it, even where the two come out identical.
+  //
+  // The substitution deletes the **movers** row's narrow restatement and
+  // leaves its wide one, which is the file's own measured defect one step
+  // further on: the five-track list would then apply at 390, where the row
+  // draws four cells into a 342 px region, and the two that no longer fit grow
+  // implicit tracks — inside a `subgrid`, which cannot grow columns beyond the
+  // range it adopts, that is a **second row of the `<li>`**. The same omission
+  // on `.bar` made every row 33 px instead of 26 and the region 503 instead of
+  // 461, and was found by `pnpm probe` and by nothing else.
+  //
+  // **The check was proved on a different defect first**, which is the half a
+  // break cannot reach: a break edits the file the check was written around,
+  // so it cannot tell a check that works from one that was fitted to this
+  // text. The first draft — a grep for `.movers` inside the narrow block —
+  // was green against a third variant added to the wide block and forgotten in
+  // the narrow one, which is the defect the *next* story writes rather than
+  // this one. The shipped check keys on the division instead: a row variant
+  // **is** a `grid-template-columns` declaration, and the pairing is what the
+  // re-implementer cannot avoid.
+  {
+    name: "the-narrow-row-inherits-its-tracks",
+    proves:
+      "A row variant states its tracks at one width and inherits them at " +
+      "another, so a cell with nowhere to go grows an implicit track and " +
+      "every row of the list changes height — invisible to jsdom, to axe " +
+      "and to every test below `pnpm probe` (Task 4.5.1).",
+    file: "apps/frontend/src/components/RankedList/RankedList.module.css",
+    find:
+      "  .movers {\n" +
+      "    grid-template-columns: 2ch 44px minmax(0, 1fr) 68px;\n" +
+      "    column-gap: var(--space-8);\n" +
+      "  }\n",
+    replace: "  /* pnpm break: reverted automatically */\n",
+    command: ["pnpm", "invariants"],
+    expect: "state a track list above 37rem and none below it",
+  },
 ];

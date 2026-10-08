@@ -78,6 +78,16 @@ export const SectorPerformance = memo(function SectorPerformance({
         rows={rowsInPinnedOrder(view.rows, pinned)}
         bar={{ kind: "signed", scale: view.step }}
         name="Sectors ranked by today’s move"
+        /*
+         * **`"possible"`, and it is this region's own hazard rather than a
+         * default** (Task 4.5.1): a sector can go quiet mid-session, so the
+         * trailing group's heading reserves its room in every state. At 390 the
+         * grid row is content-sized and the region **is** its content, so
+         * without the reserve the whole lower page would step the first time a
+         * figure failed to arrive. Movers passes `"impossible"` because a name
+         * with no current observation cannot appear in either of its lists.
+         */
+        quietGroup="possible"
       />
       {/*
        * **The footer, in two clauses and one line box.**

@@ -80,6 +80,21 @@ const draw = (rows: readonly SectorRow[] = THREE) =>
       rows={rows}
       bar={{ kind: "signed", scale: 2 }}
       name="Sectors"
+      quietGroup="possible"
+    />,
+  );
+
+/** The movers use: the bar off, the mover anatomy, no quiet group. */
+const drawMovers = (
+  rows: readonly SectorRow[] = THREE,
+  name: string | { readonly labelledBy: string } = "Gainers",
+) =>
+  render(
+    <RankedList
+      rows={rows}
+      bar={{ kind: "none" }}
+      name={name}
+      quietGroup="impossible"
     />,
   );
 
@@ -152,9 +167,7 @@ describe("RankedList", () => {
   it("draws no bar cell at all when the bar is off", () => {
     // Story 4.5's use. The track is absent rather than empty — a track reserved
     // for a picture that is never drawn is 654 px of nothing.
-    const { container } = render(
-      <RankedList rows={THREE} bar={{ kind: "none" }} name="Gainers" />,
-    );
+    const { container } = drawMovers();
 
     expect(container.querySelectorAll("i")).toHaveLength(0);
     expect(screen.getByRole("list", { name: "Gainers" })).toBeTruthy();
@@ -261,6 +274,7 @@ describe("RankedList", () => {
         rows={REORDERED}
         bar={{ kind: "signed", scale: 2 }}
         name="Sectors"
+        quietGroup="possible"
       />,
     );
 
@@ -283,6 +297,7 @@ describe("RankedList", () => {
         rows={REORDERED}
         bar={{ kind: "signed", scale: 2 }}
         name="Sectors"
+        quietGroup="possible"
       />,
     );
 
@@ -293,5 +308,87 @@ describe("RankedList", () => {
       false,
       false,
     ]);
+  });
+  it("holds the quiet group's heading room when the group is POSSIBLE and every row is ranked", () => {
+    // The reserve, and this is the assertion that says it is **room rather
+    // than words**: a hidden string is still in `textContent`, so a reserve
+    // reading `Not ranked` in the state where every row *is* ranked would be a
+    // false impression one `expect` away from being asserted.
+    const { container } = draw();
+
+    const reserved = container.querySelectorAll("p[aria-hidden='true']");
+    expect(reserved).toHaveLength(1);
+    expect(reserved[0]?.textContent).toBe("\u00a0");
+    expect(container.textContent).not.toContain("Not ranked");
+  });
+
+  it("draws neither the quiet group nor its reserve when the group is IMPOSSIBLE", () => {
+    // Task 4.5.1. Movers' AC 5 says a name with no current observation cannot
+    // appear, so the group has zero members in every state there is — and the
+    // unconditional reserve is 25 px per list, 50 across two, held for a state
+    // that cannot occur. At 390 that is the difference between five rows and
+    // four.
+    const { container } = drawMovers();
+
+    expect(container.querySelector("p")).toBeNull();
+    expect(container.querySelectorAll("ul")).toHaveLength(0);
+    expect(container.textContent).not.toContain("Not ranked");
+    expect(container.textContent).not.toContain("\u00a0");
+  });
+
+  it("draws no quiet row at all under IMPOSSIBLE, rather than ranking one", () => {
+    // A keyless row handed to a list that has declared the group impossible is
+    // a producer defect, and the two alternatives are both worse than not
+    // drawing it: at the tail of the `<ol>` a listener is told *item 4 of 4*
+    // over a row this product is refusing to rank, and a second list is the
+    // 25 px the declaration exists to refuse.
+    const { container } = drawMovers([
+      ...THREE,
+      row("MU", "Micron Technology", undefined, undefined),
+    ]);
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    expect(container.textContent).not.toContain("Micron");
+  });
+
+  it("names the list with aria-label for a string and aria-labelledby for a reference", () => {
+    // **A union rather than two optional props**, so a caller cannot pass both
+    // and no list can carry two names. The reference form exists because
+    // movers draws two visible headings: the string form would put a second
+    // copy of each heading's words in the markup, which is the duplication this
+    // component already refuses for the trailing group's own heading.
+    const { unmount } = drawMovers(THREE, "Gainers");
+    const named = screen.getByRole("list");
+    expect(named.getAttribute("aria-label")).toBe("Gainers");
+    expect(named.getAttribute("aria-labelledby")).toBeNull();
+    unmount();
+
+    render(<h3 id="losers">Losers</h3>);
+    drawMovers(THREE, { labelledBy: "losers" });
+    const referenced = screen.getByRole("list");
+    expect(referenced.getAttribute("aria-labelledby")).toBe("losers");
+    expect(referenced.getAttribute("aria-label")).toBeNull();
+    // The words reach a listener from the heading rather than from a second copy.
+    expect(screen.getByRole("list", { name: "Losers" })).toBe(referenced);
+  });
+
+  it("puts the ticker before the name on a mover row, and after it on a sector row", () => {
+    // **DOM order equal to visual order, which is why this is a re-order of the
+    // cells rather than a `grid-column`.** The movers row inverts the sector
+    // row — `NVDA` means something and `XLK` does not — and placing the cells
+    // from CSS instead would draw ticker-then-name while handing a listener
+    // name-then-ticker, invisibly to axe, to jsdom and to a screenshot.
+    const mover = drawMovers([row("NVDA", "NVIDIA Corporation", 1, 4.21)]);
+    const moverCells = [...mover.container.querySelectorAll("li > span")].map(
+      (cell) => cell.textContent,
+    );
+    expect(moverCells.slice(0, 3)).toEqual(["1", "NVDA", "NVIDIA Corporation"]);
+    mover.unmount();
+
+    const sector = draw([row("XLK", "Technology", 1, 1.84)]);
+    const sectorCells = [...sector.container.querySelectorAll("li > span")].map(
+      (cell) => cell.textContent,
+    );
+    expect(sectorCells.slice(0, 3)).toEqual(["1", "Technology", "XLK"]);
   });
 });

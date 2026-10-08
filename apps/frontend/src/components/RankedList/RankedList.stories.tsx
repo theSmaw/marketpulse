@@ -27,10 +27,13 @@ import { RankedList } from "./RankedList.js";
 //     printed ordinal. Review this grid in greyscale; that is the acceptance
 //     rather than the hope.
 //
-// **The bar-off story is Story 4.5's use**, drawn here because the whole reason
-// this is one component is that the two uses are never on screen at the same
-// size, so a treatment written twice would diverge and nobody would ever see
-// both versions together to notice.
+// **The three `Movers*` stories are Story 4.5's use**, drawn here because the
+// whole reason this is one component is that the two uses are never on screen
+// at the same size, so a treatment written twice would diverge and nobody would
+// ever see both versions together to notice. What is worth reviewing across the
+// boundary is that the row **inverts** — the ticker leads and the name takes
+// the slack — and that the two geometries are therefore reviewable side by side
+// rather than only describable.
 
 /** The one basis these rows share — see {@link SectorRow.basis}. */
 const BASIS = "observed:2026-09-15";
@@ -96,6 +99,10 @@ const meta = {
     rows: ELEVEN,
     bar: { kind: "signed", scale: 2 },
     name: "Sectors ranked by today’s move",
+    // The sector region's own hazard — a sector can go quiet mid-session, so
+    // the trailing group's heading reserves its room in every state, and
+    // `RankedList` makes the next use declare rather than inherit it.
+    quietGroup: "possible",
   },
 } satisfies Meta<typeof RankedList>;
 
@@ -258,27 +265,138 @@ export const Mixed: Story = {
 };
 
 /**
- * **Story 4.5's use, and the one real difference between the two.**
+ * **Story 4.5's use, and it is a different anatomy rather than the same row
+ * with the bar taken off** (Task 4.5.1).
  *
- * A top-N over 518 has a far wider dynamic range and its five members are near
- * the top of it by construction, so five bars all within a whisker of full
- * length carry almost no information — and the one thing a reader would take
- * from them, that these five are similar, is an artefact of the selection rather
- * than a fact about the market. The bar track is **absent, not empty**: a track
- * reserved for a picture that is never drawn is 654 px of nothing.
+ * The bar is refused first, and on its own terms: a top-N over 518 has a far
+ * wider dynamic range and its five members are near the top of it by
+ * construction, so five bars all within a whisker of full length carry almost
+ * no information — and the one thing a reader would take from them, that these
+ * five are similar, is an artefact of the selection rather than a fact about
+ * the market. The bar track is **absent, not empty**: a track reserved for a
+ * picture that is never drawn is 654 px of nothing.
  *
- * Everything else is identical, which is the whole argument for one component.
+ * **Three things follow from that refusal**, and they are the geometry this
+ * task settles:
+ *
+ *   - **The ticker leads.** `NVDA` means something and `XLK` does not, so here
+ *     the symbol identifies and the name confirms; on the sector row it is the
+ *     other way round. It is also this product's primary identifier everywhere
+ *     else — the search field, the URL, the universe table, the identity block
+ *     — and Story 4.6 makes these rows navigate.
+ *   - **The name is the flexible track**, which the sector row's may never be:
+ *     with no bar there is no origin for a content-sized track to move.
+ *   - **`quietGroup` is `"impossible"`**, so neither the trailing group nor its
+ *     25 px heading reserve is drawn. A name with no current observation cannot
+ *     appear in either list, so that group has no members in any state there
+ *     is, and across two lists the reserve would be 50 px held for nothing.
+ *
+ * The price's track is reserved and nothing fills it yet; Task 4.5.3 does.
  */
-export const BarOff: Story = {
+export const Movers: Story = {
   args: {
     bar: { kind: "none" },
     name: "Gainers",
+    quietGroup: "impossible",
     rows: [
-      row(1, "NVIDIA", "NVDA", 4.21),
-      row(2, "Advanced Micro Devices", "AMD", 3.88),
-      row(3, "Broadcom", "AVGO", 2.94),
-      row(4, "Micron Technology", "MU", 2.51),
-      row(5, "Palantir", "PLTR", 2.4),
+      row(1, "NVIDIA Corporation", "NVDA", 4.21),
+      row(2, "Advanced Micro Devices, Inc.", "AMD", 3.88),
+      row(3, "Broadcom Inc.", "AVGO", 2.94),
+      row(4, "Micron Technology, Inc.", "MU", 2.51),
+      row(5, "Palantir Technologies Inc. Class A", "PLTR", 2.4),
     ],
   },
+};
+
+/**
+ * **The longest name in the universe, which the drawn 144 px label track could
+ * not have held.**
+ *
+ * `Cognizant Technology Solutions Corporation Class A` is **50 characters**
+ * against a measured `p50 21, p75 26, p90 32, p99 43` over 507 universe rows —
+ * and **41.4% of names exceed the 22 characters that track was sized to**. So
+ * this is the state that decides the row, and the acceptance is a measurement
+ * rather than a look: it must not paint over the ticker beside it at any width,
+ * it must not change the row's 26 px height, and it ellipsises only where the
+ * region is genuinely too narrow for it.
+ *
+ * The rows under it are ordinary lengths, drawn alongside so the ellipsis is
+ * read against them rather than on its own, and `−12.34%` is here because it is
+ * the widest figure this product can produce.
+ */
+export const MoversLongestName: Story = {
+  args: {
+    bar: { kind: "none" },
+    name: "Gainers",
+    quietGroup: "impossible",
+    rows: [
+      row(
+        1,
+        "Cognizant Technology Solutions Corporation Class A",
+        "CTSH",
+        4.21,
+      ),
+      row(2, "Advanced Micro Devices, Inc.", "AMD", 3.88),
+      row(3, "Ford Motor Company", "F", 2.94),
+      row(4, "3M Company", "MMM", -12.34),
+    ],
+  },
+};
+
+/**
+ * **Two lists on one screen, each with a visible heading — which is why `name`
+ * is a union.**
+ *
+ * `{ labelledBy }` points the `<ol>` at the heading a reader can already see,
+ * so the words have **one home**. The string form would put a second copy of
+ * each heading in the markup for a listener to meet twice, and that is the
+ * argument this component already makes, two hundred lines down, for the
+ * trailing group's own heading. Sectors stays a string because it has no
+ * visible list heading to point at.
+ *
+ * The headings here are the story's own and are **not** what the region will
+ * draw: Task 4.5.3 owns the two-list region, its heads and its footer.
+ */
+export const MoversTwoLists: Story = {
+  render: (args) => (
+    <div className={gridStyles.stack}>
+      <div className={gridStyles.stackItem}>
+        <h3 className={gridStyles.label} id="movers-gainers">
+          Gainers
+        </h3>
+        <RankedList
+          {...args}
+          bar={{ kind: "none" }}
+          quietGroup="impossible"
+          name={{ labelledBy: "movers-gainers" }}
+          rows={[
+            row(1, "NVIDIA Corporation", "NVDA", 4.21),
+            row(
+              2,
+              "Cognizant Technology Solutions Corporation Class A",
+              "CTSH",
+              3.88,
+            ),
+            row(3, "Broadcom Inc.", "AVGO", 2.94),
+          ]}
+        />
+      </div>
+      <div className={gridStyles.stackItem}>
+        <h3 className={gridStyles.label} id="movers-losers">
+          Losers
+        </h3>
+        <RankedList
+          {...args}
+          bar={{ kind: "none" }}
+          quietGroup="impossible"
+          name={{ labelledBy: "movers-losers" }}
+          rows={[
+            row(1, "Walgreens Boots Alliance, Inc.", "WBA", -4.02),
+            row(2, "Intel Corporation", "INTC", -3.11),
+            row(3, "3M Company", "MMM", -2.2),
+          ]}
+        />
+      </div>
+    </div>
+  ),
 };

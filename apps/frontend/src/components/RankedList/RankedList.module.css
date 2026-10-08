@@ -55,10 +55,68 @@
   column-gap: var(--space-12);
 }
 
-/* The bar off — Story 4.5's use. Four tracks, and the figure takes the slack so
-   its right edge is the region's rather than 78 px from the label. */
-.plain {
-  grid-template-columns: 2ch 144px 52px minmax(78px, 1fr);
+/*
+ * --- The movers row: five tracks, and the one that flexes is the NAME ---
+ *
+ * `The movers.dc.html`, and Task 4.5.1. This variant replaces the four-track
+ * `.plain` slot Task 4.3.5 left for this story: `.plain` was reached only by
+ * `bar.kind === "none"`, which no shipped caller passed, and it drew the sector
+ * row's geometry with the bar taken off. The measurement is what retired it.
+ *
+ * **Rule 1 above does not bind here, and that is the whole licence for this
+ * rule.** Every track left of the bar is fixed *because otherwise the bar's
+ * origin depends on the row's contents* — and there is **no bar here**, so
+ * nothing has an origin to protect. The one track that may flex is therefore
+ * free to be the one that needs to.
+ *
+ * **The measurement that forces it** (2026-10-08, 507 universe rows): company
+ * names are `p50 21, p75 26, p90 32, p99 43, max 50` characters, and **41.4%
+ * exceed 22** — the length of `Communication Services`, which measures 143.75 px
+ * against the 144 px the sector label track is sized to. So the drawn `144px`
+ * has essentially no slack at its design maximum and **the common case
+ * overflows**: `.label` is `white-space: nowrap` with no `overflow`, and a grid
+ * item does not clip, so the name would paint over its neighbour on roughly two
+ * rows in five. Invisible to jsdom, to axe, to every unit test, and to a
+ * screenshot of `NVDA / AMD / AVGO`.
+ *
+ * **The order is rank, ticker, name, price, change**, and the cells are in that
+ * order in the DOM — never placed with `grid-column` from a different DOM
+ * order, which would hand a listener a row read in a sequence nobody drew.
+ *
+ * **Track 4 is the price's and is reserved before anything fills it** (Task
+ * 4.5.3): the change is the row's point and its right edge is the region's, so
+ * it is the last track at both widths and is placed explicitly rather than
+ * auto-flowed. A price cell added later takes track 4 and nothing moves.
+ *
+ * `minmax(0, 1fr)` rather than `1fr` for the name, and here the zero floor is
+ * load-bearing twice over: without it the `min-width: auto` content floor means
+ * a 327 px name **pushes the price and change columns off the region** at 1024
+ * rather than ellipsising.
+ */
+.movers {
+  grid-template-columns: 2ch 52px minmax(0, 1fr) 80px 78px;
+}
+
+/*
+ * **The name takes the slack and ellipsises rather than painting over
+ * anything** — all four declarations, because three of them do nothing without
+ * the fourth: a grid item's content floor is `auto`, so `min-width: 0` is what
+ * lets the track be smaller than the string, and `overflow: hidden` is what
+ * `text-overflow` needs to have anything to do.
+ *
+ * Spelled here rather than added to `.label`, which the sector row's fixed
+ * 144 px track owns and must not start shrinking.
+ */
+.movers .label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The change is the last track, with the price's reserve to its left. */
+.movers .figure {
+  grid-column: 5;
 }
 
 /*
@@ -568,10 +626,45 @@
  * region's, at every width in the band.
  */
 @media (width < 37rem) {
-  .plot,
-  .plain {
+  .plot {
     grid-template-columns: 2ch 144px 44px minmax(68px, 1fr);
     column-gap: var(--space-8);
+  }
+
+  /*
+   * **The movers row at 390: the price drops and the name keeps its room** —
+   * the owner's Gate 1 decision, and it is a restatement rather than an
+   * inheritance (rule 2). The ticker narrows to 44 px exactly as the sector row
+   * does; the change keeps a 68 px reserve and becomes the last of four tracks.
+   *
+   * Arithmetic at the 342 px region: `15.6 + 44 + 68 + 3 × 8 = 151.6`, so the
+   * name gets **190 px** — about 29 characters at the dense size, which the
+   * p75 name clears and the 50-character maximum ellipsises into.
+   *
+   * **A literal `68px` here rather than the sector row's `minmax(68px, 1fr)`,
+   * and the difference is the flexible track**: that row has none, so its last
+   * column had to take the slack or strand the figure mid-row at the top of
+   * this band. Here the name takes it, at every width in the band.
+   *
+   * The figure's own step to `--font-size-micro` is the shared rule below —
+   * **with the line height unstepped**, because the row is 26 px at every width
+   * and the seven-region grid is sized off that.
+   */
+  .movers {
+    grid-template-columns: 2ch 44px minmax(0, 1fr) 68px;
+    column-gap: var(--space-8);
+  }
+
+  /*
+   * The price's cell is not drawn at this width, so the change is the fourth
+   * track rather than the fifth. **Restated rather than inherited**: the track
+   * list above has four columns, and a grid item placed in a fifth has nowhere
+   * to go — in a `subgrid`, which cannot grow columns beyond the range it
+   * adopts, that is a second row of the `<li>` and a 7 px defect on every row,
+   * which is the measured trap one axis over.
+   */
+  .movers .figure {
+    grid-column: 4;
   }
 
   /*
