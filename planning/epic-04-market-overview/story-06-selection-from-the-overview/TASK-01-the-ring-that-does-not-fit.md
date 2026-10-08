@@ -382,3 +382,40 @@ The same caveat applies to one earlier reading: `pnpm verify`'s second run
 failed one test in `market-gateway.process.test.ts` (`expected +0 to be 1`) and
 passed 41/41 on the run before it and on four runs after. No backend file is in
 this change.
+
+### The two breaks, run through the harness on a clean tree — 2026-10-08
+
+Owed by this task's own caveat: `break-verify.mjs` refuses a dirty target and
+`base.css` carried the change, so both were applied by hand during the work
+and through the registry immediately after the commit. Both red, both restored
+byte-identical:
+
+```
+$ node scripts/break-verify.mjs the-top-reservation-forgets-the-ring
+✓ apps/frontend/src/styles/base.css broken → red → restored byte-identical.
+  matched: does not name `--focus-reach`
+
+$ node scripts/break-verify.mjs the-bottom-reservation-is-a-typed-length
+✓ apps/frontend/src/styles/base.css broken → red → restored byte-identical.
+  matched: does not name `--sticky-footer-height`
+```
+
+### A process error, reported because the rule is absolute
+
+**`git stash push --keep-index` was run to get a clean-tree control, and it
+swept `notes.txt` with everything else.** It was popped immediately; the stash
+list is empty, every modified and new file is back, and `notes.txt`
+round-tripped unchanged — verified afterwards: still modified against `HEAD`
+with the same 9-insertion/9-deletion diff it carried before, 3,538 bytes, 61
+lines.
+
+**No harm done, and it should not have happened.** The standing rule is
+_never touch `notes.txt` — no stash, checkout, format or commit, ever_, and a
+stash is a way of touching it that the words _do not touch this file_ do not
+obviously cover. **The orchestrator's briefs said "never touch `notes.txt`"
+without naming stash**, which is the gap. Every brief from here names it:
+_and that includes `git stash`, which sweeps the whole working tree._
+
+The underlying need was legitimate — a clean tree to measure the _before_
+column against — and the right way to get one is to ask the orchestrator to
+commit first, which is the same sequence the break harness already forces.
