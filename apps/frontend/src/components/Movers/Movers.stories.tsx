@@ -174,7 +174,7 @@ const meta = {
      * sees the state inside, and two lists reviewed without the box hide the
      * one thing the box decides, which is whether the content fits.
      */
-    <Region name="Movers" meta={<MoversMeta view={args.view} />}>
+    <Region name="Movers" meta={<MoversMeta view={args.view} held={false} />}>
       <Movers {...args} />
     </Region>
   ),
@@ -362,7 +362,10 @@ export const NothingRankable: Story = {
  */
 export const BeforeTheFirstFrame: Story = {
   render: () => (
-    <Region name="Movers" meta={<MoversMeta view={RESERVED_MOVERS} />}>
+    <Region
+      name="Movers"
+      meta={<MoversMeta view={RESERVED_MOVERS} held={false} />}
+    >
       <MoversReservation />
     </Region>
   ),
@@ -393,7 +396,10 @@ export const BeforeTheFirstFrame: Story = {
  */
 export const NothingEverArrived: Story = {
   render: () => (
-    <Region name="Movers" meta={<MoversMeta view={RESERVED_MOVERS} />}>
+    <Region
+      name="Movers"
+      meta={<MoversMeta view={RESERVED_MOVERS} held={false} />}
+    >
       <MoversReservation />
     </Region>
   ),
@@ -435,7 +441,10 @@ class Throws extends Component {
  */
 export const TheRegionFailed: Story = {
   render: () => (
-    <Region name="Movers" meta={<MoversMeta view={RESERVED_MOVERS} />}>
+    <Region
+      name="Movers"
+      meta={<MoversMeta view={RESERVED_MOVERS} held={false} />}
+    >
       <Throws />
     </Region>
   ),
@@ -459,7 +468,7 @@ export const TheRegionFailed: Story = {
 export const InGreyscale: Story = {
   render: (args) => (
     <div style={{ filter: "grayscale(1)" }}>
-      <Region name="Movers" meta={<MoversMeta view={args.view} />}>
+      <Region name="Movers" meta={<MoversMeta view={args.view} held={false} />}>
         <Movers {...args} />
       </Region>
     </div>
@@ -491,4 +500,50 @@ export const ASixthRowEachWay: Story = {
       [...LOSERS, ["APA", "APA Corporation", -2.11, 23.77]],
     ),
   },
+};
+
+/**
+ * **A reader is in the region: one badge in the head, and BOTH lists standing
+ * still** (Task 4.5.7).
+ *
+ * The state 4.3 could not produce — a hold over **two** lists at once. What to
+ * review here is three things, and none of them is the badge's own appearance
+ * (`OrderHeldBadge` owns that):
+ *
+ * - **The head has not grown.** `.slot` reserves the wider of `Order held` and
+ *   `Top 5 each way` at `--line-height-subheading`, so the badge replaces the
+ *   bound in room that already existed. Four pixels of head height here moved
+ *   all eleven rows in the sector region, found in a browser and by nothing
+ *   else — flip between this story and `BothEnds` and nothing below the head
+ *   may shift.
+ * - **One speaker, not two.** The badge is in the region head above both lists
+ *   rather than once per list, because `Order held` is a claim about *this
+ *   region's order* exactly as `Movers` is a claim about this region's name.
+ * - **The disagreement between the ordinals and the vertical order IS the
+ *   pending re-order**, and it is readable with no motion and in greyscale. The
+ *   pin here is the order a reader arrived to while the frame has since put
+ *   `NVDA` and `ALB` in the lead of their lists, so the printed ordinals read
+ *   `3 1 2` and `2 1` down the two lists.
+ */
+export const OrderHeld: Story = {
+  args: {
+    view: view(
+      [
+        GAINERS[2],
+        GAINERS[0],
+        GAINERS[1],
+        GAINERS[3],
+        GAINERS[4],
+      ] as NonNullable<(typeof GAINERS)[number]>[],
+      [LOSERS[1], LOSERS[0], LOSERS[2], LOSERS[3], LOSERS[4]] as NonNullable<
+        (typeof LOSERS)[number]
+      >[],
+    ),
+    pinned: [...GAINERS, ...LOSERS].map(([symbol]) => symbol),
+  },
+  render: (args) => (
+    <Region name="Movers" meta={<MoversMeta view={args.view} held />}>
+      <Movers {...args} />
+    </Region>
+  ),
 };

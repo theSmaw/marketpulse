@@ -506,9 +506,51 @@ export function basisOf(figure: WireOverviewFigure): string | undefined {
  * props order that did not change, so no row travels, and on release it sees
  * every pending move in one frame.
  *
- * A symbol the pin does not know keeps its ranked position relative to the rows
- * that follow it. That cannot happen from our own gateway, which sends the same
- * eleven every frame; what it must not do is drop a row.
+ * ## A MEMBER THE PIN HAS NOT SEEN — the decision, taken 2026-10-08 (Task 4.5.7)
+ *
+ * Eleven sectors are a fixed roster, so a held sector list could only
+ * **permute**: every row the pin knows, every frame, for ever. A held **movers**
+ * list can have a member **replaced** — measured at 0.22–0.45 membership
+ * changes a minute over three real sessions (Task 4.5.7's instrument, 4.5.5's
+ * shape) — so this function's answer for an unknown symbol stopped being
+ * unreachable and became a thing a reader sees.
+ *
+ * **Decided: the hold pins ORDER ONLY, and a member the pin has not seen is
+ * drawn in its ranked position among the rows it outranks.** A new #1 gainer is
+ * drawn at #1, above every row it beats, and the rows either side of it do not
+ * move relative to each other. The badge's claim stays true as stated — *the
+ * order is held* — and the thing that was never claimed is that the membership
+ * is.
+ *
+ * **What this replaced**, and it would have been a visible defect the first
+ * time a reader held this region: `?? pinned.length + index` put every unknown
+ * row **after the whole pinned block**, so a new #1 gainer landed at #5 with
+ * `1` printed beside it, under four rows printing `2`–`5`. The printed ordinals
+ * and the vertical order are *meant* to disagree under a hold — that
+ * disagreement **is** the pending re-order — but they are meant to disagree by
+ * a permutation, not by a row sitting four places below its own number with no
+ * re-order pending for it at all.
+ *
+ * **Alternative: pin the membership too.** The badge becomes a stronger claim —
+ * *nothing in this region is moving* rather than *nothing is moving* — and a
+ * reader's row cannot be substituted under their pointer. It was rejected
+ * because the region would then show a name that **is no longer a mover** while
+ * every figure on the row kept updating: a row reading `-0.4%` in a list headed
+ * `Losers`, ranked `3`, which is a stronger and false claim in place of a weaker
+ * true one. ADR 0029's rule — a surface may make the confident claim only when
+ * the thing that would license it has been read — and the licence here expired
+ * the moment the producer stopped selecting that name.
+ *
+ * **Rejected also: hold the order and drop the newcomer until release.** It
+ * makes the lists short rather than wrong, and `withHeldRows` would pad the gap
+ * — so a reader holding the region watches it shrink to four rows and a blank,
+ * which is the movement three tasks of Story 4.3 were spent designing out.
+ *
+ * **Reversal trigger, as a condition**: the first surface that holds an order
+ * whose membership a reader has to be able to **trust** across the hold — a
+ * pinned comparison set, a basket, an investigation's evidence list. Those are
+ * memberships a reader chose; this one is an answer the producer computed, and
+ * the two are not the same kind of fact.
  */
 export function rowsInPinnedOrder(
   rows: readonly SectorRow[],
@@ -517,16 +559,57 @@ export function rowsInPinnedOrder(
   if (pinned === undefined) return rows;
 
   const positions = new Map(pinned.map((symbol, index) => [symbol, index]));
+
+  /*
+   * **The highest pinned position held by any row this one outranks** — which
+   * is the decision above expressed as arithmetic rather than as a special
+   * case.
+   *
+   * `rows` arrives in the comparator's order, so *the rows it outranks* are
+   * exactly the rows after it. The newcomer takes a key half a step **above**
+   * the first of those the pin can place, so it lands immediately before that
+   * row and after everything the pin put earlier. A newcomer that outranks
+   * nothing the pin knows — the tail of the list, or a run of newcomers at the
+   * end — keeps the old behaviour and sorts past the pinned block.
+   */
+  const insertionPoint = (from: number): number => {
+    for (let at = from + 1; at < rows.length; at += 1) {
+      const row = rows[at];
+      if (row === undefined) continue;
+      const position = positions.get(row.symbol);
+      if (position !== undefined) return position - HALF_A_STEP;
+    }
+    return pinned.length + from;
+  };
+
   const held = rows.map((row, index) => ({
     row,
-    // A row the pin never saw sorts by where the comparator put it, offset past
-    // the pinned block so it lands after the rows whose position is known.
-    at: positions.get(row.symbol) ?? pinned.length + index,
+    index,
+    at: positions.get(row.symbol) ?? insertionPoint(index),
   }));
 
-  held.sort((left, right) => left.at - right.at);
+  /*
+   * **The tie-break is the ranked index**, and it is load-bearing rather than
+   * tidy: two newcomers that outrank the same pinned row get the same key, and
+   * without this they would keep `sort`'s input order — which is the ranked
+   * order here, so the two agree today. Stated rather than inherited, because
+   * *stable sort over the ranked order* is a property of the array this
+   * function is handed and not of the rule.
+   */
+  held.sort((left, right) =>
+    left.at === right.at ? left.index - right.index : left.at - right.at,
+  );
   return held.map(({ row }) => row);
 }
+
+/**
+ * Half a pinned position — the gap a newcomer is inserted into.
+ *
+ * A pinned position is an integer, so half a step cannot collide with one: a
+ * newcomer's key is never equal to a pinned row's, and the comparison never
+ * depends on floating-point equality of two computed values.
+ */
+const HALF_A_STEP = 0.5;
 
 /**
  * What is missing, in the store's own terms.

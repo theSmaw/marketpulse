@@ -165,11 +165,25 @@
  * token `Panel.title` sets its line from: the head cannot grow, because the
  * thing that would grow it is the same height as the thing already there.
  */
+/*
+ * **`101px` since 2026-10-08, and the 1 px is a measurement** (Task 4.5.7).
+ *
+ * It was `100px`, taken against this slot's own two strings. With the badge
+ * actually rendered in a browser the `Order held` badge measures **100.33 × 22**
+ * at 1440, so the reserve was 0.33 px short of the thing it exists to hold and
+ * the slot grew by exactly that on pointer enter. Invisible in the region
+ * title's box, because the header has slack at 1440 and the title is
+ * `flex: 0 1 auto` — which is why it survived from Task 4.3.6 to here.
+ *
+ * `Movers.module.css` carries the full reading and the assertion is in
+ * `overview-movers-hold.spec.ts`. The badge is one component now, so its width
+ * is one fact and both slots reserve the same figure.
+ */
 .slot {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-width: 100px;
+  min-width: 101px;
   min-height: var(--line-height-subheading);
 }
 
@@ -185,57 +199,13 @@
 }
 
 /*
- * `Order held`, and it is the loudest thing in the region head by **weight and
- * hierarchy** rather than by ink.
+ * **`Order held` left this file on 2026-10-08** (Task 4.5.7), for
+ * `OrderHeldBadge.module.css` — `Movers` is the second region that holds an
+ * order, and the badge's ink, its border, its height and its disc are one fact
+ * with one home. The ADR 0026 argument that refused the canvas's `#9a6400`
+ * moved with it, verbatim.
  *
- * The canvas drew it in `#9a6400` inside a `#9a6400` border. That value is in no
- * stylesheet here, and the three ambers that exist cannot replace it —
- * `--palette-amber` measures **1.73:1** on the page ground and **1.92:1** at
- * 12 px, and `--palette-amber-deep` is not a text ink. So this is ADR 0026's
- * standing exception again: **the intent adopted and the value refused**, with
- * the settled rule carrying it — standing out, like receding, is a job for
- * weight and hierarchy, never for ink outside the contrast floor.
- *
- * Near-black on a panel inside a `--rule-strong` hairline is the most
- * distinctive idiom in this language, and the refresh's own rule for it is *one
- * panel is a statement* — one badge, present only while a reader is in the
- * region, is exactly that.
+ * **What stays here is `.slot`'s reserve**, above, because the room a head holds
+ * is the region's own geometry rather than the badge's: the two regions measured
+ * different content either side of it and both reserves were taken in a browser.
  */
-.held {
-  composes: microLabel from "../../styles/type.module.css";
-  display: inline-flex;
-  /*
-   * **Baseline, not centre**, and it is the shared disc that decides: the
-   * `stateMark` class carries `translateY(-0.25em)`, which centres it against
-   * the **x-height** of the run it sits in — a nudge written for a baseline
-   * row (`SourceNote.live`'s, unchanged). Centring the flex line instead
-   * applies that nudge on top of an already-centred box and the disc reads as
-   * a superscript dot. Nothing is overridden here to fix it, deliberately: a
-   * declaration under `composes` does not reliably win, because `composes`
-   * concatenates class names and stylesheet order decides.
-   */
-  align-items: baseline;
-  gap: var(--space-4);
-  box-sizing: border-box;
-  height: var(--line-height-subheading);
-  padding-inline: var(--space-8);
-  font-weight: var(--font-weight-strong);
-  color: var(--ink-primary);
-  white-space: nowrap;
-  border: var(--border-width) solid var(--rule-strong);
-  border-radius: var(--radius);
-}
-
-/*
- * `stateMark`'s third consumer — **appearance and behaviour from the shared
- * motion layer, position from here**, which is that vocabulary's own rule.
- *
- * *A state PERSISTS*, and the behaviour **is** the absence of animation: the
- * disc is still, it lasts exactly as long as the reader is in the region, and it
- * is neither progress nor a fact arriving. Nothing is declared here because a
- * mark inside a flex run needs no position of its own — `SourceNote.liveDisc`'s
- * precedent, unchanged.
- */
-.disc {
-  composes: stateMark from "../../styles/motion.module.css";
-}

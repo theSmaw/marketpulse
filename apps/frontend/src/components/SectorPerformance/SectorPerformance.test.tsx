@@ -9,7 +9,7 @@ import {
   SectorPerformanceMeta,
   SectorPerformanceReservation,
 } from "./SectorPerformance.js";
-import { useOrderHold } from "./use-order-hold.js";
+import { useOrderHold } from "../OrderHeldBadge/use-order-hold.js";
 
 const NO_OBSERVATIONS = new Map<string, Bar>();
 const NO_SNAPSHOT = new Set<string>();
