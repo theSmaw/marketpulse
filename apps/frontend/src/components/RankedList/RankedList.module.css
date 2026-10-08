@@ -256,6 +256,51 @@
 }
 
 /*
+ * **A row that holds its own room and nothing else** (Task 4.5.3).
+ *
+ * `visibility: hidden` rather than `display: none`, which is the entire point:
+ * the pitch comes from `.row` above, so a list padded to five with held rows is
+ * **the same height as a list of five**, and `Movers`' two lists stop being able
+ * to change the region's height between them. At 1440 and 1024 the grid row
+ * resolves to 486 whatever the content is, but at 768 and 390 the row is
+ * content-sized and the region **is** its content — so without this a one-sided
+ * day shrinks the region by 81 px and steps the whole lower page, three times
+ * the 25 px Task 4.3.7 spent a task designing out.
+ *
+ * `visibility` is **inherited by children that never set it**, which is why this
+ * is one declaration on the `<li>` rather than one per cell. The `aria-hidden`
+ * is on the same element for the same reason, so a list of two real rows padded
+ * to five is announced as *list, 2 items*: the padding is geometry and must not
+ * become a claim about how many names were ranked.
+ *
+ * It is the last rule touching `.row`, so the border and the transition above
+ * are unchanged and a pad keeps the separator that makes the pitch — which is
+ * the thing being held.
+ */
+.held {
+  visibility: hidden;
+}
+
+/*
+ * **No separator divides a row from a row that is not there** —
+ * `.quietHeadAlone`'s rule one element over, and `transparent` rather than `0`
+ * for its reason: the 1 px stays in the box, so the pitch is the pitch and a
+ * padded list is the same height as a full one to the pixel.
+ *
+ * Two selectors, one idea. A pad's own border would be a hairline across empty
+ * room, and the **last real row's** border would be a divider between a figure
+ * and nothing — which is exactly the line the sector region refuses to draw
+ * above a group that has no members. `:has(+ .held)` is the only way to say
+ * *the row before the padding* without the component counting rows, and
+ * counting rows here would be the second home for `MOVERS_PER_SIDE` that the
+ * padding exists to avoid.
+ */
+.held,
+.row:has(+ .held) {
+  border-bottom-color: transparent;
+}
+
+/*
  * --- The movement: one settle of stillness, then one settle of travel ---
  *
  * `The order that changes.dc.html` §03 and §04's treatment, and **the whole of

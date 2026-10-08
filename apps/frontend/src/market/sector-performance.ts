@@ -194,6 +194,27 @@ export interface SectorRow {
    * and no rank.
    */
   readonly basis: string | undefined;
+  /**
+   * **A row that holds its own room and nothing else** — present in the list,
+   * absent from the screen and from the accessibility tree (Task 4.5.3).
+   *
+   * It exists for `Movers`, where each list holds only the rows whose direction
+   * matches it: a one-sided day draws one full list and one short one, and at
+   * 768 and 390 the grid row is content-sized, so 5 → 2 would shrink the region
+   * by 81 px and step the whole lower page. Padding each list to
+   * `MOVERS_PER_SIDE` with held rows means **the pitch comes from `.row`
+   * itself** and no arithmetic gets a second home — which a `min-height` on the
+   * list would have been.
+   *
+   * **It is a real `<li>` in the `<ol>`, deliberately**, and that is a
+   * correctness requirement rather than a convenience: `useSettle` indexes into
+   * `element.children`, so a row drawn in the list and missing from the array
+   * handed to the FLIP makes every `to` position read off the wrong row.
+   *
+   * Optional rather than `boolean | undefined` so that the eleven sector rows,
+   * which can never be held, say nothing about it.
+   */
+  readonly held?: boolean;
 }
 
 /** A move, formatted, with the direction and the raw percentage together. */

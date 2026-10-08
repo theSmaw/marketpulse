@@ -235,6 +235,14 @@ function useSettle(rows: readonly SectorRow[]) {
     const moved = rows.filter((row, index) => {
       const was = previous.at.get(row.symbol);
       return (
+        // **A held row is room rather than a row and never travels** (Task
+        // 4.5.3). It has no basis, so the basis clause below would admit it —
+        // and a pad holds a position no reader could have read, so moving one
+        // is 240 ms of invisible transform. The pads sit at the tail and are
+        // keyed positionally, so today nothing would move anyway; this is the
+        // refusal stated rather than inferred from where the padding happens
+        // to be.
+        row.held !== true &&
         was !== undefined &&
         was !== index &&
         previous.basis.get(row.symbol) === row.basis
@@ -497,6 +505,7 @@ export const RankedList = memo(function RankedList({
               absent={row.absent}
               arrival={row.arrival}
               scale={bar.scale}
+              held={row.held}
             />
           ))}
         </ol>
@@ -616,6 +625,9 @@ export const RankedList = memo(function RankedList({
                * Found by looking at the picture; every test was green.
                */
               scale={undefined}
+              /* A quiet row is a row we are refusing to rank, which is the
+                 opposite of a row that is not there. */
+              held={undefined}
             />
           ))}
         </ul>
@@ -646,6 +658,7 @@ const Row = memo(function Row({
   absent,
   arrival,
   scale,
+  held,
 }: {
   /**
    * Which anatomy — see the `layout` const in `RankedList`.
@@ -668,6 +681,17 @@ const Row = memo(function Row({
   readonly arrival: string | undefined;
   /** Absent when the bar is off — see {@link RankedListBar}. */
   readonly scale: SectorLadderStep | undefined;
+  /**
+   * Room and nothing else — see {@link SectorRow.held}.
+   *
+   * `visibility: hidden` plus `aria-hidden` on the `<li>` itself, which is the
+   * one place both can be stated once for the whole row: `visibility` is
+   * inherited by children that never set it, which is the property that makes
+   * this a two-line treatment rather than a per-cell one — and the same
+   * property that made the one-box reservation a defect for ten days, used
+   * deliberately here because nothing inside a pad ever has to come back.
+   */
+  readonly held: boolean | undefined;
 }) {
   const rankCell =
     rank === undefined ? (
@@ -755,7 +779,10 @@ const Row = memo(function Row({
    * later auto-places into that track and moves nothing.
    */
   return (
-    <li className={cx(styles.row)}>
+    <li
+      className={cx(styles.row, held === true ? styles.held : undefined)}
+      aria-hidden={held}
+    >
       {layout === "mover" ? (
         <>
           {rankCell}
