@@ -3423,4 +3423,72 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "narrower than a five-character ticker needs",
   },
+
+  // ## The two sticky reservations, and why they are two breaks rather than one
+  //
+  // Task 4.6.1. Each edge is reserved by its own declaration, each is exercised
+  // by a walk in **one** direction — forward Tab brings an off-screen target to
+  // the bottom edge, Shift+Tab to the top — so a single break would leave the
+  // other declaration's clause unproven. The substitution in both is the
+  // *defect as it shipped*: the chrome's height reserved exactly, with the
+  // focus ring left outside it.
+  //
+  // **`base.css` is Vite-served**, and this repository has a recorded false
+  // all-clear from a CSS break run against a dev server that had been up for
+  // hours. `pnpm invariants` reads the file from disk rather than the server, so
+  // these two are immune to it — but the browser walk the same defect fails is
+  // not, and if it is run by hand the server is restarted first.
+  {
+    name: "the-top-reservation-forgets-the-ring",
+    proves:
+      "`scroll-padding-top` reserves the sticky chrome exactly and leaves " +
+      "the focus ring outside it \u2014 which is what shipped from " +
+      "2026-09-11 to 2026-10-08 and is `docs/GAPS.md`'s own entry. Every " +
+      "stop the browser scrolls flush to the masthead then has 4 px of a " +
+      "2 px outline behind it, at every width and on every route.\n\n" +
+      "It is invisible to everything below a browser \u2014 jsdom computes " +
+      "no layout and axe reads zero violations throughout \u2014 and it " +
+      "was invisible to the browser spec that walked for it, because that " +
+      "spec compared the same border box the declaration reserved. " +
+      "`overview-focus-ring.spec.ts` goes red at -4.00 px on the Shift+Tab " +
+      "walk at all four widths; this is the half that runs with no server.",
+    file: "apps/frontend/src/styles/base.css",
+    find:
+      "  scroll-padding-top: calc(\n" +
+      "    var(--sticky-chrome-height, 0px) + var(--focus-reach) +\n" +
+      "      var(--scroll-overshoot)\n" +
+      "  );",
+    replace:
+      "  /* pnpm break: reverted automatically */\n" +
+      "  scroll-padding-top: calc(\n" +
+      "    var(--sticky-chrome-height, 0px) + var(--scroll-overshoot)\n" +
+      "  );",
+    command: ["pnpm", "invariants"],
+    expect: "does not name `--focus-reach`",
+  },
+  {
+    name: "the-bottom-reservation-is-a-typed-length",
+    proves:
+      "The footer's reservation is written as a length rather than as its " +
+      "terms \u2014 `calc(33px + 4px)`, which is the status bar's height at " +
+      "1440 and the ring's reach, both correct at the width the author had " +
+      "open. The bar wraps to two rows at 768 and three at 390, where its " +
+      "height is 53 and 73, so a typed length is right at one viewport and " +
+      "20 to 40 px short at the others \u2014 and the narrow ones are the " +
+      "ones a development machine never shows.\n\n" +
+      "The arithmetic still reads as the repair, which is what makes it the " +
+      "likelier re-implementation than deleting a term: the numbers are " +
+      "both real, and both were measured \u2014 once.",
+    file: "apps/frontend/src/styles/base.css",
+    find:
+      "  scroll-padding-bottom: calc(\n" +
+      "    var(--sticky-footer-height, 0px) + var(--focus-reach) +\n" +
+      "      var(--scroll-overshoot)\n" +
+      "  );",
+    replace:
+      "  /* pnpm break: reverted automatically */\n" +
+      "  scroll-padding-bottom: calc(33px + 4px);",
+    command: ["pnpm", "invariants"],
+    expect: "does not name `--sticky-footer-height`",
+  },
 ];

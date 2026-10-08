@@ -102,14 +102,14 @@ Known, deliberate, and worth re-checking rather than citing — the one-liners a
 
    Three added at Task 2.11.9's keyboard walk, all of them properties a green axe run does not touch:
 
-   - **That no tab stop lands behind the sticky chrome.** See the trap under _Frontend_. Held by `e2e/specs/search-keyboard.spec.ts` at **two** viewports and by nothing else, because the 1440 case stays green while 768 goes red. Re-measure: set `scroll-padding-top: 0` in `base.css` and confirm the 768 test fails on three stops.
+   - **That no tab stop lands behind the sticky chrome.** See the trap under _Frontend_. Held by `e2e/specs/search-keyboard.spec.ts` at **two** viewports and by nothing else, because the 1440 case stays green while 768 goes red. Re-measure: set `scroll-padding-top: 0` in `base.css` and confirm the 768 test fails on three stops. **Amended 2026-10-08 by Task 4.6.1: the claim is now about the FOCUS RING rather than the border box**, at both sticky edges, and the second holder is `e2e/specs/overview-focus-ring.spec.ts` — four widths, both directions, with the tolerance read from `:root`. The predicate this entry was written around compared the border box against the chrome edge, which is the same quantity the declaration reserved, and was therefore **green at -4.00 px of ring clearance**.
    - **That every control carrying an explanation is in the tab order.** Nothing compares a component's `aria-describedby` against whether the described element can be focused, and the failing combination — a correct sentence on an unreachable control — renders and lints perfectly. Re-measure: restore `disabled={disabled}` on `TextField`'s input and confirm exactly one browser test fails, at `the search field is not reachable by Tab`.
    - **That a control which changes the page announces that it did.** `aria-expanded` on the universe's bulk toggle is the whole of the feedback a listener gets when 518 rows leave the page, and a name that flips from `Collapse all` to `Expand all` is **not** a substitute — a name is read on arrival at a control. Re-measure: delete the attribute and confirm one component test and one browser test go red.
 
    Five added at Story 2.11's close, and the first is the one most likely to be undone by accident:
 
    - **That a navigation between two securities stays CLIENT-SIDE.** Nothing in `pnpm verify` can see it: jsdom has no history and no bundle to reload, so a component test cannot tell a client-side navigation from a document one **at all**, and swapping the table's `Link` for a plain `<a href>` leaves every unit, component and integration test green while the product silently goes back to reloading itself on every symbol. The repair is a one-character import away from happening by accident, and it is held by `e2e/specs/security-navigation.spec.ts` — which does gate a merge — and by nothing else. Re-measure: make that swap and confirm the browser suite goes red on the navigation count while `pnpm verify` stays green.
-   - **That a jump lands where a person can see it.** The same class as the grid's column count and a **different mechanism** from the tab-stop entry above: that one is the browser's own scroll-into-view and is fixed by `scroll-padding-top`, this one is a `window.scrollTo`, which ignores `scroll-padding` entirely and must subtract the chrome itself. Held by `e2e/specs/universe-navigation.spec.ts`. Re-measure: delete the `stickyChromeHeight()` subtraction in `jumpToBand` and confirm test 2 of that spec fails.
+   - **That a jump lands where a person can see it.** The same class as the grid's column count and a **different mechanism** from the tab-stop entry above: that one is the browser's own scroll-into-view and is fixed by `scroll-padding-top`, this one is a `window.scrollTo`, which ignores `scroll-padding` entirely and must subtract the chrome itself. Held by `e2e/specs/universe-navigation.spec.ts`. Re-measure: delete the `stickyChromeClearance()` subtraction in `jumpToBand` and confirm test 2 of that spec fails. **Amended 2026-10-08 by Task 4.6.1, and the amendment is about this entry's RELATIONSHIP to the focus-ring entry below rather than about its claim.** The sentence _"`window.scrollTo` ignores `scroll-padding` entirely"_ sat **three entries away** from an entry recording that the scroll padding under-reserved by the ring's own 4 px, and **nobody connected them for twelve days**: the same deficit existed at both sites, by two mechanisms, and only one of the two was written down. The arithmetic is now `stickyChromeClearance()` in `apps/frontend/src/styles/sticky-clearance.ts` — the one place in the application that subtracts the chrome from a scroll offset — and `pnpm invariants`' `one-subtraction-for-the-sticky-chrome` refuses a second. The spec's assertion now reads the ring's reach out of the cascade. **The lesson is the transferable part: an entry that names a mechanism another entry depends on owes a pointer at it, because the whole failure mode of this file is a reader who does not know to look.**
    - **That two surfaces describing one failure do not use the same words.** Search and the tracked universe render from the same fetch and describe the same event, and nothing refuses a sentence that repeats the other's. It happened **three times in one afternoon**, every time caught by a locator resolving to two nodes rather than by anybody reading the page. Re-measure: give the search's hint the table's own `cause` sentence and watch which tests notice.
    - **That a control is present in every state at all.** The search field was absent from three of its states for two tasks and `pnpm verify` stayed green throughout — a component nobody renders raises nothing. Re-measure: wrap `<SecuritySearch>` in `view.state === "loaded" ?` again and confirm exactly three tests go red.
    - **That the rail's counts sum to every row in the table.** This is what makes "no band the control cannot reach" true, and is therefore the thing standing between a jump control and the `status` filter `UNIVERSE.md` §12.2 forbids. Re-measure: drop a group from `BandRail`'s `groups.map` and confirm _an untracked security is still reachable through the rail_ fails. **The second half of this entry is now `pnpm invariants`**: `initiallyCollapsed` is honest API that no route uses, and a route seeding it would reintroduce the collapse-by-default Task 2.11.8 declined, with nothing going red. Break: `pnpm break route-seeds-initiallycollapsed`.
@@ -977,10 +977,57 @@ inside the window produces none.
 a session behind **at any hour between 00:00 and 09:30 ET**. Both are evidence
 the window is open; neither requires the catch-up run to have failed as well.
 
-## The focus ring is clipped by exactly `--focus-width + --focus-offset` at both sticky edges, on every route
+## ~~The focus ring is clipped by exactly `--focus-width + --focus-offset` at both sticky edges, on every route~~ — DISCHARGED 2026-10-08
 
 **Added 2026-09-26 (Task 4.2.5's verification, transcribed here by Task 4.2.8).
 Not this story's to repair — it is a `base.css` fact affecting every screen.**
+
+> **Discharged 2026-10-08 by Task 4.6.1, and kept rather than deleted because
+> three of its four findings are what the repair was built from.** The entry was
+> **right about the mechanism and short by one pixel about the quantity.** What
+> was found on measuring it:
+>
+> 1. **There were TWO sites and this entry named one.** `base.css`'s two
+>    declarations, and `UniverseTable`'s `jumpToBand`, which subtracted the
+>    chrome exactly and then focused — the same deficit by the mechanism
+>    `scroll-padding` cannot reach, and the flow that carries `Collapse all`,
+>    _the real skip link_. The entry that records `scrollTo`'s immunity to
+>    `scroll-padding` is **three entries up this file** and nobody connected
+>    them. The subtraction now has one home, `stickyChromeClearance()`.
+> 1. **The deficit is 5 px and only 4 of them are the ring's.** Measured at
+>    three reservations (chrome + 0, + 1, + 2 px) × four viewports × both
+>    directions: Chromium lands a focus target **one whole pixel inside its own
+>    `scroll-padding` edge**, exactly and linearly, with every box edge and both
+>    chrome edges reading integers. So the cure named here —
+>    `calc(chrome + --focus-width + --focus-offset)` — leaves one pixel of a
+>    two-pixel outline behind the chrome, which is half the ring's thickness
+>    along the edge it is clipped on. The shipped reservation has a third term,
+>    `--scroll-overshoot`, with that measurement beside it in `tokens.css`. The
+>    `top=56` against `57` recorded below is that pixel.
+> 1. **The re-measure's own warning was correct and load-bearing**: a forward
+>    walk alone is green against a broken `scroll-padding-bottom`, because
+>    sequential focus navigation brings a target to the nearest edge. Both
+>    directions at 1440, **1024** (added — the footer's wrap state there was not
+>    in the record), 768 and 390 are now
+>    `e2e/specs/overview-focus-ring.spec.ts`, which reads the tolerance from
+>    `:root` and collects every offender rather than failing on the first.
+> 1. **And this entry was invisible to the spec that walked for it, which is
+>    the part worth carrying forward.** `search-keyboard.spec.ts` compared the
+>    **border box** against the chrome's edge — the same quantity the
+>    declaration reserved — so the check and the defect agreed with each other.
+>    Reproduced before repairing: that predicate is **green at -4.00 px of ring
+>    clearance** at all four widths, transcript `8 passed (6.8s)`. A check
+>    written against the thing being reserved cannot see a reservation that is
+>    short.
+>
+> Mechanised as `one-subtraction-for-the-sticky-chrome` in `pnpm invariants`,
+> with `pnpm break the-top-reservation-forgets-the-ring` and
+> `pnpm break the-bottom-reservation-is-a-typed-length`. **What remains
+> un-mechanised is the figure**: the clearances are a browser's, so
+> `overview-focus-ring.spec.ts` is the only thing that can read them, and its
+> `0.00` worst case at every width is a Chromium-at-`dpr: 1` measurement rather
+> than a law. **Re-measure:** run that spec; a clearance of `+1` everywhere
+> means an engine that does not overshoot and `--scroll-overshoot` should go.
 
 `scroll-padding-top` and `scroll-padding-bottom` read the published chrome
 heights **exactly** — 57/33 at 1440, 57/53 at 768, **94/73 at 390** — with no

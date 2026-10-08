@@ -91,9 +91,26 @@ test("a jump lands the band below the chrome, with focus on its control", async 
   // 133px at this width and taller at the two narrow ones — a pixel count here
   // would be a second copy of a number that lives in another component's media
   // queries.
+  //
+  // **The band's focus RING is what has to clear it, since Task 4.6.1**, and
+  // the reach is read from the cascade rather than typed: this jump used to
+  // subtract the chrome exactly, which left `--focus-width` + `--focus-offset`
+  // of ring behind the masthead by the one mechanism `scroll-padding` cannot
+  // reach — `window.scrollTo` ignores it entirely. `stickyChromeClearance()`
+  // is the one place that subtraction now happens.
   const chrome = await page.locator("header").boundingBox();
   const band = await focused.boundingBox();
-  expect(band?.y).toBeGreaterThanOrEqual((chrome?.height ?? 0) - SUB_PIXEL);
+  const ring = await page.evaluate(() => {
+    const root = getComputedStyle(document.documentElement);
+    return (
+      Number.parseFloat(root.getPropertyValue("--focus-width")) +
+      Number.parseFloat(root.getPropertyValue("--focus-offset"))
+    );
+  });
+  expect(ring).toBeGreaterThan(0);
+  expect((band?.y ?? 0) - ring).toBeGreaterThanOrEqual(
+    (chrome?.height ?? 0) - SUB_PIXEL,
+  );
 });
 
 /**
@@ -108,8 +125,12 @@ test("a jump lands the band below the chrome, with focus on its control", async 
  *
  * The claim this test makes is *below the chrome rather than behind it*, and a
  * sub-pixel is not behind it — the failure mode it exists to catch is the
- * `stickyChromeHeight()` subtraction being deleted, which puts the band **133px**
- * too high rather than one. A required check that reddens at random teaches
+ * `stickyChromeClearance()` subtraction being deleted, which puts the band
+ * **133px** too high rather than one. It is **kept** through Task 4.6.1's
+ * change, unlike the one in `search-keyboard.spec.ts` that the ring term
+ * replaced: that one absorbed a border box compared against a chrome edge and
+ * had nothing left to do, while this one absorbs a real fractional `scrollTo`
+ * landing, which is the cause named above and is still there. A required check that reddens at random teaches
  * people to re-run it, which is how a real failure gets re-run away.
  */
 const SUB_PIXEL = 1;
