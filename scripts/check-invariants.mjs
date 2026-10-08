@@ -3521,7 +3521,7 @@ const INVARIANTS = [
       // `displayedPercent` and then comparing against zero is the
       // classification whatever the local is called, so the rounding helper's
       // own call sites are a second, independent population. Legitimate
-      // callers compare moves against **each other** (`compareSectorFigures`)
+      // callers compare moves against **each other** (`compareByMove`)
       // or take a magnitude (`fitSectorLadder`); none of them compares one
       // against zero.
       const rounders = shipped.filter(
@@ -3558,6 +3558,241 @@ const INVARIANTS = [
             "off. Rounding first fixes the +0.004% half and leaves the " +
             "non-finite half: `displayedPercent(NaN)` is `NaN`, and it " +
             "compares false both ways.",
+        );
+      }
+    },
+  },
+  {
+    id: "one-comparator-for-the-order-of-a-move",
+    claim:
+      "The order two figures' moves put them in is decided in exactly one " +
+      "place — `compareByMove` in `packages/shared/src/sector-ranking.ts`, " +
+      "which `selectMovers` and `rankSectorFigures` both go through — and no " +
+      "other shipped file subtracts or compares one move against another, or " +
+      "rounds a percentage to the displayed precision and sorts.",
+    check() {
+      // **`docs/GAPS.md`'s second-comparator entry, discharged by Task
+      // 4.5.2** — added 2026-09-27 by Task 4.3.7, which was asked to write
+      // this guard and recorded three measured false starts instead. Story
+      // 4.5 is the entry's named owner because it writes the second caller,
+      // so it is the change that can say what the two have in common.
+      //
+      // ## What the three false starts were, and why none of them is below
+      //
+      // The proposal was *no shipped file both imports the figure type and
+      // calls `.sort(` outside the comparator module*. It is **red today**:
+      // `apps/frontend/src/market/sector-performance.ts` imports
+      // `WireOverviewFigure` and calls `held.sort((left, right) => left.at -
+      // right.at)` — Task 4.3.6's hold, which sorts by a **position a reader
+      // pinned** and reads no figure at all. A file-level clause over `.sort(`
+      // plus a move-field name also flags
+      // `components/UniverseTable/UniverseTable.tsx`, where `changePercent` is
+      // an imported **function** rather than the wire field. And exempting a
+      // file by name exempts the most likely site of the defect.
+      //
+      // So none of the three clauses below is file-level over `.sort(`.
+      //
+      // ## Keyed on the arithmetic, because it is what cannot be avoided
+      //
+      // `CLAUDE.md`: *prefer a clause the re-implementer cannot avoid writing
+      // — the division, not the type name.* A second ranking over moves
+      // cannot be written without putting **two moves either side of one
+      // operator**: a subtraction in a comparator body, or an inequality in a
+      // ternary. It needs neither `compareByMove` nor `WireOverviewFigure`
+      // nor `.sort(` — `toSorted`, a heap, a `reduce` and a hand-rolled
+      // insertion all qualify — but all of them contain that operator.
+      //
+      // Measured 2026-10-08 over the three shipped roots, comment-stripped:
+      // clause two's pattern matched **nothing at all** before the home was
+      // rewritten to return a sign, including `sector-performance.ts`' hold
+      // and `UniverseTable.tsx`. That is why there is no exemption list: there
+      // is no legitimate second site to exempt, so there is no escape hatch
+      // for the next author to widen.
+      //
+      // ## The draft that passed WRONGLY, and the transcript
+      //
+      // `docs/GAPS.md`'s own candidate was narrower — *the subtraction of two
+      // displayed percentages*, `displayedPercent(a) - displayedPercent(b)`.
+      // Run against `apps/backend/src/market-movers.ts`, the file the next
+      // story would write (a `[...figures].sort((left, right) =>
+      // (moveRankingKey(right) ?? 0) - (moveRankingKey(left) ?? 0))` with a
+      // `?? 0` in it and a `.slice` at each end), the run reported
+      // `45 invariants hold.` with that file in the walked population of 60.
+      //
+      // **Two things were wrong with it and the second is worse.** The next
+      // author subtracts two *ranking keys*, not two *rounded* ones — they
+      // have no reason to round at all, which is the +0.004% half of the
+      // defect. And the clause **had no anchor and could never have had one**:
+      // the home binds the two rounded figures to locals before comparing
+      // them, so `displayedPercent(a) - displayedPercent(b)` has never
+      // appeared in this repository. A grep that matches nothing looks exactly
+      // like a grep that passes.
+      //
+      // ## What it cannot see, stated so nobody over-trusts it
+      //
+      // A comparator whose operands are named `a`, `b`, `ka` or `x`:
+      // `(left, right) => keyOf(right) - keyOf(left)` is invisible to clause
+      // two and always will be. Clause three closes the realistic version of
+      // that — reaching for the rounding helper and then sorting — and the
+      // residue is an author who re-derives the field, rounds nothing and
+      // names nothing after a move, which is a different defect from the one
+      // this module exists to prevent.
+      const HOME = "packages/shared/src/sector-ranking.ts";
+
+      // The three SHIPPED roots — `one-classifier-for-the-direction-of-a-move`'s
+      // population, for its recorded reason: `e2e/specs` is deliberately out,
+      // because a browser spec's job is to restate the expected answer
+      // independently and a guard against a second *producer* must not reach
+      // a second *assertion*.
+      const SOURCE_ROOTS = [
+        "apps/backend/src",
+        "apps/frontend/src",
+        "packages/shared/src",
+      ];
+
+      const shipped = [];
+
+      const walk = (dir) => {
+        for (const child of readdirSync(dir)) {
+          const path = resolve(dir, child);
+          if (statSync(path).isDirectory()) {
+            if (child !== "fixtures" && child !== "node_modules") walk(path);
+            continue;
+          }
+          if (!/\.tsx?$/u.test(child)) continue;
+          if (/\.(?:test|process|database|stories)\.tsx?$/u.test(child))
+            continue;
+          shipped.push({
+            path: relative(REPO_ROOT, path),
+            // Comment-stripped, or the prose above — which spells the defect
+            // out in full — would be the first match.
+            text: withoutTrailingComments(readFileSync(path, "utf8")),
+          });
+        }
+      };
+
+      for (const root of SOURCE_ROOTS) walk(resolve(REPO_ROOT, root));
+
+      // ## Clause one — one declaration of each
+      //
+      // The cheap half, and not redundant: a second `compareByMove` or a
+      // second `selectMovers` in another package would be imported by name and
+      // read as the one home at every call site.
+      for (const name of ["compareByMove", "selectMovers"]) {
+        const declarations = shipped.filter((file) =>
+          new RegExp(String.raw`\bfunction\s+${name}\b`, "u").test(file.text),
+        );
+
+        if (declarations.length !== 1 || declarations[0].path !== HOME) {
+          throw new InvariantFailure(
+            `\`${name}\` is declared in ${String(declarations.length)} ` +
+              `shipped file(s) and the one home is ${HOME}:\n      ` +
+              (declarations.map((file) => file.path).join("\n      ") ||
+                "(nowhere)") +
+              "\n    A second declaration is a second rule, read as the " +
+              "first one at every call site. A re-export is fine.",
+          );
+        }
+      }
+
+      // ## Clause two — two moves either side of one operator
+      //
+      // Read line by line, so the 32-character window either side of the
+      // operator cannot straddle a statement. The window is what makes
+      // `(b.changePercent ?? 0) - (a.changePercent ?? 0)` match: the `?? 0`
+      // sits between the operand and the operator, and the obvious regex —
+      // two move-named operands adjacent to the operator — does not see it.
+      //
+      // **The whitespace around the operator is Prettier's**, which is a
+      // `pnpm verify` step, so `b.changePercent-a.changePercent` cannot
+      // survive a formatted tree. Requiring it is what keeps `=>` out of the
+      // `>` alternative.
+      const MOVE = "(?:percent|change|move)";
+      const ORDER_BY_MOVE = new RegExp(
+        `${MOVE}[\\w$]*[^\\n]{0,32}?\\s(?:-|<=?|>=?)\\s[^\\n]{0,32}?${MOVE}`,
+        "iu",
+      );
+
+      const matchingLines = (file) =>
+        file.text.split("\n").filter((line) => ORDER_BY_MOVE.test(line));
+
+      // The anchor. If the home stops matching, the pattern has rotted and
+      // the clause passes vacuously.
+      const home = shipped.find((file) => file.path === HOME);
+
+      if (home === undefined || matchingLines(home).length === 0) {
+        throw new InvariantFailure(
+          `${HOME} no longer puts two named moves either side of one ` +
+            "operator, and it is this check's anchor. Either the comparator " +
+            "moved or the pattern that recognises one has rotted; repoint it " +
+            "in the same change.",
+        );
+      }
+
+      const comparators = shipped
+        .filter((file) => file.path !== HOME && matchingLines(file).length > 0)
+        .flatMap((file) =>
+          matchingLines(file).map((line) => `${file.path}: ${line.trim()}`),
+        );
+
+      if (comparators.length > 0) {
+        throw new InvariantFailure(
+          `${String(comparators.length)} shipped line(s) order one move ` +
+            "against another outside the one comparator:\n      " +
+            comparators.join("\n      ") +
+            `\n    That order is \`compareByMove\`'s, in ${HOME}, and a ` +
+            "second one silently un-holds the rule it carries: *two figures " +
+            "equal at displayed precision never swap*. Eleven sector ETFs " +
+            "cluster inside one displayed step, so a raw comparison " +
+            "re-orders the list up to ~16 times a minute with nothing on it " +
+            "changing. Rank through `compareByMove`, `rankSectorFigures` or " +
+            "`selectMovers`.",
+        );
+      }
+
+      // ## Clause three — rounded to the displayed precision, and sorted
+      //
+      // The realistic way to write the defect with short-named locals, and the
+      // version an author who HAS read the module writes:
+      //
+      //     const left = displayedPercent(a);
+      //     const right = displayedPercent(b);
+      //     rows.sort(() => right - left);
+      //
+      // Clause two cannot see `right - left`. But rounding to the displayed
+      // precision and sorting in one file is a ranking on the displayed move
+      // whatever the locals are called. It is **not** file-level over `.sort(`
+      // alone — that is false start one — because the second half is the
+      // rounding helper's own call sites, which is a population of two:
+      // this module and `sector-ladder.ts`, which takes a magnitude and sorts
+      // nothing.
+      const SORTS = /\.(?:sort|toSorted)\s*\(/u;
+
+      const rounders = shipped.filter((file) =>
+        /\bdisplayedPercent\s*\(/u.test(file.text),
+      );
+
+      if (!rounders.some((file) => file.path === HOME)) {
+        throw new InvariantFailure(
+          `${HOME} no longer calls \`displayedPercent\`, and it is this ` +
+            "clause's anchor: a population with no rounder in it passes " +
+            "vacuously whatever anybody writes.",
+        );
+      }
+
+      const roundThenSort = rounders
+        .filter((file) => file.path !== HOME && SORTS.test(file.text))
+        .map((file) => file.path);
+
+      if (roundThenSort.length > 0) {
+        throw new InvariantFailure(
+          `${String(roundThenSort.length)} shipped file(s) round a ` +
+            "percentage to the displayed precision and sort:\n      " +
+            roundThenSort.join("\n      ") +
+            "\n    A ranking on the displayed move is `compareByMove`'s, " +
+            `in ${HOME}. This clause is keyed on the rounding helper's own ` +
+            "call sites rather than on an identifier's name, so it holds " +
+            "whatever the comparator's locals are called.",
         );
       }
     },

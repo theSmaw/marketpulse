@@ -328,19 +328,22 @@ export {
 } from "./price-direction.js";
 export type { PriceDirection } from "./price-direction.js";
 
-// How eleven sector benchmarks are ordered, and the ladder their bars are drawn
-// against (Task 4.3.4). **Shared rather than the browser's** for the reason
+// How a figure's move is read, how two of them are ordered, how eleven sector
+// benchmarks are ranked and how the two ends of 503 are selected (Tasks 4.3.4
+// and 4.5.2). **Shared rather than the browser's** for the reason
 // Story 4.5 ranks server-side: a top-N over 518 computed in a browser means
 // shipping the ranking's input to every tab, so a browser-side comparator could
 // never be the rule — and the ladder is on the server so every reader shares one
 // scale rather than one per tab.
 export {
   SECTOR_BY_ETF,
-  compareSectorFigures,
+  compareByMove,
+  moveRankingKey,
   rankSectorFigures,
   sectorOfEtf,
-  sectorRankingKey,
+  selectMovers,
 } from "./sector-ranking.js";
+export type { MoverSelection } from "./sector-ranking.js";
 export {
   SECTOR_LADDER_STEPS,
   fitSectorLadder,

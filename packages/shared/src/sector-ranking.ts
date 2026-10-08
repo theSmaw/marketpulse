@@ -2,6 +2,24 @@
  * **The order eleven sector benchmarks are reported in, and the one place a
  * figure's ranking key is read** (Task 4.3.4).
  *
+ * ## Two halves, and only one of them is about sectors — amended 2026-10-08
+ *
+ * Task 4.5.2 renamed the generic two. `sectorRankingKey` and
+ * `compareSectorFigures` are {@link moveRankingKey} and {@link compareByMove},
+ * because both are generic over `WireOverviewFigure` and are about **a move**:
+ * the key reader already had a consumer with no sector semantics at all
+ * (`fitSectorLadder`, which asks for the widest move in a set), and a movers
+ * selector calling `compareSectorFigures` would read as the wrong rule being
+ * borrowed. {@link rankSectorFigures} keeps its name — it ranks a roster of
+ * eleven, every row of which is drawn.
+ *
+ * The sector-shaped half is now `SECTOR_BY_ETF`, `sectorOfEtf` and
+ * `rankSectorFigures`; the move-shaped half is `moveRankingKey`,
+ * `compareByMove` and {@link selectMovers}. **The file name is the residue**,
+ * and splitting it was deliberately not done here: the reversal trigger is a
+ * condition — *the first consumer of the move half that is in neither the
+ * sector region nor the movers region.*
+ *
  * ## Why it is here and not in the browser that draws the list
  *
  * Story 4.5 ranks a top-N over 518 securities **server-side**, because a
@@ -43,7 +61,7 @@
  * drawing them as flat.
  */
 
-import { displayedPercent } from "./price-direction.js";
+import { directionOf, displayedPercent } from "./price-direction.js";
 import { SECTOR_ETFS, SECTORS } from "./security.js";
 
 import type { Sector } from "./security.js";
@@ -99,9 +117,7 @@ export function sectorOfEtf(symbol: string): Sector | undefined {
  * **in-process, before the encode**, so it is inside that gap and closes it
  * itself.
  */
-export function sectorRankingKey(
-  figure: WireOverviewFigure,
-): number | undefined {
+export function moveRankingKey(figure: WireOverviewFigure): number | undefined {
   if (figure.state === "observed") {
     return figure.changePercent !== undefined &&
       Number.isFinite(figure.changePercent)
@@ -125,6 +141,12 @@ export function sectorRankingKey(
 // It is still exported from this package's barrel under the same name; what
 // moved is where the rounding is decided. The comparator below calls it.
 
+/** `a` sorts before `b` — the only two sign values {@link compareByMove} has. */
+const STRONGER = -1;
+
+/** `a` sorts after `b`. */
+const WEAKER = 1;
+
 /**
  * The comparator itself — strongest first, keyless last, display-equal never
  * swapped.
@@ -136,34 +158,162 @@ export function sectorRankingKey(
  * eleven in `SECTORS`' order, so the first list breaks its ties on the
  * declared order, and every subsequent frame breaks them the same way — which
  * is why the order is deterministic without anybody holding the previous one.
+ *
+ * ## It returns a SIGN rather than a difference, since 2026-10-08
+ *
+ * It returned `other - shown` until Task 4.5.2, which is the same order — a
+ * comparator's contract is its sign and nothing reads the magnitude. The
+ * difference is that a **bounded** selection has to ask *which of these two is
+ * stronger* rather than hand the whole array to `sort`, and a magnitude forces
+ * that caller to test the result against zero. A sign makes
+ * {@link selectMovers} an exact `=== STRONGER`, so the top-N re-uses this
+ * function instead of re-expressing its arithmetic one screen further down —
+ * which is the whole defect this module exists to prevent.
  */
-export function compareSectorFigures(
+export function compareByMove(
   a: WireOverviewFigure,
   b: WireOverviewFigure,
 ): number {
-  const left = sectorRankingKey(a);
-  const right = sectorRankingKey(b);
+  const left = moveRankingKey(a);
+  const right = moveRankingKey(b);
 
   // The absent-key rule, in three lines and with no default in sight. Two
   // keyless figures are equal to each other — they are not *equally flat*,
   // they are equally unrankable — so they keep the order they arrived in.
   if (left === undefined && right === undefined) return 0;
-  if (left === undefined) return 1;
-  if (right === undefined) return -1;
+  if (left === undefined) return WEAKER;
+  if (right === undefined) return STRONGER;
 
-  const shown = displayedPercent(left);
-  const other = displayedPercent(right);
-  if (shown === other) return 0;
+  const shownMove = displayedPercent(left);
+  const otherMove = displayedPercent(right);
+  if (shownMove === otherMove) return 0;
 
-  return other - shown;
+  // **The one comparison of two displayed moves in this repository**, and the
+  // anchor `one-comparator-for-the-order-of-a-move` is keyed on: a second
+  // ranking cannot be written without either subtracting or comparing two
+  // moves somewhere, and this is the only place entitled to.
+  return otherMove > shownMove ? WEAKER : STRONGER;
 }
 
 /**
  * The figures in rank order — a **new array**, because the producer's own
  * order is `SECTORS`' and is the tie-break.
+ *
+ * **Sector-specific on purpose, and the one name in this module that stayed
+ * one** (Task 4.5.2): it sorts a whole roster of eleven, every row of which is
+ * drawn. A top-N over 503 is {@link selectMovers} and is a different shape of
+ * answer, not a different rule.
  */
 export function rankSectorFigures(
   figures: readonly WireOverviewFigure[],
 ): readonly WireOverviewFigure[] {
-  return [...figures].sort(compareSectorFigures);
+  return [...figures].sort(compareByMove);
+}
+
+/** Both ends of a ranked population, each strongest-first. */
+export interface MoverSelection {
+  /** Up to `limit` figures whose displayed move is **positive**, biggest first. */
+  readonly gainers: readonly WireOverviewFigure[];
+  /** Up to `limit` figures whose displayed move is **negative**, biggest fall first. */
+  readonly losers: readonly WireOverviewFigure[];
+}
+
+/**
+ * The two ends of a population, **bounded rather than sorted** (Task 4.5.2).
+ *
+ * ## Why not `rankSectorFigures(…).slice(0, limit)`
+ *
+ * Two reasons, and the second is a correctness one rather than a cost one.
+ *
+ * **The cost.** Measured on this machine against 503 synthetic observed
+ * figures, 400 timed iterations after 300 warm-up — the figures are in
+ * `TASK-02`. A full sort is the right tool for eleven rows whose whole roster
+ * is drawn; for a top-N over 503 it is several times the work for an order
+ * nobody sees, on a path that runs on every overview frame.
+ *
+ * **And `slice` would return names we have heard nothing about.** The
+ * absent-key rule orders keyless figures *last* — it does not remove them —
+ * so on a population where fewer than `limit` figures carry a move,
+ * `ranked.slice(0, limit)` is `limit` arbitrary `unknown` symbols presented as
+ * the day's biggest movers. That is **CI's store for ever** (518 securities,
+ * zero bars), every process restart, and most of a weekend. `STORY.md`'s AC 5
+ * is that a name with no current observation cannot appear in either list, so
+ * the key is a **filter here** and not only a sort order. Ordering is not
+ * enough.
+ *
+ * ## Disjoint by construction, through the one classifier
+ *
+ * A figure is a candidate for exactly one end, decided by `directionOf` on its
+ * own ranking key: `positive` is a gainer, `negative` is a loser, and
+ * `unchanged` and non-finite are **neither**. So the two lists cannot share a
+ * symbol without `directionOf` returning two answers for one number — there is
+ * no second classifier here to disagree with, which is
+ * `one-classifier-for-the-direction-of-a-move`'s whole point.
+ *
+ * ## The losers end is the SAME comparator with its arguments swapped
+ *
+ * And that is safe only because of the filter above, which is worth saying
+ * plainly: {@link compareByMove} is **not symmetric** about an absent key —
+ * keyless figures sort last in both argument orders, so reversing it on an
+ * unfiltered population would put the unrankable ones **first**, which is the
+ * AC 5 defect arriving by the back door. Every figure reaching either
+ * insertion has a key and a direction, so the reversal only ever sees the
+ * keyed branch. No second comparator, no second rounding, no `?? 0`.
+ */
+export function selectMovers(
+  figures: readonly WireOverviewFigure[],
+  limit: number,
+): MoverSelection {
+  const gainers: WireOverviewFigure[] = [];
+  const losers: WireOverviewFigure[] = [];
+
+  for (const figure of figures) {
+    const key = moveRankingKey(figure);
+    if (key === undefined) continue;
+
+    const direction = directionOf(key);
+    if (direction === "positive") keepBounded(gainers, figure, limit);
+    if (direction === "negative") keepBounded(losers, figure, limit, true);
+  }
+
+  return { gainers, losers };
+}
+
+/**
+ * Insert `figure` where {@link compareByMove} says it goes, among at most
+ * `limit` already-ordered figures, and drop whatever falls off the end.
+ *
+ * The scan walks **leftwards past every figure the candidate is strictly
+ * stronger than and stops at the first it is not**, which is what reproduces
+ * `Array.prototype.sort`'s stability: a candidate display-equal to one we are
+ * already holding never overtakes it, so arrival order survives a tie exactly
+ * as it does in the full sort. A candidate that reaches `limit` without
+ * overtaking anything is weaker than everything on a full list and is dropped
+ * unread.
+ *
+ * `reversed` swaps the comparator's arguments rather than negating its result:
+ * negating `0` is `0`, so the tie would survive either way, but a negation is
+ * an arithmetic second opinion and a swap is the same call.
+ */
+function keepBounded(
+  kept: WireOverviewFigure[],
+  figure: WireOverviewFigure,
+  limit: number,
+  reversed = false,
+): void {
+  let at = kept.length;
+  while (at >= 1) {
+    const held = kept[at - 1];
+    if (held === undefined) break;
+    const order = reversed
+      ? compareByMove(held, figure)
+      : compareByMove(figure, held);
+    if (order !== STRONGER) break;
+    at -= 1;
+  }
+
+  if (at >= limit) return;
+
+  kept.splice(at, 0, figure);
+  if (kept.length > limit) kept.pop();
 }

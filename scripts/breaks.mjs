@@ -2939,4 +2939,87 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "state a track list above 37rem and none below it",
   },
+  // ## Task 4.5.2's two, both on the order of a move
+  //
+  // One per clause of `one-comparator-for-the-order-of-a-move`, because the
+  // two clauses recognise the defect by different means and a single break
+  // would leave one unproven. Both edit `market-overview.ts` — where the next
+  // author of an aggregate over this seam is standing, and the honest target
+  // under the rule that a break editing the module the check was written
+  // around proves the least.
+  //
+  // **Neither of these is what found the real defect in the check.** That was
+  // `apps/backend/src/market-movers.ts`, the file the next story would write,
+  // run against `docs/GAPS.md`'s own candidate clause — *the subtraction of
+  // two displayed percentages* — which reported `45 invariants hold.` with
+  // that file in the walked population of 60. The next author subtracts two
+  // ranking keys and rounds nothing, and the narrow clause had no anchor in
+  // the home and never could have had one.
+  {
+    name: "movers-ranked-by-a-second-comparator",
+    proves:
+      "A top-N beside the join ranks the figures itself, with a subtraction " +
+      "rather than through `compareByMove`. Two things go wrong and neither " +
+      "looks wrong on screen: the `?? 0` places a security we have heard " +
+      "nothing about among the genuinely flat ones — ADR 0029's false " +
+      "impression expressed as a RANK POSITION — and the raw subtraction " +
+      "un-holds *two figures equal at displayed precision never swap*, so a " +
+      "list whose members are 0.003% apart and both print `+0.41%` " +
+      "re-orders up to ~16 times a minute with nothing on it changing. " +
+      "Clause two (Task 4.5.2).",
+    file: "apps/backend/src/market-overview.ts",
+    find: "export function buildMarketOverview(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export function topMovers(\n" +
+      "  figures: readonly WireOverviewFigure[],\n" +
+      "  limit: number,\n" +
+      "): readonly WireOverviewFigure[] {\n" +
+      "  return [...figures]\n" +
+      "    .sort(\n" +
+      "      (left, right) =>\n" +
+      "        (right.changePercent ?? 0) - (left.changePercent ?? 0),\n" +
+      "    )\n" +
+      "    .slice(0, limit);\n" +
+      "}\n\n" +
+      "export function buildMarketOverview(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "order one move against another outside the one comparator",
+  },
+  {
+    name: "movers-rounded-then-sorted",
+    proves:
+      "The same top-N written by somebody who HAS read `sector-ranking.ts`: " +
+      "they reach for `displayedPercent`, which fixes the displayed-tie " +
+      "half, bind it to a short local and sort on that — so clause two's " +
+      "pattern cannot see it, because neither operand names a move. The " +
+      "absent-key half is still open, and so is the tie's direction: the " +
+      "rounding makes two display-equal figures compare 0, and whether the " +
+      "arrival order survives then depends on this author's comparator " +
+      "rather than on the one home's. Clause three, which is keyed on the " +
+      "rounding helper's own call sites rather than on an identifier's name " +
+      "(Task 4.5.2).\n\n" +
+      "`displayedPercent` is deliberately left unimported by the " +
+      "substitution: the clause is a grep over the file's text, and an " +
+      "import line is exactly the incidental a re-implementer might write " +
+      "differently.",
+    file: "apps/backend/src/market-overview.ts",
+    find: "export function buildMarketOverview(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export function topMovers(\n" +
+      "  figures: readonly WireOverviewFigure[],\n" +
+      "  limit: number,\n" +
+      "): readonly WireOverviewFigure[] {\n" +
+      "  const scored = figures.map((figure) => ({\n" +
+      "    figure,\n" +
+      "    at: displayedPercent(readMove(figure)),\n" +
+      "  }));\n" +
+      "  scored.sort((left, right) => right.at - left.at);\n" +
+      "  return scored.slice(0, limit).map(({ figure }) => figure);\n" +
+      "}\n\n" +
+      "export function buildMarketOverview(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "round a percentage to the displayed precision and sort",
+  },
 ];

@@ -83,7 +83,7 @@ export interface WireSessionMovers extends WireMoverLists {
   second home for the array's own order and the two can disagree.
 - **Rows reuse `WireOverviewFigure`** rather than a dedicated shape. The session
   fallback makes a mover row a `stored` figure and the union already spells
-  that; `sectorRankingKey` already answers _which field this state's move lives
+  that; `moveRankingKey` already answers _which field this state's move lives
   in_; and ADR 0031's leak surface is per field map, so reuse adds none. Measured
   cost of the choice: **146.7 B/row against 68.7**, i.e. ~5,420 B against ~4,000
   for the whole frame.

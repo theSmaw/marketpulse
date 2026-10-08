@@ -38,7 +38,7 @@
  */
 
 import { displayedPercent } from "./price-direction.js";
-import { sectorRankingKey } from "./sector-ranking.js";
+import { moveRankingKey } from "./sector-ranking.js";
 
 import type { MarketDate } from "./market-time.js";
 import type { WireOverviewFigure } from "./market-stream-protocol.js";
@@ -97,7 +97,7 @@ export function fitSectorLadder(
 ): SectorLadderStep {
   let widest = 0;
   for (const figure of figures) {
-    const key = sectorRankingKey(figure);
+    const key = moveRankingKey(figure);
     if (key === undefined) continue;
     widest = Math.max(widest, Math.abs(displayedPercent(key)));
   }

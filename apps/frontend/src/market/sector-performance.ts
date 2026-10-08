@@ -2,7 +2,7 @@ import {
   SECTORS,
   SECTOR_LABELS,
   sectorOfEtf,
-  sectorRankingKey,
+  moveRankingKey,
   type Bar,
   type SectorLadderStep,
   type WireMarketOverview,
@@ -35,7 +35,7 @@ import {
 //     did not already produce — it reproduces an order the comparator produced
 //     one frame earlier. A comparison of `move.percent` anywhere in this file
 //     would be the defect the sentence above is about.
-//   - **Which field a move lives in** is `sectorRankingKey`'s. An `observed`
+//   - **Which field a move lives in** is `moveRankingKey`'s. An `observed`
 //     figure's move is `changePercent` and a `stored` figure's is
 //     `sessionChangePercent` — different bases, deliberately different names —
 //     and a renderer reaching for the wrong one finds nothing. This file asks
@@ -187,7 +187,7 @@ export interface SectorRow {
    * digest over all eleven would have frozen the whole gesture on that frame.
    *
    * The value pairs the member with the session it measured from, because those
-   * are the two things that can change: `sectorRankingKey` reads
+   * are the two things that can change: `moveRankingKey` reads
    * `changePercent` on an `observed` figure and `sessionChangePercent` on a
    * `stored` one, and those are different claims in the same units (see
    * `WireStoredFigure.sessionChangePercent`). A row with no move has no basis
@@ -343,7 +343,7 @@ function labelOf(symbol: string): string {
  * `changePercent` on a stored figure and found nothing.
  */
 function moveOf(figure: WireOverviewFigure): SectorMove | undefined {
-  const percent = sectorRankingKey(figure);
+  const percent = moveRankingKey(figure);
   if (percent === undefined) return undefined;
 
   return {
