@@ -378,3 +378,26 @@ state.
    The thing a check can assert is the one producer, and it does.
 4. **An em dash was unavailable** for joining the clause — the region reserves
    that glyph for a refused rank.
+
+### The breaks, run through the harness on a clean tree — 2026-10-08
+
+Owed by this task's own caveat: `pnpm break` refuses a dirty target, so the
+two new entries were performed by hand during the work and through the
+registry's own harness immediately after the commit. Both red, both restored
+byte-identical:
+
+```
+$ node scripts/break-verify.mjs the-rankings-denominator-is-silenced
+✓ apps/frontend/src/components/Movers/Movers.tsx broken → red → restored byte-identical.
+  matched: hides the region's only denominator
+
+$ node scripts/break-verify.mjs the-ranking-reads-the-breadth-denominator
+✓ apps/frontend/src/market/movers.ts broken → red → restored byte-identical.
+  matched: reaches the breadth section
+```
+
+**The caveat generalises and is worth the line.** Every task in this story has
+hit it: the break harness refuses a dirty target, and the file a new check is
+written around is always dirty while the check is being written. The honest
+sequence is **commit, then break, then amend** — which is what happened here,
+and the by-hand run during the work is what made it safe to commit at all.
