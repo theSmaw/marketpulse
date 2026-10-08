@@ -211,6 +211,58 @@ export function rankSectorFigures(
 }
 
 /**
+ * **Is this list already in the order {@link compareByMove} puts it in?**
+ * (Task 4.5.4) — the verification half of the rule, beside the rule.
+ *
+ * ## Why a reader needs it at all
+ *
+ * The movers are ranked **server-side**, so a browser receives an order it
+ * did not compute and cannot otherwise check. `readMovers` is the only thing
+ * standing between *a ranked frame* and *a furnished one* — and that
+ * distinction is the failure Stories 4.3 and 4.4 both paid for: a frame whose
+ * rows are all well-formed, whose counts all add up, and whose order is
+ * whatever somebody's test fixture happened to type. Nothing else on the wire
+ * can say an array is sorted.
+ *
+ * ## It is here rather than in the protocol module, which is the whole point
+ *
+ * An order and the check that it holds are **one fact**. A protocol module
+ * that re-expressed *strongest first* with its own inequality would be the
+ * second comparator `one-comparator-for-the-order-of-a-move` exists to
+ * refuse, written by the one author with the best excuse for writing it.
+ *
+ * **Display-equal pairs pass in either order**, because {@link compareByMove}
+ * answers `0` for them and ties keep the order they arrived in. So this asks
+ * *is the order consistent with the displayed figures*, which is the only
+ * question a reader of a rounded list is entitled to ask.
+ *
+ * `reversed` is the losers' end — weakest first — and it swaps the arguments
+ * rather than negating the result, {@link selectMovers}' idiom for its reason:
+ * negating is an arithmetic second opinion and a swap is the same call.
+ */
+export function isRankedByMove(
+  figures: readonly WireOverviewFigure[],
+  reversed = false,
+): boolean {
+  for (let at = 1; at < figures.length; at += 1) {
+    const earlier = figures[at - 1];
+    const later = figures[at];
+
+    // `noUncheckedIndexedAccess`: a hole in the array is not an order this
+    // function can vouch for.
+    if (earlier === undefined || later === undefined) return false;
+
+    const order = reversed
+      ? compareByMove(later, earlier)
+      : compareByMove(earlier, later);
+
+    if (order === WEAKER) return false;
+  }
+
+  return true;
+}
+
+/**
  * **How many movers each end carries — five, and it is a HEIGHT rather than a
  * taste** (Task 4.5.3).
  *

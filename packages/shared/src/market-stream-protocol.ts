@@ -7,6 +7,14 @@ import type { MarketFeed } from "./market-provenance.js";
 // them. The back edge — `sector-ranking.ts` importing `WireOverviewFigure` from
 // here — is **type-only** and is erased, so there is no runtime cycle.
 import { isSectorLadderStep } from "./sector-ladder.js";
+// **The order's own home, imported rather than re-expressed** —
+// `one-comparator-for-the-order-of-a-move`. `readMovers` has to answer *is
+// this list ranked*, and a protocol module writing its own inequality over two
+// moves would be the second comparator that check exists to refuse, written by
+// the one author with the best excuse. The edge back from `sector-ranking.ts`
+// is **type-only** and is erased, so this is not a runtime cycle — the same
+// shape as `sector-ladder.js` above.
+import { isRankedByMove, moveRankingKey } from "./sector-ranking.js";
 
 import type { SectorLadderStep } from "./sector-ladder.js";
 import type { Ticker } from "./ticker.js";
@@ -504,6 +512,106 @@ export interface WireSessionBreadth extends WireBreadthCounts {
 }
 
 /**
+ * **The two ends of the market's move — the top N each way, ranked, with the
+ * set they were selected from** (Task 4.5.4).
+ *
+ * ## The answer travels, never the ranking's input
+ *
+ * A top-N over 503 equities computed in a browser means shipping the 503
+ * figures to every tab on all five routes — `STORY.md`'s own table, ~56 KB a
+ * frame and ~875 KiB/min per browser, decoded on a page `PRODUCT_SPEC.md` §28
+ * is least able to afford a main-thread task on. So the order is computed
+ * server-side by `selectMovers`, and what crosses the wire is ten rows and two
+ * counts.
+ *
+ * ## A two-member union, for {@link WireMarketBreadth}'s reason
+ *
+ * The market is shut for roughly 80% of the week, so the second member is the
+ * common path rather than an edge case, and *the biggest movers among the
+ * names we have heard from in the last five minutes* and *the biggest movers
+ * of the last session we hold closes for* are different questions with
+ * different denominators. A renderer must not draw one as the other.
+ *
+ * **The basis is the same one breadth is on**, because both sections are
+ * produced from one eligibility pass over one array — `eligibleMoves` in
+ * `apps/backend/src/market-breadth.ts`. That is what makes
+ * {@link WireMoverLists.eligible} and {@link WireBreadthCounts.measured} the
+ * same number by construction rather than by two filters agreeing.
+ *
+ * ## No `rank` field
+ *
+ * The order **is** the answer. A rank beside it is a second home for the
+ * array's own order and the two can disagree — and {@link readMovers} can
+ * verify an order, which it could not do for a number somebody sent.
+ */
+export type WireMarketMovers = WireObservedMovers | WireSessionMovers;
+
+/**
+ * The lists, and the two counts that say what they are a selection from.
+ *
+ * **Rows are {@link WireOverviewFigure}** rather than a shape of their own.
+ * Three reasons: the session fallback makes a mover row a `stored` figure and
+ * this union already spells that; `moveRankingKey` already answers *which
+ * field this state's move lives in*, so a dedicated shape would need a second
+ * answer; and ADR 0031's leak surface is per field map, so reuse adds none.
+ * Measured cost of the choice: **146.7 B/row against 68.7** for a flattened
+ * row, i.e. ~5,420 B against ~4,000 for the whole frame.
+ */
+interface WireMoverLists {
+  /** Up to five, **strongest first** — the order is the answer. */
+  readonly gainers: readonly WireOverviewFigure[];
+  /** Up to five, **biggest fall first**. */
+  readonly losers: readonly WireOverviewFigure[];
+  /**
+   * **The size of the set the two lists are a selection FROM** — every
+   * security whose move could be measured on this basis.
+   *
+   * ## Its own field, not a read of `breadth.measured`
+   *
+   * `encodeBreadth` drops the **whole breadth section** on one non-finite
+   * count, and a ranked list with no denominator is the one thing Story 4.5
+   * must not ship: a top five computed over 446 of 503 looks exactly as
+   * confident as one computed over all of them, which is `EPIC.md`'s *an
+   * aggregate is the one kind of number that can be wrong while looking
+   * right* in its sharpest form. So the section carries its own denominator
+   * and stays readable when breadth is dropped.
+   *
+   * The cost is two spellings of one number, and it is paid at the producer
+   * rather than here: both sections are built from one eligibility pass over
+   * one array, so this is `moves.length` and breadth's `measured` is the tally
+   * of the same array. A cross-section check would have been the alternative,
+   * and it would make `movers` unreadable whenever `breadth` is unreadable.
+   */
+  readonly eligible: number;
+  /**
+   * **The 503 equities, counted and never named** — `WireBreadthCounts.tracked`'s
+   * field at the other end of the same sentence, and the same figure.
+   *
+   * The region says what it is computed over, so the browser must not type
+   * `503`: one delisting makes a hard-coded figure a lie with no symptom.
+   */
+  readonly tracked: number;
+}
+
+/** The top movers among the names heard from inside the window. */
+export interface WireObservedMovers extends WireMoverLists {
+  readonly basis: "observed";
+  /**
+   * How many minutes back *heard from* reaches — `BREADTH_WINDOW_MINUTES`,
+   * measured by Task 4.1.6 and spelled **once**, in the pass both sections
+   * share. See {@link WireObservedBreadth.windowMinutes}.
+   */
+  readonly windowMinutes: number;
+}
+
+/** The top movers of the last completed session we hold closes for. */
+export interface WireSessionMovers extends WireMoverLists {
+  readonly basis: "session";
+  /** The session every row is about, `YYYY-MM-DD` market-local. */
+  readonly session: string;
+}
+
+/**
  * The aggregate itself, **nested rather than spread over the envelope**.
  *
  * Two reasons, and the second is the one that bites. It gives ADR 0031's
@@ -670,6 +778,24 @@ export interface WireMarketOverview {
    * `encodeBreadth`.
    */
   readonly breadth?: WireMarketBreadth;
+
+  /**
+   * **Who is actually moving — the top five each way over the 503 equities**
+   * (Task 4.5.4).
+   *
+   * **Required on the producer and optional here**, which is `breadth`'s
+   * asymmetry and is held for its recorded reason rather than copied:
+   * `WireMarketOverviewInputs.movers` is not optional, so the backend cannot
+   * build a frame without the section, and a frame carrying figures and no
+   * section would leave the region's `waiting` **false** — the 2,000 ms
+   * silence floor `useWaited` gives it never fires and the panel sits reserved
+   * and silent for ever. That is the defect Task 4.3.8 produced against
+   * `Sector performance`. Optional here because the **read** side must
+   * tolerate a frame from a **previous image**, which a rollback pins.
+   *
+   * **The lists are the answer, not the input.** See {@link WireMarketMovers}.
+   */
+  readonly movers?: WireMarketMovers;
 }
 
 /**
@@ -1141,8 +1267,85 @@ const encodeBreadth = (breadth: WireMarketBreadth): JsonValue | undefined => {
   }
 };
 
+/**
+ * One map per member of {@link WireMarketMovers}, for
+ * {@link observedBreadthFields}' reason at a third grain: `keyof` a union is
+ * the **intersection** of its members' keys, so a single map over this union
+ * would cover the two lists, the two counts and `basis`, and wave
+ * `windowMinutes` and `session` through **unexamined** — the two
+ * discriminating fields, which makes the one map over the union exactly the
+ * wrong map.
+ *
+ * The two lists go through {@link encodeFigures}, which is the same rule the
+ * proxy strip and the sector section travel under: a figure that cannot carry
+ * its own number is **absent** rather than a `null` in the array. A list
+ * shortened that way still satisfies the reader's *a selection cannot exceed
+ * the set it is from*.
+ *
+ * Every field of both members is required, so there is no `Omit` here and a
+ * field added to either member fails to compile naming itself.
+ */
+const observedMoversFields: WireFields<WireObservedMovers> = {
+  basis: asIs,
+  gainers: (figures) => encodeFigures(figures),
+  losers: (figures) => encodeFigures(figures),
+  eligible: asIs,
+  tracked: asIs,
+  windowMinutes: asIs,
+};
+
+const sessionMoversFields: WireFields<WireSessionMovers> = {
+  basis: asIs,
+  gainers: (figures) => encodeFigures(figures),
+  losers: (figures) => encodeFigures(figures),
+  eligible: asIs,
+  tracked: asIs,
+  session: asIs,
+};
+
+/**
+ * The movers section to its wire object, or **`undefined` for a section whose
+ * counts cannot be honestly encoded** — which drops the **whole section**,
+ * `encodeBreadth`'s rule for `encodeBreadth`'s reason.
+ *
+ * Both counts are required and both are denominators: `JSON.stringify` writes
+ * `null` for a non-finite number, a lenient reader turns that into **`0`**,
+ * and `eligible: 0` beside five rows is a ranked list claiming to be a
+ * selection from nothing. There is no partial movers section — a list with no
+ * denominator is the one thing this story must not ship — so the unit that is
+ * dropped is the section.
+ *
+ * The guard is **here** rather than at the call site for ADR 0031's reason:
+ * a transport with no schema layer owes its guarantee where the encoding
+ * happens, because the call site is where the next author stands.
+ * `market-movers.ts` therefore contains no `Number.isFinite`, deliberately —
+ * one rule, one home.
+ */
+const encodeMovers = (movers: WireMarketMovers): JsonValue | undefined => {
+  if (finiteOr(movers.eligible) === undefined) return undefined;
+  if (finiteOr(movers.tracked) === undefined) return undefined;
+
+  switch (movers.basis) {
+    case "observed":
+      return finiteOr(movers.windowMinutes) === undefined
+        ? undefined
+        : toWire(observedMoversFields, movers);
+    case "session":
+      return toWire(sessionMoversFields, movers);
+    default: {
+      // Exhaustive: a third basis fails the build here rather than being
+      // silently unserialisable, which is `encodeBreadth`'s own mechanism.
+      const unhandled: never = movers satisfies never;
+      return unhandled;
+    }
+  }
+};
+
 const overviewFields: WireFields<
-  Omit<WireMarketOverview, "sectors" | "sectorLadderStep" | "breadth">
+  Omit<
+    WireMarketOverview,
+    "sectors" | "sectorLadderStep" | "breadth" | "movers"
+  >
 > = {
   computedAt: asIs,
   feeds: (feeds) => [...feeds],
@@ -1173,6 +1376,9 @@ const encodeOverview = (overview: WireMarketOverview): JsonValue => {
       ? undefined
       : encodeBreadth(overview.breadth);
 
+  const movers =
+    overview.movers === undefined ? undefined : encodeMovers(overview.movers);
+
   return {
     ...toWire(overviewFields, overview),
     ...(overview.sectors === undefined
@@ -1183,6 +1389,7 @@ const encodeOverview = (overview: WireMarketOverview): JsonValue => {
       ? {}
       : { sectorLadderStep: overview.sectorLadderStep }),
     ...(breadth === undefined ? {} : { breadth }),
+    ...(movers === undefined ? {} : { movers }),
   };
 };
 
@@ -1473,6 +1680,118 @@ const readBreadth = (value: unknown): WireMarketBreadth | undefined => {
   return { basis: "observed", ...counts, windowMinutes: value.windowMinutes };
 };
 
+/**
+ * One mover list, or `undefined` — **and an unreadable row refuses the whole
+ * list**, which is the opposite of {@link readFigures}' rule and is deliberate.
+ *
+ * That rule exists because a `bars` frame is a **batch** of up to 518
+ * securities and losing all of them because one is malformed is the worse
+ * failure. A mover list is five rows whose **order is the answer**: dropping
+ * one leaves a list that is still ranked, still well-formed, and no longer the
+ * top five of anything. The unit here is the section, as it is in
+ * {@link encodeMovers} and `encodeBreadth`.
+ */
+const readMoverList = (value: unknown): WireOverviewFigure[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+
+  const figures: WireOverviewFigure[] = [];
+  for (const entry of value) {
+    const figure = readFigure(entry);
+    if (figure === undefined) return undefined;
+    figures.push(figure);
+  }
+  return figures;
+};
+
+/**
+ * The movers section, or `undefined` — **and `undefined` is the state the
+ * region already draws**, which is what makes refusing it safe. A frame from a
+ * **previous image** carries no `movers` at all (a rollback pins one), and an
+ * unreadable section is the same absence rather than a discarded frame
+ * carrying four true prices.
+ *
+ * ## The six cross-field checks, and why a reader does this work
+ *
+ * On the producer every one of them is true by construction — one eligibility
+ * pass, one comparator, one bound — so a section where one is false **did not
+ * come from a producer this bundle understands**, and the list it would draw
+ * is wrong rather than old. Refusing it draws the reserved state; accepting it
+ * draws a ranking a reader has no way to doubt.
+ *
+ * 1. **A selection cannot exceed the set it is from** — `gainers + losers`
+ *    against {@link WireMoverLists.eligible}.
+ * 2. **`eligible` cannot exceed `tracked`** — `readBreadth`'s own rule, for
+ *    its reason: the region draws *we could measure N of M*, and a negative
+ *    remainder counts securities that cannot exist.
+ * 3. **No symbol in both lists.** Reachable whenever `eligible < 2N`, and it
+ *    is the one failure here that draws a visible contradiction — one row up
+ *    among the gainers and the same row down among the losers. On the producer
+ *    `selectMovers` decides each candidate's end through the one classifier,
+ *    so the lists are disjoint without anybody checking.
+ * 4. **Every row carries a ranking key.** A top-N is a **selection**; a
+ *    keyless member is a figure placed by a `?? 0`, which is ADR 0029's false
+ *    impression expressed as a **rank position**.
+ * 5. **Each list is in the comparator's own order**, at displayed precision —
+ *    `isRankedByMove`, which is the strongest check available here and the
+ *    only one that can tell a **ranked** frame from a **furnished** one. The
+ *    order is computed server-side, so a reader that does not verify it is
+ *    taking the order on trust from exactly the place it cannot see.
+ * 6. **The basis qualifies itself** — an `observed` section with no finite
+ *    window, or a `session` one with no session, is a figure nobody can
+ *    qualify. Refused rather than defaulted to a `5` this bundle would then be
+ *    spelling itself.
+ *
+ * **It does not refuse on sign**, and that is a product decision rather than
+ * an omission (the owner's Gate 1 decision): each list holds only rows whose
+ * `directionOf` matches it, so the lists are disjoint by construction and a
+ * sign check here would be a second classifier — the thing
+ * `one-classifier-for-the-direction-of-a-move` exists to refuse — asserting
+ * what check 5 already covers in the only grain that matters.
+ */
+const readMovers = (value: unknown): WireMarketMovers | undefined => {
+  if (!isRecord(value)) return undefined;
+
+  const gainers = readMoverList(value.gainers);
+  const losers = readMoverList(value.losers);
+  if (gainers === undefined || losers === undefined) return undefined;
+
+  if (!finite(value.eligible)) return undefined;
+  if (!finite(value.tracked)) return undefined;
+
+  const counts = { eligible: value.eligible, tracked: value.tracked };
+
+  if (gainers.length + losers.length > counts.eligible) return undefined;
+  if (counts.eligible > counts.tracked) return undefined;
+
+  const held = new Set(gainers.map((figure) => figure.symbol));
+  if (losers.some((figure) => held.has(figure.symbol))) return undefined;
+
+  const rows = [...gainers, ...losers];
+  if (rows.some((figure) => moveRankingKey(figure) === undefined)) {
+    return undefined;
+  }
+
+  if (!isRankedByMove(gainers)) return undefined;
+  if (!isRankedByMove(losers, true)) return undefined;
+
+  const lists = { gainers, losers };
+
+  if (value.basis === "session") {
+    if (typeof value.session !== "string") return undefined;
+    return { basis: "session", ...lists, ...counts, session: value.session };
+  }
+
+  if (value.basis !== "observed") return undefined;
+  if (!finite(value.windowMinutes)) return undefined;
+
+  return {
+    basis: "observed",
+    ...lists,
+    ...counts,
+    windowMinutes: value.windowMinutes,
+  };
+};
+
 const readOverview = (value: unknown): WireMarketOverview | undefined => {
   if (!isRecord(value)) return undefined;
   if (typeof value.computedAt !== "string") return undefined;
@@ -1512,6 +1831,11 @@ const readOverview = (value: unknown): WireMarketOverview | undefined => {
 
   const breadth = readBreadth(value.breadth);
 
+  // The movers section is optional on the read side for `breadth`'s reason —
+  // a rollback pins a previous image — and an unreadable one is the same
+  // absence rather than a discarded frame carrying four true prices.
+  const movers = readMovers(value.movers);
+
   return {
     computedAt: value.computedAt,
     feeds,
@@ -1519,6 +1843,7 @@ const readOverview = (value: unknown): WireMarketOverview | undefined => {
     ...(sectors === undefined ? {} : { sectors }),
     ...(step === undefined ? {} : { sectorLadderStep: step }),
     ...(breadth === undefined ? {} : { breadth }),
+    ...(movers === undefined ? {} : { movers }),
   };
 };
 

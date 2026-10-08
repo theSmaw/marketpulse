@@ -5,6 +5,7 @@ import { directionOf, displayedPercent } from "./price-direction.js";
 import {
   SECTOR_BY_ETF,
   compareByMove,
+  isRankedByMove,
   moveRankingKey,
   rankSectorFigures,
   sectorOfEtf,
@@ -392,5 +393,53 @@ describe("the bounded two-ended selection", () => {
     expect(gainers).toHaveLength(1);
     expect(losers).toHaveLength(1);
     expect(figures.map((figure) => figure.symbol)).toEqual(["A", "B"]);
+  });
+});
+
+describe("isRankedByMove — the verification half, beside the rule", () => {
+  it("accepts the comparator's own answer, both ends", () => {
+    // The anchor: whatever `selectMovers` produces must be something this
+    // function vouches for, or the producer and the reader disagree about one
+    // rule written in one place.
+    const { gainers, losers } = selectMovers(
+      [
+        observed("A", 1.2),
+        observed("B", 4.4),
+        observed("C", -0.9),
+        observed("D", -3.1),
+      ],
+      5,
+    );
+
+    expect(isRankedByMove(gainers)).toBe(true);
+    expect(isRankedByMove(losers, true)).toBe(true);
+  });
+
+  it("refuses a list in the other direction", () => {
+    const weakestFirst = [observed("A", 0.5), observed("B", 2.5)];
+    expect(isRankedByMove(weakestFirst)).toBe(false);
+    expect(isRankedByMove(weakestFirst, true)).toBe(true);
+  });
+
+  it("accepts either arrangement of a pair that reads the same on screen", () => {
+    // **At displayed precision rather than at a threshold somebody chose.**
+    // `compareByMove` answers `0` for two figures that print the same, so a
+    // tie keeps the order it arrived in and neither order is a contradiction.
+    const pair = [observed("A", 0.414), observed("B", 0.409)];
+    expect(isRankedByMove(pair)).toBe(true);
+    expect(isRankedByMove([...pair].reverse())).toBe(true);
+  });
+
+  it("is vacuously true for a list with nothing to compare", () => {
+    expect(isRankedByMove([])).toBe(true);
+    expect(isRankedByMove([observed("A", 1)])).toBe(true);
+  });
+
+  it("refuses a keyless figure placed among the ranked, and accepts one last", () => {
+    // The absent-key rule, verified rather than restated: keyless sorts after
+    // every keyed figure in BOTH argument orders, so a `?? 0` that put one
+    // mid-table is visible here.
+    expect(isRankedByMove([observed("A", 1), unknown("B")])).toBe(true);
+    expect(isRankedByMove([unknown("B"), observed("A", 1)])).toBe(false);
   });
 });

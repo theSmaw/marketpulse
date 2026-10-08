@@ -43,7 +43,7 @@ import {
 // about the frame it is building.
 import { createSectorLadderRatchet } from "./sector-ladder-ratchet.js";
 import { createLastClosesCache } from "./last-closes-cache.js";
-import { marketBreadth } from "./market-breadth.js";
+import { eligibleMoves, marketBreadth } from "./market-breadth.js";
 import {
   equityTickers,
   indexProxyTickers,
@@ -809,10 +809,21 @@ const marketOverview = (): WireMarketOverview => {
   // binding.
   const equities = entries.filter((entry) => isEquitySymbol.has(entry.symbol));
 
+  // **One eligibility pass over that set, consumed twice** (Task 4.5.4) —
+  // *who has a measurable move, on which basis*. `Market breadth` tallies it
+  // and `Movers` ranks it, so the count and the ranked list beside it are not
+  // two filters that agree: they are one array. A second call to this is the
+  // real regression — `topMovers(eligibleMoves(entries, …))` typechecks, runs,
+  // and produces five plausible rows over the wrong population with a
+  // denominator that disagrees with the region above it.
+  // `breadth-is-counted-over-the-equities-alone` permits exactly one.
+  const eligible = eligibleMoves(equities, { asOf, marketOpen });
+
   return toWireMarketOverview({
     proxies: entries.filter((entry) => isProxySymbol.has(entry.symbol)),
     sectors: entries.filter((entry) => isSectorSymbol.has(entry.symbol)),
-    breadth: marketBreadth(equities, { asOf, marketOpen }),
+    breadth: marketBreadth(eligible),
+    movers: eligible,
     sectorLadderStep: (ranked) => sectorLadder.stepFor(ranked, asOf),
     asOf,
   });

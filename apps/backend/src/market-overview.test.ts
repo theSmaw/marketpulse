@@ -16,6 +16,7 @@ import type {
   WireMarketOverview,
 } from "@marketpulse/shared";
 import type { CurrentObservation } from "./current-market-state.js";
+import type { EligibleMoves } from "./market-breadth.js";
 import type { MarketOverviewEntry } from "./market-overview.js";
 
 // **No Fastify instance, no database, no clock, and that is the assertion
@@ -84,6 +85,21 @@ const BREADTH: WireMarketBreadth = {
   measured: 0,
   tracked: 0,
   windowMinutes: 5,
+};
+
+/**
+ * An eligibility pass over nothing, for {@link BREADTH}'s reason.
+ *
+ * `WireMarketOverviewInputs.movers` is required too — a frame with figures and
+ * no movers section leaves the region's `waiting` false and the panel silent
+ * for ever — and the section itself is `market-movers.test.ts`' subject. An
+ * empty pass is a true state rather than a placeholder: it is CI's store, 518
+ * securities and zero bars.
+ */
+const NO_MOVERS: EligibleMoves = {
+  qualifier: { basis: "observed", windowMinutes: BREADTH.windowMinutes },
+  moves: [],
+  tracked: 0,
 };
 
 const closesOf = (
@@ -269,7 +285,12 @@ describe("toWireMarketOverview", () => {
   const overview = (
     entries: readonly MarketOverviewEntry[],
   ): WireMarketOverview =>
-    toWireMarketOverview({ proxies: entries, breadth: BREADTH, asOf: ASOF });
+    toWireMarketOverview({
+      proxies: entries,
+      breadth: BREADTH,
+      movers: NO_MOVERS,
+      asOf: ASOF,
+    });
 
   it("carries NEITHER of the things the figures were derived from", () => {
     // **ADR 0031's obligation, asserted where it is at risk.** The backend
@@ -474,6 +495,7 @@ describe("the sector section", () => {
         closesOf(storedClose(XLK, { close: 200, session: "2026-09-11" })),
       ),
       breadth: BREADTH,
+      movers: NO_MOVERS,
       asOf: ASOF,
     });
 
@@ -501,6 +523,7 @@ describe("the sector section", () => {
       proxies: [],
       sectors,
       breadth: BREADTH,
+      movers: NO_MOVERS,
       asOf: ASOF,
     });
 
@@ -516,6 +539,7 @@ describe("the sector section", () => {
     const wire = toWireMarketOverview({
       proxies: [],
       breadth: BREADTH,
+      movers: NO_MOVERS,
       asOf: ASOF,
     });
     expect(wire).not.toHaveProperty("sectors");
@@ -539,9 +563,52 @@ describe("the sector section", () => {
         closesOf(),
       ),
       breadth: BREADTH,
+      movers: NO_MOVERS,
       asOf: ASOF,
     });
 
+    expect(wire.feeds).toEqual(["iex"]);
+  });
+
+  it("carries the MOVERS section from the join's own figures, tape and all", () => {
+    // **Why the selection happens inside this module** (Task 4.5.4): the rows
+    // are built by `figureOf`, which is the one place entitled to say what a
+    // browser may see and the one place that records a figure's tape on the
+    // frame. A mapping in `market-movers.ts` would be a second answer to both
+    // questions — and the frame's `feeds` would stop describing the figures
+    // the frame carries, which is invariant 6 implied rather than displayed.
+    const entries = sectorsOf(
+      [SPY, QQQ],
+      new Map([[SPY, observation(SPY, bar(606, duringSession("2026-09-14")))]]),
+      closesOf(storedClose(SPY, { close: 600, session: "2026-09-11" })),
+    );
+
+    const wire = toWireMarketOverview({
+      // The proxy strip is empty here, so the only observed figure on the
+      // frame arrives through the movers section — which is what makes the
+      // `feeds` assertion about this section rather than about the strip.
+      proxies: [],
+      breadth: BREADTH,
+      movers: {
+        qualifier: { basis: "observed", windowMinutes: 5 },
+        moves: entries.map((entry) => ({ entry, percent: 1 })),
+        tracked: 503,
+      },
+      asOf: ASOF,
+    });
+
+    expect(wire.movers).toMatchObject({
+      basis: "observed",
+      windowMinutes: 5,
+      eligible: 2,
+      tracked: 503,
+    });
+    // SPY is +1% from the stored close and QQQ was never heard of, so one row
+    // is ranked and the keyless one is in neither list.
+    expect(wire.movers?.gainers.map((figure) => figure.symbol)).toEqual([
+      "SPY",
+    ]);
+    expect(wire.movers?.losers).toEqual([]);
     expect(wire.feeds).toEqual(["iex"]);
   });
 
@@ -556,6 +623,7 @@ describe("the sector section", () => {
         return 5;
       },
       breadth: BREADTH,
+      movers: NO_MOVERS,
       asOf: ASOF,
     });
 
@@ -579,6 +647,7 @@ describe("a stored figure's completed-session move", () => {
         asOf: duringSession("2026-09-14"),
       }),
       breadth: BREADTH,
+      movers: NO_MOVERS,
       asOf: ASOF,
     }).figures[0];
 

@@ -1,7 +1,11 @@
 import { toMarketDate, toTicker } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
-import { BREADTH_WINDOW_MINUTES, marketBreadth } from "./market-breadth.js";
+import {
+  BREADTH_WINDOW_MINUTES,
+  eligibleMoves,
+  marketBreadth,
+} from "./market-breadth.js";
 import { buildMarketOverview } from "./market-overview.js";
 
 import type {
@@ -9,7 +13,9 @@ import type {
   BarSource,
   SecurityLastClose,
   Ticker,
+  WireMarketBreadth,
 } from "@marketpulse/shared";
+import type { MarketBreadthOptions } from "./market-breadth.js";
 import type { CurrentObservation } from "./current-market-state.js";
 import type { MarketOverviewEntry } from "./market-overview.js";
 
@@ -86,12 +92,26 @@ const stored = (
   close: closeOf(symbol, over),
 });
 
+/**
+ * The pass and the tally, together.
+ *
+ * `marketBreadth` took the entries and the options until Task 4.5.4, which
+ * extracted the eligibility pass so the movers section could be a selection
+ * from the **same array** this count is a tally of. Every test below is about
+ * the count rather than about the plumbing, so the two calls are adapted here
+ * in one line rather than spelled nineteen times.
+ */
+const breadthOf = (
+  entries: readonly MarketOverviewEntry[],
+  options: MarketBreadthOptions,
+): WireMarketBreadth => marketBreadth(eligibleMoves(entries, options));
+
 const OPEN = { asOf: ASOF, marketOpen: true } as const;
 const SHUT = { asOf: ASOF, marketOpen: false } as const;
 
 describe("the observed count, while the regular session is open", () => {
   it("counts the three buckets and states the window it used", () => {
-    const breadth = marketBreadth(
+    const breadth = breadthOf(
       [
         live("AAPL", { percent: 1.2 }),
         live("MSFT", { percent: 0.4 }),
@@ -119,7 +139,7 @@ describe("the observed count, while the regular session is open", () => {
     // the counted numerator would disagree invisibly, with every number
     // well-formed, and the surplus would land in `unchanged`: *unchanged*
     // collapsed into *not heard from*.
-    const breadth = marketBreadth(
+    const breadth = breadthOf(
       [
         live("AAPL", { percent: 1.2, minutesAgo: 1 }),
         live("MSFT", { percent: 1.4, minutesAgo: 90 }),
@@ -164,7 +184,7 @@ describe("the observed count, while the regular session is open", () => {
     });
 
     expect(entries[0]?.state).toBe("live");
-    expect(marketBreadth(entries, OPEN)).toMatchObject({
+    expect(breadthOf(entries, OPEN)).toMatchObject({
       advancing: 0,
       measured: 0,
     });
@@ -177,7 +197,7 @@ describe("the observed count, while the regular session is open", () => {
     // three-channel contradiction `PriceChange` is built to prevent, stated
     // as a total.
     expect(
-      marketBreadth(
+      breadthOf(
         [live("AAPL", { percent: 0.004 }), live("MSFT", { percent: -0.001 })],
         OPEN,
       ),
@@ -190,7 +210,7 @@ describe("the observed count, while the regular session is open", () => {
     // count over 518 non-finite figures would report *518 unchanged, 0
     // advancing* — a confident, well-formed claim that the market did not
     // move. **The honest answer is that it is in no bucket at all.**
-    const breadth = marketBreadth(
+    const breadth = breadthOf(
       [
         live("AAPL", { percent: Number.NaN }),
         live("MSFT", { percent: Number.POSITIVE_INFINITY }),
@@ -213,7 +233,7 @@ describe("the observed count, while the regular session is open", () => {
     // figure — §36's partial answer — and counting it as unchanged would be a
     // claim the store cannot support.
     expect(
-      marketBreadth(
+      breadthOf(
         [live("AAPL", { percent: null }), live("MSFT", { percent: 0.5 })],
         OPEN,
       ),
@@ -225,7 +245,7 @@ describe("the observed count, while the regular session is open", () => {
     // bucket, and it is never labelled. A stored close is a fact about last
     // night, not about the last five minutes.
     expect(
-      marketBreadth([stored("AAPL", { close: 100, previousClose: 99 })], OPEN),
+      breadthOf([stored("AAPL", { close: 100, previousClose: 99 })], OPEN),
     ).toMatchObject({ basis: "observed", measured: 0 });
   });
 
@@ -234,7 +254,7 @@ describe("the observed count, while the regular session is open", () => {
     // first minutes. *We counted and heard nothing* is a true answer, and it
     // is spelled differently from *this gateway does not send breadth*, which
     // is the section's absence.
-    expect(marketBreadth([], OPEN)).toEqual({
+    expect(breadthOf([], OPEN)).toEqual({
       basis: "observed",
       advancing: 0,
       declining: 0,
@@ -248,7 +268,7 @@ describe("the observed count, while the regular session is open", () => {
 
 describe("the session count, which is the state the market is in ~80% of the week", () => {
   it("counts the last session's close-to-close move and names the session", () => {
-    const breadth = marketBreadth(
+    const breadth = breadthOf(
       [
         stored("AAPL", { close: 101, previousClose: 100 }),
         stored("MSFT", { close: 99, previousClose: 100 }),
@@ -306,7 +326,7 @@ describe("the session count, which is the state the market is in ~80% of the wee
       "stored",
       "stored",
     ]);
-    expect(marketBreadth(entries, SHUT)).toMatchObject({
+    expect(breadthOf(entries, SHUT)).toMatchObject({
       advancing: 1,
       declining: 1,
       unchanged: 1,
@@ -319,7 +339,7 @@ describe("the session count, which is the state the market is in ~80% of the wee
     // move with another's Thursday is a figure about neither session. The
     // session reported is the latest any of them has a close for, and the same
     // filter decides the numerator and the denominator.
-    const breadth = marketBreadth(
+    const breadth = breadthOf(
       [
         stored("AAPL", { close: 101, previousClose: 100 }),
         stored("MSFT", {
@@ -351,7 +371,7 @@ describe("the session count, which is the state the market is in ~80% of the wee
     // — nothing to measure against — and for a zero basis, where the division
     // is `Infinity` and formats as `"+Infinity%"`.
     expect(
-      marketBreadth(
+      breadthOf(
         [
           stored("AAPL", { close: 101, previousClose: null }),
           stored("MSFT", { close: 101, previousClose: 0 }),
@@ -365,7 +385,7 @@ describe("the session count, which is the state the market is in ~80% of the wee
   it("names the session it asked about when it holds no close at all", () => {
     // CI's store again, on the other basis. `measured: 0` beside the date is
     // what says we do not hold it; the date says which question was asked.
-    expect(marketBreadth([], SHUT)).toEqual({
+    expect(breadthOf([], SHUT)).toEqual({
       basis: "session",
       advancing: 0,
       declining: 0,
@@ -396,7 +416,7 @@ describe("`tracked` is the set it was handed, on both bases", () => {
       live("KO", { percent: null }),
     ];
 
-    expect(marketBreadth(entries, OPEN)).toMatchObject({
+    expect(breadthOf(entries, OPEN)).toMatchObject({
       measured: 1,
       tracked: 3,
     });
@@ -404,7 +424,7 @@ describe("`tracked` is the set it was handed, on both bases", () => {
 
   it("counts the entries rather than the buckets, with the market shut", () => {
     expect(
-      marketBreadth(
+      breadthOf(
         [
           stored("AAPL", { close: 101, previousClose: 100 }),
           stored("MSFT", { close: 90, previousClose: null }),
@@ -449,14 +469,14 @@ describe("the denominator is the sum, by construction", () => {
   ];
 
   it("holds on both bases, over a set containing every refusal", () => {
-    identity(marketBreadth(MIXED, OPEN));
-    identity(marketBreadth(MIXED, SHUT));
+    identity(breadthOf(MIXED, OPEN));
+    identity(breadthOf(MIXED, SHUT));
   });
 
   it("and the counts over that set are the ones the two bases should give", () => {
     // Stated rather than only asserted as an identity, so a pass that counted
     // nothing would not satisfy the test above vacuously.
-    expect(marketBreadth(MIXED, OPEN)).toMatchObject({
+    expect(breadthOf(MIXED, OPEN)).toMatchObject({
       advancing: 1,
       declining: 1,
       unchanged: 1,
@@ -466,7 +486,7 @@ describe("the denominator is the sum, by construction", () => {
     // On the session basis: `ERIE` is up on 2026-09-16, `MMM` has nothing
     // behind it, `WMT` is a session behind, and the six live entries carry no
     // close at all because none was given to them.
-    expect(marketBreadth(MIXED, SHUT)).toMatchObject({
+    expect(breadthOf(MIXED, SHUT)).toMatchObject({
       advancing: 1,
       declining: 0,
       unchanged: 0,

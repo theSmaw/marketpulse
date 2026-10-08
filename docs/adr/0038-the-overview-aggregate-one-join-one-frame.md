@@ -227,6 +227,44 @@ object** where an omitted key and a present `undefined` are indistinguishable.
   nested-map obligation wrong. The frame nests `overview` as one object precisely
   so a region can be added as a **field** rather than a type. **Story 4.3 re-takes
   this**, and it is named in that story's file.
+
+  **Amended 2026-10-08 (Task 4.5.4, the owner's Gate 1 decision): the re-take is
+  CLOSED, and the verdict is one frame.** Story 4.3 answered the question by
+  shipping a nested optional section and never came back to this bullet, so for
+  ten days a reader who followed Story 4.5's citation of _"ADR 0038's grain
+  rule"_ arrived at a **rejected alternative** instead. The citation has been
+  repointed here and the rule it was reaching for is now stated below, which is
+  the whole reason this is an amendment and not an ADR 0039: a second ADR would
+  be a second home for Decision 1 and would make the misattribution permanent by
+  giving it somewhere plausible to point.
+
+  **The rule, which is what the four stories were actually citing:** _each
+  region ships the smallest thing that answers it, never the input its answer
+  was computed from._ Sectors ship eleven ranked figures because eleven figures
+  **is** the answer; breadth ships three counts and two denominators rather than
+  518 figures; the movers ship **ten rows and two counts** rather than the 503
+  they were selected from. The rule is what keeps one frame affordable — a frame
+  that carried every region's input would be ~56 KB and ~875 KiB/min per
+  browser, decoded on all five routes including `/replay`.
+
+  **The evidence, measured off a real frame on 2026-10-08** (this product's own
+  gateway, `provider: none`, the session basis, 503 equities with stored closes):
+  the whole frame is **3,256 B** with four proxies, eleven ranked sectors, the
+  breadth counts and the movers; the movers section is **1,243 B** of that, at
+  **124.3 B a row** over ten rows. Breadth added **6–8 B** (Task 4.4.4). Three
+  regions therefore ride one frame inside ~3.3 KB at ~16 frames a minute, which
+  is ~51 KiB/min — against four frame types, four field maps and four decoder
+  branches for the same payload. The cost of the choice is that every region
+  shares one `computedAt` and one cadence, which is **true of these three** by
+  construction: all of them are derived from the same applied batch by the same
+  join.
+
+  **Reversal trigger, as a condition:** _the first overview region whose cadence
+  must differ from the applied-batch cadence._ A region that has to arrive on its
+  own clock cannot share a `computedAt` with the others, and at that point a
+  second frame type is cheaper than a frame whose instant is true of only part of
+  itself.
+
 - **No wire at all in this story.** Would have shipped the visible half in a
   morning and bought nothing the story exists for. Rejected explicitly rather
   than by omission.
