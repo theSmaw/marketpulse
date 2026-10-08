@@ -70,7 +70,8 @@ async function tabToTheField(page: Page): Promise<number> {
 }
 
 /**
- * Is the focused element sitting underneath the application's sticky chrome?
+ * Is the focused element — **or the ring that says it is focused** — sitting
+ * underneath the application's sticky chrome?
  *
  * **An element taller than the viewport is excluded, and that is the
  * measurement rather than a let-off.** The browser does not scroll a target it
@@ -79,6 +80,22 @@ async function tabToTheField(page: Page): Promise<number> {
  * and nothing about it is obscured. What this predicate is for is the ordinary
  * case: a button, a link, a field, scrolled to the top of the scrollport and
  * parked behind 132 to 208 pixels of header.
+ *
+ * ## The ring is in the arithmetic since Task 4.6.1, and the `- 1` is gone
+ *
+ * This compared the **border box** against the chrome's edge, which is the
+ * quantity `base.css`'s `scroll-padding-top` used to reserve — so the two
+ * agreed with each other and both left `--focus-width` + `--focus-offset` of
+ * ring behind the chrome. Measured on `/` at four widths: the next author's
+ * version of this predicate is **green at -4.00 px of ring clearance**, which
+ * is the whole reason the reach is read here rather than assumed.
+ *
+ * The tolerance is read from the cascade and never typed: a ring drawn 3 px
+ * wide tomorrow moves this assertion with it. And the `- 1` goes with the
+ * change — it existed because the comparison was against the border box, and
+ * with the ring in the arithmetic there is nothing for it to absorb. Measured
+ * after the repair: the worst clearance on this route is a whole, non-negative
+ * number of pixels, so the slack is not covering anything.
  */
 async function focusIsObscured(page: Page): Promise<boolean> {
   return page.evaluate(() => {
@@ -88,9 +105,17 @@ async function focusIsObscured(page: Page): Promise<boolean> {
     // The chrome's own contents are not obscured by it.
     if (header.contains(element)) return false;
 
+    const root = getComputedStyle(document.documentElement);
+    const ring =
+      Number.parseFloat(root.getPropertyValue("--focus-width")) +
+      Number.parseFloat(root.getPropertyValue("--focus-offset"));
+    if (!Number.isFinite(ring)) {
+      throw new Error("the focus tokens are not in the cascade");
+    }
+
     const box = element.getBoundingClientRect();
     if (box.height >= window.innerHeight) return false;
-    return box.top < header.getBoundingClientRect().bottom - 1;
+    return box.top - ring < header.getBoundingClientRect().bottom;
   });
 }
 

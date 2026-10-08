@@ -40,8 +40,26 @@ html {
    * and means *nobody has said*: the workshop mounts components with no chrome
    * at all, and reserving a chrome's height there would leave every scrolled-to
    * element a header below where it belongs.
+   *
+   * **`--focus-reach` since 2026-10-08, and it is the difference between
+   * clearing an element and clearing the thing that says it is focused.**
+   * Until Task 4.6.1 this read the published height exactly, which puts a
+   * focused element's border box flush against the chrome and its 4 px ring
+   * behind it. See `tokens.css` for the derivation and `docs/GAPS.md` for the
+   * five measured stops. The reach is derived from `--focus-width` and
+   * `--focus-offset` rather than typed, so a ring that changes width moves
+   * this declaration with it.
+   *
+   * `--scroll-overshoot` is the third term and belongs to the **browser**
+   * rather than to this product: Chromium lands a focus target one whole pixel
+   * inside the padding edge, measured at three reservations and four
+   * viewports. Its derivation is in `tokens.css`; without it one pixel of a
+   * two-pixel outline is still behind the chrome.
    */
-  scroll-padding-top: var(--sticky-chrome-height, 0px);
+  scroll-padding-top: calc(
+    var(--sticky-chrome-height, 0px) + var(--focus-reach) +
+      var(--scroll-overshoot)
+  );
 
   /*
    * And the same at the bottom, since 2026-09-16, because the chrome now has a
@@ -60,8 +78,21 @@ html {
    * its height exists at more than one value and a token would be a second copy
    * of it, wrong at one viewport the first time its contents change. The `0`
    * fallback means *nobody has said*.
+   *
+   * **And `--focus-reach` here too, for the reason above and one of its own:
+   * the FORWARD walk is the one that lands against this edge.** Sequential
+   * focus navigation brings an off-screen target to the *nearest* edge, so
+   * pressing Tab down a page exercises this declaration almost exclusively and
+   * Shift+Tab exercises the top one. A walk in one direction is green against a
+   * broken reservation at the other end — `Market topology` at 390 was exactly
+   * that case, and it is why `overview-focus-ring.spec.ts` walks both ways.
+   * `--scroll-overshoot` is the browser's own pixel, as above — measured at
+   * this edge and at the top one, and identical at both.
    */
-  scroll-padding-bottom: var(--sticky-footer-height, 0px);
+  scroll-padding-bottom: calc(
+    var(--sticky-footer-height, 0px) + var(--focus-reach) +
+      var(--scroll-overshoot)
+  );
 }
 
 body {

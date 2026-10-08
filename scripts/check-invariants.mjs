@@ -4671,6 +4671,179 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "one-subtraction-for-the-sticky-chrome",
+    claim:
+      "Both of `base.css`'s scroll paddings reserve the chrome, the FOCUS " +
+      "RING and the browser's own overshoot by name rather than by a length " +
+      "literal, the chrome's height has one reader, and every programmatic " +
+      "scroll clears it through `stickyChromeClearance()` — one subtraction, " +
+      "in one place.",
+    check() {
+      // **The defect this exists to catch is a reservation that clears the
+      // ELEMENT and not the ring**, which is what shipped for a fortnight and
+      // what `docs/GAPS.md` recorded at five stops. It is invisible to
+      // everything below a browser — jsdom computes no layout, axe judges a DOM
+      // — and it was *also* invisible to the one browser spec that walked for
+      // it, because that spec compared the same border box the stylesheet
+      // reserved. Measured 2026-10-08 (Task 4.6.1): a predicate with no ring
+      // term is **green at -4.00 px of ring clearance** at all four widths.
+      //
+      // **Two sites, and only one of them was ever written down.** The
+      // stylesheet answers every scroll the browser performs; `window.scrollTo`
+      // ignores `scroll-padding` entirely, so `UniverseTable`'s `jumpToBand` —
+      // the flow that carries `Collapse all`, *the real skip link* — had the
+      // same deficit by a mechanism the stylesheet cannot reach. The entry next
+      // door in `docs/GAPS.md` recorded that `scrollTo` ignores the property
+      // without anyone connecting the two.
+      //
+      // So the clauses below are chosen to be the ones a re-implementer
+      // **cannot avoid writing**: a scroll padding, a subtraction, and a reach
+      // for the header element.
+      const BASE = "apps/frontend/src/styles/base.css";
+      const HOME = "apps/frontend/src/styles/sticky-clearance.ts";
+
+      const css = readAnchored(resolve(REPO_ROOT, BASE));
+
+      for (const edge of ["top", "bottom"]) {
+        const declarations = [
+          ...css.matchAll(
+            new RegExp(String.raw`scroll-padding-${edge}:[^;]*;`, "gu"),
+          ),
+        ].map(([text]) => text.replaceAll(/\s+/gu, " "));
+
+        if (declarations.length !== 1) {
+          throw new InvariantFailure(
+            `${BASE} holds ${String(declarations.length)} ` +
+              `\`scroll-padding-${edge}\` declarations and this check reads ` +
+              "one. The reservation for each sticky edge has exactly one " +
+              "home; a second declaration is a second answer, and the loser " +
+              "is decided by source order.",
+          );
+        }
+
+        const [declaration = ""] = declarations;
+
+        // The chrome, the ring and the engine's own pixel — each by name. The
+        // ring is `--focus-width + --focus-offset` and the whole reason it is a
+        // token is that **4 px is the ring's measured extent rather than a
+        // cushion**: a ring drawn 3 px wide tomorrow must move both of these
+        // declarations and the jump, and a literal in three places is three
+        // things to forget.
+        const chrome =
+          edge === "top" ? "--sticky-chrome-height" : "--sticky-footer-height";
+
+        for (const term of [chrome, "--focus-reach", "--scroll-overshoot"]) {
+          if (!declaration.includes(`var(${term}`)) {
+            throw new InvariantFailure(
+              `${BASE}'s \`scroll-padding-${edge}\` does not name ` +
+                `\`${term}\`:\n      ${declaration}\n` +
+                "    All three terms are measured and all three are " +
+                "forgettable: the chrome's published height, the focus ring's " +
+                "reach (`tokens.css`), and the whole pixel Chromium lands a " +
+                "focus target inside its own padding edge. Dropping the ring " +
+                "leaves 4 px of outline behind the chrome and every DOM-level " +
+                "check green.",
+            );
+          }
+        }
+
+        // A length literal in the reservation is the same defect wearing the
+        // token's clothes — `calc(57px + 4px)` reads identically on screen and
+        // is wrong at two of the four viewports the chrome has heights for. The
+        // `var(--x, 0px)` fallbacks are legitimate and mean *nobody has said*.
+        const typed = declaration.replaceAll(/var\([^)]*\)/gu, "");
+
+        if (/\d+\s*(?:px|r?em|%)/u.test(typed)) {
+          throw new InvariantFailure(
+            `${BASE}'s \`scroll-padding-${edge}\` carries a length literal:` +
+              `\n      ${declaration}\n` +
+              "    Every term here exists at more than one value — the chrome " +
+              "is 57 px at 1440 and 94 at 390, and the ring is whatever " +
+              "`tokens.css` says. A typed length is a second copy of a number " +
+              "that lives somewhere else.",
+          );
+        }
+      }
+
+      // ## The second site, and the two clauses that hold it
+      //
+      // Walked over the shipped trees rather than a file list, for
+      // `shippedSourceFiles`' own reason: a hard-coded list cannot see the file
+      // the next story writes.
+      const sources = shippedSourceFiles().map(({ path, text }) => ({
+        path: relative(REPO_ROOT, path),
+        text: withoutTrailingComments(text),
+      }));
+
+      const defines = sources.filter(({ text }) =>
+        text.includes("export function stickyChromeClearance"),
+      );
+
+      if (defines.length !== 1 || defines[0]?.path !== HOME) {
+        throw new InvariantFailure(
+          `\`stickyChromeClearance\` is exported from ` +
+            `${defines.length === 0 ? "nowhere" : defines.map(({ path }) => path).join(", ")}` +
+            `, and it must be exported from ${HOME} alone. It is the one ` +
+            "subtraction, so a second definition is a second answer to how " +
+            "much room a focus ring needs.",
+        );
+      }
+
+      // **Every programmatic scroll goes through it.** A new jump is welcome;
+      // a new jump that subtracts a chrome height it measured itself is the
+      // defect, and it is the one the next author writes, because the
+      // arithmetic reads like three obvious lines.
+      //
+      // **The whole FAMILY, and that is a defect this check already passed
+      // wrongly on.** Written against `scrollTo(` alone, it was green against
+      // `window.scroll(0, top - chrome)` — the same subtraction through an
+      // alias — with the chrome read from the published custom property so the
+      // header clause below could not see it either. Produced as a file, run,
+      // and recorded in Task 4.6.1 before it was widened. `scrollIntoView` is
+      // deliberately **not** here: `scroll-padding` governs it, which is the
+      // whole reason the stylesheet's half exists.
+      const ABSOLUTE_SCROLL = /\bscroll(?:To|By)?\(|\bscrollTop\s*=[^=]/u;
+
+      const scrollers = sources.filter(
+        ({ path, text }) =>
+          path !== HOME &&
+          ABSOLUTE_SCROLL.test(text) &&
+          !text.includes("stickyChromeClearance("),
+      );
+
+      if (scrollers.length > 0) {
+        throw new InvariantFailure(
+          `${scrollers.map(({ path }) => path).join(", ")} ` +
+            "scrolls to an absolute offset without `stickyChromeClearance()` " +
+            "— `scroll`, `scrollTo`, `scrollBy` or `scrollTop`. " +
+            "`window.scrollTo` ignores `scroll-padding` entirely, so a " +
+            "programmatic jump clears the chrome and the focus ring itself or " +
+            "it parks a focused element behind the masthead — measured once " +
+            "at 133 px of band and once at 4 px of ring.",
+        );
+      }
+
+      // And the chrome's height has one reader, because the three lines above
+      // begin with this one. `AppHeader` and `AppFooter` measure their own
+      // elements through refs and publish them; anything else reaching for the
+      // banner landmark by hand is re-deriving a fact that already has a home.
+      const headerReaders = sources.filter(
+        ({ path, text }) =>
+          path !== HOME && /querySelector\(\s*["']header["']/u.test(text),
+      );
+
+      if (headerReaders.length > 0) {
+        throw new InvariantFailure(
+          `${headerReaders.map(({ path }) => path).join(", ")} ` +
+            `reaches for the \`<header>\` element directly; ${HOME} is where ` +
+            "the chrome's height is read. Two readers of one fact with no " +
+            "link between them is how the ring term got into one of them and " +
+            "not the other.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

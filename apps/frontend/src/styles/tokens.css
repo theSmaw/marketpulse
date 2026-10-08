@@ -369,6 +369,66 @@
   --focus-offset: 2px;
 
   /*
+   * **How far outside its own border box a focused element's ring reaches** —
+   * derived, never typed, and the reason it exists is that two mechanisms have
+   * to clear it and neither of them is a focus treatment.
+   *
+   * `base.css`'s `scroll-padding-top`/`-bottom` reserve the sticky chrome's
+   * height so that nothing the browser scrolls to lands underneath it. They
+   * read the published heights **exactly**, which clears the *border box* and
+   * leaves the ring behind the chrome — measured on `/` (Task 4.2.5, recorded
+   * in `docs/GAPS.md`): `Sector performance` at 768 landed with its top edge
+   * one pixel **above** the masthead's bottom, so 5 px of ring was behind it.
+   * `UniverseTable`'s `jumpToBand` has the same deficit by a different
+   * mechanism — `window.scrollTo` ignores `scroll-padding` entirely, so it
+   * subtracts the chrome itself.
+   *
+   * It is a `calc()` of the two tokens rather than a fourth value, because the
+   * reach is **the ring's measured extent** rather than a cushion chosen for
+   * comfort: a ring drawn 3 px wide tomorrow must move both scroll paddings and
+   * the jump, and a literal `4px` in three places is three things to forget.
+   *
+   * Consumers that need it as a **number** read the two tokens and add them
+   * (`sticky-clearance.ts`, and the browser walk that measures this claim) —
+   * the computed value of a custom property keeps its `calc()` unresolved, so
+   * this name is for CSS and the arithmetic has one spelling in each language.
+   */
+  --focus-reach: calc(var(--focus-width) + var(--focus-offset));
+
+  /*
+   * **How far PAST a scroll-padding edge Chromium's own scroll-into-view
+   * lands, measured rather than argued** — and it is a whole pixel rather than
+   * a sub-pixel, which is why it is reserved instead of tolerated.
+   *
+   * Measured 2026-10-08 on `/` (Task 4.6.1), Chromium at `devicePixelRatio: 1`,
+   * four viewports × both directions × every section stop, with the reservation
+   * set to the chrome plus 0, 1 and 2 extra pixels in turn:
+   *
+   *   +0px → the ring's worst clearance is **-1.00** at both edges
+   *   +1px → **0.00**
+   *   +2px → **+1.00**
+   *
+   * Exactly linear, exactly integral, and identical at 1440, 1024, 768 and 390
+   * — every box edge and both chrome edges read whole pixels, so there is no
+   * sub-pixel here for a tolerance to absorb. The browser aligns a focus target
+   * one pixel **inside** the padding edge, so a reservation of exactly the
+   * chrome plus the ring leaves one pixel of a two-pixel outline behind the
+   * chrome: half the ring's thickness along the edge it is clipped on, which is
+   * the defect this product is repairing rather than a rounding to shrug at.
+   *
+   * **It belongs to `scroll-padding` alone and not to the ring.** A
+   * programmatic `window.scrollTo` goes exactly where it is told, so
+   * `sticky-clearance.ts` does not add this — it rounds the chrome's own height
+   * up instead, for the same harmless-direction reason.
+   *
+   * Over-reserving by a pixel costs a pixel of air below the chrome;
+   * under-reserving costs half a focus ring. The reversal trigger is an engine
+   * where the walk measures a clearance of `+1` at every stop — then this is
+   * that engine's zero and the term goes.
+   */
+  --scroll-overshoot: 1px;
+
+  /*
    * A 4px grid. These are the steps the design actually uses, named by their
    * value rather than by position so that the 24-to-40 jump is visible in the
    * token names instead of being hidden behind `--space-6`/`--space-7`.

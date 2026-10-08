@@ -50,6 +50,7 @@ import {
   formatPrice,
   formatSessionTime,
 } from "../../market/index.js";
+import { stickyChromeClearance } from "../../styles/sticky-clearance.js";
 import styles from "./UniverseTable.module.css";
 
 // The tracked universe, in all four of the states it can be in (Task 2.4.4).
@@ -1572,18 +1573,18 @@ function BandRail({
  * its first four rows were behind it, on a page that had just scrolled 11,933px
  * to reach them. Focus was on an element nobody could see.
  *
- * ## Why the chrome is measured rather than tokenised
+ * ## The clearance moved out of this file on 2026-10-08, and it grew a term
  *
- * `--app-header-height` is 56px and is the **masthead** only; the sticky header
- * also carries the status strip, which wraps to two rows at 768px and three at
- * 390px. So the number this needs exists at three different values and is
- * decided by a media query in another component's stylesheet — a token would be
- * a second copy of it, checked by nothing, wrong at two viewports the first time
- * the strip's contents change.
+ * `stickyChromeClearance()` is in `styles/sticky-clearance.ts` with the whole
+ * argument for measuring the chrome rather than tokenising it, and with the
+ * reason it is the **only** place in this application that subtracts the chrome
+ * from a scroll offset.
  *
- * Reading the element is a DOM reach and is the honest version of the same
- * fact. It also degrades exactly right: in the workshop there is no `<header>`
- * and no chrome to clear, so the offset is zero and the band goes to the top.
+ * What changed, rather than only moved: it now clears the focus ring as well as
+ * the border box. This call subtracted the chrome exactly, so the band landed
+ * flush against the masthead with its 4 px ring behind it — `base.css`'s
+ * `scroll-padding` had the same deficit by a different mechanism, and
+ * `docs/GAPS.md` recorded one of the two. Task 4.6.1.
  *
  * ## The order, and `preventScroll`
  *
@@ -1615,51 +1616,8 @@ function jumpToBand(id: string): void {
   // scrollport that never scrolls. Which is also why a sticky band header does
   // nothing here; see the task's record.
   const top = target.getBoundingClientRect().top + window.scrollY;
-  window.scrollTo({ top: top - stickyChromeHeight() });
+  window.scrollTo({ top: top - stickyChromeClearance() });
   target.focus({ preventScroll: true });
-}
-
-/**
- * How much of the top of the viewport the application's own chrome is sitting
- * over.
- *
- * `<header>` rather than a class name, because the thing being asked about is
- * the page's banner landmark and there is exactly one — and because a class
- * name from another component's CSS Module is not reachable from here anyway.
- *
- * The `position` check is not defensive padding: it is the whole question. A
- * header that is not sticky occludes nothing, and subtracting its height would
- * scroll the band *past* the top of the viewport.
- *
- * **Why this measures rather than reading `--sticky-chrome-height`, which
- * `AppHeader` publishes from the same element** — recorded 2026-09-11 at Story
- * 2.11's close, because two readers of one fact with no link between them is the
- * shape this repository normally refuses. The custom property exists for
- * `base.css`'s `scroll-padding-top`, which is the browser's own
- * scroll-into-view and reaches every ordinary tab stop. It cannot serve this
- * call: `window.scrollTo` ignores `scroll-padding` entirely, so a programmatic
- * jump has to do the subtraction itself whatever the property says. Reading it
- * anyway would trade a `getBoundingClientRect()` for a `getComputedStyle()` on
- * the root plus a `parseFloat` of a string this component does not own, and
- * would go silently wrong in exactly the case the `position` check exists for —
- * a story or a test where no `AppHeader` is mounted and the property is simply
- * absent. The fact still has **one source**: the element. See
- * `useStickyChromeHeight`, which reached this from the other side.
- */
-function stickyChromeHeight(): number {
-  const header = document.querySelector("header");
-  if (header === null) return 0;
-
-  const { position } = getComputedStyle(header);
-  if (position !== "sticky" && position !== "fixed") return 0;
-
-  // Rounded **up**, and it is a one-pixel decision with a measurement behind
-  // it. The header's height is fractional at some zoom levels and browsers snap
-  // a scroll offset to whole device pixels, so the exact value leaves the band
-  // a pixel behind the chrome — measured at 131 against a 132px header, which
-  // went red in `universe-navigation.spec.ts` and is invisible to a reader. A
-  // pixel of air below the chrome is the harmless direction to be wrong in.
-  return Math.ceil(header.getBoundingClientRect().height);
 }
 
 /**
