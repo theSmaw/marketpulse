@@ -1,6 +1,6 @@
 # Story 4.5 — The Movers, & the First Surface That Ranks by a Live Value
 
-**Status:** **Complete — 2026-10-08**, pending the owner's acceptance at Gate 2. Eight tasks, eight PRs (#519–#526 and the close). `/` draws **two ranked lists over the 503 equities** — `GAINERS` and `LOSERS`, five rows each — from the **same single eligibility pass** `Market breadth` counts, with the region stating its own denominator. **466 px in every state at every width.** The ranking is server-side; the frame ships **1,243 bytes** rather than a 60,636-byte input. **Open**: nobody has seen the region on a live feed, because the observed basis exists only 09:30–16:00 ET and no gated machine runs then with data.
+**Status:** **Complete — accepted by the owner at Gate 2 on 2026-10-08.** Eight tasks, eight PRs (#519–#526 and the close). `/` draws **two ranked lists over the 503 equities** — `GAINERS` and `LOSERS`, five rows each — from the **same single eligibility pass** `Market breadth` counts, with the region stating its own denominator. **466 px in every state at every width.** The ranking is server-side; the frame ships **1,243 bytes** rather than a 60,636-byte input. **Open**: nobody has seen the region on a live feed, because the observed basis exists only 09:30–16:00 ET and no gated machine runs then with data.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.4
 **Epic scope covered:** top gainers / losers
@@ -594,3 +594,65 @@ trigger**: it does not fire — twenty rows is not universe scale and it is a
 different page — and re-wording it from _markup_ to _computation_ would make it
 fire retroactively on Task 4.4.4's **3.5 ms** against a 50 ms line. A verdict is
 recorded; the wording is Story 4.8's fork.
+
+## Accepted at Gate 2 — 2026-10-08, with three decisions taken there
+
+**The owner accepted Story 4.5 unchanged.** No code moved at the gate; what
+follows are the three dispositions taken with it.
+
+### 1. The landing page's new HTTP request stands
+
+`WireOverviewFigure` carries a symbol, a state and a figure and **no company
+name**, and the row's flexible name track was built for a field the wire does
+not have. The route reads it through the existing `useSecurities` —
+**190,701 bytes / 20,034 gzipped / 124 ms**, ETag, revalidating to 304, and
+**non-blocking by construction**: the map is empty until loaded, every row is
+labelled with its own ticker meanwhile, and an unreachable universe is quiet
+(no sentence, no retry, no `Try again`), because the ticker is the identifier
+and the name is context.
+
+**It is the landing page's only HTTP market request**, and it was put to the
+owner on exactly that ground rather than presented as settled. **Accepted.**
+The two alternatives stay recorded rather than foreclosed: the name on the
+wire (immutable data re-sent at the aggregate's cadence, on a type the proxy
+and sector sections share) and a narrow `GET /securities/names` (premature at
+one consumer). **Reversal trigger, as a condition**: _the first second
+consumer of the universe on this route_ — at which point the universe is the
+page's dependency rather than one region's context, and the three options are
+owed a comparison with a measurement.
+
+### 2. The two owed measurements go to Story 4.9, not back here
+
+**The `--repeat-each=6` × 4 flake characterisation and the code-free control
+commit are not taken, and are not retried on this machine.** The owner's
+decision, and the reason is in the evidence rather than in scheduling: on
+2026-10-08 the machine sat at load **23–33 on 8 cores** with ~37 MB free from
+the owner's own VM, Docker Desktop and Teams VDI, **killed two of this run's
+processes for memory**, and failed three whole-suite runs 3 / 5 / 7 purely on
+30 s timeouts while **CI passed all three required checks**.
+
+**A rate measured on a saturated machine is a rate for a saturated machine**,
+which is worse than no rate because it would be quoted. Story 4.9 owns the
+_are this epic's own suites trustworthy_ verdict and now carries this story's
+evidence in its own file; the two measurements belong with that verdict rather
+than retried piecemeal here.
+
+### 3. The rehearsal is worth scheduling, and this row is not like the others
+
+**The owner scheduled it, on the ground that this region offers the first
+genuinely EXTERNAL check this epic has ever had available.** Every previous
+row checks the product against itself or against one number: breadth's five
+integers can be compared with nothing, and a proxy's price is a single quote.
+**Ten tickers and ten percentages is a list**, and a person can check it
+against any public market screen in fifteen seconds.
+
+Recorded in `LIVE-REHEARSAL.md`'s row along with what only a sitting can
+return, because a replay structurally cannot: `replay-bar-source.ts` emits one
+slice per minute across every symbol, so a replay returns **one frame, 0 ms
+spread, 100% of the time at any speed** — **the split minute the re-order
+treatment is designed against is absent from the data structure.** The live
+path was measured as a **stagger**: ten names land in ~6 of the 8.8 upstream
+messages a minute.
+
+**And the lever if it reads wrong is the disc, not the motion** — a ranked
+list's aliveness is its order.

@@ -221,3 +221,22 @@ aliveness is its order.
 - **The ranking is over a one-venue tape.** The live stream is IEX only, so
   _the biggest movers_ is strictly _the biggest movers among the names one
   venue told us about in the last five minutes_.
+
+### Assigned to you at Story 4.5's Gate 2 — 2026-10-08
+
+**The owner's decision, so it is yours rather than owed in the abstract**: the
+`--repeat-each=6` × 4 flake characterisation and the **code-free control
+commit** both belong with your _are this epic's own suites trustworthy_
+verdict, rather than retried piecemeal in a feature story.
+
+**The reason is in the evidence, not in scheduling.** On 2026-10-08 the
+machine sat at load **23–33 on 8 cores** with ~37 MB free, **killed two
+processes for memory**, and failed three whole-suite runs 3 / 5 / 7 purely on
+30 s timeouts while **CI passed all three required checks on the same
+commit**. A rate measured there is a rate for a saturated machine — and it
+would be quoted, which is worse than having no rate.
+
+**So the first thing your verdict needs is a settled machine**, and the second
+is the distinction this story could not resolve from a terminal: _the suite is
+flaky_ and _the machine cannot execute the suite_ look identical, and only one
+of them is anybody's defect.
