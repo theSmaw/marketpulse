@@ -1,6 +1,6 @@
 # Story 4.5 — The Movers, & the First Surface That Ranks by a Live Value
 
-**Status:** Not started
+**Status:** **In progress — 2026-10-08.** Decomposed into eight tasks; five decisions taken at Gate 1. Shaping found **two live defects** (a 518-vs-503 copy error in the shipped reserved sentence, and a label track 41.4% of company names overflow) and **one false citation** (this file cited ADR 0038 for a rule it does not contain).
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.4
 **Epic scope covered:** top gainers / losers
@@ -445,3 +445,139 @@ is a second example of it.
 
 **Your lists are ranked server-side**, so a spec that supplies your `movers` array
 is asserting its own fixture.
+
+## Gate 1 — 2026-10-08: decomposed into eight tasks, and shaping found two live defects and one false citation
+
+**Seven roles shaped this.** What they returned changed the plan in four places,
+and three of their findings were defects in shipped code or in a governing
+document rather than opinions about this story.
+
+### What shaping found before a line was written
+
+**1. A live copy defect, of the class this epic keeps paying for.**
+`MarketOverview.tsx:462` ships _"The largest moves among the **securities** we
+track, up and down, ranked while the session runs."_ — and `securities we track`
+is **518**, including `SPY` and the eleven SPDRs. The set this region can be
+computed over without contradicting breadth is **503 companies**. Yesterday's
+`the-population-is-never-a-literal` does **not** catch it: that clause fires on a
+digit beside `we track`, and this sentence has none. Task 4.5.6.
+
+**2. The common case overflows the label track.** Measured over 507 universe
+rows: `p50 21, p75 26, p90 32, max 50` characters, and **41.4% exceed 22** — the
+length of `Communication Services`, which measures **143.75 px against the 144 px
+track `.label` declares**. `.label` is `white-space: nowrap` with no `overflow`
+and no `text-overflow`, and a grid item does not clip, so **the name paints over
+the ticker column on roughly two rows in five.** The canvas deferred this
+measurement to this story by name. Task 4.5.1.
+
+**3. A citation that points at a rejected alternative.** This file cited _"ADR
+0038's grain rule: ship the smallest thing that answers the region"_ — and
+`"smallest thing"` appears **nowhere in `docs/adr/`**. The rule lives in Story
+4.3's `STORY.md`, and **ADR 0038 line 228 hands that same decision to Story 4.3
+to re-take**: _"One frame type per region. … Story 4.3 re-takes this."_ 4.3
+answered by shipping a nested optional section and never amended the ADR. A
+reader who checks the citation finds the rejected alternative. Task 4.5.4.
+
+**4. The bar's recorded reason is false.** Story 4.3 refused the bar for movers
+on _"one quantity versus four"_ — but a mover row carries today's percent change
+against the previous close, **the same quantity on the same basis over the same
+interval** as the eleven sector ETFs, from the same `changeFromClose`. The phrase
+was borrowed from Story 4.2's proxy-strip refusal, where it is correct. Re-argued
+from scratch, **the bar is still refused**, on three grounds that do hold: a
+**selected tail has no range** (the top five are near each other _because_ they
+were chosen for being extreme, so five near-full bars are an artefact of the
+selection); the ladder's **outward-only ratchet** means one halt-resume print at
++18% flattens the rest of the session, which an ETF of seventy names cannot do
+and a single equity does routinely; and a **single-signed list has no centre to
+anchor**. The canvas heading is corrected in Task 4.5.1.
+
+### Two acceptance criteria cannot be checked as written
+
+- **AC 5 is false out of hours.** _"A name with no current observation cannot
+  appear"_ — with the market shut **nothing** has a current observation, so taken
+  literally it forbids drawing the region for ~80% of the week, contradicting the
+  `session` basis breadth and sectors both already serve. It is basis-relative.
+- **AC 2's _"the replay or a live session, never a fixture"_ is now a live
+  session only.** `replay-bar-source.ts` emits one slice per minute across every
+  symbol, so a replay returns **one frame, 0 ms spread, 100% of the time at any
+  speed**, and every observation shares one `startsAt` — **the split minute the
+  treatment is designed against is absent from the data structure.** AC 2's
+  re-check is a `LIVE-REHEARSAL.md` row and nothing else. Task 4.5.7.
+
+### What the verification story actually is, because the brief had it wrong
+
+This story's risk was framed as _the same shape as breadth's irreducibility, only
+sharper_. **That is wrong, and the correction is worth more than the question
+was.** Breadth is a **reduction** — five integers reach the browser and nothing
+can recompute one. A top-N is a **selection**, and its rows carry their own keys:
+
+| Sub-claim                            | Recoverable               |
+| ------------------------------------ | ------------------------- |
+| the rows are in descending key order | from the frame            |
+| N distinct symbols, N rows           | from the frame            |
+| every row is in the population       | `GET /securities`         |
+| **the cut**                          | **both bases, see below** |
+
+**In the `session` basis `GET /securities` settles the cut completely** — it
+carries `close` and `previousClose` for all 503, so the whole ranking is
+independently reconstructible. **In the `observed` basis the snapshot-beside-
+aggregate pairing settles it**: `sendSnapshot()` sends the snapshot and
+`overviewMessage()` back to back with **zero `await`s between them** (verified),
+and `currentMarketState` is written only from the socket callback, which cannot
+interleave inside a synchronous tick — so **the snapshot is provably the input
+the aggregate beside it was computed from**, guaranteed by the event loop rather
+than by a tolerance. Nobody has used it. Task 4.5.8.
+
+What stays irreducible is the ~50 names never heard from, and our one-venue tape.
+That is what the denominator sentence exists to confess.
+
+### Measured at Gate 1, so no task re-derives them
+
+|                                                          |                                                             |
+| -------------------------------------------------------- | ----------------------------------------------------------- |
+| the region, 1440 / 1024 / 768 / 390                      | **486 / 486 / 103 / 121** px                                |
+| content ceiling after 97 px of chrome                    | **389** px                                                  |
+| two headed lists at five rows each                       | **466** against 486 — 20 px slack                           |
+| at six rows each                                         | **520** — over by 34, and it drags two neighbouring regions |
+| the universe, by kind                                    | **503 equity, 4 index_etf, 11 sector_etf**                  |
+| the frame today / with 2×10 reusing `WireOverviewFigure` | **2,481 → ~5,420** bytes                                    |
+| against the negative-filter flood                        | **4.8%** of 60,636 bytes                                    |
+| bounded two-ended selection / full sort over 503         | **0.10 ms / 0.60 ms**                                       |
+
+### The owner's five decisions
+
+| Decision                                   | Taken                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The two lists**                          | **`GAINERS` and `LOSERS`.** Against `Largest advances` / `Largest declines`, which would avoid a third drawn word pair — but `Advancing`/`Declining` are breadth's row labels over a **different set** (~466 measured, not a top 5), so reusing them 200 px away would be two surfaces naming two different things with one word |
+| **The price column**                       | **Yes, dropping at 390.** The change is the ranking key and the price is context; at 308 px of row the five tracks do not fit with a readable name, and ellipsising the name to ~11 characters loses the field the region exists to carry out                                                                                    |
+| **The denominator**                        | **Restated here**, from the same frame fields breadth reads, with a check asserting one producer. A ranking's whole honesty is its denominator and a reader must not cross the page for it                                                                                                                                       |
+| **ADR 0038**                               | **Amended here**, closing its own named re-take, rather than a new ADR 0039 — which would be a second home for 0038's Decision 1 and would make the misattribution permanent by giving it somewhere plausible to point                                                                                                           |
+| **Population, exclusion, sign, rows, bar** | the **503 equities**; a mover with no recent price is **excluded**; each list holds **only rows whose direction matches it**; **five rows each way**; **no bar**                                                                                                                                                                 |
+
+**The direction-matching rule earns its place twice.** It prevents a one-sided
+market drawing five gains under `LOSERS` — every channel individually correct and
+the heading false — and it makes the two lists **disjoint by construction**,
+which removes the same-symbol-in-both-lists state and a silent collision in the
+order hold's `Map`, from one decision.
+
+### The eight tasks
+
+| #     | Title                                                       | Visible                                 |
+| ----- | ----------------------------------------------------------- | --------------------------------------- |
+| 4.5.1 | The canvas, the row, and the reserve that cannot exist      | nothing                                 |
+| 4.5.2 | A comparator with a second consumer                         | nothing                                 |
+| 4.5.3 | Movers drawn                                                | nothing on `/`                          |
+| 4.5.4 | The producer ranks, and movers ride the frame               | nothing                                 |
+| 4.5.5 | Movers on the landing page                                  | **two ranked lists, moving**            |
+| 4.5.6 | The denominator, the two grammars, and the one-sided market | the honest states                       |
+| 4.5.7 | The hold and the motion at two lists                        | a re-order that reads as facts arriving |
+| 4.5.8 | The spec, the grid, the cost, the sweeps and the close      | nothing                                 |
+
+**Not doing**: re-taking the re-ranking rule, the FLIP, the no-stagger rule or
+the reduced-motion answer — all Story 4.3's, with measurements. Not widening
+`one-producer-of-the-overview-aggregate`'s bound; its break is the weak 1→2
+signal. Not bumping `MARKET_STREAM_PROTOCOL_VERSION`. **Not re-wording Epic 14's
+trigger**: it does not fire — twenty rows is not universe scale and it is a
+different page — and re-wording it from _markup_ to _computation_ would make it
+fire retroactively on Task 4.4.4's **3.5 ms** against a 50 ms line. A verdict is
+recorded; the wording is Story 4.8's fork.
