@@ -347,8 +347,9 @@ export {
   rankSectorFigures,
   sectorOfEtf,
   selectMovers,
+  selectMoversBy,
 } from "./sector-ranking.js";
-export type { MoverSelection } from "./sector-ranking.js";
+export type { MoverSelection, RankedEnds } from "./sector-ranking.js";
 export {
   SECTOR_LADDER_STEPS,
   fitSectorLadder,

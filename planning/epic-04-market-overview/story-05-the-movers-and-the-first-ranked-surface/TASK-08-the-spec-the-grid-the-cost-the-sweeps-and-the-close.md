@@ -1,6 +1,6 @@
 # Task 4.5.8 — The spec, the grid, the cost, the sweeps and the close
 
-**Status:** Not started
+**Status:** **In progress — 2026-10-08.**
 **Story:** [4.5 The Movers, & the First Surface That Ranks by a Live Value](STORY.md)
 **Depends on:** 4.5.7
 

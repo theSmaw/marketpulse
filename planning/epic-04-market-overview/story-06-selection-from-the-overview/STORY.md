@@ -242,3 +242,75 @@ top-to-bottom order, at **768 and 390**. It will go red if you reorder the regio
 or restate the narrow areas list without moving the DOM with it. **It deliberately
 does not run at 1440**: an assertion of agreement there would assert the opposite of
 the decision above, and one of disagreement would pin a cost rather than a claim.
+
+## Handed here by Story 4.5 — 2026-10-08: two lists, one tab stop, and a target that moves by design
+
+**You are the story that makes these rows clickable, and the surface you
+inherit has a property the sector list does not: its membership changes while
+a reader looks at it.**
+
+### 1. The region is ONE tab stop and both lists are inside it
+
+`Region` passes `scrollable` unconditionally and `Panel` renders
+`tabIndex={scrollable ? 0 : undefined}`, so `Movers` is **one** stop today and
+neither `<ol>` is focusable. When you make rows activatable that becomes **two
+roving-`tabIndex` groups in one region** — and the rules that fall out:
+
+- **Key the roving index on `symbol`, never on an index.** The order changes
+  under the reader ~0.4 times a minute and the membership ~0.3; an index-keyed
+  roving focus lands on a different security after a re-order.
+- **Arrow keys must not cross from the last gainer to the first loser.** They
+  are two lists with two accessible names, not one list with a rule through it.
+  `Home`/`End` scope to the list.
+- **Do not give either `<ol>` its own scrollport.** A scrollable region that
+  cannot be focused is the axe `scrollable-region-focusable` failure this
+  product took five stories to surface, and it does not fire while the box
+  contains something focusable. **One scrollport per region.**
+
+### 2. The hold is yours to reason about, and it is already most of the answer
+
+`ORDER HELD` is scoped to the **region** via `:hover`/`:focus-within` — never
+to a row, because row scoping lets a list move out from under an
+**approaching** pointer. **A reader whose pointer is in the region has already
+frozen the order**, so the classic moving-target defect is mostly answered
+before you start. What is **not** answered is the moment of entry: a pointer
+crossing the region boundary toward a row has not yet triggered `pointerenter`
+on the row it is aiming at.
+
+**Measured, so you can size it**: 0.21–0.44 membership changes a minute and
+0.80/0.45/0.42 total order changes a minute, across three sessions, n=9,360
+adjacent-rank gaps. So the window is small — but the consequence of landing on
+the wrong security is a navigation, which is the one thing a reader cannot
+undo with their eyes.
+
+### 3. A member can be replaced under the hold, and the rule is already decided
+
+**The hold pins ORDER only.** A row the pin has not seen is drawn in its
+**ranked position among the rows it outranks** — not swept to the bottom,
+which is what `rowsInPinnedOrder` did until Task 4.5.7 and which drew a new #1
+gainer at **#5 with `1` printed beside it**. So under a hold the region can
+show a name that was not there when the reader's pointer arrived.
+
+**The recorded reversal trigger is yours to watch**: _the first surface that
+holds an order whose **membership** a reader must trust across the hold._ A
+clickable list may be exactly that, and if you decide it is, the hold pins
+membership too — but that choice means the region can name a security that is
+**no longer a mover** while its figure keeps updating, which ADR 0029 refuses
+on the ground that the licence expires when the producer stops selecting it.
+
+### 4. The row already carries what a link needs
+
+Rank, **ticker**, company name, price, change. The **ticker leads** —
+deliberately, because it is this product's identifier everywhere else and
+because **you** are about to make these rows navigate by it. The company name
+is the one field that is **not** on the frame: the route reads it from
+`useSecurities`, and a symbol the lookup does not know is labelled with itself.
+**So a link's accessible name must not depend on the name having loaded.**
+
+### 5. What a listener gets today, and the one thing nobody can answer
+
+A row reads `1 HPE Hewlett Packard Enterprise Company 62.09 ▲ up +12.44%`
+inside `list, 5 items, item 1` — so **the printed rank is spoken and the
+platform announces the position as well**. At two lists that doubles on one
+screen. Whether it reads as emphasis or as a stutter is a listener's call and
+is on the standing screen-reader item rather than guessed at here.

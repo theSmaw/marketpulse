@@ -1,4 +1,4 @@
-import { MOVERS_PER_SIDE, selectMovers } from "@marketpulse/shared";
+import { MOVERS_PER_SIDE, selectMoversBy } from "@marketpulse/shared";
 
 import type { WireMarketMovers, WireOverviewFigure } from "@marketpulse/shared";
 import type { EligibleMoves } from "./market-breadth.js";
@@ -67,17 +67,35 @@ export function topMovers(
   eligible: EligibleMoves,
   figureOf: (entry: MarketOverviewEntry) => WireOverviewFigure,
 ): WireMarketMovers {
-  const figures = eligible.moves.map((move) => figureOf(move.entry));
-
-  // **Bounded rather than sorted**, and the filter is not optional: a figure
-  // with no ranking key is dropped by `selectMovers` rather than placed by a
+  // **Bounded rather than sorted**, and the filter is not optional: a member
+  // with no ranking key is dropped by `selectMoversBy` rather than placed by a
   // `?? 0`, which is ADR 0029's false impression expressed as a rank position.
-  const { gainers, losers } = selectMovers(figures, MOVERS_PER_SIDE);
+  //
+  // **It ranks the PASS, keyed on the move the pass measured** — Task 4.5.8's
+  // repair, and the argument is at `selectMoversBy`. The selection used to run
+  // over the encoded figures and read each one's own key, which on the
+  // `session` basis is a **different quantity** from the one `eligibleMoves`
+  // measured and `marketBreadth` bucketed by: the pass measures a
+  // close-to-close move, and a `live` entry encodes to an `observed` figure
+  // whose key is the live price against that close. So *a row in `GAINERS` is
+  // a security in `Advancing`* — the invariant the shared pass exists to buy —
+  // was false out of hours, with every number on the screen individually
+  // correct.
+  const ranked = selectMoversBy(
+    eligible.moves,
+    MOVERS_PER_SIDE,
+    (move) => move.percent,
+  );
 
+  // The encode happens **after** the cut, which is the one behavioural
+  // difference from the old order and an improvement rather than a cost: the
+  // caller's `figureOf` appends every observed figure's tape to the frame's
+  // own `feeds` list, so encoding all 503 put tapes on the frame for figures
+  // it does not carry.
   const lists = {
-    gainers,
-    losers,
-    eligible: figures.length,
+    gainers: ranked.gainers.map((move) => figureOf(move.entry)),
+    losers: ranked.losers.map((move) => figureOf(move.entry)),
+    eligible: eligible.moves.length,
     tracked: eligible.tracked,
   };
 

@@ -117,6 +117,42 @@ so at ≥861 the six tab stops deliberately run across a column-major grid;
 that cost, its argument and its reversal trigger are in `MarketOverview.tsx`
 and `docs/GAPS.md`.
 
+**And since 2026-10-08 a fourth region holds figures, which is the first thing
+on this screen that answers _where should I look_.** `Movers` draws **two
+ranked lists** — `GAINERS` and `LOSERS`, **five rows each** — over the same
+503 equities and the **same single eligibility pass** `Market breadth` counts,
+each row carrying its rank, its **ticker**, its company name, its price and
+its change. **Each list holds only rows whose direction matches it**, so a
+one-sided market draws one full list and one short or empty one rather than
+five gains under a heading saying `LOSERS` — and the short list is padded with
+**held rows**, because without them 5 → 2 shrinks the region by 81 px and
+steps the whole lower page at the two widths where the grid rows are untied.
+**The region is 466 px in every state at every width**, measured across
+twenty-two of them.
+
+Four things from it are load-bearing further on. **A top-N is a SELECTION, not
+a reduction** — every row carries its own key, so ordering, uniqueness and the
+two lists' interleave are checkable **from the frame**, the population falls
+to `GET /securities`, and **the cut** is reconstructible in the session basis
+from `lastCloses` and in the live basis from the **snapshot-beside-aggregate
+pairing**, which is race-free because `sendSnapshot` has no `await` between its
+two sends. **The ranking is server-side and the frame ships the answer** —
+1,243 bytes, 124.3 a row, against the 60,636 a widened `figures` would cost.
+**The region states its own denominator**, because a top ten over the ~466
+heard from may show ten securities that are **not** the ten biggest movers and
+a ranked list looks equally confident either way; the sentence comes from the
+one builder breadth's footer uses, in two grammars keyed on the basis the wire
+sent. And **the ranking rule has one home and is no longer named for sectors**
+— `moveRankingKey`, `compareByMove` and `selectMovers` in `packages/shared`,
+with `one-comparator-for-the-order-of-a-move` refusing a second, keyed on **two
+moves either side of one operator** rather than on `.sort(`.
+
+**What a reader still cannot do is click a mover through to its security
+page** — Story 4.6, deliberately next, because a list of names nobody can open
+invites the wrong repair. **And what no gated machine has ever seen is a
+mover**: CI's store has zero bars, so the frame carries `eligible: 0` and two
+empty lists for ever.
+
 Task 4.2.5
 **renamed** the region from `Market summary`, which was a second
 word for a concept the product already had (the `/securities` group heading,

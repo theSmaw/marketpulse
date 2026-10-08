@@ -280,7 +280,99 @@ describe("the denominator, and the agreement with breadth", () => {
   });
 });
 
+describe("the rank key is the pass's, never the figure's", () => {
+  it("ranks on the move the pass measured even when the figure says otherwise", () => {
+    // **Task 4.5.8, written as the defect somebody else will write.** The
+    // encoder below is the one a careless caller supplies: it builds a figure
+    // whose own move is the **negation** of the one the pass measured, which
+    // is the shape of the shipped defect rather than a caricature of it — on
+    // the `session` basis `eligibleMoves` measured a close-to-close move and
+    // `figureOf` built an `observed` figure carrying the live price against
+    // that close, and the two disagree in sign the moment a security has
+    // given back its session's gain.
+    //
+    // `topMovers` must order these by the **pass's** number, because the
+    // pass is what breadth bucketed by and what the region's footer names.
+    // Ranking by the figure's is the defect, and before this task it was what
+    // this function did.
+    const inverting = (entry: MarketOverviewEntry): WireOverviewFigure => ({
+      state: "observed",
+      symbol: entry.symbol,
+      at: ASOF.toISOString(),
+      price: 100,
+      changePercent:
+        entry.state === "live" && entry.change.percent !== null
+          ? -entry.change.percent
+          : 0,
+    });
+
+    const movers = topMovers(
+      eligibleMoves(
+        [
+          live("UP", { percent: 3 }),
+          live("MID", { percent: 1 }),
+          live("DOWN", { percent: -4 }),
+        ],
+        OPEN,
+      ),
+      inverting,
+    );
+
+    expect(symbolsOf(movers.gainers)).toEqual(["UP", "MID"]);
+    expect(symbolsOf(movers.losers)).toEqual(["DOWN"]);
+  });
+
+  it("does not rank a member whose measured move has no direction", () => {
+    // The filter moved with the key: a non-finite percentage is **eligible**
+    // — it had a measurable move, which is what the denominator counts — and
+    // it is in no bucket and in neither list. `?? 0` would place it between
+    // +0.01% and −0.01%, which is ADR 0029's false impression expressed as a
+    // rank position.
+    const movers = topMovers(
+      {
+        qualifier: { basis: "observed", windowMinutes: BREADTH_WINDOW_MINUTES },
+        moves: [
+          { entry: live("A", { percent: 2 }), percent: 2 },
+          { entry: live("B", { percent: 1 }), percent: Number.NaN },
+        ],
+        tracked: 503,
+      },
+      figureOf,
+    );
+
+    expect(symbolsOf(movers.gainers)).toEqual(["A"]);
+    expect(movers.eligible).toBe(2);
+  });
+});
+
 describe("the rows are the caller's figures", () => {
+  it("encodes only the rows it selected, never the whole pass", () => {
+    // **The encoder runs after the cut** (Task 4.5.8). `figureOf` appends
+    // each observed figure's tape to the frame's own `feeds` list, so
+    // encoding all 503 put tapes on the frame for figures it does not carry —
+    // invariant 6 implied rather than displayed. Eleven eligible entries, six
+    // selected (five gainers and one loser), six encodes.
+    figures.length = 0;
+
+    const movers = moversOf([
+      ...Array.from({ length: 10 }, (_unused, at) =>
+        live(`UP${String.fromCharCode(65 + at)}`, { percent: at + 1 }),
+      ),
+      live("DOWN", { percent: -2 }),
+    ]);
+
+    expect(movers.eligible).toBe(11);
+    expect(figures).toHaveLength(MOVERS_PER_SIDE + 1);
+    expect(symbolsOf(figures).sort()).toEqual([
+      "DOWN",
+      "UPF",
+      "UPG",
+      "UPH",
+      "UPI",
+      "UPJ",
+    ]);
+  });
+
   it("maps each eligible entry exactly once, and nothing else", () => {
     // **Why the encoder is a parameter**: `figureOf` is `market-overview.ts`',
     // it decides what a browser may see, and it appends each observed

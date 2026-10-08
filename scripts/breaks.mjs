@@ -3050,7 +3050,7 @@ export const BREAKS = [
     file: "apps/frontend/src/components/RankedList/RankedList.module.css",
     find:
       "  .movers {\n" +
-      "    grid-template-columns: 2ch 44px minmax(0, 1fr) 68px;\n" +
+      "    grid-template-columns: 2ch 64px minmax(0, 1fr) 68px;\n" +
       "    column-gap: var(--space-8);\n" +
       "  }\n",
     replace: "  /* pnpm break: reverted automatically */\n",
@@ -3221,5 +3221,206 @@ export const BREAKS = [
     replace: "  min-width: 100px; /* pnpm break: reverted automatically */",
     command: ["pnpm", "e2e", "overview-movers-hold.spec.ts", "--anyway"],
     expect: "a pointer in EITHER list holds BOTH",
+  },
+  // ## Task 4.5.8's three, on what a RANKED frame can be checked against
+  //
+  // All three were produced against the shipped files before they were
+  // written down, under `CLAUDE.md`'s procedure: the file the next story
+  // would write, run first, with the transcript of it passing kept. The
+  // transcripts are in `TASK-08`.
+  //
+  // The instrument for all three is `overview-movers-ranking.spec.ts`, which
+  // is a **pass-through** — `ws.connectToServer()`, every frame forwarded
+  // verbatim, no stub at all — because four overview specs in Story 4.3
+  // passed against a server with the ranking deleted, each furnishing the
+  // order it then checked.
+  {
+    name: "the-movers-population-is-the-join-whole",
+    proves:
+      "The movers are ranked over the 503 EQUITIES rather than over the " +
+      "join's whole answer. The join sees all 518 since Task 4.4.4, so the " +
+      "whole universe is sitting there in the right shape, and a ranking " +
+      "over it puts `SPY` and the eleven sector SPDRs in the lists " +
+      "**beside their own constituents** \u2014 every figure on the row " +
+      "correct, the order correct, and a denominator that disagrees with " +
+      "the count directly above it on screen.\n\n" +
+      "**It is deliberately a substitution the three-link chain in " +
+      "`breadth-is-counted-over-the-equities-alone` cannot see**, which is " +
+      "a finding rather than a convenience: that chain runs " +
+      "`breadth:` \u2192 `const eligible =` \u2192 `const equities =` " +
+      "\u2192 the identifier `isEquitySymbol`, and it stops at the " +
+      "binding's NAME. What the binding is built FROM is unchecked, so " +
+      "`new Set(trackedTickers())` keeps every link intact and widens the " +
+      "population to 518. `pnpm invariants` reports all clauses holding " +
+      "under this break. What catches it is a figure read from an " +
+      "independent source: `GET /securities` says 503 active equities and " +
+      "the frame says 518.\n\n" +
+      "Produced under the break: `expect(movers.tracked).toBe(population." +
+      "length)` read `Expected: 503 / Received: 518`, and the second " +
+      "test's `expect(movers.eligible).toBe(moves.length)` read the " +
+      "same pair \u2014 two assertion failures, no page error, and " +
+      "`pnpm invariants` reporting every clause holding except " +
+      "`every-break-can-still-land`, which fires on any applied break. " +
+      "`overview-breadth-counts." +
+      "spec.ts` goes red on the same substitution and for the same reason, " +
+      "which is two instruments rather than a redundancy: the count and " +
+      "the ranking are one array and a defect in the set is visible in " +
+      "both.",
+    // `build: true` for `the-producer-forgets-to-rank-the-sectors`' recorded
+    // reason: `pnpm e2e` drives the dev pair, which serves `dist/`, and a
+    // watch loop that rebuilds on the break and not on the restore leaves
+    // byte-identical source beside a broken `dist/` \u2014 a red suite that
+    // reads exactly like a flake.
+    file: "apps/backend/src/index.ts",
+    find: "const isEquitySymbol = new Set<string>(equityTickers());",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "const isEquitySymbol = new Set<string>(trackedTickers());",
+    command: ["pnpm", "e2e", "overview-movers-ranking.spec.ts", "--anyway"],
+    expect: "the population is the set the universe says it is",
+    build: true,
+  },
+  {
+    name: "the-movers-lists-are-direction-swapped",
+    proves:
+      "Each list holds the rows whose direction matches its own heading. " +
+      "The swap below is the one transposition that is **invisible to every " +
+      "structural check on the wire**: `readMovers` verifies that each list " +
+      "is in the comparator's own order and that the two are disjoint, and " +
+      "both survive \u2014 a `GAINERS` list of falls, inserted " +
+      "un-reversed, is descending by key and passes `isRankedByMove`, and a " +
+      "`LOSERS` list of rises, inserted reversed, is ascending and passes " +
+      "`isRankedByMove(\u2026, true)`. So the frame is accepted, the " +
+      "region draws, every figure is individually correct, every ordinal " +
+      "ascends, and the screen says the day's five biggest falls are the " +
+      "gainers.\n\n" +
+      "**It cannot be caught by a sign assertion**, which is why the spec " +
+      "does not write one as the wrong-end check: under a " +
+      "`sorted.slice(0, 5)` / `sorted.slice(-5)` implementation a one-sided " +
+      "market puts the same sign at both ends. What catches it is the " +
+      "relation BETWEEN the lists \u2014 the weakest gainer is strictly " +
+      "stronger than the strongest loser, which fails under a " +
+      "transposition and under a reversal and holds in every one-sided " +
+      "state.\n\n" +
+      "Produced under the break: `expect(Math.min(...shownGainers))." +
+      "toBeGreaterThan(Math.max(...shownLosers))` read " +
+      "`Expected: > 0.04 / Received: -0.03` \u2014 the swapped `GAINERS` " +
+      "drew `-0.02, -0.02, -0.02, -0.02, -0.03`, least-negative first, " +
+      "and the swapped `LOSERS` drew the five smallest rises. Both tests " +
+      "in the file went red, with assertion failures and other tests " +
+      "still collecting.",
+    file: "packages/shared/src/sector-ranking.ts",
+    find:
+      '    if (direction === "positive") keepBounded(gainers, { item, key }, limit);\n' +
+      '    if (direction === "negative")\n' +
+      "      keepBounded(losers, { item, key }, limit, true);",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      '    if (direction === "negative") keepBounded(gainers, { item, key }, limit);\n' +
+      '    if (direction === "positive")\n' +
+      "      keepBounded(losers, { item, key }, limit, true);",
+    command: ["pnpm", "e2e", "overview-movers-ranking.spec.ts", "--anyway"],
+    expect: "disjoint from the other",
+    build: true,
+  },
+  {
+    name: "the-cut-keeps-the-first-five-it-meets",
+    proves:
+      "**The cut** \u2014 that nothing outside a list outranks the " +
+      "smallest thing inside it, which is the whole difference between a " +
+      "ranking and ten plausible rows. The substitution stops the bounded " +
+      "insert the moment the list is full rather than when the candidate " +
+      "fails to overtake anything, so each list becomes the first five " +
+      "qualifying securities **in population order**, ranked among " +
+      "themselves.\n\n" +
+      "Every other property survives it: five rows, five distinct symbols, " +
+      "both lists disjoint, every row keyed, each list in the comparator's " +
+      "own order at displayed precision, every direction matching its " +
+      "heading, `eligible` and `tracked` unchanged, and the two lists " +
+      "interleaving in exactly one way. `readMovers` accepts the frame and " +
+      "the region draws it. **Nothing on the screen or on the wire is " +
+      "wrong except which five securities they are** \u2014 which is why " +
+      "the only instrument that can see it is one that recomputes the " +
+      "population's moves from a second source.\n\n" +
+      "**Produced under the break, and the transcript is the reason this " +
+      "entry is the most useful of the three: the FIRST test PASSED.** " +
+      "Every frame-checkable claim \u2014 the bound, the keys, the two " +
+      "orders, the disjointness, the interleave, the directions, the " +
+      "population and the screen\u2019s agreement with the frame \u2014 " +
+      "was green on a top five that was not the top five, which is " +
+      "`CLAUDE.md`\u2019s *confirm the check passes WRONGLY first* " +
+      "produced rather than reasoned about. The second test read " +
+      "`Expected [12.44, 11.98, 8.54, 8.51, 8.4] / Received " +
+      "[3.37, 1.94, 1.55, 1.37, 0.37]`, and **271 of the 503 eligible " +
+      "securities outranked the weakest row the region drew**.\n\n" +
+      "It goes red in `pnpm test` too, at `sector-ranking.test.ts`' " +
+      "*agrees with the full sort it replaces*. That is the point rather " +
+      "than a redundancy: the unit test proves the rule against a corpus " +
+      "**we wrote**, and this spec proves the shipped producer applied it " +
+      "to the 503 securities in the store.",
+    file: "packages/shared/src/sector-ranking.ts",
+    find: "  if (at >= limit) return;",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  if (kept.length >= limit) return;",
+    command: ["pnpm", "e2e", "overview-movers-ranking.spec.ts", "--anyway"],
+    expect: "recomputed from the store's own closes",
+    build: true,
+  },
+  // ## Task 4.5.8's two, both on the width of a ticker
+  //
+  // One per side of `the-universe-holds-no-ticker-wider-than-the-track`: the
+  // claim is an arithmetic relation between a **curated file** and a
+  // **stylesheet**, and a check on either half alone passes the day the other
+  // moves. So the data half is broken by curating a row and the geometry half
+  // by narrowing the track back to the value the defect shipped with.
+  //
+  // **Neither target is the file the check was written around**, which is the
+  // rule a break is worth the least for breaking: the check reads two files
+  // and both breaks edit one of the two rather than the check.
+  {
+    name: "a-seven-character-ticker-is-curated",
+    proves:
+      "A row is added to the tracked universe whose symbol is wider than " +
+      "the movers row's ticker track \u2014 which is what a curator does, " +
+      "not what a programmer does, and is why the claim needed a mechanism " +
+      "at all. It compiles, it lints, `pnpm test` is green, every browser " +
+      "spec is green, and on one row of one region the ticker paints over " +
+      "the 8 px mark slot and, at 390 where the gap is 4 px, over the " +
+      "company name. `.symbol` is `white-space: nowrap` with no `overflow` " +
+      "and a grid item does not clip, so nothing below `pnpm probe` can " +
+      "see it \u2014 and `pnpm probe` can only see it on a day the symbol " +
+      "happens to be in the top five.\n\n" +
+      "The substitution adds a **triple**, which is the form the next row " +
+      "takes whatever the constructor around it is called \u2014 rather " +
+      "than lengthening an existing symbol, which is a thing nobody does.",
+    file: "apps/backend/src/universe.ts",
+    find: '    ["IWM", "iShares Russell 2000 ETF", "ARCA"],',
+    replace:
+      '    ["IWM", "iShares Russell 2000 ETF", "ARCA"],\n' +
+      "    // pnpm break: reverted automatically\n" +
+      '    ["GOOGL.X", "Alphabet Inc. Class A, when issued", "NASDAQ"],',
+    command: ["pnpm", "invariants"],
+    expect: "longer than 5 characters",
+  },
+  {
+    name: "the-movers-ticker-track-narrows-to-the-sector-rows",
+    proves:
+      "The movers row's ticker track is set back to the 52 px the sector " +
+      "row states \u2014 which is the defect Task 4.5.8 repaired, written " +
+      "the way it was written the first time: by reaching for the value one " +
+      "rule further down the same stylesheet. 52 px leaves the symbol 36, " +
+      "and `GOOGL`, `CMCSA` and `BRK.B` measure 44.20 in the shipped face " +
+      "and 50.73 in the cold-load one.\n\n" +
+      "It is the half a check on the curated file alone cannot see: the " +
+      "data is unchanged and every symbol is five characters or fewer, so " +
+      "the only thing that has moved is the room they are drawn in.",
+    file: "apps/frontend/src/components/RankedList/RankedList.module.css",
+    find: "  grid-template-columns: 2ch 68px minmax(0, 1fr) 80px 78px;",
+    replace:
+      "  /* pnpm break: reverted automatically */\n" +
+      "  grid-template-columns: 2ch 52px minmax(0, 1fr) 80px 78px;",
+    command: ["pnpm", "invariants"],
+    expect: "narrower than a five-character ticker needs",
   },
 ];

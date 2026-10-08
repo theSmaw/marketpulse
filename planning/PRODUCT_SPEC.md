@@ -488,6 +488,42 @@ The visualization should be the product's visual centre of gravity.
 > `Advancing`, `Declining`, `Unchanged` — and the region's position. What is
 > added is the fourth figure the sketch has no row for, and the sentence.
 
+> **Amended 2026-10-08 by Story 4.5 — the sketch has no movers region at all,
+> and §8.1 does not list one either.**
+>
+> **This is an addition rather than a correction.** The sketch above draws four
+> regions and `Movers` is not among them — the slot where it would sit is
+> `Unusual Activity`, which is Epic 5's. §8.1's _Contains_ list names six
+> things and gainers and losers are not among those either. The only place the
+> capability appears in the planning record is `EPIC.md`'s scope line, **Top
+> gainers / losers**, so the shipped region implements an epic's scope item
+> that this section never drew.
+>
+> **What shipped**: two ranked lists in one region — `GAINERS` and `LOSERS`,
+> **five rows each** — over the **503 equities**, the same set and the same
+> single eligibility pass `Market breadth` counts. Each row carries its rank,
+> its ticker, its company name, its price and its change. **Each list holds
+> only rows whose direction matches it**, so a one-sided market draws one full
+> list and one short or empty one rather than five gains under a heading
+> saying `LOSERS`.
+>
+> **The ranking is computed server-side and the frame ships the answer, not its
+> input** — a top-N in a browser means shipping 503 figures to every tab
+> (measured: the section is **1,243 bytes**, 124.3 a row, against a
+> 60,636-byte flood). ADR 0038 carries that rule and its dated amendment.
+>
+> **And the region states its own denominator**, for the reason this epic was
+> mostly written about: a top ten computed over the ~466 names heard from may
+> show ten securities that are **not** the ten biggest movers, and **a ranked
+> list looks exactly as confident whether its input was complete or not**. It
+> reads _"Of the 503 companies we track, 466 were heard from in the last 5
+> minutes. Both lists are ranked over those."_, in two grammars keyed on the
+> basis the wire sent, from the same builder breadth's footer uses.
+>
+> **What a reader still cannot do is click a mover through to its security
+> page.** That is Story 4.6, deliberately next: a list of names nobody can open
+> is a list that invites the wrong repair.
+
 > **Amended 2026-09-25 by Story 4.1 — what was built, and the three ways it
 > differs from this sketch.** The screen at `/` now draws **seven** named
 > regions: `Market proxies`, `Market topology`, `Sector performance`, `Movers`,

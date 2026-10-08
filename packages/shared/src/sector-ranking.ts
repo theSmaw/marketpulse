@@ -15,7 +15,9 @@
  *
  * The sector-shaped half is now `SECTOR_BY_ETF`, `sectorOfEtf` and
  * `rankSectorFigures`; the move-shaped half is `moveRankingKey`,
- * `compareByMove` and {@link selectMovers}. **The file name is the residue**,
+ * `compareByMove`, {@link selectMovers} and {@link selectMoversBy} — the last
+ * of which is not about figures at all (Task 4.5.8). **The file name is the
+ * residue**,
  * and splitting it was deliberately not done here: the reversal trigger is a
  * condition — *the first consumer of the move half that is in neither the
  * sector region nor the movers region.*
@@ -174,9 +176,31 @@ export function compareByMove(
   a: WireOverviewFigure,
   b: WireOverviewFigure,
 ): number {
-  const left = moveRankingKey(a);
-  const right = moveRankingKey(b);
+  return compareKeys(moveRankingKey(a), moveRankingKey(b));
+}
 
+/**
+ * **The comparator itself, over the two KEYS rather than the two figures** —
+ * split out by Task 4.5.8, and it is one comparator with two entry points
+ * rather than a second rule.
+ *
+ * {@link compareByMove} is the figure-shaped adapter: it reads each figure's
+ * own key through {@link moveRankingKey} and hands them here. {@link
+ * selectMoversBy} is the other entry point, for a caller that **already holds
+ * the key** and must not have it re-derived from the figure — which is Task
+ * 4.5.8's defect in one sentence: the backend's eligibility pass measured one
+ * quantity, the figure it built carried another, and the ranking read the
+ * figure's.
+ *
+ * It is not exported. A caller with two numbers and no figures has no
+ * legitimate reason to ask this question — `one-comparator-for-the-order-of-a-
+ * move`'s clause one would still hold if it were exported, and the point of
+ * keeping it private is that the two shapes above are the only two there are.
+ */
+function compareKeys(
+  left: number | undefined,
+  right: number | undefined,
+): number {
   // The absent-key rule, in three lines and with no default in sight. Two
   // keyless figures are equal to each other — they are not *equally flat*,
   // they are equally unrankable — so they keep the order they arrived in.
@@ -341,26 +365,93 @@ export function selectMovers(
   figures: readonly WireOverviewFigure[],
   limit: number,
 ): MoverSelection {
-  const gainers: WireOverviewFigure[] = [];
-  const losers: WireOverviewFigure[] = [];
+  return selectMoversBy(figures, limit, moveRankingKey);
+}
 
-  for (const figure of figures) {
-    const key = moveRankingKey(figure);
-    if (key === undefined) continue;
-
-    const direction = directionOf(key);
-    if (direction === "positive") keepBounded(gainers, figure, limit);
-    if (direction === "negative") keepBounded(losers, figure, limit, true);
-  }
-
-  return { gainers, losers };
+/** Both ends of a ranked population of anything, each strongest-first. */
+export interface RankedEnds<T> {
+  /** Up to `limit` members whose displayed key is **positive**, biggest first. */
+  readonly gainers: readonly T[];
+  /** Up to `limit` members whose displayed key is **negative**, biggest fall first. */
+  readonly losers: readonly T[];
 }
 
 /**
- * Insert `figure` where {@link compareByMove} says it goes, among at most
- * `limit` already-ordered figures, and drop whatever falls off the end.
+ * **The same selection over a population that CARRIES its own key** (Task
+ * 4.5.8) — the entry point for a caller that has already measured the move
+ * and must not have it re-derived.
  *
- * The scan walks **leftwards past every figure the candidate is strictly
+ * ## The defect this exists to make unwritable
+ *
+ * {@link selectMovers} reads each member's key off the **figure**. The
+ * backend's movers are selected from an eligibility pass that measured the
+ * move itself — and on the shut-market basis the two were **different
+ * quantities**: the pass measured a close-to-close move while the figure the
+ * encoder built for the same security was a live price against that close, so
+ * a row in `GAINERS` was ranked on one number and counted in `Advancing` on
+ * another. Both numbers correct, one array, two populations.
+ *
+ * The repair is that the caller passes the key it measured. Which quantity a
+ * ranking is over then stops being a property of **what the encoder happened
+ * to produce** and becomes a property of the pass that decided eligibility —
+ * which is the whole point of there being one pass.
+ *
+ * ## It is the same rule, not a second one
+ *
+ * Every ordering decision still goes through `compareKeys`, which is
+ * {@link compareByMove}'s own body: the same displayed precision, the same
+ * *display-equal never swaps*, the same keyless-last rule, the same
+ * `directionOf` classifier deciding which end a member is a candidate for.
+ * `selectMovers` is this function with `moveRankingKey` as the key, so there
+ * is one bound, one comparator and one filter between them.
+ *
+ * **A member whose key is `undefined` is dropped rather than placed**, which
+ * is `selectMovers`' recorded argument unchanged — ordering is not enough,
+ * because the absent-key rule orders keyless members last and does not remove
+ * them.
+ */
+export function selectMoversBy<T>(
+  items: readonly T[],
+  limit: number,
+  keyOf: (item: T) => number | undefined,
+): RankedEnds<T> {
+  const gainers: Keyed<T>[] = [];
+  const losers: Keyed<T>[] = [];
+
+  for (const item of items) {
+    const key = keyOf(item);
+    if (key === undefined) continue;
+
+    const direction = directionOf(key);
+    if (direction === "positive") keepBounded(gainers, { item, key }, limit);
+    if (direction === "negative")
+      keepBounded(losers, { item, key }, limit, true);
+  }
+
+  return {
+    gainers: gainers.map((kept) => kept.item),
+    losers: losers.map((kept) => kept.item),
+  };
+}
+
+/**
+ * One member of a population beside the key it was ranked on.
+ *
+ * The key travels with the member rather than being re-read at every
+ * comparison: `keyOf` is the caller's function and the insertion asks about
+ * one candidate up to `limit` times, so re-deriving would be the caller's
+ * arithmetic run O(N × limit) times for an answer that cannot change.
+ */
+interface Keyed<T> {
+  readonly item: T;
+  readonly key: number;
+}
+
+/**
+ * Insert `candidate` where the comparator says it goes, among at most `limit`
+ * already-ordered members, and drop whatever falls off the end.
+ *
+ * The scan walks **leftwards past every member the candidate is strictly
  * stronger than and stops at the first it is not**, which is what reproduces
  * `Array.prototype.sort`'s stability: a candidate display-equal to one we are
  * already holding never overtakes it, so arrival order survives a tie exactly
@@ -372,9 +463,9 @@ export function selectMovers(
  * negating `0` is `0`, so the tie would survive either way, but a negation is
  * an arithmetic second opinion and a swap is the same call.
  */
-function keepBounded(
-  kept: WireOverviewFigure[],
-  figure: WireOverviewFigure,
+function keepBounded<T>(
+  kept: Keyed<T>[],
+  candidate: Keyed<T>,
   limit: number,
   reversed = false,
 ): void {
@@ -383,14 +474,14 @@ function keepBounded(
     const held = kept[at - 1];
     if (held === undefined) break;
     const order = reversed
-      ? compareByMove(held, figure)
-      : compareByMove(figure, held);
+      ? compareKeys(held.key, candidate.key)
+      : compareKeys(candidate.key, held.key);
     if (order !== STRONGER) break;
     at -= 1;
   }
 
   if (at >= limit) return;
 
-  kept.splice(at, 0, figure);
+  kept.splice(at, 0, candidate);
   if (kept.length > limit) kept.pop();
 }

@@ -591,7 +591,23 @@ describe("the sector section", () => {
       breadth: BREADTH,
       movers: {
         qualifier: { basis: "observed", windowMinutes: 5 },
-        moves: entries.map((entry) => ({ entry, percent: 1 })),
+        // **The unrankable member's percent is non-finite rather than `1`,
+        // and the fixture was impossible until Task 4.5.8 made it matter.**
+        // QQQ was never heard of and no close is held for it, so the pass
+        // could never have measured it at `+1%`; what it *can* carry is a
+        // non-finite percentage — `eligibleMoves`' own note says so, and a
+        // `previousClose` of zero produces one — which is eligible, in no
+        // bucket, and in neither list.
+        //
+        // It read `percent: 1` while the selection ranked the **figure**: the
+        // `unknown` figure had no key, so it was dropped at the encode and the
+        // assertion below passed for the wrong reason. The filter is now the
+        // pass's, which is the stronger place for it, and this fixture is the
+        // state that still exercises it.
+        moves: entries.map((entry) => ({
+          entry,
+          percent: entry.state === "live" ? 1 : Number.NaN,
+        })),
         tracked: 503,
       },
       asOf: ASOF,
@@ -603,13 +619,84 @@ describe("the sector section", () => {
       eligible: 2,
       tracked: 503,
     });
-    // SPY is +1% from the stored close and QQQ was never heard of, so one row
-    // is ranked and the keyless one is in neither list.
+    // SPY is +1% from the stored close and QQQ has no direction, so one row
+    // is ranked and the unrankable one is in neither list.
     expect(wire.movers?.gainers.map((figure) => figure.symbol)).toEqual([
       "SPY",
     ]);
     expect(wire.movers?.losers).toEqual([]);
     expect(wire.feeds).toEqual(["iex"]);
+  });
+
+  it("draws a session-basis mover on the move the pass MEASURED, not on the live price", () => {
+    // **Task 4.5.8's second defect, and the state the grid drove to 100% of
+    // rows.** On the `session` basis `eligibleMoves` reads a close off the
+    // `live` member too — deliberately, because this process holds the
+    // session's observations for hours after the bell — and measures a
+    // **close-to-close** move. `figureOf` maps a `live` entry to an
+    // `observed` figure, whose `changePercent` is the **live price against
+    // that close**. Two quantities for one row: the ranking read the second
+    // while `marketBreadth` bucketed by the first, so *a row in `GAINERS` is
+    // a security in `Advancing`* was false out of hours with every number on
+    // the screen individually correct.
+    //
+    // The numbers below are chosen so the two disagree in **sign**, which is
+    // the form a reader can see: SPY closed at 600 against a previous 500, so
+    // the session move is **+20%** and SPY belongs among the gainers — while
+    // the last trade of 594 is **−1%** against that close, which is what the
+    // row used to be ranked and drawn on.
+    const entries = buildMarketOverview({
+      symbols: [SPY],
+      observations: new Map([
+        [SPY, observation(SPY, bar(594, duringSession("2026-09-14")))],
+      ]),
+      closesAsOf: () =>
+        closesOf(
+          storedClose(SPY, {
+            close: 600,
+            session: "2026-09-11",
+            previousClose: 500,
+          }),
+        ),
+      asOf: duringSession("2026-09-14"),
+    });
+
+    expect(entries[0]?.state).toBe("live");
+
+    const wire = toWireMarketOverview({
+      proxies: [],
+      breadth: BREADTH,
+      movers: {
+        qualifier: { basis: "session", session: toMarketDate("2026-09-11") },
+        // The pass's own number, written out rather than imported:
+        // `(600 − 500) / 500 × 100`.
+        moves: entries.map((entry) => ({ entry, percent: 20 })),
+        tracked: 503,
+      },
+      asOf: ASOF,
+    });
+
+    // The end it was ranked into is the pass's, not the figure's.
+    expect(wire.movers?.losers).toEqual([]);
+
+    // And the row DRAWS that quantity: a `stored` figure carrying the
+    // session, the session's close and the close-to-close move. A row ranked
+    // on one number and printing another is a drawn order contradicting its
+    // own drawn figures.
+    expect(wire.movers?.gainers).toEqual([
+      {
+        state: "stored",
+        symbol: "SPY",
+        session: "2026-09-11",
+        close: 600,
+        sessionChangePercent: 20,
+      },
+    ]);
+
+    // **A stored close's tape is not this frame's provenance** — the row came
+    // off a `live` entry with an `iex` observation and the frame claims no
+    // feed, because no figure it carries is an observation.
+    expect(wire.feeds).toEqual([]);
   });
 
   it("carries the rung the caller's ratchet answers with, and only beside sectors", () => {

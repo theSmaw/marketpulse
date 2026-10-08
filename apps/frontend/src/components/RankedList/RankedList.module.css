@@ -92,9 +92,60 @@
  * load-bearing twice over: without it the `min-width: auto` content floor means
  * a 327 px name **pushes the price and change columns off the region** at 1024
  * rather than ellipsising.
+ *
+ * --- The ticker track is 68 and NOT the sector row's 52 (Task 4.5.8) ---
+ *
+ * **This is the first region in the product to draw an arbitrary equity
+ * ticker**, and the 52 px below it was sized for a roster of eleven funds whose
+ * widest member is four glyphs. The universe holds **three five-character
+ * symbols** — `BRK.B`, `CMCSA`, `GOOGL` — and at 52 the symbol's content box is
+ * 36 px (52 less the 8 px mark slot and the 8 px gap before it), so all three
+ * **overflowed at every width**, and four-glyph tickers overflowed at 390 as
+ * well (35.4 against 32). They were legible only because the overflow spilled
+ * into the column gap, and **at 390 the gap is 4 px and the ticker touched the
+ * company name.** `.symbol` is `white-space: nowrap` with no `overflow`, so a
+ * grid item does not clip: invisible to jsdom, to axe, to every unit test, and
+ * to a screenshot of `NVDA / AMD / AVGO`.
+ *
+ * **An ellipsis was refused**, which is why this is a track change rather than
+ * four declarations copied off `.movers .label`: the name is context and the
+ * **ticker is the identifier** — it is what the search field, the URL, the
+ * universe table and Story 4.6's navigation are keyed on — and `GOOG…` is an
+ * identifier a reader cannot carry out of the region.
+ *
+ * **Measured 2026-10-08** in the page's own `.symbol`, at `--font-size-dense`
+ * (13 px) with `--letter-spacing-micro` (1.04 px), five glyphs:
+ *
+ *   - **44.20 px** in the shipped face (`JetBrains Mono Variable`), identical
+ *     for all three symbols because the face is monospaced — and `Menlo`, the
+ *     next installed fallback, is 44.34;
+ *   - **50.73 px** in `ui-monospace`, which is what **a cold load renders**
+ *     before the self-hosted face arrives and is the widest of the seven
+ *     families in `--font-data`.
+ *
+ * So the track is sized to the **cold-load** figure, as the sector track's own
+ * comment says its 52 was: `50.73 + 8 (gap) + 8 (mark slot) = 66.73` → **68
+ * stated**, leaving the symbol 52 px and 1.27 px of slack in the worst face.
+ * Below 37rem the gap steps to 4, so the same 52 px of symbol is **64 stated**.
+ *
+ * **What it costs the name**, read off `pnpm probe`'s resolved tracks either
+ * side of the change: **719 → 703 px** at 1440, **288 → 272** at 1024,
+ * **413 → 397** at 768, and at 390 — where the name is already the tightest
+ * track in the row and already ellipsises on four rows in five — **157 →
+ * 137 px**, about 21 characters against a measured p50 name of 21. The 16 px is
+ * the whole of it at the three wide widths and 20 at 390, where the gap steps.
+ * The name track is `minmax(0, 1fr)` and
+ * absorbs all of it; no row height and no region height moves, which is the
+ * part `pnpm probe` is run to confirm rather than to assume.
+ *
+ * **Reversal trigger, as a condition**: the first tracked security whose symbol
+ * is longer than five characters. `pnpm invariants` carries
+ * `the-universe-holds-no-ticker-wider-than-the-track`, which fails naming the
+ * symbol — because the arithmetic above is a claim about the **data** and a
+ * claim about data that nothing checks quietly stops being true.
  */
 .movers {
-  grid-template-columns: 2ch 52px minmax(0, 1fr) 80px 78px;
+  grid-template-columns: 2ch 68px minmax(0, 1fr) 80px 78px;
 }
 
 /*
@@ -416,11 +467,27 @@
 }
 
 /*
- * --- The ticker and the mark's slot: 52 px ---
+ * --- The ticker and the mark's slot: 52 px on the SECTOR row ---
  *
  * `XLRE` is the widest ticker at four glyphs (30.7 px measured), so the track is
  * 46.7 needed against **52 stated** — because a cold load renders the fallback
  * face and it is not monospaced.
+ *
+ * **The 52 is the sector row's and is stated in `.plot`** (Task 4.5.8). The
+ * movers row restates its own at 68, because its roster is the whole universe
+ * rather than eleven known funds and five glyphs do not fit in 36 px of symbol;
+ * the measurement is beside `.movers`. **This rule holds no track width** —
+ * only the flex geometry both rows share — so a reader changing the sector
+ * track changes it where it is written.
+ *
+ * Note while you are here, and it is reported rather than repaired: `XLRE`
+ * re-measured in the page's own `.symbol` on 2026-10-08 is **35.38 px** in the
+ * shipped face and **38.11 px** in `ui-monospace`, not the 30.7 above — so the
+ * sector row's 36 px of symbol does not in fact hold its widest member in the
+ * cold-load face either, by 2.1 px. The figures recorded for that row are
+ * Story 4.3's and the overflow is 2 px into an 8 px gap; changing a track whose
+ * region is photographed and whose ledger is published is a decision rather
+ * than a tidy-up.
  *
  * The gap is `var(--space-8)`, which is `MarketProxyStrip`'s shipped `.term`
  * rule unchanged.
@@ -713,12 +780,25 @@
   /*
    * **The movers row at 390: the price drops and the name keeps its room** —
    * the owner's Gate 1 decision, and it is a restatement rather than an
-   * inheritance (rule 2). The ticker narrows to 44 px exactly as the sector row
-   * does; the change keeps a 68 px reserve and becomes the last of four tracks.
+   * inheritance (rule 2). The change keeps a 68 px reserve and becomes the last
+   * of four tracks.
    *
-   * Arithmetic at the 342 px region: `15.6 + 44 + 68 + 3 × 8 = 151.6`, so the
-   * name gets **190 px** — about 29 characters at the dense size, which the
-   * p75 name clears and the 50-character maximum ellipsises into.
+   * **The ticker does NOT narrow to the sector row's 44 here, and that is Task
+   * 4.5.8's repair**: at 44 the symbol's box is 32 px — the gap steps to 4 just
+   * below — and `GOOGL` needs 50.73 in the cold-load face, so every
+   * five-glyph ticker and every four-glyph one overflowed, into a 4 px gap, and
+   * **touched the company name**. `50.73 + 4 (gap) + 8 (mark slot) = 62.73` →
+   * **64 stated**, which is the same 52 px of symbol the wide widths get. The
+   * full measurement is beside `.movers`.
+   *
+   * Arithmetic, against the **308 px** the grid actually resolves to at 390
+   * (the 342 in this comment until 4.5.8 was the panel's outer width, two
+   * paddings out — measured by `pnpm probe`, which prints the resolved tracks):
+   * `15 + 64 + 68 + 3 × 8 = 171`, so the name gets **137 px**, down from 157.
+   * About 21 characters at the dense size, against a measured p50 name of 21 —
+   * so at this width the name is a confirmation that often ellipsises and the
+   * ticker is the identifier that never does, which is this row's stated
+   * hierarchy rather than a concession.
    *
    * **A literal `68px` here rather than the sector row's `minmax(68px, 1fr)`,
    * and the difference is the flexible track**: that row has none, so its last
@@ -730,7 +810,7 @@
    * and the seven-region grid is sized off that.
    */
   .movers {
-    grid-template-columns: 2ch 44px minmax(0, 1fr) 68px;
+    grid-template-columns: 2ch 64px minmax(0, 1fr) 68px;
     column-gap: var(--space-8);
   }
 

@@ -1281,6 +1281,29 @@ day boundary — `pnpm store:bare` then a seeded store, or a replay across a ses
 edge — and compare the rendered order against `rankSectorFigures` run over the same
 figures with the correct per-session closes. **The order, not the figures.**
 
+> **Amended 2026-10-08 by Task 4.5.8 — the blast radius is larger at a top-N,
+> and NEITHER of this story's two independent instruments can see it.**
+>
+> At eleven sectors a stale close skews one row's figure and can swap it with
+> a neighbour. **At a top-N over 503 one stale close produces TWO wrong
+> positions** — a name drawn that should not be there, and a name displaced
+> that should be — and the displaced one is simply **absent**, which is the
+> failure mode a reader cannot detect by looking, because an absence has no
+> row to be wrong in.
+>
+> **And it is structurally invisible to the checking Story 4.5 built**, which
+> is the part worth recording rather than the arithmetic. On the **session**
+> basis `overview-movers-ranking.spec.ts` filters `GET /securities` to **the
+> session the frame names** — a guard it inherited from the breadth spec for a
+> good reason — so **both sides then read the same stale close and agree**. On
+> the **observed** basis the producer's closes cache and the route's table are
+> two reads of one store, so a divergence is a race rather than a defect an
+> instrument can separate.
+>
+> So this entry is not closed by Story 4.5's independent sources; it is
+> **widened** by them. The re-measure above still applies, with the movers
+> lists in place of the sector roster.
+
 ## Two sectors displaying an identical figure are ordered by a value nobody can see
 
 **Added 2026-10-07 by Task 4.3.8.** The comparator's no-swap rule is keyed on the
@@ -1832,3 +1855,243 @@ previous session, capture one frame from `/market-stream` and check `basis`,
 `windowMinutes`, and that `eligible` is below `tracked` rather than equal to it —
 on the observed basis the gap between them is Task 4.1.8's ~50 securities and is
 the whole reason the denominator is drawn.
+
+## The cut is checkable only where the input is recoverable, and in the basis the region exists for it is not
+
+**Added 2026-10-08 by Task 4.5.8.**
+
+A top-N is a **selection**, not a reduction, so unlike breadth most of it is
+checkable: ordering, uniqueness, count and the two lists' interleave are all
+answerable **from the frame**, because every row carries its own key; the
+population falls to `GET /securities`. **What is irreducible is the cut** —
+that nothing outside the list outranks the weakest name inside it — because
+ADR 0038's grain rule forbids shipping the ranking's input.
+
+**In the `session` basis it is settled completely.** `overview-movers-ranking.spec.ts`
+recomputes the whole ranking from `GET /securities`' `close` and
+`previousClose`, over all 503, and compares membership, order, the cut and the
+figures. **In the `observed` basis it has never been checked on any machine.**
+
+**And the reason is structural rather than a gap in the effort.** The basis is
+**session-driven, not data-driven** — `eligibleMoves` chooses `observed` only
+when `isMarketOpen(asOf)` — so **no machine can produce an observed-basis
+movers section outside 09:30–16:00 ET**, however many observations it holds.
+Task 4.5.8 produced that rather than reasoning about it: an isolated backend
+with 518 observations in hand still reported
+`"the aggregate is on the session basis, whose input is the closes cache and
+NOT the snapshot. This instrument could not judge…"`
+
+**Why it matters more than the arithmetic suggests.** `pnpm break the-cut-keeps-the-first-five-it-meets`
+replaces the bound with _the first five it meets in population order_, and
+**every frame-checkable claim stays green** — the bound, the keys, both
+orders, the disjointness, the interleave, the directions, the population, and
+the screen's agreement with the frame. **271 of the 503 eligible securities
+outranked the weakest row the region drew.** Only the independent recompute
+sees it.
+
+**Re-measure:** `node scripts/movers-snapshot-check.mjs <backend>` against a
+process with a live feed, **between 09:30 and 16:00 ET**. The instrument's
+header states its own limit: same process, same data, so it proves nothing
+about the data and everything about this story's code — the population split,
+the comparator, the key selection, the cut and the N.
+
+## No gated machine has ever seen a mover, and CI never can
+
+**Added 2026-10-08 by Task 4.5.8.** The third in this family, after the sector
+and breadth entries.
+
+CI's store is **518 securities and zero bars**, so the frame carries a movers
+section reading `eligible: 0, tracked: 503` with **two empty lists, for ever**.
+The region draws its heading pair, the bound falls silent, and the footer says
+_"…none were heard from in the last 5 minutes. There is nothing to rank."_
+
+Checked rather than assumed: a backend on `marketpulse_bare` answers
+`{"basis":"session","gainers":[],"losers":[],"eligible":0,"tracked":503,"session":"2026-10-08"}`
+with `lastCloses: 0`.
+
+**So every browser assertion about a position or a figure is an assertion
+about data the runner does not have** — which is why the pass-through spec's
+first test asserts a **bound**, a **population** and a **structure**, and its
+second test **skips with its reason printed by name**. The one non-vacuous
+claim on CI is `tracked === 503`, which is live and does catch the population
+defect.
+
+**Re-measure:** `pnpm store:bare`, then `DATABASE_NAME=marketpulse_bare pnpm dev`,
+then `pnpm probe / --within Movers`.
+
+## The day's biggest mover may be a name we never heard from, and the ranking cannot say whether it was
+
+**Added 2026-10-08 by Task 4.5.8.** The sharpest form of `EPIC.md`'s _an
+aggregate is the one kind of number that can be wrong while looking right_.
+
+Measured on the deployed gateway: of 518 tracked securities, the number heard
+from inside the last **5 minutes** has a median of **466**, a worst hour of
+**446**, and **298 at 13:00**. So on any tick the region has no recent price
+for roughly fifty of them — and **a top five computed over the ~466 may show
+five securities that are not the five biggest movers**, with nothing on screen
+distinguishing that from a complete answer.
+
+**The region confesses the limit and does not bound the error.** The footer
+states the population — _"Of the 503 companies we track, 466 were heard from
+in the last 5 minutes. Both lists are ranked over those."_ — which is the
+honest thing available, and is **not** the same as knowing how wrong the list
+could be.
+
+**Re-measure:** `movers.eligible` against `movers.tracked` on the deployed
+frame through a session. Nothing bounds the error without a second source for
+the fifty, which this product does not have.
+
+## The ranking is over a one-venue tape, and the headings do not say so
+
+**Added 2026-10-08 by Task 4.5.8.** Invariant 6's territory, in the form where
+a **heading** over-claims rather than a sentence.
+
+The live stream is **IEX only**. So `GAINERS` is strictly _the biggest rises
+among the names one venue told us about in the last five minutes_ — and a
+security trading briskly elsewhere is silent to us and cannot appear, however
+far it moves.
+
+This is the same root as the breadth remainder's four indistinguishable
+causes, arriving at a **selection** rather than a count: for breadth it
+understates a figure, and here it can **omit a name entirely**.
+
+**Re-measure:** grep the region's copy for any word attributing the ranking to
+**the market** rather than to us — the direction of the claim, on the
+remainder row's precedent. Today: `GAINERS`, `LOSERS`, and _"Both lists are
+ranked over those"_, all of which name the measured set rather than the
+market.
+
+## A display-flat row would draw the region's own absence glyph beside a figure
+
+**Added 2026-10-08 by Task 4.5.8.** Low severity, recorded because it is a
+contingency nobody would reconstruct.
+
+`readMovers` deliberately **does not refuse on sign** — whether a gainer may
+carry a negative move is a product rule, not a wire fact. So a row whose move
+reads `0.00%` is accepted by the reader and renders
+`5 FLAT FLAT 100.00 — unchanged 0.00%`, where the em dash is **this region's
+own absence glyph for a refused rank**.
+
+The shipped producer cannot send it: `directionOf` puts a display-flat figure
+in **neither** list. **So `Movers.test.tsx`' assertion that no em dash appears
+anywhere in the region is contingent on AC 5's producer-side filter rather
+than on the renderer** — and a rolled-back or foreign producer reaches it.
+
+**Re-measure:** the state is in the produced grid; push a `0.00%` row through
+`encodeMarketStreamMessage` and look.
+
+## `breadth-is-counted-over-the-equities-alone`'s chain stops at a binding's NAME, and the break proves it
+
+**Added 2026-10-08 by Task 4.5.8**, and it is a check reporting green on the
+defect it exists to forbid — found by producing that defect rather than by
+reading the check.
+
+The check walks a three-link chain in `index.ts`: the `breadth:` section names
+`const eligible =`, which names `const equities =`, which names the
+**identifier** `isEquitySymbol`. **What the binding is built _from_ is
+unchecked.**
+
+So `pnpm break the-movers-population-is-the-join-whole` — which replaces
+`new Set(equityTickers())` with `new Set(trackedTickers())`, i.e. the whole
+518 including `SPY` and the eleven SPDRs — leaves **every clause of
+`pnpm invariants` holding**. Only the browser spec catches it, on
+`tracked === 503` against `GET /securities`:
+
+```
+Error: expect(received).toBe(expected)   Expected: 503   Received: 518
+```
+
+**This can be made mechanical and should be**: a fourth link asserting
+`const isEquitySymbol =` names `equityTickers`. One grep, and the
+`every-break-can-still-land` entry already exists to keep it honest.
+
+**Re-measure:** `pnpm break the-movers-population-is-the-join-whole` and read
+whether `pnpm invariants` goes red. Today it does not; the spec does.
+
+## A locally-run `fixture` or `replay` backend writes synthetic bars into whatever database it is pointed at
+
+**Added 2026-10-08 by Task 4.5.8**, found by an instrument doing it
+accidentally and then cleaning up after itself.
+
+`liveBarWriter.store()` is called from the socket callback **with no
+market-open gate and no provider gate**. The writer was built for the
+deployed backend's real IEX stream (Story 3.8) and it does not ask where the
+observations came from — so a developer running `MARKET_DATA_PROVIDER=fixture`
+or `replay` against any store **writes invented bars into `market_bars`**.
+
+Task 4.5.8's snapshot instrument did exactly that to a scratch store; both the
+seed and the writes were deleted and the table confirmed back to 0 rows, and
+the real store was never pointed at. **But nothing prevented it, and nothing
+would have reported it.**
+
+This is adjacent to a standing product rule — _never ship replayed or
+synthetic data to the deployed site_ — on the **developer's** side of it,
+where the deployed guarantee is held by the deployment's configuration rather
+than by the writer.
+
+**Re-measure:** `apps/backend/src/index.ts` around the `liveBarWriter.store()`
+call site. The cheap guard is a provider check at the writer's edge; the
+cheaper one is a refusal to write when the configured provider is not the
+real client.
+
+## AC 6's browser half is one machine on one afternoon, and it is blind below about a millisecond
+
+**Added 2026-10-08 by Task 4.5.8.**
+
+Measured on a production build, `PerformanceObserver` installed before
+navigation, 45 bursts per arm, two arms differing in exactly one thing — the
+movers section's ten rows change identity and figure, or are byte-identical:
+
+|               | worst animation frame     | script per tick         | `longtask`    |
+| ------------- | ------------------------- | ----------------------- | ------------- |
+| movers change | p50 **18.6 ms**, p95 21.0 | p50 **0.3 ms**, p95 0.5 | **0 entries** |
+| control       | p50 18.7, p95 18.9        | p50 0.3, p95 0.6        | **0 entries** |
+
+**Net: 0.0 ms at p50 — below the instrument's noise floor.** Three
+qualifications, each worth more than the figure:
+
+- **The brief's "make the population change" has no browser meaning.** The
+  503-figure input never crosses the wire — that is the grain rule — so the
+  population-sized work is the **0.28–0.41 ms the backend half measured**
+  (Task 4.5.4). What crosses is ten rows and a sentence, and they cost less
+  than one animation frame.
+- **This instrument cannot see a regression smaller than a millisecond**, so
+  §28's own blindness is **narrowed, not fixed**: the precedent it was written
+  against is a change that cost **17× the CPU on the pointer path and produced
+  no long task at all**, and 17× of 0.3 ms would still be invisible here.
+- **The empty `longtask` case reads identically to an instrument that was
+  never wired**, which is why the rAF loop, the script clock and a DOM check
+  that the drawn symbols actually change (`distinctDrawn: 4` cycling against
+  `1` held) are all in the transcript. The first draft's hook **was silently
+  overwritten by Playwright's own `WebSocket` and reported n = 0** — the
+  2026-09-25 count-by-URL lesson arriving by a new route.
+
+**Re-measure:** the instrument is deleted; its shape is in Task 4.5.8's record.
+Load averages 5.26 before and 5.01 after, on a machine whose other runs that
+day sat at 23–33.
+
+## An eighth entry for the standing screen-reader item — two lists, re-ordering, and a hold a listener may never trigger
+
+**Added 2026-10-08 by Task 4.5.8.**
+
+The standing item's unanswerable is whether an unprompted polite update
+**queues behind a sentence in progress or replaces it**. `Movers` doubles it:
+**two `<ol>`s, each with its own accessible name, re-ordering independently**
+and up to ~8.8 times a minute (measured: ten names land in ~6 of the 8.8
+upstream messages a minute, and there is no coalescing anywhere in the
+gateway).
+
+**And the mitigation that exists for a sighted reader may not reach a listener
+at all.** `ORDER HELD` is scoped to the region via `:hover`/`:focus-within` —
+so a reader whose pointer or focus is in the region freezes the order. **A
+screen-reader user navigating by headings or by landmarks may never put focus
+inside the region**, and would then hear a list that re-orders under them with
+no hold and no announcement.
+
+Two further things only a listener can judge: the **double ordinal** (the
+printed rank is spoken _and_ the platform announces `item 1 of 5`, now ten
+times on one screen), and whether `GAINERS` and `LOSERS` as two list names in
+one region read as a structure or as a repetition.
+
+**Owner: a person with a screen reader**, before Epic 11 hands this surface to
+an agent.

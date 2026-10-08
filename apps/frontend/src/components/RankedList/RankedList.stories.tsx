@@ -27,7 +27,7 @@ import { RankedList } from "./RankedList.js";
 //     printed ordinal. Review this grid in greyscale; that is the acceptance
 //     rather than the hope.
 //
-// **The three `Movers*` stories are Story 4.5's use**, drawn here because the
+// **The four `Movers*` stories are Story 4.5's use**, drawn here because the
 // whole reason this is one component is that the two uses are never on screen
 // at the same size, so a treatment written twice would diverge and nobody would
 // ever see both versions together to notice. What is worth reviewing across the
@@ -339,6 +339,41 @@ export const MoversLongestName: Story = {
       row(2, "Advanced Micro Devices, Inc.", "AMD", 3.88),
       row(3, "Ford Motor Company", "F", 2.94),
       row(4, "3M Company", "MMM", -12.34),
+    ],
+  },
+};
+
+/**
+ * **The three five-character tickers the universe holds, which the drawn 52 px
+ * ticker track could not hold** — the state this grid was missing until Task
+ * 4.5.8, and the reason the defect was invisible.
+ *
+ * `BRK.B`, `CMCSA` and `GOOGL` are the whole set, and every `Movers*` story
+ * above draws a four-glyph ticker or shorter — so the 36 px of symbol the
+ * sector row's track leaves was never put in front of the thing it had to
+ * hold. Measured in the page's own `.symbol` at the dense size: **44.20 px**
+ * in the shipped face and **50.73 px** in `ui-monospace`, which is what a cold
+ * load renders. `.symbol` is `white-space: nowrap` with no `overflow`, so the
+ * overflow painted into the column gap — and at 390, where the gap is 4 px,
+ * into the company name.
+ *
+ * **The acceptance is a measurement and not a look**, and it is the stylesheet
+ * that holds the arithmetic (`.movers`): the ticker is never ellipsised and
+ * never clipped at any width, the row stays 26 px, and the name takes the
+ * whole of the difference. The last row is a one-character ticker, drawn
+ * beside them so the reserve is read against the narrowest thing in it.
+ */
+export const MoversWidestTickers: Story = {
+  args: {
+    bar: { kind: "none" },
+    name: "Gainers",
+    quietGroup: "impossible",
+    rows: [
+      row(1, "Alphabet Inc. Class A", "GOOGL", 4.21),
+      row(2, "Comcast Corporation Class A", "CMCSA", 3.88),
+      row(3, "Berkshire Hathaway Inc. Class B", "BRK.B", 2.94),
+      row(4, "Sandisk Corporation", "SNDK", -2.51),
+      row(5, "Ford Motor Company", "F", -12.34),
     ],
   },
 };
