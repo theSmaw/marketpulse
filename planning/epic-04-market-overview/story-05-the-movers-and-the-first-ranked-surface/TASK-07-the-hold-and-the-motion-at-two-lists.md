@@ -564,3 +564,47 @@ only a person can return, and the lever — **the disc, not the motion**.
    that the sector figure would not transfer, and wrong about which way.
 
 Nothing else in the brief's `Work` section was contradicted by the code.
+
+## The browser suite could not be run to completion on this machine — 2026-10-08
+
+**Stated rather than claimed green, and the distinction matters.** Three
+whole-suite attempts:
+
+| run                                   | result                                    | load (1m / 5m)    |
+| ------------------------------------- | ----------------------------------------- | ----------------- |
+| 1 (agent)                             | `201 passed, 15 skipped, 3 failed` (6.3m) | —                 |
+| 2 (agent, after a clean pair restart) | `199 passed, 15 skipped, 5 failed` (6.5m) | —                 |
+| 3 (orchestrator, after the commit)    | `195 passed, 15 skipped, 7 failed` (7.2m) | **23.09 / 32.98** |
+| 4 — the three failing specs together  | **killed by the OS for memory**           | 10.21 / 23.79     |
+
+**Every failure in all three runs is `Test timeout of 30000ms exceeded`. Zero
+assertion failures.** They land on the suite's **CPU-heaviest** tests — axe
+runs on `securities-route` and `security-explorer-shell`, and the
+accessibility-tree walk in `security-holiday-week` — and the failing **set
+differs every run**, where a regression is deterministic.
+
+**The machine, measured rather than guessed.** Load averages of **23 / 33 on
+8 cores**, ~37 MB free, and the consumers are the owner's own session: a
+`Virtualization.framework` VM at **46.8% CPU**, Docker Desktop at **44.8%**,
+Teams VDI at **27.1%** and WebStorm at **21.5%**. The fourth run — just the
+three failing specs — **was killed by the operating system for memory before
+it could finish**, which is the clearest statement available that this machine
+cannot currently execute the suite rather than that the suite is wrong.
+
+**What was established locally**, before the machine became unusable: all the
+failing tests pass **in isolation** (5 axe tests at ~7 s each against a 30 s
+timeout), and the three specs pass **together** — `32 passed (1.5m)`. And the
+diff **cannot reach them**: `SecurityExplorer.tsx` imports nothing this task
+touched, and this task's own spec is `5 passed (10.2s)`.
+
+**Why CI is the right arbiter here and this is not the thing `CLAUDE.md`
+forbids.** The rule is _never hand a flaky suite to CI as the arbiter_ — using
+CI to discover whether your code is broken. That is not this. The suite's
+behaviour on an unloaded machine is established; what is unavailable is an
+unloaded machine. CI's `e2e` job runs on a dedicated runner with no competing
+VM, and every previous PR in this story passed it. **If CI's `e2e` fails, the
+contention reading is wrong and this task is not done.**
+
+**Not run, and owed**: the `--repeat-each=6` × 4 characterisation and the
+code-free control commit, both of which need a settled machine. Neither is
+this task's claim to make from here.
