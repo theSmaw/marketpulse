@@ -114,9 +114,43 @@
   white-space: nowrap;
 }
 
-/* The change is the last track, with the price's reserve to its left. */
+/* The change is the last track, with the price in the reserve to its left. */
 .movers .figure {
   grid-column: 5;
+}
+
+/*
+ * --- The price: track 4, 80 px, right-aligned ---
+ *
+ * Filled by Task 4.5.5 into the room Task 4.5.3 reserved. **The cell is
+ * auto-placed and the track is not restated here**: `.movers` above states all
+ * five, and the figure's explicit `grid-column: 5` is what leaves column 4 for
+ * the row's fourth child. A `grid-column: 4` here would be a second statement
+ * of one fact and would let the DOM order and the drawn order disagree.
+ *
+ * **Right-aligned and tabular, like every other column of figures in this
+ * product**: a right-aligned tabular column aligns decimal points for free, and
+ * `dataCell` states the face and the figures. `764.29` is six glyphs at a
+ * measured 7.67 — 46 px against 80 — so the reserve holds a four-figure price
+ * (`1234.56`, 54 px) with room to spare, which matters because `formatPrice`
+ * writes no grouping separator precisely so that a column cannot change width.
+ *
+ * **Secondary ink.** The change is the ranking key and carries the row's
+ * emphasis; the price is the context that makes the change checkable against a
+ * public quote. Standing out is a job for hierarchy, never for ink outside the
+ * contrast floor — and this is the same relationship `MarketProxyStrip` draws
+ * one region up with the roles reversed, because there the price *is* the
+ * headline.
+ */
+.price {
+  composes: dataCell from "../../styles/type.module.css";
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-secondary);
+  white-space: nowrap;
 }
 
 /*
@@ -729,9 +763,21 @@
    * Nothing below `pnpm e2e` can see it, the page is not wrong on screen, and
    * a height assertion taken at 1440 never visits the width where it happens.
    */
+  /*
+   * **`.price` is in this list for `.bar`'s reason, and it is the second item
+   * to earn its place the expensive way.** The owner's Gate 1 decision is that
+   * the price drops at 390 — the track list above has four columns — and a
+   * price cell left drawn would be the row's fifth child with nowhere to go. A
+   * `subgrid` cannot grow columns beyond the range it adopts, so that item is
+   * placed in an implicit **row** of the `<li>`: 33 px instead of 26 on every
+   * row, the region 503 instead of 466, and nothing below `pnpm probe` can see
+   * it. `display: none` rather than `visibility: hidden`, because the cell must
+   * not be a grid item at all.
+   */
   .rules,
   .ladder,
-  .bar {
+  .bar,
+  .price {
     display: none;
   }
 

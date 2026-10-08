@@ -195,6 +195,55 @@ export interface SectorRow {
    */
   readonly basis: string | undefined;
   /**
+   * **The price, already formatted, or absent — and the absence is a fact
+   * about the row rather than about the layout** (Task 4.5.5).
+   *
+   * ## Why it is on this type rather than on a movers-only row
+   *
+   * `RankedList` is drawn once for two uses and the sector row simply has no
+   * price cell: its geometry is four tracks and its subject is a benchmark's
+   * move, not a share price. So this is optional for {@link SectorRow.held}'s
+   * reason — *the eleven sector rows, which can never carry one, say nothing
+   * about it* — and the mover layout is the only anatomy that renders it. A
+   * second row interface with six shared members would be the thing
+   * `movers.ts`' header already refuses on its own behalf.
+   *
+   * ## Which field it is read from is the FIGURE'S state, never the section's
+   *
+   * `price` on an observed figure and `close` on a stored one, through
+   * `moveOf`'s own discipline one function along: the state decides which
+   * field carries the number, and a renderer that reached for `price` on a
+   * stored figure would find nothing. Out of hours **every** mover row is a
+   * stored close, which is most of the week.
+   *
+   * ## And it carries no session, no instant and no noun
+   *
+   * That is the decision Task 4.5.5 took, and it is a **labelling** decision
+   * rather than a plumbing one. Three reasons, in order of weight:
+   *
+   *   - **The basis is uniform over the whole section by construction.** The
+   *     producer takes one `MoveQualifier` for both lists
+   *     (`WireMarketMovers`), so *what these ten figures are measured from* is
+   *     one claim about the region and not ten claims about rows — and a claim
+   *     about the region has one home, which is the region's footer (Task
+   *     4.5.6's denominator sentence, whose room is reserved and empty today).
+   *   - **The row has nowhere to put it.** The track is 80 px; `2026-10-07
+   *     close` measures 82, which is the measurement `.quiet .figure` was
+   *     widened for after an honest sentence ellipsised into `2026-09-25 cl…`.
+   *   - **The change beside it already works this way**, and so does the
+   *     region two hundred pixels above: `Sector performance` has drawn eleven
+   *     session-basis moves with no per-row session since Story 4.3, and the
+   *     proxy strip states the closing session once beneath four cells rather
+   *     than in each of them.
+   *
+   * **Reversal trigger**, as a condition: the first frame whose movers rows do
+   * **not** share one basis — a mixed section, or a per-row basis on the wire.
+   * At that point *what this figure is measured from* stops being statable once
+   * per region and the clause has to move onto the row, where the 80 px track
+   * cannot hold it and the geometry is owed a re-take.
+   */
+  readonly price?: string;
+  /**
    * **A row that holds its own room and nothing else** — present in the list,
    * absent from the screen and from the accessibility tree (Task 4.5.3).
    *
@@ -362,8 +411,16 @@ function labelOf(symbol: string): string {
  *
  * This is the one line in the frontend that would have reached for
  * `changePercent` on a stored figure and found nothing.
+ *
+ * **Exported for `movers.ts` on 2026-10-08 (Task 4.5.5), and exported from
+ * this file rather than lifted out of it.** A mover row's move is the same
+ * claim read off the same union through the same shared key, so a second
+ * reader would be a second answer to *which field this state's move lives in*
+ * — the one question `moveRankingKey` exists to answer once. It stays out of
+ * `index.ts`: the module's barrel is its API, and nothing outside `src/market/`
+ * reads a wire figure.
  */
-function moveOf(figure: WireOverviewFigure): SectorMove | undefined {
+export function moveOf(figure: WireOverviewFigure): SectorMove | undefined {
   const percent = moveRankingKey(figure);
   if (percent === undefined) return undefined;
 
@@ -378,12 +435,17 @@ function moveOf(figure: WireOverviewFigure): SectorMove | undefined {
  * The identity of the basis a row's rank was measured against — see
  * {@link SectorRow.basis}.
  *
+ * Exported beside {@link moveOf} for Task 4.5.5's reason, and the pairing is
+ * the point: a mover row's rank is held against the same basis identity as a
+ * sector row's, so the hold at two lists (Task 4.5.7) inherits the rule rather
+ * than re-deciding it.
+ *
  * **It is derived from the same two members `moveOf` reads**, which is what
  * makes it unable to disagree with the figure: the state decides which field
  * carries the move, and the session decides what the move is measured from. A
  * third thing to keep in step would be a third thing to get wrong.
  */
-function basisOf(figure: WireOverviewFigure): string | undefined {
+export function basisOf(figure: WireOverviewFigure): string | undefined {
   if (figure.state === "observed") {
     // `changeBasis` is **omitted** on the same-session case, which is a real
     // value rather than a gap (`LiveChange.basis`) — so the empty string here

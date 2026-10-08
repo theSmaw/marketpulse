@@ -1,12 +1,20 @@
 import { MOVERS_PER_SIDE } from "@marketpulse/shared";
+import type {
+  Bar,
+  WireMarketOverview,
+  WireOverviewFigure,
+} from "@marketpulse/shared";
 
-import type { SectorRow } from "./sector-performance.js";
+import { arrivalKey } from "./arrival.js";
+import { formatPrice } from "./price-format.js";
+import { basisOf, moveOf, type SectorRow } from "./sector-performance.js";
 
 // **What the two movers lists read as** — the view the region draws, and the
 // padding that keeps it one height (Task 4.5.3).
 //
-// ## There is no reader here yet, and that is the task boundary rather than an
-// omission
+// ## ~~There is no reader here yet~~ — {@link marketMovers} arrived 2026-10-08
+// (Task 4.5.5), and the paragraph below is left standing because it is why the
+// shape came first
 //
 // `sector-performance.ts` one file over reads the overview frame's own section
 // into rows. **Movers has no section on the wire until Task 4.5.4**, which
@@ -15,6 +23,41 @@ import type { SectorRow } from "./sector-performance.js";
 // drawing takes, the padding, and the reservation — and nothing that reads a
 // frame. A reader written before the frame exists is a guess about a payload
 // nobody has sent.
+//
+// ## Nothing here ranks, and the rank is a COUNT
+//
+// `sector-performance.ts`' rule, and it holds harder here: the producer's
+// `selectMovers` is the one order, it drops a figure with no ranking key rather
+// than placing it, and the two arrays arrive strongest-first. So the rank below
+// is the position in the array it was sent in, and **a comparison of two moves
+// anywhere in this file would be a second comparator** — the thing
+// `one-comparator-for-the-order-of-a-move` refuses by name.
+//
+// A keyless figure would therefore get **no rank**, and `RankedList` drops an
+// unranked row outright when the quiet group is `impossible`. That is the
+// honest end of a producer defect rather than a state to draw: the alternative
+// is an ordinal announced over a row this product is refusing to rank.
+//
+// ## The company name is not on the frame, and that is this module's one
+// dependency on something other than the aggregate
+//
+// A mover row's label is the company's name, which lives in `securities` and
+// reaches a browser through `GET /securities` — the overview frame carries a
+// symbol and no name. So the name is passed **in**, as a lookup the route
+// already holds, and a symbol the lookup does not know is **labelled with
+// itself**: `labelOf`'s rule one file over, for the same reason. The name is
+// context and the ticker is the identifier, so a universe that has not
+// arrived — or failed — costs the region its names and nothing else.
+//
+// **Why not on the wire** (Task 4.5.5's decision): a name is a fact about a
+// security that never changes, and the aggregate is rebuilt up to sixteen times
+// a minute — so putting ten names on it would re-send immutable data at the
+// cadence of the most volatile thing on the page, and it would have to go on
+// `WireOverviewFigure`, which the proxy and sector sections share and neither
+// needs. **Reversal trigger**: the first surface on this screen that needs a
+// *second* field from the universe (a sector, a kind, an exchange). At that
+// point the universe is the page's dependency rather than one region's context,
+// and the fetch, the frame and a narrower endpoint are owed a comparison.
 //
 // ## The row type is `SectorRow`, and the name is residue
 //
@@ -58,6 +101,113 @@ export interface MarketMovers {
   readonly gainers: readonly SectorRow[];
   /** The biggest falls, biggest fall first. */
   readonly losers: readonly SectorRow[];
+}
+
+/**
+ * Read the overview frame's movers section as two lists of rows.
+ *
+ * `undefined` is **the absence of the section**, which the route draws as the
+ * region's reserved state or as its own sentence depending on whether a frame
+ * arrived at all — `sectorPerformance`'s discriminator, unchanged, because the
+ * two reachable absences are the same two: no frame yet (first paint), and a
+ * frame from a **previous image** that sends no movers section at all, which a
+ * rollback pins.
+ *
+ * **An empty section is NOT the absence here, and that is the difference from
+ * its two siblings.** `sectorPerformance` treats `sectors: []` as the absence
+ * because eleven benchmarks are a roster and a frame about none of them is a
+ * frame it cannot draw. A movers list's membership is an **answer**: two empty
+ * lists mean *nothing was rankable*, which is CI's permanent state (518
+ * securities, zero bars), most of a weekend, and the first minute of every
+ * session — so it is drawn, as ten held rows under two headings, and the
+ * region says so in words rather than reserving itself invisibly.
+ *
+ * @param names Symbol → company name, from the tracked universe. A symbol it
+ * does not know is labelled with itself; an empty map labels every row with
+ * its ticker, which is the state while the universe is in flight.
+ */
+export function marketMovers(
+  overview: WireMarketOverview | undefined,
+  observations: ReadonlyMap<string, Bar>,
+  fromSnapshot: ReadonlySet<string>,
+  names: ReadonlyMap<string, string>,
+): MarketMovers | undefined {
+  const movers = overview?.movers;
+  if (movers === undefined) return undefined;
+
+  const rowsOf = (figures: readonly WireOverviewFigure[]): SectorRow[] => {
+    let ranked = 0;
+
+    return figures.map((figure) => {
+      const move = moveOf(figure);
+      if (move !== undefined) ranked += 1;
+      const price = priceOf(figure);
+
+      return {
+        symbol: figure.symbol,
+        label: names.get(figure.symbol) ?? figure.symbol,
+        rank: move === undefined ? undefined : ranked,
+        move,
+        // Two branches rather than one spread of a possibly-`undefined` value:
+        // `exactOptionalPropertyTypes` is on and **absent** is what the field
+        // means on a row that cannot have one — `market-overview.ts`' idiom at
+        // the other end of the same wire.
+        ...(price === undefined ? {} : { price }),
+        // **A mover row has no absence words, and the field is not a
+        // placeholder for some the next task writes.** AC 5 is that a name with
+        // no current observation cannot appear in either list, so a row that
+        // reached a list has a figure by construction; a row that somehow has
+        // none is dropped by the list rather than captioned.
+        absent: undefined,
+        basis: move === undefined ? undefined : basisOf(figure),
+        arrival: arrivalKey(
+          observations.get(figure.symbol),
+          fromSnapshot.has(figure.symbol),
+        ),
+      };
+    });
+  };
+
+  return { gainers: rowsOf(movers.gainers), losers: rowsOf(movers.losers) };
+}
+
+/**
+ * The price, **read off the member the figure's own state names** — see
+ * {@link SectorRow.price}, which carries the labelling decision.
+ *
+ * `unknown` has neither a price nor a close and cannot be ranked, so it cannot
+ * reach a list; it is spelled here rather than defaulted, because `?? 0` on a
+ * price column is a plausible figure for a security we know nothing about.
+ */
+function priceOf(figure: WireOverviewFigure): string | undefined {
+  if (figure.state === "observed") return formatPrice(figure.price);
+  return figure.state === "stored" ? formatPrice(figure.close) : undefined;
+}
+
+/**
+ * **Every symbol the two lists name, for the page's subscription** (Task
+ * 4.5.5).
+ *
+ * `MarketOverview.tsx` builds its subscription key from every section the frame
+ * carries, because a region that draws an arrival mark from `observations` is
+ * drawing from a map that effect fills — omit a section and the mark can never
+ * fire on the deployed page, which is Task 4.3.6's shipped defect. This is the
+ * movers section's contribution, taken from the **frame** rather than from the
+ * drawn rows, so the held pads' non-breaking spaces can never reach a
+ * subscription.
+ *
+ * It is here rather than inline at the route for one reason: the route already
+ * spreads `figures` and `sectors`, which are arrays of figures, and this
+ * section is two. A `[...movers.gainers, ...movers.losers]` written there is
+ * the shape of the thing that gets half-updated when a third list arrives.
+ */
+export function moverSymbols(
+  overview: WireMarketOverview | undefined,
+): readonly string[] {
+  const movers = overview?.movers;
+  if (movers === undefined) return [];
+
+  return [...movers.gainers, ...movers.losers].map((figure) => figure.symbol);
 }
 
 /**

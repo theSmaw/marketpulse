@@ -1,14 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Component } from "react";
 
-import { MOVERS_PER_SIDE } from "@marketpulse/shared";
+import type {
+  Bar,
+  WireMarketMovers,
+  WireOverviewFigure,
+} from "@marketpulse/shared";
 
-import {
-  directionOf,
-  formatChangePercent,
-  type MarketMovers,
-  type SectorRow,
-} from "../../market/index.js";
+import { marketMovers, type MarketMovers } from "../../market/index.js";
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
 import { Region } from "../Region/Region.js";
 import { Movers, MoversMeta, MoversReservation } from "./Movers.js";
@@ -24,20 +23,23 @@ import { Movers, MoversMeta, MoversReservation } from "./Movers.js";
 // for is that `BothEndsFull`, `AOneSidedDay`, `OneRankableName` and
 // `NothingRankable` are all **one box**.
 //
-// ## These views are typed, and that is a deviation with a date on it
+// ## ~~These views are typed~~ — re-pointed through the shipped reader on
+// 2026-10-08 (Task 4.5.5)
 //
 // Every other region's stories push a real frame through the **shipped
-// reader** — `marketBreadth`, `sectorPerformance` — so a story holds a state the
-// application can reach rather than one somebody typed. **There is no movers
-// reader yet**: the frame grows a movers section in Task 4.5.4, which owns the
-// wire union and the read. So the rows below are built here, and the two things
-// that could drift are held down by using the shipped formatter and the shipped
-// classifier for every figure: `formatChangePercent` writes the string and
-// `directionOf` decides the direction, both from the one percentage, so no
-// story can hold a figure whose sign and glyph disagree with its number.
+// reader** — `marketBreadth`, `sectorPerformance` — so a story holds a state
+// the application can reach rather than one somebody typed. This file could
+// not, because there was no movers reader until the frame grew a section; the
+// re-point was owed by Task 4.5.4 and is taken here, one task later, by the
+// task that wrote the reader.
 //
-// **Task 4.5.4 owes this file a re-point**: when the reader exists, `view`
-// below becomes a call to it over a real section, the way the two siblings do.
+// So every `view` below is now a **`WireMarketMovers` section put through
+// `marketMovers`**, which is what the landing page does with the frame its own
+// gateway sends. Three things stop being typeable as a consequence: the
+// formatted change, the direction and the **price**, all of which are now
+// derived from the figure the way the application derives them — so no story
+// can hold a price that disagrees with its state's own field, which is the one
+// mistake this region's new cell can make.
 //
 // ## The names are real universe rows
 //
@@ -47,52 +49,105 @@ import { Movers, MoversMeta, MoversReservation } from "./Movers.js";
 // `144px` fitted eleven sector labels and **41.4% of company names are
 // longer**, so the common case painted over its neighbour.
 
-/** One row, with the shipped formatter and the shipped classifier. */
-const row = (
+const AT = "2026-10-07T18:01:00.000Z";
+
+/**
+ * An entry as these stories write one: ticker, company name, today's move, the
+ * price, and whether a bar has just arrived for it.
+ *
+ * The price is **written** rather than derived from the percentage, because a
+ * mover's price and its move are two independent facts and a story that
+ * computed one from the other would draw a column nobody can check by eye.
+ */
+type Entry = readonly [
   symbol: string,
-  label: string,
+  name: string,
   percent: number,
-  rank: number,
-  arrival?: string,
-): SectorRow => ({
+  price: number,
+  arrived?: boolean,
+];
+
+/** One observed figure, as the gateway puts one on the wire. */
+const figureOf = ([symbol, , percent, price]: Entry): WireOverviewFigure => ({
+  state: "observed",
   symbol,
-  label,
-  rank,
-  move: {
-    change: formatChangePercent(percent),
-    direction: directionOf(percent) ?? "unchanged",
-    percent,
-  },
-  absent: undefined,
-  arrival,
-  basis: "observed:2026-10-07",
+  at: AT,
+  price,
+  changePercent: percent,
 });
 
-/** A list, ranked from 1 in the order it is written. */
-const ranked = (
-  entries: readonly (readonly [string, string, number, string?])[],
-): readonly SectorRow[] =>
-  entries.map(([symbol, label, percent, arrival], index) =>
-    row(symbol, label, percent, index + 1, arrival),
+/** A bar, so an arrival mark is produced the way the application produces one. */
+const BAR: Bar = {
+  startsAt: new Date(AT),
+  open: 1,
+  high: 1,
+  low: 1,
+  close: 1,
+  volume: 1_000,
+};
+
+/**
+ * The section, through the **shipped reader** — the whole point of the
+ * re-point.
+ *
+ * The denominators are real-ish figures from Task 4.1.6's measurement and
+ * nothing here draws them yet (Task 4.5.6 writes the sentence); they are
+ * stated rather than zeroed because a section is not readable without them.
+ */
+const view = (
+  gainers: readonly Entry[],
+  losers: readonly Entry[],
+): MarketMovers => {
+  const movers: WireMarketMovers = {
+    basis: "observed",
+    windowMinutes: 5,
+    gainers: gainers.map(figureOf),
+    losers: losers.map(figureOf),
+    eligible: 466,
+    tracked: 503,
+  };
+
+  const observations = new Map(
+    [...gainers, ...losers]
+      .filter(([, , , , arrived]) => arrived === true)
+      .map(([symbol]) => [symbol, BAR] as const),
   );
 
-const GAINERS = ranked([
-  ["SMCI", "Super Micro Computer, Inc.", 9.14, "2026-10-07T18:01:00.000Z"],
-  ["FSLR", "First Solar, Inc.", 6.72],
-  ["CEG", "Constellation Energy Corporation", 4.08, "2026-10-07T18:01:00.000Z"],
-  ["NVDA", "NVIDIA Corporation", 3.41],
-  ["CTSH", "Cognizant Technology Solutions Corporation Class A", 2.86],
-]);
+  const names = new Map(
+    [...gainers, ...losers].map(([symbol, name]) => [symbol, name] as const),
+  );
 
-const LOSERS = ranked([
-  ["MRNA", "Moderna, Inc.", -8.37],
-  ["ALB", "Albemarle Corporation", -5.94, "2026-10-07T18:01:00.000Z"],
-  ["DVN", "Devon Energy Corporation", -4.55],
-  ["PLTR", "Palantir Technologies Inc. Class A", -3.12],
-  ["MPWR", "Monolithic Power Systems, Inc.", -2.4],
-]);
+  const read = marketMovers(
+    { computedAt: AT, feeds: [], figures: [], movers },
+    observations,
+    new Set<string>(),
+    names,
+  );
 
-const BOTH_ENDS: MarketMovers = { gainers: GAINERS, losers: LOSERS };
+  // The reader answers `undefined` only for a frame with no section at all, and
+  // this one always has one. A throw rather than a fallback: a story quietly
+  // drawing the empty state would be reviewing the wrong picture.
+  if (read === undefined) throw new Error("the reader refused a section");
+  return read;
+};
+
+const GAINERS: readonly Entry[] = [
+  ["SMCI", "Super Micro Computer, Inc.", 9.14, 48.17, true],
+  ["FSLR", "First Solar, Inc.", 6.72, 241.08],
+  ["CEG", "Constellation Energy Corporation", 4.08, 312.4, true],
+  ["NVDA", "NVIDIA Corporation", 3.41, 189.42],
+  ["CTSH", "Cognizant Technology Solutions Corporation Class A", 2.86, 74.9],
+];
+
+const LOSERS: readonly Entry[] = [
+  ["MRNA", "Moderna, Inc.", -8.37, 24.5],
+  ["ALB", "Albemarle Corporation", -5.94, 117.52, true],
+  ["DVN", "Devon Energy Corporation", -4.55, 33.08],
+  ["PLTR", "Palantir Technologies Inc. Class A", -3.12, 1633.35],
+  ["MPWR", "Monolithic Power Systems, Inc.", -2.4, 806.11],
+];
+
+const BOTH_ENDS: MarketMovers = view(GAINERS, LOSERS);
 
 const meta = {
   title: "Market/Movers",
@@ -161,13 +216,10 @@ export const BothEndsFull: Story = {};
  */
 export const AOneSidedDay: Story = {
   args: {
-    view: {
-      gainers: GAINERS,
-      losers: ranked([
-        ["MRNA", "Moderna, Inc.", -1.12],
-        ["ALB", "Albemarle Corporation", -0.4],
-      ]),
-    },
+    view: view(GAINERS, [
+      ["MRNA", "Moderna, Inc.", -1.12, 24.5],
+      ["ALB", "Albemarle Corporation", -0.4, 117.52],
+    ]),
   },
 };
 
@@ -191,22 +243,22 @@ export const AOneSidedDay: Story = {
  */
 export const EveryFigureIdentical: Story = {
   args: {
-    view: {
-      gainers: ranked([
-        ["NVDA", "NVIDIA Corporation", 0.11],
-        ["AMD", "Advanced Micro Devices, Inc.", 0.11],
-        ["SMCI", "Super Micro Computer, Inc.", 0.11],
-        ["FSLR", "First Solar, Inc.", 0.11],
-        ["CEG", "Constellation Energy Corporation", 0.11],
-      ]),
-      losers: ranked([
-        ["MRNA", "Moderna, Inc.", -0.11],
-        ["ALB", "Albemarle Corporation", -0.11],
-        ["DVN", "Devon Energy Corporation", -0.11],
-        ["PLTR", "Palantir Technologies Inc. Class A", -0.11],
-        ["MPWR", "Monolithic Power Systems, Inc.", -0.11],
-      ]),
-    },
+    view: view(
+      [
+        ["NVDA", "NVIDIA Corporation", 0.11, 189.42],
+        ["AMD", "Advanced Micro Devices, Inc.", 0.11, 211.6],
+        ["SMCI", "Super Micro Computer, Inc.", 0.11, 48.17],
+        ["FSLR", "First Solar, Inc.", 0.11, 241.08],
+        ["CEG", "Constellation Energy Corporation", 0.11, 312.4],
+      ],
+      [
+        ["MRNA", "Moderna, Inc.", -0.11, 24.5],
+        ["ALB", "Albemarle Corporation", -0.11, 117.52],
+        ["DVN", "Devon Energy Corporation", -0.11, 33.08],
+        ["PLTR", "Palantir Technologies Inc. Class A", -0.11, 1633.35],
+        ["MPWR", "Monolithic Power Systems, Inc.", -0.11, 806.11],
+      ],
+    ),
   },
 };
 
@@ -226,10 +278,7 @@ export const EveryFigureIdentical: Story = {
  */
 export const OneRankableName: Story = {
   args: {
-    view: {
-      gainers: ranked([["NVDA", "NVIDIA Corporation", 1.08]]),
-      losers: [],
-    },
+    view: view([["NVDA", "NVIDIA Corporation", 1.08, 189.42]], []),
   },
 };
 
@@ -251,7 +300,7 @@ export const OneRankableName: Story = {
  * subject, which is `docs/GAPS.md` entry 13 exactly and is owed by name.
  */
 export const NothingRankable: Story = {
-  args: { view: { gainers: [], losers: [] } },
+  args: { view: view([], []) },
 };
 
 /**
@@ -402,15 +451,9 @@ export const InGreyscale: Story = {
  */
 export const ASixthRowEachWay: Story = {
   args: {
-    view: {
-      gainers: [
-        ...GAINERS,
-        row("AMD", "Advanced Micro Devices, Inc.", 2.4, MOVERS_PER_SIDE + 1),
-      ],
-      losers: [
-        ...LOSERS,
-        row("APA", "APA Corporation", -2.11, MOVERS_PER_SIDE + 1),
-      ],
-    },
+    view: view(
+      [...GAINERS, ["AMD", "Advanced Micro Devices, Inc.", 2.4, 211.6]],
+      [...LOSERS, ["APA", "APA Corporation", -2.11, 23.77]],
+    ),
   },
 };

@@ -502,6 +502,7 @@ export const RankedList = memo(function RankedList({
               change={row.move?.change}
               direction={row.move?.direction}
               percent={row.move?.percent}
+              price={row.price}
               absent={row.absent}
               arrival={row.arrival}
               scale={bar.scale}
@@ -612,6 +613,16 @@ export const RankedList = memo(function RankedList({
               change={row.move?.change}
               direction={row.move?.direction}
               percent={row.move?.percent}
+              /*
+               * **No price in this group either, and for a reason of its own
+               * rather than by inheritance.** The quiet group belongs to the
+               * sector anatomy, which has no price cell at any width — and a
+               * row we are refusing to rank is one we have no current figure
+               * for, so a price beside the words saying so would be the
+               * confident half of a claim whose honest half is right next to
+               * it.
+               */
+              price={undefined}
               absent={row.absent}
               arrival={row.arrival}
               /*
@@ -655,6 +666,7 @@ const Row = memo(function Row({
   change,
   direction,
   percent,
+  price,
   absent,
   arrival,
   scale,
@@ -677,6 +689,15 @@ const Row = memo(function Row({
   readonly change: string | undefined;
   readonly direction: PriceDirection | undefined;
   readonly percent: number | undefined;
+  /**
+   * The price, already formatted — see {@link SectorRow.price}, which carries
+   * the decision about what it may and may not claim.
+   *
+   * **Rendered in the mover anatomy only**, because the sector row has no
+   * price track at any width; a value handed to the sector layout is drawn
+   * nowhere rather than squeezed in beside the bar.
+   */
+  readonly price: string | undefined;
   readonly absent: string | undefined;
   readonly arrival: string | undefined;
   /** Absent when the bar is off — see {@link RankedListBar}. */
@@ -747,6 +768,27 @@ const Row = memo(function Row({
     </span>
   );
 
+  /*
+   * **The price: track 4, drawn only in the mover anatomy, and reserved by the
+   * stylesheet since Task 4.5.3** — so this cell auto-places into room that
+   * already existed and moves nothing (confirmed: the region is 466 px at all
+   * four widths with the cell filled, as it was with it empty).
+   *
+   * **Secondary ink and no weight of its own.** The change is the ranking key
+   * and is the row's point; the price is the context that makes it checkable
+   * against a public quote. `UniverseTable`'s own rule inverted for the
+   * opposite reason — there the price *is* the figure and the ticker is the
+   * only strong word.
+   *
+   * It is **not** `aria-hidden`. A listener gets `1 NVDA NVIDIA Corporation
+   * 189.42 up 3.41%`, which is the row read in the order it is drawn, and the
+   * price is the one field on it that is not derivable from the others.
+   */
+  const priceCell =
+    price === undefined ? undefined : (
+      <span className={cx(styles.price)}>{price}</span>
+    );
+
   const figureCell = (
     <span className={cx(styles.figure)}>
       {change === undefined || direction === undefined ? (
@@ -772,11 +814,15 @@ const Row = memo(function Row({
 
   /*
    * **The mover row's cells are in the drawn order** — rank, ticker, name,
-   * then the change in the row's last track. The price's track sits between
-   * the name and the change, reserved by the stylesheet and **unfilled until
-   * Task 4.5.3 has a price to put in it**: a price is not on `SectorRow` and
-   * inventing one here would be a figure with no producer. A cell added there
-   * later auto-places into that track and moves nothing.
+   * price, then the change in the row's last track.
+   *
+   * **The price arrived on 2026-10-08 (Task 4.5.5) and the prediction held**:
+   * the cell auto-places into the track `.movers` has reserved since Task
+   * 4.5.3 and the region is the same height with it as without. What the
+   * stylesheet still owns is its **absence at 390**, where the track list is
+   * four columns and a fifth grid item would be placed in an implicit track —
+   * which in a `subgrid` is a second row of the `<li>`, the measured 7 px
+   * defect `.bar` paid for once already.
    */
   return (
     <li
@@ -788,6 +834,7 @@ const Row = memo(function Row({
           {rankCell}
           {tickerCell}
           {nameCell}
+          {priceCell}
           {figureCell}
         </>
       ) : (

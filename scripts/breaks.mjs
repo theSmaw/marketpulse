@@ -2751,9 +2751,30 @@ export const BREAKS = [
     //
     // Vite serves this file from source, so no build is needed — unlike
     // the two backend entries below.
+    //
+    // **Repointed 2026-10-08 by Task 4.5.5, which is this entry's own rule
+    // happening.** The key gained the movers' ten — a third section, added by
+    // the task after the one that wrote this break — and the `find` stopped
+    // matching. `every-break-can-still-land` is what said so; nothing else
+    // would have, because breaks are outside `pnpm verify`.
+    //
+    // The substitution is unchanged in meaning: the key collapses to the four
+    // proxies, which is the shipped defect. It now proves **two** sections at
+    // once — the spec's sector test fails first, on `XLK`, and its movers test
+    // fails the same way on `NVDA` — and the `expect` below is deliberately
+    // the sector one, so this entry keeps asserting the state it was written
+    // around rather than quietly becoming a test of the newest section.
     file: "apps/frontend/src/routes/MarketOverview.tsx",
-    find: "  const symbolKey = [...(overview?.figures ?? []), ...(overview?.sectors ?? [])]",
-    replace: "  const symbolKey = [...(overview?.figures ?? [])]",
+    find:
+      "  const symbolKey = [\n" +
+      "    ...[...(overview?.figures ?? []), ...(overview?.sectors ?? [])].map(\n" +
+      "      (figure) => figure.symbol,\n" +
+      "    ),\n" +
+      "    ...moverSymbols(overview),\n" +
+      "  ]",
+    replace:
+      "  const symbolKey = [...(overview?.figures ?? [])]\n" +
+      "    .map((figure) => figure.symbol)",
     command: ["pnpm", "e2e", "overview-frame-sections.spec.ts", "--anyway"],
     expect: "has not subscribed to XLK",
   },

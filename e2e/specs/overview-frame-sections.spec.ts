@@ -10,6 +10,7 @@ import type {
   MarketFeed,
   SectorLadderStep,
   WireFeedState,
+  WireMarketMovers,
   WireMarketOverview,
   WireObservation,
   WireOverviewFigure,
@@ -235,6 +236,50 @@ const RANKED_SECTORS: readonly (readonly [string, number])[] = [
 
 const SECTOR_STEP: SectorLadderStep = 2;
 
+/**
+ * **Two equities each way, and they are real universe rows** (Task 4.5.5).
+ *
+ * Real symbols because the landing page reads a mover's company name off
+ * `GET /securities`, which this spec does **not** intercept — so the names come
+ * from the pair's own universe, and an invented ticker would be labelled with
+ * itself and would quietly prove nothing about that join.
+ *
+ * Two a side rather than five, because the padding to five is `withHeldRows`'
+ * and is the component's own tested business; what this harness needs is the
+ * smallest section that puts a named row on screen with a subscription behind
+ * it.
+ */
+const MOVER_GAINERS: readonly (readonly [string, number])[] = [
+  ["NVDA", 9.14],
+  ["AMD", 6.72],
+];
+
+const MOVER_LOSERS: readonly (readonly [string, number])[] = [
+  ["MRNA", -8.37],
+  ["ALB", -5.94],
+];
+
+/**
+ * The movers section as the gateway builds one — the two lists, already
+ * ranked, with the counts that say what they are a selection from.
+ *
+ * The denominators are furnished and are **not** asserted anywhere below; the
+ * claim that they agree with breadth's is the pass-through test's, against the
+ * real server, because a furnished pair agreeing is a tautology.
+ */
+const FURNISHED_MOVERS: WireMarketMovers = {
+  basis: "observed",
+  windowMinutes: 5,
+  gainers: MOVER_GAINERS.map(([symbol, percent]) =>
+    observed(symbol, FIRST_MINUTE, 100, percent),
+  ),
+  losers: MOVER_LOSERS.map(([symbol, percent]) =>
+    observed(symbol, FIRST_MINUTE, 100, percent),
+  ),
+  eligible: 451,
+  tracked: 503,
+};
+
 interface ServedOverview {
   /**
    * A burst, in the gateway's own order: the aggregate, then the scoped
@@ -281,6 +326,9 @@ async function serveBothSections(page: Page): Promise<ServedOverview> {
     figures,
     sectors,
     sectorLadderStep: SECTOR_STEP,
+    // The fourth section, for `FURNISHED_BREADTH`'s reason: this frame models
+    // what the gateway really sends, and the region under test draws from it.
+    movers: FURNISHED_MOVERS,
     // See `FURNISHED_BREADTH`. This frame is the one that models what the
     // gateway really sends, so leaving a required section off it would be the
     // most misleading omission of the four.
@@ -358,6 +406,9 @@ async function serveBothSections(page: Page): Promise<ServedOverview> {
 const sectorRegion = (page: Page): Locator =>
   page.getByRole("region", { name: "Sector performance" });
 
+const moversRegion = (page: Page): Locator =>
+  page.getByRole("region", { name: "Movers" });
+
 /**
  * One sector's row, reached through the ticker it prints.
  *
@@ -369,6 +420,20 @@ const sectorRegion = (page: Page): Locator =>
  */
 const sectorRow = (page: Page, symbol: string): Locator =>
   sectorRegion(page).getByRole("listitem").filter({ hasText: symbol });
+
+/**
+ * One mover's row, reached through the ticker it prints — `sectorRow`'s rule,
+ * with one extra hazard of its own.
+ *
+ * A substring is unambiguous among eleven sector tickers; among the four
+ * symbols this harness ranks it is not automatically so, because a **company
+ * name** is on the row as well and the universe is full of words. The four
+ * chosen above share no substring with one another's tickers or names, and the
+ * count assertion at each use is what would catch it if a later editor broke
+ * that.
+ */
+const moverRow = (page: Page, symbol: string): Locator =>
+  moversRegion(page).getByRole("listitem").filter({ hasText: symbol });
 
 /**
  * The arrival mark inside a row, if one is rendered.
@@ -434,9 +499,46 @@ test("the frame this product's own server sends carries exactly the four index p
   // stated against the server rather than against a stub: the subscription is
   // built from the frame above, and a route that drew eleven sector rows while
   // asking for four symbols is exactly what shipped.
+  //
+  // **It was an equality against those fifteen until 2026-10-08 (Task
+  // 4.5.5), and the movers section is why it cannot be.** A top-N's
+  // membership is the frame's answer rather than a known set, so the
+  // subscription is fifteen **plus whatever the lists currently name** — on a
+  // store with bars, up to ten more; on CI, none. An equality would also be
+  // flaky in a way the two claims below are not: membership changes during a
+  // session (measured at 0.21–0.44 a minute), so the union of everything ever
+  // subscribed legitimately exceeds the latest frame's set.
+  //
+  // So the one claim becomes two, and neither is weaker than the original.
+  const subscribed = () => new Set(subscriptions.flat());
+
+  // Every one of the fifteen is asked for — the omission half, unchanged.
   await expect
-    .poll(() => [...new Set(subscriptions.flat())].sort().join(","))
-    .toBe([...PROXIES, ...SECTOR_BENCHMARKS].sort().join(","));
+    .poll(() =>
+      [...PROXIES, ...SECTOR_BENCHMARKS]
+        .filter((symbol) => !subscribed().has(symbol))
+        .sort(),
+    )
+    .toEqual([]);
+
+  // **And nothing is asked for that no frame ever named** — the flood half,
+  // which is what the equality was really buying. A subscription to the whole
+  // universe, to a hard-coded list, or to a symbol read off the drawn rows
+  // (the held pads are non-breaking spaces) all fail here.
+  const everyNamedSymbol = new Set(
+    overviews.flatMap((received) =>
+      [
+        ...received.figures,
+        ...(received.sectors ?? []),
+        ...(received.movers?.gainers ?? []),
+        ...(received.movers?.losers ?? []),
+      ].map((figure) => figure.symbol),
+    ),
+  );
+
+  expect(
+    [...subscribed()].filter((symbol) => !everyNamedSymbol.has(symbol)).sort(),
+  ).toEqual([]);
 
   await expectNothingFailedToRender(page);
 });
@@ -548,6 +650,62 @@ test("a sector's arrival mark fires when a bar arrives for it — which it could
   // direction nobody checks: a subscription widened to fifteen must not make
   // one bar mark eleven rows.
   await expect(sectorRegion(page).locator("[data-arrival]")).toHaveCount(1);
+
+  await expectNothingFailedToRender(page);
+});
+
+test("a mover's arrival mark fires when a bar arrives for it — which needs the page to have asked for a symbol the FRAME chose", async ({
+  page,
+}) => {
+  /*
+   * **Task 4.5.5's done-when 2, and it is the sector test one section over
+   * with one difference that matters.**
+   *
+   * A sector benchmark is in a set the page could in principle have hard-coded
+   * — eleven funds, known from the universe. **A mover is not**: who is in the
+   * list is the answer the frame carries, so the subscription can only be
+   * built from the frame itself, every frame. Omit `movers` from
+   * `MarketOverview.tsx`' symbol key and `observations.get("NVDA")` is
+   * permanently `undefined` on the landing page, the disc never fires, and
+   * nothing below this level can see it: the reader's own tests hand
+   * `marketMovers` an observations map directly, and a furnished spec that
+   * served an unsubscribed observation would be serving a frame the gateway
+   * cannot emit.
+   *
+   * So the proof is the harness **refusing**, exactly as it does for sectors:
+   * against the omission this test fails on `push`, which is the stronger
+   * statement than a missing element.
+   */
+  const served = await serveBothSections(page);
+  await page.goto(OVERVIEW, { waitUntil: "networkidle" });
+
+  // Four real rows and six held pads. The pads are `aria-hidden`, so the
+  // accessibility tree — which is what `getByRole` reads — sees four, and that
+  // is also the assertion that the region drew the section rather than its
+  // reservation.
+  await expect(moversRegion(page).getByRole("listitem")).toHaveCount(
+    MOVER_GAINERS.length + MOVER_LOSERS.length,
+  );
+
+  const row = moverRow(page, "NVDA");
+  await expect(row).toHaveCount(1);
+
+  // Nothing is marked from a snapshot — `arrivalKey`'s rule, and asserting the
+  // baseline is what stops a mark that was always there from reading as one
+  // that fired.
+  await expect(markIn(row)).toHaveCount(0);
+
+  served.push({ NVDA: observation(NEXT_MINUTE, 101) });
+
+  await expect(markIn(row)).toHaveCount(1);
+  await expect(markIn(row)).toHaveAttribute(
+    "data-arrival",
+    new RegExp(`^${String(Date.parse(NEXT_MINUTE))}:`, "u"),
+  );
+
+  // One bar marks one row, in a region where two lists each hold rows a
+  // subscription widened to twenty-five symbols could all have marked.
+  await expect(moversRegion(page).locator("[data-arrival]")).toHaveCount(1);
 
   await expectNothingFailedToRender(page);
 });
