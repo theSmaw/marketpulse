@@ -319,20 +319,65 @@ export interface RankedListProps {
   readonly rows: readonly SectorRow[];
   readonly bar: RankedListBar;
   /**
-   * The accessible name for the list itself.
+   * The accessible name for the list itself — **a string or a reference, never
+   * both**, which is why it is a union rather than two optional props.
    *
    * A `<ol>` inside a named region is already reachable, but the two uses put
    * **two** lists in one region (`Movers`' gainers and losers, each ranked from
    * 1), so the name is the caller's from the first commit rather than added
    * when the second list arrives.
+   *
+   * **Which form is right is a question about the screen rather than a
+   * preference**, and this component already answers it once, two hundred lines
+   * down, for the trailing group: *the heading is on screen and a listener gets
+   * the same words from the same string — one fact, one home.* So:
+   *
+   *   - **A string** where there is no visible list heading to point at.
+   *     Sectors is one list in a named panel and has none.
+   *   - **`{ labelledBy }`** where there is. Movers draws two visible `h3`s,
+   *     and the string form would put a second copy of each heading's words in
+   *     the markup for a listener to meet twice.
    */
-  readonly name: string;
+  readonly name: string | { readonly labelledBy: string };
+  /**
+   * **Whether this use can produce a row with no rankable figure** — and it is
+   * required rather than optional so that the next use *decides* rather than
+   * inherits.
+   *
+   * The trailing group's heading reserves its room in **every** state
+   * (Task 4.3.7), which costs 25 px of held height whether or not a row is
+   * quiet. That reserve was bought for a real hazard and it is the sector
+   * region's: a sector can go quiet mid-session, and at 390 the grid row is
+   * content-sized, so without the reserve the whole lower page steps the first
+   * time a figure fails to arrive.
+   *
+   * **Movers has no such hazard.** Story 4.5's AC 5 says a name with no current
+   * observation cannot appear in either list, so the quiet group has zero
+   * members in every state there is, for ever — and with two lists on one screen
+   * the reserve is **50 px held for a group that cannot exist**, which in a
+   * 389 px content budget is the difference between five rows and four.
+   *
+   * `"impossible"` therefore renders **neither the group nor its reserve**, and
+   * nothing of either reaches `textContent`. A keyless row handed to a list that
+   * has declared the group impossible is a producer defect rather than a state
+   * to draw: it is not drawn at all, because the alternative is an ordinal
+   * announced over a row this product is refusing to rank.
+   */
+  readonly quietGroup: "possible" | "impossible";
 }
+
+/** The accessible name, as the one attribute the chosen form writes. */
+const ariaLabel = (name: RankedListProps["name"]) =>
+  typeof name === "string" ? name : undefined;
+
+const ariaLabelledBy = (name: RankedListProps["name"]) =>
+  typeof name === "string" ? undefined : name.labelledBy;
 
 export const RankedList = memo(function RankedList({
   rows,
   bar,
   name,
+  quietGroup,
 }: RankedListProps) {
   const signed = bar.kind === "signed";
 
@@ -346,7 +391,10 @@ export const RankedList = memo(function RankedList({
    * of the one comparator in `packages/shared`.
    */
   const ranked = rows.filter((row) => row.rank !== undefined);
-  const quiet = rows.filter((row) => row.rank === undefined);
+  const quiet =
+    quietGroup === "impossible"
+      ? []
+      : rows.filter((row) => row.rank === undefined);
 
   /*
    * **The settle sees the ranked rows only, and that is a correctness
@@ -374,8 +422,28 @@ export const RankedList = memo(function RankedList({
 
   const quietHeadingId = useId();
 
+  /*
+   * **The row's anatomy follows from the bar, because the bar is what the two
+   * geometries differ about** (Task 4.5.1).
+   *
+   * With a bar, every track left of it is a fixed length — otherwise the bar's
+   * origin depends on which row happened to be drawn — and the label leads,
+   * because `XLK` means nothing and the name identifies. With no bar there is
+   * no origin to protect, so the one track that may flex is free to be the one
+   * that needs to: the name, which at 50 characters is three times the longest
+   * sector label. And the **ticker leads**, because `NVDA` means something and
+   * is this product's primary identifier everywhere else — the search field,
+   * the URL, the universe table, the identity block — so the thing Story 4.6
+   * makes activatable is the thing the reader meets first.
+   *
+   * **Reversal trigger**, as a condition: *the first use that wants the bar off
+   * and the label leading.* It would make this a third prop rather than a
+   * consequence, and nothing today needs it.
+   */
+  const layout = signed ? "sector" : "mover";
+
   return (
-    <div className={cx(styles.plot, signed ? undefined : styles.plain)}>
+    <div className={cx(styles.plot, signed ? undefined : styles.movers)}>
       {/*
        * **The zero rule and the ladder gridlines: one element for the whole
        * list**, behind the bars.
@@ -410,10 +478,16 @@ export const RankedList = memo(function RankedList({
        * the sharpest difference between this region and a movers list.
        */}
       {ranked.length === 0 ? undefined : (
-        <ol className={cx(styles.list)} aria-label={name} ref={settle}>
+        <ol
+          className={cx(styles.list)}
+          aria-label={ariaLabel(name)}
+          aria-labelledby={ariaLabelledBy(name)}
+          ref={settle}
+        >
           {ranked.map((row) => (
             <Row
               key={row.symbol}
+              layout={layout}
               symbol={row.symbol}
               label={row.label}
               rank={row.rank}
@@ -494,7 +568,14 @@ export const RankedList = memo(function RankedList({
        * one page (sectors and, from Story 4.5, movers) would otherwise share an
        * id, which is `Panel`'s own reason for it.
        */}
-      {quiet.length === 0 ? (
+      {/*
+       * **And the reserve itself is conditional on the hazard existing**, which
+       * is {@link RankedListProps.quietGroup} (Task 4.5.1). A reserve is held
+       * room for a state that can occur; held for a state that *cannot* it is
+       * 25 px of nothing per list, and movers has two lists and four hundred
+       * pixels. Required rather than defaulted so a third use decides.
+       */}
+      {quietGroup === "impossible" ? undefined : quiet.length === 0 ? (
         <p className={cx(styles.quietHeadReserved)} aria-hidden="true">
           {NBSP}
         </p>
@@ -515,6 +596,7 @@ export const RankedList = memo(function RankedList({
           {quiet.map((row) => (
             <Row
               key={row.symbol}
+              layout={layout}
               symbol={row.symbol}
               label={row.label}
               rank={undefined}
@@ -554,6 +636,7 @@ export const RankedList = memo(function RankedList({
  * comment.
  */
 const Row = memo(function Row({
+  layout,
   symbol,
   label,
   rank,
@@ -564,6 +647,17 @@ const Row = memo(function Row({
   arrival,
   scale,
 }: {
+  /**
+   * Which anatomy — see the `layout` const in `RankedList`.
+   *
+   * **A string rather than a boolean, and the cells are re-ordered in the DOM
+   * rather than placed with `grid-column`.** Visual order and DOM order are the
+   * same thing in this component by rule: `order` and `grid-row` divorce the
+   * accessibility tree from the screen, and a row whose drawn columns read
+   * ticker-then-name while a listener is handed name-then-ticker is the same
+   * defect one axis over — invisible to axe, to jsdom and to a screenshot.
+   */
+  readonly layout: "sector" | "mover";
   readonly symbol: string;
   readonly label: string;
   readonly rank: number | undefined;
@@ -575,77 +669,108 @@ const Row = memo(function Row({
   /** Absent when the bar is off — see {@link RankedListBar}. */
   readonly scale: SectorLadderStep | undefined;
 }) {
-  return (
-    <li className={cx(styles.row)}>
-      {rank === undefined ? (
-        <span className={cx(styles.rank)}>
-          {/*
-           * The em dash reads as nothing to a screen reader, which is right for
-           * a structurally inapplicable field and is right here too: there is
-           * no rank, and the figure column says why in words a listener gets.
-           * `UniverseTable` makes the same trade in three columns.
-           */}
-          <span aria-hidden="true">{NOT_APPLICABLE}</span>
-        </span>
-      ) : (
-        <span className={cx(styles.rank)}>{rank}</span>
-      )}
-
-      <span className={cx(styles.label)}>{label}</span>
-
-      <span className={cx(styles.ticker)}>
-        <span className={cx(styles.symbol)}>{symbol}</span>
+  const rankCell =
+    rank === undefined ? (
+      <span className={cx(styles.rank)}>
         {/*
-         * **The mark's 8 px slot, reserved in every state including the empty
-         * one, from the stylesheet rather than from this list.** Geometry C
-         * reused — the proxy strip's static inline slot — because every track
-         * left of the bar is fixed to the pixel and the one flexible track is a
-         * picture, so there is no slack to be absolute into.
-         *
-         * The universe table's refusal to reserve width inverts here and its
-         * own argument is why: at 518 rows a mark is absent 98% of the time, so
-         * reserving 8 px is a permanent cost for a rare event. At eleven of the
-         * most liquid funds in the market, each marking about once a minute, it
-         * is close to the common case — and it is what makes zero layout shift
-         * when a mark fires reachable at all.
+         * The em dash reads as nothing to a screen reader, which is right for
+         * a structurally inapplicable field and is right here too: there is
+         * no rank, and the figure column says why in words a listener gets.
+         * `UniverseTable` makes the same trade in three columns.
          */}
-        <span className={cx(styles.markSlot)}>
-          {arrival === undefined ? undefined : (
-            /*
-             * `key` is the mechanism rather than a detail: a CSS animation does
-             * not restart when the same animation is re-applied to the same
-             * element, so React replacing the node is what makes it run again.
-             * `aria-hidden` for the same reason the other three surfaces do it —
-             * the information is the figure, and the mark only says *look*.
-             */
-            <span
-              key={arrival}
-              className={cx(styles.arrival)}
-              data-arrival={arrival}
-              aria-hidden="true"
-            />
-          )}
-        </span>
+        <span aria-hidden="true">{NOT_APPLICABLE}</span>
       </span>
+    ) : (
+      <span className={cx(styles.rank)}>{rank}</span>
+    );
 
-      <span className={cx(styles.figure)}>
-        {change === undefined || direction === undefined ? (
+  const nameCell = <span className={cx(styles.label)}>{label}</span>;
+
+  const tickerCell = (
+    <span className={cx(styles.ticker)}>
+      <span className={cx(styles.symbol)}>{symbol}</span>
+      {/*
+       * **The mark's 8 px slot, reserved in every state including the empty
+       * one, from the stylesheet rather than from this list.** Geometry C
+       * reused — the proxy strip's static inline slot — because every track
+       * left of the bar is fixed to the pixel and the one flexible track is a
+       * picture, so there is no slack to be absolute into.
+       *
+       * The universe table's refusal to reserve width inverts here and its
+       * own argument is why: at 518 rows a mark is absent 98% of the time, so
+       * reserving 8 px is a permanent cost for a rare event. At eleven of the
+       * most liquid funds in the market, each marking about once a minute, it
+       * is close to the common case — and it is what makes zero layout shift
+       * when a mark fires reachable at all.
+       */}
+      <span className={cx(styles.markSlot)}>
+        {arrival === undefined ? undefined : (
           /*
-           * Words instead of digits, which is what tells an absence apart from
-           * a figure — weight and hierarchy doing the job rather than ink
-           * outside the contrast floor. `--ink-secondary` rather than
-           * `--ink-disabled`: this is a sentence a person has to read.
+           * `key` is the mechanism rather than a detail: a CSS animation does
+           * not restart when the same animation is re-applied to the same
+           * element, so React replacing the node is what makes it run again.
+           * `aria-hidden` for the same reason the other three surfaces do it —
+           * the information is the figure, and the mark only says *look*.
            */
-          <span className={cx(styles.absent)}>{absent}</span>
-        ) : (
-          <PriceChange change={change} direction={direction} />
+          <span
+            key={arrival}
+            className={cx(styles.arrival)}
+            data-arrival={arrival}
+            aria-hidden="true"
+          />
         )}
       </span>
+    </span>
+  );
 
-      {scale === undefined ? undefined : (
-        <span className={cx(styles.bar)} aria-hidden="true">
-          <Bar percent={percent} direction={direction} scale={scale} />
-        </span>
+  const figureCell = (
+    <span className={cx(styles.figure)}>
+      {change === undefined || direction === undefined ? (
+        /*
+         * Words instead of digits, which is what tells an absence apart from
+         * a figure — weight and hierarchy doing the job rather than ink
+         * outside the contrast floor. `--ink-secondary` rather than
+         * `--ink-disabled`: this is a sentence a person has to read.
+         */
+        <span className={cx(styles.absent)}>{absent}</span>
+      ) : (
+        <PriceChange change={change} direction={direction} />
+      )}
+    </span>
+  );
+
+  const barCell =
+    scale === undefined ? undefined : (
+      <span className={cx(styles.bar)} aria-hidden="true">
+        <Bar percent={percent} direction={direction} scale={scale} />
+      </span>
+    );
+
+  /*
+   * **The mover row's cells are in the drawn order** — rank, ticker, name,
+   * then the change in the row's last track. The price's track sits between
+   * the name and the change, reserved by the stylesheet and **unfilled until
+   * Task 4.5.3 has a price to put in it**: a price is not on `SectorRow` and
+   * inventing one here would be a figure with no producer. A cell added there
+   * later auto-places into that track and moves nothing.
+   */
+  return (
+    <li className={cx(styles.row)}>
+      {layout === "mover" ? (
+        <>
+          {rankCell}
+          {tickerCell}
+          {nameCell}
+          {figureCell}
+        </>
+      ) : (
+        <>
+          {rankCell}
+          {nameCell}
+          {tickerCell}
+          {figureCell}
+          {barCell}
+        </>
       )}
     </li>
   );

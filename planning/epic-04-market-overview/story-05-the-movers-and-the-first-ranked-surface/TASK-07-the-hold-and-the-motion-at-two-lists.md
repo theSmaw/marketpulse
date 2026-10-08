@@ -109,6 +109,34 @@ and nothing else. Open the row in this task, not at the close.
 The lever if it reads wrong is **the disc, not the motion** — a ranked list's
 aliveness is its order.
 
+### The motion vocabulary's missing row — handed here by Task 4.5.1
+
+**`The motion vocabulary.dc.html` does not know the re-order exists.** Four
+limbs on one page and a fifth on `The order that changes.dc.html`, which is the
+state **both** arguments were against — the one-page argument and the own-page
+one. Nothing on the vocabulary page references it.
+
+**The repair is a cross-reference, not a move**, and the argument is recorded
+here so it is not re-opened. The four limbs are **appearances** — a loop, a
+persistent state, a decaying fact — each a mark with a geometry and a duration,
+comparable side by side at a glance. **A re-order is not a fifth limb; it is a
+sentence spoken in the grammar**, consuming _a fact arriving decays_ and adding
+a FLIP, a measure/commit/invert/release sequence, a hold badge, a contrast
+exception and a 243 ms measurement. Put in the grid it needs a row that is a
+different kind of thing, which is what would actually damage the page. And the
+one-page property is about **scannability**, not file count.
+
+**The general rule to record with it**: the vocabulary page owns the grammar and
+carries a **complete index** of treatments; a page per treatment owns the
+sentence. **Reversal trigger, as a condition**: _the first treatment that adds a
+new limb to the grammar rather than consuming an existing one_ — that one moves
+onto the vocabulary page, because it changes what the grammar is.
+
+**Why it is yours rather than 4.5.1's**: `DesignSync` replaces a page
+wholesale, and that page comes back **inline rather than persisted to disk**, so
+a one-row amendment means re-emitting 30 KB from context. You open `The order
+that changes.dc.html` for your own reasons — batch it there.
+
 ### Boundaries
 
 Not the spec or the grid (4.5.8). Do not re-take the FLIP, the durations, the
@@ -127,4 +155,6 @@ no-stagger rule or the reduced-motion answer.
    recorded with n, and the one-frame-or-several question is answered
 6. The paired reduced-motion assertion runs against **two** lists
 7. `LIVE-REHEARSAL.md` carries this story's row, opened here
-8. `pnpm verify` and `pnpm e2e` green
+8. `The motion vocabulary.dc.html` references the re-order, with the
+   vocabulary-owns-the-grammar rule and its condition-shaped reversal trigger
+9. `pnpm verify` and `pnpm e2e` green
