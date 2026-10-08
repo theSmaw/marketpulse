@@ -3,6 +3,7 @@ import type {
   WireMarketOverview,
 } from "@marketpulse/shared";
 
+import { describeMeasuredSet, measuredWindow } from "./measured-set.js";
 import {
   directionOf,
   formatSignedCount,
@@ -397,19 +398,6 @@ function unheardLabelOf(breadth: WireMarketBreadth): string {
 }
 
 /**
- * How many were counted, as the sentence says it — and **the only agreement
- * this module has to get right**.
- *
- * `1 were heard from` is the defect a count's own grammar invites, and it is
- * reachable: Task 4.1.6 measured a five-minute minimum of 5 during a session,
- * so single figures are an extended-hours reading rather than an impossibility.
- * `none` rather than `0`, because a sentence reading *0 were heard from* is a
- * figure where a word belongs.
- */
-const countAs = (measured: number): string =>
-  measured === 0 ? "none" : String(measured);
-
-/**
  * The footer clause, in the grammar of the basis and in both renderings.
  *
  * **The window is read, never spelled.** `windowMinutes` is the producer's own
@@ -420,14 +408,11 @@ const countAs = (measured: number): string =>
  * array it was handed, and the noun beside it is *companies we track* rather
  * than a figure.
  *
- * ## Why the session grammar is `had` rather than `were`
- *
- * Because a closed market's count is about a session that has ended, and
- * because the past tense is the one verb in English that does not have to agree
- * with the number in front of it — `1 had` and `451 had` are both right, which
- * removes an agreement this module would otherwise have to get right twice.
- * The live grammar has no such escape, so {@link countAs} and the `was`/`were`
- * pair below are explicit.
+ * **The lead clause itself lives in `measured-set.ts` since 2026-10-08**, where
+ * `Movers` reads it too — the owner's Gate 1 decision that the ranked region
+ * states this denominator as well, which makes one builder the only thing that
+ * can keep the two sentences from disagreeing. That module carries the
+ * `had`/`were` argument and the `none` rule.
  *
  * ## `Not heard from` is FALSE about a closed market and that is the whole
  * reason there are two grammars
@@ -440,29 +425,37 @@ const countAs = (measured: number): string =>
  * session one, which is a compile error rather than a wrong sentence.
  */
 function claimOf(breadth: WireMarketBreadth): BreadthClaim {
-  const { measured, tracked } = breadth;
-  const of = `Of the ${String(tracked)} companies we track`;
+  // **The lead clause is `measured-set.ts`', not this module's** — amended
+  // 2026-10-08 by Task 4.5.6, when `Movers` was given the owner's Gate 1
+  // decision to state the same denominator 200–300 px away. One screen carries
+  // the fact twice and one builder produces the words, which is the only thing
+  // that makes the two unable to disagree about the window, the session, the
+  // set or the count. The two grammars are unchanged and are still keyed on
+  // the basis the wire sent; what moved is where they are spelled.
+  const lead = describeMeasuredSet({
+    qualifier: breadth,
+    tracked: breadth.tracked,
+    count: breadth.measured,
+  });
+  const spoken = `${lead}.`;
 
   if (breadth.basis === "session") {
-    const spoken = `${of}, ${countAs(measured)} had a close-to-close move on ${breadth.session}.`;
     return {
       // At N = 0 the ladder is suppressed, so there is no printed endpoint for
       // a method clause to defer to — see {@link BreadthClaim}.
-      drawn: measured === 0 ? spoken : `Close to close on ${breadth.session}.`,
+      drawn:
+        breadth.measured === 0
+          ? spoken
+          : `Close to close on ${breadth.session}.`,
       spoken,
     };
   }
 
-  const minutes = breadth.windowMinutes;
-  const unit = minutes === 1 ? "minute" : "minutes";
-  const window = `the last ${String(minutes)} ${unit}`;
-  const spoken = `${of}, ${countAs(measured)} ${measured === 1 ? "was" : "were"} heard from in ${window}.`;
-
   return {
     drawn:
-      measured === 0
+      breadth.measured === 0
         ? spoken
-        : `Heard from means at least one observation in ${window}.`,
+        : `Heard from means at least one observation in ${measuredWindow(breadth.windowMinutes)}.`,
     spoken,
   };
 }

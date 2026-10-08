@@ -167,6 +167,22 @@ so it is one claim about the region with one home — Task 4.5.6's footer — an
 the 80 px track cannot hold `2026-10-07 close` (82 px measured) anyway. **The
 constraint was written into `TASK-06`'s own file**, in words it can act on.
 
+> **Amended 2026-10-08 by Task 4.5.6 — the first reason above is false, and
+> the trigger it recorded had already fired when this was written.** The
+> `MoveQualifier` is uniform over the section; the **rows** are not. On the
+> `session` basis `eligibleMoves` reads a close off the `live` member too, by
+> design (the process holds the session's observations for hours after the
+> bell), and `figureOf` maps a `live` entry to an **`observed`** figure — so an
+> evening frame is a mixture of `observed` rows drawing the last trade and
+> `stored` rows drawing the session's close, with different per-row `basis`
+> strings. The consequence for 4.5.6 was real and was taken: the footer names
+> the **set and the question** rather than claiming that every price on screen
+> is that session's close, which would have been false for most of the evening.
+> The geometry argument is unchanged and the clause has **not** moved onto the
+> row; what is re-raised, with a narrower owner, is the price cell's
+> **labelling** — see `SectorRow.price` in `sector-performance.ts`, which
+> carries the correction and the new trigger.
+
 ### The company name — the gap the brief did not have
 
 **The frame carries no name.** `WireOverviewFigure` is a symbol, a state and a

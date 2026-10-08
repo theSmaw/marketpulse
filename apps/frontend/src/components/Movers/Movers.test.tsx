@@ -4,9 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import { MOVERS_PER_SIDE } from "@marketpulse/shared";
 
 import {
+  RESERVED_MOVERS,
   directionOf,
   formatChangePercent,
   type MarketMovers,
+  type MoversClaim,
   type SectorRow,
 } from "../../market/index.js";
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
@@ -57,7 +59,35 @@ const LOSERS = [
   row("ALB", "Albemarle Corporation", -5.94, 2),
 ];
 
-const BOTH_ENDS: MarketMovers = { gainers: GAINERS, losers: LOSERS };
+/**
+ * A view as the shipped reader produces one — the strings included.
+ *
+ * The footer clause and the two per-list sentences are `movers.ts`' and are
+ * covered there against real wire sections; what this level owes is that the
+ * component **draws** them, in the elements the geometry reserved. So the
+ * default is the sentence a real `observed` section produces, and a test that
+ * cares about a different state passes its own.
+ */
+const CLAIM =
+  "Of the 503 companies we track, 466 were heard from in the last 5 minutes. Both lists are ranked over those.";
+
+const viewOf = (
+  gainers: readonly SectorRow[],
+  losers: readonly SectorRow[],
+  claim: MoversClaim = { drawn: CLAIM, spoken: CLAIM },
+  empties: {
+    readonly gainersEmpty?: string;
+    readonly losersEmpty?: string;
+  } = {},
+): MarketMovers => ({
+  gainers,
+  losers,
+  claim,
+  gainersEmpty: empties.gainersEmpty,
+  losersEmpty: empties.losersEmpty,
+});
+
+const BOTH_ENDS: MarketMovers = viewOf(GAINERS, LOSERS);
 
 const lists = () => screen.getAllByRole("list");
 
@@ -146,7 +176,7 @@ describe("Movers", () => {
     // The height claim as far as this level can see it: the number of `<li>`
     // elements in each list does not depend on the data. The height **itself**
     // is `pnpm probe`'s — jsdom computes no layout.
-    render(<Movers view={{ gainers: [], losers: [] }} />);
+    render(<Movers view={viewOf([], [])} />);
 
     for (const list of lists()) {
       expect(list.children).toHaveLength(MOVERS_PER_SIDE);
@@ -154,21 +184,98 @@ describe("Movers", () => {
     }
   });
 
-  it("holds the footer's room and writes no sentence in it", () => {
-    // The denominator is Task 4.5.6's; the 44 px is in this task's budget, so
-    // the element exists and is empty. A region that grows when a sentence
-    // arrives is the movement three tasks of Story 4.3 designed out.
+  it("writes the denominator in the footer's reserved room, reachable by a listener", () => {
+    // **Task 4.5.6.** The sentence is the region's only denominator and the
+    // region draws no ladder, so a listener's only route to it is this
+    // element — and three of its siblings legitimately carry `aria-hidden`,
+    // which is what makes a sweep the plausible edit.
     const { container } = render(<Movers view={BOTH_ENDS} />);
 
     const claim = container.querySelector("p");
-    expect(claim).not.toBeNull();
-    expect(claim?.textContent).toBe("");
+    expect(claim?.textContent).toBe(CLAIM);
+    expect(claim?.closest("[aria-hidden]")).toBeNull();
+  });
+
+  it("draws one element when the two renderings are equal, and two when they are not", () => {
+    // Equal is the state the region is in today: nothing printed here states
+    // the denominator, so the drawn half has nothing to defer to. One element,
+    // because an identical string across a hidden span and a spoken one is in
+    // `textContent` twice and reads as a duplicate to anything walking the DOM.
+    const { container, rerender } = render(<Movers view={BOTH_ENDS} />);
+
+    expect(container.querySelectorAll("p > span")).toHaveLength(0);
+
+    // And the pair is real rather than ornamental: the day a printed figure in
+    // this region states the denominator, the drawn half shortens and the
+    // spoken half may not.
+    rerender(
+      <Movers
+        view={viewOf(GAINERS, LOSERS, {
+          drawn: "Ranked over the names we heard from.",
+          spoken: CLAIM,
+        })}
+      />,
+    );
+
+    const [drawn, spoken] = [...container.querySelectorAll("p > span")];
+    expect(drawn?.getAttribute("aria-hidden")).toBe("true");
+    expect(spoken?.textContent).toBe(CLAIM);
+    expect(spoken?.hasAttribute("aria-hidden")).toBe(false);
+  });
+
+  it("says what an empty list is, in the room the held rows already hold", () => {
+    // The one-sided market: five gainers, no losers. The sentence claims the
+    // set we measured rather than the market, and it is a sibling of the list
+    // rather than a row in it — so the ten `<li>` elements are untouched and
+    // the region's height does not depend on which market turned up.
+    const { container } = render(
+      <Movers
+        view={viewOf(GAINERS, [], undefined, {
+          losersEmpty: "None of the names we measured declined.",
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText("None of the names we measured declined."),
+    ).toBeDefined();
+    expect(container.querySelectorAll("li")).toHaveLength(2 * MOVERS_PER_SIDE);
+
+    // And nothing is said about the side that has rows.
+    expect(container.textContent).not.toContain("measured rose");
+  });
+
+  it("falls silent in the head slot when nothing was selected", () => {
+    // `SectorPerformanceMeta`'s precedent: a bound stated over two empty lists
+    // is a claim about a selection that selected nothing, and in that state the
+    // footer carries the whole truth. A **short** list keeps it, because the
+    // bound is exactly what says the list is not truncated.
+    const { container, rerender } = render(
+      <MoversMeta view={viewOf([], [])} />,
+    );
+    expect(container.textContent).toBe("");
+
+    rerender(<MoversMeta view={viewOf(GAINERS, [])} />);
+    expect(container.textContent).toBe(
+      `Top ${String(MOVERS_PER_SIDE)} each way`,
+    );
+  });
+
+  it("holds room and claims nothing in the reservation", () => {
+    // `RESERVED_MOVERS` carries a non-breaking space where the clause goes, for
+    // `RESERVED_BREADTH`'s recorded reason: a hidden string is still in
+    // `textContent`, and every clause this region can draw is a claim about a
+    // set nothing has been counted over.
+    expect(RESERVED_MOVERS.claim.drawn).toBe(RESERVED_MOVERS.claim.spoken);
+    expect(RESERVED_MOVERS.claim.drawn.trim()).toBe("");
+    expect(RESERVED_MOVERS.gainersEmpty).toBeUndefined();
+    expect(RESERVED_MOVERS.losersEmpty).toBeUndefined();
   });
 
   it("says what the lists are a selection of, with the bound interpolated", () => {
     // Never typed: a badge saying five over six rows is a lie with no symptom,
     // which is `the-population-is-never-a-literal`'s rule one scale down.
-    render(<MoversMeta />);
+    render(<MoversMeta view={BOTH_ENDS} />);
 
     expect(screen.getByText(`Top ${String(MOVERS_PER_SIDE)} each way`));
   });
@@ -364,7 +471,7 @@ describe("the settle with held rows in the list", () => {
 
     try {
       const { rerender, container } = render(
-        <Movers view={{ gainers: inOrder("AAA", "BBB", "CCC"), losers: [] }} />,
+        <Movers view={viewOf(inOrder("AAA", "BBB", "CCC"), [])} />,
       );
 
       const list = container.querySelector("ol");
@@ -373,11 +480,7 @@ describe("the settle with held rows in the list", () => {
       expect(list.children).toHaveLength(MOVERS_PER_SIDE);
 
       const travelled = await travelDuring(list, () => {
-        rerender(
-          <Movers
-            view={{ gainers: inOrder("CCC", "AAA", "BBB"), losers: [] }}
-          />,
-        );
+        rerender(<Movers view={viewOf(inOrder("CCC", "AAA", "BBB"), [])} />);
       });
 
       // **A list whose pads were missing from the array handed to the FLIP

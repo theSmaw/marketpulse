@@ -593,13 +593,22 @@ export function MarketOverview({
          * screen that answers *where should I look*.**
          *
          * `awaiting` is gone because the work has landed; `filledBy` stays for
-         * the one state where there is nothing to draw. **Its wording is Task
-         * 4.5.6's** and is left exactly as Task 4.1.3 wrote it, including *the
-         * securities we track* — which the story's shaping found to be the
-         * 518-vs-503 copy error it is. The repair belongs with the denominator
-         * sentence, where the population is read off the frame rather than
-         * described in prose, and splitting it across two tasks is how one of
-         * the two copies gets fixed.
+         * the one state where there is nothing to draw.
+         *
+         * **The noun was repaired on 2026-10-08 by Task 4.5.6.** It read *the
+         * securities we track*, which is **518** — the four index proxies and
+         * the eleven sector SPDRs included — where the set this region ranks
+         * over is the **503 companies**, by `eligibleMoves`' positive
+         * membership test and the owner's Gate 1 decision. It is now
+         * *companies*, which is the noun `measured-set.ts` uses in the one
+         * clause both ranked regions state.
+         *
+         * **`the-population-is-never-a-literal` does not catch it and cannot
+         * be widened to**: that clause fires on a **digit** beside `we track`,
+         * and this sentence has none — the whole defect is a wrong noun with no
+         * figure anywhere near it. See that check's own comment for the two
+         * widenings considered and refused; the honest position is that the
+         * guard here is this comment rather than a grep.
          *
          * **`movers === undefined` is TWO states, told apart by the FRAME
          * rather than by the section** — the rule both regions above follow, and
@@ -620,19 +629,23 @@ export function MarketOverview({
          * for ever. `marketMovers` returns the empty lists rather than
          * `undefined` precisely so that this branch cannot collapse them.
          *
-         * `MoversMeta` takes no props today; the `ORDER HELD` badge beside it
-         * and the hold that produces it are Task 4.5.7's, and the slot's room
-         * is already reserved so nothing moves when it arrives.
+         * **`MoversMeta` takes the view since Task 4.5.6**, for the one
+         * judgement that had to be taken with the sentence rather than beside
+         * it: `Top 5 each way` **falls silent when nothing was selected**, on
+         * `SectorPerformanceMeta`'s precedent, because a bound stated over two
+         * empty lists is a claim about a selection that selected nothing. The
+         * `ORDER HELD` badge and the hold that produces it are Task 4.5.7's,
+         * and the slot's room is already reserved so nothing moves either way.
          */}
         <Region
           className={styles.areaMovers}
           name="Movers"
           filledBy={
             movers === undefined && overview !== undefined
-              ? "The largest moves among the securities we track, up and down, ranked while the session runs."
+              ? "The largest moves among the companies we track, up and down, ranked while the session runs."
               : undefined
           }
-          meta={movers === undefined ? undefined : <MoversMeta />}
+          meta={movers === undefined ? undefined : <MoversMeta view={movers} />}
         >
           {movers === undefined ? (
             overview === undefined ? (

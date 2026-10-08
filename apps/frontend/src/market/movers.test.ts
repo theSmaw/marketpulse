@@ -76,6 +76,10 @@ const read = (
   fromSnapshot: ReadonlySet<string> = NO_SNAPSHOT,
 ) => marketMovers(overview, observations, fromSnapshot, names);
 
+/** Two rows a side, so a sentence about *both lists* has both to be about. */
+const GAINERS = [observed("NVDA", 189.42, 3.41), observed("AMD", 211.6, 2.2)];
+const LOSERS = [stored("MRNA", 24.5, -8.37), stored("ALB", 117.52, -5.94)];
+
 describe("marketMovers", () => {
   it("reads the price from the member the figure's own state names", () => {
     // **The same trap `sectorPerformance` exists to close, one field over.**
@@ -191,8 +195,124 @@ describe("marketMovers", () => {
     // region reserve itself invisibly for ever rather than say so.
     const view = read(frame(section([], [])));
 
-    expect(view).toEqual(RESERVED_MOVERS);
+    expect(view?.gainers).toEqual([]);
+    expect(view?.losers).toEqual([]);
     expect(withHeldRows(view?.gainers ?? [])).toHaveLength(MOVERS_PER_SIDE);
+
+    // **And it is NOT `RESERVED_MOVERS`**, which this assertion read as until
+    // Task 4.5.6 gave the region words. The two differ in exactly what makes
+    // the state coherent rather than blank: the reservation holds room and
+    // claims nothing, while a frame that arrived and had nothing rankable
+    // carries a denominator and two sentences. They were the same value only
+    // for as long as the region was silent.
+    expect(view).not.toEqual(RESERVED_MOVERS);
+    expect(view?.claim.drawn).not.toBe(RESERVED_MOVERS.claim.drawn);
+  });
+
+  // ## The footer clause — Task 4.5.6
+  //
+  // The ranking's honesty: a top five over 446 of 503 looks exactly as
+  // confident as one over all of them. Every figure in the sentence is read off
+  // the **movers** section, never breadth's, which
+  // `the-ranking-states-its-own-denominator` holds — the two are the same
+  // numbers by construction, so the substitution is invisible in every state
+  // except the one `WireMoverLists.eligible` exists for.
+
+  it("states the denominator in the live grammar, with the window read off the frame", () => {
+    expect(read(frame(section(GAINERS, LOSERS)))?.claim.spoken).toBe(
+      "Of the 503 companies we track, 466 were heard from in the last 5 minutes. Both lists are ranked over those.",
+    );
+
+    // The window is the producer's figure and never a `5` typed here: a
+    // rollback can put a gateway and a bundle two values apart.
+    expect(
+      read(
+        frame({
+          ...section(GAINERS, LOSERS),
+          basis: "observed",
+          windowMinutes: 1,
+        }),
+      )?.claim.spoken,
+    ).toContain("in the last 1 minute.");
+  });
+
+  it("states it in the session grammar about a closed market, and neither grammar can render the other's", () => {
+    // *Heard from in the last five minutes* is false about a closed market,
+    // which is breadth's own recorded reason for having two grammars. Keyed on
+    // the basis the wire sent rather than on a clock this module reads, so
+    // `windowMinutes` does not exist on the session member and `session` does
+    // not exist on the observed one — a compile error rather than a wrong
+    // sentence.
+    const clause = read(
+      frame({
+        gainers: GAINERS,
+        losers: LOSERS,
+        eligible: 501,
+        tracked: 503,
+        basis: "session",
+        session: "2026-10-06",
+      }),
+    )?.claim.spoken;
+
+    expect(clause).toBe(
+      "Of the 503 companies we track, 501 had a close-to-close move on 2026-10-06. Both lists are ranked over those.",
+    );
+    expect(clause).not.toContain("heard from");
+  });
+
+  it("is honest at zero, which is the state a gated machine and a weekend both reach", () => {
+    // CI holds 518 securities and zero bars, so the region is two headings, ten
+    // held rows and this sentence, for ever. A clause that only rendered when
+    // something was ranked would leave 466 px of labelled, empty box silent —
+    // `docs/GAPS.md` entry 13 exactly.
+    const view = read(frame({ ...section([], []), eligible: 0 }));
+
+    expect(view?.claim.spoken).toBe(
+      "Of the 503 companies we track, none were heard from in the last 5 minutes. There is nothing to rank.",
+    );
+
+    // And the per-list sentences are suppressed there, which is
+    // `BreadthClaim`'s rule at N = 0: the footer carries the whole truth and
+    // three sentences saying it is the same fact three times in one box.
+    expect(view?.gainersEmpty).toBeUndefined();
+    expect(view?.losersEmpty).toBeUndefined();
+  });
+
+  it("carries no feed word, no venue and no instant", () => {
+    // `live`, `stale` and `disconnected` have one home and it is the status
+    // bar; `computedAt` is the source note's, once for the screen.
+    const clause = read(frame(section(GAINERS, LOSERS)))?.claim.spoken ?? "";
+
+    for (const word of ["live", "stale", "disconnected", "IEX", "2026-10-07T"])
+      expect(clause.toLowerCase()).not.toContain(word.toLowerCase());
+  });
+
+  it("builds the drawn and the spoken renderings from one value", () => {
+    // Identical today, deliberately: the region draws no ladder and prints no
+    // denominator, so the drawn half has nothing to defer to. A pair anyway, so
+    // the two cannot diverge the day one of them has somewhere to defer to.
+    const claim = read(frame(section(GAINERS, LOSERS)))?.claim;
+
+    expect(claim?.drawn).toBe(claim?.spoken);
+  });
+
+  it("says what an empty side is, claiming the set we measured rather than the market", () => {
+    // The one-sided market, which is the state nothing in this product had ever
+    // drawn: each list holds only the rows whose direction matches it, so on a
+    // strong trend day one list is full and the other is empty.
+    const view = read(frame(section(GAINERS, [])));
+
+    expect(view?.losersEmpty).toBe("None of the names we measured declined.");
+    expect(view?.gainersEmpty).toBeUndefined();
+
+    // `Nothing declined.` would be a statement about 503 companies, 37 of which
+    // nobody heard from — the `No shares changed hands anywhere in the window.`
+    // lesson, which is the only shipped sentence that ever over-claimed.
+    expect(view?.losersEmpty).toContain("we measured");
+
+    expect(read(frame(section([], LOSERS)))?.gainersEmpty).toBe(
+      "None of the names we measured rose.",
+    );
   });
 });
 

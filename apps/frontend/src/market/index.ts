@@ -295,6 +295,17 @@ export {
   moverSymbols,
   withHeldRows,
 } from "./movers.js";
-export type { MarketMovers } from "./movers.js";
+export type { MarketMovers, MoversClaim } from "./movers.js";
+// **The one clause two regions state about the same set** (Task 4.5.6). Breadth
+// counts it and `Movers` ranks a selection from it, and the owner's Gate 1
+// decision is that both say so — so the words have one home and the two
+// sentences cannot disagree about the window, the session, the set or the
+// count.
+export {
+  countInWords,
+  describeMeasuredSet,
+  measuredWindow,
+} from "./measured-set.js";
+export type { MeasuredQualifier, MeasuredSet } from "./measured-set.js";
 export { barFraction, ladderClause, ladderTicks } from "./ranked-bar.js";
 export type { LadderTick } from "./ranked-bar.js";

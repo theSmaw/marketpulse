@@ -2908,6 +2908,56 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "the one eligibility pass",
   },
+  // **The ranking's denominator — Task 4.5.6, two breaks for two halves.**
+  //
+  // The first is the half nothing below a real browser's accessibility tree
+  // can see; the second is the half that is numerically invisible in every
+  // state anybody photographs. Both were produced against the shipped files
+  // before they were registered, and the **first draft** of the check they
+  // prove reported `46 invariants hold.` against a third variant — the route
+  // handing `breadth.claim` in as a prop — which is why the check now requires
+  // every rendering of the clause to be rooted at `view.claim`. The transcript
+  // is in `TASK-06`.
+  {
+    name: "the-rankings-denominator-is-silenced",
+    proves:
+      "The movers region's footer — the only place on that surface that says " +
+      "what the two lists were ranked over — is swept into the accessibility " +
+      "tree's blind spot by an `aria-hidden` it inherits from the siblings it " +
+      "sits among. `RankedList`'s `.rules` and `.ladder` both carry one " +
+      "legitimately, so the edit reads as tidying. The region draws NO " +
+      "ladder and prints no denominator anywhere, so after it a listener " +
+      "gets ten ranked rows with nothing to measure the selection against — " +
+      "a top five over 446 of 503 that looks exactly as confident as one " +
+      "over all of them. The DOM is correct, every component test passes, " +
+      "every browser spec that reads text passes, and axe is silent.",
+    file: "apps/frontend/src/components/Movers/Movers.tsx",
+    find: "      <p className={cx(styles.claim)}>",
+    replace: '      <p className={cx(styles.claim)} aria-hidden="true">',
+    command: ["pnpm", "invariants"],
+    expect: "hides the region's only denominator",
+  },
+  {
+    name: "the-ranking-reads-the-breadth-denominator",
+    proves:
+      "The ranked region's sentence is built from the BREADTH section's " +
+      "count rather than from the movers section's own `eligible`. The two " +
+      "are the same number by construction — one eligibility pass over one " +
+      "array, consumed twice — so every state anybody photographs is " +
+      "byte-identical and no test can tell. It is still wrong: " +
+      "`encodeBreadth` drops the whole breadth section on one non-finite " +
+      "count (ADR 0031), and the ranked region then states no denominator at " +
+      "all in precisely the state `WireMoverLists.eligible` was added to " +
+      "survive — which is a ranked list with no denominator, the one thing " +
+      "Story 4.5 must not ship.",
+    file: "apps/frontend/src/market/movers.ts",
+    find: "    count: movers.eligible,",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    count: breadth.measured,",
+    command: ["pnpm", "invariants"],
+    expect: "reaches the breadth section",
+  },
   {
     name: "the-denominator-is-drawn-and-not-spoken",
     proves:

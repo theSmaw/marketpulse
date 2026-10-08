@@ -1,4 +1,4 @@
-import { memo, useId } from "react";
+import { memo, useId, type ReactNode } from "react";
 
 import { MOVERS_PER_SIDE } from "@marketpulse/shared";
 
@@ -68,10 +68,12 @@ import styles from "./Movers.module.css";
 //     nothing. (`RankedList.module.css` attributes the filling of it to *this*
 //     task; the row type has no price, so it could not be done here without
 //     inventing a figure with no producer.)
-//   - **No denominator sentence.** The footer's two-line room is reserved here
-//     and left empty; the words — *of the N we track, M were heard from* — are
-//     Task 4.5.6's, where the two grammars and the one-sided market are
-//     decided together.
+//   - ~~**No denominator sentence.**~~ **It arrived 2026-10-08 (Task 4.5.6)**,
+//     in the room this task reserved and in the element this task drew: the
+//     footer states what the lists were ranked over, in the grammar of the
+//     basis the wire sent, with every figure read off the frame. Beside it came
+//     the one-sided market's two sentences — `None of the names we measured
+//     rose.` — and the head slot's suppression at a set of none.
 //   - **No hold.** `ORDER HELD` at two lists is Task 4.5.7's. The head slot's
 //     room is reserved so the badge moves nothing when it arrives.
 
@@ -127,6 +129,46 @@ const NOTHING_ARRIVED = "No moves to rank yet.";
  */
 const NO_BAR: RankedListBar = { kind: "none" };
 
+/**
+ * **One side's room, with the sentence that explains it when it is empty** —
+ * the one-sided market, Task 4.5.6.
+ *
+ * ## Why the sentence is laid OVER the list rather than above it
+ *
+ * The list keeps its five rows in every state — `withHeldRows` pads it, so the
+ * room is the row pitch times five and the pitch has exactly one home, in
+ * `.row`. A sentence placed **above** the `<ol>` would add a sixth line to the
+ * region's 466 px against a 486 px box, and at 768 and 390 the grid row is
+ * content-sized, so the whole lower page would step the moment a market went
+ * one-sided. Laid over the held rows it costs nothing: the room is already
+ * reserved and already empty.
+ *
+ * It is `MoversReservation`'s two-box shape rather than a fourth idea — the
+ * positioned parent holds the room, the sentence is an absolutely-positioned
+ * sibling — and the held rows keep their own `aria-hidden`, so a listener
+ * reaches the heading and then the sentence with nothing between them.
+ *
+ * `undefined` draws no element at all. The wrapper is unconditional, because a
+ * `position: relative` that comes and goes is a containing block that comes and
+ * goes.
+ */
+const EmptySide = memo(function EmptySide({
+  sentence,
+  children,
+}: {
+  readonly sentence: string | undefined;
+  readonly children: ReactNode;
+}) {
+  return (
+    <div className={cx(styles.side)}>
+      {children}
+      {sentence === undefined ? undefined : (
+        <p className={cx(styles.empty)}>{sentence}</p>
+      )}
+    </div>
+  );
+});
+
 export interface MoversProps {
   /** The two ends, from the movers section of the overview frame (Task 4.5.4). */
   readonly view: MarketMovers;
@@ -150,12 +192,14 @@ export const Movers = memo(function Movers({ view }: MoversProps) {
       <h3 className={cx(styles.head)} id={gainersHeadingId}>
         {GAINERS}
       </h3>
-      <RankedList
-        rows={withHeldRows(view.gainers)}
-        bar={NO_BAR}
-        name={{ labelledBy: gainersHeadingId }}
-        quietGroup="impossible"
-      />
+      <EmptySide sentence={view.gainersEmpty}>
+        <RankedList
+          rows={withHeldRows(view.gainers)}
+          bar={NO_BAR}
+          name={{ labelledBy: gainersHeadingId }}
+          quietGroup="impossible"
+        />
+      </EmptySide>
 
       {/*
        * **The second heading carries `--rule-control` and `--space-8`**, which
@@ -167,12 +211,14 @@ export const Movers = memo(function Movers({ view }: MoversProps) {
       <h3 className={cx(styles.head, styles.headSecond)} id={losersHeadingId}>
         {LOSERS}
       </h3>
-      <RankedList
-        rows={withHeldRows(view.losers)}
-        bar={NO_BAR}
-        name={{ labelledBy: losersHeadingId }}
-        quietGroup="impossible"
-      />
+      <EmptySide sentence={view.losersEmpty}>
+        <RankedList
+          rows={withHeldRows(view.losers)}
+          bar={NO_BAR}
+          name={{ labelledBy: losersHeadingId }}
+          quietGroup="impossible"
+        />
+      </EmptySide>
 
       {/*
        * **The footer's room, held and empty** — Task 4.5.6 writes the sentence.
@@ -188,7 +234,45 @@ export const Movers = memo(function Movers({ view }: MoversProps) {
        * Reserved **now** rather than when the words arrive, because the height
        * budget this region was sized against includes it: 44 px of the 466.
        */}
-      <p className={cx(styles.claim)} />
+      <p className={cx(styles.claim)}>
+        {/*
+         * **The denominator, and it is the ranking's honesty rather than a
+         * caption** (Task 4.5.6).
+         *
+         * A top five computed over 446 of 503 looks exactly as confident as one
+         * computed over all of them, which is `EPIC.md`'s *an aggregate is the
+         * one kind of number that can be wrong while looking right* in its
+         * sharpest form. So the region states what it was ranked over, in the
+         * grammar of the basis the wire sent, with the window and the set read
+         * off the frame — `moversClaimOf` builds both renderings in one place.
+         *
+         * **It may never carry `aria-hidden`.** Three of this region's
+         * siblings legitimately do — `RankedList`'s `.rules`, its `.ladder`,
+         * `BreadthLedger`'s `.headlineRule` — so sweeping the attribute onto a
+         * footer that sits among them is the plausible edit, and it would leave
+         * the only denominator in the region unreachable by a listener while
+         * the DOM stays correct. `the-ranking-states-its-own-denominator`
+         * refuses it, and the accessibility tree is the only instrument that
+         * can see it.
+         */}
+        {view.claim.drawn === view.claim.spoken ? (
+          /*
+           * **One string, so one element** — `BreadthLedger`'s decision at the
+           * same element, and the state this region is in today: it draws no
+           * ladder and prints no denominator, so the drawn half has nothing to
+           * defer to and the two renderings are equal. Splitting an identical
+           * string across a hidden span and a spoken one would put it in
+           * `textContent` twice, which reads as a duplicate to anything walking
+           * the DOM.
+           */
+          view.claim.drawn
+        ) : (
+          <>
+            <span aria-hidden="true">{view.claim.drawn}</span>
+            <span className={cx(styles.spoken)}>{view.claim.spoken}</span>
+          </>
+        )}
+      </p>
     </>
   );
 });
@@ -218,12 +302,39 @@ export const Movers = memo(function Movers({ view }: MoversProps) {
  * Task 4.3.6 found in a browser, where a four-pixel taller badge moved all
  * eleven rows on pointer enter. The badge itself is not built here.
  */
-export const MoversMeta = memo(function MoversMeta() {
+export const MoversMeta = memo(function MoversMeta({ view }: MoversProps) {
+  /*
+   * **It falls silent when nothing was selected** — Task 4.5.6's decision, on
+   * `SectorPerformanceMeta`'s precedent one region up, which speaks only in
+   * the mixed state.
+   *
+   * `Top 5 each way` states the **bound** and is not false with nothing in the
+   * lists. But in that state it is the only text on the screen besides two
+   * empty headings and the footer's sentence, and it reads as a claim about a
+   * selection that selected nothing — two true halves and one contradiction,
+   * which is `docs/GAPS.md` entry 13's own shape. The footer says what is
+   * actually true there: *of the 503 we track, none were heard from in the
+   * last 5 minutes — there is nothing to rank.* A bound stated over that is
+   * noise beside it.
+   *
+   * A **short** list keeps the badge, which is the same judgement taken the
+   * other way: five gainers and no losers is a one-sided market rather than an
+   * absent answer, and the bound is exactly the fact that tells a reader the
+   * list is not truncated.
+   *
+   * The slot's room is reserved by `.slot` rather than by either string, so
+   * nothing moves when the badge goes — which is also what will let Task
+   * 4.5.7's `ORDER HELD` arrive without taking the head four pixels taller.
+   */
+  const selected = view.gainers.length > 0 || view.losers.length > 0;
+
   return (
     <span className={cx(styles.slot)}>
-      <span className={cx(styles.bound)}>
-        {`Top ${String(MOVERS_PER_SIDE)} each way`}
-      </span>
+      {selected ? (
+        <span className={cx(styles.bound)}>
+          {`Top ${String(MOVERS_PER_SIDE)} each way`}
+        </span>
+      ) : undefined}
     </span>
   );
 });
