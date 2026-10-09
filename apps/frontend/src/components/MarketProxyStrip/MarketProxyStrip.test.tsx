@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -7,6 +7,8 @@ import type {
   WireOverviewFigure,
 } from "@marketpulse/shared";
 
+import { securityPath } from "../../routes/paths.js";
+import { renderWithContext } from "../../test-render.js";
 import { MarketProxyStrip } from "./MarketProxyStrip.js";
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "./use-waited.js";
 
@@ -44,12 +46,15 @@ const SATURDAY = "2026-09-26T14:00:00.000Z";
 const NO_OBSERVATIONS = new Map<string, Bar>();
 const NO_SNAPSHOT = new Set<string>();
 
+// `renderWithContext` rather than a bare `render`, since Task 4.6.3: the
+// symbol token is a React Router `Link` and rendering one with no router
+// throws.
 const strip = (
   overview: WireMarketOverview | undefined,
   observations = NO_OBSERVATIONS,
   fromSnapshot = NO_SNAPSHOT,
 ) =>
-  render(
+  renderWithContext(
     <MarketProxyStrip
       overview={overview}
       observations={observations}
@@ -263,6 +268,119 @@ describe("MarketProxyStrip", () => {
     expect(
       screen.queryByText("No prices stored for these four yet."),
     ).toBeNull();
+  });
+
+  describe("the symbol is the way in, and the figure never is", () => {
+    // Task 4.6.3. Four plain tab stops, one per cell — no roving group and no
+    // arrow keys, because the strip is a grid of cells rather than a list and
+    // at 390 it is 2×2, where `ArrowRight` would have to mean two things.
+    // jsdom computes no layout, so the 2×2 is `pnpm probe`'s; what is asserted
+    // here is the count, the destination and the name.
+
+    const four = frame([
+      observed("SPY", 774.03),
+      observed("QQQ", 601.88),
+      observed("DIA", 525.79),
+      observed("IWM", 288.89),
+    ]);
+
+    it("gives each proxy one link to its own security, and no more", () => {
+      strip(four);
+
+      const links = screen.getAllByRole("link");
+
+      expect(links.map((link) => link.getAttribute("href"))).toEqual([
+        securityPath("SPY"),
+        securityPath("QQQ"),
+        securityPath("DIA"),
+        securityPath("IWM"),
+      ]);
+    });
+
+    it("names the link with the bare ticker rather than the cell", () => {
+      // **The cell's text moves and the name must not.** A cell-wide name is
+      // `SPY 774.03 up +0.42% …`, which changes up to sixteen times a minute:
+      // unannounceable, unrepeatable, and it breaks `getByRole("link", …)` in
+      // every spec that touches it. So the name is asserted as an exact
+      // string, with a figure and a change on screen beside it.
+      strip(four);
+
+      const link = screen.getByRole("link", { name: "SPY" });
+
+      expect(link.textContent).toBe("SPY");
+      expect(screen.getByText("774.03")).toBeTruthy();
+    });
+
+    it("leaves the figure out of the link, in every state that draws one", () => {
+      // The figure is never the link: a number whose glyphs change under the
+      // reader cannot also carry *this can be pressed*, because the signal
+      // that fires on its own wins. Checked against the two states that draw
+      // a figure and the one that draws words instead.
+      const states: WireMarketOverview[] = [
+        frame([observed("SPY", 774.03)]),
+        frame([
+          {
+            state: "stored",
+            symbol: "SPY",
+            session: "2026-09-11",
+            close: 764.29,
+          },
+        ]),
+        frame([{ state: "unknown", symbol: "SPY" }]),
+      ];
+
+      for (const overview of states) {
+        const { unmount } = strip(overview);
+
+        for (const link of screen.getAllByRole("link")) {
+          expect(link.textContent).toBe("SPY");
+        }
+
+        unmount();
+      }
+    });
+
+    it("still offers a destination when the figure is unknown", () => {
+      // **The only branch a gated browser ever exercises**: CI's store is 518
+      // securities and zero bars, so every proxy there is `unknown` for ever.
+      //
+      // And it is a destination on purpose. The security exists and its page
+      // is where a reader finds out why there is nothing here; ADR 0029
+      // governs *claims about data*, and a link is not a claim about today's
+      // move.
+      strip(
+        frame([
+          { state: "unknown", symbol: "SPY" },
+          { state: "unknown", symbol: "QQQ" },
+        ]),
+      );
+
+      expect(screen.getAllByText("None stored")).toHaveLength(2);
+      expect(
+        screen.getAllByRole("link").map((link) => link.getAttribute("href")),
+      ).toEqual([securityPath("SPY"), securityPath("QQQ")]);
+    });
+
+    it("offers no links at all when it has no symbols to offer", () => {
+      // **4 or 0, never four disabled links.** `NoFigures` draws four cells of
+      // non-breaking space and *no symbols*, because the set is served rather
+      // than hard-coded — so the trap Story 4.2's hand-off warned about, a
+      // natively `disabled` control carrying an `aria-describedby` no key
+      // press can reach, is foreclosed by construction rather than avoided.
+      //
+      // Both ways of having no figures, because they were one guard apart
+      // once already: no frame, and a frame about nothing.
+      for (const overview of [
+        undefined,
+        { computedAt: "2026-09-25T18:01:00.000Z", feeds: [], figures: [] },
+      ] as (WireMarketOverview | undefined)[]) {
+        const { unmount } = strip(overview);
+
+        expect(screen.queryAllByRole("link")).toEqual([]);
+
+        unmount();
+      }
+    });
   });
 
   describe("when no frame ever arrives", () => {
