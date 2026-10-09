@@ -146,3 +146,32 @@ top` figure was wrong precisely because it divided a per-**batch** aggregate
    aggregate**. Rounding it is a wire change and a product decision — a
    consumer that re-ranks needs the precision — so it is handed to Story 4.9
    beside the frame-composition question rather than taken here.
+
+## Handed here by Task 4.8.5 — 2026-10-09: §18 needs a sentence saying which EVENT its figure is of, and the sweep is wider than two comments
+
+**`CHARTING.md` §18 is not falsified and is now ambiguous**, which is a
+different repair. Its **7.2–8.1 / 12.3–13.2 ms** is the cost of **a bar
+arriving** — the `bars` decode, the `withLiveBars` join, `toBarSeries`, both
+frame builders, React's render **and** the style, layout and paint of a chart
+whose series **changed**. Task 4.8.5's **1.3 / 3.6 ms** is the two frame
+builders **only**, with the series unchanged and the join not running. **Two
+events now rebuild the same chart and §18 says which it measured nowhere.**
+Add the sentence; do not restate the figure.
+
+Note the scaling differs for a reason worth keeping: §18 recorded _3.4× the
+bars costs 1.8× the script_, while the builders alone cost **2.8×** — because
+they are the linear part and §18 carries the fixed costs ADR 0027's silhouette
+dividend applies to.
+
+**And the sweep is wider than the two comments 4.8.5 amended.** It corrected
+`ChartReading.tsx` and `PriceChart.test.tsx`, both premised on _nothing
+re-renders this chart_ — **false from 2026-09-26 to 2026-10-09**. Its greps:
+`Nothing re-render` / `re-rendered the chart` / `never re-render` → **3 hits, 2
+live, both amended**; `memois`/`unmemoised` → five further sites, all
+describing memos that do exist. **Run the wider grep for comments premised on
+_nothing re-renders this_ anywhere in the frontend**, because that premise was
+true of the whole tree until Story 4.2 and is now false everywhere.
+
+**The quiet-arm figure belongs in §28's account of what the page costs when
+nothing arrives**: 2 chart rebuilds a minute from the health poll, 0 builds
+between polls.

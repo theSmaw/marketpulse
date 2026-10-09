@@ -612,6 +612,15 @@ describe("what the coverage treatment renders", () => {
 // what this test can see: a `useMemo` would make the recomputation *conditional*
 // on a dependency array somebody has to keep right, and would still re-render
 // this component. Here the component does not render at all.
+//
+// > **Amended 2026-10-09 by Task 4.8.5.** _"Nothing re-rendered this component
+// > before today"_ was true when written and stopped being true on 2026-09-26:
+// > Story 4.2 gave every route an overview frame, so this component rebuilds
+// > its frame **~16 times a minute** on `/securities/:symbol` while nothing it
+// > draws changes. **What this test asserts is unaffected** — it is about the
+// > *crosshair* path, and that property still holds — so the test is unchanged.
+// > The measurement and the decision not to memoise are in `ChartReading.tsx`'s
+// > own amendment and in Task 4.8.5's record.
 describe("what a reading costs", () => {
   it("recomputes the frame zero times across forty arrow presses", () => {
     measureEverythingAt(800, 280);
