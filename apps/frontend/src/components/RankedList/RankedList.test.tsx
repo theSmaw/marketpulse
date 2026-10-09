@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -8,6 +8,7 @@ import {
 } from "@marketpulse/shared";
 
 import type { SectorRow } from "../../market/index.js";
+import { renderWithContext } from "../../test-render.js";
 import { RankedList } from "./RankedList.js";
 
 // What a test here can and cannot see, because this component's whole subject
@@ -75,7 +76,7 @@ const REORDERED: readonly SectorRow[] = [
 ];
 
 const draw = (rows: readonly SectorRow[] = THREE) =>
-  render(
+  renderWithContext(
     <RankedList
       rows={rows}
       bar={{ kind: "signed", scale: 2 }}
@@ -89,7 +90,7 @@ const drawMovers = (
   rows: readonly SectorRow[] = THREE,
   name: string | { readonly labelledBy: string } = "Gainers",
 ) =>
-  render(
+  renderWithContext(
     <RankedList
       rows={rows}
       bar={{ kind: "none" }}
@@ -378,17 +379,227 @@ describe("RankedList", () => {
     // row — `NVDA` means something and `XLK` does not — and placing the cells
     // from CSS instead would draw ticker-then-name while handing a listener
     // name-then-ticker, invisibly to axe, to jsdom and to a screenshot.
+    //
+    // **`li > *` rather than `li > span`**, and the difference is Task 4.6.4's:
+    // the ticker cell is an `<a>` on every row that is a destination, so a
+    // span-only selector reads the row with its second cell missing and the
+    // assertion fails naming a *cell order* defect that is not there.
     const mover = drawMovers([row("NVDA", "NVIDIA Corporation", 1, 4.21)]);
-    const moverCells = [...mover.container.querySelectorAll("li > span")].map(
+    const moverCells = [...mover.container.querySelectorAll("li > *")].map(
       (cell) => cell.textContent,
     );
     expect(moverCells.slice(0, 3)).toEqual(["1", "NVDA", "NVIDIA Corporation"]);
     mover.unmount();
 
     const sector = draw([row("XLK", "Technology", 1, 1.84)]);
-    const sectorCells = [...sector.container.querySelectorAll("li > span")].map(
+    const sectorCells = [...sector.container.querySelectorAll("li > *")].map(
       (cell) => cell.textContent,
     );
     expect(sectorCells.slice(0, 3)).toEqual(["1", "Technology", "XLK"]);
+  });
+});
+
+/**
+ * **The destinations and the roving stop** (Task 4.6.4).
+ *
+ * What this level can see is the markup and `document.activeElement`: which
+ * rows are links, what each link's name and href are, which one carries the
+ * stop, and where a key press leaves focus. **What it cannot see is the
+ * treatment** — jsdom applies no stylesheet, so the hover ground, the
+ * underline and the focus ring are `pnpm probe`'s and
+ * `overview-ranked-keyboard.spec.ts`'. Nor can it see the thing the symbol
+ * keying exists for in the wild: a re-order driven by a frame, which is that
+ * spec's too. The re-order below is a `rerender` with the rows swapped, which
+ * is the same transition with the wire taken out.
+ */
+describe("the ticker link, and the roving stop over it", () => {
+  const tickers = () =>
+    screen.getAllByRole("link").map((link) => link.textContent);
+
+  const focused = () => document.activeElement?.textContent;
+
+  const press = (key: string) => {
+    fireEvent.keyDown(document.activeElement ?? document.body, { key });
+  };
+
+  // `act`, because the stop is React state written from the focus event:
+  // outside it the DOM moves and the `tabIndex` attributes are read one render
+  // behind — which looks exactly like a stop that did not move.
+  const focus = (element: HTMLElement) => {
+    act(() => {
+      element.focus();
+    });
+  };
+
+  it("makes every row a destination, named by the bare ticker", () => {
+    draw();
+
+    // The accessible name is the ticker and nothing else — not the row. A
+    // cell-wide name carries a figure that changes up to sixteen times a
+    // minute, which is unannounceable and unrepeatable, and it breaks
+    // `getByRole("link", { name })` in every spec that touches it.
+    for (const symbol of ["XLK", "XLB", "XLE"]) {
+      expect(
+        screen.getByRole("link", { name: symbol }).getAttribute("href"),
+      ).toBe(`/securities/${symbol}`);
+    }
+  });
+
+  it("makes a QUIET sector row a destination too", () => {
+    // `UNIVERSE.md` §12.2's rule arriving at navigation: a row we are refusing
+    // to **rank** is still a security with stored bars, and its page is the
+    // right place to find out why there is nothing to rank. So the sector
+    // region has two roving groups, not one — which is exactly the shape
+    // `Movers` has for an entirely different reason.
+    draw([
+      row("XLK", "Technology", 1, 1.84),
+      row("XLU", "Utilities", undefined, undefined),
+    ]);
+
+    const quiet = screen.getByRole("list", { name: "Not ranked" });
+    expect(
+      within(quiet).getByRole("link", { name: "XLU" }).getAttribute("href"),
+    ).toBe("/securities/XLU");
+  });
+
+  it("hands a held pad no link at all", () => {
+    // Three claims and one absence: a pad holds no stop, no arrow reaches it
+    // and `End` cannot land on it — because there is no anchor in it. Its
+    // symbol is a run of non-breaking spaces, so the link a naive
+    // implementation draws is `/securities/%C2%A0`, in CI's permanent state.
+    drawMovers([
+      row("NVDA", "NVIDIA Corporation", 1, 4.21),
+      { ...row("  ", " ", 2, undefined), held: true, absent: undefined },
+    ]);
+
+    expect(tickers()).toEqual(["NVDA"]);
+
+    focus(screen.getByRole("link", { name: "NVDA" }));
+    press("End");
+    expect(focused()).toBe("NVDA");
+  });
+
+  it("gives the list ONE stop, on the first real row until a reader moves it", () => {
+    draw();
+
+    const [first, second, third] = screen.getAllByRole("link");
+    expect(first?.tabIndex).toBe(0);
+    expect(second?.tabIndex).toBe(-1);
+    expect(third?.tabIndex).toBe(-1);
+
+    if (second !== undefined) focus(second);
+    expect(first?.tabIndex).toBe(-1);
+    expect(second?.tabIndex).toBe(0);
+  });
+
+  it("keeps the stop on the SYMBOL when the list re-orders under it", () => {
+    // **The clause that has no symptom until the list moves.** With an
+    // index-keyed stop, a reader who tabs out of row 3 and back arrives at
+    // whichever sector is now third. Keyed on the symbol they arrive back at
+    // the one they left, wherever it has gone.
+    const { rerender } = draw();
+
+    focus(screen.getByRole("link", { name: "XLE" }));
+    rerender(
+      <RankedList
+        rows={REORDERED}
+        bar={{ kind: "signed", scale: 2 }}
+        name="Sectors"
+        quietGroup="possible"
+      />,
+    );
+
+    expect(tickers()).toEqual(["XLE", "XLK", "XLB"]);
+    expect(screen.getByRole("link", { name: "XLE" }).tabIndex).toBe(0);
+    expect(screen.getByRole("link", { name: "XLB" }).tabIndex).toBe(-1);
+  });
+
+  it("falls back to the first real row when the stop's security leaves", () => {
+    // Membership moves under a hold about 0.3 times a minute. The stop is
+    // derived at render rather than held as an index, so a list that drops the
+    // row a reader left is still reachable in one press. (Where the FOCUS goes
+    // when that row unmounts is Task 4.6.5's.)
+    const { rerender } = draw();
+
+    focus(screen.getByRole("link", { name: "XLE" }));
+    rerender(
+      <RankedList
+        rows={[
+          row("XLK", "Technology", 1, 1.84),
+          row("XLB", "Materials", 2, 0),
+        ]}
+        bar={{ kind: "signed", scale: 2 }}
+        name="Sectors"
+        quietGroup="possible"
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "XLK" }).tabIndex).toBe(0);
+  });
+
+  it("moves one row at a time with the arrows and CLAMPS at both ends", () => {
+    // **It does not wrap, and that is a departure from `TimeWindowControl`
+    // rather than an oversight.** That control wraps because the set is a
+    // ring; a ranking is not one, and `#3 → ArrowDown → #1` reads as a jump in
+    // a structure whose entire meaning is ordinal.
+    draw();
+
+    focus(screen.getByRole("link", { name: "XLK" }));
+    press("ArrowUp");
+    expect(focused()).toBe("XLK");
+
+    press("ArrowDown");
+    expect(focused()).toBe("XLB");
+    press("ArrowDown");
+    expect(focused()).toBe("XLE");
+    press("ArrowDown");
+    expect(focused()).toBe("XLE");
+
+    press("Home");
+    expect(focused()).toBe("XLK");
+    press("End");
+    expect(focused()).toBe("XLE");
+  });
+
+  it("does not cross between the two lists, and scopes Home and End to the one focus is in", () => {
+    // Crossing takes a listener from *item 3 of 3* to *item 1 of 2* under one
+    // key with no spoken boundary. They are two lists with two accessible
+    // names, not one list with a rule through it.
+    draw([
+      row("XLK", "Technology", 1, 1.84),
+      row("XLB", "Materials", 2, 0),
+      row("XLU", "Utilities", undefined, undefined),
+      row("XLV", "Health Care", undefined, undefined),
+    ]);
+
+    focus(screen.getByRole("link", { name: "XLB" }));
+    press("ArrowDown");
+    expect(focused()).toBe("XLB");
+    press("End");
+    expect(focused()).toBe("XLB");
+
+    focus(screen.getByRole("link", { name: "XLV" }));
+    press("ArrowUp");
+    expect(focused()).toBe("XLU");
+    press("Home");
+    expect(focused()).toBe("XLU");
+  });
+
+  it("leaves Space, Tab and every other key to the browser", () => {
+    // `Space` because an `<a href>` does not activate on it and a reader
+    // inside a `Panel` with `overflow: auto` is relying on it to scroll;
+    // `Tab` because a handler that swallows it traps the group. The proxy for
+    // *left to the browser* at this level is that focus did not move and the
+    // event was not defaultPrevented.
+    draw();
+
+    const first = screen.getByRole("link", { name: "XLK" });
+    focus(first);
+
+    for (const key of [" ", "Tab", "PageDown", "a"]) {
+      const handled = !fireEvent.keyDown(first, { key });
+      expect(handled).toBe(false);
+      expect(focused()).toBe("XLK");
+    }
   });
 });

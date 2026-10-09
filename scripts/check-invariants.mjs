@@ -4844,6 +4844,132 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "one-home-for-imperative-navigation",
+    claim:
+      "One file in the frontend may move the address in a handler, and it " +
+      "is a route. Every surface that draws a row reaches its security " +
+      "through a `<Link to={securityPath(symbol)}>` resolved at RENDER from " +
+      "the row's own identity, so no frame can land between the key press " +
+      "and the address.",
+    check() {
+      // ## This check was written with a hard-coded list of four directories,
+      // ## and it passed on the defect it exists to refuse
+      //
+      // Task 4.6.4's own brief names the four — `RankedList/`, `Movers/`,
+      // `SectorPerformance/`, `MarketProxyStrip/` — and a check over exactly
+      // those four is the obvious implementation. **It is green on
+      // `components/UnusualActivity/UnusualActivity.tsx`**, a `<button
+      // onClick={() => navigate(securityPath(…))}>` in a new region's own
+      // directory, which is the file Epic 5 writes on this same screen. The
+      // transcript of it passing wrongly is in the task record: `49 invariants
+      // hold.`, exit 0, with the defect on disk.
+      //
+      // That is this repository's recorded failure mode arriving for the
+      // fifth time — *a corpus that was a hard-coded file list* — and the
+      // reason it keeps arriving is that the defect is not written in the
+      // files the author of the check had open. **A new region is a new
+      // directory by this repository's own convention**, so a directory list
+      // is a corpus that cannot see the next region by construction.
+      //
+      // So the corpus is `shippedSourceFiles()`, which walks the trees, and
+      // the question becomes which files may navigate rather than which may
+      // not. **One may**, and it is named below.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // Not `<button>` and not `onClick`: those are a shape, and a shape has
+      // a dozen spellings. It is the **call that performs the navigation** —
+      // a hook, a function call, or an assignment to the address — because
+      // whatever they build, something has to move the address, and a `<Link>`
+      // is the only way to do it that resolves at render.
+      const IMPERATIVE = [
+        "useNavigate",
+        "navigate(",
+        "location.assign",
+        "location.href",
+      ];
+
+      /**
+       * **The one file in the application that may navigate imperatively, and
+       * it is a route rather than a surface.**
+       *
+       * `SecurityExplorer` does it twice, and both are a reader's own
+       * submitted answer rather than a row: the search field commits a symbol,
+       * and the window control commits a session count. Neither resolves an
+       * identity from a position in a list that moves, which is the whole
+       * hazard this check is about.
+       *
+       * It is an allowance rather than a directory exclusion so that the next
+       * route to want one has to come here and write down why.
+       */
+      const MAY_NAVIGATE = "apps/frontend/src/routes/SecurityExplorer.tsx";
+
+      const sources = shippedSourceFiles().map(({ path, text }) => ({
+        path: relative(REPO_ROOT, path),
+        text: withoutTrailingComments(text),
+      }));
+
+      // **Two anchors, because a ban passes vacuously in two ways.** The rows
+      // must still be drawing links — a ban on the imperative alternative is
+      // worth nothing over a screen with no destinations on it, which is what
+      // this whole surface was until this task — and the allowance must still
+      // be using the thing it is allowed, or it is a stale exemption the next
+      // author inherits without arguing for it.
+      //
+      // The anchor is `RankedList` alone and not every surface that draws a
+      // destination: the corpus below is the whole tree, so a surface is
+      // covered by existing rather than by being listed, and a second name
+      // here would be a second list to keep.
+      const LINKED = "apps/frontend/src/components/RankedList/RankedList.tsx";
+
+      if (!readAnchored(resolve(REPO_ROOT, LINKED)).includes("securityPath(")) {
+        throw new InvariantFailure(
+          `${LINKED} builds no destination with \`securityPath()\`. This ` +
+            "check refuses the imperative alternative, and over a surface " +
+            "with no links on it there is nothing to refuse — so the " +
+            "absence is the failure rather than the pass.",
+        );
+      }
+
+      const allowed = sources.find(({ path }) => path === MAY_NAVIGATE);
+
+      if (
+        allowed === undefined ||
+        !IMPERATIVE.some((token) => allowed.text.includes(token))
+      ) {
+        throw new InvariantFailure(
+          `${MAY_NAVIGATE} is named here as the one file that may navigate ` +
+            "imperatively and it no longer does. Delete the allowance: an " +
+            "exemption nobody uses is an exemption the next author inherits " +
+            "without arguing for it.",
+        );
+      }
+
+      const found = [];
+
+      for (const { path, text } of sources) {
+        if (path === MAY_NAVIGATE) continue;
+
+        for (const token of IMPERATIVE) {
+          if (text.includes(token)) {
+            found.push(`${path} — \`${token}\``);
+          }
+        }
+      }
+
+      if (found.length > 0) {
+        throw new InvariantFailure(
+          "Imperative navigation in a surface that draws rows:\n      " +
+            found.join("\n      ") +
+            "\n    The row's destination is resolved at render from its own " +
+            "identity. A handler resolves it at ACTIVATION, which is where " +
+            "the frame that re-orders the list lands — and the wrong " +
+            "security opens with every number on screen right throughout.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];
