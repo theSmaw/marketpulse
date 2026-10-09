@@ -80,3 +80,31 @@ Gate 2.
 4. `docs/GAPS.md` entries written, with anything mechanisable made mechanical
 5. Story 4.9 carries the frame composition and whatever 4.8.9 discharged
 6. `pnpm verify` and `pnpm e2e` green, and Gate 2 put to the owner
+
+## Handed here by Task 4.8.3 — 2026-10-09
+
+**Three figures the sweep inherits, each measured rather than inherited.**
+
+1. **The aggregate frame's ceiling is 4,078 bytes, not 1,650.** 4.8.2's
+   1,648–1,654 is a frame from a store where most of the universe had not been
+   heard from; with all 518 observed on the observed basis it is **4,078**, and
+   on the session basis **3,142**. CI's shape — nothing observed, no closes — is
+   **928**, measured off the wire and agreeing with 4.8.2 exactly. Anything sized
+   against 1,650, or against ADR 0038's verbatim 431, is sized against a partial
+   market.
+2. **The backend leg per applied batch is 3.72 ms** (tight loop, n = 400 after
+   300 warm-up, two runs, interleaved control reproducing 4.4.4's 3.497 ms to
+   1.4%), of which the join is 3.44 and everything else is 0.22. The per-client
+   fan-out beside it is **1.59 ms** at 518 subscribed and **0.67 ms** per
+   additional client.
+3. **Every absolute figure in this epic needs the tight-loop caveat beside it.**
+   At a 250 ms-or-greater gap the same join reads **12.97–15.43 ms** on this
+   machine, and a fixed-cost control with no ICU and no allocation inflates by
+   the same factor — so the inflation is the machine waking from idle, it applies
+   to every figure equally, and no figure taken this way is a production cost.
+   §28's line is absolute; this caveat is not optional in a §28 sweep.
+
+**And the claim the sweep must not re-introduce**: _"the backend cost does not
+scale with connections"_ is **false of the join** and true of the broadcast
+encode. Five live sites were corrected on 2026-10-09 and six historical ones left
+standing — the table is in Task 4.8.3.

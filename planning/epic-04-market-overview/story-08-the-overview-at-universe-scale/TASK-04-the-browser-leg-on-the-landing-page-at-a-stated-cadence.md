@@ -117,3 +117,29 @@ is in that file.**
 - **`document.visibilityState` is asserted on every page the harness opens**,
   and the socket wrapper carries `wrapperIntact` — if Playwright's own
   `WebSocket` replaces it, the arm reports nothing rather than n = 0.
+
+## Handed here by Task 4.8.3 — 2026-10-09
+
+**The resubscribe rate on `/` is yours, and the gateway side is already
+priced.** One mover substitution is one resubscribe is **one full 518-join** —
+the listener does not compare, so an _identical_ subscription re-asserted costs
+one too, measured against the real gateway. At the tight-loop figure that is
+**3.72 ms** each, on top of the batch that caused it, and the cadence to beat is
+the measured midday floor of **6.8 batches a minute**: the route's own comment
+names _"the point at which the resubscribes overtake the gateway's own cadence"_
+and that point is 6.8 membership changes a minute across the two five-row lists.
+Task 4.8.3 could not produce a substitution at all without a feed; **your
+furnished socket is the first instrument that can**, so the rate is yours by
+condition rather than by preference.
+
+**And a warning about your own figures that is bigger than the product.** Task
+4.8.3 measured the same computation at **3.73 ms** in a tight loop and
+**12.97–15.43 ms** when called once every 250 ms or more — and a fixed-cost
+control loop with no ICU, no allocation and no strings moved by the **same
+factor** (×3.3 against the join's ×3.5–3.8), so the effect is this machine
+waking from idle rather than the computation. **Sample a fixed-cost control at
+the cadence you drive the socket at**, or a frame that arrives once every four
+seconds will read three times its tight-loop cost and look like a regression.
+The paired-calibrator shape that catches it is in 4.8.3's finding 6: take the
+band at the gap, not at the top of the run, or you will discard 79 of 80 honest
+samples.

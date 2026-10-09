@@ -105,3 +105,21 @@ is in that file.**
 - **`document.visibilityState` is asserted on every page the harness opens**,
   and the socket wrapper carries `wrapperIntact` — if Playwright's own
   `WebSocket` replaces it, the arm reports nothing rather than n = 0.
+
+## Handed here by Task 4.8.3 — 2026-10-09
+
+**A cold load of `/` costs THREE full 518-joins on the server before the first
+paint**, counted off the wire by a real browser against the real gateway on a
+quiet feed: one on connect (answering a subscription that is structurally
+empty), one answering a **zero-symbol** subscribe, and one answering the real
+~25-symbol subscribe. `/securities/:symbol` is three as well; **`/investigations`
+is two**, for a page that draws no figure at all. At the tight-loop price on a
+populated store that is **11.2 ms** of server script per cold load of `/`, and
+**11.2n ms** for n browsers.
+
+**None of it is visible to any gated run.** On CI's store — 518 securities, zero
+bars — every entry is `unknown`, `changeFromClose` is never reached, and the
+whole `overviewMessage()` costs **0.056 ms** instead of 3.72. The same is true of
+a freshly started process for its first minute, which is exactly the condition a
+cold-load measurement is taken in. If you want the server leg of your cold load
+to be real, the store behind it has to have bars.

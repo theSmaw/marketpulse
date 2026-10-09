@@ -231,6 +231,19 @@ export interface MarketOverviewInputs {
  * per page. `one-producer-of-the-overview-aggregate` in
  * `scripts/check-invariants.mjs` holds that to one call site.
  *
+ * **Amended 2026-10-09 by Task 4.8.3: one call SITE is not one call.** That
+ * sentence is true of the *batch* path and false of the other two —
+ * `market-gateway.ts`'s `sendSnapshot()` reaches the same unmemoised producer
+ * on every connect and at the foot of every `message` listener, so this
+ * function runs **three times per browser opening `/`** (counted off the wire)
+ * on top of once per applied batch. Measured on an all-518-observed fixture
+ * against the production artefact, n = 400 after 300 warm-up, two runs
+ * agreeing to 0.1%: **3.44 ms** here, **3.72 ms** for the whole
+ * `overviewMessage()` inside the gateway, and **0.013 ms** over a store with
+ * nothing observed — which is why the figure is invisible on CI and on every
+ * cold process. It is not routed around here; the repair, if one is bought, is
+ * a memo at the producer, and the arithmetic is in Task 4.8.3.
+ *
  * The change itself is **not computed here**. `changeFromClose` is
  * `packages/shared`'s, and it is the same function the browser's own table and
  * identity block call. What it carries that a re-implementation would not is

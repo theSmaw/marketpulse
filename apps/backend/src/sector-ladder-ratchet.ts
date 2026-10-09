@@ -26,7 +26,13 @@ import type {
  * Two facts decide it, and both are asymmetries rather than preferences.
  *
  * **The aggregate is computed once per applied batch and broadcast identically
- * to every client** (ADR 0038). A rung computed here is therefore one value
+ * to every client** (ADR 0038) — **and also once per connect and once per
+ * subscribe, which Task 4.8.3 counted on 2026-10-09: three per browser opening
+ * `/`.** The server-side decision below is *strengthened* by that, not
+ * weakened: every one of those extra computations steps **this** cell, so the
+ * rung stays one shared value however many tabs are opening. What it does
+ * reach is the paragraph about the bell, three down — see its own amendment.
+ * A rung computed here is therefore one value
  * every reader shares; a rung computed in a browser is **per tab**, so two
  * people looking at the same market at the same second can see two different
  * scales — and one of them can see a scale nobody else's screen agrees with
@@ -61,6 +67,20 @@ import type {
  * would hand the regular session a scale bought with a few hundred shares, and
  * a reset at midnight would do exactly that. The regular session's first frame
  * is the one that starts the new ladder.
+ *
+ * **Reported 2026-10-09 by Task 4.8.3, and not repaired here: that first frame
+ * need not be a batch.** The producer runs on every connect and every
+ * subscribe, so the frame that starts a session's ladder can be the one
+ * answering a browser that opened the page at 09:30:01 — and before any sector
+ * ETF has a live bar, every one of the eleven is a `stored` figure whose
+ * `sessionChangePercent` `fitSectorLadder` reads through
+ * `moveRankingKey`. So the new session's rung can be set from **the previous
+ * session's close-to-close moves**, with no market data behind it at all: a
+ * day after a ±5% session draws its sector bars at the wide rung for the whole
+ * morning. That is a different case from the thin-pre-market one argued above
+ * and it was never argued; it is a product decision (clamp the rung to
+ * `observed` figures, or accept yesterday's scale as the opening scale) rather
+ * than a measurement, and it is handed to Story 4.9 with Task 4.8.3's record.
  */
 export interface SectorLadderRatchet {
   /**

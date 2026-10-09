@@ -75,8 +75,15 @@ existing two exceptions, which stay quote-only.
 ## Handed here by Story 4.2's close — 2026-09-26: what the overview costs, and where to look
 
 **1. The aggregate is computed ONCE per applied batch and broadcast**, not per
-client — the payload is identical for every browser, unlike `bars`. So the
-backend cost does not scale with connections; the **browser** cost does, because
+client — the payload is identical for every browser, unlike `bars`. ~~So the
+backend cost does not scale with connections~~ — **false of the join, and
+measured false on 2026-10-09 by Task 4.8.3: a cold `/` costs THREE full
+518-joins, `/securities/:symbol` three and `/investigations` two**, counted off
+the wire against the real gateway on a quiet feed. The _payload_ is identical
+for every browser and the _encode_ is one; the computation behind it is not.
+The figure is **3.72 ms** a join on a populated store, so ~11.2 ms of server
+script per browser opening `/`. See Gate 1's falsification 3 and Task 4.8.3.
+The **browser** cost does scale too, because
 every overview frame is a new object reference and therefore **a render on every
 route**, including pages that display no overview. That was accepted
 deliberately (the error direction is over-eager renders rather than a silent
