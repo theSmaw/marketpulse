@@ -314,6 +314,24 @@ session comparison → 0.019 ms. With closes → **3.42 ms**. That 3.4 ms is **5
 the only module in this repository permitted to construct an
 `Intl.DateTimeFormat`, and this path constructs one per entry per batch.
 
+> **Amended 2026-10-09 by Task 4.8.7 — the last clause is false, and the
+> candidate is smaller than it was.** The formatters are memoised in
+> module-level `let`s, so this path constructs **2 `Intl.DateTimeFormat`
+> instances for the life of the process**, not one per entry. Instrumented by
+> patching the constructor over 2,590 `marketDateAt` calls (5 batches × 518):
+> `constructions: 2`. What the 3.4 ms actually was is **`formatToParts`**:
+> `marketDateAt` was `marketWallClockAt(instant).date`, which reads the clock's
+> parts, then reads them again inside `marketOffsetAt`, then reads the offset
+> formatter's own parts — **three calls per answer, one used**, instrumented at
+> **1,554 calls for 518 conversions**. Task 4.8.7 removed the two that were
+> discarded: **3.366 ms → 1.288 ms** over 518 instants (n = 398 of 400 after
+> 300 warm-up, p95 3.425 → 1.356, tight loop, calibrator reference 1.03 ms
+> either side), with the whole wall clock down from three parts reads to two
+> (3.365 → 2.176 ms). **The memoised-conversion cache is still this epic's
+> candidate and is still declined** for the reason stated below; what it is now
+> worth is the remaining 1.29 ms rather than 3.4. `pnpm invariants`'
+> `market-date-reads-the-parts-once` keeps the repair.
+
 **It is not a breach today and was not Story 4.4's to fix.** 3.5 ms is well
 inside §28 and the path runs ~16 times a minute. It becomes this epic's the
 moment either of two things happens: **the cadence rises** — a per-trade or

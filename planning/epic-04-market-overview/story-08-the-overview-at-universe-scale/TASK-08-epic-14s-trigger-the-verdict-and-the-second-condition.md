@@ -219,3 +219,57 @@ many words: **a channel going quiet and a cost going away produce the same
 output**. The zero is a zero — a 120 ms plant was caught by **both** channels on
 **all 40** loads, after each measurement window, on the page that produced the
 figure.
+
+## Handed here by Task 4.8.7 — 2026-10-09: the candidate shrank by 62%, and Epic 14's own premise about it was false
+
+**Every figure the verdict rests on for the join has moved, because the
+candidate was repaired rather than deferred.** `marketDateAt` read the market
+formatter's parts **three times per answer and used one** — `wallClockParts`
+for the clock, then `marketOffsetAt` reading them again plus the offset
+formatter's own parts, with the offset then discarded. Instrumented at **1,554
+`formatToParts` calls for 518 conversions**. One parts read now:
+
+| over 518 instants, tight loop, n = 398 of 400 after 300 warm-up | p50          | p95   |
+| --------------------------------------------------------------- | ------------ | ----- |
+| `marketDateAt` as shipped before 2026-10-09                     | **3.366 ms** | 3.425 |
+| `marketDateAt` after                                            | **1.288 ms** | 1.356 |
+| `marketWallClockAt` before (three parts reads)                  | 3.365 ms     | 3.423 |
+| `marketWallClockAt` after (two)                                 | 2.176 ms     | 2.263 |
+
+Calibrator reference 1.025 / 1.053 ms either side of the change, band 1.6×,
+2 / 400 discarded — so the two columns were taken on the same machine.
+
+**Four things for the verdict.**
+
+**1. Clause B's arithmetic needs re-doing against 1.29 ms, not 3.4.** Task
+4.4.4's attribution was _3.4 of the 3.5 ms a batch is 518 `marketDateAt`
+calls_. Two thirds of that term is gone, so the join should now cost ~1.4 ms a
+batch tight. **Re-measure it rather than subtracting**: nothing in this task
+re-ran `join-cost.mjs`, and the join's other terms were measured with the dear
+version of this function underneath them.
+
+**2. Epic 14's stated premise about this path was false and now carries a dated
+amendment.** `epic-14-performance-scale-validation/EPIC.md` said the path
+_"constructs one `Intl.DateTimeFormat` per entry per batch"_. It constructs
+**2 for the life of the process** — the formatters are memoised in module-level
+`let`s — instrumented by patching the constructor over 2,590 calls. The cost
+was never construction; it was the discarded parts reads. The amendment is in
+place; a verdict quoting that sentence should quote the amendment.
+
+**3. The minute-keyed cache is still Epic 14's candidate and is still
+declined.** The owner declined it at Gate 1 (module-level mutable state in the
+one module this repository appoints by lint rule as a pure conversion seam).
+What changed is its **value**: it was worth 3.4 ms a batch and is now worth
+1.29, against the same architectural cost.
+
+**4. The absolute-figure caveat from 4.8.3 is unchanged and applies to the
+table above.** Both columns are tight-loop figures; at a 250 ms gap the same
+before/after pair reads 8.99 ms and 3.82 ms, with the calibrator itself
+inflating 3.7×. The **ratio** is gap-invariant (2.70× tight, 2.69× gapped) and
+the absolutes are not a production cost.
+
+**And one instrument artefact worth inheriting**: at a non-zero gap, the
+**first** arm sampled after the sleep absorbs the wake cost, which reads as
+that arm being dearer. Measured: unrotated, the before-arm read 8.989 ms and
+the control 10.096 ms in the same burst at gap 250; rotating the arm order per
+burst removed it. A/B/A/B per burst is not enough on its own — rotate.

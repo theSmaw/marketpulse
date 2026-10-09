@@ -70,6 +70,9 @@ import process from "node:process";
 const REPO_ROOT = resolve(import.meta.dirname, "..");
 
 const BUNDLE_DIR = resolve(REPO_ROOT, "apps/frontend/dist/assets");
+
+// Task 4.8.7: the one module allowed to convert between UTC and market time.
+const MARKET_TIME_MODULE = "packages/shared/src/market-time.ts";
 const CHART_DIR = resolve(REPO_ROOT, "apps/frontend/src/components/PriceChart");
 
 /**
@@ -4969,6 +4972,184 @@ const INVARIANTS = [
             "the frame that re-orders the list lands — and the wrong " +
             "security opens with every number on screen right throughout.",
         );
+      }
+    },
+  },
+  // **A computation removed, and nothing about the tree says it stayed
+  // removed — Task 4.8.7.**
+  //
+  // `marketDateAt` was `marketWallClockAt(instant).date` until 2026-10-09,
+  // which is **three** `Intl.formatToParts` calls per answer and uses one:
+  // `wallClockParts` for the clock, then `marketOffsetAt` reading the same
+  // parts again and the offset formatter's own parts a third time — and the
+  // offset is then discarded. Instrumented at **1,554 calls for 518
+  // conversions**, and measured at **3.366 ms → 1.288 ms** over 518 instants
+  // (n = 398 after 300 warm-up, tight loop, calibrator reference 1.03–1.05 ms
+  // either side). It is 93% of Story 4.2's 3.44 ms join, which runs
+  // `batches + 3 × cold loads + resubscribes` times, and `UniverseTable` pays
+  // the same 518 calls per live tick in the browser.
+  //
+  // ## Why a check rather than a comment
+  //
+  // *This function reads the formatter once* is invisible the day somebody
+  // re-expresses it as the delegation — which is the **better-looking** code,
+  // reads as one fact with one home, and is what a reviewer would ask for.
+  // `CLAUDE.md`: a claim about a mechanism reads identically whether the
+  // mechanism is there or not.
+  //
+  // ## The draft that passed WRONGLY, and its transcript
+  //
+  // The first version asserted, at **file** level, that `market-time.ts`
+  // declares and calls `marketDateFromParts`. Run against the file the next
+  // author writes — the delegation above restored, everything else untouched —
+  // it reported `50 invariants hold.` It is green because `marketWallClockAt`
+  // still calls the helper: a file-level grep cannot see **which** function
+  // does, and the whole defect is which one.
+  //
+  // ## The clause the re-implementer cannot avoid writing
+  //
+  // Not the helper's name and not `formatToParts`: it is **the offset, inside
+  // this function's own body**. Any re-expression that recovers the discarded
+  // computation has to name one of the four things that produce it —
+  // `marketWallClockAt`, `marketOffsetAt`, `marketOffsetFromParts` or the
+  // offset formatter — and any re-expression that reads the parts twice has
+  // to call `wallClockParts` twice. So the body is extracted and both are
+  // asserted of it, and `marketWallClockAt`'s own body is asserted to go
+  // through the same helper, because *one fact, one home* is the other half of
+  // the repair and a second copy of the assembly is the other way to lose it.
+  //
+  // **Reversal trigger:** the first market-date question whose answer depends
+  // on the UTC offset in effect — a date derived by arithmetic on an instant
+  // rather than read from the formatter's parts — at which point the two
+  // functions stop being able to share one parts read and this check is wrong.
+  {
+    id: "market-date-reads-the-parts-once",
+    claim:
+      "`marketDateAt` reads the market formatter's parts exactly once and " +
+      "computes no UTC offset — it is not `marketWallClockAt(instant).date`, " +
+      "which is three `formatToParts` calls for one answer — and the " +
+      "assembly it shares with `marketWallClockAt` has one home.",
+    check() {
+      const text = withoutTrailingComments(
+        readAnchored(resolve(REPO_ROOT, MARKET_TIME_MODULE)),
+      );
+
+      /**
+       * One function's body, braces balanced.
+       *
+       * The parameter list is **paren-matched first**, so a destructured
+       * parameter's `{` cannot be mistaken for the body's opening brace —
+       * `CLAUDE.md`'s own recorded brace-matcher defect, from Task 4.2.1.
+       */
+      const bodyOf = (name) => {
+        const signature = `export function ${name}(`;
+        const start = text.indexOf(signature);
+
+        if (start === -1) {
+          throw new InvariantFailure(
+            `${MARKET_TIME_MODULE} no longer exports \`${name}\`. This check ` +
+              "is about which of two functions reads the formatter, so a " +
+              "missing subject is the failure rather than the pass.",
+          );
+        }
+
+        let index = start + signature.length - 1;
+        let parens = 0;
+
+        do {
+          const character = text[index];
+          if (character === "(") parens += 1;
+          else if (character === ")") parens -= 1;
+          index += 1;
+        } while (parens > 0 && index < text.length);
+
+        const open = text.indexOf("{", index);
+        let braces = 0;
+        let cursor = open;
+
+        do {
+          const character = text[cursor];
+          if (character === "{") braces += 1;
+          else if (character === "}") braces -= 1;
+          cursor += 1;
+        } while (braces > 0 && cursor < text.length);
+
+        if (braces !== 0) {
+          throw new InvariantFailure(
+            `Could not read \`${name}\`'s body out of ` +
+              `${MARKET_TIME_MODULE} — the braces do not balance.`,
+          );
+        }
+
+        return text.slice(open, cursor);
+      };
+
+      // **The anchor, and it is the half that rots.** A ban on the offset
+      // path is worth nothing if the parts read it is an alternative to has
+      // been renamed or removed: the check would then be refusing a spelling
+      // nobody would write and certifying nothing.
+      if (!text.includes("function wallClockParts(")) {
+        throw new InvariantFailure(
+          `${MARKET_TIME_MODULE} no longer has a \`wallClockParts\` — the ` +
+            "one parts read this check is about. Rename it here too, or " +
+            "this check is green against anything.",
+        );
+      }
+
+      const date = bodyOf("marketDateAt");
+      const wall = bodyOf("marketWallClockAt");
+
+      // 1. The offset, inside `marketDateAt`'s own body. Every way of
+      //    recovering the discarded computation names one of these.
+      const OFFSET_PATH = [
+        "marketWallClockAt",
+        "marketOffsetAt",
+        "marketOffsetFromParts",
+        "getOffsetFormatter",
+        "offsetFormatter",
+      ];
+      const routed = OFFSET_PATH.filter((token) => date.includes(token));
+
+      if (routed.length > 0) {
+        throw new InvariantFailure(
+          `\`marketDateAt\` routes through the offset path — ` +
+            `${routed.map((token) => `\`${token}\``).join(", ")}. A market ` +
+            "date does not depend on the UTC offset in effect, and " +
+            "computing one costs two extra `Intl.formatToParts` calls per " +
+            "answer that are then thrown away: 1,554 calls for 518 " +
+            "conversions, 3.37 ms against 1.29 ms over 518 instants, 93% of " +
+            "the overview join and 518 calls a tick in the browser's table.",
+        );
+      }
+
+      // 2. One parts read, counted. A body that reads them twice names
+      //    nothing above, and is the same defect arrived at by hand.
+      const reads = date.split("wallClockParts(").length - 1;
+
+      if (reads !== 1) {
+        throw new InvariantFailure(
+          `\`marketDateAt\` calls \`wallClockParts\` ${String(reads)} times. ` +
+            "One answer is one parts read; the whole finding was a function " +
+            "that read them three times and used one.",
+        );
+      }
+
+      // 3. One home for the assembly. The other way to lose the repair is a
+      //    second copy of the parts-to-date arithmetic — at which point the
+      //    two spellings of a market date can drift a whole day apart, which
+      //    is this module's own opening warning.
+      for (const [name, body] of [
+        ["marketDateAt", date],
+        ["marketWallClockAt", wall],
+      ]) {
+        if (!body.includes("marketDateFromParts(")) {
+          throw new InvariantFailure(
+            `\`${name}\` assembles the market date itself rather than ` +
+              "through `marketDateFromParts`. Two copies of that arithmetic " +
+              "is two spellings of one fact, and the failure mode is a date " +
+              "wrong by a whole day in one of them.",
+          );
+        }
       }
     },
   },

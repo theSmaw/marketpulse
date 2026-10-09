@@ -594,6 +594,26 @@ nothing; at Story 2.8's scale — 390 bars × 101 securities × a backfill's wor
 it is the difference between a fast ingest and a slow one. Construct it **inside the
 function on first use**, for §4.3's tree-shaking reason.
 
+**Added 2026-10-09 by Task 4.8.7 — once the formatter is memoised, the cost is
+the PARTS READ, and that is where the next reader of this section should look.**
+The two figures above are about construction and are unchanged: the shipped
+module constructs **2 `Intl.DateTimeFormat` instances for the life of the
+process**, instrumented by patching the constructor over 2,590 conversions.
+What cost real time was a function asking for parts it discarded.
+`marketDateAt` was `marketWallClockAt(instant).date`, which reads the clock's
+parts, reads them **again** inside `marketOffsetAt`, and reads the offset
+formatter's own parts a third time — **three `formatToParts` calls per answer,
+one used**, instrumented at **1,554 calls for 518 conversions**. Removing the
+two discarded reads took it from **3.366 ms to 1.288 ms** over 518 instants
+(n = 398 of 400 after 300 warm-up, p95 3.425 → 1.356, tight loop on this
+machine, calibrator reference 1.03–1.05 ms either side), and the whole wall
+clock from three parts reads to two (3.365 → 2.176 ms). So the rule beside
+_memoise lazily_ is: **one answer is one parts read**, and a composite that
+needs the offset shares the read rather than taking a second. `pnpm invariants`'
+`market-date-reads-the-parts-once` holds it, with the break
+`the-market-date-takes-the-offset-path-again`; the reversal trigger is **the
+first market-date question whose answer depends on the UTC offset in effect**.
+
 **One property of the runtime worth recording, because it is a staleness surface nobody
 owns:** the timezone database is the _runtime's_, not ours. Node 24.20.0 here reports
 **ICU 78.3 / tzdata 2026a**. If the US ever changes its DST rule — which has been legislated

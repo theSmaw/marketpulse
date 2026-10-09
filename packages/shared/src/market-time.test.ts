@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   instantFromMarketTime,
@@ -127,6 +127,37 @@ describe("marketDateAt", () => {
     // 04:00Z is exactly ET midnight in summer.
     expect(marketDateAt(new Date("2026-09-04T03:59:59Z"))).toBe("2026-09-03");
     expect(marketDateAt(new Date("2026-09-04T04:00:00Z"))).toBe("2026-09-04");
+  });
+
+  // **Task 4.8.7, and the behavioural twin of `pnpm invariants`'
+  // `market-date-reads-the-parts-once`.** The structural check reads the
+  // function's text; this counts what the platform is actually asked. Both
+  // exist because the defect is **invisible in every answer**: this function
+  // was `marketWallClockAt(instant).date` until 2026-10-09, which computes a
+  // UTC offset and discards it — three `formatToParts` calls per answer, one
+  // used, instrumented at 1,554 for 518 conversions and measured at 3.37 ms
+  // against 1.29 ms over 518 instants.
+  //
+  // The first call is outside the spy on purpose: the formatters are memoised
+  // in module-level `let`s, so a cold call would also be counted against
+  // whatever a *construction* does internally.
+  it("asks the platform for one parts read per answer, not three", () => {
+    marketDateAt(new Date("2026-09-04T13:30:00Z"));
+
+    const parts = vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts");
+
+    try {
+      expect(marketDateAt(new Date("2026-09-04T13:31:00Z"))).toBe("2026-09-04");
+      expect(parts).toHaveBeenCalledTimes(1);
+
+      // And the whole wall clock is two rather than three, because the offset
+      // is computed from the parts the clock already read.
+      parts.mockClear();
+      marketWallClockAt(new Date("2026-09-04T13:31:00Z"));
+      expect(parts).toHaveBeenCalledTimes(2);
+    } finally {
+      parts.mockRestore();
+    }
   });
 });
 
