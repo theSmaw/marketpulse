@@ -121,8 +121,17 @@ the caveat with the repair named.
 all.** `useLiveFeed` is called in `App`; the overview field is compared in
 `sameLiveFeedView` **by identity**; the decoder builds a new object per frame and
 `computedAt` moves on every rebuild — so **the gate cannot collapse it by
-construction**. A security page subscribed to one symbol went from about **one
-whole-tree render a minute to up to sixteen**.
+construction**. ~~A security page subscribed to one symbol went from about **one
+whole-tree render a minute to up to sixteen**.~~ — **COUNTED 2026-10-09 by Task
+4.8.2 and wrong twice.** A security page subscribes to **all 518** (the
+`subscribe` message was read at the gateway's end: 1 then **518** on both
+`/securities` routes, **25** on `/`, **0** on the three placeholders), so it
+already received a `bars` frame per applied batch and went **1 → 2** renders a
+batch; and _one a minute_ was `createFixtureStream`'s `tickEveryMs = 60_000`.
+Measured per applied batch against the real gateway: **2** on `/`,
+`/securities` and `/securities/:symbol`, **1** on `/investigations`, `/replay`
+and the not-found route, from **0**. At 6.8–16.1 batches a minute:
+**13.6–32.2** and **6.8–16.1** renders a minute respectively.
 
 That was accepted deliberately and its error direction is the safe one
 (over-eager renders, never a silent miss), **but the consequence on four routes
@@ -367,6 +376,11 @@ universe table's rows carry.
    too), so it was already ~16 and went to ~32; and _one a minute_ is the
    **fixture's** cadence. The routes that really went from ~0 to ~16 are
    `/investigations`, `/replay` and the not-found route.
+   **CONFIRMED and sharpened 2026-10-09 by Task 4.8.2**, which counted it: 518
+   read off the `subscribe` message, **1 → 2 renders per applied batch**, and
+   `~16 → ~32` is right at the **close's** cadence and not the day's — the
+   range is 6.8–16.1 batches a minute, so **13.6–32.2**. The three placeholder
+   routes read exactly **1 per batch**, 10 windows each, from **0**.
 5. **Epic 14's trigger is quoted in 13 live files, not five** — 19 files and 29
    occurrences in total, 6 of them historical — **including Epic 5's `EPIC.md`
    twice**, the epic the trigger was written about. And Epic 14's own file says

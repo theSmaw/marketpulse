@@ -378,11 +378,28 @@ safer set on which to take a motion decision than a top-N over 518.
 
 4.2 introduced a cost on four routes that display no overview at all: `useLiveFeed`
 is called in `App`, the overview is compared **by identity**, and `computedAt`
-moves on every rebuild, so the gate cannot collapse it — **a security page
+moves on every rebuild, so the gate cannot collapse it — ~~**a security page
 subscribed to one symbol went from about one whole-tree render a minute to up to
-sixteen.** That is §28's **routine** word, not Epic 14's cold load. **Epic 4
+sixteen.**~~ That is §28's **routine** word, not Epic 14's cold load. **Epic 4
 introduced it, so Epic 4 measures it**, which is 4.8's own argument — _a figure
 taken after the epic is called done is a figure nobody re-takes._
+
+**COUNTED 2026-10-09 by Task 4.8.2, and the struck sentence was wrong twice.**
+A security page subscribes to **all 518** — `SecurityExplorer`'s `liveSymbols`
+adds every security in the loaded universe, because `UniverseTable` renders on
+both of its routes — so it already received a `bars` frame per applied batch
+before 4.2 and went **1 → 2** renders a batch, one more rather than fifteen.
+And _one a minute_ was the **fixture's** cadence (`tickEveryMs = 60_000`), not
+the feed's. Measured on all five routes against the real gateway: **2** renders
+per applied batch on `/`, `/securities` and `/securities/:symbol`, **1** on
+`/investigations`, `/replay` and the not-found route — which went from **0**,
+because they subscribe to nothing and `scopedTo` sends them no `bars` frame at
+all. At 6.8–16.1 applied batches a minute that is **13.6–32.2** renders a
+minute on the first three and **6.8–16.1** on the last three. The two frames of
+a batch are **two tasks**, so the second render is not avoided by browser
+batching; whether React coalesces them turns on the inter-frame gap, 4.4–8.4 ms
+on `/` and 23.7–33.1 ms on `/securities/:symbol`. The reading is in
+`docs/GAPS.md` and the sitting in Task 4.8.2.
 
 ### Three additions, each a task inside an existing story rather than a new story
 

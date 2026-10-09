@@ -1254,6 +1254,19 @@ in itself — the decision is recorded and its error direction is the safe one �
 but the consequence is unmeasured on four of the five routes and unowned on all
 four.
 
+> **COUNTED 2026-10-09 by Task 4.8.2, on all five routes, against the real
+> gateway. The heading's figure is right for three routes and half of it for
+> the other two.** Renders per **applied batch**: **2** on `/`, `/securities`
+> and `/securities/:symbol`; **1** on `/investigations`, `/replay` and the
+> not-found route, which the gateway sends no `bars` frame at all because
+> `scopedTo` returns `undefined` for an empty subscription. At the real
+> cadence — 6.8–16.1 applied batches a minute, `LIVE-DATA.md` §9.5/§10.2 —
+> that is **13.6–32.2** whole-tree renders a minute on the three subscribing
+> routes and **6.8–16.1** on the three placeholders. The sentence below is
+> wrong twice and is corrected in place. **What is NOT discharged is the
+> timing**: this was a count, and the `Re-measure:` line below asks for a
+> script cost. Tasks 4.8.3 and 4.8.5 own that.
+
 `useLiveFeed` is called in `App`, so **every** route holds the live feed. The
 overview frame's `overview` field is compared in `sameLiveFeedView` **by
 identity**, and the decoder builds a new object per frame — and `computedAt`
@@ -1263,15 +1276,43 @@ deliberately: a deep comparison would have to be told to ignore part of the
 answer, and over-eager renders are the safe direction against the silent miss
 `sameLiveFeedView`'s own comment records.
 
-**The consequence: a security page subscribed to one symbol went from about one
-whole-tree render a minute to up to sixteen.** That is the same category as the
-40 ms-every-30-s health-poll re-render Task 3.6.5 found and repaired with two
-memo boundaries — `PRODUCT_SPEC.md` §28's **routine** word, not the once-per-visit
-cold load Epic 14 owns.
+~~**The consequence: a security page subscribed to one symbol went from about
+one whole-tree render a minute to up to sixteen.**~~ — **WRONG TWICE, measured
+2026-10-09 by Task 4.8.2.** A security page subscribes to **all 518**, not one:
+`SecurityExplorer`'s `liveSymbols` adds every security in the loaded universe
+because `UniverseTable` renders on both of its routes, and the `subscribe`
+message was read with the shipped decoder at the gateway's end — **1 then 518**
+on both `/securities` and `/securities/:symbol`, against **25** on `/` and
+**0** on the three placeholders. So that page already received a `bars` frame
+per applied batch **before** Story 4.2, and the aggregate added **one more
+render per batch rather than fifteen**: 1 → **2**, measured over four real
+batches from the real gateway. And _one a minute_ was the **fixture's** cadence
+(`createFixtureStream`'s `tickEveryMs = 60_000`), not the feed's. The honest
+sentence is **6.8–16.1 → 13.6–32.2 whole-tree renders a minute**. That is still
+the same category as the 40 ms-every-30-s health-poll re-render Task 3.6.5
+found and repaired with two memo boundaries — `PRODUCT_SPEC.md` §28's
+**routine** word, not the once-per-visit cold load Epic 14 owns.
 
-**Story 4.8 owns the per-tick cost of `/`. Nothing owns `/securities`,
+**And the two frames of a batch are TWO tasks, so the second render is not
+avoided by browser batching.** A 60 ms block planted in a listener on every
+market-stream frame produced **two `longtask` entries of 60 ms** and one
+`long-animation-frame` of 122–130.7 ms: `longtask` is per task, LoAF spans
+every task in one rendering frame, so a verdict read off LoAF alone says _one
+120 ms task_ and is wrong. Whether React coalesces the two `setView` calls into
+one commit is decided by the **inter-frame gap** — 0.5 ms commits once, ≥4.4 ms
+commits twice — and the real gateway's gap is **4.4–8.4 ms on `/`** (a 1.8 KiB
+`bars` frame) and **23.7–33.1 ms on `/securities/:symbol`** (58–59 KiB).
+
+~~**Story 4.8 owns the per-tick cost of `/`. Nothing owns `/securities`,
 `/securities/:symbol`, `/investigations` or `/replay`**, and the last two are
-placeholders today, which is exactly why this will be discovered late.
+placeholders today, which is exactly why this will be discovered late.~~ —
+**false since 2026-09-27**, when Story 4.8's scope was widened to all five
+routes, and discharged for the **count** on 2026-10-09. The placeholder routes
+were measured and deliberately **not repaired** (the owner's Gate 1 decision):
+the repair is a second notification channel reachable from below `App`, within
+a hair of ADR 0023's recorded reversal trigger, and on those three routes the
+whole-tree render changed `<main>`'s text **by not one byte** in 10 windows
+each — so the waste is real and its size is a timing nobody has taken yet.
 
 The byte cost is not the issue and is recorded for completeness: 431 bytes
 measured × ~16 a minute ≈ **6.9 KiB/min per attached browser**, about 12% on top
@@ -1283,9 +1324,22 @@ running, and the frame's script cost per tick against §28's 50 ms **routine**
 line. Task 3.6.5's instrument is the shape; its figures (46–49 ms a tick before
 two memo boundaries, 37–40 ms after) are the comparison.
 
-**Owner: a condition rather than a story number — the first story that measures
-a per-tick cost on any route other than `/`.** Story 4.8 is the first candidate
-and its scope is `/` only, so if it takes this it is widening deliberately.
+~~**Owner: a condition rather than a story number — the first story that
+measures a per-tick cost on any route other than `/`.** Story 4.8 is the first
+candidate and its scope is `/` only, so if it takes this it is widening
+deliberately.~~ — **the condition FIRED on 2026-09-27**, twelve days before
+anybody read this clause: Story 4.8's scope was widened to all five routes that
+day, and the clause went on describing a scope the story had already left.
+**Amended 2026-10-09 by Task 4.8.2**, which took the count on all five.
+
+**Owner now: Task 4.8.5** for the per-tick **script** cost on
+`/securities/:symbol`, which is the half of this entry a count cannot answer,
+and **Task 4.8.3** for the backend leg. The instrument exists and is proved:
+`scripts/overview-instrument.mjs`, driven as `pnpm instrument:prove`. The
+re-measure above is sound in substance but **its recipe is not** — see entry
+14's 2026-10-09 amendment: `MARKET_DATA_PROVIDER=fixture` against
+`DATABASE_NAME=marketpulse` writes invented bars into the developer's own store
+at 518 a minute. Name a scratch store; `pnpm store:bare` builds one.
 
 ## The closes cache's two-session window can now RE-ORDER a ranking, not only skew a percentage
 
