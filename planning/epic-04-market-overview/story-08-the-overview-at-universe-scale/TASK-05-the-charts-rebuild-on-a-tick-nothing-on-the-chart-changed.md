@@ -117,3 +117,36 @@ decode, reconcile or render, and the `withLiveEdge` rebuild is the place to look
 Note also that **a cold `/securities/:symbol` costs three server joins**, the
 same as `/` — the page subscribes to all 518 because the universe table renders
 there too.
+
+## Handed here by Task 4.8.4 — 2026-10-09
+
+**Three things about the instrument, and one about the figure you are chasing.**
+
+- **Task 4.8.3's gap-sensitivity warning does not apply to your arm.** Its
+  fixed-cost calibrator reads ×2.4–3.5 at a gap **in a Node process**; sampled
+  in a visible Chromium renderer beside every burst at gaps of **3,727 ms and
+  8,824 ms**, the same calibrator reads **×1.00** in five arms out of five
+  (discards 0–3 of 8–14). So your browser figures are absolute on this machine,
+  and you do **not** need to publish them with 4.8.3's tight-loop caveat. Keep
+  sampling the control — that is how this was established.
+- **Channel 3 measures ELAPSED time, not script.** `openBurst` posts to a
+  `MessageChannel` at a frame's arrival and the handler reads
+  `performance.now() - t0`, so **anything the browser does in between lands in
+  the figure** — including style, layout and paint. Measured: the same `bars`
+  frame reads **0.1–0.2 ms** when nothing on screen changes and **2.4–3.4 ms**
+  when an aggregate committed between the two frames. On a chart that redraws
+  13 drawn elements, that distinction is the whole measurement.
+- **If you need React's own render task, wrap `MessageChannel`** — installed
+  **after** the harness's init script, so the harness's own `endOfTask` channel
+  was built with the native constructor and is structurally outside your
+  numbers — and tag each port task with the commits that happened inside it.
+  The channel with commits in it is React's scheduler. Proved against a planted
+  70 ms block, caught at 70.0–70.1 ms in all seven arms. **And forward to the
+  native `onmessage` descriptor**: an own accessor shadows
+  `MessagePort.prototype`'s, React's scheduler then never runs, the page
+  renders nothing and **no error is raised anywhere**.
+- **The route's own background rate is 1 commit a second**, `useMarketClock`'s,
+  and `drain()` returns everything since the previous drain — so a per-batch
+  bucket at an 8.8 s cadence contains ~9 of them. Run a **quiet arm at the same
+  cadence** and subtract; a narrow phase-aligned window is the alternative and
+  it cannot contain the arrival mark's 900 ms decay.

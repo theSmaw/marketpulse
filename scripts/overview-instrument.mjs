@@ -374,11 +374,20 @@ export async function startProductionPair(options = {}) {
 
   process.on("exit", reap);
 
+  // **The handler removes itself before re-raising, and the first version did
+  // not.** `process.kill(process.pid, signal)` with a listener still installed
+  // re-enters the handler, which re-raises, which re-enters: a `SIGTERM` to a
+  // run of this harness produced a process spinning at **100% of a core**
+  // which only `SIGKILL` could end, and it held both child ports so the next
+  // run refused its own addresses and read as a configuration fault.
+  // Found 2026-10-09 by Task 4.8.4, by sending one.
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP", "SIGPIPE"]) {
-    process.on(signal, () => {
+    const onSignal = () => {
+      process.off(signal, onSignal);
       reap();
       process.kill(process.pid, signal);
-    });
+    };
+    process.on(signal, onSignal);
   }
 
   try {

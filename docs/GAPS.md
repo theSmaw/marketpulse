@@ -1314,10 +1314,37 @@ a hair of ADR 0023's recorded reversal trigger, and on those three routes the
 whole-tree render changed `<main>`'s text **by not one byte** in 10 windows
 each — so the waste is real and its size is a timing nobody has taken yet.
 
-The byte cost is not the issue and is recorded for completeness: 431 bytes
+~~The byte cost is not the issue and is recorded for completeness: 431 bytes
 measured × ~16 a minute ≈ **6.9 KiB/min per attached browser**, about 12% on top
 of a 518-subscribed client and roughly **3× the inbound bytes of a one-symbol
-security page**.
+security page**.~~ — **every figure in that sentence is wrong, re-taken
+2026-10-09 by Tasks 4.8.3 and 4.8.4.** The `431 bytes` is the **four-proxy**
+frame of 2026-09-26 (ADR 0038's verbatim record, which now carries a dated
+amendment saying so); the frame has since gained eleven sectors, breadth and ten
+mover rows. Measured off the wire: **928 B** in CI's shape (518 `unknown`),
+**2,042 B** with 518 closes held and nothing observed, **3,142 B** with all 518
+observed on the session basis, and **4,078 B** on the **observed** basis, which
+is the ceiling — corroborated at **3,990–4,002 B** by a frame built in a browser
+with the shipped encoder and the shipped **unrounded** percentage. So:
+
+- **27.1 KiB/min** at the measured midday floor of 6.8 batches a minute and
+  **64.1 KiB/min** at the close's 16.1, per attached browser — four to nine
+  times the withdrawn figure.
+- **6.9% on top of a 518-subscribed client**, not 12%. That client's `bars`
+  frame is **58,187–59,475 B per batch** (Task 4.8.2), and the 12% was computed
+  against `56.9 KiB` **a minute** — the fixture's one-batch-a-minute cadence,
+  which is premise 2 of this story's Gate 1 appearing inside an arithmetic.
+- **The one-symbol comparison has no subject.** `/securities/:symbol`
+  subscribes to all 518 (Task 4.8.2, read off the `subscribe` message), so no
+  page in this product receives one symbol's bars. The comparison that does
+  exist is on `/`: at ~25 subscribed the `bars` frame is **~3,000 B**, so the
+  aggregate is **1.4× the `bars` frame beside it** and **the larger half of
+  what the route receives** — 7.1 KiB a batch, 48–114 KiB a minute.
+
+**Re-measure** — `pnpm instrument:prove` for the harness, then a page on `/`
+with the frame's bytes read off the page's own socket wrapper by URL. The
+figure moves with the **number of securities heard from in the window**, not
+with anything in the code: it is 928 B on CI's store for ever.
 
 **Re-measure** — a production build, `/securities/:symbol` open with the feed
 running, and the frame's script cost per tick against §28's 50 ms **routine**

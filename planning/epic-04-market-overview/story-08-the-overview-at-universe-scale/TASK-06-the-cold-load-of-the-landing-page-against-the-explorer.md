@@ -123,3 +123,26 @@ whole `overviewMessage()` costs **0.056 ms** instead of 3.72. The same is true o
 a freshly started process for its first minute, which is exactly the condition a
 cold-load measurement is taken in. If you want the server leg of your cold load
 to be real, the store behind it has to have bars.
+
+## Handed here by Task 4.8.4 — 2026-10-09
+
+- **A cold load of `/` really does send a `subscribe` with zero symbols, and
+  then one with 25** — `subscribes: [0, 25]` in all seven arms, reproducing
+  4.8.2's reading through a different instrument. The gateway answers **both**
+  with a snapshot and an aggregate, so that is **four frames and two full
+  518-joins before the page has asked a question with content in it**.
+- **The second subscribe carries 25 symbols and the page draws nothing from the
+  `bars` frames it buys.** An arm that sent only `bars` frames to those 25,
+  with prices that moved every batch, left `<main>`'s text **identical** on both
+  cadences. Every figure on this screen comes from the aggregate; the
+  subscription exists so the arrival mark can fire. Its price, measured:
+  **0.9–1.2 ms a batch** and **~3,000 B a frame**.
+- **The subscription count is a membership function and a bad frame changes
+  it.** `subscribes: [0,25,15,25,15,25]` in this task's first run was the page
+  falling back to 15 symbols — four proxies plus eleven sectors — because
+  `readMovers` had dropped the movers section. If your cold-load arm reads 15,
+  the frame is being refused, not the page being slow.
+- **The harness's signal handler is fixed** (`process.off` before re-raising).
+  Before 2026-10-09 a `SIGTERM` to a harness run left a process spinning at
+  100% of a core holding both ports, and the next run refused its own addresses
+  and read as a configuration fault.

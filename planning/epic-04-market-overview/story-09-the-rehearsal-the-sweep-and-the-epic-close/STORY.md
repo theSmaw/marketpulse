@@ -278,3 +278,38 @@ listener who did not ask. This one is a change the reader **explicitly asked
 for**: whether a client-side route change with an **unchanged `document.title`**
 is announced at all. It is the one case where announcing is unambiguously
 right, and it is unanswerable from a DOM, a timing or an agent.
+
+## Handed here by Task 4.8.4 — 2026-10-09: two candidates for the frame, in words you can act on
+
+**Both came out of measuring the browser leg on `/` at the feed's real cadence,
+and neither is a repair this story has to take — they are decisions somebody has
+to take, and Story 4.8 already owns the frame-composition condition.**
+
+**1. `changePercent` crosses the wire unrounded, and it is 9% of the
+aggregate.** `changePercent` in `packages/shared/src/live-change.ts` is
+`((close − previous) / previous) × 100` and **nothing rounds it**, so a real
+figure carries a 16-digit float — `1.6244720133889459` verbatim off this
+product's own encoder — where the screen draws `1.62` at
+`PERCENT_DISPLAY_DECIMALS`. Measured: **~13 bytes a figure, ~350 bytes a frame**
+on a 25-figure aggregate whose ceiling is 4,078 B. Rounding it on the wire would
+take that off **every** aggregate and off every figure on every other frame.
+
+**It is a wire change and a product decision rather than an optimisation.** A
+consumer that re-ranks needs more precision than the screen shows — `moveRanking
+Key` is keyed on the **displayed** figure today, so a browser would be fine, but
+an agent or a later tool that sorts on the raw value would not. Ask it, do not
+assume it.
+
+**2. The route subscribes to 25 symbols and draws nothing from the `bars`
+frames it buys.** Measured on both cadences: an arm sending only `bars` frames
+to those 25 symbols, with prices that moved every batch, left `<main>`'s text
+**identical byte for byte**. Every figure on this screen comes from the
+aggregate; the subscription exists so the **arrival mark** can fire. Its price,
+measured for the first time: **0.9–1.2 ms a batch in the browser** and
+**~3,000 B a frame**, plus the gateway's per-client scope and encode.
+
+**That is not a defect and it must not be read as one** — the mark is a shipped
+design decision with a canvas section behind it (`The motion vocabulary.dc.html`
+§05) and _a fact arriving DECAYS_ is the rule it implements. What is new is that
+nobody had priced it. If the rehearsal finds the mark is not worth watching at
+390, the subscription is what it costs.

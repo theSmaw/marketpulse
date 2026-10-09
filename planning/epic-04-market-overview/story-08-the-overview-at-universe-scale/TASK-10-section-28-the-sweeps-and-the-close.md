@@ -30,8 +30,17 @@ checked** — §28's exception list is also quoted in `planning/EPICS.md`, Epic
 - `docs/GAPS.md`'s **stale owner clause** for the four-route re-render, whose
   condition fired on 2026-09-27 (Task 4.8.2).
 - The **one-to-sixteen sentence** at three live sites (Task 4.8.2).
-- The **431-byte** frame size, and the `6.9 KiB/min` and `12% on top`
-  arithmetic derived from it (Task 4.8.4).
+- ~~The **431-byte** frame size, and the `6.9 KiB/min` and `12% on top`
+  arithmetic derived from it (Task 4.8.4).~~ — **done on 2026-10-09 by Task
+  4.8.4**, at **three** live sites (`docs/GAPS.md`, this story's `STORY.md`, and
+  a dated amendment beside ADR 0038's verbatim frame) with **one** historical
+  site left standing by decision (Story 4.3's `STORY.md` frame-grain table,
+  which is shaping text addressed to a story that has shipped). The figures to
+  carry are **4,078 B** at the ceiling, **27.1 KiB/min** at 6.8 batches a
+  minute and **64.1 KiB/min** at 16.1. What you still owe here is **the sweep
+  of the `56.9 KiB`-a-minute family**, which is eleven places by Task 3.5.8's
+  own count and was deliberately left: the 12% error came from dividing a
+  per-batch figure by one of them.
 - The hand-off's **_does not scale with connections_** claim (Task 4.8.3).
 - Every inherited figure this story supersedes, with the old one left standing
   where it is a historical record and amended where it is a live claim.
@@ -108,3 +117,32 @@ Gate 2.
 scale with connections"_ is **false of the join** and true of the broadcast
 encode. Five live sites were corrected on 2026-10-09 and six historical ones left
 standing — the table is in Task 4.8.3.
+
+## Handed here by Task 4.8.4 — 2026-10-09
+
+**Four things for §28 and the sweeps.**
+
+1. **§28's routine 50 ms line is met on `/` with a factor of twenty to spare**,
+   and the figures to quote are: **3.7–5.1 ms of main-thread work a batch** net
+   of a quiet control at the same cadence, **25–82 ms a minute** at 6.8–16.1
+   batches a minute, largest single task **4.5 ms**, `longtask` entries **0**
+   in seven arms, worst rAF gap **17.7–17.8 ms** against a 16.7 ms quantum.
+   Production build, 1440×900, furnished socket, local, **not deployed**.
+2. **Do not carry 4.8.3's tight-loop caveat onto the browser figures.** Its
+   own sentence — _no absolute figure in this epic is a measurement of
+   production cost_ — is **true of the backend legs and false of the browser
+   one**: the same fixed-cost calibrator reads ×2.4–3.5 at a gap in Node and
+   **×1.00** in a visible renderer at gaps of 3.7 s and 8.8 s, five arms out of
+   five. The sweep needs **two** caveats, not one.
+3. **The byte sweep named in your list is done** for the aggregate — three live
+   sites, one historical left standing, see Task 4.8.4's record and the entry
+   above. What is **not** done and is yours is the **`56.9 KiB`-a-minute
+   family, eleven places by Task 3.5.8's own count**: the withdrawn `12% on
+top` figure was wrong precisely because it divided a per-**batch** aggregate
+   by one of them.
+4. **One candidate, recorded and not taken:** `changePercent` crosses the wire
+   **unrounded**, so a figure carries `1.6244720133889459` where the screen
+   draws `1.62`. That is **~13 bytes a figure, ~350 a frame, 9% of the
+   aggregate**. Rounding it is a wire change and a product decision — a
+   consumer that re-ranks needs the precision — so it is handed to Story 4.9
+   beside the frame-composition question rather than taken here.
