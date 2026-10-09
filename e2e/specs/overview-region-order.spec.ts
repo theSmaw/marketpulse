@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-import { expectNothingFailedToRender } from "../support/app.js";
+import {
+  expectEveryRegionIsATabStop,
+  expectNothingFailedToRender,
+} from "../support/app.js";
 
 // **The landing route's six regions are in source order, and at ≤860 that is
 // also the order the screen draws them** (Task 4.4.7).
@@ -43,6 +46,17 @@ import { expectNothingFailedToRender } from "../support/app.js";
 //
 // What it also cannot say is whether the resulting sequence is *meaningful* to
 // a listener. That is a screen-reader pass and it is `docs/GAPS.md`'s.
+//
+// ## And since Task 4.6.6 it holds the stops themselves, not only their order
+//
+// A sequence is only a keyboard reader's route through the screen while the six
+// stops exist, and **axe stopped being able to say so** when Story 4.6 made the
+// rows inside three of these regions into links: `scrollable-region-focusable`
+// does not fire while the scrolling box contains something focusable. So the
+// order assertion below is joined by `expectEveryRegionIsATabStop`, which is
+// this spec's half of the mechanism ADR 0039 decided. The sibling half is on
+// `/securities`, in `securities-route.spec.ts` — the route with the long table
+// and the original defect's shape.
 
 // The six regions inside the grid, in the order Task 4.4.7 put them in — the
 // one-column order the ≤860 `grid-template-areas` block draws.
@@ -160,6 +174,19 @@ for (const width of [768, 390] as const) {
     // edges it found rather than only the count of violations.
     const sequence = regions.map(({ name, top }) => `${name} @ ${String(top)}`);
     expect({ sequence, descents }).toEqual({ sequence, descents: [] });
+
+    /*
+     * **Seven rather than six**: the floor is every named region the route
+     * draws, and `Market proxies` sits in `.summary` outside the grid. It is
+     * excluded from `ORDER` because the areas block does not order it, and
+     * included here because it is a region and the claim is about all of them.
+     *
+     * Three of the seven are `reserved` on every store, so this width also
+     * covers the condition a later author is most likely to reach for — a stop
+     * only where there is content — which the eight-region `/securities` check
+     * cannot see at all.
+     */
+    await expectEveryRegionIsATabStop(page, { atLeast: 7 });
 
     await expectNothingFailedToRender(page);
   });

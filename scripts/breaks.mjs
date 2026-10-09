@@ -3524,6 +3524,54 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "`location.href`",
   },
+  // **The guard axe can no longer give — Task 4.6.6, ADR 0039.**
+  //
+  // `Region` passes `Panel`'s `scrollable`, which is `overflow: auto` **and**
+  // `tabIndex={0}` on one element, because a box that scrolls and cannot be
+  // reached by keyboard is a WCAG 2.1.1 failure. That property was held by
+  // axe's `scrollable-region-focusable` and **cannot be any more**: the rule
+  // does not fire while the scrolling box contains something focusable — which
+  // is why the original defect stood five stories — and Story 4.6 put links
+  // inside the rows of three of the landing route's regions. The replacement is
+  // `expectEveryRegionIsATabStop`, on both routes that draw regions.
+  //
+  // The substitution deletes the prop, which is the loudest form of the defect
+  // and the one the axe gate would have caught before Story 4.6. **The defect
+  // the next author actually writes was tried first, per `CLAUDE.md`'s
+  // 2026-09-26 rule**: `scrollable={children !== undefined}` — a stop only
+  // where there is content, which is the better of the two conditions ADR 0039
+  // rejects. It goes red on `/` at both widths, naming `Market topology`,
+  // `Unusual activity` and `Current investigations` at `tabIndex -1`.
+  //
+  // **And the `/securities` half passed wrongly against it**, which is why the
+  // command below runs both: all eight of that route's regions have content, so
+  // the conditional form is invisible there. The landing route is the only
+  // surface in this product that draws a `reserved` region, and it is therefore
+  // the only one that can see the condition a re-implementer reaches for.
+  {
+    name: "a-region-stops-being-a-tab-stop",
+    proves:
+      "A region keeps `overflow: auto` and loses its `tabIndex`, so a pointer " +
+      "user can see content a keyboard user cannot reach — WCAG 2.1.1, the " +
+      "defect Task 1.13.4 found on this product's first CI browser run. From " +
+      "Story 4.6 onwards axe is structurally unable to report it, because " +
+      "`scrollable-region-focusable` does not fire while the scrolling box " +
+      "contains something focusable and three of the landing route's regions " +
+      "now hold links (Task 4.6.6, ADR 0039).",
+    file: "apps/frontend/src/components/Region/Region.tsx",
+    find: "      className={className}\n      scrollable\n      title={name}",
+    replace: "      className={className}\n      title={name}",
+    command: [
+      "pnpm",
+      "e2e",
+      "overview-region-order.spec.ts",
+      "securities-route.spec.ts",
+      "-g",
+      "DOM order|keyboard stop",
+      "--anyway",
+    ],
+    expect: "tabIndex -1",
+  },
 
   // --- Task 4.6.5: the states where there is nothing to open ---
   //

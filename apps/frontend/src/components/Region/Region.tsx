@@ -70,6 +70,23 @@ import styles from "./Region.module.css";
 // function of the viewport and of what Epics 4 to 7 put in them, so making it
 // conditional would be a guess re-taken on every window resize.
 //
+// **That is now a decision rather than a deferral, and it is guarded rather
+// than written down — [ADR 0039](../../../../../docs/adr/0039-a-region-is-a-tab-stop-unconditionally.md),
+// Task 4.6.6.** The question was declined twice before being taken, and the
+// reframing is the part worth carrying: it was never *does this region scroll*,
+// it is **can a tab stop appear and disappear under a reader**, and the answer
+// must be no. A condition keyed on the content being focusable — the better of
+// the two, and correct about 2.1.1 — would make three of the landing route's
+// stops exist at paint and **vanish when the first aggregate lands**, dropping a
+// focused reader to `<body>` on a timer nobody controls.
+//
+// And the rule above stopped being checkable by the tool that found it. **axe
+// cannot report these regions any more**: `scrollable-region-focusable` is
+// silent while the scrolling box contains something focusable, and Story 4.6
+// made the rows in three of them links. The replacement is
+// `expectEveryRegionIsATabStop`, called from `overview-region-order.spec.ts` and
+// `securities-route.spec.ts`, with the break `a-region-stops-being-a-tab-stop`.
+//
 // **Since the 2026 refresh the box itself is a `Panel`** (ADR 0022), and what
 // is left here is everything a panel is deliberately not: the landmark, the
 // explanatory line, and the containment boundary. That split is the reason

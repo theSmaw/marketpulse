@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   expectBackendStatus,
+  expectEveryRegionIsATabStop,
   expectNothingFailedToRender,
 } from "../support/app.js";
 import { expectNoAxeViolations } from "../support/axe.js";
@@ -240,6 +241,33 @@ for (const height of [720, 560, 480]) {
     );
   });
 }
+
+// **And the replacement for the rule those three runs can no longer report**
+// (Task 4.6.6, ADR 0039).
+//
+// The loop above is where this repository argues that `scrollable-region-focusable`
+// was found on this page's shape. From Story 4.6 onwards axe cannot find it
+// again — the rule does not fire while the scrolling box contains something
+// focusable, and the landing route's regions now hold links — so the property
+// that every region on this route is a keyboard stop is asserted directly here,
+// at a **short** viewport for the same reason the loop takes three: the original
+// defect was invisible on a tall window.
+//
+// Eight regions, which is what `SecurityExplorer` draws on both of its
+// addresses. The floor is a guard against an empty population rather than a
+// census of the screen — `SecurityExplorer.test.tsx` owns the count — and a
+// ninth region passes it by construction, which is the point.
+test("every region on the securities route is a keyboard stop", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 480 });
+  await page.goto(SECURITIES);
+  await expectTheUniverseRendered(page);
+
+  await expectEveryRegionIsATabStop(page, { atLeast: 8 });
+
+  await expectNothingFailedToRender(page);
+});
 
 // The open combobox is a separate axe subject from the loaded page, and until
 // Task 2.11.4 added this the gate had never seen it (Story 2.11).

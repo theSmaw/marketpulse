@@ -364,6 +364,28 @@ And the blast radius was **smaller than the brief claimed**: `Panel` has
 **exactly one** production consumer, and `Region` is on **two** routes, not
 five.
 
+**Amended 2026-10-09 by Task 4.6.6 — the premise above is not only
+under-measured, it is FALSE, and the falsification is upward.** The handed-down
+claim — repeated at line 359 of this file and in Task 4.3.1 — is _no region on
+`/` scrolls at any of the four widths_. Re-taken at **thirteen** width/height
+pairs on both routes that draw regions: `Unusual activity` scrolls at
+**1440×680** by 4 px, at **1440×600** by 19, at **1280×560** by 27 and at
+**1024×560** by 27, and `Market topology` joins it at 1440×500, 1280×480 and
+1024×560. **The first height at which a region on `/` scrolls is between 681 and
+700 at 1440** — an ordinary laptop viewport. The cause is in the stylesheet
+rather than in the content: row 1 of `.regions` is a `calc()` **length** derived
+from `82vh` with no content floor, while rows 2 and 3 are
+`minmax(min-content, 1fr)` and have one. The two regions on row 1 are the two
+that scroll. **So the rule the stops exist for does fire on this screen**, which
+removes the second of the two reasons the question was ever declined. The
+verbatim rows are in [ADR 0039](../../../docs/adr/0039-a-region-is-a-tab-stop-unconditionally.md).
+
+The same re-take found the mirror on the other route: **0 of 8 regions scroll on
+`/securities` at any of the thirteen pairs**, including `Tracked universe` at
+18,893–31,823 px. The long table makes the **page** scroll, never the region —
+which `SEARCH-AND-SELECTION.md` already recorded and which means the route with
+the original defect's shape is the one where the rule is least triggered.
+
 ### The guard this story destroys
 
 **`scrollable-region-focusable` does not fire while a scrolling box contains
