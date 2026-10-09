@@ -235,6 +235,20 @@ function closesClause(overview: WireMarketOverview): FeedClause | null {
  * a session and **unbounded when the feed dies**, so the send instant would
  * report an afternoon-old aggregate as current.
  *
+ * **Amended 2026-10-09 by Task 4.8.3: `computedAt` is not only a batch's
+ * instant, and on a dead feed this line reads the moment the READER opened the
+ * page.** The producer is unmemoised and the gateway reaches it on every
+ * connect and every subscribe, so a cold load is answered with a frame
+ * computed *now* over observations that may be hours old — three of them,
+ * counted off the wire. ADR 0038 anticipated exactly this (*"it advances
+ * whenever somebody opens a tab, with no market data behind it"*) and that is
+ * why it must never reach `feed-liveness.ts`; what was not written down is
+ * that it reaches **this** sentence, which a reader of a stopped feed reads as
+ * *the arithmetic behind these figures was done at 15:04*. The figures' own
+ * instants, the strip's shared line and the status bar are the surfaces that
+ * stay honest there. Choosing between a per-frame instant and a *data as of*
+ * instant is a product decision and is not taken here.
+ *
  * **A whole instant with its zone, spelled by `formatBarInstant`** — this
  * product's spelling for anything that is a moment rather than a session, and
  * the one the status bar's `Showing data through …` already uses a hundred

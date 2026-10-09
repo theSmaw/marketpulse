@@ -106,3 +106,26 @@ for the life of the process** — the formatters are memoised in module-level
    `main`'s text in every state the level can reach — not reasoned
 4. The invariant exists with its break and its passing-wrongly transcript
 5. Epic 14's false `Intl` construction claim carries a dated amendment
+
+## Handed here by Task 4.8.3 — 2026-10-09
+
+**Your repair is worth more than the per-batch figure suggests, and here is the
+arithmetic.** `marketDateAt` inside `changeFromClose` is **93%** of a 3.44 ms
+join over 518 securities — the join reads **0.013 ms** with nothing observed and
+**0.019 ms** with observations but no closes (Task 4.4.4's attribution,
+reproduced by a second instrument on the production artefact), against **3.44 ms**
+with both. Everything else the producer does — breadth, the movers' selection,
+eleven sector ranks, the ladder's rung and the frame's JSON encode — is
+**0.22 ms, 6%**.
+
+**And the join does not run once a batch.** It runs once per applied batch,
+once per connect, once per subscribe and once with zero clients attached —
+**three per browser opening `/`**, two on `/investigations`. So the parts-read
+repair is multiplied by `batches + 3 × cold loads + resubscribes`, not by
+batches alone.
+
+**One caveat on whatever figure you publish**: 4.8.3's finding 6 measured the
+same join at 3.73 ms in a tight loop and 12.97–15.43 ms at a 250 ms-or-greater
+gap, with a fixed-cost control moving by the same factor. Compare your
+before-and-after at the **same** gap, which a tight loop gives you for free —
+just do not read the absolute number as a production cost.

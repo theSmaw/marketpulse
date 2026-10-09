@@ -102,3 +102,18 @@ is in that file.**
 - **`document.visibilityState` is asserted on every page the harness opens**,
   and the socket wrapper carries `wrapperIntact` — if Playwright's own
   `WebSocket` replaces it, the arm reports nothing rather than n = 0.
+
+## Handed here by Task 4.8.3 — 2026-10-09
+
+**The server is not where a per-tick chart cost comes from, and here are the
+numbers that say so.** The per-client half of `publishObservations` — `scopedTo`
+over 518 observations, the `bars` encode and the send — is **1.59 ms** for a
+client subscribed to all 518 and **0.113 ms** for one subscribed to a single
+symbol, measured against the real gateway with a cached overview as the control.
+The `bars` body itself is **60,107 bytes** at 518 and **1,780** at 25. So
+anything you measure on `/securities/:symbol` above a couple of milliseconds is
+decode, reconcile or render, and the `withLiveEdge` rebuild is the place to look.
+
+Note also that **a cold `/securities/:symbol` costs three server joins**, the
+same as `/` — the page subscribes to all 518 because the universe table renders
+there too.

@@ -636,6 +636,15 @@ export interface WireMarketOverview {
    * has to read this one; reading `sentAt` would report a dead feed's
    * afternoon-old aggregate as current.
    *
+   * **Amended 2026-10-09 by Task 4.8.3: it is built once per applied batch
+   * AND once per connect AND once per subscribe** — three times per browser
+   * opening `/`, counted off the wire. So this instant is *when the
+   * arithmetic was done*, which on a dead feed is **when the reader opened
+   * the page** rather than when anything was heard from the market. It is
+   * still the right field for *as of* and the wrong one for *the data is this
+   * fresh*; ADR 0038 says why it must never reach `feed-liveness.ts`, and the
+   * same argument reaches any sentence a surface writes from it.
+   *
    * **It is not a clock a status is derived from.** `pnpm invariants` holds
    * both this word and `sentAt` out of `feed-liveness.ts`,
    * `stream-connection.ts` and `live-feed.ts`

@@ -57,3 +57,32 @@ done** — in words 4.9 can act on, in its own file.
 3. `docs/GAPS.md` updated per flake: a measurement where there was a
    hypothesis, or the hypothesis restated as still unmeasured and why
 4. Story 4.9's file amended with whatever this task discharged
+
+## Handed here by Task 4.8.3 — 2026-10-09: a FOURTH flake, and it is not in the browser suite
+
+`apps/backend/src/index.process.test.ts > the database pool > says goodbye to a
+browser BEFORE closing its socket` failed once in **four** whole-gate
+executions, on a machine warm from that task's own measurement work:
+
+```text
+AssertionError: expected 13 to be greater than 18
+ ❯ src/index.process.test.ts:1004:21
+    1004|     expect(drained).toBeGreaterThan(gateway);
+```
+
+`http drained` at log line 13 and `market gateway closed` at 18 — the shutdown's
+two markers in the wrong order. Three scoped re-runs and three further
+`pnpm verify` runs all passed.
+
+Three things that make it worth your n rather than a shrug. It is in
+**`test:process`**, so it is inside `pnpm verify` and inside a **required CI
+check**, unlike the three browser flakes. The assertion is an **ordering** one
+over log-line indices, which is the shape `CLAUDE.md` warns about by name — _a
+marker travels with its step_ — so a genuine ordering change and a scheduling
+flake fail identically. And **nothing in this repository had recorded it**:
+`docs/GAPS.md` does not name either marker.
+
+Your own method applies unchanged: **n = 6 cannot separate this from a
+regression and n = 24 on one checkout can**, and the branch it was seen on
+changes nothing executable at all — five docblocks and one string — which is
+about as clean a control arm as a comparison ever gets.

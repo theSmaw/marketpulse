@@ -91,3 +91,33 @@ on a figure**.
    left standing
 4. Epic 5's `EPIC.md` carries the constraint in words that epic can act on
 5. The decision carries its alternatives and a condition-shaped reversal trigger
+
+## Handed here by Task 4.8.3 — 2026-10-09
+
+**Two things for the verdict, and the first changes how clause B's arithmetic
+should be read.**
+
+**1. Clause B's _"~1.29 s of script a minute"_ was computed from a tight-loop
+figure.** Task 4.8.3 measured the producer at **3.73 ms** in a tight loop and
+**12.97–15.43 ms** when called once every 250 ms or more — and a fixed-cost
+control loop with no ICU, no allocation and no strings inflated by the **same
+factor** (×3.3 against ×3.5–3.8), so the cause is this machine waking from idle
+rather than the computation. Two consequences for a verdict. The **relative**
+figures every clause rests on are safe: 4.4.4's 3.497 ms, 4.5.4's 0.28–0.41 ms
+marginal and 4.8.3's 3.72 ms are all tight-loop figures taken against
+tight-loop controls. The **absolute** ones are not a measurement of production
+cost on any machine, and whether a deployed Container App on a shared vCPU
+behaves this way is **unknown and unmeasurable from a laptop** — which is
+itself a finding a §28 verdict has to carry, because §28's line is an absolute
+50 ms.
+
+**2. A second, cheaper candidate with a one-line repair.** The join runs with
+**zero clients attached** — `publishObservations` evaluates `overviewMessage()`
+as an argument to `broadcast`, before the client map is consulted — at
+**3.708 ms** p50 (n = 300, cached-overview control 0.013 ms, so all of it is the
+join). On a deployment with nobody looking that is **25 ms of script a minute at
+the 6.8-batch midday floor and 60 ms at the close**, for an aggregate sent to
+nobody, against §9.1's idle-rate condition. The guard is the same
+`clients.size > 0` test the keepalive already makes twelve lines below. It is a
+behaviour change on the socket callback's own path and 4.8.3 deliberately did
+not take it.

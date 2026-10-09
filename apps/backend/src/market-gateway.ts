@@ -343,6 +343,21 @@ export function registerMarketGateway(
    * 1 held mechanically: one computation for every browser. The three callers
    * below are three *sends* of one shape, not three cadences.
    *
+   * **Amended 2026-10-09 by Task 4.8.3: one ENCODE site is not one
+   * computation, and the three callers are three JOINS.** `overview()` is
+   * `index.ts`'s `marketOverview`, which is unmemoised — so every call to this
+   * function runs a full join over all 518 securities, and two of the three
+   * callers are `sendSnapshot()`, which runs on connect **and** at the foot of
+   * every `message` listener without comparing the subscription. Counted off
+   * the wire against this gateway on a quiet feed: a cold `/` receives
+   * **three** `overview` frames and therefore pays **three** joins, a cold
+   * `/securities/:symbol` three, and `/investigations` — which draws no
+   * figures at all — **two**. Priced on a populated mid-session store at
+   * **3.72 ms** a join, that is **11.2 ms** of server script per browser
+   * opening `/`, and it is the one part of this gateway's cost that **does**
+   * scale with connections. The invariant is still worth having; what it
+   * certifies is *one place a frame is built*, not *one computation*.
+   *
    * **It is not scoped to a subscription**, unlike `bars`. The overview is an
    * aggregate over securities a browser never asked for by name, so every
    * attached client gets the identical payload — which is also why

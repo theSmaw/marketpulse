@@ -2677,7 +2677,9 @@ const INVARIANTS = [
     id: "one-producer-of-the-overview-aggregate",
     claim:
       "`buildMarketOverview` has at most one call site in shipped backend " +
-      "code — one computation for every browser.",
+      "code — one PLACE the join is written, which is not one call per " +
+      "batch: Task 4.8.3 counted three per browser opening `/`, because the " +
+      "gateway reaches this producer on every connect and every subscribe.",
     check() {
       // **Task 4.1.1's decision 1, held mechanically**: the aggregate is
       // computed once where `currentMarketState` already lives, not
