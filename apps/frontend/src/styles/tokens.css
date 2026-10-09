@@ -425,6 +425,24 @@
    * under-reserving costs half a focus ring. The reversal trigger is an engine
    * where the walk measures a clearance of `+1` at every stop — then this is
    * that engine's zero and the term goes.
+   *
+   * **Amended 2026-10-09 by Task 4.6.7: the whole-pixel sentence above is true
+   * of those four pairs and NOT true in general, and the owner has left this
+   * token at `1px`.** A reverse `Shift+Tab` walk measures `Sector performance`
+   * and `Market breadth` at **-0.1406** and **-0.0938** of clearance at
+   * **1024×800** and **1440×680** — stable to four decimals over two
+   * reproductions, and `breaches=0` at the four pairs this block was measured
+   * at. The cause is a **height** rather than a width: `scroll-padding-top`
+   * still resolves to a whole `62px` and the chrome's bottom to a whole `57`,
+   * but `min-height: 82vh` over `minmax(min-content, 1fr)` gives the region a
+   * fractional document offset (`*.8594`, `*.9063`) while Chromium quantises
+   * `scrollY` to whole pixels — so the box cannot land on an integer.
+   *
+   * It is deliberately not absorbed here. Raising this to `2px` would cost
+   * every focused element on every route another pixel, and a sub-pixel
+   * tolerance in `overview-focus-ring.spec.ts` would weaken the check that
+   * found the original 5 px defect — at a fifth of its size it would pass.
+   * `docs/GAPS.md` carries the entry and its re-measure.
    */
   --scroll-overshoot: 1px;
 
