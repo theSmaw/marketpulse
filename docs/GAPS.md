@@ -1696,6 +1696,28 @@ agreement at 1440 would assert the opposite of the shipped decision, and one
 asserting disagreement would pin a cost rather than a claim. The decision, its
 argument and its reversal trigger are in `MarketOverview.tsx` beside the regions.
 
+**Amended 2026-10-09 by Task 4.6.6 — the SIX TAB STOPS half of this entry is
+discharged, and the entry's own subject is not.** This was the only place in
+`docs/GAPS.md` that recorded the unconditional `scrollable`, and the question
+_should it be conditional_ had then been declined twice. It is decided in
+[ADR 0039](adr/0039-a-region-is-a-tab-stop-unconditionally.md) — **`Region` is a
+tab stop unconditionally**, because the question was never _does this region
+scroll_ but _can a tab stop appear and disappear under a reader_, and both
+candidate conditions fail: overflow is a function of **height** (re-measured,
+and one region on `/` does scroll below about 700 px of viewport height, where
+the four-pair premise said none ever did), and focusability of the content is a
+function of the **frame**, so the stop would vanish when the first aggregate
+lands and drop a reader's focus to `<body>`. The six stops this paragraph
+describes are now **asserted** rather than described, by
+`expectEveryRegionIsATabStop` in `overview-region-order.spec.ts` and
+`securities-route.spec.ts`, with the break `a-region-stops-being-a-tab-stop` —
+which matters because `scrollable-region-focusable` **cannot report this any
+more**: the rule does not fire while the scrolling box contains something
+focusable and Story 4.6 put links inside three of these regions. **What stays
+open is this entry's actual subject**, unchanged: whether a column-major focus
+order at ≥861 is experienced as a defect, which no assertion should try to
+adjudicate.
+
 **Three things this leaves to a person.**
 
 - Whether the ≥861 order is experienced as a defect by somebody who tabs the

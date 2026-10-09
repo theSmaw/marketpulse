@@ -116,6 +116,74 @@ export async function expectNothingFailedToRender(page: Page): Promise<void> {
 }
 
 /**
+ * **Every named region on this page is a keyboard stop** (Task 4.6.6, ADR 0039).
+ *
+ * ## Why this exists rather than axe
+ *
+ * The claim is Task 1.13.4's: a `Region` is a `Panel` with `scrollable`, which
+ * is `overflow: auto` **and** `tabIndex={0}` on one element, because a box that
+ * scrolls and cannot be reached by keyboard is a WCAG 2.1.1 failure. It was
+ * held by axe's `scrollable-region-focusable`, and **axe cannot hold it any
+ * more**: the rule does not fire while the scrolling box happens to contain
+ * something focusable — which is why the original defect stood for five
+ * stories — and Story 4.6 made the rows inside three of the landing route's
+ * regions into links. From here a region that quietly stopped being a stop
+ * would be reported by nothing, and _every region is reachable by keyboard_
+ * would be a sentence in a comment rather than a guarded property.
+ *
+ * ## What it reads, and why the population is every named section
+ *
+ * `Panel` is the only `<section>` in this application and `Region` is its only
+ * production consumer, so `section[aria-labelledby]` **is** the set of regions
+ * by construction. That matters more than it looks: a list of names would make
+ * the corpus a hard-coded file list, so the next region to ship — Epic 5's
+ * unusual activity, Epic 6's topology — would be filtered out of its own check
+ * and this would stay green while the new region was unreachable.
+ *
+ * `atLeast` is a floor against the one way a per-element assertion over a
+ * collection passes wrongly: an **empty** population satisfies it. It is not a
+ * census — a route that grows a region stays green — and the counts the two
+ * call sites pass are what those routes draw today.
+ *
+ * Read in the browser rather than through a locator because `tabIndex` is a
+ * resolved DOM property: `scrollable={false}` leaves no attribute at all, and
+ * `HTMLElement.tabIndex` reports `-1` for it, which is the state this is here
+ * to tell apart from `0`.
+ */
+export async function expectEveryRegionIsATabStop(
+  page: Page,
+  { atLeast }: { readonly atLeast: number },
+): Promise<void> {
+  const regions = await page.evaluate(() =>
+    [...document.querySelectorAll("section[aria-labelledby]")].map(
+      (section) => {
+        const heading = document.getElementById(
+          section.getAttribute("aria-labelledby") ?? "",
+        );
+        return {
+          name: (heading?.textContent ?? "").trim(),
+          // `tabIndex`, not `getAttribute("tabindex")`: the absent attribute and
+          // `tabindex="-1"` are two spellings of *not a stop* and this reads
+          // both as `-1`.
+          tabIndex: (section as HTMLElement).tabIndex,
+        };
+      },
+    ),
+  );
+
+  expect(regions.length).toBeGreaterThanOrEqual(atLeast);
+
+  // The names are on both sides so a failure prints which region lost its stop
+  // rather than a count of how many did.
+  const notStops = regions
+    .filter(({ tabIndex }) => tabIndex !== 0)
+    .map(({ name, tabIndex }) => `${name} @ tabIndex ${String(tabIndex)}`);
+  const names = regions.map(({ name }) => name);
+
+  expect({ names, notStops }).toEqual({ names, notStops: [] });
+}
+
+/**
  * Text a **reader** can see, excluding the sentence written for a screen reader.
  *
  * Needed since Task 2.10.8 gave `/securities` a second live region. An
