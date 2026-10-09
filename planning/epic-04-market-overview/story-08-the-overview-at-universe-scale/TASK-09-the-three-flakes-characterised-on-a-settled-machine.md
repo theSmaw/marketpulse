@@ -86,3 +86,25 @@ Your own method applies unchanged: **n = 6 cannot separate this from a
 regression and n = 24 on one checkout can**, and the branch it was seen on
 changes nothing executable at all — five docblocks and one string — which is
 about as clean a control arm as a comparison ever gets.
+
+## Handed here by Task 4.8.6 — 2026-10-09: two ways the harness leaves a machine dirty, both of which look like contention
+
+**Before attributing anything to contention, check for these two — they were
+both present on this machine today and both inflate a load average by a whole
+core.**
+
+1. **`startProductionPair()` leaks `vite preview` on an abnormal exit.** The
+   preview is spawned as `pnpm exec vite preview`, so the process the harness
+   holds is the `pnpm` wrapper and the listener is its grandchild;
+   `child.kill()` reaps the wrapper only. Measured here after a crash inside a
+   Playwright route handler: the backend on `:3100` was gone and
+   `node …/vite/bin/vite.js preview --outDir …` was still listening on `:4273`
+   with **PPID 1**. The next run refuses its own port and reads as a
+   configuration fault rather than as a leak.
+2. **A throwaway instrument's process outlives the file.**
+   `node scripts/browser-leg.mjs` — Task 4.8.4's, deleted from the tree at that
+   task's close — was found **spinning at 100% of a core for 58 minutes**, PPID
+   1. `pgrep -f` by this story's script names is the check; `uptime` is not,
+      because Task 4.8.1 already measured that a load average alone is not
+      something a browser can feel, and this is the converse: a core's worth of
+      load whose cause is not in the tree any more.

@@ -93,6 +93,34 @@ link cannot tell its own network from the environment.
   driven over CDP reports `hidden`, which pauses `requestAnimationFrame` and
   makes every figure here small, plausible and meaningless.
 
+  > **Amended 2026-10-09 by Task 4.8.6 — the `longtask` half of this command no
+  > longer sees the breach, and run verbatim it would report the entry
+  > repaired.** Forty interleaved cold loads on a production build with this
+  > method plus a `long-animation-frame` observer: `/securities` produced **no
+  > `longtask` entry over 50 ms in 10 of 10 loads**, where 2026-09-22 read
+  > 50–56 ms on 7 of 10. The breach is unchanged — a long animation frame of
+  > **62.8–77.4 ms on 10 of 10 loads**, of which **script 26.2–31.0 ms** and
+  > **style, layout and paint 34.2–38.3 ms**, with a worst rAF gap of **p50
+  > 66.7 / p95 68.5 ms** against 49–87 then. The work is no longer one task over
+  > the line; it is one frame over it whose largest task is not, and the render
+  > half that `longtask` cannot see is now the larger half. **So add
+  > `long-animation-frame` to the observer, and prove the plant per channel** —
+  > a 120 ms block caught by LoAF and missed by `longtask` leaves the
+  > tasks-over-50 ms figure unobtainable on an arm that looks proved. The
+  > 20-row control re-taken the same session: **0 of 10, gaps 18.5–33.4 ms**,
+  > and the document is **10,318 nodes against 765** (was 10,385 against 848 on
+  > 2026-09-11). Figures, transcript and the attribution are in
+  > [Task 4.8.6](../epic-04-market-overview/story-08-the-overview-at-universe-scale/TASK-06-the-cold-load-of-the-landing-page-against-the-explorer.md).
+  >
+  > **And the landing page is not this entry.** `/` calls `useSecurities()` too,
+  > so both routes pay the same 518-security payload; measured against a
+  > 20-row control on **each** route, the payload costs `/` **≈6 ms** of worst
+  > frame and the table's markup costs `/securities` **≈48 ms** — `/` draws
+  > **447 nodes and no `<tr>`**, identical at 20 securities, and carries **no
+  > task over 50 ms and one 50.9 ms frame in ten loads**. The lever for this
+  > entry is still DOM size, and the page that has the DOM is still the one
+  > named in it.
+
 ### 2. `Expand all` on the tracked universe
 
 **69–87 ms** (12 → 530 rows), against the same target. Taken 2026-09-11 by Task

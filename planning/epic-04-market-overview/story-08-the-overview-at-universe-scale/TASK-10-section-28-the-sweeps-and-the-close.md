@@ -175,3 +175,53 @@ true of the whole tree until Story 4.2 and is now false everywhere.
 **The quiet-arm figure belongs in §28's account of what the page costs when
 nothing arrives**: 2 chart rebuilds a minute from the health poll, 0 builds
 between polls.
+
+## Handed here by Task 4.8.6 — 2026-10-09: §28's cold-load figures, two live claims that have moved, and a harness defect
+
+**1. The figures for §28's account of a cold load**, production build, 1440×900,
+`provider=none`, store `marketpulse` (518 securities, 48,797,343 bars), 40
+interleaved loads in one session, calibrator ratio ×0.91–×1.09 of a 2.2 ms
+reference with 0–3 of 10 discarded:
+
+| route             | tasks over 50 ms | frames over 50 ms           | worst rAF gap p50 / p95 | nodes  |
+| ----------------- | ---------------- | --------------------------- | ----------------------- | ------ |
+| `/`               | 0 of 10          | 1 of 10 (50.9 ms)           | **24.7 / 34.7 ms**      | 447    |
+| `/securities`     | 0 of 10          | **10 of 10** (62.8–77.4 ms) | **66.7 / 68.5 ms**      | 10,318 |
+| `/ @20 rows`      | 0 of 10          | 0 of 10                     | 18.7 / 18.7 ms          | 447    |
+| `/securities @20` | 0 of 10          | 0 of 10                     | 18.8 / 33.4 ms          | 765    |
+
+**2. Two live claims about `/securities`' cold load have moved, and the sweep
+has to correct the channel rather than the number.** `50–56 ms on 7 of 10`
+(2026-09-22, Task 3.6.5) is quoted live in **`planning/epic-14-performance-scale-validation/EPIC.md`**
+and the band `50–76 ms` in `CLAUDE.md`, `docs/GAPS.md` and
+`SEARCH-AND-SELECTION.md` §10 — grep `50–76` and `50–56` before writing. **The
+breach stands and is now 10 of 10 rather than 8 of 10 on the continuous
+channel** (worst rAF gap 50.0–68.5 ms against 49–87), and `longtask` reports
+**nothing**. So the correction is not _the figure fell_ — it is that the figure
+is channel-dependent and the single-task reading is no longer the one that can
+see it. Epic 14's own `EPIC.md` already carries a dated amendment from this
+task saying its prescribed `Re-measure:` command is insufficient as written; the
+rest of the family is yours. Task 3.6.5's record and the 2026-09-11 readings
+(`10,385 nodes against 848`, re-taken here as **10,318 against 765**) are
+historical and stay standing.
+
+**3. `docs/GAPS.md` candidate, and it is mechanisable only in part.** Nothing
+below `pnpm e2e` can see either figure, and the gated suite cannot assert
+either — CI's store has zero bars and the figure there would be a duration on a
+shared runner. What **is** mechanisable is the claim that `/` renders no element
+per tracked security: **447 nodes and 0 `<tr>` at 518 securities, identical at
+20**, which is clause A of Task 4.8.8's second condition and is checkable from
+the DOM without a stopwatch.
+
+**4. A defect in the shared harness, produced for real and deliberately not
+repaired by a measurement task.** `startProductionPair()`'s `stop()`/`reap()`
+kills `pnpm`, and `vite preview` is its **grandchild** — so after an abnormal
+exit the backend is reaped and **port 4273 stays held by a process with PPID
+1**, and the next run refuses its own address and reads as a configuration
+fault. That is the same symptom Task 4.8.4 repaired for the signal case,
+reached by a different route. Beside it: an orphaned
+`node scripts/browser-leg.mjs` from Task 4.8.4 was found **spinning at 100% of
+a core for 58 minutes with its script file already deleted**, inside every
+load-average reading on this machine for an hour. If the close adds a rule, the
+rule is: **grep `ps` for this story's own script names before trusting a load
+reading** — a dead instrument's process outlives its file.

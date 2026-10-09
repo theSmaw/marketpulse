@@ -178,3 +178,44 @@ this product can draw is 8,190 bars (§19), ≈4.4 ms at the measured scaling,
 **still a quarter of the task**. Task 4.8.5's own trigger is a **ratio** for
 this reason — _the first measurement in which the two builders are more than
 half the render task containing them_ — and it is deliberately not Epic 14's.
+
+## Handed here by Task 4.8.6 — 2026-10-09: `/` is not in breach, `/securities` still is, and the channel the trigger's own re-measure names can no longer see it
+
+**Three things for the verdict, all from 40 interleaved cold loads on one
+session, with two 20-row control arms.**
+
+**1. The landing page clears §28's line on a cold load, and the figure to quote
+is a frame rather than a task.** `/` produced **no `longtask` entry over 50 ms
+in 10 of 10 loads** and **one** long animation frame in ten loads — 50.9 ms,
+script 25.2, render 20.0 — with a worst rAF gap of **p50 24.7 / p95 34.7 ms**
+(18.6–34.7). `/securities`, interleaved with it on the same artefact and store,
+produced a long animation frame on **10 of 10** loads — **62.8–77.4 ms** — and a
+worst rAF gap of **p50 66.7 / p95 68.5**, over 50 on every load. So the verdict
+can say that the cold load of the page this story is about is **not** Epic 14
+entry 1, and say it with a control rather than by assertion.
+
+**2. The attribution says clause A's lever is the right lever and names its
+price in advance.** With `GET /securities` trimmed to twenty rows, `/` draws the
+**same 447 nodes** and its worst frame collapses to the one-frame floor
+(18.6–18.7 ms), while `/securities` collapses from 66.7 to 18.8. So: **the
+518-security payload both routes fetch costs ≈6 ms; the 518-row markup only one
+of them draws costs ≈48 ms**, and the long frame's own split agrees from inside
+— script **26–31 ms on `/securities` against 25 ms on `/`**, with the whole
+difference in **style, layout and paint, 34–38 ms over 9,871 extra nodes
+(10,318 against 447), ≈3.9 µs a node**. **Clause A — _the first surface on `/`
+that renders one element per tracked security_ — therefore has a measured price
+attached to it before it fires: about 48 ms of frame on a cold load, by
+arithmetic on this page's own numbers rather than by analogy with the table.**
+
+**3. A caveat the verdict must carry about the trigger's own re-measure.** Epic
+14 entry 1's `Re-measure:` line names
+`PerformanceObserver({ entryTypes: ["longtask"] })` and an rAF-gap recorder.
+Run verbatim today, **the `longtask` half reports nothing at all on
+`/securities`** — 0 of 10 loads, where 2026-09-22 read 50–56 ms on 7 of 10 —
+because the work is no longer a single task over the line; it is a 63–77 ms
+frame whose largest task is not. The breach is unchanged and the instrument
+that found it has gone blind, which is a thing a §28 verdict should say in as
+many words: **a channel going quiet and a cost going away produce the same
+output**. The zero is a zero — a 120 ms plant was caught by **both** channels on
+**all 40** loads, after each measurement window, on the page that produced the
+figure.
