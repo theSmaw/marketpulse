@@ -514,27 +514,154 @@ describe("the ticker link, and the roving stop over it", () => {
     expect(screen.getByRole("link", { name: "XLB" }).tabIndex).toBe(-1);
   });
 
-  it("falls back to the first real row when the stop's security leaves", () => {
+  it("falls back to the first real row when the stop's security leaves and NOBODY was in the list", () => {
     // Membership moves under a hold about 0.3 times a minute. The stop is
-    // derived at render rather than held as an index, so a list that drops the
-    // row a reader left is still reachable in one press. (Where the FOCUS goes
-    // when that row unmounts is Task 4.6.5's.)
+    // derived at render rather than held as an index, so a list that drops a
+    // row is still reachable in one press. **Nothing is focused here**, which
+    // is the case the recovery below must not fire in: there is no focus to
+    // catch, and a list that grabbed one because its membership changed would
+    // steal it off whatever a reader was actually reading.
     const { rerender } = draw();
 
-    focus(screen.getByRole("link", { name: "XLE" }));
     rerender(
       <RankedList
-        rows={[
-          row("XLK", "Technology", 1, 1.84),
-          row("XLB", "Materials", 2, 0),
-        ]}
+        rows={[row("XLB", "Materials", 1, 0), row("XLE", "Energy", 2, -1.27)]}
         bar={{ kind: "signed", scale: 2 }}
         name="Sectors"
         quietGroup="possible"
       />,
     );
 
-    expect(screen.getByRole("link", { name: "XLK" }).tabIndex).toBe(0);
+    expect(document.activeElement).toBe(document.body);
+    expect(screen.getByRole("link", { name: "XLB" }).tabIndex).toBe(0);
+  });
+
+  /*
+   * **The composition defect, and the three states one mechanism discharges**
+   * (Task 4.6.5).
+   *
+   * The region's hold pins the **order**; Story 4.5.7 deliberately left the
+   * **membership** moving under it, because pinning a membership lets a region
+   * keep naming a security the producer has stopped selecting. So the `<li>`
+   * holding a reader's focus can unmount while their hands are still, and both
+   * decisions are right.
+   *
+   * What jsdom CAN see here is the whole of it: `document.activeElement` after
+   * React removes the focused element is `<body>`, exactly as it is in
+   * Chromium, which is why these three are unit tests and not only browser
+   * ones. What it cannot see is the frame that drives it — that is
+   * `overview-nothing-to-open.spec.ts`'.
+   */
+  describe("when the row holding focus leaves the list", () => {
+    it("moves focus to the row now at that RANK, and the stop agrees", () => {
+      const { rerender } = draw();
+
+      // Rank 3 of 3. After the frame below there are two rows and the reader's
+      // security is not one of them.
+      focus(screen.getByRole("link", { name: "XLE" }));
+
+      act(() => {
+        rerender(
+          <RankedList
+            rows={[
+              row("XLK", "Technology", 1, 1.84),
+              row("XLB", "Materials", 2, 0),
+            ]}
+            bar={{ kind: "signed", scale: 2 }}
+            name="Sectors"
+            quietGroup="possible"
+          />,
+        );
+      });
+
+      // **Not `<body>`**, which is what shipping nothing does: the document's
+      // tab order would restart at the top and the reader's next press would
+      // be six regions from where they were reading.
+      expect(focused()).toBe("XLB");
+      // Rank 3 clamped to the two rows that remain — the position on screen
+      // the reader was looking at, not the printed ordinal, which under a hold
+      // is *meant* to disagree with it.
+      expect(screen.getByRole("link", { name: "XLB" }).tabIndex).toBe(0);
+
+      // And the arrows work from where they were put, in the new order.
+      press("ArrowUp");
+      expect(focused()).toBe("XLK");
+    });
+
+    it("moves focus to the region's section when no real row remains", () => {
+      // Both mover lists empty is **CI's permanent state** — 518 securities
+      // and zero bars — most of a weekend, and the first minute of every
+      // session. The region a reader chose is still the right place for them
+      // to be standing; `Region` makes the section focusable because it
+      // scrolls, which is the stop this lands on.
+      const { rerender } = renderWithContext(
+        <section tabIndex={0} aria-label="Movers">
+          <RankedList
+            rows={THREE}
+            bar={{ kind: "none" }}
+            name="Gainers"
+            quietGroup="impossible"
+          />
+        </section>,
+      );
+
+      focus(screen.getByRole("link", { name: "XLB" }));
+
+      act(() => {
+        rerender(
+          <section tabIndex={0} aria-label="Movers">
+            <RankedList
+              rows={[]}
+              bar={{ kind: "none" }}
+              name="Gainers"
+              quietGroup="impossible"
+            />
+          </section>,
+        );
+      });
+
+      expect(document.activeElement).toBe(
+        screen.getByRole("region", { name: "Movers" }),
+      );
+    });
+
+    it("does NOTHING when the reader had already moved on", () => {
+      // The one condition that is about somebody else's element. A reader who
+      // tabbed to another region and then had their old row drop out must keep
+      // the focus they have — recovering it would be a worse defect than the
+      // one this repairs, and it is the state a `blur`-counting implementation
+      // gets wrong.
+      const { rerender } = renderWithContext(
+        <>
+          <RankedList
+            rows={THREE}
+            bar={{ kind: "none" }}
+            name="Gainers"
+            quietGroup="impossible"
+          />
+          <button type="button">Elsewhere</button>
+        </>,
+      );
+
+      focus(screen.getByRole("link", { name: "XLE" }));
+      focus(screen.getByRole("button", { name: "Elsewhere" }));
+
+      act(() => {
+        rerender(
+          <>
+            <RankedList
+              rows={[row("XLK", "Technology", 1, 1.84)]}
+              bar={{ kind: "none" }}
+              name="Gainers"
+              quietGroup="impossible"
+            />
+            <button type="button">Elsewhere</button>
+          </>,
+        );
+      });
+
+      expect(focused()).toBe("Elsewhere");
+    });
   });
 
   it("moves one row at a time with the arrows and CLAMPS at both ends", () => {

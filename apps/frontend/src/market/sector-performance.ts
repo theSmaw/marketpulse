@@ -311,8 +311,17 @@ export interface SectorRow {
    * `element.children`, so a row drawn in the list and missing from the array
    * handed to the FLIP makes every `to` position read off the wrong row.
    *
-   * Optional rather than `boolean | undefined` so that the eleven sector rows,
-   * which can never be held, say nothing about it.
+   * **It is also the one predicate for *is this row a place a reader can go*,
+   * since Task 4.6.4 — a held row is handed no destination at all**, rather
+   * than an inert one, so *no stop*, *no arrow* and *not `End`'s target* hold
+   * by absence instead of by three CSS properties a later edit could change.
+   *
+   * Optional rather than `boolean | undefined` so that a row which is simply a
+   * row says nothing about it. **Amended 2026-10-09 by Task 4.6.5**: the
+   * sentence here used to read *so that the eleven sector rows, which can never
+   * be held, say nothing about it*, and {@link RESERVED_SECTORS} falsified it —
+   * eleven sector rows that are held room and whose `symbol` is a sector slug.
+   * The live eleven, from {@link sectorPerformance}, still never are.
    */
   readonly held?: boolean;
 }
@@ -433,6 +442,32 @@ export function sectorPerformance(
  * pairing of a sector with its ETF, and `pnpm invariants` refuses one by name.
  * `symbol` therefore carries the sector's own slug, which is the React key and
  * is never read: the whole subtree is `visibility: hidden` and `aria-hidden`.
+ * **Amended 2026-10-09: it WAS read, by `RankedList`, to build an `href` — see
+ * the section below. The sentence is left standing because it is why the
+ * defect was invisible: `never read` was a claim about the screen and the
+ * accessibility tree, and an `href` is in neither.**
+ *
+ * ## And since Task 4.6.5 every one of them is `held`, because the slug is not
+ * a security
+ *
+ * `RankedList` builds a row's destination with `securityPath(row.symbol)` at
+ * render (Task 4.6.4). A slug in that position builds
+ * **`/securities/technology` × 11, on every first paint** — eleven live
+ * `<a href>`s to eleven addresses that are not securities, in the markup of the
+ * state every load passes through. `visibility: hidden` and `aria-hidden` kept
+ * them off the screen and out of the accessibility tree and did **nothing** to
+ * the hrefs, which is the distinction that made it invisible for a fortnight.
+ *
+ * The repair is a **producer-side fact rather than a prop**: {@link
+ * SectorRow.held} already means *room and nothing else*, and these eleven rows
+ * are exactly that — the same sentence `withHeldRows`' pads are built on, and
+ * the same reason they are handed no destination. So there is one predicate for
+ * *is this row a place a reader can go*, read in one place, and a second region
+ * reserving itself this way inherits the refusal instead of re-deriving it.
+ *
+ * Nothing about the geometry moves: `.held` is one declaration,
+ * `visibility: hidden`, inside a subtree that is already hidden, and the
+ * separator rule beside it keeps the 1 px in the box so the pitch is the pitch.
  *
  * `step` is the narrowest rung, and nothing is drawn against it — no row has a
  * move, so no bar, no axis and no printed ladder, which is ADR 0029 in the state
@@ -448,6 +483,9 @@ export const RESERVED_SECTORS: SectorPerformance = {
     absent: undefined,
     arrival: undefined,
     basis: undefined,
+    // **Room, which is what a reservation is** — and what keeps the slug out
+    // of an `href`. See the header above.
+    held: true,
   })),
 };
 

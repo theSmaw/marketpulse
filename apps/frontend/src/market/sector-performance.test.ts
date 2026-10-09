@@ -383,12 +383,17 @@ describe("RESERVED_SECTORS", () => {
     // A second pairing of a sector with its fund is where a permutation comes
     // from, and `one-pairing-of-a-sector-and-its-benchmark` refuses one by
     // name. The reservation carries the sector's own slug in the ticker column,
-    // which is the React key and is never read.
+    // which is the React key — and which `RankedList` read anyway, to build
+    // eleven `/securities/<slug>` hrefs, until Task 4.6.5 marked every one of
+    // these rows `held`. The clause below is that repair's producer end.
     expect(RESERVED_SECTORS.rows.map((row) => row.label)).toContain(
       "Health Care",
     );
     expect(
       RESERVED_SECTORS.rows.every((row) => !/^XL[A-Z]?$/u.test(row.symbol)),
     ).toBe(true);
+    // **Room, and therefore no destination** — the one predicate `RankedList`
+    // reads to decide whether a row is a place a reader can go.
+    expect(RESERVED_SECTORS.rows.every((row) => row.held === true)).toBe(true);
   });
 });

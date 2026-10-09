@@ -200,6 +200,28 @@ describe("SectorPerformance, the honest states", () => {
       /None stored|No stored close|[+−]\d/u,
     );
   });
+
+  it("holds NO destination, because a sector slug is not a security", () => {
+    // **Task 4.6.5's done-when 1, and it was a live defect for a fortnight.**
+    // `RESERVED_SECTORS`' `symbol` is the sector's own **slug**, and
+    // `RankedList` builds a row's destination with `securityPath(row.symbol)`
+    // at render — so the first paint of every load carried eleven
+    // `<a href="/securities/technology">`-shaped links to addresses that are
+    // not securities. `visibility: hidden` and `aria-hidden` kept them off the
+    // screen and out of the accessibility tree and did **nothing** to the
+    // hrefs, which is why no assertion in this file saw it.
+    //
+    // The repair is producer-side: the eleven rows are `held`, which is the one
+    // predicate for *is this row a place a reader can go*.
+    const { container } = renderWithContext(<SectorPerformanceReservation />);
+
+    expect(container.querySelectorAll("a")).toHaveLength(0);
+    // By name, because the slugs are what a naive `securityPath(row.symbol)`
+    // builds and a count of zero does not say which eleven it is counting.
+    for (const slug of ["technology", "health_care", "financials"]) {
+      expect(container.innerHTML).not.toContain(`/securities/${slug}`);
+    }
+  });
 });
 
 describe("SectorPerformanceMeta", () => {
