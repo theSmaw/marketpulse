@@ -96,3 +96,34 @@ needs a person; Gate 2.
 3. The sideways sweep's miss count is recorded, **including the second pass**
 4. `PRODUCT_SPEC.md` carries its dated amendment and the GAPS entries are
    written
+
+## Amended by Task 4.6.5 — 2026-10-09: the hold releases and re-takes on every internal focus move, and the un-pinnable window cannot be reached by a reader's hands
+
+Produced in a browser while taking done-when 4, and **not repaired there**,
+because the repair changes hold behaviour Story 4.5.7 settled with
+measurements. Carry both into this task's journey pass and raise the second
+with the owner at Gate 2 if it still stands.
+
+**`Region` listens for `focusin`/`focusout` on its own box and both bubble.**
+So moving focus from the region's section onto a row fires `report(false)` and
+then `report(true)`. Two consequences:
+
+1. **Every arrow press inside a ranked region releases the pin and takes it
+   again**, which refreshes the pinned order to the last frame drawn. The
+   reader's list can therefore re-order under an arrow press, which is the one
+   thing the hold exists to prevent.
+2. `useOrderHold`'s rule _"the first of the two sources to fire owns the
+   pin"_ **does not hold for a move WITHIN the region** — that releases first.
+
+And the un-pinnable state `use-order-hold.ts` documents (_a reader arriving
+before the first frame_) **closes the moment focus moves inside the region**,
+with `latest.current` populated by then. So a keyboard reader can reach the
+**section** while un-pinnable and never a **row**. Task 4.6.5 reached it by
+`Tab` and asserted the symbol-keyed stop agrees with where focus went; what it
+could not do is reach a row in that window, because entering one ends it.
+
+**A third thing found in passing, and it reads exactly like the recovery not
+firing**: `RankedList` draws **no `<ol>` at all** when nothing is ranked, so at
+the instant the last real row leaves, the list element is already detached and
+`closest("section")` reaches nothing. The `<section>` is therefore captured at
+**focus** time rather than at recovery time.

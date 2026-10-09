@@ -362,6 +362,48 @@ const linksIn = (list: HTMLElement): readonly HTMLAnchorElement[] => [
  * is a jump in a structure whose entire meaning is ordinal, and the reader who
  * presses `ArrowDown` at the last row is asking for the next one — the honest
  * answer to which is that there is not one.
+ *
+ * ## And since Task 4.6.5 it catches focus when the row holding it leaves
+ *
+ * **Two individually correct decisions compose into a dropped focus.** The
+ * region's hold pins the **order** (`rowsInPinnedOrder`); Story 4.5.7
+ * deliberately left the **membership** moving beneath it, because pinning a
+ * membership would let the region keep naming a security the producer has
+ * stopped selecting — ADR 0029's licence, expired. So a reader whose focus is
+ * inside a list, at 0.21–0.44 membership changes a minute, has the `<li>` under
+ * them unmounted: focus falls to `<body>`, the document's own tab order
+ * restarts at the top, and **the next `Tab` is six regions away from where they
+ * were reading.** Nothing in the hold is wrong and nothing in the roving stop
+ * is wrong; the defect only exists where they meet.
+ *
+ * The repair is one mechanism and it discharges three states:
+ *
+ *   - **The row left and others remain** → focus the row now at that **rank**
+ *     in the same list. The arrows keep working from where the reader was
+ *     looking, and no claim is made that their security is still a member.
+ *   - **The list ran out of real rows** → focus the region's own
+ *     `<section>`, which `Region` makes focusable because it scrolls. Focus
+ *     stays in the region a reader chose.
+ *   - **The reader had already moved on** → nothing. See the three conditions
+ *     below; stealing focus back from another region would be a worse defect
+ *     than the one being fixed.
+ *
+ * **Focus moving is acceptable; activating is not.** Nothing here presses
+ * anything: the destination is still an `<a href>` resolved at render, so a
+ * recovered focus is a reader standing somewhere new, never a navigation they
+ * did not ask for. That was already unrepresentable (see `Row`'s ticker cell)
+ * and this does not reintroduce it.
+ *
+ * ### Why the trigger is the ELEMENT being disconnected and not a blur
+ *
+ * Removing the focused element does not reliably fire `blur` or `focusout`, so
+ * a `within` boolean kept by those two events is a guess about something the
+ * DOM can be asked directly: the element that last held focus in this list is
+ * remembered, and `isConnected` is `false` exactly when React has unmounted
+ * it. The third condition — `document.activeElement` is the body — is what
+ * separates *the removal dropped focus* from *the reader had tabbed away and
+ * the row happened to leave afterwards*, which is the one case where doing
+ * anything at all would be wrong.
  */
 function useRovingStop(rows: readonly SectorRow[]) {
   /*
@@ -379,9 +421,74 @@ function useRovingStop(rows: readonly SectorRow[]) {
     ? focused
     : members[0]?.symbol;
 
+  /*
+   * **The list element, taken off the focus event rather than from a `ref`**
+   * — the `<ol>` already carries `useSettle`'s, and a second one here would
+   * mean merging two callback refs for a value one event already has. It is
+   * only ever read after a focus has happened inside this list, which is the
+   * only state the recovery below runs in.
+   */
+  const list = useRef<HTMLElement | null>(null);
+  /**
+   * The region's own `<section>`, taken at the same moment and for one reason:
+   * **the list element itself can be the thing that unmounts.** `RankedList`
+   * draws no `<ol>` at all when nothing is ranked, so at the moment the last
+   * real row leaves, `list.current` is already detached and `closest()` on a
+   * detached node reaches nothing. Found by the no-rows-remain test, which
+   * read as the recovery not firing.
+   */
+  const section = useRef<HTMLElement | null>(null);
+  /** The anchor that last held focus in this list — see the header. */
+  const held = useRef<HTMLElement | null>(null);
+  /** The members as last drawn, so a departed row's **rank** is recoverable. */
+  const drawn = useRef<readonly string[]>([]);
+
+  const symbols = members.map((row) => row.symbol);
+
+  useLayoutEffect(() => {
+    const previous = drawn.current;
+    drawn.current = symbols;
+
+    const was = held.current;
+    if (was === null || was.isConnected) return;
+    held.current = null;
+
+    // **The reader had already moved on.** Anything done here would take focus
+    // off whatever they went to — a worse defect than the one being repaired,
+    // and the only one of the three conditions that is about somebody else's
+    // element.
+    const active: Element | null = document.activeElement;
+    if (active !== null && active !== document.body) return;
+
+    /*
+     * **The rank the departed row held**, read off the order as last drawn
+     * rather than off the ranks printed on the rows: under a hold the printed
+     * ordinals and the vertical order are *meant* to disagree, and what the
+     * reader was looking at is the position on screen.
+     */
+    const rank = previous.indexOf(was.getAttribute(TICKER_ATTRIBUTE) ?? "");
+    const box = list.current;
+    const links = box?.isConnected === true ? linksIn(box) : [];
+    const landing = links[Math.min(Math.max(rank, 0), links.length - 1)];
+
+    if (landing !== undefined) {
+      landing.focus();
+      return;
+    }
+
+    // Nothing real left in this list — both mover lists empty is CI's
+    // permanent state and most of a weekend. The region a reader chose is
+    // still the right place for them to be standing.
+    section.current?.focus();
+  });
+
   function onFocus(event: FocusEvent<HTMLElement>) {
     const ticker = event.target.getAttribute(TICKER_ATTRIBUTE);
-    if (ticker !== null) setFocused(ticker);
+    if (ticker === null) return;
+    setFocused(ticker);
+    list.current = event.currentTarget;
+    section.current = event.currentTarget.closest("section");
+    held.current = event.target;
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -816,9 +923,28 @@ export const RankedList = memo(function RankedList({
                * Found by looking at the picture; every test was green.
                */
               scale={undefined}
-              /* A quiet row is a row we are refusing to rank, which is the
-                 opposite of a row that is not there. */
-              held={undefined}
+              /*
+               * **The row's own answer, since Task 4.6.5 — and `undefined`
+               * here was a defect for a fortnight.**
+               *
+               * A quiet row is one we are refusing to **rank**, which is
+               * indeed the opposite of a row that is not there — and that was
+               * the whole of the argument for hard-coding it. What it missed is
+               * that **every row of `RESERVED_SECTORS` is rankless**, so the
+               * eleven held rows of the first paint's reservation arrive in
+               * *this* group and this line threw their `held` away: eleven
+               * `<a href="/securities/technology">`, invisible, out of the
+               * accessibility tree, and in the markup of a state every load
+               * passes through.
+               *
+               * **Written down because the reasoning was right and the
+               * constant was wrong**, which is the shape that survives review:
+               * there was no state in which a quiet row was held *at the time
+               * the line was written*, and a producer one file away made one
+               * the moment it needed a reservation. The row knows; the list
+               * asks it.
+               */
+              held={row.held}
             />
           ))}
         </ul>
