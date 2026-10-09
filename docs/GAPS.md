@@ -2164,3 +2164,246 @@ one region read as a structure or as a repetition.
 
 **Owner: a person with a screen reader**, before Epic 11 hands this surface to
 an agent.
+
+## No gated machine has ever clicked a mover, and CI never can
+
+**Added 2026-10-09 by Task 4.6.7.**
+
+Story 4.6's whole point is that `Movers` is a place a reader leaves from.
+**CI's store is 518 securities and zero bars**, so the overview frame a gated
+runner's own gateway builds carries `eligible: 0` and two empty lists for ever
+— ten held pads, each handed **no link at all** since Task 4.6.4. So the
+gate's permanent state is a region with **nothing in it to click**, and the
+twenty-odd mover and sector destinations this story shipped are exercised there
+only against a frame a spec wrote.
+
+`e2e/specs/overview-journey.spec.ts` drives the journey over a **furnished**
+frame, which is what makes it non-vacuous on a runner with no data: measured
+against `pnpm store:bare` (518 securities, 0 bars, the pair pointed at
+`marketpulse_bare`) it passes in **1.8–2.4 s**, activating the third gainer by
+pointer and the third loser by keyboard. What it therefore says is everything
+about what the browser does with a ranked row and **nothing about whether a
+ranked row ever arrives** — `e2e/README.md`'s own _not that a feed a spec
+furnishes would ever have arrived_, on a fourth surface.
+
+The chain is covered piecewise elsewhere (`movers.ts`' unit tests over the
+selection, `overview-movers-ranking.spec.ts` against the real server when the
+store can answer) and **nowhere end to end on a gate**.
+
+**Re-measure:** `pnpm store:bare`, then drive the pair at it and run
+`pnpm e2e overview-journey.spec.ts` — the journey is green and
+`overview-movers-ranking.spec.ts`' cut test skips. The permanent figure is the
+frame's: `eligible: 0`, two lists of five pads, zero links in the region.
+
+## AC 5's last clause is unreachable on every gate this repository has
+
+**Added 2026-10-09 by Task 4.6.7.**
+
+Story 4.6's AC 5 is _land on `/`, reach a mover, open it, and **read a figure**
+on the security page_. The last clause cannot be asserted anywhere that gates a
+merge, and the two ends fail for different reasons:
+
+- **`pnpm e2e`**: zero bars, so `/securities/<anything>` renders the vacancy
+  sentence and the figures block is absent. Measured on a store 19 sessions
+  behind, which is the same shape: `/securities/NVDA` draws
+  `No bars stored for this window.` and **0** `Open` labels, while
+  `/securities/NVDA?sessions=21` draws **1** and `1M OPEN 220.53` — so the
+  locator is sound and the store is the reason.
+- **`pnpm e2e:deployed`**: the store has bars, but a figure there is a property
+  of the session the deployment is in, and that suite's own rule forbids
+  asserting one.
+
+So the clause is carried by `overview-journey.spec.ts`' second test, which
+**skips with its reason naming the security**:
+`this store holds no bars for NVDA, so the security page has no figure to read
+— AC 5's last clause is unreachable on any gate, and on CI (518 securities,
+zero bars) it is unreachable for ever`. A skip says _this instrument could not
+judge_; nothing in this repository has ever judged it.
+
+**Re-measure:** `pnpm e2e overview-journey.spec.ts --reporter=json` and read
+the `skip` annotation. On a store with bars in the default window the same test
+runs and asserts the figure; that store is a `pnpm backfill` away and is not
+any gate's.
+
+## The sector region draws no `<ol>` at all when nothing is ranked, so every list-keyboard assertion in it is vacuous on the gate
+
+**Added 2026-10-09 by Task 4.6.7, from a finding Task 4.6.5 made in passing.**
+
+`RankedList` renders **no `<ol>`** when no row has a rank — recorded in
+`RankedList.tsx` and in Task 4.6.5, where it read as the focus recovery not
+firing, because `closest("section")` on a detached node reaches nothing.
+
+On a gated machine every sector figure is `unknown` for ever, so **all eleven
+sector rows are drawn in the trailing `Not ranked` `<ul>` and the ranked `<ol>`
+does not exist**. Measured in the producer walk (2026-10-09, 1440×900): the
+`unknown everywhere` state draws `Sector performance / Not ranked` × 11 and no
+ranked list at all. Any assertion phrased as _the ranked list's first row_,
+_`Home` goes to rank 1_ or _the arrows clamp at rank 11_ therefore resolves to
+nothing on CI — and a locator that resolves to nothing is a `toHaveCount(0)`
+that passes, not a failure.
+
+`overview-ranked-keyboard.spec.ts` and `overview-nothing-to-open.spec.ts` both
+avoid this by **furnishing their own frame**, which is why they are not
+affected. **The residue is the next spec**: a sector-list keyboard assertion
+written against the real gateway is vacuous on the gate and looks identical to
+one that holds.
+
+**Re-measure:** with the pair at `marketpulse_bare`, open `/` and count —
+`document.querySelectorAll('section ol').length` is **2** (the two mover
+lists), and the sector region's lists are one `<ul>`.
+
+## The pointer's MOMENT OF ENTRY is unguarded, and the rates that size it are measured
+
+**Added 2026-10-09 by Task 4.6.7.**
+
+`ORDER HELD` is scoped to the **region** through `:hover` / `:focus-within`, so
+a reader whose pointer is inside the region has already frozen the order — and
+Story 4.5's hand-off names the hole precisely: **a pointer crossing the region
+boundary toward a row has not yet triggered the hold on the row it is aiming
+at.** Nothing anywhere asserts anything about that window, and nothing can: it
+is a race between a pointer's travel time and a frame.
+
+The rates that size it, measured in Story 4.5.7 across three sessions and
+n=9,360 adjacent-rank gaps: **0.21–0.44 membership changes a minute** and
+**0.80 / 0.45 / 0.42 total order changes a minute**. So the window is small —
+and the consequence of landing on the wrong row is a **navigation**, which is
+the one thing a reader cannot undo with their eyes.
+
+**Two things make it narrower than it sounds, and neither closes it.** The
+destination is resolved at **render** from the row's own identity
+(`<Link to={securityPath(symbol)}>`), so the row that is pressed is the row
+that opens — the activation race Story 4.3's hand-off warned about is
+unrepresentable. And `Region` fires `focusin`/`focusout` on its own box with
+**both events bubbling**, so a keyboard reader re-takes the pin on every arrow
+press. What is left is strictly the pointer, strictly in flight, and strictly
+within one frame of arrival.
+
+**Re-measure:** there is no instrument. The rates are re-taken by
+`scripts/movers-snapshot-check.mjs` over a live session; the window itself would
+need a synthetic pointer moving at a known speed while a frame is injected at a
+chosen offset, which is a spec nobody has written and which would assert a
+timing this suite forbids.
+
+## A reverse Tab walk puts two region rings 0.09–0.14 px behind the masthead at heights the ring spec does not run, and `tokens.css`'s own measurement says that cannot happen
+
+**Added 2026-10-09 by Task 4.6.7. This one falsifies a dated measurement.**
+
+`tokens.css`'s `--scroll-overshoot` block records (Task 4.6.1, 2026-10-08) that
+the overshoot is _"exactly linear, exactly integral, and identical at 1440,
+1024, 768 and 390 — **every box edge and both chrome edges read whole pixels,
+so there is no sub-pixel here for a tolerance to absorb**"_. That is true of
+its sample and **is not true in general.**
+
+Measured 2026-10-09 on `/`, Chromium at `devicePixelRatio: 1`, blurring and
+then walking **Shift+Tab** 26 times, with the clearance printed to four
+decimals:
+
+```
+1024×800  Tab        stops=14 breaches=0  minTop=88.0000 minBottom=0.1406
+1024×800  Shift+Tab  stops=14 breaches=4  minTop=-0.1406 minBottom=75.0000
+      !! section:Sector performance     h486.00 top=60.8594 topClr=-0.1406 scrollY=477 pad=62px
+      !! section:Market breadth         h486.00 top=60.8594 topClr=-0.1406 scrollY=477 pad=62px
+1440×680  Shift+Tab  stops=14 breaches=4  minTop=-0.0938 minBottom=47.0938
+      !! section:Sector performance     h486.00 top=60.9063 topClr=-0.0938 scrollY=454 pad=62px
+1024×900  Shift+Tab  stops=14 breaches=0  minTop=0.0000  minBottom=75.0000
+1440×900  Shift+Tab  stops=14 breaches=0  minTop=0.0000  minBottom=55.0000
+ 768×800  Shift+Tab  stops=14 breaches=0  minTop=0.0000  minBottom=87.0000
+ 390×780  Shift+Tab  stops=14 breaches=0  minTop=0.0000  minBottom=36.0000
+```
+
+**The mechanism**: `scroll-padding-top` resolves to a whole `62px` and the
+chrome's bottom is a whole `57`, but at these two viewport **heights** the
+region's own document offset is fractional — `min-height: 82vh` over
+`minmax(min-content, 1fr)` rows gives tops at `*.8594` and `*.9063` — while
+Chromium quantises `scrollY` to whole pixels (`477`, `454`). So the browser
+cannot land the box at `61.0000` and lands it at `60.8594`, which is
+`-0.1406` of ring behind the masthead. The four pairs
+`overview-focus-ring.spec.ts` runs — 1440×900, 1024×**900**, 768×800, 390×780 —
+all give whole-pixel offsets and read exactly `0.0000`, which is why 4.6.1
+concluded there was no sub-pixel to absorb.
+
+**It is a fraction of a device pixel and the product's own criterion is zero
+tolerance**, which is the whole of the disposition question: `AC 4`'s repair
+holds at every pair anybody has asserted, and the assertion is red at pairs
+nobody asserts. Widening the spec's `WIDTHS` to a short viewport makes the gate
+red; adding a sub-pixel tolerance to the spec weakens the one check that found
+the original 5 px defect. **Owner: whoever next touches `--scroll-overshoot` or
+`overview-focus-ring.spec.ts`' `WIDTHS`.** Not repaired here, deliberately —
+the spec is Task 4.6.1's and a gate going red is the owner's call.
+
+**Re-measure:** blur, then press `Shift+Tab` 26 times at 1024×800 and
+1440×680, reading
+`activeElement.getBoundingClientRect().top - (focusWidth + focusOffset) - header.getBoundingClientRect().bottom`
+to four decimals, skipping anything inside `header`/`footer`. The forward walk
+is clean at every pair; **the reverse walk is the one that finds it**, which is
+what `STORY.md` already says about this defect class.
+
+## The landing page's tab-stop count is 11 reserved and 19 filled, and AC 1's reworded second half asks for one figure
+
+**Added 2026-10-09 by Task 4.6.7.**
+
+Gate 1 reworded AC 1's second half to _"the tab-stop count is the same in the
+reserved and filled states, stated as a figure"_. Walked with real `Tab`
+presses on 2026-10-09, identical at 1440×900, 1024×800, 768×800, 390×780 and
+1440×680:
+
+| State                 | Stops  | Composition                                                                 |
+| --------------------- | ------ | --------------------------------------------------------------------------- |
+| first paint, no frame | **11** | 4 masthead links + 7 region sections                                        |
+| furnished             | **19** | 4 masthead links + 7 region sections + 4 proxy links + 4 roving-group stops |
+
+**The figure that is the same is 7** — the region sections, which is what
+ADR 0039 decided and what `expectEveryRegionIsATabStop` holds on both routes.
+The **page** count is not the same, because content stops exist only when there
+is content: the proxy strip's four and one roving stop per list (ranked
+sectors, `Not ranked`, gainers, losers).
+
+Whether that satisfies AC 1 as reworded is a **reading of the criterion** and
+is the owner's rather than this task's. The hazard the criterion was written
+against — _a tab stop appearing and disappearing under a reader_ — is answered
+by the 7 being invariant; a content stop arriving with its content is not that
+hazard. **Owner: Gate 2.**
+
+**Re-measure:** blur, then press `Tab` up to 26 times reading
+`document.activeElement`, on `/` with no overview frame and then with one. The
+order, verbatim, at every width in the furnished state:
+`Market Overview › Investigation Workspace › Security Explorer › Market Replay ›
+section:Market proxies › SPY › QQQ › DIA › IWM › section:Market breadth ›
+section:Sector performance › XLK › XLU › section:Movers › SMCI › MRNA ›
+section:Market topology › section:Unusual activity › section:Current investigations`.
+
+## A NINTH entry for the standing screen-reader item — a client-side route change with an unchanged `document.title`
+
+**Added 2026-10-09 by Task 4.6.7, and it is the INVERSE of the other eight.**
+
+The other eight are **unprompted** updates, where the open question is whether
+speaking is right at all. This one is a change the reader **asked for** — they
+pressed `Enter` on a ticker — which is the one case where announcing is
+unambiguously right. And it is the case where this product announces nothing.
+
+Verified in the code rather than taken on report (Gate 1, and re-checked here):
+`index.html` holds **one static `<title>MarketPulse</title>`**; `App.tsx` uses
+React Router in **declarative mode** with no route announcer; the destination's
+`<h1>` is **`Security Explorer` on both routes**, and the security's own symbol
+is an `<h2>`. So activating a mover produces **no load event, no title change,
+no focus move and no announcement** — the browser keeps focus on an anchor that
+no longer exists in the new route's tree, and `AppFooter`'s and the masthead's
+chrome are byte-identical either side.
+
+**What is unanswerable from a DOM**: whether a screen reader notices a
+client-side route change at all, and what it says if it does. Some pair the
+URL change with the new document's heading structure; some say nothing until the
+reader explores. `overview-journey.spec.ts` asserts the destination's `<h2>`
+names the symbol, which is what a reader will **find** when they go and look —
+not what they are **told**.
+
+**The repair is designed and unshipped and the owner's Gate 1 decision was
+raise it, do not build it**: a per-route `document.title` is ~10 lines and is
+the mechanism screen readers do announce on, but it is product-wide, belongs
+beside a route-announcer decision, and `/securities`' 518 links have had the
+same hole for two epics.
+
+**Owner: a person with a screen reader**, before Epic 11 hands this surface to
+an agent. **Re-measure:** open `/`, press `Enter` on a ticker with a screen
+reader running, and write down what was said. There is no mechanical form of
+this question.

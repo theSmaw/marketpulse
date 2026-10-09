@@ -382,6 +382,43 @@ Contains:
 
 This is the application's landing screen.
 
+> **Amended 2026-10-09 by Story 4.6 — this screen is now a place you LEAVE
+> from, which is what makes the question above answerable.**
+>
+> _"What is happening?"_ was shipped as six regions that could only be read.
+> Since 2026-10-09 the landing screen holds **twenty-four destinations**: the
+> four index proxies' tickers, and every ranked sector and mover row, each
+> opening its security page by pointer and by keyboard. A sector row opens its
+> **benchmark ETF**, which is the only row on the screen whose destination is
+> not the thing the row is named after.
+>
+> Three properties of that are decisions rather than implementation, and they
+> are argued in
+> [ADR 0039](../docs/adr/0039-a-region-is-a-tab-stop-unconditionally.md) and in
+> Story 4.6's task files:
+>
+> - **The figure is never the link.** Only the ticker token is activatable —
+>   the price and the change are not, because a reader dragging to select a
+>   number must not navigate.
+> - **The destination is resolved at render from the row's own identity**, so
+>   on a screen where every row re-orders under a live feed, no frame can land
+>   between the key press and the resolution. The activation race is
+>   unrepresentable rather than managed.
+> - **A row with nothing behind it is not a link at all** — the eleven reserved
+>   sectors before the first aggregate, and the held pads that keep the Movers
+>   region at one height, carry no `<a>` rather than an inert one.
+>
+> What a gated machine has never done is **click a mover**: CI's store has
+> 518 securities and zero bars, so the frame carries `eligible: 0` and both
+> mover lists are empty for ever. The last clause of the epic's own journey
+> criterion — _read a figure on the destination_ — is unreachable on any gate
+> and is owed to a person on the deployed site, mid-session. Story 4.9 owns it.
+>
+> **§9's breadth sketch needed nothing from this story and was checked rather
+> than assumed**: nothing Story 4.6 shipped touches a denominator or a
+> percentage, and §9's own dated amendment from Story 4.4 still stands as
+> written.
+
 ---
 
 ## 8.2 Investigation Workspace

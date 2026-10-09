@@ -240,3 +240,41 @@ would be quoted, which is worse than having no rate.
 is the distinction this story could not resolve from a terminal: _the suite is
 flaky_ and _the machine cannot execute the suite_ look identical, and only one
 of them is anybody's defect.
+
+## Handed here by Story 4.6 — 2026-10-09: no gated machine has ever clicked a mover, and the epic's exit criterion has a clause no gate can reach
+
+**The rehearsal gains a ninth row, and this one is not about watching — it is
+about a reader's hands.** Story 4.6 made `/` a place you leave from: twenty-four
+destinations, by pointer and by keyboard. What a gate can prove and what it
+cannot are now cleanly separated, and the residue is yours.
+
+**What no gated machine has ever done:** clicked a mover. CI's store has 518
+securities and **zero bars**, so the overview frame carries `eligible: 0` and
+both mover lists are empty for ever. Every gated journey assertion runs against
+a **furnished** overview frame driven through the shipped encoder, which proves
+the wiring and **not** that a real ranked row on a real store opens the right
+page.
+
+**The clause that no gate can reach at all** is the epic's own AC — _land on
+`/`, reach a mover, open it, **read a figure**_. The last clause needs bars at
+both ends: a mover to exist on the origin, and a figure to exist on the
+destination. A deployed run reaches the first; nothing gated reaches either.
+So the row this story owes is **a person, mid-session, on the deployed site,
+opening a mover from the landing page and reading its price** — and note 5's
+rules beneath the ledger apply: a headless watch cannot claim it.
+
+**Two smaller ones for the same sitting:**
+
+- **The sector region renders no `<ol>` at all when nothing is ranked**, so
+  every list-keyboard assertion in that region is **vacuous on the gate**. Only
+  a store with bars exercises them.
+- **The pointer's moment of entry is unguarded.** Nothing checks what happens
+  between a reader's cursor arriving over a row and the hold taking the pin,
+  and the rates are measured: membership changes **0.21–0.44 times a minute**.
+
+**And the ninth screen-reader entry, which is the inverse of the other eight.**
+The existing eight are all **unprompted** updates — a region changing under a
+listener who did not ask. This one is a change the reader **explicitly asked
+for**: whether a client-side route change with an **unchanged `document.title`**
+is announced at all. It is the one case where announcing is unambiguously
+right, and it is unanswerable from a DOM, a timing or an agent.

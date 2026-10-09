@@ -147,11 +147,54 @@ sent. And **the ranking rule has one home and is no longer named for sectors**
 with `one-comparator-for-the-order-of-a-move` refusing a second, keyed on **two
 moves either side of one operator** rather than on `.sort(`.
 
-**What a reader still cannot do is click a mover through to its security
-page** — Story 4.6, deliberately next, because a list of names nobody can open
-invites the wrong repair. **And what no gated machine has ever seen is a
-mover**: CI's store has zero bars, so the frame carries `eligible: 0` and two
-empty lists for ever.
+~~**What a reader still cannot do is click a mover through to its security
+page**~~ — **false since 2026-10-09: Story 4.6 shipped, and the landing page is
+now a place you LEAVE from.** `/` holds **twenty-four destinations** — the four
+proxy tickers and every ranked sector and mover row — each opening its security
+page by pointer and by keyboard. **A sector row opens its benchmark ETF**, the
+only row whose destination is not the thing it is named after. The original
+sentence is left standing because its reasoning is why the story ran at all: a
+list of names nobody can open invites the wrong repair. **And what no gated
+machine has ever seen is a mover**: CI's store has zero bars, so the frame
+carries `eligible: 0` and two empty lists for ever.
+
+Five things from it are load-bearing further on. **The figure is never the
+link** — only the ticker token is activatable, because a reader dragging to
+select a price must not navigate, and the focus ring clears the price's ink by
+**+1.20 px identically at all four widths** (photographed at 8×, not computed;
+a pass rather than a comfort, and a gap or an inset would move `.cell` off
+`16 + 26 + 16` and take the seven-region grid with it). **The destination is
+resolved at render from the row's own identity**, so on a screen where every
+row re-orders under a live feed the activation race is **unrepresentable rather
+than managed** — and what holds that is `one-home-for-imperative-navigation`
+over **every shipped source file in three trees**, because the first version of
+the check, four tokens over the four directories that draw rows, was **green on
+the file Epic 5 writes**: a new region is a new directory by this repository's
+convention, so the clause a re-implementer cannot avoid is the **corpus**, not
+the token. **A row with nothing behind it is not a link at all** — the eleven
+reserved sectors carry the sector **slug** as their symbol and the held pads
+carry non-breaking spaces, and `visibility: hidden` plus `aria-hidden` do
+nothing whatever to an `href`; the repair needed **two** sites, because
+`RankedList` was passing its quiet group `held={undefined}` as a hard-coded
+constant and throwing the producer's answer away one file downstream.
+**Arrows clamp and do not wrap** across four roving groups keyed on
+**symbol** — a ranking is not a ring, and a held index is a second,
+disagreeing copy of where focus is. And **`Region` is a tab stop
+unconditionally** ([ADR 0039](docs/adr/0039-a-region-is-a-tab-stop-unconditionally.md)),
+because a tab stop must not appear and disappear under a reader — which also
+means **axe can never report these regions again**, since
+`scrollable-region-focusable` is silent while the scrolling box contains
+something focusable. `expectEveryRegionIsATabStop` replaces it on both routes
+that draw regions.
+
+**And one premise this epic had been quoting is false.** _No region on `/`
+scrolls at any of the four widths_ was four **width/height pairs**, not four
+widths: re-measured at thirteen pairs, `Unusual activity` scrolls at
+**1440×680** and `Market topology` at 1440×500, because row 1 of `.regions` is
+a length with no content floor while rows 2 and 3 are
+`minmax(min-content, 1fr)`. The mirror is worth as much — **0 of 8 regions on
+`/securities` at every pair**, the 18,893 px table included, because the long
+table scrolls the page.
 
 Task 4.2.5
 **renamed** the region from `Market summary`, which was a second

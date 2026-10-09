@@ -411,3 +411,64 @@ three required checks. **The suite is not flaky and the change did not break
 it; the machine could not execute it** — and those two look identical from a
 terminal. The `--repeat-each=6` × 4 characterisation is **owed and not taken**,
 because it needs a settled machine.
+
+## Handed here by Story 4.6 — 2026-10-09: twenty-four destinations now exist on this screen, and three of your degraded states must not change what is openable
+
+**Everything in Story 4.6's second half is a constraint on your photographs
+rather than on your code.** `/` now holds **twenty-four `<a>` elements** — four
+proxy symbols and twenty ranked tickers — each resolved at render from its own
+row's identity. The rule Story 4.6 settled, and which your degraded set must
+show rather than argue:
+
+- **Nothing becomes non-activatable because a feed stopped.** A stale figure
+  does not make a security unopenable, and a `disconnected` socket does not
+  either: the destination is built from the row's **ticker**, which no feed
+  state changes. If one of your states draws a ticker that cannot be opened,
+  that is a defect rather than a degradation.
+- **A tripped `ErrorBoundary` keeps the section's name, its landmark and its
+  own tab stop**, and loses the roving stops with the content. That is the
+  shipped behaviour, asserted in a browser.
+- **The universe being unreachable leaves the links unaffected** — the
+  accessible name of a ticker link is the ticker, not the company name, so an
+  empty-names state still opens the right page.
+
+**Two of your states are the ones no gated machine has ever drawn.** CI's store
+has zero bars, so `eligible: 0` and both mover lists are empty for ever — the
+**ten held pads** are CI's permanent state. A pad is handed **no link at all**
+(Task 4.6.4's deliberate departure from its own brief), so a pad has no stop,
+no arrow reachability and is never `End`'s target **by absence** rather than by
+CSS. Photograph the padded state and the one-sided market with that in mind:
+there is nothing to hover and nothing to focus in a pad, and the row must still
+read as room rather than as a security.
+
+### What you own that Story 4.6 raised and did not repair
+
+**`Region` listens for `focusin` and `focusout` on its own box, and both
+events bubble.** So moving focus from a region's section onto one of its rows
+fires `report(false)` and then `report(true)`. The consequences, produced in a
+browser by Task 4.6.5:
+
+1. **Every arrow press inside a ranked region releases the order pin and takes
+   it again**, which refreshes the pinned order to the last frame drawn — so a
+   reader's list can re-order under an arrow press, which is the one thing the
+   hold exists to prevent.
+2. `useOrderHold`'s rule _"the first of the two sources to fire owns the pin"_
+   **does not hold for a move WITHIN the region**, which releases first.
+3. The un-pinnable window `use-order-hold.ts` documents — a reader arriving
+   before the first frame — **closes the moment focus moves inside the
+   region**. A keyboard reader can therefore reach the **section** while
+   un-pinnable and never a **row**.
+
+It was left alone deliberately: repairing it changes hold behaviour Story 4.5.7
+settled with measurements, and it is a decision rather than a fix.
+
+### And the 390 question has one more worst case
+
+At 390 the ranked ticker track is `2ch 64px minmax(0,1fr) 68px` and the ticker
+link measures **64 of 308 px** — confirmed to the pixel against the canvas.
+The focus ring clears the price's ink by **+1.20 px at every width** on the
+proxy strip, identical at 1440, 1024, 768 and 390, with the `None stored`
+state at +5.35. **1.2 px is a pass, not a comfort**, and it was photographed at
+8× rather than computed: a gap or an inset would move `.cell` off `16 + 26 + 16`
+and take the whole seven-region grid with it. If your 390 pass wants more
+clearance, it is a grid change and not a padding change.
