@@ -3572,4 +3572,84 @@ export const BREAKS = [
     ],
     expect: "tabIndex -1",
   },
+
+  // --- Task 4.6.5: the states where there is nothing to open ---
+  //
+  // The check these three prove is **a browser query rather than a grep**, and
+  // that is the decision worth reading before adding a fourth:
+  //
+  //   > Every `<a>` on `/` whose href matches `/securities/` has, as its
+  //   > accessible name, exactly a ticker the frame carried.
+  //
+  // Task 4.6.4's invariant was green on the exact defect it forbids because
+  // its corpus was four directories, and *a new region is a new directory by
+  // this repository's convention*. A query over the rendered page has no
+  // corpus to be wrong about: the next author's region is on the page or it is
+  // not on the screen. The transcript of it catching a stranger's file —
+  // `<Link to={securityPath("advancing")}>` written into `BreadthLedger.tsx`,
+  // a fifth surface in neither ranked directory — is in Task 4.6.5's record,
+  // and the clause was re-ordered ahead of the link **count** because of it:
+  // with the count leading, the same defect reads `Expected length: 22,
+  // Received length: 23`, which is true and says nothing.
+  {
+    name: "the-reservation-links-its-slugs",
+    proves:
+      "`RESERVED_SECTORS`' eleven rows stop being `held`, so " +
+      "`RankedList` builds each one a destination from its `symbol` \u2014 " +
+      "which is the sector's own SLUG. The first paint of every load then " +
+      "carries `/securities/technology` and ten more addresses that are " +
+      "not securities. `visibility: hidden` and `aria-hidden` keep them " +
+      "off the screen and out of the accessibility tree and do nothing " +
+      "whatever to an `href`, which is why this shipped for a fortnight " +
+      "with every check green (Task 4.6.5).",
+    file: "apps/frontend/src/market/sector-performance.ts",
+    find: "    held: true,\n  })),\n};",
+    replace: "    // pnpm break: reverted automatically\n  })),\n};",
+    command: ["pnpm", "e2e", "overview-nothing-to-open.spec.ts", "--anyway"],
+    expect: "/securities/technology",
+  },
+  {
+    name: "the-quiet-group-forgets-a-held-row",
+    proves:
+      "`RankedList`'s trailing group hard-codes `held={undefined}` instead " +
+      "of asking the row. It read as sound \u2014 *a quiet row is one we are " +
+      "refusing to RANK, which is the opposite of a row that is not " +
+      "there* \u2014 and it was true when it was written. Every row of " +
+      "`RESERVED_SECTORS` is rankless, so the reservation's eleven held " +
+      "rows arrive in exactly that group and the line throws their `held` " +
+      "away: the producer-side repair one file over is undone from here, " +
+      "with nothing in that file changed (Task 4.6.5).",
+    file: "apps/frontend/src/components/RankedList/RankedList.tsx",
+    find: "              held={row.held}\n            />\n          ))}\n        </ul>",
+    replace:
+      "              /* pnpm break: reverted automatically */\n" +
+      "              held={undefined}\n            />\n          ))}\n        </ul>",
+    command: ["pnpm", "e2e", "overview-nothing-to-open.spec.ts", "--anyway"],
+    expect: "/securities/technology",
+  },
+  // The third is the composition defect rather than the link, and the edit is
+  // the one somebody plausibly writes: a guard that still READS as a guard.
+  // `document.activeElement` after React removes the focused element is
+  // `<body>`, which is not `null` \u2014 so `active !== null` returns early
+  // every time and the recovery never runs, while the line looks like it is
+  // checking that focus went somewhere.
+  {
+    name: "a-dropped-row-drops-the-focus",
+    proves:
+      "The region's hold pins the ORDER and Story 4.5.7 deliberately left " +
+      "the MEMBERSHIP moving under it, at 0.21\u20130.44 changes a minute. So " +
+      "the `<li>` holding a reader's focus unmounts with their hands " +
+      "still on it, focus falls to `<body>`, the document's tab order " +
+      "restarts at the top and their next press is six regions from " +
+      "where they were reading. Two correct decisions; the defect exists " +
+      "only where they meet, and no unit test drives the frame that " +
+      "produces it (Task 4.6.5).",
+    file: "apps/frontend/src/components/RankedList/RankedList.tsx",
+    find: "    if (active !== null && active !== document.body) return;",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    if (active !== null) return;",
+    command: ["pnpm", "e2e", "overview-nothing-to-open.spec.ts", "--anyway"],
+    expect: "does not drop focus to the body",
+  },
 ];
