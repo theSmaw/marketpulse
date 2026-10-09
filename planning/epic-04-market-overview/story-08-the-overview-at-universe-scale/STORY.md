@@ -1,6 +1,6 @@
 # Story 4.8 — The Overview at Universe Scale, & Epic 14's Trigger
 
-**Status:** Not started
+**Status:** **In progress — 2026-10-09.** Decomposed into ten tasks; four decisions taken at Gate 1. Shaping falsified five inherited premises, of which two change what can be measured at all: **a browser on `/` subscribes to ~25 symbols, not 518**, and **no feed this repository can run offline produces the real ~16 batches a minute** — the fixture and the replay both emit one, so the obvious recipe measures a sixteenth of the effect. And it found the epic's largest lever: **`marketDateAt` calls `Intl.formatToParts` three times and uses one**, 3.33–3.60 ms → 1.06–1.09 ms over 518 instants, with no cache and no changed answer.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.6 — **re-ordered 2026-09-27**, see below
 **Epic scope covered:** none new — the epic's numbers, measured
@@ -340,3 +340,87 @@ universe table's rows carry.
 3. `tabIndexFor(symbol)` returns a **primitive** so `Row`'s measured memo
    boundary still holds. A wide list that passes an object there loses the memo
    silently.
+
+## Gate 1 — 2026-10-09: ten tasks, four decisions, and five inherited premises falsified
+
+### What the shaping falsified, each verified with a command
+
+1. **A browser on `/` subscribes to ~25 symbols, not 518.** `symbolKey` is four
+   proxies + eleven sectors + ten movers. **AC 1's _"the whole universe
+   arriving"_ is not a state this route has**; the 518 is entirely server-side.
+2. **No offline feed produces the cadence that IS the cost.** The real feed is
+   **8.8–16.1 batches a minute**; `createFixtureStream` ticks at
+   `tickEveryMs = 60_000` and the replay _"cannot express a split minute at
+   all"_ by its own comment. A reader following Task 3.6.5's recipe measures
+   **one sixteenth** of the render count and gets a comfortable green — the
+   exact inverse of 3.6.4's _the fixture is the harsher feed_, which was true of
+   payload and is false of cadence.
+3. **The join runs per connect, per subscribe, and with zero clients
+   attached.** `sendSnapshot()` calls an unmemoised `marketOverview()` and runs
+   at the foot of every `message` listener; `publishObservations` evaluates
+   `overviewMessage()` as an **argument** to `broadcast`. ~3 full 518-joins per
+   browser opening `/`. **So _"the backend cost does not scale with
+   connections"_ is false of the join.**
+4. **_"A security page subscribed to one symbol went from one render a minute to
+   sixteen"_ is wrong twice**, at three live sites.
+   `/securities/:symbol` subscribes to **all 518** (the table renders there
+   too), so it was already ~16 and went to ~32; and _one a minute_ is the
+   **fixture's** cadence. The routes that really went from ~0 to ~16 are
+   `/investigations`, `/replay` and the not-found route.
+5. **Epic 14's trigger is quoted in 13 live files, not five** — 19 files and 29
+   occurrences in total, 6 of them historical — **including Epic 5's `EPIC.md`
+   twice**, the epic the trigger was written about. And Epic 14's own file says
+   that path _"constructs one `Intl.DateTimeFormat` per entry per batch"_;
+   instrumented, it is **2 for the life of the process**, the formatters being
+   memoised in module-level `let`s. The real cost is **three `formatToParts`
+   calls per `marketDateAt`** — 1,554 for 518 conversions.
+
+### And the branch that decides what any out-of-hours figure means
+
+`eligibleMoves` picks its arm from `isMarketOpen(asOf)`. **Out of hours
+`sessionMoves` runs, not `observedMoves`** — a different computation, a
+different denominator (~503 with a close, not the ~466 heard from in five
+minutes), different sentences on screen. **The 3.4 ms of `marketDateAt` IS
+reproduced out of hours** because it sits upstream of the branch; the breadth
+and movers legs are not. There is no seam in `index.ts` that injects
+`marketOpen`.
+
+### The four decisions
+
+| Question                        | Decision                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| How is AC 1's cadence produced? | **The furnished socket** (`routeWebSocket`) at the measured cadence — the only mechanism that can set cadence **and** composition freely and give a true `bars`-only control arm. **Local only**: furnished frames must never reach a deployed page.                                                                                                                   |
+| `marketDateAt`                  | **Take the parts-read repair here** — a computation removed, squarely inside AC 4. **Not** the minute-keyed cache (−99.9%), which puts mutable state in the one module held out as a pure conversion seam; that stays Epic 14's named candidate.                                                                                                                       |
+| Epic 14's trigger               | **Keep the wording; add a second condition for `/`** — clause A, the first surface on `/` rendering one element per tracked security; clause B, the first time the aggregate is produced at a cadence the bar feed does not set. **Clause B's check already exists and is break-verified**, and at the feed cadence the same join would be ~1.29 s of script a minute. |
+| Scope                           | All four selected: **measure the placeholder routes and record rather than repair**; **frame composition moves to Story 4.9** with a named condition; **characterise the three known flakes here**, on the settled machine this story needs anyway; and **measure the chart's per-tick rebuild** on `/securities/:symbol`.                                             |
+
+### The ten tasks
+
+| #      | Title                                                                | Why it exists                                                                                                                                     |
+| ------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 4.8.1  | The instrument, proved before any silence is believed                | A LoAF entry only exists above 50 ms, so zero-observed and observer-broken are one output                                                         |
+| 4.8.2  | Renders per batch, on all five routes                                | A count, not a timing — the one arm load cannot corrupt. Corrects premise 4                                                                       |
+| 4.8.3  | The backend leg: per batch, per connect, per subscribe               | Prices the join nobody knew ran on subscribe. Corrects premise 3                                                                                  |
+| 4.8.4  | The browser leg on `/`, at a cadence that is set rather than assumed | Answers premise 2 the only way it can be answered offline                                                                                         |
+| 4.8.5  | The chart's rebuild on a tick nothing on the chart changed           | `PriceChart`/`VolumeChart` are unmemoised and the comment arguing against it names a crosshair as the only caller — a premise Story 4.2 falsified |
+| 4.8.6  | The cold load of `/` against `/securities`                           | AC 2, with Epic 14's 20-row control so the difference is attributed                                                                               |
+| 4.8.7  | `marketDateAt` reads the formatter three times and uses one          | −68% in the module both sides of the wire share                                                                                                   |
+| 4.8.8  | Epic 14's trigger: the verdict and the second condition              | The fork is this story's by plan; 13 live sites, Epic 5 in words it can act on                                                                    |
+| 4.8.9  | The three flakes characterised, on a settled machine                 | Owed since Story 4.5; n = 6 cannot separate a 12% flake from a regression, n = 24 can                                                             |
+| 4.8.10 | §28, the sweeps, and the close                                       | A figure taken after the epic is called done is a figure nobody re-takes                                                                          |
+
+### What is deliberately not being done
+
+- **The four-route re-render repair.** Measure first: `memo(SecurityTableRow)`
+  has been in place since Task 3.6.5, so a whole-tree render with unchanged
+  props now skips 518 row bodies and pays 518 shallow comparisons — the figure
+  may be single-digit and want no repair at all. And the repair is **a second
+  notification channel reachable from below `App`**, within a hair of ADR 0023's
+  recorded reversal trigger. If the figure is small, the right outcome is to
+  discharge the `docs/GAPS.md` entry with the reading.
+- **Re-wording Epic 14's existing trigger** — see the decision table.
+- **A local synthetic backend driver.** The furnished socket answers the same
+  question without new infrastructure in a measurement story.
+- **Any repair at `sameLiveFeedView`.** Collapsing an aggregate that differs
+  only in `computedAt` requires `live-feed.ts` to name that field, and a shipped
+  invariant **fails the build** on the string being present there.
