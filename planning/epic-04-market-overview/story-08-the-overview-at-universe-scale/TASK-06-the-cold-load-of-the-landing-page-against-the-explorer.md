@@ -146,3 +146,22 @@ to be real, the store behind it has to have bars.
   Before 2026-10-09 a `SIGTERM` to a harness run left a process spinning at
   100% of a core holding both ports, and the next run refused its own addresses
   and read as a configuration fault.
+
+## Handed here by Task 4.8.5 — 2026-10-09: the chart was already rebuilding twice a minute before this epic existed, and an aged store can still be driven with real bars
+
+**Do not read a long frame at 30 s into a cold load as a cold-load artefact.**
+Task 4.8.5's control arm sent **nothing** and both chart plots still rebuilt
+**twice in 45 s** — `buildsPerBatch` 0.17 against 2.17 driven. That is `App`'s
+**30 s `/health` poll**, and it means the chart has been rebuilding twice a
+minute since before Story 4.2. Zero builds between polls, so a build outside
+one is attributable.
+
+**`App.tsx`'s accepted per-poll re-render therefore has a cost nobody had
+priced**, and its own reversal trigger — _a render rate that is no longer a
+poll_ — fired in Epic 3.
+
+**And a `/securities/:symbol` arm can be driven with REAL bars on a store that
+ends 2026-09-11.** `?sessions=5` there is a correct **empty**, but the real
+handler answers its **absolute `start`/`end` window form**, so 4.8.5 fetched
+1,950 and 6,630 genuinely stored bars and replayed them with `page.route` —
+verified off the plot's own vertex count rather than trusted.

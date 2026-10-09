@@ -157,3 +157,24 @@ the landing page clears the routine 50 ms line by a factor of twenty.
    0.21–0.45 a minute** — and still produced zero long tasks. The gateway pays
    3.72 ms a substitution (4.8.3); the browser pays 2.7. At the real rate that
    is **0.6–1.2 ms a minute** on each side.
+
+## Handed here by Task 4.8.5 — 2026-10-09: clause B as Gate 1 worded it would fire on something accepted in writing since Story 1.12
+
+**Two corrections to the condition you are about to publish, both measured.**
+
+**1. Clause B must name _the overview aggregate_, not _a whole-tree render at a
+cadence the bar feed does not set_.** One such cadence **already exists and is
+accepted in writing**: `App`'s 30 s `/health` poll re-renders the route, and
+Task 4.8.5 measured it rebuilding both chart plots **twice in 45 seconds with
+nothing arriving at all**. A clause worded against _a cadence the bar feed does
+not set_ is therefore **already true**, which makes it a condition that cannot
+fire because it has never been false.
+
+**2. Do NOT add the chart's rebuild to the trigger.** It is **12% of the render
+task at 1,950 bars and 27% at 6,630** — and a clause resting on that is
+**a figure wearing a condition's clothes**, which is the exact defect this
+task's own brief identifies in Epic 14's 2026-10-07 clause. The densest chart
+this product can draw is 8,190 bars (§19), ≈4.4 ms at the measured scaling,
+**still a quarter of the task**. Task 4.8.5's own trigger is a **ratio** for
+this reason — _the first measurement in which the two builders are more than
+half the render task containing them_ — and it is deliberately not Epic 14's.

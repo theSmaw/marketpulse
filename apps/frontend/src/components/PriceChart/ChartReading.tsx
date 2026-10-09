@@ -55,6 +55,27 @@ import styles from "./ChartReading.module.css";
 // counts `chartFrame` calls across forty arrow presses so the property is
 // measured rather than asserted in a comment.
 //
+// > **Amended 2026-10-09 by Task 4.8.5: the sentence _"nothing re-rendered the
+// > chart before today"_ is no longer true, and the paragraph above is left
+// > standing because it was right about the crosshair.** Story 4.2 gave every
+// > route an overview frame (ADR 0038), so `App` re-renders on each one and the
+// > two plots render with it — at the close's measured cadence that is **~16
+// > rebuilds a minute on a page that displays no overview**, with the chart's
+// > own drawn output byte-identical either side (element counts and every path
+// > string unchanged, measured). **The repair was considered and not taken, on
+// > a measurement**: `priceFrame` + `volumeFrame` cost **1.3 ms a render at
+// > 1,950 bars and 3.6 ms at 6,630** (p50, n = 12 batches a window, production
+// > build), which is **12% and 27%** of the 10.9–13.2 ms React render task
+// > containing them — the rest being the 518-row universe table on the same
+// > route, which is Epic 14's by name. Zero `longtask` entries and no dropped
+// > animation frame in any arm that sent the aggregate alone.
+// >
+// > **The reversal trigger is a ratio rather than a bar count**, because a bar
+// > count is reachable by a window nobody asks for: the first measurement in
+// > which these two builders are **more than half** the render task that
+// > contains them. The figures, the arms and the §18 comparison are in
+// > `planning/epic-04-market-overview/story-08-the-overview-at-universe-scale/TASK-05-the-charts-rebuild-on-a-tick-nothing-on-the-chart-changed.md`.
+//
 // ## One crosshair, one tab stop, one reading
 //
 // `VISUAL-LANGUAGE.md`'s _One crosshair, for both inputs_: a vertical
