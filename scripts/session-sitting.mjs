@@ -49,6 +49,23 @@
 // that are not this product's, so every socket wrapper here records its URL and
 // nothing is counted that does not carry `/market-stream`.
 //
+// ## Two defects repaired on 2026-10-09 by Task 4.8.1
+//
+// Both were in the repaint stamp and both made a figure **unobtainable rather
+// than wrong**, which is why neither had ever been noticed:
+//
+//   1. The stamp was `document.querySelector("table") ?? document.body`.
+//      There is no `<table>` on `/`, so on the landing route it observed the
+//      **body** — where the masthead clock mutates text every second. It is
+//      `main` now, with **no fallback**, because an arm that cannot prove its
+//      subject changed must report nothing rather than zero.
+//   2. A pairing opened only for a `bars` frame with a non-empty symbol list,
+//      so an **`overview` frame never produced a `painted` row at all** — and
+//      on `/` the aggregate arrives on its own frame type (ADR 0038).
+//
+// The repaint figures are now split by frame type, because pooling two
+// journeys publishes one number for neither.
+//
 // ## And the clock caveat that travels with every `sentAt` figure
 //
 // `sentAt` is the SERVER's wall clock and the receive stamp is the BROWSER's.
@@ -142,6 +159,8 @@ const paints = [];
 const longFrames = [];
 /** Whether each page proved its own observer works. */
 const observerProofs = [];
+/** Whether each page found the element it stamps a repaint against. */
+const repaintTargets = [];
 
 const seen = {
   extendedHours: 0,
@@ -232,8 +251,23 @@ const PAGE_INSTRUMENT = `(() => {
             }]))
           : undefined,
       });
-      if (frame.type === "bars" && symbols.length > 0) {
-        pendingFrame = { sentAt: frame.sentAt ?? null, receivedAt, n: symbols.length };
+      // **Every frame that can change the screen opens a pairing, not only
+      // \`bars\` — repaired 2026-10-09 by Task 4.8.1.** The original clause was
+      // \`frame.type === "bars" && symbols.length > 0\`, which is correct for the
+      // universe table and means an **\`overview\` frame never produced a
+      // \`painted\` row at all**: on \`/\` the aggregate arrives on its own frame
+      // type (ADR 0038), so §28's send-to-repaint figure was structurally
+      // unobtainable for the whole landing page.
+      if (
+        (frame.type === "bars" && symbols.length > 0) ||
+        frame.type === "overview"
+      ) {
+        pendingFrame = {
+          type: frame.type,
+          sentAt: frame.sentAt ?? null,
+          receivedAt,
+          n: symbols.length,
+        };
       }
     });
     return socket;
@@ -241,11 +275,34 @@ const PAGE_INSTRUMENT = `(() => {
   window.WebSocket.prototype = Native.prototype;
   Object.assign(window.WebSocket, Native);
 
-  // **The repaint stamp.** The first mutation anywhere under the table after a
-  // frame landed IS the frame reaching the screen; anything later is a second
-  // render rather than the first.
+  // **The repaint stamp.** The first mutation anywhere under the observed
+  // element after a frame landed IS the frame reaching the screen; anything
+  // later is a second render rather than the first.
+  //
+  // **\`main\`, and never \`document.body\` — repaired 2026-10-09 by Task 4.8.1.**
+  // This read \`document.querySelector("table") ?? document.body\`. There is no
+  // \`<table>\` on \`/\` — \`BreadthLedger\` says so in as many words — so on the
+  // landing route it silently observed the **body**, where the masthead clock
+  // mutates text every second: every \`painted\` figure taken there would be a
+  // race between the frame and the clock tick, and the instrument would have
+  // reported a repaint for a frame that changed nothing.
+  //
+  // \`<main>\` is one element on all five routes and both surfaces that tick on
+  // a timer — \`MarketClock\` in the masthead and the status bar in
+  // \`AppFooter\` — are outside it. Measured rather than asserted: six quiet
+  // seconds on \`/\` at 1440 on a production build gave **6 mutation records on
+  // \`body\` and 0 on \`main\`** (Task 4.8.1's proof transcript).
+  //
+  // **And there is no fallback.** An absent target is reported and nothing is
+  // observed, because an arm that cannot prove its subject changed must report
+  // nothing rather than zero.
   const startObserving = () => {
-    const target = document.querySelector("table") ?? document.body;
+    const target = document.querySelector("main");
+    if (target === null) {
+      out.push({ kind: "repaint-target-missing", selector: "main" });
+      return;
+    }
+    out.push({ kind: "repaint-target", selector: "main" });
     new MutationObserver(() => {
       if (pendingFrame === null) return;
       out.push({ kind: "painted", ...pendingFrame, paintedAt: Date.now() });
@@ -298,6 +355,14 @@ async function drain(page, which) {
     }
     if (row.kind === "socket") {
       record({ kind: "socket", which, url: row.url, ours: row.ours });
+      continue;
+    }
+    if (
+      row.kind === "repaint-target" ||
+      row.kind === "repaint-target-missing"
+    ) {
+      repaintTargets.push({ which, kind: row.kind, selector: row.selector });
+      record({ kind: row.kind, which, selector: row.selector });
       continue;
     }
     if (row.kind === "long-frame") {
@@ -457,6 +522,15 @@ function summarise(why) {
     .filter((paint) => typeof paint.sentAt === "number")
     .map((paint) => paint.paintedAt - paint.sentAt);
   const negatives = deltas.filter((delta) => delta < 0).length;
+  // **Which frame type each pairing came from**, since an \`overview\` frame can
+  // now produce one: on \`/\` that is the only frame type that can, and pooling
+  // the two would publish one figure for two different journeys.
+  const paintsByType = Object.fromEntries(
+    [...new Set(paints.map((paint) => paint.type ?? "bars"))].map((type) => [
+      type,
+      paints.filter((paint) => (paint.type ?? "bars") === type).length,
+    ]),
+  );
   const bars = frames.filter((frame) => frame.type === "bars");
   const bytes = bars.reduce((total, frame) => total + frame.bytes, 0);
   const minutes = Math.max(1, (Date.now() - startedAt.getTime()) / 60_000);
@@ -494,7 +568,17 @@ function summarise(why) {
         (bytes / 1024 / minutes / PAGE_COUNT).toFixed(1),
       ),
     },
+    repaintTargets,
+    paintsByType,
     sentAtToRepaint: {
+      // **\`null\` rather than zero when nothing was observed.** A page that
+      // never found its repaint target, or never saw a frame, has produced no
+      // figure — and a zero reads exactly like a fast one.
+      unobtainable:
+        deltas.length === 0
+          ? "no pairing was observed: either no frame landed or the repaint " +
+            "target was absent. This is nothing, not zero."
+          : undefined,
       n: deltas.length,
       negatives,
       p50: quantile(deltas, 0.5),
