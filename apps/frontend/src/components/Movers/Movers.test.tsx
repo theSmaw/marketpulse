@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { MOVERS_PER_SIDE } from "@marketpulse/shared";
@@ -13,6 +13,8 @@ import {
 } from "../../market/index.js";
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
 import { RankedList } from "../RankedList/RankedList.js";
+// The rows carry ticker links since Task 4.6.4, so these render under a router.
+import { renderWithContext } from "../../test-render.js";
 import { Movers, MoversMeta, MoversReservation } from "./Movers.js";
 
 // **What this level cannot see**, which is why `pnpm probe` is the other half
@@ -98,7 +100,7 @@ describe("Movers", () => {
     // is `RankedList`'s own argument at its trailing group and the reason its
     // `name` prop is a union. A string here would put a second copy of each
     // heading's words in the markup for a listener to meet twice.
-    render(<Movers view={BOTH_ENDS} />);
+    renderWithContext(<Movers view={BOTH_ENDS} />);
 
     expect(screen.getByRole("list", { name: "Gainers" })).toBeDefined();
     expect(screen.getByRole("list", { name: "Losers" })).toBeDefined();
@@ -117,7 +119,7 @@ describe("Movers", () => {
     // **The distinction this component is about.** The sector region's trailing
     // group is a demotion — no ordinal at all — and these two are peers: each
     // is a complete answer to its own question, so each counts from 1.
-    render(<Movers view={BOTH_ENDS} />);
+    renderWithContext(<Movers view={BOTH_ENDS} />);
 
     const ordinals = (name: string) =>
       within(screen.getByRole("list", { name }))
@@ -134,7 +136,7 @@ describe("Movers", () => {
     // appear in either list, so the group has zero members in every state there
     // is — and at two lists the unconditional reserve is 50 px held for a group
     // that cannot exist, which in a 389 px budget is five rows against four.
-    const { container } = render(<Movers view={BOTH_ENDS} />);
+    const { container } = renderWithContext(<Movers view={BOTH_ENDS} />);
 
     expect(container.textContent).not.toContain("Not ranked");
     // **No em dash anywhere in THIS view**, and the sentence this comment used
@@ -176,7 +178,7 @@ describe("Movers", () => {
     // would be the furnished-frame defect with the evidence removed.
     const flat = row("KO", "Coca-Cola Company", 0, 4);
 
-    const { container } = render(
+    const { container } = renderWithContext(
       <Movers view={viewOf([...GAINERS, flat], LOSERS)} />,
     );
 
@@ -198,7 +200,7 @@ describe("Movers", () => {
     // page. The pads are real `<li>`s so the pitch comes from `.row` itself —
     // and they are `aria-hidden` so the padding stays geometry rather than
     // becoming a claim about how many names were ranked.
-    render(<Movers view={BOTH_ENDS} />);
+    renderWithContext(<Movers view={BOTH_ENDS} />);
 
     const losers = screen.getByRole("list", { name: "Losers" });
 
@@ -224,7 +226,7 @@ describe("Movers", () => {
     // The height claim as far as this level can see it: the number of `<li>`
     // elements in each list does not depend on the data. The height **itself**
     // is `pnpm probe`'s — jsdom computes no layout.
-    render(<Movers view={viewOf([], [])} />);
+    renderWithContext(<Movers view={viewOf([], [])} />);
 
     for (const list of lists()) {
       expect(list.children).toHaveLength(MOVERS_PER_SIDE);
@@ -237,7 +239,7 @@ describe("Movers", () => {
     // region draws no ladder, so a listener's only route to it is this
     // element — and three of its siblings legitimately carry `aria-hidden`,
     // which is what makes a sweep the plausible edit.
-    const { container } = render(<Movers view={BOTH_ENDS} />);
+    const { container } = renderWithContext(<Movers view={BOTH_ENDS} />);
 
     const claim = container.querySelector("p");
     expect(claim?.textContent).toBe(CLAIM);
@@ -249,7 +251,9 @@ describe("Movers", () => {
     // the denominator, so the drawn half has nothing to defer to. One element,
     // because an identical string across a hidden span and a spoken one is in
     // `textContent` twice and reads as a duplicate to anything walking the DOM.
-    const { container, rerender } = render(<Movers view={BOTH_ENDS} />);
+    const { container, rerender } = renderWithContext(
+      <Movers view={BOTH_ENDS} />,
+    );
 
     expect(container.querySelectorAll("p > span")).toHaveLength(0);
 
@@ -276,7 +280,7 @@ describe("Movers", () => {
     // set we measured rather than the market, and it is a sibling of the list
     // rather than a row in it — so the ten `<li>` elements are untouched and
     // the region's height does not depend on which market turned up.
-    const { container } = render(
+    const { container } = renderWithContext(
       <Movers
         view={viewOf(GAINERS, [], undefined, {
           losersEmpty: "None of the names we measured declined.",
@@ -298,7 +302,7 @@ describe("Movers", () => {
     // is a claim about a selection that selected nothing, and in that state the
     // footer carries the whole truth. A **short** list keeps it, because the
     // bound is exactly what says the list is not truncated.
-    const { container, rerender } = render(
+    const { container, rerender } = renderWithContext(
       <MoversMeta view={viewOf([], [])} held={false} />,
     );
     expect(container.textContent).toBe("");
@@ -323,13 +327,13 @@ describe("Movers", () => {
   it("says what the lists are a selection of, with the bound interpolated", () => {
     // Never typed: a badge saying five over six rows is a lie with no symptom,
     // which is `the-population-is-never-a-literal`'s rule one scale down.
-    render(<MoversMeta view={BOTH_ENDS} held={false} />);
+    renderWithContext(<MoversMeta view={BOTH_ENDS} held={false} />);
 
     expect(screen.getByText(`Top ${String(MOVERS_PER_SIDE)} each way`));
   });
 
   it("takes the held geometry out of the accessibility tree", () => {
-    const { container } = render(<MoversReservation />);
+    const { container } = renderWithContext(<MoversReservation />);
 
     // Two boxes, never one: the hidden box is the inner one and is hidden in
     // every state, and the sentence is a sibling in the room it holds —
@@ -352,7 +356,7 @@ describe("Movers", () => {
     // flash.
     vi.useFakeTimers();
     try {
-      render(<MoversReservation />);
+      renderWithContext(<MoversReservation />);
       expect(screen.queryByText("No moves to rank yet.")).toBeNull();
 
       await act(async () => {
@@ -518,7 +522,7 @@ describe("the settle with held rows in the list", () => {
     const restore = giveEveryRowALayout();
 
     try {
-      const { rerender, container } = render(
+      const { rerender, container } = renderWithContext(
         <Movers view={viewOf(inOrder("AAA", "BBB", "CCC"), [])} />,
       );
 
@@ -575,7 +579,7 @@ describe("the settle with held rows in the list", () => {
         />
       );
 
-      const { rerender, container } = render(
+      const { rerender, container } = renderWithContext(
         list(inOrder("AAA", "BBB", "CCC")),
       );
       const drawn = container.querySelector("ol");
@@ -636,7 +640,7 @@ describe("the hold, at two lists", () => {
       [named("ALB", -5.94, 1), named("MRNA", -8.37, 2)],
     );
 
-    render(<Movers view={reranked} pinned={pin} />);
+    renderWithContext(<Movers view={reranked} pinned={pin} />);
 
     const [gainers, losers] = tickersIn();
 
@@ -661,7 +665,7 @@ describe("the hold, at two lists", () => {
       DOWN,
     );
 
-    render(<Movers view={withNewLeader} pinned={pin} />);
+    renderWithContext(<Movers view={withNewLeader} pinned={pin} />);
 
     const [gainers, losers] = tickersIn();
 
@@ -678,7 +682,7 @@ describe("the hold, at two lists", () => {
       [named("ALB", -5.94, 1), named("MRNA", -8.37, 2)],
     );
 
-    render(<Movers view={reranked} />);
+    renderWithContext(<Movers view={reranked} />);
 
     expect(tickersIn()).toEqual([
       ["NVDA", "SMCI", "FSLR"],
@@ -693,7 +697,7 @@ describe("MoversMeta while the order is held", () => {
     // would be two speakers who can disagree. And the badge **replaces** the
     // bound rather than joining it, which is `SectorPerformanceMeta`'s decision
     // one region up: the two strings are one idea and the slot holds one.
-    render(<MoversMeta view={viewOf(GAINERS, LOSERS)} held />);
+    renderWithContext(<MoversMeta view={viewOf(GAINERS, LOSERS)} held />);
 
     expect(screen.getByText("Order held")).toBeTruthy();
     expect(screen.queryByText(`Top ${String(MOVERS_PER_SIDE)} each way`)).toBe(
@@ -702,7 +706,9 @@ describe("MoversMeta while the order is held", () => {
   });
 
   it("says the bound when nothing is held", () => {
-    render(<MoversMeta view={viewOf(GAINERS, LOSERS)} held={false} />);
+    renderWithContext(
+      <MoversMeta view={viewOf(GAINERS, LOSERS)} held={false} />,
+    );
 
     expect(screen.queryByText("Order held")).toBe(null);
     expect(
@@ -716,7 +722,7 @@ describe("MoversMeta while the order is held", () => {
     // **not** a claim about data — it says what the reader is doing — so it
     // speaks wherever the hold is on, and `useOrderHold` cannot pin an empty
     // order anyway.
-    render(<MoversMeta view={viewOf([], [])} held />);
+    renderWithContext(<MoversMeta view={viewOf([], [])} held />);
 
     expect(screen.getByText("Order held")).toBeTruthy();
   });

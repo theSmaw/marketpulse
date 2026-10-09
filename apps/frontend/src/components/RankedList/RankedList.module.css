@@ -510,6 +510,82 @@
 }
 
 /*
+ * --- The row's way in: the ticker cell as a link ---
+ *
+ * `Selection from the overview.dc.html` §01 and §02, Task 4.6.4, and
+ * `UniverseTable`'s `.symbolLink` one route over rather than a second idiom.
+ *
+ * **Three declarations and two of them are refusals.** `color: inherit` because
+ * the ticker is the row's identifier and not a blue word in a column of grey
+ * ones — and it covers `:link`, `:visited`, `:hover` and `:active` in one, which
+ * is the mechanism behind the decision that **`:visited` draws nothing**: a
+ * security you have opened is not a different fact about the market. No
+ * `cursor`, because a real `<a href>` already has the right one and declaring it
+ * is how a non-link learns to look like one.
+ *
+ * This rule adds **no geometry at all** — the box is `.ticker` above, whose
+ * `18 px` line box is what makes the focus ring `18 + 2 × (2 + 2) = 26`, the
+ * row's padding box to the pixel. A target stretched to the row's height gives
+ * a 34 px ring against a 27 px pitch, through both neighbours. The ring itself
+ * is the token layer's one global `:focus-visible` rule and is not declared
+ * here.
+ */
+.tickerLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+/*
+ * **Hover and focus are the same drawing, because they are the same statement**
+ * — *this is what will open*. `UniverseTable`'s own words.
+ *
+ * On the **symbol span**, never on the link box: the box is the ticker cell and
+ * it contains the 8 px mark slot, so a `text-decoration` on it would run an
+ * underline under the arrival disc — two signals in one stroke, one of which
+ * fires on its own.
+ *
+ * `text-decoration` is painted rather than laid out, **so nothing moves**. That
+ * is why the affordance is an underline and not a border, an inset or a weight
+ * change: this region is 466 px in every state at every width, and a 1 px
+ * border under a 26 px row on pointer-enter would step the whole lower page at
+ * the two widths where the grid rows are untied. The offset keeps the stroke
+ * clear of a ticker's descender-free capitals.
+ *
+ * There is **no `:active` treatment**, for the same reason: a 26 px row
+ * dropping 1 px on press is a layout shift on a screen built around not having
+ * one.
+ */
+.tickerLink:hover .symbol,
+.tickerLink:focus-visible .symbol {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/*
+ * **The ground: the row a reader is pointing at, or has focus inside.**
+ *
+ * `--surface-sunken` against the panel is **1.10:1** — a *locator* and never an
+ * encoding: it says *this row*, and what says *this row opens* is the underline
+ * above, which survives `grayscale(1)` and a reader who cannot see the wash at
+ * all. Colour is never the sole encoding of anything in this product, and a
+ * 1.10:1 wash is the clearest case of a channel that is not one.
+ *
+ * `:focus-within` rather than a second rule on the link, because the fact being
+ * drawn is *the reader is on this row* and the link is the only focusable thing
+ * in it — one selector, so the pointer state and the keyboard state cannot
+ * drift apart.
+ *
+ * **A held pad never reaches either half.** It is `visibility: hidden`, so it is
+ * not hit-tested and contains no anchor to focus; the rule is written against
+ * `.row` rather than `.row:not(.held)` because an exception stated twice is an
+ * exception that can disagree with itself.
+ */
+.row:hover,
+.row:focus-within {
+  background: var(--surface-sunken);
+}
+
+/*
  * The mark's slot: 8 px, **always**, whether or not a mark is running. Geometry
  * C, reused rather than invented — three geometries for one mark is a
  * vocabulary, four is a habit.

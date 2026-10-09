@@ -1,4 +1,13 @@
-import { memo, useId, useLayoutEffect, useRef } from "react";
+import {
+  memo,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+} from "react";
+import { Link } from "react-router";
 
 import type { SectorLadderStep } from "@marketpulse/shared";
 
@@ -9,6 +18,7 @@ import {
   type PriceDirection,
   type SectorRow,
 } from "../../market/index.js";
+import { securityPath } from "../../routes/paths.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import styles from "./RankedList.module.css";
 
@@ -296,6 +306,146 @@ function useSettle(rows: readonly SectorRow[]) {
 }
 
 /**
+ * **The attribute the key handler reads a row's identity off.**
+ *
+ * Not a `querySelector` built from the symbol — a ticker is not an escaped CSS
+ * identifier and `BRK.B` is a class selector in the middle of one — and not an
+ * index, which is the thing this whole pattern refuses. The anchors are
+ * enumerated in DOM order and compared by `dataset`, so the lookup is the same
+ * string the link's accessible name is.
+ */
+const TICKER_ATTRIBUTE = "data-ticker";
+
+/** Every ticker link in one list, in DOM order. */
+const linksIn = (list: HTMLElement): readonly HTMLAnchorElement[] => [
+  ...list.querySelectorAll<HTMLAnchorElement>(`a[${TICKER_ATTRIBUTE}]`),
+];
+
+/**
+ * **One roving-`tabIndex` group: one list, one stop, keyed on the symbol**
+ * (Task 4.6.4).
+ *
+ * ## A group is a LIST, not a region, and this component renders two
+ *
+ * The ranked `<ol>` and the trailing quiet `<ul>` are two groups, as `Movers`'
+ * gainers and losers are — two accessible names, two rankings each starting at
+ * 1, so the arrows must not cross between them. **That is structural here
+ * rather than guarded**: the handler is attached to the list element and reads
+ * `event.currentTarget`, so a group cannot see a row it does not contain, and
+ * `Home`/`End` scope to the list focus is in for the same reason.
+ *
+ * ## The state is a `symbol | undefined` and the stop is derived at render
+ *
+ * A held index is a second, disagreeing copy of where focus actually is: the
+ * order changes under the reader about 0.4 times a minute and the membership
+ * about 0.3 (Task 4.5.7, three sessions), so a stop remembered as *the third
+ * row* comes back on a different security. The symbol survives a re-order
+ * because the `<li>` and its link travel with it, and the derivation falls back
+ * to the **first real row** when the remembered symbol is no longer a member —
+ * so a list that drops the row a reader had left is still reachable in one
+ * press and never traps the tab order. (What happens to focus that is *inside*
+ * the row when it leaves is Task 4.6.5's; this is only the stop.)
+ *
+ * ## The members are the real rows only
+ *
+ * A held pad is room rather than a row ({@link SectorRow.held}), and it is
+ * `visibility: hidden`, which already makes it unfocusable and unhittable. That
+ * is not what this relies on: **a pad is handed no destination at all**, so it
+ * has no anchor, which is what keeps it out of `tabIndex`, out of the arrows'
+ * reach and out of `End`'s — three claims, one absence, and none of them a CSS
+ * property a later edit could change.
+ *
+ * ## `TimeWindowControl` wraps and this clamps, deliberately
+ *
+ * That control wraps because *the set is a ring* and `1Y → → → 1D` is shorter
+ * than four presses back. **A ranking is not a ring.** `#11 → ArrowDown → #1`
+ * is a jump in a structure whose entire meaning is ordinal, and the reader who
+ * presses `ArrowDown` at the last row is asking for the next one — the honest
+ * answer to which is that there is not one.
+ */
+function useRovingStop(rows: readonly SectorRow[]) {
+  /*
+   * The only state in this component, and it holds a **symbol**. It is written
+   * from a focus event rather than from a key handler, so the stop follows a
+   * pointer click as well as an arrow — and it is one `setState` per focus
+   * change rather than per frame, which is why a list that re-renders sixteen
+   * times a minute does not fight it.
+   */
+  const [focused, setFocused] = useState<string | undefined>(undefined);
+
+  const members = rows.filter((row) => row.held !== true);
+
+  const stop = members.some((row) => row.symbol === focused)
+    ? focused
+    : members[0]?.symbol;
+
+  function onFocus(event: FocusEvent<HTMLElement>) {
+    const ticker = event.target.getAttribute(TICKER_ATTRIBUTE);
+    if (ticker !== null) setFocused(ticker);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLElement>) {
+    const links = linksIn(event.currentTarget);
+    const from = links.findIndex((link) => link === document.activeElement);
+
+    // A key pressed with focus somewhere that is not one of this list's own
+    // links is not this group's business. There is no such position today —
+    // neither list is focusable and nothing else in a row is — and the guard is
+    // what keeps that an observation rather than an assumption.
+    if (from < 0) return;
+
+    let to: number;
+
+    switch (event.key) {
+      case "ArrowDown":
+        to = from + 1;
+        break;
+      case "ArrowUp":
+        to = from - 1;
+        break;
+      case "Home":
+        to = 0;
+        break;
+      case "End":
+        to = links.length - 1;
+        break;
+      default:
+        /*
+         * **Every other key, `Tab` and `Space` included, is the browser's.**
+         * `Tab` because a handler that swallows it traps the group; `Space`
+         * because an `<a href>` does not activate on it and a reader inside a
+         * `Panel` that declares `overflow: auto` is relying on it to scroll.
+         * `Enter` is the anchor's own default and needs nothing here, which is
+         * what makes the activation resolve from the row's identity at render.
+         *
+         * `ArrowLeft`/`ArrowRight` are deliberately absent: this is a vertical
+         * list at every width, and the horizontal arrows are how a reader
+         * scrolls a panel that is wider than its box.
+         */
+        return;
+    }
+
+    // **Clamped, not wrapped** — see the header.
+    links[Math.min(Math.max(to, 0), links.length - 1)]?.focus();
+
+    // Only after one of the four keys matched: the arrows scroll a page and
+    // `Home` jumps it, and these rows are inside a scrollport.
+    event.preventDefault();
+  }
+
+  /*
+   * **The stop as a number per row, resolved by the caller**, so what reaches
+   * `Row` is a primitive and its memo boundary still holds: a stop moving from
+   * row 1 to row 2 re-renders two rows, not eleven. Handing the row the
+   * `symbol | undefined` instead would change a prop on every row on every
+   * move.
+   */
+  const tabIndexFor = (symbol: string): 0 | -1 => (stop === symbol ? 0 : -1);
+
+  return { tabIndexFor, onFocus, onKeyDown };
+}
+
+/**
  * The bar, and the scale it is drawn against — **one prop, so a scale for no
  * bar is not representable**.
  *
@@ -416,6 +566,18 @@ export const RankedList = memo(function RankedList({
   const settle = useSettle(ranked);
 
   /*
+   * **Two roving groups, one per list** (Task 4.6.4) — and both exist at both
+   * uses. Sectors passes `quietGroup="possible"`, and a quiet sector row is
+   * still a security with stored bars, so it is a destination exactly as a
+   * ranked one is (`UNIVERSE.md` §12.2's rule arriving at navigation). Movers
+   * passes `"impossible"` and its second group therefore has no members in any
+   * state there is — the hook is still called, because a hook called
+   * conditionally is not a hook.
+   */
+  const rankedStop = useRovingStop(ranked);
+  const quietStop = useRovingStop(quiet);
+
+  /*
    * **Whether a bar is drawn anywhere, which is what licenses the axis and the
    * ladder** (ADR 0029, and Task 4.3.7's done-when 2 one clause wider than the
    * figure column).
@@ -491,12 +653,24 @@ export const RankedList = memo(function RankedList({
           aria-label={ariaLabel(name)}
           aria-labelledby={ariaLabelledBy(name)}
           ref={settle}
+          /*
+           * **One listener for the list rather than one per row**, which is
+           * what keeps `Row`'s memo boundary worth having: both of these are
+           * fresh function identities every render, and a row's props stay
+           * strings and numbers. `keydown` and React's `focus` both reach here
+           * from the anchor, and `event.currentTarget` is then this list —
+           * which is the whole mechanism that stops the arrows crossing into
+           * the other one.
+           */
+          onFocus={rankedStop.onFocus}
+          onKeyDown={rankedStop.onKeyDown}
         >
           {ranked.map((row) => (
             <Row
               key={row.symbol}
               layout={layout}
               symbol={row.symbol}
+              tabIndex={rankedStop.tabIndexFor(row.symbol)}
               label={row.label}
               rank={row.rank}
               change={row.move?.change}
@@ -602,12 +776,18 @@ export const RankedList = memo(function RankedList({
       )}
 
       {quiet.length === 0 ? undefined : (
-        <ul className={cx(styles.quiet)} aria-labelledby={quietHeadingId}>
+        <ul
+          className={cx(styles.quiet)}
+          aria-labelledby={quietHeadingId}
+          onFocus={quietStop.onFocus}
+          onKeyDown={quietStop.onKeyDown}
+        >
           {quiet.map((row) => (
             <Row
               key={row.symbol}
               layout={layout}
               symbol={row.symbol}
+              tabIndex={quietStop.tabIndexFor(row.symbol)}
               label={row.label}
               rank={undefined}
               change={row.move?.change}
@@ -671,6 +851,7 @@ const Row = memo(function Row({
   arrival,
   scale,
   held,
+  tabIndex,
 }: {
   /**
    * Which anatomy — see the `layout` const in `RankedList`.
@@ -713,6 +894,15 @@ const Row = memo(function Row({
    * deliberately here because nothing inside a pad ever has to come back.
    */
   readonly held: boolean | undefined;
+  /**
+   * `0` on the one row that holds this list's stop, `-1` on the others —
+   * resolved by `useRovingStop`, which keys it on the **symbol**.
+   *
+   * A number rather than the stop's symbol, so this component's memo boundary
+   * still holds across a move: see `useRovingStop`'s `tabIndexFor`. It is
+   * unread on a held row, which has no anchor to put it on.
+   */
+  readonly tabIndex: 0 | -1;
 }) {
   const rankCell =
     rank === undefined ? (
@@ -731,42 +921,105 @@ const Row = memo(function Row({
 
   const nameCell = <span className={cx(styles.label)}>{label}</span>;
 
-  const tickerCell = (
-    <span className={cx(styles.ticker)}>
-      <span className={cx(styles.symbol)}>{symbol}</span>
-      {/*
-       * **The mark's 8 px slot, reserved in every state including the empty
-       * one, from the stylesheet rather than from this list.** Geometry C
-       * reused — the proxy strip's static inline slot — because every track
-       * left of the bar is fixed to the pixel and the one flexible track is a
-       * picture, so there is no slack to be absolute into.
-       *
-       * The universe table's refusal to reserve width inverts here and its
-       * own argument is why: at 518 rows a mark is absent 98% of the time, so
-       * reserving 8 px is a permanent cost for a rare event. At eleven of the
-       * most liquid funds in the market, each marking about once a minute, it
-       * is close to the common case — and it is what makes zero layout shift
-       * when a mark fires reachable at all.
-       */}
-      <span className={cx(styles.markSlot)}>
-        {arrival === undefined ? undefined : (
-          /*
-           * `key` is the mechanism rather than a detail: a CSS animation does
-           * not restart when the same animation is re-applied to the same
-           * element, so React replacing the node is what makes it run again.
-           * `aria-hidden` for the same reason the other three surfaces do it —
-           * the information is the figure, and the mark only says *look*.
-           */
-          <span
-            key={arrival}
-            className={cx(styles.arrival)}
-            data-arrival={arrival}
-            aria-hidden="true"
-          />
-        )}
+  /*
+   * **The row's way in, and it is the ticker rather than the row or the
+   * figure** (Task 4.6.4, `Selection from the overview.dc.html` §01).
+   *
+   * A figure is a thing whose glyphs change under the reader, so decorating one
+   * on hover puts two unrelated signals in one box — *this number just changed*
+   * and *this number can be pressed* — and the one that fires on its own wins.
+   * The identifier does not move, and it is what this product navigates by
+   * everywhere else: the search field, the URL, the universe table, the
+   * identity block.
+   *
+   * ## The box is the ticker CELL, and the geometry is what decides that
+   *
+   * `18 + 2 × (2 + 2) = 26` — the row's padding box, to the pixel, so the ring
+   * clears this row's own hairline and both neighbours' glyphs (§03). A
+   * row-height target would give a 34 px ring against a 27 px pitch. **2.5.8
+   * is met by the spacing exception, which makes the row pitch the conformance
+   * argument**: vertically adjacent ticker links are 27 px centre-to-centre,
+   * and shrinking the 26 px row below 23 turns every one of them into a
+   * failure with nothing mechanical saying so.
+   *
+   * The cell includes the 8 px mark slot, which is why the **underline is on
+   * the symbol span** and not on the link box — an underline across the box
+   * would run under the arrival disc. The stylesheet carries that.
+   *
+   * ## Nothing resolves at activation time
+   *
+   * `securityPath(symbol)` at render, from the row's own identity — no handler,
+   * no index, no lookup — so the race the 4.3 hand-off warned about (a frame
+   * lands between the keydown and the handler and the wrong security opens,
+   * with every number on screen right throughout) is **unrepresentable** rather
+   * than managed. `no-imperative-navigation-on-the-overview` refuses the thing
+   * that would reintroduce it.
+   *
+   * ## A pad is handed no destination
+   *
+   * {@link SectorRow.held} is room rather than a row, and its symbol is a run
+   * of non-breaking spaces — `securityPath` would build `/securities/%C2%A0`,
+   * which is `moverSymbols`' own refusal arriving at the link. It draws the
+   * bare span, so there is no anchor to hold a stop, to be arrowed onto or to
+   * be `End`'s target.
+   */
+  const tickerCell =
+    held === true ? (
+      <span className={cx(styles.ticker)}>
+        <span className={cx(styles.symbol)}>{symbol}</span>
+        <span className={cx(styles.markSlot)} />
       </span>
-    </span>
-  );
+    ) : (
+      <Link
+        to={securityPath(symbol)}
+        className={cx(styles.ticker, styles.tickerLink)}
+        /*
+         * The roving stop, derived by `useRovingStop` and resolved to a number
+         * by the list — see its header for why the state is a symbol.
+         */
+        tabIndex={tabIndex}
+        /*
+         * **What the key handler reads this row's identity off.** The link's
+         * accessible name is the bare ticker and nothing else: the mark slot is
+         * `aria-hidden` and empty, so a listener gets `NVDA, link` rather than
+         * a name that changes sixteen times a minute.
+         */
+        data-ticker={symbol}
+      >
+        <span className={cx(styles.symbol)}>{symbol}</span>
+        {/*
+         * **The mark's 8 px slot, reserved in every state including the empty
+         * one, from the stylesheet rather than from this list.** Geometry C
+         * reused — the proxy strip's static inline slot — because every track
+         * left of the bar is fixed to the pixel and the one flexible track is a
+         * picture, so there is no slack to be absolute into.
+         *
+         * The universe table's refusal to reserve width inverts here and its
+         * own argument is why: at 518 rows a mark is absent 98% of the time, so
+         * reserving 8 px is a permanent cost for a rare event. At eleven of the
+         * most liquid funds in the market, each marking about once a minute, it
+         * is close to the common case — and it is what makes zero layout shift
+         * when a mark fires reachable at all.
+         */}
+        <span className={cx(styles.markSlot)}>
+          {arrival === undefined ? undefined : (
+            /*
+             * `key` is the mechanism rather than a detail: a CSS animation does
+             * not restart when the same animation is re-applied to the same
+             * element, so React replacing the node is what makes it run again.
+             * `aria-hidden` for the same reason the other three surfaces do it —
+             * the information is the figure, and the mark only says *look*.
+             */
+            <span
+              key={arrival}
+              className={cx(styles.arrival)}
+              data-arrival={arrival}
+              aria-hidden="true"
+            />
+          )}
+        </span>
+      </Link>
+    );
 
   /*
    * **The price: track 4, drawn only in the mover anatomy, and reserved by the

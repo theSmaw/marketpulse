@@ -3491,4 +3491,37 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "does not name `--sticky-footer-height`",
   },
+
+  // The next region that makes a row clickable will not be written in any of
+  // the four directories Task 4.6.4's own brief names, because a new region is
+  // a new directory by this repository's convention. So the break is performed
+  // on a **fifth** surface on the same screen, which is the clause that matters:
+  // the check walks the shipped trees, and a directory list — which is what
+  // the first draft of it was, and which was GREEN on a
+  // `components/UnusualActivity/` written to prove it — cannot see a file
+  // that does not exist yet.
+  {
+    name: "a-row-handler-moves-the-address",
+    proves:
+      "A surface that draws rows resolves its destination at ACTIVATION " +
+      "rather than at render. The frame that re-orders the list lands " +
+      "between the key press and the handler — 0.4 order changes and 0.3 " +
+      "membership changes a minute, measured over three sessions — and " +
+      "the wrong security opens with every number on screen right " +
+      "throughout, which is the one thing a reader cannot undo with their " +
+      "eyes. With a `<Link to={securityPath(symbol)}>` the defect is not " +
+      "representable; the check is what keeps it that way (Task 4.6.4).",
+    file: "apps/frontend/src/components/BreadthLedger/BreadthLedger.tsx",
+    find: "}: BreadthLedgerProps) {\n  const quietHeadingId = useId();",
+    replace:
+      "}: BreadthLedgerProps) {\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const open = (symbol: string) => {\n" +
+      "    globalThis.location.href = `/securities/${symbol}`;\n" +
+      "  };\n" +
+      "  void open;\n" +
+      "  const quietHeadingId = useId();",
+    command: ["pnpm", "invariants"],
+    expect: "`location.href`",
+  },
 ];

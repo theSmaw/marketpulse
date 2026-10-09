@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen } from "@testing-library/react";
+import { act, renderHook, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { Bar, WireMarketOverview } from "@marketpulse/shared";
@@ -10,6 +10,9 @@ import {
   SectorPerformanceReservation,
 } from "./SectorPerformance.js";
 import { useOrderHold } from "../OrderHeldBadge/use-order-hold.js";
+
+// The rows carry ticker links since Task 4.6.4, so these render under a router.
+import { renderWithContext } from "../../test-render.js";
 
 const NO_OBSERVATIONS = new Map<string, Bar>();
 const NO_SNAPSHOT = new Set<string>();
@@ -35,7 +38,7 @@ const draw = (step: 1 | 2 | 5 | 10 = 2) => {
   const view = sectorPerformance(frame(step), NO_OBSERVATIONS, NO_SNAPSHOT);
   if (view === undefined)
     throw new Error("the fixture built an unreadable frame");
-  return render(<SectorPerformance view={view} />);
+  return renderWithContext(<SectorPerformance view={view} />);
 };
 
 describe("SectorPerformance", () => {
@@ -121,7 +124,9 @@ describe("SectorPerformance", () => {
     );
     if (view === undefined) throw new Error("unreadable frame");
 
-    render(<SectorPerformance view={view} pinned={["XLE", "XLK"]} />);
+    renderWithContext(
+      <SectorPerformance view={view} pinned={["XLE", "XLK"]} />,
+    );
 
     const rows = screen.getAllByRole("listitem");
     expect(rows[0]?.textContent).toContain("XLE");
@@ -151,7 +156,7 @@ describe("SectorPerformance, the honest states", () => {
     );
     if (nothing === undefined) throw new Error("unreadable frame");
 
-    render(<SectorPerformance view={nothing} />);
+    renderWithContext(<SectorPerformance view={nothing} />);
 
     expect(screen.getByText(/bars to ±1%/u).getAttribute("aria-hidden")).toBe(
       "true",
@@ -172,7 +177,7 @@ describe("SectorPerformance, the honest states", () => {
     // of the accessibility tree. A reserved panel is 103 px at 768 and 121 at
     // 390 against 461 and 437 filled, so the state this replaces stepped the
     // whole lower page a moment after it painted.
-    const { container } = render(<SectorPerformanceReservation />);
+    const { container } = renderWithContext(<SectorPerformanceReservation />);
 
     // **The held geometry carries its own `aria-hidden`, on its own box.**
     // Amended 2026-10-07 by Task 4.4.6: this asserted the attribute on
@@ -209,7 +214,7 @@ describe("SectorPerformanceMeta", () => {
     // two true halves and one contradiction — the shape that shipped on the
     // market-feed cell for four days. This fixture has two sectors and one
     // rank, which is the mixed state and the only one the slot speaks in.
-    render(<SectorPerformanceMeta view={view()} held={false} />);
+    renderWithContext(<SectorPerformanceMeta view={view()} held={false} />);
 
     expect(screen.getByText("1 of 2 ranked")).toBeDefined();
     expect(screen.queryByText("Order held")).toBeNull();
@@ -246,7 +251,7 @@ describe("SectorPerformanceMeta", () => {
     );
     if (complete === undefined) throw new Error("unreadable frame");
 
-    const { container } = render(
+    const { container } = renderWithContext(
       <SectorPerformanceMeta view={complete} held={false} />,
     );
 
@@ -270,7 +275,7 @@ describe("SectorPerformanceMeta", () => {
     );
     if (nothing === undefined) throw new Error("unreadable frame");
 
-    const { container } = render(
+    const { container } = renderWithContext(
       <SectorPerformanceMeta view={nothing} held={false} />,
     );
 
@@ -281,7 +286,7 @@ describe("SectorPerformanceMeta", () => {
     // One slot, one occupant. `stateMark`'s third consumer and its first
     // reader-caused one — *a state PERSISTS*, and the behaviour IS the absence
     // of animation.
-    render(<SectorPerformanceMeta view={view()} held={true} />);
+    renderWithContext(<SectorPerformanceMeta view={view()} held={true} />);
 
     expect(screen.getByText("Order held")).toBeDefined();
     expect(screen.queryByText("1 of 2 ranked")).toBeNull();
