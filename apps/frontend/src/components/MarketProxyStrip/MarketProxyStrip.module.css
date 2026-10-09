@@ -82,6 +82,60 @@
 }
 
 /*
+ * **The symbol is the cell's way in, and the figure never is** (Task 4.6.3).
+ *
+ * `color: inherit`, never a link ink: the crimson identity accent is scoped to
+ * four positions in the chrome and a datum is not one of them. The affordance
+ * is carried by the underline and the pointer.
+ *
+ * It carries `.symbol` as well as this rule rather than wrapping a second
+ * element, so the truncation and the ring's box are one box: a 13/16 line, 16
+ * px tall, which is what makes the ring `16 + 2 × 4 = 24` px outer and overhang
+ * the 26 px price row below it by exactly **4.00 px**, at all four widths.
+ *
+ * **That overhang lands in the price's internal leading and not on its glyphs,
+ * and the figure is measured rather than argued** (Task 4.6.3, against this
+ * anchor): the ring's outer edge is at the price line box's top + 4.00, and the
+ * digits' ink starts at + 5.20 — a clearance of **1.19–1.20 px**, the same at
+ * 1440, 1024, 768 and 390. Confirmed by a second instrument that scanned the
+ * painted pixels at 8× rather than the font's metrics: the ring band ends at
+ * 249.00 and the next ink begins at 250.25. In the `unknown` state, which is
+ * the only one a gated browser ever draws, `None stored` is a 16 px face in the
+ * same 26 px box and the clearance is **5.35 px**.
+ *
+ * **It is 1.2 px, which is a pass and not a comfort.** If it ever stops
+ * clearing, the repair is a gap or an inset — and note what that costs before
+ * reaching for it: `.cell` is 16 + 26 + 16 in every state and `.regions` begins
+ * immediately below, so a row that grows moves the whole seven-region grid. It
+ * is **never** a smaller ring, which has one home at the token layer.
+ *
+ * No `:focus-visible` is declared here, for the same reason
+ * `UniverseTable.module.css` declines to: focus is the token layer's job, one
+ * global rule, and a component declaring its own is answering a question
+ * already answered.
+ */
+.symbolLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+/*
+ * Hover and focus are the same drawing, because they are the same statement —
+ * *this is what will open*. The offset is `UniverseTable`'s, and the thing to
+ * check when either number moves is that the rule still **paints**: this
+ * element carries `.symbol`'s `overflow: hidden` (it is what gives the ellipsis
+ * a block container), so a rule drawn below the 16 px line box is clipped
+ * silently — it does not warn, it does not shift anything, and no assertion in
+ * this repository compares a painted underline. Photographed at 8× on
+ * 2026-10-09 focused and hovered: at 0.2em on a 13/16 line it is whole.
+ */
+.symbolLink:hover,
+.symbolLink:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/*
  * The mark's slot: 8 px, always, whether or not a mark is running.
  *
  * `flex: none` so it cannot be squeezed out of a `minmax(0, 1fr)` column, and

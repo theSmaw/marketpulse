@@ -1,7 +1,10 @@
 import type { Bar, WireMarketOverview } from "@marketpulse/shared";
 
+import { Link } from "react-router";
+
 import { cx } from "../../cx.js";
 import { marketProxyStrip, type ProxyCell } from "../../market/index.js";
+import { securityPath } from "../../routes/paths.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import styles from "./MarketProxyStrip.module.css";
 import { useWaited } from "./use-waited.js";
@@ -166,7 +169,44 @@ function Cell({
   return (
     <div className={cx(styles.cell)}>
       <p className={cx(styles.term)}>
-        <span className={cx(styles.symbol)}>{symbol}</span>
+        {/*
+         * **The symbol is the way in, and the figure never is** (Task 4.6.3).
+         *
+         * A plain tab stop, one per cell, and no roving group: the strip is a
+         * 4-across grid of cells with no `<ol>`, no ordinal and no ranking, and
+         * its order never changes — so every reason the roving pattern exists
+         * is absent, and `/securities` already ships 518 plain link stops. A
+         * 2-D arrow model was refused on a measurement rather than on taste:
+         * at 390 the strip is **2×2**, so `ArrowRight` would mean *next cell*
+         * at three widths and *the cell beside me on this row* at the fourth —
+         * layout-dependent behaviour nothing below `pnpm e2e` can see.
+         *
+         * **The accessible name is the bare ticker**, which is why the link is
+         * the symbol token rather than the cell. A cell-wide name is
+         * `SPY 774.03 up +0.42% 14:01 EDT · pre-market`, and it changes up to
+         * sixteen times a minute: an accessible name that moves under the
+         * reader is unannounceable, unrepeatable, and breaks
+         * `getByRole("link", { name })` in every spec that touches it.
+         *
+         * **A figure reading `unknown` is still a destination.** The security
+         * exists and its page is the right place to find out why there is
+         * nothing here; ADR 0029 governs *claims about data*, and a link is
+         * not a claim about today's move. On the gate this is the only branch
+         * that is ever exercised — CI's store has zero bars, so every proxy is
+         * `unknown` for ever.
+         *
+         * `securityPath()` and nothing else builds the address, and the
+         * `markSlot` beside it is why there is no chevron: `UniverseTable`
+         * reserves that position for one and here it holds the arrival disc.
+         * The second encoding of the affordance is the underline, which hover
+         * and focus share because they are the same statement.
+         */}
+        <Link
+          to={securityPath(symbol)}
+          className={cx(styles.symbolLink, styles.symbol)}
+        >
+          {symbol}
+        </Link>
         {/*
          * **The mark's slot, reserved statically and in the flow** — the third
          * geometry, and the first that is not absolute.
