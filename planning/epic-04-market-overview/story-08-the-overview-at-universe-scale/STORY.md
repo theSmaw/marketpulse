@@ -307,3 +307,36 @@ cadence rises_, or _a second universe-scale per-tick computation is added to
 the same callback_. **Story 4.5 added one** — and it ranks the figures the join
 already produced rather than re-deriving a move, which is why it is 0.3 ms and
 not another 3.4.
+
+## Handed here by Story 4.6 — 2026-10-09: every row on this screen is now an anchor, and Epic 14's trigger is worded for exactly what you might do
+
+**Story 4.6 put a `<Link>` in every ranked row.** Twenty rows today — five
+gainers, five losers, eleven sectors less the quiet group's share — each one an
+`<a href>` resolved at render from the row's own symbol, plus four on the proxy
+strip. **Twenty-four anchors on a paint.**
+
+That is small, and the reason to write it down here is that **your story is the
+one that could make it not small.** Epic 14's trigger is worded as _the first
+time a second surface on this page renders per-row markup at universe scale_ —
+and a ranked surface widened to the universe would be per-row markup **with an
+anchor and a roving `tabIndex` in each row**, which is strictly more than the
+universe table's rows carry.
+
+**Three things to measure rather than assume if you widen anything:**
+
+1. **The anchor is free of handlers by design and must stay that way.** The
+   destination is resolved at render, from the row's identity, so no frame can
+   land between the keydown and the resolution — the activation race is
+   **unrepresentable** rather than managed. `pnpm invariants` carries
+   `one-home-for-imperative-navigation` over **every shipped source file in the
+   three trees** with one named allowance, precisely because the first version
+   of that check — four tokens over the four directories that draw rows — was
+   **green on the file Epic 5 writes**. Do not reintroduce a handler to make a
+   wide list cheaper without measuring what it costs in correctness.
+2. **The roving stop is `symbol | undefined` and is derived at render**, never
+   an index. At universe scale a held index is a second, disagreeing copy of
+   where focus is, and it diverges exactly when the list re-orders — which is
+   every minute.
+3. `tabIndexFor(symbol)` returns a **primitive** so `Row`'s measured memo
+   boundary still holds. A wide list that passes an object there loses the memo
+   silently.

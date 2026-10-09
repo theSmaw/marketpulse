@@ -1,6 +1,6 @@
 # Story 4.6 — Selection From the Overview
 
-**Status:** **In progress — 2026-10-08.** Decomposed into seven tasks; four decisions taken at Gate 1 and **five of six acceptance criteria reworded** — two contradicted each other, one is factually false, and one could not pass even after its repair. Shaping verified **two traps that would have shipped**: the reserved sector rows carry slugs and the held mover pads carry non-breaking spaces, so a naive link builds eleven `/securities/<sector-slug>` and ten `/securities/%C2%A0` — the latter in CI's permanent state.
+**Status:** **Complete pending Gate 2 — 2026-10-09.** Seven tasks. `/` holds **twenty-four destinations**; **0 of 25 activations landed anywhere but the row's own `href`**; 45 greyscale photographs over 9 states × 5 widths with **0 identical pairs**. Three findings outrank the feature: the no-imperative-navigation invariant was **green on the file Epic 5 writes** because the clause was the token and not the corpus; the slug links needed **two** repairs, the second a hard-coded `held={undefined}` throwing the producer's answer away one file downstream; and _no region on `/` scrolls at any of the four widths_ is **false** — `Unusual activity` scrolls at **1440×680**. Two readings are the owner's at Gate 2.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.5
 **Epic scope covered:** security selection from the overview
@@ -454,3 +454,92 @@ and never the row; a real `<Link>` built only by `securityPath()`; the region
 tab stops stay; arrows clamp rather than wrap and do not cross between lists;
 and when a focused row's security leaves, focus moves to the row now at that
 rank.
+
+## The close — 2026-10-09
+
+### What a user can now see
+
+**The landing page is a place you leave from.** Twenty-four destinations: the
+four proxy tickers, and every ranked sector and mover row, each opening its
+security page by pointer and by keyboard. A sector row opens its **benchmark
+ETF**. Tab stops go **11 reserved → 19 filled**, identical at all five
+viewports measured.
+
+### The acceptance criteria, each with its evidence
+
+1. **A ticker on `/` opens its security page** — 25 destinations activated for
+   real on a furnished page, **25/25** landing on the path their own `href`
+   declared, and **0** rows in any of nine states where `href ≠ /securities/<drawn ticker>`.
+2. **The figure is never the link** — `0` offenders across 5 widths × 3 states
+   (`examined=310–407` elements, `hovered=24` targets): nothing without an
+   `<a>` ancestor carries `cursor: pointer` or an underline, resting or hovered.
+3. **Keyboard parity** — four roving groups keyed on symbol, arrows clamped,
+   `Home`/`End` scoped, no crossing, `Space` left to the browser; asserted in a
+   browser with a driven re-order.
+4. **Nothing to open is not a link** — the eleven reserved sectors and the ten
+   held pads carry **no `<a>` at all**; `/securities/technology` and
+   `/securities/%C2%A0` are absent from the markup in every state, including
+   CI's permanent one.
+5. **The journey** — `land on /, reach a mover, open it` passes on a **bare
+   store** (`518 securities, 0 bars`) in 1.9 s, with the ticker read **off the
+   row the test is about to activate** and the **third** row activated, so a
+   handler that always opens row 0 fails it (proved by substitution). **Its
+   last clause — _read a figure_ — is unreachable on every gate this repository
+   has**, and is owed to a person on the deployed site, mid-session.
+6. **Every region is still a keyboard stop** — ADR 0039, and a browser
+   assertion over `section[aria-labelledby]` **by construction** on both
+   routes, because axe can never report these regions again.
+
+### What was measured
+
+- **+1.20 px** of focus-ring clearance over the price's ink, identical at 1440,
+  1024, 768 and 390 — photographed at 8×, against a published **+4.34 / +5.25**
+  that was three compounding errors in one instrument.
+- `18 + 2×(2+2) = 26` on a 27 px ranked row and `16 + 8 = 24` on the proxy
+  token, reproduced to the pixel by an independent walk.
+- A region first scrolls between **681 and 700 px of height at 1440**;
+  **0 of 8** regions on `/securities` scroll at any of thirteen pairs.
+- `Panel` has **exactly one** production consumer; `Region` is on **two**
+  routes; **20 files, 54 lines** of live claims depend on the tab-stop
+  behaviour.
+- Greyscale: 9 states × 5 widths, **0 identical pairs at every width**.
+
+### What ships open, with an owner
+
+- **A person opening a mover on the deployed site mid-session and reading its
+  price** — Story 4.9, the ninth rehearsal row. No gated machine has ever
+  clicked a mover: CI's store carries `eligible: 0` for ever.
+- **The hold releases and re-takes on every internal focus move**, because
+  `Region`'s `focusin`/`focusout` both bubble — so an arrow press can refresh
+  the pinned order. Raised rather than repaired; it changes behaviour Story
+  4.5.7 settled with measurements. Written into Task 4.6.7 and Story 4.7.
+- **A reverse `Shift+Tab` walk puts two region rings 0.09–0.14 px behind the
+  masthead at 1024×800 and 1440×680** — heights the ring spec does not run.
+  This **falsifies `tokens.css`'s own Task 4.6.1 note** that every edge reads
+  whole pixels; the region's document offset is fractional while Chromium
+  quantises `scrollY`. Not repaired: widening the spec's widths makes the gate
+  red, and a sub-pixel tolerance weakens the check that found the original
+  5 px defect. **Gate 2 question.**
+- **AC 1's reworded second half** asks for the tab-stop count to be the same in
+  the reserved and filled states, stated as a figure. It is **11 and 19** — the
+  figure that is invariant is **7**, the region sections. Whether a content
+  stop arriving with its content counts is a reading of the criterion.
+  **Gate 2 question.**
+- Seven new `docs/GAPS.md` entries, each with a `Re-measure:`.
+
+### The sweeps
+
+**Upward**: `PRODUCT_SPEC.md` §8.1 carries a dated amendment — this screen is
+now a place you leave from, which is what makes _"What is happening?"_
+answerable. §9's breadth sketch was **checked and needed nothing**.
+`CLAUDE.md`'s _Current state_ struck its own _cannot click a mover_ sentence
+and carries five load-bearing properties plus the falsified scroll premise.
+
+**Sideways**: the grep over this story's documents found **no** forward
+constraint for Stories 4.7, 4.8 or 4.9. The second pass over the epic's story
+list found **three that were owed and missing — a miss count of 3**, now
+written into each story's own `STORY.md` in words it can act on: 4.7 gets the
+degraded-state rule (nothing becomes non-activatable because a feed stopped)
+and the hold flicker; 4.8 gets the anchor-per-row cost and Epic 14's trigger
+wording; 4.9 gets the rehearsal row, the vacuous-on-the-gate assertions and the
+ninth screen-reader entry.

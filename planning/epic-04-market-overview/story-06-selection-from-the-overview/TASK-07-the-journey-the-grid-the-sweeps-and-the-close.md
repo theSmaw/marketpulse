@@ -1,6 +1,6 @@
 # Task 4.6.7 — The journey, the grid, the sweeps and the close
 
-**Status:** Not started
+**Status:** **Complete — 2026-10-09.** Three journey tests, the gated one non-vacuous on a bare store and proved so by two substitution controls; the grid is 9 states × 5 widths with **0** href-≠-handler rows and **0** identical greyscale pairs; the sideways sweep's second pass found **3** missing hand-offs the grep could not see. Two findings are the owner's at Gate 2, and one of them falsifies Task 4.6.1's own note in `tokens.css`.
 **Story:** [4.6 Selection From the Overview](STORY.md)
 **Depends on:** 4.6.6
 
@@ -127,3 +127,197 @@ firing**: `RankedList` draws **no `<ol>` at all** when nothing is ranked, so at
 the instant the last real row leaves, the list element is already detached and
 `closest("section")` reaches nothing. The `<section>` is therefore captured at
 **focus** time rather than at recovery time.
+
+## What was done — 2026-10-09
+
+### The three journey tests, and the anti-fixture rule is what makes test 1 worth its fixture
+
+`e2e/specs/overview-journey.spec.ts` drives a furnished overview frame through
+the **shipped encoder** with real curated tickers, activates the **third**
+gainer by pointer and the **third** loser by keyboard
+(`section → Tab → Tab → ArrowDown ×2 → Enter`, the focused ticker asserted at
+each step), and reads both tickers **off the rendered rows** — `a[data-ticker]`,
+`nth(2)` and `nth(0)` — never from the frame's literals.
+
+**Proved non-vacuous on CI's store shape**, not argued: `pnpm store:bare`
+(`marketpulse_bare: 518 securities, 0 bars.`) then a second pair on alternate
+ports against it, leaving the developer's own store untouched:
+
+    ✓ 1 … overview-journey.spec.ts:329:1 › the journey: land on `/`, open the
+        THIRD mover row by pointer and another by keyboard … (1.9s)
+    - 2 … the figure half of AC 5, which no gated machine can run
+    1 skipped
+    1 passed (3.9s)
+
+**And two substitution controls on that same bare pair**, each an assertion
+failure naming the real defect:
+
+    # nth(2) -> nth(0): a handler that always opens row 0
+      - unexpected value "http://localhost:5273/securities/SMCI"
+    # ArrowDown ×2 -> ×1: the keyboard leg's third row
+      Expected: "KO"   Received: "PFE"
+
+Test 2 **skips with its reason printed**, which `--reporter=json` quotes:
+
+    STATUS skipped
+    ANNOTATION {'type': 'skip', 'description': "this store holds no bars for
+      NVDA, so the security page has no figure to read — AC 5's last clause is
+      unreachable on any gate, and on CI (518 securities, zero bars) it is
+      unreachable for ever"}
+
+And a control that the skip is about the **store** rather than a broken
+locator: `/securities/NVDA` gives `Open labels: 0`, and
+`?sessions=21` gives `1`, reaching `1M OPEN | 220.53 | 1M HIGH | 222.00`.
+
+Test 3 is `e2e/specs-deployed/overview-journey.spec.ts` — structural, per that
+suite's rule. **It is UNRUN**: no deployed addresses were available here.
+
+### A defect in the spec idiom itself, and it is latent in a shipped spec
+
+`getByRole("heading", { level: 2, name: "T" })` on `/securities/T` resolved to
+**six** of the page's nine `<h2>`s — Playwright's `name` is a case-insensitive
+**substring** match, so `Abnormal-move indicators`, `Relative performance` and
+`Tracked universe` all matched. `exact: true` is now in both new specs, and `T`
+was deliberately kept as the third loser so the clause is load-bearing:
+
+    Error: strict mode violation: getByRole('heading', { name: 'T', level: 2 })
+      resolved to 6 elements
+
+`e2e/specs-deployed/security-explorer-journey.spec.ts` has the same latent
+shape (`name: "NVDA"`), safe today only because no other `<h2>` contains it.
+**Left alone** — it is Task 2.14.9's and currently green.
+
+### The grid: the axis is activation, and both failure criteria are clean
+
+Nine producer states — first paint; refused sections; `observed`; `stored`;
+`unknown` everywhere; both mover lists empty; a one-sided market with three
+pads; an **uncurated** symbol; names **pending** — × five widths including a
+deliberately **short** 1440×680. One row verbatim, furnished at 1440×900:
+
+    surface                          idx fig/drawn                        link href              name  tabidx cursor(row) cursor(tgt) decor
+    Movers / Gainers                 2   3NVDANVIDIA Corporation128.00▲up A    /securities/NVDA  NVDA  -1     auto        pointer     none
+    Sector performance / Not ranked  0   —UtilitiesXLUNone stored          A    /securities/XLU   XLU   0      auto        pointer     none
+    Movers / Losers                  2   3                                -    —                 —     —      auto        —           —  [aria-hidden] [visibility:hidden]
+    => 26 rows, 22 destinations, 0 with href ≠ drawn ticker
+
+- **href ≠ handler: 0.** All **25** destinations on the furnished page were
+  **activated for real** and the landed path compared to the `href` — 25/25
+  agree. Across all nine states, 0 rows where
+  `href ≠ /securities/<drawn ticker>`.
+- **A non-link with a link's affordance: 0.** `examined=310–407` elements,
+  `hovered=24` targets, 5 widths × 3 states, resting and hovered: **0
+  offenders** in all fifteen combinations.
+- `unknown` is still a destination (`SPYNone stored` → `/securities/SPY`); the
+  reserved rows and the held pads carry **no `<a>` at all**; the **uncurated**
+  `ZZZZ` is linked and named `ZZZZ`; with names **pending** the accessible name
+  is still the bare ticker.
+
+Interaction states, one sample per surface at 1440×900:
+
+    proxy SPY    rest  cursor=pointer decor=none       box=23×16
+                 hover cursor=pointer decor=underline
+                 focus outline=solid 2px off 2px  ring h=24  reach=4
+    gainer NVDA  rest  cursor=pointer inner:none       box=68×18
+                 hover cursor=pointer inner:underline  row-bg=rgb(242, 243, 249)
+                 focus outline=solid 2px off 2px  ring h=26  reach=4
+
+`18 + 2×(2+2) = 26` and `16 + 8 = 24`, to the pixel. `:active` adds nothing and
+displaces nothing. **A ring is drawn only for `:focus-visible`** — after a real
+pointer press the same element reads `outline: none`, which is correct.
+`prefers-reduced-motion: reduce` changes **nothing** in any reading.
+Greyscale: **45 photographs, 0 identical pairs at every width.**
+
+Tab stops, both directions, five widths, identical at all five: **11 reserved,
+19 filled** — four masthead links, seven region sections, four proxy links and
+four roving-group stops.
+
+### The one real finding, and it falsifies a dated measurement
+
+**A reverse `Shift+Tab` walk puts `Sector performance` and `Market breadth`
+rings 0.09–0.14 px behind the masthead**, at two viewport heights
+`overview-focus-ring.spec.ts` does not run. Stable to four decimals over two
+reproductions:
+
+    1024×800  Tab        stops=14 breaches=0  minTop=88.0000
+    1024×800  Shift+Tab  stops=14 breaches=4  minTop=-0.1406
+          !! section:Sector performance  top=60.8594  topClr=-0.1406  scrollY=477  pad=62px
+    1440×680  Shift+Tab  breaches=4  minTop=-0.0938
+    1024×900 / 1440×900 / 768×800 / 390×780  Shift+Tab  breaches=0  minTop=0.0000
+
+`scroll-padding-top` resolves to a whole `62px` and the chrome's bottom to a
+whole `57`, but at these **heights** the region's document offset is fractional
+(`*.8594`, `*.9063` — `min-height: 82vh` over `minmax(min-content, 1fr)`) while
+Chromium quantises `scrollY` to whole pixels, so the box **cannot** land at
+`61.0000`.
+
+**This falsifies `tokens.css`'s `--scroll-overshoot` note (Task 4.6.1,
+2026-10-08)** — _"every box edge and both chrome edges read whole pixels, so
+there is no sub-pixel here for a tolerance to absorb."_ True of its four pairs;
+not true in general. **Not repaired**: the spec is 4.6.1's, widening its
+`WIDTHS` makes the gate red, and a sub-pixel tolerance weakens the check that
+found the original 5 px defect. A `docs/GAPS.md` entry carries it and it is a
+Gate 2 question.
+
+### Gates
+
+    49 invariants hold.
+    42 components, 42 stories files.
+    packages/shared 437 passed · apps/backend 1025 passed ·
+    apps/frontend 1392 passed · test:process 41 passed
+    grep -ci "unhandled" → 0
+    eslint . --max-warnings 0 → clean
+    prettier --check → All matched files use Prettier code style!
+
+    pnpm e2e overview-        63 passed, 1 skipped (51.4s)
+    pnpm e2e overview-journey  1 passed, 1 skipped (3.6s)
+    pnpm e2e (full, run 1)   227 passed, 16 skipped, 2 failed (5.5m), load avg 33.6
+    pnpm e2e (full, run 2)   228 passed, 16 skipped, 1 failed (4.1m)
+
+Run 1's two failures each **pass alone** (7.1 s, 1.4 s) — contention on a
+machine the runner itself warned about. Run 2's single failure is
+`security-gap-fill.spec.ts:165`, the **documented flake** at `docs/GAPS.md`
+(_"fails on `main` about one time in eight"_). Neither is a spec this task
+touched.
+
+**No break is owed**: no `pnpm invariants` grep was added. The new assertions
+are browser assertions, each proved red by substitution — three transcripts
+above.
+
+### Seven `docs/GAPS.md` entries
+
+No gated machine has ever clicked a mover; AC 5's last clause is unreachable on
+every gate; the sector region draws **no `<ol>` at all** when nothing is
+ranked, so every list-keyboard assertion in it is vacuous on the gate; the
+pointer's **moment of entry** is unguarded, with the 0.21–0.44/min rates; the
+reverse-Tab sub-pixel breach; the 11-and-19 tab-stop reading; and the **ninth**
+screen-reader entry — whether a client-side route change with an unchanged
+`document.title` is announced at all, which is the **inverse** of the other
+eight: a change the reader explicitly asked for, the one case where announcing
+is unambiguously right.
+
+## For a stakeholder — a status report, 2026-10-09
+
+The landing page became a place you can leave from. Twenty-four tickers on it
+now open their security pages, by mouse and by keyboard, and a sector row takes
+you to the ETF that tracks it.
+
+What this task did was prove it rather than build it. Every destination on the
+page was activated for real and checked against the address it advertised:
+twenty-five out of twenty-five agreed. Nine different states of the page were
+photographed at five sizes in greyscale, and no two of the forty-five pictures
+read the same. Nothing that is not a link looks like one, anywhere.
+
+Two things are left for the owner to decide rather than for a developer to fix.
+A reverse keyboard walk puts two of the seven region outlines a tenth of a
+pixel behind the top bar at two window heights — real, reproducible, and the
+cure is worse than the symptom, because the obvious fix weakens the check that
+caught a five-pixel version of the same defect. And one acceptance criterion
+asks for a figure the page does not have a single value for: the number of
+keyboard stops is eleven before the data arrives and nineteen after, because
+the rows themselves are stops. The figure that never changes is seven.
+
+The honest gap is that **no automated machine has ever clicked a mover**. The
+test server holds no price history, so the movers list there is permanently
+empty; every automated journey runs against a page we furnished. A person
+opening a real mover during a real session is owed, and Story 4.9 has the row
+for it.
