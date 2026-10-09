@@ -121,3 +121,39 @@ nobody, against §9.1's idle-rate condition. The guard is the same
 `clients.size > 0` test the keepalive already makes twelve lines below. It is a
 behaviour change on the socket callback's own path and 4.8.3 deliberately did
 not take it.
+
+## Handed here by Task 4.8.4 — 2026-10-09: the browser side of clause B, measured
+
+**Your clause B is _the first time the aggregate is produced at a cadence the
+bar feed does not set_, and the arithmetic behind it was a tight-loop backend
+figure.** Here is the browser half of the same question, driven at both ends of
+the feed's measured range.
+
+| cadence         | the batch's own main-thread work on `/` | a minute  |
+| --------------- | --------------------------------------- | --------- |
+| 6.8/min, midday | **5.1 ms** a batch                      | **35 ms** |
+| 16.1/min, close | **3.7 ms** a batch                      | **60 ms** |
+
+Net of a quiet control arm driven at the same cadence, production build,
+`longtask` entries **0** in seven arms out of seven, worst rAF gap
+**17.7–17.8 ms** against a 16.7 ms quantum — **no dropped frame anywhere**.
+§28's word is **task** and the largest single task measured is **4.5 ms**, so
+the landing page clears the routine 50 ms line by a factor of twenty.
+
+**Two things that should change the shape of your verdict.**
+
+1. **The browser leg is not gap-inflated and the backend leg is.** Task
+   4.8.3's finding 6 — the same computation reading 3.72 ms tight and
+   12.97–15.43 ms at a gap, with a fixed-cost control moving by the same factor
+   — is a property of a **Node process waking from idle**. Sampled in a visible
+   Chromium renderer at gaps of 3.7 s and 8.8 s, the identical calibrator reads
+   **×1.00**, five arms out of five. So clause B's _"~1.29 s of script a
+   minute"_ arithmetic is a **backend** worry with a real multiplier on it, and
+   the browser figure beside it needs no multiplier at all. Two different
+   uncertainties, and a verdict that treats them as one will be wrong about one
+   of them.
+2. **A mover substitution costs the browser +2.7 ms and +2 commits**, measured
+   at 16.1 substitutions a minute — **38× the measured membership rate of
+   0.21–0.45 a minute** — and still produced zero long tasks. The gateway pays
+   3.72 ms a substitution (4.8.3); the browser pays 2.7. At the real rate that
+   is **0.6–1.2 ms a minute** on each side.

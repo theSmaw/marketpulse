@@ -153,10 +153,22 @@ argument: _a figure taken after the epic is called done is a figure nobody
 re-takes._ You will already have the instrument up, the production build up and
 the feed running; `/securities/:symbol` is minutes more.
 
-The byte cost is not the issue and is recorded so nobody re-derives it: 431 bytes
+~~The byte cost is not the issue and is recorded so nobody re-derives it: 431 bytes
 × ~16 a minute ≈ **6.9 KiB/min per attached browser**, ~12% on top of a
 518-subscribed client and roughly **3× the inbound bytes of a one-symbol security
-page**.
+page**.~~ — **re-taken 2026-10-09 by Tasks 4.8.3 and 4.8.4, and every figure in
+it was wrong.** The aggregate is **4,078 B** at its ceiling (all 518 observed,
+observed basis), 3,142 B on the session basis, 2,042 B with closes but nothing
+observed and **928 B in CI's shape**; the 431 was four stored proxy figures and
+no other section. So it is **27.1 KiB/min at the midday floor of 6.8 batches a
+minute and 64.1 KiB/min at the close's 16.1**, **6.9%** on top of a
+518-subscribed client rather than 12% (that client's `bars` frame is 58–59 KiB
+**a batch**, and the 12% divided by 56.9 KiB **a minute** — the fixture's
+cadence inside an arithmetic), and the one-symbol comparison has no subject
+because `/securities/:symbol` subscribes to all 518. On `/`, where ~25 are
+subscribed, **the aggregate is 1.4× the `bars` frame beside it and the larger
+half of what the route receives**. `docs/GAPS.md` carries the correction and
+ADR 0038's verbatim 431-byte frame carries a dated amendment.
 
 ## Reassessed 2026-10-07 after Story 4.3 shipped — Epic 14's trigger was evaluated a third time, and it exposed a property of the trigger itself
 

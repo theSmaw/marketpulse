@@ -118,6 +118,19 @@ Verbatim off the local gateway against the real store, **431 bytes**:
 {"type":"overview","version":1,"sentAt":"2026-09-26T02:33:11.611Z","overview":{"computedAt":"2026-09-26T02:33:11.611Z","feeds":[],"figures":[{"state":"stored","symbol":"SPY","session":"2026-09-11","close":764.29},{"state":"stored","symbol":"QQQ","session":"2026-09-11","close":714.88},{"state":"stored","symbol":"DIA","session":"2026-09-11","close":525.79},{"state":"stored","symbol":"IWM","session":"2026-09-11","close":288.89}]}}
 ```
 
+**Amended 2026-10-09 (Tasks 4.8.3 and 4.8.4): the frame above is a record of
+what this frame was on 2026-09-26, and it must not be used to size anything.**
+The 431 bytes are **four stored proxy figures and nothing else** — no sectors,
+no breadth, no movers, and every figure in its shortest form. The decision
+stands unchanged; the figure has moved by an order of magnitude. Measured off
+the wire since: **928 B** in CI's shape (518 `unknown`), **2,042 B** with 518
+closes held and nothing observed, **3,142 B** with all 518 observed on the
+session basis and **4,078 B** on the observed basis, which is the ceiling. The
+derived arithmetic that circulated from the 431 — `6.9 KiB/min` and `12% on top
+of a 518-subscribed client` — is corrected in `docs/GAPS.md`; the figures a
+reader should take are **27.1 KiB/min** at the measured midday floor of 6.8
+batches a minute and **64.1 KiB/min** at the close's 16.1.
+
 - **Unlike `bars`, the payload is identical for every browser**, so it is built
   **once per applied batch** before the per-client loop and broadcast — and on
   connect and on subscribe, because the overview is not scoped to a subscription
