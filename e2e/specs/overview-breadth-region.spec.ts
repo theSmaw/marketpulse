@@ -1,10 +1,5 @@
-import {
-  MARKET_STREAM_PROTOCOL_VERSION,
-  encodeMarketStreamMessage,
-} from "@marketpulse/shared";
 import type {
   MarketFeed,
-  WireFeedState,
   WireMarketBreadth,
   WireMarketOverview,
 } from "@marketpulse/shared";
@@ -12,7 +7,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
-import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
+import { serveFeed } from "../support/feed.js";
 
 // **The breadth region on the landing page** (Task 4.4.5,
 // `The breadth ledger.dc.html`).
@@ -51,12 +46,6 @@ const OVERVIEW = "/";
 
 /** The one venue value — `overview-proxy-live-update.spec.ts`'s rule. */
 const VENUE: MarketFeed = "iex";
-
-const LIVE_FEED: WireFeedState = {
-  status: "live",
-  feed: VENUE,
-  marketOpen: true,
-};
 
 /** 14:01 ET on a Wednesday, so no extended-hours word anywhere on the page. */
 const AT = "2026-09-16T18:01:00Z";
@@ -109,40 +98,30 @@ const overviewOf = (breadth: WireMarketBreadth): WireMarketOverview => ({
  * Serve the market stream from the test: the gateway's connect sequence — a
  * structurally empty snapshot, then the aggregate, which is **not** scoped to a
  * subscription.
+ *
+ * **Through the shared harness since Task 4.7.1, and this spec is the proof
+ * that the harness's `overview` verb is a faithful substitute for the inline
+ * copy it replaced.** The three frames are byte-for-byte the same shape — one
+ * `{"feed":"iex"}` answer to `GET /market-data`, a snapshot carrying
+ * `observations: {}` and `status: "live"`, then the aggregate — so the only
+ * difference is where the plumbing is written. `serveFeed`'s docblock carries
+ * why one home matters: the day this section gains a field, one line stops
+ * compiling rather than ten.
+ *
+ * `breadth === undefined` is the **rollback** shape and is labelled as such
+ * where it is used below — `WireMarketOverviewInputs.breadth` is non-optional,
+ * so no shipped producer can build it.
  */
 async function serveBreadth(
   page: Page,
   breadth: WireMarketBreadth | undefined,
 ): Promise<void> {
-  await page.route(MARKET_DATA_ROUTE_PATTERN, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ feed: VENUE }),
-    }),
-  );
-
-  await page.routeWebSocket(/\/market-stream$/u, (ws) => {
-    ws.send(
-      encodeMarketStreamMessage({
-        type: "snapshot",
-        version: MARKET_STREAM_PROTOCOL_VERSION,
-        sentAt: new Date().toISOString(),
-        observations: {},
-        feed: LIVE_FEED,
-      }),
-    );
-    ws.send(
-      encodeMarketStreamMessage({
-        type: "overview",
-        version: MARKET_STREAM_PROTOCOL_VERSION,
-        sentAt: new Date().toISOString(),
-        overview:
-          breadth === undefined
-            ? { computedAt: AT, feeds: [VENUE], figures: [] }
-            : overviewOf(breadth),
-      }),
-    );
+  await serveFeed(page, {
+    feed: VENUE,
+    overview:
+      breadth === undefined
+        ? { computedAt: AT, feeds: [VENUE], figures: [] }
+        : overviewOf(breadth),
   });
 }
 

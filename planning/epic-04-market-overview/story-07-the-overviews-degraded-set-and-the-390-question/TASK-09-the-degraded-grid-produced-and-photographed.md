@@ -85,3 +85,41 @@ row** — the second is what found two missing states last time.
 4. Four widths, **greyscale at every width**, and no two states reading
    identically within a class
 5. `docs/GAPS.md` entry 13 given its fourth verdict in both directions
+
+---
+
+## Handed here by Task 4.7.1 — 2026-10-10: the eleventh inline copy is unnecessary, and three states are now producible
+
+**1. Build no `type: "overview"` frame.** `serveFeed` owns the gateway's
+connect sequence now: `overview` is sent beside the snapshot, `sendOverview`
+broadcasts a later one, and both come from the shipped encoder. Ten specs under
+`e2e/specs/` still carry an inline copy and were left alone deliberately — see
+Task 4.7.1's record for the count and the reason, one of which is a shipped
+invariant that keys on an inline frame.
+
+**2. Three connection states on `/` are now producible, and were not.**
+
+| State                    | Produced by                                     |
+| ------------------------ | ----------------------------------------------- |
+| `disconnected`, **held** | `reconnect: "refused"` then `drop()`            |
+| reconnected, poorer      | `overviewOnReconnect` then `drop()`             |
+| reconnected, unchanged   | `drop()` with the default `reconnect: "served"` |
+
+The first is the one that did not exist: a produced `disconnected` used to heal
+itself ~2 s after `drop()`, so any photograph of it was a race.
+`e2e/specs/overview-held-outage.spec.ts` is the worked example.
+
+**3. Label the rollback row furnished.** An aggregate with no `breadth` or no
+`movers` is the shape no shipped producer can build —
+`WireMarketOverviewInputs` has both non-optional — and `FURNISHED_BREADTH` is
+the section to paste in when the rollback is _not_ what a row meant to model.
+Three tests in the held-outage spec use it for exactly that reason.
+
+**4. Record how many sockets each photographed page opened.** `connections()`
+counts by **URL**; a dev page is one plus `StrictMode`'s open/close pair and a
+deployed page is one. A row that assumes one socket is a row that was taken on
+the wrong machine, and keying anything on the count produced a plausible wrong
+screen during this task — see Task 4.7.1's findings.
+
+**5. A `/\blive\b/iu` negative on the footer cannot hold in a dropped state**:
+`The live feed is not connected.` contains the word. Compare whole surfaces.
