@@ -173,3 +173,51 @@ nothing has reached us. `docs/GAPS.md`'s entry _The landing page now states two
 instants about one aggregate, a minute apart_ names **this task's first
 photograph of the two together** as its owning condition, which is the point at
 which it becomes an owner's call across four surfaces rather than a finding.
+
+---
+
+## Handed here by Task 4.7.5 — 2026-10-11: two new axes, and one premise of this grid's 390 column is false
+
+Written here rather than linked.
+
+**1. A new axis the grid has never had: `GET /securities` in flight.** The
+landing page makes one HTTP request beside the socket, and the **movers name
+track** is the only thing on the screen that depends on it. It measured 124 ms
+against first-frame times of 174–277 ms, so which wins is a property of the
+network and **every cold load may paint movers with no names**. Since
+2026-10-11 that state draws **blank room** rather than the row's own ticker
+(it drew the identifier twice in adjacent tracks, with the price column
+dropped at 390, so there was nothing between the copies). The axis is two
+values — universe arrived / universe outstanding — and it costs one
+`page.route` holding `SECURITIES_ROUTE_PATTERN`; see
+`e2e/specs/overview-movers-name-race.spec.ts`, which is the drive. **It is
+worth a row at 390 specifically**, because that is the width where the
+duplicate had nothing between it and therefore the width where the blank is
+widest.
+
+**2. A new axis on every region, and it is a state no aggregate can
+produce: the region THREW.** `Region` now suppresses the head's `meta` when
+its content boundary trips (Task 4.7.5), so a failed `Movers` no longer reads
+`Top 5 each way` or `ORDER HELD` over a box saying the region could not be
+displayed. If this grid photographs a failed region at all — and it is the one
+degraded state on this screen that is not a state of the feed — the head is
+now part of what the picture is of. `Region.stories.tsx`'
+`FailedWithAClaimInItsHead` is the state, and it is reachable in the workshop
+without a harness.
+
+**3. `the explanation is at the foot of the page` is false at 390, and this
+grid's own 390 column is where it would have been recorded.** Task 4.7.5's
+brief rests on it; the photograph refutes it. On the terminal no-frame state
+at 390 the first viewport holds `Market proxies` with `No prices yet.`, the
+top of `Market breadth`, **and the sticky status bar reading `STALE ·
+Connected, and no live prices have arrived yet.`** — about 250 px under the
+first apology, at every scroll position, because the bar is sticky. The
+explanation is never far from any of the four. What is true at 390 is the
+opposite of a chorus: the four regions are tall enough that **no two of the
+four sentences are ever co-visible**, and the page is **2,735 px**.
+
+**4. The terminal state's verbatim text, at both widths, settled.** `main`'s
+`innerText` is byte-identical at 390 and 1440 (the DOM order does not change,
+only the grid does), and the footer is identical too. Recorded in full in Task
+4.7.5's record so this grid's rows can be compared against it rather than
+re-derived.

@@ -21,7 +21,13 @@ import { ErrorFallback } from "../ErrorFallback/ErrorFallback.js";
 // `apiError()` makes on the backend, where the constructor has four slots and
 // no room for a fifth. Reporting is somebody else's job; see below.
 //
-// **It does not report, and `componentDidCatch` is deliberately absent.** React
+// **It does not report, and ~~`componentDidCatch` is deliberately absent~~ —
+// amended 2026-10-11 by Task 4.7.5: the method exists and still reports
+// nothing.** It takes no parameter, so it cannot be handed the error, and all
+// it does is pass one bit to `onCaught` so a head drawn ABOVE this boundary
+// can stop claiming what the subtree below it no longer has. Everything in
+// the paragraph below is unchanged — there is still exactly one report of a
+// caught error in this application and it is `main.tsx`'s. React
 // 19 added `onCaughtError` to `createRoot`, and `main.tsx` wires it, so an
 // error caught here is already logged with its component stack from one place
 // that every boundary shares — adding `componentDidCatch` on top would be a
@@ -76,6 +82,46 @@ export interface ErrorBoundaryProps {
   /** Passed straight to {@link ErrorFallback} — the chrome's density. */
   readonly compact?: boolean;
 
+  /**
+   * Called with `true` when the subtree below throws and with `false` when a
+   * reset clears it — **so a surface ABOVE this boundary can stop claiming
+   * things the subtree no longer has** (Task 4.7.5).
+   *
+   * ## It is a notification, not a report, and the distinction is the reason
+   * `componentDidCatch` is still absent above
+   *
+   * The note above argues that this component does not report, because
+   * `main.tsx`'s `onCaughtError` already logs every caught error with its
+   * component stack from one place. That is unchanged and this does not
+   * weaken it: nothing here is handed the error, the state is still a
+   * boolean, and there is still no reference a fallback could render even by
+   * mistake. What crosses is one bit — *the thing below me is not on the
+   * screen* — which is a fact about **layout** rather than about a failure.
+   *
+   * ## Why a caller needs it at all
+   *
+   * `Region` draws a head above this boundary and content inside it. The head
+   * carries `meta`: a count, `Top 5 each way`, `ORDER HELD` — claims about
+   * figures. A boundary that contains the content and not the head leaves
+   * those claims standing over a box saying the region could not be
+   * displayed, which is two true halves and one contradiction, the same
+   * family as the market-feed cell's. A caller cannot derive the bit: a throw
+   * during render is not a state anything upstream computed.
+   *
+   * ## The `false` is load-bearing
+   *
+   * `ErrorFallback`'s `Try again` remounts the subtree. A caller told only
+   * about the failure would suppress its head for ever, so a successful retry
+   * would restore the figures under a head that never comes back — which is
+   * the first repair anybody writes and is why `Region.test.tsx`' walk runs
+   * the retry.
+   *
+   * Called during the error commit and during the reset, never on an ordinary
+   * render, so a `useState` setter is a stable identity to pass here and the
+   * boundary does not re-notify what it already said.
+   */
+  readonly onCaught?: (caught: boolean) => void;
+
   readonly children?: ReactNode;
 }
 
@@ -103,6 +149,17 @@ export class ErrorBoundary extends Component<
     return { caught: true };
   }
 
+  /**
+   * **The one lifecycle method this class has, and it reports nothing** — see
+   * {@link ErrorBoundaryProps.onCaught}. The error is not a parameter here on
+   * purpose: `componentDidCatch` is handed one and this signature refuses it,
+   * so the *it knows nothing about the error* property above survives the
+   * method existing at all.
+   */
+  override componentDidCatch(): void {
+    this.props.onCaught?.(true);
+  }
+
   // An arrow property rather than a method, so `this` survives being handed to
   // the fallback as a callback without a `bind` in the constructor.
   private readonly reset = (): void => {
@@ -110,6 +167,7 @@ export class ErrorBoundary extends Component<
       caught: false,
       resetCount: previous.resetCount + 1,
     }));
+    this.props.onCaught?.(false);
   };
 
   override render(): ReactNode {

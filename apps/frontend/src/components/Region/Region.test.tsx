@@ -187,3 +187,127 @@ describe("Region", () => {
     expect(within_).toHaveBeenLastCalledWith(false);
   });
 });
+
+// **The head's claim against its content's state, walked rather than
+// rendered** (Task 4.7.5).
+//
+// ## What this is a walk OVER
+//
+// `market-feed-grid.test.ts` is the precedent and the shape is the same one:
+// it enumerates **every selection a deployment can be configured with** and
+// asserts the coherence rule across the two producers, because every other
+// test in the repository renders a combination somebody *named* — and the
+// defect it found was a row the grid contained and no named combination
+// reached.
+//
+// A region's head and its content are the two producers here, and the
+// content's state space is exhaustively three: **absent**, **drawn**,
+// **thrown**. The first two are what the route computes `meta` from
+// (`movers !== undefined`), and they are the only two anybody has ever
+// written a test for. The third is not a state the route can compute at all —
+// a throw during render is not something upstream knows about — and it is the
+// one where the head went on reading `Top 5 each way`, or `ORDER HELD`, over
+// a box saying the region could not be displayed. Two true halves and one
+// contradiction.
+//
+// **A fourth cell is reachable and is not a state of the content: the
+// RETRY.** `ErrorFallback`'s `Try again` remounts the subtree, so a head
+// suppressed on the way into the failure must come back on the way out. That
+// cell exists because the obvious repair — *suppress the head once it has
+// thrown* — passes the other three and leaves the figures restored under a
+// head that never returns. Its transcript is in Task 4.7.5's record.
+//
+// ## Why it is not an invariant
+//
+// The rule is about what reaches the accessibility tree from two slots of one
+// component, which no grep over the source can read: the claim can be
+// suppressed from `Region`, from `Panel`, or by the caller, and all three are
+// green against a text search for any one of them. What cannot be faked is
+// the string's absence from the rendered head.
+describe("a region's head cannot claim what its content no longer has", () => {
+  /** The claim a filled region puts in its head — `ORDER HELD`'s slot. */
+  const CLAIM = "Top 5 each way";
+
+  /** The tag an empty region puts there instead — the work that will fill it. */
+  const TAG = "Story 4.9";
+
+  /** Every state the content slot has, and there are exactly these three. */
+  const CONTENT = ["absent", "drawn", "thrown"] as const;
+
+  const contentOf = (state: (typeof CONTENT)[number]) => {
+    if (state === "absent") return undefined;
+    return state === "drawn" ? <p>five rows</p> : <Throws />;
+  };
+
+  /**
+   * What the head is allowed to say, per state.
+   *
+   * `absent` → the tag, because the region is reserved and the tag names the
+   * work. `drawn` → the claim, because there are figures to qualify.
+   * `thrown` → **neither**: the tag would promise work that has landed and
+   * the claim would describe figures that are gone.
+   */
+  const ALLOWED: Record<(typeof CONTENT)[number], string | undefined> = {
+    absent: TAG,
+    drawn: CLAIM,
+    thrown: undefined,
+  };
+
+  it.each(CONTENT)("says nothing untrue over %s content", (state) => {
+    render(
+      <Region name="Movers" awaiting={TAG} meta={<i>{CLAIM}</i>}>
+        {contentOf(state)}
+      </Region>,
+    );
+
+    const region = screen.getByRole("region", { name: "Movers" });
+    const allowed = ALLOWED[state];
+
+    for (const said of [TAG, CLAIM]) {
+      const drawn = within(region).queryByText(said) !== null;
+
+      expect(
+        drawn,
+        drawn
+          ? `over ${state} content the head claims something its content no ` +
+              `longer has: ${said}`
+          : `over ${state} content the head should say ${said} and does not`,
+      ).toBe(said === allowed);
+    }
+  });
+
+  it("gives the claim back when the retry succeeds", () => {
+    // The cell that is not a state of the content. Without it, suppressing
+    // the head permanently on the first throw passes every case above — and
+    // a reader who presses `Try again` gets the figures back under a head
+    // that has gone silent for the life of the page.
+    const { rerender } = render(
+      <Region name="Movers" meta={<i>{CLAIM}</i>}>
+        <Throws />
+      </Region>,
+    );
+
+    const region = screen.getByRole("region", { name: "Movers" });
+    expect(within(region).queryByText(CLAIM)).toBeNull();
+
+    // The content that will mount when the boundary remounts its subtree.
+    // Rerendered first: the boundary is still caught, so the fallback is
+    // still what is on screen and nothing has recovered yet.
+    rerender(
+      <Region name="Movers" meta={<i>{CLAIM}</i>}>
+        <p>five rows</p>
+      </Region>,
+    );
+    expect(within(region).queryByText(CLAIM)).toBeNull();
+
+    fireEvent.click(
+      within(region).getByRole("button", { name: /try again/iu }),
+    );
+
+    expect(within(region).getByText("five rows")).toBeDefined();
+    expect(
+      within(region).queryByText(CLAIM),
+      "the content came back and the head did not",
+    ).not.toBeNull();
+  });
+});

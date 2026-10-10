@@ -139,11 +139,39 @@ describe("marketMovers", () => {
     expect(view?.gainers.map((row) => row.symbol)).toEqual(["A", "B"]);
   });
 
-  it("labels a row with its company name, and with its ticker when the universe has not arrived", () => {
+  it("labels a row with its company name, and with BLANK ROOM when the universe has not arrived", () => {
     const section_ = section([observed("NVDA", 1, 3.41)], []);
 
     expect(read(frame(section_))?.gainers[0]?.label).toBe("NVIDIA Corporation");
-    expect(read(frame(section_), new Map())?.gainers[0]?.label).toBe("NVDA");
+
+    // **Not the ticker** (Task 4.7.5). The row already draws `NVDA` in the
+    // track to the left of this one, and at 390 the price column between them
+    // is dropped — so standing the symbol in here printed it twice with
+    // nothing between the copies, and a listener heard the identifier twice.
+    // Room and nothing else: see `NAME_NOT_ARRIVED`.
+    const unnamed = read(frame(section_), new Map())?.gainers[0];
+    expect(unnamed?.label).toBe(" ");
+    expect(unnamed?.label).not.toBe("NVDA");
+
+    // And the identifier is untouched: this is the name track, not the link's
+    // accessible name, which Story 4.6 settled and this does not reach.
+    expect(unnamed?.symbol).toBe("NVDA");
+  });
+
+  it("blanks only the names it does not have, in a HALF-filled universe", () => {
+    // The race's own shape rather than its extreme: `GET /securities` is one
+    // request, so in practice the map is empty or whole — but a symbol the
+    // universe does not carry (a delisting, a curation lag) must not take its
+    // neighbours' names down with it, and must not get its ticker back.
+    const view = read(
+      frame(section([observed("NVDA", 1, 3.41), observed("ZZZZ", 2, 1.1)], [])),
+      new Map([["NVDA", "NVIDIA Corporation"]]),
+    );
+
+    expect(view?.gainers.map((row) => row.label)).toEqual([
+      "NVIDIA Corporation",
+      " ",
+    ]);
   });
 
   it("gives a row no rank when its figure carries no ranking key", () => {

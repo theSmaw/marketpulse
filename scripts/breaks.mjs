@@ -4006,4 +4006,75 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "without adding `OBSERVATION_INTERVAL_MS`",
   },
+
+  // --- Task 4.7.5: the name track, and the head that outlives its content ---
+  //
+  // **The first of the two is a restoration rather than an invention**, which
+  // is what makes it the defect the next author writes: `?? figure.symbol`
+  // read as obviously right for two months, it is still right one file over
+  // for the sector rows, and the repair leaves a visibly empty column that
+  // invites exactly this edit back.
+  //
+  // **The plausible first draft of the check was green against it, and the
+  // transcript is in Task 4.7.5's record.** `not.toContainText("NVDA NVDA")`
+  // is what a person writes, and it **passed** with the defect applied —
+  // Playwright normalises `textContent` across the cell boundary with no
+  // separator at all, so the row reads `1NVDANVDA189.42▲up +3.41%` and
+  // the spaced substring is never present. The shipped assertion compares the
+  // row's whole `innerText` against a measured string instead.
+  {
+    name: "a-mover-stands-its-ticker-in-for-its-name",
+    proves:
+      "A mover row whose company name has not arrived falls back to its " +
+      "own ticker, so the identifier is drawn in two ADJACENT tracks — " +
+      "and at 390 the price column between them is dropped, leaving " +
+      "`3 NVDA NVDA +4.2%` with nothing between the copies and a listener " +
+      "hearing the identifier twice. It is not an outage state: " +
+      "`GET /securities` measured 124 ms against first-frame times of " +
+      "174–277 ms, so an ordinary cold load paints it.",
+    file: "apps/frontend/src/market/movers.ts",
+    find: "        label: names.get(figure.symbol) ?? NAME_NOT_ARRIVED,",
+    replace:
+      "        // pnpm break: reverted automatically\n" +
+      "        label: names.get(figure.symbol) ?? figure.symbol,",
+    command: ["pnpm", "e2e", "overview-movers-name-race.spec.ts", "--anyway"],
+    expect: "1 NVDA NVDA",
+  },
+
+  // **The second is the repair being undone from the one line that holds
+  // it**, and the substitution is the shape the component had for nine months
+  // rather than a mangling: `meta` passed straight through, outside the
+  // boundary that contains the content it describes.
+  //
+  // Its own first draft passed wrongly too, and for a reason worth reading
+  // before adding a third clause here: a check that asserts only *the head is
+  // silent while the content is a fallback* is satisfied by a `Region` that
+  // suppresses the head **permanently**, which is the repair a reader reaches
+  // for first and which leaves `Try again` restoring the figures under a head
+  // that never comes back. The walk therefore carries the retry.
+  {
+    name: "the-region-head-outlives-its-content",
+    proves:
+      "`Region` passes `meta` to `Panel` outside the `ErrorBoundary` that " +
+      "wraps its content, so a thrown region keeps a head claiming figures " +
+      "that are gone — `Top 5 each way`, or `ORDER HELD`, over a box " +
+      "saying the region could not be displayed. Story 4.6 established that " +
+      "a tripped boundary keeps its name, its landmark and its tab stop, " +
+      "which is correct; nobody noticed it also keeps a CLAIM.",
+    file: "apps/frontend/src/components/Region/Region.tsx",
+    find: "      meta={children === undefined ? tag : caught ? undefined : meta}",
+    // No `pnpm break: reverted automatically` marker on this one: the target
+    // is an attribute inside a JSX opening tag, where neither comment syntax
+    // is legal — and a break that turns its file into a parse error fails
+    // loudly and certifies nothing (`CLAUDE.md`, 2026-09-26).
+    replace: "      meta={children === undefined ? tag : meta}",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/frontend",
+      "test",
+      "Region.test",
+    ],
+    expect: "head claims something its content no longer has",
+  },
 ];

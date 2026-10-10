@@ -3254,3 +3254,51 @@ the source note's `Observed through` from one settled page, and record whether
 the two instants differ and by how much. The absent arm is free on any gated
 machine — CI's store holds zero bars, so `observedAt` is omitted and **neither**
 sentence is drawn.
+
+## The 2,000 ms floor is derived from a local pair, and a phone on cellular can cross it before the first frame
+
+`useWaited`'s `SAY_NOTHING_ARRIVED_AFTER_MS` is **2,000 ms**, and it is the
+instrument that turns four regions from _empty_ into _saying so_: `No prices
+yet.`, `No count yet.`, `No sector moves yet.`, `No moves to rank yet.` The
+number is measured rather than argued — time from navigation to the first
+overview frame painting a figure, **277, 174, 182, 193, 184 ms**, five runs,
+2026-09-26 — and the floor was set an order of magnitude above the slowest of
+those precisely so that nobody in ordinary use ever sees the sentence.
+
+**Every one of those five runs was a laptop talking to a dev server on
+`localhost`.** The measurement bounds the _render_ and bounds nothing about the
+link. On a phone on cellular mid-session — the sitting Task 4.7.10 owns — the
+first frame has a TLS handshake, a WebSocket upgrade and a radio wake in front
+of it, and 2,000 ms is a perfectly ordinary number for that sequence. When it
+is crossed, all four sentences appear **and are then replaced by figures**,
+which is exactly the promise-the-next-frame-breaks the floor exists to prevent:
+the terminal sentence is the one state on this screen that claims _nothing is
+coming_, and a reader who has just read it watching the page fill in has been
+told something false by a timer.
+
+**It is the floor's own failure mode rather than a regression.** The hold
+`usePendingPanel` carries — a treatment that must not come _and go_ — was
+deliberately left off this hook, on the recorded ground that this sentence is
+_replaced by figures and never by itself_. That ground is a statement about
+which state follows which, and it is true; what it does not cover is the state
+arriving in the first place when it should not have.
+
+**Nothing mechanical can see it.** `pnpm e2e` drives a browser against a pair
+on the same machine; `pnpm verify` has no server at all; the harness in
+`e2e/support/feed.ts` can _withhold_ a frame for ever but cannot make a real
+one slow in the way a radio does, and a `page.waitForTimeout` before a send
+would be this repository asserting its own number back to itself.
+
+**Owner: Task 4.7.10's sitting**, which is the only instrument in this
+repository that is a real phone on a real network.
+
+**Re-measure, and a phone can perform it unaided:** on a handset on cellular
+(not on the venue's Wi-Fi), with the market open, cold-load `https://<the
+deployed frontend>/` from a tab that has never been opened — a reload reuses
+the socket's DNS and TLS and is not the case. Watch the four regions. Record
+**(a)** whether any of the four sentences is drawn at all, and **(b)** if one
+is, whether figures replace it afterwards. Either sentence drawn on a load that
+then fills is the gap firing. Repeat three times, and record the signal bars:
+the arm that matters is one or two, not five. The same run answers it for a
+cold load against a **restarted replica**, which serves browsers for 45.8–46.5 s
+before its own feed authenticates.
