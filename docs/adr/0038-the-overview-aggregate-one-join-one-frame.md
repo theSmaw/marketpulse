@@ -70,6 +70,51 @@ acquires its own way of asking what time it is.
 null }` — the price is true and only the figure is absent. `unknown` is
   nothing-observed-and-nothing-stored, which is CI's store for all 518.
 
+**Amended 2026-10-10 (Task 4.8.11): _one join_ becomes _one join when somebody
+is listening_.** The decision is unchanged — the seam is still the join, still
+pure, still the one place the aggregate is computed. What changed is the
+**condition under which the per-batch path runs it**. `publishObservations`
+evaluated `overviewMessage()` as an **argument** to `broadcast`, so the 518-join
+ran before the client map was read: on a deployment with nobody attached the
+backend's own socket kept delivering batches and the join kept answering a
+question with no reader. Re-measured on 2026-10-10 inside the real gateway with
+zero clients: **1.521 ms p50 a batch** (n = 298, tight, calibrator reference
+1.217 ms, 2 discarded), against a floor of **0.000 ms** for the
+`observations.length === 0` return beside it — **10.3 ms** of script a minute at
+Task 4.1.6's measured 6.8-batch midday floor and **24.5 ms** at the close's 16.1,
+for an aggregate sent to nobody (`PRODUCT_SPEC.md` §9.1's idle-rate condition).
+Task 4.8.3's **3.708 ms** was an upper bound on today's tree and is not the
+figure to quote: Task 4.8.7's `marketDateAt` repair landed between the two
+measurements, and this one was **re-taken rather than subtracted**.
+
+The repair is one condition — the same `clients.size > 0` question the keepalive
+already asks — written as a **second early return with a different subject**:
+the first is about what the current market state **applied**, the second about
+who is **attached**, and the code says which in both cases. It changes no
+browser's view of anything, because the per-client loop iterates nothing on an
+empty map.
+
+**Two things it deliberately does not do.** It does not touch the **snapshot
+path**: a browser connecting or subscribing still gets a freshly computed
+aggregate — three joins per cold load of `/`, counted off the wire by Task 4.8.3
+— because those joins have a reader by construction and memoising them is a
+different decision with more surface. And it is **not** a cache: the aggregate is
+still computed from current state every time it is sent.
+
+Held by a behavioural assertion rather than a grep, and the shape of it is the
+part worth carrying: **nothing on the wire can see this defect.** `broadcast`
+iterates an empty map, so no frame is sent whether the guard is there or not, and
+the first draft of the check — _no overview frame is sent with nobody attached_ —
+**passed against the unguarded gateway**. The assertion had to be that the
+**producer was not called** (`market-gateway.process.test.ts`, _"does NOT build
+the aggregate when no browser is attached"_, with `pnpm break
+the-join-runs-with-nobody-attached`).
+
+**Reversal trigger, a condition:** _the first consumer of the aggregate that is
+not an attached browser socket_ — a scheduled job, a diagnostics route, a second
+gateway — at which point `clients.size` stops being the right question and the
+producer wants a cache rather than a guard.
+
 ## Decision 2 — the arithmetic moves to `packages/shared`, and AC 2 got STRONGER
 
 Acceptance criterion 2 required `changeFromClose`; the story's own amendment

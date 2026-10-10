@@ -123,3 +123,45 @@ is the one that puts the fact where a check can reach it. **Nothing mechanical
 currently holds _how many joins a connect pays_** — if the close wants that
 guarded, it is a `docs/GAPS.md` entry rather than a grep, because the answer is
 a runtime count off the wire.
+
+## Handed here by Task 4.8.11 — 2026-10-10: the per-batch path is now guarded, your defect is in the path that is NOT, and the guard is explicitly not a memo
+
+**Three things, and the first is the one that could be misread as your task
+being half-done.**
+
+**1. `publishObservations` now returns early on `clients.size === 0`, and that
+does NOT touch your defect.** The per-batch path runs the join — and therefore
+advances `computedAt` — only when a browser is attached. Your subject is the
+**snapshot path**: `sendSnapshot()` on connect and on every readable
+`subscribe`, which is **deliberately unchanged**, because those joins have a
+reader by construction and memoising them is a different decision with more
+surface (recorded as such in ADR 0038's 2026-10-10 amendment and in the code
+comment). So your Done-when 2 — _an age that does not advance when a second tab
+opens_ — is entirely in the path this task left alone. **Three joins per cold
+load of `/` still run, still unmemoised, still stamping `computedAt` with the
+minute the tab opened.**
+
+**2. The guard is not a cache, and the one rejected alternative you already
+recorded is still rejected.** Your objective lists _memoising the producer per
+batch_ among the three rejected options. Nothing here memoises anything: the
+aggregate is still computed from current state every time it is sent, and the
+guard only decides **whether to send at all**. If you find yourself writing
+"the producer is now memoised", that is wrong.
+
+**3. It SHARPENS your premise rather than weakening it, and here is the case to
+put in your state grid.** On an idle deployment the aggregate is now **not
+recomputed between batches at all** while nobody is attached — so the first
+frame a browser receives after an idle stretch carries `computedAt` = the
+instant that browser connected, over observations that may be **hours** old,
+with no intervening recomputation to make the gap look smaller. The state your
+grid most needs is therefore _the first tab opened on a long-idle deployment
+whose store holds old observations_, and it is now reachable without waiting for
+a feed to die mid-session: start the pair with no provider against a store that
+holds bars, open `/`, and read the sentence.
+
+**And one figure you should not carry forward.** The cost of the per-batch join
+was re-measured on 2026-10-10 at **1.521 ms** p50 with zero clients (n = 298,
+tight, calibrator reference 1.217 ms), not Task 4.8.3's 3.708 ms — 4.8.7's
+`marketDateAt` repair landed between the two. If your task prices anything per
+join, re-measure rather than subtract; 4.8.3's **3.72 ms** and the **11.2 ms**
+per cold load of `/` derived from it are both pre-4.8.7 figures.

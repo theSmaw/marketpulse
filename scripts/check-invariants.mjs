@@ -2832,7 +2832,8 @@ const INVARIANTS = [
       "`overviewMessage()` is reached by at most THREE paths in " +
       "`market-gateway.ts` — on connect and on every readable `subscribe` " +
       "message, both through `sendSnapshot()`, and once per applied batch " +
-      "from `publishObservations`. Three is NOT endorsed as correct; a " +
+      "from `publishObservations` — the third of them only when a browser " +
+      "is attached, since Task 4.8.11. Three is NOT endorsed as correct; a " +
       "fourth is a decision somebody has to take rather than a defect to " +
       "discover.",
     check() {
@@ -2872,9 +2873,21 @@ const INVARIANTS = [
       //
       // The claim says so in as many words. Two of the three are arguably one
       // too many already (Task 4.8.3's 11.2 ms of server script per browser
-      // opening `/`), and Task 4.8.11 holds a decision about the path that
-      // runs with nobody attached. What this check refuses is a **fourth
-      // arriving unnoticed** — not a fourth existing.
+      // opening `/`).
+      //
+      // **And the third was conditioned on 2026-10-10 rather than removed**
+      // (Task 4.8.11, ADR 0038's dated amendment). `publishObservations` now
+      // returns early on `clients.size === 0`, so the per-batch path runs the
+      // join only when somebody is listening — re-measured at 1.521 ms a
+      // batch with zero clients, 10.3 ms of script a minute at the 6.8-batch
+      // midday floor. **This check cannot see that condition and is not
+      // asked to**: it counts PATHS, and a guarded path is still a path. What
+      // holds the guard is a behavioural assertion in
+      // `market-gateway.process.test.ts`, because nothing on the wire can —
+      // `broadcast` to an empty map sends no frame either way.
+      //
+      // What this check refuses is a **fourth arriving unnoticed** — not a
+      // fourth existing.
       const WHERE = "apps/backend/src/market-gateway.ts";
       const text = withoutComments(readAnchored(resolve(REPO_ROOT, WHERE)));
 
