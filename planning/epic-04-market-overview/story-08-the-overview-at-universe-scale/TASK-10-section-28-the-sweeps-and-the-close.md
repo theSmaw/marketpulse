@@ -323,3 +323,66 @@ line outside the keepalive slice reported **`50 invariants hold.`** before the
 check existed. It is the third check on this seam and the only one that counts
 **paths**; the other two count the feed path plus one encode site, and one call
 site of `buildMarketOverview`.
+
+## Handed here by Task 4.8.11 — 2026-10-10: the per-batch join is 1.521 ms and not 3.708, the idle figure is now ZERO, and 4.8.3's _the ratio travels_ needs a caveat of its own
+
+**Four corrections, and the fourth is a correction to an instrument RULE rather
+than to a number.**
+
+**1. The backend leg per applied batch, re-taken after 4.8.7.** Measured inside
+the real gateway from `apps/backend/dist` with the producer composed as
+`index.ts` composes it, all 518 observed with closes, arms **rotated** per burst,
+calibrator paired:
+
+| tight loop, zero clients                     | p50          | p95   | n       |
+| -------------------------------------------- | ------------ | ----- | ------- |
+| `publishObservations(518)` **before** 4.8.11 | **1.521 ms** | 1.620 | 298/300 |
+| the same **after** the guard                 | **0.000 ms** | 0.000 | 298/300 |
+| `publishObservations([])` — the floor        | 0.000 ms     | 0.000 | 298/300 |
+
+Calibrator reference **1.217 ms** before and **1.137 ms** after, bands
+`[0.76, 1.95]` and `[0.71, 1.82]`, **2 / 300** discarded each, load ratio 0.324
+and 0.800 under the unraised 1.0 ceiling.
+
+**So `3.708 ms` and `3.72 ms` are both pre-4.8.7 and must not be carried into
+§28's sweep.** The figure for the per-batch path on today's tree is **1.521 ms**
+tight, and **zero** when nobody is attached.
+
+**2. Every figure in this epic derived from `3.72 ms` a join is now wrong by the
+same factor, and the arithmetic must be re-run rather than scaled by eye.** The
+ones in circulation that this task inherits: **11.2 ms** of server script per
+browser opening `/` (three joins), **7.4 ms** for `/investigations` and for a
+reconnect, and **3.72 ms** per mover resubscribe. A naive rescale at 1.521/3.708
+puts the cold load of `/` near **4.6 ms** — **quoted here as an estimate and not
+as a measurement**, because 1.521 ms is the whole `overviewMessage()` on an
+all-observed fixture rather than `buildMarketOverview` alone, and the three
+snapshot joins run against whatever the live map actually holds. If §28's sweep
+needs those numbers, re-take them; the instrument is a throwaway and the recipe
+is in Task 4.8.11.
+
+**3. The idle-deployment figure is discharged, not corrected.** 4.8.3's _25 ms of
+script a minute at the 6.8-batch midday floor and 60 ms at the close_ was
+re-taken at 1.521 ms as **10.3 ms** and **24.5 ms** — and then taken to **zero**
+by the guard, with **0 joins counted over 500 bursts**. If §28's sweep carries an
+idle-rate line against `PRODUCT_SPEC.md` §9.1, this is the entry that closes
+rather than moves.
+
+**4. The instrument rule: _the ratio travels and the absolute does not_ is
+itself only approximately true, and this arm is the counter-example.** Re-taken
+at a 250 ms gap with the calibrator re-referenced at that gap and the arms
+rotated: the **calibrator** inflated **2.29×** (1.217 → 2.792 ms) while the
+**subject** inflated **4.38×** (1.521 → 6.662 ms) — the two ratios differ by a
+factor of ~1.9 on the same bursts. 4.8.3's finding 6 and 4.8.7's gapped pair both
+read as though the inflation is a property of the machine that divides out; on
+this arm it is not, and a gapped figure corrected by the calibrator's own
+inflation would have under-reported by nearly half. **The gapped absolute is an
+upper bound on the shape and nothing more**, and §28's caveat sentence should say
+that rather than _the ratio travels_. The after-run at the gap discarded
+**19 / 60** windows at load ratio 0.744, and its only usable figure is the one
+that cannot be noise: 0 joins, arm 0.004 ms against a floor of 0.003 ms.
+
+**And one sweep this task should check rather than assume.** The invariant
+`the-aggregate-has-three-producer-paths` had its **claim** amended on 2026-10-10
+— the third path now says _only when a browser is attached_ — and its note now
+states that the check **cannot see the condition and is not asked to**. If §28's
+sweep enumerates what each green check certifies, that is the sentence to read.

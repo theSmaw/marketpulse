@@ -815,3 +815,77 @@ describe("the overview frame, over a real socket (Task 4.2.4)", () => {
     expect(built).toHaveBeenCalledOnce();
   });
 });
+
+describe("the join does not run with nobody attached (Task 4.8.11)", () => {
+  // **The producer is the assertion, and the frame cannot be** — which is the
+  // trap this block exists to avoid, confirmed by producing it. The first
+  // draft asserted that *no overview frame is sent when no browser is
+  // attached*, and it **passed against the unguarded gateway**: `broadcast`
+  // iterates an empty map, so no frame reaches anybody either way. The join
+  // ran all the same, 1.521 ms a batch (Task 4.8.11), and nothing on the wire
+  // could say so. So the subject is the **producer being called**, which is a
+  // behaviour a re-implementer who drops the guard cannot avoid failing.
+  //
+  // `pnpm break the-join-runs-with-nobody-attached` removes the guard and
+  // proves this goes red.
+
+  /** A listening gateway with NO browser attached — `attach()` connects one. */
+  let bare: { app: FastifyInstance; gateway: MarketGateway } | undefined;
+
+  afterEach(async () => {
+    await bare?.gateway.close();
+    await bare?.app.close();
+    bare = undefined;
+  });
+
+  const listenWithNobody = async (
+    overview: () => WireMarketOverview,
+  ): Promise<MarketGateway> => {
+    const app = buildServer({
+      logLevel: "silent",
+      logFormat: "json",
+      corsOrigin: "http://localhost:5173",
+    });
+
+    const gateway = registerMarketGateway(app, {
+      snapshot: () => new Map(),
+      feedState: () => ({ status: "live", feed: "iex", marketOpen: true }),
+      overview,
+    });
+
+    // It listens, because *nobody attached* has to be the client count rather
+    // than the absence of a server.
+    await app.listen({ port: 0, host: "127.0.0.1" });
+    bare = { app, gateway };
+    return gateway;
+  };
+
+  it("does NOT build the aggregate when no browser is attached", async () => {
+    const built = vi.fn(() => EMPTY_OVERVIEW);
+    const gateway = await listenWithNobody(built);
+    expect(gateway.clientCount()).toBe(0);
+
+    gateway.publishObservations([observation("2026-09-16T14:01:00Z", 214.75)]);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+
+    // In production this producer is `index.ts`'s `marketOverview`, an
+    // unmemoised join over all 518 securities — so a call here is 1.5 ms of
+    // script whose only consumer would have been an empty map.
+    expect(built).not.toHaveBeenCalled();
+  });
+
+  it("still publishes nothing, and raises nothing, with nobody attached", async () => {
+    // The path is the socket's own callback, where an unhandled rejection is a
+    // crashed process. The guard is a `Map` field read, and this is the
+    // behavioural half: an empty client map is an ordinary state, repeatedly.
+    const gateway = await listenWithNobody(() => EMPTY_OVERVIEW);
+
+    for (let batch = 0; batch < 20; batch += 1) {
+      gateway.publishObservations([
+        observation("2026-09-16T14:01:00Z", 214.75),
+      ]);
+    }
+
+    expect(gateway.clientCount()).toBe(0);
+  });
+});

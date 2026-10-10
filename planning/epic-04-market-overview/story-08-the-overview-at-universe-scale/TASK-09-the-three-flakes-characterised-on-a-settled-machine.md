@@ -142,3 +142,45 @@ once to this exact page's published figure. Task 4.8.6's plant was 120 ms,
 caught by both observers on all 40 loads, taken **after each measurement
 window on the page that produced the figure** — which is the only form of the
 proof that certifies the arm it is on.
+
+## Handed here by Task 4.8.11 — 2026-10-10: a FIFTH flake, in the PROCESS suite, on code behaviourally identical to `main`
+
+**`market-gateway.process.test.ts > a slow browser is dropped rather than
+tolerated (Task 3.5.7) > leaves a HEALTHY client on the same process
+untouched`** failed once today, verbatim:
+
+```text
+ FAIL  src/market-gateway.process.test.ts > a slow browser is dropped rather than tolerated (Task 3.5.7) > leaves a HEALTHY client on the same process untouched
+AssertionError: expected +0 to be 1 // Object.is equality
+ ❯ src/market-gateway.process.test.ts:567:40
+    567|     expect(slow.gateway.clientCount()).toBe(1);
+ Test Files  1 failed (1)
+      Tests  1 failed | 22 passed (23)
+```
+
+**Both clients were dropped, not one.** The test's own comment says why it
+exists: _"we dropped everybody" also satisfies a naive reading of "the slow one
+was dropped"_ — so the failing mode is exactly the one the test was written to
+catch, which makes it the worst shape of flake to leave uncharacterised.
+
+**Three things that narrow it for you.**
+
+- **It was not this change.** The run that failed had Task 4.8.11's guard
+  **removed** (the passing-wrongly step), so the gateway was behaviourally
+  identical to `main`. It passed on the immediate re-run and on every run since —
+  roughly **1 failure in 4 full-file runs** of that spec today, which is a rate
+  worth pinning rather than a one-off worth ignoring. Per `CLAUDE.md`'s own rule,
+  **n = 4 cannot separate anything**; this is a sighting, not a rate.
+- **It is in the PROCESS suite, which your three are not.** Your brief's three
+  are browser-suite flakes, and 4.8.3 handed you a fourth that is not in the
+  browser suite either. This one is in `pnpm verify`'s own `test:process` step —
+  so it is a **required check** that can go red with nothing wrong, on a gate
+  whose whole value is that a red means something.
+- **The mechanism is loopback backpressure and a shared process.** The test
+  pauses one client's underlying socket and publishes up to 400 universe batches
+  until the slow one is dropped. The healthy client is served from the same
+  process over the same loopback; on a loaded machine its own `bufferedAmount`
+  can plausibly cross `MAX_BUFFERED_BYTES` (1 MiB, ~18 universe payloads) before
+  the loop notices the slow one has gone. That is a hypothesis, not a finding —
+  but it predicts a **load dependence**, which is the one thing your settled
+  machine can test and nobody else can.

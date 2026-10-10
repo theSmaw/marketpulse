@@ -501,7 +501,56 @@ export function registerMarketGateway(
     clientCount: () => clients.size,
 
     publishObservations(observations) {
+      // **Return 1 of 2 — NOTHING WAS APPLIED.** The subject is this batch:
+      // `current-market-state.ts` handed over what it accepted, and it
+      // accepted none of it. An empty `bars` message would make a browser
+      // decide what *no observations* means, and the answer is that it should
+      // never have been asked. This says nothing about who is attached.
       if (observations.length === 0) return;
+
+      // **Return 2 of 2 — NOBODY IS ATTACHED.** A different subject from the
+      // line above, and the two must not be read as one test: a batch can be
+      // full with no browser listening, and a browser can be listening with
+      // nothing applied. The same `clients.size > 0` question the keepalive
+      // asks twelve lines above, for the same reason.
+      //
+      // **Why it is here rather than around the broadcast** (Task 4.8.11).
+      // `overviewMessage()` is evaluated as an ARGUMENT to `broadcast`, so
+      // until this line the 518-join ran before the client map was read —
+      // re-measured 2026-10-10 at **1.521 ms p50 a batch with zero clients**
+      // (n = 298, tight, calibrator reference 1.217 ms, 2 discarded), against
+      // a floor of **0.000 ms** for the early return above. Re-measured
+      // rather than carried: Task 4.8.3 read 3.708 ms, and Task 4.8.7's
+      // `marketDateAt` repair landed between the two. After this line the
+      // same arm reads the floor and the instrument counts **0 joins**.
+      //
+      // At the feed's measured cadence that was **10.3 ms** of script a
+      // minute at the 6.8-batch midday floor and **24.5 ms** at the close's
+      // 16.1, for an aggregate **sent to nobody** — `PRODUCT_SPEC.md`
+      // §9.1's idle-rate condition, on a deployment whose own socket runs
+      // whether or not anybody is looking.
+      //
+      // The per-client loop below iterates nothing on an empty map, so this
+      // return changes no browser's view of anything; it skips work whose only
+      // consumer would have been the empty map.
+      //
+      // **Nothing here may throw**: this method is called from the socket's
+      // own callback, where an unhandled rejection is a crashed process. A
+      // `Map`'s `size` is a field read.
+      //
+      // **The snapshot path is deliberately untouched.** A browser connecting
+      // or subscribing still gets a freshly computed aggregate — three joins
+      // per cold load of `/`, counted off the wire by Task 4.8.3 — because
+      // memoising that is a different decision with more surface and was not
+      // the one taken. Those joins have a reader by construction: the browser
+      // that asked.
+      //
+      // Reversal trigger, a condition: **the first consumer of the aggregate
+      // that is not an attached browser socket** — a scheduled job, a
+      // diagnostics route, a second gateway — at which point `clients.size`
+      // stops being the right question and the producer wants a cache rather
+      // than a guard.
+      if (clients.size === 0) return;
 
       // **One compute, one broadcast** (Task 4.1.1's decision 1), and the
       // contrast with the loop below is the whole reason it is written first:

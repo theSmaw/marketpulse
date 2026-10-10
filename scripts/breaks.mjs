@@ -3729,4 +3729,38 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "sit outside both known producers",
   },
+
+  // **The one break in this file whose first draft went GREEN on the defect,
+  // and the transcript is in Task 4.8.11.** The obvious assertion is that *no
+  // overview frame is sent with nobody attached* — and it passes against
+  // the unguarded gateway, because `broadcast` iterates an empty map and no
+  // frame reaches anybody either way. The join ran regardless. So the subject
+  // had to be the PRODUCER being called, which is why the command below is a
+  // process test with a `vi.fn()` in it rather than a grep.
+  {
+    name: "the-join-runs-with-nobody-attached",
+    proves:
+      "The 518-join runs on a deployment with nobody looking. " +
+      "`overviewMessage()` is evaluated as an ARGUMENT to `broadcast`, so " +
+      "removing this guard puts the join back in front of the client map " +
+      "read \u2014 1.521 ms p50 a batch with zero clients (re-measured " +
+      "2026-10-10, n = 298, tight, calibrator reference 1.217 ms), which is " +
+      "10.3 ms of script a minute at the 6.8-batch midday floor and 24.5 ms " +
+      "at the close's 16.1, for an aggregate sent to nobody " +
+      "(`PRODUCT_SPEC.md` \u00a79.1's idle-rate condition). **Nothing on the " +
+      "wire can see it**: no frame is sent either way, so only the producer " +
+      "being called says so (Task 4.8.11).",
+    file: "apps/backend/src/market-gateway.ts",
+    find: "      if (clients.size === 0) return;",
+    replace: "      // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "run",
+      "test:process",
+      "src/market-gateway.process.test.ts",
+    ],
+    expect: "does NOT build the aggregate when no browser is attached",
+  },
 ];
