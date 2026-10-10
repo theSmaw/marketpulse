@@ -1,6 +1,6 @@
 # Story 4.8 — The Overview at Universe Scale, & Epic 14's Trigger
 
-**Status:** **Complete — 2026-10-10, pending Gate 2.** Thirteen tasks. The screen is measured and **is not in breach**: 3.7–5.1 ms of main-thread work a batch on `/` (the aggregate 2.8–3.9 of it), 0 `longtask` entries in seven arms, worst rAF gap 17.7–17.8 ms, 447 nodes and zero `<tr>` at 518 securities, 2 renders per applied batch on three routes and 1 on three others at 6.8–16.1 batches a minute. **Epic 14's trigger was evaluated a FIFTH time, did not fire, and gained ONE new clause for `/`**; §28 took no third exception and gained a three-channel method and a corrected unit. **Two invisible repairs shipped** — `marketDateAt` reads the formatter's parts once (3.366 → 1.288 ms over 518 instants) and the join no longer runs with nobody attached (0 joins over 500 bursts) — and **one visible one**: the landing screen's source note dates an **observation** rather than the minute the reader arrived. The suite got **two repairs of its own**: a predicate that could not see its subject (25.0% → 5.6% at n = 144) and nine axe passes trimmed from 518 rows to a 27-row sample (68.0 s → 13.5 s). **Three caveats on every figure**: the cadence is furnished, Node figures are tight-loop upper bounds while browser figures are not, and nothing is deployed. **Two product defects found and routed, not fixed.**
+**Status:** **Complete — 2026-10-10, accepted at Gate 2.** Thirteen tasks, of which three were added by measuring. **Six premises this story was built on were falsified**, one of which would have made the whole measurement a sixteenth of the effect. Two computations **removed** rather than memoised — `marketDateAt` 3.366 → 1.288 ms and the zero-client join 500 joins → 0. Epic 14's trigger evaluated a **fifth** time, unfired, and made **mechanical**. The suite's 25.0% flake is **5.6%** and its nine axe passes are 68.0 s → 13.5 s. **A user can see one thing fewer**, and nothing here has been watched against a real feed.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.6 — **re-ordered 2026-09-27**, see below
 **Epic scope covered:** none new — the epic's numbers, measured
@@ -587,3 +587,89 @@ scale` appears **31 times across 20 files** (30 lines; `docs/GAPS.md` line 142
 | `changePercent` unrounded on the wire — ~350 B a frame              | **Story 4.9**, as a product decision rather than an optimisation                        |
 | The memoised-`marketDateAt` cache, and `/securities`' cold load     | **Epic 14**, both by name, with what it no longer owns stated                           |
 | The per-test ceiling for the axe family (the second half of 4.8.13) | **Story 4.9**                                                                           |
+
+## Gate 2 — accepted 2026-10-10
+
+### What a user can see
+
+**One thing fewer**, and that is the honest summary of a measurement story. The
+landing page's source note drew `COMPUTED Oct 9 · 21:42 EDT` under four-week-old
+closes, and **that instant was the minute the reader opened the tab**. It now
+dates the **newest observation the aggregate actually holds**, and draws nothing
+when it holds none. Nothing else on any screen changed.
+
+### The six acceptance criteria
+
+1. **Per-tick cost on a production build — met, with its premise corrected.**
+   `/` subscribes to **~25 symbols, not 518**, so both sides of the wire were
+   measured separately: browser **3.7–5.1 ms a batch** (the aggregate's share
+   2.8–3.9), **zero long tasks in seven arms of seven**, worst animation frame
+   17.7–17.8 ms against a 16.7 ms quantum; server **1.521 ms**, and **0.000 ms
+   with nobody attached**.
+2. **The cold-load comparison — met, and attributed rather than stated.** 40
+   interleaved loads, four arms, 20-row controls: **≈6 ms** is the
+   518-security payload **both** routes fetch, **≈48 ms** is the table's
+   markup, at **≈3.9 µs a node**.
+3. **Epic 14's trigger evaluated in writing — met, and now mechanical.** The
+   **fifth** evaluation, **does not fire**, recorded in Epic 14's own file with
+   one new condition for `/`; plus a browser equality check with a break whose
+   plant takes the page **491 → 1,009 elements**.
+4. **Any repair a memo or a computation moved — met, and two computations were
+   REMOVED with no memo added.** `marketDateAt` **3.366 → 1.288 ms** (−61.7%),
+   the zero-client join **500 joins → 0**, and the chart's rebuild **declined**
+   with a ratio-shaped reversal trigger.
+5. **Figures with their instrument, n and caveats — met, and the caveats are
+   the story's own finding**: there are **two**, not one, split by side of the
+   wire.
+6. **§28 amended or explicitly not — met: no third exception.** The **method**
+   is amended to three proved channels and the **unit** corrected at six live
+   sites.
+
+### What was measured
+
+2 renders a batch on three routes and 1 on three others · **447 nodes and zero
+`<tr>` at 518 securities, identical at 20**, against 10,318 nodes and 10-of-10
+frames at 62.8–77.4 ms · the chart's rebuild 1.3 / 3.6 ms at **12% / 27%** of
+the task containing it · the aggregate frame **928 → 4,078 bytes** · the suite's
+flake **25.0% → 5.6%** at n = 144 with non-overlapping intervals · nine axe
+passes **68.0 s → 13.5 s** and the suite **4.8–6.2 m → 3.0–3.2 m with no
+timeouts**.
+
+### What was NOT verified, plainly
+
+**Nothing in this story has been watched against a real feed, by a machine or a
+person.** Every arm was furnished or ran `provider=none`, on one laptop,
+locally. The cadence is **driven rather than observed**, because no feed this
+repository can run offline reproduces 6.8–16.1 batches a minute. Node
+absolutes are tight-loop upper bounds **and the calibrator does not divide the
+inflation out** — 2.29× against 4.38× on one arm — while browser figures read
+×1.00. Nothing is deployed.
+
+### What ships open, with an owner
+
+- **Story 4.9** — frame composition (which no replay or fixture can produce),
+  every figure against a real feed, `pnpm verify` ×24, the **unrounded
+  `changePercent`** on the wire (~9% of the aggregate's bytes), and three flake
+  sightings.
+- **Epic 14** — `/securities`' cold load, unchanged and now described in the
+  right unit, and the `marketDateAt` **cache**, still its named candidate and
+  worth 1.29 ms rather than 3.4.
+- **A condition** — ADR 0028's cover drawn over a plot during a **refill
+  nobody asked for**, owned by _the first task that may change
+  `apps/frontend/src/market/` or `use-pending-panel.ts`_.
+- **UX / Design** — the **4.32:1** contrast failure on the search list's
+  **active descendant**, which fails for any query whose top result is up and
+  reproduces on the full 518-row universe.
+
+### What the thirteen tasks changed about the plan
+
+**Ten became thirteen, and all three additions were found by measuring.** Six
+premises were falsified: a browser on `/` subscribes to ~25 symbols rather than
+518; **no offline feed reproduces the cadence**, which would have made the whole
+measurement a sixteenth of the effect; the join runs per connect, per subscribe
+and with nobody attached; _one render a minute to sixteen_ was wrong twice; the
+trigger is quoted in 20 files rather than 19; and Epic 14's `Intl`-construction
+premise was false. Gate 1's trigger decision **shipped at half its size** —
+clause B withdrawn, because it was already true on both its readings. Its
+13-live-site estimate became **8 by a rule**. And **one task's instrument rule
+was falsified by the next**, which is the shape this story kept producing.
