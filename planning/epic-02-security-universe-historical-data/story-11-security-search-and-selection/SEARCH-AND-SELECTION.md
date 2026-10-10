@@ -1642,3 +1642,61 @@ above would have touched it. The instrument that found it is a
 React's DevTools hook, which production React still calls on every commit;
 both are written out in
 [Task 3.6.5](../../epic-03-live-market-data/story-06-live-prices-across-the-universe/TASK-05-the-cold-load-expand-all-and-epic-14s-trigger.md).
+
+### Re-measured a fourth time, 2026-10-09 by Task 4.8.6 — the breach stands and the CHANNEL that can see it has moved
+
+**Everything above is a dated record and stays standing. What changed is not
+the figure; it is which instrument reports it.**
+
+Taken on a production build at 1440×900, `provider=none`, against a store of
+518 securities and 48,797,343 bars, **40 interleaved cold loads in one
+session**, with every arm's observers proved by a 120 ms plant on the page that
+produced the figure and a fixed-cost calibrator beside every reading
+(reference 2.2 ms, ratios ×0.91–×1.09):
+
+| reading                                  | 2026-09-22 (Task 3.6.5)               | 2026-10-09 (Task 4.8.6)                         |
+| ---------------------------------------- | ------------------------------------- | ----------------------------------------------- |
+| `longtask` entries over 50 ms, cold load | **50–56 ms on 7 of 10**               | **none, 0 of 10**                               |
+| worst rAF gap                            | **49–87 ms**                          | **50.0–68.5 ms, 10 of 10 over 50**              |
+| LoAF on the cold load                    | not recorded for the cold load        | **62.8–77.4 ms, 26.2–31.0 ms script, 10 of 10** |
+| the 20-row control                       | 1 of 6 (66 ms), gaps 29–45 ms         | **0 of 10**, gaps 18.5–33.4 ms                  |
+| document size                            | 10,385 nodes against 848 (2026-09-11) | **10,318 against 765**                          |
+
+**So the correction is not _the figure fell_ — it is that the breach is no
+longer describable as one main-thread task.** The work is a **frame** of
+62.8–77.4 ms whose script half is 26–31 ms and whose style, layout and paint
+half is 34–38 ms over 9,871 extra nodes and 505 extra anchors (≈ 3.9 µs a
+node), and `PerformanceObserver({ entryTypes: ["longtask"] })` — the
+instrument this section's own re-measure names — reports **nothing at all**.
+The `longtask` zero is a zero rather than a dead observer: the plant produced
+both a `longtask` and a `long-animation-frame` entry on all 40 loads
+(`proved 10 of 10` in every arm).
+
+**A channel going quiet and a cost going away produce the same output**, which
+is why `PRODUCT_SPEC.md` §28 now states the method as three channels —
+`longtask`, `long-animation-frame` and an rAF-gap recorder — each proved by a
+plant on the page that produced the figure (Task 4.8.8). Anybody re-taking the
+figures above with the single-task recipe will read a comfortable zero on a
+page that is still in breach.
+
+**The attribution is unchanged and was re-derived from a page that did not
+exist when this section was written.** The landing route `/` calls the same
+`useSecurities()`, receives the same 20,072-byte response and runs **three**
+whole-universe computations over it, and it draws **447 nodes and zero
+`<tr>`** — identical at 20 securities — for a worst frame of 24.7 ms p50 and
+**no breach**. The split: ≈ 6 ms for the payload, ≈ 48 ms for the 518-row
+table's markup. The lever is DOM size, which is Epic 14's entry 1.
+
+**One condition of 3.6.5's run is not controlled here and is named rather than
+argued away**: that session ran `MARKET_DATA_PROVIDER=fixture` with a feed
+changing all 518 rows a minute, and this one ran `provider=none`.
+
+**Also re-taken, in the steady state this section's last paragraph owns.** The
+live feed's per-tick cost is no longer once a minute: the measured feed is
+**6.8–16.1 batches a minute** (`LIVE-DATA.md` §9.5/§10.2) and since Story 4.2
+every route re-renders on the aggregate too, so `/securities` and
+`/securities/:symbol` run **2 renders per applied batch — 13.6–32.2 a
+minute** (Task 4.8.2, counted on React's commit hook). The two memo boundaries
+above are what keeps that cheap; nothing in the figures of that paragraph has
+been re-taken against the real cadence, and no offline feed in this repository
+can produce it.

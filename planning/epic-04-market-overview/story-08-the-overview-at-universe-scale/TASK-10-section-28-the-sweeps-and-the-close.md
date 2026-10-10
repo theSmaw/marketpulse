@@ -1,6 +1,6 @@
 # Task 4.8.10 — §28, the sweeps, and the close
 
-**Status:** Not started
+**Status:** In progress — 2026-10-10
 **Story:** [4.8 The Overview at Universe Scale](STORY.md)
 **Depends on:** 4.8.2 … 4.8.9
 
@@ -529,3 +529,314 @@ cell, **on the full untrimmed 518-row universe as well as on the trimmed one**.
 It is `VISUAL-LANGUAGE.md`'s standing-exception procedure and UX/Design's, with
 its own `docs/GAPS.md` entry. **It is not a cost of the trim** and the four-arm
 table proving that is in the entry.
+
+---
+
+# What was done — 2026-10-10
+
+**No new figure was taken.** Every number below is quoted from a task record in
+this directory, with its n and its caveat. The one measurement this task made
+is a **count**: `pnpm invariants` prints `52 invariants hold.`
+
+## 1. §28 — discharged by Task 4.8.8, and the check that nothing else needed it
+
+AC 6 was already met: `PRODUCT_SPEC.md` §28 took **no third exception**, and
+what was amended is the **method** (three channels — `longtask`,
+`long-animation-frame` and an rAF-gap recorder — each proved by a plant on the
+page that produced the figure) and the first exception's **unit**. This task
+verified that nothing outside Task 4.8.8's eight planning sites and four
+non-planning sites still asserts the old unit as a live claim, and found **two**
+it had not reached, both in shipped frontend code and both spelled `50–66`
+rather than `50–76`:
+
+| site                                                            | what it said                                                               | what it says now                                                                    |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `apps/frontend/src/components/PriceChart/chart-axis-context.ts` | _"a page already spending 50–66 ms of main thread on a cold load"_         | the sentence stands with a dated amendment: a **frame** of 62.8–77.4 ms on 10 of 10 |
+| `apps/frontend/src/market/use-pending-panel.ts`                 | _"`CLAUDE.md`'s recorded 50–66 ms of main thread on a cold security page"_ | the same, as a parenthesis                                                          |
+
+Neither argument changes — the table is still what costs and the lever is still
+DOM size — which is why both are amendments rather than rewrites.
+
+## 2. The upward sweep
+
+### Corrected, because the claim is live — 14 files, 24 occurrences
+
+| family                                        | file                                                                                    | occ. | what changed                                                                                                                                         |
+| --------------------------------------------- | --------------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the join figure                               | `CLAUDE.md` _Current state_                                                             | 1    | `0.118 → 3.497` **left standing** as Story 4.4's dated measurement, with the repair, the re-take and _re-measure rather than subtract_ beside it     |
+| the join figure                               | `apps/backend/src/market-gateway.ts`                                                    | 1    | dated amendment: 1.521 ms, the count of joins unchanged, 11.2 ms named an estimate                                                                   |
+| the join figure                               | `apps/backend/src/market-overview.ts`                                                   | 1    | dated amendment: 3.44 / 3.72 are pre-repair, this function's share of 1.521 ms is unmeasured                                                         |
+| the join figure                               | `scripts/check-invariants.mjs`                                                          | 2    | the stray-path failure message and the _two too many already_ comment                                                                                |
+| the join figure                               | `scripts/breaks.mjs`                                                                    | 1    | `a-fourth-path-to-the-aggregate`'s `proves`                                                                                                          |
+| `marketDateAt` is 93% of a 3.44 ms join       | `packages/shared/src/market-time.ts`, `check-invariants.mjs`, `breaks.mjs`              | 3    | each now says both figures are the **pre-repair** state and that the share of 1.521 ms is unmeasured; the call **counts** are what the check defends |
+| `56.9 KiB` **a minute**                       | `apps/backend/src/market-gateway.ts`, `apps/frontend/src/App.tsx`, `scripts/breaks.mjs` | 3    | it is 56.9 KiB a **message** of 518 observations; the per-minute rate is unmeasured and no figure may be used to size one                            |
+| `50–76` / `50–66` — the unit                  | `CLAUDE.md` _What is open_                                                              | 1    | dated amendment: a **frame** of 62.8–77.4 ms on 10 of 10, the 6 ms / 48 ms split, 10,318 nodes against 765                                           |
+| `50–66` — the unit                            | `chart-axis-context.ts`, `use-pending-panel.ts`                                         | 2    | as the table in §1                                                                                                                                   |
+| `50–56` / `50–76` — the fourth dating         | `SEARCH-AND-SELECTION.md` §10                                                           | +1 § | a **new dated section** beside three dated records, never an edit of them: the before/after table, the channel move, the attribution                 |
+| the flake rate                                | `CLAUDE.md` _Measure rather than cite_                                                  | 2    | a dated amendment **beside** the worked example: 12% → 25.0% → 5.6%, `P(0 in 6) ≈ 0.71`, and the lesson stated as stronger                           |
+| `the ratios are safe`                         | `planning/epic-05-anomaly-detection/EPIC.md`                                            | 1    | **withdrawn** with the 2.29× / 4.38× counter-example                                                                                                 |
+| `computedAt` is _when the aggregate was true_ | `apps/frontend/src/market/market-proxies.ts`                                            | 2    | both sentences corrected; it is **when the join ran**, and this is the one remaining shipped reader                                                  |
+| which event §18 measured                      | `CHARTING.md` §18                                                                       | +1 § | a **new section**, not a restated figure: which event, the other event's 1.3 / 3.6 ms, the quiet page's 2 rebuilds a minute, the 1.8× vs 2.8×        |
+| the three regions' status                     | `CLAUDE.md` _Current state_                                                             | 1    | _"of which two have shipped"_ → all three, the last on 2026-10-08                                                                                    |
+| what a user can see                           | `CLAUDE.md` _Current state_                                                             | +1 ¶ | Story 4.8's paragraph — see §6                                                                                                                       |
+| the measurement rules                         | `CLAUDE.md` _Measure rather than cite_                                                  | +5   | five new corollaries — see §7                                                                                                                        |
+| what Epic 14 owns now                         | `planning/epic-14-.../EPIC.md`                                                          | +1 § | see §3                                                                                                                                               |
+
+### Left standing, because the claim is a historical record
+
+| family                        | sites left byte-identical                                                                                                             | count                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `0.118 → 3.497` and `~6.6 µs` | Epic 14's `EPIC.md` table, Story 4.4's `STORY.md` + Task 04 + Task 08, Story 4.5's `STORY.md` + Task 04 + Task 08, Epic 5's `EPIC.md` | **8 files**                 |
+| `56.9 KiB` **a minute**       | Epic 3 story-05 Task 06 and Task 07, story-06 `STORY.md` (×3) and Task 03 (×2)                                                        | **7 occurrences, 4 files**  |
+| `50–76` / `50–56`             | every dated `planning/` record of the 2026-09-12, -13, -15 and -22 readings, plus `CHARTING.md` §19's deployed one-off                | the residue of 40 + 29 hits |
+| the trigger's own wording     | the 12 files / 15 occurrences Task 4.8.8 ruled historical                                                                             | **15 occurrences**          |
+
+**The rule, which is Task 4.8.8's and is reused rather than re-derived:** a
+dated record of a measurement or of an evaluation is left alone; a sentence that
+asserts something **about the tree today** is corrected. A figure that is both —
+`CLAUDE.md`'s `0.118 → 3.497` and its flake arithmetic — gets a dated amendment
+**beside** it and the figure is not edited.
+
+### Two sweeps run that found nothing, which is worth recording
+
+1. **The cadence floor.** Grepped for `8.8` as a **floor** rather than as the
+   open's figure: **0 live sites.** Task 4.8.2 corrected the three that existed
+   on 2026-10-09, and the two shipped-code sites that mention 8.8
+   (`sector-ladder.ts`, `replay-bar-source.ts`) state it correctly — the latter
+   names all three figures and the former uses 8.8–16.1 as an upper bound for an
+   argument the floor does not affect.
+2. **The wider _nothing re-renders this_ grep that Task 4.8.5 asked for.**
+   Grepped `apps/frontend/src`, `packages/shared/src` and `apps/backend/src` for
+   `nothing re-render`, `never re-render`, `does not re-render`, `not
+re-rendered`, `only re-render`, `re-renders only`, `once per visit` and `only
+caller`: **10 hits, 0 further live false premises.** Two are 4.8.5's own
+   amendments; one (`chart-axis-context.ts`) is a correct statement about a
+   provider's children and is the `50–66` site corrected above; two are about an
+   unmounted component; and the rest describe memos or callers that do exist.
+   **The premise Story 4.2 falsified for every route at once existed in exactly
+   the two places 4.8.5 found.**
+
+### And Task 4.8.12's unrun sweep: what else draws a process clock
+
+Grepped `apps/frontend/src` for `computedAt` and `sentAt`, excluding tests.
+
+- **`sentAt`: zero hits.** Nothing in the frontend reads the send instant at
+  all, which is ADR 0033's _read by nothing but an instrument_ holding.
+- **`computedAt`: one shipped reader**, `market-proxies.ts`, and it is a
+  **correct** one — it asks the trading calendar what session was running at the
+  instant the join ran and draws nothing from it. **But its docblock was
+  wrong**, and wrong in exactly the way that shipped the defect Task 4.8.12
+  repaired: it said `computedAt` is _"when the aggregate was true, by the
+  server's clock"_ and quoted the field's own docblock inviting _"a surface that
+  wants to say 'these figures are as of …'"_ to read it. 4.8.12 amended the
+  field's docblock in `live-feed.ts` and did not reach this one. Corrected here,
+  with the finding recorded beside it.
+
+## 3. The sideways sweep — both passes, and the miss count
+
+### Pass 1, the grep
+
+Every `Story N.M`, `Owner:` and `Epic N` in this directory's eleven files:
+Story 4.9 (14), Story 4.7 (7), Epic 14 (84), Epic 5 (12), plus references to
+Stories 4.1–4.6, 3.5, 3.6, 3.8, 3.10 and 1.12 that are all **shipped** and
+Epic 3, Epic 2, Epic 6 (1) and Epic 4 itself. Three `Owner:` lines, all three
+inside records of sweeps already taken.
+
+**Pass 1's live targets: Story 4.9, Story 4.7, Epic 14, Epic 5.** Epic 5 was
+written to by Task 4.8.8 on 2026-10-09 and needed only the `the ratios are safe`
+withdrawal (above).
+
+### Pass 2, walking the epic list and asking _did 4.8 measure anything this story or epic acts on_
+
+**Two misses, both in epics the grep found once or not at all.**
+
+| subject     | what the grep said        | what pass 2 found                                                                                                                                                                                                                                                                          |
+| ----------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Epic 6**  | **1** mention, in passing | `/` now has a measured cost, a measured headroom and a per-batch render count a canvas on it will inherit — **and Epic 14's second condition is worded against DOM elements, so a WebGL graph structurally cannot trip it** while a DOM fallback, an SVG overlay or a per-node label would |
+| **Epic 13** | **0** mentions            | Gate 1's falsified premise 2 is a constraint **this epic acts on**: both offline feeds deliver one batch a minute, a replay _"cannot express a split minute at all"_, and frame composition — which no replay can produce — is the input a feed-shaped replay would need                   |
+
+**Miss count: 2.** Both written into the sibling's own `EPIC.md`, in words it
+can act on, with no link back. Stories 4.1–4.6 were checked and have **shipped**,
+so a hand-off to them would be a correction rather than a constraint — those
+went into the upward sweep instead.
+
+### What each live sibling now carries, in its own file
+
+- **Story 4.7** (`STORY.md`): the instrument exists and is proved **per
+  channel** on the page that produced the figure; `/` commits **2 renders per
+  applied batch, 13.6–32.2 a minute**, in every degraded state, so a degraded
+  state is not a still page; the browser suite is its own plant, so read the
+  load before a run; and the aggregate's five measured sizes, of which CI's
+  **928 B** is a degraded state every gated run gets free and the **4,078 B**
+  ceiling needs a store with bars **and** a session.
+- **Story 4.9** (`STORY.md`): **frame composition**, with the owner's condition
+  — taken during the rehearsal, expiring with every session, and with the
+  count-by-URL and `splice`-in-place rules attached; the suite verdict's four
+  carried facts; **three things no gated machine and no person has ever seen**;
+  the invariant count with the three sentences the names do not give away; and
+  the two product defects routed rather than fixed.
+- **Epic 14** (`EPIC.md`): what it still owns (the cold load, re-taken a fourth
+  time), what it no longer owns (the per-batch join's magnitude, and the
+  idle-deployment line, which **closes** rather than moves), the three
+  pre-repair figures in its own file named, `/`'s measured non-breach as what
+  clause A is priced against, the two instrument rules, and the sentence to read
+  before re-measuring anything there.
+
+## 4. `docs/GAPS.md` — four entries, and one thing made mechanical instead
+
+| entry                                                                                  | why it is prose rather than a check                                                               |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **No offline feed produces the cadence that IS the cost**                              | the cadence is a fact about a vendor; nothing in `verify`, `e2e` or CI produces >1 batch a minute |
+| **Frame composition has never been recorded and no replay can produce it**             | needs a live session; expires with every one that passes                                          |
+| **Every figure is local, on one laptop, with TWO caveats by side of the wire**         | durations on a shared runner are not measurements, and CI's store has zero bars                   |
+| **`/` renders 447 nodes and zero `<tr>` — the SHAPE is mechanical, the FIGURE is not** | half of it **left** the list; see below                                                           |
+
+### The one made mechanical, with its break and its passing-wrongly transcript
+
+**`e2e/specs/overview-no-element-per-security.spec.ts`** holds Epic 14's second
+reversal condition — _the first surface on `/` that renders one element per
+tracked security_ — which until today was a sentence in a planning file.
+
+**It is an EQUALITY, not a ceiling.** The landing route is loaded twice: once
+against the store's whole universe and once against a **27-row sample of the
+same backend body** (`serveTrimmedUniverse`, Task 4.8.13's), and the two
+documents' element counts must be equal with **zero `<tr>`** in both. A node
+count would have been a figure somebody re-measures every time one of the three
+`reserved` regions is filled, and Epics 5 and 6 fill two of them; the equality
+forbids exactly _the document scaling with the universe_.
+
+**Break: `a-row-per-security-on-the-landing-page`.** It plants the shape **Epic
+5 is most likely to write** rather than an invented defect — Epic 5's own
+`EPIC.md` says _every tracked security scored 0–100, ranked_, and the cheapest
+version of that is an `<li>` per entry in the `Unusual activity` region, which
+is `reserved` today. The document goes from **491 to 1,009** elements.
+
+```text
+$ pnpm break a-row-per-security-on-the-landing-page
+Breaking apps/frontend/src/routes/MarketOverview.tsx
+  …
+  $ pnpm e2e overview-no-element-per-security.spec.ts --anyway
+
+✓ apps/frontend/src/routes/MarketOverview.tsx broken → red → restored byte-identical.
+  matched: does not grow with the tracked universe
+```
+
+**Passing wrongly, transcript 1 — the `<tr>` half is green on the defect.** The
+plausible weaker check is _no table on `/`_, and the planted list is `<li>`. The
+failing run prints it, verbatim:
+
+```text
+    Error: expect(received).toEqual(expected) // deep equality
+
+      Object {
+    -   "elementsAtFullUniverse": 518,
+    +   "elementsAtFullUniverse": 1009,
+        "elementsAtSampledUniverse": 518,
+        "rowsAtFullUniverse": 0,
+        "rowsAtSampledUniverse": 0,
+        "securitiesServedTrimmed": 27,
+        "securitiesServedUntrimmed": 518,
+```
+
+`rowsAtFullUniverse: 0` **with the defect in the file** is the transcript.
+
+**Passing wrongly, transcript 2 — and this one was the spec's own first
+draft.** It settled on three regions being visible, which happens long before
+`GET /securities` is answered. Against the planted tree it printed:
+
+```text
+      Object {
+        "elementsAt27Securities": 518,
+    -   "elementsAtFullUniverse": 518,
+    +   "elementsAtFullUniverse": 491,
+        "rowsAt27Securities": 0,
+        "rowsAtFullUniverse": 0,
+      }
+```
+
+**491 against 518, and 491 + 27 = 518**: the untrimmed arm had measured a page
+with **no universe yet** and the difference it reported was the **trimmed**
+arm's own 27 rows. On the shipped tree that draft was **green** — green for a
+reason that had nothing to do with the claim, which is the state in which this
+claim is unfalsifiable. Both arms now **prove the body arrived** (an identity
+`page.route` on the untrimmed side, `expectTrimmed` on the other) and read the
+count only once it has **stopped moving**, which is a settle rather than a
+tolerance.
+
+**And one red for the wrong reason, recorded because `CLAUDE.md` says it reads
+exactly like proof.** The first plant dropped `Region`'s props and accessed
+`universe.securities` outside its narrowing, so the route threw into its
+`ErrorBoundary` and the spec failed on `getByRole('region')` **not found** —
+`This page could not be displayed`, 10.8 s, no assertion reached. That
+certifies nothing. The plant was rewritten to typecheck (`npx tsc -b
+apps/frontend`, clean) and to leave the page rendering, and only then was the
+red an **assertion failure with the numbers printed**.
+
+## 5. What this task deliberately did NOT do
+
+- **It took no figure.** Four places wanted one and say so instead: the join's
+  components after the repair, the products derived from 3.72 ms (named an
+  **estimate**, with the arithmetic shown), the per-minute `bars` rate, and
+  `/securities`' deployed cold load.
+- **It did not fold the 5.6% residual into a flake rate or into §28.** Every
+  residual failure is ADR 0028's cover drawn over both plots during a refill
+  nobody asked for, `sample 0`, both plots, **0 / 24 at one worker** — the
+  defect the test exists to forbid. It is routed in `docs/GAPS.md` with an
+  owner clause and it is a **product** defect in `apps/frontend/src/market/` or
+  `use-pending-panel.ts`.
+- **It did not touch the two product defects themselves**, nor `notes.txt`, nor
+  any applied migration.
+
+## 6. What `CLAUDE.md` now says a user can see — and cannot
+
+**Can see:** one fewer thing. The landing screen's source note drew
+`COMPUTED · Oct 9 · 21:42 EDT` under closes four weeks old, and that instant was
+when the page was **opened**; it now dates the **observation** and draws no
+instant where nothing has been observed, so on every store with no live feed a
+line goes away and the same screen hours later is the **same string**.
+
+**Cannot see, and cannot do:** nothing changed in capability, and that is the
+point of a measurement story. What **nobody** has seen is the other half: no
+gated machine and no person has watched any of these figures against a real
+feed. Every arm was furnished or `provider=none`, on one laptop, local — so the
+per-tick cost of a real 16.1-batch minute, each `bars` frame's composition, and
+the deployed cold load are all unmeasured and named as such. CI's store has zero
+bars, so a proxy figure moving, a breadth figure and a mover remain unseen on
+every gate.
+
+## 7. The measurement rules added to `CLAUDE.md`
+
+Three were handed here; two more were judged to belong beside them.
+
+1. **A gapped Node sample inflates, and the calibrator does not divide it
+   out** — with 4.8.11's counter-example (2.29× against 4.38×, ~1.9 apart) and
+   _the ratio travels_ withdrawn.
+2. **That effect does not reproduce in a visible renderer**, ×1.00 at 3.7 s and
+   8.8 s gaps, five arms of five — **two caveats, not one**.
+3. **A channel going quiet and a cost going away produce the same output**, so
+   prove the plant **per channel**, on the page that produced the figure.
+4. **The wire cannot see a defect in the producer** (4.8.11) — a broadcast to an
+   empty map sends nothing either way, so the assertion goes on the producer.
+5. **A figure that counts a phrase in this repository is invalidated by
+   recording it** (4.8.8) — quote the count with its date and the command, and
+   prefer a **rule** for which sites are live over a number of them.
+
+And the flake passage gained two conditions it did not carry: count failures
+**per execution** with the **worker count** stated, and **read the load before
+the run, never during it**.
+
+## Done when
+
+1. **Met.** §28 discharged by Task 4.8.8, verified here, and two further
+   non-planning sites corrected on the unit.
+2. **Met.** 14 files and 24 occurrences corrected; 8 files, 7 occurrences and
+   two residues left standing, with the rule stated and both counts given. Two
+   sweeps returned zero live sites and that is recorded rather than omitted.
+3. **Met.** Both passes run. **Miss count: 2** — Epic 6 and Epic 13, both
+   written into their own files.
+4. **Met.** Four entries written; one claim made mechanical as a browser check
+   with a break, two passing-wrongly transcripts and one red-for-the-wrong-reason
+   recorded.
+5. **Met.** Story 4.9 carries the frame composition with its expiring condition,
+   and 4.8.9's and 4.8.13's discharges are above it in that file.
+6. See **Gates** below.

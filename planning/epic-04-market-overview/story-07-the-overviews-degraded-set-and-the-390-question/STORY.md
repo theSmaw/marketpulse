@@ -512,3 +512,54 @@ no observation. It was deliberately **not** added to that invariant's list, so
 nothing mechanical stands between you and using it — which is the point. The
 165-second `LIVE` this story already owns (`docs/GAPS.md`) is the question it
 bears on.
+
+## Handed here by Task 4.8.10 — 2026-10-10, at Story 4.8's close: your grid runs on a measured instrument, and `/` re-renders on every batch in every degraded state
+
+Four constraints, written here rather than linked.
+
+**1. The instrument your degraded grid needs already exists, is proved, and is
+proved in a way worth copying.** Story 4.8 built a shared harness that drives
+the running production pair and furnishes the market socket locally
+(`routeWebSocket`), and the thing it got right is the part this story will be
+tempted to skip: **a channel that reports nothing and a channel that is dead
+produce the same output.** Every arm plants a deliberate block on the page that
+produced the figure and counts the arm only if **every** channel it reports
+caught the plant — `longtask`, `long-animation-frame` and an rAF-gap recorder.
+`/securities`' cold-load breach is the proof that this is not pedantry: the
+breach has not moved and the `longtask` channel, which three documents named as
+the re-measure, now reports **nothing at all**. `PRODUCT_SPEC.md` §28 states
+the three-channel method for this reason. The same rule generalises to your
+grid: **prove the plant per channel**, and a produced state whose producer went
+quiet looks exactly like a state that was drawn correctly.
+
+**2. `/` re-renders on every applied batch in every degraded state, and the
+count is measured.** **2 renders per applied batch** on `/` (`overview` plus
+`bars`), at the feed's measured **6.8–16.1 batches a minute** — so
+**13.6–32.2 a minute**, from **0** before Story 4.2 (Task 4.8.2, counted on
+React's commit hook against the real gateway). That is true whatever the chrome
+says, because the gate `sameLiveFeedView` compares the overview field by
+**identity** and the decoder builds a new object per frame. So a degraded state
+is not a still page, and any state you photograph twice may differ only in
+which render you caught. The per-batch cost is small and measured — **3.7–5.1
+ms** of main-thread work on `/`, zero `longtask` entries in seven arms, worst
+rAF gap 17.7–17.8 ms — but the **count** is what your grid has to survive.
+
+**3. Your 390 measurements are affected by one thing this story found and one
+it did not.** A full `pnpm e2e` begun at a load average of **5.31** left the
+machine at **31.04**, so **the browser suite is its own plant**: read the load
+**before** a run, never during it, and treat every load figure in this
+repository taken while a suite was executing as a measurement of the suite.
+And a reported Playwright duration is **not** the quantity the 30 s per-test
+ceiling governs — it reports durations longer than the one it enforces — so a
+duration must not be turned into a percentage of the ceiling.
+
+**4. One degraded state on `/` is cheaper to reach than it looks, and one is
+not reachable at all.** The aggregate in CI's shape is **928 bytes** of 518
+`unknown` figures, `measured: 0`, `eligible: 0`, two empty lists — so every
+gated run is already a degraded state and your grid gets it free. What no
+machine can reach is the **opposite** end: the ceiling is **4,078 bytes** with
+all 518 observed on the observed basis, and it needs a store with bars **and** a
+live session. Between them are three measured intermediate states (2,042 B with
+closes and nothing observed; 3,142 B on the session basis; 3,990–4,002 B built
+in a browser with the shipped encoder), and the figure moves with **the number
+of securities heard from in the window**, not with anything in the code.

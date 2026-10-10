@@ -1258,8 +1258,12 @@ export const BREAKS = [
       "The fan-out ignores what a browser asked for and sends everything to " +
       "everybody \u2014 correct for five symbols and one page, and wrong at 518: " +
       "a security page showing ONE symbol received the whole universe every " +
-      "minute, 56.9 KiB measured on the wire, and discarded 517 of them. The " +
-      "cost scales with browsers \u00d7 universe and both only grow.",
+      "batch, 56.9 KiB measured on the wire for ONE message of 518 " +
+      "observations, and discarded 517 of them. The " +
+      "cost scales with browsers \u00d7 universe and both only grow. " +
+      "(Task 4.8.10, 2026-10-10: the figure used to be written `a minute` " +
+      "here and in four other places; the feed is 6.8\u201316.1 batches a " +
+      "minute and the per-minute rate is unmeasured.)",
     file: "apps/backend/src/market-gateway.ts",
     find: "      if (!wanted.has(observation.symbol)) continue;",
     replace:
@@ -3222,6 +3226,62 @@ export const BREAKS = [
     command: ["pnpm", "e2e", "overview-movers-hold.spec.ts", "--anyway"],
     expect: "a pointer in EITHER list holds BOTH",
   },
+  // ## Task 4.8.10's one, on Epic 14's second condition made mechanical
+  //
+  // The defect is the one the next story writes rather than an invented one:
+  // Epic 5 fills the `Unusual activity` region, its own `EPIC.md` says *every
+  // tracked security scored 0-100, ranked*, and the cheapest version of that
+  // is a list over the universe. The plant is that list, in that region, in
+  // the markup a reader would write, and it typechecks.
+  {
+    name: "a-row-per-security-on-the-landing-page",
+    proves:
+      "A surface on `/` renders one element per tracked security \u2014 Epic " +
+      "14's SECOND reversal condition, adopted 2026-10-09 and worded " +
+      "exactly for this. The plant is the shape Epic 5 is most likely to " +
+      "write: the `Unusual activity` region, which is `reserved` today, " +
+      "drawing an `<li>` per entry of the universe it already holds. The " +
+      "landing document goes from 491 elements to 1,009 on a 518-security " +
+      "store, and `/` joins `/securities` in `PRODUCT_SPEC.md` \u00a728's " +
+      "exception list \u2014 Task 4.8.6 priced it at a worst animation frame " +
+      "of 24.7 ms becoming roughly 60-75.\n\n" +
+      "**Nothing cheaper can see it.** jsdom computes no layout, but that " +
+      "is not even the obstacle: the claim is about the whole document the " +
+      "route produces, which only a real page has, and `pnpm invariants` " +
+      "is a grep over text. A node CEILING would be a figure somebody has " +
+      "to re-measure every time a reserved region is filled, so the " +
+      "assertion is an EQUALITY between the full universe and a 27-row " +
+      "sample of the same body.\n\n" +
+      "**Two things this entry records because they cost a draft each.** " +
+      "The `<tr>` half of that spec is GREEN on this plant \u2014 the planted " +
+      "list is `<li>`, so a check that only forbade a table on `/` would " +
+      "pass wrongly, and the printed `rowsAtFullUniverse: 0` beside the " +
+      "failure is that transcript. And the spec's FIRST draft settled on " +
+      "three regions being visible, which happens long before " +
+      "`GET /securities` is answered: the untrimmed arm read 491 with the " +
+      "plant drawing nothing yet, the two arms differed by the TRIMMED " +
+      "arm's 27 rows, and the shipped tree was green for a reason that had " +
+      "nothing to do with the claim. Both arms now prove the body arrived " +
+      "and read the count only once it has stopped moving.",
+    file: "apps/frontend/src/routes/MarketOverview.tsx",
+    find: '          filledBy="Every tracked security scored 0\u2013100 for how unusual its behaviour is, ranked, each score carrying its explanation."\n        />',
+    replace:
+      "        >\n" +
+      "          {/* pnpm break: reverted automatically */}\n" +
+      "          <ul>\n" +
+      "            {[...names.keys()].map((symbol) => (\n" +
+      "              <li key={symbol}>{symbol}</li>\n" +
+      "            ))}\n" +
+      "          </ul>\n" +
+      "        </Region>",
+    command: [
+      "pnpm",
+      "e2e",
+      "overview-no-element-per-security.spec.ts",
+      "--anyway",
+    ],
+    expect: "does not grow with the tracked universe",
+  },
   // ## Task 4.5.8's three, on what a RANKED frame can be checked against
   //
   // All three were produced against the shipped files before they were
@@ -3671,8 +3731,10 @@ export const BREAKS = [
     proves:
       "`marketDateAt` goes back to being `marketWallClockAt(instant).date`, " +
       "which reads the market formatter's parts three times for an answer " +
-      "that needs one and computes a UTC offset it discards. It is 93% of " +
-      "the overview join's 3.44 ms over 518 securities, which runs once per " +
+      "that needs one and computes a UTC offset it discards. It was 93% of " +
+      "the overview join's pre-repair 3.44 ms over 518 securities (the join " +
+      "is 1.521 ms since — Task 4.8.11 — and this function's share of that " +
+      "is unmeasured), which runs once per " +
       "applied batch plus three times per cold load of `/`, and 518 calls a " +
       "tick in the browser's own universe table. Nothing on any screen " +
       "changes, which is the whole reason the check has to be structural " +
@@ -3714,9 +3776,10 @@ export const BREAKS = [
       "guard here is green on it: no new encode site, no new " +
       "`buildMarketOverview` call site, and the word `overview` in none of " +
       "the four feed-path regions. `overview()` is unmemoised, so each " +
-      "call is a full join over all 518 securities — 3.72 ms, against " +
-      "the three paths that already cost 11.2 ms of server script for one " +
-      "browser opening `/`. Epic 14's 2026-10-07 clause fires on this " +
+      "call is a full join over all 518 securities — 1.521 ms a batch " +
+      "(Task 4.8.11, re-taken after Task 4.8.7's repair and superseding " +
+      "Task 4.8.3's 3.72 ms), against the three paths a browser opening " +
+      "`/` already pays. Epic 14's 2026-10-07 clause fires on this " +
       "count, and before 2026-10-09 nothing read it (Task 4.8.8).",
     file: "apps/backend/src/market-gateway.ts",
     find: "  }, KEEPALIVE_INTERVAL_MS);",

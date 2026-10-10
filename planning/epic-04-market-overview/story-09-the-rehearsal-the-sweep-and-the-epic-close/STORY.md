@@ -418,3 +418,106 @@ design decision with a canvas section behind it (`The motion vocabulary.dc.html`
 §05) and _a fact arriving DECAYS_ is the rule it implements. What is new is that
 nobody had priced it. If the rehearsal finds the mark is not worth watching at
 390, the subscription is what it costs.
+
+## Handed here by Task 4.8.10 — 2026-10-10, at Story 4.8's close: the frame composition is YOURS with a named condition, and three things nobody has seen
+
+Story 4.8 is complete. Four of its hand-offs already sit above, written by
+Tasks 4.8.4, 4.8.9 and 4.8.13. This section carries what the close itself owes
+you, in words you can act on rather than as a pointer.
+
+### 1. The frame composition, moved here by the owner's Gate 1 decision — and it EXPIRES
+
+**The measurement: each `bars` frame's own symbol list, logged off the deployed
+socket during a real session.** Not a count — a **list**, per frame, so that
+the question _do the eleven sector ETFs arrive in one frame or eleven_ has an
+answer.
+
+**Nothing in this repository can produce it.** A replay emits one slice per
+minute across every symbol (`replay-bar-source.ts` says so in as many words, and
+`createFixtureStream`'s `tickEveryMs = 60_000` is one batch a minute), so both
+offline feeds have a grain the live feed does not have. `LIVE-DATA.md`
+§9.5/§10.2 records **counts** — 332 bars in 8.8 frames at the open, 284 in 6.8
+at midday, 450 in 16.1 at the close — and **nothing in this repository has ever
+recorded frame COMPOSITION.** Three stories were told to size per-frame work
+against it and all three had to assume.
+
+**The named condition, which is why it is here rather than deferred again:** it
+is taken **during the first session a person sits through with the deployed
+product open**, which is this story's rehearsal and is already scheduled. It
+costs minutes once a page's own socket wrapper is logging frames by URL. **It
+expires with every session that passes** — there is no fixture, no address and
+no clock that can produce it later, and a story that defers it once has
+deferred it for ever.
+
+**Two instrument rules it inherits, both somebody's measured defect.** Count by
+**URL**, never by event, because a browser page holds sockets that are not this
+product's. And drain a page-side buffer with `splice` in place, never by
+rebinding the global, because the page's wrapper holds the array it closed over
+and every drain after the first then returns nothing.
+
+### 2. The suite verdict: what moved, and the one arm left
+
+Everything you need for _are this epic's own suites trustworthy_ is above, in
+the discharge notes from Tasks 4.8.9 and 4.8.13. Four things to carry into the
+verdict's wording:
+
+- **The code-free control is TAKEN** (`dee73de`) and so is the flake
+  characterisation at n ≥ 24 per subject, 456 executions. **`pnpm verify` ×24
+  is the only outstanding arm in the epic.**
+- **`security-gap-fill` is 5.6%, not 25% and not 12%**, and the residual is a
+  **product defect** rather than a flake — do not fold it into a rate.
+- **The browser suite is its own plant**: read the load before a run, never
+  during it, and do not turn a reported Playwright duration into a percentage
+  of the 30 s ceiling, because it reports durations longer than the one it
+  enforces.
+- **`n = 3` separates nothing.** `2 of 3 clean` is not a rate.
+
+### 3. Three things no gated machine and no person has ever seen, which is your rehearsal's list
+
+Story 4.8 measured this screen and **not one of its figures was taken against a
+real feed, on a deployed machine, or by a person.** Every arm was a furnished
+socket or `provider=none`, on one laptop, local. Specifically:
+
+1. **The per-tick cost at the real cadence.** 3.7–5.1 ms a batch on `/` was
+   driven at 6.8/min and 16.1/min by a furnished socket, because no offline
+   feed in this repository produces either. What a real minute costs — with
+   real frame composition, real symbol counts per frame and the vendor's own
+   jitter — is unmeasured.
+2. **The deployed cold load.** `/` at 447 nodes and a 24.7 ms p50 worst frame,
+   and `/securities` in breach on 10 of 10 loads, are both local figures
+   against a 48.8-million-bar store. The deployed tier is a different machine
+   and a different store, and `CHARTING.md` §19 has already seen the cold-load
+   region appear there once.
+3. **A proxy figure moving, a breadth figure at all, and a mover.** CI's store
+   has zero bars, so on every gated run the aggregate is `928 B` of `unknown`
+   for ever: `measured: 0`, `eligible: 0`, two empty lists. This is the same
+   list Stories 4.2, 4.4 and 4.5 each left standing, and it is now four stories
+   deep.
+
+### 4. What the close leaves you mechanically, and the two defects it routed rather than fixed
+
+- **`pnpm invariants` is at 52 entries** after this story (verified by running
+  it, 2026-10-10 — Story 4.8 added one **browser** check rather than an
+  invariant), of which four are on the aggregate seam. If your close enumerates what each green check
+  certifies, three sentences are not obvious from the names:
+  `the-aggregate-has-three-producer-paths` counts **paths** and **cannot see**
+  that the third is now conditioned on a browser being attached;
+  `the-send-instant-is-not-a-clock` guards **two of the wire's three
+  instants** and `observedAt` is outside it **on purpose**, because it is a
+  fact about the market and is the field a staleness rule over the aggregate
+  would legitimately be built on; and
+  `the-overview-note-dates-an-observation` holds the drawn instant in two
+  conjuncts, the second of which exists because a one-conjunct draft reported
+  `52 invariants hold.` with the defect in the file.
+- **Two product defects are routed in `docs/GAPS.md` and owned by a condition
+  rather than by this story**: ADR 0028's 160 ms cover drawn over both plots
+  during a refill nobody asked for, and a `color-contrast` reading of
+  **4.32:1** on the result surface's active option (`#0f7b50` on `#e7e8ef`,
+  13 px), reachable on `main` today by typing a different letter and present on
+  the full 518-row universe as well as the trimmed sample. **Neither is Epic
+  4's and neither is §28's.** The second is `VISUAL-LANGUAGE.md`'s
+  standing-exception procedure and UX/Design's.
+- **One candidate recorded and not taken, which is a product decision rather
+  than an optimisation**: `changePercent` crosses the wire unrounded, ~350 B a
+  frame and 9% of the aggregate — see Task 4.8.4's hand-off above. A consumer
+  that re-ranks needs the precision, so **ask, do not assume**.

@@ -387,6 +387,13 @@ function wallClockParts(instant: Date): {
  * `marketDateAt` is 93% of the Story 4.2 join's 3.44 ms over 518 securities,
  * which `UniverseTable` also pays per row on every live tick.
  *
+ * **Both figures in that sentence are the state BEFORE this repair** (noted
+ * 2026-10-10 by Task 4.8.10): the 3.44 ms join and the 93% share are what the
+ * repair was argued from. Task 4.8.11 re-took the whole per-batch path
+ * afterwards at **1.521 ms**, and this function's own share of that is
+ * unmeasured. The 518 calls a tick are unchanged — the count is the part the
+ * check below defends.
+ *
  * **The padding is not cosmetic.** `String(year).padStart(4, "0")` is what
  * keeps a year before 1000 from producing `999-01-02`, which
  * {@link toMarketDate} would refuse — and refusing is right, but the

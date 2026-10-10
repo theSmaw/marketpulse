@@ -497,15 +497,31 @@ const CLOSED_SESSION = "last prices of the session";
  * to draw one clause would be paying that cost on the page that is about to
  * hold four aggregates over 518 securities.
  *
- * `computedAt` is **when the aggregate was true, by the server's clock**, and
- * its own docblock is written for this: *a surface that wants to say “these
- * figures are as of …” has to read this one*. It is rebuilt on every connect
- * and every subscribe, so a page opened on a Saturday is answered with
- * Saturday. It is **not** a clock a status is derived from — this is not a
+ * `computedAt` is **when the join RAN, by the server's clock**. It is rebuilt
+ * on every connect and every subscribe, so a page opened on a Saturday is
+ * answered with Saturday — which is exactly what this function wants, because
+ * the question it asks the calendar is *what session was running when these
+ * figures were joined*. It is **not** a clock a status is derived from — this is not a
  * status, it is the calendar question asked at the instant the figures were
  * joined, and `the-send-instant-is-not-a-clock` guards the three files where
  * that distinction is load-bearing. Both instants are server-origin, so no
  * browser clock is read and skew is not a hazard.
+ *
+ * > **Amended 2026-10-10 by Task 4.8.10, sweeping Task 4.8.12.** This
+ * > docblock used to say `computedAt` is *“when the aggregate was true, by
+ * > the server's clock”* and quoted its own field docblock's *“a surface
+ * > that wants to say ‘these figures are as of …’ has to read this one”*.
+ * > **Both are false and the second one shipped a defect**: `computedAt` is
+ * > a fact about **this process** — the minute a reader connected and the
+ * > join ran — not about any figure on the frame, and
+ * > `OverviewSourceNote` drew it under the word `COMPUTED` beside closes
+ * > four weeks old until Task 4.8.12 replaced it with `observedAt`. The
+ * > field's own docblock in `live-feed.ts` was amended in that change; this
+ * > site was not, and it is the **one remaining shipped reader** of
+ * > `computedAt`. It is a correct reader, and the reason is the distinction
+ * > above: it asks the calendar a question **about** that instant and draws
+ * > nothing from it. **Nothing in `apps/frontend/src` reads `sentAt` at
+ * > all** — grepped 2026-10-10, zero hits outside tests.
  *
  * What it cannot do is move on a page nobody is reloading: a tab held open
  * across the closing bell keeps the last frame's `computedAt` until the next

@@ -1,6 +1,6 @@
 # Story 4.8 — The Overview at Universe Scale, & Epic 14's Trigger
 
-**Status:** **In progress — 2026-10-09.** Decomposed into ten tasks; four decisions taken at Gate 1. Shaping falsified five inherited premises, of which two change what can be measured at all: **a browser on `/` subscribes to ~25 symbols, not 518**, and **no feed this repository can run offline produces the real ~16 batches a minute** — the fixture and the replay both emit one, so the obvious recipe measures a sixteenth of the effect. And it found the epic's largest lever: **`marketDateAt` calls `Intl.formatToParts` three times and uses one**, 3.33–3.60 ms → 1.06–1.09 ms over 518 instants, with no cache and no changed answer.
+**Status:** **Complete — 2026-10-10, pending Gate 2.** Thirteen tasks. The screen is measured and **is not in breach**: 3.7–5.1 ms of main-thread work a batch on `/` (the aggregate 2.8–3.9 of it), 0 `longtask` entries in seven arms, worst rAF gap 17.7–17.8 ms, 447 nodes and zero `<tr>` at 518 securities, 2 renders per applied batch on three routes and 1 on three others at 6.8–16.1 batches a minute. **Epic 14's trigger was evaluated a FIFTH time, did not fire, and gained ONE new clause for `/`**; §28 took no third exception and gained a three-channel method and a corrected unit. **Two invisible repairs shipped** — `marketDateAt` reads the formatter's parts once (3.366 → 1.288 ms over 518 instants) and the join no longer runs with nobody attached (0 joins over 500 bursts) — and **one visible one**: the landing screen's source note dates an **observation** rather than the minute the reader arrived. The suite got **two repairs of its own**: a predicate that could not see its subject (25.0% → 5.6% at n = 144) and nine axe passes trimmed from 518 rows to a 27-row sample (68.0 s → 13.5 s). **Three caveats on every figure**: the cadence is furnished, Node figures are tight-loop upper bounds while browser figures are not, and nothing is deployed. **Two product defects found and routed, not fixed.**
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.6 — **re-ordered 2026-09-27**, see below
 **Epic scope covered:** none new — the epic's numbers, measured
@@ -495,3 +495,95 @@ scale` appears **31 times across 20 files** (30 lines; `docs/GAPS.md` line 142
 - **Any repair at `sameLiveFeedView`.** Collapsing an aggregate that differs
   only in `computedAt` requires `live-feed.ts` to name that field, and a shipped
   invariant **fails the build** on the string being present there.
+
+## The close — 2026-10-10 by Task 4.8.10
+
+### The acceptance criteria, each with its evidence
+
+| AC                                                                         | Verdict                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Per-tick cost on a production build, universe arriving, observer proved | **Met, with the premise corrected.** `/` subscribes to ~25 symbols and the 518 is server-side, so AC 1's _whole universe arriving_ was not a state this route has: it was measured on **both** sides — 3.7–5.1 ms in the browser (Task 4.8.4) and 1.521 ms a batch on the server (4.8.11) |
+| 2. Cold load of `/` against `/securities`, comparison stated               | **Met.** Four arms, 40 interleaved loads, 20-row controls both sides: `/` **0 of 10** tasks over 50 ms against `/securities`' **10 of 10** frames over the line, attributed ≈ 6 ms payload / ≈ 48 ms markup (4.8.6)                                                                       |
+| 3. Epic 14's trigger evaluated in writing, in Epic 14's own file           | **Met.** The **fifth** evaluation, unfired, wording untouched, **one** new clause for `/` with a measured price before it fires — and the clause is now **mechanical** with a break (4.8.8, 4.8.10)                                                                                       |
+| 4. Any repair is a memo boundary or a computation moved                    | **Met.** Two computations **removed**: two of three `formatToParts` reads per `marketDateAt` (4.8.7) and the whole join when nobody is attached (4.8.11). **No memo was added**, and the chart's was declined with a measured reason and a ratio-shaped reversal trigger (4.8.5)          |
+| 5. Figures with their instrument, n and caveats, marked loopback           | **Met, and the caveats are the story's own finding.** Two of them, not one — see below                                                                                                                                                                                                    |
+| 6. §28 amended if this screen adds an exception, or explicitly not         | **Met.** **No third exception.** What was amended is the **method** (three channels, each proved by a plant) and the first exception's **unit**; where it was checked is in Task 4.8.8 and the residue in 4.8.10                                                                          |
+
+### What was measured, as figures rather than adjectives
+
+- **The browser, per applied batch on `/`**: 3.7–5.1 ms of main-thread work net
+  of a quiet control at the same cadence, of which the aggregate is 2.8–3.9 ms;
+  **25–82 ms a minute**; 0 `longtask` entries in **seven** arms; worst rAF gap
+  **17.7–17.8 ms** against a 16.7 ms quantum; largest single React task 2.5 ms
+  and largest delivery task 4.5 ms. Calibrator ×1.00.
+- **The backend, per applied batch**: **1.521 ms** p50 (n = 298/300, tight,
+  calibrator 1.217 ms) — and **0.000 ms with nobody attached**, 0 joins over 500
+  bursts. The fan-out beside it is 1.59 ms at 518 subscribed and 0.67 ms per
+  additional client.
+- **Renders, counted rather than timed**: 2 per applied batch on `/`,
+  `/securities` and `/securities/:symbol`; **1** on `/investigations`, `/replay`
+  and the not-found route; from **0** before Story 4.2. At the feed's measured
+  6.8–16.1 batches a minute: 13.6–32.2 and 6.8–16.1 a minute.
+- **The cold load**: `/` **447 nodes, 29 anchors, 0 `<tr>`**, 0 of 10 tasks over
+  50 ms, one 50.9 ms frame, worst rAF gap p50 24.7 / p95 34.7 ms;
+  `/securities` **10,318 nodes**, 10 of 10 frames at 62.8–77.4 ms, worst gap p50
+  66.7 / p95 68.5. Controls at 20 rows: 447 and 765 nodes, 0 of 10 each.
+- **The chart on a tick nothing on the chart changed**: 1.3 ms at 1,950 bars and
+  3.6 ms at 6,630 — 12% and 27% of the 10.9 / 13.2 ms render task containing
+  them; and **2 rebuilds a minute from the health poll with nothing sent at
+  all**.
+- **`marketDateAt`**: 1,554 `formatToParts` calls for 518 conversions, now 518.
+  **3.366 → 1.288 ms** p50 over 518 instants; `marketWallClockAt` 3.365 → 2.176.
+- **The frame**: 928 B in CI's shape, 2,042 with closes and nothing observed,
+  3,142 on the session basis, **4,078 at the ceiling**, 3,990–4,002 built in a
+  browser with the shipped encoder. **27.1 KiB/min at 6.8 batches and 64.1 at
+  16.1**, 6.9% on top of a 518-subscribed client.
+- **The suite**: `security-gap-fill` **25.0% (CI 13.6–39.6%) → 5.6% (CI
+  2.8–10.6%)** over 144 executions at four workers, non-overlapping, **0 / 24**
+  at one worker; nine axe passes **68.0 s → 13.5 s**, two files 1.2 m → 35.3 s;
+  a full `pnpm e2e` takes the machine from **5.3 to 31.0**.
+
+### The caveats, and there are THREE
+
+1. **The cadence is furnished.** No feed this repository can run offline
+   produces 6.8–16.1 batches a minute, so every per-tick figure was **driven**
+   at both ends of the measured range rather than observed.
+2. **Node figures are tight-loop upper bounds and browser figures are not.** A
+   gapped Node arm inflates, and the calibrator does **not** divide it out
+   (2.29× against 4.38× on the same bursts); the same calibrator reads ×1.00 in
+   a visible renderer at 3.7 s and 8.8 s gaps.
+3. **Nothing is deployed and nothing was watched by a person.** One laptop,
+   local pair, `provider=none` or a furnished socket, and CI's store has zero
+   bars.
+
+### What the thirteen tasks changed about the plan
+
+- **Ten tasks became thirteen.** 4.8.11 (the join with nobody attached), 4.8.12
+  (`COMPUTED` is a process clock) and 4.8.13 (the suite's own two repairs) were
+  all **found by measuring** rather than planned.
+- **Gate 1's trigger decision shipped at half its size**: clause A as written,
+  **clause B withdrawn** on two measurements taken after Gate 1 — it was already
+  true on both readings, and a condition that has never been false cannot fire.
+- **Gate 1's sweep estimate of 13 live sites became 8**, by a **rule** rather
+  than a re-count.
+- **AC 1's own premise was wrong** — `/` subscribes to ~25 symbols — so the
+  story measured both sides of the wire instead of one.
+- **Five inherited premises were falsified at Gate 1 and a sixth during
+  execution**, of which the cadence one would have made the whole measurement a
+  sixteenth of the effect.
+- **One task's own instrument findings were falsified by the next task**:
+  4.8.3's _the ratio travels_, withdrawn by 4.8.11 with a counter-example on the
+  same bursts.
+
+### What ships open, with an owner
+
+| Open                                                                | Owner                                                                                   |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Frame composition — each `bars` frame's symbol list                 | **Story 4.9's live rehearsal**, with an expiring condition                              |
+| Every figure against a real feed, deployed, watched by a person     | **Story 4.9**                                                                           |
+| `pnpm verify` ×24, the last flake arm                               | **Story 4.9**                                                                           |
+| ADR 0028's cover drawn over both plots during an unasked-for refill | **a condition**: the first task that may change `src/market/` or `use-pending-panel.ts` |
+| `color-contrast` 4.32:1 on the result surface's active option       | **UX/Design**, via `VISUAL-LANGUAGE.md`'s standing-exception procedure                  |
+| `changePercent` unrounded on the wire — ~350 B a frame              | **Story 4.9**, as a product decision rather than an optimisation                        |
+| The memoised-`marketDateAt` cache, and `/securities`' cold load     | **Epic 14**, both by name, with what it no longer owns stated                           |
+| The per-test ceiling for the axe family (the second half of 4.8.13) | **Story 4.9**                                                                           |

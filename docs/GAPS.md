@@ -3004,3 +3004,156 @@ same hole for two epics.
 an agent. **Re-measure:** open `/`, press `Enter` on a ticker with a screen
 reader running, and write down what was said. There is no mechanical form of
 this question.
+
+## No feed this repository can run offline produces the cadence that IS the cost, so every local per-tick figure on `/` is a fraction of the real render count
+
+**Added 2026-10-10 by Task 4.8.10, at Story 4.8's close, and it is the premise
+that story was nearly measured against.**
+
+The live feed delivers **6.8–16.1 applied batches a minute** — `LIVE-DATA.md`
+§9.5/§10.2: 332 bars in **8.8** frames at the open, 284 in **6.8** at midday,
+450 in **16.1** at the close, with **no coalescing anywhere** in our code.
+Against that, both offline feeds this repository owns deliver **one batch a
+minute**: `createFixtureStream` ticks at `tickEveryMs = 60_000`, and a replay
+emits one slice per minute across every symbol and _"cannot express a split
+minute at all"_ by `replay-bar-source.ts`' own comment.
+
+**So a reader following Task 3.6.5's recipe measures one sixteenth of the
+render count and gets a comfortable green** — and that is the exact inverse of
+Task 3.6.4's _the fixture is the harsher feed_, which was true of payload and
+is false of cadence. Story 4.8 had to **furnish** the socket
+(`page.routeWebSocket`) to set cadence and composition freely, which is the
+only mechanism available offline, and **furnished frames must never reach a
+deployed page.**
+
+**What this makes unguarded.** Every per-tick figure in Epic 4 — 3.7–5.1 ms a
+batch on `/`, 2 renders a batch on three routes and 1 on three others, 25–82 ms
+a minute, 1.3/3.6 ms of chart rebuild on `/securities/:symbol` — was taken at a
+**driven** cadence, not an observed one. Nothing mechanical will notice if the
+vendor's batching changes, and nothing in `pnpm verify`, `pnpm e2e` or CI
+produces more than one batch a minute, so a regression that only appears at 16
+batches a minute is invisible to every gate.
+
+**Two consequences worth stating separately.** A figure derived by dividing a
+per-**batch** quantity by a per-**minute** one is wrong by 6.8–16.1×, and that
+has happened: the withdrawn `12% on top` for the aggregate's bytes divided a
+per-batch frame by `56.9 KiB`, which is the size of **one** universe `bars`
+message rather than a minute's traffic. **`56.9 KiB` is a message, not a
+rate** — corrected at three live sites on 2026-10-10 (`App.tsx`,
+`market-gateway.ts`, `scripts/breaks.mjs`) with ten occurrences in seven
+`planning/` files left standing as dated records. The real per-minute rate a
+518-subscribed browser receives has **never been measured**.
+
+**Re-measure** — drive the furnished socket at both ends of the measured range
+and report both, which is what Task 4.8.4 did; and record the cadence beside
+every per-tick figure, because the number alone does not say which it was taken
+at. The only honest reading of the real cadence is a **live session**, and that
+is Story 4.9's.
+
+## Frame COMPOSITION has never been recorded by anything in this repository, and no replay or fixture can structurally produce it
+
+**Added 2026-10-10 by Task 4.8.10. Owner: Story 4.9's live rehearsal, with an
+expiring condition.**
+
+`LIVE-DATA.md` records frame **counts** and nothing has ever recorded which
+**symbols** arrive together. Three stories were told to size per-frame work
+against it and all three had to assume: Story 4.3 could not say whether its
+eleven sector ETFs land in 1 frame or 11, Story 4.4's breadth count and Story
+4.5's ranking both run per applied batch over whatever a batch contains, and
+`/`'s own ~25-symbol subscription is scoped against a composition nobody has
+seen.
+
+**It cannot be answered offline.** Both offline feeds answer _all of them, once
+a minute_, so the question is unrepresentable in a fixture or a replay. It
+needs a page's own socket wrapper logging each `bars` frame's symbol list
+against the deployed gateway during a session.
+
+**It expires with every session that passes** — there is no address, fixture or
+pinned clock that can produce it later.
+
+**Re-measure** — during the live sitting: log each frame's symbol list, by
+**URL** rather than by event (a browser page holds sockets that are not this
+product's), and drain the page-side buffer with `splice` in place rather than
+by rebinding the global, because the page's wrapper holds the array it closed
+over and every drain after the first then returns nothing.
+
+## Every performance figure Story 4.8 took is local, on one laptop, and carries one of TWO caveats depending on which side of the wire it is from
+
+**Added 2026-10-10 by Task 4.8.10.** Thirteen tasks produced perhaps forty
+figures and **not one was taken on a deployed machine, against a real feed, or
+by a person.** Stating it once here is cheaper than repeating it beside each.
+
+**The backend legs are tight-loop figures and are upper bounds on a shape.** At
+a 250 ms gap the same join reads **12.97–15.43 ms** against **1.521 ms** tight,
+and a fixed-cost control with no ICU and no allocation inflates beside it — so
+the inflation is a Node process waking from idle. **But it does not divide
+out**: re-taken with the calibrator re-referenced at the gap and the arms
+rotated, the calibrator inflated **2.29×** while the subject inflated **4.38×**
+on the same bursts, two ratios a factor of ~1.9 apart. A gapped figure
+corrected by the calibrator's own inflation would have **under-reported by
+nearly half**, so _the ratio travels_ is **withdrawn** as a rule and a gapped
+absolute is an upper bound and nothing more. That arm also discarded **19 / 60**
+windows at load ratio 0.744.
+
+**The browser legs carry no such multiplier at all** — the identical calibrator
+reads **×1.00** in a visible renderer at gaps of 3.7 s and 8.8 s, five arms out
+of five, corroborated at ×0.91–×1.09 of a 2.2 ms reference by two further
+tasks. **Two caveats, not one**: a browser figure wearing the Node caveat is as
+misleading as a Node figure without it.
+
+**And nothing gated can see any of it.** CI's store is 518 securities and
+**zero bars**, so on a gated run the join reads 0.013 ms with nothing observed,
+the aggregate frame is **928 bytes** for ever, every region on `/` renders its
+honest-nothing state, and `pnpm e2e` cannot assert a figure here even if it
+wanted to — a duration on a shared runner is not a measurement. jsdom computes
+no layout, so nothing below `pnpm e2e` can see the cold load either.
+
+**Re-measure** — `pnpm instrument:prove` for the harness, then the per-arm
+recipes in `planning/epic-04-market-overview/story-08-the-overview-at-universe-scale/`.
+Every arm must plant a deliberate block **per channel** on the page that
+produced the figure, because a channel going quiet and a cost going away
+produce the same output.
+
+## `/` renders 447 nodes and zero `<tr>` at 518 securities — the SHAPE is now mechanical and the FIGURE is not
+
+**Added 2026-10-10 by Task 4.8.10, and half of this entry exists to say which
+half left the list.**
+
+**What became mechanical.** Epic 14's second reversal condition — _the first
+surface on `/` that renders one element per tracked security_ — was a sentence
+in a planning file, and a condition keyed on a property of the DOM reads
+identically whether anything holds it or not.
+**`e2e/specs/overview-no-element-per-security.spec.ts`** holds it: the landing
+route is loaded twice, once against the store's whole universe and once against
+a 27-row sample of the **same** backend body, and the two documents' element
+counts must be **equal** with zero `<tr>` in both. A surface that draws a row
+per security changes one arm and it goes red. Break:
+**`a-row-per-security-on-the-landing-page`**, which plants the shape Epic 5 is
+most likely to write — an `<li>` per entry in the `reserved` `Unusual activity`
+region — and takes the document from **491 to 1,009** elements.
+
+**An EQUALITY rather than a ceiling, deliberately.** A node count would be a
+figure somebody has to re-measure every time one of the three remaining
+`reserved` regions is filled, and Epics 5 and 6 fill two of them. The equality
+forbids exactly _the document scaling with the universe_ and nothing else.
+
+**What did NOT become mechanical, and cannot.** The figures: **447 nodes**
+against `/securities`' **10,318**, the ≈ **6 ms / 48 ms** split between the
+payload and the markup, the **24.7 ms p50 / 34.7 p95** worst animation frame
+and the **0 of 10** tasks over 50 ms. Those are durations and a store-dependent
+node count; the gated suite cannot assert either, and the 447 itself is a
+figure about a store with bars.
+
+**Two cautions for the next reader of that spec.** Its `<tr>` half is **green**
+on the break above — the planted list is `<li>` — so a check that only forbade a
+table on `/` would pass wrongly, and the failure's printed
+`rowsAtFullUniverse: 0` is that transcript. And its **first draft** settled on
+three regions being visible, which happens long before `GET /securities` is
+answered: the untrimmed arm read 491 with the plant drawing nothing yet, the
+arms differed by the **trimmed** arm's 27 rows, and the shipped tree was green
+for a reason that had nothing to do with the claim. Both arms now prove the
+body arrived and read the count only once it has stopped moving.
+
+**Re-measure** — `pnpm e2e overview-no-element-per-security.spec.ts` for the
+shape; `scripts/overview-instrument.mjs` with three proved channels for the
+figures.

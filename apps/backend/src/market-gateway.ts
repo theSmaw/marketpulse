@@ -234,6 +234,21 @@ export function registerMarketGateway(
    * every minute and discarded 517 of them, **56.9 KiB a minute** measured on
    * the wire.
    *
+   * **Amended 2026-10-10 by Task 4.8.10: that is 56.9 KiB a MESSAGE, not a
+   * minute.** 58,218 B was read off one `bars` message carrying all 518
+   * observations (Task 3.5.4, refined to 57,642 B on real tickers by 3.5.6);
+   * Task 4.8.2 re-read the same shape at **58,187–59,475 B per batch**. The
+   * `a minute` was the then-believed one-batch-a-minute cadence — Story 4.8's
+   * Gate 1 falsified it, and `LIVE-DATA.md` §9.5/§10.2's measured feed is
+   * **6.8 batches a minute at midday, 8.8 at the open and 16.1 at the close**.
+   * The per-minute rate a 518-subscribed browser really receives has **never
+   * been measured**: the arithmetic ceiling, if every one of the 518 traded in
+   * every batch, is ~386–957 KiB/min, and the real figure is well below it
+   * because a minute carries 284–450 bars in total rather than 518 per batch.
+   * Nothing in this comment's argument turns on which — one message of the
+   * whole universe to a browser that wanted one symbol is the defect — and no
+   * figure here may be used to size anything per minute.
+   *
    * **A browser that has asked for nothing receives nothing**, which is an
    * ordinary state rather than an error — §11.1's omission semantics applied
    * to a subscription. It is also the state every browser is in for the first
@@ -357,6 +372,20 @@ export function registerMarketGateway(
    * opening `/`, and it is the one part of this gateway's cost that **does**
    * scale with connections. The invariant is still worth having; what it
    * certifies is *one place a frame is built*, not *one computation*.
+   *
+   * **Amended 2026-10-10 by Task 4.8.10: the 3.72 and the 11.2 are both
+   * pre-repair and neither is the figure to quote.** Task 4.8.7 made
+   * `marketDateAt` 2.6× cheaper on 2026-10-09, and Task 4.8.11 **re-took**
+   * the per-batch path on the artefact afterwards: **1.521 ms p50**
+   * (n = 298/300, tight loop, zero clients, calibrator reference 1.217 ms).
+   * The count of joins is unchanged — three per browser opening `/`, three on
+   * `/securities/:symbol`, two on `/investigations` — and so is the claim that
+   * this is the part that scales with connections. What is **not** carried is
+   * the product: a naive rescale at 1.521/3.708 puts a cold `/` near 4.6 ms,
+   * and that is an **estimate rather than a measurement**, because 1.521 ms is
+   * the whole `overviewMessage()` on an all-518-observed fixture while the
+   * three snapshot joins run against whatever the live map holds. Re-take it
+   * rather than rescale it; the recipe is in Task 4.8.11.
    *
    * **It is not scoped to a subscription**, unlike `bars`. The overview is an
    * aggregate over securities a browser never asked for by name, so every

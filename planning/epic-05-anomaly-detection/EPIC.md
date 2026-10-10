@@ -570,8 +570,21 @@ page that produced the figure.
 250 ms gap the same backend computation reads ×2.4–3.5 higher — and so does a
 fixed-cost control that does no ICU work and no allocation, so the inflation is
 this machine waking from idle rather than the computation. The **ratios** are
-safe and the **absolutes** are not a production cost on any machine. The
-**browser** side carries **no such multiplier**: the identical calibrator reads
-**×1.00** in a visible renderer at gaps of 3.7 s and 8.8 s, five arms out of
-five. **Two caveats, not one** — a verdict that treats them as one will be wrong
-about one of them.
+safe and the **absolutes** are not a production cost on any machine.
+
+> **Amended 2026-10-10 by Task 4.8.10, sweeping Task 4.8.11 — _the ratios are
+> safe_ is withdrawn.** Re-taken on one arm with the calibrator
+> **re-referenced at the gap** and the arms rotated per burst: the calibrator
+> inflated **2.29×** (1.217 → 2.792 ms) while the subject inflated **4.38×**
+> (1.521 → 6.662 ms) on the same bursts — two ratios a factor of ~1.9 apart.
+> So a gapped figure corrected by the calibrator's own inflation would have
+> **under-reported by nearly half**. **A gapped absolute is an upper bound on
+> the shape and nothing more**, and this epic should not plan to recover a
+> production figure from a gapped one by division. The browser half below is
+> unaffected and still reads ×1.00. (That arm also discarded **19 / 60**
+> windows at load ratio 0.744, which is its own warning about what a gapped
+> Node arm can be asked for.) The
+> **browser** side carries **no such multiplier**: the identical calibrator reads
+> **×1.00** in a visible renderer at gaps of 3.7 s and 8.8 s, five arms out of
+> five. **Two caveats, not one** — a verdict that treats them as one will be wrong
+> about one of them.

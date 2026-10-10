@@ -2494,6 +2494,37 @@ re-walks a path instead of mutating a DOM proportional to the window. §16's
 137–254 ms is a _cold_ figure for 9,790 **elements**; nothing on this axis
 approaches it while extending, because nothing here creates elements.
 
+### Which EVENT these figures are of — added 2026-10-10 by Task 4.8.10
+
+**Nothing above is falsified and the figures stand. What was missing is the
+sentence saying which event they measure, because since 2026-09-26 two
+different events rebuild the same chart.**
+
+The **7.2–8.1 / 12.3–13.2 ms** is the cost of **a bar arriving**: the `bars`
+frame's decode, the `withLiveBars` join, `toBarSeries`, **both** frame
+builders, React's render, **and** the style, layout and paint of a chart whose
+series has changed.
+
+The other event is an **overview tick** — the landing page's aggregate frame,
+which `App` holds for every route, so a batch re-renders
+`/securities/:symbol` whether or not any bar on screen changed. Task 4.8.5
+measured that event on a production build at the close's cadence: the two
+frame builders **alone**, with the series unchanged and the join not running,
+are **1.3 ms** at 1,950 bars and **3.6 ms** at 6,630 — **12% and 27%** of the
+React render task containing them (10.9 and 13.2 ms). Zero `longtask` and zero
+`long-animation-frame` entries, worst rAF gap 17.7–17.8 ms, calibrator ×1.00.
+
+**And a quiet page is not a still page**, which belongs here rather than in a
+story file: with nothing sent at all the two plots still rebuild **twice a
+minute**, one rebuild of each per `useBackendHealth` poll — `App` polls
+`/health` every 30 s and is the router's host. That was true before Epic 4
+existed.
+
+**The scaling differs between the two events, for a reason worth keeping.**
+§18's figure above scales **1.8× for 3.4× the bars**; the builders alone scale
+**2.8×**, because they are the linear part and §18's figure carries the fixed
+costs ADR 0027's silhouette dividend applies to.
+
 ### What is NOT measured here, stated so it is not read as measured
 
 - **The 9,750-bar cap itself.** This machine's store ends 2026-09-11, so the

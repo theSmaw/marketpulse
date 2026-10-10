@@ -311,3 +311,49 @@ decided (ADR 0030: `REPLAYING`, and a deployment configured to replay fails
 before it rolls). What is **not** decided is what a replay says when its own
 stored data runs out mid-session, which is the nearest thing it has to a
 degraded feed and is this epic's to name.
+
+## Handed here by Story 4.8's close — 2026-10-10 by Task 4.8.10: the replay's GRAIN is not the live feed's, and it is now a measured premise rather than an aside
+
+**Found by walking the epic list rather than by a grep — Story 4.8's documents
+name this epic nowhere, and the premise below is one this epic's own
+instruments will be built on.**
+
+**The live feed does not deliver one frame a minute, and neither of this
+repository's offline feeds can deliver what it does.** `LIVE-DATA.md`
+§9.5/§10.2 measured the vendor batching a minute into **8.8 frames at the open
+(332 bars), 6.8 at midday (284) and 16.1 at the close (450)** — about 7% of the
+universe per frame — with **no coalescing anywhere** in our code. Against that:
+
+- **`createFixtureStream` ticks at `tickEveryMs = 60_000`** — one batch a
+  minute, every symbol in it.
+- **A replay emits one slice per minute across every symbol** and, by
+  `replay-bar-source.ts`' own comment, **cannot express a split minute at
+  all.**
+
+**Story 4.8's Gate 1 recorded this as a falsified premise and it cost the story
+its measurement design**: a reader following the previous recipe measures **one
+sixteenth** of the real render count and gets a comfortable green. The story
+had to furnish a socket (`routeWebSocket`) to set cadence and composition
+freely, because **nothing in this repository could produce the real cadence** —
+and that is the exact inverse of Story 3.6.4's _the fixture is the harsher
+feed_, which was true of payload and is false of cadence.
+
+**Three consequences for this epic, stated rather than implied.**
+
+1. **A figure taken against a replay is a figure about the replay's grain.**
+   Any per-tick cost, render count or staleness behaviour this epic measures
+   through the replay engine is measuring one batch a minute. If this epic's
+   exit criteria include anything about what a replayed session **costs**, the
+   cadence has to be stated beside it.
+2. **Frame COMPOSITION has never been recorded by anything in this
+   repository** — only counts — and **no replay or fixture can structurally
+   produce it**, because the question is _which symbols arrived together_ and
+   both offline feeds answer _all of them_. It is owned by Story 4.9's live
+   rehearsal with an expiring condition. If this epic ever wants a replay whose
+   grain resembles the live feed, that recording is the input, and it does not
+   exist yet.
+3. **The arrival mark is keyed on a bar arriving rather than on a price
+   changing**, so a replay that batches a minute fires it once where the live
+   feed fires it 6.8–16.1 times. Task 3.8.8 already handed this epic the
+   question of whether a replayed bar should fire it; the **rate** is the half
+   that was unmeasured and now is.
