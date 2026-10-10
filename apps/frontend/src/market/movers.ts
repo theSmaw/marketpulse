@@ -7,7 +7,7 @@ import type {
 } from "@marketpulse/shared";
 
 import { arrivalKey } from "./arrival.js";
-import { describeMeasuredSet } from "./measured-set.js";
+import { describeMeasuredReach, describeMeasuredSet } from "./measured-set.js";
 import { formatPrice } from "./price-format.js";
 import { basisOf, moveOf, type SectorRow } from "./sector-performance.js";
 
@@ -224,7 +224,10 @@ export function marketMovers(
   return {
     gainers,
     losers,
-    claim: moversClaimOf(movers),
+    // The instant is the frame's own `observedAt` — see
+    // `describeMeasuredReach` for why not `computedAt` and why not a clock
+    // here (Task 4.7.4).
+    claim: moversClaimOf(movers, overview?.observedAt),
     gainersEmpty: emptySideOf(gainers, movers.eligible, "rose"),
     losersEmpty: emptySideOf(losers, movers.eligible, "declined"),
   };
@@ -299,7 +302,10 @@ export function marketMovers(
  * `Sector performance`, whose rows are a roster rather than a selection and can
  * still arrive mixed. `SectorRow.price` carries the owner.
  */
-function moversClaimOf(movers: WireMarketMovers): MoversClaim {
+function moversClaimOf(
+  movers: WireMarketMovers,
+  observedAt: string | undefined,
+): MoversClaim {
   const lead = describeMeasuredSet({
     qualifier: movers,
     tracked: movers.tracked,
@@ -313,7 +319,15 @@ function moversClaimOf(movers: WireMarketMovers): MoversClaim {
   // with anything else. A clause joined by one would have been the second
   // drawer of that glyph, twelve pixels below a list that reserves it, and the
   // repair would have been to weaken somebody else's assertion.
-  const sentence = `${lead}. ${movers.eligible === 0 ? NOTHING_TO_RANK : RANKED_OVER}.`;
+  // **A third sentence, and only when the aggregate holds an observation**
+  // (Task 4.7.4). The em-dash argument above is why it is a sentence rather
+  // than a clause joined to either of the two before it; the age itself is
+  // `measured-set.ts`', read by both regions, so this file states no instant
+  // and spells no interval.
+  const reach = describeMeasuredReach(observedAt);
+  const since = reach === undefined ? "" : ` ${reach}.`;
+
+  const sentence = `${lead}. ${movers.eligible === 0 ? NOTHING_TO_RANK : RANKED_OVER}.${since}`;
 
   return { drawn: sentence, spoken: sentence };
 }

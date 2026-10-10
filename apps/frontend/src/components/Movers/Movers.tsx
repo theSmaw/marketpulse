@@ -263,16 +263,18 @@ export const Movers = memo(function Movers({ view, pinned }: MoversProps) {
       {/*
        * **The footer's room, held and empty** — Task 4.5.6 writes the sentence.
        *
-       * Two lines at every width, which is `SectorPerformance.claim`'s measured
-       * departure from its drawing and is taken here for the same mechanism
-       * rather than for symmetry: the clause's length is a function of values
-       * that move — a window on one basis, a session date on the other, and two
-       * counts — so a one-line reserve would make the region's height depend on
-       * which sentence is true, and at 390 the grid row is content-sized so the
-       * whole lower page would step.
+       * Three lines at every width since Task 4.7.4, which is
+       * `SectorPerformance.claim`'s measured departure from its drawing and is
+       * taken here for the same mechanism rather than for symmetry: the
+       * clause's length is a function of values that move — a window on one
+       * basis, a session date on the other, two counts, and the age that is
+       * there only when the aggregate holds an observation — so a short
+       * reserve would make the region's height depend on which sentence is
+       * true, and at 390 the grid row is content-sized so the whole lower page
+       * would step.
        *
        * Reserved **now** rather than when the words arrive, because the height
-       * budget this region was sized against includes it: 44 px of the 466.
+       * budget this region was sized against includes it: 60 px of the 482.
        */}
       <p className={cx(styles.claim)}>
         {/*

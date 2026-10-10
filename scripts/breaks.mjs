@@ -3974,4 +3974,36 @@ export const BREAKS = [
     command: ["pnpm", "e2e", "overview-held-outage.spec.ts", "--anyway"],
     expect: "a produced disconnection is held",
   },
+  // **The age beside the denominator** (Task 4.7.4), and the substitution is
+  // the **omission** a re-implementer makes rather than an inversion: the
+  // interval goes and the clause keeps formatting the instant the wire sent,
+  // which is what every surface in this product that prints a *through* does
+  // today — `OverviewSourceNote`'s `Observed through` and `FeedIndicator`'s
+  // `Showing data through` both draw a bar's own `startsAt` raw.
+  //
+  // It cannot be verified by reading the check: the first draft of the
+  // invariant was *the builder reads `observedAt`*, and the defect that
+  // matters — a second producer folding its own instant off
+  // `overview.figures` — passed it green. That transcript is in Task 4.7.4's
+  // record; this break proves the half a one-file grep can see.
+  {
+    name: "the-footer-age-drops-its-interval",
+    proves:
+      "The age two regions state beside their denominator is drawn from a " +
+      "bar's own `startsAt`, which is the **start** of the minute the bar " +
+      "describes. Measured with a control (`LIVE-DATA.md` §7.3): one " +
+      "stamped `14:01:00Z` arrives at `14:02:00.5Z`, so the data reaches " +
+      "through 14:02 and the raw read says 14:01 — under-stating the " +
+      "reach by a minute, in the direction that makes a healthy feed look " +
+      "behind. Task 3.3.4 made the same correction in `feed-liveness.ts`, " +
+      "where leaving it out made `live` structurally unreachable during a " +
+      "session, silently, with every test green.",
+    file: "apps/frontend/src/market/measured-set.ts",
+    find: "  const closedAt = new Date(startsAt + OBSERVATION_INTERVAL_MS);",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  const closedAt = new Date(startsAt);",
+    command: ["pnpm", "invariants"],
+    expect: "without adding `OBSERVATION_INTERVAL_MS`",
+  },
 ];
