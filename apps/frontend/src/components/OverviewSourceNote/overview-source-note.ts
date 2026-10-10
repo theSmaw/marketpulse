@@ -245,7 +245,13 @@ function closesClause(overview: WireMarketOverview): FeedClause | null {
  * Task 4.8.12. `computedAt` is when the **join ran**, and the gateway reaches
  * the producer on every connect and every subscribe as well as on every
  * applied batch — three joins per cold load of `/`, counted off the wire
- * (Task 4.8.3). So on a feed that has stopped this line advanced with no
+ * (Task 4.8.3). **Amended 2026-10-10 by Task 4.7.3: the connect and the
+ * subscribe stopped being joins**, because the gateway serves its last
+ * broadcast aggregate to a joining browser — so on a process that has
+ * broadcast once, `computedAt` no longer advances when somebody opens a tab at
+ * all. That removes the *cause* of the defect below on one path and changes
+ * nothing about this repair: the cold-start arm still computes on connect, and
+ * a drawn instant must say when the data was true whatever produced it. So on a feed that has stopped this line advanced with no
  * market data behind it, and the sentence a reader takes as *when this data
  * was true* was in fact **the minute they opened the tab**. ADR 0038 had
  * anticipated the instant moving with nothing behind it and concluded only

@@ -776,6 +776,15 @@ describe("the overview frame, over a real socket (Task 4.2.4)", () => {
     // The producer here stamps its own `computedAt` on each call, which is
     // what `index.ts`' `marketOverview()` does with `new Date()`, while the
     // observation behind it is fixed.
+    //
+    // **Amended 2026-10-10 by Task 4.7.3: this now holds only BEFORE the
+    // first broadcast, and the test is deliberately in that state.** The
+    // snapshot path serves `lastBroadcastOverview` where there is one, so
+    // after any applied batch two tabs read **one** `computedAt` — which is
+    // the repair's second property rather than a loss. Nothing has been
+    // published here, so the two tabs below each pay their own join and
+    // 4.8.12's Done-when 2 is asserted on the arm where it still applies.
+    // The *count* of three paths is unchanged; two of them no longer compute.
     const produce = (): WireMarketOverview => ({
       ...figures,
       computedAt: new Date().toISOString(),
@@ -852,6 +861,204 @@ describe("the overview frame, over a real socket (Task 4.2.4)", () => {
     // One compute, one broadcast — Task 4.1.1's decision 1. A `bars` payload
     // genuinely differs per client; this one does not.
     expect(built).toHaveBeenCalledOnce();
+  });
+});
+
+describe("a join is served the last broadcast aggregate (Task 4.7.3)", () => {
+  /** Block-scoped, like the one above it. */
+  const subscribe = (client: Client, symbols: readonly string[]): void => {
+    client.socket.send(
+      encodeMarketStreamClientMessage({
+        type: "subscribe",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        symbols,
+      }),
+    );
+  };
+
+  /**
+   * **The two aggregates are the two sides of the defect, in miniature.**
+   *
+   * `HELD` is what a reader was looking at when the feed stopped — a figure,
+   * with an `observedAt`. `FRESH_JOIN` is what the producer returns once the
+   * five-minute window behind breadth and movers has emptied while the proxy
+   * entry has no expiry at all: in production the two halves disagree inside
+   * **one** aggregate, and here the whole thing is poorer, which is the same
+   * claim with less scaffolding. What must not happen is that a join the
+   * reader did not ask for replaces the first with the second.
+   */
+  const HELD: WireMarketOverview = {
+    computedAt: "2026-10-10T14:02:00.000Z",
+    observedAt: "2026-10-10T14:01:00.000Z",
+    feeds: ["iex"],
+    figures: [
+      {
+        state: "observed",
+        symbol: "SPY",
+        at: "2026-10-10T14:01:00.000Z",
+        price: 655.2,
+        changePercent: 0.63,
+        changeBasis: "2026-10-09",
+      },
+    ],
+  };
+
+  const FRESH_JOIN: WireMarketOverview = {
+    computedAt: "2026-10-10T14:40:00.000Z",
+    feeds: [],
+    figures: [{ state: "unknown", symbol: "SPY" }],
+  };
+
+  /**
+   * A producer that answers richly until `starve()`, then poorly.
+   *
+   * **This is the instrument that makes the claim assertable at all.** The
+   * gateway cannot be asked *did you recompute* from the wire — a served
+   * aggregate and a recomputed one are the same frame type, and Task 4.8.11
+   * recorded the same trap one path over, where the obvious wire-level
+   * assertion was **green on the defect**. So the producer's answer *changes*
+   * between the broadcast and the join, and the frame the join receives names
+   * which of the two the gateway served.
+   */
+  const producer = (): {
+    overview: () => WireMarketOverview;
+    starve: () => void;
+    calls: () => number;
+  } => {
+    let starved = false;
+    let calls = 0;
+
+    return {
+      overview: () => {
+        calls += 1;
+        return starved ? FRESH_JOIN : HELD;
+      },
+      starve: () => {
+        starved = true;
+      },
+      calls: () => calls,
+    };
+  };
+
+  const overviewsOf = (client: Client): Record<string, unknown>[] =>
+    client.received
+      .filter((message) => message.type === "overview")
+      .flatMap((message) =>
+        message.overview === undefined ? [] : [message.overview],
+      );
+
+  it("serves a NEW browser what was last broadcast, not a fresh join", async () => {
+    // The reload. A tab is open and the gateway has broadcast an aggregate
+    // with figures in it; the feed then stops, so the producer's answer goes
+    // poor. A second tab — or the same one, reloaded — must read what the
+    // first one reads.
+    const feed = producer();
+    const a = await attach(new Map(), undefined, feed.overview);
+    await a.waitFor("overview");
+
+    a.gateway.publishObservations([
+      observation("2026-10-10T14:01:00Z", 214.75),
+    ]);
+    await a.waitForCount("overview", 2);
+
+    feed.starve();
+    const reloaded = await a.join();
+    await reloaded.waitFor("overview");
+
+    expect(overviewsOf(reloaded)).toEqual([HELD]);
+  });
+
+  it("serves the last broadcast on SUBSCRIBE too, which is the second join a cold `/` paid", async () => {
+    const feed = producer();
+    const a = await attach(new Map(), undefined, feed.overview);
+    await a.waitFor("overview");
+
+    a.gateway.publishObservations([
+      observation("2026-10-10T14:01:00Z", 214.75),
+    ]);
+    await a.waitForCount("overview", 2);
+    a.received.length = 0;
+    feed.starve();
+
+    subscribe(a, ["NVDA"]);
+    await a.waitFor("overview");
+
+    expect(overviewsOf(a)).toEqual([HELD]);
+  });
+
+  it("does not call the producer at all on a join after a broadcast", async () => {
+    // **The other end of the same claim**, and the one a re-implementer
+    // cannot satisfy by accident: two of the three paths Task 4.8.3 counted
+    // off the wire stop being joins. Asserted on the producer rather than on
+    // the frame, because `overview()` is `index.ts`'s unmemoised join over
+    // all 518 securities and *not called* is the whole saving.
+    const feed = producer();
+    const a = await attach(new Map(), undefined, feed.overview);
+    await a.waitFor("overview");
+
+    a.gateway.publishObservations([
+      observation("2026-10-10T14:01:00Z", 214.75),
+    ]);
+    await a.waitForCount("overview", 2);
+
+    const afterBroadcast = feed.calls();
+    const b = await a.join();
+    await b.waitFor("overview");
+    subscribe(b, ["NVDA"]);
+    await b.waitForCount("overview", 2);
+
+    expect(feed.calls()).toBe(afterBroadcast);
+  });
+
+  it("serves a COMPUTED aggregate when nothing has been broadcast yet", async () => {
+    // **The cold-start arm, and it is a decision rather than a fallback.** A
+    // process that has never broadcast has no reader whose figures it could
+    // contradict, and what it computes is the true answer about what it
+    // holds — out of hours, and on a deployment with no provider configured,
+    // the last stored closes. If an absent memo meant an absent frame,
+    // Story 4.2's `all-stored-one-session` and `no-provider-configured`
+    // states would stop being reachable on a cold load.
+    const feed = producer();
+    const a = await attach(new Map(), undefined, feed.overview);
+    await a.waitFor("overview");
+
+    expect(overviewsOf(a)).toEqual([HELD]);
+    expect(feed.calls()).toBe(1);
+  });
+
+  it("serves the NEWEST broadcast, not the first one", async () => {
+    // A memo that is written once is a different defect wearing the same
+    // clothes: every tab opened after 09:30 would read the open's figures
+    // for the rest of the day. `lastBroadcastOverview ??= overview()` is the
+    // one-character version of it.
+    //
+    // **This one is GREEN on the defect this block repairs**, and it is kept
+    // with that written down: a gateway that recomputes on every connect also
+    // serves the newest figures, so the assertion cannot tell the pre-repair
+    // code from the repaired code. It guards the hazard the repair itself
+    // introduces. The three above it are the ones that go red — see Task
+    // 4.7.3's record, which keeps the transcript of three weaker drafts
+    // passing wrongly.
+    const second: WireMarketOverview = {
+      ...HELD,
+      computedAt: "2026-10-10T15:30:00.000Z",
+    };
+    let current = HELD;
+    const a = await attach(new Map(), undefined, () => current);
+    await a.waitFor("overview");
+
+    a.gateway.publishObservations([
+      observation("2026-10-10T14:01:00Z", 214.75),
+    ]);
+    await a.waitForCount("overview", 2);
+    current = second;
+    a.gateway.publishObservations([observation("2026-10-10T14:02:00Z", 215.1)]);
+    await a.waitForCount("overview", 3);
+
+    const b = await a.join();
+    await b.waitFor("overview");
+
+    expect(overviewsOf(b)).toEqual([second]);
   });
 });
 

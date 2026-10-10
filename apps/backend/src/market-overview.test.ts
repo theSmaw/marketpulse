@@ -895,6 +895,13 @@ describe("the aggregate's observation instant", () => {
     // connect and every subscribe — three joins per cold load of `/` — so
     // `computedAt` differs between two frames nothing has reached the market
     // about. The instant a reader is shown must not.
+    //
+    // **Amended 2026-10-10 by Task 4.7.3: those two paths serve the last
+    // BROADCAST aggregate now**, so a cold load pays one join once anything
+    // has been broadcast and the two frames above are the same object. The
+    // claim here is unchanged and is still the producer's own: the gateway
+    // decides when a browser is told something, and a builder that re-dated
+    // `observedAt` would be wrong whether or not anybody re-called it.
     const entries = [liveOn(SPY, "2026-09-14T17:03:00.000Z")];
 
     const first = toWireMarketOverview({

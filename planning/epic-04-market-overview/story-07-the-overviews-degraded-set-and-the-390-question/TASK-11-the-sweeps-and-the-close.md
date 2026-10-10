@@ -68,3 +68,34 @@ state_. The subject document. Then Gate 2.
    its break
 4. `STORY.md` says which criteria are met and which row is owed
 5. `pnpm verify` and `pnpm e2e` green, and Gate 2 put to the owner
+
+---
+
+## Handed here by Task 4.7.3 — 2026-10-10: three things for the sweeps
+
+Written here rather than linked.
+
+**1. `three joins per cold load of `/`` is now false wherever it is a live
+claim**, because `sendSnapshot()` serves the last broadcast aggregate. Swept on
+2026-10-10 across sixteen files: amended in `docs/adr/0038`,
+`scripts/check-invariants.mjs`, `scripts/breaks.mjs`,
+`apps/backend/src/market-gateway.ts`, `market-gateway.process.test.ts`,
+`market-overview.test.ts`, `apps/frontend/src/components/OverviewSourceNote/overview-source-note.ts`
+and `planning/epic-14-performance-scale-validation/EPIC.md`. **Left standing as
+historical records**: Story 4.8's `STORY.md` and its task files 4.8.3, 4.8.8,
+4.8.10, 4.8.11 and 4.8.12, which record what was true when they were written.
+**Re-grep at the close** — `grep -rn "three joins"` — because the sweep was
+taken before this story's remaining tasks were written.
+
+**2. The per-cold-load join product is now an estimate of a different thing.**
+Task 4.8.11 had already said the ~4.6 ms rescale was an estimate rather than a
+measurement; the count behind it has moved from three to one. If anything wants
+the figure, re-take it with Task 4.8.11's recipe rather than dividing.
+
+**3. One `docs/GAPS.md` entry was added and it is a condition rather than a
+story**: _A replica restarted mid-session still serves its first browser a thin
+aggregate_. Owner is the first deploy mid-session somebody watches `/` across.
+Three candidate repairs are priced in it and none is costed; the cheapest
+honest one — withholding the aggregate frame when there is no last broadcast —
+is **refused with a reason** there, because it deletes two of Story 4.2's
+sixteen states from every cold load.
