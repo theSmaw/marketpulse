@@ -471,3 +471,107 @@ problem **plus** invariant 1's requirement that every score carries its
 explanation: the explanation has to state the population it was computed over,
 or `82% of semiconductors are negative` gets said about whatever few of that
 industry group were heard from.
+
+## Handed here by Task 4.8.8 — 2026-10-09: Epic 14's trigger now has a SECOND condition, for `/`, and this epic can fire it and the backend one in the same story
+
+**This file already quotes Epic 14's trigger twice** — in _"A condition this
+epic is most likely to fire"_ and again under Story 3.6's close — and both
+quotations are still exactly right. **What is new is that there are now two
+conditions rather than one**, because the original is written against
+`/securities` and cannot fire on the landing page at all. Written here in words
+this epic can act on rather than as a link, because this is the epic the
+trigger was written **about**.
+
+### The two conditions, as they stand on 2026-10-09
+
+**The original, unchanged, for `/securities`** — _the first time a **second**
+surface on that page renders per-row markup at universe scale_. An
+`AnomalyBadge` in every row of the tracked-universe table is the thing it was
+written for, and this file has said so since 2026-09-22.
+
+**The new one, for `/`** — _**the first surface on `/` that renders one element
+per tracked security**_. **First**, not second, and that is deliberate: on
+`/securities` the first such surface **is already the breach**, so the question
+there is when it doubles; on `/` the first one **creates** a breach, because the
+518-security payload both routes fetch is **already paid** (≈6 ms) and the
+518-row markup is **not** (≈48 ms). Do not harmonise the two wordings — the
+words differ because the baselines differ.
+
+**And a third condition, on the backend, which is where a score per security
+would actually be computed** — the overview join's own callback. It has two
+halves, both counts:
+
+- _the first time the subscribe message in `apps/backend/src/alpaca-stream.ts`
+  carries a channel other than `bars` and `updatedBars`, **or** the aggregate is
+  produced from a call site the three existing on 2026-10-09 do not include_
+  (held by `pnpm invariants`' `the-aggregate-has-three-producer-paths`);
+- _the first computation added to that callback that **derives a figure per
+  security**, rather than ranking or counting figures the join has already
+  produced._
+
+### Why this epic can fire two of them in ONE story, and what that costs
+
+**1. `AnomalyBadge` already exists, and so does its row.**
+`apps/frontend/src/components/AnomalyBadge/` ships with stories and tests, and
+`apps/frontend/src/components/SecurityRow/SecurityRow.tsx` **already composes
+it** (`<AnomalyBadge band={band} />`). Neither is in any route — `SecurityRow`
+is referenced by its own stories, its own test and one CSS comment, nothing
+else — so **the edit that fires the trigger is far smaller than the condition
+sounds**: a band per row, into a component that already draws one. That is the
+whole warning. A condition that takes a day to fire gets noticed; one that takes
+twenty minutes does not.
+
+**2. The cold-load repair comes with it, and it is measured rather than
+asserted.** `/securities` draws a long animation frame of **62.8–77.4 ms on 10
+of 10 cold loads** today (Task 4.8.6, production build, 1440×900, 40
+interleaved loads). **≈48 ms of it is the 518-row markup** — the attribution is
+licensed by a **20-row control on the same artefact in the same session**, which
+collapses the worst frame to the one-frame floor, and the frame's own split
+agrees from inside: script 26–31 ms on both routes, and the whole difference in
+**style, layout and paint, 34–38 ms over 9,871 extra nodes (10,318 against
+447), ≈3.9 µs a node**. A per-row badge is markup over the same row count on
+the same page. **If this epic puts a score in that table, the repair
+(`SEARCH-AND-SELECTION.md` §10's three candidates) is due in this epic and not
+at Epic 14's convenience.**
+
+**3. The cheap product answer and the cheap performance answer are the same
+answer.** `PRODUCT_SPEC.md` §9's _Unusual Activity_ panel is **a short list, not
+518 rows** — and `/`'s reserved region for this epic is that panel. A top-N
+ranked list fires **neither** condition: `Movers` renders ten rows on `/` and
+Story 4.5's verdict on exactly that question was recorded in Epic 14's file and
+did not fire. So the version of this feature that §9 already specifies is also
+the version that costs nothing to draw. Choosing the other one is fine;
+**choosing it by accident is not**, and this paragraph exists so that it is a
+choice.
+
+**4. On the backend: rank what the join produced; do not re-derive it there.**
+This is the sharpest number this epic inherits. Story 4.5's top-N over 503
+securities, inside the same socket callback, cost **0.28–0.41 ms** (re-taken by
+Task 4.8.3 on interleaved arms at **0.118–0.123 ms**) because it **ranked
+figures the join had already produced**. A **per-security derivation** in that
+callback is a different shape entirely: the one this product has measured is
+`marketDateAt` over 518 instants, at **1.29 ms** after Task 4.8.7's repair and
+**3.37 ms** before it — an order of magnitude more than the ranking, for one
+conversion per security. A score per security computed in that callback is that
+shape, not Story 4.5's. The join's own entries already carry a price, a
+`change` and a `direction`; read them.
+
+### Two measurement rules this epic will otherwise rediscover
+
+**No gated machine has ever seen any of this cost, and none can.** CI's store
+is 518 securities and **zero bars**, so the join reads **0.013 ms** with nothing
+observed and the aggregate frame is **928 bytes** for ever. `pnpm e2e` cannot
+assert any figure here, and jsdom computes no layout so nothing below it can see
+the cold load either. Every performance claim in this epic will have to be taken
+locally against a populated store, with the instrument proved by a plant on the
+page that produced the figure.
+
+**And every absolute figure above is a tight-loop figure on one laptop.** At a
+250 ms gap the same backend computation reads ×2.4–3.5 higher — and so does a
+fixed-cost control that does no ICU work and no allocation, so the inflation is
+this machine waking from idle rather than the computation. The **ratios** are
+safe and the **absolutes** are not a production cost on any machine. The
+**browser** side carries **no such multiplier**: the identical calibrator reads
+**×1.00** in a visible renderer at gaps of 3.7 s and 8.8 s, five arms out of
+five. **Two caveats, not one** — a verdict that treats them as one will be wrong
+about one of them.

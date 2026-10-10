@@ -84,6 +84,15 @@ import { AN_EMPTY_PLOT, expectNothingFailedToRender } from "../support/app.js";
 //     universe table rather than the chart — has a named owner in Epic 14. A
 //     timing assertion here would be a check that teaches everybody to re-run
 //     it.
+//
+//     **Corrected 2026-10-09 by Task 4.8.8, on the unit and not the number:**
+//     the breach is **one FRAME** over the line on every cold load, 62.8–77.4
+//     ms over 10 of 10 loads, of which only 26–31 ms is script — and the
+//     `longtask` channel that produced `50–76` reports **nothing** today. It is
+//     unchanged and still Epic 14's. The reason not to assert a duration here
+//     is unchanged and is now stronger: three channels disagree about this
+//     page, and a post-merge check over one link could not tell which of them
+//     had gone quiet.
 
 const SECURITIES = "/securities";
 

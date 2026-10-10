@@ -108,3 +108,37 @@ core.**
       because Task 4.8.1 already measured that a load average alone is not
       something a browser can feel, and this is the converse: a core's worth of
       load whose cause is not in the tree any more.
+
+## Handed here by Task 4.8.8 — 2026-10-09: `security-gap-fill`'s stated mechanism now rests on a task nobody can observe
+
+**The `docs/GAPS.md` entry you are about to characterise names a mechanism that
+has moved under it, and the correction makes the hypothesis WEAKER rather than
+wrong.** That entry says the ~12% flake is plausibly _"a 160 ms threshold
+sitting on top of a documented 50–76 ms **task** that lands at a variable
+moment"_. Task 4.8.6 re-measured the page it describes, 40 interleaved cold
+loads with two 20-row control arms, and:
+
+- the `longtask` channel reports **nothing at all** on `/securities` — **0 of
+  10 loads**, where 2026-09-22 read 50–56 ms on 7 of 10;
+- the cost is unchanged and is now **one frame over the line on 10 of 10
+  loads, 62.8–77.4 ms**, of which **script is 26–31 ms** and **style, layout
+  and paint 34–38 ms**.
+
+**Two consequences for your characterisation.**
+
+**1. The mechanism as written is unobservable with the instrument the entry
+names.** A 34–38 ms render half spread across a frame has a different arrival
+profile against a 160 ms threshold than a single 50–76 ms task does, and
+nothing in this repository has measured where the 160 ms goes. The entry now
+carries a dated amendment saying so; **the figure and the owner are handed to
+you.** You are also the task its owner clause names — _the first task that
+measures where the security page's refill spends its 160 ms_.
+
+**2. Use all three channels and prove each with a plant, or an arm that
+reports zero will look proved.** `longtask`, `long-animation-frame`, and the
+rAF-gap recorder. **A channel going quiet and a cost going away produce the
+same output**, and that is not a hypothetical here: it has already happened
+once to this exact page's published figure. Task 4.8.6's plant was 120 ms,
+caught by both observers on all 40 loads, taken **after each measurement
+window on the page that produced the figure** — which is the only form of the
+proof that certifies the arm it is on.

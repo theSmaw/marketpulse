@@ -223,6 +223,16 @@
    * to size columns it has already been told. It stays for that figure; the
    * record is Task 3.6.5's.
    *
+   * **Unit corrected 2026-10-09 by Task 4.8.8 — the 2026-09-22 reading above
+   * is a historical record and stands; the present tense in it does not.**
+   * There is no longer *one task every load of this page spends*: re-measured
+   * on 40 interleaved cold loads, the cold load is **one frame over 50 ms on
+   * 10 of 10 loads, 62.8–77.4 ms**, of which only **26–31 ms** is script and
+   * **34–38 ms** is the engine's own style, layout and paint — and the
+   * `longtask` channel that produced both figures above reports **nothing**.
+   * This line is unaffected either way: what it bought was layout work, which
+   * is in the half that is still there and is still the larger half.
+   *
    * What changes for a reader at those widths: nothing — a fixed layout
    * honours the same proportions, and the columns that must not wrap
    * (`Close`, `Change`, `History`) hold bounded strings and were sized for

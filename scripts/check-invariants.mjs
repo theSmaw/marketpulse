@@ -2826,6 +2826,229 @@ const INVARIANTS = [
     },
   },
 
+  {
+    id: "the-aggregate-has-three-producer-paths",
+    claim:
+      "`overviewMessage()` is reached by at most THREE paths in " +
+      "`market-gateway.ts` — on connect and on every readable `subscribe` " +
+      "message, both through `sendSnapshot()`, and once per applied batch " +
+      "from `publishObservations`. Three is NOT endorsed as correct; a " +
+      "fourth is a decision somebody has to take rather than a defect to " +
+      "discover.",
+    check() {
+      // **The count a condition rests on** (Task 4.8.8). Epic 14's repaired
+      // 2026-10-07 clause fires on *the aggregate being produced from a call
+      // site the three existing on 2026-10-09 do not include* — and a
+      // condition keyed on a call-site count reads identically whether
+      // anything holds it or not.
+      //
+      // ## Two checks already stand here and NEITHER counts this
+      //
+      //  - `the-overview-frame-is-not-a-heartbeat` holds the **feed path**
+      //    (four regions that may not mention the word) and the single
+      //    **encode site** (`type: "overview"`, at most one).
+      //  - `one-producer-of-the-overview-aggregate` holds one call site of
+      //    **`buildMarketOverview`**.
+      //
+      // A fourth *send* of the one encoded frame, from a timer of its own,
+      // adds no encode site, mentions the overview in none of those four
+      // regions, and calls `buildMarketOverview` not once. **Produced before
+      // this check was written**: a `setTimer(() => { if (clients.size > 0)
+      // broadcast(overviewMessage()); }, 30_000)` placed immediately after the
+      // keepalive — outside its slice by one line — ran against the shipped
+      // invariants and reported `50 invariants hold.` That is the file the
+      // next story writes, and it was green.
+      //
+      // ## Why PATHS rather than call sites, and why that is not a timing
+      //
+      // There are two textual call sites and three ways in, because
+      // `sendSnapshot()` has two callers: the connect and the `message`
+      // listener. Task 4.8.3 counted it off the wire — a cold `/` receives
+      // three `overview` frames and pays three joins, because `overview()` is
+      // unmemoised. So the honest count is **callers of `sendSnapshot()` plus
+      // direct calls outside it**, and every term in it is read off the text.
+      //
+      // ## Three is a number this check reports, not a number it defends
+      //
+      // The claim says so in as many words. Two of the three are arguably one
+      // too many already (Task 4.8.3's 11.2 ms of server script per browser
+      // opening `/`), and Task 4.8.11 holds a decision about the path that
+      // runs with nobody attached. What this check refuses is a **fourth
+      // arriving unnoticed** — not a fourth existing.
+      const WHERE = "apps/backend/src/market-gateway.ts";
+      const text = withoutComments(readAnchored(resolve(REPO_ROOT, WHERE)));
+
+      /**
+       * Every occurrence of `name` as a definition or as a call.
+       *
+       * Deliberately not a parser. `one-producer-of-the-overview-aggregate`'s
+       * recorded lesson is that an unclassified occurrence is where a second
+       * site hides, so each one is sorted into exactly one bucket and anything
+       * unrecognised is ignored by name rather than by accident.
+       */
+      const occurrencesOf = (name) => {
+        const definitions = [];
+        const calls = [];
+
+        for (const match of text.matchAll(new RegExp(`\\b${name}\\b`, "gu"))) {
+          const at = match.index;
+          const before = text.slice(Math.max(0, at - 24), at);
+          const after = text.slice(at + name.length);
+
+          if (/(?:function|const|let|var)\s+$/u.test(before)) {
+            definitions.push(at);
+            continue;
+          }
+
+          if (/^\s*\(/u.test(after)) calls.push(at);
+        }
+
+        return { definitions, calls };
+      };
+
+      const message = occurrencesOf("overviewMessage");
+      const snapshot = occurrencesOf("sendSnapshot");
+
+      // **The anchor.** Both names must still be defined exactly once, or this
+      // check is counting the absence of something that has simply moved —
+      // `CLAUDE.md`'s *a grep that matches nothing looks exactly like a grep
+      // that passes*.
+      for (const [name, found] of [
+        ["overviewMessage", message],
+        ["sendSnapshot", snapshot],
+      ]) {
+        if (found.definitions.length !== 1) {
+          throw new InvariantFailure(
+            `${WHERE}: ${String(found.definitions.length)} definitions of ` +
+              `\`${name}\`, expected exactly 1. This check counts the paths ` +
+              "to the overview aggregate, so it must be able to find them. " +
+              "If the gateway was restructured, repoint this check in the " +
+              "same change — and re-count the paths while you are there.",
+          );
+        }
+      }
+
+      /**
+       * A block delimited by its **Prettier-formatted indentation**, with a
+       * sentinel proving the slice is the block meant.
+       *
+       * The same shape as `the-overview-frame-is-not-a-heartbeat`'s regions
+       * and for the same recorded reason: a brace matcher is walked past by a
+       * destructured parameter, a brace in a string, or a brace in a trailing
+       * comment, and three such routes were demonstrated in review.
+       */
+      const regionOf = ({ name, from, to, sentinel }) => {
+        const start = text.indexOf(from);
+        if (start === -1) {
+          throw new InvariantFailure(
+            `${WHERE}: cannot delimit \`${name}\` — no start marker ` +
+              `\`${from.trim()}\`. A grep that matches nothing looks ` +
+              "exactly like a grep that passes.",
+          );
+        }
+
+        const stop = text.indexOf(to, start + from.length);
+        if (stop === -1) {
+          throw new InvariantFailure(
+            `${WHERE}: cannot delimit \`${name}\` — no end marker ` +
+              `\`${to.trim()}\` after it.`,
+          );
+        }
+
+        const region = { name, start, end: stop + to.length };
+
+        if (!text.slice(region.start, region.end).includes(sentinel)) {
+          throw new InvariantFailure(
+            `${WHERE}: the slice taken for \`${name}\` does not contain ` +
+              `\`${sentinel}\`, so the end marker matched earlier than the ` +
+              "block it delimits. The region is shorter than the code it is " +
+              "meant to bound, which is the silent-pass shape.",
+          );
+        }
+
+        return region;
+      };
+
+      const sendSnapshotBody = regionOf({
+        name: "sendSnapshot",
+        from: "\n      const sendSnapshot = (): void => {",
+        to: "\n      };",
+        sentinel: "overviewMessage()",
+      });
+
+      const publishObservationsBody = regionOf({
+        name: "publishObservations",
+        from: "\n    publishObservations(observations) {",
+        to: "\n    },",
+        sentinel: "overviewMessage()",
+      });
+
+      const within = ({ start, end }, at) => at > start && at < end;
+
+      // ## The three paths, each named with its cadence
+      //
+      // Named rather than totalled, because the failure message has to tell
+      // the next reader which cadence they added rather than only that the
+      // count moved.
+      const strays = message.calls.filter(
+        (at) =>
+          !within(sendSnapshotBody, at) && !within(publishObservationsBody, at),
+      );
+
+      if (strays.length > 0) {
+        throw new InvariantFailure(
+          `${WHERE}: ${String(strays.length)} call(s) to ` +
+            "`overviewMessage()` sit outside both known producers:\n      " +
+            strays.map((at) => `offset ${String(at)}`).join("\n      ") +
+            "\n    The three paths to the aggregate are: on CONNECT and on " +
+            "every readable SUBSCRIBE message (both through " +
+            "`sendSnapshot()`), and once per APPLIED BATCH from " +
+            "`publishObservations`. A fourth is a fourth cadence, and " +
+            "`overview()` is unmemoised — every call runs a full join over " +
+            "all 518 securities (Task 4.8.3: 3.72 ms, and 11.2 ms of server " +
+            "script for one browser opening `/` at three joins). Epic 14's " +
+            "2026-10-07 clause fires on this. Three is not endorsed as " +
+            "correct; a fourth is a DECISION, so take it in the epic's own " +
+            "file and then repoint this check.",
+        );
+      }
+
+      // **Both known producers must still hold exactly one call each.** Two
+      // calls inside `sendSnapshot` is two sends per connect, which the stray
+      // test above cannot see.
+      for (const region of [sendSnapshotBody, publishObservationsBody]) {
+        const here = message.calls.filter((at) => within(region, at));
+
+        if (here.length !== 1) {
+          throw new InvariantFailure(
+            `${WHERE}: \`${region.name}\` calls \`overviewMessage()\` ` +
+              `${String(here.length)} times, expected exactly 1. Each of ` +
+              "the three paths sends the aggregate once; a second send on " +
+              "one path is a second join on that path.",
+          );
+        }
+      }
+
+      // **And the two callers of `sendSnapshot()`**, which is what makes the
+      // count three rather than two. A third caller is a fourth path even
+      // though `overviewMessage()` gained no call site.
+      const callers = snapshot.calls.filter(
+        (at) => !within(sendSnapshotBody, at),
+      );
+
+      if (callers.length !== 2) {
+        throw new InvariantFailure(
+          `${WHERE}: \`sendSnapshot()\` has ${String(callers.length)} ` +
+            "callers, expected exactly 2 — the connect and the `message` " +
+            "listener. It sends the aggregate beside the snapshot, so a " +
+            "third caller is a fourth path to the join with no new call to " +
+            "`overviewMessage()` anywhere. Count the paths, not the call " +
+            "sites.",
+        );
+      }
+    },
+  },
+
   // ## Task 4.2.6's two, both on the proxy strip's honest states
   //
   // The first keeps the staleness sentence in one place; the second keeps the

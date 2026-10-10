@@ -427,6 +427,44 @@ and movers legs are not. There is no seam in `index.ts` that injects
 | Epic 14's trigger               | **Keep the wording; add a second condition for `/`** — clause A, the first surface on `/` rendering one element per tracked security; clause B, the first time the aggregate is produced at a cadence the bar feed does not set. **Clause B's check already exists and is break-verified**, and at the feed cadence the same join would be ~1.29 s of script a minute. |
 | Scope                           | All four selected: **measure the placeholder routes and record rather than repair**; **frame composition moves to Story 4.9** with a named condition; **characterise the three known flakes here**, on the settled machine this story needs anyway; and **measure the chart's per-tick rebuild** on `/securities/:symbol`.                                             |
 
+> **Amended 2026-10-09 by Task 4.8.8 — the trigger row above is HALF what
+> shipped, and the Gate 1 counts in it and in the task table below are
+> superseded.** Gate 1's decision was _keep the wording; add a second condition
+> for `/`_, and that is exactly what shipped — **but with ONE clause, not two.**
+>
+> **Clause A shipped as written**, with a measured price attached before it
+> fires (24.7 ms → roughly 60–75 ms of worst frame) and recorded as a
+> **promotion**: those same words were already in Epic 14's file as the
+> reversal trigger of Story 4.5's verdict.
+>
+> **Clause B is WITHDRAWN and not replaced**, on two measurements taken after
+> Gate 1. It was already true on both of its readings — a cadence the bar feed
+> does not set **already exists and is accepted in writing** (`App`'s 30 s
+> health poll, Task 4.8.5, accepted since Task 1.12.3), and the aggregate is
+> **already** produced off the observations path (`overviewMessage()` has three
+> call paths, Task 4.8.3's three joins a browser) — and a condition that has
+> never been false cannot fire. Its `~1.29 s of script a minute` arithmetic was
+> also a **tight-loop** figure, over a `marketDateAt` that Task 4.8.7 then made
+> 2.6× cheaper. Its content was not discarded: it repaired Epic 14's own
+> 2026-10-07 clause in place, as a dated amendment, and the call-site count it
+> rested on is now held by `pnpm invariants`'
+> **`the-aggregate-has-three-producer-paths`** with the break
+> **`a-fourth-path-to-the-aggregate`** — because
+> `the-overview-frame-is-not-a-heartbeat` and
+> `one-producer-of-the-overview-aggregate` between them count the feed path, the
+> encode site and `buildMarketOverview`'s one call site, and **neither counts
+> the callers of `overviewMessage()`**.
+>
+> **And the sweep was 8 live sites rather than 13.** The narrowing is a rule
+> rather than a re-count: the **verdict** goes only to the file that owns the
+> trigger, the **second condition** only to sites whose subject includes `/` or
+> is Epic 14's ownership in general, and everything else is a dated record left
+> byte-identical. Verified count on 2026-10-09: `per-row markup at universe
+scale` appears **31 times across 20 files** (30 lines; `docs/GAPS.md` line 142
+> carries two on one line), of which **16 occurrences in 8 files** were touched
+> and **15 in 12 files** left standing. Task 4.8.8's own record carries the
+> table.
+
 ### The ten tasks
 
 | #      | Title                                                                | Why it exists                                                                                                                                     |
