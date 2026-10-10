@@ -236,6 +236,59 @@ claim a flake rate measured on it.**
 > a suite is executing cannot be attributed to anything else on the machine.
 > **Read the load before the run, never during it.**
 
+> **5. Two of those four verdicts moved on 2026-10-10, by Task 4.8.13, and the
+> movement changes what your suite verdict should say.** Read
+> [`TASK-13`](../story-08-the-overview-at-universe-scale/TASK-13-the-suites-own-two-repairs.md);
+> what you need in order to write the verdict is here.
+>
+> **`security-gap-fill` is no longer a 25% flake, and what is left is not a
+> flake at all.** Its predicate was repaired to count ADR 0028's cover by the
+> module class it owns rather than by text on a sibling. Pooled over 144
+> executions at four workers: **5.6% (Wilson 95% CI 2.8–10.6%)** against
+> **25.0% (CI 13.6–39.6%)** before — **non-overlapping** — and **0 / 24** at one
+> worker. **Do not write _this spec is flaky_ in the verdict without the next
+> sentence**: every one of the residual failures is `sample 0: ChartPending over
+Price` **and** `over Volume`, which is a **real cover drawn over both plots
+> during a refill nobody asked for**. That is the defect the test exists to
+> catch; the old predicate read **zero** against a deliberately covered page.
+> It is a **product** defect, it is routed to the developer in `docs/GAPS.md`,
+> and **it must not be counted in a flake rate** — a red there now means
+> something.
+>
+> **The `securities-route` MARGIN FAMILY is smaller.** Nine axe passes that ran
+> over all 518 rows are served a 27-row sample; one full-universe pass is kept,
+> on the test that installs no route. Scoped, nine passes went **68.0 s →
+> 13.5 s** and the two files **1.2 m → 35.3 s**.
+>
+> **Your `pnpm e2e` ×3 arm is TAKEN, 2026-10-10, and you do not owe it** —
+> scoped figures are not comparable with the 15–49 s taken inside a full run,
+> which is Task 4.8.9's own finding, so it had to be whole-suite. Three runs,
+> load read **before** each, against 4.8.9's three of the same morning which
+> were **0 of 3 clean** at 4.8 / 5.4 / 6.2 m with 1 / 1 / 3 failures:
+>
+> | run | load before       | load after | result                        |
+> | --- | ----------------- | ---------- | ----------------------------- |
+> | 1   | **5.32** (r 0.66) | 28.71      | `232 passed (3.1m)`           |
+> | 2   | **5.98** (r 0.75) | 27.39      | `1 failed, 231 passed (3.0m)` |
+> | 3   | **5.99** (r 0.75) | 25.21      | `232 passed (3.2m)`           |
+>
+> **2 of 3 clean, 3.0–3.2 m against 4.8–6.2 m, and not one timeout in the
+> three** — where the earlier three produced five, four of them axe over 518
+> rows. **Nothing from the ceiling family appeared at all.** The one failure is
+> a different shape and is now its own `docs/GAPS.md` entry, owned by you:
+> `overview-nothing-to-open:545` read an **empty ranked list**, 12 / 12 on an
+> immediate scoped re-run, and it is in one of the two specs this repository
+> names as immune to the empty-ranked-list trap because it furnishes its own
+> frame — the immunity is from CI's store and not from a race.
+>
+> **What is left of this for you is the `pnpm verify` ×24 arm and nothing
+> else.** And `n = 3` separates nothing: do not quote _2 of 3 clean_ as a rate.
+>
+> **And the second half of that family's repair is still not taken**: the
+> suite's own per-test ceiling. The family is smaller, not gone, and
+> Playwright still reports durations longer than the 30 s it enforces, so a
+> duration still cannot be read as a percentage of the ceiling.
+
 ### 2. The rehearsal ledger's eighth row is open
 
 Story 4.5's row is written and unwatched. **What makes it different from every

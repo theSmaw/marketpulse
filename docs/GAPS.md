@@ -1208,6 +1208,82 @@ the security page's refill spends its 160 ms_, is retired: Task 4.8.9 measured
 that this flake does not go through the refill at all. **Epic 14 still owes the
 cold-load frame**, which is its own entry.
 
+> **REPAIRED 2026-10-10 by Task 4.8.13 — and the assertion then found a real
+> cover, which is the part worth reading.** The owner clause above fired and is
+> discharged.
+>
+> **What it now counts.** `covers()` in the spec counts two things by identity
+> and nothing by text: `ChartPending` by the CSS-module class it owns
+> (`[class*="_pending_"]`, which is **one** class in the whole built
+> stylesheet, `_pending_xij4y_17`, and is rendered by both plots), and
+> `BarSeriesPanel`'s `Reading the series…` — the second because `seen` cannot
+> see a panel **replaced** rather than covered: `priceLine` returns the longest
+> path on the page, so with the plot gone it returns a chrome icon's `d`,
+> non-empty and changed, which breaks the loop and **passes**. The window was
+> deliberately **not** widened.
+>
+> **The old predicate would have passed on the defect it exists to catch.**
+> Proved rather than argued, with a throwaway spec that delayed every
+> `GET /market-data/bars` by 3 s and pressed `1M`, i.e. produced ADR 0028's
+> cover on purpose, verbatim:
+>
+> ```text
+> PLANT — repaired predicate counted 2; the old text predicate counted 0
+> ```
+>
+> `2`, because both plots draw the cover. So the broken predicate was not only
+> failing wrongly 25% of the time; against a page that genuinely **was**
+> covered it read zero.
+>
+> **The rate, at four workers, pooled over three takes differing only in what
+> the failure PRINTS: 8 / 144 = 5.6% (Wilson 95% CI 2.8–10.6%)**, against
+> 12 / 48 = 25.0% (CI 13.6–39.6%) before. **The two intervals do not overlap.**
+> At `--workers=1`: **0 / 24 (CI 0–13.8%)**. Load either side of every arm,
+> ratio under 0.75 before each; the machine ran 5.0–5.9 before and 11.2–13.2
+> after, which is the browser suite being its own plant.
+>
+> **And the 5.6% residual is a DIFFERENT finding from the 25%: it is a real
+> cover, and it is a PRODUCT defect rather than an instrument one.** Every
+> failure, identically:
+>
+> ```text
+> Error: a cover was drawn over a plot during a refill nobody asked for
+>     + Array [
+>     +   "sample 0: ChartPending over Price",
+>     +   "sample 0: ChartPending over Volume",
+>     + ]
+> ```
+>
+> **`sample 0`, both plots, never a later sample, and 0 of 24 at one worker.**
+> The page has already drawn the short series — `before` is non-empty and the
+> spoken sentence carries the short count — so the only request that can be in
+> flight when the loop opens is the **refill**, and ADR 0028's 160 ms cover is
+> being drawn over it. That is precisely what this test exists to forbid:
+> _nobody asked for the refill, so it must not look like a wait_ — a socket
+> that blinked 38 times in 4h 36m on 2026-09-22 must not pulse a panel over the
+> chart 38 times. **It is reachable in production**: any refill whose answer
+> takes over 160 ms draws it, and the suite's four workers are only one way of
+> making an answer slow.
+>
+> **Routed to the developer, not repaired here** — Task 4.8.13's brief permits
+> no product code. What is unknown is whether the refill path is marked
+> `loading` in the state machine at all, or whether a second request
+> (`withLiveEdge`'s, the resume's) is what `usePendingPanel` is seeing;
+> `held-series.ts` and `use-pending-panel.ts` are where that is decided.
+> **Neither ADR 0028's 160 ms nor the sampling window may be relaxed to make
+> this green.**
+>
+> **Re-measure:** `pnpm e2e security-gap-fill.spec.ts --repeat-each=48
+--workers=4`, load ratio under 0.75 before the arm, counting failures per
+> **execution** and reading the **sample index** in each failure. A failure at
+> `sample 0` is this defect; a failure at a later sample is a new one; a
+> failure naming `Reading the series…` is the panel being replaced rather than
+> covered. **n = 48 at four workers separates 25% from 5.6% and cannot separate
+> 5.6% from 0%.**
+>
+> **Owner: the first task that may change `apps/frontend/src/market/` or
+> `use-pending-panel.ts`.**
+
 ## `security-feed-degraded.spec.ts`'s `killing the feed leaves the page exactly as it was` compares a live page against a baseline taken before the kill
 
 **Added 2026-09-26 (diagnosed by Task 4.2.7, transcribed here by Task 4.2.8).
@@ -1851,6 +1927,119 @@ timeout: either axe stops being run over 518 rows at four viewports, or the
 suite's ceiling is a decision taken once for the family. **Both are owner
 decisions and neither was taken here.**
 
+> **The first of the two was taken 2026-10-10 by Task 4.8.13, at the owner's
+> decision: axe stops being run over 518 rows, except once.** Nine axe passes —
+> the three `securities-route` viewports, the open result surface, the
+> no-closes surface, the no-matches sentence, and the Explorer shell's three
+> widths — are served a **trimmed** universe through
+> `e2e/support/universe.ts`. One pass keeps all 518 rows: `securities-route`'s
+> _the tracked universe renders from the real pair_, which is also the one test
+> that installs **no route at all** and therefore could not have been trimmed
+> anyway.
+>
+> **The argument is about what axe measures.** Its findings are per **rule**
+> and per **element kind**, not per element, so 518 rows of one shape exercise
+> the same rules as 27 of the same shapes. What 518 rows uniquely test is
+> **duration** — `pnpm probe`'s job and Epic 14's, not axe's. The trim is a
+> **sample, not a slice**: a head slice of twenty symbols would have dropped
+> the market-proxies group, ten of eleven sector bands and both ETF kinds, so
+> it keeps every ETF, one equity per sector, and `NVDA`/`AAPL` by name —
+> **27 rows**. `expectTrimmed()` fences it: an interception that silently
+> misses would otherwise be an untrimmed slow pass under a trimmed label, which
+> is `SECURITIES_ROUTE_PATTERN`'s own recorded failure mode, and it caught that
+> on its first run (three Explorer-shell passes red at ~700 ms with
+> `served.length` of 0, because `Price` is visible long before
+> `GET /securities` is answered — the fence now polls).
+>
+> **The prize, measured rather than asserted.** `pnpm e2e
+securities-route.spec.ts security-explorer-shell.spec.ts --workers=4`, same
+> command, same machine, load 4.3–4.9 before and 5.2–7.2 after:
+>
+> | pass                                     | before    | after      |
+> | ---------------------------------------- | --------- | ---------- |
+> | loaded universe axe, 1280x720            | 8.2 s     | **1.6 s**  |
+> | loaded universe axe, 1280x560            | 7.4 s     | **1.2 s**  |
+> | loaded universe axe, 1280x480            | 7.2 s     | **1.3 s**  |
+> | open result surface, axe                 | 7.3 s     | **1.4 s**  |
+> | result surface, nothing has a close, axe | 7.3 s     | **1.3 s**  |
+> | a query that matches nothing, axe        | 7.2 s     | **1.3 s**  |
+> | Explorer shell axe, 1440px               | 7.7 s     | **1.6 s**  |
+> | Explorer shell axe, 1024px               | 8.4 s     | **1.9 s**  |
+> | Explorer shell axe, 640px                | 7.3 s     | **1.9 s**  |
+> | **the kept FULL 518-row pass**           | **8.7 s** | **9.9 s**  |
+> | the two files, 29 tests, wall clock      | **1.2 m** | **35.3 s** |
+>
+> Nine passes, **68.0 s → 13.5 s**, an 80% cut; the kept full pass is
+> unchanged, as it must be. **These are scoped figures and are not comparable
+> with the 15–49 s above**, which were taken inside a full suite run where four
+> Chromium workers are the load — scoped, a test has the machine to itself,
+> which is this entry's own finding. What the trim does to the **in-suite**
+> figures is read off a `pnpm e2e` run rather than this table.
+>
+> **What is still not taken is the second half: the suite's ceiling.** The
+> family is smaller, not gone, and the instrument caveat below still bounds
+> every figure here.
+>
+> **And the IN-SUITE reading, which is the one this entry is actually about —
+> three settled `pnpm e2e` runs, load read BEFORE each.** Against this entry's
+> own three runs of the same morning, which were **0 of 3 clean** at
+> 4.8 / 5.4 / 6.2 m with 1 / 1 / 3 failures:
+>
+> | run | load before       | load after | result                        | failed                                     |
+> | --- | ----------------- | ---------- | ----------------------------- | ------------------------------------------ |
+> | 1   | **5.32** (r 0.66) | 28.71      | `232 passed (3.1m)`           | —                                          |
+> | 2   | **5.98** (r 0.75) | 27.39      | `1 failed, 231 passed (3.0m)` | `overview-nothing-to-open:545` — assertion |
+> | 3   | **5.99** (r 0.75) | 25.21      | `232 passed (3.2m)`           | —                                          |
+>
+> **2 of 3 clean, and the wall clock is 3.0–3.2 m against 4.8–6.2 m.** No
+> failure in any of the three was a **timeout**, where the earlier three
+> produced five between them and four of those five were axe over 518 rows.
+> **Nothing from the ceiling family appeared at all.** The one failure is a
+> different shape — an assertion reading an empty ranked list — and is its own
+> entry below; it passed **12 / 12** when re-run scoped, and `n = 3` separates
+> nothing, which is said rather than glossed. **The suite is still its own
+> plant**: every run began at ~5.3–6.0 and ended at 25–29.
+
+## `overview-nothing-to-open.spec.ts`'s `the UN-PINNABLE hold state is reached by keyboard` read an EMPTY ranked list once in three settled full runs
+
+**Added 2026-10-10 by Task 4.8.13, which saw it in its own gate. A sighting,
+not a rate** — `CLAUDE.md`'s rule applies: n = 3 separates nothing.
+
+```text
+Error: expect(received).toEqual(expected) // deep equality
+- Array [ "XLK", "XLC", "XLY", "XLI", "XLF", "XLV", "XLB", "XLP", "XLE" ]
++ Array []
+ ❯ e2e/specs/overview-nothing-to-open.spec.ts:581:35
+```
+
+**Eleven expected tickers, zero received, at 1.2 s** — so the ranked `<ol>` was
+not on the page when the assertion ran, rather than ranked wrongly. **12 / 12
+on an immediate scoped re-run** at `--repeat-each=12 --workers=4`.
+
+**Why it is worth an entry rather than a shrug.** This spec is one of the two
+this file names as **immune** to the empty-ranked-list trap, because it
+**furnishes its own frame** — see _a sector-list keyboard assertion written
+against the real gateway is vacuous on the gate_, two entries up. The immunity
+is from CI's store, not from a race: a furnished frame still has to arrive,
+render and be read, and under four workers it evidently sometimes has not. So
+the mechanism that makes the assertion meaningful on a gated machine does not
+make it synchronous, and **`Array []` is the shape a vacuous assertion would
+also have** — here it failed loudly only because this one compares against a
+literal list. A sibling phrased as `toHaveCount(0)` would have passed.
+
+**It is not reachable from Task 4.8.13's changes**: the only importers of
+`e2e/support/universe.ts` are `securities-route.spec.ts` and
+`security-explorer-shell.spec.ts`, and this spec routes its own socket.
+
+**Re-measure:** `pnpm e2e overview-nothing-to-open.spec.ts -g "UN-PINNABLE hold
+state is reached by keyboard" --repeat-each=24 --workers=4`, load ratio under
+0.75 before the arm, counting failures per **execution**. If it is 0 / 24, the
+arm that reaches it is `pnpm e2e` whole — which is the suite being its own
+plant, and is expensive.
+
+**Owner: Story 4.9, beside its `pnpm e2e` ×3 arm**, which is the only place in
+the epic already paying for whole-suite executions.
+
 **One instrument caveat that bounds everything above.** Playwright reported
 **35.2 s, 36.2 s and 37.8 s for tests it marked PASSED**, against a default
 30 s per-test timeout that `playwright.config.ts` does not raise, while the
@@ -1866,6 +2055,69 @@ run**, recording the load either side, the failed set, and every reported
 duration over 12 s. Read the sets for **disjointness** rather than the counts
 for a total: three disjoint singletons and one triple is the signature of a
 ceiling family, and three identical sets would be a regression.
+
+## The search surface's axe passes judge whichever ten rows ONE hard-coded query happens to match — and typing a different letter finds a real contrast violation today
+
+**Added 2026-10-10 by Task 4.8.13, which found it by accident while measuring
+something else, and it is a product defect rather than a suite one.**
+
+`securities-route.spec.ts`'s two result-surface axe passes type **`he`** and
+judge whatever the universe answers with. Change that one letter to **`a`** and
+the same gate goes red, verbatim, from `axe-core` on the **full, untrimmed
+518-row universe**:
+
+```text
+color-contrast
+  target: #_r_0_-option-0 > ._change_s4mm0_178 > ._positive_wso9y_23._change_wso9y_6._dataCell_1yxhk_82
+  Element has insufficient color contrast of 4.32 (foreground color: #0f7b50,
+  background color: #e7e8ef, font size: 9.8pt (13px), font weight: normal).
+  Expected contrast ratio of 4.5:1
+```
+
+**Four arms, one variable at a time** — the trimmed and the full universe
+behave identically, which is what makes this a product finding and not a
+cost of Task 4.8.13's trim:
+
+| population    | query | options | violations             |
+| ------------- | ----- | ------- | ---------------------- |
+| trimmed, 27   | `a`   | 10      | **1 `color-contrast`** |
+| trimmed, 27   | `he`  | 1       | none                   |
+| **full, 518** | `a`   | 10      | **1 `color-contrast`** |
+| **full, 518** | `he`  | 10      | none                   |
+
+**The node is the FIRST option — the active descendant — and the ink is
+`--price-up` on the active option's ground.** So any query whose top result has
+a **positive** change fails, and on a live market that is roughly half of them.
+`he` passes because the first of its ten results happens not to be up, which is
+a fact about one laptop's store on one afternoon.
+
+**This is the shape `securities-route.spec.ts:310`'s own comment already warns
+about in as many words** — _"An accident is not a check. If CI ever gains bars,
+the run above stops covering this and nothing says so."_ — written about a
+different state on the same surface. It was right, and the same surface has a
+second instance of it.
+
+**Two things are owed and neither is this task's to take.** The **ink** is a
+measured accessibility floor failing at 4.32:1 against 1.4.3's 4.5 for 13 px
+text, which is `VISUAL-LANGUAGE.md`'s standing-exception procedure (adopt the
+canvas's intent, not its value, and record the measurement beside the token) —
+**routed to the developer and to UX/Design**. The **check** is that a surface
+whose judged content is chosen by a hard-coded query is a gate whose coverage
+is decided by data; what would guard it is an axe pass over a result surface
+**constructed** to hold one of each direction rather than one found by typing.
+
+**Nothing in `pnpm verify` can see either half**: no stylesheet is applied below
+`pnpm e2e`, so contrast is structurally unrunnable there, and the browser suite
+only ever asks this one question with this one letter.
+
+**Re-measure:** with the pair up, open `/securities`, type `a`, wait for the
+options, and run `axe-core` over the document; read the `color-contrast` node's
+foreground, background and ratio. Repeat with `he` and confirm the two differ —
+**if they ever agree, read it as the data having changed rather than the defect
+having gone.**
+
+**Owner: the first task that may change `market.css`, the price palette, or
+`SecuritySearch`'s result rows.**
 
 ## A FOURTH flake, also inside `pnpm verify`, and it is an ordering assertion over log-line indices
 

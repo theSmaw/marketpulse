@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
 import { expectNoAxeViolations } from "../support/axe.js";
+import { expectTrimmed, serveTrimmedUniverse } from "../support/universe.js";
 
 // The Security Explorer's grid, at the three viewports this product is built
 // and reviewed at (Task 2.11.7).
@@ -171,13 +172,27 @@ test("the identity block names the security, and qualifies its close", async ({
 // past Playwright's 30-second budget the first time the suite ran end to end.
 // A timeout and a violation are not the same finding, and a test that can
 // produce either is a test whose red tells you nothing.
+//
+// **And since Task 4.8.13 the three are served a TRIMMED universe**, which is
+// the same sentence followed one step further. The paragraph above describes
+// three runs sitting at seven seconds *each* because of a row count that is
+// not what any of them is about — these three are about the shell's **widths**
+// — and Task 4.8.9 then measured this family at 15–49 s inside a real suite
+// run, where four Chromium workers are the load. The population is sampled
+// rather than sliced, so every element kind the page can draw survives; the
+// argument is in `support/universe.ts`, and the one axe pass that still
+// judges all 518 rows is `securities-route.spec.ts`'s *renders from the real
+// pair*.
 for (const width of [1440, 1024, 640]) {
   test(`the shell has no axe violations at ${String(width)}px`, async ({
     page,
   }) => {
+    const trimmed = await serveTrimmedUniverse(page);
+
     await page.setViewportSize({ width, height: 900 });
     await page.goto(EXPLORER);
     await expect(page.getByRole("region", { name: "Price" })).toBeVisible();
+    await expectTrimmed(trimmed);
     await expectNothingFailedToRender(page);
     // A whole-document run, which is a **different measurement** from the
     // Storybook addon's `#storybook-root` scope and is not comparable with it:
@@ -185,7 +200,7 @@ for (const width of [1440, 1024, 640]) {
     // satisfy.
     await expectNoAxeViolations(
       page,
-      `the Security Explorer shell at ${String(width)}px`,
+      `the Security Explorer shell at ${String(width)}px — a TRIMMED universe`,
     );
   });
 }
