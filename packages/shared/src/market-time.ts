@@ -374,6 +374,36 @@ function wallClockParts(instant: Date): {
   };
 }
 
+/**
+ * The market date, assembled from parts that have **already been read**.
+ *
+ * **One fact, one home, and the reason it is a function rather than two
+ * expressions is a measurement** (Task 4.8.7). {@link marketDateAt} used to be
+ * `marketWallClockAt(instant).date`, which is three `Intl.formatToParts` calls
+ * per answer — {@link wallClockParts} once for the clock, then
+ * {@link marketOffsetAt} reading the same parts again and the offset
+ * formatter's own parts a third time — and then discarding the offset it had
+ * just computed. Instrumented at **1,554 calls for 518 conversions**, and
+ * `marketDateAt` is 93% of the Story 4.2 join's 3.44 ms over 518 securities,
+ * which `UniverseTable` also pays per row on every live tick.
+ *
+ * **The padding is not cosmetic.** `String(year).padStart(4, "0")` is what
+ * keeps a year before 1000 from producing `999-01-02`, which
+ * {@link toMarketDate} would refuse — and refusing is right, but the
+ * four-digit form is what the one parts read already gives.
+ */
+function marketDateFromParts(parts: {
+  year: number;
+  month: number;
+  day: number;
+}): MarketDate {
+  const pad = (value: number): string => String(value).padStart(2, "0");
+
+  return toMarketDate(
+    `${String(parts.year).padStart(4, "0")}-${pad(parts.month)}-${pad(parts.day)}`,
+  );
+}
+
 /** `-240` → `"-04:00"`. */
 function formatOffset(minutes: number): string {
   const sign = minutes < 0 ? "-" : "+";
@@ -400,8 +430,22 @@ function formatOffset(minutes: number): string {
  * "24 hours later", twice a year.
  */
 export function marketOffsetAt(instant: Date): MarketOffset {
-  const parts = wallClockParts(instant);
+  return marketOffsetFromParts(instant, wallClockParts(instant));
+}
 
+/**
+ * The offset, from parts that have already been read.
+ *
+ * Same split and same reason as {@link marketDateFromParts}: the subtraction
+ * needs the instant's own wall-clock fields, and {@link marketWallClockAt}
+ * has them in hand — so the exported {@link marketOffsetAt} is the version
+ * that reads them, and the composite is the version that does not read them
+ * twice. Three parts reads a wall clock, two now.
+ */
+function marketOffsetFromParts(
+  instant: Date,
+  parts: ReturnType<typeof wallClockParts>,
+): MarketOffset {
   const asIfUtc = Date.UTC(
     parts.year,
     parts.month - 1,
@@ -435,16 +479,13 @@ export function marketOffsetAt(instant: Date): MarketOffset {
  */
 export function marketWallClockAt(instant: Date): MarketWallClock {
   const parts = wallClockParts(instant);
-  const pad = (value: number): string => String(value).padStart(2, "0");
 
   return {
-    date: toMarketDate(
-      `${String(parts.year).padStart(4, "0")}-${pad(parts.month)}-${pad(parts.day)}`,
-    ),
+    date: marketDateFromParts(parts),
     hour: parts.hour,
     minute: parts.minute,
     second: parts.second,
-    offset: marketOffsetAt(instant),
+    offset: marketOffsetFromParts(instant, parts),
   };
 }
 
@@ -456,9 +497,22 @@ export function marketWallClockAt(instant: Date): MarketWallClock {
  * session does this bar belong to" is a *date* question, and the tempting
  * `instant.toISOString().slice(0, 10)` is right by luck for most of the day and
  * wrong every evening — see {@link MarketDate}.
+ *
+ * **It reads the formatter's parts exactly once, and that is a guarded
+ * property rather than an implementation detail** (Task 4.8.7). It was
+ * `marketWallClockAt(instant).date` until 2026-10-09, which computed — and
+ * discarded — the UTC offset in effect, at three `formatToParts` calls per
+ * answer instead of one. `pnpm invariants`' `market-date-reads-the-parts-once`
+ * refuses the re-expression, because *this function reads the formatter once*
+ * is invisible the day somebody writes the delegation back.
+ *
+ * **Reversal trigger:** the first market-date question whose answer depends on
+ * the UTC offset in effect — a date derived by arithmetic on an instant rather
+ * than read from the formatter's parts — at which point the two functions stop
+ * being able to share one parts read and the delegation becomes correct again.
  */
 export function marketDateAt(instant: Date): MarketDate {
-  return marketWallClockAt(instant).date;
+  return marketDateFromParts(wallClockParts(instant));
 }
 
 /** Why {@link instantFromMarketTime} refused. */

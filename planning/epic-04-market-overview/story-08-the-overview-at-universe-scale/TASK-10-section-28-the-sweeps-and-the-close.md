@@ -225,3 +225,45 @@ a core for 58 minutes with its script file already deleted**, inside every
 load-average reading on this machine for an hour. If the close adds a rule, the
 rule is: **grep `ps` for this story's own script names before trusting a load
 reading** — a dead instrument's process outlives its file.
+
+## Handed here by Task 4.8.7 — 2026-10-09: the one shipped-code change in this story, and three figures §28's sweep must not carry forward
+
+**Task 4.8.7 repaired `marketDateAt`, so three figures this epic's documents
+state as current are now historical.** It read the market formatter's parts
+three times per answer and used one; it reads them once. Over 518 instants,
+tight loop, n = 398 of 400 after 300 warm-up, calibrator reference 1.03–1.05 ms
+either side: **3.366 → 1.288 ms** p50 (p95 3.425 → 1.356), and
+`marketWallClockAt` **3.365 → 2.176 ms** because the offset now comes from the
+clock's own parts read.
+
+**The three live claims to sweep, each a figure about the join rather than
+about this function:**
+
+1. **_"3.4 of the 3.5 ms a batch is 518 `marketDateAt` calls at ~6.6 µs
+   each"_** — Story 4.4's attribution, repeated in
+   `epic-14-performance-scale-validation/EPIC.md` (twice), in `CLAUDE.md`'s
+   current-state section (_"the rest being 518 `marketDateAt` calls inside
+   `changeFromClose`, handed to Epic 14 by name"_) and in Task 4.8.3's
+   hand-offs. The per-call figure is now ~2.5 µs. **The attribution is still
+   correct about WHERE the cost is; the magnitude is a third of what it says.**
+2. **The 3.497 ms / 3.72 ms per-batch join figures** (Story 4.4.4, Task 4.8.3)
+   were taken with the three-read version underneath them. Nothing re-ran
+   `join-cost.mjs` after the repair — **re-measure rather than subtract**, and
+   if the close cannot afford a re-run, say in as many words that the figure
+   predates 2026-10-09.
+3. **`CLAUDE.md`'s _"the widening cost 0.118 → 3.497 ms a batch"_** is a dated
+   historical measurement of Story 4.4 and should be left standing as such,
+   with the repair noted beside it rather than the figure edited.
+
+**One premise correction has already been made upward**: Epic 14's file said
+this path _"constructs one `Intl.DateTimeFormat` per entry per batch"_ and it
+constructs **2 for the life of the process**. That claim now carries a dated
+amendment; if §28's sweep quotes it, quote the amendment.
+
+**And §28 itself needs nothing from this task.** No threshold moved and no
+breach was created or cleared — this is 2 ms of script a batch recovered well
+inside a 50 ms line. What the sweep gains is a guard worth naming beside the
+figures: `pnpm invariants`' **`market-date-reads-the-parts-once`**, whose break
+is `the-market-date-takes-the-offset-path-again`, because the repair is
+**invisible in every rendered string** and the delegation that undoes it is the
+better-looking code.

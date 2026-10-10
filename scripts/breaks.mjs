@@ -3652,4 +3652,37 @@ export const BREAKS = [
     command: ["pnpm", "e2e", "overview-nothing-to-open.spec.ts", "--anyway"],
     expect: "does not drop focus to the body",
   },
+  // **The repair that looks like a tidy-up — Task 4.8.7.**
+  //
+  // The substitution is the file the next author writes, and it is not a
+  // mangling: `return marketWallClockAt(instant).date;` is what
+  // `marketDateAt` was until 2026-10-09, reads as one fact with one home, and
+  // is what a reviewer would ask for. What it costs is **two
+  // `Intl.formatToParts` calls per answer that are then discarded** — the
+  // offset is computed and thrown away — measured at 1,554 calls for 518
+  // conversions and 3.37 ms against 1.29 ms.
+  //
+  // The draft check this defect defeated is recorded in `check-invariants.mjs`
+  // beside the invariant: a file-level grep for `marketDateFromParts` reports
+  // `50 invariants hold.` against the line below, because `marketWallClockAt`
+  // still calls the helper.
+  {
+    name: "the-market-date-takes-the-offset-path-again",
+    proves:
+      "`marketDateAt` goes back to being `marketWallClockAt(instant).date`, " +
+      "which reads the market formatter's parts three times for an answer " +
+      "that needs one and computes a UTC offset it discards. It is 93% of " +
+      "the overview join's 3.44 ms over 518 securities, which runs once per " +
+      "applied batch plus three times per cold load of `/`, and 518 calls a " +
+      "tick in the browser's own universe table. Nothing on any screen " +
+      "changes, which is the whole reason the check has to be structural " +
+      "(Task 4.8.7).",
+    file: "packages/shared/src/market-time.ts",
+    find: "  return marketDateFromParts(wallClockParts(instant));",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  return marketWallClockAt(instant).date;",
+    command: ["pnpm", "invariants"],
+    expect: "routes through the offset path",
+  },
 ];
