@@ -3685,4 +3685,48 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "routes through the offset path",
   },
+  // **A fourth path to the aggregate — Task 4.8.8.**
+  //
+  // The condition Epic 14's repaired 2026-10-07 clause rests on is a
+  // **call-site count**, and a condition keyed on a count reads identically
+  // whether anything holds it or not. The substitution is the file the next
+  // story writes rather than a mangling: a timer that refreshes the overview
+  // so a browser whose market has gone quiet is not left on a stale
+  // aggregate. It is a plausible feature, it compiles, and nothing on any
+  // screen looks wrong.
+  //
+  // **It was produced and run BEFORE the invariant existed**, which is the
+  // 2026-09-26 rule: `pnpm invariants` reported `50 invariants hold.` against
+  // exactly this line. `the-overview-frame-is-not-a-heartbeat` misses it
+  // because the timer sits **outside the keepalive slice** — by one line — and
+  // adds no `type: "overview"` encode site; `one-producer-of-the-overview-
+  // aggregate` misses it because `buildMarketOverview` gains no call site.
+  // The join is reached through `overview()`, which is unmemoised.
+  //
+  // `}, KEEPALIVE_INTERVAL_MS);` is the anchor rather than the `return {`
+  // below it, because *outside the keepalive slice* is the whole point of the
+  // defect and that marker is the slice's own end marker.
+  {
+    name: "a-fourth-path-to-the-aggregate",
+    proves:
+      "A fourth cadence for the overview aggregate, from a timer of its " +
+      "own, placed one line outside the keepalive slice. Every existing " +
+      "guard here is green on it: no new encode site, no new " +
+      "`buildMarketOverview` call site, and the word `overview` in none of " +
+      "the four feed-path regions. `overview()` is unmemoised, so each " +
+      "call is a full join over all 518 securities — 3.72 ms, against " +
+      "the three paths that already cost 11.2 ms of server script for one " +
+      "browser opening `/`. Epic 14's 2026-10-07 clause fires on this " +
+      "count, and before 2026-10-09 nothing read it (Task 4.8.8).",
+    file: "apps/backend/src/market-gateway.ts",
+    find: "  }, KEEPALIVE_INTERVAL_MS);",
+    replace:
+      "  }, KEEPALIVE_INTERVAL_MS);\n\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const overviewRefresh = setTimer(() => {\n" +
+      "    if (clients.size > 0) broadcast(overviewMessage());\n" +
+      "  }, 30_000);",
+    command: ["pnpm", "invariants"],
+    expect: "sit outside both known producers",
+  },
 ];

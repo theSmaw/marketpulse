@@ -279,6 +279,30 @@ records a decision about a screen and omits the one published target that screen
 misses is the kind of omission a reader finds later and distrusts the whole
 document for.
 
+> **Amended 2026-10-09 by Task 4.8.8 — the decision above is unchanged; two
+> descriptions in it are no longer accurate.** Recorded beside rather than
+> rewritten, per `CLAUDE.md`'s rule for an ADR.
+>
+> **The UNIT, not the number.** _One main-thread task of 50–76 ms_ no longer
+> describes the breach. Measured on 40 interleaved cold loads on 2026-10-09
+> (Task 4.8.6, production build, two 20-row control arms): it is **one frame
+> over the line on 10 of 10 loads, 62.8–77.4 ms** — script 26–31 ms, style,
+> layout and paint 34–38 ms — and the `longtask` channel reports **nothing**,
+> where 2026-09-22 read 50–56 ms on 7 of 10. The breach, its attribution and
+> its owner stand exactly as written; what changed is which instrument can see
+> it, and **a channel going quiet and a cost going away produce the same
+> output**.
+>
+> **And the trigger quoted here now has a SECOND condition**, because the one
+> above is written against `/securities` and structurally cannot fire on the
+> landing page: _the first surface on `/` that renders one element per tracked
+> security_. **First** there and **second** on `/securities`, because on
+> `/securities` the first such surface already **is** the exception while on `/`
+> it would **create** one. Epic 14's `EPIC.md` holds the fifth evaluation, the
+> clause, its measured price before it fires, and its own reversal trigger;
+> Epic 5 is still the named candidate and its `EPIC.md` carries both clauses in
+> words it can act on.
+
 ## What a green suite certifies here, and what it does not
 
 ### What it certifies

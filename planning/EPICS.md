@@ -565,6 +565,22 @@ a finding somebody measures again from scratch.
   close either. The trigger did **not** fire as worded; a routine per-tick
   breach the live feed introduced was repaired in Story 3.6 instead. The
   epic's own `EPIC.md` carries the table and the verdict.
+- **Evaluated a fifth time on 2026-10-09 by Task 4.8.8, unfired, and given a
+  SECOND condition — for `/`, because the trigger above is written against
+  `/securities` and structurally cannot fire on the landing page.** The clause
+  is _the first surface on `/` that renders one element per tracked security_:
+  **first** there and **second** on `/securities`, because on `/securities` the
+  first such surface already **is** this epic's entry 1 while on `/` it would
+  **create** one. Measured with a control: `/` draws **447 nodes and zero
+  `<tr>` at 518 securities** and carries **no task over 50 ms in ten cold
+  loads**, so **the 518-security payload both routes fetch costs ≈6 ms and the
+  518-row markup only one of them draws costs ≈48 ms**. Priced before it fires:
+  a 518-element ranked surface takes `/` from **24.7 ms to roughly 60–75 ms** of
+  worst frame. The breach above is unchanged and has moved **channel** rather
+  than size — `longtask` can no longer see it; the rAF channel reads it on
+  **10 of 10** loads. The epic's own `EPIC.md` carries the clause, its price and
+  its reversal trigger; `PRODUCT_SPEC.md` §28 carries the method amendment and
+  takes **no third exception**.
 
 ---
 

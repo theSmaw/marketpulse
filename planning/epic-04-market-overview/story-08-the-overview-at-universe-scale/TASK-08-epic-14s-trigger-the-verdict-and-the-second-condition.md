@@ -1,6 +1,15 @@
 # Task 4.8.8 — Epic 14's trigger: the verdict, and the second condition
 
-**Status:** Not started
+**Status:** **Complete — 2026-10-09.** The verdict is written (Epic 14's
+**fifth** evaluation, unfired, wording untouched), the second condition is
+**one** clause rather than two — **clause B withdrawn and not replaced**, its
+content folded into a dated repair of Epic 14's own 2026-10-07 clause — and the
+count it rests on is now mechanical: `pnpm invariants`'
+**`the-aggregate-has-three-producer-paths`**, with the break
+**`a-fourth-path-to-the-aggregate`**, which **reported `50 invariants hold.`
+against the defect before the check existed**. §28 took **no third exception**:
+the **method** and one **unit** were amended and the number was not. **8 live
+sites touched, 12 files left byte-identical.**
 **Story:** [4.8 The Overview at Universe Scale](STORY.md)
 **Depends on:** 4.8.2, 4.8.3, 4.8.4, 4.8.6
 
@@ -62,6 +71,22 @@ tree_ — at which point the clause has become a budget and belongs in
 `PRODUCT_SPEC.md` §28's exception list instead of in a trigger.
 
 ### The sweep is thirteen live files, not five, and the count was verified
+
+> **Corrected 2026-10-09 by the task itself: the count is 20 files and 31
+> occurrences on 30 lines, and `29 / 19` was right when it was written.** The
+> drift was established with `git grep` rather than argued: the phrase stood at
+> **29 occurrences in 19 files** at `aa6f88b` (Task 4.6.6) and earlier, rose to
+> **30 / 19** at `82eac4a` (Task 4.6.7's close, which added one to a file
+> already in the set), and reached **31 / 20** at `7c1468d` — **the commit that
+> decomposed Story 4.8 into ten tasks and created this file.** So the sentence
+> below was measured against a tree that predates its own file by two commits:
+> it does **not** count itself, which is the opposite of the reason the shaping
+> note for this task gave, and the other missing occurrence is a close nobody
+> had any reason to connect to it. Note also that **a count of a phrase in this
+> repository is invalidated by the act of recording it** — the Epic 14 section
+> written today quotes the phrase and is invisible to `grep`, because Prettier
+> wrapped it across two lines. Every figure in this task's record is the
+> **pre-task** count.
 
 `grep -rl "per-row markup at universe scale"` returns **19 files, 29
 occurrences** — **13 live**, 6 historical task records. The live set:
@@ -273,3 +298,250 @@ the absolutes are not a production cost.
 that arm being dearer. Measured: unrotated, the before-arm read 8.989 ms and
 the control 10.096 ms in the same burst at gap 250; rotating the arm order per
 burst removed it. A/B/A/B per burst is not enough on its own — rotate.
+
+---
+
+# What was done — 2026-10-09
+
+## 1. The verdict: the FIFTH evaluation, unfired, wording untouched
+
+**It does not fire**, for the fourth consecutive evaluation, and the argument
+runs in four steps rather than one:
+
+1. **Nothing was added.** Every previous evaluation had to argue a row count
+   down. Story 4.8's only shipped behaviour change is
+   `packages/shared/src/market-time.ts` (Task 4.8.7), which **removes** two
+   discarded `formatToParts` reads per conversion and **renders no element**.
+   There is no surface, so there is nothing to count.
+2. **For the first time the page the trigger cannot see has been measured
+   against a control, and `/` is not in breach** — 0 tasks over 50 ms in 10 of
+   10 cold loads, one 50.9 ms frame in ten, worst rAF gap p50 24.7 / p95 34.7,
+   **447 nodes and 0 `<tr>` at 518 securities, identical at 20**, against
+   `/securities` interleaved on the same artefact at 62.8–77.4 ms on 10 of 10
+   over 10,318 nodes.
+3. **The breach Epic 14 owns is unchanged and only the channel that sees it
+   moved**, which is a thing a §28 verdict has to say in as many words.
+4. **The wording is not touched**, which is Story 4.5's recommendation adopted.
+
+### The ordinal, and the missing fourth
+
+Epic 14's file records **four** previous evaluations and only **three** carry an
+ordinal: Task 3.6.5's (2026-09-22), Task 3.10.4's (_"a second time"_), Task
+4.3.8's (_"a THIRD time"_) — and **Story 4.5's, on 2026-10-08, which has none**
+(it is headed _"the verdict, and the recommendation not to re-word it"_, around
+line 382 of that file). **That is why _"three evaluations"_ is the figure in
+circulation, including in this task's own brief.** This is the fifth, and the
+ordinal is stated in Epic 14's new section together with the note that the
+fourth is unnumbered. An unnumbered verdict in a file whose other verdicts are
+numbered drops out of the count, and the count is the only evidence this trigger
+has of being **used** rather than **quoted**.
+
+## 2. ONE clause, not two
+
+> **A. The first surface on `/` that renders one element per tracked
+> security.**
+
+Adopted as written, and recorded as a **promotion**: those exact words were
+already in Epic 14's file as the **reversal trigger** of Story 4.5's verdict
+(around line 408). The line saying so is load-bearing — without it the file
+reads as though a condition is its own reversal trigger, and somebody deletes
+one of the two.
+
+**Why _first_ on `/` where the trigger says _second_ on `/securities`.** On
+`/securities` the first such surface **is already the breach**, so the only
+question there is **when it doubles**. On `/` the first one **creates** a
+breach, because the ≈6 ms shared payload is already paid and the ≈48 ms of
+markup is not. **That sentence is written at every live site**, because it is
+the one that stops the next reader harmonising the two wordings into one.
+
+**The price, attached before it fires.** `/` sits at a worst frame of
+**24.7 ms p50**. A 518-element ranked surface on it carries an **anchor** and a
+**roving `tabIndex`** per row since Story 4.6 (`RankedList.tsx` — verified, not
+assumed), which is strictly more than a table row, so ≈48 ms is a floor:
+**24.7 ms → roughly 60–75 ms of worst frame**, by arithmetic on this page's own
+measured numbers rather than by analogy with the table.
+
+## 3. Clause B withdrawn, and its content used to repair Epic 14's own clause
+
+**Clause B was already true on both of its readings**, so it was a condition
+that could not fire because it had never been false:
+
+- a cadence the bar feed does not set **already exists and is accepted in
+  writing** — `App`'s 30 s `/health` poll, measured by Task 4.8.5 rebuilding
+  both chart plots twice in 45 seconds with nothing arriving, accepted since
+  Task 1.12.3;
+- the aggregate is **already** produced off the observations path —
+  `overviewMessage()` has **three** call paths in `market-gateway.ts`, which
+  Task 4.8.3 counted off the wire as three joins for one browser opening `/`.
+
+**Its content repaired Epic 14's 2026-10-07 clause in place, as a dated
+amendment, with both halves made readable rather than numerical:**
+
+- **Half 1** — _the first time the subscribe message in
+  `apps/backend/src/alpaca-stream.ts` carries a channel other than `bars` and
+  `updatedBars`, **or** the aggregate is produced from a call site the three
+  existing on 2026-10-09 do not include._ Both are counts; the first is two
+  keys in one object literal.
+- **Half 2** — _the first computation added to that callback that **derives a
+  figure per security**, rather than ranking or counting figures the join has
+  already produced._ Recorded with the fact that the old wording was **met on
+  2026-10-08** by Story 4.5's top-N and **declined on a figure** (0.28–0.41 ms;
+  4.8.3's interleaved re-take 0.118–0.123 ms, so ~0.2 ms of 4.5's figure was
+  drift between blocked arms): **the decline was right and the clause was
+  wrong**, because Story 4.5 _ranked_ figures the join had already produced
+  where a per-security derivation is the 1.29 ms-per-518-conversions shape
+  (3.37 ms before Task 4.8.7).
+
+## 4. Reversal trigger for this decision — two conditions, either sufficient
+
+1. **The first evaluation of clause A settled by a duration rather than by
+   counting elements** — at which point it has become a budget and belongs in
+   `PRODUCT_SPEC.md` §28's exception list.
+2. **The first time `/` and `/securities` draw a per-security surface from one
+   component** — at which point the two conditions should be **merged**, because
+   the two-condition structure exists only because the baselines differ: 6 ms
+   paid against 48 ms unpaid.
+
+## 5. §28: no third exception; the METHOD and one UNIT amended
+
+The owner's decision. §28 now carries a dated line saying the target is measured
+on **three channels** — `longtask`, `long-animation-frame` and an rAF-gap
+recorder — **each proved by a plant on the page that produced the figure**,
+because **a channel going quiet and a cost going away produce the same output**.
+`/securities`' existing exception has its **unit** corrected and its **number**
+left alone: the breach is no longer describable as _one task_.
+
+## 6. The sweep, and the rule that decided it
+
+> The **verdict** goes only to the file that owns the trigger. The **second
+> condition** goes only to sites whose subject includes `/`, or whose subject is
+> Epic 14's ownership in general. Every other site is a dated record of an
+> evaluation or a close and is left **byte-identical**.
+
+**Verified pre-task count: 31 occurrences, on 30 lines, across 20 files.**
+(`docs/GAPS.md` line 142 carries **two** on one line, which is why a
+line-counting `grep -c` totals 30 and an occurrence-counting `grep -o` totals 31. The architect's `30 occurrences across 20 files` is the line count.)
+
+**8 live sites touched, 16 occurrences:**
+
+| Site                                         | Occ.  | What it now says                                                                                                         |
+| -------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------ |
+| `planning/epic-14-.../EPIC.md`               | 4     | The fifth evaluation in full; clause A; clause B's withdrawal; the 2026-10-07 clause repaired; the promotion note        |
+| `planning/epic-05-anomaly-detection/EPIC.md` | 2     | Both conditions in words it can act on, plus the backend one; `AnomalyBadge`; the cold-load repair; §9's short list      |
+| `CLAUDE.md`                                  | 1     | The second condition, the fifth evaluation, `/` measured not in breach, the channel move. **No figure touched**          |
+| `planning/PRODUCT_SPEC.md` §28               | 1     | No third exception; the three-channel method; the unit correction; the second condition beside the reversal trigger      |
+| `planning/EPICS.md`                          | 1     | A fifth bullet: the clause, the 6 ms / 48 ms split, the price, the channel move, no third exception                      |
+| `docs/GAPS.md`                               | 2 + — | Entry 1 amended on unit and trigger; the `security-gap-fill` hypothesis amended and handed to 4.8.9                      |
+| `.../story-08/STORY.md`                      | 4     | Gate 1's trigger decision amended: one clause, clause B withdrawn with both measurements, and the corrected sweep counts |
+| this file                                    | 1     | The count correction, with the commit that caused the drift                                                              |
+
+**12 files left byte-identical, 15 occurrences** — Epic 2's `EPIC.md` close
+table, `SEARCH-AND-SELECTION.md` §10 (×2), `CHARTING.md` §16.1,
+`VOLUME-AND-WINDOW.md`'s close table, Epic 3's `EPIC.md` close table, and seven
+dated task records (Epic 2 story-12 Task 09, Epic 2 story-14 Task 08, Epic 3
+story-06 `STORY.md`, Task 02 and Task 05, Epic 3 story-09 Task 10, Epic 3
+story-10 Task 04). **Gate 1 estimated 13 live; the narrowing is the rule rather
+than a re-count** — Epic 2's and Epic 3's close tables say something that is
+still true, and `SEARCH-AND-SELECTION.md` §10 and `CHARTING.md` §16.1 have
+`/securities` as their subject, which the second condition is not about.
+
+**Four live sites outside `planning/` got the UNIT correction**, because a
+planning-scoped sweep structurally never reaches them: `docs/adr/0029-*.md` §8
+(**a dated amendment, never a rewrite**),
+`e2e/specs-deployed/security-explorer-journey.spec.ts`,
+`scripts/overview-instrument.mjs`, and
+`apps/frontend/src/components/UniverseTable/UniverseTable.module.css`. **No
+figure in `CLAUDE.md` or `SEARCH-AND-SELECTION.md` §10 was touched** — that
+family (`50–76` at **40 hits in 26 files**, `50–56` at **29 hits in 18 files**,
+both verified; 3 of the `50–76` hits are a different figure, `250–768` in
+`market-data-provider.ts` and `PROVIDER.md`) is Task 4.8.10's, by Task 4.8.6's
+own hand-off.
+
+## 7. The one mechanism, and the defect produced BEFORE the check
+
+**`pnpm invariants`' `the-aggregate-has-three-producer-paths`**, with the break
+**`a-fourth-path-to-the-aggregate`**.
+
+**Why it was needed.** Half 1's second count is a call-site count, and a
+condition keyed on a count reads identically whether anything holds it or not.
+Two checks stand on this seam and **neither counts it**:
+`the-overview-frame-is-not-a-heartbeat` holds the **feed path** (four regions
+that may not mention the word) and the single **encode site**;
+`one-producer-of-the-overview-aggregate` holds one call site of
+`buildMarketOverview`. A fourth **send** of the one encoded frame adds no
+encode site, mentions the overview in none of those four regions, and calls
+`buildMarketOverview` not once.
+
+**Produced wrongly first, per the 2026-09-26 rule.** The file the next story
+writes — a 30-second overview refresh so a browser on a quiet market is not
+left on a stale aggregate — was planted in `market-gateway.ts` **one line after
+the keepalive's own end marker**, and the shipped invariants were run:
+
+```
+$ pnpm invariants
+> node scripts/check-invariants.mjs
+50 invariants hold.
+```
+
+**Then the check was written, and the same planted file went red for the right
+reason** — an assertion failure with the other 50 still collecting, which is the
+only red that proves anything:
+
+```
+$ pnpm invariants
+> node scripts/check-invariants.mjs
+Invariants that no longer hold:
+
+  ✗ the-aggregate-has-three-producer-paths
+    `overviewMessage()` is reached by at most THREE paths in `market-gateway.ts` …
+    apps/backend/src/market-gateway.ts: 1 call(s) to `overviewMessage()` sit outside both known producers:
+      offset 5191
+    …
+
+1 of 51 invariants failed.
+```
+
+Then the plant was removed (`git diff` byte-empty), **51 invariants hold.**, and
+the registered break was verified:
+
+```
+$ pnpm break a-fourth-path-to-the-aggregate
+✓ apps/backend/src/market-gateway.ts broken → red → restored byte-identical.
+  matched: sit outside both known producers
+```
+
+**What the check counts, and why it is paths rather than call sites.** There are
+**two** textual call sites and **three** ways in, because `sendSnapshot()` has
+two callers — the connect and the `message` listener. So the check counts
+callers of `sendSnapshot()` **plus** direct calls outside it, slices both
+producers by their **Prettier-formatted indentation** with a sentinel (the
+`the-overview-frame-is-not-a-heartbeat` idiom, for its recorded reason: a brace
+matcher is walked past by a destructured parameter, a brace in a string or a
+brace in a trailing comment), anchors on both definitions existing exactly once,
+and refuses a stray, a second call in either producer, and a third caller of
+`sendSnapshot()`.
+
+**And the claim says plainly that three is not endorsed as correct** — only that
+a fourth is a **decision** rather than a discovery. Two of the three are
+arguably one too many already (11.2 ms of server script per browser opening
+`/`), and Task 4.8.11 holds a decision about the path that runs with nobody
+attached.
+
+## 8. What falsifies something, and what was deliberately not touched
+
+- **The brief's reason for `29 / 19` is wrong.** It is not that _the sentence
+  counts itself_: `git grep` across the branch's commits puts the phrase at
+  29 / 19 at `aa6f88b` and 31 / 20 at `7c1468d`, the commit that **created**
+  this file. The measurement predates its own file by two commits.
+- **"Three evaluations" was right as a count of ORDINALS and wrong as a count
+  of evaluations.** Four had happened; three were numbered.
+- **`CLAUDE.md`'s current-state figure for the join is NOT corrected here.**
+  The sentence _"the rest being 518 `marketDateAt` calls inside
+  `changeFromClose`, handed to Epic 14 by name"_ and the `0.118 → 3.497 ms`
+  beside it are still live and still over-state the magnitude by ~2.6× after
+  Task 4.8.7. Task 4.8.7's own hand-off gives them to Task 4.8.10, and
+  4.8.10's hand-off from this task names them again so they cannot be missed.
+  What **was** touched in `CLAUDE.md` is one sentence in the Epic 14 bullet of
+  _What is open_ — the trigger's second condition — and **no figure anywhere**.
+- **§28's `50–76 ms` band itself is unchanged**, deliberately: the owner's
+  decision was method and unit, not number.

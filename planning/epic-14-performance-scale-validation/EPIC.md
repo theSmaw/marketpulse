@@ -342,6 +342,47 @@ conversion keyed on the UTC minute, which is one lookup per batch rather than
 518; it was deliberately not taken here because a cache inside the one module
 that owns market time is an architectural change rather than an optimisation.
 
+> **Amended 2026-10-09 by Task 4.8.8 — both halves of that clause are repaired
+> IN PLACE, because one was met and declined on a figure and the other was
+> never answerable by counting anything.** The clause as written above is what
+> Story 4.5 was measured against, and the record of that is below; what follows
+> replaces it going forward. The repair is deliberately **readable rather than
+> numerical** — a condition answered with a stopwatch is a budget wearing a
+> condition's clothes, and this file has now produced that defect once.
+>
+> **Half 1, the cadence — _the first time the subscribe message in
+> `apps/backend/src/alpaca-stream.ts` carries a channel other than `bars` and
+> `updatedBars`, OR the aggregate is produced from a call site the three
+> existing on 2026-10-09 do not include._** Both halves are **counts**. The
+> first is two words in one object literal (`bars:` and `updatedBars:`, the
+> `subscribe` action); a `trades:` or `quotes:` key beside them is the cadence
+> rising, and it is visible in a diff without a measurement. The second is the
+> three paths `overviewMessage()` is reached by — **on connect** and **on every
+> readable `subscribe` message**, both through `sendSnapshot()`, and **once per
+> applied batch** from `publishObservations` — which Task 4.8.3 counted off the
+> wire as three joins for a browser opening `/`. `pnpm invariants`'
+> **`the-aggregate-has-three-producer-paths`** holds that count, and its own
+> claim says in as many words that **three is not endorsed as correct**: a
+> fourth path is a decision somebody has to take rather than a defect, and the
+> point of the check is that the decision is taken rather than discovered.
+>
+> **Half 2, the second computation — _the first computation added to that
+> callback that DERIVES a figure per security, rather than ranking or counting
+> figures the join has already produced._** The old wording was _a second
+> universe-scale per-tick computation_, and that is the half that was **met on
+> 2026-10-08** and then **declined on a figure**: Story 4.5's top-N is a second
+> universe-scale per-tick computation by any reading, and it cost
+> **0.28–0.41 ms** (re-taken by Task 4.8.3 on interleaved arms at
+> **0.118–0.123 ms**, so about 0.2 ms of Story 4.5's figure was drift between
+> blocked arms rather than cost). **The decline was right and the clause was
+> wrong.** What made 4.5 cheap is not its row count and not its luck: it
+> **ranked** figures the join had already produced, where a per-security
+> derivation is the shape that costs — **1.29 ms per 518 conversions** after
+> Task 4.8.7's repair of `marketDateAt`, and **3.37 ms** before it. The new
+> wording names the thing that differs, so the next author can answer it from
+> their own diff: _am I reading a figure the join made, or making one per
+> security?_
+
 **These are local figures on a dev machine against a `dist/` build.** Re-take them
 with the production build and the instrument up; what they give this epic is
 **where to look**, not a number to carry forward.
@@ -406,3 +447,166 @@ fork belongs to **Story 4.8** by plan. **Reversal trigger for this verdict, as
 a condition**: _the first surface on `/` that renders one element per tracked
 security_ — at which point the trigger as worded fires on the landing page too
 and the second condition becomes redundant.
+
+> **Amended 2026-10-09 by Task 4.8.8 — that reversal trigger has been PROMOTED
+> to the second condition itself**, with its words unchanged. It is now clause
+> A of the section below, and it is no longer this verdict's reversal trigger,
+> because a condition cannot be its own reversal trigger — the sentence above
+> would otherwise read as though the second condition retires on the event that
+> fires it. The second condition has its own reversal trigger, two conditions,
+> stated below.
+
+## The trigger evaluated a FIFTH time — 2026-10-09 by Task 4.8.8, and this is the evaluation that adds a second condition
+
+**It does not fire. Its wording stands, unchanged, for the fourth consecutive
+evaluation.** And the fork Story 4.5 proposed is taken here: **one** further
+clause, for `/`, beside the existing trigger rather than instead of it.
+
+**The ordinal first, because the one in circulation is wrong.** This file
+records **four** previous evaluations and only **three** of them carry an
+ordinal: Task 3.6.5's (2026-09-22, _"the trigger, evaluated rather than
+assumed"_), Task 3.10.4's (_"a second time"_), Task 4.3.8's (_"a THIRD
+time"_) — and then **Story 4.5's, on 2026-10-08, which has no ordinal at all**
+(it is headed _"the verdict, and the recommendation not to re-word it"_). That
+is why _"three evaluations"_ is the figure quoted elsewhere, including in this
+task's own brief. **This is the fifth.** An unnumbered verdict in a file whose
+other verdicts are numbered is a verdict that drops out of the count, and the
+count is the only evidence this trigger has of being used rather than quoted.
+
+### The verdict, in the order the argument runs
+
+**1. Nothing was added.** Every previous evaluation had to argue a row count
+down — eleven sectors against 518, ten movers against 518, a per-row instant
+inside a cell that already existed. **This one has nothing to count.** Story
+4.8's only shipped behaviour change is `packages/shared/src/market-time.ts`
+(Task 4.8.7), which **removes** two discarded `formatToParts` reads per
+conversion and **renders no element at all**. Every other task in the story is
+an instrument, a measurement or a document. There is no surface, so there is no
+surface at universe scale.
+
+**2. For the first time, the page the trigger cannot see has been measured
+against a control, and it is not in breach.** Forty interleaved cold loads on
+one session, production build, 1440×900, two 20-row control arms (Task 4.8.6):
+
+| route             | tasks over 50 ms | frames over 50 ms           | worst rAF gap p50 / p95 | nodes      | `<tr>` |
+| ----------------- | ---------------- | --------------------------- | ----------------------- | ---------- | ------ |
+| `/`               | **0 of 10**      | 1 of 10 (**50.9 ms**)       | **24.7 / 34.7 ms**      | **447**    | **0**  |
+| `/securities`     | 0 of 10          | **10 of 10** (62.8–77.4 ms) | **66.7 / 68.5 ms**      | **10,318** | 518    |
+| `/ @20 rows`      | 0 of 10          | 0 of 10                     | 18.6 / 18.7 ms          | **447**    | 0      |
+| `/securities @20` | 0 of 10          | 0 of 10                     | 18.8 / 33.4 ms          | 765        | 20     |
+
+So the verdict is not _the landing page is probably fine_: `/` draws **447
+nodes and zero `<tr>` at 518 securities, identical at 20**, and its worst frame
+collapses to the one-frame floor when the payload is trimmed. **The 518-security
+payload both routes fetch costs ≈6 ms; the 518-row markup only one of them
+draws costs ≈48 ms.**
+
+**3. The breach this epic owns is unchanged, and only the channel that sees it
+moved.** `longtask` read 50–56 ms on 7 of 10 loads on 2026-09-22 and reports
+**nothing at all** now; the continuous rAF channel read 49–87 then and **50.0–
+68.5 on every load** now. Entry 1's own `Re-measure:` line already carries the
+dated amendment saying so. **A channel going quiet and a cost going away produce
+the same output**, and the zero is a zero only because a 120 ms plant was caught
+by both channels on all 40 loads, after each measurement window, on the page that
+produced the figure.
+
+**4. And the wording is not touched**, which is Story 4.5's recommendation
+adopted rather than restated. Verified on 2026-10-09: `per-row markup at
+universe scale` appears **31 times across 20 files** (30 lines — `docs/GAPS.md`
+line 142 carries two). A re-wording changes retroactively what this epic was
+told it owns, in 20 files, and `CLAUDE.md`'s rule for a description that has
+become false is a **dated amendment beside it**, never a rewrite.
+
+### The second condition — ONE clause, for `/`, adopted as written
+
+> **A. The first surface on `/` that renders one element per tracked
+> security.**
+
+**It is answerable by reading the tree and counting, with no stopwatch**, which
+is the whole property that makes the original trigger worth having.
+
+**Why _first_ on `/` where the trigger says _second_ on `/securities`, which is
+the sentence that stops the next reader harmonising the two.** They are not two
+spellings of one condition and must not be merged into one. On `/securities`
+the **first** such surface **is already the breach** — the 518-row table is
+entry 1 — so the only question left there is **when it doubles**, and _second_
+is the right word. On `/` the first such surface **creates** a breach, because
+the ≈6 ms shared payload is **already paid** and the ≈48 ms of markup is
+**not**. The two conditions differ because their baselines differ, and that is
+the only reason they differ.
+
+**The price, attached before it fires, as arithmetic stated as arithmetic.** `/`
+sits at a worst frame of **24.7 ms p50**. A 518-element ranked surface on it is
+**strictly more than a table row** — since Story 4.6 every ranked row carries
+an **anchor** and a **roving `tabIndex`** (`RankedList.tsx`) — so ≈48 ms is a
+floor rather than an estimate: **24.7 ms → roughly 60–75 ms of worst frame**,
+by arithmetic on this page's own measured numbers rather than by analogy with
+the table. That is a second helping of entry 1 on a second page, which is
+precisely what the original trigger exists to prevent.
+
+**It is a PROMOTION, not a new clause.** These exact words were already in this
+file, as the **reversal trigger** of Story 4.5's verdict (2026-10-08). Nothing
+about them is re-litigated; what changed is their job. The amendment beside
+that verdict says so, because a file in which a condition also appears as its
+own reversal trigger reads as a mistake and invites somebody to delete one of
+the two.
+
+### Clause B was proposed, is WITHDRAWN, and is not replaced
+
+Task 4.8.8's brief carried a second clause — _the first time the overview
+aggregate is produced on any path other than the observations publish, at a
+cadence the bar feed does not set_. **It is withdrawn because it was already
+true on both of its readings**, and a condition that has never been false cannot
+fire:
+
+- **a cadence the bar feed does not set already exists and is accepted in
+  writing** — `App`'s 30 s `/health` poll re-renders the route, measured by
+  Task 4.8.5 rebuilding both chart plots twice in 45 seconds with nothing
+  arriving, accepted since Task 1.12.3;
+- **and the aggregate is already produced off the observations path** —
+  `overviewMessage()` has **three** call paths in
+  `apps/backend/src/market-gateway.ts` (on connect and on every readable
+  `subscribe` message, both via `sendSnapshot()`, plus once per applied batch
+  from `publishObservations`), which Task 4.8.3 counted off the wire as **three
+  joins for one browser opening `/`**.
+
+**Its content was not discarded**: it is where the repair of this file's own
+2026-10-07 clause came from, as a dated amendment in place — half 1 now names
+the subscribe channels and the call-site count, half 2 names a per-security
+**derivation** rather than a second computation. Both are above.
+
+### Reversal trigger for this decision — two conditions, either sufficient
+
+1. **The first evaluation of clause A that is settled by a duration rather
+   than by counting elements.** At that point it has become a budget, and a
+   budget belongs in `PRODUCT_SPEC.md` §28's exception list rather than in a
+   trigger. This file has produced that defect once already — the 2026-10-07
+   clause, met on 2026-10-08 and declined on a figure — and the amendment
+   above is the repair.
+2. **The first time `/` and `/securities` draw a per-security surface from one
+   component.** At that point the two conditions should be **merged**, because
+   the two-condition structure exists only because the baselines differ: 6 ms
+   paid against 48 ms unpaid. One component means one baseline.
+
+### The mechanism, because a condition keyed on a call-site count reads identically whether anything holds it or not
+
+Half 1's second count is now held by `pnpm invariants`'
+**`the-aggregate-has-three-producer-paths`**, with the break
+**`a-fourth-path-to-the-aggregate`**. Two checks already stand near this and
+**neither counts what half 1 counts**:
+`the-overview-frame-is-not-a-heartbeat` holds the **feed path** and the single
+**encode site**, and `one-producer-of-the-overview-aggregate` holds one call
+site of `buildMarketOverview`. A fourth path added **from a timer outside the
+keepalive slice** was green under both.
+
+### What no gated machine can see, and it is the whole of this
+
+**CI's store has 518 securities and zero bars**, so on a gated run the join
+reads **0.013 ms** with nothing observed, the aggregate frame is **928 bytes**
+for ever, and every figure in this section is unobtainable. Every absolute
+figure above is a **tight-loop figure on one laptop** — at a 250 ms gap the same
+backend computation inflates ×2.4–3.5 along with a fixed-cost control that does
+no work, so the inflation is a Node process waking from idle — while the
+**browser** figures carry no such multiplier at all (**×1.00** in a visible
+renderer at gaps of 3.7 s and 8.8 s, five arms out of five). **Two caveats, not
+one**, and §28's line is an absolute 50 ms.

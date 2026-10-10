@@ -510,6 +510,12 @@ export function pageInstrument(options = {}) {
   // \`buffered: false\`, which is Task 3.6.5's trap: buffered returns the cold
   // load into a measurement about something else, and on this page that is a
   // known 50–76 ms task arriving as a regression somebody else caused.
+  //
+  // **Unit corrected 2026-10-09 by Task 4.8.8**: the thing that would arrive is
+  // a **frame** of 62.8–77.4 ms rather than a task of 50–76, because the
+  // \`longtask\` channel no longer sees it (0 of 10 loads, where 2026-09-22 read
+  // 50–56 ms on 7 of 10). The trap is unchanged and the LoAF channel is now the
+  // one it applies to.
   let selfTestOver = false;
   let selfTestEntries = 0;
   let worstSelfTest = 0;

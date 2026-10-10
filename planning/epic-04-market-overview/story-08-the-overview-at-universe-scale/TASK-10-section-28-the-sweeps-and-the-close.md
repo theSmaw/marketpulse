@@ -55,7 +55,9 @@ two in 4.4, each after the grep found none.** Record the miss count.
 Known candidates before you start: **Story 4.7** (its degraded grid runs on the
 same instrument, and `/` re-renders on every batch in every degraded state);
 **Story 4.9** (the flake characterisation, the code-free control, and the frame
-composition); **Epic 5** (clause A and clause B, which Task 4.8.8 writes); and
+composition); **Epic 5** (~~clause A and clause B~~ — **clause A only, plus the repaired
+backend condition; clause B was withdrawn, see the hand-off below** — which
+Task 4.8.8 wrote on 2026-10-09, into Epic 5's own `EPIC.md`); and
 **Epic 14** (what it still owns after this story, and what it does not).
 
 ### `docs/GAPS.md`
@@ -267,3 +269,57 @@ figures: `pnpm invariants`' **`market-date-reads-the-parts-once`**, whose break
 is `the-market-date-takes-the-offset-path-again`, because the repair is
 **invisible in every rendered string** and the delegation that undoes it is the
 better-looking code.
+
+## Handed here by Task 4.8.8 — 2026-10-09: §28 is amended, eight sites are swept, and the rest of the `50–76` family is still yours
+
+**Three things, and the first saves you a decision.**
+
+**1. §28 took NO third exception, and what was amended is the METHOD and one
+UNIT.** The owner's decision. `PRODUCT_SPEC.md` §28 now carries a dated line
+saying the target is measured on **three channels** — `longtask`,
+`long-animation-frame` and an rAF-gap recorder — **each proved by a plant on
+the page that produced the figure**, because _a channel going quiet and a cost
+going away produce the same output_. The first exception's **unit** is
+corrected and its **number** is not: the breach is _one frame over the line on
+every cold load_ rather than _one main-thread task of 50–76 ms_. The second
+condition for `/` is recorded there beside the reversal trigger. **So AC 6 is
+discharged; what you owe is the check that nothing else needs it.**
+
+**2. The sweep rule, and exactly what was touched, so you do not re-sweep it.**
+The rule: the **verdict** goes only to the file that owns the trigger; the
+**second condition** goes only to sites whose subject includes `/` or whose
+subject is Epic 14's ownership in general; every other site is a dated record
+of an evaluation or a close and is left **byte-identical**. Verified count:
+`per-row markup at universe scale` appears **31 times across 20 files** (30
+lines — `docs/GAPS.md` line 142 carries two on one line). **16 occurrences in 8
+files touched; 15 occurrences in 12 files left standing**, including Epic 2's
+and Epic 3's close tables, `SEARCH-AND-SELECTION.md` §10 (×2),
+`CHARTING.md` §16.1 and `VOLUME-AND-WINDOW.md`'s close table — each of which
+says something still true about `/securities`.
+
+**3. What is still yours, named rather than implied.** Task 4.8.8 corrected the
+**unit** at the four live sites **outside `planning/`** that the planning sweep
+would never reach — `docs/adr/0029-*.md` §8 (a dated amendment, never a
+rewrite), `e2e/specs-deployed/security-explorer-journey.spec.ts`,
+`scripts/overview-instrument.mjs` and
+`apps/frontend/src/components/UniverseTable/UniverseTable.module.css` — plus
+`docs/GAPS.md` at both of its sites. **It deliberately touched NO figure in
+`CLAUDE.md` and none in `SEARCH-AND-SELECTION.md` §10**, which are the family
+Task 4.8.6 handed you: `50–76` is **40 hits in 26 files** and `50–56` is **29
+hits in 18 files** (3 of the `50–76` hits are a different figure, `250–768` in
+`market-data-provider.ts` and `PROVIDER.md`, and are not yours either).
+**Also untouched and yours: `CLAUDE.md`'s current-state sentence** _"the rest
+being 518 `marketDateAt` calls inside `changeFromClose`, handed to Epic 14 by
+name"_ and the `0.118 → 3.497 ms` figure beside it — Task 4.8.7's hand-off
+already names both, the attribution is still correct about **where** the cost
+is, and the magnitude is now a third of what the sentence implies.
+
+**And one thing to carry into `docs/GAPS.md`**: the count Epic 14's repaired
+clause rests on is now mechanical. `pnpm invariants`'
+**`the-aggregate-has-three-producer-paths`** holds _at most three paths to
+`overviewMessage()`_, with the break **`a-fourth-path-to-the-aggregate`** — and
+it was produced against the shipped tree first: a fourth path from a timer one
+line outside the keepalive slice reported **`50 invariants hold.`** before the
+check existed. It is the third check on this seam and the only one that counts
+**paths**; the other two count the feed path plus one encode site, and one call
+site of `buildMarketOverview`.

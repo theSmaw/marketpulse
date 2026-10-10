@@ -1364,6 +1364,47 @@ script down from 46–49 ms to 37–40 ms, the health poll's 40 ms gone. The
 figures, the instruments and the trigger's written verdict are in
 [Task 3.6.5](epic-03-live-market-data/story-06-live-prices-across-the-universe/TASK-05-the-cold-load-expand-all-and-epic-14s-trigger.md).
 
+**Amended 2026-10-09 by Task 4.8.8 — no third exception, the number is
+unchanged, and what is amended is the METHOD and one UNIT.** Story 4.8 measured
+the landing page `/` against the same line with a control, and it is **not** in
+breach: **no task over 50 ms in 10 of 10 cold loads and one 50.9 ms frame in
+ten**, worst rAF gap **p50 24.7 / p95 34.7 ms**, over **447 nodes and zero
+`<tr>` at 518 securities, identical at 20** — against `/securities`
+interleaved on the same artefact at **62.8–77.4 ms on 10 of 10** over 10,318
+nodes. Per-batch work on `/` while the feed runs is **3.7–5.1 ms**, largest
+single task **4.5 ms**. Three things follow, and the first is the one that
+generalises:
+
+- **This target is measured on THREE channels, and each must be proved by a
+  plant on the page that produced the figure.** `longtask`,
+  `long-animation-frame`, and a `requestAnimationFrame`-gap recorder. The three
+  disagree, legitimately: run verbatim today, the `longtask` channel reports
+  **nothing** on `/securities`, where on 2026-09-22 it read 50–56 ms on 7 of 10
+  — because the work is no longer a single task over the line but a 63–77 ms
+  **frame** whose largest task is not. **A channel going quiet and a cost going
+  away produce the same output.** A 120 ms plant was caught by both observers on
+  all 40 loads of the session that took the figures above, after each
+  measurement window; without that, a zero certifies nothing. Check
+  `document.visibilityState` first — a tab driven over CDP reports `hidden`,
+  which pauses `requestAnimationFrame` and makes every figure small, plausible
+  and meaningless.
+- **The first exception's UNIT is corrected and its number is not.** _One
+  main-thread task of 50–76 ms_ is no longer a description of the breach: it is
+  **one frame over the line on every cold load**, of which script is 26–31 ms
+  and style, layout and paint 34–38 ms. The band and the ownership stand
+  exactly as above; what changed is which instrument can see it.
+- **The reversal trigger gains a SECOND condition, for `/`, because the one
+  above is written against `/securities` and structurally cannot fire on the
+  landing page** — _the first surface on `/` that renders one element per
+  tracked security_. **First** there and **second** here, because on
+  `/securities` the first such surface already **is** the breach while on `/` it
+  would **create** one: the 518-security payload both routes fetch costs ≈6 ms
+  and is already paid, and the 518-row markup costs ≈48 ms and is not. Priced
+  before it fires: a 518-element ranked surface takes `/` from **24.7 ms to
+  roughly 60–75 ms** of worst frame. Epic 14's `EPIC.md` holds the verdict (its
+  **fifth** evaluation, unfired), the clause, and the clause's own reversal
+  trigger.
+
 ### Investigation
 
 Visible indication that an investigation has begun:

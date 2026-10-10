@@ -573,7 +573,17 @@ the previous close`), so **the sentence's length now depends on the state of
   memo boundaries, the table's first; `docs/GAPS.md` entry 14 carries what
   still cannot be checked. **The trigger is
   unchanged and outranks the epic: the first time a second surface on this page
-  renders per-row markup at universe scale.**
+  renders per-row markup at universe scale.** **And since 2026-10-09 it has a
+  SECOND condition, because it is written against `/securities` and cannot fire
+  on the landing page at all: _the first surface on `/` that renders one element
+  per tracked security_** — **first** there and **second** here, because on
+  `/securities` the first such surface already **is** the breach while on `/` it
+  would **create** one (the 518-security payload is paid, the 518-row markup is
+  not). Evaluated a **fifth** time on 2026-10-09 and unfired; `/` itself is
+  measured **not** in breach, with a control; and the breach above has moved
+  **channel** rather than size, so the single-task reading can no longer see it.
+  Epic 14's `EPIC.md` carries the verdict, the clause, its price before it fires
+  and its own reversal trigger.
 - ~~**The fourth design test, _does it feel alive_, has now been answered "not
   yet" seven times**~~ — **answered on 2026-09-21 rather than open.** Task 3.4.4
   took it in front of four treatments running on the real component at 1×
