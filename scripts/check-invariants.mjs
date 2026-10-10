@@ -2974,7 +2974,9 @@ const INVARIANTS = [
       //
       // The claim says so in as many words. Two of the three are arguably one
       // too many already (Task 4.8.3's 11.2 ms of server script per browser
-      // opening `/`).
+      // opening `/` — **superseded 2026-10-10 by Task 4.8.11, which re-took
+      // the per-batch join at 1.521 ms after Task 4.8.7's repair; the count
+      // of three is what this check holds and it did not move**).
       //
       // **And the third was conditioned on 2026-10-10 rather than removed**
       // (Task 4.8.11, ADR 0038's dated amendment). `publishObservations` now
@@ -3119,8 +3121,11 @@ const INVARIANTS = [
             "`sendSnapshot()`), and once per APPLIED BATCH from " +
             "`publishObservations`. A fourth is a fourth cadence, and " +
             "`overview()` is unmemoised — every call runs a full join over " +
-            "all 518 securities (Task 4.8.3: 3.72 ms, and 11.2 ms of server " +
-            "script for one browser opening `/` at three joins). Epic 14's " +
+            "all 518 securities (Task 4.8.11, re-taken after Task 4.8.7's " +
+            "`marketDateAt` repair: 1.521 ms a batch, superseding Task " +
+            "4.8.3's 3.72 ms; the three joins a browser opening `/` pays are " +
+            "unchanged in COUNT and their product is an estimate rather " +
+            "than a measurement). Epic 14's " +
             "2026-10-07 clause fires on this. Three is not endorsed as " +
             "correct; a fourth is a DECISION, so take it in the epic's own " +
             "file and then repoint this check.",
@@ -5324,7 +5329,11 @@ const INVARIANTS = [
   // (n = 398 after 300 warm-up, tight loop, calibrator reference 1.03–1.05 ms
   // either side). It is 93% of Story 4.2's 3.44 ms join, which runs
   // `batches + 3 × cold loads + resubscribes` times, and `UniverseTable` pays
-  // the same 518 calls per live tick in the browser.
+  // the same 518 calls per live tick in the browser. **Both of those figures
+  // are the pre-repair state** (Task 4.8.10, 2026-10-10): Task 4.8.11 re-took
+  // the per-batch path at 1.521 ms afterwards, and this function's share of
+  // that is unmeasured. The call COUNTS are unchanged and are what this check
+  // is about.
   //
   // ## Why a check rather than a comment
   //

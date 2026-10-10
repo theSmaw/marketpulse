@@ -33,6 +33,17 @@ import type { TimeFrame } from "./chart-geometry.js";
 // renders its `children` through unchanged, so React re-renders only the
 // consumers.
 //
+// > **Amended 2026-10-10 by Task 4.8.10 — the breach is real and the UNIT has
+// > moved.** Re-taken on 2026-10-09 (Task 4.8.6) over 40 interleaved cold
+// > loads: `/securities` is in breach on **10 of 10** loads as a **frame** of
+// > 62.8–77.4 ms — script 26–31 ms, style/layout/paint 34–38 ms — while
+// > `PerformanceObserver({ entryTypes: ["longtask"] })` reports **nothing at
+// > all**. So the figure above is right about the magnitude and wrong about
+// > the channel, and the argument in this paragraph is unaffected: the table
+// > is still what costs, and the lever is still DOM size. `PRODUCT_SPEC.md`
+// > §28 now states the method as three channels, each proved by a plant on
+// > the page that produced the figure.
+//
 // **Task 2.13.5 adds the read position to this same wrapper**, which is why it
 // is a wrapper rather than a `useMemo` in the route: the shape that survives is
 // state in a component whose children pass through, so a pointer move

@@ -19,7 +19,10 @@ import { useEffect, useRef, useState } from "react";
 // case never pulses at all: it swaps one chart for the next, which is ADR 0028's
 // intent surviving the reversal. Measured 2026-09-14 against a local pair, three
 // runs per window: **2–9 ms warm and 7–68 ms cold** off the backend, against
-// `CLAUDE.md`'s recorded 50–66 ms of main thread on a cold security page. 160 ms
+// `CLAUDE.md`'s recorded 50–66 ms of main thread on a cold security page
+// (re-taken 2026-10-09 by Task 4.8.6 as a FRAME of 62.8–77.4 ms on 10 of 10
+// loads, with the `longtask` channel reporting nothing — same breach, a
+// different instrument). 160 ms
 // clears the sum with room, and it is what stops the rail flashing rather than
 // merely stopping the panel flashing.
 //

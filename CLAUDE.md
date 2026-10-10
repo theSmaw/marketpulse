@@ -109,7 +109,19 @@ is a fact about our reach. The window is **5 minutes, measured** (Task 4.1.6),
 applied to each bar's own `startsAt` and never to `ageMs`. And **the widening
 cost 0.118 → 3.497 ms a batch**, of which the breadth count is **0.041 ms** —
 **1.2%** — the rest being 518 `marketDateAt` calls inside `changeFromClose`,
-handed to Epic 14 by name. **What no gated machine has ever seen is a breadth
+handed to Epic 14 by name. **That pair of figures is a dated measurement of
+Story 4.4 and is left standing as one; the attribution is still correct about
+WHERE the cost is and the magnitude is now ~41% of it.** Task 4.8.7 took three
+`Intl.formatToParts` reads out of `marketDateAt` on 2026-10-09 (3.366 →
+1.288 ms over 518 instants) and Task 4.8.11 **re-took** the per-batch path on
+the production artefact afterwards at **1.521 ms p50** — and then to **zero**,
+because `publishObservations` now returns before the join when nobody is
+attached. **Re-measure rather than subtract**: nothing has re-run the
+join-alone arm since the repair, so breadth's and movers' shares of 1.521 ms
+are unmeasured, and the products derived from 3.72 ms — 11.2 ms a cold `/`,
+7.4 ms a placeholder route, 3.72 ms a resubscribe — are all pre-repair. A
+naive rescale puts a cold `/` near 4.6 ms and **that is an estimate, not a
+measurement**. **What no gated machine has ever seen is a breadth
 figure at all**: CI's store has zero bars, so `measured` is 0 and every gated
 run renders the honest-nothing state. Since Task 4.4.7 the **DOM order is the
 ≤860 order** — `breadth, sectors, movers, topology, unusual, investigations` —
@@ -196,6 +208,72 @@ a length with no content floor while rows 2 and 3 are
 `/securities` at every pair**, the 18,893 px table included, because the long
 table scrolls the page.
 
+**And since 2026-10-10 the landing screen says one fewer thing, which is the
+only visible outcome of a thirteen-task measurement story.** Story 4.8
+measured what this screen costs, and the one thing it changed on screen is a
+**removal**: the source note drew `COMPUTED · Oct 9 · 21:42 EDT` under four
+closes that were four weeks old, and that instant was **when the page was
+opened** rather than a fact about any figure above it — `computedAt` is when
+the join ran, and the gateway runs the join on every connect. The note now
+dates the **observation** (`OBSERVED THROUGH · Sep 25 · 14:01 EDT`) and draws
+no instant at all where nothing has been observed, so on every store with no
+live feed a line goes away. Two consequences worth knowing: the same screen
+hours later is now the **same string**, because two frames differing only in
+`computedAt` are the same claim; and `the-overview-note-dates-an-observation`
+fails the build on a reader that reaches for the process clock again, in two
+conjuncts, the second of which earned its place by catching the defect a
+one-conjunct draft reported `52 invariants hold.` against.
+
+**What the screen costs is now measured rather than argued, on a production
+build, and it is not in breach.** Per applied batch on `/`, net of a quiet
+control driven at the same cadence: **3.7–5.1 ms** of main-thread work, of
+which the aggregate is **2.8–3.9 ms**; **0** `longtask` entries in seven arms;
+worst rAF gap **17.7–17.8 ms** against a 16.7 ms quantum; largest single task
+**4.5 ms**. On a cold load: **447 nodes and zero `<tr>` at 518 securities,
+identical at 20**, 0 tasks over 50 ms on 10 of 10 loads, one 50.9 ms frame.
+And the **count** rather than the timing, which is the arm load cannot
+corrupt: **2 renders per applied batch** on `/`, `/securities` and
+`/securities/:symbol` and **1** on the three routes that draw no overview at
+all — at the feed's measured **6.8–16.1 batches a minute**, 13.6–32.2 and
+6.8–16.1 renders a minute, from **0** before Story 4.2. Three caveats travel
+with every figure above and are not optional: the cadence is **furnished**
+because no offline feed in this repository produces it, every **Node** figure
+is a tight-loop upper bound while every **browser** figure is not, and the
+whole set is **local rather than deployed**.
+
+**Two repairs shipped inside it, both invisible.** `marketDateAt` read the
+market formatter's parts three times per answer and used one — 1,554 reads for
+518 conversions — and now reads them once: **3.366 → 1.288 ms** over 518
+instants, in the one module both sides of the wire share, with no rendered
+string changed and `market-date-reads-the-parts-once` holding it, because the
+delegation that undoes it is the better-looking code. And the aggregate join
+**ran with nobody attached**: `publishObservations` evaluated it as an
+argument to a broadcast over an empty client map, so a deployment with no
+reader paid 10.3–24.5 ms of script a minute for a frame sent to nobody. It is
+now two early returns that say which is which, and **0 joins over 500
+bursts** — held by a behavioural assertion on the producer, because the wire
+cannot see it: a broadcast to an empty map sends nothing either way.
+
+**And Epic 14's trigger was evaluated a FIFTH time and did not fire**, with
+its wording untouched and **one** new clause beside it for `/` — _the first
+surface on `/` that renders one element per tracked security_ — priced before
+it fires at roughly 24.7 → 60–75 ms of worst frame. `PRODUCT_SPEC.md` §28 took
+**no third exception**; what it gained is a **method** (three channels, each
+proved by a plant on the page that produced the figure) and a corrected
+**unit** on its first one.
+
+**What a reader still cannot do, from this story: nothing new, and that is the
+point — it changed no capability.** What nobody has seen is the other half:
+**no gated machine and no person has watched any of these figures against a
+real feed.** Every arm was furnished or `provider=none`, on one laptop, and
+CI's store has zero bars — so the per-tick cost of a real 16.1-batch minute,
+the composition of each `bars` frame, and the deployed cold load are all
+unmeasured and named as such. Two product defects were found and **routed
+rather than repaired**: ADR 0028's 160 ms cover drawn over both plots during a
+refill nobody asked for (5.6% of executions, `sample 0` every time, 0% at one
+worker), and a `color-contrast` reading of **4.32:1** on the result surface's
+active option, reachable on `main` today by typing a different letter.
+
 Task 4.2.5
 **renamed** the region from `Market summary`, which was a second
 word for a concept the product already had (the `/securities` group heading,
@@ -206,7 +284,8 @@ say what they are waiting for~~, in the `reserved` state Story 4.1 added to
 that never resolves~~ — **false since 2026-10-07: three of the six do, and the
 other three hold figures.** `Market topology`, `Unusual activity` and
 `Current investigations` are still `reserved`; `Sector performance`, `Movers`
-and `Market breadth` are Stories 4.3, 4.5 and 4.4, of which two have shipped.
+and `Market breadth` are Stories 4.3, 4.5 and 4.4, **all three of which have
+shipped** (the last on 2026-10-08).
 Two
 of the seven belong to later epics by name — the topology is Epic 6's and
 unusual activity is Epic 5's — and the layout running there is explicitly
@@ -583,7 +662,20 @@ the previous close`), so **the sentence's length now depends on the state of
   measured **not** in breach, with a control; and the breach above has moved
   **channel** rather than size, so the single-task reading can no longer see it.
   Epic 14's `EPIC.md` carries the verdict, the clause, its price before it fires
-  and its own reversal trigger.
+  and its own reversal trigger. **And since 2026-10-10 the UNIT in this entry's
+  own first sentence is corrected rather than the number** (Task 4.8.10,
+  sweeping 4.8.6): the breach is **not** describable as _one task of 50–76 ms_.
+  Re-taken over 40 interleaved cold loads on a production build, every observer
+  proved by a plant on the page that produced the figure and a calibrator
+  beside every reading: `/securities` is over the line on **10 of 10** loads as
+  a **frame of 62.8–77.4 ms** — script 26–31 ms, style/layout/paint
+  34–38 ms — with the worst rAF gap at **50.0–68.5 ms** and the `longtask`
+  channel silent. Against a 20-row universe: **0 of 10** and an 18.8 ms floor.
+  The attribution is unchanged and is now split: ≈ **6 ms** for the
+  518-security payload (which `/` also pays) and ≈ **48 ms** for the 518-row
+  table's markup, over **10,318 nodes against 765**. The read the band `50–76`
+  came from still stands as a dated 2026-09-15 record in
+  `SEARCH-AND-SELECTION.md` §10, which carries the fourth dating.
 - ~~**The fourth design test, _does it feel alive_, has now been answered "not
   yet" seven times**~~ — **answered on 2026-09-21 rather than open.** Task 3.4.4
   took it in front of four treatments running on the real component at 1×
@@ -815,6 +907,76 @@ were the edit. Each of these cost real time that session.
   repeated on one checkout, can.** Note what went wrong twice over: waiting for
   the machine to settle correctly killed the _contention_ explanation and was
   then mistaken for having established the _regression_ one.
+  **Amended 2026-10-10 by Task 4.8.10, on the INPUT and not on the
+  arithmetic.** Everything above is a dated account of Task 4.2.6 and stays
+  standing; the rate it reasons from has since been measured twice and then
+  repaired. Task 4.8.9 characterised the same spec on a settled machine at
+  **25.0%** per execution (n = 48, Wilson 95% CI 13.6–39.6%) — which makes
+  `P(0 in 6) ≈ 0.18` and n = 6 **more** misleading, not less — and found that
+  the assertion could not see the panel it was written about. Task 4.8.13
+  repaired the predicate, and the rate is now **5.6% pooled over 144
+  executions at four workers** (CI 2.8–10.6%, non-overlapping with the
+  before interval) and **0 / 24 at one worker**. **At 5.6%,
+  `P(0 failures in 6) ≈ 0.71`** — so the lesson is stronger at every
+  re-measure: the rarer the flake, the more often a clean `main` beside a
+  failing branch is one pair of draws from one distribution, and the larger n
+  has to be. **n = 24 on one checkout is the floor, and 12%, 25% and 5.6% all
+  argue for it.** Two conditions the original passage did not carry: count
+  failures **per execution** and state the **worker count**, because the rate
+  is 0% at one worker; and **read the load average BEFORE the run, never
+  during it** — a full `pnpm e2e` begun at 5.31 left the machine at 31.04, so
+  **the suite is its own plant** and every load figure in this repository
+  taken while a suite was executing is measuring the suite.
+- **A gapped Node sample on this machine INFLATES, and only a fixed-cost
+  calibrator run at the same gap can tell you by how much — and even then it is
+  an upper bound rather than a correction.** Added 2026-10-10. A fixed-cost
+  control loop with no ICU, no allocation and no strings read ×2.4–3.5 when
+  called once every 250 ms instead of in a tight loop, beside a subject that
+  inflated ×3.5–3.8 (Task 4.8.3) — which reads as a property of the machine
+  that divides out. **It does not divide out.** Re-taken on one arm with the
+  calibrator re-referenced at the gap and the arms rotated, the calibrator
+  inflated **2.29×** and the subject **4.38×** on the same bursts — ratios a
+  factor of ~1.9 apart, so a gapped figure “corrected” by the calibrator's own
+  inflation would have under-reported by nearly half (Task 4.8.11). **A gapped
+  absolute is an upper bound on the shape and nothing more.** So every
+  per-batch backend figure in Epic 4 is a **tight-loop** figure and none of
+  them is a measurement of what the computation costs at the cadence
+  production runs it at — say so beside the number, every time.
+- **That effect does NOT reproduce in a visible renderer, so a sweep needs TWO
+  caveats and not one.** Added 2026-10-10. The same fixed-cost calibrator reads
+  **×1.00** in a browser at gaps of 3.7 s and 8.8 s, five arms out of five
+  (Task 4.8.4, corroborated by 4.8.5 and 4.8.6 at ×0.91–×1.09 of a 2.2 ms
+  reference). A caveat written once for “this epic's figures” is therefore
+  wrong about half of them: the Node legs carry it and the browser legs do not,
+  and a browser figure wearing the Node caveat is as misleading as a Node
+  figure without it.
+- **A channel going quiet and a cost going away produce the same output, so
+  prove the plant PER CHANNEL, on the page that produced the figure.** Added
+  2026-10-10, and it is the general form of this story's own founding note
+  (_a `long-animation-frame` entry only exists above 50 ms, so zero-observed
+  and observer-broken are one output_). `/securities`' cold-load breach has not
+  moved and `PerformanceObserver({ entryTypes: ["longtask"] })` — the
+  instrument three documents named as the re-measure — now reports **nothing
+  at all**, while `long-animation-frame` reports 62.8–77.4 ms on 10 of 10 loads
+  and an rAF-gap recorder reports 50.0–68.5 ms (Task 4.8.6). A plant that one
+  channel catches and another misses leaves an arm looking proved with one
+  figure unobtainable, so an arm counts only when **every** channel it reports
+  caught the plant. `PRODUCT_SPEC.md` §28 states the method as three channels
+  for this reason.
+- **The wire cannot see a defect in the producer.** Added 2026-10-10. The
+  obvious check that the overview join no longer runs with nobody attached was
+  green on the defect, because `broadcast` to an empty client map sends nothing
+  **either way** — the observable is identical before and after (Task 4.8.11).
+  When a repair removes work whose only consumer was absent, the assertion has
+  to be on the **producer**, by counting its invocations, and the wire has no
+  opinion.
+- **A figure that counts a phrase in this repository is invalidated by
+  recording it.** Added 2026-10-10. Task 4.8.8 verified Epic 14's trigger at 31
+  occurrences across 20 files and the act of writing that down moved it; Gate
+  1's own count of 13 live sites narrowed to 8 by a **rule** rather than a
+  re-count. So quote the count with its date and the command that produced it,
+  and expect the next reader's `grep -c` to disagree — and prefer a rule for
+  which sites are live over a number of them.
 - **A break that does not go red is not evidence the check works** — it is equally evidence the break did not land. Verify the substitution.
 - **A figure that has moved looks exactly like a figure that was mis-recorded.** Only rebuilding the old commit tells them apart.
 - **A throwaway instrument's findings section must quote at least one frame, body or row VERBATIM.** _Run it, record the findings, delete it_ is the established shape (`ALPACA.md` §11) and it works — measured on 2026-09-18, a fortnight after Epic 3's harness was deleted, at **12 of the 14 frames a downstream story needed**. The two it missed came from the one section that recorded a **behaviour** without quoting the bytes that carried it, and the failure is invisible at the time: the finding is complete and the argument sound **until somebody needs the evidence rather than the conclusion**, by which point the instrument is gone. Cost: a fixture with an inferred shape, and a `docs/GAPS.md` entry to retire it.

@@ -144,6 +144,14 @@ export function App() {
   // 3.5.6). Before this it asked for nothing and received everything — all 518
   // securities, **56.9 KiB a minute**, of which a security page uses one.
   //
+  // **Amended 2026-10-10 by Task 4.8.10: 56.9 KiB is a MESSAGE, not a
+  // minute.** It was read off one `bars` message carrying all 518
+  // observations (Task 3.5.4; 58,187–59,475 B re-read per batch by Task
+  // 4.8.2), and the `a minute` assumed one batch a minute — which Story 4.8's
+  // Gate 1 falsified against the measured feed of 6.8–16.1 batches a minute.
+  // The real per-minute rate is unmeasured and no figure here may be used to
+  // size one.
+  //
   // **The page declares its own need rather than this file inferring it.** The
   // hook is called here, so the subscription has to live here; the alternative
   // was deriving it from the address, which `App` cannot read — it *renders*

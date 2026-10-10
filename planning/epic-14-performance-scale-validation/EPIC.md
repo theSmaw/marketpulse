@@ -610,3 +610,113 @@ no work, so the inflation is a Node process waking from idle — while the
 **browser** figures carry no such multiplier at all (**×1.00** in a visible
 renderer at gaps of 3.7 s and 8.8 s, five arms out of five). **Two caveats, not
 one**, and §28's line is an absolute 50 ms.
+
+## Handed here by Story 4.8's close — 2026-10-10 by Task 4.8.10: what you still own, what you no longer own, and three figures above that are pre-repair
+
+**Story 4.8 is Epic 4's measurement story and it is complete. This section is
+the net: what moved into your scope, what moved out, and which of the figures
+above must not be carried forward.**
+
+### 1. You still own the cold load of `/securities`, and nothing in Epic 4 touched it
+
+Exception 1 stands. Re-taken a fourth time on 2026-10-09 (Task 4.8.6) over 40
+interleaved cold loads on a production build, every observer proved by a plant
+on the page that produced the figure: **10 of 10 loads over the line**, as a
+**frame of 62.8–77.4 ms** — script 26–31 ms, style/layout/paint 34–38 ms — with
+the worst rAF gap at **50.0–68.5 ms** and the `longtask` channel **silent**.
+The 20-row control is **0 of 10** at an 18.8 ms floor, over **10,318 nodes
+against 765**.
+
+**The attribution is now split, and the second half is new**: ≈ **6 ms** for
+the 518-security payload — fetch, parse, `useSecurities` and `/`'s three
+whole-universe computations, which the landing route **also** pays — and ≈
+**48 ms** for the 518-row table's markup, at ≈ 3.9 µs a node over 9,871 extra
+nodes and 505 extra anchors. **So the lever is still DOM size** and this epic's
+entry 1 was re-derived from a page that did not exist when it was written.
+
+### 2. You no longer own the `marketDateAt` candidate's magnitude, and the per-batch join is not the figure above
+
+**Three figures in the sections above are pre-repair and must not be quoted as
+current.**
+
+- The **3.497 ms** widening and the **3.4 ms / ~6.6 µs** attribution are Story
+  4.4's dated measurement and stay standing as one. Task 4.8.7 took three
+  `Intl.formatToParts` reads out of `marketDateAt` on 2026-10-09 — **3.366 →
+  1.288 ms** over 518 instants — so the per-call figure is now ~2.5 µs and the
+  **attribution is still correct about WHERE the cost is while the magnitude is
+  about a third of what it says.**
+- The **3.72 ms** per-batch join (Task 4.8.3) was **re-taken** on 2026-10-10 by
+  Task 4.8.11, inside the real gateway on `apps/backend/dist` with the producer
+  composed as `index.ts` composes it, all 518 observed with closes, arms rotated
+  per burst and a calibrator paired: **1.521 ms p50** (p95 1.620, n = 298/300,
+  calibrator reference 1.217 ms, 2 discarded, load ratio 0.324).
+- **And it is now ZERO when nobody is attached.** `publishObservations`
+  evaluated `overviewMessage()` as an **argument** to `broadcast`, so the
+  518-join ran before the client map was read. It returns early on
+  `clients.size === 0`: **0.000 ms p50 and 0 joins counted over 500 bursts**.
+  The idle-deployment line this epic might have inherited — 10.3 ms of script a
+  minute at the 6.8-batch midday floor, 24.5 ms at the close's 16.1, for a
+  frame sent to nobody — **closes rather than moves.**
+
+**Re-measure rather than subtract.** Nothing has re-run the
+`buildMarketOverview`-alone arm, breadth's arm or movers' arm since the repair,
+so their shares of 1.521 ms are unmeasured. And the products derived from
+3.72 ms — **11.2 ms** a cold `/`, **7.4 ms** a placeholder route, **3.72 ms** a
+mover resubscribe — are all pre-repair. A naive rescale at 1.521/3.708 puts a
+cold `/` near **4.6 ms**, and that is an **estimate rather than a
+measurement**: 1.521 ms is the whole `overviewMessage()` on an all-observed
+fixture, while the three snapshot joins run against whatever the live map holds.
+
+**The memoised-conversion cache is still yours**, unchanged, and Gate 1's
+reason for not taking it here is unchanged: it puts mutable state in the one
+module held out as a pure conversion seam. What is new beside it is a guard —
+`pnpm invariants`' **`market-date-reads-the-parts-once`**, break
+**`the-market-date-takes-the-offset-path-again`** — because the repair is
+invisible in every rendered string and the delegation that undoes it is the
+better-looking code.
+
+### 3. The landing route is measured and is NOT in breach, which is what clause A is priced against
+
+Per applied batch on `/`, production build, 1440×900, furnished socket at the
+measured cadence, **net of a quiet control driven at the same cadence**:
+**3.7–5.1 ms** of main-thread work, of which the aggregate is **2.8–3.9 ms**;
+**0** `longtask` entries in seven arms; worst rAF gap **17.7–17.8 ms** against a
+16.7 ms quantum; largest single task **4.5 ms**; at the cadence, **25–82 ms a
+minute**. On a cold load: **447 nodes and zero `<tr>` at 518 securities,
+identical at 20**, 0 tasks over 50 ms on 10 of 10, one 50.9 ms frame, worst rAF
+gap p50 24.7 / p95 34.7 ms.
+
+**So clause A has a measured price before it fires and a measured headroom
+until it does.** `/ @20` collapses to the 18.7 ms one-frame floor, which is
+what licenses attributing the ~6 ms to the payload rather than to the page's
+own chrome.
+
+### 4. Two instrument rules that bound every figure in this file
+
+**They are not optional and both were produced by measurement rather than
+argued.**
+
+- **A gapped Node sample inflates, and the calibrator does not divide it out.**
+  Task 4.8.3 measured a fixed-cost control with no ICU and no allocation
+  inflating ×2.4–3.5 at a 250 ms gap beside a subject inflating ×3.5–3.8, which
+  reads as a property of the machine. Task 4.8.11 re-took one arm with the
+  calibrator **re-referenced at the gap** and the arms rotated: the calibrator
+  inflated **2.29×** and the subject **4.38×** on the same bursts — ratios a
+  factor of ~1.9 apart, so a gapped figure corrected by the calibrator's own
+  inflation would have **under-reported by nearly half**. **A gapped absolute
+  is an upper bound on the shape and nothing more**, and `the ratio travels` is
+  withdrawn as a rule.
+- **That effect does not reproduce in a visible renderer** — ×1.00 at gaps of
+  3.7 s and 8.8 s, five arms of five (Task 4.8.4), corroborated at ×0.91–×1.09
+  of a 2.2 ms reference by 4.8.5 and 4.8.6. **Two caveats, not one**: the Node
+  legs carry it and the browser legs do not.
+
+### 5. The one thing to read before re-measuring anything here
+
+**`PerformanceObserver({ entryTypes: ["longtask"] })` alone can no longer see
+this epic's own exception.** `PRODUCT_SPEC.md` §28 now states the method as
+three channels — `longtask`, `long-animation-frame` and an rAF-gap recorder —
+**each proved by a plant on the page that produced the figure**, because a
+channel going quiet and a cost going away produce the same output. Exception
+1's `Re-measure:` line already carries a dated amendment saying it is
+insufficient as written (Task 4.8.6); this is the rule behind it.

@@ -244,6 +244,16 @@ export interface MarketOverviewInputs {
  * cold process. It is not routed around here; the repair, if one is bought, is
  * a memo at the producer, and the arithmetic is in Task 4.8.3.
  *
+ * **Amended 2026-10-10 by Task 4.8.10: the 3.44 and the 3.72 are pre-repair.**
+ * Task 4.8.7 took three `Intl.formatToParts` reads out of `marketDateAt` on
+ * 2026-10-09, and Task 4.8.11 re-measured the whole per-batch path on the
+ * production artefact afterwards at **1.521 ms p50** (n = 298/300, tight,
+ * zero clients, calibrator reference 1.217 ms). The *count* of calls above is
+ * unchanged and is still the point; the magnitude is roughly 41% of what it
+ * says. **Re-measure rather than subtract** — nothing has re-run the
+ * `buildMarketOverview`-alone arm since the repair, so this function's own
+ * share of the 1.521 ms is unmeasured.
+ *
  * The change itself is **not computed here**. `changeFromClose` is
  * `packages/shared`'s, and it is the same function the browser's own table and
  * identity block call. What it carries that a re-implementation would not is
