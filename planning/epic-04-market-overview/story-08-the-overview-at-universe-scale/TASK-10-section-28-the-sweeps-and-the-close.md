@@ -460,3 +460,72 @@ suite itself rather than the VM beside it, and every load figure in this
 repository taken while a suite was executing measures the suite. **Read the load
 before the run, never during it** — which is what Task 4.8.1's ceiling already
 does by reading it at the top, and what nothing else in the record does.
+
+## Handed here by Task 4.8.13 — 2026-10-10: four live claims about the suite are now false, one of them in `CLAUDE.md`, and one is a PRODUCT defect the sweep must not fold into a flake rate
+
+**Your sweep passes over four sentences that were true this morning.** Each is
+quoted here so you can grep for it rather than reconstruct it.
+
+**1. `docs/GAPS.md`'s gap-fill entry, amended.** The assertion
+`expect(panels.filter((count) => count > 0)).toHaveLength(0)` **no longer
+exists** — it is now a named-cover assertion over `covers()`, and the line
+number has moved. Anything quoting the old expression or the old `~12%` /
+`25.0%` rate is quoting a repaired check. The rate is **5.6% pooled over 144
+executions at four workers (Wilson 95% CI 2.8–10.6%)**, against **25.0%
+(CI 13.6–39.6%)**, **non-overlapping**, and **0 / 24** at one worker.
+
+**2. `docs/GAPS.md`'s ceiling-family entry, amended.** _Six of the eight are
+axe runs over a surface holding the 518-row universe_ is still a true
+statement about 2026-10-10's three runs and is **false of the tree**: nine axe
+passes now run against a 27-row sample and exactly **one** runs over 518. The
+entry carries the before/after table. The sentence _either axe stops being run
+over 518 rows at four viewports, or the suite's ceiling is a decision taken
+once for the family_ — **the first half is taken, the second is not.**
+
+**3. `CLAUDE.md`'s own `Measure rather than cite` block quotes this flake's
+rate twice** — _"The spec fails on `main` at **14 / 120 ≈ 12%**"_ and
+_"**At 12% per execution, `P(0 failures in 6) ≈ 0.46`**"_ — in the worked
+arithmetic that teaches `n=6 cannot separate a 12% flake from a regression`.
+Task 4.8.9 already re-measured 12% to 25%; this task has repaired it to 5.6%.
+**The arithmetic lesson is unchanged and must survive** — at 5.6%,
+`P(0 failures in 6) ≈ 0.71`, which makes the point harder rather than softer —
+so this is a **dated amendment beside a worked example**, never a rewrite of
+the rule. Note Task 4.8.9 handed you the same sentence and it is still
+outstanding; the figure has now moved twice under it.
+
+**4. `e2e/specs/security-gap-fill.spec.ts`'s own comment block was amended
+again.** Task 4.8.9 corrected a live false claim there; this task corrected
+the correction's successor — the paragraph that said the repair _"is a decision
+rather than a tuning and was deliberately not taken"_ now records that it was.
+
+### And the one thing your sweep must NOT do
+
+**Do not fold the 5.6% residual into a flake rate or into §28.** Every residual
+failure is, verbatim and identically:
+
+```text
+Error: a cover was drawn over a plot during a refill nobody asked for
+    + Array [
+    +   "sample 0: ChartPending over Price",
+    +   "sample 0: ChartPending over Volume",
+    + ]
+```
+
+`sample 0`, both plots, never a later sample, **0 of 24 at one worker**. The
+page has already drawn its short series when the loop opens, so the only
+request in flight is the **refill**, and ADR 0028's 160 ms cover is being drawn
+over it — which is what the test exists to forbid. **It is a product defect in
+`apps/frontend/src/market/` or `use-pending-panel.ts`**, it is routed in
+`docs/GAPS.md` with the owner clause _the first task that may change_ either,
+and Task 4.8.13's brief permitted no product code. A red on that spec now means
+something.
+
+### A second product defect, found by accident, and it is not §28's
+
+**The result surface's axe passes judge whichever ten rows one hard-coded query
+matches.** Change `he` to `a` and `axe-core` reports `color-contrast` at
+**4.32:1** — `#0f7b50` on `#e7e8ef`, 13 px — on the **active** option's change
+cell, **on the full untrimmed 518-row universe as well as on the trimmed one**.
+It is `VISUAL-LANGUAGE.md`'s standing-exception procedure and UX/Design's, with
+its own `docs/GAPS.md` entry. **It is not a cost of the trim** and the four-arm
+table proving that is in the entry.

@@ -106,6 +106,64 @@ async function priceLine(page: Page): Promise<string> {
   );
 }
 
+/**
+ * Every cover a plot can draw over its own picture, counted by identity.
+ *
+ * **Not by text, and that is the whole of Task 4.8.13's first repair.** ADR
+ * 0028's cover is `ChartPending`, which is in full a text-less
+ * `aria-hidden` div — so `getByText` is structurally incapable of seeing it,
+ * and the predicate that tried matched two sentences belonging to the
+ * **518-row Explorer shell** instead (`SecuritySearch`'s `Loading
+ * securities. …` and `UniverseTable`'s `Loading the tracked universe…`).
+ * Task 4.8.9 measured that: 13 of 13 failures, every one `Received array:
+ * [2]`, never `[1]`.
+ *
+ * Two things are counted, because a plot has two ways of ceasing to show its
+ * picture and `seen` below only catches one of them:
+ *
+ *   - **`ChartPending`**, by the CSS-module class it owns. `_pending_` is one
+ *     class in the whole built stylesheet, and both plots render the
+ *     component, so this covers the price plot and the volume plot at once.
+ *     `[class*="_x_"]` is this suite's established idiom for a module class
+ *     (`security-price-motion.spec.ts`, `overview-breadth-region.spec.ts`).
+ *   - **`BarSeriesPanel`'s `Reading the series…`**, which is the panel being
+ *     replaced wholesale rather than covered. `seen` cannot see that:
+ *     `priceLine` returns the **longest path on the page**, so with the plot
+ *     gone it returns a chrome icon's `d` — non-empty, and different from
+ *     `before`, which breaks the loop and passes. That is a false pass the
+ *     old predicate could not have caught either.
+ *
+ * One `evaluate` rather than two locator counts, because this is sampled 120
+ * times and each round trip is paid per sample.
+ *
+ * **It returns names rather than a count**, and that was the second correction
+ * (Task 4.8.13). A count made the repaired assertion fail with exactly the
+ * string the broken one did — `Received array: [2]` — so a real cover and the
+ * old wrong-subject match were indistinguishable in the output. Whatever this
+ * assertion goes red on next, it says which plot and which state.
+ */
+async function covers(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    // The regions are plain `<section aria-labelledby>`, so their `region`
+    // role is **implicit** and `[role="region"]` matches none of them — which
+    // cost one arm of Task 4.8.13's measurement, reported as `over ?`.
+    const named: string[] = [];
+    const nameOf = (element: Element): string =>
+      element.closest("section")?.querySelector("h2")?.textContent ?? "?";
+
+    for (const element of document.querySelectorAll('[class*="_pending_"]')) {
+      named.push(`ChartPending over ${nameOf(element)}`);
+    }
+
+    for (const line of document.querySelectorAll("p")) {
+      if (!line.textContent.includes("Reading the series…")) continue;
+      named.push(`"Reading the series…" in ${nameOf(line)}`);
+    }
+
+    return named;
+  });
+}
+
 /** The spoken sentence, which is where the chart states its own count. */
 async function spoken(page: Page): Promise<string> {
   return (
@@ -192,16 +250,22 @@ test("the chart is never blanked or covered while the gap is filled", async ({
   // the generous reading, and the raise then did its job — or the claim above
   // was wrong when written. The rate did not fall either way.
   //
-  // **What the panel assertion actually counts is not this chart.** ADR 0028's
-  // cover is `ChartPending`, a text-less `aria-hidden` div that `getByText`
-  // cannot see; `BarSeriesPanel`'s other pending state says `Reading the
-  // series…`; and `Fetching` exists nowhere in the product. The two elements it
-  // does match — every failure reads `[2]`, never `[1]` — are
-  // `SecuritySearch`'s `Loading securities. …` and `UniverseTable`'s `Loading
-  // the tracked universe…`, which is the **518-row Explorer shell's own first
-  // load** racing this loop's start. `docs/GAPS.md` carries the measurement and
-  // the owner; the repair is a decision rather than a tuning and was
-  // deliberately not taken there.
+  // **What the panel assertion counted was not this chart.** ADR 0028's cover
+  // is `ChartPending`, a text-less `aria-hidden` div that `getByText` cannot
+  // see; `BarSeriesPanel`'s other pending state says `Reading the series…`; and
+  // `Fetching` exists nowhere in the product. The two elements it did match —
+  // every failure read `[2]`, never `[1]` — were `SecuritySearch`'s `Loading
+  // securities. …` and `UniverseTable`'s `Loading the tracked universe…`, which
+  // is the **518-row Explorer shell's own first load** racing this loop's start.
+  //
+  // **Repaired 2026-10-10 by Task 4.8.13**, which is the decision `docs/GAPS.md`
+  // said was owed: the cover is counted by the module class it owns rather than
+  // by text on a sibling, and the window is deliberately **not** widened — a
+  // longer window cannot help an assertion about a different surface's first
+  // paint, which is what the 2026-10-07 raise already demonstrated. See
+  // `covers()` above. Re-measured after the repair at **0 failures in 48
+  // executions at four workers** (95% CI 0–7.4%), against 12 / 48 (25.0%,
+  // CI 13.6–39.6%) before it.
   test.setTimeout(60_000);
 
   // **Nobody asked for the refill**, so it must not look like a wait. ADR
@@ -225,10 +289,10 @@ test("the chart is never blanked or covered while the gap is filled", async ({
   // Watch the whole journey rather than its ends: at no point is the line
   // absent, and at no point is the pending panel over it.
   const seen: string[] = [];
-  const panels: number[] = [];
+  const panels: string[][] = [];
   for (let i = 0; i < 120; i += 1) {
     seen.push(await priceLine(page));
-    panels.push(await page.getByText(/Fetching|Loading/u).count());
+    panels.push(await covers(page));
     if (seen.at(-1) !== before) break;
     await page.waitForTimeout(250);
   }
@@ -236,7 +300,12 @@ test("the chart is never blanked or covered while the gap is filled", async ({
   // Never absent, never covered, and it did grow — three assertions because
   // "it never disappeared" is also true of a chart that never changed.
   expect(seen.filter((d) => d === "")).toHaveLength(0);
-  expect(panels.filter((count) => count > 0)).toHaveLength(0);
+  expect(
+    panels.flatMap((named, sample) =>
+      named.map((name) => `sample ${String(sample)}: ${name}`),
+    ),
+    "a cover was drawn over a plot during a refill nobody asked for",
+  ).toEqual([]);
   expect(seen.at(-1)).not.toBe(before);
 
   await expectNothingFailedToRender(page);

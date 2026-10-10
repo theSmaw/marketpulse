@@ -9,6 +9,7 @@ import {
 } from "../support/app.js";
 import { expectNoAxeViolations } from "../support/axe.js";
 import { SECURITIES_ROUTE_PATTERN } from "../support/pair.js";
+import { expectTrimmed, serveTrimmedUniverse } from "../support/universe.js";
 
 // The tracked universe on screen — the first page in this product whose content
 // arrives over the network, driven in a real browser (Task 2.4.5).
@@ -137,7 +138,21 @@ test("the tracked universe renders from the real pair", async ({ page }) => {
   ).toBeVisible();
 
   await expectNothingFailedToRender(page);
-  await expectNoAxeViolations(page, "the securities route, loaded");
+
+  // **The one axe pass over the full 518-row universe, and it lives here on
+  // purpose** (Task 4.8.13). Every other axe run on this route and on the
+  // Explorer shell is served a trimmed universe, because axe's findings are
+  // per rule and per element kind rather than per element — the argument is in
+  // `support/universe.ts`. What a trimmed pass cannot claim is *axe is clean
+  // on the real page*, so one pass holds that claim, and it is this test
+  // because this is the one that installs **no route at all**.
+  //
+  // The two populations are **two assertions, not one with a different
+  // input**, and no figure from one is quoted beside a figure from the other.
+  await expectNoAxeViolations(
+    page,
+    "the securities route, loaded — the FULL 518-row universe",
+  );
 });
 
 // What we hold, on screen (Task 2.8.9) — the first thing this page says that is
@@ -232,12 +247,22 @@ for (const height of [720, 560, 480]) {
   test(`the loaded universe has no axe violations at 1280x${String(height)}`, async ({
     page,
   }) => {
+    // **A trimmed universe** (Task 4.8.13). What these three runs are about is
+    // the *viewport*, not the row count: the defect they were written for was
+    // invisible on a tall window and reproduced 160 px shorter. A sampled
+    // universe keeps every element kind the page can draw — both band shapes,
+    // both ETF kinds, eleven sector bands — and drops 491 repetitions of one
+    // row shape, which is duration rather than coverage.
+    const trimmed = await serveTrimmedUniverse(page);
+
     await page.setViewportSize({ width: 1280, height });
     await page.goto(SECURITIES);
     await expectTheUniverseRendered(page);
+    await expectTrimmed(trimmed);
+
     await expectNoAxeViolations(
       page,
-      `the securities route, loaded, 1280x${String(height)}`,
+      `the securities route, loaded, 1280x${String(height)} — a TRIMMED universe`,
     );
   });
 }
@@ -279,9 +304,25 @@ test("every region on the securities route is a keyboard stop", async ({
 // violations" criterion while being exactly the kind of defect it exists to
 // catch. A combobox is mostly ARIA, and ARIA is mostly what axe is for.
 test("the open result surface has no axe violations", async ({ page }) => {
+  // **A trimmed universe** (Task 4.8.13) — the subject is the combobox's ARIA,
+  // which is a property of the surface rather than of the population behind
+  // it.
+  //
+  // **The query is unchanged, and that is deliberate rather than incidental.**
+  // Trying `a` here answers with ten rows instead of one and reports a real
+  // `color-contrast` violation — `#0f7b50` on `#e7e8ef` at **4.32:1** against
+  // 4.5, the price-up ink on the active option's ground — which **the
+  // untrimmed universe reproduces exactly**, so it is a product defect that
+  // this surface's axe passes have never reached, not a cost of the trim.
+  // Changing the query here would have turned a required check red for a
+  // defect this task is not allowed to repair. `docs/GAPS.md` carries the
+  // measurement and the route.
+  const trimmed = await serveTrimmedUniverse(page);
+
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto(SECURITIES);
   await expectTheUniverseRendered(page);
+  await expectTrimmed(trimmed);
 
   const field = page.getByRole("combobox");
   await field.fill("he");
@@ -291,7 +332,10 @@ test("the open result surface has no axe violations", async ({ page }) => {
   await expect(page.getByRole("option").first()).toBeVisible();
   await expect(field).toHaveAttribute("aria-expanded", "true");
 
-  await expectNoAxeViolations(page, "the securities route, search open");
+  await expectNoAxeViolations(
+    page,
+    "the securities route, search open — a TRIMMED universe",
+  );
 });
 
 // The same surface with **no closes at all**, which is the state that actually
@@ -311,18 +355,22 @@ test("the result surface has no axe violations when nothing has a close", async 
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.route(SECURITIES_ROUTE_PATTERN, async (route) => {
-    const response = await route.fetch();
-    const body: unknown = await response.json();
-    // `lastCloses` is a separate array on the wire, so emptying it is exactly
-    // the shape a partially-backfilled deployment produces — not a mangled
-    // body. The universe itself is untouched and still real.
-    const stripped = { ...(body as Record<string, unknown>), lastCloses: [] };
-    await route.fulfill({ response, json: stripped });
-  });
+
+  // `lastCloses` is a separate array on the wire, so emptying it is exactly
+  // the shape a partially-backfilled deployment produces — not a mangled
+  // body. The universe itself is untouched and still real.
+  //
+  // **And trimmed since Task 4.8.13**, in the same interception rather than a
+  // second one: Playwright runs the last handler registered first, so two
+  // routes on one pattern are an ordering question nobody should have to
+  // answer. The state under test is an ink on a row, which 27 rows render as
+  // faithfully as 518 do — and the query is unchanged for the reason given on
+  // the pass above.
+  const trimmed = await serveTrimmedUniverse(page, { withoutCloses: true });
 
   await page.goto(SECURITIES);
   await expectTheUniverseRendered(page);
+  await expectTrimmed(trimmed);
   await page.getByRole("combobox").fill("he");
 
   const rows = page.getByRole("option");
@@ -332,7 +380,7 @@ test("the result surface has no axe violations when nothing has a close", async 
 
   await expectNoAxeViolations(
     page,
-    "the securities route, search open, no closes",
+    "the securities route, search open, no closes — a TRIMMED universe",
   );
 });
 
@@ -883,8 +931,17 @@ test("a query typed before the universe arrives is kept, not answered", async ({
 test("a query that matches nothing is a sentence rather than an empty list", async ({
   page,
 }) => {
+  // **A trimmed universe** (Task 4.8.13). The subject is a sentence and the
+  // absence of a listbox; `zzz` matches nothing in 27 securities for the same
+  // reason it matches nothing in 518. This pass was the one Task 4.8.9's
+  // ranking did not name and it was the same shape as the six it did — axe
+  // over the whole universe, measured at 7.2 s with nothing about the
+  // population under test.
+  const trimmed = await serveTrimmedUniverse(page);
+
   await page.goto(SECURITIES);
   await expectTheUniverseRendered(page);
+  await expectTrimmed(trimmed);
 
   await page.getByRole("combobox").fill("zzz");
 
@@ -896,7 +953,10 @@ test("a query that matches nothing is a sentence rather than an empty list", asy
     "false",
   );
 
-  await expectNoAxeViolations(page, "the securities route, no matches");
+  await expectNoAxeViolations(
+    page,
+    "the securities route, no matches — a TRIMMED universe",
+  );
 });
 
 test("prefers-reduced-motion stops the table arriving", async ({ page }) => {
