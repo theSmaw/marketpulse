@@ -182,6 +182,26 @@ test("the chart is never blanked or covered while the gap is filled", async ({
   // `playwright.config.ts` and stands. A retry cannot tell a flake from a
   // defect; a longer window still fails if the line never grows at all, which
   // is the defect this test exists for.
+  //
+  // **Amended 2026-10-10 by Task 4.8.9 — the first paragraph above is no longer
+  // true of this test, and the budget is not where its flakiness is.**
+  // Re-characterised at n = 96 on one checkout: **1 / 24 at `--workers=1` and
+  // 12 / 48 at `--workers=4`** (25%, which is the worker count the suite
+  // actually runs at), and **13 of 13 failures are the PANEL assertion below,
+  // 0 of 13 the final one.** So either the mode moved when the window doubled —
+  // the generous reading, and the raise then did its job — or the claim above
+  // was wrong when written. The rate did not fall either way.
+  //
+  // **What the panel assertion actually counts is not this chart.** ADR 0028's
+  // cover is `ChartPending`, a text-less `aria-hidden` div that `getByText`
+  // cannot see; `BarSeriesPanel`'s other pending state says `Reading the
+  // series…`; and `Fetching` exists nowhere in the product. The two elements it
+  // does match — every failure reads `[2]`, never `[1]` — are
+  // `SecuritySearch`'s `Loading securities. …` and `UniverseTable`'s `Loading
+  // the tracked universe…`, which is the **518-row Explorer shell's own first
+  // load** racing this loop's start. `docs/GAPS.md` carries the measurement and
+  // the owner; the repair is a decision rather than a tuning and was
+  // deliberately not taken there.
   test.setTimeout(60_000);
 
   // **Nobody asked for the refill**, so it must not look like a wait. ADR

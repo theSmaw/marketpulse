@@ -191,6 +191,51 @@ characterisation counting per execution, and the **code-free control commit**.
 Both need a machine this epic has not had, and **no story in this epic should
 claim a flake rate measured on it.**
 
+> **DISCHARGED 2026-10-10 by Task 4.8.9 — both of them, on a settled machine,
+> and you do not owe either any more.** Read
+> [`TASK-09`](../story-08-the-overview-at-universe-scale/TASK-09-the-three-flakes-characterised-on-a-settled-machine.md)
+> for the arms; what you need in order to act is here.
+>
+> **1. The code-free control commit is TAKEN.** It is `dee73de` on
+> `story-4-8-task-9`, one planning Markdown file, and
+> `git diff --stat HEAD~1 HEAD -- . ':(exclude)planning' ':(exclude)docs'` is
+> **empty** — a byte-identical runtime tree, which is the whole of its value.
+> The arm either side of it was `security-gap-fill` at `--repeat-each=24
+--workers=4`: **8 / 24 and 4 / 24 on the parent, 4 / 24 on the control.**
+> The control's draw sits inside the parent's spread, which is exactly what the
+> control exists to show and is the second time this repository has shown it
+> (Task 4.2.6 was the first, and was wrong before it did). **You do not need to
+> take another one. You do need to quote this one** the next time a figure on
+> this branch is read as a regression.
+>
+> **2. The characterisation is taken at n ≥ 24 per subject, five subjects, on
+> one checkout.** The rates, with their conditions, are in `docs/GAPS.md`
+> against each flake's own entry — amended rather than appended, so a reader who
+> greps for the flake finds the measurement and not the hypothesis.
+>
+> **3. The verdict this story asked for, in the words it asked for them.** _The
+> suite is flaky_ and _the machine cannot execute the suite_ are **both** true
+> and they are separable, which is what a settled machine bought:
+>
+> - **`security-gap-fill` is a FLAKE and its predicate is wrong about its own
+>   subject** — 4.2% at one worker against 25% at four, and all 13 failures an
+>   assertion that is structurally incapable of seeing the panel it is believed
+>   to watch for. Repairable, cheap, and not this task's to repair.
+> - **`market-gateway.process.test.ts` is a MACHINE finding with a confirmed
+>   mechanism** — 0 / 48 quiet, 19 / 24 under a stated CPU plant.
+> - **`securities-route` is a MARGIN and a wider one than published** — 0 / 48,
+>   median 8.0 s quiet and 13.5 s at four workers against 30 s.
+> - **`index.process.test.ts`'s shutdown ordering is UNREPRODUCED at n = 96**,
+>   and the arm that would reach it is `pnpm verify` ×24, which is 72 minutes
+>   nobody has spent.
+>
+> **4. One thing you should not repeat, and it bears on your own readings.**
+> **The browser suite is its own plant.** A full `pnpm e2e` run begun at a load
+> average of **5.3** left the machine at **31.0** — so the 34.28 Task 4.8.12
+> recorded _during_ its runs is largely the suite, and a load average read while
+> a suite is executing cannot be attributed to anything else on the machine.
+> **Read the load before the run, never during it.**
+
 ### 2. The rehearsal ledger's eighth row is open
 
 Story 4.5's row is written and unwatched. **What makes it different from every
@@ -240,6 +285,13 @@ would be quoted, which is worse than having no rate.
 is the distinction this story could not resolve from a terminal: _the suite is
 flaky_ and _the machine cannot execute the suite_ look identical, and only one
 of them is anybody's defect.
+
+> **Both are DONE, 2026-10-10, by Task 4.8.9** — the characterisation at
+> n ≥ 24 per subject and the control commit `dee73de`. See the discharge note
+> under _What is owed and was not taken_ above; it carries the verdict per
+> subject and the one reading you should not repeat. **What is left of this
+> assignment for you is the `pnpm verify` ×24 arm**, which nothing cheaper
+> reached and which is the only outstanding flake arm in the epic.
 
 ## Handed here by Story 4.6 — 2026-10-09: no gated machine has ever clicked a mover, and the epic's exit criterion has a clause no gate can reach
 

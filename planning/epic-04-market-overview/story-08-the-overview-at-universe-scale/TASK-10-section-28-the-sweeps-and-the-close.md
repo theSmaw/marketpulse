@@ -416,3 +416,47 @@ existed named only `feed-liveness.ts`. The same question has not been asked of
 about the instant the join ran, and that is the one remaining shipped reader. A
 grep for both words across `apps/frontend/src` is a minute, and the finding
 either way belongs in the close.
+
+## Handed here by Task 4.8.9 — 2026-10-10: four `docs/GAPS.md` entries moved, one spec comment was a live false claim, and `CLAUDE.md`'s worked arithmetic quotes a rate that has been re-measured
+
+**Four entries in `docs/GAPS.md` changed in that task and are listed here so
+your sweep counts them rather than rediscovers them.** Three amendments with a
+dated `Amended 2026-10-10 by Task 4.8.9` block and a rewritten `Re-measure:`
+line — `security-gap-fill`, `securities-route`'s margin, and the _THIRD flake_
+(`market-gateway.process.test.ts`) — plus **one new entry**, _A FOURTH flake,
+also inside `pnpm verify`_, which is `index.process.test.ts`'s shutdown ordering
+and which nothing in this repository had recorded.
+
+**Two things in that batch are sweep work rather than a record, and one of them
+is already done.**
+
+**1. Done, because it was a live claim rather than a historical one.**
+`e2e/specs/security-gap-fill.spec.ts:168` opened with _"The sampling budget
+below is the whole of this test's flakiness"_ and _"every one of them the final
+assertion — the line never grew within the window"_. **13 of 13 failures
+measured at n = 96 are the other assertion**, and the predicate in that
+assertion cannot see the panel it is written about. The comment now carries a
+dated amendment rather than a rewrite. It is a comment-only change and the test
+is untouched.
+
+**2. Yours: `CLAUDE.md`'s worked arithmetic quotes 12%, and the live figure is
+25%.** The passage _before attributing a flake to a branch, run the branch
+commit that contains no code_ reasons from _"the spec fails on `main` at
+14 / 120 ≈ 12%"_ and concludes _"at 12% per execution,
+`P(0 failures in 6) ≈ 0.46`"_. **The arithmetic is right and the input has
+moved**: 25% at the four workers the suite runs with, which makes
+`P(0 in 6) = 0.75⁶ ≈ 0.18` and `n = 6` _more_ misleading rather than less. That
+passage is a **dated account of Task 4.2.6**, so `CLAUDE.md`'s own rule says
+amend a live claim and leave a historical record standing — and this one is
+both, because the `≈ 0.46` is quoted as a standing reason to use n = 24. **Your
+call which it is**; the figure and its conditions are in `docs/GAPS.md` and in
+`TASK-09`.
+
+**And one new rule the sweep may want, because it invalidates how three
+documents read a load average.** **The browser suite is its own plant.** A full
+`pnpm e2e` begun at a load average of **5.31** left the machine at **31.04**.
+So Task 4.8.12's `uptime` of **34.28** _during_ its three runs is largely the
+suite itself rather than the VM beside it, and every load figure in this
+repository taken while a suite was executing measures the suite. **Read the load
+before the run, never during it** — which is what Task 4.8.1's ceiling already
+does by reading it at the top, and what nothing else in the record does.
