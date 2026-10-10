@@ -3778,16 +3778,20 @@ export const BREAKS = [
       "the four feed-path regions. `overview()` is unmemoised, so each " +
       "call is a full join over all 518 securities — 1.521 ms a batch " +
       "(Task 4.8.11, re-taken after Task 4.8.7's repair and superseding " +
-      "Task 4.8.3's 3.72 ms), against the three paths a browser opening " +
-      "`/` already pays. Epic 14's 2026-10-07 clause fires on this " +
-      "count, and before 2026-10-09 nothing read it (Task 4.8.8).",
+      "Task 4.8.3's 3.72 ms). Epic 14's 2026-10-07 clause fires on this " +
+      "count, and before 2026-10-09 nothing read it (Task 4.8.8). **The " +
+      "three paths are no longer three joins** — Task 4.7.3 made the " +
+      "snapshot pair serve `lastBroadcastOverview` — which is why the " +
+      "substitution passes `overview()` explicitly: a fourth path that " +
+      "computes is exactly the shape the memo was introduced to stop " +
+      "reappearing.",
     file: "apps/backend/src/market-gateway.ts",
     find: "  }, KEEPALIVE_INTERVAL_MS);",
     replace:
       "  }, KEEPALIVE_INTERVAL_MS);\n\n" +
       "  // pnpm break: reverted automatically\n" +
       "  const overviewRefresh = setTimer(() => {\n" +
-      "    if (clients.size > 0) broadcast(overviewMessage());\n" +
+      "    if (clients.size > 0) broadcast(overviewMessage(overview()));\n" +
       "  }, 30_000);",
     command: ["pnpm", "invariants"],
     expect: "sit outside both known producers",
@@ -3826,6 +3830,54 @@ export const BREAKS = [
     ],
     expect: "does NOT build the aggregate when no browser is attached",
   },
+  // **The figures that do not survive a fresh join — Task 4.7.3.**
+  //
+  // The substitution is the **omission** a re-implementer makes rather than an
+  // inversion: the `??` goes and the call keeps computing, which is what every
+  // line of this gateway did until 2026-10-10 and what the next author will
+  // write if they are reading the three paths rather than the memo. It
+  // compiles, it typechecks, and on a healthy feed nothing on any screen looks
+  // wrong — the aggregate a reconnect recomputes is the same one it was holding
+  // **while bars are arriving**.
+  //
+  // **Three weaker drafts of this assertion were produced first and all three
+  // were GREEN on the defect**, which is Task 4.8.11's lesson on this exact
+  // surface, met a second time: *the reloaded tab receives an overview frame*,
+  // *it carries as many figures as the first tab's*, and *it decodes and names
+  // the symbol*. A poorer aggregate is a well-formed aggregate. The transcript
+  // is in Task 4.7.3's record. What goes red is an assertion on **which of two
+  // aggregates the gateway served**, with a producer whose answer changes
+  // between the broadcast and the join.
+  {
+    name: "the-fresh-join-recomputes-the-aggregate",
+    proves:
+      "A reconnecting or subscribing browser is served a freshly computed " +
+      "aggregate instead of the last broadcast one. Reachable with a " +
+      "**reload** during an outage, and routine: breadth and movers come " +
+      "from one eligibility pass over a **5-minute** window on each bar's " +
+      "own `startsAt`, while a proxy or sector entry is marked `live` with " +
+      "no expiry at all — so the top of `/` draws four live prices and " +
+      "eleven ranked sectors and the middle says `none were heard from in " +
+      "the last 5 minutes`. Two true halves, one contradiction (Task " +
+      "3.4.9), by a fifth door. Nothing on the wire tells a served " +
+      "aggregate from a recomputed one, so the assertion is on WHICH of " +
+      "two the gateway sent.",
+    file: "apps/backend/src/market-gateway.ts",
+    find: "        send(client, overviewMessage(lastBroadcastOverview ?? overview()));",
+    replace:
+      "        // pnpm break: reverted automatically\n" +
+      "        send(client, overviewMessage(overview()));",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "run",
+      "test:process",
+      "src/market-gateway.process.test.ts",
+    ],
+    expect: "serves a NEW browser what was last broadcast",
+  },
+
   // **Two entries for one invariant, like `the-send-instant-is-not-a-clock`'s
   // pair, and for the same reason: the check has two conjuncts and they fail
   // differently.** The first is the word's presence, which the obvious revert

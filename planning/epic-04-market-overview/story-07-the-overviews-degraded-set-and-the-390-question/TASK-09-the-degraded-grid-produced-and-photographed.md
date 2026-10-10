@@ -123,3 +123,16 @@ screen during this task — see Task 4.7.1's findings.
 
 **5. A `/\blive\b/iu` negative on the footer cannot hold in a dropped state**:
 `The live feed is not connected.` contains the word. Compare whole surfaces.
+
+**6. The reload-during-an-outage row changed on 2026-10-10, and so did what
+`overviewOnReconnect` models** (Task 4.7.3). The gateway serves a reconnecting
+or subscribing browser its **last broadcast** aggregate, so the shipped state
+to photograph is `serveFeed` with `overview` and **no**
+`overviewOnReconnect` — the figures and the denominator survive the reconnect
+together, asserted in `overview-held-outage.spec.ts`' fourth test. `overviewOnReconnect` still has a subject and it is a **different** one:
+a replica restarted mid-session, which has no last broadcast and no market
+state, and whose thin aggregate this repair does not reach (`docs/GAPS.md`, _A
+replica restarted mid-session still serves its first browser a thin
+aggregate_). If the grid photographs that row, label it as the **deploy** state
+rather than as the outage state — they used to be the same picture and are not
+any more.

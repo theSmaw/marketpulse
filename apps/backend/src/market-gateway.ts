@@ -391,14 +391,82 @@ export function registerMarketGateway(
    * aggregate over securities a browser never asked for by name, so every
    * attached client gets the identical payload — which is also why
    * `publishObservations` encodes it once outside its per-client loop.
+   *
+   * **Amended 2026-10-10 by Task 4.7.3: the aggregate is now an ARGUMENT, and
+   * two of the three paths no longer compute one.** See
+   * `lastBroadcastOverview` below. The encode site is still exactly one, which
+   * is what `the-overview-frame-is-not-a-heartbeat` holds; what moved is where
+   * the *value* comes from.
    */
-  const overviewMessage = (): string =>
+  const overviewMessage = (aggregate: WireMarketOverview): string =>
     encodeMarketStreamMessage({
       type: "overview",
       version: MARKET_STREAM_PROTOCOL_VERSION,
       sentAt: sentAt(),
-      overview: overview(),
+      overview: aggregate,
     });
+
+  /**
+   * **The last aggregate BROADCAST to attached browsers** — and what a
+   * reconnecting or subscribing browser is served instead of a fresh join
+   * (Task 4.7.3).
+   *
+   * ## The defect, which a reader reaches with a reload
+   *
+   * `sendSnapshot()` computed a new aggregate on connect and on every
+   * subscribe, and the three producers behind it age at three different rates:
+   * `market-breadth.ts`'s eligibility pass — which **breadth and movers are
+   * both taken from** — filters on each bar's own `startsAt` inside a
+   * **5-minute** window, while a proxy or a sector entry is marked `live` for
+   * as long as the observation sits in the map, with **no expiry at all**. So
+   * a join taken during an outage draws four live prices and eleven ranked
+   * sectors at the top of `/` and `none were heard from in the last 5 minutes`
+   * in the middle — **Task 3.4.9's _two true halves, one contradiction_,
+   * arriving by a fifth door**, with each half correct about its own subject.
+   *
+   * It is reachable by a **reload**, and routine on every socket drop: the
+   * 2026-09-23 watch counted a browser's socket closing **38 times in
+   * 4h 36m**, and each of those reconnects paid a fresh join.
+   *
+   * ## The rule, which this product already holds twice
+   *
+   * > **An aggregate that has held figures must not fall back to its empty
+   * > state because of a join the reader did not ask for.**
+   *
+   * `LiveFeedView.resumes`' refill rule and `use-bar-series`' never-blank rule
+   * are the same sentence about a series; this is it about an aggregate. The
+   * owner's Gate 1 decision picked this over three alternatives, recorded in
+   * Task 4.7.3: the browser additionally refusing a poorer aggregate (a second
+   * place that has to know what *poorer* means); expiring the proxy and sector
+   * entries on breadth's window (throws away figures a reader was reading,
+   * which Story 3.10 decided against); and photographing it as honest
+   * (defensible per region, indefensible as a set).
+   *
+   * ## What a process with no last broadcast serves, and why that is not it
+   *
+   * **A freshly computed aggregate — today's behaviour, unchanged.** A process
+   * that has never broadcast has no reader whose figures it could contradict,
+   * and the aggregate it computes is the true answer about what it holds:
+   * out of hours, and on a deployment with `MARKET_DATA_PROVIDER=none`, that
+   * is the last stored closes — Story 4.2's `all-stored-one-session` and
+   * `no-provider-configured` states, which are **reached on a cold load** and
+   * would cease to exist if the absent memo meant an absent frame.
+   *
+   * **The deploy case is therefore only half repaired, and the residue is not
+   * this memo's to fix**: a replica restarted mid-session has no memo *and* no
+   * market state — `docs/GAPS.md` entry 8 measured its own feed refused for
+   * **45.8–46.5 s** — so the first browser to reconnect to it is served a thin
+   * computed aggregate however this gateway remembers. Nothing a 46-second-old
+   * process can compute is better than what the reader's own tab already
+   * holds. See Task 4.7.3's record for the fork and `docs/GAPS.md`.
+   *
+   * ## Nothing here may throw
+   *
+   * The write below is on the socket callback's path, where an unhandled
+   * rejection is a crashed process. It is a single assignment of a value
+   * `overview()` has already returned, and the read is a `??`.
+   */
+  let lastBroadcastOverview: WireMarketOverview | undefined;
 
   app.server.on("upgrade", (request, socket, head) => {
     // Path-matched here rather than by the library, so an upgrade to any other
@@ -453,7 +521,15 @@ export function registerMarketGateway(
         // upstream batch — §11.1's own argument one level up, and the wait it
         // removes is the same wait. It rides this call rather than a call of
         // its own so that *on connect* and *on subscribe* cannot come apart.
-        send(client, overviewMessage());
+        //
+        // **The LAST BROADCAST one, not a fresh join** (Task 4.7.3) — the
+        // whole argument is on `lastBroadcastOverview`. A browser that joins
+        // after a broadcast is served exactly what every tab already open is
+        // looking at, which is a second property worth having: two tabs of `/`
+        // no longer disagree about the market by however long apart they were
+        // opened. The `??` is the cold-start arm and it is the only path on
+        // which these two sends pay a join at all.
+        send(client, overviewMessage(lastBroadcastOverview ?? overview()));
       };
 
       // **The snapshot, on connect.** §11.1: a browser connecting under
@@ -544,8 +620,10 @@ export function registerMarketGateway(
       // asks twelve lines above, for the same reason.
       //
       // **Why it is here rather than around the broadcast** (Task 4.8.11).
-      // `overviewMessage()` is evaluated as an ARGUMENT to `broadcast`, so
-      // until this line the 518-join ran before the client map was read —
+      // `overviewMessage()` was evaluated as an ARGUMENT to `broadcast` — a
+      // `lastBroadcastOverview = overview()` statement since Task 4.7.3, which
+      // changes the shape and not the ordering — so until this line the
+      // 518-join ran before the client map was read —
       // re-measured 2026-10-10 at **1.521 ms p50 a batch with zero clients**
       // (n = 298, tight, calibrator reference 1.217 ms, 2 discarded), against
       // a floor of **0.000 ms** for the early return above. Re-measured
@@ -567,12 +645,16 @@ export function registerMarketGateway(
       // own callback, where an unhandled rejection is a crashed process. A
       // `Map`'s `size` is a field read.
       //
-      // **The snapshot path is deliberately untouched.** A browser connecting
-      // or subscribing still gets a freshly computed aggregate — three joins
-      // per cold load of `/`, counted off the wire by Task 4.8.3 — because
-      // memoising that is a different decision with more surface and was not
-      // the one taken. Those joins have a reader by construction: the browser
-      // that asked.
+      // ~~**The snapshot path is deliberately untouched.** A browser
+      // connecting or subscribing still gets a freshly computed aggregate —
+      // three joins per cold load of `/`, counted off the wire by Task 4.8.3 —
+      // because memoising that is a different decision with more surface and
+      // was not the one taken. Those joins have a reader by construction: the
+      // browser that asked.~~ — **taken 2026-10-10 by Task 4.7.3, and not for
+      // the cost.** The snapshot path now serves `lastBroadcastOverview`,
+      // because a recomputed aggregate during an outage contradicts itself
+      // region by region; two of the three joins per cold load going away is a
+      // consequence rather than the reason.
       //
       // Reversal trigger, a condition: **the first consumer of the aggregate
       // that is not an attached browser socket** — a scheduled job, a
@@ -591,7 +673,15 @@ export function registerMarketGateway(
       // aggregate may ride. The feed-state path sends ~332 frames a minute
       // (Task 4.1.6, measured on the deployed gateway) and
       // `the-overview-frame-is-not-a-heartbeat` refuses the word there.
-      broadcast(overviewMessage());
+      //
+      // **And it is the one place the join runs** since Task 4.7.3 — written
+      // as a statement rather than as `broadcast`'s argument because the value
+      // is now kept. A browser that joins before the next batch is served
+      // this, so the write is not bookkeeping: it is the thing a reconnect
+      // reads. It stays **below** the guard above, which is why
+      // `the-join-runs-with-nobody-attached` still goes red.
+      lastBroadcastOverview = overview();
+      broadcast(overviewMessage(lastBroadcastOverview));
 
       // **One message per client rather than one for everybody** (Task 3.5.6).
       // The encode happens per client because the payloads genuinely differ;

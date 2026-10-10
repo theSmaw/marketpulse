@@ -115,6 +115,77 @@ not an attached browser socket_ — a scheduled job, a diagnostics route, a seco
 gateway — at which point `clients.size` stops being the right question and the
 producer wants a cache rather than a guard.
 
+**Amended 2026-10-10 (Task 4.7.3): _one join when somebody is listening_
+becomes _one join per applied batch, and a JOIN IS NOT WHAT A NEW LISTENER IS
+SERVED_.** The paragraph above says, in as many words, that the snapshot path is
+deliberately untouched because _those joins have a reader by construction_. That
+is true and it was the wrong question: the reader exists, and the **answer** they
+are handed is the problem.
+
+**The defect, reachable with a reload.** The three producers behind one
+aggregate age at three different rates. `market-breadth.ts`' eligibility pass —
+which breadth **and** movers are both taken from — filters on each bar's own
+`startsAt` inside a **5-minute** window, so with nothing arriving it empties.
+`buildMarketOverview` marks a proxy or sector entry `live` for as long as the
+observation sits in the map, with **no expiry at all**. So a join taken during
+an outage draws **four live prices and eleven ranked sectors** at the top of `/`
+and `Of the 503 companies we track, none were heard from in the last 5 minutes`
+in the middle — each half correct about its own subject, and Task 3.4.9's _two
+true halves, one contradiction_ arriving by a fifth door. It is routine rather
+than exotic: the 2026-09-23 watch counted a browser's socket closing **38 times
+in 4h 36m**, and every one of those reconnects paid a fresh join.
+
+**The rule, which this product already holds twice:** _an aggregate that has
+held figures must not fall back to its empty state because of a join the reader
+did not ask for_ — `LiveFeedView.resumes`' refill rule and `use-bar-series`'
+never-blank rule, said about an aggregate instead of a series.
+
+**So the gateway keeps the aggregate it last BROADCAST and serves that on
+connect and on subscribe** (`lastBroadcastOverview`, one `let`, one `??`). Two
+consequences beside the repair: a cold `/` pays **one** join rather than three
+once any batch has been broadcast, and **two tabs of `/` no longer disagree
+about the market** by however long apart they were opened. It is still not a
+cache — the per-batch path computes from current state every time — and the
+count `the-aggregate-has-three-producer-paths` holds is still **three paths**,
+because a path that serves a remembered value is still a send.
+
+**A process with no last broadcast serves a freshly computed aggregate**, which
+is the prior behaviour kept on purpose rather than a fallback: it has no reader
+whose figures it could contradict, and what it computes is the true answer about
+what it holds — out of hours, and on a deployment with
+`MARKET_DATA_PROVIDER=none`, the last stored closes. If an absent memo meant an
+absent frame, Story 4.2's `all-stored-one-session` and `no-provider-configured`
+states would stop being reachable on a cold load, which is a worse defect than
+the one being repaired.
+
+**And therefore the DEPLOY case is only half repaired, stated here rather than
+implied.** A replica restarted mid-session has no memo _and_ no market state —
+`docs/GAPS.md` entry 8 measured its own feed refused for **45.8–46.5 s**, and
+the platform does not terminate the outgoing replica until ~46 s into the new
+one's life, so the first browser to reconnect arrives at a process whose feed is
+seconds old. **No amount of gateway memory fixes that**: nothing a 46-second-old
+process can compute is better than what the reader's own tab already holds, and
+the only thing that would preserve it is withholding the frame — which is the
+regression above. The residue is `docs/GAPS.md`'s and Story 4.7's, not this
+memo's.
+
+Held by a behavioural assertion for the same reason as the guard above, and the
+same trap was met a second time: **nothing on the wire tells a served aggregate
+from a recomputed one.** Three weaker drafts — _the reloaded tab receives an
+overview frame_, _it carries as many figures as the first tab's_, _it decodes
+and names the symbol_ — were all **green on the defect**, because a poorer
+aggregate is a well-formed aggregate. The assertion is on **which of two
+aggregates the gateway served**, with a producer whose answer changes between
+the broadcast and the join (`market-gateway.process.test.ts`, _"serves a NEW
+browser what was last broadcast, not a fresh join"_, with `pnpm break
+the-fresh-join-recomputes-the-aggregate`).
+
+**Reversal trigger, a condition:** _the first consumer that must be served a
+recomputed aggregate on connect rather than the last broadcast one_ — a
+diagnostics route, a replay client, an agent. A replay is the likely one: its
+clock is the scrub position, and _the last thing broadcast_ is a statement about
+wall-clock history rather than about the replay's now.
+
 ## Decision 2 — the arithmetic moves to `packages/shared`, and AC 2 got STRONGER
 
 Acceptance criterion 2 required `changeFromClose`; the story's own amendment
@@ -180,7 +251,10 @@ batches a minute and **64.1 KiB/min** at the close's 16.1.
   **once per applied batch** before the per-client loop and broadcast — and on
   connect and on subscribe, because the overview is not scoped to a subscription
   and a browser connecting at 11:20 would otherwise have no figures until the
-  next burst.
+  next burst. **Amended 2026-10-10 (Task 4.7.3): the connect and the subscribe
+  are still two SENDS and are no longer two COMPUTES** — they serve the last
+  broadcast aggregate where there is one. See decision 1's second amendment for
+  why, which is a contradiction on screen rather than the cost.
 - **Never from the feed-state path.** That path is ~332 frames a minute and its
   own defect is deliberately unrepaired, handed to Story 4.7; the 127-byte `feed`
   frame survives it with `sameLiveFeedView` collapsing the render, and an

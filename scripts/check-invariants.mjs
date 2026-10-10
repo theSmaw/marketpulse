@@ -2930,13 +2930,14 @@ const INVARIANTS = [
   {
     id: "the-aggregate-has-three-producer-paths",
     claim:
-      "`overviewMessage()` is reached by at most THREE paths in " +
+      "`overviewMessage(…)` is reached by at most THREE paths in " +
       "`market-gateway.ts` — on connect and on every readable `subscribe` " +
       "message, both through `sendSnapshot()`, and once per applied batch " +
       "from `publishObservations` — the third of them only when a browser " +
-      "is attached, since Task 4.8.11. Three is NOT endorsed as correct; a " +
-      "fourth is a decision somebody has to take rather than a defect to " +
-      "discover.",
+      "is attached, since Task 4.8.11, and the first two serving the LAST " +
+      "BROADCAST aggregate rather than a join of their own since Task " +
+      "4.7.3. Three is NOT endorsed as correct; a fourth is a decision " +
+      "somebody has to take rather than a defect to discover.",
     check() {
       // **The count a condition rests on** (Task 4.8.8). Epic 14's repaired
       // 2026-10-07 clause fires on *the aggregate being produced from a call
@@ -2988,6 +2989,21 @@ const INVARIANTS = [
       // holds the guard is a behavioural assertion in
       // `market-gateway.process.test.ts`, because nothing on the wire can —
       // `broadcast` to an empty map sends no frame either way.
+      //
+      // **And the first two stopped being joins on 2026-10-10** (Task 4.7.3,
+      // ADR 0038's second dated amendment). `sendSnapshot()` serves
+      // `lastBroadcastOverview` where there is one, so a cold `/` pays
+      // **one** join rather than three once any batch has been broadcast, and
+      // the two snapshot paths pay none. The count this check holds is
+      // **three paths** and it did not move — a path that serves a
+      // remembered value is still a send of the aggregate, and a fourth one
+      // is still a fourth cadence. The aggregate is now an **argument** to
+      // `overviewMessage`, which is the only reason the sentinel below reads
+      // `overviewMessage(` rather than `overviewMessage()`. As with the
+      // guard above, **this check cannot see which arm of the `??` ran and is
+      // not asked to**: what holds that is a behavioural assertion in
+      // `market-gateway.process.test.ts`, because a served aggregate and a
+      // recomputed one are the same frame type on the wire.
       //
       // What this check refuses is a **fourth arriving unnoticed** — not a
       // fourth existing.
@@ -3089,14 +3105,14 @@ const INVARIANTS = [
         name: "sendSnapshot",
         from: "\n      const sendSnapshot = (): void => {",
         to: "\n      };",
-        sentinel: "overviewMessage()",
+        sentinel: "overviewMessage(",
       });
 
       const publishObservationsBody = regionOf({
         name: "publishObservations",
         from: "\n    publishObservations(observations) {",
         to: "\n    },",
-        sentinel: "overviewMessage()",
+        sentinel: "overviewMessage(",
       });
 
       const within = ({ start, end }, at) => at > start && at < end;

@@ -3157,3 +3157,58 @@ body arrived and read the count only once it has stopped moving.
 **Re-measure** — `pnpm e2e overview-no-element-per-security.spec.ts` for the
 shape; `scripts/overview-instrument.mjs` with three proved channels for the
 figures.
+
+## A replica restarted mid-session still serves its first browser a thin aggregate, and nothing on screen says so
+
+Added 2026-10-10 by Task 4.7.3, which repaired the half of this a gateway can
+repair and could not reach the other half.
+
+**What was repaired.** `sendSnapshot()` recomputed the aggregate on connect and
+on every subscribe, and a join taken during an outage draws four live prices and
+eleven ranked sectors above `Of the 503 companies we track, none were heard from
+in the last 5 minutes` — breadth and movers come from one eligibility pass over a
+**5-minute** window on each bar's own `startsAt`, while a proxy or sector entry
+has **no expiry at all**. The gateway now serves `lastBroadcastOverview`, so a
+reload or a reconnect reads what every open tab reads. Held by
+`market-gateway.process.test.ts`' _"serves a NEW browser what was last
+broadcast, not a fresh join"_ and `pnpm break
+the-fresh-join-recomputes-the-aggregate`.
+
+**What is not, and why it is not a memo's problem.** A replica restarted
+mid-session has no last broadcast **and** no market state. Entry 8 measured its
+own upstream feed refused for **45.8–46.5 s**, and the platform does not
+terminate the outgoing replica until ~46 s into the new one's life — so the
+browsers that migrate arrive at a process whose feed is seconds old, with a live
+map holding one batch or none. **Nothing a 46-second-old process can compute is
+better than what the reader's own tab already holds**, so no amount of gateway
+memory fixes it: the figures fall back to the last stored closes for about a
+minute while the map refills, with nothing on screen saying anything is wrong.
+
+**The one thing that would preserve them is withholding the aggregate frame
+when there is no last broadcast** — a browser that holds figures keeps them —
+and it was **refused with a reason**: an absent memo is also every cold load of
+a process that has heard nothing, so withholding deletes Story 4.2's
+`all-stored-one-session` and `no-provider-configured` states from the landing
+page on a cold load, on every out-of-hours visit and on every deployment with
+`MARKET_DATA_PROVIDER=none`. Discriminating the two needs a judgement about
+whether an aggregate is _poorer_, which Story 4.7's Gate 1 rejected in the
+browser for the same reason it is unattractive here: a second place that has to
+know what poorer means. The three candidates, none costed: the browser refusing
+a poorer aggregate for a bounded window after a `1001`; a readiness gate that
+keeps a replica out of rotation until its own feed has delivered (which no
+no-provider deployment could ever satisfy); and saying so on screen, which is a
+connection word on `/` and is out of Story 4.7's scope by decision.
+
+**What nothing mechanical can see.** The window is a property of a platform
+rollout against a vendor handshake, so it cannot be produced by a test: the
+process suite can make a gateway with no memo serve a computed aggregate (it
+asserts exactly that, as the cold-start arm) but not that the aggregate is
+_thin_, because thinness is the live map's and the live map is the thing a
+restart empties. **Owner: a condition — the first deploy mid-session that
+somebody watches `/` across**, which is also the only way to size the window in
+figures rather than inferring it from entry 8's two readings.
+
+**Re-measure:** watch `/` across a rollout during a session with the frame log
+running, and read the proxy strip's `state` and the breadth footer's `measured`
+either side of the reconnect; `GET /diagnostics/feed`'s `observedAt` on the
+arriving replica is the same question from the server's end.

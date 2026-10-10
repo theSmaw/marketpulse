@@ -44,6 +44,15 @@ import { FURNISHED_BREADTH, serveFeed } from "../support/feed.js";
 // Alone, the first would pass just as well against a harness that had stopped
 // serving the socket at all, which is this suite's own recorded hazard.
 //
+// **A fourth was added on 2026-10-10 by Task 4.7.3, and it is the judgement
+// the third deliberately withheld.** The gateway now serves a reconnecting or
+// subscribing browser its **last broadcast** aggregate rather than a fresh
+// join, so the reconnect is answered with the same aggregate — which is what
+// `serveFeed` with no `overviewOnReconnect` models. It reads the proxy strip
+// and the breadth ledger **together**, because the defect was never a missing
+// figure: it was four live prices above `none were heard from in the last 5
+// minutes`, two regions ageing at two rates inside one aggregate.
+//
 // ## What it serves, and therefore cannot say
 //
 // Every byte is served from here with the shipped encoder, through the
@@ -281,8 +290,16 @@ test("the reconnect can be answered with a poorer aggregate", async ({
   // with an aggregate over an empty live map — four `unknown` figures where
   // four prices were.
   //
-  // **This spec does not judge that state**, which is 4.7.3's to decide. It
-  // asserts the harness can produce it, which is the whole of this task.
+  // ~~**This spec does not judge that state**, which is 4.7.3's to decide. It
+  // asserts the harness can produce it, which is the whole of this task.~~ —
+  // **judged 2026-10-10 by Task 4.7.3: the gateway no longer serves it.**
+  // `sendSnapshot()` serves `lastBroadcastOverview` where there is one, so a
+  // reconnecting browser is answered with what every open tab is already
+  // looking at. **This test is now a model of the PRE-REPAIR gateway and is
+  // kept as one**: the harness can still serve a poorer aggregate, because a
+  // restarted replica with no last broadcast and no market state genuinely
+  // does — see Task 4.7.3's record for the half of the deploy case this
+  // repair does not reach. The test below it is the judgement.
   const feed = await serveFeed(page, {
     feed: VENUE,
     overview: HEARD_FROM,
@@ -316,5 +333,68 @@ test("the reconnect can be answered with a poorer aggregate", async ({
     .toBeGreaterThan(before);
   await expect(proxies(page)).toBeVisible();
 
+  await expectNothingFailedToRender(page);
+});
+
+test("the figures and the denominator survive a reconnect TOGETHER, which is what the gateway now serves", async ({
+  page,
+}) => {
+  // **Task 4.7.3's judgement, at the browser's end**, and the shape it asserts
+  // is the shipped one: `serveFeed` with `overview` and no
+  // `overviewOnReconnect` answers the reconnect with the **same** aggregate,
+  // which is exactly what a gateway serving `lastBroadcastOverview` does.
+  //
+  // ## Why the two regions are read together rather than one of them
+  //
+  // **Because the defect was never a missing figure — it was two regions
+  // disagreeing.** A recomputed aggregate during an outage is poorer in two
+  // places at two rates: `market-breadth.ts`' eligibility pass, which breadth
+  // and movers are *both* taken from, filters on each bar's own `startsAt`
+  // inside a **5-minute** window and empties; a proxy or sector entry is
+  // marked `live` for as long as the observation sits in the map, with **no
+  // expiry at all**. So the recomputed screen draws four live prices at the
+  // top and `Of the 503 companies we track, none were heard from in the last 5
+  // minutes` in the middle — each half correct about its own subject, and
+  // Task 3.4.9's *two true halves, one contradiction* arriving by a fifth
+  // door. Asserting only `774.03` survives would be green against a page whose
+  // breadth footer had gone to `none`, which is the contradiction itself.
+  //
+  // ## The plant, because byte-identical is the easiest thing in this file to
+  // pass vacuously
+  //
+  // A reconnect that was never answered with an aggregate at all leaves both
+  // regions byte-identical too. So `overviews()` is read either side: the
+  // claim is that a frame **was** sent on the reconnect and that what it
+  // carried did not move the screen.
+  const feed = await serveFeed(page, { feed: VENUE, overview: HEARD_FROM });
+
+  await page.goto(OVERVIEW, { waitUntil: "networkidle" });
+
+  const breadth = page.getByRole("region", { name: "Market breadth" });
+  await expect(proxies(page)).toContainText("774.03");
+  await expect(breadth).toContainText("451 were heard from");
+
+  const strip = await proxies(page).innerText();
+  const counts = await breadth.innerText();
+  const before = feed.overviews();
+  expect(before).toBeGreaterThan(0);
+
+  feed.drop();
+  await expect(chrome(page)).toContainText(/disconnected/iu);
+
+  // Back on the page's own retry — nothing reloads here either.
+  await expect(chrome(page)).not.toContainText(/disconnected/iu, {
+    timeout: 15_000,
+  });
+  await expect
+    .poll(() => feed.overviews(), { timeout: 15_000 })
+    .toBeGreaterThan(before);
+
+  // **Neither region moved, and that is one claim about two of them.**
+  expect(await proxies(page).innerText()).toBe(strip);
+  expect(await breadth.innerText()).toBe(counts);
+  await expect(breadth).not.toContainText("none were heard from");
+
+  await expect(page.getByRole("alert")).toHaveCount(0);
   await expectNothingFailedToRender(page);
 });

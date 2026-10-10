@@ -73,3 +73,39 @@ already refuse by name.
 4. No new word enters the vocabulary, and the existing one-home invariants
    still hold **for their own reasons**
 5. `pnpm verify` and `pnpm e2e` green, and the two states photographed
+
+---
+
+## Handed here by Task 4.7.3 — 2026-10-10: the instant you are about to draw an age from can now be ARBITRARILY OLD on a fresh join, and that is on purpose
+
+Written here rather than linked.
+
+**1. The gateway serves a joining or subscribing browser its LAST BROADCAST
+aggregate**, not a recomputed one (`lastBroadcastOverview` in
+`market-gateway.ts`, ADR 0038's second dated amendment on decision 1). So the
+first aggregate a reloaded tab receives carries the `computedAt` and the
+breadth window of **the last applied batch**, which during an outage may be
+twenty minutes ago.
+
+**2. That is what your age is for, and it makes your region's claim stronger
+rather than weaker.** Before this, the figure a reader was shown on a reload
+was recomputed — breadth and movers emptied to `none were heard from`, and
+`computedAt` advanced to the minute the tab was opened with no market data
+behind it. Task 4.8.12 already removed `computedAt` from the drawn note for
+that reason. Now the instant is honest and **stale**, which is exactly the
+state an age is readable in.
+
+**3. The one consequence for your arithmetic: the age is `now − the window's
+end`, and nothing in the frame moves while the feed is dead.** So the age
+**grows without bound** on a page nobody reloads and is **identical** on two
+tabs opened an hour apart. Both are correct. What must not happen is an age
+computed from a clock the frame did not carry — the window's own end is on the
+wire and `now` is the browser's; do not reach for `sentAt` (ADR 0033 holds it
+out of anything but an instrument) and do not reach for the connect instant.
+
+**4. A cold start is the one arm where the instant is still fresh.** A process
+that has never broadcast computes on connect, which is every out-of-hours visit
+and every `MARKET_DATA_PROVIDER=none` deployment — including **CI**, where the
+store has zero bars and `measured` is 0 for ever. So the age you can assert on
+a gated machine is an age over an **honest-nothing** aggregate, not over
+figures.

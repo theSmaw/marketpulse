@@ -366,6 +366,20 @@ that owns market time is an architectural change rather than an optimisation.
 > fourth path is a decision somebody has to take rather than a defect, and the
 > point of the check is that the decision is taken rather than discovered.
 >
+> **Amended 2026-10-10 by Task 4.7.3: three PATHS, and no longer three
+> JOINS.** The clause above is keyed on the call-site count and that count is
+> unchanged — what moved is what two of the three paths do. `sendSnapshot()`
+> serves the gateway's **last broadcast** aggregate rather than computing one
+> (ADR 0038's second dated amendment on decision 1), so a browser opening `/`
+> pays **one** join once anything has been broadcast and **three** only on a
+> process that has not broadcast yet. The repair was taken for a correctness
+> reason — a recomputed aggregate during an outage contradicts itself region by
+> region — and the cost is a consequence rather than its purpose, so **do not
+> credit this epic with it**. The clause fires on a fourth call site exactly as
+> before; the figure to re-take beside it is the **per-cold-load** product,
+> which Task 4.8.11 already said was an estimate rather than a measurement and
+> which is now an estimate of a different thing.
+>
 > **Half 2, the second computation — _the first computation added to that
 > callback that DERIVES a figure per security, rather than ranking or counting
 > figures the join has already produced._** The old wording was _a second
