@@ -112,3 +112,31 @@ say now_. If the phone shows a region with a two-line footer and a reader asks
 _when_, the honest answer is that nothing has reached us yet, and whether the
 silence communicates that is a listener's and a reader's judgement rather than
 a check's.
+
+## Handed here by Task 4.7.2 — 2026-10-10: at 390 the 390 question is a TWO-CORNER question, with the figures to put in front of a person
+
+**Measured, not argued.** Over the five content surfaces — the proxy strip, the
+sector ladder, the breadth ledger, the movers pair and the source note —
+`the market is shut`, `the feed has stopped` and `the backend is gone` are
+**byte-identical at 390**. The entire difference is carried by two cells at
+**opposite corners** of the viewport: the masthead's session word
+(`CLOSED · Weekend`, top right) and the status bar's connection word
+(`DISCONNECTED`, bottom, sticky). A reader at 390 must consult both corners,
+and the sitting should ask whether anybody does.
+
+**The size signal, measured as the sticky bar's own box at 390** (two runs,
+identical):
+
+| state                          | footer height at 390 |
+| ------------------------------ | -------------------- |
+| `LIVE` + `HEALTHY`             | 109 px               |
+| `STALE` + `HEALTHY`            | 131 px               |
+| `DISCONNECTED` + `HEALTHY`     | **149 px**           |
+| `DISCONNECTED` + `UNREACHABLE` | **169 px**           |
+
+So the feed stopping grows the bar by **40 px** of a 780 px viewport (5.1%),
+and a full outage by **60 px** (7.7%). At 1440 the same transition is **2 px** —
+so whatever the sitting concludes about peripheral vision at 390 says nothing
+about a desk, and the reverse. **It is a height and not a line count**: nothing
+mechanical here counts wrapped lines, and `innerText` is identical however the
+sentence wraps, which is one more reason the person is the instrument.
