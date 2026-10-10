@@ -1,6 +1,6 @@
 # Story 4.7 — The Overview's Degraded Set, & the 390 Question Answered
 
-**Status:** Not started
+**Status:** **In progress — 2026-10-10.** Decomposed into eleven tasks; seven decisions taken at Gate 1. **ACs 1–2 are production rather than the extension this file assumed** — the inherited 16-state grid holds no connection state, and no spec that visits `/` has ever degraded a feed. **AC 5 is split**: 5a, the threshold decision, needs no session; 5b, the sitting, needs Monday 2026-10-12. And the 332-frame repair and the 165 s threshold are **one decision whose coupling runs the opposite way from this file's own table** — repairing the frames takes the browser's idle floor from 54 s to the 120 s keepalive, which falsifies the ~90 s this file floated.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.8 — **re-ordered 2026-09-27**, see below
 **Epic scope covered:** live market status indicators, on the screen where they matter most
@@ -563,3 +563,82 @@ live session. Between them are three measured intermediate states (2,042 B with
 closes and nothing observed; 3,142 B on the session basis; 3,990–4,002 B built
 in a browser with the shipped encoder), and the figure moves with **the number
 of securities heard from in the window**, not with anything in the code.
+
+## Gate 1 — 2026-10-10: eleven tasks, seven decisions, and three of this file's own premises falsified
+
+### What the shaping falsified in this file
+
+1. **The grid this story was told it would EXTEND holds no connection state.**
+   `.capture/proxy-states/readings.json` is **81 rows across 16 state ids**,
+   every one a **data or basis** state — `01-no-frame-before-the-floor` …
+   `16-no-provider-configured`. No drop, no stale, no reconnect. And **zero**
+   specs that visit `/` have ever degraded a feed. **ACs 1–2 are production
+   with a method inherited.**
+2. **The shared harness cannot hold a disconnection.** `e2e/support/feed.ts`'s
+   `routeWebSocket` callback unconditionally re-sends a `live` snapshot, so a
+   produced `disconnected` **self-heals ~2 s after `drop()`**. That is Task
+   3.10.9's fourth instrument error, whose fix lived in a deleted script and
+   **was never carried into the shared harness.**
+3. **The ~90 s browser threshold this file floats is below the floor the repair
+   it also proposes creates.** The `54.0 s` longest-idle figure **is** the
+   332-frame defect — `apply()` notifies on the vendor's **`ping`** too — so
+   after the repair the browser's only routine inbound frame is the **120 s
+   keepalive**. 165 s goes from **3.06× margin to 1.375×**; 90 s would fire on
+   every healthy idle browser.
+
+### And two defects nobody had recorded
+
+**The figures do not survive a fresh join.** `sendSnapshot()` computes a new
+aggregate on connect **and on every subscribe**; breadth and movers come from a
+**5-minute** window; a proxy or sector entry has **no expiry at all**. So a
+**reload** during an outage draws four live prices and eleven ranked sectors at
+the top and `none were heard from in the last 5 minutes` in the middle. And
+because a restarted replica serves browsers for **45.8–46.5 s** before its own
+feed authenticates, **every deploy mid-session flips every open tab to
+yesterday's closes for ~46 s with the status bar reading `LIVE`.**
+
+**The twenty ranked ticker stops vanish when an aggregate empties** — ADR
+0039's own rejected shape (_a tab stop must not appear and disappear under a
+reader_) applied to rows rather than regions, dropping a keyboard reader to
+`<body>` on a timer nobody controls.
+
+### The seven decisions
+
+| Question                            | Decision                                                                                                                                                                                                                                                                                               |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| The stale aggregate on a fresh join | **The gateway serves its last broadcast aggregate** to a reconnecting or subscribing client rather than a recomputed one — one place, and it removes two of the three joins per cold load. Rejected: a browser-side refusal as well; expiring the proxy and sector entries; photographing it as honest |
+| The 332 frames and the threshold    | **Re-derive the KEEPALIVE and keep 165 s** — at ~55 s it is three missed heartbeats of **our own** heartbeat, which is ADR 0036's rule honoured rather than a number tuned. `DISCONNECTED_AFTER_MS` is untouched and could not be: the same constant arms the backend's vendor watchdog                |
+| AC 5                                | **Split.** 5a is the threshold decision with its derivation and a condition-shaped re-derivation trigger, needing no session; 5b is the sitting. The status says which single row is owed rather than holding the whole story open                                                                     |
+| Breadth's and Movers' age           | **Each states the instant its window ended**, beside the denominator it already states — an age, not a verdict, from the one builder both footers already read                                                                                                                                         |
+| A connection word on `/`            | **The one-home rule holds. Ages only, never a verdict.** The status bar stays the only home for `live`/`stale`/`disconnected`                                                                                                                                                                          |
+| The doubled ticker                  | **Reserve blank room** rather than repeating the ticker, accessible name unchanged                                                                                                                                                                                                                     |
+| The strip's shared age line         | **Left as it is**, by decision — the scoping is clear from position, and the pair with the source note's instant is recorded as an idiom rather than reworded                                                                                                                                          |
+
+### The eleven tasks
+
+| #      | Title                                                                | What a user sees                                         |
+| ------ | -------------------------------------------------------------------- | -------------------------------------------------------- |
+| 4.7.1  | A harness that can hold an outage                                    | Nothing                                                  |
+| 4.7.2  | The states this weekend can draw, and Monday cannot                  | Nothing                                                  |
+| 4.7.3  | The figures that do not survive a fresh join                         | **A reload during an outage stops contradicting itself** |
+| 4.7.4  | An age beside the denominator                                        | **Both regions say when their window ended**             |
+| 4.7.5  | The chorus, the doubled ticker, and a head that outlives its content | **Yes, at 390**                                          |
+| 4.7.6  | The stops that vanish when an aggregate empties                      | Nothing, unless they use a keyboard                      |
+| 4.7.7  | The 332 frames, and the keepalive the threshold is derived from      | Nothing — ~15 MB a session a phone stops receiving       |
+| 4.7.8  | `AppHeader`'s `composes` defect and the 201 px re-measure            | A chrome at the size its stylesheet says                 |
+| 4.7.9  | The degraded grid, produced and photographed                         | Nothing                                                  |
+| 4.7.10 | The sitting, on a real phone                                         | Nothing new, looked at by a person                       |
+| 4.7.11 | The sweeps and the close                                             | Nothing                                                  |
+
+### What is deliberately not being done
+
+- **A connection word on `/`** — see the decisions.
+- **A per-security staleness verdict** — refused with a measurement: the
+  ordinary maximum gap between one security's bars is **187 minutes**.
+- **Feeding `observedAt` into `feedStatusFrom`** — it returns `stale` on
+  absence, which would make **every gated run and every no-provider
+  deployment read `stale` during a session**, and it would make `/`'s
+  connection word computed over 518 securities while `/securities/:symbol`'s is
+  computed over one: a route-dependent connection word.
+- **Repairing the order hold's bubbling defect** — measured and recommended in
+  4.7.6, not changed there.
