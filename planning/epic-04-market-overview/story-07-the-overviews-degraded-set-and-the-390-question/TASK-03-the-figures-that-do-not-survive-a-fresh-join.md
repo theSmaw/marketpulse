@@ -98,3 +98,36 @@ diagnostics route, a replay client, an agent.
    if this changes what a path does
 5. ADR 0038 carries a dated amendment if this changes what it describes
 6. `pnpm verify`, `pnpm test:process` and the overview specs green
+
+---
+
+## Handed here by Task 4.7.1 — 2026-10-10: the poorer-aggregate-on-reconnect verb exists, and it is already produced once
+
+Written here rather than linked.
+
+**1. The verb is `overviewOnReconnect` on `serveFeed`** (`e2e/support/feed.ts`).
+Serve the rich aggregate as `overview` and the one a restarted replica would
+build as `overviewOnReconnect`; `drop()` and the page's own retry are the whole
+production. Nothing in the spec reloads and nothing reaches into a component.
+
+**2. It is produced and green already**, in
+`e2e/specs/overview-held-outage.spec.ts`' third test — `HEARD_FROM` (four
+observed proxies) on connect, `HEARD_NOTHING` (four `unknown`) on the
+reconnect, and the strip's `774.03` is gone afterwards. **That test deliberately
+does not judge the state**: whether the gateway should serve its last broadcast
+aggregate instead is your decision, and the spec exists so the decision can be
+measured rather than argued.
+
+**3. It keys on `drop()`, not on a connection count, and that matters to you.**
+A cold page opens more than one socket before anything is dropped — React's
+`StrictMode` double-invokes the effect, so a dev page opens one plus an
+open/close pair ~25 ms apart. Keying on `connections > 1` served the poorer
+aggregate on the **first paint** and drew `No prices yet.` over four `None
+stored` cells: a real state of this product, produced entirely by the
+instrument. If your repair adds a second harness behaviour, key it on the drop.
+
+**4. The counters are the plant proof.** `feed.overviews()` counts aggregate
+frames sent across every connection, `feed.connections()` counts sockets **by
+URL**, `feed.refusals()` counts retries this harness closed. A frame that was
+built and never sent and a frame the page ignored leave the same screen; assert
+growth rather than an absolute, because of the `StrictMode` pair above.

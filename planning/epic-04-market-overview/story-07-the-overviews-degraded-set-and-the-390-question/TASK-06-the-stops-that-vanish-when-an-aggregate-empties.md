@@ -63,3 +63,22 @@ went — not what the DOM contains.
 3. The arrow-press-re-orders-under-a-degradation consequence is measured, with
    a recommendation rather than an unannounced repair
 4. `pnpm verify` and the overview keyboard specs green
+
+---
+
+## Handed here by Task 4.7.1 — 2026-10-10: the transition you need is one option, and it is driven once already
+
+**`serveFeed(page, { overview: RICH, overviewOnReconnect: POOR })` then
+`feed.drop()`** is the whole drive — the page's own retry is answered with the
+emptier aggregate and the rows unmount under whatever has focus. Produced and
+green in `e2e/specs/overview-held-outage.spec.ts`' third test, with four
+`unknown` figures standing in for an empty eligibility window; swap in a
+movers section with two empty lists for your own case.
+
+**Two things to carry across.** The behaviours key on **`drop()`** rather than
+on a connection count, because a cold page opens more than one socket before
+anything is dropped (`StrictMode`'s open/close pair) — so a count served the
+poorer aggregate on the first paint and drew a plausible wrong screen. And
+`feed.overviews()` is the channel that says the emptier frame was actually
+sent: focus landing on `<body>` because the frame arrived and focus landing on
+`<body>` for some other reason are the same reading without it.

@@ -3877,4 +3877,49 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "is not the aggregate's observation instant",
   },
+  // **Task 4.7.1's, and it restores the harness exactly as it behaved for a
+  // fortnight** — the strongest kind, because the check is proved against the
+  // defect it was written for rather than a synthetic one.
+  //
+  // The substitution is the omission a re-implementer makes rather than an
+  // inverted condition: the refusal branch, the option and both docblocks stay
+  // exactly where they are, read correctly, and the one line that ever makes
+  // `dropped` true is gone. That is the shape of the original defect too —
+  // Task 3.10.9 fixed this in `scripts/state-grid.mjs`, which was deleted, and
+  // nobody carried the fix into the shared harness.
+  //
+  // **Two of the three tests go red and they fail on different claims**, which
+  // is what makes this a proof rather than a crash: the first on the chrome no
+  // longer being byte-identical either side of the retry, the third on the
+  // poorer aggregate never being served. The second test — the one that
+  // asserts the DEFAULT still answers the retry — stays green, because the
+  // break is the default.
+  {
+    name: "the-harness-answers-the-browsers-own-retry",
+    proves:
+      "A produced `disconnected` HEALS ITSELF about two seconds after " +
+      "`drop()`, because the harness answers the browser's own retry with a " +
+      "fresh `live` snapshot \u2014 `ABNORMAL_FIRST_MS` in " +
+      "`reconnect-policy.ts`. A real outage does not answer the retry, so " +
+      "every assertion about a stopped feed becomes a race with it: the " +
+      "state is read inside a two-second window rather than held, and a spec " +
+      "that asserts it one line later reads the HEALED screen and says " +
+      "nothing at all about the outage.\n\n" +
+      "It is Task 3.10.9's fourth instrument error, whose own write-up names " +
+      "the tell \u2014 *one state giving two readings from one drive*. Nothing " +
+      "below a browser can see it: the thresholds have unit tests and the " +
+      "retry has unit tests, and what neither can do is lose a socket and " +
+      "then be asked for another one.",
+    file: "e2e/support/feed.ts",
+    find:
+      "      // **Set before the close, and it is what `reconnect` and\n" +
+      "      // `overviewOnReconnect` key on** \u2014 see `dropped` above for why a\n" +
+      "      // connection count was the wrong thing to key on.\n" +
+      "      dropped = true;",
+    replace:
+      "      // pnpm break: reverted automatically \u2014 the harness as it\n" +
+      "      // behaved until 2026-10-10, answering every retry.",
+    command: ["pnpm", "e2e", "overview-held-outage.spec.ts", "--anyway"],
+    expect: "a produced disconnection is held",
+  },
 ];
