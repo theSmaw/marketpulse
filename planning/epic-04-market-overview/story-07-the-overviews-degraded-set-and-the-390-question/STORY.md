@@ -554,8 +554,10 @@ ceiling governs — it reports durations longer than the one it enforces — so 
 duration must not be turned into a percentage of the ceiling.
 
 **4. One degraded state on `/` is cheaper to reach than it looks, and one is
-not reachable at all.** The aggregate in CI's shape is **928 bytes** of 518
-`unknown` figures, `measured: 0`, `eligible: 0`, two empty lists — so every
+not reachable at all.** The aggregate in CI's shape is **928 bytes** of ~~518~~
+**four** `unknown` figures — **corrected 2026-10-10 by Task 4.7.2, which
+produced the state and measured the frame** — `measured: 0`, `eligible: 0`,
+two empty lists — so every
 gated run is already a degraded state and your grid gets it free. What no
 machine can reach is the **opposite** end: the ceiling is **4,078 bytes** with
 all 518 observed on the observed basis, and it needs a store with bars **and** a
@@ -563,6 +565,17 @@ live session. Between them are three measured intermediate states (2,042 B with
 closes and nothing observed; 3,142 B on the session basis; 3,990–4,002 B built
 in a browser with the shipped encoder), and the figure moves with **the number
 of securities heard from in the window**, not with anything in the code.
+
+> **Amended 2026-10-10 by Task 4.7.2: the frame carries FOUR `unknown`
+> figures, not 518, and the arithmetic is the proof.** A CI-shaped aggregate
+> built from the shipped types — four `unknown` proxy figures, eleven
+> `unknown` sectors, `measured: 0`, `eligible: 0`, `observedAt` absent — is
+> **841 bytes**, against the **928** recorded off the real gateway; 518
+> `unknown` figures alone would be roughly **21 KB**. The 518 and the 503 are
+> the **population the breadth and movers sections count over**, carried as
+> `tracked`, and `overview-frame-sections.spec.ts` asserts `figures` holds
+> exactly four. Every byte figure in the paragraph above is unaffected; only
+> the description of what is inside the frame was wrong.
 
 ## Gate 1 — 2026-10-10: eleven tasks, seven decisions, and three of this file's own premises falsified
 

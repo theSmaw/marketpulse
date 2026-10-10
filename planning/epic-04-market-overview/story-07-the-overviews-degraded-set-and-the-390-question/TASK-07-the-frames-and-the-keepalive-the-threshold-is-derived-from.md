@@ -106,3 +106,27 @@ rewrite.
 5. ADR 0033 and ADR 0036 carry dated amendments where this changes what they
    describe
 6. `pnpm verify` and `pnpm test:process` green
+
+---
+
+## Handed here by Task 4.7.2 — 2026-10-10: the no-data state reads `STALE`, not `LIVE`
+
+**Produced and photographed at four widths.** With the socket answered and no
+observation ever delivered, the status bar reads:
+
+```text
+MARKET FEED IEX Trades reported by the IEX exchange only — not the full US
+consolidated tape. STALE Connected, and no live prices have arrived yet.
+```
+
+— from the **first paint**, because `feedStatusFrom` returns `stale` on an
+**absent** last observation rather than after 60 s of wall clock have elapsed.
+`.capture/proxy-states/readings.json` carries the same reading for its rows 01
+and 02, so this is longstanding rather than new.
+
+**Why it is yours.** The 165-second `LIVE` this story owns is the state where
+observations arrived **and then stopped**. Any derivation that argues from _a
+phone reads `LIVE` while nothing has arrived_ is arguing about a state this
+product does not have; the honest form of the complaint is _a phone reads
+`LIVE` for 165 s after the last bar it did receive_. Both halves of the
+threshold argument should be stated against the state that actually occurs.
