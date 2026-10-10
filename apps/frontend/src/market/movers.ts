@@ -265,7 +265,8 @@ export function marketMovers(
  *
  * `live`, `stale` and `disconnected` have one home and it is the status bar
  * (`one-home-for-the-feed-words` covers this route and would deserve to fire).
- * `computedAt` is `OverviewSourceNote`'s, once for the screen.
+ * The aggregate's instant is `OverviewSourceNote`'s, once for the screen —
+ * `Observed through` since Task 4.8.12.
  *
  * ## What it does NOT claim about the PRICE column
  *

@@ -198,6 +198,41 @@ batches a minute and **64.1 KiB/min** at the close's 16.1.
   advances whenever somebody **opens a tab**, with no market data behind it, so a
   threshold keyed on it would read a dead feed as `LIVE` for as long as the
   gateway keeps recomputing.
+
+  **Amended 2026-10-10 (Task 4.8.12): the clause above was right and
+  incomplete, and the gap cost a shipped sentence.** It said where `computedAt`
+  must not go — `feed-liveness.ts` — and nobody wrote down that it had already
+  gone somewhere else: the landing page's source note **drew** it, under
+  `COMPUTED hh:mm`, as a claim about the figures above it. Produced verbatim
+  against a developer's store on 2026-10-10, whose newest bar is the
+  **2026-09-11** session:
+
+  ```
+  CLOSING PRICES  All US exchanges
+  COMPUTED        Oct 9 · 21:42 EDT
+  ```
+
+  `21:42 EDT` is the minute the page was opened. The same page now reads:
+
+  ```
+  CLOSING PRICES  All US exchanges
+  ```
+
+  So the constraint is restated at its real width: **`computedAt` is a reading
+  of this process's clock, and no surface may date the data from it** —
+  a liveness rule, a drawn sentence or a spoken one. The frame therefore
+  carries a second instant, `observedAt`, the **newest observation the
+  aggregate contains**, folded from the bars' own `startsAt` over the join's
+  whole answer and **omitted** when the aggregate contains none (ADR 0029's
+  defer rule at the producer: say nothing rather than say now). It is
+  deliberately **not** added to `the-send-instant-is-not-a-clock`, because it
+  is a fact about the market rather than about this process and it is the field
+  a staleness rule over the aggregate would legitimately be built on — Story
+  4.7 owns whether one is. `computedAt` stays on the wire, still read by
+  `market-proxies.ts` to ask the trading calendar about the instant the join
+  ran, and now read by no drawn sentence at all
+  (`the-overview-note-dates-an-observation`, with two breaks).
+
 - **`MARKET_STREAM_PROTOCOL_VERSION` is deliberately not bumped**, and bumping is
   the obvious-looking move that is strictly worse. The deploy rolls the backend
   first, so a tab on the previous bundle meets the new gateway: unbumped it

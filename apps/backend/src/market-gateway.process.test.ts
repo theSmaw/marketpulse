@@ -763,6 +763,45 @@ describe("the overview frame, over a real socket (Task 4.2.4)", () => {
     expect(b.received.some((m) => m.type === "bars")).toBe(false);
   });
 
+  it("re-dates the arithmetic on every connect and NOT the observation", async () => {
+    // **Task 4.8.12's Done-when 2, over a socket rather than reasoned.** This
+    // gateway reaches the producer on connect and at the foot of every
+    // readable `subscribe` — a cold load of `/` pays three joins, counted off
+    // the wire by Task 4.8.3 — so `computedAt` is a different instant for
+    // every tab even when nothing has reached the market in between. A
+    // sentence written from it dates a stopped feed's figures to the minute
+    // the reader opened the tab; `observedAt` is a bar's own instant and does
+    // not move.
+    //
+    // The producer here stamps its own `computedAt` on each call, which is
+    // what `index.ts`' `marketOverview()` does with `new Date()`, while the
+    // observation behind it is fixed.
+    const produce = (): WireMarketOverview => ({
+      ...figures,
+      computedAt: new Date().toISOString(),
+      observedAt: "2026-09-26T14:01:00.000Z",
+    });
+
+    const a = await attach(new Map(), undefined, produce);
+    await a.waitFor("overview");
+
+    // A second tab, far enough apart that two wall-clock reads differ.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const b = await a.join();
+    await b.waitFor("overview");
+
+    const instantOf = (client: Client): Record<string, unknown> => {
+      const frame = client.received.find((m) => m.type === "overview");
+      if (frame?.overview === undefined) {
+        throw new Error("expected an overview frame");
+      }
+      return frame.overview;
+    };
+
+    expect(instantOf(b).computedAt).not.toBe(instantOf(a).computedAt);
+    expect(instantOf(b).observedAt).toBe(instantOf(a).observedAt);
+  });
+
   it("does NOT ride the feed-state path", async () => {
     // Task 4.1.6 measured that path at ~332 frames a minute on the deployed
     // gateway. `the-overview-frame-is-not-a-heartbeat` refuses the word

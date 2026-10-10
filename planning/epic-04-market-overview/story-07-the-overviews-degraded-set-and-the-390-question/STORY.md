@@ -472,3 +472,43 @@ state at +5.35. **1.2 px is a pass, not a comfort**, and it was photographed at
 8× rather than computed: a gap or an inset would move `.cell` off `16 + 26 + 16`
 and take the whole seven-region grid with it. If your 390 pass wants more
 clearance, it is a grid change and not a padding change.
+
+## Handed here by Task 4.8.12 — 2026-10-10: the landing page already states an age, and the field a liveness rule over the aggregate would be built on now exists
+
+Three constraints, written here rather than linked, because a pointer is what
+a reader follows when they already know to look.
+
+**1. `Observed through hh:mm` is on the landing page in every state where the
+aggregate holds an observation, and it is the only surface on `/` that says how
+old the figures are.** It drew `Computed hh:mm` until 2026-10-10 — the instant
+the **join** ran, which the gateway re-runs on every connect — so on a stopped
+feed it read the minute the reader opened the tab. Produced verbatim against a
+developer's store whose newest bar is the 2026-09-11 session:
+
+```
+CLOSING PRICES  All US exchanges
+COMPUTED        Oct 9 · 21:42 EDT
+```
+
+It now says nothing at all in that state. **Your degraded set must photograph
+the new sentence, not that one**, and the state grid it comes from is
+`e2e/specs/overview-source-note.spec.ts`, which produces five rows through the
+shipped socket path and prints them.
+
+**2. It is an age and not a verdict, by the same decision the security page
+took three times.** No threshold, no status word, no connection word: `live` /
+`stale` / `disconnected` have one home and it is the status bar. If your
+degraded pass wants the landing page to say the feed has stopped, that is a
+**reversal** of Story 3.10's one-home rule on a second screen, and it is a
+conversation rather than a fix.
+
+**3. The frame now carries `observedAt`, and it is the honest input to a
+staleness rule over the aggregate — which is yours to decide, not ours.**
+`sentAt` and `computedAt` are readings of this process's clock and
+`the-send-instant-is-not-a-clock` holds both out of `feed-liveness.ts` and its
+two adapters. `observedAt` is a bar's own `startsAt`, so it stops moving when
+the market stops reaching us and it is **absent** when the aggregate contains
+no observation. It was deliberately **not** added to that invariant's list, so
+nothing mechanical stands between you and using it — which is the point. The
+165-second `LIVE` this story already owns (`docs/GAPS.md`) is the question it
+bears on.

@@ -575,6 +575,87 @@ describe("the overview frame, which carries the first DERIVED value on this wire
     expect(decoded.message.overview.feeds).toEqual(["iex"]);
   });
 
+  it("carries the observation instant, and omits it rather than nulling it", () => {
+    // **The field a drawn sentence dates the figures from** (Task 4.8.12).
+    // `computedAt` says when the join ran, and the gateway runs it on every
+    // connect — so a surface drawing it told a reader of a stopped feed that
+    // the figures were from the minute they opened the tab.
+    const withOne = encodeMarketStreamMessage({
+      type: "overview",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: SENT_AT,
+      overview: {
+        computedAt: OVERVIEW_AT,
+        observedAt: "2026-09-25T18:01:00.000Z",
+        feeds: [],
+        figures: [],
+      },
+    });
+
+    expect(JSON.parse(withOne)).toMatchObject({
+      overview: { observedAt: "2026-09-25T18:01:00.000Z" },
+    });
+
+    // An aggregate over zero observations has no such instant, and
+    // `JSON.stringify` would write `null` for one — which a lenient reader
+    // turns into the epoch.
+    const withNone = JSON.parse(
+      encodeMarketStreamMessage({
+        type: "overview",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
+        overview: { computedAt: OVERVIEW_AT, feeds: [], figures: [] },
+      }),
+    ) as { readonly overview: Record<string, unknown> };
+
+    expect(withNone.overview).not.toHaveProperty("observedAt");
+  });
+
+  it("reads the observation instant back, and tolerates a frame with none", () => {
+    // Optional on the read side for the sector section's reason: a rollback
+    // pins a previous image, so a new bundle can meet a gateway that sends
+    // no such field. Absent stays absent rather than discarding a frame that
+    // carries four true prices.
+    const read = (overview: Record<string, unknown>): WireMarketOverview => {
+      const decoded = decodeMarketStreamMessage(
+        JSON.stringify({
+          type: "overview",
+          version: MARKET_STREAM_PROTOCOL_VERSION,
+          sentAt: SENT_AT,
+          overview,
+        }),
+      );
+      if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+        throw new Error("expected an overview message");
+      }
+      return decoded.message.overview;
+    };
+
+    expect(
+      read({
+        computedAt: OVERVIEW_AT,
+        observedAt: "2026-09-25T18:01:00.000Z",
+        feeds: [],
+        figures: [],
+      }).observedAt,
+    ).toBe("2026-09-25T18:01:00.000Z");
+
+    expect(
+      read({ computedAt: OVERVIEW_AT, feeds: [], figures: [] }),
+    ).not.toHaveProperty("observedAt");
+
+    // Anything that is not a string is the same absence, never a value a
+    // formatter is handed.
+    expect(
+      read({
+        computedAt: OVERVIEW_AT,
+        observedAt: 1_758_823_260_000,
+        feeds: [],
+        figures: [],
+      }),
+    ).not.toHaveProperty("observedAt");
+  });
+
   it("is unreadable without a send instant, like every other frame", () => {
     const raw = JSON.stringify({
       type: "overview",

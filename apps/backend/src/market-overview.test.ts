@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildMarketOverview,
+  newestObservedAt,
   toWireMarketOverview,
 } from "./market-overview.js";
 
@@ -289,6 +290,10 @@ describe("toWireMarketOverview", () => {
       proxies: entries,
       breadth: BREADTH,
       movers: NO_MOVERS,
+      // **The join's whole answer**, which here is the same array the proxy
+      // section is taken from — the frame's `observedAt` is folded from this
+      // (Task 4.8.12).
+      entries,
       asOf: ASOF,
     });
 
@@ -496,6 +501,7 @@ describe("the sector section", () => {
       ),
       breadth: BREADTH,
       movers: NO_MOVERS,
+      entries: [],
       asOf: ASOF,
     });
 
@@ -524,6 +530,7 @@ describe("the sector section", () => {
       sectors,
       breadth: BREADTH,
       movers: NO_MOVERS,
+      entries: [],
       asOf: ASOF,
     });
 
@@ -540,6 +547,7 @@ describe("the sector section", () => {
       proxies: [],
       breadth: BREADTH,
       movers: NO_MOVERS,
+      entries: [],
       asOf: ASOF,
     });
     expect(wire).not.toHaveProperty("sectors");
@@ -564,6 +572,7 @@ describe("the sector section", () => {
       ),
       breadth: BREADTH,
       movers: NO_MOVERS,
+      entries: [],
       asOf: ASOF,
     });
 
@@ -610,6 +619,7 @@ describe("the sector section", () => {
         })),
         tracked: 503,
       },
+      entries: [],
       asOf: ASOF,
     });
 
@@ -673,6 +683,7 @@ describe("the sector section", () => {
         moves: entries.map((entry) => ({ entry, percent: 20 })),
         tracked: 503,
       },
+      entries: [],
       asOf: ASOF,
     });
 
@@ -711,6 +722,7 @@ describe("the sector section", () => {
       },
       breadth: BREADTH,
       movers: NO_MOVERS,
+      entries: [],
       asOf: ASOF,
     });
 
@@ -735,6 +747,7 @@ describe("a stored figure's completed-session move", () => {
       }),
       breadth: BREADTH,
       movers: NO_MOVERS,
+      entries: [],
       asOf: ASOF,
     }).figures[0];
 
@@ -775,5 +788,132 @@ describe("a stored figure's completed-session move", () => {
     expect(
       storedWire({ close: 202, session: "2026-09-11", previousClose: 0 }),
     ).not.toHaveProperty("sessionChangePercent");
+  });
+});
+
+// ------------------- the instant a reader is shown, as of (Task 4.8.12)
+
+describe("the aggregate's observation instant", () => {
+  const liveOn = (symbol: Ticker, at: string): MarketOverviewEntry => ({
+    state: "live",
+    symbol,
+    bar: bar(600, new Date(at)),
+    source,
+    change: { percent: null, basis: null },
+  });
+
+  const storedOnly = (symbol: Ticker): MarketOverviewEntry => ({
+    state: "stored",
+    symbol,
+    close: storedClose(symbol, { close: 600, session: "2026-09-11" }),
+  });
+
+  it("is the NEWEST observation, not the oldest and not a span", () => {
+    // The claim one instant can make about a set is *nothing newer than this
+    // has reached us*. The oldest would date the aggregate by its least
+    // recently traded member, which on IEX is routinely hours behind with
+    // nothing wrong (§7.6: 2.1% of minutes for `ERIE`).
+    const newest = newestObservedAt([
+      liveOn(SPY, "2026-09-14T17:00:00.000Z"),
+      liveOn(QQQ, "2026-09-14T17:03:00.000Z"),
+      liveOn(DIA, "2026-09-14T14:11:00.000Z"),
+    ]);
+
+    expect(newest?.toISOString()).toBe("2026-09-14T17:03:00.000Z");
+  });
+
+  it("is `undefined` for a set that contains no observation", () => {
+    // CI's permanent state — 518 securities, zero bars — and a deployment
+    // with no provider. ADR 0029's defer rule: say nothing rather than say
+    // now.
+    expect(newestObservedAt([])).toBeUndefined();
+    expect(
+      newestObservedAt([storedOnly(SPY), { state: "unknown", symbol: QQQ }]),
+    ).toBeUndefined();
+  });
+
+  it("skips an instant it cannot read rather than poisoning the fold", () => {
+    // `Math.max` with one `NaN` is `NaN`, and `new Date(NaN).toISOString()`
+    // **throws** — inside the socket's own callback.
+    const newest = newestObservedAt([
+      liveOn(SPY, "not an instant"),
+      liveOn(QQQ, "2026-09-14T17:03:00.000Z"),
+    ]);
+
+    expect(newest?.toISOString()).toBe("2026-09-14T17:03:00.000Z");
+  });
+
+  it("travels on the frame, and is OMITTED rather than nulled", () => {
+    const withNothing = toWireMarketOverview({
+      proxies: [],
+      breadth: BREADTH,
+      movers: NO_MOVERS,
+      entries: [storedOnly(SPY)],
+      asOf: ASOF,
+    });
+
+    expect(withNothing).not.toHaveProperty("observedAt");
+
+    const withOne = toWireMarketOverview({
+      proxies: [],
+      breadth: BREADTH,
+      movers: NO_MOVERS,
+      entries: [liveOn(SPY, "2026-09-14T17:03:00.000Z")],
+      asOf: ASOF,
+    });
+
+    expect(withOne.observedAt).toBe("2026-09-14T17:03:00.000Z");
+  });
+
+  it("is folded from the JOIN rather than from the sections on the frame", () => {
+    // **The defect a fold over `figures` would have.** Breadth's counts and
+    // the movers' denominator are taken over 503 equities whose own instants
+    // never travel, so an instant derived from the four proxies would be
+    // absent on a frame whose proxies are stored while five hundred equities
+    // are live — and the screen's regions are drawn from those very
+    // observations.
+    const wire = toWireMarketOverview({
+      proxies: [storedOnly(SPY), { state: "unknown", symbol: QQQ }],
+      breadth: BREADTH,
+      movers: NO_MOVERS,
+      entries: [
+        storedOnly(SPY),
+        { state: "unknown", symbol: QQQ },
+        liveOn(toTicker("AAPL"), "2026-09-14T17:03:00.000Z"),
+      ],
+      asOf: ASOF,
+    });
+
+    expect(wire.figures.every((figure) => figure.state !== "observed")).toBe(
+      true,
+    );
+    expect(wire.observedAt).toBe("2026-09-14T17:03:00.000Z");
+  });
+
+  it("does NOT move when the join runs again over the same observations", () => {
+    // **Done-when 2, at the producer.** The gateway reaches this on every
+    // connect and every subscribe — three joins per cold load of `/` — so
+    // `computedAt` differs between two frames nothing has reached the market
+    // about. The instant a reader is shown must not.
+    const entries = [liveOn(SPY, "2026-09-14T17:03:00.000Z")];
+
+    const first = toWireMarketOverview({
+      proxies: entries,
+      breadth: BREADTH,
+      movers: NO_MOVERS,
+      entries,
+      asOf: duringSession("2026-09-14"),
+    });
+
+    const second = toWireMarketOverview({
+      proxies: entries,
+      breadth: BREADTH,
+      movers: NO_MOVERS,
+      entries,
+      asOf: new Date("2026-09-14T20:44:11.000Z"),
+    });
+
+    expect(second.computedAt).not.toBe(first.computedAt);
+    expect(second.observedAt).toBe(first.observedAt);
   });
 });

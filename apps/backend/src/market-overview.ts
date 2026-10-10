@@ -314,6 +314,18 @@ export function buildMarketOverview(
  * This module reads no clock (invariant 4, and the note at the top of this
  * file), so the instant the aggregate was true is the instant the caller said
  * it was about. Under a replay that is the replay clock.
+ *
+ * ## And `observedAt` is a fact about the MARKET, which `computedAt` is not
+ *
+ * Added 2026-10-10 by Task 4.8.12. The frame carries a second instant — the
+ * **newest observation the aggregate contains**, folded by
+ * {@link newestObservedAt} from the bars' own `startsAt` — because the first
+ * one is a reading of this process's clock and the gateway reaches this
+ * function on every connect. A surface that drew `computedAt` therefore told
+ * a reader of a stopped feed that the figures were from the minute they
+ * opened the tab. Neither instant replaces the other: one dates the
+ * arithmetic, the other dates the data, and only the second is **absent**
+ * when there is nothing to date.
  */
 export interface WireMarketOverviewInputs {
   /**
@@ -384,14 +396,76 @@ export interface WireMarketOverviewInputs {
    */
   readonly movers: EligibleMoves;
 
+  /**
+   * **The join's whole answer** — every entry the aggregate was built from,
+   * which is what the frame's `observedAt` is derived from (Task 4.8.12).
+   *
+   * ## Why the whole answer and not the sections above
+   *
+   * {@link WireMarketOverview.observedAt} says *nothing newer than this has
+   * reached us*, and the sections on this frame are **selections**: four
+   * proxies, eleven benchmarks and the top five either way. Breadth's counts
+   * and the movers' denominator are computed over 503 equities whose own
+   * instants never travel, so an instant folded from the frame's figures
+   * alone would be older than the truth — and, worse, **absent** on a frame
+   * whose proxies happen to be `stored` while five hundred equities are
+   * live, which is the mirror image of the defect `closesClause` records one
+   * package over.
+   *
+   * It is a separate argument rather than a derivation from `proxies` and
+   * `sectors` because those two are already selections by the time they
+   * arrive here; the one call site hands this the array it sliced them out
+   * of.
+   */
+  readonly entries: readonly MarketOverviewEntry[];
+
   /** The instant the aggregate was true — the caller's, never a clock here. */
   readonly asOf: Date;
+}
+
+/**
+ * **The newest observation a set of entries contains**, or `undefined` for a
+ * set that contains none (Task 4.8.12).
+ *
+ * A bar's own `startsAt`, so it is stamped by the market rather than by this
+ * process and it **stops moving when the market stops reaching us** — which
+ * is the whole of the repair: `computedAt` advances on every connect, so a
+ * sentence written from it dated a dead feed's figures to the minute the
+ * reader opened the tab.
+ *
+ * `undefined` rather than the caller's `asOf`, and the field is then
+ * **omitted** from the frame: ADR 0029's defer rule, because an aggregate
+ * over zero observations has no such instant and a fully-formed provenance
+ * record about zero bars is a false impression rather than a courtesy. That
+ * is CI's permanent state and a no-provider deployment's.
+ *
+ * A non-finite instant is skipped rather than folded, for the reason
+ * `market-proxies.ts` gives one layer along: `Math.max` with one `NaN` is
+ * `NaN`, and `new Date(NaN).toISOString()` **throws**, inside the socket's
+ * own callback.
+ */
+export function newestObservedAt(
+  entries: readonly MarketOverviewEntry[],
+): Date | undefined {
+  let newest: number | undefined;
+
+  for (const entry of entries) {
+    if (entry.state !== "live") continue;
+
+    const instant = entry.bar.startsAt.getTime();
+    if (!Number.isFinite(instant)) continue;
+
+    if (newest === undefined || instant > newest) newest = instant;
+  }
+
+  return newest === undefined ? undefined : new Date(newest);
 }
 
 export function toWireMarketOverview(
   inputs: WireMarketOverviewInputs,
 ): WireMarketOverview {
-  const { proxies, sectors, sectorLadderStep, breadth, movers, asOf } = inputs;
+  const { proxies, sectors, sectorLadderStep, breadth, movers, entries, asOf } =
+    inputs;
 
   // First-seen order, and only for figures that are actually **observed** —
   // a stored close's tape is not this frame's provenance, and claiming it
@@ -454,8 +528,15 @@ export function toWireMarketOverview(
       ? undefined
       : sectorLadderStep(ranked);
 
+  const observedAt = newestObservedAt(entries);
+
   return {
     computedAt: asOf.toISOString(),
+    // Two branches rather than a spread of a possibly-`undefined` value, and
+    // the absence is the claim: see {@link newestObservedAt}.
+    ...(observedAt === undefined
+      ? {}
+      : { observedAt: observedAt.toISOString() }),
     feeds,
     figures,
     breadth,

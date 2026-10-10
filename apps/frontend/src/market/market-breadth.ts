@@ -44,8 +44,9 @@ import {
 // ## It names no feed, no venue, no instant and no connection word
 //
 // `LIVE` / `STALE` / `DISCONNECTED` have one home and it is the status bar, and
-// `one-home-for-the-feed-words` covers this route. `computedAt` is already
-// drawn by `OverviewSourceNote` under `Computed`, so **the region prints no
+// `one-home-for-the-feed-words` covers this route. The aggregate's instant is
+// already drawn by `OverviewSourceNote` — under `Observed through` since Task
+// 4.8.12, and under `Computed` before it — so **the region prints no
 // instant** — the only method clause it carries is the window, which qualifies
 // the count 24 px above it and would be a footnote nobody reads 500 px below.
 //

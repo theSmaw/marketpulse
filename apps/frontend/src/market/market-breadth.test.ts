@@ -377,9 +377,10 @@ describe("the region says nothing it cannot establish", () => {
   });
 
   it("names no feed, no venue, no instant and no connection word", () => {
-    // `one-home-for-the-feed-words` covers this route, and `computedAt` is
-    // already drawn by `OverviewSourceNote` under `Computed`. The frame carries
-    // both; this module reads neither.
+    // `one-home-for-the-feed-words` covers this route, and the aggregate's
+    // instant is already drawn by `OverviewSourceNote` — under `Observed
+    // through` since Task 4.8.12. The frame carries both; this module reads
+    // neither.
     const drawn = JSON.stringify([
       marketBreadth(frame(OBSERVED)),
       marketBreadth(frame(SESSION)),

@@ -97,8 +97,15 @@ export interface OverviewSourceNoteView {
    */
   readonly closes: FeedClause | null;
 
-  /** When the aggregate was computed, as a whole market instant. */
-  readonly computed: string | null;
+  /**
+   * **The newest observation the figures rest on**, as a whole market instant
+   * — or `null` where the aggregate holds none (Task 4.8.12).
+   *
+   * Not *when the arithmetic ran*, which is what this clause drew until
+   * 2026-10-10 and which advances every time a reader opens a tab. See
+   * {@link observedThroughClause}.
+   */
+  readonly observedThrough: string | null;
 }
 
 /**
@@ -114,7 +121,7 @@ export interface OverviewSourceNoteView {
 export const OVERVIEW_NOTE_TERMS = {
   observed: "Observed prices",
   closes: "Closing prices",
-  computed: "Computed",
+  observedThrough: "Observed through",
 } as const;
 
 /**
@@ -152,7 +159,9 @@ const STORED_CLOSE_FEED: MarketFeed = "sip";
  * when it does not, rather than an empty box with a hairline over it. */
 export function hasOverviewClauses(note: OverviewSourceNoteView): boolean {
   return (
-    note.observed !== null || note.closes !== null || note.computed !== null
+    note.observed !== null ||
+    note.closes !== null ||
+    note.observedThrough !== null
   );
 }
 
@@ -167,13 +176,13 @@ export function toOverviewSourceNote(
   feed: MarketFeedView,
 ): OverviewSourceNoteView {
   if (overview === undefined) {
-    return { observed: null, closes: null, computed: null };
+    return { observed: null, closes: null, observedThrough: null };
   }
 
   return {
     observed: observedClause(overview.feeds, feed),
     closes: closesClause(overview),
-    computed: computedClause(overview),
+    observedThrough: observedThroughClause(overview),
   };
 }
 
@@ -228,80 +237,93 @@ function closesClause(overview: WireMarketOverview): FeedClause | null {
 }
 
 /**
- * When the aggregate was computed, in market time, written whole.
+ * **How old the figures are** — the newest observation the aggregate contains,
+ * in market time, written whole. Or nothing.
  *
- * **`computedAt` and never `sentAt`** — ADR 0033's constraint and the frame's
- * own: the figures are frozen between bursts, bounded at about a minute during
- * a session and **unbounded when the feed dies**, so the send instant would
- * report an afternoon-old aggregate as current.
+ * ## It drew `computedAt` until 2026-10-10, and that was invariant 6 implied
  *
- * **Amended 2026-10-09 by Task 4.8.3: `computedAt` is not only a batch's
- * instant, and on a dead feed this line reads the moment the READER opened the
- * page.** The producer is unmemoised and the gateway reaches it on every
- * connect and every subscribe, so a cold load is answered with a frame
- * computed *now* over observations that may be hours old — three of them,
- * counted off the wire. ADR 0038 anticipated exactly this (*"it advances
- * whenever somebody opens a tab, with no market data behind it"*) and that is
- * why it must never reach `feed-liveness.ts`; what was not written down is
- * that it reaches **this** sentence, which a reader of a stopped feed reads as
- * *the arithmetic behind these figures was done at 15:04*. The figures' own
- * instants, the strip's shared line and the status bar are the surfaces that
- * stay honest there. Choosing between a per-frame instant and a *data as of*
- * instant is a product decision and is not taken here.
+ * Task 4.8.12. `computedAt` is when the **join ran**, and the gateway reaches
+ * the producer on every connect and every subscribe as well as on every
+ * applied batch — three joins per cold load of `/`, counted off the wire
+ * (Task 4.8.3). So on a feed that has stopped this line advanced with no
+ * market data behind it, and the sentence a reader takes as *when this data
+ * was true* was in fact **the minute they opened the tab**. ADR 0038 had
+ * anticipated the instant moving with nothing behind it and concluded only
+ * that it must never reach `feed-liveness.ts`; nobody had written down that it
+ * reached a drawn sentence.
  *
- * **A whole instant with its zone, spelled by `formatBarInstant`** — this
- * product's spelling for anything that is a moment rather than a session, and
- * the one the status bar's `Showing data through …` already uses a hundred
- * pixels below this note at 390. **Changed 2026-09-26 at Story 4.2's close**,
- * from `formatMarketInstant(…, "minute")`: both produce a market instant to the
- * minute with its zone, so the screen carried two spellings of one KIND of
- * value — which is drift rather than distinction, and it made the screen's
- * genuine distinction (an instant against a session name) read as
- * inconsistency by association. `formatMarketInstant` exists because a WINDOW
- * bound needs seconds; `COMPUTED` is not a window bound.
+ * `WireMarketOverview.observedAt` is a bar's own `startsAt`, folded on the
+ * server over the join's whole answer, so it is stamped by the market rather
+ * than by this process and it **stops moving when the market stops reaching
+ * us**. That is the fact this clause exists to state.
  *
- * The minute-precision argument below survives the move intact, because
- * `formatBarInstant` drops seconds by construction — which is why the precision
- * parameter had to be added to the other formatter rather than to this one. It
- * is not the figures' own instant — the strip states that, per figure and in
- * its shared line — it is when *this arithmetic* was done, which nothing else
- * on the screen says and which is the only way to tell a frozen aggregate from
- * a current one.
+ * ## Three alternatives, rejected and recorded
  *
- * **To the MINUTE, and the seconds were taken off deliberately.** The gateway
- * rebuilds this aggregate up to sixteen times a minute over data that arrives
- * once a minute, so a seconds field ticks visibly while nothing behind it has
- * changed — churn advertised as information, and a second ticking number on a
- * screen where the strip's own advancing instant is the one the design chose
- * to carry *the feed is still arriving*. At minute precision two consecutive
- * aggregates inside one minute read the same, which is the honest reading:
- * nothing new had arrived.
+ * **Keep `computedAt` and remove the time from the sentence** — defensible,
+ * and it deletes a fact the reader wants. **Memoise the producer per batch** —
+ * fixes the per-tab advance and still implies currency between batches, and
+ * Task 4.8.11's empty-broadcast guard is explicitly *not* that memo, so the
+ * alternative stands rejected rather than overtaken. **Defer to Story 4.7** —
+ * the story that photographs this screen with the feed stopped, which is
+ * exactly the state the sentence was wrong in.
  *
- * **`Computed` rather than `Retrieved`, and the neighbouring surface's verb
- * was rejected rather than overlooked.** `SourceNote` renders `Retrieved 8
- * September 2026` about bars that were fetched; nothing is fetched here. An
- * aggregate is assembled from what this process already holds, so *retrieved*
- * would be false — which is worth knowing before anybody makes the two
- * surfaces match.
+ * ## The grain is the NEWEST, and a span was rejected
+ *
+ * The claim is *nothing newer than this has reached us*. The oldest would date
+ * the screen by its least recently traded member — ordinary on IEX, where a
+ * median symbol produces a bar in 65.1% of minutes — and a span invites a
+ * reader to believe the set is uniform when it is not. The per-figure
+ * exception already exists: each tile carries its own instant and the strip
+ * notes any cell behind its shared line. See the wire field's own docblock.
+ *
+ * ## Why no second guard over `figures`
+ *
+ * The clause used to require a figure that was not `unknown`, which was *a
+ * claim about data requires data* reaching for the only data it could see. The
+ * server now says so directly: `observedAt` is **absent** exactly when the
+ * aggregate contains no observation, which is ADR 0029's defer rule answered
+ * at the producer. Re-checking `figures` here would reintroduce the mirror
+ * image of {@link closesClause}'s recorded defect — going silent on a frame
+ * whose four proxies are `stored` while five hundred equities are live, with
+ * breadth and the movers drawn from those very observations a few hundred
+ * pixels above.
+ *
+ * ## `Observed through`, and the two words that were rejected
+ *
+ * `Computed` is retired: nothing on this note draws the join's instant any
+ * more, and keeping the term over a different value is the one thing that
+ * would make the repair invisible. `As of` was rejected as vague about *of
+ * what* on a note whose other two terms both name their subject. `Observed
+ * through` names the subject — the observations — and the grain — nothing
+ * newer — and it is the status bar's own idiom (`Showing data through …`) for
+ * the same kind of fact, which is a shared spelling rather than a second home:
+ * that cell states it about **this browser's** subscriptions and only when the
+ * feed is degraded, and it is the surface that owns the connection word. **An
+ * age is not a verdict**, and there is no threshold, no status and no
+ * connection word here.
+ *
+ * ## The spelling, unchanged
+ *
+ * **A whole instant with its zone, through `formatBarInstant`** — this
+ * product's spelling for anything that is a moment rather than a session
+ * (Story 4.2's close moved it off `formatMarketInstant`, which exists because
+ * a window bound needs seconds). To the **minute**, which that function drops
+ * by construction: observations arrive once a minute, so a seconds field would
+ * tick while nothing behind it had changed.
  *
  * A malformed instant is skipped rather than poisoning the note: `Date.parse`
  * answers `NaN` for what it cannot read and `new Date(NaN)` formats without
  * complaining, which is how `Invalid Date` reaches a screen.
  */
-function computedClause(overview: WireMarketOverview): string | null {
-  // **A claim about data requires data, and this clause's data is the
-  // figures.** A frame whose every figure is `unknown` is a truthful aggregate
-  // over nothing — which is exactly the state CI's store puts all four proxies
-  // in, and the state a restarted backend is in before its first read. An
-  // instant under a strip saying it holds nothing is `SOURCE_OF_NOTHING`'s
-  // defect one screen along: a hairline and a line of fine print that a reader
-  // takes as a claim about the figures above them.
-  const describesSomething = overview.figures.some(
-    (figure) => figure.state !== "unknown",
-  );
-  if (!describesSomething) return null;
+function observedThroughClause(overview: WireMarketOverview): string | null {
+  // **Absent is the whole of the defer rule**, decided by the producer: an
+  // aggregate over zero observations has no observation instant, which is CI's
+  // permanent state (518 securities, zero bars), a no-provider deployment's,
+  // and a restarted backend's before its first bar. Say nothing rather than
+  // say now.
+  if (overview.observedAt === undefined) return null;
 
-  const instant = Date.parse(overview.computedAt);
+  const instant = Date.parse(overview.observedAt);
   if (Number.isNaN(instant)) return null;
 
   return formatBarInstant(new Date(instant), "1m");

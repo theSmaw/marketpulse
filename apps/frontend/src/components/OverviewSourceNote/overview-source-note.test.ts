@@ -57,6 +57,22 @@ const frame = (
   figures,
 });
 
+/**
+ * **A frame that states an observation instant** — the field the last clause
+ * draws since Task 4.8.12, folded on the server over the join's whole answer
+ * rather than over the sections this frame carries.
+ *
+ * It is a separate helper rather than a default on {@link frame} so that the
+ * absence stays the shape most of these tests are written against: CI's store
+ * is 518 securities and zero bars, and a frame over zero observations carries
+ * no such field at all.
+ */
+const observedThrough = (
+  observedAt: string,
+  figures: readonly WireOverviewFigure[],
+  feeds: WireMarketOverview["feeds"] = [],
+): WireMarketOverview => ({ ...frame(figures, feeds), observedAt });
+
 const NOT_CONFIGURED: MarketFeedView = { state: "not-configured" };
 const CHECKING: MarketFeedView = { state: "checking" };
 
@@ -64,7 +80,11 @@ describe("toOverviewSourceNote", () => {
   it("says nothing at all before a frame has arrived", () => {
     const note = toOverviewSourceNote(undefined, NOT_CONFIGURED);
 
-    expect(note).toEqual({ observed: null, closes: null, computed: null });
+    expect(note).toEqual({
+      observed: null,
+      closes: null,
+      observedThrough: null,
+    });
     expect(hasOverviewClauses(note)).toBe(false);
   });
 
@@ -167,31 +187,96 @@ describe("toOverviewSourceNote", () => {
     expect(note.closes).toEqual({ label: SIP.label });
   });
 
-  it("renders the aggregate's own instant, whole and in market time", () => {
+  it("renders the newest observation the aggregate holds, in market time", () => {
+    // **The instant is the DATA's, not the arithmetic's** (Task 4.8.12). It is
+    // a bar's own `startsAt`, whole and with its zone, through the one
+    // formatter this product spells a moment with.
     expect(
-      toOverviewSourceNote(frame([stored("SPY")]), NOT_CONFIGURED).computed,
+      observedThrough("2026-09-25T18:01:32.000Z", [stored("SPY")]).observedAt,
+    ).toBe("2026-09-25T18:01:32.000Z");
+
+    expect(
+      toOverviewSourceNote(
+        observedThrough("2026-09-25T18:01:32.000Z", [stored("SPY")]),
+        NOT_CONFIGURED,
+      ).observedThrough,
     ).toBe("Sep 25 · 14:01 EDT");
+  });
+
+  it("does not move when a second tab opens", () => {
+    // **The defect this clause was repaired for, asserted rather than
+    // reasoned.** The gateway rebuilds the aggregate on every connect and
+    // every subscribe, so `computedAt` differs between two frames nothing has
+    // reached the market about — three joins per cold load of `/`, counted off
+    // the wire by Task 4.8.3. The drawn sentence must be the same sentence.
+    const first = observedThrough("2026-09-25T18:01:32.000Z", [stored("SPY")]);
+    const second: WireMarketOverview = {
+      ...first,
+      computedAt: "2026-09-25T20:44:11.000Z",
+    };
+
+    expect(toOverviewSourceNote(second, NOT_CONFIGURED).observedThrough).toBe(
+      toOverviewSourceNote(first, NOT_CONFIGURED).observedThrough,
+    );
+    expect(second.computedAt).not.toBe(first.computedAt);
   });
 
   it("says nothing at all about an aggregate over nothing", () => {
     // CI's store is 518 securities and zero bars, so every proxy is `unknown`
-    // there. A lone `Computed` line under a strip saying it holds nothing is a
-    // truthful instant making a false impression.
+    // there and the frame states no observation instant. An instant under a
+    // strip saying it holds nothing is a truthful figure making a false
+    // impression — ADR 0029's defer rule, and *say nothing rather than say
+    // now*.
     const note = toOverviewSourceNote(
       frame([unknown("SPY"), unknown("QQQ")]),
       NOT_CONFIGURED,
     );
 
+    expect(note.observedThrough).toBeNull();
     expect(hasOverviewClauses(note)).toBe(false);
+  });
+
+  it("says nothing when the figures are closes and nothing was observed", () => {
+    // A store with bars and no provider configured: four closes, no
+    // observation, so there is no instant to state. The tape behind the closes
+    // is still named — each clause renders on its own data.
+    const note = toOverviewSourceNote(frame([stored("SPY")]), NOT_CONFIGURED);
+
+    expect(note.observedThrough).toBeNull();
+    expect(note.closes).toEqual({ label: SIP.label });
+  });
+
+  it("states an observation the figures on this frame do not carry", () => {
+    // **The mirror image of `closesClause`'s recorded defect, and why there is
+    // no second guard over `figures` here.** The sections on this frame are
+    // selections — four proxies, eleven benchmarks, the top five either way —
+    // while breadth and the movers' denominator are counted over 503 equities
+    // whose own instants never travel. A frame whose proxies are yesterday's
+    // closes while five hundred equities are live is ordinary, and the note
+    // must not go silent on it.
+    const note = toOverviewSourceNote(
+      observedThrough("2026-09-25T18:01:32.000Z", [
+        stored("SPY"),
+        unknown("QQQ"),
+      ]),
+      NOT_CONFIGURED,
+    );
+
+    expect(note.observedThrough).toBe("Sep 25 · 14:01 EDT");
   });
 
   it("skips an instant it cannot read rather than printing Invalid Date", () => {
     const note = toOverviewSourceNote(
-      { computedAt: "not an instant", feeds: [], figures: [stored("SPY")] },
+      {
+        computedAt: "2026-09-25T18:01:32.000Z",
+        observedAt: "not an instant",
+        feeds: [],
+        figures: [stored("SPY")],
+      },
       NOT_CONFIGURED,
     );
 
-    expect(note.computed).toBeNull();
+    expect(note.observedThrough).toBeNull();
     expect(hasOverviewClauses(note)).toBe(true);
   });
 });
