@@ -3763,4 +3763,55 @@ export const BREAKS = [
     ],
     expect: "does NOT build the aggregate when no browser is attached",
   },
+  // **Two entries for one invariant, like `the-send-instant-is-not-a-clock`'s
+  // pair, and for the same reason: the check has two conjuncts and they fail
+  // differently.** The first is the word's presence, which the obvious revert
+  // trips. The second is the parse's argument, and it is the conjunct that
+  // earns its place — Task 4.8.12 ran the browser-side fold against a version
+  // of the check carrying only the first conjunct and it reported
+  // `52 invariants hold.` with the defect in the file.
+  {
+    name: "the-overview-note-dates-the-arithmetic",
+    proves:
+      "The landing page's source note draws the instant the JOIN ran. The " +
+      "gateway reaches the producer on every connect and every subscribe " +
+      "— three joins per cold load of `/`, counted off the wire — " +
+      "so on a feed that has stopped the sentence reads the minute the " +
+      "reader opened the tab, under a term saying it describes the figures " +
+      "above it. Invariant 6 implied rather than displayed, and it shipped " +
+      "that way from 2026-09-26 to 2026-10-10 (Task 4.8.12).",
+    file:
+      "apps/frontend/src/components/OverviewSourceNote/" +
+      "overview-source-note.ts",
+    find: "  const instant = Date.parse(overview.observedAt);",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  const instant = Date.parse(overview.computedAt);",
+    command: ["pnpm", "invariants"],
+    expect: "reads `computedAt`",
+  },
+  {
+    name: "the-overview-note-folds-the-instant-in-the-browser",
+    proves:
+      "The note dates the screen from the figures the FRAME carries rather " +
+      "than from the join's whole answer — the rejected alternative, " +
+      "and it fails in two directions at once. The sections are selections " +
+      "(four proxies, eleven benchmarks, the top five either way) while " +
+      "breadth's counts and the movers' denominator are taken over 503 " +
+      "equities whose own instants never travel: so the drawn instant is " +
+      "older than the truth, and it is **absent altogether** on a frame " +
+      "whose proxies are yesterday's closes while five hundred equities are " +
+      "live, which is the ordinary state of IEX. The word `computedAt` is " +
+      "nowhere in the file, so the first conjunct is green on it " +
+      "(Task 4.8.12).",
+    file:
+      "apps/frontend/src/components/OverviewSourceNote/" +
+      "overview-source-note.ts",
+    find: "  const instant = Date.parse(overview.observedAt);",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  const instant = Date.parse(overview.figures[0].at);",
+    command: ["pnpm", "invariants"],
+    expect: "is not the aggregate's observation instant",
+  },
 ];

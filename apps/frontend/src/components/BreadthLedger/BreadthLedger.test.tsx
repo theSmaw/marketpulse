@@ -292,8 +292,9 @@ describe("BreadthLedger", () => {
     expect(text).toContain(
       "Heard from means at least one observation in the last 5 minutes.",
     );
-    // `computedAt` is on the frame this was read from and `OverviewSourceNote`
-    // draws it under `Computed`; the region prints no instant.
+    // The frame this was read from carries the aggregate's instants and
+    // `OverviewSourceNote` draws one of them — under `Observed through` since
+    // Task 4.8.12; the region prints no instant.
     expect(text).not.toContain("18:01");
     for (const word of ["LIVE", "STALE", "DISCONNECTED", "IEX"]) {
       expect(text).not.toContain(word);

@@ -229,8 +229,9 @@ test("the ledger draws three counts, the remainder and the net", async ({
 
 test("the region says no instant and no connection word", async ({ page }) => {
   // `live` / `stale` / `disconnected` have one home and it is the status bar,
-  // and `computedAt` is already drawn by the screen's one source note under
-  // `Computed`. This region carries the window and nothing else about method.
+  // and the aggregate's instant is already drawn by the screen's one source
+  // note — under `Observed through` since Task 4.8.12. This region carries the
+  // window and nothing else about method.
   await serveBreadth(page, OBSERVED);
   await page.goto(OVERVIEW, { waitUntil: "networkidle" });
 

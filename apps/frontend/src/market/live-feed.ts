@@ -257,10 +257,15 @@ export interface LiveFeedConnection {
    * backend, from an IEX numerator and a consolidated-SIP denominator the
    * browser cannot see.
    *
-   * **`computedAt` is inside it and is not a clock.** It says when the
-   * aggregate was **true**, which during a session is bounded at about a
-   * minute behind and after a dead feed is unbounded — so a surface that
-   * wants to date these figures reads it, and nothing about liveness does.
+   * **Two server-stamped instants are inside it and neither is a clock.**
+   * `computedAt` says when the join **ran**, and the gateway reaches the
+   * producer on every connect and every subscribe — so it advances when a
+   * reader opens a tab, which is why nothing about liveness reads it and why
+   * no drawn sentence does either since Task 4.8.12. `observedAt` is the
+   * **newest observation the aggregate contains** and is the field a surface
+   * dating these figures reads: it is a bar's own instant, so it stops moving
+   * when the market stops reaching us, and it is **absent** when the
+   * aggregate contains no observation.
    */
   readonly overview: WireMarketOverview | undefined;
   /**
@@ -661,7 +666,9 @@ export function liveFeedView(
     fromSnapshot: state.fromSnapshot,
     // **Carried into every branch, including the degraded ones**, for the
     // observations' own reason: §36 keeps true figures on screen when a feed
-    // stops, labelled rather than blanked. `computedAt` is what labels them.
+    // stops, labelled rather than blanked. The frame's `observedAt` is what
+    // labels them — `computedAt` would relabel them every time a tab opened
+    // (Task 4.8.12).
     overview: state.overview,
     // The first connection is not a return. `Math.max` rather than a
     // subtraction alone so a browser that has been told nothing yet reads

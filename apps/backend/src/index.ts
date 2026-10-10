@@ -824,6 +824,13 @@ const marketOverview = (): WireMarketOverview => {
     sectors: entries.filter((entry) => isSectorSymbol.has(entry.symbol)),
     breadth: marketBreadth(eligible),
     movers: eligible,
+    // **The join's whole answer, beside the three selections taken out of
+    // it** (Task 4.8.12) — the frame's `observedAt` is folded from this and
+    // not from the sections, because breadth and the movers are computed over
+    // 503 equities whose own instants never travel. A fold over `figures`
+    // would date the screen by its four proxies and would be **silent** on a
+    // frame whose proxies are stored while five hundred equities are live.
+    entries,
     sectorLadderStep: (ranked) => sectorLadder.stepFor(ranked, asOf),
     asOf,
   });

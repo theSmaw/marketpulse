@@ -448,3 +448,53 @@ Epic 4.
 > the socket closing. The `docs/GAPS.md` entry this sentence named **did not
 > exist** until the same task wrote it. Owner: **Story 4.7**; the person's half
 > is owed under an owner and a condition rather than an epic.
+
+## Amended 2026-10-10 by Task 4.8.12 — the first clause whose own data was a PROCESS fact wearing a market fact's clothes
+
+Decision 1 says each clause renders when **its own data** is present, and the
+failure it was written against is a fully-formed record about zero bars. Task
+4.8.12 found the complement, on the landing screen's source note, and it is the
+harder half: a clause whose data was **always** present, because it was a
+reading of this process's own clock.
+
+The clause drew `COMPUTED hh:mm` from the aggregate's `computedAt`. That instant
+is when the **join ran** — and the gateway runs the join on every connect and
+every subscribe as well as on every applied batch, three times per cold load of
+`/` — so it is present, correct, and never absent. Produced verbatim on
+2026-10-10 against a developer's store whose newest bar is the **2026-09-11**
+session:
+
+```
+CLOSING PRICES  All US exchanges
+COMPUTED        Oct 9 · 21:42 EDT
+```
+
+`21:42 EDT` is the minute the page was opened, under a term a reader takes as a
+statement about the figures above it. The clause's guard — _is any figure not
+`unknown`_ — was decision 1 applied honestly and reaching for the only data it
+could see.
+
+**Three things this adds to the rule, and the third is the one that
+generalises.**
+
+1. **A clause's own data is the thing it CLAIMS about, not the field it reads.**
+   The claim was _how old are these figures_ and the field was _when did the
+   arithmetic run_; the two coincide while a feed is arriving and come apart
+   exactly when a reader most needs the answer. A clause whose field can never
+   be absent should be read as a warning rather than as a convenience.
+2. **The defer belongs at the PRODUCER where the producer knows.** The frame now
+   carries `observedAt` — the newest observation the aggregate contains — and
+   **omits** it when there is none. The browser no longer decides whether there
+   is anything to claim: a missing field is the whole of the defer, and the
+   surface says nothing rather than saying now.
+3. **A second guard at the drawing surface would have reintroduced the
+   defect in mirror image.** Re-checking `figures` in the browser would go
+   silent on a frame whose four proxies are yesterday's closes while five
+   hundred equities are live — which is the ordinary state of IEX, and is the
+   state in which breadth and the movers, drawn from those very observations,
+   sit a few hundred pixels above the note. One home for the question, and it
+   is the one that can see the whole set.
+
+`the-overview-note-dates-an-observation` in `pnpm invariants` holds it, with two
+breaks: the obvious revert, and the browser-side fold that the first conjunct
+alone was green on.

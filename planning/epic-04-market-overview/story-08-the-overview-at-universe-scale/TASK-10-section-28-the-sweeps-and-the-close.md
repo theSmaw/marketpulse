@@ -386,3 +386,33 @@ that cannot be noise: 0 joins, arm 0.004 ms against a floor of 0.003 ms.
 — the third path now says _only when a browser is attached_ — and its note now
 states that the check **cannot see the condition and is not asked to**. If §28's
 sweep enumerates what each green check certifies, that is the sentence to read.
+
+## Handed here by Task 4.8.12 — 2026-10-10: two sweeps and one new check, and the first sweep is a claim §28's own neighbours make
+
+**1. A new invariant, `the-overview-note-dates-an-observation`, with two
+breaks.** The count is now 52. It asserts that the landing screen's source note
+derives its drawn instant from the frame's `observedAt` and never from
+`computedAt`, in two conjuncts: the word's absence, and that every `Date.parse`
+in that file names the observation field. The second conjunct is the one that
+earns its place — the browser-side fold was run against a version of the check
+carrying only the first and it reported `52 invariants hold.` with the defect
+in the file. Breaks: `the-overview-note-dates-the-arithmetic` and
+`the-overview-note-folds-the-instant-in-the-browser`.
+
+**2. The sweep: `the-send-instant-is-not-a-clock` now guards a NARROWER claim
+than its name suggests, and the frame has a third instant it does not cover.**
+`observedAt` is deliberately outside that check's list, because it is a fact
+about the market rather than about this process and it is the field a staleness
+rule over the aggregate would legitimately be built on (Story 4.7's call). If
+your close enumerates what each green check certifies, that check certifies
+_two of the wire's three instants are not clocks_, and the third is uncovered
+on purpose.
+
+**3. The sweep nobody has run: what else draws a process clock.** Task 4.8.12's
+defect was a drawn sentence written from `computedAt`, and the guard that
+existed named only `feed-liveness.ts`. The same question has not been asked of
+`sentAt` on any surface, or of `computedAt` outside this one file —
+`market-proxies.ts` still reads it, correctly, to ask the trading calendar
+about the instant the join ran, and that is the one remaining shipped reader. A
+grep for both words across `apps/frontend/src` is a minute, and the finding
+either way belongs in the close.

@@ -43,7 +43,14 @@ const frame = (
   figures,
 });
 
-const SESSION = frame([observed("SPY")], ["iex"]);
+// **A session frame states its observation instant**, which is the field the
+// last clause draws since Task 4.8.12. `observedAt` is folded on the server
+// over the join's whole answer; here it is the one observed figure's own
+// instant, which is what a four-proxy frame's would be.
+const SESSION: WireMarketOverview = {
+  ...frame([observed("SPY")], ["iex"]),
+  observedAt: "2026-09-25T18:01:00.000Z",
+};
 const NOT_CONFIGURED: MarketFeedView = { state: "not-configured" };
 
 /** What a listener is handed for the definition beside one term. */
@@ -100,13 +107,34 @@ describe("OverviewSourceNote", () => {
     expect(definitionOf("Closing prices")).toContain(SIP.label);
   });
 
-  it("renders the aggregate's instant last", () => {
+  it("renders the observation instant last", () => {
     render(<OverviewSourceNote overview={SESSION} feed={NOT_CONFIGURED} />);
 
     const terms = screen.getAllByRole("term").map((term) => term.textContent);
 
-    expect(terms).toEqual(["Observed prices", "Closing prices", "Computed"]);
-    expect(definitionOf("Computed")).toBe("Sep 25 · 14:01 EDT");
+    expect(terms).toEqual([
+      "Observed prices",
+      "Closing prices",
+      "Observed through",
+    ]);
+    expect(definitionOf("Observed through")).toBe("Sep 25 · 14:01 EDT");
+  });
+
+  it("draws no instant at all when the aggregate holds no observation", () => {
+    // **The state CI is permanently in and a no-provider deployment is always
+    // in** — 518 securities, zero bars, so the frame states no observation
+    // instant and the term is not on the screen. The repair's visible half:
+    // the note used to draw `Computed hh:mm` here, which on a dead feed was
+    // the minute the reader opened the tab.
+    render(
+      <OverviewSourceNote
+        overview={frame([observed("SPY")], ["iex"])}
+        feed={NOT_CONFIGURED}
+      />,
+    );
+
+    expect(screen.queryByText("Observed through")).toBeNull();
+    expect(screen.queryByText("Computed")).toBeNull();
   });
 
   it("says no connection word in any state", () => {

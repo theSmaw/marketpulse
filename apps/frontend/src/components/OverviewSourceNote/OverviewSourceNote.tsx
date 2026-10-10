@@ -45,6 +45,14 @@ import styles from "./OverviewSourceNote.module.css";
 // fortiori (`FRONTEND-STATE.md` §7): a retrieval instant moves when an
 // aggregate is recomputed — up to sixteen times a minute — and announcing the
 // page as changed for that is a live region reporting bookkeeping.
+//
+// **Amended 2026-10-10 by Task 4.8.12, and the conclusion is unchanged on a
+// better argument.** The last line no longer moves with the recomputation: it
+// is the newest observation the aggregate contains, so it advances about once
+// a minute during a session and **not at all** when the feed has stopped. The
+// cadence argument above is therefore weaker than it was — but announcing a
+// footnote is still announcing a footnote, and the strip above has no live
+// region either. The reversal trigger stays `MarketProxyStrip`'s.
 
 export interface OverviewSourceNoteProps {
   /**
@@ -79,7 +87,7 @@ export function OverviewSourceNote({
   // over it. It is the first-paint state and it should be brief.
   if (!hasOverviewClauses(note)) return null;
 
-  const { observed, closes, computed } = note;
+  const { observed, closes, observedThrough } = note;
 
   return (
     <dl className={cx(styles.note)}>
@@ -134,16 +142,25 @@ export function OverviewSourceNote({
         </>
       )}
 
-      {computed !== null && (
+      {observedThrough !== null && (
         <>
           {/*
            * Last, because it is the least surprising claim on the note and the
            * one furthest from the picture — `SourceNote`'s ordering rule.
+           *
+           * **It drew `Computed` until 2026-10-10** — when the arithmetic ran,
+           * which advances every time a reader opens a tab and therefore dated
+           * a stopped feed's figures to the minute the tab was opened. It now
+           * states the newest observation the aggregate contains, and says
+           * nothing at all when there is none. Task 4.8.12, and
+           * `overview-source-note.ts` carries the argument.
            */}
-          <dt className={cx(styles.term)}>{OVERVIEW_NOTE_TERMS.computed}</dt>
+          <dt className={cx(styles.term)}>
+            {OVERVIEW_NOTE_TERMS.observedThrough}
+          </dt>
           <dd className={cx(styles.definition)}>
             <span className={cx(styles.line)}>
-              <span className={cx(styles.retrieved)}>{computed}</span>
+              <span className={cx(styles.retrieved)}>{observedThrough}</span>
             </span>
           </dd>
         </>

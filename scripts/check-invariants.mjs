@@ -1739,7 +1739,14 @@ const INVARIANTS = [
       // concatenation, a record keyed elsewhere. This check is the cheapest
       // honest proxy for *one note per screen*, not the claim itself, and the
       // conjunct above it is what covers the likelier shape.
-      for (const term of ["Observed prices", "Closing prices"]) {
+      for (const term of [
+        "Observed prices",
+        "Closing prices",
+        // Added 2026-10-10 by Task 4.8.12, which replaced `Computed` with it.
+        // `Computed` was never in this list and could not be: it is a word
+        // half the product could legitimately use. This one names a subject.
+        "Observed through",
+      ]) {
         const spellings = [`"${term}"`, `>${term}<`];
         const homes = shipped
           .filter(({ text }) =>
@@ -1754,6 +1761,100 @@ const INVARIANTS = [
               (homes.join("\n      ") || "(nowhere — was a term renamed?)") +
               "\n    A second surface saying what this note says, in this " +
               "note's words, is a second note however it was assembled.",
+          );
+        }
+      }
+    },
+  },
+
+  {
+    id: "the-overview-note-dates-an-observation",
+    claim:
+      "The landing screen's source note derives its drawn instant from the " +
+      "frame's `observedAt` — the newest observation the aggregate contains " +
+      "— and never from `computedAt`, which advances every time a reader " +
+      "opens a tab.",
+    check() {
+      // **Invariant 6 displayed rather than implied, as a grep** (Task
+      // 4.8.12).
+      //
+      // The defect: the note drew `COMPUTED hh:mm` from `computedAt`, which
+      // is when the **join ran** — and the gateway reaches the producer on
+      // every connect and every subscribe, three joins per cold load of `/`
+      // (Task 4.8.3). So on a feed that had stopped, the sentence a reader
+      // takes as *when this data was true* was in fact the minute they opened
+      // the tab. ADR 0038 had anticipated the instant moving with no market
+      // data behind it and concluded only that it must never reach
+      // `feed-liveness.ts`; nobody had written down that it reached a drawn
+      // sentence.
+      //
+      // **Two conjuncts, and the second is the one the next author cannot
+      // avoid tripping.** The word's absence is the cheap half and a
+      // destructure would slip past a reader. What a re-implementer *must*
+      // write to draw an instant off this frame is the parse — so every
+      // `Date.parse` in this file has to name the observation field. That is
+      // `CLAUDE.md`'s rule about preferring the clause nobody can avoid
+      // writing: the division, not the type name.
+      //
+      // **Deliberately NOT a fourth file in
+      // `the-send-instant-is-not-a-clock`.** That check's subject is a
+      // *liveness or staleness rule*, and this surface derives no status: it
+      // draws an age, with no threshold and no connection word. Widening that
+      // list would have made it green here for a reason it was not written
+      // for, which is this repository's named way of losing a guard.
+      //
+      // Read through `withoutComments`, because the argument for the repair
+      // discusses `computedAt` at length in this file's own prose — and the
+      // argument is the part worth keeping.
+      const NOTE =
+        "apps/frontend/src/components/OverviewSourceNote/" +
+        "overview-source-note.ts";
+
+      const text = withoutComments(
+        readFileSync(resolve(REPO_ROOT, NOTE), "utf8"),
+      );
+
+      // The anchor: a grep that matches nothing looks exactly like a grep
+      // that passes, so the subject has to be present before anything is
+      // asserted about it.
+      if (!text.includes("observedAt")) {
+        throw new InvariantFailure(
+          `${NOTE} does not read \`observedAt\` at all. Either the field was ` +
+            "renamed — rename it here too — or the note has stopped stating " +
+            "how old its figures are, which is the whole of Task 4.8.12.",
+        );
+      }
+
+      if (text.includes("computedAt")) {
+        throw new InvariantFailure(
+          `${NOTE} reads \`computedAt\`, which is when the JOIN ran. The ` +
+            "gateway runs it on every connect and every subscribe, so a " +
+            "sentence written from it dates a stopped feed's figures to the " +
+            "minute the reader opened the tab — invariant 6 implied rather " +
+            "than displayed (Task 4.8.12, ADR 0038's 2026-10-10 amendment).",
+        );
+      }
+
+      const parses = [...text.matchAll(/Date\.parse\(([^)]*)\)/gu)].map(
+        (match) => match[1],
+      );
+
+      if (parses.length === 0) {
+        throw new InvariantFailure(
+          `${NOTE} parses no instant at all. The clause draws one, so either ` +
+            "the parse moved — move this check with it — or the clause has " +
+            "stopped drawing it.",
+        );
+      }
+
+      for (const argument of parses) {
+        if (!argument.includes("observedAt")) {
+          throw new InvariantFailure(
+            `${NOTE} parses \`${argument.trim()}\`, which is not the ` +
+              "aggregate's observation instant. The only instant this note " +
+              "may date its figures from is `observedAt` — the newest " +
+              "observation the aggregate contains, stamped by the market " +
+              "rather than by this process (Task 4.8.12).",
           );
         }
       }

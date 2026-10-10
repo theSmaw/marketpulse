@@ -49,10 +49,38 @@ const stored = (symbol: string, close: number): WireOverviewFigure => ({
   close,
 });
 
+/**
+ * A frame, with its observation instant folded from the figures on it.
+ *
+ * **The shipped field is folded on the SERVER over the join's whole answer**
+ * (Task 4.8.12) — over all 518 entries, not over the four figures a frame
+ * carries. The fold here is a fixture convenience that reproduces what a
+ * four-proxy frame's value would be, which keeps every story below internally
+ * consistent: a frame with an observed figure on it contains an observation,
+ * and a frame of closes does not.
+ *
+ * `computedAt` is deliberately **later** than the observation on the
+ * dead-feed story, because that is the state the repair exists for: the
+ * arithmetic ran when the reader opened the tab and the data did not.
+ */
 const frame = (
   figures: readonly WireOverviewFigure[],
   feeds: readonly ("iex" | "sip" | "replay" | "synthetic")[],
-): WireMarketOverview => ({ computedAt: at("18:01"), feeds, figures });
+  computedAt: string = at("18:01"),
+): WireMarketOverview => {
+  const instants = figures
+    .filter((figure) => figure.state === "observed")
+    .map((figure) => figure.at);
+
+  const observedAt = instants.toSorted().at(-1);
+
+  return {
+    computedAt,
+    feeds,
+    figures,
+    ...(observedAt === undefined ? {} : { observedAt }),
+  };
+};
 
 /** A session running on the free plan: IEX figures, consolidated denominators. */
 const SESSION = frame(
@@ -189,9 +217,10 @@ export const TwoObservedTapes: Story = {
  * **CI's state, and a restarted backend's: a frame about nothing.**
  *
  * Every figure is `unknown` — the store holds nothing for any of them — so the
- * strip above says so and this says nothing at all. A lone `COMPUTED` line
- * would be a truthful instant under a surface holding no figures, which is
- * `SOURCE_OF_NOTHING`'s defect one screen along.
+ * strip above says so and this says nothing at all. A lone instant under a
+ * surface holding no figures would be `SOURCE_OF_NOTHING`'s defect one screen
+ * along, and the frame states none: `observedAt` is **absent** when the
+ * aggregate contains no observation (Task 4.8.12).
  */
 export const AnAggregateOverNothing: Story = {
   args: {
@@ -202,6 +231,33 @@ export const AnAggregateOverNothing: Story = {
       ],
       [],
     ),
+  },
+};
+
+/**
+ * **A feed that stopped hours ago — the state this note was repaired for.**
+ *
+ * The aggregate was joined at 18:01 UTC because a reader opened this tab, and
+ * the newest observation behind it is from 14:12 UTC. Until 2026-10-10 the
+ * last line read `COMPUTED Sep 25 · 14:01 EDT` here — the minute the tab was
+ * opened, which a reader takes as *when this data was true*. It now reads the
+ * data's own instant, and it **does not move** however many tabs are opened.
+ *
+ * There is no connection word and no threshold: `live | stale | disconnected`
+ * have one home and it is the status bar (Story 3.10). An age is not a
+ * verdict.
+ */
+export const AFeedThatStopped: Story = {
+  args: {
+    overview: frame(
+      [
+        { state: "observed", symbol: "SPY", at: at("14:12"), price: 774.03 },
+        { state: "observed", symbol: "QQQ", at: at("14:11"), price: 601.88 },
+      ],
+      ["iex"],
+      at("18:01"),
+    ),
+    feed: { state: "configured", feed: "iex" },
   },
 };
 
@@ -236,6 +292,22 @@ export const EveryState: Story = {
           ],
           ["A session running, chrome silent", SESSION, NOT_CONFIGURED],
           ["Stored closes only, no provider", CLOSES, NOT_CONFIGURED],
+          [
+            "A feed that stopped four hours ago",
+            frame(
+              [
+                {
+                  state: "observed",
+                  symbol: "SPY",
+                  at: at("14:12"),
+                  price: 774.03,
+                },
+              ],
+              ["iex"],
+              at("18:01"),
+            ),
+            { state: "configured", feed: "iex" } as const,
+          ],
           ["No frame yet", undefined, NOT_CONFIGURED],
         ] as const
       ).map(([label, overview, feed]) => (

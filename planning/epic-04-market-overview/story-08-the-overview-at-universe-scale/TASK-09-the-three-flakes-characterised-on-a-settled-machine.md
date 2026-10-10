@@ -184,3 +184,44 @@ catch, which makes it the worst shape of flake to leave uncharacterised.
   the loop notices the slow one has gone. That is a hypothesis, not a finding —
   but it predicts a **load dependence**, which is the one thing your settled
   machine can test and nobody else can.
+
+## Handed here by Task 4.8.12 — 2026-10-10: a fourth browser spec exists, and it loads `/` five times in one test
+
+`e2e/specs/overview-source-note.spec.ts` is new. It has two tests; the second
+loads `/` **five times** against `page.routeWebSocket`, once per state in the
+source note's grid, and took **7.5 s** on a settled machine beside 2.2 s for
+the first.
+
+Two things for your characterisation. It is **not** in your three flakes and
+has no history yet, so if it appears in a run of yours it is a new observation
+rather than a known one — and a new spec's first red is the one most likely to
+be mistaken for a regression in whatever branch it lands beside. And its shape
+is the one your load hypothesis predicts trouble for: five sequential
+navigations in one test body, each waiting on `networkidle`, so a loaded
+machine stretches it rather than failing it. If you are counting executions,
+count this one as five page loads rather than as one test.
+
+### And three disjoint failure sets, observed 2026-10-10, with the load reading beside them
+
+Task 4.8.12 ran `pnpm e2e` three times in an hour on one checkout. Recorded
+here because the sets are **disjoint**, which is the shape your
+characterisation needs and which a single run cannot show.
+
+| Run | Result                        | Failed                                                                                                                                             |
+| --- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `4 failed, 228 passed (5.4m)` | `securities-route` axe 1280x560; `security-explorer-shell` axe 1440 and 1024; `security-holiday-week` listener — all four **30 s timeouts**        |
+| 2   | `3 failed, 230 passed (6.2m)` | `securities-route` axe no-close; `security-price-chart` volume alt text — timeouts; `security-price-chart` two crosshairs — `element(s) not found` |
+| 3   | `1 failed, 231 passed (4.8m)` | `security-window-control` readout at desktop — `element(s) not found`                                                                              |
+
+Every one of them passed when re-run scoped minutes later on the same
+checkout — the run-1 set at **7–12 s each against 37–50 s before timing out**.
+
+**The figure your three flakes' entries do not carry and this one does:**
+`uptime` read a load average of **34.28** during these runs, against
+`overview-instrument.mjs`'s own `LOAD_CEILING = 1.0`, with a
+Virtualization.framework VM at 86.7% CPU. If your characterisation wants to
+separate contention from a spec's own fragility, these are three sets taken
+at a known, extreme load — and note the **second** failure mode in runs 2 and
+3 is not a timeout at all but `element(s) not found`, which is a different
+hypothesis and may be the store-state skip condition racing rather than the
+machine.

@@ -649,8 +649,78 @@ export interface WireMarketOverview {
    * both this word and `sentAt` out of `feed-liveness.ts`,
    * `stream-connection.ts` and `live-feed.ts`
    * (`the-send-instant-is-not-a-clock`).
+   *
+   * **Amended 2026-10-10 by Task 4.8.12: no drawn sentence reads it any
+   * more.** The landing page's source note drew it under `COMPUTED`, which on
+   * a dead feed is the minute the reader opened the tab — invariant 6 implied
+   * rather than displayed. {@link observedAt} is the field a surface saying
+   * *how old are these figures* reads. This one is still the aggregate's own
+   * instant, is still what `market-proxies.ts` asks the trading calendar
+   * about, and is still a fact about **this process** rather than about the
+   * market.
    */
   readonly computedAt: string;
+
+  /**
+   * **The newest observation this aggregate contains** — ISO 8601, and
+   * **absent when it contains none** (Task 4.8.12).
+   *
+   * ## What it is for, and the defect it exists because of
+   *
+   * {@link computedAt} says when the join ran, and the join runs on every
+   * connect and every subscribe as well as on every applied batch — so on a
+   * feed that has stopped it advances with no market data behind it, and a
+   * sentence written from it reads *these figures are from 15:04* at 15:04
+   * because a reader opened a tab. This field is the honest input to that
+   * sentence: it is a bar's own `startsAt`, stamped by the market rather than
+   * by this process, so it **stops moving when the market stops reaching
+   * us**.
+   *
+   * ## The NEWEST, and a span was rejected rather than overlooked
+   *
+   * The claim one instant can make about a set of observations is *nothing
+   * newer than this has reached us*. The oldest would date the aggregate by
+   * its least recently traded member — on IEX a median symbol produces a bar
+   * in 65.1% of minutes and `ERIE` in 2.1% (`LIVE-DATA.md` §7.6), so the
+   * oldest is routinely hours behind with nothing wrong — and a span invites
+   * a reader to believe the set is uniform when it is not. The per-figure
+   * exception is `WireObservedFigure.at`, which every figure already carries,
+   * and the strip states its own narrower version of this claim over the four
+   * proxies with a `from hh:mm` note on any cell that is behind it. **An
+   * outer claim with inner exceptions is this product's shipped idiom** (the
+   * universe table's heading and its rows), and the outer one is never older
+   * than an inner one.
+   *
+   * ## Absent is the answer, not an empty string and not `computedAt`
+   *
+   * An aggregate over zero observations has no such instant, which is CI's
+   * permanent state — 518 securities, **zero bars** — and also a deployment
+   * with no provider, and a backend in the seconds after a restart. ADR
+   * 0029's defer rule governs it: a fully-formed provenance record about zero
+   * bars is a false impression rather than a courtesy, so the field is
+   * **omitted** and the surface that would have drawn it says nothing. *Say
+   * nothing rather than say now.*
+   *
+   * ## It is NOT one of the wire's process clocks
+   *
+   * `sentAt` and `computedAt` are readings of **this process's** clock, which
+   * is why `the-send-instant-is-not-a-clock` holds both out of
+   * `feed-liveness.ts` and its two adapters. This is `startsAt`'s family
+   * instead — a fact about the market — so it is deliberately **not** in that
+   * list, and it is the field a staleness rule over the aggregate would
+   * legitimately be built on. Story 4.7 owns whether one is.
+   *
+   * ## Optional on the read side for `sectors`' reason
+   *
+   * The deploy rolls the backend first, so an old bundle meeting a new
+   * gateway is ordinary — but a **rollback pins a previous image**, so a new
+   * bundle can legitimately meet a gateway that sends no such field. Absent
+   * means *this frame states no observation instant*, which a surface draws
+   * as silence. A reader cannot tell that apart from *this aggregate holds no
+   * observation*, and does not need to: both mean the same thing to a
+   * sentence, which is **make no claim**.
+   */
+  readonly observedAt?: string;
 
   /**
    * The distinct tapes behind the **observed** figures, in first-seen order.
@@ -1353,7 +1423,7 @@ const encodeMovers = (movers: WireMarketMovers): JsonValue | undefined => {
 const overviewFields: WireFields<
   Omit<
     WireMarketOverview,
-    "sectors" | "sectorLadderStep" | "breadth" | "movers"
+    "sectors" | "sectorLadderStep" | "breadth" | "movers" | "observedAt"
   >
 > = {
   computedAt: asIs,
@@ -1390,6 +1460,15 @@ const encodeOverview = (overview: WireMarketOverview): JsonValue => {
 
   return {
     ...toWire(overviewFields, overview),
+    // **Absent rather than `null`, in a branch, for the sector section's
+    // reason** — `toWire` walks the map's keys, so a key in `overviewFields`
+    // is a key on the wire whatever it holds, and `undefined` is not a JSON
+    // value. The omission is the claim here: an aggregate over zero
+    // observations has no observation instant, and `JSON.stringify` would
+    // write `null` for one, which a lenient reader turns into the epoch.
+    ...(overview.observedAt === undefined
+      ? {}
+      : { observedAt: overview.observedAt }),
     ...(overview.sectors === undefined
       ? {}
       : { sectors: encodeFigures(overview.sectors) }),
@@ -1845,10 +1924,20 @@ const readOverview = (value: unknown): WireMarketOverview | undefined => {
   // absence rather than a discarded frame carrying four true prices.
   const movers = readMovers(value.movers);
 
+  // **The observation instant is optional on the read side too**, for
+  // `sectors`' reason — a rollback pins a previous image — and anything that
+  // is not a string is the same absence rather than a discarded frame
+  // carrying four true prices. It is not parsed here: this is the decoder's
+  // shape check, and `Date.parse` answering `NaN` is the drawing surface's to
+  // refuse, which it already does for `computedAt`.
+  const observedAt =
+    typeof value.observedAt === "string" ? value.observedAt : undefined;
+
   return {
     computedAt: value.computedAt,
     feeds,
     figures,
+    ...(observedAt === undefined ? {} : { observedAt }),
     ...(sectors === undefined ? {} : { sectors }),
     ...(step === undefined ? {} : { sectorLadderStep: step }),
     ...(breadth === undefined ? {} : { breadth }),
