@@ -1150,15 +1150,63 @@ flake. **Nobody has measured where the 160 ms actually goes.**
 > proved. **Owner unchanged, and the figure is handed to Task 4.8.9**, which
 > characterises this story's flakes on a settled machine.
 
-**Re-measure:**
-`pnpm e2e e2e/specs/security-gap-fill.spec.ts --repeat-each=6` **four times on
-one checkout, on a machine below load 4** — and count failures **per execution**
-rather than per run. A single `--repeat-each=6` is worthless here: at 12% it
-comes back clean **46%** of the time and reads as proof.
+> **Amended 2026-10-10 by Task 4.8.9 — MEASURED, and the mechanism this entry
+> proposes is not the mechanism. The assertion named above cannot see the thing
+> it is believed to watch for.** Characterised at n = 96 on one checkout, with a
+> wait loop holding the load ratio under 0.75 before every arm: **1 / 24 at
+> `--workers=1` (4.2%)** against **12 / 48 at `--workers=4` (25.0%, Wilson 95%
+> CI 13.6–39.6%)** — four workers being Playwright's own default on 8 cores and
+> therefore the condition the suite runs in. **The flake is real and
+> load-dependent at a 6× rate.**
+>
+> **Three structural findings, and together they retire the 160 ms hypothesis
+> rather than weakening it further.** (1) **`Fetching` exists nowhere in the
+> product** — `grep -rn "Fetching" apps/frontend/src apps/backend/src
+packages/shared/src`, excluding tests and stories, exits 1. (2) **ADR 0028's
+> cover has no text**: `ChartPending` is, in full,
+> `<div aria-hidden="true" className={styles.pending} />`, so `getByText()`
+> cannot see it, and `BarSeriesPanel`'s other pending state says
+> **`Reading the series…`**, matching neither alternative. (3) **What the
+> predicate does match is the Explorer shell's own first load, and there are
+> exactly two of them**, which is why all 13 failures read `Received array: [2]`
+> and never `[1]` or `[3]` — measured verbatim against the running pair at
+> t = 150–200 ms: `p "Loading securities. Anything typed is kept and will match
+as soon as they arrive."` (`SecuritySearch`) and `p "Loading the tracked
+universe…"` (`UniverseTable`).
+>
+> **So the test fails when `GET /securities` has not finished arriving by the
+> time the sampling loop opens.** This entry named the right culprit — _it is
+> the table rather than the chart_ — through the wrong route: not a main-thread
+> task delaying the refill past a threshold, but the table's **own** pending
+> sentence being counted by an assertion written about the chart's. Nothing
+> about ADR 0028's 160 ms, Story 3.9's _a refill is quiet_, or the cold-load
+> frame is implicated, and **the owner clause below is discharged by that
+> rather than satisfied by it**: there is no 160 ms to account for here.
+>
+> **And 13 of 13 failures are line 219, 0 of 13 line 220** — where the spec's
+> own comment states the 14/120 were _"every one of them the final assertion —
+> the line never grew within the window"_, the basis on which `f2463d3` (Task
+> 4.3.8) doubled the sampling loop to 30 s. Either the mode moved when the
+> window doubled, which is the generous reading and means the raise worked, or
+> the comment was wrong when written. **What is certain is that the rate did
+> not fall**: 12% published, 25% measured after the raise under the suite's own
+> worker count.
+>
+> **The repair is a separate decision and was deliberately not taken.** It is
+> small and it is somebody's to own: the predicate is wrong about its subject.
 
-**Owner: a condition rather than a story number — the first task that measures
-where the security page's refill spends its 160 ms**, which is the same
-measurement Epic 14 owes for the cold load and should be taken once for both.
+**Re-measure:**
+`pnpm e2e security-gap-fill.spec.ts -g "never blanked" --repeat-each=24
+--workers=4`, with the load ratio under 0.75 before the arm, counting failures
+**per execution** and **reading the line number of each failure**. n = 24 at
+4 workers separates 25% from 4% and **cannot** separate 4% from 17%; a
+`--repeat-each=6` is worthless at any rate in this range.
+
+**Owner: a condition rather than a story number — the first task that touches
+this spec's predicate.** The old clause, _the first task that measures where
+the security page's refill spends its 160 ms_, is retired: Task 4.8.9 measured
+that this flake does not go through the refill at all. **Epic 14 still owes the
+cold-load frame**, which is its own entry.
 
 ## `security-feed-degraded.spec.ts`'s `killing the feed leaves the page exactly as it was` compares a live page against a baseline taken before the kill
 
@@ -1632,10 +1680,48 @@ not the common case**, and `CLAUDE.md`'s rule stands — count failures per
 **execution**, and run the branch commit that contains no code before calling
 anything a regression.
 
+> **Amended 2026-10-10 by Task 4.8.9 — re-measured at n = 48, and the margin is
+> twice what this entry publishes. Still a margin, still load-dependent, no
+> longer two-thirds of the ceiling.** With the load ratio held under 0.75 before
+> each arm: **24 / 24 passed at `--workers=1` in 7.2–10.9 s** (median 8.0) and
+> **24 / 24 passed at `--workers=4` in 11.2–14.5 s** (median 13.5), where this
+> entry records 19.8–20.0 s for the same test. **Like for like** — both figures
+> are Playwright list-reporter durations — so the comparison stands and the
+> margin has roughly halved.
+>
+> **But the _two-thirds of its own timeout_ framing does not stand, and neither
+> would a figure of mine phrased that way.** On the three settled full-suite
+> runs below, Playwright reported **35.2 s, 36.2 s and 37.8 s for tests it
+> marked PASSED**, against a default per-test timeout of 30 s that
+> `playwright.config.ts` does not raise and three failures that say
+> `Test timeout of 30000ms exceeded` in as many words. **So the reported
+> duration is not the quantity the 30 s governs** — fixture setup and teardown
+> outside the timed body is the obvious candidate and is unverified — and **no
+> percentage-of-ceiling may be quoted from a reported duration until somebody
+> establishes the relationship between the two.** What a reported duration is
+> good for is comparing itself across arms, which is what the figures above do.
+>
+> **The load sensitivity is confirmed and is the mechanism**: 1 → 4 workers
+> costs a **1.7×** stretch, so _a test that has nothing left when the machine is
+> not quiet_ is the right account of the shape. Crossing 30 s from 13.5 s needs
+> a further **2.2×**, which is roughly this machine against the one Task 4.8.12
+> ran on at load 34.28.
+>
+> **The bimodality this entry names does not reproduce.** 24 consecutive
+> samples span 7.2–10.9 s with no second cluster, where the six behind _"four
+> at ~20 s and two at ~11.5 s"_ suggested two paths. So _nobody has established
+> which_ is now _there is no sign of a second one at n = 24_.
+>
+> **The halving is not attributed.** The spec has changed since 2026-09-28 —
+> `aa6f88b` (Task 4.6.6) is the most recent commit to touch it — and this task
+> did not rebuild the old commit, which `CLAUDE.md` says is the only thing that
+> tells a figure that moved from a figure that was mis-recorded.
+
 **Re-measure:** `pnpm e2e securities-route.spec.ts -g "matches nothing"
---repeat-each=6` on an idle machine, reading the **durations** rather than the
-verdict, then again with a second heavy job running. The number that matters is the
-margin against 30,000 ms, not the pass.
+--repeat-each=24 --workers=1`, then again at `--workers=4`, with the load ratio
+under 0.75 before each arm. Read the **durations** rather than the verdict: the
+number that matters is the margin against 30,000 ms and the **ratio between the
+two arms**, which is what says whether the headroom is shrinking.
 
 ## A THIRD flake, and this one is inside `pnpm verify` rather than the browser suite
 
@@ -1667,10 +1753,167 @@ across a merge: ~12% on `security-gap-fill`, a load-dependent 30 s ceiling on
 the failure mode is a real green change being read as broken — which has now cost
 one re-run, one diagnosis and one blocked deploy.
 
-**Re-measure:** `pnpm --filter @marketpulse/backend test:process` ×6 on an idle
-machine, then again with a second heavy job running. Read the **durations** as well
-as the verdict: if the healthy client's assertion is racing a timeout, the passing
-runs will be close to it.
+> **Amended 2026-10-10 by Task 4.8.9 — MEASURED at n = 96 across four arms, and
+> the rate runs 0% → 79% monotonically in load. The mechanism is no longer
+> unexamined.** With the load ratio held under 0.75 before each quiet arm, and a
+> stated plant of 16 `node` processes spinning on `Math.sqrt` (two per core,
+> load average 4.5 → 78.5 within 45 s, `pgrep -f` confirming `0` left
+> afterwards):
+>
+> | arm                               | n   | failures | rate      |
+> | --------------------------------- | --- | -------- | --------- |
+> | scoped `-t`, quiet                | 24  | **0**    | 0%        |
+> | whole `test:process` step, quiet  | 24  | **0**    | 0%        |
+> | scoped `-t`, **LOADED**           | 24  | **5**    | **20.8%** |
+> | whole `test:process` step, LOADED | 24  | **19**   | **79.2%** |
+>
+> **All 24 failures are identical** — `expected +0 to be 1` at line 567, so
+> **both** clients dropped every time, which is the mode the test's own comment
+> says it exists to catch.
+>
+> **Task 4.8.11's hypothesis is confirmed and promoted to a measurement.** It
+> predicted load dependence from loopback backpressure in a shared process: the
+> healthy client is served over the same loopback as the slow one, and on a
+> machine that cannot drain it its own `bufferedAmount` crosses
+> `MAX_BUFFERED_BYTES` (1 MiB, ~18 universe payloads) before the publish loop
+> notices the slow one has gone. **It predicted a load dependence and the load
+> dependence is there, 0 → 79%.** The test body is self-contained — `attach()`
+> per `it` — so the quiet arms are not passing for a scoping reason.
+>
+> **What the quiet whole-step arm buys is the answer to the question this entry
+> actually raises**: 24 executions of the real `verify` step, 12.5 s each,
+> **44 passed every time**. `test:process` is trustworthy on a settled machine
+> and is not on a saturated one, and the red it produces there is on a required
+> check with nothing wrong. **Not repaired here**, and the repair is a decision
+> rather than a tuning: either the publish loop drains the healthy client
+> between batches, or the threshold stops being a count of unread payloads.
+
+**Re-measure:** `pnpm --filter @marketpulse/backend test:process` ×24 with the
+load ratio under 0.75, then ×24 again under a stated CPU plant, counting
+failures **per execution**. The quiet arm is the one that says whether `verify`
+is trustworthy; the planted arm is the one that says this is the machine rather
+than the code. ×6 separates neither.
+
+## A settled machine does not produce a clean browser suite, and the 30 s ceiling is a SUITE-WIDE margin rather than one spec's
+
+**Added 2026-10-10 by Task 4.8.9, and it falsifies the reading Story 4.9 was
+handed.** That hand-off recorded three whole-suite runs failing 3 / 5 / 7 at a
+load average of 23–33 and concluded _"on this evidence it is the second"_ — the
+machine rather than the suite. **Three runs on a settled machine say it is
+both.**
+
+| run | load before (1 min, 8 cores) | result                 | failed                                                                                                                 |
+| --- | ---------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 1   | **5.31** (ratio 0.66)        | `1 failed, 231 passed` | `securities-route:232` axe 1280x480 — **timeout**                                                                      |
+| 2   | **5.74** (ratio 0.72)        | `1 failed, 231 passed` | `security-holiday-week:217` listener — **timeout**                                                                     |
+| 3   | **4.35** (ratio 0.54)        | `3 failed, 229 passed` | `securities-route:281` and `:310` axe — **timeouts**; `security-gap-fill:165` — **assertion**, the entry above's flake |
+
+**The sets are disjoint again, and 0 of 3 runs was clean.** Five failures in
+three settled runs against eight in three saturated ones (Task 4.8.12, load
+34.28) — fewer, and the same order of magnitude. **A clean full run is still
+not the common case, and a settled machine is not the cure.**
+
+**Why, and this is the part that generalises: the browser suite is its own
+plant.** A run begun at load **5.31** left the machine at **31.04**; run 2
+began at 5.74 and ended at 31.86. Four concurrent Chromium processes on 8 cores
+_is_ the load, so settling the machine beforehand buys the first minute of a
+five-minute run and nothing after it. **Two corollaries.** Any `uptime` read
+_during_ a suite run is measuring the suite — which is most of Task 4.8.12's
+34.28, and means that reading cannot be attributed to the VM beside it. And
+Task 4.8.1's ceiling is right to read the load **at the top** and would be
+meaningless read anywhere else.
+
+**And the margin is a family, not a spec.** `docs/GAPS.md` names
+`securities-route:883` as _a test sitting at two-thirds of its own timeout_;
+that test ran at **8.5 / 13.4 / <12 s** across these three runs and is nowhere
+near the front. Ranked by worst reported duration over the three runs, the
+tests at the front are:
+
+| test                                                 | run 1      | run 2      | run 3      |
+| ---------------------------------------------------- | ---------- | ---------- | ---------- |
+| `securities-route:281` open result surface, axe      | 23.2 s     | 26.7 s     | **48.7 s** |
+| `security-holiday-week:217` what a listener is told  | 16.1 s     | **47.4 s** | 29.8 s     |
+| `securities-route:232` loaded universe axe, 1280x480 | **45.7 s** | 30.4 s     | 25.0 s     |
+| `securities-route:310` nothing has a close, axe      | 22.2 s     | 36.2 s     | **1.0 m**  |
+| `security-explorer-shell:175` shell axe, 640px       | 15.1 s     | **37.8 s** | < 12 s     |
+| `securities-route:232` loaded universe axe, 1280x560 | 17.4 s     | **35.2 s** | 23.6 s     |
+| `security-price-chart:909` volume plot, alt text     | 24.5 s     | **31.1 s** | 14.1 s     |
+| `securities-route:106` universe from the real pair   | 16.7 s     | 16.9 s     | **24.9 s** |
+
+**Six of the eight are axe runs over a surface holding the 518-row universe**,
+and that is the whole shape of it: every disjoint set anybody has recorded is a
+draw from this family, and **which member crosses depends on which worker was
+busiest**, which is exactly why it reads as random and why the failing set is
+never the same twice.
+
+**This changes what a repair would be.** Not a spec's own work and not a per-spec
+timeout: either axe stops being run over 518 rows at four viewports, or the
+suite's ceiling is a decision taken once for the family. **Both are owner
+decisions and neither was taken here.**
+
+**One instrument caveat that bounds everything above.** Playwright reported
+**35.2 s, 36.2 s and 37.8 s for tests it marked PASSED**, against a default
+30 s per-test timeout that `playwright.config.ts` does not raise, while the
+failures read `Test timeout of 30000ms exceeded`. **So a reported duration is
+not the quantity the ceiling governs** — fixture setup and teardown outside the
+timed body is the obvious candidate and nobody has verified it. The durations
+above are comparable with each other and with this file's other reported
+durations; **they must not be turned into a percentage of 30 s** until that
+relationship is established.
+
+**Re-measure:** `pnpm e2e` ×3 with the load ratio under 0.75 **before each
+run**, recording the load either side, the failed set, and every reported
+duration over 12 s. Read the sets for **disjointness** rather than the counts
+for a total: three disjoint singletons and one triple is the signature of a
+ceiling family, and three identical sets would be a regression.
+
+## A FOURTH flake, also inside `pnpm verify`, and it is an ordering assertion over log-line indices
+
+**Added 2026-10-10 by Task 4.8.9. Recorded here because nothing in this
+repository had recorded it** — Task 4.8.3 saw it and this file named neither
+marker.
+
+**`apps/backend/src/index.process.test.ts > the database pool > says goodbye to
+a browser BEFORE closing its socket`**, seen once in four whole-gate executions
+on 2026-10-09:
+
+```text
+AssertionError: expected 13 to be greater than 18
+ ❯ src/index.process.test.ts:1004:21
+    1004|     expect(drained).toBeGreaterThan(gateway);
+```
+
+`http drained` at log line 13 and `market gateway closed` at 18 — the shutdown's
+two markers in the wrong order. **It is in `test:process`, so it is inside
+`pnpm verify` and inside a required CI check.**
+
+**Characterised and NOT reproduced: 0 failures in 96 executions**, 48 of them
+under a CPU plant that took the load average to 130. Four arms of 24 — scoped
+`-t` quiet, scoped `-t` planted, whole `test:process` quiet, whole
+`test:process` planted. **Wilson 95% CI on 0 / 96 is 0–3.8%.**
+
+**Reported as unreproduced rather than as absent, and the plant is the reason.**
+The assertion is over two **log-line indices** in a spawned child's records, and
+what reorders them is a scheduling difference inside that child's shutdown — not
+CPU starvation of the runner, which starves runner and child alike and may
+simply scale both. The sighting came from a **whole-gate** execution, where the
+contention is other spawned servers, other sockets and other ports. **The arm
+that would reach it is `pnpm verify` repeated, not `test:process` repeated**,
+and at ~3 minutes an execution that is 72 minutes for n = 24, which Task 4.8.9
+did not spend and says so rather than publishing 0/96 as a rate.
+
+**What makes it the worst-shaped of the five.** `CLAUDE.md` warns by name that
+_a marker travels with its step_, so **a genuine ordering change and a
+scheduling flake fail identically** — and the markers here are `indexOf` into a
+log array, which moves if anything above them logs one more line. A future
+change that adds a log line to startup does not move the order and does not fail
+this; one that moves the gateway close does. That is the right design and it is
+also why a red here must never be waved through as "the known flake" without
+reading the diff for a shutdown change.
+
+**Re-measure:** `pnpm verify` ×24 on one checkout with the load ratio under
+0.75, counting failures per execution. Nothing cheaper has reached it: n = 96
+of the scoped and whole-step arms, half of them planted, produced zero.
 
 ## The sector region's absence sentence is clipped at 390, and the repair for it cannot reach that width
 
