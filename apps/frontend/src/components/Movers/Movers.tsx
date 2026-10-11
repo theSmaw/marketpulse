@@ -351,10 +351,17 @@ export const MoversMeta = memo(function MoversMeta({
   readonly view: MarketMovers;
   /**
    * From `useOrderHold`. **The same value that pins the order both lists
-   * draw** — so there is no state in which the head says `ORDER HELD` over a
-   * region that is re-ordering, which is `docs/GAPS.md` entry 13's sibling
-   * defect one region up and the reason this is one piece of state rather than
-   * two.
+   * draw** — so the head and the two lists cannot disagree about **which**
+   * order is held, which is `docs/GAPS.md` entry 13's sibling defect one region
+   * up and the reason this is one piece of state rather than two.
+   *
+   * **Amended 2026-10-11 (Task 4.7.6).** This said *there is no state in which
+   * the head says `ORDER HELD` over a region that is re-ordering*, and that is
+   * false: one value cannot disagree with itself, but it can be **re-taken**,
+   * and a focus move inside the region does exactly that — so the badge stays
+   * on across a re-order of all five rows. Produced in
+   * `overview-degraded-stops.spec.ts`; the account is in `use-order-hold.ts`
+   * and the entry is in `docs/GAPS.md`.
    */
   readonly held: boolean;
 }) {

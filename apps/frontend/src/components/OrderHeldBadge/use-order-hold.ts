@@ -16,6 +16,33 @@ import type { SectorRow } from "../../market/index.js";
 // that defect, one region along. Here it is unrepresentable: the badge is
 // `pinned !== undefined`, and `pinned` **is** the order the list draws.
 //
+// **Amended 2026-10-11 (Task 4.7.6): _unrepresentable_ is too strong, and the
+// state has been produced in Chromium.** What is unrepresentable is the badge
+// being on while **no** order is pinned. The badge is on while a **re-taken**
+// pin is in force, and a re-taken pin is a different order with the same truth
+// value — so `ORDER HELD` can and does sit over a list whose five rows all just
+// moved. Two triggers, both measured in `overview-degraded-stops.spec.ts`:
+//
+//   - **One arrow press.** `Region` combines non-bubbling `pointerenter` /
+//     `pointerleave` with **bubbling** `focusin` / `focusout`, so moving focus
+//     from one row to the next fires `focusout` — `setPinned(undefined)` — and
+//     then `focusin`, which pins `latest.current` afresh. Measured: a pinned
+//     `SMCI FSLR NVDA AMD TSLA` becomes `TSLA AMD NVDA FSLR SMCI` on one
+//     `ArrowDown`, and because the key handler read the order that was on
+//     screen when the key went down, **a press of ArrowDown moved the reader
+//     one row UP the screen** (rank 3 → `AMD`, which is now rank 2).
+//   - **The focus recovery, with nothing pressed at all.** Task 4.6.5's
+//     recovery calls `focus()` on another element inside the same region, which
+//     is the same bubbling pair — so a degradation that empties the list
+//     re-pins against the **degraded** frame, and the order moves again when
+//     the feed returns.
+//
+// Story 4.6 handed the first of those over as a known consequence of two
+// correct decisions; the second arrived with its own repair. **Neither is
+// repaired here**: the hold's behaviour was settled by Task 4.5.7 with
+// measurements, and changing it is the owner's. `docs/GAPS.md` carries the
+// entry and the recommendation.
+//
 // ## Why the pin is captured in the handler and not derived
 //
 // The hold begins on an event, and an event handler is the one place in React
@@ -49,7 +76,12 @@ export interface OrderHold {
   readonly pinned: readonly string[] | undefined;
   /**
    * What the region's head says, and it is derived rather than stored: there is
-   * no state in which the badge is on and the order is moving.
+   * no state in which the badge is on and **nothing** is pinned.
+   *
+   * **Amended 2026-10-11 (Task 4.7.6).** This said *no state in which the badge
+   * is on and the order is moving*, which is false and was produced: a focus
+   * move inside the region releases and re-takes the pin, so the badge stays on
+   * across a re-order. See the header.
    */
   readonly held: boolean;
   /** `Region`'s `onReaderWithin`. **Stable**, so the listeners are bound once. */

@@ -262,6 +262,41 @@ one in Decision 1.
   screen-reader item's. And that no region scrolls at a viewport nobody
   measured, which is the whole reason this decision is unconditional.
 
+## Amended 2026-10-11 by Task 4.7.6 — the rejected alternative already ships, one level down
+
+**Nothing above is withdrawn.** What it did not say is that the shape it
+rejected was, at the moment it was written, already the shape of **twenty other
+tab stops on the same screen** — and nobody considered it there.
+
+Decision 1 refused _conditional on content being focusable_ because the stop
+_"would exist at paint, vanish when the first aggregate arrives, and come back
+on a rollback, a refused section, an empty answer or a tripped error boundary. A
+reader focused on the region at that instant has focus dropped to `<body>`, on a
+timer nobody controls."_ That is a description of a **ranked ticker stop**. Each
+of the twenty exists because an aggregate selected that security, and every
+degradation Story 4.7 produces unselects all of them at once.
+
+**Two of the three removals were already answered and one was not.** Task 4.6.5
+built a recovery inside `useRovingStop`, so a row leaving the list lands focus
+on the row now at that rank, and a list running out of real rows lands it on
+this ADR's own `<section>` — both produced through the shipped socket in
+`overview-degraded-stops.spec.ts`. **The third is the region's content going
+away entirely**: `movers === undefined` with `overview` present is the route's
+rollback branch, `readOverview` reaches it from a healthy gateway by turning an
+unreadable section into an absent one, and a tripped `ErrorBoundary` is the same
+shape. The whole component unmounts and the recovery unmounts with it; focus
+went to `<body>`, measured.
+
+So `Region` now holds a backstop of its own: the element that last held focus
+inside it is remembered, and if that element is disconnected while
+`document.activeElement` is the body, the section takes focus. **It depends on
+this ADR's decision rather than extending it** — the backstop is only possible
+because the section is a stop in every state. The guard is
+`overview-degraded-stops.spec.ts` with the break
+`a-region-does-not-catch-its-dropped-focus`; the cost is recorded in
+`docs/GAPS.md`, because focusing the section is a focus move inside the region
+and the order hold re-takes its pin on one.
+
 ## Reversal trigger, as a condition
 
 **The first region on this screen whose content holds a keyboard stop in _every_
