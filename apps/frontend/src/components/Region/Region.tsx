@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { ErrorBoundary } from "../ErrorBoundary/ErrorBoundary.js";
 import { Panel } from "../Panel/Panel.js";
@@ -205,6 +205,36 @@ export function Region({
   const box = useRef<HTMLElement | null>(null);
 
   /*
+   * **Whether the content below has thrown — the one thing the head cannot
+   * derive** (Task 4.7.5).
+   *
+   * The boundary is inside the section and wraps only the content slot, which
+   * is right and is argued at length above: the name, the landmark, the tab
+   * stop and the box all survive a failure. What nobody noticed is that the
+   * **head's `meta`** survives it too, and `meta` is where the regions that
+   * have content put their claims about it — `11 · RANKED`, `Top 5 each way`,
+   * `ORDER HELD`. The route computes it from `movers !== undefined`, which is
+   * a statement about the *frame*; a thrown `Movers` leaves it standing over
+   * a box saying the region could not be displayed.
+   *
+   * Two true halves and one contradiction, which is Task 3.4.9's finding one
+   * surface over and the reason the check is a walk over this component's own
+   * state space rather than a rendering of a named combination.
+   *
+   * **A state rather than a derivation, because a throw during render is not
+   * a thing anything upstream computed.** The setter is a stable identity, so
+   * the boundary's effect-free notification does not resubscribe anything,
+   * and the `false` on reset is what makes `Try again` restore the head with
+   * the figures — see `ErrorBoundary.onCaught`.
+   *
+   * It governs `meta` and **not** `filledBy`. That sentence says what belongs
+   * in the region — the same kind of fact as its name, which the boundary
+   * deliberately preserves — rather than anything about figures that have
+   * just gone.
+   */
+  const [caught, setCaught] = useState(false);
+
+  /*
    * **Native listeners rather than React's handlers, and the two halves
    * combined here rather than upstream.**
    *
@@ -306,8 +336,17 @@ export function Region({
        * will fill it, and a filled one carries whatever qualifies its contents.
        * There is no state in which both are true and none in which the head has
        * to choose.
+       *
+       * **And a third branch since 2026-10-11, which is the same argument a
+       * second time**: `reserved` and the tag are keyed on there being no
+       * children so that they cannot disagree with the content, and `caught`
+       * is keyed on the content having thrown so that `meta` cannot either. A
+       * head whose claim outlives its figures is the reserved-tag defect with
+       * the condition inverted — *a tag computed from the content cannot
+       * outlive the work it names* was written here about an empty region and
+       * is just as true of a failed one.
        */
-      meta={children === undefined ? tag : meta}
+      meta={children === undefined ? tag : caught ? undefined : meta}
     >
       {filledBy === undefined ? null : (
         <p className={styles.filledBy}>{filledBy}</p>
@@ -332,6 +371,13 @@ export function Region({
           <ErrorBoundary
             title={`${name} could not be displayed`}
             detail="The rest of this screen is unaffected."
+            /*
+             * **What stops the head outliving what is inside here** — see
+             * `caught` above, and `ErrorBoundary.onCaught`, which argues why
+             * one bit crossing upward is a notification rather than the
+             * second report this component refuses to be.
+             */
+            onCaught={setCaught}
           >
             {children}
           </ErrorBoundary>
