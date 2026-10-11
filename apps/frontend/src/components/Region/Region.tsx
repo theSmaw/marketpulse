@@ -1,4 +1,10 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { ErrorBoundary } from "../ErrorBoundary/ErrorBoundary.js";
 import { Panel } from "../Panel/Panel.js";
@@ -204,6 +210,140 @@ export function Region({
 }) {
   const box = useRef<HTMLElement | null>(null);
 
+  /**
+   * **The element that last held focus inside this region** — the backstop
+   * below, and nothing else reads it.
+   *
+   * `null` while focus is on the section itself, which can never be the thing
+   * that unmounts while the region is mounted.
+   */
+  const held = useRef<HTMLElement | null>(null);
+
+  /*
+   * **The region catches the focus its own content drops** (Task 4.7.6), which
+   * is ADR 0039's rule arriving one level down.
+   *
+   * ## Why it is here and not only in `RankedList`
+   *
+   * Task 4.6.5 built this recovery inside `useRovingStop`, and for the state it
+   * was written against it is the better one: it lands on the row now at the
+   * departed row's **rank**, so the arrows keep working from where the reader
+   * was looking, and this never fires because `document.activeElement` is no
+   * longer the body by the time a parent's effect runs. **But it is inside the
+   * thing that can go away.** `movers === undefined` with `overview` present is
+   * the route's *rollback pinning a previous image* branch, and
+   * `market-stream-protocol.ts`' `readOverview` reaches it from a healthy
+   * gateway too — *"an unreadable one is the same absence rather than a
+   * discarded frame carrying four true prices"*. The whole `Movers` component
+   * then unmounts with its rows, the hook holding the recovery goes with it,
+   * and a reader on a mover row is dropped to `<body>`: produced in Chromium,
+   * `section:Movers` against `<body>`, `overview-degraded-stops.spec.ts`.
+   *
+   * A tripped `ErrorBoundary` is the same shape — Task 4.6.5 enumerated that
+   * state and nothing covered it — and so is every region Epics 5, 6 and 7
+   * will fill, because what makes the defect reachable is content that comes
+   * and goes rather than anything about a ranking.
+   *
+   * So the catch belongs at **the one element that is a tab stop in every state
+   * this screen has**, which is this section. ADR 0039 is the decision that
+   * makes that true unconditionally, and its own rejected alternative is this
+   * defect's exact wording: a stop that disappears drops *a focused reader to
+   * `<body>`, on a timer nobody controls.*
+   *
+   * ## The three conditions, and the one that is invisible when wrong
+   *
+   * The trigger is the remembered element being **disconnected**, not a blur:
+   * removing the focused element does not reliably fire `blur` or `focusout`,
+   * so a boolean kept by those two events is a guess about something the DOM
+   * can be asked directly (`useRovingStop`'s note, and this is the same
+   * mechanism).
+   *
+   * `document.activeElement === document.body` separates *the removal dropped
+   * focus* from *the reader had already tabbed away* — and `<body>` is not
+   * `null`, so `if (active !== null) return;` reads exactly like a guard and
+   * disables the whole thing. That is the shape
+   * `a-region-does-not-catch-its-dropped-focus` breaks.
+   *
+   * **Focus moving is acceptable; activating is not.** Nothing here presses
+   * anything.
+   *
+   * ## And it costs a reader their order hold, which is not this one's defect
+   *
+   * `focus()` here fires `focusin` on this same box, so a region passing
+   * `onReaderWithin` releases and re-takes its pin — measured in the same spec,
+   * and the same consequence an **arrow press** has had since Story 4.6 for
+   * `focusin`/`focusout`'s bubbling. It is recorded against the hold rather
+   * than repaired here; see `use-order-hold.ts`' 2026-10-11 amendment.
+   */
+  useLayoutEffect(() => {
+    const was = held.current;
+    if (was === null || was.isConnected) return;
+    held.current = null;
+
+    const active: Element | null = document.activeElement;
+    if (active !== null && active !== document.body) return;
+
+    box.current?.focus();
+  });
+
+  /*
+   * **One listener, unconditionally** — not folded into the effect below, and
+   * that is the defect the next author writes rather than a missed tidy-up.
+   *
+   * That effect already listens for `focusin` on this same box, so the obvious
+   * edit is to remember the target there and save a listener. It is gated on
+   * `onReaderWithin`, which **six of the seven landing regions do not pass** —
+   * and the recovery above would then exist only for the two that hold an
+   * order. Written that way first and the spec was **green on it**, because the
+   * only region that can reach the state today is one of the two that do; see
+   * Task 4.7.6's record.
+   */
+  useEffect(() => {
+    const element = box.current;
+    if (element === null) return;
+
+    const remember = (event: FocusEvent) => {
+      const target = event.target;
+      held.current =
+        target instanceof HTMLElement && target !== element ? target : null;
+    };
+
+    element.addEventListener("focusin", remember);
+    return () => {
+      element.removeEventListener("focusin", remember);
+    };
+  }, []);
+
+  /*
+   * **Whether the content below has thrown — the one thing the head cannot
+   * derive** (Task 4.7.5).
+   *
+   * The boundary is inside the section and wraps only the content slot, which
+   * is right and is argued at length above: the name, the landmark, the tab
+   * stop and the box all survive a failure. What nobody noticed is that the
+   * **head's `meta`** survives it too, and `meta` is where the regions that
+   * have content put their claims about it — `11 · RANKED`, `Top 5 each way`,
+   * `ORDER HELD`. The route computes it from `movers !== undefined`, which is
+   * a statement about the *frame*; a thrown `Movers` leaves it standing over
+   * a box saying the region could not be displayed.
+   *
+   * Two true halves and one contradiction, which is Task 3.4.9's finding one
+   * surface over and the reason the check is a walk over this component's own
+   * state space rather than a rendering of a named combination.
+   *
+   * **A state rather than a derivation, because a throw during render is not
+   * a thing anything upstream computed.** The setter is a stable identity, so
+   * the boundary's effect-free notification does not resubscribe anything,
+   * and the `false` on reset is what makes `Try again` restore the head with
+   * the figures — see `ErrorBoundary.onCaught`.
+   *
+   * It governs `meta` and **not** `filledBy`. That sentence says what belongs
+   * in the region — the same kind of fact as its name, which the boundary
+   * deliberately preserves — rather than anything about figures that have
+   * just gone.
+   */
+  const [caught, setCaught] = useState(false);
+
   /*
    * **Native listeners rather than React's handlers, and the two halves
    * combined here rather than upstream.**
@@ -306,8 +446,17 @@ export function Region({
        * will fill it, and a filled one carries whatever qualifies its contents.
        * There is no state in which both are true and none in which the head has
        * to choose.
+       *
+       * **And a third branch since 2026-10-11, which is the same argument a
+       * second time**: `reserved` and the tag are keyed on there being no
+       * children so that they cannot disagree with the content, and `caught`
+       * is keyed on the content having thrown so that `meta` cannot either. A
+       * head whose claim outlives its figures is the reserved-tag defect with
+       * the condition inverted — *a tag computed from the content cannot
+       * outlive the work it names* was written here about an empty region and
+       * is just as true of a failed one.
        */
-      meta={children === undefined ? tag : meta}
+      meta={children === undefined ? tag : caught ? undefined : meta}
     >
       {filledBy === undefined ? null : (
         <p className={styles.filledBy}>{filledBy}</p>
@@ -332,6 +481,13 @@ export function Region({
           <ErrorBoundary
             title={`${name} could not be displayed`}
             detail="The rest of this screen is unaffected."
+            /*
+             * **What stops the head outliving what is inside here** — see
+             * `caught` above, and `ErrorBoundary.onCaught`, which argues why
+             * one bit crossing upward is a notification rather than the
+             * second report this component refuses to be.
+             */
+            onCaught={setCaught}
           >
             {children}
           </ErrorBoundary>

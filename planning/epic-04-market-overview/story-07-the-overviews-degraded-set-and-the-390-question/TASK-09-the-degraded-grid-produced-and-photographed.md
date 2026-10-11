@@ -173,6 +173,54 @@ nothing has reached us. `docs/GAPS.md`'s entry _The landing page now states two
 instants about one aggregate, a minute apart_ names **this task's first
 photograph of the two together** as its owning condition, which is the point at
 which it becomes an owner's call across four surfaces rather than a finding.
+
+---
+
+## Handed here by Task 4.7.5 — 2026-10-11: two new axes, and one premise of this grid's 390 column is false
+
+Written here rather than linked.
+
+**1. A new axis the grid has never had: `GET /securities` in flight.** The
+landing page makes one HTTP request beside the socket, and the **movers name
+track** is the only thing on the screen that depends on it. It measured 124 ms
+against first-frame times of 174–277 ms, so which wins is a property of the
+network and **every cold load may paint movers with no names**. Since
+2026-10-11 that state draws **blank room** rather than the row's own ticker
+(it drew the identifier twice in adjacent tracks, with the price column
+dropped at 390, so there was nothing between the copies). The axis is two
+values — universe arrived / universe outstanding — and it costs one
+`page.route` holding `SECURITIES_ROUTE_PATTERN`; see
+`e2e/specs/overview-movers-name-race.spec.ts`, which is the drive. **It is
+worth a row at 390 specifically**, because that is the width where the
+duplicate had nothing between it and therefore the width where the blank is
+widest.
+
+**2. A new axis on every region, and it is a state no aggregate can
+produce: the region THREW.** `Region` now suppresses the head's `meta` when
+its content boundary trips (Task 4.7.5), so a failed `Movers` no longer reads
+`Top 5 each way` or `ORDER HELD` over a box saying the region could not be
+displayed. If this grid photographs a failed region at all — and it is the one
+degraded state on this screen that is not a state of the feed — the head is
+now part of what the picture is of. `Region.stories.tsx`'
+`FailedWithAClaimInItsHead` is the state, and it is reachable in the workshop
+without a harness.
+
+**3. `the explanation is at the foot of the page` is false at 390, and this
+grid's own 390 column is where it would have been recorded.** Task 4.7.5's
+brief rests on it; the photograph refutes it. On the terminal no-frame state
+at 390 the first viewport holds `Market proxies` with `No prices yet.`, the
+top of `Market breadth`, **and the sticky status bar reading `STALE ·
+Connected, and no live prices have arrived yet.`** — about 250 px under the
+first apology, at every scroll position, because the bar is sticky. The
+explanation is never far from any of the four. What is true at 390 is the
+opposite of a chorus: the four regions are tall enough that **no two of the
+four sentences are ever co-visible**, and the page is **2,735 px**.
+
+**4. The terminal state's verbatim text, at both widths, settled.** `main`'s
+`innerText` is byte-identical at 390 and 1440 (the DOM order does not change,
+only the grid does), and the footer is identical too. Recorded in full in Task
+4.7.5's record so this grid's rows can be compared against it rather than
+re-derived.
 ---
 
 ## Handed here by Task 4.7.2 — 2026-10-10: seven states are already photographed, and the collision assertion you own must be written over SEVEN surfaces rather than five
@@ -219,3 +267,34 @@ state the server cannot reach, drawn as though it could — because the
 producer's behaviour with **no close anywhere** (`market-breadth.ts`'s `null`
 session) was not checked. Produce it from the producer, or leave it out and say
 so.
+
+---
+
+## Handed here by Task 4.7.6 — 2026-10-11: a state for the grid, and a focus ring that moves in two of your rows
+
+Written here rather than linked.
+
+**1. There is a tenth-ish degraded state you may not have, and it is cheap to
+reach**: `overview` present with **no movers section**. `WireMarketOverviewInputs
+.movers` is non-optional so no producer can build it, but
+`market-stream-protocol.ts`' `readOverview` turns an **unreadable** section into
+the same absence on purpose — _"an unreadable one is the same absence rather than
+a discarded frame carrying four true prices"_ — so it is reachable from a
+healthy gateway as well as from a rollback. The route then draws `Movers` as a
+`filledBy` sentence with no rows at all, which is a different picture from the
+two-empty-lists state your grid will already have. `serveFeed(page, { overview:
+RICH, overviewOnReconnect: ROLLBACK })` with `drop()` is the whole drive —
+`overview-degraded-stops.spec.ts` builds exactly that frame and labels it.
+
+**2. In two of your rows the focus ring will be on a region's `<section>` and
+not where you left it.** Since this task, `Region` catches the focus its own
+content drops: when a ranked row holding focus unmounts and the component
+holding Task 4.6.5's recovery unmounts with it, focus lands on the region's own
+box. So a photograph taken with a keyboard-focused row, across a degradation,
+shows the **region** ringed afterwards. That is the shipped behaviour and it is
+asserted; it is here so it does not read as a defect in a contact sheet.
+
+**3. And `ORDER HELD` can be on over a list that just re-ordered**, which is
+`docs/GAPS.md`'s new entry. If any row of your grid holds a pointer or a focus
+inside a ranked region, the badge in that picture is not evidence the order
+stood still.

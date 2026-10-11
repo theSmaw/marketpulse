@@ -3258,6 +3258,68 @@ running, and read the proxy strip's `state` and the breadth footer's `measured`
 either side of the reconnect; `GET /diagnostics/feed`'s `observedAt` on the
 arriving replica is the same question from the server's end.
 
+## `ORDER HELD` stays on while a re-taken pin moves every row, and the repair is the hold's rather than the recovery's
+
+**Produced 2026-10-11 by Task 4.7.6**, in Chromium, and the half of it that
+needs no key press was not part of the decision that left the first half
+standing.
+
+`Region` reports _a reader is within this region_ by combining non-bubbling
+`pointerenter` / `pointerleave` with **bubbling** `focusin` / `focusout`. So a
+focus move **inside** the region fires `focusout` and then `focusin`, and
+`useOrderHold` answers the pair by releasing the pin and taking a fresh one
+against `latest.current` — _the last frame drawn_, not the order on screen.
+Story 4.6 handed this over as a known consequence of two correct decisions
+(Task 4.6.5's closing note) and it was left unrepaired because changing shipped
+hold behaviour needs the measurements Task 4.5.7 took.
+
+**What Task 4.7.6 adds is the measurement and a second trigger.** With the five
+gainers' membership held still so the pin is the only thing that can move a row:
+
+| Drive                                             | Order drawn                     | Badge        |
+| ------------------------------------------------- | ------------------------------- | ------------ |
+| focus rank 3, then a frame that re-ranks all five | `SMCI FSLR NVDA AMD TSLA` (pin) | `ORDER HELD` |
+| one `ArrowDown`                                   | `TSLA AMD NVDA FSLR SMCI`       | `ORDER HELD` |
+| no key press at all, membership 5 → 1 → 5         | `TSLA AMD NVDA FSLR SMCI`       | `ORDER HELD` |
+
+Three things in that are worth more than the fact itself.
+
+**A press of `ArrowDown` moved the reader one row UP the screen.** The key
+handler reads the DOM order at the moment the key goes down, so it lands on the
+row that _was_ below — and the re-pin then draws that row above the one they
+came from. Measured: rank 3 → `AMD`, which the new order puts at rank 2.
+
+**The second trigger is Task 4.6.5's own focus recovery**, which calls `focus()`
+on another element inside the same region and therefore fires the same pair. So
+a degradation that empties a list re-pins against the **emptied** frame, and
+every row moves when the feed returns — under a reader who pressed nothing and
+never left the region. The hold, which exists precisely to stop a list moving
+under a reader, cannot protect against the one transition that moves it most.
+
+**And two shipped claims were falsified and amended, not rewritten.**
+`use-order-hold.ts` said _"there is no state in which the badge is on and the
+order is moving"_ and `Movers.tsx` said _"there is no state in which the head
+says `ORDER HELD` over a region that is re-ordering"_. Both are about one value
+being unable to disagree with itself, which is true; neither covers the value
+being **re-taken**. Both carry a dated amendment pointing here.
+
+**The recommendation, not taken here because it changes shipped behaviour.**
+Release the pin on `focusout` only when focus has actually **left the region** —
+the information is in the event (`relatedTarget`, or the box's own
+`contains()`), and `pointerleave` already has that semantics for free, which is
+why only the focus half of the pair is wrong. That is one condition in
+`Region`'s `blurred` handler and makes _the first of the two sources to fire
+owns the pin_ true of a move within the region as well as of a hover-then-tab
+arrival, which is what `useOrderHold`'s own docblock already claims. It is
+**not** a change to `useOrderHold`, which is why it is cheap; what it costs is
+that a reader who never leaves the region never sees a newer order, which is the
+judgement Task 4.5.7 owns. **Owner: the human, under Story 4.7's Gate 2.**
+
+**Re-measure:** `pnpm e2e overview-degraded-stops.spec.ts -g "ONE arrow press"`
+asserts today's behaviour, including the badge, so it goes red the day the
+recommendation is taken — which is the signal rather than a nuisance. The
+companion arm is `-g "FOCUS RECOVERY is itself such a move"`.
+
 ## The landing page now states two instants about one aggregate, a minute apart, and both are correct
 
 Task 4.7.4 put an age beside the denominator in `Market breadth` and `Movers`:
@@ -3299,3 +3361,51 @@ the source note's `Observed through` from one settled page, and record whether
 the two instants differ and by how much. The absent arm is free on any gated
 machine — CI's store holds zero bars, so `observedAt` is omitted and **neither**
 sentence is drawn.
+
+## The 2,000 ms floor is derived from a local pair, and a phone on cellular can cross it before the first frame
+
+`useWaited`'s `SAY_NOTHING_ARRIVED_AFTER_MS` is **2,000 ms**, and it is the
+instrument that turns four regions from _empty_ into _saying so_: `No prices
+yet.`, `No count yet.`, `No sector moves yet.`, `No moves to rank yet.` The
+number is measured rather than argued — time from navigation to the first
+overview frame painting a figure, **277, 174, 182, 193, 184 ms**, five runs,
+2026-09-26 — and the floor was set an order of magnitude above the slowest of
+those precisely so that nobody in ordinary use ever sees the sentence.
+
+**Every one of those five runs was a laptop talking to a dev server on
+`localhost`.** The measurement bounds the _render_ and bounds nothing about the
+link. On a phone on cellular mid-session — the sitting Task 4.7.10 owns — the
+first frame has a TLS handshake, a WebSocket upgrade and a radio wake in front
+of it, and 2,000 ms is a perfectly ordinary number for that sequence. When it
+is crossed, all four sentences appear **and are then replaced by figures**,
+which is exactly the promise-the-next-frame-breaks the floor exists to prevent:
+the terminal sentence is the one state on this screen that claims _nothing is
+coming_, and a reader who has just read it watching the page fill in has been
+told something false by a timer.
+
+**It is the floor's own failure mode rather than a regression.** The hold
+`usePendingPanel` carries — a treatment that must not come _and go_ — was
+deliberately left off this hook, on the recorded ground that this sentence is
+_replaced by figures and never by itself_. That ground is a statement about
+which state follows which, and it is true; what it does not cover is the state
+arriving in the first place when it should not have.
+
+**Nothing mechanical can see it.** `pnpm e2e` drives a browser against a pair
+on the same machine; `pnpm verify` has no server at all; the harness in
+`e2e/support/feed.ts` can _withhold_ a frame for ever but cannot make a real
+one slow in the way a radio does, and a `page.waitForTimeout` before a send
+would be this repository asserting its own number back to itself.
+
+**Owner: Task 4.7.10's sitting**, which is the only instrument in this
+repository that is a real phone on a real network.
+
+**Re-measure, and a phone can perform it unaided:** on a handset on cellular
+(not on the venue's Wi-Fi), with the market open, cold-load `https://<the
+deployed frontend>/` from a tab that has never been opened — a reload reuses
+the socket's DNS and TLS and is not the case. Watch the four regions. Record
+**(a)** whether any of the four sentences is drawn at all, and **(b)** if one
+is, whether figures replace it afterwards. Either sentence drawn on a load that
+then fills is the gap firing. Repeat three times, and record the signal bars:
+the arm that matters is one or two, not five. The same run answers it for a
+cold load against a **restarted replica**, which serves browsers for 45.8–46.5 s
+before its own feed authenticates.

@@ -146,6 +146,16 @@ export interface SectorRow {
    * happen from our own gateway; inventing a name for an unrecognised fund
    * would be the one thing a fixed 144 px label column cannot survive being
    * wrong about.
+   *
+   * **The movers use of this field decides it the other way, and the two are
+   * not in conflict — amended 2026-10-11 by Task 4.7.5.** A sector's label
+   * comes from `SECTOR_LABELS`, a checked-in table that is present in the
+   * bundle, so *labelled with itself* there is unreachable rather than
+   * routine. A mover's comes from `GET /securities`, a request that is
+   * genuinely in flight on every cold load and genuinely absent when it fails
+   * — and the mover anatomy draws the ticker in the track immediately to the
+   * left of this one, so standing the symbol in prints it twice. See
+   * `movers.ts`' `NAME_NOT_ARRIVED`.
    */
   readonly label: string;
   /** `1`-based among the figures that have a move, or `undefined`. */

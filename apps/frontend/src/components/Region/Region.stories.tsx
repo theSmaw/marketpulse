@@ -100,6 +100,32 @@ export const Failed: Story = {
   },
 };
 
+/**
+ * **A failed region that had figures a moment ago** — the composition Task
+ * 4.7.5 repaired, and the one state in this file that is about the *head*.
+ *
+ * `Failed` above has no `meta`, because when it was written no region had
+ * one. Three do now, and they put claims there: `11 · RANKED`,
+ * `Top 5 each way`, `ORDER HELD`. The route computes them from the **frame**
+ * — `movers !== undefined` — so until 2026-10-11 a thrown region drew
+ * `Top 5 each way` over a box saying it could not be displayed: two true
+ * halves and one contradiction.
+ *
+ * What to look for is therefore what is **not** in the head. The heading, the
+ * landmark, the sentence and the box all survive, which is the boundary being
+ * inside the `<section>` and is right; the claim does not, which is this
+ * story's whole subject. Press `Try again` and it comes back with the
+ * content, because a head suppressed for the life of the page is the first
+ * repair anybody writes and is the wrong one.
+ */
+export const FailedWithAClaimInItsHead: Story = {
+  args: {
+    name: "Movers",
+    meta: <span>Top 5 each way</span>,
+    children: <Throws />,
+  },
+};
+
 export const AllPermutations: Story = {
   args: { name: "Market topology", filledBy: "" },
   // **No a11y rule is disabled here, and that is the surprise.** Story 1.5 and
