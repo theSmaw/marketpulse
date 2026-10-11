@@ -3,7 +3,11 @@ import type {
   WireMarketOverview,
 } from "@marketpulse/shared";
 
-import { describeMeasuredSet, measuredWindow } from "./measured-set.js";
+import {
+  describeMeasuredReach,
+  describeMeasuredSet,
+  measuredWindow,
+} from "./measured-set.js";
 import {
   directionOf,
   formatSignedCount,
@@ -335,7 +339,13 @@ export function marketBreadth(
           },
     setHeading: `Of the ${String(tracked)} we track`,
     unheardLabel: unheardLabelOf(breadth),
-    claim: claimOf(breadth),
+    // **The instant comes off the frame, never off a clock in this module**
+    // (Task 4.7.4) — and off `observedAt` rather than `computedAt`, which is a
+    // reading of the server's own clock and advances on a dead feed.
+    // `overview?.` rather than `overview.`: narrowing `overview?.breadth` tells
+    // the compiler nothing about `overview` itself, and the optional read is
+    // the one that cannot be wrong about it.
+    claim: claimOf(breadth, overview?.observedAt),
   };
 }
 
@@ -425,7 +435,10 @@ function unheardLabelOf(breadth: WireMarketBreadth): string {
  * on the observed member and `breadth.windowMinutes` does not exist on the
  * session one, which is a compile error rather than a wrong sentence.
  */
-function claimOf(breadth: WireMarketBreadth): BreadthClaim {
+function claimOf(
+  breadth: WireMarketBreadth,
+  observedAt: string | undefined,
+): BreadthClaim {
   // **The lead clause is `measured-set.ts`', not this module's** — amended
   // 2026-10-08 by Task 4.5.6, when `Movers` was given the owner's Gate 1
   // decision to state the same denominator 200–300 px away. One screen carries
@@ -438,7 +451,21 @@ function claimOf(breadth: WireMarketBreadth): BreadthClaim {
     tracked: breadth.tracked,
     count: breadth.measured,
   });
-  const spoken = `${lead}.`;
+  // **The age goes on BOTH renderings, from the one builder** (Task 4.7.4).
+  //
+  // It is appended rather than spliced into either grammar, for
+  // `describeMeasuredReach`'s reason — it is keyed on neither basis — and it is
+  // appended to the **drawn** half as well as the spoken one, which is the
+  // half the task is about: a reader meets the drawn sentence and a listener
+  // meets the spoken one, and an instant on only one of them would be the
+  // one-fact-two-homes defect with the second home empty.
+  //
+  // `undefined` is *the aggregate holds no observation*, and the clause then
+  // contributes **nothing at all** — not an empty sentence, not a trailing
+  // space. ADR 0029's defer rule, and CI's permanent state.
+  const reach = describeMeasuredReach(observedAt);
+  const since = reach === undefined ? "" : ` ${reach}.`;
+  const spoken = `${lead}.${since}`;
 
   if (breadth.basis === "session") {
     return {
@@ -447,7 +474,7 @@ function claimOf(breadth: WireMarketBreadth): BreadthClaim {
       drawn:
         breadth.measured === 0
           ? spoken
-          : `Close to close on ${breadth.session}.`,
+          : `Close to close on ${breadth.session}.${since}`,
       spoken,
     };
   }
@@ -456,7 +483,7 @@ function claimOf(breadth: WireMarketBreadth): BreadthClaim {
     drawn:
       breadth.measured === 0
         ? spoken
-        : `Heard from means at least one observation in ${measuredWindow(breadth.windowMinutes)}.`,
+        : `Heard from means at least one observation in ${measuredWindow(breadth.windowMinutes)}.${since}`,
     spoken,
   };
 }

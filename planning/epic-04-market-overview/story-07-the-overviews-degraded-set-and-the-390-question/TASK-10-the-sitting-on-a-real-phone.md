@@ -84,6 +84,35 @@ fixture or replay provider must never be pointed at it, at any hour.
 
 ---
 
+## Handed here by Task 4.7.4 — 2026-10-11: two of the seven regions now date themselves, which is the 390 argument's own subject
+
+Written here rather than linked.
+
+**1. The sitting's step about scrolling for an instant has changed.** This
+task's brief rests on the measurement that at 390 the page is 2,565 px and the
+one screen-level instant — the source note's `Observed through` — is roughly
+2,500 px below `Market breadth`, behind three reserved panels. **It no longer
+is the only one**: both `Market breadth` and `Movers` state how far their own
+observations reach, in their own footers, in the breadth-first order that puts
+them near the top. So the question for the phone is no longer _can a reader
+find an instant_ but **whether the one in front of them reads as an age rather
+than as a verdict** — and whether a third line of micro text at 308 px wide is
+legible held at arm's length, which is a thing only a person with a phone can
+answer.
+
+**2. Both regions are 16 px taller at 390**, in every state, because the
+footer reserves three lines rather than two — the age wraps to a third line at
+that width and to none at 768 and above. The page is correspondingly longer;
+re-measure its height during the sitting rather than citing 2,565.
+
+**3. The age is ABSENT, not empty, when nothing has been observed.** On a
+deployment with no provider and in the first seconds after a restart there is
+no sentence at all, and that is the designed answer — _say nothing rather than
+say now_. If the phone shows a region with a two-line footer and a reader asks
+_when_, the honest answer is that nothing has reached us yet, and whether the
+silence communicates that is a listener's and a reader's judgement rather than
+a check's.
+
 ## Handed here by Task 4.7.2 — 2026-10-10: at 390 the 390 question is a TWO-CORNER question, with the figures to put in front of a person
 
 **Measured, not argued.** Over the five content surfaces — the proxy strip, the

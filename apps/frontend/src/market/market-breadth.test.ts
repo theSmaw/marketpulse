@@ -420,3 +420,84 @@ describe("the reservation", () => {
     );
   });
 });
+
+describe("the age beside the denominator (Task 4.7.4)", () => {
+  const at = (observedAt: string): WireMarketOverview => ({
+    ...frame(OBSERVED),
+    observedAt,
+  });
+
+  it("states how far the observations reach, at the minute's END", () => {
+    // `18:01Z` is 14:01 ET and is the **start** of the minute the bar
+    // describes, so the reach is 14:02 — Task 3.3.4's correction, which made
+    // `live` reachable during a session, applied to a drawn sentence. The
+    // figure on the left of this assertion is what a reader sees.
+    expect(marketBreadth(at("2026-10-07T18:01:00.000Z"))?.claim.drawn).toBe(
+      "Heard from means at least one observation in the last 5 minutes. " +
+        "Nothing newer than Oct 7 · 14:02 EDT has reached us.",
+    );
+  });
+
+  it("puts it on BOTH renderings, because two audiences read two of them", () => {
+    const view = marketBreadth(at("2026-10-07T18:01:00.000Z"));
+
+    expect(view?.claim.spoken).toBe(
+      "Of the 503 companies we track, 451 were heard from in the last 5 minutes. " +
+        "Nothing newer than Oct 7 · 14:02 EDT has reached us.",
+    );
+    expect(view?.claim.drawn).toContain("has reached us.");
+  });
+
+  it("says it on the session basis too, where the clause is about what reached us rather than about the count", () => {
+    expect(
+      marketBreadth({ ...frame(SESSION), observedAt: "2026-10-06T20:00:00Z" })
+        ?.claim.drawn,
+    ).toBe(
+      "Close to close on 2026-10-06. Nothing newer than Oct 6 · 16:01 EDT has reached us.",
+    );
+  });
+
+  it("says NOTHING when the aggregate holds no observation, which is CI's own state", () => {
+    // The field is **absent** exactly when the aggregate contains none (ADR
+    // 0029's defer rule, decided at the producer). Not an empty sentence and
+    // not a trailing space: the claim is byte-identical to what it was before
+    // this clause existed.
+    const view = marketBreadth(frame(OBSERVED));
+
+    expect(view?.claim.drawn).toBe(
+      "Heard from means at least one observation in the last 5 minutes.",
+    );
+    expect(view?.claim.spoken).toBe(
+      "Of the 503 companies we track, 451 were heard from in the last 5 minutes.",
+    );
+  });
+
+  it("skips an instant it cannot read rather than drawing `Invalid Date`", () => {
+    expect(marketBreadth(at("not an instant"))?.claim.drawn).toBe(
+      "Heard from means at least one observation in the last 5 minutes.",
+    );
+  });
+
+  it("keeps the two renderings ONE string at N = 0, with the age on it", () => {
+    // At `measured: 0` the ladder is suppressed, so the drawn half has no
+    // printed endpoint to defer to and both renderings are the whole sentence
+    // — the state a dead feed reaches, and the one the age is most worth
+    // having in.
+    const none = marketBreadth({
+      ...frame({
+        ...OBSERVED,
+        advancing: 0,
+        declining: 0,
+        unchanged: 0,
+        measured: 0,
+      }),
+      observedAt: "2026-10-07T18:01:00.000Z",
+    });
+
+    expect(none?.claim.drawn).toBe(none?.claim.spoken);
+    expect(none?.claim.drawn).toBe(
+      "Of the 503 companies we track, none were heard from in the last 5 minutes. " +
+        "Nothing newer than Oct 7 · 14:02 EDT has reached us.",
+    );
+  });
+});

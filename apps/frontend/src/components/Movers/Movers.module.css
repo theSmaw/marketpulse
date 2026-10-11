@@ -21,15 +21,30 @@
  *   gap                   --space-16  16
  *   LOSERS heading        1 + 8 + 16 = 25
  *   losers, 5 rows        5×26 + 4  = 134
- *   footer claim          12 + 2×16 = 44
+ *   footer claim          12 + 3×16 = 60
  *                                   ----
- *                                    466  against a 486 px region
+ *                                    482  against a 491 px region
  *
- * **Twenty pixels of slack**, and it sits below the claim rather than inside
- * the gap: `Panel.body` does not stretch, so the content is 466 tall in a
- * 486 px box and the leftover is at the foot — which is where
+ * **Nine pixels of slack**, and it sits below the claim rather than inside
+ * the gap: `Panel.body` does not stretch, so the content is 482 tall in a
+ * 491 px box and the leftover is at the foot — which is where
  * `.ladderTrailing` already argues room should go when there is nothing to put
  * in it.
+ *
+ * **Amended 2026-10-11 by Task 4.7.4: the claim reserves THREE lines, so this
+ * sum grew by 16 and the region with it — 466 / 486 became 482 / 491,
+ * re-measured at 1440, 1024, 768 and 390 in both of the footer's states.** The
+ * clause gained a third sentence stating how far the observations reach, and
+ * the sentence fits two lines at 1440, 1024 and 768 and needs **three at 390**
+ * — where the grid is one column, this panel is 308 px wide and the row is
+ * content-sized. A two-line reserve would therefore have made the region's
+ * height depend on whether the aggregate holds an observation, at 390 only,
+ * stepping the whole lower page the first time a bar arrived — which is the
+ * hazard the paragraph below already names, reached through the length of the
+ * sentence rather than the number of rows. The reserve is flat rather than
+ * keyed on a breakpoint: a `@media` here would be a second home for a width
+ * the grid already owns, and the 16 px it would save at three widths buys an
+ * empty line nobody sees.
  *
  * **N = 6 IS 520 — OVER BY 34 — AND IT DRAGS TWO OTHER REGIONS WITH IT.**
  * Rows 2 and 3 of `MarketOverview.module.css`' grid are
@@ -121,12 +136,21 @@
  * sentence arrives is the movement three tasks of Story 4.3 were spent
  * designing out.
  *
- * **Two lines at every width**, which is `SectorPerformance.claim`'s measured
- * departure from its drawing, taken here for the same mechanism rather than for
- * symmetry: the clause's length is a function of values that move — a window on
- * one basis, a session date on the other, and two counts — so a one-line
- * reserve makes the region's height depend on which sentence is true, and at
- * 390 the row is content-sized so the whole lower page steps.
+ * **Three lines at every width since Task 4.7.4**, two until then, which is
+ * `SectorPerformance.claim`'s measured departure from its drawing, taken here
+ * for the same mechanism rather than for symmetry: the clause's length is a
+ * function of values that move — a window on one basis, a session date on the
+ * other, two counts, and since 4.7.4 a third sentence that is there only when
+ * the aggregate holds an observation — so a short reserve makes the region's
+ * height depend on which sentence is true, and at 390 the row is content-sized
+ * so the whole lower page steps.
+ *
+ * **Measured, at four widths in both states:** the third sentence fits the
+ * second line at 1440, 1024 and 768 and takes a third at 390, where this panel
+ * is 308 px wide. With the two-line reserve the claim was 32 px at every width
+ * in both states **except** 390-with-an-observation, where it was 48 and the
+ * region was 482 against 466 — a 16 px step keyed on whether a bar had ever
+ * arrived. With three it is 48 everywhere in both states.
  *
  * The micro properties are spelled rather than composed, for the reason the
  * headings above are, and `text-wrap: balance` is the proxy strip's hint for a
@@ -134,7 +158,7 @@
  */
 .claim {
   margin: var(--space-12) 0 0;
-  min-height: calc(2 * var(--line-height-micro));
+  min-height: calc(3 * var(--line-height-micro));
   font-size: var(--font-size-micro);
   line-height: var(--line-height-micro);
   color: var(--ink-secondary);

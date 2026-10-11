@@ -39,16 +39,29 @@ import { BreadthLedger, BreadthLedgerReservation } from "./BreadthLedger.js";
 // needs a clock. The fourth thing it added is the N = 1 rule, which is the only
 // state where the arithmetic is sound and the picture lies.
 
-const frame = (breadth: WireMarketBreadth): WireMarketOverview => ({
+const frame = (
+  breadth: WireMarketBreadth,
+  reach: "observed" | "nothing",
+): WireMarketOverview => ({
   computedAt: "2026-10-07T18:01:38.000Z",
   feeds: ["iex"],
   figures: [],
   breadth,
+  // **The age in the footer, and its absence** (Task 4.7.4). `observedAt` is
+  // the newest observation the aggregate holds and is **omitted** when it
+  // holds none — a frame shape rather than a flag, so a story that wants the
+  // silent footer asks for the frame that produces it. `exactOptionalProperty
+  // Types` is on, so *absent* and *present as `undefined`* are different types
+  // and this is two spreads rather than one.
+  ...(reach === "observed" ? { observedAt: "2026-10-07T18:01:00.000Z" } : {}),
 });
 
 /** Through the shipped reader, which is the point — see the header. */
-const view = (breadth: WireMarketBreadth) => {
-  const read = marketBreadth(frame(breadth));
+const view = (
+  breadth: WireMarketBreadth,
+  reach: "observed" | "nothing" = "observed",
+) => {
+  const read = marketBreadth(frame(breadth, reach));
   if (read === undefined)
     throw new Error("the story built an unreadable section");
   return read;
@@ -374,4 +387,23 @@ export const InGreyscale: Story = {
       </Region>
     </div>
   ),
+};
+
+/**
+ * **The footer with no age on it — the gated machine's permanent state.**
+ *
+ * `observedAt` is **absent** from the frame exactly when the aggregate holds
+ * no observation (ADR 0029's defer rule, decided at the producer), which is
+ * CI's store of 518 securities and **zero bars**, a deployment with no
+ * provider, and a backend in the seconds after a restart. *Say nothing rather
+ * than say now.*
+ *
+ * Review it beside {@link ObservedMidSession}, which is the same count with an
+ * age under it: **the two differ by a sentence and by nothing else**, because
+ * the claim reserves its third line in both — a region whose height told a
+ * reader whether a bar had ever arrived would step the whole lower page at 390
+ * the first time one did.
+ */
+export const NoObservationInTheAggregate: Story = {
+  args: { view: view(OBSERVED, "nothing") },
 };

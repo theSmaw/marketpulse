@@ -432,13 +432,20 @@
 /*
  * --- The footer clause ---
  *
- * **Two lines reserved at every width**, which is `SectorPerformance.claim`'s
- * own departure from its drawing and is taken here for the same mechanism
- * rather than for symmetry: the clause's length is a function of a value that
- * moves — the window on one basis, the session date on the other — so a
- * one-line reserve would make the region's height depend on which sentence is
- * true, and at 390 the grid row is content-sized so the whole lower page would
- * step. 32 px buys a height that does not depend on the state of the store.
+ * **Three lines reserved at every width since Task 4.7.4**, two until then,
+ * which is `SectorPerformance.claim`'s own departure from its drawing and is
+ * taken here for the same mechanism rather than for symmetry: the clause's
+ * length is a function of a value that moves — the window on one basis, the
+ * session date on the other, and since 4.7.4 a second sentence that is there
+ * only when the aggregate holds an observation — so a short reserve would make
+ * the region's height depend on which sentence is true, and at 390 the grid
+ * row is content-sized so the whole lower page would step. 48 px buys a height
+ * that does not depend on the state of the store.
+ *
+ * **Measured at four widths in both states**: with two lines reserved the
+ * claim was 32 px everywhere except 390-with-an-observation, where the age
+ * takes a third line and the region went 475 → 491. With three it is 48 px at
+ * 1440, 1024, 768 and 390 in both states, and the region is 491 in all eight.
  *
  * Sentence case in the sans face at the micro size, and **both properties
  * spelled** rather than composed: this is the first string in the region to
@@ -449,7 +456,7 @@
   grid-column: 1 / -1;
   grid-row: 8;
   margin: var(--space-12) 0 0;
-  min-height: calc(2 * var(--line-height-micro));
+  min-height: calc(3 * var(--line-height-micro));
   font-family: var(--font-sans);
   font-size: var(--font-size-micro);
   line-height: var(--line-height-micro);

@@ -136,6 +136,43 @@ replica restarted mid-session still serves its first browser a thin
 aggregate_). If the grid photographs that row, label it as the **deploy** state
 rather than as the outage state — they used to be the same picture and are not
 any more.
+
+---
+
+## Handed here by Task 4.7.4 — 2026-10-11: the grid gained an axis and two regions gained 16 px
+
+Written here rather than linked.
+
+**1. `Market breadth` and `Movers` now have TWO footer states, and the
+discriminant is not on the screen.** Each states
+`Nothing newer than Sep 16 · 14:02 EDT has reached us.` as a trailing sentence
+when the frame carries `observedAt`, and **says nothing at all** when it does
+not — which is exactly when the aggregate holds no observation (ADR 0029's
+defer rule, decided at the producer). So every row of this grid is now two
+rows unless the state fixes `observedAt`, and the axis is cheap: `serveFeed`'s
+`overview` is where it is decided, one field.
+
+**2. The absent arm is the gated machine's, and it is free.** CI's store holds
+518 securities and **zero bars**, so `observedAt` is omitted for ever and the
+only footer a gated run can photograph is the silent one. The present arm has
+to be served, which this story's harness already does.
+
+**3. Both regions are 16 px taller in every state, at every width.** The claim
+reserves **three** lines rather than two, because the age takes a third line at
+390 and none at 768 and above — measured at 1440, 1024, 768 and 390 in both
+states. The figures moved: `Movers` is **482 content in a 491 px region**
+(was 466 / 486) and `Market breadth` reads 491 at all four widths. If a row of
+this grid records a region height, take it again rather than citing one from
+Story 4.5.
+
+**4. And there is a pair to photograph rather than a region.** On one frame at
+1440 the source note's `Observed through Sep 16 · 14:01 EDT` and these footers'
+`Nothing newer than Sep 16 · 14:02 EDT` are **one minute apart and both
+correct** — the first names the newest bar, the second the instant after which
+nothing has reached us. `docs/GAPS.md`'s entry _The landing page now states two
+instants about one aggregate, a minute apart_ names **this task's first
+photograph of the two together** as its owning condition, which is the point at
+which it becomes an owner's call across four surfaces rather than a finding.
 ---
 
 ## Handed here by Task 4.7.2 — 2026-10-10: seven states are already photographed, and the collision assertion you own must be written over SEVEN surfaces rather than five

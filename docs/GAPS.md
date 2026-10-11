@@ -3212,3 +3212,45 @@ figures rather than inferring it from entry 8's two readings.
 running, and read the proxy strip's `state` and the breadth footer's `measured`
 either side of the reconnect; `GET /diagnostics/feed`'s `observedAt` on the
 arriving replica is the same question from the server's end.
+
+## The landing page now states two instants about one aggregate, a minute apart, and both are correct
+
+Task 4.7.4 put an age beside the denominator in `Market breadth` and `Movers`:
+`Nothing newer than Sep 16 · 14:02 EDT has reached us.`, built once in
+`measured-set.ts` and read by both regions. The instant is the observation
+interval's **end** — `observedAt` plus `OBSERVATION_INTERVAL_MS` — because
+`observedAt` is a bar's own `startsAt` and `LIVE-DATA.md` §7.3 measured, with a
+control, that `t` marks the **start** of the minute a bar describes. A raw read
+under-states the reach by a minute in the direction that makes a healthy feed
+look behind, which is Task 3.3.4's defect; `the-footer-age-is-the-intervals-end`
+refuses it and `pnpm break the-footer-age-drops-its-interval` proves that.
+
+**The gap is the screen rather than either sentence.** Three shipped surfaces
+print the same `observedAt` **raw** as a _through_ claim — `OverviewSourceNote`'s
+`Observed through`, `FeedIndicator`'s `Showing data through` and the proxy
+strip's per-cell `from hh:mm` — so on one page, from one frame, a reader can
+meet `Observed through Sep 16 · 14:01 EDT` at the foot and `Nothing newer than
+Sep 16 · 14:02 EDT has reached us.` in the middle. **Both are true about
+different subjects**: the first names the newest **bar**, the second the instant
+after which nothing has reached us. Nothing checks that the pair stays
+explicable, and nothing can: each surface is individually correct and
+individually tested, which is `docs/GAPS.md` entry 13's two-true-halves shape
+with the halves a minute apart rather than a word apart.
+
+**It was not repaired here by decision, not by omission.** Changing
+`Observed through` is a second visible change to a sentence Task 4.8.12 settled
+ten days ago, and `Showing data through` is Story 3.10's one-home staleness
+sentence, which `one-home-for-the-strip-staleness-sentence` holds. The two
+candidate resolutions — make every _through_ claim the interval's end, or make
+this one the bar's own instant and reword it — are one owner's call across four
+surfaces rather than four tasks' each.
+
+**Owner: a condition — the first state grid that photographs the source note
+and either region in one frame**, which is Task 4.7.9's by construction at 1440,
+where the page is one column of regions and the note is its foot.
+
+**Re-measure:** open `/` during a session at 1440, read the breadth footer and
+the source note's `Observed through` from one settled page, and record whether
+the two instants differ and by how much. The absent arm is free on any gated
+machine — CI's store holds zero bars, so `observedAt` is omitted and **neither**
+sentence is drawn.
