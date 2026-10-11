@@ -4014,6 +4014,7 @@ export const BREAKS = [
       "    if (active !== null) return;",
     command: ["pnpm", "e2e", "overview-degraded-stops.spec.ts", "--anyway"],
     expect: "when the movers SECTION goes away",
+  },
   // **The age beside the denominator** (Task 4.7.4), and the substitution is
   // the **omission** a re-implementer makes rather than an inversion: the
   // interval goes and the clause keeps formatting the instant the wire sent,
