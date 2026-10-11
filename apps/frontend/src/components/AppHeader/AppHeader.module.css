@@ -88,11 +88,38 @@
   letter-spacing: var(--letter-spacing-tight);
 }
 
+/*
+ * The descriptor, and **its four type declarations are spelled rather than
+ * composed** — repaired 2026-10-11 (Task 4.7.8) after shipping wrong since the
+ * 2026 refresh.
+ *
+ * It was `composes: microLabel from "../../styles/type.module.css"` with
+ * `font-size: 9px; line-height: 1` written under it, and **the two
+ * declarations under the compose lost**. `composes` concatenates class *names*;
+ * it does not inline and it does not cascade, so which declaration wins is
+ * decided by stylesheet order at equal specificity — and `type.module.css`
+ * lands later in the bundle (measured: offset 4,759 against 54,259). So the
+ * element rendered at `--font-size-micro`/`--line-height-micro`, which is
+ * **11px/16px**, against a rule that says 9px/1. `CLAUDE.md` carries the trap;
+ * `SecurityIdentity.qualifier` already spells its properties for this reason.
+ *
+ * **It is not only a font size.** This is the element the breakpoint comment
+ * below calls the longest string in the chrome, and the measurement that
+ * decided what wraps at 390 was taken against the inflated rendering. The
+ * figures there are re-taken and dated.
+ *
+ * The *intent* of the compose is kept, because the micro-label is what makes a
+ * line like this read as institutional chrome rather than as a tagline: the
+ * uppercase and the micro tracking are stated here, at the size this rule has
+ * always declared.
+ */
 .descriptor {
-  composes: microLabel from "../../styles/type.module.css";
   margin: 0;
-  line-height: 1;
+
   font-size: 9px;
+  line-height: 1;
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
   color: var(--ink-secondary);
 }
 
@@ -199,6 +226,23 @@
  * container whose first item is cut in the middle of a letter does not read as
  * scrollable; it reads as broken.
  *
+ * **Both figures in that paragraph were taken against the `composes` defect
+ * repaired above, and are re-measured here — 2026-10-11, Task 4.7.8.** At its
+ * declared 9px the descriptor is **164.13 px** rather than 201, and the
+ * identity block **198.13 px** rather than 235 (Chromium, 1440 and 1024 and
+ * 768, all three identical). The 2026-09-16 reading was **36.5 px wide**, and
+ * the paragraph above is left standing as the dated record it is.
+ *
+ * **The decision survives the correction, and it was re-measured rather than
+ * re-argued.** The media query below was disabled and the row measured at 390
+ * with the descriptor at its true size: the identity block is 198.13 and the
+ * clock 128, both `flex-shrink: 0`, against a 342 px content box — so the row
+ * is **over-subscribed by 24 px before the navigation gets a pixel**, and
+ * `.nav` measured **0 px wide with 0 px of the first tab visible**. The
+ * correct figure makes the case *stronger* than the figure it was argued
+ * from: 36.5 px of relief does not buy a 125 px tab, and un-wrapped the
+ * navigation today would not read `Market O` — it would not be there at all.
+ *
  * The row has to hold an identity block, four tabs and a clock, and it cannot.
  * Something has to wrap, and the choice is the whole decision here.
  *
@@ -213,7 +257,8 @@
  * The clock stays, because it is the reading a person came for and the reason
  * it moved up here in the first place; the descriptor goes, because it is a
  * line for a stranger who has been sent a link to a screen they do not
- * recognise — worth its 201px at 1440, worth less than this row at 390. The
+ * recognise — worth its 164px at 1440 (201px when this was written, see the
+ * re-measure above), worth less than this row at 390. The
  * wordmark itself stays at every width: it is the product's name and the
  * accessible identity of the chrome, and the mark beside it is `aria-hidden`.
  *

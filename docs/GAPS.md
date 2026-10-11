@@ -1066,7 +1066,45 @@ forward walk alone does not.
 **Owner: its own task, on the story that next touches `base.css`'s scroll
 padding** — a condition rather than a story number.
 
-## `AppHeader`'s descriptor renders at 11px/16px against a declared 9px/1, and the 201 px measurement that decided what wraps at 390 was taken against it
+## ~~`AppHeader`'s descriptor renders at 11px/16px against a declared 9px/1, and the 201 px measurement that decided what wraps at 390 was taken against it~~ — DISCHARGED 2026-10-11, and it became a `pnpm invariants` check
+
+**Discharged by Task 4.7.8**, which is the shape `CLAUDE.md` asks for: an entry
+that can be made mechanical should be. Three things happened.
+
+1. **The rule spells its properties.** `.descriptor` no longer composes
+   anything; it states `font-size`, `line-height`, `letter-spacing` and
+   `text-transform` itself, and renders at **9px/9px** with the micro tracking
+   (measured in Chromium at all four widths).
+2. **The 201 px was re-measured and the argument re-stated.** The descriptor is
+   **164.13 px** at 1440 and the identity block **198.13 px**, against 201 and
+   235 — the old reading was 36.5 px wide. The wrap decision **survives**, and
+   it was re-measured rather than re-argued: with the breakpoint disabled, the
+   un-wrapped 390 row over-subscribes its 342 px content box by 24 px before
+   `.nav` gets a pixel, and `.nav` measures **0 px** with **0 px of the first
+   tab visible**. The figures and the counterfactual are in
+   `AppHeader.module.css`'s own breakpoint comment.
+3. **`pnpm invariants` now refuses the shape** —
+   `a-compose-never-carries-an-override`, with the break
+   `a-compose-carries-an-override`. It walks every `.module.css` under
+   `apps/frontend/src`, resolves each `composes:` target transitively, and
+   fails when a composing rule re-declares a property its target declares. It
+   allows exactly one overlap: a class composed from **earlier in the same
+   file**, where the order is readable (`MarketProxyStrip.sentence`). **It
+   found two more live instances on the way in** — `BreadthLedger.tick` and
+   `RankedList.ladderTick` each asked for `--letter-spacing-micro` (0.88 px)
+   and rendered at `--letter-spacing-tight` (−0.11 px measured), because
+   `type.module.css` lands later. Both are repaired by **deleting the
+   declaration rather than honouring it**: photographed at 1440, the micro
+   tracking makes the sector ladder read `- 2%`, and `dataCell`'s backed-off
+   tracking is right for a figure — so those two regions are pixel-identical
+   after the repair. What the check does **not** see is a longhand under a
+   composed shorthand.
+
+**What it does not prove is what every grep here does not prove**: it compares
+property names, so a composed value re-expressed under a different property is
+invisible, and nothing anywhere still asserts a rendered font size.
+
+The entry as it stood is kept below, because it is the evidence.
 
 **Added 2026-09-26 (Task 4.2.6, transcribed here by Task 4.2.8). Shipping
 today, on every route.** Found by sweeping all 37 CSS modules for the
@@ -1104,7 +1142,8 @@ wins. Or measure `.descriptor`'s computed `font-size` in a browser against the
 9px the source declares.
 
 **Owner: its own task** — it is a chrome change on every route, and the 201 px
-re-measure travels with it.
+re-measure travels with it. **That task was 4.7.8, 2026-10-11; see the
+discharge above.**
 
 ## `security-gap-fill.spec.ts`'s `the chart is never blanked or covered while the gap is filled` fails on `main` about one time in eight, and nothing records it
 

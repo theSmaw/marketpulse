@@ -786,13 +786,29 @@
   grid-row: 5;
 }
 
+/*
+ * **A `letter-spacing` that was never in force, deleted rather than honoured**
+ * — 2026-10-11, Task 4.7.8. This rule composed `dataCell` and then asked for
+ * `--letter-spacing-micro` under it, and that declaration **lost**: `composes`
+ * concatenates class names rather than cascading, `type.module.css` lands
+ * later in the bundle, so the ladder's ticks have always
+ * rendered at `--letter-spacing-tight` (−0.11 px measured, against the 0.88 px
+ * the line asked for).
+ *
+ * **Deleted rather than made to win, and the two were looked at side by side.**
+ * At the micro tracking the ladder reads `- 2%` — the sign tracked away from
+ * the digit it signs — and these are figures in the data face, which is the
+ * exact case `dataCell`'s own comment argues the tracking back for. So the
+ * shipped appearance is correct and the line was the mistake. `pnpm
+ * invariants` refuses the shape now (`a-compose-never-carries-an-override`),
+ * which is what stops a value being written here that nothing applies.
+ */
 .ladderTick {
   composes: dataCell from "../../styles/type.module.css";
   position: absolute;
   top: 0;
   font-size: var(--font-size-micro);
   line-height: var(--line-height-micro);
-  letter-spacing: var(--letter-spacing-micro);
   color: var(--ink-secondary);
   transform: translateX(-50%);
   white-space: nowrap;
