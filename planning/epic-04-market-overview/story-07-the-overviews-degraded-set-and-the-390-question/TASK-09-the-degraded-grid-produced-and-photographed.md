@@ -296,3 +296,34 @@ a pointer is what a reader follows when they already know to look.
   it — at the micro tracking the ladder reads `- 2%`, photographed at 1440 and
   rejected — so `0` is **6.50 px** and `−2%` **19.48 px** before and after, and
   `.regions` is **1392 × 1191** either way. **Nothing in your grid moves.**
+
+---
+
+## Handed here by Task 4.7.6 — 2026-10-11: a state for the grid, and a focus ring that moves in two of your rows
+
+Written here rather than linked.
+
+**1. There is a tenth-ish degraded state you may not have, and it is cheap to
+reach**: `overview` present with **no movers section**. `WireMarketOverviewInputs
+.movers` is non-optional so no producer can build it, but
+`market-stream-protocol.ts`' `readOverview` turns an **unreadable** section into
+the same absence on purpose — _"an unreadable one is the same absence rather than
+a discarded frame carrying four true prices"_ — so it is reachable from a
+healthy gateway as well as from a rollback. The route then draws `Movers` as a
+`filledBy` sentence with no rows at all, which is a different picture from the
+two-empty-lists state your grid will already have. `serveFeed(page, { overview:
+RICH, overviewOnReconnect: ROLLBACK })` with `drop()` is the whole drive —
+`overview-degraded-stops.spec.ts` builds exactly that frame and labels it.
+
+**2. In two of your rows the focus ring will be on a region's `<section>` and
+not where you left it.** Since this task, `Region` catches the focus its own
+content drops: when a ranked row holding focus unmounts and the component
+holding Task 4.6.5's recovery unmounts with it, focus lands on the region's own
+box. So a photograph taken with a keyboard-focused row, across a degradation,
+shows the **region** ringed afterwards. That is the shipped behaviour and it is
+asserted; it is here so it does not read as a defect in a contact sheet.
+
+**3. And `ORDER HELD` can be on over a list that just re-ordered**, which is
+`docs/GAPS.md`'s new entry. If any row of your grid holds a pointer or a focus
+inside a ranked region, the badge in that picture is not evidence the order
+stood still.
