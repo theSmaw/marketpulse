@@ -99,3 +99,62 @@ Three candidate repairs are priced in it and none is costed; the cheapest
 honest one — withholding the aggregate frame when there is no last broadcast —
 is **refused with a reason** there, because it deletes two of Story 4.2's
 sixteen states from every cold load.
+
+---
+
+## Handed here by Task 4.7.6 — 2026-10-11: one Gate 2 item, two amended claims and a new break
+
+Written here rather than linked.
+
+**1. For Gate 2, and it is the owner's because it changes shipped hold
+behaviour.** `ORDER HELD` stays on while a **re-taken** pin moves every row.
+`Region` combines non-bubbling `pointerenter`/`pointerleave` with **bubbling**
+`focusin`/`focusout`, so a focus move _inside_ a ranked region releases the pin
+and takes a fresh one against the last frame drawn. Measured in Chromium with
+the membership held still: a pinned `SMCI FSLR NVDA AMD TSLA` becomes
+`TSLA AMD NVDA FSLR SMCI` on **one `ArrowDown`**, with the badge on throughout —
+and the press took the reader one row **up** the screen, because the key handler
+read the order that was on screen when the key went down. **A second trigger
+needs no key press at all**: Task 4.6.5's focus recovery is itself a focus move
+inside the region, so a degradation that empties a list re-pins against the
+emptied frame.
+
+Story 4.6 left the first half unrepaired deliberately; its consequence in a
+degraded state was not part of that decision, and the second half did not exist
+when it was taken. The recommendation, costed in `docs/GAPS.md`: release the pin
+on `focusout` only when focus has actually **left the region** — one condition
+in `Region`'s `blurred` handler, using the event's own `relatedTarget`. What it
+costs is that a reader who never leaves the region never sees a newer order,
+which is the judgement Task 4.5.7 owns. **Do not take it as a tidy-up.**
+
+**2. Two live claims were falsified and carry dated amendments** — sweep them if
+either file moves: `use-order-hold.ts`' _"there is no state in which the badge
+is on and the order is moving"_ and `MoversMeta.held`'s _"there is no state in
+which the head says `ORDER HELD` over a region that is re-ordering"_. Both were
+about one value being unable to disagree with itself, which is true and is not
+what the defect is. Grepped at the time: two live sites, both amended; Story
+4.5's and 4.6's task records left standing as historical.
+
+**3. A new `docs/GAPS.md` entry and a new break.** The entry is
+_`ORDER HELD` stays on while a re-taken pin moves every row_; the break is
+`a-region-does-not-catch-its-dropped-focus`, over
+`apps/frontend/src/components/Region/Region.tsx`, run by
+`pnpm e2e overview-degraded-stops.spec.ts`. The break was performed **by hand**
+for Task 4.7.1's reason — the harness refuses on an uncommitted target — with
+the file checksummed either side; run it under `pnpm break` once this is
+committed.
+
+**4. One claim of ADR 0039's is now narrower than it reads**, and the ADR
+carries a dated amendment rather than a rewrite: the decision reasoned about the
+**seven region stops** and its rejected alternative is exactly the shape the
+**twenty ranked ticker stops** have had since Story 4.6. Nobody considered it
+there.
+
+**5. One flake in a sibling spec, measured rather than suspected.**
+`overview-nothing-to-open.spec.ts:545` — _the UN-PINNABLE hold state is reached
+by keyboard_ — failed **1 of 48** at `--repeat-each=6`, reading the ranked list
+as empty one line after `send()`. `expect(await tickersIn(ranked)).toEqual([…])`
+is a plain `expect` over an `evaluateAll` and therefore does **not** retry, so
+it races the frame being applied; the repair is `expect.poll` or an
+`await expect(…)` on the first row's `data-ticker`. Left for whoever next reads
+that file rather than edited from here.

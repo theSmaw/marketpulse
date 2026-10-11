@@ -3974,6 +3974,47 @@ export const BREAKS = [
     command: ["pnpm", "e2e", "overview-held-outage.spec.ts", "--anyway"],
     expect: "a produced disconnection is held",
   },
+  // **The stops that vanish when an aggregate empties — Task 4.7.6.**
+  //
+  // The substitution is the one `RankedList`'s own recovery records as
+  // invisible when it is wrong, now at a second site: **`<body>` is not
+  // `null`**, so `if (active !== null) return;` reads exactly like a guard
+  // against stealing focus from somewhere else and disables the recovery
+  // entirely. It compiles, it typechecks, and the only way to see it is to
+  // remove a focused reader's content and ask a browser where focus went.
+  //
+  // **The defect that was written FIRST is a different one and the spec was
+  // GREEN on it** (`CLAUDE.md`'s 2026-09-26 rule, and the fourth task in this
+  // story to need it): `Region` already listens for `focusin` on this box
+  // inside the `onReaderWithin` effect, so the obvious draft remembers the
+  // target there and saves a listener — which gates the recovery on a prop
+  // **six of the seven landing regions do not pass**. All five tests passed,
+  // because the only region that can reach the state today is one of the two
+  // that hold an order. That substitution therefore cannot be made red here
+  // and is not registered; the transcript is in Task 4.7.6's record.
+  {
+    name: "a-region-does-not-catch-its-dropped-focus",
+    proves:
+      "A region's own `<section>` is a tab stop in every state (ADR 0039) " +
+      "and its CONTENT is not: a ranked row's anchor exists because an " +
+      "aggregate selected that security. When the movers SECTION goes away " +
+      "— a rollback pinning a previous image, or a section `readOverview` " +
+      "could not read, which it turns into the same absence on purpose — the " +
+      "whole `Movers` component unmounts, and Task 4.6.5's recovery unmounts " +
+      "with it because it lives inside `useRovingStop`. A keyboard reader on " +
+      "a mover row is then dropped to `<body>` and their next press is six " +
+      "regions from where they were reading, which is ADR 0039's own wording " +
+      "for the alternative it rejected. Nothing below `pnpm e2e` can see it: " +
+      "the DOM is identical either way and the difference is where a " +
+      "browser's focus went (Task 4.7.6).",
+    file: "apps/frontend/src/components/Region/Region.tsx",
+    find: "    if (active !== null && active !== document.body) return;",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    if (active !== null) return;",
+    command: ["pnpm", "e2e", "overview-degraded-stops.spec.ts", "--anyway"],
+    expect: "when the movers SECTION goes away",
+  },
   // **The age beside the denominator** (Task 4.7.4), and the substitution is
   // the **omission** a re-implementer makes rather than an inversion: the
   // interval goes and the clause keeps formatting the instant the wire sent,
