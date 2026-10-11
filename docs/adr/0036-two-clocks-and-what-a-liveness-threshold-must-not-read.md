@@ -48,6 +48,34 @@ liveness verdict computed across that gap is a verdict about clock skew.
 `worseFeedStatus` — one function, so two surfaces reporting the same feed cannot
 disagree about which state is worse.
 
+> **Amended 2026-10-11 (Task 4.7.7) — the 165 s is unchanged, and a THIRD
+> number is now derived from it.** The table's 165 s was derived as three
+> missed heartbeats of **Alpaca's** 53.96–54.85 s, and it was applied at both
+> ends of the chain: the backend's watchdog over its vendor socket, and the
+> browser's over its gateway socket. That second application was only sound
+> because the vendor's heartbeat was **reaching the browser** — the gateway
+> published a `feed` frame on every advance of the vendor connection, ~332 a
+> minute (Task 4.1.6), ping included.
+>
+> Story 4.7 repaired that rate, which removed the vendor's heartbeat from the
+> browser's inbound stream, so **the browser's idle floor became the gateway's
+> own keepalive**. At the shipped `KEEPALIVE_INTERVAL_MS = 120_000`, 165 s was
+> **1.375** keepalives — one delayed message putting a healthy browser on
+> `DISCONNECTED`. The owner's decision was to keep 165 s and re-derive the
+> keepalive, so `apps/backend/src/market-gateway.ts` now reads
+> `KEEPALIVE_INTERVAL_MS = DISCONNECTED_AFTER_MS / 3` (**55 s**) — written as
+> the division so the relation cannot decay if either number is re-derived, and
+> `pnpm break the-keepalive-stops-being-three-missed-heartbeats` proves the
+> test that holds it.
+>
+> **Two notes for the next reader.** The 240 s Azure ingress idle ceiling was
+> the keepalive's **old** derivation (half of it); it is now a constraint the
+> new derivation has to clear rather than its source, and 55 s clears it by
+> 4.36×. And `DISCONNECTED_AFTER_MS` could not have moved instead: the same
+> constant arms the backend's vendor watchdog in `alpaca-stream.ts`, where the
+> vendor's 54 s heartbeat still decides it. **One constant, two sockets, and it
+> is three missed heartbeats on both — of a different heartbeat each.**
+
 ## Why this is an ADR rather than a line in a module
 
 **Three defects, each shipped, each invisible to a green suite**, and they are
@@ -102,6 +130,15 @@ distribution with its n because a negative sample is skew rather than a frame
 arriving before it was sent.
 
 ## Reversal trigger
+
+> **A second condition, added 2026-10-11 (Task 4.7.7): the first change to
+> either heartbeat the thresholds are three of.** `DISCONNECTED_AFTER_MS` is
+> three of Alpaca's ~54 s and `KEEPALIVE_INTERVAL_MS` is a third of
+> `DISCONNECTED_AFTER_MS` — so a vendor that changes its heartbeat, or a
+> gateway that changes its own cadence for a reason of its own, re-derives
+> both. The ordering matters and is the trap this amendment exists to flag: the
+> browser's threshold is now downstream of **our** cadence, so changing the
+> keepalive alone silently changes how long `LIVE` survives a dead connection.
 
 **A condition rather than a story number: the first surface that needs a
 liveness verdict on a stream whose heartbeat this product does not control** —

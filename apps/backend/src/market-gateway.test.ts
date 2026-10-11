@@ -8,6 +8,8 @@ import {
 
 import { MARKET_STREAM_PATH } from "@marketpulse/shared";
 
+import { DISCONNECTED_AFTER_MS } from "@marketpulse/shared";
+
 import { KEEPALIVE_INTERVAL_MS } from "./market-gateway.js";
 
 /** When the gateway sent the frame (Task 3.6.4). Any instant; only its presence is load-bearing here. */
@@ -23,16 +25,35 @@ const OBSERVATION: WireObservation = {
 };
 
 describe("the keepalive, which is the inverse of the Alpaca client's situation", () => {
-  it("is half the ingress ceiling, so one lost message cannot reach it", () => {
+  it("is three missed heartbeats of OUR OWN heartbeat (Task 4.7.7)", () => {
+    // **Re-derived 2026-10-11, and the repair in the gateway is why.** Until
+    // Task 4.7.7 the browser's inbound stream also carried Alpaca's measured
+    // 54 s heartbeat, because every advance of the vendor connection was
+    // broadcast as a `feed` frame — ~332 a minute (Task 4.1.6). Gating that on
+    // a change to the PUBLISHED view removes the vendor's heartbeat from the
+    // browser's stream, so the browser's idle floor becomes this timer.
+    //
+    // At the old 120 s, 165 s is **1.375** keepalives: one delayed message
+    // puts a healthy browser on `DISCONNECTED`. ADR 0036's rule is three
+    // missed heartbeats, so the keepalive is derived from the threshold that
+    // reads it rather than from the ingress ceiling.
+    expect(KEEPALIVE_INTERVAL_MS).toBe(55_000);
+    expect(KEEPALIVE_INTERVAL_MS * 3).toBe(DISCONNECTED_AFTER_MS);
+  });
+
+  it("is still well inside the 240 s ingress ceiling, restated not assumed", () => {
     // `HOSTING.md` measured Azure Container Apps' ingress at a **240-second
     // IDLE** request timeout — named as *idle* in the premium settings table,
     // so it is a ceiling on SILENCE rather than on connection age. A browser
     // socket is INBOUND, so unlike the Alpaca socket it is inside that limit.
     //
-    // Half of it, for the same reason the watchdog is three missed heartbeats
-    // rather than one: a single delayed message must not reach the ceiling.
-    expect(KEEPALIVE_INTERVAL_MS).toBe(120_000);
-    expect(KEEPALIVE_INTERVAL_MS * 2).toBe(240_000);
+    // The ceiling was the old derivation (half of it, 2×); it is now a
+    // CONSTRAINT the new derivation has to clear rather than the source of the
+    // number — and it clears it by 4.36×, so four consecutive lost keepalives
+    // would be needed to reach it.
+    const INGRESS_IDLE_CEILING_MS = 240_000;
+
+    expect(KEEPALIVE_INTERVAL_MS * 4).toBeLessThan(INGRESS_IDLE_CEILING_MS);
   });
 
   it("is needed because our own feed is legitimately silent for 76 minutes", () => {
@@ -44,6 +65,8 @@ describe("the keepalive, which is the inverse of the Alpaca client's situation",
 
     expect(overnightSilenceMs).toBeGreaterThan(240_000);
     expect(KEEPALIVE_INTERVAL_MS).toBeLessThan(240_000);
+    // And the gate added by Task 4.7.7 does not touch it: an overnight feed
+    // publishes no change at all, which is exactly the state this timer is for.
   });
 });
 

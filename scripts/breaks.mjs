@@ -1575,29 +1575,29 @@ export const BREAKS = [
       "4.1.6 measured at **~332 `feed` frames a minute** on the deployed " +
       "gateway \u2014 `alpaca-stream.ts` calls `apply()` inside the " +
       "per-vendor-item loop and `index.ts` answers every `onConnectionChange` " +
-      "with `publishFeedState()`. That defect is survivable for the `feed` " +
-      "frame (119\u2013127 bytes, and `sameLiveFeedView` collapses the " +
-      "render) and is unrepaired on purpose, handed to Story 4.7. An " +
-      "aggregate over 518 securities on the same path would be sent ~332 " +
-      "times a minute instead of once, to every browser regardless of " +
-      "subscription, with no suppression covering it.",
+      "with `publishFeedState()`. **That defect was repaired on 2026-10-11 " +
+      "by Task 4.7.7** \u2014 the send site now gates on a change to the " +
+      "published view \u2014 so the rate no longer reaches a browser; what " +
+      "has not changed is that `publishFeedState` is still CALLED ~332 " +
+      "times a minute, so an unsuppressed frame put on this path still " +
+      "inherits the rate. An aggregate over 518 securities here would be " +
+      "sent ~332 times a minute instead of once, to every browser " +
+      "regardless of subscription, with no suppression covering it.",
     file: "apps/backend/src/market-gateway.ts",
-    find:
-      "    publishFeedState() {\n" +
-      "      broadcast(feedMessage());\n" +
-      "    },",
+    // **Repointed 2026-10-11 (Task 4.7.7)**, which moved the body this
+    // anchored on. The anchor is the six-space `broadcast(feedMessage(state))`
+    // \u2014 unique in the file, because the keepalive's copy is at four.
+    find: "      broadcast(feedMessage(state));",
     replace:
-      "    publishFeedState() {\n" +
       "      // pnpm break: reverted automatically\n" +
-      "      broadcast(feedMessage());\n" +
+      "      broadcast(feedMessage(state));\n" +
       "      broadcast(\n" +
       "        encodeMarketStreamMessage({\n" +
       '          type: "overview",\n' +
       "          version: MARKET_STREAM_PROTOCOL_VERSION,\n" +
       "          sentAt: sentAt(),\n" +
       "        }),\n" +
-      "      );\n" +
-      "    },",
+      "      );",
     command: ["pnpm", "invariants"],
     expect: "mentions the overview frame",
   },
@@ -4005,5 +4005,83 @@ export const BREAKS = [
       "  const closedAt = new Date(startsAt);",
     command: ["pnpm", "invariants"],
     expect: "without adding `OBSERVATION_INTERVAL_MS`",
+  },
+  // **The feed frame's rate** (Task 4.7.7), and the substitution is the tree
+  // as it stood until this task rather than an invention: `publishFeedState`
+  // broadcast on every call, and every advance of the vendor connection — once
+  // per item of an inbound message and again on its `ping` — was a call.
+  // Measured on the deployed gateway in session: **~332 frames a minute**,
+  // 119 bytes each uncompressed, ≈15.4 MB a session per attached browser.
+  //
+  // **Nothing on any screen looks wrong under the break**, which is why it
+  // survived a whole epic: `sameLiveFeedView` collapses the no-op render, so
+  // the mitigation for the symptom predated any count of the cause. The
+  // command is therefore a process test with a real socket, counting frames —
+  // no unit level can see a rate, and no local stream can produce one
+  // (`fixture-stream.ts` applies once per tick, `replay-stream.ts` once per
+  // slice).
+  {
+    name: "the-feed-frame-is-a-heartbeat-again",
+    proves:
+      "A `feed` frame is broadcast to every attached browser on every " +
+      "`publishFeedState()` rather than only when the PUBLISHED view " +
+      "changes \u2014 three primitives, compared by `sameWireFeedState`. What " +
+      "moves 332 times a minute is the watchdog's private bookkeeping " +
+      "(`lastInboundAt`), which is not on the wire at all, and the browser " +
+      "re-derives nothing from it. It is a bytes-and-battery defect rather " +
+      "than a render one, so no screen and no render count can see it.",
+    file: "apps/backend/src/market-gateway.ts",
+    find:
+      "      const state = feedState();\n" +
+      "      const last = lastPublishedFeedState;\n" +
+      "\n" +
+      "      if (last !== undefined && sameWireFeedState(state, last)) return;\n" +
+      "\n" +
+      "      lastPublishedFeedState = state;\n" +
+      "      broadcast(feedMessage(state));",
+    replace:
+      "      // pnpm break: reverted automatically\n" +
+      "      broadcast(feedMessage(feedState()));",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "run",
+      "test:process",
+      "src/market-gateway.process.test.ts",
+    ],
+    expect: "sends ONE frame for 332 publishes of an unchanged state",
+  },
+  // **The keepalive's derivation** (Task 4.7.7). The substitution is the value
+  // it held until this task, and the point of the entry is that reverting it
+  // is exactly the edit that looks harmless: 120 s is *half the 240 s ingress
+  // ceiling*, which is a true sentence about a ceiling that is no longer the
+  // binding constraint. Once the gate above removed the vendor's 54 s
+  // heartbeat from the browser's inbound stream, the browser's idle floor
+  // became this timer, and at 120 s the 165 s `DISCONNECTED_AFTER_MS` is
+  // **1.375** keepalives \u2014 one delayed message puts a healthy browser on
+  // `DISCONNECTED`.
+  {
+    name: "the-keepalive-stops-being-three-missed-heartbeats",
+    proves:
+      "`KEEPALIVE_INTERVAL_MS` is derived from the threshold that READS " +
+      "it \u2014 `DISCONNECTED_AFTER_MS / 3`, ADR 0036's three-missed-" +
+      "heartbeats rule applied to our own heartbeat rather than Alpaca's. " +
+      "A literal passes every other check in the tree and keeps clearing " +
+      "the 240 s ingress ceiling, so nothing else notices that the margin " +
+      "against the disconnection threshold has gone from 3\u00d7 to 1.375\u00d7.",
+    file: "apps/backend/src/market-gateway.ts",
+    find: "export const KEEPALIVE_INTERVAL_MS = DISCONNECTED_AFTER_MS / 3;",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export const KEEPALIVE_INTERVAL_MS = 120_000;",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/market-gateway.test.ts",
+    ],
+    expect: "is three missed heartbeats of OUR OWN heartbeat",
   },
 ];

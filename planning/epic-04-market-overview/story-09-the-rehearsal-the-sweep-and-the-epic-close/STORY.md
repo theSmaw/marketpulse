@@ -521,3 +521,45 @@ socket or `provider=none`, on one laptop, local. Specifically:
   than an optimisation**: `changePercent` crosses the wire unrounded, ~350 B a
   frame and 9% of the aggregate — see Task 4.8.4's hand-off above. A consumer
   that re-ranks needs the precision, so **ask, do not assume**.
+
+## Handed here by Task 4.7.7 — 2026-10-11: one measurement that needs a session, in words you can act on
+
+**The `feed` frame's rate was repaired at the gateway and the re-count is
+owed.** Until 2026-10-11 `publishFeedState()` broadcast on every call, and
+`alpaca-stream.ts` calls it once per **item** of an inbound vendor message and
+again on the vendor's `ping` — a median of **332 frames a minute** on the
+deployed gateway in session (Task 4.1.6; min 3, max 385), 119 bytes each with
+no `perMessageDeflate`, ≈**15.4 MB** a 6.5-hour session **per attached
+browser**. The send site now compares the published view (`sameWireFeedState`
+over `WireFeedState`'s three primitives) and sends nothing when it has not
+moved.
+
+**Nothing a developer or a gated machine can run reproduces the rate, in either
+direction.** `fixture-stream.ts` applies once per tick and `replay-stream.ts`
+once per slice, so neither has the per-item loop; a local run published ~1 frame
+a minute before the repair and publishes ~1 after it. What is covered
+mechanically is the **rule** — `market-gateway.process.test.ts` counts frames
+over a real socket, and `pnpm break the-feed-frame-is-a-heartbeat-again`
+proves it.
+
+**What to take, during a session, against the deployed gateway:**
+
+1. Open one socket, subscribe to **one** symbol, count `"type":"feed"` frames
+   over **75 s** — the same instrument and window as the original count, so the
+   two readings are comparable.
+2. **The expectation is ~1.4 frames** (the keepalive, now 55 s), plus one per
+   genuine change of the published view. **Anything near 300 is the defect
+   returned.**
+3. Record it in `docs/GAPS.md`'s _Nothing counts the frames the gateway sends_
+   entry, which carries the method and is amended rather than closed until this
+   reading exists.
+
+**And one threshold moved with it, which your rehearsal can see on a phone.**
+`KEEPALIVE_INTERVAL_MS` is now `DISCONNECTED_AFTER_MS / 3` (**55 s**, from
+120 s), because the repair removed Alpaca's 54 s heartbeat from the browser's
+inbound stream and the browser's idle floor became our own timer. 165 s is
+unchanged, so the word `LIVE` still survives a dead connection for 165 s — but
+a browser now hears from the gateway **every 55 s** rather than every 120 s, so
+a dropout is visible to the watchdog sooner in the worst case. Four
+consecutive lost keepalives would be needed to reach Azure's 240 s ingress idle
+ceiling, against two before.

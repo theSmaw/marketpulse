@@ -1,6 +1,6 @@
 # Task 4.7.8 — `AppHeader`'s `composes` defect, and the 201 px the 390 argument rests on
 
-**Status:** Not started
+**Status:** In progress — 2026-10-11
 **Story:** [4.7 The Overview's Degraded Set, & the 390 Question Answered](STORY.md)
 **Depends on:** 4.7.2
 

@@ -187,6 +187,61 @@ export interface WireFeedState {
 }
 
 /**
+ * Whether two **published** feed states say the same thing (Task 4.7.7).
+ *
+ * ## Why this exists, and it is a rate rather than a correctness bug
+ *
+ * `alpaca-stream.ts` advances its connection state **once per item of the
+ * inbound vendor message and again on the vendor's `ping`**, and every
+ * advance notified `onConnectionChange`, which the backend answered with a
+ * broadcast of this state to every attached browser. Task 4.1.6 counted it on
+ * the deployed gateway: **~332 `feed` frames a minute in session**, on a
+ * socket with no `perMessageDeflate`. Nothing on any screen was wrong —
+ * `sameLiveFeedView` suppressed the no-op render — so the mitigation for the
+ * symptom predated any count of the cause. What was moving was the watchdog's
+ * private bookkeeping (`lastInboundAt`), and **none of it is in these three
+ * fields**.
+ *
+ * ## Why not `sameLiveFeedView`, which already exists
+ *
+ * `apps/frontend/src/market/live-feed.ts` compares **eight** fields, five of
+ * them concepts only the browser has (`resumes`, the socket's own state, the
+ * view's own instants) and one derived on the browser's two clocks. The
+ * backend's published view is this interface — **three primitives** — so
+ * lifting that function would mean teaching the backend five fields it does
+ * not have. Two comparators, two subjects, and this one lives beside the type
+ * it compares rather than beside either socket.
+ *
+ * ## The field list is structural, not a copy
+ *
+ * {@link COMPARED_FEED_STATE_FIELDS} is keyed off `keyof WireFeedState`, so a
+ * fourth field on the wire is a **compile error here** rather than a field
+ * silently excluded from the gate — which would publish a change the browser
+ * then never hears. If that field is ever a non-primitive, this `!==` becomes
+ * reference identity and the author adding it has to say so: that is the
+ * reason the list is a record rather than an array of strings.
+ */
+const COMPARED_FEED_STATE: Record<keyof WireFeedState, true> = {
+  status: true,
+  feed: true,
+  marketOpen: true,
+};
+
+/** The keys above, once. `Object.keys` loses the key type and nothing else. */
+const COMPARED_FEED_STATE_FIELDS = Object.keys(
+  COMPARED_FEED_STATE,
+) as readonly (keyof WireFeedState)[];
+
+/** @see COMPARED_FEED_STATE — the whole argument is there. */
+export function sameWireFeedState(a: WireFeedState, b: WireFeedState): boolean {
+  for (const field of COMPARED_FEED_STATE_FIELDS) {
+    if (a[field] !== b[field]) return false;
+  }
+
+  return true;
+}
+
+/**
  * **When the gateway sent this frame, by the gateway's own clock** — ISO 8601,
  * on every server message (Task 3.6.4, ADR 0033).
  *
