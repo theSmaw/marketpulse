@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 
 import { ErrorBoundary } from "../ErrorBoundary/ErrorBoundary.js";
 import { Panel } from "../Panel/Panel.js";
@@ -203,6 +203,110 @@ export function Region({
   readonly children?: ReactNode;
 }) {
   const box = useRef<HTMLElement | null>(null);
+
+  /**
+   * **The element that last held focus inside this region** — the backstop
+   * below, and nothing else reads it.
+   *
+   * `null` while focus is on the section itself, which can never be the thing
+   * that unmounts while the region is mounted.
+   */
+  const held = useRef<HTMLElement | null>(null);
+
+  /*
+   * **The region catches the focus its own content drops** (Task 4.7.6), which
+   * is ADR 0039's rule arriving one level down.
+   *
+   * ## Why it is here and not only in `RankedList`
+   *
+   * Task 4.6.5 built this recovery inside `useRovingStop`, and for the state it
+   * was written against it is the better one: it lands on the row now at the
+   * departed row's **rank**, so the arrows keep working from where the reader
+   * was looking, and this never fires because `document.activeElement` is no
+   * longer the body by the time a parent's effect runs. **But it is inside the
+   * thing that can go away.** `movers === undefined` with `overview` present is
+   * the route's *rollback pinning a previous image* branch, and
+   * `market-stream-protocol.ts`' `readOverview` reaches it from a healthy
+   * gateway too — *"an unreadable one is the same absence rather than a
+   * discarded frame carrying four true prices"*. The whole `Movers` component
+   * then unmounts with its rows, the hook holding the recovery goes with it,
+   * and a reader on a mover row is dropped to `<body>`: produced in Chromium,
+   * `section:Movers` against `<body>`, `overview-degraded-stops.spec.ts`.
+   *
+   * A tripped `ErrorBoundary` is the same shape — Task 4.6.5 enumerated that
+   * state and nothing covered it — and so is every region Epics 5, 6 and 7
+   * will fill, because what makes the defect reachable is content that comes
+   * and goes rather than anything about a ranking.
+   *
+   * So the catch belongs at **the one element that is a tab stop in every state
+   * this screen has**, which is this section. ADR 0039 is the decision that
+   * makes that true unconditionally, and its own rejected alternative is this
+   * defect's exact wording: a stop that disappears drops *a focused reader to
+   * `<body>`, on a timer nobody controls.*
+   *
+   * ## The three conditions, and the one that is invisible when wrong
+   *
+   * The trigger is the remembered element being **disconnected**, not a blur:
+   * removing the focused element does not reliably fire `blur` or `focusout`,
+   * so a boolean kept by those two events is a guess about something the DOM
+   * can be asked directly (`useRovingStop`'s note, and this is the same
+   * mechanism).
+   *
+   * `document.activeElement === document.body` separates *the removal dropped
+   * focus* from *the reader had already tabbed away* — and `<body>` is not
+   * `null`, so `if (active !== null) return;` reads exactly like a guard and
+   * disables the whole thing. That is the shape
+   * `a-region-does-not-catch-its-dropped-focus` breaks.
+   *
+   * **Focus moving is acceptable; activating is not.** Nothing here presses
+   * anything.
+   *
+   * ## And it costs a reader their order hold, which is not this one's defect
+   *
+   * `focus()` here fires `focusin` on this same box, so a region passing
+   * `onReaderWithin` releases and re-takes its pin — measured in the same spec,
+   * and the same consequence an **arrow press** has had since Story 4.6 for
+   * `focusin`/`focusout`'s bubbling. It is recorded against the hold rather
+   * than repaired here; see `use-order-hold.ts`' 2026-10-11 amendment.
+   */
+  useLayoutEffect(() => {
+    const was = held.current;
+    if (was === null || was.isConnected) return;
+    held.current = null;
+
+    const active: Element | null = document.activeElement;
+    if (active !== null && active !== document.body) return;
+
+    box.current?.focus();
+  });
+
+  /*
+   * **One listener, unconditionally** — not folded into the effect below, and
+   * that is the defect the next author writes rather than a missed tidy-up.
+   *
+   * That effect already listens for `focusin` on this same box, so the obvious
+   * edit is to remember the target there and save a listener. It is gated on
+   * `onReaderWithin`, which **six of the seven landing regions do not pass** —
+   * and the recovery above would then exist only for the two that hold an
+   * order. Written that way first and the spec was **green on it**, because the
+   * only region that can reach the state today is one of the two that do; see
+   * Task 4.7.6's record.
+   */
+  useEffect(() => {
+    const element = box.current;
+    if (element === null) return;
+
+    const remember = (event: FocusEvent) => {
+      const target = event.target;
+      held.current =
+        target instanceof HTMLElement && target !== element ? target : null;
+    };
+
+    element.addEventListener("focusin", remember);
+    return () => {
+      element.removeEventListener("focusin", remember);
+    };
+  }, []);
 
   /*
    * **Native listeners rather than React's handlers, and the two halves

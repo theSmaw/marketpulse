@@ -186,4 +186,62 @@ describe("Region", () => {
     unmount();
     expect(within_).toHaveBeenLastCalledWith(false);
   });
+
+  // **The focus its own content drops** (Task 4.7.6). A region's `<section>` is
+  // a tab stop in every state (ADR 0039) and its content is not: a ranked row's
+  // anchor exists because an aggregate selected that security. `RankedList`
+  // catches the row-left-the-list case itself — but when the whole component
+  // goes, the hook holding that recovery goes with it.
+  //
+  // **jsdom can see this one and sees almost none of it.** `document
+  // .activeElement` is real here; what is not is the frame that produces the
+  // state, the scrollport the section is, or whether the landing position reads
+  // as anywhere. `overview-degraded-stops.spec.ts` drives it through the
+  // shipped socket.
+  it("catches the focus its own content drops when that content unmounts", () => {
+    const { rerender } = render(
+      <Region name="Movers">
+        <a href="/securities/NVDA">NVDA</a>
+      </Region>,
+    );
+
+    const row = screen.getByRole("link", { name: "NVDA" });
+    row.focus();
+    expect(document.activeElement).toBe(row);
+
+    // The rollback branch: the region draws no content at all.
+    rerender(<Region name="Movers" />);
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("region", { name: "Movers" }),
+    );
+  });
+
+  it("does NOT take focus back when the reader had already moved on", () => {
+    // The one of the three conditions that is about somebody else's element,
+    // and the one whose guard is invisible when wrong: `<body>` is not `null`,
+    // so `if (active !== null) return;` reads like this test's subject and
+    // disables the recovery entirely.
+    const { rerender } = render(
+      <>
+        <Region name="Movers">
+          <a href="/securities/NVDA">NVDA</a>
+        </Region>
+        <button type="button">Elsewhere</button>
+      </>,
+    );
+
+    screen.getByRole("link", { name: "NVDA" }).focus();
+    const elsewhere = screen.getByRole("button", { name: "Elsewhere" });
+    elsewhere.focus();
+
+    rerender(
+      <>
+        <Region name="Movers" />
+        <button type="button">Elsewhere</button>
+      </>,
+    );
+
+    expect(document.activeElement).toBe(elsewhere);
+  });
 });
