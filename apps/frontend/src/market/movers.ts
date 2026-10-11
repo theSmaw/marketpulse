@@ -7,7 +7,7 @@ import type {
 } from "@marketpulse/shared";
 
 import { arrivalKey } from "./arrival.js";
-import { describeMeasuredSet } from "./measured-set.js";
+import { describeMeasuredReach, describeMeasuredSet } from "./measured-set.js";
 import { formatPrice } from "./price-format.js";
 import { basisOf, moveOf, type SectorRow } from "./sector-performance.js";
 
@@ -46,9 +46,15 @@ import { basisOf, moveOf, type SectorRow } from "./sector-performance.js";
 // A mover row's label is the company's name, which lives in `securities` and
 // reaches a browser through `GET /securities` — the overview frame carries a
 // symbol and no name. So the name is passed **in**, as a lookup the route
-// already holds, and a symbol the lookup does not know is **labelled with
-// itself**: `labelOf`'s rule one file over, for the same reason. The name is
-// context and the ticker is the identifier, so a universe that has not
+// already holds, and ~~a symbol the lookup does not know is **labelled with
+// itself**: `labelOf`'s rule one file over, for the same reason~~ —
+// **reversed 2026-10-11 by Task 4.7.5**: a symbol the lookup does not know
+// gets **room and nothing else**, because the ticker is already in the track
+// to its left and the two drew side by side with nothing between them at 390.
+// See {@link NAME_NOT_ARRIVED}; `labelOf`'s rule one file over is unchanged,
+// and the difference between the two is that a sector's label comes from a
+// checked-in table rather than from a request that can be in flight. The name
+// is context and the ticker is the identifier, so a universe that has not
 // arrived — or failed — costs the region its names and nothing else.
 //
 // **Why not on the wire** (Task 4.5.5's decision): a name is a fact about a
@@ -79,6 +85,56 @@ import { basisOf, moveOf, type SectorRow } from "./sector-performance.js";
 
 /** Room and nothing else — see {@link withHeldRows}. */
 const NBSP = " ";
+
+/**
+ * **What the name track holds when the universe has not arrived: room, and
+ * nothing else** (Task 4.7.5).
+ *
+ * ## The state it is for is a RACE, not an outage
+ *
+ * `names` comes from `GET /securities`, which is a second request the route
+ * makes beside the socket. The overview frame arrives inside the upgrade
+ * handler — **124 ms** on a local pair — and the universe took **174–277 ms**
+ * on the five runs `use-waited.ts` recorded. So the ordinary cold load paints
+ * at least one frame of movers with an **empty** name map, and an unreachable
+ * `/securities` holds that state for ever. Neither is exotic.
+ *
+ * ## Why not the ticker, which is what this read until 2026-10-11
+ *
+ * `label: names.get(symbol) ?? symbol` put the identifier in **two adjacent
+ * tracks**: the row drew `3 NVDA NVDA 189.42 +3.41%`, and at 390 the price
+ * column is dropped (`.movers`' track list is `15 64 137 68` there) so the two
+ * copies sit side by side with nothing between them. A listener gets the
+ * ticker twice in one row, which reads as a rendering fault rather than as a
+ * name we do not have yet — and the fault is on the one surface whose whole
+ * job is to be scanned down a column.
+ *
+ * **Absent context is absent.** The name is context; the ticker is the
+ * identifier and is already in the row, one track to the left, as the link.
+ * ADR 0029's defer rule says a clause renders only when its own data is
+ * present, and a name we have not fetched is exactly that.
+ *
+ * ## The row's accessible name does NOT change, and that is the whole care
+ *
+ * Story 4.6 made the **link's** accessible name the bare ticker, and that is a
+ * different track: `RankedList` draws the name in a `<span>` that is a sibling
+ * of the `<Link>`, so blanking it cannot reach the link's name. What it does
+ * change is the `<li>`'s running text, from `3 NVDA NVDA +3.41%` to
+ * `3 NVDA +3.41%` — the repair, stated.
+ *
+ * ## Why a non-breaking space rather than an empty string
+ *
+ * `withHeldRows`' decision, for the same reason and in the same column: an
+ * empty `<span>` collapses its line box, so a row whose name has not arrived
+ * would be a different height from the row below it that has. A `U+00A0` holds
+ * the line and says nothing — it is not a word, so it cannot read as a claim,
+ * and a screen reader does not speak it.
+ *
+ * **Reversal trigger**, as a condition: the first state in which a mover row
+ * can be drawn with no ticker. Then the name is the only identifier on the row
+ * and blanking it hides the security entirely.
+ */
+const NAME_NOT_ARRIVED = NBSP;
 
 /**
  * **Two peers: each end of the ranking, each ranked from 1, neither
@@ -173,8 +229,10 @@ export interface MoversClaim {
  * region says so in words rather than reserving itself invisibly.
  *
  * @param names Symbol → company name, from the tracked universe. A symbol it
- * does not know is labelled with itself; an empty map labels every row with
- * its ticker, which is the state while the universe is in flight.
+ * does not know is drawn with **blank room** rather than with its own ticker,
+ * and an empty map — the state while the universe is in flight, which is every
+ * cold load's first frame — therefore leaves every name track empty. See
+ * {@link NAME_NOT_ARRIVED}.
  */
 export function marketMovers(
   overview: WireMarketOverview | undefined,
@@ -195,7 +253,7 @@ export function marketMovers(
 
       return {
         symbol: figure.symbol,
-        label: names.get(figure.symbol) ?? figure.symbol,
+        label: names.get(figure.symbol) ?? NAME_NOT_ARRIVED,
         rank: move === undefined ? undefined : ranked,
         move,
         // Two branches rather than one spread of a possibly-`undefined` value:
@@ -224,7 +282,10 @@ export function marketMovers(
   return {
     gainers,
     losers,
-    claim: moversClaimOf(movers),
+    // The instant is the frame's own `observedAt` — see
+    // `describeMeasuredReach` for why not `computedAt` and why not a clock
+    // here (Task 4.7.4).
+    claim: moversClaimOf(movers, overview?.observedAt),
     gainersEmpty: emptySideOf(gainers, movers.eligible, "rose"),
     losersEmpty: emptySideOf(losers, movers.eligible, "declined"),
   };
@@ -299,7 +360,10 @@ export function marketMovers(
  * `Sector performance`, whose rows are a roster rather than a selection and can
  * still arrive mixed. `SectorRow.price` carries the owner.
  */
-function moversClaimOf(movers: WireMarketMovers): MoversClaim {
+function moversClaimOf(
+  movers: WireMarketMovers,
+  observedAt: string | undefined,
+): MoversClaim {
   const lead = describeMeasuredSet({
     qualifier: movers,
     tracked: movers.tracked,
@@ -313,7 +377,15 @@ function moversClaimOf(movers: WireMarketMovers): MoversClaim {
   // with anything else. A clause joined by one would have been the second
   // drawer of that glyph, twelve pixels below a list that reserves it, and the
   // repair would have been to weaken somebody else's assertion.
-  const sentence = `${lead}. ${movers.eligible === 0 ? NOTHING_TO_RANK : RANKED_OVER}.`;
+  // **A third sentence, and only when the aggregate holds an observation**
+  // (Task 4.7.4). The em-dash argument above is why it is a sentence rather
+  // than a clause joined to either of the two before it; the age itself is
+  // `measured-set.ts`', read by both regions, so this file states no instant
+  // and spells no interval.
+  const reach = describeMeasuredReach(observedAt);
+  const since = reach === undefined ? "" : ` ${reach}.`;
+
+  const sentence = `${lead}. ${movers.eligible === 0 ? NOTHING_TO_RANK : RANKED_OVER}.${since}`;
 
   return { drawn: sentence, spoken: sentence };
 }

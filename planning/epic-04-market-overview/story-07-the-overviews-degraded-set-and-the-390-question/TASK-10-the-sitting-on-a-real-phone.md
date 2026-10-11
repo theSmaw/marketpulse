@@ -84,6 +84,69 @@ fixture or replay provider must never be pointed at it, at any hour.
 
 ---
 
+## Handed here by Task 4.7.4 — 2026-10-11: two of the seven regions now date themselves, which is the 390 argument's own subject
+
+Written here rather than linked.
+
+**1. The sitting's step about scrolling for an instant has changed.** This
+task's brief rests on the measurement that at 390 the page is 2,565 px and the
+one screen-level instant — the source note's `Observed through` — is roughly
+2,500 px below `Market breadth`, behind three reserved panels. **It no longer
+is the only one**: both `Market breadth` and `Movers` state how far their own
+observations reach, in their own footers, in the breadth-first order that puts
+them near the top. So the question for the phone is no longer _can a reader
+find an instant_ but **whether the one in front of them reads as an age rather
+than as a verdict** — and whether a third line of micro text at 308 px wide is
+legible held at arm's length, which is a thing only a person with a phone can
+answer.
+
+**2. Both regions are 16 px taller at 390**, in every state, because the
+footer reserves three lines rather than two — the age wraps to a third line at
+that width and to none at 768 and above. The page is correspondingly longer;
+re-measure its height during the sitting rather than citing 2,565.
+
+**3. The age is ABSENT, not empty, when nothing has been observed.** On a
+deployment with no provider and in the first seconds after a restart there is
+no sentence at all, and that is the designed answer — _say nothing rather than
+say now_. If the phone shows a region with a two-line footer and a reader asks
+_when_, the honest answer is that nothing has reached us yet, and whether the
+silence communicates that is a listener's and a reader's judgement rather than
+a check's.
+
+---
+
+## Handed here by Task 4.7.5 — 2026-10-11: one question only a phone can answer, now written into `docs/GAPS.md`
+
+Written here rather than linked.
+
+**1. The sitting owns a `docs/GAPS.md` entry by name** — _The 2,000 ms floor
+is derived from a local pair, and a phone on cellular can cross it before the
+first frame_. `useWaited`'s floor turns four regions from empty into saying
+`No prices yet.` / `No count yet.` / `No sector moves yet.` / `No moves to
+rank yet.`, and it was set an order of magnitude above **277 ms**, the slowest
+of five first-frame times **measured on a laptop against a dev server on
+`localhost`**. That bounds the render and bounds nothing about a radio. If a
+phone on cellular crosses 2,000 ms before the first frame, all four sentences
+appear **and are then replaced by figures** — the promise-the-next-frame-breaks
+the floor exists to prevent. The entry's re-measure is written so a phone can
+perform it unaided: cold-load the deployed site on cellular from a tab that has
+never been opened, with the market open, and record (a) whether any of the four
+is drawn and (b) whether figures replace it. One or two signal bars is the arm
+that matters, not five.
+
+**2. It is three taps and it is free, so take it on the same sitting.** The
+only thing that makes it expensive is forgetting the tab must be cold: a
+reload reuses DNS and TLS and is not the case.
+
+**3. One premise of this task's 390 argument is now refuted in writing, and
+not by this task's measurement.** `the explanation is at the foot of the page`
+is false: the status bar is **sticky**, and in the terminal no-frame state it
+reads `STALE · Connected, and no live prices have arrived yet.` about 250 px
+below `No prices yet.` at every scroll position. What the sitting should
+answer instead is whether a reader **reads** it there — a 12 px line of micro
+text in the chrome, under four regions that each say nothing in their own
+words — which is a judgement and not a distance.
+
 ## Handed here by Task 4.7.2 — 2026-10-10: at 390 the 390 question is a TWO-CORNER question, with the figures to put in front of a person
 
 **Measured, not argued.** Over the five content surfaces — the proxy strip, the

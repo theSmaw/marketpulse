@@ -180,9 +180,16 @@ export function MarketOverview({
    * ## The failure is quiet, by construction
    *
    * `useSecurities` never throws and this route never reads its failure state:
-   * an unreachable universe leaves the map empty, every mover row is labelled
-   * with its own ticker, and the region keeps every figure it had. The name is
+   * an unreachable universe leaves the map empty, every mover row's name track
+   * is **blank room**, and the region keeps every figure it had. The name is
    * context; the ticker is the identifier, and it is on the row either way.
+   *
+   * **It was *labelled with its own ticker* until 2026-10-11** — which drew
+   * the identifier twice in adjacent tracks, with the price column between
+   * them dropped at 390. See `movers.ts`' `NAME_NOT_ARRIVED` (Task 4.7.5).
+   * And the state is a **race** as much as a failure: the aggregate arrives
+   * inside the socket's upgrade handler while this request measured 124 ms,
+   * so a cold load paints movers with an empty map as a matter of course.
    * **No sentence, no retry and no `Try again` here** — Story 3.10's rule that
    * every surface but the one that owns a fact stays quiet, and the row would
    * otherwise grow an error state over a missing word.

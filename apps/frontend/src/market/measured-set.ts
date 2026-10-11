@@ -1,3 +1,7 @@
+import { OBSERVATION_INTERVAL_MS } from "@marketpulse/shared";
+
+import { formatBarInstant } from "./chart-reading.js";
+
 // **The one clause two regions state about the same set** (Task 4.5.6).
 //
 // `Market breadth` and `Movers` are computed from **one eligibility pass** over
@@ -117,4 +121,96 @@ export function describeMeasuredSet(set: MeasuredSet): string {
   }
 
   return `${of}, ${countInWords(count)} ${count === 1 ? "was" : "were"} heard from in ${measuredWindow(qualifier.windowMinutes)}`;
+}
+
+/**
+ * **How old the two regions' figures are, beside the denominator they already
+ * state** — with no trailing stop, as {@link describeMeasuredSet} has none, or
+ * `undefined` where the aggregate holds no observation (Task 4.7.4).
+ *
+ * ## An age, not a verdict
+ *
+ * The same decision the proxy strip's third row and the universe table's
+ * `Live price from 12:07` already took. There is **no threshold, no status
+ * word, no connection word and no per-region verdict**: `live`, `stale` and
+ * `disconnected` have one home and it is the status bar (Story 3.10), which
+ * `a-second-staleness-sentence` and `one-home-for-the-strip-staleness-sentence`
+ * refuse by name. This states an instant and lets the reader do the
+ * subtraction, which is the whole difference.
+ *
+ * ## Why these two regions need it where their siblings do not
+ *
+ * `Market breadth` and `Movers` are the two things on the landing screen most
+ * confidently wrong when stale — a count and a ranking read as current
+ * whatever produced them — and until this clause they carried **no instant in
+ * any state**. The screen-level one is `OverviewSourceNote`'s `Observed
+ * through`, which at 390 sits roughly 2,500 px below both regions behind three
+ * reserved panels, so a reader scrolling past `none were heard from in the
+ * last 5 minutes` had nothing on screen saying *when*.
+ *
+ * ## Why it is a SENTENCE of its own rather than a clause in the two grammars
+ *
+ * The two grammars are keyed on the basis the wire sent and neither can render
+ * the other's. **This fact is keyed on neither**: it is about what has reached
+ * this process, which is the same question on a live market and a shut one. A
+ * clause spliced into each grammar would be the same sentence written twice
+ * and would have to agree about its own punctuation in four places; a sentence
+ * appended after whatever the caller said composes with both, and with
+ * breadth's drawn/spoken pair, without either grammar knowing it exists.
+ *
+ * ## The instant is the interval's END, and that is the whole arithmetic
+ *
+ * `WireMarketOverview.observedAt` is a bar's own `startsAt` — **the start of
+ * the minute it describes** (`LIVE-DATA.md` §7.3, measured with a control: a
+ * bar stamped `14:01:00Z` arrives at `14:02:00.5Z`). So the newest observation
+ * an aggregate can hold describes the minute that **ends** a minute later, and
+ * *nothing newer than 14:01 has reached us* is false about a feed that has
+ * just delivered the 14:01 bar: the 14:01–14:02 minute has reached us whole.
+ *
+ * Adding {@link OBSERVATION_INTERVAL_MS} is therefore the same correction Task
+ * 3.3.4 made to `feedStatusFrom`, one surface over — where leaving it out made
+ * `live` structurally unreachable during a session. It is read from
+ * `packages/shared` rather than spelled, for that constant's own reason: a
+ * second timeframe on this feed is its reversal trigger, and a `60_000` here
+ * would be the second home that does not move with it.
+ *
+ * ## `undefined` is the answer, and it is CI's permanent answer
+ *
+ * ADR 0029's defer rule, decided at the producer: `observedAt` is **absent**
+ * exactly when the aggregate contains no observation — CI's store (518
+ * securities, **zero bars**), a `MARKET_DATA_PROVIDER=none` deployment, and a
+ * restarted backend before its first bar. **Say nothing rather than say now**,
+ * which is also why a malformed instant is skipped rather than drawn:
+ * `Date.parse` answers `NaN` for what it cannot read and `new Date(NaN)`
+ * formats without complaining, which is how `Invalid Date` reaches a screen.
+ *
+ * ## What the instant is NOT read from
+ *
+ * Not `computedAt` and not `sentAt` — both are readings of the **server's own
+ * clock**, so on a dead feed they advance with nothing behind them and would
+ * date these figures to the minute the reader opened the tab (Task 4.8.12's
+ * defect, in the one surface that had already made it). Not the browser's
+ * clock either: an age computed here would differ between two tabs opened an
+ * hour apart, and since Task 4.7.3 the gateway serves a joining browser its
+ * **last broadcast** aggregate — so this instant can be arbitrarily old on a
+ * fresh join, it grows without bound on a feed that has stopped, and both are
+ * correct.
+ *
+ * ## The spelling is the product's, not a second one
+ *
+ * A whole instant with its zone through `formatBarInstant`, which is what
+ * `OverviewSourceNote` and the proxy strip's per-cell note both use — to the
+ * **minute**, which that function drops seconds for by construction.
+ */
+export function describeMeasuredReach(
+  observedAt: string | undefined,
+): string | undefined {
+  if (observedAt === undefined) return undefined;
+
+  const startsAt = Date.parse(observedAt);
+  if (Number.isNaN(startsAt)) return undefined;
+
+  const closedAt = new Date(startsAt + OBSERVATION_INTERVAL_MS);
+
+  return `Nothing newer than ${formatBarInstant(closedAt, "1m")} has reached us`;
 }

@@ -372,7 +372,8 @@ export const BreadthLedger = memo(function BreadthLedger({
       </dl>
 
       {/*
-       * **The footer, in one clause and two reserved lines.**
+       * **The footer, in one clause and three reserved lines** — two until
+       * Task 4.7.4 put an age beside the denominator.
        *
        * Sentence case at the micro size rather than the uppercase micro label,
        * because it is prose rather than a stamp — and the two properties are
@@ -385,6 +386,15 @@ export const BreadthLedger = memo(function BreadthLedger({
        * is the first question — and a window 500 px below the count it
        * qualifies is a footnote nobody reads the footnote of, which is the
        * sentence this story opens with.
+       *
+       * **And since Task 4.7.4 it states WHEN** — a second sentence, from the
+       * same builder `Movers` reads, saying how far the observations behind
+       * the count reach. An age and not a verdict: no threshold, no status
+       * word and no connection word, which have one home and it is the status
+       * bar. It is on **both** renderings below, because a reader meets the
+       * drawn one and a listener the spoken one, and it is absent entirely —
+       * not empty — when the aggregate holds no observation, which is the
+       * gated machine's permanent state.
        */}
       <p className={cx(styles.claim)}>
         {/*

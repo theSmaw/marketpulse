@@ -5515,6 +5515,130 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "the-footer-age-is-the-intervals-end",
+    claim:
+      "The age `Market breadth` and `Movers` state beside their denominator " +
+      "is built in ONE place, `measured-set.ts`, and the instant it draws is " +
+      "the observation interval's END — `observedAt` plus " +
+      "`OBSERVATION_INTERVAL_MS`, never a bar's own `startsAt` raw.",
+    check() {
+      // **Task 4.7.4, and both halves are somebody's measured defect.**
+      //
+      // ## Half one — the interval, which is Task 3.3.4 one surface over
+      //
+      // `WireMarketOverview.observedAt` is a bar's own `startsAt`, and §7.3
+      // measured with a control that `t` marks the **start** of the minute a
+      // bar describes: one stamped `14:01:00Z` arrives at `14:02:00.5Z`. So a
+      // surface that draws it raw under-states how far the data reaches by
+      // exactly one minute, in the direction that makes a healthy feed look
+      // behind. The same omission in `feed-liveness.ts` made `live`
+      // structurally unreachable during a session and shipped silently;
+      // `OBSERVATION_INTERVAL_MS` exists because of it, is read from
+      // `packages/shared` rather than spelled, and is a clause the
+      // re-implementer **cannot avoid writing** — there is no other way to
+      // get from the field on the wire to the instant on the screen.
+      //
+      // ## Half two — one producer, and the obvious check does not find it
+      //
+      // **Proved before it was repaired, with the 2026-09-26 procedure.** The
+      // first draft of this check was *the builder reads `observedAt`*, and a
+      // planted second producer in `market-breadth.ts` — folding the newest
+      // instant off `overview.figures` and formatting it raw, which is the
+      // shape Task 4.8.12 already found once on the source note — **passed
+      // it**, because a defect that never touches the builder cannot be
+      // caught by a grep of the builder. So the corpus is walked for the
+      // sentence instead, and the two readers and their two components are
+      // forbidden the **formatter**: nothing can draw an instant without
+      // calling one, whatever it decides to call the variable.
+      const builder = resolve(
+        REPO_ROOT,
+        "apps/frontend/src/market/measured-set.ts",
+      );
+
+      const SENTENCE = "has reached us";
+      const text = withoutComments(readAnchored(builder));
+
+      // The anchor first — a grep that matches nothing reads exactly like a
+      // pass, and this one guards a sentence that could be reworded.
+      if (!text.includes(SENTENCE)) {
+        throw new InvariantFailure(
+          "apps/frontend/src/market/measured-set.ts no longer builds the " +
+            `age clause (\`${SENTENCE}\`). If the words changed, repoint ` +
+            "this check in the same change: everything below it is a " +
+            "comparison against this sentence, and a check whose anchor has " +
+            "moved certifies nothing.",
+        );
+      }
+
+      // **The ADDITION, never the name** — and the difference is a break
+      // that did not go red. `OBSERVATION_INTERVAL_MS` appears on this
+      // module's import line, so a first draft keyed on the identifier was
+      // satisfied by the import alone and stayed green against a clause that
+      // had dropped the arithmetic entirely. `CLAUDE.md`'s rule, met the hard
+      // way: prefer a clause the re-implementer cannot avoid writing — the
+      // division, not the type name. Both operand orders, because `a + b` and
+      // `b + a` are the same correction.
+      const ADDS_THE_INTERVAL =
+        /(?:\+\s*OBSERVATION_INTERVAL_MS\b|\bOBSERVATION_INTERVAL_MS\s*\+)/u;
+
+      if (!ADDS_THE_INTERVAL.test(text)) {
+        throw new InvariantFailure(
+          "The footer's age is built without adding " +
+            "`OBSERVATION_INTERVAL_MS`, so " +
+            "it draws a bar's `startsAt` — the **start** of the minute the " +
+            "bar describes — as the instant the data reaches. Measured with " +
+            "a control (`LIVE-DATA.md` §7.3): a bar stamped `14:01:00Z` " +
+            "arrives at `14:02:00.5Z`, so the reach is 14:02 and the raw " +
+            "read under-states it by a minute in the direction that makes a " +
+            "healthy feed look behind. Task 3.3.4 made exactly this " +
+            "correction in `feed-liveness.ts`, where the omission made " +
+            "`live` unreachable during a session.",
+        );
+      }
+
+      const elsewhere = shippedSourceFiles().filter(
+        ({ path, text: body }) => path !== builder && body.includes(SENTENCE),
+      );
+
+      if (elsewhere.length > 0) {
+        throw new InvariantFailure(
+          `A second producer of the age clause:\n      ${elsewhere
+            .map(({ path }) => relative(REPO_ROOT, path))
+            .join("\n      ")}` +
+            "\n    Two regions 200–300 px apart state this about one " +
+            "aggregate, and a second copy is the one that drifts — by a " +
+            "minute, if it skips the interval, or by a whole feed, if it " +
+            "folds its own instant off the figures it can see. One builder, " +
+            "two readings: `measured-set.ts`.",
+        );
+      }
+
+      // And the formatter is the half a reworded sentence cannot escape.
+      const SILENT = [
+        "apps/frontend/src/market/market-breadth.ts",
+        "apps/frontend/src/market/movers.ts",
+        "apps/frontend/src/components/BreadthLedger/BreadthLedger.tsx",
+        "apps/frontend/src/components/Movers/Movers.tsx",
+      ];
+
+      for (const path of SILENT) {
+        const body = withoutComments(readAnchored(resolve(REPO_ROOT, path)));
+
+        if (/\bformatBarInstant\b/u.test(body)) {
+          throw new InvariantFailure(
+            `${path} formats an instant of its own. Neither region may: the ` +
+              "one age both of them state is `measured-set.ts`', and a " +
+              "second instant drawn here is a second answer to *how old is " +
+              "this* — which this screen already has one of, at the foot, " +
+              "in `OverviewSourceNote`. Nothing can draw an instant without " +
+              "calling a formatter, which is why this clause is the one a " +
+              "re-implementer cannot route around.",
+          );
+        }
+      }
+    },
+  },
 ];
 
 const failures = [];

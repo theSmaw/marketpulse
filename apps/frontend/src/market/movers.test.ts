@@ -8,6 +8,7 @@ import type {
   WireOverviewFigure,
 } from "@marketpulse/shared";
 
+import { marketBreadth } from "./market-breadth.js";
 import {
   RESERVED_MOVERS,
   marketMovers,
@@ -138,11 +139,39 @@ describe("marketMovers", () => {
     expect(view?.gainers.map((row) => row.symbol)).toEqual(["A", "B"]);
   });
 
-  it("labels a row with its company name, and with its ticker when the universe has not arrived", () => {
+  it("labels a row with its company name, and with BLANK ROOM when the universe has not arrived", () => {
     const section_ = section([observed("NVDA", 1, 3.41)], []);
 
     expect(read(frame(section_))?.gainers[0]?.label).toBe("NVIDIA Corporation");
-    expect(read(frame(section_), new Map())?.gainers[0]?.label).toBe("NVDA");
+
+    // **Not the ticker** (Task 4.7.5). The row already draws `NVDA` in the
+    // track to the left of this one, and at 390 the price column between them
+    // is dropped — so standing the symbol in here printed it twice with
+    // nothing between the copies, and a listener heard the identifier twice.
+    // Room and nothing else: see `NAME_NOT_ARRIVED`.
+    const unnamed = read(frame(section_), new Map())?.gainers[0];
+    expect(unnamed?.label).toBe(" ");
+    expect(unnamed?.label).not.toBe("NVDA");
+
+    // And the identifier is untouched: this is the name track, not the link's
+    // accessible name, which Story 4.6 settled and this does not reach.
+    expect(unnamed?.symbol).toBe("NVDA");
+  });
+
+  it("blanks only the names it does not have, in a HALF-filled universe", () => {
+    // The race's own shape rather than its extreme: `GET /securities` is one
+    // request, so in practice the map is empty or whole — but a symbol the
+    // universe does not carry (a delisting, a curation lag) must not take its
+    // neighbours' names down with it, and must not get its ticker back.
+    const view = read(
+      frame(section([observed("NVDA", 1, 3.41), observed("ZZZZ", 2, 1.1)], [])),
+      new Map([["NVDA", "NVIDIA Corporation"]]),
+    );
+
+    expect(view?.gainers.map((row) => row.label)).toEqual([
+      "NVIDIA Corporation",
+      " ",
+    ]);
   });
 
   it("gives a row no rank when its figure carries no ranking key", () => {
@@ -413,5 +442,87 @@ describe("the two lists are disjoint, which is the hold's precondition", () => {
       (row) => row.symbol,
     );
     expect(new Set(pin).size).toBe(pin.length);
+  });
+});
+
+describe("the age beside the denominator (Task 4.7.4)", () => {
+  const read = (overview: WireMarketOverview) =>
+    marketMovers(overview, NO_OBSERVATIONS, NO_SNAPSHOT, NAMES);
+
+  it("states how far the observations reach, at the minute's END", () => {
+    // `18:01Z` is 14:01 ET and is the **start** of the minute the bar
+    // describes, so the reach is 14:02 — the same correction `feedStatusFrom`
+    // makes, one surface over, and the thing a raw read gets wrong by exactly
+    // one minute in the direction that under-states.
+    const view = read({
+      ...frame(section([observed("NVDA", 184.12, 4.21)], [])),
+      observedAt: "2026-10-07T18:01:00.000Z",
+    });
+
+    expect(view?.claim.drawn).toBe(
+      "Of the 503 companies we track, 466 were heard from in the last 5 minutes. " +
+        "Both lists are ranked over those. " +
+        "Nothing newer than Oct 7 · 14:02 EDT has reached us.",
+    );
+    // The two renderings are one string in this region — it draws no ladder,
+    // so the drawn half has nothing to defer to.
+    expect(view?.claim.spoken).toBe(view?.claim.drawn);
+  });
+
+  it("is the same sentence `Market breadth` states, from the one builder", () => {
+    // The whole point of `measured-set.ts`: two regions 200–300 px apart say
+    // this about one aggregate, and a second copy is what would let them
+    // disagree. Asserted by equality of the two renderings' last sentence
+    // rather than by importing the builder, which would make them agree by
+    // construction.
+    const last = (claim: string | undefined): string =>
+      (claim ?? "").split(". ").slice(-1).join("");
+
+    const observedAt = "2026-10-07T18:01:00.000Z";
+    const movers = read({
+      ...frame(section([observed("NVDA", 184.12, 4.21)], [])),
+      observedAt,
+    });
+    const breadth = marketBreadth({
+      computedAt: "2026-10-07T18:01:00.000Z",
+      feeds: [],
+      figures: [],
+      observedAt,
+      breadth: {
+        basis: "observed",
+        advancing: 284,
+        declining: 152,
+        unchanged: 15,
+        measured: 451,
+        tracked: 503,
+        windowMinutes: 5,
+      },
+    });
+
+    expect(last(movers?.claim.drawn)).toBe(
+      "Nothing newer than Oct 7 · 14:02 EDT has reached us.",
+    );
+    expect(last(breadth?.claim.drawn)).toBe(last(movers?.claim.drawn));
+  });
+
+  it("says NOTHING when the aggregate holds no observation, which is CI's own state", () => {
+    // 518 securities and zero bars: `observedAt` is **absent**, the clause is
+    // absent with it, and the sentence is byte-identical to the one this
+    // region shipped before the clause existed — no empty sentence, no
+    // trailing space.
+    expect(read(frame({ ...section([], []), eligible: 0 }))?.claim.drawn).toBe(
+      "Of the 503 companies we track, none were heard from in the last 5 minutes. There is nothing to rank.",
+    );
+  });
+
+  it("skips an instant it cannot read rather than drawing `Invalid Date`", () => {
+    expect(
+      read({
+        ...frame(section([observed("NVDA", 184.12, 4.21)], [])),
+        observedAt: "not an instant",
+      })?.claim.drawn,
+    ).toBe(
+      "Of the 503 companies we track, 466 were heard from in the last 5 minutes. Both lists are ranked over those.",
+    );
   });
 });

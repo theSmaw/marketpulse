@@ -110,6 +110,7 @@ const view = (
   gainers: readonly Entry[],
   losers: readonly Entry[],
   eligible = 466,
+  reach: "observed" | "nothing" = "observed",
 ): MarketMovers => {
   const movers: WireMarketMovers = {
     basis: "observed",
@@ -131,7 +132,18 @@ const view = (
   );
 
   const read = marketMovers(
-    { computedAt: AT, feeds: [], figures: [], movers },
+    {
+      computedAt: AT,
+      feeds: [],
+      figures: [],
+      movers,
+      // **The age in the footer, and its absence** (Task 4.7.4). `observedAt`
+      // is the newest observation the aggregate holds and is **omitted** when
+      // it holds none — a frame shape rather than a flag, and
+      // `exactOptionalPropertyTypes` makes *absent* and *present as
+      // `undefined`* different types, so it is two spreads rather than one.
+      ...(reach === "observed" ? { observedAt: AT } : {}),
+    },
     observations,
     new Set<string>(),
     names,
@@ -546,4 +558,23 @@ export const OrderHeld: Story = {
       <Movers {...args} />
     </Region>
   ),
+};
+
+/**
+ * **The footer with no age on it — the gated machine's permanent state.**
+ *
+ * `observedAt` is **absent** from the frame exactly when the aggregate holds
+ * no observation (ADR 0029's defer rule, decided at the producer), which is
+ * CI's store of 518 securities and **zero bars**, a deployment with no
+ * provider, and a backend in the seconds after a restart. *Say nothing rather
+ * than say now.*
+ *
+ * Review it beside the default, which is the same two lists with an age under
+ * them: **the two differ by a sentence and by nothing else**, because the
+ * claim reserves its third line in both — a region whose height told a reader
+ * whether a bar had ever arrived would step the whole lower page at 390 the
+ * first time one did.
+ */
+export const NoObservationInTheAggregate: Story = {
+  args: { view: view(GAINERS, LOSERS, 466, "nothing") },
 };

@@ -3274,3 +3274,93 @@ judgement Task 4.5.7 owns. **Owner: the human, under Story 4.7's Gate 2.**
 asserts today's behaviour, including the badge, so it goes red the day the
 recommendation is taken — which is the signal rather than a nuisance. The
 companion arm is `-g "FOCUS RECOVERY is itself such a move"`.
+
+## The landing page now states two instants about one aggregate, a minute apart, and both are correct
+
+Task 4.7.4 put an age beside the denominator in `Market breadth` and `Movers`:
+`Nothing newer than Sep 16 · 14:02 EDT has reached us.`, built once in
+`measured-set.ts` and read by both regions. The instant is the observation
+interval's **end** — `observedAt` plus `OBSERVATION_INTERVAL_MS` — because
+`observedAt` is a bar's own `startsAt` and `LIVE-DATA.md` §7.3 measured, with a
+control, that `t` marks the **start** of the minute a bar describes. A raw read
+under-states the reach by a minute in the direction that makes a healthy feed
+look behind, which is Task 3.3.4's defect; `the-footer-age-is-the-intervals-end`
+refuses it and `pnpm break the-footer-age-drops-its-interval` proves that.
+
+**The gap is the screen rather than either sentence.** Three shipped surfaces
+print the same `observedAt` **raw** as a _through_ claim — `OverviewSourceNote`'s
+`Observed through`, `FeedIndicator`'s `Showing data through` and the proxy
+strip's per-cell `from hh:mm` — so on one page, from one frame, a reader can
+meet `Observed through Sep 16 · 14:01 EDT` at the foot and `Nothing newer than
+Sep 16 · 14:02 EDT has reached us.` in the middle. **Both are true about
+different subjects**: the first names the newest **bar**, the second the instant
+after which nothing has reached us. Nothing checks that the pair stays
+explicable, and nothing can: each surface is individually correct and
+individually tested, which is `docs/GAPS.md` entry 13's two-true-halves shape
+with the halves a minute apart rather than a word apart.
+
+**It was not repaired here by decision, not by omission.** Changing
+`Observed through` is a second visible change to a sentence Task 4.8.12 settled
+ten days ago, and `Showing data through` is Story 3.10's one-home staleness
+sentence, which `one-home-for-the-strip-staleness-sentence` holds. The two
+candidate resolutions — make every _through_ claim the interval's end, or make
+this one the bar's own instant and reword it — are one owner's call across four
+surfaces rather than four tasks' each.
+
+**Owner: a condition — the first state grid that photographs the source note
+and either region in one frame**, which is Task 4.7.9's by construction at 1440,
+where the page is one column of regions and the note is its foot.
+
+**Re-measure:** open `/` during a session at 1440, read the breadth footer and
+the source note's `Observed through` from one settled page, and record whether
+the two instants differ and by how much. The absent arm is free on any gated
+machine — CI's store holds zero bars, so `observedAt` is omitted and **neither**
+sentence is drawn.
+
+## The 2,000 ms floor is derived from a local pair, and a phone on cellular can cross it before the first frame
+
+`useWaited`'s `SAY_NOTHING_ARRIVED_AFTER_MS` is **2,000 ms**, and it is the
+instrument that turns four regions from _empty_ into _saying so_: `No prices
+yet.`, `No count yet.`, `No sector moves yet.`, `No moves to rank yet.` The
+number is measured rather than argued — time from navigation to the first
+overview frame painting a figure, **277, 174, 182, 193, 184 ms**, five runs,
+2026-09-26 — and the floor was set an order of magnitude above the slowest of
+those precisely so that nobody in ordinary use ever sees the sentence.
+
+**Every one of those five runs was a laptop talking to a dev server on
+`localhost`.** The measurement bounds the _render_ and bounds nothing about the
+link. On a phone on cellular mid-session — the sitting Task 4.7.10 owns — the
+first frame has a TLS handshake, a WebSocket upgrade and a radio wake in front
+of it, and 2,000 ms is a perfectly ordinary number for that sequence. When it
+is crossed, all four sentences appear **and are then replaced by figures**,
+which is exactly the promise-the-next-frame-breaks the floor exists to prevent:
+the terminal sentence is the one state on this screen that claims _nothing is
+coming_, and a reader who has just read it watching the page fill in has been
+told something false by a timer.
+
+**It is the floor's own failure mode rather than a regression.** The hold
+`usePendingPanel` carries — a treatment that must not come _and go_ — was
+deliberately left off this hook, on the recorded ground that this sentence is
+_replaced by figures and never by itself_. That ground is a statement about
+which state follows which, and it is true; what it does not cover is the state
+arriving in the first place when it should not have.
+
+**Nothing mechanical can see it.** `pnpm e2e` drives a browser against a pair
+on the same machine; `pnpm verify` has no server at all; the harness in
+`e2e/support/feed.ts` can _withhold_ a frame for ever but cannot make a real
+one slow in the way a radio does, and a `page.waitForTimeout` before a send
+would be this repository asserting its own number back to itself.
+
+**Owner: Task 4.7.10's sitting**, which is the only instrument in this
+repository that is a real phone on a real network.
+
+**Re-measure, and a phone can perform it unaided:** on a handset on cellular
+(not on the venue's Wi-Fi), with the market open, cold-load `https://<the
+deployed frontend>/` from a tab that has never been opened — a reload reuses
+the socket's DNS and TLS and is not the case. Watch the four regions. Record
+**(a)** whether any of the four sentences is drawn at all, and **(b)** if one
+is, whether figures replace it afterwards. Either sentence drawn on a load that
+then fills is the gap firing. Repeat three times, and record the signal bars:
+the arm that matters is one or two, not five. The same run answers it for a
+cold load against a **restarted replica**, which serves browsers for 45.8–46.5 s
+before its own feed authenticates.
