@@ -221,3 +221,49 @@ four sentences are ever co-visible**, and the page is **2,735 px**.
 only the grid does), and the footer is identical too. Recorded in full in Task
 4.7.5's record so this grid's rows can be compared against it rather than
 re-derived.
+---
+
+## Handed here by Task 4.7.2 — 2026-10-10: seven states are already photographed, and the collision assertion you own must be written over SEVEN surfaces rather than five
+
+Written here rather than linked.
+
+**1. Seven states exist at four widths with greyscale at every width — 56
+photographs at `.capture/overview-degraded/`**, with `readings.json` carrying
+**seven** surfaces per row (the four regions, the source note, **and both
+footer cells**). They are the no-aggregate state either side of the 2,000 ms
+floor, CI's shape, closes-with-nothing-observed, the session basis,
+`market shut × feed stopped`, and the backend unreachable. Every one was
+produced through `serveFeed` and the shipped encoder, each with its plant
+proved per channel. `.capture/` is gitignored, so the strings are quoted in
+Task 4.7.2's record.
+
+**2. Three states are byte-identical over the five CONTENT surfaces, at every
+width** — `closes-present-nothing-observed`, `market shut × feed stopped` and
+`backend unreachable × feed stopped`. They separate only on the two footer
+cells. So the claim to encode is **no two states collide across the chrome and
+the content**; an assertion written over the regions and the source note alone
+goes red on a triple that is ADR 0029's one-home rule working correctly. Task
+4.2.8 found the same shape as a pair of data states; what is new is that this
+triple is mostly **connection** states.
+
+**3. Two states need no second production.** The row `market shut × feed
+stopped` **cannot be re-taken after Monday 2026-10-12 09:30 ET** — the masthead
+reads the real wall clock — so inherit the 2026-10-10 photographs and its
+recorded masthead string rather than re-driving it. And the pre-floor row is
+the only one that must be read inside 2,000 ms of mount, which means a fresh
+load per width.
+
+**4. Two rules the production established.** A settled read is two reads
+300 ms apart agreeing on every surface; on that rule two complete runs were
+**byte-identical across all 28 rows and all five footer heights**, so a
+harness-driven page does not re-render under you. And a `fullPage` screenshot
+draws the sticky status bar across the middle of the page — an artefact of
+`position: sticky`, not a defect, and one that reads exactly like one.
+
+**5. One state was enumerated and deliberately NOT produced**: CI's shape with
+the market **shut**, where breadth and movers fall to the session basis with
+nothing behind it. Building it by hand risks the harness's standing hazard — a
+state the server cannot reach, drawn as though it could — because the
+producer's behaviour with **no close anywhere** (`market-breadth.ts`'s `null`
+session) was not checked. Produce it from the producer, or leave it out and say
+so.
