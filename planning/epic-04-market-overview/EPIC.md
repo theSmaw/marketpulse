@@ -44,7 +44,7 @@ the screen they sit on has to exist before any of them can be incremental.
 | 4.6 | [Selection From the Overview](story-06-selection-from-the-overview/STORY.md)                                                      | 4.5        | **Yes — the screen becomes a start** |
 | 4.7 | [The Overview's Degraded Set, & the 390 Question Answered](story-07-the-overviews-degraded-set-and-the-390-question/STORY.md)     | **4.8**    | **Yes — honest when the feed stops** |
 | 4.8 | [The Overview at Universe Scale, & Epic 14's Trigger](story-08-the-overview-at-universe-scale/STORY.md)                           | **4.6**    | no — and a screen that stays fast    |
-| 4.9 | [The Rehearsal, the Sweep, & Epic 4's Close](story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md)                        | 4.8        | no                                   |
+| 4.9 | [The Rehearsal, the Sweep, & Epic 4's Close](story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md)                        | 4.7        | no                                   |
 
 ### Why this order, and not the spec's own listing order
 

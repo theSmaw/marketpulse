@@ -145,3 +145,23 @@ sentence and an instant, a word beside a disc, and an announcement on a
 degradation only. **Do not grow a second vocabulary for the same idea.** A tool
 that failed and a feed that stopped are different subjects; _how this product
 says a thing has stopped working_ is one.
+
+## Handed here by Epic 4's close — 2026-10-12 (Task 4.9.4): the market overview is on a socket, and an agent cannot subscribe to one
+
+**ADR 0038 built the landing page's aggregate as one join, computed once in the
+backend and broadcast on the market-stream WebSocket as an `overview` frame.**
+Its narrower reversal trigger is _the first consumer of the overview aggregate
+that is not a browser_, and it names this epic's agent by name: an agent cannot
+attach a WebSocket to call a function.
+
+**So if an investigation needs market breadth, sector performance or the day's
+movers, the figures exist and the delivery does not.** `pnpm invariants` holds
+`one-producer-of-the-overview-aggregate` — `buildMarketOverview` has at most one
+call site in shipped backend code — so a second caller **fails the build**.
+Either re-wire the single producer so a tool can read its answer, or treat
+ADR 0038's trigger as fired and give the aggregate a request/response shape;
+ADR 0038 states what the second option costs (`computedAt` gains a per-client
+meaning, and _one compute, one broadcast_ stops being true).
+
+**And invariant 1 still binds**: the agent never computes these figures. They
+come from the deterministic join or they are not shown.

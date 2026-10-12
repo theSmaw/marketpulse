@@ -656,3 +656,30 @@ a reader whose rows vanish under them lands on the region rather than on
 `<body>`. It composes rather than replaces: a child's better landing still
 wins. If your region holds its own focusable rows, you inherit the backstop and
 owe nothing; if it holds a roving list, read Task 4.6.5 and ADR 0039 first.
+
+### And a fifth thing, handed here by Epic 4's close — 2026-10-12 (Task 4.9.4): `Unusual activity` is the first region on `/` that has ever overflowed, and it does so with a placeholder in it
+
+**Your region sits on the one grid row with no content floor.**
+`MarketOverview.module.css` sets `grid-template-rows: calc((82vh - 2 *
+var(--space-24)) * 7 / 30) repeat(2, minmax(min-content, 1fr))` — row 1 is a
+viewport-derived length, rows 2 and 3 are `minmax(min-content, 1fr)` and have a
+floor. `Unusual activity` and `Market topology` are the two on row 1.
+
+**Measured at thirteen width/height pairs** (`clientHeight` against
+`scrollHeight`, every `section[aria-labelledby]`, both routes): at **1440×680**
+`Unusual activity` is **117 / 121 — it scrolls by 4 px today**, with nothing in
+it but the hatched `EPIC 5` placeholder; at **1440×500** it is 82 / 121 and
+`Market topology` joins it; at 1280×480 the same. Nothing scrolls at 1440×700,
+and **0 of 8** regions scroll on `/securities` at any pair. The earlier claim
+_no region on `/` scrolls at any of the four widths_ was four width/height
+pairs, not four widths, and is false.
+
+**So a ranked list of scored securities in that region will clip rather than
+grow.** Decide, before the region ships: a content floor on row 1, an internal
+scroller with its own affordance, or a count that fits the resolved track at the
+shortest viewport you support. And note two consequences: **ADR 0039 makes the
+region a tab stop unconditionally**, so a scrolling box that contains something
+focusable is invisible to axe's `scrollable-region-focusable` for ever —
+`expectEveryRegionIsATabStop` in `e2e/support/app.ts` replaced it — and a
+region that scrolls at 680 but not at 700 is a state no photograph at four
+widths will ever contain.
