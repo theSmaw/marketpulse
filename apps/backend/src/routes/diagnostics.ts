@@ -121,7 +121,11 @@ import type { FastifyPluginCallback } from "fastify";
 import type { DatabaseCheck, DatabaseCheckFn } from "../database.js";
 import { apiErrorSchema } from "../errors.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
-import type { CoverageRow, StoreFreshness } from "../store-freshness.js";
+import type {
+  AttemptRow,
+  CoverageRow,
+  StoreFreshness,
+} from "../store-freshness.js";
 import { storeFreshness } from "../store-freshness.js";
 
 /**
@@ -199,16 +203,54 @@ interface FreshnessDiagnostic {
   /** The session the market has most recently completed. `null` is a broken calendar. */
   lastCompletedSession: string | null;
   /** One entry per timeframe the system can store, never by omission. */
-  timeframes: {
-    timeframe: string;
-    newestSession: string | null;
-    sessionsBehind: number | null;
-    stalestSessionsBehind: number | null;
-    securities: number;
-  }[];
+  timeframes: FreshnessTimeframe[];
   /** When this was computed, as an ISO 8601 instant. */
   checkedAt: string;
 }
+
+/**
+ * One timeframe on the wire.
+ *
+ * **Named rather than inline since Task 2.8.13**, so the inner properties can
+ * carry a `satisfies` guard of their own. Inline, the guard covered the three
+ * top-level keys and nothing inside the array — and every field that has ever
+ * needed the `["number","null"]` treatment on this endpoint is in here.
+ */
+interface FreshnessTimeframe {
+  timeframe: string;
+  newestSession: string | null;
+  sessionsBehind: number | null;
+  stalestSessionsBehind: number | null;
+  stalestSecurities: readonly string[];
+  stalestSecurityCount: number;
+  /** **The figure `check-deployed.mjs` gates on.** `store-freshness.ts` says why. */
+  unexplainedSessionsBehind: number | null;
+  unexplainedSecurities: readonly string[];
+  unexplainedSecurityCount: number;
+  securities: number;
+}
+
+const freshnessTimeframeProperties = {
+  timeframe: { type: "string" },
+  newestSession: { type: ["string", "null"] },
+  // **`["number", "null"]` and never bare `"number"`.** `CLAUDE.md`
+  // records that `fast-json-stringify` coerces a `null` under `"number"`
+  // to **`0`** on the wire — "a plausible price rather than a visibly
+  // empty string". On this endpoint that coercion turns *we cannot tell*
+  // into *perfectly current*, which is the exact failure this whole
+  // diagnostic exists to prevent, reintroduced at the serialiser. There
+  // is a test, and it covers every one of the three.
+  sessionsBehind: { type: ["number", "null"] },
+  stalestSessionsBehind: { type: ["number", "null"] },
+  stalestSecurities: { type: "array", items: { type: "string" } },
+  // A count is never `null` — `0` is the true answer when nothing is behind —
+  // so bare `"number"` is correct here and the rule above does not apply.
+  stalestSecurityCount: { type: "number" },
+  unexplainedSessionsBehind: { type: ["number", "null"] },
+  unexplainedSecurities: { type: "array", items: { type: "string" } },
+  unexplainedSecurityCount: { type: "number" },
+  securities: { type: "number" },
+} satisfies Record<keyof FreshnessTimeframe, JsonSchemaProperty>;
 
 const freshnessProperties = {
   lastCompletedSession: { type: ["string", "null"] },
@@ -216,20 +258,8 @@ const freshnessProperties = {
     type: "array",
     items: {
       type: "object",
-      properties: {
-        timeframe: { type: "string" },
-        newestSession: { type: ["string", "null"] },
-        // **`["number", "null"]` and never bare `"number"`.** `CLAUDE.md`
-        // records that `fast-json-stringify` coerces a `null` under `"number"`
-        // to **`0`** on the wire — "a plausible price rather than a visibly
-        // empty string". On this endpoint that coercion turns *we cannot tell*
-        // into *perfectly current*, which is the exact failure this whole
-        // diagnostic exists to prevent, reintroduced at the serialiser. There
-        // is a test.
-        sessionsBehind: { type: ["number", "null"] },
-        stalestSessionsBehind: { type: ["number", "null"] },
-        securities: { type: "number" },
-      },
+      properties: freshnessTimeframeProperties,
+      required: Object.keys(freshnessTimeframeProperties),
     },
   },
   checkedAt: { type: "string" },
@@ -332,6 +362,18 @@ export type FeedReadFn = () => FeedDiagnostic;
 export type CoverageReadFn = () => Promise<readonly CoverageRow[]>;
 
 /**
+ * Reads the attempt log (Task 2.8.13).
+ *
+ * **A second reader for the freshness answer, and it is what makes the gate
+ * defensible**: the ledger alone cannot tell *the market had nothing for this
+ * symbol* from *we are behind on this symbol*, and those are exactly the two
+ * states `bar_attempts` exists to separate. Sparse — empty when everything is
+ * well — so this costs a scan of a few hundred rows at worst and never touches
+ * `market_bars`.
+ */
+export type AttemptReadFn = () => Promise<readonly AttemptRow[]>;
+
+/**
  * The route, as a factory rather than a plain plugin.
  *
  * It takes the check as a **function** and not a pool, so this file never
@@ -354,6 +396,7 @@ export type CoverageReadFn = () => Promise<readonly CoverageRow[]>;
 export function createDiagnosticsRoutes(
   checkDatabase: DatabaseCheckFn,
   readCoverage: CoverageReadFn,
+  readAttempts: AttemptReadFn,
   readFeed: FeedReadFn,
 ): FastifyPluginCallback {
   return (app, _options, done) => {
@@ -405,8 +448,18 @@ export function createDiagnosticsRoutes(
       "/diagnostics/freshness",
       { schema: freshnessSchema },
       async (_request, reply) => {
+        // **Two reads, both of them small, and in parallel because they are
+        // independent.** The ledger is a few hundred rows by construction and
+        // the attempt log is empty when everything is well — the property that
+        // keeps this endpoint off `market_bars` entirely.
+        const [coverage, attempts] = await Promise.all([
+          readCoverage(),
+          readAttempts(),
+        ]);
+
         const freshness: StoreFreshness = storeFreshness(
-          await readCoverage(),
+          coverage,
+          attempts,
           new Date(),
         );
 

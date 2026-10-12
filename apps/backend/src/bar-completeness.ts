@@ -252,7 +252,13 @@ export type CompletenessFinding =
       readonly expected: number;
     }
   /**
-   * No bar at all across the most recent covered sessions.
+   * No bar at all across the most recent sessions we asked about.
+   *
+   * **Covered sessions AND empty-answered ones since Task 2.8.13**, because an
+   * empty answer extends the ledger by nothing — so counting covered sessions
+   * alone made this finding structurally unable to fire on a security that has
+   * stopped printing, which is the only thing it exists for. See
+   * {@link trailingSessionsWithoutBars}.
    *
    * Task 2.7.8 moved the `delisted` question here on a measurement: bars
    * stopping correlates with reality at 100% against the vendor's own `inactive`
@@ -391,6 +397,16 @@ export function compareStoreToCalendar(
     const attemptedDates = new Set(
       attempts.map((attempt) => attempt.sessionDate),
     );
+    // **The sessions the vendor was ASKED about and answered nothing for**, as
+    // against the ones it failed on (Task 2.8.13). `ok` in this log means *the
+    // vendor answered successfully and left no bars* — `bar-attempts.ts` — so
+    // these sessions are accounted for even though the ledger never grew to
+    // reach them. A `timeout` is not an answer and is deliberately not here.
+    const emptyAnswered = new Set(
+      attempts
+        .filter((attempt) => attempt.outcome === "ok")
+        .map((attempt) => attempt.sessionDate),
+    );
     const missed = notFetched.filter((date) => !attemptedDates.has(date));
     const beforeListing = notFetched.filter((date) => attemptedDates.has(date));
 
@@ -464,7 +480,11 @@ export function compareStoreToCalendar(
     // `undefined` means the daily ledger cannot answer for this series, which is
     // not the same as answering "nothing". See {@link SeriesStore.lastBarAt}.
     if (store.lastBarAt !== undefined) {
-      const stale = trailingSessionsWithoutBars(covered, store.lastBarAt);
+      const stale = trailingSessionsWithoutBars(
+        covered,
+        emptyAnswered,
+        store.lastBarAt,
+      );
       if (stale >= STALE_SESSION_THRESHOLD) {
         findings.push({
           kind: "no-recent-bars",
@@ -483,22 +503,50 @@ export function compareStoreToCalendar(
 }
 
 /**
- * How many covered sessions sit after the newest bar we hold.
+ * How many sessions we know about sit after the newest bar we hold.
  *
- * Zero when the newest bar is in the last covered session, which is the ordinary
+ * Zero when the newest bar is in the last such session, which is the ordinary
  * case. `covered` is oldest first.
+ *
+ * ## It counts the covered sessions AND the empty-answered ones — 2026-10-12
+ *
+ * **This counted covered sessions alone, and that made the instrument silent on
+ * the clearest case this store has ever held** (Task 2.8.13). `WBD` and `PSKY`
+ * stopped printing on 2026-10-05; the vendor was asked for every session
+ * afterwards and answered empty every time, which writes no bars — so
+ * `backfill.ts` extends the ledger by nothing, on purpose, and the covered
+ * range stops at the last session they traded. There are therefore **no covered
+ * sessions after the last bar**, however long the silence runs: `WBD` scored
+ * **0** at `1m` and **1** at `1d` against a threshold of five, while
+ * `/diagnostics/freshness` was shouting about the same two securities in the
+ * wrong words.
+ *
+ * So the question *how long has this security been silent* has to be asked of
+ * both ledgers. A session with a recorded empty answer is a session we asked
+ * about and were told nothing happened — which is precisely the evidence this
+ * finding is about, and the reason it reads `ok` and not every outcome is that
+ * a `timeout` is not an answer.
  */
 function trailingSessionsWithoutBars(
   covered: readonly MarketSession[],
+  emptyAnswered: ReadonlySet<MarketDate>,
   lastBarAt: Date | null,
 ): number {
-  if (covered.length === 0) return 0;
-  // Covered sessions and no bar anywhere in them: every one of them is after
-  // the newest bar, because there is no newest bar.
-  if (lastBarAt === null) return covered.length;
+  // Every session either ledger can speak for, deduplicated: a session can be
+  // both covered and empty-answered — `BARS.md` §8.20.4's 61 `FDXF` rows are
+  // exactly that — and counting it twice would invent a silence.
+  const known = new Set<MarketDate>([
+    ...covered.map((session) => session.date),
+    ...emptyAnswered,
+  ]);
+
+  if (known.size === 0) return 0;
+  // Sessions we know about and no bar anywhere in them: every one of them is
+  // after the newest bar, because there is no newest bar.
+  if (lastBarAt === null) return known.size;
 
   const lastBarDate = marketDateAt(lastBarAt);
-  return covered.filter((session) => session.date > lastBarDate).length;
+  return [...known].filter((date) => date > lastBarDate).length;
 }
 
 /**

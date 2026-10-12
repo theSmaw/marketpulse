@@ -54,6 +54,7 @@ import { streamLogTo } from "./stream-log.js";
 import { ReplayDuringSessionError } from "./replay-stream.js";
 import { resolveMarketData } from "./market-data.js";
 import { createLiveBarWriter } from "./live-bar-writer.js";
+import { createBarAttemptsRepository } from "./bar-attempts.js";
 import { createMarketBarsRepository } from "./market-bars.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
 import { createMarketDataRoutes } from "./routes/market-data.js";
@@ -142,7 +143,15 @@ app.register(
       // The ledger and not the bars. `bar_coverage` is a few hundred rows however
       // many bars exist; `max(observed_at) group by security_id` is ~345k rows at
       // `1d` and fifty million at `1m`. `store-freshness.ts` carries the argument.
-      createMarketBarsRepository(database).listCoverage(),
+      //
+      // **`listTrackedCoverage` and not `listCoverage` since Task 2.8.13**: this
+      // reader asks whether the backfill is keeping up with the universe we
+      // track **now**, which is `UNIVERSE.md` §12.2's `active` side of the
+      // table. `/securities` keeps the unfiltered read, deliberately.
+      createMarketBarsRepository(database).listTrackedCoverage(),
+    // The second ledger, and the one that tells *the market had nothing* from
+    // *we are behind*. Sparse: empty when everything is well.
+    () => createBarAttemptsRepository(database).listAttempts(),
     // **What this deployment is CONFIGURED to serve, reported whether or not a
     // stream exists** (Task 3.2.8, ADR 0030 §8). Epic 3 has no stream running in
     // the process yet — Story 3.3 starts one — so `status`, `feed` and
