@@ -3,7 +3,7 @@
 // This is the list PRODUCT_SPEC.md §6 asks for — its stated V1 range is
 // "100-500 liquid US-listed equities plus a small number of useful ETFs", and
 // since Task 2.8.2 this file sits at the top of it: the **S&P 500** plus the
-// eleven sector SPDRs and four market proxies, 518 securities. It is the input
+// eleven sector SPDRs and four market proxies, 516 securities. It is the input
 // to Epics 4, 5, 6 and 7 rather than a fixture. Every argument behind it is in
 // `planning/epic-02-security-universe-historical-data/story-03-.../UNIVERSE.md`,
 // which is this story's one document about the subject: §1 the taxonomy, §6 why
@@ -27,7 +27,7 @@
 // `classification_retrieved_at` at load time, and `0003_security_vocabulary.sql`
 // makes all four `not null` with no default so it cannot forget. What this file
 // owes that arrangement is one negative fact, and it holds: **every row below
-// has the same source, per group.** All 503 equities' profile fields (`symbol`,
+// has the same source, per group.** All 501 equities' profile fields (`symbol`,
 // `name`, `exchange`) come from Alpaca's asset catalogue and all their
 // classification fields (`sector`, `industry`) from the published S&P 500 GICS
 // classification, so the loader writes one source string per group for the whole
@@ -289,7 +289,7 @@ const INDEX_PROXIES: readonly IndexEtfSecurity[] = (
  * it is for the reader.
  */
 const EQUITIES: readonly EquitySecurity[] = [
-  // technology — 73 of 503, in 3 industry groups.
+  // technology — 73 of 501, in 3 industry groups.
   ...equities("technology", "Software & Services", [
     ["ACN", "Accenture PLC", "NYSE"],
     ["ADBE", "Adobe Inc.", "NASDAQ"],
@@ -370,7 +370,7 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["TXN", "Texas Instruments Incorporated", "NASDAQ"],
   ]),
 
-  // health_care — 59 of 503, in 2 industry groups.
+  // health_care — 59 of 501, in 2 industry groups.
   ...equities("health_care", "Health Care Equipment & Services", [
     ["ABT", "Abbott Laboratories", "NYSE"],
     ["ALGN", "Align Technology, Inc.", "NASDAQ"],
@@ -435,7 +435,7 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["ZTS", "Zoetis Inc.", "NYSE"],
   ]),
 
-  // financials — 76 of 503, in 3 industry groups.
+  // financials — 76 of 501, in 3 industry groups.
   ...equities("financials", "Financial Services", [
     ["AMP", "Ameriprise Financial, Inc.", "NYSE"],
     ["APO", "Apollo Global Management, Inc.", "NYSE"],
@@ -519,7 +519,7 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["WFC", "Wells Fargo & Co.", "NYSE"],
   ]),
 
-  // consumer_discretionary — 47 of 503, in 4 industry groups.
+  // consumer_discretionary — 47 of 501, in 4 industry groups.
   ...equities("consumer_discretionary", "Consumer Services", [
     ["ABNB", "Airbnb, Inc. Class A", "NASDAQ"],
     ["BKNG", "Booking Holdings Inc.", "NASDAQ"],
@@ -580,7 +580,7 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["TSLA", "Tesla, Inc.", "NASDAQ"],
   ]),
 
-  // communication_services — 24 of 503, in 2 industry groups.
+  // communication_services — 22 of 501, in 2 industry groups.
   ...equities("communication_services", "Media & Entertainment", [
     ["APP", "Applovin Corporation Class A", "NASDAQ"],
     ["CHTR", "Charter Communications, Inc. Class A", "NASDAQ"],
@@ -596,12 +596,10 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["NWS", "News Corporation Class B", "NASDAQ"],
     ["NWSA", "News Corporation Class A", "NASDAQ"],
     ["OMC", "Omnicom Group Inc.", "NYSE"],
-    ["PSKY", "Paramount Skydance Corporation Class B", "NASDAQ"],
     ["RDDT", "Reddit, Inc.", "NYSE"],
     ["TKO", "TKO Group Holdings, Inc.", "NYSE"],
     ["TTD", "The Trade Desk, Inc. Class A", "NASDAQ"],
     ["TTWO", "Take-Two Interactive Software, Inc.", "NASDAQ"],
-    ["WBD", "Warner Bros. Discovery, Inc. Series A", "NASDAQ"],
   ]),
   ...equities("communication_services", "Telecommunication Services", [
     ["ECHO", "EchoStar Corporation", "NASDAQ"],
@@ -610,7 +608,7 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["VZ", "Verizon Communications", "NYSE"],
   ]),
 
-  // industrials — 83 of 503, in 3 industry groups.
+  // industrials — 83 of 501, in 3 industry groups.
   ...equities("industrials", "Capital Goods", [
     ["ALLE", "Allegion Public Limited Company", "NYSE"],
     ["AME", "Ametek, Inc.", "NYSE"],
@@ -701,7 +699,7 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["WM", "Waste Management, Inc.", "NYSE"],
   ]),
 
-  // consumer_staples — 34 of 503, in 3 industry groups.
+  // consumer_staples — 34 of 501, in 3 industry groups.
   ...equities("consumer_staples", "Food, Beverage & Tobacco", [
     ["ADM", "Archer Daniels Midland Company", "NYSE"],
     ["BF.B", "Brown-Forman Corporation Class B", "NYSE"],
@@ -710,7 +708,7 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["HRL", "Hormel Foods Corporation", "NYSE"],
     ["HSY", "The Hershey Company", "NYSE"],
     ["KDP", "Keurig Dr Pepper Inc.", "NASDAQ"],
-    ["KHC", "The Kraft Heinz Company", "NASDAQ"],
+    ["KHC", "The Kraft Heinz Company", "NYSE"],
     ["KO", "Coca-Cola Company", "NYSE"],
     ["MDLZ", "Mondelez International, Inc. Class A", "NASDAQ"],
     ["MKC", "McCormick & Company, Incorporated Non-VTG CS", "NYSE"],
@@ -743,7 +741,7 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["PG", "Procter & Gamble Company", "NYSE"],
   ]),
 
-  // energy — 21 of 503, in 1 industry group.
+  // energy — 21 of 501, in 1 industry group.
   ...equities("energy", "Energy", [
     ["APA", "APA Corporation", "NASDAQ"],
     ["BKR", "Baker Hughes Company Class A", "NASDAQ"],
@@ -768,7 +766,7 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["XOM", "ExxonMobil Holdings Corporation", "NYSE"],
   ]),
 
-  // utilities — 31 of 503, in 1 industry group.
+  // utilities — 31 of 501, in 1 industry group.
   ...equities("utilities", "Utilities", [
     ["AEE", "Ameren Corporation", "NYSE"],
     ["AEP", "American Electric Power Company, Inc.", "NASDAQ"],
@@ -803,7 +801,7 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["XEL", "Xcel Energy Inc.", "NASDAQ"],
   ]),
 
-  // real_estate — 30 of 503, in 2 industry groups.
+  // real_estate — 30 of 501, in 2 industry groups.
   ...equities("real_estate", "Equity REITs", [
     ["AMT", "American Tower Corporation", "NYSE"],
     ["ARE", "Alexandria Real Estate Equities, Inc.", "NYSE"],
@@ -839,7 +837,7 @@ const EQUITIES: readonly EquitySecurity[] = [
     ["CSGP", "CoStar Group, Inc.", "NASDAQ"],
   ]),
 
-  // materials — 25 of 503, in 1 industry group.
+  // materials — 25 of 501, in 1 industry group.
   ...equities("materials", "Materials", [
     ["ALB", "Albemarle Corporation", "NYSE"],
     ["AMCR", "Amcor plc", "NYSE"],
@@ -941,7 +939,19 @@ export const UNIVERSE_PROVENANCE: Record<
   // date is honestly the date this group was last checked against it. The
   // fifteen ETFs are hand-curated and are the reason the string is not simply
   // the vendor's name.
-  profile: { source: "alpaca-assets + curated ETFs", checkedOn: "2026-09-08" },
+  //
+  // **Moved again on 2026-10-12 by Task 2.3.9, and this is the case §12.9
+  // requires it for**: `pnpm universe:check` was run over the whole list
+  // against the vendor's asset catalogue — the first whole-list re-check since
+  // 2026-09-08 — and it is exactly this field group it reads (`symbol`,
+  // `name`, `exchange` and the vendor's own status). It disagreed three times:
+  // `PSKY` and `WBD` are unknown to the vendor entirely and their rows are
+  // deleted here, and `KHC`'s venue read `NYSE` against this file's `NASDAQ`.
+  // `classification.checkedOn` does NOT move with it, because nothing
+  // re-checked a sector or an industry group — Alpaca carries neither, and
+  // claiming it would be the lie §5 nominates this column as the mitigation
+  // against.
+  profile: { source: "alpaca-assets + curated ETFs", checkedOn: "2026-10-12" },
   // **Moved for the first time since Task 2.3.4 wrote it**, and moving it is
   // the whole point of §11's rule: this group genuinely was re-checked, because
   // every equity's sector and industry group now comes from the published S&P
@@ -1008,12 +1018,12 @@ export const indexProxyTickers = (
     .map((security) => security.symbol);
 
 /**
- * **The companies, and nothing that holds them** — the 503 equities (Task
+ * **The companies, and nothing that holds them** — the 501 equities (Task
  * 4.4.4).
  *
  * `indexProxyTickers`' and `sectorEtfTickers`' third sibling, derived by `kind`
  * for the same reason: a literal count is the thing that goes quietly wrong.
- * **Nothing here spells 503**, and that is the point — one delisting makes a
+ * **Nothing here spells 501**, and that is the point — one delisting makes a
  * hard-coded figure a lie with no symptom, on a screen whose whole claim is
  * *of the N companies we track*.
  *

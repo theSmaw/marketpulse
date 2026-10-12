@@ -49,7 +49,8 @@ correlation id, an error contract, configuration, testing at six levels, a CI
 pipeline, and both halves deployed to Azure.
 
 **Epic 3 (Live Market Data): complete, 11 stories, closed 2026-09-25.** The
-product is live: one socket upstream carries 518 securities, the table and the
+product is live: one socket upstream carries 518 securities (**516 since
+2026-10-12** — Task 2.3.9 untracked `PSKY` and `WBD`), the table and the
 charts move on their own, the session is written down, the chrome says whether
 the feed is arriving, and a **person** has watched all of it working against
 the real IEX socket during a real session. Eight ADRs — 0030–0037 — and seven
@@ -60,12 +61,27 @@ session, the 390 question from a real phone, and a screen-reader pass.
 
 **Epic 2 (Security Universe & Historical Data): complete, 14 stories, closed
 2026-09-15.** A managed PostgreSQL instance, a
-migration mechanism, a curated universe of 518 securities, a trading calendar and
+migration mechanism, a curated universe of 518 securities (**516 since
+2026-10-12**), a trading calendar and
 market-time module, a provider seam, a real Alpaca client, a bar store of roughly
 48 million minute bars with a ledger and nightly backfill, the market-data wire
 (2.9), the frontend's state and fetch layer (2.10), search and selection (2.11),
 the price chart (2.12), the volume chart with time-window selection (2.13), and
 the provenance surface, the partial states and the close (2.14).
+
+**The universe is 516 securities — 501 equities, the eleven sector SPDRs and
+the four market proxies — since 2026-10-12.** Task 2.3.9 ran `pnpm universe:check`
+against the vendor, the first whole-list re-check since the file was written on
+2026-09-08, and `PSKY` and `WBD` came back unknown to the vendor entirely; they
+are `untracked` rather than deleted, so their rows and their stored bars survive
+and nothing computed over the market we track **now** counts them. `KHC`'s
+listing venue was corrected to `NYSE` in the same change. **The two stores
+disagree about the row count and both are right**: CI builds its store into an
+empty database, so the two symbols are never inserted there and `/securities`
+serves **516**; the deployed store already held them, so it serves **518 rows of
+which 516 are active**. Every `518` and `503` surviving below this line is a
+dated measurement left standing on purpose — take the count from
+`UNIVERSE.md` §17, which is printed from the file.
 
 ### What a user can see today
 
@@ -95,9 +111,9 @@ only on a store with bars and the two-tape note only mid-session.
 **And since 2026-09-27 two more of the seven hold figures, which is the half of
 the page that computes over the whole universe rather than over fifteen
 symbols.** `Sector performance` draws **eleven ranked sectors** (Story 4.3) and
-`Market breadth` draws **three counts, a remainder and a net headline over 503
+`Market breadth` draws **three counts, a remainder and a net headline over 501
 equities** (Story 4.4, 2026-10-07). Four things from them are load-bearing
-further on. **The join sees all 518** since Task 4.4.4 — one call site,
+further on. **The join sees all 516** since Task 4.4.4 — one call site,
 `trackedTickers()`, with the fifteen proxies selected by a **positive**
 membership set, because the negative filter it replaced would silently admit
 every symbol a later story adds. **Breadth ships counts with a stated
@@ -132,7 +148,7 @@ and `docs/GAPS.md`.
 **And since 2026-10-08 a fourth region holds figures, which is the first thing
 on this screen that answers _where should I look_.** `Movers` draws **two
 ranked lists** — `GAINERS` and `LOSERS`, **five rows each** — over the same
-503 equities and the **same single eligibility pass** `Market breadth` counts,
+501 equities and the **same single eligibility pass** `Market breadth` counts,
 each row carrying its rank, its **ticker**, its company name, its price and
 its change. **Each list holds only rows whose direction matches it**, so a
 one-sided market draws one full list and one short or empty one rather than
@@ -278,7 +294,7 @@ Task 4.2.5
 **renamed** the region from `Market summary`, which was a second
 word for a concept the product already had (the `/securities` group heading,
 and `Market proxy` on the security page) and which promised the broadest view
-on a screen where three later regions summarise all 518. ~~The other six still
+on a screen where three later regions summarise all 516. ~~The other six still
 say what they are waiting for~~, in the `reserved` state Story 4.1 added to
 `Panel`, which is ADR 0029's defer rule as a component rather than a spinner
 that never resolves~~ — **false since 2026-10-07: three of the six do, and the
@@ -364,7 +380,7 @@ first frame, because the snapshot a browser is answered with is the backend's
 own current market state rather than an empty map — and **a backend deploy no
 longer strands every open tab on `DISCONNECTED`**, because the browser now
 reads the close code and comes back in 500 ms on `1001 going away` against 2 s
-doubling to a 30 s ceiling on anything else. One socket upstream carries 518
+doubling to a 30 s ceiling on anything else. One socket upstream carries 516
 securities; downstream a browser receives only the symbols it subscribed to,
 and one that stops reading is dropped at 1 MiB of buffer rather than queued for.
 
@@ -780,7 +796,7 @@ the previous close`), so **the sentence's length now depends on the state of
 
 **Two stores photograph differently and both are correct.** The deployed store is
 backfilled nightly and answers the default window in full; a developer's answers
-it short. **CI's store has 518 securities and zero bars**, so every chart there
+it short. **CI's store has 516 securities and zero bars**, so every chart there
 is a correct `empty` — which is why a new browser assertion about a number is an
 assertion about data the runner may not have. `pnpm store:bare` reproduces that
 shape locally.
@@ -856,7 +872,7 @@ were the edit. Each of these cost real time that session.
   documents, prepare the commit. Polling a log is the one thing that is never
   the next piece of work.
 - **Before asserting on a NUMBER in a browser spec, ask whether CI has the
-  data.** CI's store is 518 securities and **zero bars**, so every chart there is
+  data.** CI's store is 516 securities and **zero bars**, so every chart there is
   a correct `empty` and every figure on the security page is absent. This has
   cost a six-minute round trip once (#314, `no Close label in the region`).
   `pnpm store:bare` answers it locally in seconds.
@@ -1068,7 +1084,7 @@ pnpm universe:check # compare the curated universe against the vendor. Changes n
 pnpm bars          # fetch and print one symbol's bars. Read-only, stores nothing. Metered request.
 pnpm backfill      # fetch and STORE bars. Metered, paced, sequential.
 pnpm bars:check    # what is missing from the store, and why.
-pnpm store:bare    # build `marketpulse_bare` — CI's store, 518 securities and ZERO bars —
+pnpm store:bare    # build `marketpulse_bare` — CI's store, 516 securities and ZERO bars —
                    # beside your own, with CI's own two commands. Then:
                    #   DATABASE_NAME=marketpulse_bare pnpm dev
                    # and run a spec against it. Your own store is untouched.

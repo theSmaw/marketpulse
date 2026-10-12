@@ -274,6 +274,26 @@ reasoning, and the sector floors and ceilings the list is built to, are in
 denominator, a payload — should size against the real figure and re-read it
 rather than cite this line.
 
+> **Amended again 2026-10-12 by Task 2.3.9 — the universe is 516, and 501 of
+> them are equities.** `pnpm universe:check` was run over the whole list
+> against the vendor for the first time since the file was curated and found
+> that **`PSKY` and `WBD` are unknown to the vendor entirely**; the owner's
+> decision was to stop tracking both. They were deleted from
+> `apps/backend/src/universe.ts`, which is how `untracked` is expressed — the
+> rows and their bars are kept, per `UNIVERSE.md` §12.1 — so the universe is
+> **516 securities: 501 equities, eleven sector SPDRs and four market
+> proxies**. The band in this section's own instruction is now met rather than
+> overshot by three. `KHC`'s listing venue was corrected to `NYSE` in the same
+> change.
+>
+> **Two stores now disagree, and both are right.** A store built into an empty
+> database — which is how CI builds one, and what `pnpm store:bare`
+> reproduces — never inserts the two symbols at all and holds **516 rows, all
+> active**. The deployed store already held them, so it holds **518 rows of
+> which 516 are `active`**. Every figure in the dated amendments below is a
+> record of what was measured on its own date and is left standing; this is
+> the live one.
+
 The architecture should support expansion without requiring a redesign.
 
 The smaller live universe keeps data costs, browser load and historical processing manageable while we establish the core architecture.
@@ -1949,8 +1969,8 @@ The first vertical slice should be:
 > **Display 100 securities, receive live price updates, calculate an explainable anomaly score, and click a security to inspect the underlying price/volume evidence.**
 
 **Amended 2026-09-15, after Epic 2.** Two of the four clauses are done and the
-number is stale. The universe is **518** rather than 100 (§6 carries the
-re-sizing), securities are displayed, and a security can be clicked to inspect
+number is stale. The universe is **516** rather than 100 (§6 carries the
+re-sizing, and its 2026-10-12 amendment the two securities that left it), securities are displayed, and a security can be clicked to inspect
 its price and volume evidence — Epic 2's exit criterion, walked on the deployed
 site. ~~**Live price updates are Epic 3** and~~ — **amended 2026-09-25 at Epic 3's
 close: live price updates are DONE.** Three of the four clauses now hold. On
