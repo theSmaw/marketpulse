@@ -1797,3 +1797,112 @@ sentence explains what `ok` means. It is 61 rows rather than 416 and it is left
 alone: a second rule keyed on "before this series' first bar" would need a
 first-bar date the completeness report does not carry, to quieten a section that
 is already honest.
+
+## 8.21 The ceiling that cannot be met, and the instrument that stayed silent — found 2026-10-12
+
+**Every `deploy` run from 2026-10-08 ended with `check-deployed` red, and the scheduled
+`probe-deployed` with it.** The owner's decision was to investigate rather than mute the gate, and
+then to repair it before finishing the story in flight — because a check that is red for a
+non-defect is how the one instrument that sees what nothing else can gets ignored, which
+`check-deployed.mjs`' own header argues at length.
+
+**It was not a defect in the store.** `GET /diagnostics/freshness` at 2026-10-12T00:52Z:
+`lastCompletedSession 2026-10-09`, both timeframes `newestSession 2026-10-09` and
+**`sessionsBehind: 0`**, 518 securities — and `stalestSessionsBehind` **4** at `1m` and **3** at
+`1d`. The `1m` ledger histogram over all 518 rows is **`{"2026-10-05": 2, "2026-10-09": 516}`**:
+two rows and no tail. The two are **`WBD`** (107,605 bars) and **`PSKY`** (107,556), and
+`marketDateAt(end − 1 ms)` for both is `2026-10-05`, with 06, 07, 08 and 09 after it — exactly the
+reported figure.
+
+### 8.21.1 Three witnesses that they stopped printing
+
+The vendor was asked every session and answered **empty** — `2 symbols with nothing`, 2 × 4
+sessions at `1m` and 2 × 3 at `1d`, which accounts for every empty answer in the run with nothing
+left over. The **IEX live writer** has not moved them either, so both tapes are silent. And
+`LIVE-DATA.md` §7.6 measured every one of 518 symbols producing at least one bar on an ordinary
+session, with the worst name at 2.1% of minutes rather than zero. `bar-completeness.ts` already
+states the rule: _a security with **zero** bars across five consecutive sessions the backfill asked
+for is not thin — it has no prints at all, which is what a delisting looks like from here._
+
+The 3-against-4 difference is **request granularity rather than data**: `alpaca-mapping.ts` sets
+`covered` from the requested window rather than from the span of the bars, and the `1m` pass fetches
+one session per request while the `1d` pass fetches a block. Same two securities, same last print,
+two numbers — a reason in itself not to rest a gate on that value.
+
+### 8.21.2 The figure could not be satisfied, and that is the defect
+
+`store-freshness.ts` took the **minimum**, over every `bar_coverage` row, of the market date the
+covered range reaches. It **could not** exclude a security the vendor answered empty for:
+`CoverageRow` was `{ timeframe, covered }` and it never read the attempt log. So it read _the market
+had nothing for this symbol_ as _we are behind on this symbol_ — the two states `bar_attempts`
+exists to tell apart — and the figure **grows by one every session, without bound**, with no
+backfill able to move it. The small "already held" counts in the run output are the skip window over
+a ten-session range rather than per security; the `1m` pass reported `0 bars stored, 0 corrected,
+764705 unchanged`, and every security was in every request.
+
+**And `backfill.ts` is behaving as designed**, which is why nothing upstream is repaired here: an
+empty answer is a success (`PROVIDER.md` §8.2), `BarSeries` gives an empty series no `covered`
+window, so it writes no bars and extends the ledger by nothing. The comment says so: _"It extends
+the ledger by nothing, so the next session on the far side of it is disjoint by one and will be
+refused below."_
+
+### 8.21.3 What shipped
+
+- **Two figures on the wire, and the gate reads the second.** `stalestSessionsBehind` is unchanged
+  — it is the true number and the only one that can see a partial fill — and
+  `unexplainedSessionsBehind` counts only trailing sessions with **no recorded empty answer**. A
+  backfill that runs moves it: every session it asks about either arrives as bars or is recorded as
+  an `ok` attempt. The freshness read now joins `bar_attempts`, which keeps the module's design
+  property — the ledger and the sparse log, **never** `market_bars`.
+- **The securities are named.** `stalestSecurities` / `unexplainedSecurities`, up to ten
+  alphabetically, with a count beside each so a reader can tell a sample from the whole set. This
+  investigation had the figure `4` and needed a second endpoint and a histogram over 518 rows to
+  find out it meant `WBD` and `PSKY`.
+- **`no-recent-bars` can fire at all.** It counted **covered** sessions after the newest bar, and
+  because an empty answer extends coverage by nothing there are none — so `WBD` scored **0** at `1m`
+  and **1** at `1d` against a `STALE_SESSION_THRESHOLD` of 5. The instrument built to say _this
+  security has stopped printing_ was silent on the clearest case this store has ever held, while
+  the gate built to say _the backfill stopped running_ said it loudly and in the wrong words. It now
+  counts the covered sessions **and** the empty-answered ones, deduplicated.
+- **The freshness path filters `status = 'active'`** through a second repository read,
+  `listTrackedCoverage`. `/securities` is untouched and still shows an untracked row with its
+  status. `UNIVERSE.md` §12.2 has the row it was missing.
+- **Four false sentences corrected.** The `BARS.md §8.18` citation in `MAX_SESSIONS_BEHIND`'s
+  failure path (§8.18 is about the nightly job filling one timeframe of two and contains no
+  discussion of the ceiling — the constant's own comment is the only record); that comment's
+  internal inconsistency (a sizing argument about the **schedule** carrying a subject that was the
+  worst **security**); the failure message's misdiagnosis (_"The nightly backfill has not run, or
+  has not covered every security"_ — it had run eight consecutive times and covered all 518 in every
+  session) followed by a dispatch that would spend metered quota re-fetching **764,705 bars that
+  are already `unchanged`**; and `docs/GAPS.md`'s tolerance entry, which was firing a second time
+  from the other end and whose own re-measure **cannot see this instance**, because `newestSession`
+  is dead level with `lastCompletedSession` on every day of the outage.
+
+### 8.21.4 The forward hazard, recorded rather than repaired
+
+**If either symbol ever prints again**, `recordSeries`' contiguity check raises `CoverageGapError`,
+the symbol is dropped into `blocked` for the rest of the run, and it is **permanently behind with
+nothing but a `coverage-gap` attempt row saying why** — recoverable only by an explicit
+`--from/--to` dispatch. `backfill.ts`' own comment predicted it. It is the same question from the
+other end — what an empty answer should do to the ledger — and may deserve an amendment beside
+ADR 0035.
+
+**The curation decision is not this task's.** Whether `WBD` and `PSKY` leave the tracked universe is
+the owner's, pending `pnpm universe:check` against the vendor's asset catalogue, and it moves the
+breadth and movers denominators on the landing page. Nothing here edits `universe.ts`.
+
+**Reversal trigger, a condition:** _the first time `/diagnostics/freshness` reports a security behind
+the ceiling that **has** a bar inside the sessions it is behind on_ — a lag that is ours rather than
+the market's. That is the state the maximum was bought to catch, and the only condition under which
+excluding empty-answered series could hide something.
+
+### 8.21.5 And one thing found while reporting it, not repaired
+
+A trailing run of empty-answered sessions is reported by `pnpm bars:check` as
+**`listed-mid-window`**, whose own sentence is _"the window opens before this security did"_ — because
+the default window is the ledger's own span across the whole universe, so `WBD`'s four silent
+sessions are `notFetched` **and** attempted, which is that finding's test. The label is false for a
+**trailing** gap, and telling the two ends apart needs a first-bar date the completeness report does
+not carry — the same residue §8.20.4 left alone, now with a second instance. It is recorded here
+rather than fixed because `no-recent-bars` is the finding a reader of that report acts on, and it
+now fires on exactly these securities.

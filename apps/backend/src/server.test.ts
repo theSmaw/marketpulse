@@ -447,7 +447,9 @@ describe("the response-schema declaration", () => {
               checkedAt: 0,
             }),
           () => Promise.resolve([]),
-          // Task 3.2.8's third reader. A stub, for the same reason the two
+          // The attempt log (Task 2.8.13), stubbed for the same reason.
+          () => Promise.resolve([]),
+          // Task 3.2.8's fourth reader. A stub, for the same reason the two
           // above are: this file proves the route TABLE, not a feed.
           () => ({
             provider: "none",
@@ -489,6 +491,7 @@ describe("the response-schema declaration", () => {
             readSeries: () => Promise.reject(new Error("not used")),
             readCoverage: () => Promise.resolve(undefined),
             listCoverage: () => Promise.resolve([]),
+            listTrackedCoverage: () => Promise.resolve([]),
             readLastBarDates: () => Promise.resolve(new Map()),
             readLastCloses: () => Promise.resolve(new Map()),
           },

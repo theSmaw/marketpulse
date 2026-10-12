@@ -4316,4 +4316,59 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "does not parse",
   },
+  {
+    name: "a-failed-fetch-explains-a-gap",
+    proves:
+      "The gate's figure counts a trailing session as accounted for only when " +
+      "the vendor ANSWERED and had nothing to send \u2014 `ok` in the " +
+      "attempt log. Accepting any recorded attempt lets a backfill that " +
+      "cannot reach the vendor at all quieten the one check that would say " +
+      "so: every session it timed out on would read as the market's silence " +
+      "rather than as ours (Task 2.8.13). The substitution is the one " +
+      "somebody writes while simplifying a filter, not a deleted line.",
+    file: "apps/backend/src/store-freshness.ts",
+    find: '      .filter((attempt) => attempt.outcome === "ok")',
+    replace:
+      "      // pnpm break: reverted automatically\n" +
+      "      .filter((attempt) => attempt.outcome !== undefined)",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/store-freshness.test.ts",
+    ],
+    expect: "treats a FAILED attempt as no answer at all",
+  },
+  {
+    name: "the-silence-is-measured-over-covered-sessions-only",
+    proves:
+      "`no-recent-bars` counts the sessions we KNOW ABOUT after the last bar " +
+      "\u2014 the covered ones and the empty-answered ones together. " +
+      "Counting the covered ones alone makes the finding structurally unable " +
+      "to fire on a security that has stopped printing, which is the only " +
+      "thing it exists for: an empty answer extends the ledger by nothing, " +
+      "so there are no covered sessions after the last bar however long the " +
+      "silence runs. It shipped that way and was silent on `WBD` and `PSKY` " +
+      "for four days while the deployed gate shouted about the same two " +
+      "securities in the wrong words (Task 2.8.13). Needs a database, so it " +
+      "lives outside `verify`.",
+    file: "apps/backend/src/bar-completeness.ts",
+    find:
+      "  const known = new Set<MarketDate>([\n" +
+      "    ...covered.map((session) => session.date),\n" +
+      "    ...emptyAnswered,\n" +
+      "  ]);",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  const known = new Set<MarketDate>(covered.map((session) => session.date));",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/bar-attempts.database.test.ts",
+    ],
+    expect: "finds WBD and PSKY",
+  },
 ];

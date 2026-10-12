@@ -14,8 +14,8 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { DatabaseCheck, DatabaseCheckFn } from "../database.js";
-import type { CoverageRow } from "../store-freshness.js";
-import { toTimeRange } from "@marketpulse/shared";
+import type { AttemptRow, CoverageRow } from "../store-freshness.js";
+import { toMarketDate, toTicker, toTimeRange } from "@marketpulse/shared";
 import { buildServer } from "../server.js";
 import type { FeedDiagnostic } from "./diagnostics.js";
 import { createDiagnosticsRoutes } from "./diagnostics.js";
@@ -42,6 +42,7 @@ const NO_FEED: FeedDiagnostic = {
 async function serverWith(
   check: DatabaseCheckFn,
   coverage: readonly CoverageRow[] = [],
+  attempts: readonly AttemptRow[] = [],
   feed: FeedDiagnostic = NO_FEED,
 ): Promise<FastifyInstance> {
   const instance = buildServer({
@@ -57,6 +58,7 @@ async function serverWith(
     createDiagnosticsRoutes(
       check,
       () => Promise.resolve(coverage),
+      () => Promise.resolve(attempts),
       () => feed,
     ),
   );
@@ -204,6 +206,7 @@ describe("GET /diagnostics/database", () => {
       createDiagnosticsRoutes(
         () => Promise.resolve(reachable),
         () => Promise.resolve([]),
+        () => Promise.resolve([]),
         () => NO_FEED,
       ),
     );
@@ -269,6 +272,7 @@ describe("GET /diagnostics/freshness", () => {
     return withFreshness(
       [
         {
+          symbol: toTicker("NVDA"),
           timeframe: "1d",
           covered: toTimeRange(
             new Date("2024-01-02T14:30:00.000Z"),
@@ -299,12 +303,177 @@ describe("GET /diagnostics/freshness", () => {
       },
     );
   });
+
+  // **Task 2.8.13's three additions to this wire, and all three were a figure
+  // somebody had to leave the endpoint to interpret.**
+  it("names the securities a figure is about, so a reader needs no second endpoint", () => {
+    // The investigation that produced the split had `stalestSessionsBehind: 4`
+    // and nothing else, and finding out it meant WBD and PSKY cost a histogram
+    // over 518 ledger rows from a second endpoint.
+    return withFreshness(
+      [
+        coverageRow("WBD", "1d", "2026-09-04T20:00:00.000Z"),
+        coverageRow("NVDA", "1d", "2026-10-09T20:00:00.000Z"),
+      ],
+      async (instance) => {
+        const daily = (await freshnessOf(instance)).timeframes.find(
+          (entry) => entry.timeframe === "1d",
+        );
+
+        // Whatever the clock, `WBD` is further behind than `NVDA`, so it alone
+        // is at the stalest figure. Asserting the names rather than the number
+        // is what keeps this test off the calendar.
+        expect(daily?.stalestSecurities).toEqual(["WBD"]);
+        expect(daily?.stalestSecurityCount).toBe(1);
+      },
+    );
+  });
+
+  it("drops a session from the gate's figure when an empty answer explains it", async () => {
+    // The whole repair, as a difference rather than as an absolute: the clock is
+    // real, so the gap from 2026-09-04 grows every session and no pinned number
+    // survives tomorrow. What is stable is that ONE recorded empty answer
+    // accounts for exactly one session — and 2026-09-08 is the first session
+    // after the 4th, because the 7th is Labor Day.
+    const ledger = [coverageRow("WBD", "1d", "2026-09-04T20:00:00.000Z")];
+
+    const before = await dailyFreshness(ledger, []);
+    const after = await dailyFreshness(ledger, [
+      {
+        symbol: toTicker("WBD"),
+        timeframe: "1d",
+        sessionDate: toMarketDate("2026-09-08"),
+        outcome: "ok",
+      },
+    ]);
+
+    // The reported figure is untouched — it is the true number and the only one
+    // that can see a partial fill. Only the gate's figure moves.
+    expect(after.stalestSessionsBehind).toBe(before.stalestSessionsBehind);
+    expect(after.unexplainedSessionsBehind).toBe(
+      (before.unexplainedSessionsBehind ?? 0) - 1,
+    );
+    expect(after.unexplainedSecurities).toEqual(["WBD"]);
+  });
+
+  it("sends an unknown gate figure as null and NEVER as zero", () => {
+    // The same trap as `sessionsBehind` above, on the field the deployed gate
+    // now fails on — where `0` reads as *nothing unexplained, pass*. The schema
+    // declares `["number", "null"]`; this is the assertion that it still does.
+    return withFreshness([], async (instance) => {
+      for (const entry of (await freshnessOf(instance)).timeframes) {
+        expect(entry.unexplainedSessionsBehind).toBeNull();
+        expect(entry.unexplainedSessionsBehind).not.toBe(0);
+        // An absence here is the other failure: `check-deployed.mjs` reads a
+        // missing field as *the running revision predates the gate*, so a field
+        // the serialiser stripped would read as a bad rollout for ever.
+        expect(entry).toHaveProperty("unexplainedSecurities");
+        expect(entry.unexplainedSecurities).toEqual([]);
+      }
+    });
+  });
+
+  it("names nobody when nothing is behind, rather than naming the whole universe", () => {
+    // A figure of zero means no security is behind; ten symbols beside it would
+    // read as ten findings. The ledger here reaches the current session, so
+    // this is the steady state rather than a contrived one.
+    return withFreshness(
+      [coverageRow("NVDA", "1d", nextSessionClose())],
+      async (instance) => {
+        const daily = (await freshnessOf(instance)).timeframes.find(
+          (entry) => entry.timeframe === "1d",
+        );
+
+        expect(daily?.stalestSessionsBehind).toBe(0);
+        expect(daily?.stalestSecurities).toEqual([]);
+        expect(daily?.stalestSecurityCount).toBe(0);
+      },
+    );
+  });
 });
+
+/** The `1d` entry, from a server built, read and closed for this one answer. */
+async function dailyFreshness(
+  coverage: readonly CoverageRow[],
+  attempts: readonly AttemptRow[],
+): Promise<{
+  stalestSessionsBehind: number | null;
+  unexplainedSessionsBehind: number | null;
+  unexplainedSecurities: string[];
+}> {
+  // Closed here rather than left to `afterEach`, because this test needs two
+  // servers and that hook closes one. A leaked Fastify instance is an open
+  // handle in a suite whose contract is that it opens no socket.
+  const instance = await serverWith(
+    () => Promise.resolve({ ok: true as const, ms: 0, ageMs: 0, checkedAt: 0 }),
+    coverage,
+    attempts,
+  );
+
+  try {
+    const daily = (await freshnessOf(instance)).timeframes.find(
+      (entry) => entry.timeframe === "1d",
+    );
+    if (daily === undefined) throw new Error("no 1d entry on the wire");
+    return daily;
+  } finally {
+    await instance.close();
+    app = undefined;
+  }
+}
+
+/** One ledger row, in the shape the freshness read takes. */
+function coverageRow(
+  symbol: string,
+  timeframe: "1m" | "1d",
+  end: string,
+): CoverageRow {
+  return {
+    symbol: toTicker(symbol),
+    timeframe,
+    covered: toTimeRange(new Date("2024-01-02T14:30:00.000Z"), new Date(end)),
+  };
+}
+
+/**
+ * A covered end far enough ahead that no session can be after it.
+ *
+ * The honest way to write "current" against a real clock: a store cannot be
+ * behind a session that has not happened, and `sessionsBetween` floors at zero
+ * rather than going negative.
+ */
+function nextSessionClose(): string {
+  return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+/** The parsed freshness body, typed as the check reads it. */
+async function freshnessOf(instance: FastifyInstance): Promise<{
+  timeframes: {
+    timeframe: string;
+    newestSession: string | null;
+    sessionsBehind: number | null;
+    stalestSessionsBehind: number | null;
+    stalestSecurities: string[];
+    stalestSecurityCount: number;
+    unexplainedSessionsBehind: number | null;
+    unexplainedSecurities: string[];
+    unexplainedSecurityCount: number;
+  }[];
+}> {
+  const response = await instance.inject({
+    method: "GET",
+    url: "/diagnostics/freshness",
+  });
+
+  expect(response.statusCode).toBe(200);
+  return response.json();
+}
 
 /** A server with a stubbed coverage ledger, torn down after the assertion. */
 async function withFreshness(
   coverage: readonly CoverageRow[],
   assertion: (instance: FastifyInstance) => Promise<void>,
+  attempts: readonly AttemptRow[] = [],
 ): Promise<void> {
   const instance = await serverWith(
     () =>
@@ -315,6 +484,7 @@ async function withFreshness(
         checkedAt: 0,
       }),
     coverage,
+    attempts,
   );
   await assertion(instance);
 }
