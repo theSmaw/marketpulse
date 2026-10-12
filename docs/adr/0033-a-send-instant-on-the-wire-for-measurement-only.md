@@ -95,6 +95,42 @@ the-send-instant-becomes-a-clock` proves the check goes red.
 > cost ~39,508 B/min ≈ **15.4 MB** a 6.5-hour session per attached browser, of
 > which 36 bytes a frame was this field.
 
+> **Amended 2026-10-12 (Task 4.9.10): this wire now carries FOUR clock
+> readings, and this ADR names three.** Nothing above is withdrawn. Story 4.2
+> added `computedAt` to the `overview` frame and Task 4.8.12 added
+> `observedAt` beside it, and the rules governing both live in
+> [ADR 0038](0038-the-overview-aggregate-one-join-one-frame.md)'s decision 3
+> and in `docs/GAPS.md` rather than here. **By this ADR's own precedent that is
+> the wrong home**: an instant nothing reads got a whole ADR, so an instant a
+> future threshold _may_ read deserves at least a line in the file a future
+> author will audit when they go looking for what a clock reading on this wire
+> is allowed to do.
+>
+> The two rules, recorded here as a pointer and not as a second home:
+>
+> - **`computedAt` is a reading of THIS PROCESS's clock, and no surface may
+>   date the data from it** — not a liveness rule, not a drawn sentence, not a
+>   spoken one. It advances whenever somebody opens a tab, because the gateway
+>   runs the join on connect, so a threshold keyed on it reads a dead feed as
+>   `LIVE` for as long as the process keeps answering. It cost a shipped
+>   sentence: the landing page's source note drew `COMPUTED · Oct 9 · 21:42
+EDT` over four closes four weeks old. Held by
+>   `the-overview-note-dates-an-observation`, with two breaks.
+> - **`observedAt` is the only wire instant a liveness rule may legitimately
+>   read**, and it is deliberately **not** added to
+>   `the-send-instant-is-not-a-clock`. It is the newest observation the
+>   aggregate contains, folded from the bars' own `startsAt`, and it is a fact
+>   about **the market** rather than about this process — which is precisely
+>   what `sentAt` is not, and the whole reason constraint 2 exists. Story 4.7
+>   drew an **age** from it (`Nothing newer than Sep 16 · 14:02 EDT has reached
+us.`) and no threshold, per Story 3.10's _an age, never a verdict_; a
+>   threshold over the aggregate would be built on this field and on no other.
+>
+> So the line a future author needs is: **three of the four instants on this
+> wire are facts about the market (`startsAt`, `observedAt`) or about a
+> process (`sentAt`, `computedAt`), and only the market ones may ever reach a
+> rule.**
+
 ### Two smaller decisions inside it
 
 - **A frame without a stamp is unreadable.** The only producer of this

@@ -323,6 +323,46 @@ batches a minute and **64.1 KiB/min** at the close's 16.1.
   `unsupported` frame **advances `lastInboundAt`**, because every inbound message
   is evidence the socket is alive.
 
+**Amended 2026-10-12 (Task 4.9.10): the grain rule above owes the property
+that makes a TOP-N safe on it, and this is deliberately not a new ADR.** Task
+4.5.4 refused one in as many words — _"a second ADR would be a second home for
+Decision 1 and would make the misattribution permanent by giving it somewhere
+plausible to point"_ — and the rule it was reaching for now lives here. What
+was never written down is why shipping ten rows instead of 503 figures does
+not cost the reader the ability to check them.
+
+**A top-N on this frame is a SELECTION, not a reduction.** Three things follow,
+and all three are properties of the frame rather than promises about the
+producer:
+
+- **Every row carries its own key**, so **ordering**, **uniqueness** and **the
+  two lists' interleave** are checkable from the frame alone, without knowing
+  anything about the 503 they came from —
+  `overview-frame-sections.spec.ts` reads the ten rows off this product's own
+  gateway and checks they are a selection from the very set the breadth count
+  is a tally of. That is also why the ranking rule can have one home
+  (`compareByMove`, with `selectMovers` over it) rather than one assertion per
+  surface.
+- **The population falls to `GET /securities`.** The frame states `tracked` and
+  `eligible` and ships no roster, because the roster is already an HTTP route
+  with a cache — and that is the grain rule's own arithmetic: a widened
+  `figures` would have cost 60,636 B against the movers section's measured
+  **1,243 B, 124.3 B a row**.
+- **The CUT is reconstructible, on both bases.** In the session basis from
+  `lastCloses` — the same stored closes the join used — and in the live basis
+  from the **snapshot-beside-aggregate pairing**: a browser is sent the current
+  market state and the aggregate computed from it, and that pairing is
+  **race-free because `sendSnapshot` has no `await` between its two sends**, so
+  no batch can be applied between them. An instrument can therefore re-derive
+  which 503 were eligible and check the ten were the right ten, without a
+  second route and without the producer being asked to prove it.
+
+The property is what the rule is _for_: _each region ships the smallest thing
+that answers it_ is only safe while the answer is **verifiable from what was
+shipped**. A reduction — a mean, a count with no roster, a rank with no key —
+is not, and breadth's three counts are exactly that, which is why they state
+their denominator in a sentence instead.
+
 ## Decision 4 — tapes per frame, the discriminant per figure, the screen states both
 
 A change percentage here has an **IEX numerator and a consolidated-SIP
