@@ -55,7 +55,7 @@ from; an assertion about that number belongs here.
 | `specs/search-keyboard.spec.ts`                    | search → open → the security's page, by pointer and by keyboard alone                 |
 | `specs/security-navigation.spec.ts`                | two securities in one page lifetime — the cache, and no second load                   |
 | `specs/market-clock.spec.ts`                       | the chrome's clock, and the one assertion below this level cannot make                |
-| `specs/universe-live-update.spec.ts`               | a bar landing in the 518-row table: the transition, the mark, and nothing else moving |
+| `specs/universe-live-update.spec.ts`               | a bar landing in the 516-row table: the transition, the mark, and nothing else moving |
 | `support/`                                         | locators, timings and the axe pass — not collected as tests                           |
 | `playwright.deployed.config.ts`                    | the post-deploy check's config — a second file, not a second project                  |
 | `specs-deployed/two-halves.spec.ts`                | the two failures no other instrument here can see                                     |

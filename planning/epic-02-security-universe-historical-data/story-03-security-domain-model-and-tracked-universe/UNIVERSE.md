@@ -518,8 +518,10 @@ now exist and none of them constrains the count; the table above is the predicti
 ## 9. The list, and the distribution read against §7 (Task 2.3.4, 2026-09-05)
 
 > **This is a historical record of the 101-security list, correct as at 2026-09-05 and left
-> standing.** The shipped file is 518 securities since Task 2.8.2; §16.4 carries the current
-> distribution. Do not read the table below as describing the tree.
+> standing.** The shipped file is **516 securities since Task 2.3.9** (518 from Task 2.8.2
+> until 2026-10-12); §16.4 carries Task 2.8.2's reading and **§17 carries the current
+> distribution, re-printed from the file**. Do not read the table below as describing the
+> tree.
 
 **Written by Task 2.3.4, into this document rather than into a task file**, because §7's
 rule and the list that satisfies it disagreeing is the failure the split exists to catch,
@@ -1229,14 +1231,16 @@ it demonstrates, it demonstrates and reverts.
 2. **Check §7's bounds by hand.** A floor of 6 and a ceiling of 12 equities per sector.
    **Nothing checks this** — deliberately, because it is a product judgement and a check
    asserting the shape of today's list is the `EXPECTED_COUNT` problem wearing a different
-   hat. §9's table is the current distribution; three sectors are at the floor and one is
-   at the ceiling, so an add to technology or a removal from utilities, real estate or
-   materials breaks the rule.
+   hat. **§17.2** is the current distribution (§9's table is the 101-security list and
+   §16.5 records which of §7's bounds survive the index): the floor and ceiling of rules 2
+   and 3 are superseded, and what is checked by hand now is their intent — no sector
+   dominating, and none thin enough to make a breadth number noise.
 3. **Fix the block's own comment.** Each sector block in `universe.ts` states its count and
    its relation to §7's bounds (`// 9 — three industries deep enough…`). **No instrument
    anywhere would catch a comment left stale** — it compiles, lints, formats and loads — so
    this is a rule only a person can hold, exactly like `migrations/README.md`'s "never edit
-   an applied migration". Edit §9's table in the same commit.
+   an applied migration". **Re-print §17.2's table in the same commit** — from the compiled
+   file with a throwaway script, never edited by hand — and the header's own count with it.
 4. **Do _not_ move `UNIVERSE_PROVENANCE.checkedOn`** for an add or a remove. See §12.9.
 5. **`pnpm build && pnpm universe`.** The loader converges on the file. Read what it says
    it did: an added symbol is `inserted`, a removed one appears under `now marked
@@ -2039,6 +2043,11 @@ industrials at **16.5%** of equities against §7 rule 3's "not 40% technology" c
 the smallest is energy at 21, comfortably above rule 2's floor of 6. Both were **met** by an
 index nobody tuned, which is a stronger result than meeting a rule written to be met.
 
+> **The table above is Task 2.8.2's reading of the 503-equity list and is left standing.**
+> Two equities left the list on 2026-10-12 (Task 2.3.9), so the shipped figures are 501
+> equities, 25 labels, mean 20.04, deepest 57, 20 of 25 labels at ≥ 11 and 476 of 501
+> equities inside one. §17.2 is the re-printed distribution.
+
 ### 16.5 The rules from §7 that survive, are superseded, or lapse
 
 | §7 rule                              | Status                                                                                    |
@@ -2158,3 +2167,147 @@ change a compiler will already be showing somebody.
 **And a consequence for the browser suite:** `Market proxies` is now a homonym
 across two routes, so `getByRole("region", { name: "Market proxies" })` is
 ambiguous and **any region locator on `/securities` must be scoped**.
+
+---
+
+## 17. The two the vendor had never heard of, and the venue that had moved (Task 2.3.9, 2026-10-12)
+
+**The universe is 516 securities: 501 equities, the eleven sector SPDRs and the
+four index proxies.** This section is where that count lives; §9's table is the
+101-security list and §16.4 is Task 2.8.2's before/after.
+
+### 17.1 What the vendor said
+
+`pnpm universe:check` was run over the whole list on 2026-10-12 — the first
+whole-list re-check since the file was curated on 2026-09-08 — and disagreed
+three times:
+
+```text
+✓ 518 securities checked against the vendor
+○ 2 tracked and unknown to the vendor entirely: PSKY, WBD
+○ 1 whose listing venue disagrees with the file: KHC  file says NASDAQ, vendor says NYSE
+Nothing was written.
+```
+
+`PSKY` and `WBD` are the pair Task 2.8.13 met from the other end: the deployed
+freshness gate had been red for four days reading _the market had nothing for
+this symbol_ as _we are behind on this symbol_. That task repaired the gate and
+left the curation alone on purpose. This is the curation.
+
+**The owner's decision, 2026-10-12: stop tracking both, and correct `KHC` in
+the same change.** Both rows were **deleted from `universe.ts`**, which is how
+§12.1's `untracked` is expressed — there is no per-row `status` and there must
+not be one (§15.8: a `status` written by anything but the loader is silently
+reverted by the next deploy's `pnpm universe`).
+
+### 17.2 The distribution, re-printed from the file rather than edited by hand
+
+Produced the way §9's was and for the same reason — by importing the compiled
+module and counting, with a throwaway script that is **not kept**, because the
+loader is where a standing check belongs and a second one here would be the
+copy that disagrees.
+
+| Sector                 | ETF    | Equities | % of equities |
+| ---------------------- | ------ | -------: | ------------: |
+| Industrials            | `XLI`  |       83 |         16.6% |
+| Financials             | `XLF`  |       76 |         15.2% |
+| Technology             | `XLK`  |       73 |         14.6% |
+| Health Care            | `XLV`  |       59 |         11.8% |
+| Consumer Discretionary | `XLY`  |       47 |          9.4% |
+| Consumer Staples       | `XLP`  |       34 |          6.8% |
+| Utilities              | `XLU`  |       31 |          6.2% |
+| Real Estate            | `XLRE` |       30 |          6.0% |
+| Materials              | `XLB`  |       25 |          5.0% |
+| Communication Services | `XLC`  |       22 |          4.4% |
+| Energy                 | `XLE`  |       21 |          4.2% |
+
+**Both of §16.5's surviving intents still hold, and neither was tuned.** The
+largest sector is industrials at **16.6%** of equities against §7 rule 3's "no
+sector dominating", and the smallest is energy at **21**, comfortably above
+rule 2's floor of 6. The two removals came out of communication services, which
+falls 24 → 22 and is now the second-smallest sector; it is still three and a
+half times rule 2's floor.
+
+**The industry grain is unchanged**: 25 distinct labels, mean 20.04 members,
+deepest 57, shallowest 2, **20 of 25** labels at 11 or more members and **476 of
+501** equities inside one. §16.4's defect 1 — _"relative to its industry" was
+undefined for 23 of 86 equities_ — stays discharged: there are still no
+singletons. `Semiconductors & Semiconductor Equipment`, which §7 rule 7 and
+`PRODUCT_SPEC.md` §11's worked example depend on, is **20** and untouched.
+
+### 17.3 `profile.checkedOn` moved and `classification.checkedOn` did not
+
+§12.9 forbids moving the date for an add or a remove and **requires** it when
+the list has actually been re-checked. This is the second case, and only for
+one field group: the asset catalogue `universe:check` reads carries `symbol`,
+`name`, `exchange` and the vendor's own status, which is the **profile** group
+exactly. Nothing re-checked a sector or an industry group — Alpaca carries
+neither — so `classification.checkedOn` stays at `2026-09-08`. Claiming
+otherwise would be the lie §5 nominates this column as the mitigation against.
+
+**§12.9's prediction about the loader held, and it is worth quoting against
+what the loader actually said**, because the section says a reader will
+otherwise take it for a bug. The loader compares
+`profile_retrieved_at` like any other column, so moving the date by itself
+rewrites every row:
+
+```text
+  ✓ 516 securities in the universe
+      0 inserted
+      516 updated
+      0 unchanged
+
+  ○ 2 in the database and not in the file, now marked untracked:
+      PSKY, WBD
+
+    The rows are kept and so is everything stored against them. `status` is not a
+    soft delete: a reader that shows a human a security shows the status, and a
+    reader that computes over the tracked market filters on it. See
+    `UNIVERSE.md` §12 for which readers do which.
+```
+
+`516 updated` is the date moving, not 516 edits. §12.9's instruction to take a
+re-check commit **separately** from an add-or-remove commit was **not**
+followed, and that was the owner's call rather than an oversight: the vendor
+check is what produced both the removals and the venue correction, so splitting
+them would file one finding under two dates.
+
+A second run writes nothing and reports the steady state rather than shouting
+the removal again, which is what `alreadyUntracked` exists for:
+
+```text
+  ✓ 516 securities in the universe
+      0 inserted
+      0 updated
+      516 unchanged
+
+  ○ 2 already untracked, unchanged: PSKY, WBD
+```
+
+### 17.4 Two stores now disagree, and both are correct
+
+This is §12.2's invisible predicate arriving for the first time with a real
+instance in it, and it is the thing to hold before reading any count anywhere:
+
+| Store                                                            | Rows | `active` | What `/securities` draws                            |
+| ---------------------------------------------------------------- | ---: | -------: | --------------------------------------------------- |
+| A store built into an **empty** database (CI, `pnpm store:bare`) |  516 |      516 | 516 rows, no `no longer tracked` clause             |
+| A store that already held the two (deployed, a developer's)      |  518 |      516 | 518 rows, two of them marked, `2 no longer tracked` |
+
+`securities tracked` is the **active** count on both and reads **516**;
+`N of M rows shown` has `securities.length` as its denominator and differs.
+`e2e/specs/universe-navigation.spec.ts` and
+`e2e/specs/market-reconnect.spec.ts` assert the first shape and say so, because
+that is the one the gate runs.
+
+**The deployed store will not change shape on this deploy.** `pnpm universe`
+runs from `deploy.yml` (§13.1) and will mark the two rows `untracked`; their
+bars stay, and `/securities` goes on showing them with their status, which is
+§3's whole argument against a soft delete.
+
+### 17.5 One thing this did NOT do
+
+It did not add a `delisted` member, and the reason is §15.2's unchanged: the
+vendor saying it has never heard of a symbol is a fact about the vendor's
+catalogue. What we know is that we have stopped tracking them, and `untracked`
+says exactly that.

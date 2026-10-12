@@ -185,7 +185,7 @@ than one:
 ```sh
 pnpm db          # starts PostgreSQL 18 and waits until it is accepting connections
 pnpm migrate     # applies every migration the database has not seen
-pnpm universe    # loads the 518 securities MarketPulse tracks
+pnpm universe    # loads the 516 securities MarketPulse tracks
 ```
 
 So the first run of a clean clone is **five** steps in this order —
@@ -315,7 +315,7 @@ this window_ are different sentences, because they imply different next actions.
 | --------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/`                   | Market Overview — "what is happening?" | the only route with regions: four named landmarks, three of them a heading and a sentence naming the epic that fills them, and one holding a render check                                                                                                                                                                                                                                                                                                 |
 | `/investigations`     | Investigation Workspace                | a placeholder — a label, the screen's name and one sentence (Epics 7, 8 and 10)                                                                                                                                                                                                                                                                                                                                                                           |
-| `/securities`         | Security Explorer                      | **the tracked universe** — 518 real securities from the database with a real last close each, grouped into twelve bands with a rail that jumps between them and a control that shuts them all, plus a **search field** that matches as you type and opens a security                                                                                                                                                                                      |
+| `/securities`         | Security Explorer                      | **the tracked universe** — 516 real securities from the database with a real last close each, grouped into twelve bands with a rail that jumps between them and a control that shuts them all, plus a **search field** that matches as you type and opens a security                                                                                                                                                                                      |
 | `/securities/:symbol` | one security                           | **a price chart and a volume chart on one shared axis** — that security's real bars over a window the reader chooses (`1D 5D 1M 3M 1Y`, held in the address), with a crosshair and a keyboard reading, the exact figures beneath each, an honest sentence for every empty, partial and failed answer, and a source note saying where the numbers came from; plus §8.3's other four regions, each naming the epic that fills it (Epic 3, Epics 5, 6, 8, 9) |
 | `/replay`             | Market Replay                          | a placeholder (Epic 13)                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | anything else         | the not-found route                    | says what happened and links back to `/`; it is a route, not an error screen                                                                                                                                                                                                                                                                                                                                                                              |
@@ -1230,9 +1230,9 @@ actually checks, and which are prose because nothing can.
 pnpm universe
 ```
 
-Loads the 518 securities MarketPulse tracks — the S&P 500, the eleven sector
-ETFs and the four index proxies — into the `securities` table `pnpm migrate`
-created. It is the **fifth** step of a first run and the one with no symptom if
+Loads the 516 securities MarketPulse tracks — the S&P 500 less the two names
+the vendor no longer lists, the eleven sector ETFs and the four index proxies —
+into the `securities` table `pnpm migrate` created. It is the **fifth** step of a first run and the one with no symptom if
 you skip it: an empty `securities` table looks exactly like a full one to
 `pnpm ready`, `pnpm verify` and `pnpm dev`.
 
@@ -1251,10 +1251,10 @@ updated, and unchanged rows are not touched at all. It reports which of the thre
 each row was.
 
 ```text
-  ✓ 518 securities in the universe
+  ✓ 516 securities in the universe
       0 inserted
       1 updated
-      517 unchanged
+      515 unchanged
 ```
 
 **A universe that breaks its own rules fails the load and writes nothing.** An

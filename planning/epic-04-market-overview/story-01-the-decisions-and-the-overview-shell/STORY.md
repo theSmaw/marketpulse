@@ -1,5 +1,8 @@
 # Story 4.1 — The Decisions This Screen Cannot Be Built Without, & the Overview Shell
 
+**Epic:** [Epic 4 — Market Overview](../EPIC.md)
+**Depends on:** nothing — this is the epic's first story
+
 **Status:** **COMPLETE — 2026-09-25, eight tasks.** The landing route is a real screen: seven named regions on a grid that restates its spans at every breakpoint, each one honest about what it is waiting for, no second clock and no second connection word (both refused by `pnpm invariants`). The four decisions are taken and written into the stories that act on them. **Four items ship open, each with an owner and a condition** — the 390 sitting (a person, five minutes), the feed-frame defect (Story 4.7), two knowingly-unrendered components (Epic 5) and the overview frame's ADR (Story 4.2). Originally split as: The order puts a **visible change third** and keeps the two expensive unknowns — the denominator curve and the phone — off the critical path of the screen itself, because neither blocks drawing it and both block the four stories after it.
 
 | #     | Task                                                                                                                                                                             | Visible?                          |

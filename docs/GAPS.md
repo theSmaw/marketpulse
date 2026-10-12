@@ -10,6 +10,25 @@ It lived in `CLAUDE.md` until 2026-09-14 and moved here because it had become
 41% of the file that loads at the start of every session, while being a
 reference rather than a rule. `CLAUDE.md` keeps the rule and points here.
 
+## The universe count every entry below assumes — corrected 2026-10-12
+
+**CI's store holds 516 securities, not 518**, since Task 2.3.9 untracked `PSKY`
+and `WBD` — two tickers `pnpm universe:check` found the vendor has never heard
+of. The equity population a breadth or movers figure is computed over is **501,
+not 503**.
+
+Roughly a dozen entries below repeat _"CI's store has 518 securities and zero
+bars"_ inside a **dated measurement paragraph**, and those paragraphs are left
+exactly as they were: correcting a number inside a measurement destroys the
+record, which is this file's own rule. Read every one of them with this
+paragraph in front of it. `UNIVERSE.md` §17 carries the current distribution,
+printed from the file rather than edited, and is the only place to take the
+count from.
+
+The deployed store is the other way round and also correct: it already held both
+rows, so it serves **518 rows of which 516 are active**. An entry whose
+`Re-measure:` counts rows must say which store it means.
+
 ## How to use it
 
 - **Take a figure, never cite one.** Every entry carries the command that

@@ -357,3 +357,59 @@ feed_, which was true of payload and is false of cadence.
    feed fires it 6.8–16.1 times. Task 3.8.8 already handed this epic the
    question of whether a replayed bar should fire it; the **rate** is the half
    that was unmeasured and now is.
+
+## Handed here by Epic 4's close — 2026-10-12 (Task 4.9.4): a replayed overview aggregate would compute over TODAY's universe, and the data to fix it does not exist
+
+**Found by walking the epic list, not by a grep.** Epic 4's documents name this
+epic five times and none of those is this constraint; its only home was
+ADR 0038's consequence list, and that record's own claim that it was written
+into `docs/GAPS.md` is false — no such entry exists.
+
+**The measurement.** The landing page's four aggregates — the proxy strip,
+eleven ranked sectors, breadth over the tracked equities and two ranked mover
+lists — are one pure join over `currentMarketState`, a closes lookup and an
+`asOf`. **`currentMarketState` filters to `status = 'active'` against the
+universe as it stands now**, and the store records **no point-in-time
+membership**: there is no column, no table and no audit row saying which
+securities were tracked on a past date.
+
+**And the universe has already moved once, which turns this from a hypothetical
+into a dated fact.** Task 2.3.9 untracked `PSKY` and `WBD` on 2026-10-12 — the
+vendor had never heard of either — taking the tracked set from 518 to **516**
+and the equity population from 503 to **501**. Their rows and their roughly
+215,161 stored bars are intact and readable, because `untracked` keeps
+everything; what changed is a predicate. **So a replay of any session before
+2026-10-12 must count 503 equities and will count 501 if it filters on
+`status`.** That is not a future risk; it is true of the store today.
+
+**The constraint that imposes.** `UNIVERSE.md` §12.2's rule is that a
+computation over the market we track _now_ filters on `status` and a read of
+something we _stored_ does not. **A replayed aggregate is the second kind and
+would behave like the first** — so replaying 2026-03-04 would count breadth,
+rank sectors and cut the movers over the universe of the replay's _execution_
+date, including securities that were not tracked then and excluding ones that
+were. That is this repository's named failure class: not a crash and not a
+blank, a well-formed, correctly-coloured, plausible figure.
+
+**What to do about it, in this order.**
+
+1. **Decide what a replayed aggregate may claim**, before building one. The
+   honest options are to state the universe basis on screen (_"counted over the
+   516 securities tracked today"_), to refuse the aggregate regions under
+   replay, or to add the schema.
+2. **If the answer is the schema, it is a migration on `securities` and a
+   backfill of membership history that nobody has, and it is additive** — the
+   data for past dates cannot be reconstructed from this store, only from the
+   day it starts being written. Starting to write it is cheap and starting late
+   is irreversible, so take that decision early in this epic rather than at the
+   point the first replayed breadth count is drawn.
+3. **The seam is already in the right shape.** The join is pure and takes
+   `symbols` and `closesAsOf` as arguments, so the fix has one place to land, and
+   `pnpm invariants` holds `one-producer-of-the-overview-aggregate` — exactly one
+   place a replay clock has to reach.
+4. **A second, separate hole in the same path**, already in `docs/GAPS.md`:
+   `closesAsOf` takes the session and uses it only to decide **when to refresh**,
+   never **what to return**, so a replayed proxy's change is measured against the
+   latest stored close. Owner there is this epic's temporal plugin, by the
+   condition _the first caller of `closesAsOf` whose `asOf` is not the wall
+   clock_.

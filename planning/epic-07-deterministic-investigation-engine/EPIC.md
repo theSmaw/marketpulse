@@ -99,3 +99,74 @@ provenance part of the domain model, so a `Finding` built on a live observation
 carries a **different feed and a different age** from one built on stored bars,
 and property 3 means `UNKNOWN` — "this security has not been observed recently
 enough to say" — is a correct outcome a tool must be able to return.
+
+## Handed to this epic by Epic 4's close — 2026-10-12 (Task 4.9.4): the landing page already draws your region, names you on screen, and constrains what you may put in it
+
+**`/` has seven named regions and one of them is yours.** `Current
+investigations` is drawn today in `Panel`'s `reserved` state with the words
+`EPIC 7` and the sentence _"Investigations in flight — running, awaiting input
+and completed. Epic 10 lets the agent start them."_ —
+`apps/frontend/src/routes/MarketOverview.tsx`. A reader of the deployed product
+can see your epic's name. You do not have to invent the region, its heading or
+its position.
+
+**Four things that constrain what you put there, each measured or mechanical.**
+
+1. **Your region is a tab stop unconditionally** (ADR 0039), and it keeps its
+   name, its order and its landmark across being filled — so nothing a screen
+   reader or a deep link depends on moves when you replace the placeholder.
+   At ≥861 the six regions' focus order deliberately runs column-major across
+   the grid; read `MarketOverview.tsx`'s comment before changing DOM order.
+2. **Your region sits on grid row 3**, which is `minmax(min-content, 1fr)` and
+   therefore has a content floor. Rows 2 and 3 do; row 1 (the topology and
+   unusual activity) does not. Measured at thirteen width/height pairs
+   (Task 4.6.6): no row-3 region scrolls at any pair, including 1440×500.
+3. **The screen must not grow a second clock or a second connection word.**
+   `pnpm invariants` holds `one-caller-of-the-market-clock` and
+   `one-home-for-the-feed-words`, and an investigations surface that states the
+   feed's state will fail the build by name. The connection has one home, the
+   status bar.
+4. **A row with nothing behind it must not be a link at all.** `visibility:
+hidden` and `aria-hidden` do nothing to an `href`; an investigation row with
+   no destination renders as text, not as an anchor. Every destination on `/`
+   is resolved at render from the row's own identity through
+   `<Link to={…}>`, and `one-home-for-imperative-navigation` refuses a second
+   file that moves the address in a handler, over every shipped source file in
+   three trees.
+
+**And `/`'s cost is measured, so your region arrives with a stated budget.**
+Production build, 1440×900, 40 interleaved cold loads, every observer proved by
+a plant on the page that produced the figure: `/` draws **447 DOM nodes and
+zero `<tr>` at 518 securities**, 0 tasks over 50 ms on 10 of 10 loads, worst
+rAF gap **24.7 ms p50 / 34.7 p95** against a 16.7 ms quantum — so it is **not**
+in breach of `PRODUCT_SPEC.md` §28 and `/securities` is. The page also commits
+**2 renders per applied batch** at **6.8–16.1 batches a minute**, so a region
+holding live investigation state re-renders at that rate whether or not any
+investigation changed.
+
+### And the overview aggregate is reachable by a browser only, which is a trigger worded against this epic's tools
+
+**ADR 0038's narrower reversal trigger is _the first consumer of the overview
+aggregate that is not a browser_, and it names this epic's tools as the likely
+first one** — because a tool cannot attach a WebSocket to call a function. The
+aggregate (`buildMarketOverview`) is computed once in the backend, beside
+`currentMarketState`, and delivered as a broadcast-identical `overview` frame on
+the market-stream socket. There is no HTTP route for it.
+
+**What that costs you, concretely.** `pnpm invariants` holds
+`one-producer-of-the-overview-aggregate`: _"`buildMarketOverview` has at most
+one call site in shipped backend code"_. An analytical tool that calls the join
+a second time **fails the build by name**. So an investigation tool that wants
+breadth, sector means or the movers' cut has two honest options, and the choice
+is a design decision rather than a detail:
+
+- **Re-wire the one call site** so the single producer's answer is readable by
+  both the gateway and a tool, and keep the invariant true; or
+- **take ADR 0038's trigger as fired** and move the aggregate behind a
+  request/response shape, at which point `one-producer-of-the-overview-aggregate`
+  stops being the right claim (it becomes one producer per request) and
+  `computedAt` acquires a per-client meaning the screen's single `COMPUTED` line
+  cannot state.
+
+Decide which before writing the tool, and record it — the trigger exists so
+this is a decision rather than a discovery.
