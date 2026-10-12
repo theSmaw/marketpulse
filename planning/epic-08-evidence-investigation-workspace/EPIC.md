@@ -56,3 +56,30 @@ that same axis inherits two things:
   place_ — an agent's `pinEvidence`, or a replay cursor. A reading nobody
   pointed at has no instant to hold, and that is the case to decide rather than
   inherit.
+
+## Handed here by Epic 4's close — 2026-10-12 (Task 4.9.4): the day you draw a region on a new route, an axe rule goes silent and nothing tells you
+
+**Measured consequence of ADR 0039, which this epic inherits.** A `Region`'s
+`<section>` is now `tabIndex={0}` **unconditionally** — because a tab stop must
+not appear and disappear under a reader. The side effect is that axe's
+`scrollable-region-focusable` **is silent while the scrolling box contains
+something focusable**, so it can never again report a region on any route of
+this product, including the ones you add. That rule caught a real WCAG 2.1.1
+violation on `/` once; it will not catch the next one.
+
+**What to do about it, and it is one line per route.**
+`expectEveryRegionIsATabStop(page, { atLeast: n })` in `e2e/support/app.ts` is
+the replacement, used today by `overview-region-order.spec.ts` (`atLeast: 7`)
+and `securities-route.spec.ts` (`atLeast: 8`). **A new route that draws regions
+and does not call it has no coverage of this at all**, and nothing in
+`pnpm verify` or `pnpm e2e` will say so — the absence is the failure mode.
+Add the call in the same change as the route.
+
+**Two further facts about `Region` you inherit rather than re-derive.** It
+remembers the element that last held focus inside it and focuses its own
+`<section>` when that element is removed while `document.activeElement` is the
+body, so a reader whose rows vanish lands on the region rather than on `<body>`;
+it composes rather than replaces, so a better landing of your own still wins.
+And a roving list inside a region clamps rather than wraps and is keyed on the
+item's **identity**, never its index — a held index is a second, disagreeing copy
+of where focus is (ADR 0039, Task 4.6.5).
