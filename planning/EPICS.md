@@ -582,6 +582,17 @@ a finding somebody measures again from scratch.
   its reversal trigger; `PRODUCT_SPEC.md` §28 carries the method amendment and
   takes **no third exception**.
 
+  **And the UNIT in this section's first bullet is wrong rather than the
+  number** (amended 2026-10-12 by Task 4.9.3): the breach is not describable as
+  _one main-thread task of 50–76 ms_. Re-taken over 40 interleaved cold loads on
+  a production build, every observer proved by a plant on the page that produced
+  the figure, it is **one frame of 62.8–77.4 ms** on **10 of 10** loads — script
+  26–31 ms, style/layout/paint 34–38 ms — with the worst rAF gap at 50.0–68.5 ms,
+  over **10,318 nodes against 765**, against a 20-row control at **0 of 10** and
+  an 18.8 ms floor. `CLAUDE.md`, `PRODUCT_SPEC.md` §28 and `docs/GAPS.md` all
+  carry this correction; **this file was the one that did not.** The band
+  `50–76` stays standing as the dated 2026-09-15 reading it was.
+
 ---
 
 # Epic 15 — Portfolio Release

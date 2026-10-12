@@ -501,3 +501,26 @@ gateway becomes one of several callers — at which point
 `one-producer-of-the-overview-aggregate` goes red **on the desired state** and must
 be re-scoped to _one producer per transport_ rather than widened silently. **That
 the check fires there is intended; it is the trigger's own alarm.**
+
+**Amended 2026-10-12 by Task 4.9.3, on the POPULATION and not on the decision.**
+Task 2.3.9 untracked `PSKY` and `WBD` — two tickers `pnpm universe:check` found
+the vendor has never heard of — so the universe is **516 securities: 501
+equities, eleven sector SPDRs and four market proxies.** Every figure in this
+ADR is a dated measurement taken over 518 and 503 and is left standing as one,
+**including the 928 B CI shape**, which is now a frame over 516 `unknown`
+figures rather than 518 and has not been re-taken. The join, the frame and the
+one-producer rule are untouched: the population is read from `trackedTickers()`
+and the denominator from the frame, never from a literal, which
+`the-population-is-never-a-literal` holds. **Two stores now disagree and both
+are right** — a store built into an empty database holds 516 rows all active,
+the deployed store holds 518 rows of which 516 are active — so every reference
+below to _"CI's store — 518 securities and zero bars"_ means **516** today.
+`UNIVERSE.md` §17 is the only place to take the count from.
+
+**And one consequence this ADR records as written down is not written down.**
+The point-in-time universe consequence says it _"is recorded in
+`docs/GAPS.md`"_; it is not, and was not — found 2026-10-12 by Task 4.9.4 going
+to use it. That is this repository's own named defect: a claim about a mechanism
+reads identically whether the mechanism is there or not. The constraint is now
+in **Epic 13's own `EPIC.md`**, in words that epic can act on, which is where a
+hand-off belongs; `docs/GAPS.md` carries it too, by Task 4.9.5.

@@ -137,7 +137,7 @@ const BUCKET_BAND: Readonly<Record<BreadthBucket, string | undefined>> = {
  * from**. So the caption and the word beneath it cannot disagree: there is no
  * second test of *is this zero* to drift out of step with the first. Reading
  * the digits instead — `change === "0"` — would be that second test, and it
- * would be the defect `one-direction-one-home` exists to forbid.
+ * would be the defect `one-classifier-for-the-direction-of-a-move` exists to forbid.
  */
 const NET_CAPTION = "Net advancing";
 

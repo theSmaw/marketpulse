@@ -516,3 +516,21 @@ where a clone is the honest place, and re-taken rather than cited.
   question, the loader's decisions, the removal semantics and the deployed load.
 - `apps/backend/migrations/README.md` §7 — seed data versus migrations, which is what this
   story read to decide.
+
+**Amended 2026-10-12 by Task 2.3.9, recorded here by Task 4.9.3 — the first
+whole-list re-check since the file was curated.** `pnpm universe:check` was run
+against the vendor for the first time since 2026-09-08 and found three
+disagreements: `PSKY` and `WBD` unknown to the vendor entirely, and `KHC` listed
+on NYSE where the file said NASDAQ. The owner untracked the two and fixed `KHC`.
+**The universe is 516 — 501 equities, eleven sector SPDRs, four market
+proxies.**
+
+What this ADR's mechanism got right is the part worth noting: **`untracked` is
+expressed by DELETING the row from `universe.ts`**, which `untrackAbsent`
+already handled, and the mapper's hard-coded `status: "active"` needed no change
+— there is no per-row `status` and there must not be one, because a `status`
+written by anything but the loader is silently reverted by the next deploy's
+`pnpm universe` (`UNIVERSE.md` §15.8). The counts recorded elsewhere in this
+file are dated records of the 101-security and 518-security lists and stand;
+`UNIVERSE.md` §17 carries the current distribution, printed from the compiled
+file rather than edited by hand.
