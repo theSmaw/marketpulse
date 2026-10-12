@@ -426,3 +426,31 @@ linked.
    comparison**, per-surface strings recorded for seven surfaces — and the
    settling proved rather than asserted, by two complete runs agreeing
    byte for byte on all 28 rows.
+
+## The 390 column, re-taken 2026-10-11 by Task 4.7.8
+
+Task 4.7.8 repaired `AppHeader`'s `composes` defect, which is the one element in
+these photographs whose rendered size was wrong. **The 390 column is unchanged,
+and that is a measurement rather than an inference**: at 390 the descriptor is
+`display: none`, and was when these rows were taken.
+
+Re-read off the running page, 2026-10-11, the same Saturday state:
+
+```text
+MarketPulse Market Overview Investigation Workspace Security Explorer
+Market Replay Market time, US Eastern 01:46:57 ET CLOSED · Weekend
+```
+
+**Byte-identical to the row above apart from the wall clock.** The masthead's
+box at 390 is **94 px** as recorded, the footer **73 px** in the state read,
+`scroll-padding-top` **99 px** and `-bottom` **78 px** — all four measured
+either side of the repair and all four unmoved.
+
+**What did change is the 1440 / 1024 / 768 columns, and only in size.** The
+drawn words are the same — `MARKET SITUATIONAL AWARENESS`, uppercase with the
+micro tracking — but the line is set at **9px/9px** rather than the **11px/16px**
+it had been inheriting, so the descriptor's box is **164.13 px** rather than
+**200.59** and the identity block **198.13** rather than **234.59**. No chrome
+height moved at any width: the masthead is a fixed `--app-header-height` above
+560 px. So every recorded **string** in this grid stands; a photograph of the
+chrome above 560 px does not.

@@ -4196,4 +4196,27 @@ export const BREAKS = [
     ],
     expect: "head claims something its content no longer has",
   },
+  {
+    name: "a-compose-carries-an-override",
+    proves:
+      "A declaration written under a `composes:` loses to the composed " +
+      "stylesheet's own, because `composes` concatenates class names rather " +
+      "than cascading and the winner at equal specificity is bundle order. " +
+      "Two of these shipped unseen: `MarketProxyStrip`'s heading, uppercase " +
+      "for a day against a `text-transform: none` written under the " +
+      "compose, and `AppHeader`'s descriptor, which rendered at 11px/16px " +
+      "against a declared 9px/1 for the life of the 2026 refresh and " +
+      "inflated the 201 px that decided what wraps at 390. Nothing else " +
+      "can see it: jsdom applies no stylesheet, no test in this product " +
+      "asserts a font size, and a screenshot shows only the states that " +
+      "exist.",
+    file: "apps/frontend/src/components/AppHeader/AppHeader.module.css",
+    find: "  font-size: 9px;\n  line-height: 1;\n  letter-spacing: var(--letter-spacing-micro);\n  text-transform: uppercase;",
+    replace:
+      "  /* pnpm break: reverted automatically */\n" +
+      '  composes: microLabel from "../../styles/type.module.css";\n' +
+      "  font-size: 9px;\n  line-height: 1;",
+    command: ["pnpm", "invariants"],
+    expect: "and re-declares",
+  },
 ];

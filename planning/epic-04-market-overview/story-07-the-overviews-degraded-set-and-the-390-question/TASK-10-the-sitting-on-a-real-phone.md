@@ -174,3 +174,25 @@ so whatever the sitting concludes about peripheral vision at 390 says nothing
 about a desk, and the reverse. **It is a height and not a line count**: nothing
 mechanical here counts wrapped lines, and `innerText` is identical however the
 sentence wraps, which is one more reason the person is the instrument.
+
+### What Task 4.7.8 changed under you, 2026-10-11 — nothing at 390, said explicitly
+
+**At 390 the masthead's descriptor is `display: none`, and it was before.** So
+the chrome you are asking a person to read across two corners is pixel-for-pixel
+what 4.7.2 photographed: the masthead is **94 px**, the sticky bar's four
+heights (109 / 131 / 149 / 169) are untouched, and `scroll-padding-top` and
+`-bottom` are **99 px** and **78 px**, all re-measured either side of the
+change.
+
+What moved is above 560 px only — the descriptor renders at its declared 9px
+rather than the 11px it had been inheriting, so the identity block is 36.5 px
+narrower at 1440 / 1024 / 768. If the sitting also takes a desk reading, that
+is the one difference from any screenshot dated before 2026-10-11.
+
+**One thing worth a person's eye that no instrument here can settle**: 9px
+uppercase with the micro tracking is the smallest type this product draws
+anywhere. It is a static descriptor rather than a figure, and it reads as
+chrome rather than as data — but whether it is _comfortable_ on a phone-class
+screen at a desk distance is a looking question, and the sitting is the
+instrument. If the answer is no, the fix is a token rather than a compose, and
+the rule now spells its own properties so the value is in one place.
