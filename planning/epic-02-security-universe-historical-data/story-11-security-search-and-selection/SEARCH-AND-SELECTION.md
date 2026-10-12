@@ -1453,6 +1453,16 @@ in Chromium with `PerformanceObserver({ entryTypes: ["longtask"] })` installed
 before navigation, and compare against the same page with the universe response
 trimmed to twenty rows.
 
+**Amended 2026-10-12 by Task 4.9.3: do not run this recipe as written.**
+`longtask` reported **nothing at all** on 10 of 10 loads on 2026-10-09 against a
+page that is still in breach — §10's fourth dating below says so in as many
+words, and this command 200 lines above it carried no marker, which is
+`CLAUDE.md`'s _a prose re-measure rots silently_ with the rot already recorded
+elsewhere in the same file. The re-measure is **three channels**, each proved by
+a plant on the page that produced the figure: `longtask`,
+`long-animation-frame` and an rAF-gap recorder (`PRODUCT_SPEC.md` §28). A
+channel going quiet and a cost going away produce the same output.
+
 ### Re-measured 2026-09-13 by Task 2.13.9 — unchanged, with more on the page
 
 Story 2.13 added a second plot and a time-window control to

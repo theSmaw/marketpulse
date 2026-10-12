@@ -127,7 +127,12 @@ cost 0.118 → 3.497 ms a batch**, of which the breadth count is **0.041 ms** �
 **1.2%** — the rest being 518 `marketDateAt` calls inside `changeFromClose`,
 handed to Epic 14 by name. **That pair of figures is a dated measurement of
 Story 4.4 and is left standing as one; the attribution is still correct about
-WHERE the cost is and the magnitude is now ~41% of it.** Task 4.8.7 took three
+WHERE the cost is and the magnitude is now ~41% of it** (**by subtraction, not
+by a re-measure**: 3.497 − 3.366 + 1.288 ≈ 40.6%, annotated 2026-10-12 by Task
+4.9.3 because it sits three lines above this file's own _re-measure rather than
+subtract_ rule, and because it is a different quantity from Epic 14's _about a
+third_, which is 1.288 / 3.366 ≈ 38% of the attributed **term** rather than of
+the **batch**). Task 4.8.7 took three
 `Intl.formatToParts` reads out of `marketDateAt` on 2026-10-09 (3.366 →
 1.288 ms over 518 instants) and Task 4.8.11 **re-took** the per-batch path on
 the production artefact afterwards at **1.521 ms p50** — and then to **zero**,

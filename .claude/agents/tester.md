@@ -38,7 +38,7 @@ pass as accessibility coverage; latency without a large n.
 - **Nothing below `pnpm e2e` can see a layout.** A grid with wrong spans
   renders identically to a correct one in every unit, component and
   integration test.
-- **CI's store has 518 securities and zero bars**, so every chart there is a
+- **CI's store has 516 securities and zero bars** (**516 since 2026-10-12** — Task 2.3.9 untracked `PSKY` and `WBD`; the **deployed** store holds 518 rows of which 516 are active, so say which store you mean), so every chart there is a
   correct `empty`. A new browser assertion about a number may be an assertion
   about data the runner does not have. `pnpm store:bare` answers it locally.
 - **A green run certifies internal consistency, not a vendor.** Every

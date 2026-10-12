@@ -4,6 +4,16 @@
 **Sequence:** 14 of 15 — follows Epic 13 (Market Replay)
 **Spec references:** PRODUCT_SPEC.md §27 (high-performance rendering), §28 (performance targets)
 
+**The universe count every figure below assumes — corrected 2026-10-12.** CI's
+store holds **516** securities, not 518, and the equity population is **501**,
+not 503 (Task 2.3.9 untracked `PSKY` and `WBD`, two tickers the vendor has never
+heard of). **Every figure below is a dated measurement taken at 518/503 and is
+left standing as one** — the aggregate frame's **928 B** in CI's shape included,
+which is now a frame over 516 `unknown` figures and has **not** been re-taken.
+The **deployed** store holds 518 rows of which 516 are active, so an entry whose
+re-measure counts rows must say which store it means. `UNIVERSE.md` §17 is the
+only place to take the count from.
+
 ## Goal
 
 Demonstrate that the architecture can operate beyond the deliberately constrained live-data universe.
@@ -305,6 +315,18 @@ warm-up, two reproducible runs, **all 518 observed** — the worst case, against
 | join over 518, observed, **no closes**   | 0.019 ms     | 0.022 | 0.071 |
 
 ≈ **56 ms of script a minute**, and **the count is 1.2% of it.**
+
+> **Amended 2026-10-12 by Task 4.9.3 — both derived figures above are
+> pre-repair and neither survives.** The ≈56 ms a minute was 3.497 ms × ~16
+> batches; Task 4.8.7 took `marketDateAt` from 3.366 to **1.288 ms** over 518
+> instants and Task 4.8.11 re-took the whole per-batch path at **1.521 ms
+> p50** — so the per-minute figure is **unmeasured rather than smaller**:
+> **re-measure rather than rescale.** And it is **0 ms a minute with nobody
+> attached** since Task 4.8.11's early return (0 joins over 500 bursts). The
+> **1.2%** is a pre-repair denominator — 0.041 ms against 3.497 — and the
+> count's own **0.041 ms** is a dated Story 4.4 measurement that stands.
+> Task 4.8.10's §2 named three pre-repair figures and **did not name these
+> two**, which is why they are amended here rather than there.
 
 **The candidate: 518 `Intl` conversions per applied batch.** Nothing observed →
 0.016 ms. Observed with no closes, so `changeFromClose` returns before its
