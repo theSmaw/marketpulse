@@ -170,3 +170,36 @@ is a plain `expect` over an `evaluateAll` and therefore does **not** retry, so
 it races the frame being applied; the repair is `expect.poll` or an
 `await expect(…)` on the first row's `data-ticker`. Left for whoever next reads
 that file rather than edited from here.
+
+---
+
+## Handed here by Task 4.7.9 — 2026-10-12: two corrections the sweep inherits
+
+Written here rather than linked.
+
+**1. `WireMarketOverview.computedAt`'s amendment was corrected, and the sweep
+should check whether the over-claim travelled.** Its 2026-10-10 amendment reads
+_"no drawn sentence reads it any more"_ and is followed four lines later by
+_"is still what `market-proxies.ts` asks the trading calendar about"_ — two
+true halves contradicting each other inside one docblock, because what that
+module does with the answer is **draw a sentence clause**
+(`last prices of the session`). A dated amendment was added on 2026-10-12 with
+the distinction that survives: an **age** read off the join instant is a lie on
+a dead feed; a **question to the calendar** is answered correctly by the same
+field. **Grep for the claim elsewhere** — Task 4.8.12's own record, `STORY.md`
+and any ADR amendment are the candidates — and correct the live sites, leaving
+the historical records standing.
+
+**2. `docs/GAPS.md`'s two-instants entry now names FOUR surfaces, not three.**
+Its owning condition — _the first state grid that photographs the source note
+and either region in one frame_ — was discharged by Task 4.7.9 at 1440, and the
+photograph turned up a fourth surface the entry did not have: `Market proxies`
+qualifies the same figures from `computedAt` while the other three read
+`observedAt`. The entry carries the verdict and the strings; what the sweep
+owes is checking that nothing else in the story's documents still says
+_three surfaces_.
+
+**3. And the count stated in Task 4.7.2's finding 1 is still owed to you** —
+_518 unknown figures_ against the four the frame carries. Task 4.7.9's grid
+serves four and asserts nothing about the number, so it neither confirms nor
+discharges it.

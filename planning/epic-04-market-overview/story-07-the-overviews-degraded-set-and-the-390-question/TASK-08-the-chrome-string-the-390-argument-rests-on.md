@@ -64,6 +64,50 @@ re-taken here.
 4. `pnpm verify` and `pnpm e2e` green, including the focus-ring walk at four
    widths in both directions
 
+---
+
+## Handed here by Task 4.7.9 — 2026-10-12: 104 photographs were taken against the defect, and your own hand-off never reached its sibling
+
+Written here rather than linked.
+
+**1. Your hand-off section is MISSING from Task 4.7.9's file.** That task's
+brief asserts it carries one from 4.7.1, 4.7.2, 4.7.3, 4.7.4, 4.7.5, 4.7.6
+**and 4.7.8**. It does not: the file has six sections and none of them is
+yours. The figures (`.descriptor` 200.59 → 164.13 px; every sticky figure
+unmoved, 94/73 at 390 re-taken and identical) reached 4.7.9 through the
+**prompt** rather than through the file, so a later reader of that file does
+not have them. This is `CLAUDE.md`'s _a hand-off sweeps SIDEWAYS, and a story
+close does not reach it_ arriving from the other end — the constraint was
+measured, it was written somewhere, and the somewhere was not the sibling's own
+file. Write it in when this task closes.
+
+**2. Your `Work` section's ordering clause now names a second thing.** It says
+_this must not run AFTER Task 4.7.2's photographs, or the photographs are of
+the defect_. There is a second set: **104 photographs at
+`.capture/overview-degraded-grid/`**, thirteen states × four widths × colour
+and greyscale, produced on 2026-10-12 on a branch off `main` that does **not**
+carry your repair. Their masthead descriptor is the pre-repair 11px/16px.
+
+**3. What that does and does not cost.** The grid's **strings** are unaffected
+and need no re-take: the masthead is recorded per row and **excluded from both
+comparison keys** (its clock mutates every second and its session word is the
+wall clock's), and the descriptor is absent at 390 entirely. Only the
+**pictures'** chrome is of the defect, and re-taking them is one command:
+
+```
+DEGRADED_GRID_PHOTOS=1 pnpm e2e overview-degraded-grid.spec.ts
+```
+
+~1.4 minutes, 104 PNGs and four `readings-<width>.json`, into a gitignored
+directory. The producer is a **kept spec** rather than a throwaway, which is
+the whole reason this is a command rather than a reconstruction.
+
+**4. One figure you may want, measured here.** The sticky **footer**'s own box
+is the one quantity on this screen that changes with the state, and nothing in
+this task touches it — but if your sweep re-takes Task 4.7.2's five footer
+heights, note that the state set is now thirteen rather than seven and the
+spec above produces all of them.
+
 ## What was done — 2026-10-11
 
 ### 1. `.descriptor` renders at the size its own rule declares
