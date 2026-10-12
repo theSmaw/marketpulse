@@ -1,6 +1,6 @@
 # Task 4.9.9 — The gates, and Epic 4's close
 
-**Status:** Not started
+**Status:** In progress — 2026-10-12 — **the preparatory half is done and the close itself waits on the sitting.** Story 4.7 AC 6's owed break re-run is **8 of 12 discharged by command**; the other four are `pnpm e2e` and were **deliberately not run at a load average of 9.09**, because a break that goes red on a timeout certifies nothing. `EPIC.md`'s status line was stale by **six** stories
 **Story:** [4.9 The Rehearsal, the Sweep, & Epic 4's Close](STORY.md)
 **Depends on:** 4.9.2, 4.9.3, 4.9.4, 4.9.5, 4.9.6, 4.9.7, 4.9.8
 
@@ -59,6 +59,103 @@ number.
 
 ---
 
-## What was done — 2026-10-12
+## What was done — 2026-10-12 (the preparatory half)
 
-<!-- written at completion -->
+**This task cannot complete until Task 4.9.8's sitting has happened**, because
+acceptance criterion 7 verdicts Epic 4's exit criterion and that verdict is
+_against what the sitting returned_ rather than against what the code does. What
+is done here is everything that does not depend on it.
+
+### Story 4.7 AC 6's owed re-run — 8 of 12 discharged by command, for the first time
+
+Task 4.9.2's acceptance walk found that Story 4.7's eleven break entries went
+red, **but all but 4.7.9's were performed by hand** with the registry's own
+`find`/`replace`, because **`pnpm break` refuses a dirty target by design** and
+the tree was never clean. The close's own instruction — _re-run them with
+`pnpm break <name>` once this is committed_ — had never been carried out. It is
+the single largest block of mechanical evidence in Stories 4.1–4.8 and was the
+one piece unverifiable by command.
+
+**Run on a clean worktree off `origin/main`, load read before at 8.44 and after
+at 9.09:**
+
+| Break                                                | Command                     | Result                            |
+| ---------------------------------------------------- | --------------------------- | --------------------------------- |
+| `the-overview-note-dates-the-arithmetic`             | `pnpm invariants`           | **red → restored byte-identical** |
+| `the-overview-note-folds-the-instant-in-the-browser` | `pnpm invariants`           | **red → restored byte-identical** |
+| `the-footer-age-drops-its-interval`                  | `pnpm invariants`           | **red → restored byte-identical** |
+| `a-compose-carries-an-override`                      | `pnpm invariants`           | **red → restored byte-identical** |
+| `the-break-registry-stops-parsing`                   | `pnpm invariants`           | **red → restored byte-identical** |
+| `the-feed-frame-is-a-heartbeat-again`                | backend `test:process`      | **red → restored byte-identical** |
+| `the-keepalive-stops-being-three-missed-heartbeats`  | backend `test`              | **red → restored byte-identical** |
+| `the-region-head-outlives-its-content`               | frontend `test Region.test` | **red → restored byte-identical** |
+
+**The four not run, and the reason is a rule rather than a shortage of time.**
+`the-harness-answers-the-browsers-own-retry`,
+`a-region-does-not-catch-its-dropped-focus`,
+`a-mover-stands-its-ticker-in-for-its-name` and
+`the-footer-age-reads-the-join-instead-of-the-market` all run
+`pnpm e2e … --anyway`. **The load average was 9.09 on 8 cores.** Task 4.8.9
+measured `securities-route` at a median of **13.5 s against a 30 s ceiling at
+four workers** on a _settled_ machine, and Task 4.8.13 recorded a full `pnpm e2e`
+begun at **5.3** leaving the machine at **31.0** — so at 9.09 a browser break is
+odds-on to go red on a **timeout**, and `CLAUDE.md`'s own rule is that **red for
+the wrong reason reads exactly like proof**: a break that fails loudly for a
+reason other than the defect certifies nothing, and an assertion failure with
+other tests still collecting is the only red that proves a check works.
+
+**Owner: this task, on a settled machine.** Condition: a load average read
+**before** the run below 5. Four scoped specs at `--anyway`, about a minute
+each. **Until then Story 4.7 AC 6 is 8 of 12 by command and 4 of 12 by hand**,
+which is the honest figure and is better than the _all but one by hand_ it was
+this morning.
+
+### `EPIC.md`'s status line was stale by six stories
+
+It read **_"In progress — two of nine complete"_** when 4.1, 4.2, 4.3, 4.4, 4.5,
+4.6 and 4.8 were closed and 4.7 was accepted with AC 5b owed. **A reader opening
+the epic file first — which is the file a reader opens first — was told the epic
+had barely begun.** Found by Task 4.9.2's acceptance walk, which had been told
+**not** to read `EPIC.md` for criteria precisely because it drifts; it drifted.
+
+**Corrected, with the mechanical gap named beside it**: nothing checks an epic's
+own status line against its stories', and `every-story-states-one-dependency`
+deliberately does **not** extend to it — `EPIC.md` marks _visibility_ rather
+than completion, so there is no column to key on. That is the same reason
+`the-epic-close-cannot-outrun-the-rehearsal-ledger` keys on the **close
+story's** status instead, and it is why that check had to be widened rather than
+replaced.
+
+### Gates, with their numbers rather than an assertion
+
+Taken on this worktree, `origin/main` at `34a126c` plus this task's edits. Load
+read **before** each job, never during.
+
+| Gate                              | Numbers                                                                    |
+| --------------------------------- | -------------------------------------------------------------------------- |
+| `pnpm invariants`                 | **54 invariants hold** on this branch; **55** once Task 4.9.5 lands (#569) |
+| `pnpm links`                      | **539 documents, 1,740 cross-file links, 39 anchor links, 0 broken**       |
+| `node --check scripts/breaks.mjs` | passes; **154 entries** here, **157** with #569                            |
+| `pnpm break` ×8                   | all eight red then restored **byte-identical**                             |
+| `pnpm verify`                     | recorded at the close, on the final tree                                   |
+| `pnpm e2e`, `pnpm test:database`  | recorded at the close, on a settled machine                                |
+
+**The four gate readings acceptance criterion 6 asks for are deliberately NOT
+taken yet**, because the criterion asks for them _with their numbers_ and a
+number taken on an intermediate tree is not a reading of the thing being closed.
+They are taken once, on the final tree, after the sitting.
+
+### What remains, and nothing here is optional
+
+1. **Task 4.9.8's sitting** — seven ledger rows, the frame composition, the
+   `feed`-frame re-count, the two-tape note. Everything else in this task is
+   downstream of it.
+2. The four gates with their numbers, on the final tree.
+3. **Epic 4's exit criterion verdicted against the sitting**, not against the
+   code.
+4. Everything shipping open given an **owner and a condition**, with no
+   condition that is a story number.
+5. `CLAUDE.md`'s _Current state_ and _Where the record lives_ updated, including
+   **what a user still cannot do**.
+6. The ADR question and the guard question answered either way.
+7. The four `pnpm e2e` breaks, on a settled machine.
