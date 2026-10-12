@@ -81,6 +81,85 @@ The owner's four decisions, so a later reader does not re-litigate them:
 **Out of scope, stated rather than silent**: Epic 5's anomaly work, which fills
 the region this epic leaves named.
 
+## Reassessed 2026-10-12 after the ADR judgement — ELEVEN tasks, not nine, and the close moves last
+
+**The architect's pass found more than it was asked for**, and the owner took
+four decisions at Gate 2 that add work rather than confirm it. Recorded here
+rather than left as four unexplained new files.
+
+**Two tasks added.** 4.9.10 — the two ADRs, three dated amendments and a
+qualification on invariant 4. 4.9.11 — `MARKET-OVERVIEW.md`, the subject
+document this epic never wrote. **4.9.9, the close, now runs last of eleven.**
+
+### What the judgement found, and what the owner decided
+
+**1. Invariant 4 over-claims, and this is the second epic to find it by walking
+into one.** It says temporal isolation lives in the data layer _"so
+future-information leakage is structurally impossible"_ — but a replayed
+aggregate would compute over **today's** tracked universe, because
+`currentMarketState` filters on `status = 'active'` and the store records no
+point-in-time membership. **That is present information reaching a replayed
+past, in the one place the invariant promises it cannot.** Decided: a **dated
+qualification** beside the invariant, naming aggregates and universe membership
+as the known bound, owned by **Epic 13**, condition _the first replayed
+aggregate this product renders_. The invariant's own wording stays intact. The
+alternatives — leaving it, and buying the membership data now — were put and
+rejected; the second takes Epic 13's design decision four epics early, on a
+table with a live writer.
+
+**2. Two ADRs, B first.** **ADR 0040** defines what _current_ means — the
+five-minute window on each bar's own `startsAt` and **one eligibility pass whose
+output is shared**, not two filters that agree — because it defines `current`
+for every aggregate this product will ever compute, Epic 5's scores included,
+and because the two surfaces that do **not** use it (`Market proxies`,
+`Sector performance`, which mark an entry `live` with **no expiry at all**)
+produced Task 4.7.3's shipped contradiction. **ADR 0041** records that a ranked
+surface **re-orders under a reader**, which _reverses_ the universe table's
+chosen rule — `CLAUDE.md` asserts both today in two places and nothing
+reconciles them. B is blocked on nothing; A's motion half depends on the
+`VISUAL-LANGUAGE.md` reconciliation. **0040 owes one new mechanism**
+(`one-home-for-the-observation-window` plus its break); **0041 owes none** —
+every guard it cites already exists.
+
+**3. Three amendments rather than ADRs**, each because a second home would be
+worse than the gap. **ADR 0033** names **three** clock readings and never
+mentions `computedAt` or `observedAt` — and `observedAt` is the **only** wire
+instant a liveness rule may legitimately read, which is exactly what a future
+author auditing 0033 needs to know. **ADR 0038 Decision 3** owes the selection
+property; a new ADR for it was refused by Task 4.5.4 in as many words — _"a
+second ADR would be a second home for Decision 1 and would make the
+misattribution permanent by giving it somewhere plausible to point."_ And
+`breadth-is-counted-over-the-equities-alone`'s **`claim:` string** says _"the
+503 equities"_ when it is 501; the check is structural and no literal gates
+anything, but **a `claim:` string is printed by the runner as a live claim**
+rather than filed as a dated measurement.
+
+**4. Epic 4 produced NO subject document** — Epic 2 produced seven, Epic 3
+seven, and `CLAUDE.md`'s _Where the record lives_ table has **no Epic 4 row**.
+So the ranked-list treatment, the degraded set's nine states, the frame
+composition and the sitting all resolve to task files, of which this epic has
+**81**. Decided: write `MARKET-OVERVIEW.md` and add the row, at the close,
+because that is when it is cheapest — the material is written and needs
+gathering rather than authoring.
+
+### Three of the judgement's findings were WITHDRAWN, and the reason is the lesson
+
+It reported `the-epic-close-cannot-outrun-the-rehearsal-ledger` as still
+Epic-3-scoped, ADR 0038's `docs/GAPS.md` claim as still false, and the eleven
+break runs as still owed. **All three are true of the checkout it read** —
+`main` at `d3feeeb` — and all three were already repaired on branches awaiting
+CI. **It invited the correction in writing** rather than asserting them, which
+is the right shape for a finding taken against a tree somebody else is moving.
+
+**This is the second time in this story that a stale checkout produced a
+finding indistinguishable in form from a real falsification** — correctly
+reasoned, correctly evidenced, and wrong about `main`. The first was Task
+4.9.2's report that Task 2.3.9 did not exist. **Nothing in the output
+distinguishes them; only the branch point does.** So the rule both instances
+earn: **a judgement or a verdict states the commit it was taken at**, and a
+reviewer told that a repair is in flight should say which finding it would
+withdraw if so.
+
 ## Acceptance criteria
 
 1. Every criterion in Stories 4.1–4.8 has a verdict with an instrument named,
