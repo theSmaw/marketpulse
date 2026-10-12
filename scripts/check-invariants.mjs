@@ -1076,6 +1076,31 @@ const INVARIANTS = [
       //
       // Both words are one list because they are one rule: a clock reading
       // about THIS PROCESS is never evidence about the MARKET.
+      //
+      // ## The field this list PERMITS, written down 2026-10-12 (Task 4.7.11)
+      //
+      // `observedAt` is the only wire instant a liveness rule may read, and
+      // until this note nothing said so in either direction. It is **a bar's
+      // own `startsAt`** — stamped by the market rather than by any process —
+      // which is why `feedStatusFrom`'s 60 s wall-clock arm reads it and why
+      // all three files below mention it legitimately. Two mechanics travel
+      // with the permission: it is the **start** of the interval a bar
+      // describes, so anything comparing it to now adds
+      // `OBSERVATION_INTERVAL_MS` (Task 3.3.4's defect, met again by Task
+      // 4.7.4 one surface over), and it is **absent** when nothing has been
+      // observed, which is why `feedStatusFrom` returns `stale` on absence
+      // rather than inventing a now.
+      //
+      // **What is deliberately unguarded, and it is a `docs/GAPS.md` entry:**
+      // the aggregate's `observedAt` is the same FIELD NAME folded over 518
+      // securities, so a grep cannot tell the per-security observation
+      // instant this rule is built on from the universe-wide one it must not
+      // be. Story 4.7 refused feeding the aggregate's instant into
+      // `feedStatusFrom` with a measurement (it would make every gated run
+      // and every no-provider deployment read `stale` during a session, and
+      // make `/`'s connection word computed over 518 securities while
+      // `/securities/:symbol`'s is computed over one). Nothing mechanical
+      // holds that refusal; this comment is the record.
       const CLOCKS = [
         {
           word: "sentAt",
@@ -1088,8 +1113,10 @@ const INVARIANTS = [
           word: "computedAt",
           what:
             "the aggregate's own instant (Task 4.2.4). It moves every time " +
-            "the gateway rebuilds the overview — on every connect and every " +
-            "subscribe — so a rule keyed on it reports a dead feed as live",
+            "the gateway rebuilds the overview — once per applied batch, and " +
+            "on a cold start also on connect and subscribe (Task 4.7.3 " +
+            "narrowed those two to a served memo on 2026-10-10) — so a rule " +
+            "keyed on it reports a dead feed as live",
         },
       ];
 
@@ -1779,9 +1806,15 @@ const INVARIANTS = [
       // 4.8.12).
       //
       // The defect: the note drew `COMPUTED hh:mm` from `computedAt`, which
-      // is when the **join ran** — and the gateway reaches the producer on
+      // is when the **join ran** — and the gateway reached the producer on
       // every connect and every subscribe, three joins per cold load of `/`
-      // (Task 4.8.3). So on a feed that had stopped, the sentence a reader
+      // (Task 4.8.3; **amended 2026-10-10 by Task 4.7.3 — the connect and
+      // the subscribe serve the last BROADCAST aggregate now, so a cold load
+      // pays one join and `computedAt` no longer advances when somebody
+      // opens a tab on a process that has broadcast. The repair below is
+      // unchanged: a drawn instant must say when the data was true whatever
+      // produced it, and the cold-start arm still computes**). So on a feed
+      // that had stopped, the sentence a reader
       // takes as *when this data was true* was in fact the minute they opened
       // the tab. ADR 0038 had anticipated the instant moving with no market
       // data behind it and concluded only that it must never reach
@@ -3147,9 +3180,12 @@ const INVARIANTS = [
             "`overview()` is unmemoised — every call runs a full join over " +
             "all 518 securities (Task 4.8.11, re-taken after Task 4.8.7's " +
             "`marketDateAt` repair: 1.521 ms a batch, superseding Task " +
-            "4.8.3's 3.72 ms; the three joins a browser opening `/` pays are " +
-            "unchanged in COUNT and their product is an estimate rather " +
-            "than a measurement). Epic 14's " +
+            "4.8.3's 3.72 ms; and amended 2026-10-10 by Task 4.7.3 — a cold " +
+            "`/` pays ONE join rather than three once any batch has been " +
+            "broadcast, because the two snapshot paths serve " +
+            "`lastBroadcastOverview`. The PATH count did not move and the " +
+            "per-load product is now an estimate of a different thing). " +
+            "Epic 14's " +
             "2026-10-07 clause fires on this. Three is not endorsed as " +
             "correct; a fourth is a DECISION, so take it in the epic's own " +
             "file and then repoint this check.",
@@ -4409,49 +4445,103 @@ const INVARIANTS = [
       // Import the registry rather than re-parsing its string literals: `find`
       // is often a concatenation across several lines, and a regex over source
       // would have to re-implement JavaScript to read one.
-      return import(pathToFileURL(registry).href).then(({ BREAKS }) => {
-        if (!Array.isArray(BREAKS) || BREAKS.length !== names.length) {
-          throw new InvariantFailure(
-            "scripts/breaks.mjs does not export a `BREAKS` array matching its " +
-              "own `name:` count. This check reads the export; if the module " +
-              "stopped providing one, it is asserting nothing.",
-          );
-        }
-
-        const rotted = [];
-
-        for (const entry of BREAKS) {
-          const target = resolve(REPO_ROOT, entry.file);
-          let body;
-
-          try {
-            body = readFileSync(target, "utf8");
-          } catch {
-            rotted.push(`${entry.name}: ${entry.file} is not there`);
-            continue;
-          }
-
-          const hits = body.split(entry.find).length - 1;
-          if (hits !== 1) {
-            rotted.push(
-              `${entry.name}: its \`find\` matches ${String(hits)} times in ` +
-                `${entry.file}, not once`,
+      //
+      // **And the import is the half that fails WITHOUT NAMING ANYTHING, added
+      // 2026-10-12 by Task 4.7.11.** The registry is one 4,300-line file whose
+      // entries are sibling object literals, so the edit a merge makes is a
+      // **lost closing brace between two entries** — which is a `SyntaxError`
+      // rather than a wrong entry. That happened **three times inside Story
+      // 4.7 alone**, and every one of the three was caught by somebody running
+      // `node --check scripts/breaks.mjs` by hand (Task 4.7.9 records the
+      // third).
+      //
+      // Measured rather than argued, with the brace on the last entry deleted:
+      // `node scripts/check-invariants.mjs` exits **1** with **17 lines of
+      // output**, all of them Node's module-loader stack, **no invariant
+      // named and no summary line at all** — so the 53 other checks are
+      // neither run nor reported, and the red reads as a fault in the harness
+      // rather than in the registry. `CLAUDE.md`'s _red for the wrong reason
+      // reads exactly like proof_, in the direction that loses the rest of
+      // the run.
+      //
+      // The two clauses above cannot see it: the `name:` regex still matches
+      // every entry in a file that does not parse — a lost brace removes no
+      // `name:` line — and the export-shape clause is inside the `then` the
+      // import never reaches.
+      return import(pathToFileURL(registry).href).then(
+        ({ BREAKS }) => {
+          if (!Array.isArray(BREAKS) || BREAKS.length !== names.length) {
+            throw new InvariantFailure(
+              "scripts/breaks.mjs does not export a `BREAKS` array matching its " +
+                "own `name:` count. This check reads the export; if the module " +
+                "stopped providing one, it is asserting nothing.",
             );
           }
-        }
 
-        if (rotted.length > 0) {
+          const rotted = [];
+
+          for (const entry of BREAKS) {
+            const target = resolve(REPO_ROOT, entry.file);
+            let body;
+
+            try {
+              body = readFileSync(target, "utf8");
+            } catch {
+              rotted.push(`${entry.name}: ${entry.file} is not there`);
+              continue;
+            }
+
+            const hits = body.split(entry.find).length - 1;
+            if (hits !== 1) {
+              rotted.push(
+                `${entry.name}: its \`find\` matches ${String(hits)} times in ` +
+                  `${entry.file}, not once`,
+              );
+            }
+          }
+
+          if (rotted.length > 0) {
+            throw new InvariantFailure(
+              `${String(rotted.length)} break entries can no longer land:\n      ` +
+                rotted.join("\n      ") +
+                "\n    A break that cannot be applied proves nothing, and " +
+                "because breaks are not in `pnpm verify` nothing else will say " +
+                "so. Repoint the entry, then run `pnpm break <name>` — this " +
+                "check proves the text is still there, not that the " +
+                "substitution still expresses the defect.",
+            );
+          }
+        },
+        // **The `node --check`-shaped half.** What this adds is that the
+        // failure is a NAMED invariant, so the run finishes and the other
+        // checks are still reported.
+        //
+        // **It does NOT reproduce `node --check`'s line number, and that was
+        // measured rather than assumed.** A dynamic `import()` of a module that
+        // does not compile rejects with a `SyntaxError` whose `stack` begins at
+        // `compileSourceTextModule` — the `file:…:4263` / `  {` / `  ^` preamble
+        // the uncaught version prints is the loader's own report and is not on
+        // the error object. So the message quotes what there is and names the
+        // one command that gives the line, rather than spawning a child here to
+        // re-derive it.
+        (cause) => {
+          const stack = cause instanceof Error ? cause.stack : undefined;
+          const first = (stack ?? String(cause))
+            .split("\n", 6)
+            .join("\n      ");
+
           throw new InvariantFailure(
-            `${String(rotted.length)} break entries can no longer land:\n      ` +
-              rotted.join("\n      ") +
-              "\n    A break that cannot be applied proves nothing, and " +
-              "because breaks are not in `pnpm verify` nothing else will say " +
-              "so. Repoint the entry, then run `pnpm break <name>` — this " +
-              "check proves the text is still there, not that the " +
-              "substitution still expresses the defect.",
+            "scripts/breaks.mjs does not parse, so neither this check nor " +
+              "`pnpm break` can read a single entry. Node's own reading of " +
+              "it:\n      " +
+              first +
+              "\n    The registry is one file of sibling object literals and " +
+              "the edit a merge makes is a LOST CLOSING BRACE between two " +
+              "entries — three times inside Story 4.7, each caught by hand. " +
+              "`node --check scripts/breaks.mjs` names the line.",
           );
-        }
-      });
+        },
+      );
     },
   },
   {

@@ -140,7 +140,8 @@ const NO_BAR: RankedListBar = { kind: "none" };
  * The list keeps its five rows in every state — `withHeldRows` pads it, so the
  * room is the row pitch times five and the pitch has exactly one home, in
  * `.row`. A sentence placed **above** the `<ol>` would add a sixth line to the
- * region's 466 px against a 486 px box, and at 768 and 390 the grid row is
+ * region's content against its box — 466 / 486 when this was written, 482 /
+ * 491 since Task 4.7.4 — and at 768 and 390 the grid row is
  * content-sized, so the whole lower page would step the moment a market went
  * one-sided. Laid over the held rows it costs nothing: the room is already
  * reserved and already empty.

@@ -412,6 +412,15 @@ on `/` and 23.7–33.1 ms on `/securities/:symbol`. The reading is in
   against a declared 9px/1 and **it inflated the element whose measured 201 px
   decided what wraps at 390**, which is 4.7's own subject; the repair and the
   re-measure travel together.
+  **Done 2026-10-11 by Task 4.7.8, and this entry's blast-radius premise was
+  false.** The descriptor is **164.13 px** rather than 200.59 (the comment's
+  `201` was 36.5 px wide), the wrap argument was re-measured and comes out
+  **stronger** — un-wrapped at 390 the navigation would have **0 px**, not a
+  clipped `Market O` — and **not one sticky-edge figure moved at any width**,
+  because above 560 px the masthead is a fixed height and at or below it the
+  descriptor is `display: none`. The claim that it was _a chrome-height change_
+  was an inference from two true facts past a fixed `height` and a
+  `display: none`, and it is corrected here rather than in the dated records.
 - **The focus ring clipped at both sticky edges** → a task in **4.6**, which adds
   the first focusable content inside `.regions` and whose AC 4 (_focus is never
   occluded at any width_) **cannot pass without it**.

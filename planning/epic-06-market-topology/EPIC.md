@@ -108,3 +108,37 @@ reach for one, measure it against the 447/24.7 ms baseline above before it
 ships, on **three channels** (`longtask`, `long-animation-frame`, an rAF-gap
 recorder), each proved by a plant on the page that produced the figure, because
 `longtask` alone can no longer see this product's existing breach.
+
+## Handed here by Task 4.7.11 — 2026-10-12, at Story 4.7's close: the day a graph node renders, two of these findings become yours
+
+Written here rather than linked. **The grep-shaped sideways pass does not find
+this epic**; it was found by walking the epic list and asking _did 4.7 measure
+anything Epic 6 acts on_.
+
+**1. `Market topology`'s `reserved` panel is currently doing a second job, and
+deleting it does not end that.** Photographed in the degraded set (Task 4.7.9,
+row 08): **a rollback that omits a section from the aggregate draws that region
+with the same hatch, the same muted sentence and the same box your placeholder
+uses**, differing only in the **absence** of an `EPIC n` badge — which is an
+absence rather than a statement. A reader cannot tell _this gateway is behind_
+from _this is next year's_. And at 1440 the inverse was found first (Task
+4.7.5): **the three unbuilt regions read as more intentional than the four
+built ones**, because yours is hatched and labelled while a region waiting for
+data is a plain void with one grey sentence. Both are routed to UX/Design and
+the owner rather than repaired. `Panel`'s `reserved` state is ADR 0029's defer
+rule as a component, and a second variant for _degraded_ is a canvas question.
+
+**2. Your first rendered node is already the reversal trigger for the interim
+layout**, and it is also when the degraded grid gains a row. The grid is a
+**kept** spec — `e2e/specs/overview-degraded-grid.spec.ts`, thirteen states ×
+four widths × seven surfaces, asserting the collapse as **declared collision
+classes** rather than as a count, so it fails both when two rows collapse
+accidentally and when a documented exception stops holding. A canvas region
+contributes a surface to that comparison whose text is whatever the canvas's
+accessible fallback says — which is worth deciding before the grid asks.
+
+**3. One keyboard fact, free.** `Region` focuses its own `<section>` when the
+element that last held focus inside it is removed while `document.activeElement`
+is the body (Task 4.7.6). A canvas that loses its focusable children in a
+degradation inherits that backstop; it composes rather than replaces, so a
+better landing of your own still wins.

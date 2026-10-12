@@ -734,3 +734,41 @@ three channels — `longtask`, `long-animation-frame` and an rAF-gap recorder �
 channel going quiet and a cost going away produce the same output. Exception
 1's `Re-measure:` line already carries a dated amendment saying it is
 insufficient as written (Task 4.8.6); this is the rule behind it.
+
+## Handed here by Task 4.7.11 — 2026-10-12, at Story 4.7's close: one cost removed, one doubled, and a figure that is no longer the figure it was
+
+Written here rather than linked. Task 4.7.3's amendment to the three-paths
+clause is already above; these three are not, and none of them was found by a
+grep.
+
+**1. ~332 `feed` frames a minute, ≈15.4 MB a session per attached browser, are
+gone — and it is NOT a render saving.** `alpaca-stream.ts`' `apply()` notified
+`onConnectionChange` once per **item** of an inbound vendor message and again
+on the vendor's **`ping`**, and `index.ts` answered each with a broadcast:
+median **332 frames a minute in session** (min 3, max 385) at **119 bytes**,
+measured against the deployed gateway. `publishFeedState()` now compares the
+**published** view (`sameWireFeedState` over `WireFeedState`'s three
+primitives) and sends nothing when it has not moved. **`/`'s two renders per
+applied batch are unchanged**: `sameLiveFeedView` already suppressed the no-op
+render, so the mitigation for the symptom predated any count of the cause.
+Read it as **bytes and battery**, and do not credit this epic with a render
+figure it cannot see. The **deployed in-session re-count is owed** (expectation
+~1.4 frames in 75 s) and is written into Story 4.9's file.
+
+**2. The keepalive doubled, deliberately, and it is the one new recurring
+cost.** `KEEPALIVE_INTERVAL_MS = DISCONNECTED_AFTER_MS / 3` = **55 s**, from
+120 s, because the repair above removed Alpaca's 54 s heartbeat from the
+browser's inbound stream and our own timer became the idle floor. Measured
+through the shipped encoder: **119 B** for `live`/`iex`/open, 120 for `stale`,
+127 for `disconnected`/`null` — so **129.8 B/min** per attached browser against
+59.5. It clears Azure's 240 s ingress idle ceiling by **4.36×** against 2×.
+
+**3. The per-cold-load join product is now an estimate of a different thing.**
+Task 4.8.11 had already said the ~4.6 ms rescale was an estimate rather than a
+measurement; since Task 4.7.3 the **count behind it has moved from three to
+one** — `sendSnapshot()` serves `lastBroadcastOverview` where there is one, so
+only a process that has broadcast nothing computes on connect (every cold
+start, every no-provider deployment, **every gated run**). The **path** count
+is unchanged at three and `the-aggregate-has-three-producer-paths` still holds
+it. **If this epic wants the figure, re-take it with Task 4.8.11's recipe
+rather than dividing.**

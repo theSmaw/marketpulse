@@ -546,7 +546,8 @@
  *
  * `text-decoration` is painted rather than laid out, **so nothing moves**. That
  * is why the affordance is an underline and not a border, an inset or a weight
- * change: this region is 466 px in every state at every width, and a 1 px
+ * change: this region is 491 px in every state at every width (466 until Task
+ * 4.7.4 added the footer's age clause, 2026-10-11), and a 1 px
  * border under a 26 px row on pointer-enter would step the whole lower page at
  * the two widths where the grid rows are untied. The offset keeps the stroke
  * clear of a ticker's descender-free capitals.

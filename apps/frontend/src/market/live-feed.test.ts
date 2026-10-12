@@ -528,7 +528,9 @@ describe("the gate that would have stopped the prices moving", () => {
   });
 
   it("still reports a keepalive carrying nothing new as NO change", () => {
-    // The property Task 3.3.2's 120 s keepalive bought, unbroken by the new
+    // The property Task 3.3.2's keepalive bought — 120 s then, 55 s since
+    // Task 4.7.7, and this test's own instants are a fixture rather than the
+    // interval — unbroken by the new
     // field: a message with no observations returns the same Map reference.
     // The snapshot first, so the server's state is already known — otherwise
     // the `feed` message below changes the status from *we have been told

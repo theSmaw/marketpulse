@@ -357,8 +357,9 @@ test("a pad holds no stop, is not a link, and is not where End lands", async ({
 
   const losers = listIn(page, "Movers", "Losers");
 
-  // Five rows of geometry, two of them real. The pads keep the region 466 px
-  // in every state; what they must not be is reachable.
+  // Five rows of geometry, two of them real. The pads keep the region one
+  // height in every state — 466 px when this was written, 491 since Task
+  // 4.7.4's age clause; what they must not be is reachable.
   await expect(losers.locator("li")).toHaveCount(5);
   await expect(losers.getByRole("link")).toHaveCount(2);
   expect(await stopIn(losers)).toEqual(["MRNA"]);

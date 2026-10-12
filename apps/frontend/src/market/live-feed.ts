@@ -132,8 +132,11 @@ export interface LiveFeedConnection {
   /**
    * When ANY message last arrived, on the **monotonic** clock.
    *
-   * **The gateway's 120 s keepalive is what makes this meaningful on this side,
-   * and it is a stronger position than the backend's.** Story 3.2's client
+   * **The gateway's keepalive is what makes this meaningful on this side, and
+   * it is a stronger position than the backend's.** (It was 120 s when this
+   * was written and is **55 s** since Task 4.7.7, 2026-10-11 —
+   * `DISCONNECTED_AFTER_MS / 3`, so the 165 s below is three missed
+   * heartbeats of it rather than 1.375.) Story 3.2's client
    * watches inbound frames because Alpaca's 54 s heartbeat is the only thing
    * distinguishing a quiet feed from a dead one. Here the keepalive plays that
    * role — so a browser that has heard nothing for 165 s has genuinely **lost
@@ -776,7 +779,8 @@ export function sameLiveFeedView(a: LiveFeedView, b: LiveFeedView): boolean {
     // aggregates are never genuinely identical — a deep comparison would
     // have to be told to ignore a field that is part of the answer. And the
     // rate is the `bars` cadence, ~16 a minute (§9.5), against a gate whose
-    // job is to stop the 120 s keepalive rendering — which it still does,
+    // job is to stop the keepalive rendering (120 s when this was written,
+    // 55 s since Task 4.7.7) — which it still does,
     // because a keepalive carries no aggregate and leaves this reference
     // alone.
     //

@@ -4284,4 +4284,36 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "and re-declares",
   },
+
+  // **The registry's own parse — Task 4.7.11, 2026-10-12.**
+  //
+  // This file is 4,300 lines of sibling object literals, and the edit a merge
+  // makes to it is a **lost closing brace between two entries** — a
+  // `SyntaxError` rather than a wrong entry. It happened **three times inside
+  // Story 4.7**, and each time it was caught by somebody running
+  // `node --check scripts/breaks.mjs` by hand.
+  //
+  // The substitution is that edit exactly: the `  },` that closes the entry
+  // before `a-compose-carries-an-override` is deleted and nothing else moves,
+  // which is what a merge leaves behind. It carries **no** `pnpm break:
+  // reverted automatically` marker, deliberately — the point of the
+  // substitution is a file that does not parse, and a comment inside it would
+  // be as unreadable as the rest.
+  {
+    name: "the-break-registry-stops-parsing",
+    proves:
+      "`every-break-can-still-land` IMPORTS this registry, so a lost brace " +
+      "between two entries reaches `pnpm invariants` as an unhandled " +
+      "module-loader `SyntaxError`: before 2026-10-12 the run exited 1 with " +
+      "17 lines of Node's own stack, NO invariant named and no summary, so " +
+      "the other 53 checks were neither run nor reported and the red read " +
+      "as a fault in the harness. The two clauses ahead of the import " +
+      "cannot see it — a lost brace removes no `name:` line, and the " +
+      "export-shape clause is inside the `then` the import never reaches.",
+    file: "scripts/breaks.mjs",
+    find: '\n  },\n  {\n    name: "a-compose-carries-an-override",',
+    replace: '\n  {\n    name: "a-compose-carries-an-override",',
+    command: ["pnpm", "invariants"],
+    expect: "does not parse",
+  },
 ];

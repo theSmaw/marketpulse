@@ -121,7 +121,12 @@ const NARRATIVE = ["NVDA", "AAPL", "SPY", "ERIE"];
 // NOTE (Task 4.1.8, 2026-09-25): 3.10.9 said that bar is "below the fold" at
 // 390 and it is NOT — it is sticky, on screen at any scroll, and it grows from
 // four wrapped lines to six when the feed drops. The real fault is 165 s of
-// `LIVE` before the word changes. `docs/GAPS.md` carries it; Story 4.7 owns it.
+// `LIVE` before the word changes. `docs/GAPS.md` carries it.
+// ANSWERED (Task 4.7.7, 2026-10-11): Story 4.7 kept 165 s and re-derived the
+// KEEPALIVE instead — `KEEPALIVE_INTERVAL_MS = DISCONNECTED_AFTER_MS / 3`
+// (55 s), so 165 s is three missed heartbeats of our own heartbeat rather
+// than of the vendor's. The 165 s of `LIVE` is unchanged and is Story
+// 4.7.10's sitting to look at on a phone.
 const WIDTHS = [1440, 768, 390];
 
 const OUT = resolve(REPO_ROOT, ".capture/sitting");

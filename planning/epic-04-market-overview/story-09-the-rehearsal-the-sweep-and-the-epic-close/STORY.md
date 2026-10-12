@@ -563,3 +563,103 @@ a browser now hears from the gateway **every 55 s** rather than every 120 s, so
 a dropout is visible to the watchdog sooner in the worst case. Four
 consecutive lost keepalives would be needed to reach Azure's 240 s ingress idle
 ceiling, against two before.
+
+## Handed here by Task 4.7.11 — 2026-10-12, at Story 4.7's close: one owed row, a suite verdict with new evidence, and a grid you can re-run
+
+Written here rather than linked. The grep-shaped pass found only the item Task
+4.7.7 had already written in; **these three were found by walking this epic's
+story list and asking _did 4.7 measure anything 4.9 acts on_**, which is the
+second pass this epic has now used in seven consecutive stories.
+
+### 1. Story 4.7 ships owing ONE row, and it is a sitting on a phone
+
+**AC 5b — a person reading `/` on a real phone during a real session** — is
+Task 4.7.10 and is `Not started`. Everything else in that story is complete.
+The row is open in `LIVE-REHEARSAL.md` with its eight-step protocol, and it is
+the item `EPIC.md` says is owed **a person before this epic ships a screen**.
+**If the calendar does not give Story 4.7 a session, it is yours**, and it is
+the same sitting your own rehearsal needs — not a second one.
+
+What a person is being asked, with the figures to put in front of them:
+
+- **At 390 the difference between _the market is shut_, _the feed stopped_ and
+  _the backend is gone_ is two cells at opposite corners.** Over the five
+  content surfaces those states are **byte-identical at every width** — one
+  aggregate, and `main` is a pure function of it. The masthead's session word
+  (top right, wall clock) and the status bar's connection word (bottom,
+  sticky) carry the whole distinction. Measured twice: seven states (4.7.2)
+  and thirteen (4.7.9).
+- **The size signal exists at 390 and essentially not at 1440.** The sticky bar
+  is 109 px on `LIVE` + `HEALTHY`, **131** on `STALE`, **149** on
+  `DISCONNECTED`, **169** with the backend gone — +40 px and +60 px of a 780 px
+  viewport (5.1%, 7.7%) — against **2 px** at 1440. It is a **height**, not a
+  line count: `innerText` is identical however a sentence wraps.
+- **The 2,000 ms floor has never been met on a real network** (derived from
+  174–277 ms against a local pair) and **a backgrounded tab's word lags and
+  does not redial**. Both are `docs/GAPS.md` entries owned by that sitting,
+  both are three taps, and neither has any figure at all.
+
+### 2. Your suite verdict has new evidence, and one measured flake with a named repair
+
+- **The suite grew by three specs and about 1.2–1.5 minutes.**
+  `overview-held-outage.spec.ts` (4 tests), `overview-movers-name-race.spec.ts`
+  (1), `overview-degraded-stops.spec.ts` (5) and
+  `overview-degraded-grid.spec.ts` (4 parallel tests, 26.9 / 15.4 / 21.3 /
+  15.6 s). The counts along the way: **240 passed** at 4.7.4's close, **241** at
+  4.7.5's, and all nineteen `overview-*` specs at **83 passed / 1 skipped** at
+  4.7.9's against 69 / 1 at 4.7.1's.
+- **`overview-nothing-to-open.spec.ts:545`** — _the UN-PINNABLE hold state is
+  reached by keyboard_ — **failed 1 of 48 at `--repeat-each=6`**, reading the
+  ranked list as `[]` one line after `send()`.
+  `expect(await tickersIn(ranked)).toEqual([…])` is a plain `expect` over an
+  `evaluateAll` and therefore **does not retry**, so it races the frame being
+  applied. The repair is `expect.poll` or an `await expect(…)` on the first
+  row's `data-ticker`. **Not taken by Story 4.7**, deliberately: it is Story
+  4.6's spec and a one-line timing change to somebody else's assertion belongs
+  to whoever next reads it. `docs/GAPS.md` already carries the entry; this adds
+  the n.
+- **One confounder worth knowing before you attribute anything.** Task 4.7.6
+  took four full runs on one tree and got **four different failing sets** (5,
+  5, 3 and 11 failures), and two causes were found rather than inferred: the
+  **backend had died** between runs (`node --watch dist/index.js` alive with no
+  child), and **the suite drives its own load** — four Chromium workers take an
+  8-core machine from 3 to 28. The control that settles it is
+  `CLAUDE.md`'s: run the branch commit that contains no code.
+
+### 3. The degraded grid is a KEPT spec, so your rehearsal does not re-produce it
+
+`e2e/specs/overview-degraded-grid.spec.ts` produces **thirteen states at four
+widths over seven surfaces** through the shipped socket path and asserts the
+collapse as **declared classes** (partition by drawn string equals partition by
+declared class, pairwise, failing in both directions). The photographs are the
+same mechanism behind a flag:
+
+```
+DEGRADED_GRID_PHOTOS=1 pnpm e2e overview-degraded-grid.spec.ts
+```
+
+~1.4 minutes, 104 PNGs and four `readings-<width>.json` into a gitignored
+directory. **It is kept rather than thrown away precisely because Task
+3.10.9's grid was deleted and took a repair with it**, which Task 4.7.1 then
+re-derived two epics later.
+
+**Three things it cannot reach**, printed by every run in
+`ENUMERATED_AND_NOT_PRODUCED`: CI's shape with the market **shut** and no close
+anywhere (`market-breadth.ts`' behaviour with a `null` session is unchecked); a
+region whose content **threw** (no frame can reach it — it is covered one layer
+down by `Region.test.tsx`' exhaustive walk); and the masthead's other three
+market-shut spellings (the masthead reads the wall clock, so which one a row
+carries is a property of when the suite ran). The **104 photographs on record
+were taken on a branch without Task 4.7.8's `composes` repair**, so their
+chrome above 560 px is of the defect; the **strings** are unaffected, because
+the masthead is excluded from both comparison keys and the descriptor is
+`display: none` at 390.
+
+### 4. And two Gate 2 items may arrive here if the owner defers them
+
+Both are in `docs/GAPS.md` with their costings: **`ORDER HELD` stays on while a
+re-taken pin moves every row** (the repair is one `relatedTarget` condition in
+`Region`'s `blurred` handler, and what it costs is a reader who never leaves
+the region never seeing a newer order), and **a replica restarted mid-session
+still serves its first browser a thin aggregate** (owned by a condition — the
+first deploy mid-session somebody watches `/` across).
