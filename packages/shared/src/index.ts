@@ -52,6 +52,7 @@ export {
   encodeMarketStreamClientMessage,
   encodeMarketStreamMessage,
   fromWireObservation,
+  sameWireFeedState,
   toWireObservation,
   toWireObservations,
 } from "./market-stream-protocol.js";

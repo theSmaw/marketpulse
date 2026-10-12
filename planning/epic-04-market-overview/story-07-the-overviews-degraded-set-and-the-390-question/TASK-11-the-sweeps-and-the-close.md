@@ -12,10 +12,22 @@
 
 ### Upward, with what is already known to be owed
 
-- **ADR 0033's _"36 bytes a frame, at most 16 frames a minute"_** — false in
-  the tree, owed since Task 4.1.6, and Task 4.7.7 either discharges it or
-  amends it.
-- **ADR 0036**, if the keepalive moves.
+- ~~**ADR 0033's _"36 bytes a frame, at most 16 frames a minute"_**~~ —
+  **DISCHARGED 2026-10-11 by Task 4.7.7**, as a dated amendment beside
+  constraint 4 plus a second one under the reversal trigger (which had already
+  fired when it was written). Do not re-take it; **do** check it still reads
+  true if any figure in this list moves.
+- ~~**ADR 0036**, if the keepalive moves.~~ — **DISCHARGED 2026-10-11 by Task
+  4.7.7.** The keepalive moved: `KEEPALIVE_INTERVAL_MS` is now
+  `DISCONNECTED_AFTER_MS / 3` (**55 s**) and 165 s is unchanged. The ADR
+  carries a dated amendment beside the threshold table and a **second reversal
+  condition** — the first change to either heartbeat the thresholds are three
+  of.
+- **`docs/GAPS.md`'s two entries were amended in the same change, not at the
+  close** — the feed-frame count entry (repaired in the tree, **deployed
+  in-session re-count still owed**, new expectation ~1.4 frames in 75 s) and
+  the 165 s `LIVE` entry (keepalive value and the Gate 1 decision). The
+  re-count is the item to carry into Story 4.9's rehearsal.
 - **ADR 0038 and ADR 0029**, if Task 4.7.3 or 4.7.4 changes what they describe.
 - **Every figure this story's own `STORY.md` carries that the repairs void** —
   the `332`, the `54.0 s` idle floor, the `3×` margin and the **~90 s

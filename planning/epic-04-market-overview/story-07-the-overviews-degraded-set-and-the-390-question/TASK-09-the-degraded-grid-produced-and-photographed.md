@@ -268,6 +268,35 @@ producer's behaviour with **no close anywhere** (`market-breadth.ts`'s `null`
 session) was not checked. Produce it from the producer, or leave it out and say
 so.
 
+### What Task 4.7.8 changed under you, 2026-10-11 — one surface, and no height
+
+**The chrome's descriptor is a different size in every photograph you take**,
+and nothing else about the grid moved. Written here rather than linked, because
+a pointer is what a reader follows when they already know to look.
+
+- **The masthead's drawn words are unchanged.** `MARKET SITUATIONAL AWARENESS`
+  still, in uppercase with the micro tracking — the repair kept the micro-label
+  intent and changed only the size, from **11px/16px to 9px/9px**. So 4.7.2's
+  recorded masthead strings, at every width, are still the strings. **Do not
+  re-take a row for this.**
+- **Its box did move**: the descriptor is **164.13 px** rather than 200.59, and
+  the identity block **198.13 px** rather than 234.59, at 1440 / 1024 / 768
+  alike. At **390 it is `display: none`**, so the 390 column is untouched by
+  construction, and 4.7.2's 390 masthead reading was re-taken and is identical.
+- **No sticky figure moved, measured at all four widths before and after**:
+  chrome **57 / 57 / 57 / 94 px**, footer **33 / 33 / 53 / 73 px**,
+  `scroll-padding-top` **62 / 62 / 62 / 99 px**, `scroll-padding-bottom`
+  **38 / 38 / 58 / 78 px**. The masthead is a fixed `--app-header-height` above
+  560 px and the descriptor is hidden below it, so the font size cannot reach
+  the chrome's height from either side.
+- **Two tick treatments on YOUR regions had the same defect and are
+  PIXEL-IDENTICAL after it**: `BreadthLedger.tick` and `RankedList.ladderTick`
+  were asking for `--letter-spacing-micro` under a `composes` and rendering at
+  `--letter-spacing-tight`. The repair deletes the line rather than honouring
+  it — at the micro tracking the ladder reads `- 2%`, photographed at 1440 and
+  rejected — so `0` is **6.50 px** and `−2%` **19.48 px** before and after, and
+  `.regions` is **1392 × 1191** either way. **Nothing in your grid moves.**
+
 ---
 
 ## Handed here by Task 4.7.6 — 2026-10-11: a state for the grid, and a focus ring that moves in two of your rows

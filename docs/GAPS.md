@@ -807,6 +807,35 @@ published view differs) and the client cost in its own file — and which must
 not derive a browser-side liveness threshold from the 332, because that rate is
 this defect's and disappears with it.
 
+### Amended 2026-10-11 by Task 4.7.7 — the defect is repaired in the tree, and what stays here is the COUNT
+
+`publishFeedState()` now compares the **published** view — `WireFeedState`'s
+three primitives, through `sameWireFeedState` in `packages/shared` — against
+what was last broadcast, and sends nothing when they match. The keepalive, the
+farewell and `index.ts`'s handshake log line stay **ungated**, each for its own
+reason (see `market-gateway.ts`).
+
+**Two things keep this entry open rather than closing it.**
+
+1. **The deployed in-session re-count is owed.** Nothing a developer can run
+   reproduces the rate: `fixture-stream.ts` applies once per tick and
+   `replay-stream.ts` once per slice, so neither has the per-item loop. What is
+   now covered mechanically is the **rule** — `market-gateway.process.test.ts`
+   counts frames over a real socket and asserts 332 publishes of one state send
+   **one** frame, with the keepalive, the farewell and a late joiner each
+   asserted separately, and `alpaca-stream.test.ts` asserts the vendor side
+   still notifies once per item. `pnpm break the-feed-frame-is-a-heartbeat-again`
+   is the break.
+2. **The ADR's fourth constraint is still a rule about a field.** `sentAt` is
+   36 bytes and one per frame; the frame carrying it is published on a cadence
+   no check can count. ADR 0033 carries the dated amendment as of 2026-10-11.
+
+**Re-measure, unchanged in method and with a new expectation** — during a
+session, against the deployed gateway, subscribing to ONE symbol, counting
+`"type":"feed"` frames over 75 s. The expectation is now **~1.4 in 75 s** (the
+keepalive at `DISCONNECTED_AFTER_MS / 3` = 55 s) plus one per genuine change of
+the published view. Anything near 300 is this defect returned.
+
 ## The word `LIVE` survives a dead connection for 165 seconds, and no test in this repository waits for a clock
 
 **Five documents have promised this entry since 2026-09-24 and it has never
@@ -858,9 +887,25 @@ That is unanswerable from a DOM.
 165 s comes from **Alpaca's upstream heartbeat** — 53.96–54.85 s across 82
 intervals — and protects against flapping during a deploy, measured at ~46 s of
 feed outage. Both facts are about the **backend's** connection to its vendor.
-The browser's own socket has a different floor: the gateway's keepalive is
-`KEEPALIVE_INTERVAL_MS = 120_000`. **A browser could know its gateway socket is
-dead well before 165 s and still not cry wolf on a 46-second deploy.**
+The browser's own socket has a different floor: the gateway's keepalive, which
+was `KEEPALIVE_INTERVAL_MS = 120_000` when this entry was written. **A browser
+could know its gateway socket is dead well before 165 s and still not cry wolf
+on a 46-second deploy.**
+
+> **Amended 2026-10-11 by Task 4.7.7, and the sentence below was right about
+> the coupling.** The owner's Gate 1 decision was to **keep 165 s** and
+> re-derive the keepalive instead: with the feed-frame defect repaired, the
+> browser's inbound stream no longer carries Alpaca's 54 s heartbeat, so the
+> browser's idle floor **is** the keepalive. At 120 s, 165 s was 1.375
+> keepalives — one delayed message would put a healthy browser on
+> `DISCONNECTED` — so `KEEPALIVE_INTERVAL_MS` is now
+> `DISCONNECTED_AFTER_MS / 3` (**55 s**), which makes 165 s three missed
+> heartbeats of **our own** heartbeat rather than the vendor's: ADR 0036's rule
+> honoured rather than a number tuned. The story's own ~90 s browser-side
+> candidate is **falsified by the repair the same story made** — it is below
+> the floor the repair creates. The 240 s ingress ceiling is restated rather
+> than assumed: 55 s clears it by 4.36×, against 2× before. What remains open
+> here is the **word's** duration, which has not moved.
 
 > **Do not tune it from here.** ADR 0036's rule is that the two-clock shape is
 > the durable half and the numbers are **dated observations that get
@@ -1082,7 +1127,45 @@ forward walk alone does not.
 **Owner: its own task, on the story that next touches `base.css`'s scroll
 padding** — a condition rather than a story number.
 
-## `AppHeader`'s descriptor renders at 11px/16px against a declared 9px/1, and the 201 px measurement that decided what wraps at 390 was taken against it
+## ~~`AppHeader`'s descriptor renders at 11px/16px against a declared 9px/1, and the 201 px measurement that decided what wraps at 390 was taken against it~~ — DISCHARGED 2026-10-11, and it became a `pnpm invariants` check
+
+**Discharged by Task 4.7.8**, which is the shape `CLAUDE.md` asks for: an entry
+that can be made mechanical should be. Three things happened.
+
+1. **The rule spells its properties.** `.descriptor` no longer composes
+   anything; it states `font-size`, `line-height`, `letter-spacing` and
+   `text-transform` itself, and renders at **9px/9px** with the micro tracking
+   (measured in Chromium at all four widths).
+2. **The 201 px was re-measured and the argument re-stated.** The descriptor is
+   **164.13 px** at 1440 and the identity block **198.13 px**, against 201 and
+   235 — the old reading was 36.5 px wide. The wrap decision **survives**, and
+   it was re-measured rather than re-argued: with the breakpoint disabled, the
+   un-wrapped 390 row over-subscribes its 342 px content box by 24 px before
+   `.nav` gets a pixel, and `.nav` measures **0 px** with **0 px of the first
+   tab visible**. The figures and the counterfactual are in
+   `AppHeader.module.css`'s own breakpoint comment.
+3. **`pnpm invariants` now refuses the shape** —
+   `a-compose-never-carries-an-override`, with the break
+   `a-compose-carries-an-override`. It walks every `.module.css` under
+   `apps/frontend/src`, resolves each `composes:` target transitively, and
+   fails when a composing rule re-declares a property its target declares. It
+   allows exactly one overlap: a class composed from **earlier in the same
+   file**, where the order is readable (`MarketProxyStrip.sentence`). **It
+   found two more live instances on the way in** — `BreadthLedger.tick` and
+   `RankedList.ladderTick` each asked for `--letter-spacing-micro` (0.88 px)
+   and rendered at `--letter-spacing-tight` (−0.11 px measured), because
+   `type.module.css` lands later. Both are repaired by **deleting the
+   declaration rather than honouring it**: photographed at 1440, the micro
+   tracking makes the sector ladder read `- 2%`, and `dataCell`'s backed-off
+   tracking is right for a figure — so those two regions are pixel-identical
+   after the repair. What the check does **not** see is a longhand under a
+   composed shorthand.
+
+**What it does not prove is what every grep here does not prove**: it compares
+property names, so a composed value re-expressed under a different property is
+invisible, and nothing anywhere still asserts a rendered font size.
+
+The entry as it stood is kept below, because it is the evidence.
 
 **Added 2026-09-26 (Task 4.2.6, transcribed here by Task 4.2.8). Shipping
 today, on every route.** Found by sweeping all 37 CSS modules for the
@@ -1120,7 +1203,8 @@ wins. Or measure `.descriptor`'s computed `font-size` in a browser against the
 9px the source declares.
 
 **Owner: its own task** — it is a chrome change on every route, and the 201 px
-re-measure travels with it.
+re-measure travels with it. **That task was 4.7.8, 2026-10-11; see the
+discharge above.**
 
 ## `security-gap-fill.spec.ts`'s `the chart is never blanked or covered while the gap is filled` fails on `main` about one time in eight, and nothing records it
 

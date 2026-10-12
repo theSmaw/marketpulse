@@ -63,7 +63,7 @@
 // Dependency-free, like every script in this directory.
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import process from "node:process";
 
@@ -2138,15 +2138,23 @@ const INVARIANTS = [
       // Task 4.1.6 measured `alpaca-stream.ts` calling `apply()` inside the
       // per-vendor-item loop and `index.ts` answering `onConnectionChange`
       // with `publishFeedState()` — **~332 `feed` frames a minute, broadcast
-      // to every browser regardless of subscription**. That is unrepaired on
-      // purpose and handed to Story 4.7. The `feed` frame is 127 bytes and
-      // `sameLiveFeedView` collapses the render, which is why it survived a
-      // whole epic unnoticed.
+      // to every browser regardless of subscription**. The `feed` frame is
+      // 119–127 bytes and `sameLiveFeedView` collapses the render, which is
+      // why it survived a whole epic unnoticed.
+      //
+      // **Repaired 2026-10-11 by Task 4.7.7**, at the send site:
+      // `publishFeedState` compares the published view and sends nothing when
+      // it has not changed. **This check is unchanged and still load-bearing**
+      // — `publishFeedState` is still CALLED ~332 times a minute, so a frame
+      // put on this path still inherits the rate unless it is gated too, and
+      // the gate is keyed on `WireFeedState` rather than on an aggregate.
       //
       // **An overview frame on that path inherits the rate and none of the
       // mercy.** It would be sent ~332 times a minute instead of once, it
       // carries an aggregate over 518 securities rather than three enum
-      // fields, and `sameLiveFeedView` does not cover it.
+      // fields, `sameLiveFeedView` does not cover it, and `sameWireFeedState`
+      // — which gates the `feed` frame — compares three primitives and would
+      // not see it either.
       //
       // ## Why the rule is about the WORD and the FRAME rather than a name
       //
@@ -5636,6 +5644,228 @@ const INVARIANTS = [
               "re-implementer cannot route around.",
           );
         }
+      }
+    },
+  },
+  {
+    id: "a-compose-never-carries-an-override",
+    claim:
+      "No CSS Module rule that `composes:` another class also declares a " +
+      "property that class declares — because the declaration written under " +
+      "the compose is the one that loses.",
+    check() {
+      // **Added 2026-10-11 by Task 4.7.8, after the second of these shipped.**
+      //
+      // `composes` concatenates class *names*. It does not inline the composed
+      // rule and it does not cascade, so at equal specificity — two single
+      // class selectors — the winner is decided by **stylesheet order in the
+      // bundle**, which is the import graph and is nobody's intent.
+      //
+      // Both cases this repository has had were the same shape and both were
+      // invisible to every other check:
+      //
+      //   * `MarketProxyStrip`, found 2026-09-26: `composes: microLabel` then
+      //     `text-transform: none`, and `2026-09-11 · CLOSING PRICES` shipped
+      //     uppercase at the top of the landing page.
+      //   * `AppHeader.descriptor`, found by the same sweep and repaired here:
+      //     `composes: microLabel` then `font-size: 9px; line-height: 1`,
+      //     rendering at 11px/16px for the life of the 2026 refresh — and it
+      //     inflated the 201 px that decided what wraps at 390.
+      //
+      // **Nothing else can see it.** A CSS Module class name typo is silent;
+      // a losing declaration is worse, because the rule is *there* and reads
+      // correctly. jsdom applies no stylesheet, no test in this product
+      // asserts a font size, and a screenshot of the existing states shows
+      // only the states that exist — the strip's version needed a rule that
+      // had only ever held digits to be handed a **word**.
+      //
+      // The cure is `CLAUDE.md`'s: spell the properties rather than compose
+      // them where a value must differ, which is what
+      // `SecurityIdentity.qualifier` has always done.
+      //
+      // **Where an overlap is allowed, and it is one case.** Composing a
+      // class declared EARLIER IN THE SAME FILE is fine: both rules are in
+      // one stylesheet, the composing one lands after, and the order is
+      // readable by whoever is editing it — `MarketProxyStrip.sentence`
+      // composes `.qualifier` thirty lines above it and its `font-size` does
+      // win. Composing from another file is never fine, because the order is
+      // the import graph. Composing a class declared LATER in the same file
+      // is the defect arriving by a reorder.
+      //
+      // **What this does NOT prove.** It compares property names exactly, so
+      // a longhand under a composed shorthand (`font-size` under `font`) is
+      // not seen; and it says nothing about which rule *would* win in the
+      // cross-file case, because the honest answer is that the author cannot
+      // know and should not have to. Any overlap there is the defect.
+
+      const modules = sourceFilesUnder(
+        resolve(REPO_ROOT, "apps/frontend/src"),
+      ).filter(({ path }) => path.endsWith(".module.css"));
+
+      // The anchor, and it is two: a corpus with no modules, or a corpus with
+      // no `composes` in it, would pass this vacuously for ever.
+      if (modules.length === 0) {
+        throw new InvariantFailure(
+          "No `.module.css` files under apps/frontend/src — have they moved?",
+        );
+      }
+
+      const composing = modules.filter(({ text }) => text.includes("composes"));
+
+      if (composing.length === 0) {
+        throw new InvariantFailure(
+          "No CSS Module in apps/frontend/src uses `composes:` at all. " +
+            "Either the idiom has gone — in which case delete this check in " +
+            "the same change — or this check can no longer see it.",
+        );
+      }
+
+      const byPath = new Map(
+        modules.map(({ path, text }) => [
+          path,
+          // Comments first, and it is the whole reason a first draft of this
+          // was green on the defect it was written for: a rule preceded by a
+          // block comment has the comment inside the selector the brace
+          // matcher hands back, so `.microLabel` never matched and every
+          // composed class resolved to the empty set.
+          text.replace(/\/\*[\s\S]*?\*\//gu, ""),
+        ]),
+      );
+
+      /** Every `selector { body }` pair in one stylesheet. */
+      const rulesIn = (text) =>
+        [...text.matchAll(/([^{}]+)\{([^{}]*)\}/gu)].map((match) => ({
+          // `@media (…) { .a { … } }` leaves the at-rule's own opening on the
+          // front of the inner selector; the last line is the selector.
+          selector: (match[1].trim().split("\n").at(-1) ?? "").trim(),
+          body: match[2] ?? "",
+        }));
+
+      /** The property names a rule body declares, `composes` excluded. */
+      const propertiesIn = (body) => {
+        const names = new Set();
+
+        for (const declaration of body.split(";")) {
+          const colon = declaration.indexOf(":");
+          if (colon < 0) continue;
+
+          const name = declaration.slice(0, colon).trim().toLowerCase();
+          if (name === "" || name === "composes" || name.startsWith("--")) {
+            continue;
+          }
+          if (/[^a-z-]/u.test(name)) continue;
+
+          names.add(name);
+        }
+
+        return names;
+      };
+
+      /** The `composes:` targets of one rule body, resolved to a file. */
+      const composedBy = (body, path) =>
+        [...body.matchAll(/composes\s*:\s*([^;]+)/gu)].flatMap((match) => {
+          const specification = (match[1] ?? "").trim();
+          const external = /^(.+?)\s+from\s+["'](.+?)["']$/u.exec(
+            specification,
+          );
+
+          const names = (external?.[1] ?? specification).trim().split(/\s+/u);
+          const file =
+            external === null
+              ? path
+              : resolve(dirname(path), external[2] ?? "");
+
+          return names
+            .filter((name) => name !== "" && name !== "global")
+            .map((name) => ({ name, file }));
+        });
+
+      /** Every property a class declares, following its own composes. */
+      const declaredBy = (file, name, seen = new Set()) => {
+        const key = `${file}|${name}`;
+        if (seen.has(key)) return new Set();
+        seen.add(key);
+
+        const text = byPath.get(file);
+        if (text === undefined) return new Set();
+
+        const names = new Set();
+
+        for (const rule of rulesIn(text)) {
+          if (rule.selector !== `.${name}`) continue;
+
+          for (const property of propertiesIn(rule.body)) names.add(property);
+          for (const target of composedBy(rule.body, file)) {
+            for (const property of declaredBy(target.file, target.name, seen)) {
+              names.add(property);
+            }
+          }
+        }
+
+        return names;
+      };
+
+      const overrides = [];
+
+      for (const { path } of modules) {
+        const text = byPath.get(path) ?? "";
+
+        const rules = rulesIn(text);
+
+        for (const [index, rule] of rules.entries()) {
+          const targets = composedBy(rule.body, path);
+          if (targets.length === 0) continue;
+
+          const inherited = new Set();
+          for (const target of targets) {
+            if (target.file !== path) {
+              // Another stylesheet: the order is the import graph, so every
+              // property it declares is one this rule cannot override.
+              for (const property of declaredBy(target.file, target.name)) {
+                inherited.add(property);
+              }
+              continue;
+            }
+
+            // Same file: only the occurrences BELOW this rule can win, and
+            // the test is per occurrence rather than per class — a class
+            // declared above and amended in a media query below (which
+            // `MarketProxyStrip.qualifier` is) must be read as both.
+            for (const [other, candidate] of rules.entries()) {
+              if (other <= index) continue;
+              if (candidate.selector !== `.${target.name}`) continue;
+
+              for (const property of propertiesIn(candidate.body)) {
+                inherited.add(property);
+              }
+            }
+          }
+
+          const clashes = [...propertiesIn(rule.body)].filter((property) =>
+            inherited.has(property),
+          );
+
+          if (clashes.length > 0) {
+            overrides.push(
+              `${relative(REPO_ROOT, path)}  ${rule.selector} ` +
+                `composes ${targets.map((t) => t.name).join(" ")} ` +
+                `and re-declares ${clashes.join(", ")}`,
+            );
+          }
+        }
+      }
+
+      if (overrides.length > 0) {
+        throw new InvariantFailure(
+          `A declaration written under a \`composes\` loses to the composed ` +
+            `stylesheet's own:\n      ${overrides.join("\n      ")}\n    ` +
+            "`composes` concatenates class names rather than cascading, so " +
+            "the winner is bundle order and not the rule you wrote it in. " +
+            "Spell the properties instead of composing them where a value " +
+            "must differ — `SecurityIdentity.qualifier` is the idiom. Two " +
+            "of these have shipped: the proxy strip's uppercase heading and " +
+            "`AppHeader`'s descriptor at 11px against a declared 9px.",
+        );
       }
     },
   },
