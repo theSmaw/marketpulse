@@ -252,6 +252,136 @@ function withoutTrailingComments(text) {
   return withoutComments(text).replace(/(^|[^:])\/\/[^\n]*/gu, "$1");
 }
 
+// **One entry per epic that keeps rows in `LIVE-REHEARSAL.md`.**
+//
+// The ledger is one file for the whole product — it was written for Epic 3 and
+// Epic 4 added its rows to the same table — so what varies per epic is three
+// things: which rows are its rows, where its close story's `**Status:**` line
+// lives, and how many rows the file holds today. The last one is the anchor,
+// and it is **per epic rather than global** on purpose: a "must find nothing"
+// assertion over a table passes vacuously the day the table moves, and a
+// global floor is satisfied by one epic's rows while another's have vanished.
+//
+// `rowFloor` is taken from the file as it stands, never argued. Both read 7 on
+// 2026-10-12 (Epic 3: 3.3–3.10, seven of eleven stories; Epic 4: 4.2–4.8).
+const REHEARSAL_LEDGER_EPICS = [
+  {
+    epic: "3",
+    rowPattern: /^\|\s*3\.\d+\s*\|/u,
+    rowFloor: 7,
+    closeStoryPath:
+      "planning/epic-03-live-market-data/" +
+      "story-11-cost-performance-and-the-epic-close/STORY.md",
+  },
+  {
+    epic: "4",
+    rowPattern: /^\|\s*4\.\d+\s*\|/u,
+    rowFloor: 7,
+    closeStoryPath:
+      "planning/epic-04-market-overview/" +
+      "story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md",
+  },
+];
+
+/**
+ * Is a rehearsal ledger row still unwatched? Returns why, or `null`.
+ *
+ * **Two shapes, because the file has produced two.** Epic 3's unwatched rows
+ * were literally **empty** — every cell an em-dash or nothing — and the first
+ * version of this predicate tested exactly that. Epic 4's seven unwatched rows
+ * are **written but unwatched**: the Date column reads `**OPEN**` and every
+ * prose cell is full, saying in detail what the sitting would need. Measured
+ * 2026-10-12: all seven pass an empty-cells-only predicate, so parameterising
+ * the epic without widening the predicate leaves the check green on the whole
+ * of Epic 4.
+ *
+ * So the load-bearing clause is the one a re-implementer cannot avoid writing:
+ * **a watched row carries the date it was watched on.** `**OPEN**`, a blank, an
+ * em-dash, `TBD` and `pending` are then all unwatched without this function
+ * having to know the file's current spelling for "not yet". The empty-cells
+ * test is kept beside it rather than replaced, because a row can carry a date
+ * and say nothing, and that is a different lie.
+ */
+function unwatchedRehearsalRow(row) {
+  const cells = row.split("|").slice(1, -1);
+  const date = (cells[1] ?? "").trim();
+  const account = cells.slice(1).map((cell) => cell.trim());
+
+  if (!/^\d{4}-\d{2}-\d{2}/.test(date.replaceAll("*", "").trim())) {
+    return `its date cell reads \`${date}\` rather than a date`;
+  }
+
+  if (account.every((cell) => cell === "" || cell === "—")) {
+    return "every cell after the story number is empty or an em-dash";
+  }
+
+  return null;
+}
+
+/**
+ * Every epic directory that has stories on disk, as `{ epic, path, stories }`.
+ *
+ * The corpus for `every-story-states-one-dependency`, and the corpus is the
+ * part that matters: a hard-coded list of four epics is green on the file
+ * Epic 5 writes, which is this repository's own recorded failure (the first
+ * `one-home-for-imperative-navigation` was four tokens over four directories
+ * and passed on the next story's new directory). An epic joins this list by
+ * acquiring a `story-NN-…` directory, which is a thing nobody can avoid doing.
+ */
+function epicsWithStories() {
+  const planning = resolve(REPO_ROOT, "planning");
+
+  return readdirSync(planning, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && /^epic-\d+-/.test(entry.name))
+    .map((entry) => {
+      const path = resolve(planning, entry.name);
+      const stories = readdirSync(path, { withFileTypes: true })
+        .filter(
+          (story) => story.isDirectory() && /^story-\d+-/.test(story.name),
+        )
+        .map((story) => resolve(path, story.name, "STORY.md"));
+
+      return {
+        epic: String(Number(/^epic-(\d+)-/.exec(entry.name)[1])),
+        name: entry.name,
+        path,
+        stories,
+      };
+    })
+    .filter((epic) => epic.stories.length > 0);
+}
+
+/**
+ * The `N.M` identifiers in a stated dependency that belong to `epic`.
+ *
+ * Trailing prose after an em-dash is cut first — a dependency is restated with
+ * its history beside it (`4.8 — **re-ordered 2026-09-27**, see below`) and the
+ * history is not part of the claim. What survives the cut is matched for
+ * `N.M`; everything else (`nothing`, `—`, `Epic 3`) contributes nothing, which
+ * is why the cross-epic conjunct below exists separately.
+ */
+function statedDependencies(text, epic) {
+  const stated = text.split("—")[0];
+  const found = new Set();
+
+  for (const match of stated.matchAll(/\b(\d+)\.(\d+)\b/gu)) {
+    if (match[1] === epic) found.add(`${match[1]}.${match[2]}`);
+  }
+
+  return found;
+}
+
+/** The `Epic N` numbers a stated dependency names, as a sorted list. */
+function statedEpics(text) {
+  return [
+    ...new Set(
+      [...text.split("—")[0].matchAll(/\bEpic\s+(\d+)\b/gu)].map(
+        (match) => match[1],
+      ),
+    ),
+  ].sort();
+}
+
 const RECORDED_BODIES = [
   { fixture: "bar-series/default", pattern: /2026-09-04T13:3[0-9]/u },
   { fixture: "securities/universe", pattern: /Agilent Technologies/u },
@@ -1485,8 +1615,9 @@ const INVARIANTS = [
   {
     id: "the-epic-close-cannot-outrun-the-rehearsal-ledger",
     claim:
-      "Story 3.11 cannot be closed while a story in LIVE-REHEARSAL.md's " +
-      "ledger still has an empty row.",
+      "No epic with rows in LIVE-REHEARSAL.md can be closed while one of " +
+      "its stories is still unwatched — neither an empty row nor a row " +
+      "written up as still OPEN.",
     check() {
       // **This check exists because the file already claimed it.**
       // `LIVE-REHEARSAL.md`'s rules said, in as many words, that the ledger is
@@ -1507,63 +1638,267 @@ const INVARIANTS = [
       //
       // So it keys on the **epic close**, which is where the file puts the
       // deadline and where the constraint must be cleared or consciously
-      // waived.
-      const ledgerPath = resolve(
-        REPO_ROOT,
-        "planning/epic-03-live-market-data/LIVE-REHEARSAL.md",
-      );
-      const ledger = readAnchored(ledgerPath);
+      // waived. That reasoning is unchanged and it generalises: every epic
+      // that keeps rows here gets the same treatment, keyed on its own close
+      // story's `**Status:**` line and on nothing else.
+      //
+      // ## Widened 2026-10-12 by Task 4.9.5, and it had TWO defects
+      //
+      // **It could not see Epic 4 at all.** The row filter was the literal
+      // `3.\d+` and the close path was Story 3.11's, so Epic 4 — closing with
+      // seven unwatched rows in the same table — was outside the check's
+      // sight. That is parameterised now: `REHEARSAL_LEDGER_EPICS` above, one
+      // entry per epic, each with its own row pattern, its own close story
+      // and its own row floor.
+      //
+      // **And the predicate would have stayed green after the widening**,
+      // which is the defect that mattered and the one a reader of the sweep
+      // would not have found. The test for an unwatched row was *every cell
+      // empty or an em-dash*, because Epic 3's unwatched rows were literally
+      // empty. Epic 4's seven are **written but unwatched** — `**OPEN**` in
+      // the Date column and full prose beside it — and all seven pass that
+      // predicate. Measured before anything was built. So the predicate moved
+      // to `unwatchedRehearsalRow`, keyed on the clause a re-implementer
+      // cannot avoid writing: a watched row carries the date it was watched
+      // on.
+      const ledger = readAnchored(
+        resolve(
+          REPO_ROOT,
+          "planning/epic-03-live-market-data/LIVE-REHEARSAL.md",
+        ),
+      ).split("\n");
 
-      // The anchor. A "must find nothing" assertion over a table passes
-      // vacuously the day the table moves or is reformatted, so the rows are
-      // counted and their shape asserted before anything is concluded from
-      // their contents.
-      const rows = ledger
-        .split("\n")
-        .filter((line) => /^\|\s*3\.\d+\s*\|/.test(line));
+      for (const epic of REHEARSAL_LEDGER_EPICS) {
+        // The anchor, per epic. A "must find nothing" assertion over a table
+        // passes vacuously the day the table moves or is reformatted, so the
+        // rows are counted before anything is concluded from their contents —
+        // and the floor is this epic's rather than the whole table's, because
+        // a global floor is satisfied by one epic's rows while another's have
+        // silently gone.
+        const rows = ledger.filter((line) => epic.rowPattern.test(line));
 
-      if (rows.length < 6) {
+        if (rows.length < epic.rowFloor) {
+          throw new InvariantFailure(
+            `LIVE-REHEARSAL.md's ledger has ${String(rows.length)} rows for ` +
+              `Epic ${epic.epic}; it had ${String(epic.rowFloor)} when this ` +
+              "check last read the file and the list only grows. A " +
+              "reformatted or relocated table makes this check pass without " +
+              "reading anything.",
+          );
+        }
+
+        const closeStatus = /^\*\*Status:\*\*(.*)$/m.exec(
+          readAnchored(resolve(REPO_ROOT, epic.closeStoryPath)),
+        );
+
+        if (closeStatus === null) {
+          throw new InvariantFailure(
+            `${epic.closeStoryPath} has no \`**Status:**\` line, so there ` +
+              "is no way to tell whether the epic has closed.",
+          );
+        }
+
+        if (!/\b(complete|closed)\b/i.test(closeStatus[1])) continue;
+
+        const unwatched = rows
+          .map((row) => ({
+            story: (row.split("|")[1] ?? "").trim(),
+            why: unwatchedRehearsalRow(row),
+          }))
+          .filter((entry) => entry.why !== null);
+
+        if (unwatched.length > 0) {
+          throw new InvariantFailure(
+            `Epic ${epic.epic}'s close story is marked complete and ` +
+              `${String(unwatched.length)} rehearsal rows are still ` +
+              "unwatched:\n      " +
+              unwatched
+                .map((entry) => `${entry.story} — ${entry.why}`)
+                .join("\n      ") +
+              "\n    A row written retrospectively at the epic close is a " +
+              "row about a memory — the file says so. Either the " +
+              "rehearsal was done and the row is owed, or it was not and " +
+              "the close is early.",
+          );
+        }
+      }
+    },
+  },
+
+  {
+    id: "every-story-states-one-dependency",
+    claim:
+      "Every story's dependency is stated twice — once in its epic's " +
+      "table and once in its own STORY.md — and the two agree.",
+    check() {
+      // **This is Task 4.9.4's finding, and it was red on `main`.** Epic 4's
+      // `EPIC.md` table said Story 4.9 depended on 4.8 while 4.9's own
+      // `STORY.md` said 4.7, and the table's rows for 4.7 and 4.8 had been
+      // swapped against the stories' own lines by the 2026-09-27 re-order.
+      // Nothing noticed for ten days.
+      //
+      // **Why `pnpm links` cannot see it, and why the obvious check cannot
+      // either.** Every number involved named a real story whose file was on
+      // disk and whose link resolved: `4.8` exists, `4.7` exists, and a check
+      // that asks *does the named story exist* is green on the exact defect.
+      // So is a check keyed on the **directory name**, because the directory
+      // numbering and the headings agreed throughout — the disagreement was
+      // between two statements of the dependency, not between a name and a
+      // file. The clause that catches it is the one no re-implementer can
+      // avoid writing: **the two statements are compared against each
+      // other.**
+      //
+      // The story's identity is read from its `# Story N.M` heading rather
+      // than from its directory name, because the directory is what a reader
+      // would key on and it is the weaker fact — a renumbering moves the
+      // heading first and the directory later, and the window between is
+      // exactly when this check has to be right.
+      //
+      // ## What is compared, and the hole it leaves
+      //
+      // The sets of `N.M` identifiers **belonging to this epic**, plus the
+      // `Epic N` numbers where both sides name one. Everything else is prose:
+      // `nothing`, `—` and a bare `Epic 3` carry no identifier and are not
+      // compared as literals, because all four first stories in this
+      // repository disagree literally and all four are defensible — Epic 4's
+      // table says 4.1 depends on `Epic 3` while 4.1's own line says
+      // `nothing — this is the epic's first story`, and both are true.
+      // **So the hole is a first story**: a disagreement about which earlier
+      // epic a story follows is invisible here unless both sides name one. It
+      // is named rather than hidden, because the defect this check exists for
+      // is intra-epic ordering.
+      //
+      // Deliberately NOT extended to the `Depends on:` line on every
+      // `TASK-*.md`. Their forms are heterogeneous and, decisively, no second
+      // statement of a task's dependency exists anywhere to compare against —
+      // two statements of one fact is the whole mechanism.
+      const epics = epicsWithStories();
+
+      if (epics.length < 4) {
         throw new InvariantFailure(
-          `LIVE-REHEARSAL.md's ledger has ${String(rows.length)} story rows; ` +
-            "it had 7 when this check was written and the list only grows. " +
-            "A reformatted or relocated table makes this check pass without " +
-            "reading anything.",
+          `Only ${String(epics.length)} epic directories under planning/ ` +
+            "hold stories; there were 4 on 2026-10-12 and the count only " +
+            "grows. A moved or renamed planning tree makes this check pass " +
+            "without reading anything.",
         );
       }
 
-      const closePath = resolve(
-        REPO_ROOT,
-        "planning/epic-03-live-market-data/" +
-          "story-11-cost-performance-and-the-epic-close/STORY.md",
-      );
-      const closeStatus = /^\*\*Status:\*\*(.*)$/m.exec(
-        readAnchored(closePath),
-      );
+      const disagreements = [];
+      let compared = 0;
 
-      if (closeStatus === null) {
-        throw new InvariantFailure(
-          "Story 3.11's STORY.md has no `**Status:**` line, so there is no " +
-            "way to tell whether the epic has closed.",
+      for (const epic of epics) {
+        const lines = readAnchored(resolve(epic.path, "EPIC.md")).split("\n");
+        const headers = lines.filter(
+          (line) => line.startsWith("|") && line.includes("Depends on"),
         );
-      }
 
-      if (!/\b(complete|closed)\b/i.test(closeStatus[1])) return;
+        if (headers.length !== 1) {
+          throw new InvariantFailure(
+            `${epic.name}/EPIC.md has ${String(headers.length)} table ` +
+              "headers carrying a `Depends on` column; it must have exactly " +
+              "one, because that table is the second statement every " +
+              "story's own line is compared against.",
+          );
+        }
 
-      const empty = rows.filter((row) =>
-        row
+        const column = headers[0]
           .split("|")
-          .slice(2, -1)
-          .every((cell) => cell.trim() === "" || cell.trim() === "\u2014"),
-      );
+          .slice(1, -1)
+          .findIndex((cell) => cell.includes("Depends on"));
 
-      if (empty.length > 0) {
+        // Every table row beneath that header, to the end of the table.
+        const table = new Map();
+
+        for (const line of lines.slice(lines.indexOf(headers[0]) + 1)) {
+          if (!line.startsWith("|")) break;
+
+          const cells = line.split("|").slice(1, -1);
+          const story = /^\**(\d+\.\d+)\**$/.exec((cells[0] ?? "").trim());
+
+          if (story !== null) table.set(story[1], (cells[column] ?? "").trim());
+        }
+
+        if (table.size !== epic.stories.length) {
+          throw new InvariantFailure(
+            `${epic.name}/EPIC.md's table has ${String(table.size)} story ` +
+              `rows and the epic has ${String(epic.stories.length)} ` +
+              "`story-*/` directories. One of them is missing a row or a " +
+              "directory, and a story with no row in the table has nothing " +
+              "to agree with.",
+          );
+        }
+
+        for (const storyPath of epic.stories) {
+          const story = readAnchored(storyPath);
+          const heading = /^# Story (\d+\.\d+)\b/m.exec(story);
+
+          if (heading === null) {
+            throw new InvariantFailure(
+              `${relative(REPO_ROOT, storyPath)} has no \`# Story N.M\` ` +
+                "heading, so its identity could only be read from its " +
+                "directory name — which is the weaker fact and the one " +
+                "this check must not key on.",
+            );
+          }
+
+          const stated = /^\*\*Depends on:\*\*(.*)$/m.exec(story);
+
+          if (stated === null) {
+            throw new InvariantFailure(
+              `${relative(REPO_ROOT, storyPath)} has no ` +
+                "`**Depends on:**` line. Every story states its dependency " +
+                "in its own file as well as in its epic's table.",
+            );
+          }
+
+          const row = table.get(heading[1]);
+
+          if (row === undefined) {
+            throw new InvariantFailure(
+              `${epic.name}/EPIC.md's table has no row for Story ` +
+                `${heading[1]}, which ${relative(REPO_ROOT, storyPath)} ` +
+                "declares itself to be.",
+            );
+          }
+
+          const mine = [...statedDependencies(stated[1], epic.epic)].sort();
+          const theirs = [...statedDependencies(row, epic.epic)].sort();
+          const myEpics = statedEpics(stated[1]);
+          const theirEpics = statedEpics(row);
+          compared += 1;
+
+          if (
+            mine.join(", ") !== theirs.join(", ") ||
+            (myEpics.length > 0 &&
+              theirEpics.length > 0 &&
+              myEpics.join(", ") !== theirEpics.join(", "))
+          ) {
+            disagreements.push(
+              `Story ${heading[1]}: EPIC.md says \`${row}\`, its own ` +
+                `STORY.md says \`${stated[1].trim()}\``,
+            );
+          }
+        }
+      }
+
+      if (compared < 47) {
         throw new InvariantFailure(
-          `Story 3.11 is closed and ${String(empty.length)} rehearsal rows ` +
-            "are still empty:\n      " +
-            empty.map((row) => row.trim()).join("\n      ") +
-            "\n    A row written retrospectively at the epic close is a row " +
-            "about a memory — the file says so. Either the rehearsal was " +
-            "done and the row is owed, or it was not and the close is early.",
+          `Only ${String(compared)} stories were compared; 47 were on ` +
+            "2026-10-12 and the count only grows. A check that compares " +
+            "nothing agrees with everything.",
+        );
+      }
+
+      if (disagreements.length > 0) {
+        throw new InvariantFailure(
+          `${String(disagreements.length)} of ${String(compared)} stories ` +
+            "state a dependency their epic's table disagrees with:\n      " +
+            disagreements.join("\n      ") +
+            "\n    Both statements name real stories whose files exist and " +
+            "whose links resolve, which is why `pnpm links` was green " +
+            "through ten days of this (Task 4.9.4). Repair the one that is " +
+            "wrong; do not delete either, because the second statement is " +
+            "the whole mechanism.",
         );
       }
     },

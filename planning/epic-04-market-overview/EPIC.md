@@ -1,6 +1,6 @@
 # Epic 4 — Market Overview
 
-**Status:** **In progress — two of nine complete.** 4.1 (the shell) closed 2026-09-25; 4.2 (the seam and the proxies) closed 2026-09-26.
+**Status:** **In progress — eight of nine complete; 4.9 is the close and is running.** 4.1 (the shell) closed 2026-09-25; 4.2 (the seam and the proxies) 2026-09-26; 4.3 (sector performance) 2026-10-07; 4.4 (breadth and the denominator) 2026-10-07; 4.5 (the movers) 2026-10-08; 4.6 (selection from the overview) 2026-10-09; 4.8 (the overview at universe scale) 2026-10-10; 4.7 (the degraded set and the 390 question) accepted 2026-10-11 **with AC 5b owed** — the 390 question from a real phone, which Task 4.9.8's sitting takes. **Corrected 2026-10-12 by Task 4.9.9: this line read `two of nine complete` and was stale by SIX stories**, so a reader opening this file first — which is the file a reader opens first — was told the epic had barely begun. Found by Task 4.9.2's acceptance walk, which was told not to read this file for criteria precisely because it drifts. **Nothing mechanical checks an epic's own status line against its stories', and `every-story-states-one-dependency` deliberately does not extend to it** — `EPIC.md` marks _visibility_ rather than completion, so there is no column to key on, which is the same reason `the-epic-close-cannot-outrun-the-rehearsal-ledger` keys on the close story's status instead.
 **Sequence:** 4 of 15 — follows Epic 3 (Live Market Data)
 **Spec references:** PRODUCT_SPEC.md §8.1 (Market Overview), §9 (overview layout)
 

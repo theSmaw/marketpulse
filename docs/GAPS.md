@@ -3565,7 +3565,10 @@ on the same machine; `pnpm verify` has no server at all; the harness in
 one slow in the way a radio does, and a `page.waitForTimeout` before a send
 would be this repository asserting its own number back to itself.
 
-**Owner: Task 4.7.10's sitting**, which is the only instrument in this
+**Owner: Task 4.9.8's sitting** (corrected 2026-10-12 by Task 4.9.5 — this
+read `Task 4.7.10's sitting`, a **complete** task whose sitting did not happen,
+since Story 4.7 ships owing AC 5b; `THE-SITTING.md` is the protocol and
+`LIVE-REHEARSAL.md`'s 4.7 row is where it lands), which is the only instrument in this
 repository that is a real phone on a real network.
 
 **Re-measure, and a phone can perform it unaided:** on a handset on cellular
@@ -3671,7 +3674,10 @@ instrument that can take one: `pnpm e2e` drives a foreground page, and a
 `page.evaluate` that fakes `document.hidden` does not make the browser throttle
 its own timers.
 
-**Owner: Task 4.7.10's sitting**, which is a real phone that can be locked.
+**Owner: Task 4.9.8's sitting**, which is a real phone that can be locked
+(corrected 2026-10-12 by Task 4.9.5 — it read `Task 4.7.10's sitting`, a
+complete task; the eight phone steps are still Task 4.7.10's and
+`THE-SITTING.md` references them rather than restating them).
 
 **Re-measure:** on the deployed site, market open, read the market-feed cell,
 lock the phone for five minutes with the network up, unlock, and record the
@@ -3777,3 +3783,296 @@ reproduces all thirteen states at four widths in colour and greyscale in about
 1.4 minutes; rows 10, 11 and 12 are the three in question. The reading a
 machine cannot take is a person's.
 _Added 2026-10-12 (Task 4.7.11)._
+
+---
+
+## An aggregate is checkable by nothing, and this is what would catch one that is quietly wrong
+
+**The claim.** `/` draws four aggregates — four proxy figures, eleven ranked
+sectors, breadth over 501 equities, two ranked mover lists. **Every one is
+correct or quietly wrong, and nothing in this repository can tell which.** A
+breadth count that transposes `advancing` and `declining`, a mover list cut over
+the wrong population, a sector row paired with the wrong benchmark — each of
+those renders as a well-formed, correctly-coloured, plausible figure. **There is
+no shape to be wrong.** This is the one thing Epic 4 owes that Epic 3 did not.
+
+**Why nothing mechanical reaches it.** The guards that exist are real and they
+guard **provenance and structure**, not **value**: `one-producer-of-the-overview-aggregate`
+holds that there is one computation rather than three,
+`breadth-is-counted-over-the-equities-alone` holds the population,
+`the-population-is-never-a-literal` holds the denominator's source,
+`one-pairing-of-a-sector-and-its-benchmark` holds the pairing, and
+`one-comparator-for-the-order-of-a-move` holds the ordering rule. **All of them
+are satisfied by an aggregate whose arithmetic is wrong.** And no test can close
+the gap: **CI's store holds zero bars**, so every gated run draws `measured: 0`,
+`eligible: 0` and two empty lists — **no gated machine has ever seen a breadth
+figure at all, not a wrong one.** Every browser assertion runs against a frame
+this product's own encoder produced, which is internal consistency and not a
+market.
+
+**What would catch it, and it is a person with an external list.** Of the four
+aggregates, exactly one is checkable against something outside this product in
+seconds: **`Movers` — ten tickers and ten percentages, comparable with any
+public market screen in about fifteen seconds.** Breadth's five integers can be
+compared with nothing; a proxy's price is a single quote; a sector row is one
+ETF's own move and is checkable but is also the aggregate least likely to be
+wrong, because it has no denominator at all. **So the answer to _what would
+catch a quietly wrong aggregate_ is: a person reading the movers list beside a
+public screen.** That is a legitimate answer and it is written down as one
+rather than left implied.
+
+**Owner: a person, at the cadence below.** Not an epic and not a story number.
+
+**Condition — and it is two conditions, both of which make the external check
+cheaper than the alternative:**
+
+1. **Every sitting that fills a rehearsal row for a ranked surface takes the
+   movers comparison first**, because it is fifteen seconds and it is the only
+   external evidence available. `LIVE-REHEARSAL.md`'s 4.5 row and
+   `THE-SITTING.md`'s step 1 both say so.
+2. **The first aggregate region whose figures cannot be reconstructed from the
+   frame the browser received.** Today they can — a top-N is a selection and
+   every row carries its own key, so ordering, uniqueness and the interleave are
+   checkable **from the frame**, and breadth's counts can be recounted from
+   `GET /securities`' `lastCloses` in the session basis. The day a region ships
+   a figure that is not reconstructible from what the wire sent, the external
+   check stops being an improvement and becomes the only evidence there is.
+
+**Re-measure:** there is no command. `pnpm e2e overview-breadth-counts.spec.ts`
+asserts the screen equals the frame that drove it — a pass-through, stronger
+than structure and **silent about whether the frame is right** — and its third
+test, the independent recount from `lastCloses`, **skips on CI and on the
+`observed` basis.** The reading is a person's.
+_Added 2026-10-12 (Task 4.9.5), answering Story 4.9's acceptance criterion 5._
+
+---
+
+## One shipped spec file is BINARY to `grep`, and a `grep -r` over the tree reports it as ABSENT rather than empty
+
+**The claim.** `e2e/specs/overview-degraded-grid.spec.ts` contains a literal
+**NUL byte** at byte offset 18,431 — deliberately, as a key separator:
+
+```ts
+.map((surface) => `${surface}\x00${reading[surface] ?? "\x01nothing"}`)
+```
+
+`file` reports the file as `data`. **GNU/BSD `grep` and ripgrep treat it as
+binary and silently skip it**: `grep -c "import"` on a file containing eight
+`import` lines prints **nothing at all** and exits 1. **Not zero. Absent.**
+
+**Why it matters more than it sounds.** It produced a **false conclusion inside
+the task that found it** (Task 4.9.3): two guards Task 4.7.9 records as
+shipped — `the-session-word-has-one-home-and-it-is-the-masthead` and
+`one-aggregate-the-empty-join` — were reported as _described in prose with no
+mechanism_. They exist, at six sites. This is `CLAUDE.md`'s _a claim about a
+mechanism reads identically whether the mechanism is there or not_, arriving
+from the **opposite** direction: **the mechanism is there and the instrument
+says it is not.** And it means Task 2.3.9's universe sweep has a hole exactly
+there — that file carries `tracked: 503` ×7, `eligible: 503`, `measured: 503`,
+and `/** CI's permanent state: 518 securities, zero bars, and four unknowns. */`,
+none of which a `grep -rn` sweep can find.
+
+**What is NOT affected.** `pnpm invariants` reads every corpus with
+`readFileSync(path, "utf8")` and shells out to no grep — verified. So the build
+is unexposed; **humans, agents and any shell-based audit are.**
+
+**Re-measure:** `grep -c import e2e/specs/overview-degraded-grid.spec.ts; echo
+"exit=$?"` prints nothing and `exit=1`;
+`git grep -c import -- e2e/specs/overview-degraded-grid.spec.ts` prints `8`.
+**Use `git grep`, or `grep -a`, for any audit that must be complete.**
+
+**Owner: whoever next sweeps a figure across this tree.** Condition: the first
+audit that reports a count over the tree without saying which tool took it.
+_Added 2026-10-12 (Task 4.9.5), found by Task 4.9.3._
+
+---
+
+## `scripts/breaks.mjs` claims one entry per invariant, and nothing checks that direction
+
+**The claim.** `breaks.mjs` line 3 states _"One entry per invariant in
+`scripts/check-invariants.mjs`"_, and `CLAUDE.md` states _"Every one is
+break-verified by a `pnpm break` entry."_ **Neither is checked.**
+
+`every-break-can-still-land` checks **breaks → files**: that each entry's `find`
+text still occurs exactly once. Its own comment says so, and says what it cannot
+do. **Nothing checks invariants → breaks.** There are **55** invariant ids and
+**157** break entries, of which about 75 target `pnpm invariants`, and the
+pairing is carried **only in each break's `proves:` prose** — break names
+deliberately describe the **defect** rather than the invariant, so no mechanical
+link exists.
+
+**The finding is the unreliability rather than a count.** Matching `expect`
+strings against invariant source leaves ~22 ids unattributable, but that list is
+itself wrong: `expect` strings are fragments of messages assembled across
+template literals, so `the-overview-note-dates-the-arithmetic` plainly proves
+`the-overview-note-dates-an-observation` and a matcher misses it. **The pairing
+cannot be audited, so the claim cannot be checked, so a deleted invariant's
+orphaned break and an invariant that never had a break are both invisible.**
+
+**The repair, specified rather than taken:** add a `proves: "<invariant-id>"`
+field to every break whose `command` is `pnpm invariants`, and one invariant
+asserting the correspondence in **both** directions — every such break names an
+existing invariant id, and every invariant id is named by at least one break.
+That turns a prose claim in a file header into a `verify` step, which is this
+file's own first rule. Break: delete the `proves` id from one entry; separately,
+add an invariant with no break.
+
+**Owner: the next change that adds an invariant.** Condition: the first
+invariant added after 2026-10-12 — at which point the correspondence is one
+field rather than a retrofit over 75 entries.
+_Added 2026-10-12 (Task 4.9.5), found by Task 4.9.3._
+
+---
+
+## `changePercent` crosses the wire unrounded, and that is a decision rather than an oversight
+
+**The claim.** `changePercent` in `packages/shared/src/live-change.ts` is
+`((close − previous) / previous) × 100` and **nothing rounds it**, so a real
+figure carries a 16-digit float — `1.6244720133889459` verbatim off this
+product's own encoder — where the screen draws `1.62` at
+`PERCENT_DISPLAY_DECIMALS`. Measured by Task 4.8.4: **~13 bytes a figure, ~350
+bytes a frame** on a 25-figure aggregate whose ceiling is 4,078 B — **9% of the
+aggregate**, and it is paid on every figure on every other frame too.
+
+**The decision, taken by the owner on 2026-10-12: it stays unrounded.** Task
+4.8.4 said in as many words to **ask rather than assume**, and the reason to ask
+is that it is a **wire** change and a **product** decision, not an optimisation.
+
+**The argument both ways, recorded so it is not re-litigated.** _For rounding_:
+~350 B a frame off every aggregate, free, with no visible change — the screen
+already draws two decimals. _Against_: **a consumer that re-ranks needs more
+precision than the screen shows.** `moveRankingKey` is keyed on the
+**displayed** figure today, so a browser is unaffected — but an agent or a later
+analytical tool that sorts on the raw value would be, and ~1–2% of adjacent
+pairs in a top-5-each-way are already display-equal and therefore structurally
+immobile. **350 bytes buys a correctness property that is expensive to get
+back**, and invariant 1 means the figures a tool reasons over must come from the
+deterministic layer at full precision.
+
+**Reversal trigger, condition-shaped:** the first frame whose measured size
+exceeds its stated ceiling, **or** the first consumer of the aggregate that
+rounds before ranking. Either makes the trade different; neither has happened.
+
+**Re-measure:** `rg -n "changePercent" packages/shared/src/live-change.ts` for
+the absence of rounding, and Task 4.8.4's record for the byte figures.
+**Owner: Epic 14 if the first condition fires, Epic 10 or Epic 7 if the second
+does** — whichever consumer arrives first.
+_Added 2026-10-12 (Task 4.9.5)._
+
+---
+
+## Two product defects Epic 4 found and routed rather than repaired
+
+**Confirmed out of scope by the owner at Gate 1 on 2026-10-12**, and recorded
+here so that _routed_ does not decay into _forgotten_. Neither is Epic 4's and
+neither is `PRODUCT_SPEC.md` §28's.
+
+**1. ADR 0028's 160 ms cover is drawn over both plots during a refill nobody
+asked for.** The defect `security-gap-fill`'s **repaired** predicate now
+actually catches: every residual failure is `sample 0: ChartPending over Price`
+**and** `over Volume`. 5.6% pooled over 144 executions at four workers
+(Wilson 95% CI 2.8–10.6%), **0 / 24 at one worker**. **The old predicate read
+zero against a deliberately covered page**, which is why this went unseen.
+**It must not be counted in a flake rate** — a red there now means something.
+**Owner: the developer.** Condition: the first reader report of the chart
+greying during a session, or the next change to `withLiveEdge`'s refill path.
+
+**2. A `color-contrast` reading of 4.32:1** on the result surface's active
+option — `#0f7b50` on `#e7e8ef` at 13 px, against the 4.5:1 floor. **Reachable
+on `main` today by typing a different letter**, and present on the full
+universe as well as the trimmed sample. This is the **fifth** firing of
+`VISUAL-LANGUAGE.md`'s standing exception (it had fired four times), and Task
+4.9.6 corrects that count so the next reader does not record it as a first.
+**Owner: UX/Design, through the standing-exception procedure** — adopt the
+intent, not the value, and record the measurement beside the token. Condition:
+the next change to the result surface's palette.
+_Added 2026-10-12 (Task 4.9.5)._
+
+---
+
+## A replayed overview aggregate would compute over TODAY's universe, and the store holds no membership history
+
+**This entry exists because ADR 0038 said it did.** The ADR's consequence list
+records the point-in-time universe problem and states that it _"is recorded in
+`docs/GAPS.md`"_ — **and it was not**, found 2026-10-12 by Task 4.9.4 going to
+use it. That is `CLAUDE.md`'s own named defect: a claim about a mechanism reads
+identically whether the mechanism is there or not. **Writing the entry is the
+repair**; ADR 0038 now carries a dated amendment saying so, and the constraint
+is also written into **Epic 13's own `EPIC.md`** in words that epic can act on,
+because a hand-off belongs in the recipient's file rather than behind a pointer.
+
+**The claim.** The landing page's four aggregates are one pure join over
+`currentMarketState`, a closes lookup and an `asOf`. **`currentMarketState`
+filters to `status = 'active'` against the universe as it stands now**, and the
+store records **no point-in-time membership** — no column, no table, no audit
+row saying which securities were tracked on a past date.
+
+**And the universe has already moved, which makes this dated rather than
+hypothetical.** Task 2.3.9 untracked `PSKY` and `WBD` on 2026-10-12 — the vendor
+had never heard of either — taking the tracked set **518 → 516** and the equity
+population **503 → 501**. Their rows and their ~215,161 stored bars are intact,
+because `untracked` keeps everything; what changed is a predicate. **So a replay
+of any session before 2026-10-12 must count 503 equities and will count 501 if
+it filters on `status`.** True of the store today.
+
+**The rule it violates** is `UNIVERSE.md` §12.2's: filter on `status` when
+computing over the market we track **now**, never when showing or replaying
+something we **stored**. A replayed aggregate is the second kind and would
+behave like the first — counting securities that were not tracked then,
+excluding ones that were. **Not a crash and not a blank: a well-formed,
+correctly-coloured, plausible figure.**
+
+**Re-measure:** `rg -n "status" apps/backend/src/market-state.ts` for the filter,
+and `rg -n "point-in-time|membership" apps/backend/migrations/` for the absence
+of the schema — it returns nothing today, and that absence **is** the gap.
+
+**Owner: Epic 13's temporal plugin.** Condition: **the first caller of the join
+whose `asOf` is not the wall clock.** The repair is additive and **starting late
+is irreversible** — membership for past dates cannot be reconstructed from this
+store, only written from the day somebody starts — so the decision belongs early
+in that epic rather than at the point the first replayed breadth count is drawn.
+A second, separate hole in the same path is already in this file: `closesAsOf`
+takes the session and uses it only to decide **when to refresh**, never **what
+to return**.
+_Added 2026-10-12 (Task 4.9.5), discharging a claim ADR 0038 made about this file._
+
+---
+
+## `every-story-states-one-dependency` cannot see a disagreement about which EPIC a first story follows
+
+**The claim.** The invariant added 2026-10-12 compares, per story, the set of
+`N.M` identifiers in its own `**Depends on:**` line against the set in its
+epic's `EPIC.md` table row — keyed on the `# Story N.M —` **heading** rather
+than the directory name, because a re-order in this repository is always two
+edits to the same fact in two files and the only way to get it wrong is to make
+one. **47 stories compared, 47 agree.**
+
+**What it cannot see, named here because the check's own comment names it.** The
+brief for it said values outside the `N.M` pattern — `nothing`, `—`, `Epic N` —
+should compare as **literals**. **That cannot be implemented as written, and
+the expected agreement counts are the proof**: compared literally, four of
+forty-seven are red today, all first stories, all defensible —
+
+| Story | `EPIC.md`            | its own `STORY.md`                         |
+| ----- | -------------------- | ------------------------------------------ |
+| 1.1   | `—`                  | `nothing`                                  |
+| 2.1   | `Epic 1 (1.6, 1.11)` | `Epic 1 (Stories 1.6, 1.11)`               |
+| 3.1   | `Epic 2`             | `Epic 2 (2.6, 2.7, 2.9, 2.10)`             |
+| 4.1   | `Epic 3`             | `nothing — this is the epic's first story` |
+
+So the comparison is scoped to identifiers **belonging to the epic**, plus an
+`Epic N` conjunct that fires **only where both sides name one**. **The residual
+hole: a disagreement about which earlier epic a first story follows is invisible
+unless both sides name one.** Story **4.1** is the live instance — `EPIC.md`
+says `Epic 3`, its own file says `nothing — this is the epic's first story`, and
+both are reasonable readings of a story that depends on an epic rather than on a
+story.
+
+**Re-measure:** `pnpm invariants` prints its own count; the clause reports
+`47 stories compared, 0 disagree`. To see the hole, change one first story's
+epic reference on one side only and observe that the check stays green.
+
+**Owner: whoever next renumbers or re-orders an epic's first story.** Condition:
+the first epic whose opening story changes which earlier epic it follows.
+_Added 2026-10-12 (Task 4.9.5), and the disagreement with the brief is the
+finding rather than the hole._
