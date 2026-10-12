@@ -1,6 +1,6 @@
 # Task 4.9.9 — The gates, and Epic 4's close
 
-**Status:** In progress — 2026-10-12 — **the preparatory half is done and the close itself waits on the sitting.** Story 4.7 AC 6's owed break re-run is **8 of 12 discharged by command**; the other four are `pnpm e2e` and were **deliberately not run at a load average of 9.09**, because a break that goes red on a timeout certifies nothing. `EPIC.md`'s status line was stale by **six** stories
+**Status:** In progress — 2026-10-12 — **the preparatory half is done and the close itself waits on the sitting.** Story 4.7 AC 6's owed break re-run is **12 of 12 discharged by command** — the first time that block of evidence has been verified by command at all; the four browser breaks were held back at a load average of 9.09 and taken at **4.67–4.75**, which is the condition working rather than being waived. `EPIC.md`'s status line was stale by **six** stories
 **Story:** [4.9 The Rehearsal, the Sweep, & Epic 4's Close](STORY.md)
 **Depends on:** 4.9.2, 4.9.3, 4.9.4, 4.9.5, 4.9.6, 4.9.7, 4.9.8
 
@@ -90,7 +90,41 @@ at 9.09:**
 | `the-keepalive-stops-being-three-missed-heartbeats`  | backend `test`              | **red → restored byte-identical** |
 | `the-region-head-outlives-its-content`               | frontend `test Region.test` | **red → restored byte-identical** |
 
-**The four not run, and the reason is a rule rather than a shortage of time.**
+### Amended the same day — the four browser breaks were TAKEN, at the load the condition named
+
+**Held back at 9.09, re-read at 4.74, and run.** The condition this task wrote
+for itself — _a load average read **before** the run, below 5_ — fired, so the
+four were taken rather than deferred. **All four red then restored
+byte-identical, each on a real assertion failure rather than a timeout:**
+
+| Break                                                 | Target                     | Spec                                | Matched                                        |
+| ----------------------------------------------------- | -------------------------- | ----------------------------------- | ---------------------------------------------- |
+| `a-region-does-not-catch-its-dropped-focus`           | `Region.tsx`               | `overview-degraded-stops.spec.ts`   | `when the movers SECTION goes away`            |
+| `a-mover-stands-its-ticker-in-for-its-name`           | `market/movers.ts`         | `overview-movers-name-race.spec.ts` | `1 NVDA NVDA`                                  |
+| `the-harness-answers-the-browsers-own-retry`          | `e2e/support/feed.ts`      | `overview-held-outage.spec.ts`      | `a produced disconnection is held`             |
+| `the-footer-age-reads-the-join-instead-of-the-market` | `market/market-breadth.ts` | `overview-degraded-grid.spec.ts`    | `the documented exception has stopped holding` |
+
+Load **4.67–4.75 before**, **6.09 after** — nowhere near the 31.0 a full
+`pnpm e2e` produces, because these are four scoped specs rather than a suite.
+
+**One thing about WHERE they were run, and it would have produced a false
+all-clear if got wrong.** `pnpm e2e` drives the pair started with `pnpm dev`,
+and that pair serves the **main checkout**. A break run from a worktree edits a
+file the dev server is not serving, so the spec would exercise the unbroken code
+and the harness would report _did NOT go red_ — a guard reported as absent when
+it is there, which `CLAUDE.md` names as the one direction that wastes a repair.
+All four were therefore run **from the main checkout**, with the pair up
+(`pnpm ready`: backend 823.7 s uptime, frontend module graph resolving,
+database answering). The CSS-module caveat did not apply — all four targets are
+`.ts`/`.tsx`, which hot-reload reliably.
+
+**So Story 4.7 AC 6 is 12 of 12 by command**, and the original finding stands as
+the record of what was true this morning: _all but 4.7.9's were performed by
+hand, and the close's own instruction to re-run them had never been carried
+out._ It has now been carried out.
+
+### The reasoning that held them back, kept because the rule outlives the run
+
 `the-harness-answers-the-browsers-own-retry`,
 `a-region-does-not-catch-its-dropped-focus`,
 `a-mover-stands-its-ticker-in-for-its-name` and
