@@ -532,3 +532,40 @@ seconds**: the biggest-movers list, ten names and ten percentages, comparable
 with any public market screen. So that comparison is now the **first** step of
 every sitting, written down with the reason, rather than left as an assumption
 about what a watcher will happen to do.
+
+---
+
+## Amended on the way in — 2026-10-12: the new break rotted the same day, and `every-break-can-still-land` caught it
+
+**Worth recording because it is the cheapest possible instance of a documented
+class, and it happened inside the task that added the entry.**
+
+`the-epic-4-close-outruns-the-rehearsal` was keyed on
+`find: "**Status:** Not started"`. **It stopped matching within hours** —
+Task 4.9.1's own Gate 1 edit moved Story 4.9's status line to
+`In progress — 2026-10-12`, so by the time this branch merged `origin/main` the
+`find` matched **0 times**. The run:
+
+```
+  ✗ every-break-can-still-land
+    1 break entries can no longer land:
+      the-epic-4-close-outruns-the-rehearsal: its `find` matches 0 times in
+      planning/epic-04-market-overview/story-09-…/STORY.md, not once
+```
+
+**And the second rot was already guaranteed**: Task 4.9.9 sets that same line to
+`Complete`, which is the value the break exists to supply.
+
+**The rule the repair is worth more than the repair.** A break whose subject is
+**the close status** cannot be keyed on the close status — the value it needs to
+be absent is the value the story is going to acquire. It is now keyed on the
+**heading**, which is stable, and injects the status **above** the real one,
+because the check reads `/^\*\*Status:\*\*(.*)$/m` and takes the **first**
+match. Re-run after the repoint: red, then restored byte-identical.
+
+**Two things this confirms rather than claims.** `every-break-can-still-land`
+earns its place — it caught the half of the rot that is mechanical, on the same
+day, in a 157-entry registry that is deliberately outside `pnpm verify`. And it
+only ever checks that half: it asserts the `find` text is present, **not** that
+the substitution still expresses the defect, which is why the break was re-run
+by name rather than assumed.

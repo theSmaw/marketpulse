@@ -2132,8 +2132,20 @@ export const BREAKS = [
     file:
       "planning/epic-04-market-overview/" +
       "story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md",
-    find: "**Status:** Not started",
-    replace: "**Status:** **Complete — 2026-10-12.** Epic 4 is closed.",
+    // **Keyed on the HEADING rather than on the status line, and that is the
+    // repair rather than the original.** The first version's `find` was
+    // `**Status:** Not started`, which rotted the same day: Task 4.9.1's own
+    // Gate 1 edit moved the line to `In progress`, and Task 4.9.9 will move it
+    // to `Complete`. A break whose subject is *the close status* cannot key on
+    // the close status — the value it needs to be absent is the value the story
+    // acquires. `every-break-can-still-land` caught it, which is the half of
+    // the rot that is mechanical. The heading is stable, and injecting the
+    // status ABOVE the real one is what arms the check, because
+    // `/^\*\*Status:\*\*(.*)$/m` takes the FIRST match.
+    find: "# Story 4.9 — The Rehearsal, the Sweep, & Epic 4's Close\n",
+    replace:
+      "# Story 4.9 — The Rehearsal, the Sweep, & Epic 4's Close\n\n" +
+      "**Status:** **Complete — 2026-10-12.** Epic 4 is closed.\n",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "rehearsal rows are still",
   },
