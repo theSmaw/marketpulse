@@ -31,6 +31,16 @@ build against. Task 4.2.5 is the payoff.
 
 ## Work
 
+<!-- Pointer added 2026-10-12 by Task 4.9.6. The line below is a historical
+     record and is left standing; the FILE has since been renamed. -->
+
+> **The canvas file named below is now `Market proxies.dc.html`.** It was
+> renamed when Task 4.2.5 renamed the region — `Market summary` was a second
+> word for a concept the product already had. **A reader who asks the canvas for
+> the old name gets `absent`, which is indistinguishable from the
+> `list_projects` trap `CLAUDE.md` warns about**, so the pointer is corrected
+> here rather than the record.
+
 - **A new canvas file**, `Market summary — the four index proxies.dc.html`,
   in six sections: 1440 with its tracks stated; the anatomy of one cell with
   every reserved slot marked; 1024 / 768 / 390 each **restating its tracks**;
