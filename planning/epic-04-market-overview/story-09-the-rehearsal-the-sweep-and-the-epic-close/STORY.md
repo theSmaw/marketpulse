@@ -1,6 +1,6 @@
 # Story 4.9 — The Rehearsal, the Sweep, & Epic 4's Close
 
-**Status:** Not started
+**Status:** In progress — 2026-10-12
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.7 — **corrected 2026-10-07**, see the amendment at the foot
 **Epic scope covered:** the close
@@ -39,6 +39,47 @@ looking_ is a legitimate answer as long as it is written down as one.
 
 **Nothing new**, and a landing page whose figures can be re-taken rather than
 cited.
+
+## Gate 1 — the task list approved, 2026-10-12, and four decisions taken
+
+**Nine tasks**, in this order: 4.9.1 the sitting's instrument (dry-run before
+the bell), 4.9.2 the acceptance verdict over 4.1–4.8, 4.9.3 the upward sweep,
+4.9.4 the hand-off enumeration, 4.9.5 `docs/GAPS.md` and the aggregate, 4.9.6
+the canvas verdict and the `VISUAL-LANGUAGE.md` reconciliation, 4.9.7 the
+suites verdict, 4.9.8 the sitting, 4.9.9 the gates and Epic 4's close.
+
+**4.9.1 runs first because it has a deadline rather than a dependency.** Three
+measurements expire with every session that passes and tonight's open is 21:30
+Asia/Singapore.
+
+The owner's four decisions, so a later reader does not re-litigate them:
+
+1. **Instrument first, sit tonight.** The mechanical tasks run in parallel with
+   the owner's evening. The alternative considered and rejected was closing the
+   epic with the rows owed, as Story 4.7 did with its AC 5b — rejected because
+   this story's own AC 2 is _a person has watched this screen_, so the exit
+   criterion would have had to be verdicted as not met.
+2. **The `pnpm verify` ×24 arm is recorded as UNREACHED**, with an owner and a
+   condition, rather than taken. ~72 minutes to probe one ordering that is
+   unreproduced at n = 96 is poor value against what it could reveal, and the
+   verdict is well-evidenced by Task 4.8.9's 456 executions without it. It is
+   **the one hole in the suites verdict** and 4.9.7 must say so rather than
+   presenting the verdict as complete.
+3. **`changePercent` stays unrounded on the wire.** Task 4.8.4 measured ~350 B
+   a frame, 9% of the aggregate, and said in as many words to ask rather than
+   assume. A consumer that re-ranks needs more precision than the screen shows:
+   `moveRankingKey` is keyed on the **displayed** figure today so a browser is
+   fine, but an agent or a later tool sorting on the raw value would not be.
+   350 bytes buys a correctness property that is expensive to get back. 4.9.5
+   records the alternative and a reversal trigger that is a condition.
+4. **Both routed product defects stay routed** — ADR 0028's 160 ms cover drawn
+   over both plots during a refill nobody asked for, and the `color-contrast`
+   reading of 4.32:1 on the result surface's active option. Neither is Epic 4's
+   and neither is §28's. Pulling either in is scope creep into an epic about a
+   screen.
+
+**Out of scope, stated rather than silent**: Epic 5's anomaly work, which fills
+the region this epic leaves named.
 
 ## Acceptance criteria
 
