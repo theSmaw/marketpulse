@@ -2106,6 +2106,98 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "rehearsal rows",
   },
+  // **Epic 4's arm of the same check, and the substitution is the other half.**
+  //
+  // The Epic 3 entry above blanks a ledger row, because Story 3.11's close
+  // supplies the first condition permanently. Epic 4 is the mirror: its seven
+  // rows are **already unwatched** — `**OPEN**` in the Date column, with
+  // full prose beside them — so the condition the substitution has to
+  // supply is the CLOSE. One line in one file, and it is precisely the defect:
+  // somebody marks the epic closed while nobody has watched the screen.
+  //
+  // **Repoint it the day Story 4.9's status says complete**, which is when
+  // this substitution stops being available — the same trap the Epic 3
+  // entry documents, arriving from the opposite side. At that point the rows
+  // must have dates in them or the check is red on `main`, so the entry moves
+  // to blanking a row as the Epic 3 one does.
+  {
+    name: "the-epic-4-close-outruns-the-rehearsal",
+    proves:
+      "Epic 4 closes with seven stories nobody has watched against a real " +
+      "feed. The rows are written — they say in detail what each " +
+      "sitting needs — and the Date column reads `**OPEN**`, which is " +
+      "why the predicate this check had until 2026-10-12 was green on all " +
+      "seven: it tested for an EMPTY row, and Epic 3's unwatched rows " +
+      "happened to be empty while Epic 4's are not (Task 4.9.5).",
+    file:
+      "planning/epic-04-market-overview/" +
+      "story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md",
+    // **Keyed on the HEADING rather than on the status line, and that is the
+    // repair rather than the original.** The first version's `find` was
+    // `**Status:** Not started`, which rotted the same day: Task 4.9.1's own
+    // Gate 1 edit moved the line to `In progress`, and Task 4.9.9 will move it
+    // to `Complete`. A break whose subject is *the close status* cannot key on
+    // the close status — the value it needs to be absent is the value the story
+    // acquires. `every-break-can-still-land` caught it, which is the half of
+    // the rot that is mechanical. The heading is stable, and injecting the
+    // status ABOVE the real one is what arms the check, because
+    // `/^\*\*Status:\*\*(.*)$/m` takes the FIRST match.
+    find: "# Story 4.9 — The Rehearsal, the Sweep, & Epic 4's Close\n",
+    replace:
+      "# Story 4.9 — The Rehearsal, the Sweep, & Epic 4's Close\n\n" +
+      "**Status:** **Complete — 2026-10-12.** Epic 4 is closed.\n",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "rehearsal rows are still",
+  },
+
+  // **The defect this one plants is one `main` actually carried, for ten
+  // days.** Epic 4's `EPIC.md` table and Stories 4.7, 4.8 and 4.9's own
+  // `**Depends on:**` lines disagreed after the 2026-09-27 re-order, and
+  // #564 repaired it. Nothing was red: `4.6` and `4.7` are both real stories,
+  // both directories are on disk, and `pnpm links` reported
+  // `1726 cross-file links, 0 broken` with the disagreement in place
+  // (re-produced 2026-10-12 by Task 4.9.5 against this exact substitution).
+  {
+    name: "a-story-disagrees-with-the-epic-table",
+    proves:
+      "A story's dependency is stated in two places and the two drift apart, " +
+      "which is how an epic's execution order quietly becomes unreadable. " +
+      "Every mechanical check that looks at one statement at a time is " +
+      "green: the named story exists, its directory is there, its link " +
+      "resolves. Only comparing the two statements against each other sees " +
+      "it (Task 4.9.4, repaired in #564).",
+    file:
+      "planning/epic-04-market-overview/" +
+      "story-08-the-overview-at-universe-scale/STORY.md",
+    find: "**Depends on:** 4.6",
+    replace: "**Depends on:** 4.7",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "state a dependency their epic's table disagrees with",
+  },
+
+  // **The identity clause, broken on its own.** A story is identified by its
+  // `# Story N.M` heading rather than by its directory name, because a
+  // renumbering moves the heading first and the directory later — and a
+  // check keyed on the directory is green through exactly that window. This
+  // substitution opens the window: the heading says 4.10, the directory still
+  // says `story-08-`, and the two cannot both be right.
+  {
+    name: "a-story-is-identified-by-its-directory",
+    proves:
+      "A renumbering leaves a story whose heading and whose directory " +
+      "disagree, and a dependency check keyed on the directory compares the " +
+      "wrong row — green, against a table that has no row for the " +
+      "story the file says it is. Re-produced 2026-10-12: the " +
+      "directory-keyed version of this check reported " +
+      "`47 stories compared, 0 disagree` on this exact tree.",
+    file:
+      "planning/epic-04-market-overview/" +
+      "story-08-the-overview-at-universe-scale/STORY.md",
+    find: "# Story 4.8 —",
+    replace: "# Story 4.10 —",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "has no row for Story 4.10",
+  },
   {
     name: "a-second-clock-on-the-landing-page",
     proves:
