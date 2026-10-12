@@ -438,6 +438,22 @@ Each is _something that exists in one layer and cannot be reached from the next_
 
 Two residues, and the second is this entry's own shape arriving one layer down. The spec compares `innerText`, so **the grid records the uppercase the micro-label layer applies** rather than the string the module produces — deliberate, because comparing by string is only worth doing against the thing on the screen. And **the five rows collapse to four distinct strings on purpose**: two of them must be identical, because _the age does not advance when a second tab opens_ is the whole repair, so the usual _no two rows read identically_ assertion is written as `rows.length - 1`. A grid with a deliberate collision needs that said out loud, or the next person tightens it and goes red for the right reason with the wrong conclusion.
 
+**Verdict 2026-10-12 by Task 4.7.9, which published one over a whole SCREEN: discharged for that grid by construction, both directions performed, and the re-measure's second direction found a state nothing had named and a declared collision that was false.**
+
+`e2e/specs/overview-degraded-grid.spec.ts` is the landing screen's degraded set — **fourteen states at four widths, seven surfaces each, 56 rows**, every row produced through the shipped socket path (the shipped encoder, the gateway's own connect sequence, the shipped decoder, the 2,000 ms gate, the shipped renderer, the close code, the page's own retry) and read back as the string a reader is handed. It is the third grid of the shape Task 4.8.12 established — **the grid IS the test** — and the first over more than one region. No row is reached by setting a component's prop or a view object's field.
+
+**The first direction — every published row is reachable.** By construction: the rows are drives rather than descriptions. One row is labelled `rollback` and is furnished in the strong sense (an aggregate with no `breadth` section, which `WireMarketOverviewInputs` makes unbuildable by any producer and the read side admits because a new bundle meeting a pinned previous image is a reachable pair). One row is produced where the previous grid would have furnished it: a `movers` section the **shipped encoder serialises and the shipped decoder refuses**, because the list is type-legally out of rank order — so _this gateway sends no movers_ is reached through `readOverview`'s own documented leniency rather than by omitting a field.
+
+**The second direction — every reachable pair has a row — is where the findings are, and there are three.**
+
+1. **A reachable state nothing had named, found on the first run that could see it.** CI's permanent store (518 securities, zero bars) and **a replica restarted mid-session** are byte-identical over all five content surfaces: four `unknown` figures, eleven `unknown` sectors, `measured: 0`, two empty lists, no observation instant. The assertion went red as an _accidental collapse_ and the right answer was a class rather than a repair — `one-aggregate-the-empty-join`. It is also the sharp edge of the half Task 4.7.3 could not fix: **the screen has no memory, so the state a reader arrives in and the state a reader is dropped into after a deploy are one picture**, and the only difference is the transition.
+
+2. **A declared collision that was false, which is the direction `rows.length - 1` can never see.** This entry's own 2026-10-10 verdict records a deliberate collision — _the age does not advance when a second tab opens_ — and Task 4.7.9's brief proposed carrying it onto the whole screen as a class. Produced, it is **refuted**: one aggregate joined twice, the second after the bell, differs on `Market proxies`, which adds `last prices of the session`. `market-proxies.ts`' `sessionTiming` reads `computedAt` **deliberately** and argues it (_there is no clock in the browser to read_, and `a-second-clock-on-the-landing-page` refuses one on this route by name). So the collision is true of the source note and false of the screen, and it is now encoded at the grain it holds at: a **partial** collision naming the five surfaces that must agree and the one that must differ, with both halves asserted. `WireMarketOverview.computedAt`'s own amendment — _no drawn sentence reads it any more_ — was corrected on the same day.
+
+3. **A reachable pair this grid still does not have, stated rather than quietly dropped.** CI's shape with the market **shut** and no close anywhere: `market-breadth.ts`' behaviour with a `null` session is unchecked, and building it by hand risks the harness's standing hazard — a state the server cannot reach, drawn as though it could. Enumerated by Task 4.7.2, enumerated again here, and still owed to **whoever produces it from the producer**. Two more are enumerated in the spec's own `ENUMERATED_AND_NOT_PRODUCED` with their reasons: a region whose content **threw** (no frame can reach it, so it is owned one layer down by `Region.test.tsx`' exhaustive walk over the content slot's three states plus the retry) and the masthead's other three market-shut spellings (the masthead reads the **wall clock**, so which one a row carries is a property of when the suite ran).
+
+**And the collapse is declared as a CLASS rather than a count, which is this entry's own 2026-10-10 residue repaired.** That verdict ended by saying a deliberate collision expressed as `rows.length - 1` _needs that said out loud, or the next person tightens it and goes red for the right reason with the wrong conclusion_. The repair is that each row carries the class it may collide within and the assertion is that **the partition by drawn string equals the partition by declared class** — so an accidental collapse goes red, a documented exception that has stopped holding goes red, and the justification for each exception is a sentence the run prints beside the grid. Both directions fired during the task that wrote it. `pnpm break the-footer-age-reads-the-join-instead-of-the-market` is the registry's own proof.
+
 **Re-owned again, condition unchanged**: `CHARTING.md`'s chart states and `PROVENANCE.md`'s failure-and-partial-state tables are still renderer-side grids.
 
 14. **That a tick on the universe table stays under §28's 50 ms — the duration, as opposed to the mechanism.** Added 2026-09-22 by Task 3.6.5, which found the steady state breached (46–49 ms of script per frame plus 40 ms every 30 s from the health poll re-rendering the route) and repaired it with two memo boundaries. **The mechanism is mechanical**: `UniverseTable.render-cost.test.tsx` counts the router's `Link` renders and asserts a price arriving re-renders none and a re-render with nothing changed re-renders no row — `pnpm break a-price-re-renders-every-symbol-link` proves it goes red. **The duration cannot be**: jsdom has no layout, CI's store has zero bars and no socket, and a timing on a shared runner is noise. What nothing guards is the figure itself — a change to what a live cell renders, or a third state update at `App` level, could put a tick back over the line with the render-count test green. **Re-measure (amended 2026-10-09 by Task 4.8.1 — the command below was unsafe as written).** The recipe this entry quoted puts `MARKET_DATA_PROVIDER=fixture` against whatever `DATABASE_NAME` resolves to, which since Story 3.8 (**2026-09-23**, one day after this entry was written) means Story 3.8's live bar writer **stores invented minute bars into the developer's own store**, 518 a minute, for as long as the measurement runs — the entry two screens below, _a locally-run `fixture` or `replay` backend writes synthetic bars into whatever database it is pointed at_, is the same finding reached from the other direction. Use `scripts/overview-instrument.mjs`'s `startProductionPair()`, which defaults the provider to `none` and refuses a stream against `marketpulse`; `pnpm store:bare` builds the store it names instead. The original recipe, for the record and **only with a scratch store named**: `pnpm build`, the backend on `MARKET_DATA_PROVIDER=fixture NON_LIVE_MARKET_DATA=permitted CORS_ORIGIN=http://localhost:4173 DATABASE_NAME=marketpulse_bare`, `vite preview`; open `/securities` at 1440 with a `PerformanceObserver` on `long-animation-frame` installed from an `addInitScript`; wait for two `bars` frames and read `scripts[].duration` against 50 — the invoker is `MessagePort.onmessage`, the React scheduler. The 2026-09-22 reading was 37–40 ms with all 518 rows changing; anything over 50 is a regression, and anything with more than one long animation frame per minute is a second state update to find with a counter on `__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot`.
@@ -3316,6 +3332,45 @@ the source note's `Observed through` from one settled page, and record whether
 the two instants differ and by how much. The absent arm is free on any gated
 machine — CI's store holds zero bars, so `observedAt` is omitted and **neither**
 sentence is drawn.
+
+**Verdict 2026-10-12 by Task 4.7.9, whose grid is the owning condition: the pair
+is PHOTOGRAPHED, the measurement is one minute, and the surface count is FOUR
+rather than three — so it is an owner's call now rather than a finding.**
+
+Produced at 1440 from one frame, both strings verbatim off a settled page:
+
+```text
+source note    : … OBSERVED THROUGH Sep 16 · 14:01 EDT
+Market breadth : … Nothing newer than Sep 16 · 14:02 EDT has reached us.
+Movers         : … Nothing newer than Sep 16 · 14:02 EDT has reached us.
+```
+
+**One minute apart, both correct, and co-visible** — at 1440 the page is one
+column of regions with the note at its foot. `e2e/specs/overview-degraded-grid.spec.ts`
+row `05-session-running` is the row; `DEGRADED_GRID_PHOTOS=1` produces the
+picture.
+
+**The fourth surface was not in this entry and it reads the OTHER field.** The
+three named above draw `observedAt`. `Market proxies` draws
+`Sep 16 · 14:01 EDT · change from 2026-09-15's close`, and its middle clause —
+`last prices of the session`, which appears between the instant and the basis —
+is derived from **`computedAt`** through the trading calendar
+(`market-proxies.ts`' `sessionTiming`, which argues it: there is no clock in the
+browser to read and `a-second-clock-on-the-landing-page` refuses one on this
+route). So one screen, from one frame, states the figures' instant **three
+ways** and qualifies the session from a **fourth** field — and a reader meeting
+`14:01` at the top, `14:01` at the foot and `14:02` in the middle has no way to
+know the middle one is an interval's end.
+
+What this does **not** change is the disposition: still not repaired here, and
+for the reason this entry already gives — two of the three candidate resolutions
+rewrite sentences another story settled, and the fourth surface makes it one
+owner's call across **four** surfaces rather than three. What has changed is
+that the owner now has the picture and the arithmetic rather than an argument.
+
+**Re-measure (unchanged, plus one line):** and read `Market proxies`' qualifier
+beside the other two, because it is the surface whose clause comes from the
+field the other three stopped reading.
 
 ## The 2,000 ms floor is derived from a local pair, and a phone on cellular can cross it before the first frame
 

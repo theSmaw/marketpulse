@@ -650,6 +650,24 @@ export interface WireMarketOverview {
    * `stream-connection.ts` and `live-feed.ts`
    * (`the-send-instant-is-not-a-clock`).
    *
+   * **Amended 2026-10-12 by Task 4.7.9: the first clause of the amendment
+   * above over-claims, and the two halves of it contradict each other four
+   * lines apart.** *No drawn sentence reads it any more* is the **source
+   * note's** claim rather than the screen's — `market-proxies.ts`'
+   * `sessionTiming` reads this field, asks the trading calendar about it, and
+   * draws `last prices of the session` from the answer. The sentence that
+   * follows says so in as many words, which is Task 3.4.9's *two true halves,
+   * one contradiction* inside one docblock.
+   *
+   * The distinction the corrected claim rests on, and it is the one that
+   * matters to whoever adds the next clause: an **age** read off this field is
+   * a lie on a dead feed, because the join runs when a reader opens a tab; a
+   * **question to the calendar** — *is the session these figures belong to
+   * over?* — is answered correctly by the same field for the same reason.
+   * Produced rather than reasoned: `overview-degraded-grid.spec.ts` serves one
+   * aggregate twice with only this field moved, and the proxy strip is the one
+   * surface of seven whose string changes.
+   *
    * **Amended 2026-10-10 by Task 4.8.12: no drawn sentence reads it any
    * more.** The landing page's source note drew it under `COMPUTED`, which on
    * a dead feed is the minute the reader opened the tab — invariant 6 implied

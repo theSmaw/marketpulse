@@ -4118,4 +4118,69 @@ export const BREAKS = [
     ],
     expect: "head claims something its content no longer has",
   },
+
+  // --- Task 4.7.9: the degraded grid's declared collisions ---
+  //
+  // **The grid is the check, so the break is a defect in the PRODUCT rather
+  // than in the grid.** `overview-degraded-grid.spec.ts` produces fourteen
+  // states at four widths, reads seven surfaces off each, and asserts that the
+  // partition of rows **by drawn string** equals the partition **by declared
+  // class** — which fails in both directions, and did so for real twice
+  // during the task that wrote it:
+  //
+  //   - *accidental collapse* — CI's store and a replica restarted mid-session
+  //     read identically over all five content surfaces, which nothing had
+  //     named. The class `one-aggregate-the-empty-join` is that finding
+  //     written down.
+  //   - *a documented collision that has stopped holding* — the class the
+  //     brief itself proposed, `one-aggregate-two-joins`, is **false over the
+  //     whole screen**: the proxy strip reads `computedAt` through the trading
+  //     calendar and adds `last prices of the session`. It is now a declared
+  //     PARTIAL collision, with the five surfaces that must agree and the one
+  //     that must differ named separately, and both halves asserted.
+  //
+  // The substitution below is the **defect somebody else writes**, and it is
+  // the one this product has already made once: Task 4.8.12 found the source
+  // note drawing `computedAt` under a term claiming to describe the figures,
+  // so on a dead feed it advanced with no market data behind it and told a
+  // reader the numbers were from the minute they opened the tab. Task 4.7.4
+  // then put a second instant on the screen, in `Market breadth`'s and
+  // `Movers`' footers, from the same frame — and an author adding a third has
+  // two fields to choose between, one of which is always present.
+  //
+  // What the grid sees that nothing else does: the two instants are **equal**
+  // in every single-frame test, because a fixture that stamps `observedAt` and
+  // `computedAt` a few minutes apart is a fixture somebody chose to write that
+  // way. This spec produces the SAME aggregate twice with the join instant
+  // moved and the observation instant fixed, which is what a reconnecting tab
+  // genuinely receives — so the two fields are forced apart by the state set
+  // rather than by a chosen literal.
+  {
+    name: "the-footer-age-reads-the-join-instead-of-the-market",
+    proves:
+      "`Market breadth`'s age clause is built from the frame's `observedAt` " +
+      "— the newest observation the aggregate contains, a bar's own instant, " +
+      "stamped by the market — and never from `computedAt`, which is when " +
+      "this process last ran the join and advances on every connect and " +
+      "every subscribe. With the join instant substituted, two tabs opened " +
+      "on one dead feed state `Nothing newer than …` three hours apart about " +
+      "the same four prices, and the one opened later looks fresher. The " +
+      "grid catches it because it produces one aggregate joined twice; a " +
+      "single-frame test cannot, because in a single frame somebody chose " +
+      "both literals.",
+    file: "apps/frontend/src/market/market-breadth.ts",
+    find: "    claim: claimOf(breadth, overview?.observedAt),",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    claim: claimOf(breadth, overview?.computedAt),",
+    command: ["pnpm", "e2e", "overview-degraded-grid.spec.ts", "--anyway"],
+    // **The grid catches it TWICE and this is the message that arrives
+    // first**, which is worth knowing before editing this line. The pairwise
+    // class walk runs before the partial-collision walk, and
+    // `one-aggregate-the-empty-join` holds two rows whose join instants
+    // differ — CI's store and a restarted replica — so substituting the field
+    // makes a documented collision stop holding before it makes a documented
+    // agreement stop holding. Either is the right red; only one is the text.
+    expect: "the documented exception has stopped holding",
+  },
 ];
