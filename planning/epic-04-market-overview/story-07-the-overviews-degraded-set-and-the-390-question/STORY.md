@@ -904,3 +904,46 @@ under `e2e/` that the close touches are two comments, both covered by root
 `tsc -b` and `pnpm lint`. The last full suite in this story was Task 4.7.5's
 (**241 passed, 16 skipped, 3.3m, green end to end**) and the last scoped one
 Task 4.7.9's (**all nineteen `overview-*` specs, 83 passed, 1 skipped, 1.5m**).
+
+## Gate 2 — accepted 2026-10-12, with AC 5b owed
+
+**Accepted as ten of eleven tasks and five of six criteria**, on the shape the
+AC 5 split was taken for at Gate 1: the status names which criteria are met and
+which single row is owed, the way `LIVE-REHEARSAL.md` does, rather than holding
+nine tasks' work open against a calendar. **Task 4.7.10 stays open** against a
+booked sitting; the next regular session is 2026-10-12 09:30 ET.
+
+### The owner's second decision at this gate
+
+**Both `reserved`-state findings go to Epic 5, where Task 4.7.11 already wrote
+them, and nothing changes here.** `Panel`'s `reserved` state is doing two jobs —
+in the rollback state a **degraded** region is drawn exactly like one this
+product **has not built yet**, same hatch and same muted sentence as
+`Market topology`, differing only by the absence of an epic badge — and at 1440
+**the three unbuilt regions read as more intentional than the four built ones**,
+which are white voids with one 12 px grey sentence. Epic 5 owns the next region
+to be filled and is the first story that meets both. Rejected: separating the
+two treatments now (a canvas change plus a `Panel` state, widening a story one
+row from closing) and raising the built regions' treatment (the opposite end of
+the same observation, and bigger design work).
+
+### What a user can see
+
+Three visible changes, all on `/`. **Both ranked regions state the instant their
+window ended**, beside the denominator they already state — an age, never a
+verdict. **A mover row no longer says its ticker twice** while the universe is in
+flight. **A region's head no longer claims figures its content has lost.** Plus
+two repairs a reader meets by accident: a **reload during an outage stops
+contradicting itself**, and the chrome's descriptor renders at the size its own
+rule declares.
+
+### What was not verified, and why
+
+**Nobody has looked at this on a phone** — AC 5b, the one owed row. The
+2,000 ms floor's premise (**174–277 ms first-frame times against a local
+pair**) has never been met on a real network. The ~332-frame repair's
+**deployed in-session re-count is owed**, because no locally runnable provider
+has the per-item loop. And **the deploy case is beyond any memo**: the arriving
+replica has no browser attached until the platform terminates the incumbent at
+~46 s, so it cannot have a last broadcast — three uncosted candidates are in
+`docs/GAPS.md` with a condition for an owner.
