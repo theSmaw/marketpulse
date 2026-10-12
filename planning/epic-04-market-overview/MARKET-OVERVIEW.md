@@ -570,8 +570,9 @@ process whose answer is thin. **No amount of gateway memory fixes that.** In
 ## 3. What `current` means
 
 **This is the decision the whole epic was mostly written about**, and the argument
-is being given an ADR of its own in the same batch of work as this document — **ADR
-0040, _the window that decides what current means_, Task 4.9.10**. What follows is
+has an ADR of its own, written in the same batch of work as this document —
+**[ADR 0040](../../docs/adr/0040-what-current-means-a-five-minute-observation-window.md)**, _what "current" means: a five-minute observation window_
+(Task 4.9.10). What follows is
 the summary and the pointer; the ADR carries the curve, the alternatives and the
 reversal trigger.
 
@@ -1846,8 +1847,8 @@ are not obvious from the names:
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The aggregate seam, the frame, the three instants, five decisions      | [ADR 0038](../../docs/adr/0038-the-overview-aggregate-one-join-one-frame.md)                                                                                                                                                                              |
 | A region is a tab stop, and the guard axe can no longer give           | [ADR 0039](../../docs/adr/0039-a-region-is-a-tab-stop-unconditionally.md)                                                                                                                                                                                 |
-| **What `current` means — the window, its curve and its alternatives**  | **ADR 0040**, _the window that decides what current means_ (Task 4.9.10)                                                                                                                                                                                  |
-| **The re-order treatment and `ORDER HELD`**                            | **ADR 0041** (Task 4.9.10)                                                                                                                                                                                                                                |
+| **What `current` means — the window, its curve and its alternatives**  | **[ADR 0040](../../docs/adr/0040-what-current-means-a-five-minute-observation-window.md)**, _what "current" means: a five-minute observation window_ (Task 4.9.10)                                                                                        |
+| **The re-order treatment and `ORDER HELD`**                            | **[ADR 0041](../../docs/adr/0041-a-ranked-surface-re-orders-under-live-data.md)**, _a ranked surface re-orders under live data_ (Task 4.9.10)                                                                                                             |
 | A claim about data requires data; the defer rule                       | [ADR 0029](../../docs/adr/0029-provenance-on-screen-the-partial-states-and-what-an-honest-empty-answer-certifies.md), and [`PROVENANCE.md`](../epic-02-security-universe-historical-data/story-14-provenance-partial-states-and-epic-close/PROVENANCE.md) |
 | Two clocks, and what a liveness threshold must not read                | [ADR 0036](../../docs/adr/0036-two-clocks-and-what-a-liveness-threshold-must-not-read.md)                                                                                                                                                                 |
 | The feed's rates, coverage, the batch cadence, the intra-minute spread | [`LIVE-DATA.md`](../epic-03-live-market-data/story-01-live-data-decisions-and-the-streaming-spike/LIVE-DATA.md) — read §0 first                                                                                                                           |
