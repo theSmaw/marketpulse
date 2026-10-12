@@ -4371,4 +4371,46 @@ export const BREAKS = [
     ],
     expect: "finds WBD and PSKY",
   },
+  // **A second observation window — Task 4.9.10, ADR 0040.**
+  //
+  // The target is `market-overview.ts` rather than `market-breadth.ts`, for
+  // the movers breaks' reason one screen over: a break that edits the module
+  // the check was written around proves the least, and this is where the next
+  // author of an aggregate over this seam is standing.
+  //
+  // **Neither this break nor any break is what found the defect in the
+  // check.** That was `apps/backend/src/market-unusual.ts` — the file Epic 5
+  // writes — run against a draft keyed on the constant's NAME rather than on
+  // the cutoff, which reported `55 invariants hold.` and exit 0 with a second
+  // five-minute window on disk. The transcript is in Task 4.9.10.
+  {
+    name: "a-second-observation-window",
+    proves:
+      "A second aggregate over the live map derives freshness itself, with " +
+      "its own minute constant and its own cutoff. Nothing looks wrong: the " +
+      "count is well-formed, the ranking is plausible, and the sentence " +
+      "beside each one states a window that is no longer the window its own " +
+      "figure was taken with — two definitions of `current` on one screen, " +
+      "which is ADR 0040's whole subject and the shape of Task 4.7.3's " +
+      "shipped contradiction between four live prices and `none were heard " +
+      "from in the last 5 minutes`.",
+    file: "apps/backend/src/market-overview.ts",
+    find: "export function buildMarketOverview(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "const RECENT_MINUTES = 5;\n\n" +
+      "export function countRecentlyActive(\n" +
+      "  entries: readonly MarketOverviewEntry[],\n" +
+      "  asOf: Date,\n" +
+      "): number {\n" +
+      "  const since = asOf.getTime() - RECENT_MINUTES * 60_000;\n\n" +
+      "  return entries.filter(\n" +
+      "    (entry) =>\n" +
+      '      entry.state === "observed" && entry.asOf.getTime() >= since,\n' +
+      "  ).length;\n" +
+      "}\n\n" +
+      "export function buildMarketOverview(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "A SECOND observation window is a second definition of",
+  },
 ];

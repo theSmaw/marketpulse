@@ -26,6 +26,33 @@ These are the load-bearing decisions. They are cheap to honour up front and very
 
 **4. Temporal isolation is enforced in the data/tool layer, not the prompt.** In replay mode, no component may read data timestamped after the replay clock. This constraint belongs in the data-access and tool implementations so future-information leakage is structurally impossible — never rely on instructing the model to behave. Design data access with this in mind from the first query, even before replay exists.
 
+**Qualified 2026-10-12 (Task 4.9.10), and the invariant's own wording above is
+unchanged.** _Structurally impossible_ is the right bar and it is not met yet
+in one named place: **an aggregate over the tracked universe**. Nothing in a
+bar's own timestamp is the problem — the problem is **membership**.
+`currentMarketState` filters on `status = 'active'`, against the universe as it
+stands **now**, and the store records **no point-in-time membership**. So a
+replayed breadth count, sector mean or anomaly score would compute over
+**today's** roster of securities while claiming to describe a past session:
+present information reaching a replayed past, in the one place this invariant
+promises it cannot. `UNIVERSE.md` §12.2 already states the rule it breaks — a
+computation over the market we track _now_ filters, a read of something we
+_stored_ does not, and a replayed aggregate is the second behaving like the
+first.
+
+**The bound is known, named and owned by Epic 13**, whose `EPIC.md` carries it
+in words that epic can act on. The condition is **the first replayed aggregate
+this product renders**. Two things make it worth a line here rather than only
+there. **This is the second epic to find it by walking into it** — Story 4.2
+recorded it as a consequence of ADR 0038 and said it was written down in
+`docs/GAPS.md`, where it was not, which Task 4.9.4 discovered by going to use
+it. And **the data to answer _which securities were tracked on that date_ does
+not exist and cannot be reconstructed**: it can only be written from the day
+somebody starts writing it, so the cost of deferring is not effort, it is
+**history that is never recoverable**. The join's purity means the repair has
+somewhere to land — `symbols` and `closesAsOf` are arguments — and what it
+needs is a row.
+
 **5. Confidence and provenance are part of the domain model, not prose.** Findings carry an explicit confidence level — `CONFIRMED` / `SUPPORTED` / `POSSIBLE` / `UNKNOWN`. Evidence records source, event timestamp, retrieval timestamp, calculation method, and a raw-data reference. "Not enough evidence to explain this move" is a correct, first-class outcome, not a failure.
 
 **6. Market-data provenance is displayed, never implied.** The UI must label the feed and must not suggest coverage the plan does not have. (The free Alpaca plan is asymmetric: stored historical bars are consolidated SIP, the live stream is IEX only — so the honest label differs between the two, and Epic 3's live feed must not inherit Epic 2's word.)

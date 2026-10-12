@@ -3543,9 +3543,12 @@ const INVARIANTS = [
   {
     id: "breadth-is-counted-over-the-equities-alone",
     claim:
-      "Breadth is counted over the 503 EQUITIES, by positive membership — " +
-      "never over the join's whole answer, which holds the four index " +
-      "proxies and the eleven sector SPDRs beside their own constituents.",
+      "Breadth is counted over the EQUITIES ALONE, by positive membership " +
+      "from `UNIVERSE` by `kind` — never over the join's whole answer, " +
+      "which holds the four index proxies and the eleven sector SPDRs " +
+      "beside their own constituents. How many that is comes from " +
+      "`UNIVERSE.md` §17, never from a literal: this check is structural " +
+      "and gates on the SET, not on a count.",
     check() {
       // **The owner's Gate 1 decision 2 for Story 4.4, and the defect it
       // guards is the shortest thing to write.** Task 4.4.4 widened the join
@@ -3631,9 +3634,10 @@ const INVARIANTS = [
         if (!owns.test(found[0][1])) {
           throw new InvariantFailure(
             `\`${what}\` does not name ${String(owns)}:\n      ${what}` +
-              `${found[0][1]}\n    Breadth is counted over the 503 equities, ` +
-              "derived from `UNIVERSE` by `kind` and tested positively. The " +
-              "join sees all 518 since Task 4.4.4, so the whole answer is " +
+              `${found[0][1]}\n    Breadth is counted over the equities ` +
+              "alone, derived from `UNIVERSE` by `kind` and tested " +
+              "positively. The join has seen the whole universe since Task " +
+              "4.4.4, so the whole answer is " +
               "sitting there in the right shape — and a count over it " +
               "includes the fifteen funds beside their own constituents, " +
               "which makes this region and `Market proxies` " +
@@ -5955,6 +5959,223 @@ const INVARIANTS = [
             "must differ — `SecurityIdentity.qualifier` is the idiom. Two " +
             "of these have shipped: the proxy strip's uppercase heading and " +
             "`AppHeader`'s descriptor at 11px against a declared 9px.",
+        );
+      }
+    },
+  },
+  {
+    id: "one-home-for-the-observation-window",
+    claim:
+      "The observation window has one producer home — " +
+      "`BREADTH_WINDOW_MINUTES` in `apps/backend/src/market-breadth.ts`, " +
+      "applied to each bar's own `startsAt` — and the browser READS it off " +
+      "the frame as `windowMinutes` rather than spelling a window of its own.",
+    check() {
+      // **What `current` means, held mechanically — ADR 0040, Task 4.9.10.**
+      //
+      // An aggregate over the live map counts only securities whose newest
+      // observation falls inside a window measured in minutes, 5 today,
+      // derived from Task 4.1.6's by-hour coverage curve. The constant is
+      // spelled once and travels to the browser as `windowMinutes`, so the
+      // screen states the window the count was taken with rather than a
+      // second spelling of it — a rollback can put a gateway and a bundle two
+      // values apart.
+      //
+      // ## The draft of this check passed on the defect, and the transcript
+      // ## is in Task 4.9.10
+      //
+      // The obvious implementation is two clauses: the constant is assigned
+      // exactly once, and every `measuredWindow(` call site names
+      // `windowMinutes`. Both are true and neither is the claim. Run against
+      // `apps/backend/src/market-unusual.ts` — the file Epic 5 writes, an
+      // aggregate over the same entries with `const RECENT_MINUTES = 5` and
+      // `asOf.getTime() - RECENT_MINUTES * 60_000` — it reported `55
+      // invariants hold.` and exit 0 with the second window on disk. Nothing
+      // in that draft is about a window; it is about an identifier.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // Not the constant's name and not the word *window*: it is the
+      // **cutoff**. Whatever they build, a window over observations is a
+      // minute-scaled quantity subtracted from an instant, because the thing
+      // being compared is a bar's own `startsAt` in milliseconds. So the
+      // corpus is walked for that subtraction and exactly one is allowed.
+      //
+      // The corpus is `shippedSourceFiles()` rather than the files that
+      // compute an aggregate today, for `one-home-for-imperative-navigation`'s
+      // reason: **a new region is a new file by this repository's
+      // convention**, so a file list is a corpus that cannot see the next
+      // region. The plant above sits in it by existing.
+      //
+      // ## Two things this cannot see, written down rather than implied
+      //
+      // A cutoff spelled as an **addition** to the bar's instant rather than
+      // a subtraction from `asOf` — `startsAt + window < asOf` — is the same
+      // window the other way round and is outside the pattern. And a window
+      // hard-coded in milliseconds with no minute factor
+      // (`asOf.getTime() - 300_000`) is invisible to it. The shipped pass is
+      // written as a minute-scaled subtraction and a copier copies; neither
+      // residue is cheap to pattern-match without tripping on every instant
+      // this product adds to another.
+      const HOME = "apps/backend/src/market-breadth.ts";
+
+      /**
+       * A **cutoff**: a minute-scaled quantity subtracted from an instant's
+       * milliseconds.
+       *
+       * `[^;\n]` keeps the match inside one statement and one line, so a
+       * subtraction and an unrelated multiplication two lines down are not
+       * read as one expression.
+       */
+      const CUTOFF =
+        /getTime\(\)\s*-\s*[^;\n]*?\*\s*(?:MS_PER_MINUTE|MINUTE_MS|ONE_MINUTE_MS|60_000|60\s*\*\s*1000|60000)/gu;
+
+      /**
+       * An hour- or day-scaled lookback is a different quantity and there are
+       * four of them in the tree — the stream's week of sessions, the
+       * freshness route's lookback, a session's 6.5 hours. Each is a span
+       * over sessions rather than a freshness window over observations.
+       */
+      const COARSER = /\b24\s*\*|60\s*\*\s*60/u;
+
+      const cutoffs = [];
+
+      for (const { path, text } of shippedSourceFiles()) {
+        for (const match of text.matchAll(CUTOFF)) {
+          if (COARSER.test(match[0])) continue;
+
+          cutoffs.push({
+            path: relative(REPO_ROOT, path),
+            expression: match[0].replaceAll(/\s+/gu, " ").trim(),
+          });
+        }
+      }
+
+      // **No match is a failure.** A grep whose anchor has moved returns
+      // nothing and reads exactly like a pass, and this one's subject is a
+      // single expression in a single function.
+      if (cutoffs.length !== 1) {
+        throw new InvariantFailure(
+          `The tree holds ${String(cutoffs.length)} observation-window ` +
+            "cutoffs, expected exactly 1:\n      " +
+            (cutoffs.length === 0
+              ? "(none)"
+              : cutoffs
+                  .map(({ path, expression }) => `${path} — ${expression}`)
+                  .join("\n      ")) +
+            "\n    A SECOND observation window is a second definition of " +
+            "`current` on one screen. ADR 0040: one window filters the " +
+            "numerator and the denominator in a single pass whose output is " +
+            "shared, and it travels on the frame as `windowMinutes` so the " +
+            "sentence beside a count is always the window that count was " +
+            "taken with. Two windows is two denominators — both well-formed, " +
+            "both individually correct, disagreeing twenty-four pixels " +
+            "apart. Consume `eligibleMoves` rather than re-deriving " +
+            "freshness; if the new aggregate's honest window genuinely is " +
+            "not breadth's, that is ADR 0040's reversal trigger and the " +
+            "frame grain goes with it.",
+        );
+      }
+
+      const [{ path, expression }] = cutoffs;
+
+      if (path !== HOME || !/\bBREADTH_WINDOW_MINUTES\b/u.test(expression)) {
+        throw new InvariantFailure(
+          `The one observation-window cutoff is \`${expression}\` in ` +
+            `${path}. It must be in ${HOME} and must name ` +
+            "`BREADTH_WINDOW_MINUTES` — the constant is the producer's half " +
+            "of a sentence whose other half is drawn in a browser, and a " +
+            "cutoff built from a literal is a window the frame cannot state.",
+        );
+      }
+
+      // ## And the constant has one assignment, which is the half the cutoff
+      // ## clause cannot hold on its own
+      //
+      // `asOf.getTime() - BREADTH_WINDOW_MINUTES * MS_PER_MINUTE` is equally
+      // satisfied by a second module exporting its own
+      // `BREADTH_WINDOW_MINUTES = 15` and shadowing the import.
+      const assignments = shippedSourceFiles()
+        .flatMap(({ path: where, text }) =>
+          [...text.matchAll(/\bBREADTH_WINDOW_MINUTES\s*=[^=]/gu)].map(() =>
+            relative(REPO_ROOT, where),
+          ),
+        )
+        .toSorted();
+
+      if (assignments.length !== 1 || assignments[0] !== HOME) {
+        throw new InvariantFailure(
+          `BREADTH_WINDOW_MINUTES is assigned in ` +
+            `[${assignments.join(", ") || "nowhere"}], expected exactly ` +
+            `${HOME}. The window is measured (Task 4.1.6) and spelled once; ` +
+            "a second value is a gateway and a bundle two windows apart with " +
+            "every number on screen well-formed.",
+        );
+      }
+
+      // ## The browser's half: it READS the window, and spells none
+      //
+      // Both grammars of the denominator sentence are built in
+      // `measured-set.ts` from `qualifier.windowMinutes`. The defect is
+      // `measuredWindow(5)` — or a sentence that never calls it at all and
+      // writes the minutes into a string, which is the second clause.
+      const frontend = shippedSourceFiles().filter(({ path: where }) =>
+        relative(REPO_ROOT, where).startsWith("apps/frontend/src/"),
+      );
+
+      const calls = frontend.flatMap(({ path: where, text }) =>
+        [...text.matchAll(/measuredWindow\(([^)]*)\)/gu)].map((match) => ({
+          path: relative(REPO_ROOT, where),
+          argument: match[1],
+        })),
+      );
+
+      // The anchor: a ban on spelling the window is worth nothing over a
+      // screen that never states one, and this screen's whole point is that
+      // it states its own denominator.
+      if (calls.length === 0) {
+        throw new InvariantFailure(
+          "No `measuredWindow(` call site in `apps/frontend/src/`. The " +
+            "region states the window its count was measured over; a check " +
+            "that the window is read rather than spelled passes vacuously " +
+            "over a screen that says neither.",
+        );
+      }
+
+      const spelled = calls.filter(
+        ({ argument }) => !/\bwindowMinutes\b/u.test(argument),
+      );
+
+      if (spelled.length > 0) {
+        throw new InvariantFailure(
+          "A window stated from something other than the frame:\n      " +
+            spelled
+              .map(({ path: where, argument }) =>
+                `${where} — measuredWindow(${argument})`.trim(),
+              )
+              .join("\n      ") +
+            "\n    The producer's `windowMinutes` is on the frame for " +
+            "exactly this sentence. A browser that computes or spells the " +
+            "window states a figure the count beside it was not taken with, " +
+            "and a rollback is all it takes for the two to differ.",
+        );
+      }
+
+      const literals = frontend.flatMap(({ path: where, text }) =>
+        [
+          ...withoutTrailingComments(text).matchAll(/\b\d+\s*minutes?\b/giu),
+        ].map((match) => `${relative(REPO_ROOT, where)} — "${match[0]}"`),
+      );
+
+      if (literals.length > 0) {
+        throw new InvariantFailure(
+          "A minute count spelled in the frontend:\n      " +
+            literals.join("\n      ") +
+            "\n    Every window a browser draws comes from " +
+            "`windowMinutes` through `measuredWindow`. If this is a duration " +
+            "that is genuinely not the observation window, it still owes a " +
+            "home and a name rather than a literal in a sentence — exempt it " +
+            "here by naming it, not by widening the pattern.",
         );
       }
     },
