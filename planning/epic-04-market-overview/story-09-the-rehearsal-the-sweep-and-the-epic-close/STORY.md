@@ -42,7 +42,7 @@ cited.
 
 ## Gate 1 — the task list approved, 2026-10-12, and four decisions taken
 
-**Nine tasks**, in this order: 4.9.1 the sitting's instrument (dry-run before
+**Nine tasks as approved**, in this order (**eleven since the ADR judgement** — 4.9.10 and 4.9.11 were added on the same day; see the reassessment section below, and note that **this list understated the count for several hours**, which is the same defect class this story kept finding in other people's files — a list that no longer matches reality, found by somebody going to use it rather than by reading it): 4.9.1 the sitting's instrument (dry-run before
 the bell), 4.9.2 the acceptance verdict over 4.1–4.8, 4.9.3 the upward sweep,
 4.9.4 the hand-off enumeration, 4.9.5 `docs/GAPS.md` and the aggregate, 4.9.6
 the canvas verdict and the `VISUAL-LANGUAGE.md` reconciliation, 4.9.7 the
