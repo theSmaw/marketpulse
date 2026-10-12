@@ -135,7 +135,7 @@ test("a jump lands the band below the chrome, with focus on its control", async 
  */
 const SUB_PIXEL = 1;
 
-test("collapsing every band turns 518 rows into a page you can see at once", async ({
+test("collapsing every band turns 516 rows into a page you can see at once", async ({
   page,
 }) => {
   await page.goto(EXPLORER);
@@ -168,18 +168,26 @@ test("the summary line reports how many rows are on screen, and only when it is 
 
   const summary = page.getByText("securities tracked").locator("..");
 
-  // At rest the clause is absent. A line reading `518 of 518 rows shown` is two
+  // At rest the clause is absent. A line reading `516 of 516 rows shown` is two
   // identical figures a centimetre apart, which reads as a mistake rather than
   // as the good news it is.
   await expect(summary).not.toContainText("rows shown");
 
   await page.getByRole("button", { name: "Collapse all" }).click();
-  await expect(summary).toContainText("0 of 518 rows shown");
+  // **516 since Task 2.3.9, and the two figures below answer different
+  // questions.** `rows shown`'s denominator is `securities.length` — every row
+  // the store HOLDS — while `securities tracked` is the `active` count. On a
+  // store built the way CI builds one (`pnpm store:bare`, an empty database
+  // the loader fills from the file) `PSKY` and `WBD` were never inserted, so
+  // both are 516. On the deployed store, which already held them when the
+  // loader untracked them, the first would read 518 and the second 516. Both
+  // are correct; this suite runs against the former.
+  await expect(summary).toContainText("0 of 516 rows shown");
 
   // Every other figure survives it. Collapsing hides rows; it does not untrack
   // a security, and a line that said otherwise would be reporting the screen as
   // though it were the universe.
-  await expect(summary).toContainText("518 securities tracked");
+  await expect(summary).toContainText("516 securities tracked");
 });
 
 test("an untracked security is still reachable through the rail", async ({

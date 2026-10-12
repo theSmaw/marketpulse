@@ -240,7 +240,7 @@ test("the page re-sends its subscription on every reconnect", async ({
   // **`toContain` rather than `toEqual` since Task 3.6.1.** This screen renders
   // the tracked universe below the panel on both of its routes, so it asks for
   // every row it draws as well as the security on show — against CI's store
-  // that is 518 symbols. What this test is about is that the subscription
+  // that is 516 symbols. What this test is about is that the subscription
   // survives a socket the page replaced, and the security on show is the part
   // of it worth naming.
   expect(feed.subscriptions().at(-1)).toContain("NVDA");
@@ -258,8 +258,14 @@ test("the page re-sends its subscription on every reconnect", async ({
     .toBeGreaterThan(before);
   // The same subscription, on the new socket. **The security on show leads it**
   // — the screen asks for its own symbol and then for every row of the
-  // universe table below, which against CI's store is 518 in all.
+  // universe table below, which against CI's store is 516 in all.
+  //
+  // **516 since Task 2.3.9**, which deleted `PSKY` and `WBD` from the curated
+  // file. CI's store is built into an empty database, so the two are never
+  // inserted there and the table draws 516 rows; the deployed store holds 518
+  // rows of which 516 are `active`, and this figure is the row count rather
+  // than the active one.
   const resent = feed.subscriptions().at(-1) ?? [];
   expect(resent[0]).toBe("NVDA");
-  expect(resent).toHaveLength(518);
+  expect(resent).toHaveLength(516);
 });

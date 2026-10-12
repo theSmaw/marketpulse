@@ -459,9 +459,46 @@ describe("the four causes, one at a time and from the database", () => {
 // calendar, for the reason the rest of this file uses real sessions: the
 // threshold is five consecutive sessions and a fixture week has to actually
 // have five.
+//
+// **The two rows are inserted by this block since Task 2.3.9, and that is the
+// deployed shape rather than a workaround.** Task 2.3.9 deleted both symbols
+// from `universe.ts` — which is how `untracked` is expressed — so the loader
+// this suite seeds with no longer produces them, and `recordAttempts` skips a
+// symbol the database does not hold (deliberately: a note must not abort a
+// run's logging). The deployed store still holds both, as `untracked` rows
+// with their bars, because §12.1's rule is that nothing is ever deleted. So
+// this block writes exactly that — two `untracked` rows — and the test is
+// stronger than it was: `pnpm bars:check` reads the **unfiltered** ledger
+// (`listCoverage`, not `listTrackedCoverage`), so an untracked security that
+// has stopped printing is still a finding, and it is now an untracked row the
+// reading is taken over rather than an active one.
 describe("a security that has stopped printing", () => {
   const WBD: Ticker = toTicker("WBD");
   const PSKY: Ticker = toTicker("PSKY");
+
+  beforeAll(async () => {
+    // Written as raw SQL rather than through the loader for the reason above:
+    // the loader converges on `universe.ts`, and the whole point is that these
+    // two are not in it. Every `not null` column with no default is supplied,
+    // which is `0003`'s arrangement working — a row that forgot its provenance
+    // would not insert.
+    await db().query(
+      `insert into securities
+         (symbol, name, exchange, kind, sector, industry, status,
+          profile_source, profile_retrieved_at,
+          classification_source, classification_retrieved_at)
+       values
+         ('WBD', 'Warner Bros. Discovery, Inc. Series A', 'NASDAQ', 'equity',
+          'communication_services', 'Media & Entertainment', 'untracked',
+          'alpaca-assets + curated ETFs', '2026-09-08',
+          's&p-500-gics + curated ETFs', '2026-09-08'),
+         ('PSKY', 'Paramount Skydance Corporation Class B', 'NASDAQ', 'equity',
+          'communication_services', 'Media & Entertainment', 'untracked',
+          'alpaca-assets + curated ETFs', '2026-09-08',
+          's&p-500-gics + curated ETFs', '2026-09-08')
+       on conflict (symbol) do nothing`,
+    );
+  });
 
   /** Ten real sessions: 2026-03-02 → 2026-03-13. */
   const TEN = marketSessionsBetween(

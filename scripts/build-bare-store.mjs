@@ -5,7 +5,7 @@
 // CI's `e2e` job runs `pnpm migrate` and then `pnpm universe`, and **never
 // `pnpm backfill`** — the backfill is metered, paced and needs a vendor
 // credential. So the store the browser suite runs against on a runner holds
-// **518 securities and zero bars**, and every chart on it is a correct `empty`.
+// **516 securities and zero bars**, and every chart on it is a correct `empty`.
 //
 // A developer's store has bars, because a developer ran the backfill. Nothing
 // on a laptop can see the difference, and the difference is load-bearing: an
@@ -44,7 +44,7 @@
 // **universe** only, because `pnpm migrate` and `pnpm universe` are the only
 // two things it runs and neither removes a bar. The old script did refuse at
 // the end and name the `drop database` to type — but that arrived after two
-// screens of migration output, and the one promise on the tin is *518
+// screens of migration output, and the one promise on the tin is *516
 // securities and zero bars*. So it truncates `market_bars` and `bar_coverage`
 // and says how many rows it removed. Safe because the target is the bare store
 // by name: a database whose entire purpose is to hold no bars. The developer's
@@ -86,7 +86,7 @@ const EXPECTED_BARS = 0;
 /**
  * How many securities is enough to call the universe loaded.
  *
- * A floor rather than the exact 518, because the curated file changes and this
+ * A floor rather than the exact 516, because the curated file changes and this
  * script must not go red the day somebody adds a proxy. What it is really
  * asking is *did the loader run at all* — the failure it guards against is an
  * empty table, which would make "zero bars" true for the wrong reason.
