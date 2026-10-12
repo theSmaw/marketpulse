@@ -755,14 +755,35 @@ export function pageInstrument(options = {}) {
       const bytes = new TextEncoder().encode(text).length;
       let frame;
       try { frame = JSON.parse(text); } catch { return; }
-      const symbols = Object.keys(frame.observations ?? {});
+      const observations = frame.observations ?? {};
+      const symbols = Object.keys(observations);
       note({
         kind: "frame",
+        // **The URL on the frame row, not only on the socket row** (Task
+        // 4.9.1). *Count by URL, never by event* is only checkable from the
+        // row that carries the count: a frame log whose rows have no URL
+        // cannot, after the fact, be told apart from one that counted a
+        // socket this product did not open.
+        url: String(url),
         type: frame.type,
         sentAt: frame.sentAt ?? null,
         bytes,
         n: symbols.length,
         symbols: symbols.slice(0, 600),
+        // **The MINUTE the frame's bars describe, which is not the minute it
+        // was sent in** (Task 4.9.1). Task 4.1.6 measured that bars land in
+        // second \`:00\` — 1,734 of 1,746 frames in the five minutes from
+        // 14:00 UTC — so grouping frames by \`sentAt\`'s minute splits one
+        // burst across two minutes at the one instant it is guaranteed to
+        // straddle. Each bar's own \`startsAt\` is the key, which is this
+        // repository's standing rule for a window over bars.
+        barMinutes: [
+          ...new Set(
+            symbols.map((symbol) =>
+              String(observations[symbol]?.startsAt).slice(0, 16),
+            ),
+          ),
+        ].slice(0, 8),
       });
       openBurst("frame:" + String(frame.type), { bytes, n: symbols.length });
     });

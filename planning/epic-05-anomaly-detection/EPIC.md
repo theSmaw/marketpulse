@@ -4,6 +4,16 @@
 **Sequence:** 5 of 15 — follows Epic 4 (Market Overview)
 **Spec references:** PRODUCT_SPEC.md §11 (unusual activity detection)
 
+**The universe count every figure below assumes — corrected 2026-10-12.** CI's
+store holds **516** securities, not 518, and the equity population is **501**,
+not 503 (Task 2.3.9 untracked `PSKY` and `WBD`, two tickers the vendor has never
+heard of). **Every figure below is a dated measurement taken at 518/503 and is
+left standing as one** — the aggregate frame's **928 B** in CI's shape included,
+which is now a frame over 516 `unknown` figures and has **not** been re-taken.
+The **deployed** store holds 518 rows of which 516 are active, so an entry whose
+re-measure counts rows must say which store it means. `UNIVERSE.md` §17 is the
+only place to take the count from.
+
 ## Goal
 
 Automatically identify market behaviour worth investigating.
@@ -375,11 +385,14 @@ should inherit rather than re-decide.
 `marketBreadth(entries, { asOf, marketOpen })` over `MarketOverviewEntry[]` — a
 **pure** function, every input an argument, no clock and no repository handle,
 which is what makes invariant 4 structural here. It is called from the one
-overview call site in `index.ts` over the **503 equities** (the 518 less the
+overview call site in `index.ts` over the **501 equities** (the 516 less the
 fifteen proxies, selected by a **positive** membership set). A sector-level or
 industry-level breadth is the same function over a filtered `entries`, and it
-costs **0.041 ms median over 503 entries** — measured, and 1.2% of the join it
-sits on, so a per-sector fan-out of eleven calls is free.
+costs **0.041 ms median over 503 entries** — measured, and **about 3%** of the per-batch join as
+re-measured on 2026-10-10 (1.521 ms p50, Task 4.8.11) — the **1.2%** this line
+carried until 2026-10-12 was 0.041 against Story 4.4's **pre-repair** 3.497 ms.
+Eleven calls is still ~0.45 ms and still cheap; take the share from a
+re-measure rather than from this sentence.
 
 **2. The window is 5 minutes and it was MEASURED, not chosen.**
 `BREADTH_WINDOW_MINUTES = 5`, from Task 4.1.6's 390 sampled minutes of a session.
