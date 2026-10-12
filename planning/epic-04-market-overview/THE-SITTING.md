@@ -19,6 +19,56 @@ spent looking.
 
 ---
 
+## Step 0 — FREEZE MERGES, and this is not housekeeping
+
+**Added 2026-10-12 by Task 4.9.9, after checking the deployed pair.** Every
+merge to `main` runs `verify`, and `deploy.yml` keys on `workflow_run` of
+`verify` completing — so **every merge replaces the deployed backend image.**
+Three deploys fired on 2026-10-12 alone, and the deployed backend's uptime read
+**553.5 s** because of the last one.
+
+**What that does to this sitting, specifically:**
+
+- **Every open socket is dropped** with `1001 going away`, so the browser
+  reconnects in 500 ms — which is the shipped behaviour working, and which
+  **breaks the continuity of the frame-composition log.** The one measurement
+  here that cannot be retaken is a _per-frame symbol list over a continuous
+  session_; a restart in the middle of it leaves two partial logs and no way to
+  tell a vendor gap from a deploy.
+- **It holes the store.** `live-bar-writer.ts` hangs off the live stream inside
+  the image about to be replaced, for six and a half hours a day — so a deploy
+  mid-session loses the minutes it was writing. That is an existing
+  `docs/GAPS.md` entry, and tonight it would be self-inflicted.
+
+**So: land everything before the bell, and merge nothing between 21:30 and the
+close.** If something must go in mid-session, say so first — the right answer is
+usually to wait, because the session is the thing that cannot be repeated and a
+merge always can.
+
+**Check the pair before you start** (read-only, about ten seconds):
+
+```sh
+E2E_DEPLOYED_BACKEND_ORIGIN=https://marketpulse-backend.blackgrass-e682fefb.eastus.azurecontainerapps.io \
+E2E_DEPLOYED_BASE_URL=https://red-smoke-029583a0f.5.azurestaticapps.net \
+  node scripts/check-deployed.mjs
+```
+
+A healthy pre-bell reading, taken 2026-10-12 at 16:40 +08 (04:40 ET):
+
+```
+  ✓ backend   /health  0.0.0, up 553.5s
+  ✓ frontend  /        document and 2 assets served together
+  ✓ store     /diagnostics/freshness  1m=current; 1d=current
+  ✓ feed      /diagnostics/feed  market closed; provider=alpaca status=live observedAt=null
+```
+
+**`status=live` with `observedAt=null` is correct before the open** and is not a
+fault: the provider is connected and nothing has been observed yet. **If
+`observedAt` is still `null` fifteen minutes after the bell, that is the
+sitting's first finding** rather than a reason to stop.
+
+---
+
 ## Before the bell — two minutes, done once
 
 ```sh
