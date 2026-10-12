@@ -142,3 +142,41 @@ element that last held focus inside it is removed while `document.activeElement`
 is the body (Task 4.7.6). A canvas that loses its focusable children in a
 degradation inherits that backstop; it composes rather than replaces, so a
 better landing of your own still wins.
+
+## Handed here by Epic 4's close — 2026-10-12 (Task 4.9.4): your band is the one grid row with no content floor, and it already overflows with a placeholder in it
+
+**Found by walking the epic list.** The premise an earlier hand-off would have
+left you with — _no region on `/` scrolls_ — was falsified on 2026-10-09 and the
+replacement is a constraint on what you draw.
+
+**The measurement.** `clientHeight` against `scrollHeight` for every
+`section[aria-labelledby]` on `/` at **thirteen width/height pairs**, verbatim at
+the ends that matter:
+
+- `1440×700` — 0 of 7 scroll.
+- `1440×680` — `Unusual activity` 117 / 121, **scrolls by 4 px**.
+- `1440×500` — **`Market topology` 82 / 85** and `Unusual activity` 82 / 121.
+- `1280×480` — **`Market topology` 79 / 85** and `Unusual activity` 79 / 121.
+- `/securities` at every pair — **0 of 8**, the 18,893 px table included,
+  because the long table scrolls the page rather than its region.
+
+**The cause is in the stylesheet and it is specific to your row.**
+`MarketOverview.module.css` sets
+`grid-template-rows: calc((82vh - 2 * var(--space-24)) * 7 / 30) repeat(2,
+minmax(min-content, 1fr))`. **Row 1 is a viewport-derived length with no content
+floor; rows 2 and 3 have one.** `Market topology` and `Unusual activity` are the
+two regions on row 1. So the first height at which anything on `/` scrolls is
+between **681 and 700 at 1440**, and today that happens with nothing in your
+region but a hatched placeholder.
+
+**What to do about it.** A WebGL canvas sized to its box will not report an
+overflow, so this will stop being visible to the measurement above and start
+being a **clipped graph** instead. Before your first node renders, decide
+whether row 1 gains a content floor (`minmax`), whether the canvas is sized from
+the resolved track, or whether the interim layout's end state — the reserved band
+becoming the primary area, drawn on the canvas in `Market overview.dc.html` §02 —
+changes the track anyway. And note that **ADR 0039 makes every region a tab stop
+unconditionally**, so a scrolling region is a focusable scroller and axe's
+`scrollable-region-focusable` will never report it: `expectEveryRegionIsATabStop`
+in `e2e/support/app.ts` is the replacement, and a scroll check is yours to write
+if you want one.
