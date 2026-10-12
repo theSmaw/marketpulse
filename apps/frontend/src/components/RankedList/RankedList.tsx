@@ -1150,8 +1150,9 @@ const Row = memo(function Row({
   /*
    * **The price: track 4, drawn only in the mover anatomy, and reserved by the
    * stylesheet since Task 4.5.3** — so this cell auto-places into room that
-   * already existed and moves nothing (confirmed: the region is 466 px at all
-   * four widths with the cell filled, as it was with it empty).
+   * already existed and moves nothing (confirmed: the region was 466 px at all
+   * four widths with the cell filled, as it was with it empty — **491 since
+   * Task 4.7.4, 2026-10-11, and still equal at all four widths**).
    *
    * **Secondary ink and no weight of its own.** The change is the ranking key
    * and is the row's point; the price is the context that makes it checkable

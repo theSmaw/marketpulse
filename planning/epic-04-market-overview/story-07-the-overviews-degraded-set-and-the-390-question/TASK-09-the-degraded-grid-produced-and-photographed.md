@@ -1,6 +1,6 @@
 # Task 4.7.9 — The degraded grid, produced and photographed
 
-**Status:** In progress — 2026-10-12
+**Status:** **Complete — 2026-10-12. Thirteen states, four widths, seven surfaces — 52 rows and 104 photographs — and the grid is a KEPT SPEC. A content class is ONE AGGREGATE, the collapse is declared in the data rather than counted, and both directions of that assertion fired for real; the count form was shown green on the same defect. Two defects were found by producing rather than reading.** (Top status line completed 2026-10-12 by Task 4.7.11's sweep; the verdict at the foot was written on the day.)
 **Story:** [4.7 The Overview's Degraded Set, & the 390 Question Answered](STORY.md)
 **Depends on:** 4.7.2, 4.7.3, 4.7.4, 4.7.5, 4.7.6, 4.7.8
 
@@ -329,6 +329,40 @@ inside a ranked region, the badge in that picture is not evidence the order
 stood still.
 
 ---
+
+## Handed here by Task 4.7.8 — written in 2026-10-12 by Task 4.7.11's sweep, because the task closed without it
+
+**This section is the one Task 4.7.9's own findings recorded as MISSING.** The
+figures below reached that task through the **prompt** rather than through this
+file, which is `CLAUDE.md`'s _a hand-off sweeps SIDEWAYS, and a story close does
+not reach it_ arriving from the other end: the constraint was measured, it was
+written down, and the somewhere it was written was not the sibling's own file.
+Task 4.7.8 was asked to write it in at its close and did not; the close does it.
+
+**1. `.descriptor` renders at its declared size.** The `composes: microLabel`
+is gone and the four type declarations are spelled, so the masthead's
+`MARKET SITUATIONAL AWARENESS` is **9px/9px** rather than the **11px/16px** it
+had been inheriting. The drawn **string** is unchanged, which is why every
+recorded masthead row in this story still reads correctly.
+
+**2. The box moved above 560 px only.** `.descriptor` **200.59 → 164.13 px**,
+`.identity` **234.59 → 198.13 px** at 1440, 1024 and 768. At 390 the descriptor
+is `display: none`, and was before.
+
+**3. No chrome height, scroll padding or sticky figure moved at ANY width**, and
+that is a measurement rather than an inference: `<header>` 57/57/57/**94**,
+`<footer>` 33/33/53/**73**, `scroll-padding-top` 62/62/62/**99**, `-bottom`
+38/38/58/**78**, identical either side. So the **104 photographs in this file
+were taken on a branch without the repair and their strings stand** — the
+masthead is excluded from both comparison keys and the descriptor is absent at
+390 — while a **picture** of the chrome above 560 px is of the defect.
+Re-taking them is one flagged run:
+`DEGRADED_GRID_PHOTOS=1 pnpm e2e overview-degraded-grid.spec.ts`.
+
+**4. One figure that is not a sticky one did move.** `.nav`'s client width at
+1024 goes **534 → 539** against a 539 scroll width, so the primary navigation
+**stops scrolling at 1024**. At 768 it goes 278 → 314 and still scrolls, by
+design.
 
 ## What was done — 2026-10-12
 

@@ -1,6 +1,6 @@
 # Story 4.7 — The Overview's Degraded Set, & the 390 Question Answered
 
-**Status:** **In progress — 2026-10-10.** Decomposed into eleven tasks; seven decisions taken at Gate 1. **ACs 1–2 are production rather than the extension this file assumed** — the inherited 16-state grid holds no connection state, and no spec that visits `/` has ever degraded a feed. **AC 5 is split**: 5a, the threshold decision, needs no session; 5b, the sitting, needs Monday 2026-10-12. And the 332-frame repair and the 165 s threshold are **one decision whose coupling runs the opposite way from this file's own table** — repairing the frames takes the browser's idle floor from 54 s to the 120 s keepalive, which falsifies the ~90 s this file floated.
+**Status:** **Ten of eleven tasks complete — 2026-10-12. Five of the six acceptance criteria are MET and ONE ROW is owed: AC 5b, the sitting on a real phone during a real session (Task 4.7.10), which needs a calendar and nothing else.** ACs 1, 2, 3, 4, 5a and 6 are met, each with its evidence in the close below — thirteen states at four widths in colour and greyscale through the shipped socket path, a collision assertion over declared classes that fired in both directions, a gateway that serves its last broadcast aggregate on a fresh join, two regions that state the instant their window ended, **no second connection word (AC 4 is met by the owner holding Story 3.10's one-home rule)**, the 165 s threshold kept with the keepalive re-derived to 55 s, and eleven break entries each proven red. Three of this file's own premises were falsified at Gate 1, **four more by the tasks, and two by the briefs rather than by any measurement** — all corrected in place with the dated records left standing.
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.8 — **re-ordered 2026-09-27**, see below
 **Epic scope covered:** live market status indicators, on the screen where they matter most
@@ -204,6 +204,34 @@ threshold was derived from, seen from one hop further away.
 > the decision owes a longer idle sample — and the instrument that takes it now
 > works, which it did not this morning.
 
+**Amended 2026-10-12 at Story 4.7's close (the measurement is Task 4.7.7's,
+2026-10-11). Every figure in the table above is a dated 2026-09-25 record and
+stands as one; the two CONCLUSIONS drawn from it are withdrawn:**
+
+- **The `54.0 s` idle floor WAS THE DEFECT.** `apply()` notified
+  `onConnectionChange` on the vendor's `ping` as well as on every item of an
+  inbound message, so the 54 s the browser was measuring is Alpaca's own
+  heartbeat seen one hop away. The repair gates the publish on the **published
+  view** changing, which removes the vendor's heartbeat from the browser's
+  inbound stream altogether — so the browser's idle floor is **our keepalive**
+  and nothing else.
+- **The `3×` margin and the `~90 s` candidate go with it.** Against a 120 s
+  keepalive 165 s is **1.375×**, not 3.06×, and **90 s would fire on every
+  healthy idle browser**. The decision taken instead was to re-derive the
+  **keepalive**: `KEEPALIVE_INTERVAL_MS = DISCONNECTED_AFTER_MS / 3` = **55 s**,
+  which makes 165 s three missed heartbeats of **our own** heartbeat.
+  `DISCONNECTED_AFTER_MS` is **unchanged at 165 s** and could not have moved —
+  the same constant arms the backend's vendor watchdog.
+- **The `≤ 5 s` deploy reading stands, and its own premise did not.** It was
+  taken at **08:37 ET, pre-market**, and `live` is reachable in the deploy
+  window **only out of hours** (Task 4.7.3, read from source): mid-session
+  `feedStatusFrom` returns `disconnected` between retries and `stale` once
+  inbound is current with no observation. See the briefing failures in the
+  close below.
+- **What is still owed is the deployed re-count** — ~1.4 `feed` frames in 75 s
+  against the 332 — written into Story 4.9's own file with the instrument, the
+  window and the expectation.
+
 ## Handed to this story by Task 4.1.6 — 2026-09-25: the gateway's feed frame is one per vendor item
 
 **This story owns a browser-side liveness threshold, and the number it would be
@@ -259,6 +287,13 @@ render.** The mitigation for the symptom predates any count of the cause.
    rate and disappears when the defect does. The floor this product can rely on
    is the **keepalive**, and that is `120_000` ms — which is the number a
    browser-side threshold has to clear, not 20–50 s.
+   **Discharged 2026-10-11 by Task 4.7.7, and the floor moved rather than being
+   cleared:** the keepalive was re-derived to `DISCONNECTED_AFTER_MS / 3` =
+   **55 s**, written as the division so the relation cannot decay, and 165 s
+   was kept as three missed heartbeats of it. 55 s clears Azure's 240 s ingress
+   idle ceiling by **4.36×** against 2× before, and costs **129.8 B/min** per
+   attached browser against 59.5 — measured through the shipped encoder, which
+   is 119–127 B a frame.
 2. **The repair is one condition**, and it is this story's to take or refuse:
    notify only when the **published** view differs from the last published one.
    `sameLiveFeedView` is the comparison and already exists on the frontend; the
@@ -331,6 +366,29 @@ which is your subject. The repair and the 201 px re-measure travel together.
 Nothing in this product asserts a font size, so no test and no screenshot of the
 existing states can see it.
 
+**Done 2026-10-11 by Task 4.7.8, and this paragraph's own blast radius does not
+exist.** The descriptor is **164.13 px** rather than 200.59 and the identity
+block **198.13** rather than 234.59, so the comment's `201` and `235` were
+**36.5 px wide**. The wrap argument was **re-measured rather than re-argued**
+and comes out stronger: with the breakpoint temporarily disabled, `.identity`
+198.13 plus `.clockCell` 128, both `flex-shrink: 0`, over-subscribe a 342 px
+content box by **24 px before `.nav` gets a pixel** — so un-wrapped at 390 the
+navigation would not read `Market O`, it would not be there at all.
+
+**And every sticky-edge figure was re-taken and NOT ONE moved**, which this
+file, `EPIC.md` and the task's own brief all said they would (_"it is not a
+font-size change, it is a chrome-height change"_ — **false**). Above 560 px the
+masthead is a fixed `--app-header-height` and the content is 27 px inside a
+56 px box either way; at or below 560 px `.descriptor` is `display: none`, and
+was before. Measured at four widths either side: `<header>` 57/57/57/**94**,
+`<footer>` 33/33/53/**73**, `scroll-padding-top` 62/62/62/**99**, `-bottom`
+38/38/58/**78** — identical. Named rather than implied: Story 4.6's +1.20 px
+focus-ring clearance, the 0.09–0.14 px reverse-Tab entry,
+`search-keyboard.spec.ts`'s 768 stops, `universe-navigation.spec.ts`'s
+`stickyChromeClearance()` and the 94/73 at 390 are **unmoved**. One figure that
+is not a sticky one did move: `.nav` goes 534 → 539 against a 539 scroll width
+at 1024, so the primary navigation **stops scrolling at 1024**.
+
 ### What you inherit from 4.2, so nothing is produced twice
 
 **16 states × 4 widths + greyscale at 1440 — 80 photographs** at
@@ -352,6 +410,15 @@ recommended after its grep missed two of five. **Four of the five things below
 are measurements you would otherwise re-take.**
 
 ### 1. The region is 466 px in EVERY state, at every width
+
+> **Superseded 2026-10-11 by Task 4.7.4 — the figures below are Story 4.5's
+> dated record and the region is now 491 px.** The footer reserves three
+> lines rather than two, because the age clause wraps to a third at 390 and
+> to none at 768 and above: `Movers` is **482 content in a 491 px region**
+> (was 466 / 486) and `Market breadth` is **491 at all four widths**. The
+> property the figures were recorded FOR is unchanged and is the point — one
+> height in every state, at every width, so no state steps the lower page.
+> Nine live sites carrying the 466 were corrected at this story's close.
 
 Measured, not predicted, across seven states including the reservation, the
 one-sided day and the empty one:
@@ -655,3 +722,228 @@ reader_) applied to rows rather than regions, dropping a keyboard reader to
   computed over one: a route-dependent connection word.
 - **Repairing the order hold's bubbling defect** — measured and recommended in
   4.7.6, not changed there.
+
+## The close — 2026-10-12 (Task 4.7.11)
+
+**Ten of eleven tasks complete. Five of six acceptance criteria met; one row
+owed, and it needs a calendar rather than a decision.**
+
+### The six criteria, each with its evidence
+
+| AC                                             | Verdict                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **1** produced and photographed, four widths   | **MET.** Thirteen states × four widths × seven surfaces, greyscale at every width, **104 photographs** — `e2e/specs/overview-degraded-grid.spec.ts`, a **kept** spec. Every row is a drive through the shipped socket path, the connect sequence, the decoder and the renderer. **One row is furnished and labelled `rollback`**, because `WireMarketOverviewInputs.breadth` is non-optional and no producer can build it. Three more are enumerated and not produced, each with its reason, printed by every run.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **2** no two states read identically           | **MET, and expressed as a class rather than a count.** The assertion is _partition by drawn string equals partition by declared class_, pairwise, so it fails **in both directions** — and both fired for real during Task 4.7.9. The count form `rows.length - 1` was shown **green on the same defect**, because the pair that collapses is still a pair; it is simply a different pair.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| **3** killing the feed changes no figure       | **MET**, and it needed a repair rather than a photograph: a **fresh join** used to recompute, so a reload during an outage drew four live prices over `none were heard from in the last 5 minutes`. The gateway serves its last broadcast aggregate (Task 4.7.3), both ranked regions state the instant their window ended (Task 4.7.4), and `expectNothingFailedToRender` holds in every produced state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **4** the connection still has one home        | **MET BY DOING NOTHING, and that is the decision rather than an omission.** The owner held Story 3.10's one-home rule at Gate 1: `/` gets **ages**, never a verdict, so no threshold, no status word and no connection word was added anywhere on the landing page. `a-second-staleness-sentence` and `one-home-for-the-strip-staleness-sentence` already refuse a second by name, and `the-send-instant-is-not-a-clock` keeps both process clocks out of the liveness rule — so the criterion is held by checks that existed before this story and needed no widening. Feeding the aggregate's `observedAt` into `feedStatusFrom` was refused **with a measurement** (it returns `stale` on absence, which would make every gated run and every no-provider deployment read `stale` during a session, and would make `/`'s connection word computed over 518 securities while `/securities/:symbol`'s is computed over one).                                                                                                                    |
+| **5a** the threshold decision                  | **MET.** **165 s kept, the keepalive re-derived**: `KEEPALIVE_INTERVAL_MS = DISCONNECTED_AFTER_MS / 3` = **55 s**, written as the division. ADR 0036 carries the dated amendment and a **second reversal condition** — the first change to either heartbeat. `DISCONNECTED_AFTER_MS` could not have moved: the same constant arms the backend's vendor watchdog.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **5b** an answer from a real phone             | **OWED — the single open row.** Task 4.7.10, `Not started`, needs a regular session. `LIVE-REHEARSAL.md` carries the row with its eight-step protocol and what a row of this kind may claim.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **6** a `pnpm break` entry for everything, red | **MET, with one qualification stated rather than hidden.** Eleven entries added — `the-harness-answers-the-browsers-own-retry`, `the-fresh-join-recomputes-the-aggregate`, `the-footer-age-drops-its-interval`, `a-mover-stands-its-ticker-in-for-its-name`, `the-region-head-outlives-its-content`, `a-region-does-not-catch-its-dropped-focus`, `the-feed-frame-is-a-heartbeat-again`, `the-keepalive-stops-being-three-missed-heartbeats`, `a-compose-carries-an-override`, `the-footer-age-reads-the-join-instead-of-the-market`, `the-break-registry-stops-parsing` — and **every one went red**. Two existing entries were **repointed** (`the-overview-frame-rides-the-heartbeat`, `a-fourth-path-to-the-aggregate`), one of them caught by `every-break-can-still-land` doing its job. **The qualification: `pnpm break` refuses a dirty target, so all but 4.7.9's were performed by hand with the registry's own `find`/`replace` and the file checksummed either side.** Re-run them with `pnpm break <name>` once this is committed. |
+
+### Five first drafts were green on the defect they were written for
+
+Recorded together because it is the story's own pattern rather than one task's:
+a brace matcher walked past a block comment (4.7.8); a three-state walk missed
+the retry cell (4.7.5); a spaced substring was never present because Playwright
+normalises across cell boundaries with no separator (4.7.5); a clause tested for
+an identifier that sits on the module's import line rather than for the addition
+(4.7.4); and a focus listener was saved by reusing an effect gated on a prop six
+of the seven regions do not pass (4.7.6). Beside them, three weaker wire-level
+drafts passed against the unrepaired gateway (4.7.3) and one assertion was green
+because both of its readings were `stale` (4.7.7). **`CLAUDE.md`'s 2026-09-26
+rule — write the file the next story would write, keep the transcript of it
+passing, then fix — earned its place seven more times.**
+
+### The upward sweep
+
+**Corrected (live claims): 31 sites in 21 files.** `STORY.md`'s own `54.0 s` / `3×` /
+`~90 s` conclusions (one dated amendment under the table that holds them, plus
+the `120_000` floor instruction and the 201 px blast-radius paragraph); the
+`466 px` region height at **nine** live sites across `RankedList`, `Movers`,
+`movers.ts`, two tests and two specs; the `120 s` keepalive at three sites in
+`live-feed.ts` and its test; `518 unknown` in `docs/GAPS.md` and ADR 0038;
+`three joins per cold load` residue in `check-invariants.mjs` (twice),
+`overview-source-note.test.ts` and `market-stream-protocol.ts` — and
+`market-gateway.process.test.ts`'s copy was **left alone on inspection**,
+because Task 4.7.3 had already amended it four lines down and a second
+amendment would be a second home for one correction; `Story 4.7 owns whether one is` in
+`market-stream-protocol.ts`; `Story 4.7 owns it` in `session-sitting.mjs` and
+`deploy-gap.mjs`; `EPIC.md`'s blast-radius line; the 165 s entry's post-repair
+rate and its scope; and `CLAUDE.md`'s `composes:` entry, which described a
+mechanism it did not name, plus its `466 px` and its 390 standing item.
+
+**Left standing (dated records): 11 files.** The `54.0 s` table itself and the
+`≤ 5 s` deploy reading (2026-09-25, Task 4.1.7's measurements); Gate 1's three
+falsified premises (2026-10-10); Story 4.8's `STORY.md` and task files 4.8.3,
+4.8.4, 4.8.8, 4.8.10, 4.8.11 and 4.8.12; Story 4.5's and 4.6's task records;
+`docs/GAPS.md`'s discharged `AppHeader` entry and the two-instants entry's
+original three-surface paragraph, each with its verdict beside it rather than
+rewritten. Every `Work` section in this story's own task files is left exactly
+as briefed, including the clauses the tasks then falsified — that is what makes
+the findings readable.
+
+**Four ADRs were amended by the tasks on the day their measurements were taken,
+and re-read at the close NOTHING REMAINS in any of them**: ADR 0033's
+constraint 4 and its reversal trigger, ADR 0036's threshold table plus a second
+reversal condition (both Task 4.7.7), ADR 0038 in two places (Task 4.7.3) and
+ADR 0039's rejected alternative (Task 4.7.6). **ADR 0029 was checked and needed
+nothing**: the age clause renders only when its own data is present, which is
+that ADR's defer rule rather than a change to it.
+
+### Two premises were falsified by the BRIEFS rather than by the tasks, and they are the orchestrator's
+
+Recorded as briefing failures because the distinction matters to whoever reads
+the findings later: no measurement was wrong, the instruction was.
+
+1. **_"Every deploy mid-session flips every open tab to yesterday's closes with
+   the bar reading `LIVE`"_ — the second half is false.** Read from source by
+   Task 4.7.3: mid-session `feedStatusFrom` returns `disconnected` across the
+   retry gaps and `stale` once inbound is current with no observation, and
+   `live` is reachable in that window **only out of hours**. The one deployed
+   reading behind the claim was taken at **08:37 ET, pre-market**. The defect is
+   the **figures'** silence, not the chrome's.
+2. **_"The explanation lives at the foot of the page"_ — false, and this is the
+   third task to be told it.** The status bar is **sticky** and in the terminal
+   state reads `STALE · Connected, and no live prices have arrived yet.` about
+   **250 px under the first apology at 390, at any scroll**. The fact is
+   recorded correctly in this file, in `CLAUDE.md` (_false, measured twice and
+   corrected 2026-09-25_) and in Story 3.10's record — and it still reached a
+   task brief as the old claim. **A correction that is written down is not the
+   same as a correction that has propagated**, which is this repository's own
+   rule arriving from the brief-writing end.
+
+Two more of the orchestrator's figures were corrected by Task 4.7.2 and are in
+the same family: CI's 928-byte aggregate carries **four** unknown proxy figures
+and eleven unknown sectors rather than 518 (518 unknown figures would be ~21 KB,
+and the 518 is the **population**), and the terminal no-frame state reads
+**`STALE`, not `LIVE`**, from the first paint.
+
+### The sideways sweep — both passes, and the miss count is ZERO for the grep and FOUR for the walk
+
+**Pass 1, the prescribed grep.** `Story N.M` across this story's eleven
+documents returns 4.1, 4.2, 4.4, 4.5, 4.6, 4.7, 4.8 and **4.9**; `Owner:`
+returns two lines, both of which point inside this story. Of those, the only
+**open** story is 4.9, and Task 4.7.7 had already written the deployed
+re-count into its own file. **Pass 1's miss count: 0.**
+
+**Pass 2, walking the epic's story list and the epics after it.** Four files
+needed a hand-off the grep could not have found, and none of them is named
+anywhere in this story's documents:
+
+- **Story 4.9** — three more items beside 4.7.7's: the **owed sitting** (its
+  rehearsal is the same sitting, not another one), the **suite verdict**'s new
+  evidence (three specs and ~1.2–1.5 minutes added; 240 → 241 → 83 of the
+  nineteen `overview-*`; `overview-nothing-to-open.spec.ts:545` failing **1 of
+  48** with a named one-line repair; and the four-runs/four-failing-sets
+  confounder with its two found causes), and the grid being **re-runnable**
+  rather than quoted.
+- **Epic 5** — `Unusual activity` is one of the seven regions, and three
+  measured things govern the day it is filled: `Panel`'s `reserved` state is
+  doing two jobs (a **degraded** region borrows the **deferred** hatch, and at
+  1440 the unbuilt regions read as more intentional than the built ones), a new
+  figure-bearing region joins a **kept** state grid with declared classes, and
+  a region that waits adds a fifth apology — where the **order is not the
+  repair**, because at 390 no two of the four sentences are ever co-visible.
+- **Epic 6** — the same two treatment findings, plus the note that a canvas
+  region contributes a surface to the grid whose text is its accessible
+  fallback's, and that `Region`'s focus backstop is inherited free.
+- **Epic 14** — ~332 frames a minute and ≈15.4 MB a session removed, with
+  **read it as bytes and battery, not as a render saving** stated so the epic
+  does not credit itself with a figure it cannot see; the keepalive's doubled
+  **129.8 B/min**; and the per-cold-load join product now being an estimate of
+  a different thing, to be **re-taken rather than divided**.
+
+**Pass 2's miss count: 4.** Seven consecutive stories in this epic have now
+found with the walk what the grep could not.
+
+### `docs/GAPS.md`
+
+**Six entries added, five amended, one discharged.** Added: `serveFeed`'s
+default answering the retry; `observedAt` as the permitted wire instant with
+the distinction no grep can make; the backgrounded tab; `deploy-gap.mjs`'s
+hard-coded watchdog; the break registry's parse (**made mechanical in the same
+change**); and the two-corner question at 390. Amended: the 165 s entry (twice
+— the post-repair rate, and the scope correction that the no-frame state reads
+`STALE`), the feed-frame count entry, the two-instants entry (**four** surfaces,
+not three), the restarted-replica entry (the chrome's word in the deploy
+window), and the `overview-nothing-to-open` flake entry's n. Discharged:
+`AppHeader`'s descriptor, which became `a-compose-never-carries-an-override`
+with a break.
+
+### What ships open, and who owns it
+
+| Item                                                                           | Owner                                                                     |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| **AC 5b — the sitting on a real phone**                                        | a person with a phone during a session; Story 4.9's rehearsal if it slips |
+| The deployed in-session **feed-frame re-count** (~1.4 in 75 s against the 332) | Story 4.9, in its own file with the instrument                            |
+| `ORDER HELD` over a **re-taken** pin that moves every row                      | **the owner**, at Gate 2 — it changes shipped hold behaviour              |
+| A **degraded** region drawn like a **deferred** one                            | UX/Design and the owner; `Panel`'s variants are a canvas question         |
+| A restarted replica serving its first browser a **thin** aggregate             | a condition — the first mid-session deploy somebody watches `/` across    |
+| The two-instants family, now **four** surfaces                                 | the owner, across four surfaces rather than four tasks                    |
+| `overview-nothing-to-open.spec.ts:545`'s non-retrying assertion                | whoever next reads that file                                              |
+| `deploy-gap.mjs`'s hard-coded 165 s                                            | the next re-derivation of either threshold                                |
+
+### The gate at the close
+
+```text
+$ pnpm verify
+All matched files use Prettier code style!
+42 components, 42 stories files.
+527 documents, 1721 cross-file links, 39 anchor links, 0 broken.
+54 invariants hold.
+packages/shared test:  Tests   440 passed (440)
+apps/backend  test:    Tests  1035 passed (1035)
+apps/frontend test:    Tests  1413 passed (1413)
+apps/backend test:process:  Tests  55 passed (55)
+VERIFY EXIT=0
+```
+
+`Unhandled Error` grepped across the whole log: **zero occurrences.** `pnpm e2e`
+was **not** re-run at the close and the reason is the diff — the only files
+under `e2e/` that the close touches are two comments, both covered by root
+`tsc -b` and `pnpm lint`. The last full suite in this story was Task 4.7.5's
+(**241 passed, 16 skipped, 3.3m, green end to end**) and the last scoped one
+Task 4.7.9's (**all nineteen `overview-*` specs, 83 passed, 1 skipped, 1.5m**).
+
+## Gate 2 — accepted 2026-10-12, with AC 5b owed
+
+**Accepted as ten of eleven tasks and five of six criteria**, on the shape the
+AC 5 split was taken for at Gate 1: the status names which criteria are met and
+which single row is owed, the way `LIVE-REHEARSAL.md` does, rather than holding
+nine tasks' work open against a calendar. **Task 4.7.10 stays open** against a
+booked sitting; the next regular session is 2026-10-12 09:30 ET.
+
+### The owner's second decision at this gate
+
+**Both `reserved`-state findings go to Epic 5, where Task 4.7.11 already wrote
+them, and nothing changes here.** `Panel`'s `reserved` state is doing two jobs —
+in the rollback state a **degraded** region is drawn exactly like one this
+product **has not built yet**, same hatch and same muted sentence as
+`Market topology`, differing only by the absence of an epic badge — and at 1440
+**the three unbuilt regions read as more intentional than the four built ones**,
+which are white voids with one 12 px grey sentence. Epic 5 owns the next region
+to be filled and is the first story that meets both. Rejected: separating the
+two treatments now (a canvas change plus a `Panel` state, widening a story one
+row from closing) and raising the built regions' treatment (the opposite end of
+the same observation, and bigger design work).
+
+### What a user can see
+
+Three visible changes, all on `/`. **Both ranked regions state the instant their
+window ended**, beside the denominator they already state — an age, never a
+verdict. **A mover row no longer says its ticker twice** while the universe is in
+flight. **A region's head no longer claims figures its content has lost.** Plus
+two repairs a reader meets by accident: a **reload during an outage stops
+contradicting itself**, and the chrome's descriptor renders at the size its own
+rule declares.
+
+### What was not verified, and why
+
+**Nobody has looked at this on a phone** — AC 5b, the one owed row. The
+2,000 ms floor's premise (**174–277 ms first-frame times against a local
+pair**) has never been met on a real network. The ~332-frame repair's
+**deployed in-session re-count is owed**, because no locally runnable provider
+has the per-item loop. And **the deploy case is beyond any memo**: the arriving
+replica has no browser attached until the platform terminates the incumbent at
+~46 s, so it cannot have a last broadcast — three uncosted candidates are in
+`docs/GAPS.md` with a condition for an owner.

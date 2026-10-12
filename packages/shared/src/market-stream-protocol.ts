@@ -740,9 +740,12 @@ export interface WireMarketOverview {
    *
    * ## What it is for, and the defect it exists because of
    *
-   * {@link computedAt} says when the join ran, and the join runs on every
-   * connect and every subscribe as well as on every applied batch — so on a
-   * feed that has stopped it advances with no market data behind it, and a
+   * {@link computedAt} says when the join ran, and the join ran on every
+   * connect and every subscribe as well as on every applied batch (**amended
+   * 2026-10-10 by Task 4.7.3: the first two serve the last BROADCAST
+   * aggregate now, so a cold load pays one join — but a process that has
+   * broadcast nothing still computes on connect, which is every cold start,
+   * every no-provider deployment and every gated run**) — so on a
    * sentence written from it reads *these figures are from 15:04* at 15:04
    * because a reader opened a tab. This field is the honest input to that
    * sentence: it is a bar's own `startsAt`, stamped by the market rather than
@@ -782,6 +785,26 @@ export interface WireMarketOverview {
    * instead — a fact about the market — so it is deliberately **not** in that
    * list, and it is the field a staleness rule over the aggregate would
    * legitimately be built on. Story 4.7 owns whether one is.
+   *
+   * **Answered 2026-10-12 at Story 4.7's close: no, and the landing page
+   * carries an AGE rather than a verdict.** Both `Market breadth` and
+   * `Movers` state the instant their window ended from this field, through
+   * one builder (`measured-set.ts`' `describeMeasuredReach`, Task 4.7.4) —
+   * and the interval's **end**, because a bar's instant is the start of the
+   * minute it describes. **No threshold, no status word and no connection
+   * word was added**: the connection keeps one home, the status bar, and
+   * `a-second-staleness-sentence` and
+   * `one-home-for-the-strip-staleness-sentence` refuse a second by name.
+   *
+   * Feeding this field into `feedStatusFrom` was refused **with a
+   * measurement**: it returns `stale` on an absent observation, so the
+   * aggregate's version would make **every gated run and every no-provider
+   * deployment read `stale` during a session**, and it would make `/`'s
+   * connection word computed over 518 securities while
+   * `/securities/:symbol`'s is computed over one — a route-dependent
+   * connection word. Nothing mechanical holds that refusal, because the
+   * per-security and universe-wide instants share this field's name; the gap
+   * is in `docs/GAPS.md`.
    *
    * ## Optional on the read side for `sectors`' reason
    *

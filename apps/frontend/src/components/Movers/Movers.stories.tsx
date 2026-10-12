@@ -332,7 +332,8 @@ export const OneRankableName: Story = {
  * 5 minutes — there is nothing to rank.` That is `docs/GAPS.md` entry 13
  * discharged for this region, and the sentence is honest **at zero**, which is
  * the whole requirement: a clause that only rendered when something was ranked
- * would leave 466 px of labelled, empty box silent.
+ * would leave 466 px of labelled, empty box silent — **491 px since Task
+ * 4.7.4's age clause**, and the argument is the box rather than the figure.
  *
  * Three things are suppressed here and all three for ADR 0029's reason — a
  * fully-formed claim about nothing is a false impression rather than a

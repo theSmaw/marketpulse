@@ -292,7 +292,8 @@ describe("marketMovers", () => {
   it("is honest at zero, which is the state a gated machine and a weekend both reach", () => {
     // CI holds 518 securities and zero bars, so the region is two headings, ten
     // held rows and this sentence, for ever. A clause that only rendered when
-    // something was ranked would leave 466 px of labelled, empty box silent —
+    // something was ranked would leave a labelled, empty box silent — 466 px when
+    // this was written, 491 since Task 4.7.4 —
     // `docs/GAPS.md` entry 13 exactly.
     const view = read(frame({ ...section([], []), eligible: 0 }));
 

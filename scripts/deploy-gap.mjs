@@ -6,9 +6,23 @@
 //
 // Task 4.1.7 measured that a client reads `LIVE` for **165 s** after losing
 // its network, because `DISCONNECTED_AFTER_MS` is a monotonic watchdog on
-// *any* inbound frame. Story 4.7 owns whether that is right for a browser, and
+// *any* inbound frame. Story 4.7 owned whether that is right for a browser, and
 // the alternatives are priced against one number nobody has: **how long does a
 // browser actually go without a frame during an ordinary deploy?**
+//
+// **ANSWERED 2026-10-11 by Task 4.7.7, and the answer moved the DENOMINATOR
+// rather than the threshold.** `DISCONNECTED_AFTER_MS` stays at 165 s — the
+// same constant arms the backend's vendor watchdog, so it could not move —
+// and `KEEPALIVE_INTERVAL_MS` became `DISCONNECTED_AFTER_MS / 3` (55 s, from
+// 120 s), because repairing the ~332 `feed` frames a minute removed Alpaca's
+// 54 s heartbeat from the browser's inbound stream and our own timer became
+// the idle floor. So this instrument's question is still worth taking — the
+// browser's gap across a deploy is still unmeasured — but the ~90 s candidate
+// it was written to price is below the post-repair floor and is withdrawn.
+//
+// **And `watchdogMs: 165_000` below is a hard-coded SECOND spelling of a
+// constant that is derived in `packages/shared`.** It agrees today; it cannot
+// follow the next re-derivation. `docs/GAPS.md` carries it.
 //
 // What is known is about the **backend**: Task 3.11.6 measured its upstream
 // Alpaca socket refused for **45.8 s and 46.5 s** across two rollouts, because

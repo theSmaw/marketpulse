@@ -32,8 +32,8 @@ import { expectNothingFailedToRender } from "../support/app.js";
 // **The one-sided market and the empty set are states, not fixtures.** CI's
 // store is 518 securities and zero bars, so every gated run reaches
 // `eligible: 0` with both lists empty — which is this file's **permanent**
-// state and is exactly the 466 px of labelled, empty box `docs/GAPS.md` entry
-// 13 is about. A developer's backfilled store reaches the other branch. Both
+// state and is exactly the labelled, empty box `docs/GAPS.md` entry 13 is
+// about — 466 px when that entry was written, 491 since Task 4.7.4. A developer's backfilled store reaches the other branch. Both
 // are asserted, each keyed on what the frame actually said, so neither machine
 // skips.
 //

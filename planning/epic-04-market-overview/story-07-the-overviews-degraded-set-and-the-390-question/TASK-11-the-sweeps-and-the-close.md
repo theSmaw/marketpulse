@@ -1,6 +1,6 @@
 # Task 4.7.11 — The sweeps and the close
 
-**Status:** Not started
+**Status:** **Complete — 2026-10-12. Thirty-one live claims corrected in twenty-one files and eleven files of dated records left standing; both sideways passes run, the grep missing nothing and the walk missing four; six `docs/GAPS.md` entries added, five amended, one discharged. The mechanisable one was made mechanical — and the brief's premise about it was false in the useful direction: `every-break-can-still-land` IMPORTS the registry, so a lost brace did reach `pnpm invariants`, as an unhandled loader `SyntaxError` that exited 1 in 17 lines with NO invariant named and the other 53 checks neither run nor reported. Two of Gate 1's premises were falsified by the BRIEFS rather than by any measurement.**
 **Story:** [4.7 The Overview's Degraded Set, & the 390 Question Answered](STORY.md)
 **Depends on:** 4.7.1 … 4.7.10
 
@@ -203,3 +203,178 @@ _three surfaces_.
 _518 unknown figures_ against the four the frame carries. Task 4.7.9's grid
 serves four and asserts nothing about the number, so it neither confirms nor
 discharges it.
+
+---
+
+## What was done — 2026-10-12
+
+**Thirty-one live claims corrected in twenty-one files, eleven files of dated
+records left standing, both sideways passes run (grep: 0 missed, walk: 4 missed), six
+`docs/GAPS.md` entries added and five amended, and one of them made mechanical
+with a break.** The close is in `STORY.md`; this file records the sweep itself
+and the two findings it produced.
+
+### The one thing made mechanical, and the brief's premise about it was wrong in the useful direction
+
+The brief says the single-file break registry's lost closing brace is _a parse
+error rather than a wrong entry_, which `every-break-can-still-land` _cannot
+see, because it asserts the `find` text is present_. **Measured rather than
+argued, and the second half is false in a way that matters:** that check
+**imports** the registry, so the defect does reach `pnpm invariants`. What it
+reaches it as is the problem. With the brace on the last entry deleted:
+
+```text
+$ node scripts/check-invariants.mjs
+file:///…/scripts/breaks.mjs:4263
+  {
+  ^
+
+SyntaxError: Unexpected token '{'
+    at compileSourceTextModule (node:internal/modules/esm/utils:319:16)
+    …
+exit=1   (17 lines of output)
+```
+
+**Exit 1, no invariant named, no summary line, and the other 53 checks neither
+run nor reported** — a red that reads as a fault in the harness rather than in
+the registry, which is `CLAUDE.md`'s _red for the wrong reason reads exactly
+like proof_ in the direction that loses the rest of the run. The two clauses
+ahead of the import cannot see it: a lost brace removes no `name:` line, and
+the export-shape clause is inside the `then` the import never reaches.
+
+**The repair is a rejection handler on the dynamic `import()`**, so the same
+defect arrives as one **named** invariant failure with the run completing.
+Against the same plant:
+
+```text
+Invariants that no longer hold:
+
+  ✗ every-break-can-still-land
+    Every entry in `scripts/breaks.mjs` substitutes text that still exists exactly once in the file it names.
+    scripts/breaks.mjs does not parse, so neither this check nor `pnpm break` can read a single entry. Node's own reading of it:
+      SyntaxError: Unexpected token '{'
+      …
+    The registry is one file of sibling object literals and the edit a merge makes is a LOST CLOSING BRACE between two entries — three times inside Story 4.7, each caught by hand. `node --check scripts/breaks.mjs` names the line.
+
+1 of 54 invariants failed. Each one replaces an entry in docs/GAPS.md — read it there for why the claim matters.
+```
+
+**One assertion failure with the other 53 collected and the summary printed**,
+which is the only red that proves a check works.
+
+**It does NOT reproduce `node --check`'s line number, and that was measured
+rather than assumed.** A rejected module `import()` hands back a `SyntaxError`
+whose `stack` begins at `compileSourceTextModule`; the `file:…:4263` / `  {` /
+`  ^` preamble is the **loader's own report** and is not a property of the
+error object. Spawning a child inside an invariant to re-derive it was refused
+as disproportionate; the message names the one command that gives the line.
+
+**The break** is `the-break-registry-stops-parsing`, whose substitution is that
+edit exactly — the `  },` closing the entry before
+`a-compose-carries-an-override`, deleted, with nothing else moved. It carries no
+`pnpm break: reverted automatically` marker deliberately: the point is a file
+that does not parse, so a comment inside it would be as unreadable as the rest.
+`pnpm break` refuses a dirty target and this change is uncommitted, so it was
+performed by hand with the registry's own `find`/`replace` — `occurrences of
+find: 1` — and the file checksummed either side:
+**`ad6c49562a2fbf07b46df71d718cfba9`** before,
+`ca4002afa106f01d494be95c16943478` broken,
+**`ad6c49562a2fbf07b46df71d718cfba9`** restored.
+
+A second mechanisation was **considered and refused with a reason**: adding
+`observedAt` to `the-send-instant-is-not-a-clock`'s denylist. It cannot be
+done — all three guarded files read a **bar's** `observedAt` legitimately, and
+`feedStatusFrom`'s 60 s wall-clock arm is built on it. The honest outcome is
+the one the brief's third option names: the permission is **written down beside
+the check** with its two mechanics, and what cannot be guarded — that the
+aggregate's universe-wide fold of the same field name must not reach a liveness
+rule — is a `docs/GAPS.md` entry.
+
+### The two briefing failures, recorded as such
+
+Both are in `STORY.md`'s close in full. In one line each: _every deploy
+mid-session flips every open tab to yesterday's closes **with the bar reading
+`LIVE`**_ is false mid-session (`live` is reachable in that window only out of
+hours, and the deployed reading behind it was taken at 08:37 ET, pre-market),
+and _the explanation lives at the foot of the page_ is false because the status
+bar is sticky — **a fact recorded correctly in this story's own `STORY.md`, in
+`CLAUDE.md` and in Story 3.10's record, which still reached a third task's
+brief as the old claim**. Neither is a task finding; no measurement was wrong.
+
+### The sideways sweep, both passes
+
+`Story N.M` over this story's eleven documents returns eight story numbers, of
+which **one is open** (4.9) and already had Task 4.7.7's section. `Owner:`
+returns two lines, both pointing inside this story. **Pass 1 missed nothing.**
+
+Walking the epic's story list and the epics after it found **four** files owed a
+hand-off that no grep could have reached — Story 4.9 (three further items),
+Epic 5, Epic 6 and Epic 14 — each written into the sibling's **own** file.
+**Pass 2's miss count: 4**, and this is the seventh consecutive story in this
+epic where the walk found what the grep could not.
+
+### What was NOT done, and why
+
+- **No new measurement was taken**, per the brief. Every figure written here is
+  quoted from a task record with its n and its caveat.
+- **`pnpm e2e` was not run in full.** This change touches no shipped behaviour:
+  `git diff --stat` is Markdown, comments, `docs/GAPS.md`,
+  `scripts/check-invariants.mjs`, `scripts/breaks.mjs` and two instrument
+  scripts, with no component, route, module or wire change in it. The invariant
+  that moved was proved by its own break, and `pnpm verify` runs
+  `pnpm invariants` by name. The suite's own state at this story's close is
+  recorded in Story 4.9's file, where the verdict lives.
+- **`pnpm test:database` was not run** and is out of scope: no migration,
+  query, schema or repository is touched.
+- **Task 4.7.10 is not started**, which is the single owed row and is the
+  story's AC 5b.
+
+## Done when — verdict
+
+1. **Met.** 31 live sites in 21 files corrected, 11 files of dated records
+   left standing,
+   both counts in `STORY.md`'s close with the sites named.
+2. **Met.** Both passes run; miss counts **0** and **4**, recorded.
+3. **Met.** Six entries added, five amended, one discharged — and the
+   mechanisable one was made mechanical with a break and both transcripts.
+4. **Met.** `STORY.md`'s status names five met criteria and the one owed row,
+   the way `LIVE-REHEARSAL.md` does, rather than holding the story open on a
+   calendar.
+5. `pnpm verify` green — output in `STORY.md`'s close and below. Gate 2 is put
+   to the owner in the report rather than in this file.
+
+## Status
+
+**Complete — 2026-10-12.**
+
+### The gate
+
+```text
+$ pnpm verify
+All matched files use Prettier code style!
+42 components, 42 stories files.
+16 backend variables documented, frontend example clean.
+527 documents, 1721 cross-file links, 39 anchor links, 0 broken.
+54 invariants hold.
+backfill coverage: this system stores 1m, 1d; the scheduled run fills 1d, 1m.
+packages/shared test:  Test Files  22 passed (22)   Tests   440 passed (440)
+apps/backend  test:    Test Files  50 passed (50)   Tests  1035 passed (1035)
+apps/frontend test:    Test Files  86 passed (86)   Tests  1413 passed (1413)
+apps/backend test:process:  Test Files  2 passed (2)   Tests  55 passed (55)
+VERIFY EXIT=0
+```
+
+`Unhandled Error` grepped across the whole log: **zero occurrences**, rather
+than inferred from the exit code.
+
+**`pnpm e2e` was not run, and the reason is the diff.** The only files under
+`e2e/` that this change touches are two **comments** carrying the stale 466 px,
+and both are covered by gates that did run: root `tsc -b` includes the `e2e`
+project reference and `pnpm lint` runs ESLint over the whole workspace. Nothing
+in this change reaches a component, a route, a module, the wire or a fixture.
+The suite's own state at this story's close — three specs and ~1.2–1.5 minutes
+added, and one measured flake with a named repair — is written into Story 4.9's
+file, where the verdict lives.
+
+**`pnpm test:database` was not run**: no migration, query, schema or repository
+is touched.

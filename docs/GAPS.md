@@ -912,7 +912,24 @@ on a 46-second deploy.**
 > re-derived**. A browser-side threshold is a third number and needs its own
 > derivation — and it must be re-derived **together with** the feed-frame defect
 > recorded above, because repairing that changes a browser's routine inbound
-> rate from ~332 frames a minute to one every two minutes.
+> rate from ~332 frames a minute to one every two minutes. **Amended 2026-10-12
+> (Task 4.7.11's sweep): the repair shipped and the floor is the keepalive at
+> 55 s, so the post-repair routine rate is ~1.1 frames a minute rather than
+> one every two.**
+
+> **And one scope correction, measured 2026-10-10 by Task 4.7.2: this entry is
+> about a feed that delivered observations AND STOPPED.** It is not about a
+> feed that has never delivered one. With the socket answered and no
+> observation ever arriving, the cell reads **`STALE`** — `Connected, and no
+live prices have arrived yet.` — from the **first paint**, because
+> `feedStatusFrom` returns `stale` on an **absent** last observation rather
+> than after 60 s of wall clock. Produced at four widths, and
+> `.capture/proxy-states/readings.json`'s own rows 01 and 02 agree, so it is
+> longstanding rather than new. **Any threshold argument that reasons from _a
+> phone reads `LIVE` while nothing has arrived_ is reasoning about a state this
+> product does not have**; the honest form is _a phone reads `LIVE` for 165 s
+> after the last bar it did receive_, which is what the monotonic watchdog
+> measures.
 
 **Re-measure** — open the deployed site at 390, take the network away, and time
 the word. Five seconds of sampling; 165 s of waiting.
@@ -1566,7 +1583,13 @@ security page**.~~ — **every figure in that sentence is wrong, re-taken
 2026-10-09 by Tasks 4.8.3 and 4.8.4.** The `431 bytes` is the **four-proxy**
 frame of 2026-09-26 (ADR 0038's verbatim record, which now carries a dated
 amendment saying so); the frame has since gained eleven sectors, breadth and ten
-mover rows. Measured off the wire: **928 B** in CI's shape (518 `unknown`),
+mover rows. Measured off the wire: **928 B** in CI's shape (**corrected 2026-10-10 by
+Task 4.7.2: FOUR `unknown` proxy figures and eleven `unknown` sectors, not
+518 — the 518 and the 503 are the POPULATION breadth and movers count over,
+carried as `tracked`, and `overview-frame-sections.spec.ts` asserts `figures`
+holds exactly four. 518 unknown figures would be roughly 21 KB; the CI-shaped
+aggregate built from the shipped types is 841 B against the 928 recorded off
+the real gateway**),
 **2,042 B** with 518 closes held and nothing observed, **3,142 B** with all 518
 observed on the session basis, and **4,078 B** on the **observed** basis, which
 is the ceiling — corroborated at **3,990–4,002 B** by a frame built in a browser
@@ -2139,6 +2162,20 @@ plant, and is expensive.
 
 **Owner: Story 4.9, beside its `pnpm e2e` ×3 arm**, which is the only place in
 the epic already paying for whole-suite executions.
+
+> **An n, and a named repair — measured 2026-10-11 by Task 4.7.6.** At
+> `--repeat-each=6` it failed **1 of 48**, reading the ranked list as `[]` one
+> line after `send()`. The cause is now specific rather than suspected:
+> `expect(await tickersIn(ranked)).toEqual([…])` is a **plain `expect` over an
+> `evaluateAll`**, so it does **not retry** and races the frame being applied.
+> The repair is `expect.poll` or an `await expect(…)` on the first row's
+> `data-ticker` — **not taken by Story 4.7**, deliberately: it is Story 4.6's
+> spec, and a one-line timing change to somebody else's assertion belongs to
+> whoever next reads it. Note also that Task 4.7.6's own four full-suite runs
+> on one tree produced **four different failing sets**, with two causes found
+> rather than inferred — the dev backend had **died** between runs, and the
+> suite drives its own load (four Chromium workers take an 8-core machine from
+> 3 to 28).
 
 **One instrument caveat that bounds everything above.** Playwright reported
 **35.2 s, 36.2 s and 37.8 s for tests it marked PASSED**, against a default
@@ -3308,10 +3345,29 @@ restart empties. **Owner: a condition — the first deploy mid-session that
 somebody watches `/` across**, which is also the only way to size the window in
 figures rather than inferring it from entry 8's two readings.
 
+**And what the CHROME does in that window was mis-stated everywhere this was
+described, corrected 2026-10-10 by Task 4.7.3 from source.** Story 4.7's
+`STORY.md`, its Gate 1 record and two task briefs all say the deploy window
+runs _with the status bar reading `LIVE`_. **Mid-session it does not.** During
+the arriving replica's refusal loop `StreamConnection` alternates
+`socket-opened` → `error-frame` (`phase: "refused"`) → `closed`, and
+`feedStatusFrom` returns **`disconnected`** across the ~3 s gaps between
+retries and the whole window before the first frame, then **`stale`** once
+inbound is current with no observation. `live` is reachable there **only out of
+hours**, where `if (!marketOpen) return "live"` fires before the observation
+test — and the one deployed reading behind the claim
+(`12:37:40 DISCONNECTED → 12:37:45 LIVE`) was taken at **08:37 ET,
+pre-market**. So the gap is the **figures'** silence rather than the chrome's:
+mid-session the chrome does flip for most of the window while the figures
+quietly fall back. Read from source and **unmeasured against a real rollout**,
+which is what the sitting below would settle.
+
 **Re-measure:** watch `/` across a rollout during a session with the frame log
 running, and read the proxy strip's `state` and the breadth footer's `measured`
 either side of the reconnect; `GET /diagnostics/feed`'s `observedAt` on the
-arriving replica is the same question from the server's end.
+arriving replica is the same question from the server's end. Record the status
+bar's word at ten-second intervals too, because the claim above is read from
+source.
 
 ## `ORDER HELD` stays on while a re-taken pin moves every row, and the repair is the hold's rather than the recovery's
 
@@ -3503,3 +3559,202 @@ then fills is the gap firing. Repeat three times, and record the signal bars:
 the arm that matters is one or two, not five. The same run answers it for a
 cold load against a **restarted replica**, which serves browsers for 45.8–46.5 s
 before its own feed authenticates.
+
+## `serveFeed`'s default still answers the browser's own retry, so a produced `disconnected` self-heals in about two seconds
+
+`e2e/support/feed.ts`' `routeWebSocket` callback answers **every** connection
+with a `live` snapshot, including the one the browser dials after a `drop()`.
+`ABNORMAL_FIRST_MS` is **2,000 ms**, so a produced disconnection lasts about
+two seconds and then the page is back on `LIVE` — which means **no spec that
+visited any route had ever held a `disconnected` state for longer than that
+until 2026-10-10**, and an assertion written inside that window was reading a
+page that was about to heal itself.
+
+**It is Task 3.10.9's fourth recorded instrument error arriving a second time.**
+The repair for it lived in `scripts/state-grid.mjs`, which was deleted at that
+story's close, and **it was never carried into the shared harness** — so Task
+4.7.1 had to re-derive it two epics later. That is the cost of a throwaway
+instrument carrying a repair rather than only a finding.
+
+**What is repaired and what is not.** `serveFeed` now takes
+`reconnect: "refused"`, which closes every connection after `drop()` and holds
+the state for the length of an assertion; `feed.refusals()` counts the retries
+it closed, which is what tells _the retry was refused_ apart from _the page
+stopped retrying_. **The default is unchanged and is `"served"`**, deliberately:
+`market-reconnect.spec.ts` exists to watch the retry **be** answered, and
+`security-gap-fill.spec.ts`' quiet refill is driven by the connect sequence the
+default serves. So the hazard is live for every spec that does not opt in, and
+the shape of it is invisible — a healed page and a page that never dropped are
+the same page.
+
+**One shipped assertion is known to be inside that window and is left standing
+on purpose.** `security-feed-degraded.spec.ts` asserts the footer does not
+match `/\blive\b/iu` after a drop. It cannot hold once the state is held: the
+shipped sentence **is** `The live feed is not connected.`, so the word is
+present in exactly the state the assertion was meant to forbid. The shipped
+behaviour is right and only the assertion is weak; it is green today because it
+reads before the sentence renders.
+
+**Re-measure:** `grep -ln 'drop(' e2e/specs/*.ts` and read each hit for a
+`reconnect:` option. Any spec that drops a feed and then asserts on a degraded
+state without one is asserting inside a two-second window.
+_Added 2026-10-10 (Task 4.7.1), written down 2026-10-12 (Task 4.7.11)._
+
+## `observedAt` is the only wire instant a liveness rule may read, and no grep can tell the per-security instant from the aggregate's folded one
+
+`the-send-instant-is-not-a-clock` is a **denylist**: it refuses `sentAt` and
+`computedAt` in `feed-liveness.ts`, `stream-connection.ts` and
+`live-feed.ts`, because both are readings of a process clock. The field it
+**permits** had never been written down in either direction until 2026-10-12,
+and it is `observedAt` — a bar's own `startsAt`, stamped by the market, which
+is what `feedStatusFrom`'s 60 s wall-clock arm legitimately reads and what all
+three guarded files legitimately mention.
+
+**The permission is now recorded beside the check, with its two mechanics**: it
+is the **start** of the interval a bar describes, so a comparison against now
+adds `OBSERVATION_INTERVAL_MS` (Task 3.3.4's defect, met again one surface over
+by Task 4.7.4); and it is **absent** when nothing has been observed, which is
+why `feedStatusFrom` returns `stale` on absence rather than inventing a now.
+
+**What nothing holds is the distinction a grep cannot see.** The aggregate
+carries the **same field name** folded over 518 securities
+(`WireMarketOverview.observedAt`, Task 4.8.12), so a future author feeding the
+universe-wide instant into a liveness rule writes the identifier this check
+permits. Story 4.7 refused exactly that, with a measurement: it would make
+**every gated run and every no-provider deployment read `stale` during a
+session**, and it would make `/`'s connection word computed over 518 securities
+while `/securities/:symbol`'s is computed over one — a route-dependent
+connection word. **Nothing mechanical holds the refusal**; the comment beside
+`CLOCKS` is the record, and a positive list cannot be written because the two
+instants share a name.
+
+**Re-measure:** `grep -n observedAt packages/shared/src/feed-liveness.ts
+apps/frontend/src/market/live-feed.ts` — every hit must be a **bar's**
+instant. A hit that arrives from `WireMarketOverview` is this gap firing.
+_Added 2026-10-12 (Task 4.7.11)._
+
+## A backgrounded tab's feed word lags by a throttled timer tick and the tab does not redial at all, and no figure exists for either
+
+`use-live-feed.ts` re-reads the view on a **5 s interval that is ungated by
+visibility**, while the **retry** is gated on `visibilitychange`. Browsers
+throttle timers in a hidden tab to **once a minute or worse**, so a phone in a
+pocket or a tunnel — which is the actual 390 scenario this story is about —
+holds a word that is up to a throttled tick stale **and does not dial again
+until the tab comes back**.
+
+**Both halves are read from source and neither has been measured.** The lag's
+size depends on the browser's own throttling policy, which differs by engine,
+by power state and by how long the tab has been hidden; the redial's absence is
+structural but its cost to a reader — whether the word is already correct by
+the time the tab is looked at, because `visibilitychange` fires before the
+paint — is not. **No figure exists for this**, and this repository has no
+instrument that can take one: `pnpm e2e` drives a foreground page, and a
+`page.evaluate` that fakes `document.hidden` does not make the browser throttle
+its own timers.
+
+**Owner: Task 4.7.10's sitting**, which is a real phone that can be locked.
+
+**Re-measure:** on the deployed site, market open, read the market-feed cell,
+lock the phone for five minutes with the network up, unlock, and record the
+word **and** how long it takes to change if it is wrong. Then repeat with the
+network taken away while the phone is locked: the question is whether the word
+on unlocking is `LIVE`, how long it stays, and whether the page reconnects
+without a reload.
+_Added 2026-10-12 (Task 4.7.11), from Task 4.7.10's own brief._
+
+## `scripts/deploy-gap.mjs` hard-codes the 165 s watchdog rather than importing it
+
+`watchdogMs: 165_000` is written as a literal in the deploy-gap instrument,
+beside `DISCONNECTED_AFTER_MS` in `packages/shared`, which is the shared
+constant three thresholds are now derived from — `KEEPALIVE_INTERVAL_MS` is
+`DISCONNECTED_AFTER_MS / 3` since Task 4.7.7, and the same constant arms the
+backend's vendor watchdog. **A second spelling of a number that is derived in
+one place is a disagreement waiting for the first re-derivation.**
+
+**It is not a wrong number today**, and that is why this is a gap rather than a
+defect: Task 4.7.7 re-derived the keepalive and left **165 s unchanged**, so the
+literal still agrees. What it cannot do is follow the next change. ADR 0036's
+own rule is that these are dated observations to be **re-derived** rather than
+tuned, so the next re-derivation is the condition this fires on.
+
+**Why it was not simply repaired:** `scripts/` is outside every package's
+`tsconfig` and reads no built output, so importing the constant means either
+reading `packages/shared/dist` from a script that runs before a build or
+re-stating the value with a comment. The honest cheap repair is the second, and
+it is a judgement about an instrument rather than about shipped code.
+
+**Re-measure:** `grep -rn '165_000\|165000' --include='*.mjs' --include='*.ts'
+scripts packages apps` and check every literal against
+`packages/shared/src/feed-liveness.ts`.
+_Added 2026-10-12 (Task 4.7.11)._
+
+## The break registry is one 4,300-line file, and a lost brace between two entries is a parse error rather than a wrong entry — made mechanical 2026-10-12
+
+`scripts/breaks.mjs` is a single array of sibling object literals, so the edit
+a merge makes to it is **a lost `},` between two entries**. That is not a rotted
+`find` — it is a `SyntaxError`, and `every-break-can-still-land` was written
+around the half that rots. **It happened three times inside Story 4.7 alone**,
+and every one of the three was caught by somebody running
+`node --check scripts/breaks.mjs` **by hand**.
+
+**Measured before the repair**, with the brace on the last entry deleted:
+`node scripts/check-invariants.mjs` exits **1** with **17 lines of output**, all
+of them Node's module-loader stack, **no invariant named and no summary line at
+all** — so the other 53 checks are neither run nor reported, and the red reads
+as a fault in the harness rather than in the registry. The two clauses ahead of
+the import cannot see it: a lost brace removes no `name:` line, and the
+export-shape clause is inside the `then` the import never reaches.
+
+**What is mechanical now.** `every-break-can-still-land` gives its dynamic
+`import()` a rejection handler, so the same defect arrives as **one named
+invariant failure with the other 53 still collected and reported**. The break
+is `the-break-registry-stops-parsing`, whose substitution is the lost brace
+exactly. It does **not** reproduce `node --check`'s line number, measured
+rather than assumed: a rejected module `import()` hands back a `SyntaxError`
+whose `stack` begins at `compileSourceTextModule`, and the `file:…:4263` / `^`
+preamble is the loader's own report rather than a property of the error. The
+message names the one command that gives the line.
+
+**What is still not covered**, and it is the standing half: this proves the
+registry **parses** and that each `find` is present once. It cannot prove a
+substitution still **expresses** the defect it was written for — that needs
+`pnpm break <name>`, which is outside `pnpm verify` because several entries
+need a browser or a database.
+
+**Re-measure:** delete any `  },` that closes a registry entry, run
+`node scripts/check-invariants.mjs`, and confirm the failure names
+`every-break-can-still-land` and prints the summary line. Then restore and run
+`pnpm break the-break-registry-stops-parsing`.
+_Added 2026-10-12 (Task 4.7.11)._
+
+## At 390 the whole difference between _the market is shut_, _the feed has stopped_ and _the backend is gone_ is two cells at opposite corners, and no person has read them
+
+Measured twice, on seven states (Task 4.7.2) and again on thirteen (Task
+4.7.9): over the five content surfaces — the proxy strip, the sector ladder,
+the breadth ledger, the movers pair and the source note — `closes present with
+nothing observed`, `the feed stopped mid-session`, `the feed stopped with the
+market shut` and `the backend unreachable` are **byte-identical, at every
+width**. They are one aggregate, and `main` is a pure function of the
+aggregate, so there is nothing in `main` to tell apart. The whole distinction
+is carried by **the masthead's session word** (top right, from the wall clock)
+and **the status bar's connection word** (bottom, sticky) — and at 390 those
+are opposite corners of the viewport.
+
+**This is ADR 0029's one-home rule working rather than a defect**, and the grid
+encodes it as declared collision classes rather than as a count, so it fails in
+both directions. What nothing mechanical can answer is whether **a reader
+consults both corners**. Two figures are in front of whoever asks: the sticky
+bar grows **109 → 149 px** at 390 when the feed stops and **109 → 169 px** when
+the backend goes too (5.1% and 7.7% of a 780 px viewport), against **2 px** at
+1440 — so whatever a person concludes at 390 says nothing about a desk, and the
+reverse. It is a **height** rather than a line count: `innerText` is identical
+however the sentence wraps.
+
+**Owner: Task 4.7.10's sitting, which is Story 4.7's single owed row**, and
+Story 4.9's rehearsal if the calendar takes it.
+
+**Re-measure:** `DEGRADED_GRID_PHOTOS=1 pnpm e2e overview-degraded-grid.spec.ts`
+reproduces all thirteen states at four widths in colour and greyscale in about
+1.4 minutes; rows 10, 11 and 12 are the three in question. The reading a
+machine cannot take is a person's.
+_Added 2026-10-12 (Task 4.7.11)._

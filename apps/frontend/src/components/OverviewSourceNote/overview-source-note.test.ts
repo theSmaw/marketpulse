@@ -205,10 +205,15 @@ describe("toOverviewSourceNote", () => {
 
   it("does not move when a second tab opens", () => {
     // **The defect this clause was repaired for, asserted rather than
-    // reasoned.** The gateway rebuilds the aggregate on every connect and
+    // reasoned.** The gateway rebuilt the aggregate on every connect and
     // every subscribe, so `computedAt` differs between two frames nothing has
     // reached the market about — three joins per cold load of `/`, counted off
-    // the wire by Task 4.8.3. The drawn sentence must be the same sentence.
+    // the wire by Task 4.8.3. **Amended 2026-10-12 (Task 4.7.11's sweep):
+    // since Task 4.7.3 those two paths serve the last BROADCAST aggregate, so
+    // a second tab on a process that has broadcast receives the same
+    // `computedAt` rather than a new one — the cold-start arm still computes,
+    // and this assertion is about the drawn sentence either way.** The drawn
+    // sentence must be the same sentence.
     const first = observedThrough("2026-09-25T18:01:32.000Z", [stored("SPY")]);
     const second: WireMarketOverview = {
       ...first,

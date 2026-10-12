@@ -433,7 +433,7 @@ const NOTHING_TO_RANK = "There is nothing to rank";
  * the footer carries the whole truth — *of the 503 we track, none were heard
  * from in the last 5 minutes — there is nothing to rank* — and two more
  * sentences saying the same thing per list would be the same fact three times
- * in one 466 px box. What the sentence is **for** is the state where the set is
+ * in one box (466 px when this was written, 491 since Task 4.7.4). What the sentence is **for** is the state where the set is
  * real and one end of it is empty, which is the state a reader cannot tell from
  * a region that broke.
  *

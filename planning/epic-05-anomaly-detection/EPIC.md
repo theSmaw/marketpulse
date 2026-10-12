@@ -588,3 +588,58 @@ safe and the **absolutes** are not a production cost on any machine.
 > **×1.00** in a visible renderer at gaps of 3.7 s and 8.8 s, five arms out of
 > five. **Two caveats, not one** — a verdict that treats them as one will be wrong
 > about one of them.
+
+## Handed here by Task 4.7.11 — 2026-10-12, at Story 4.7's close: `Unusual activity` is one of the seven regions, and three measured things govern the day you fill it
+
+Written here rather than linked, because a pointer is what a reader follows
+when they already know to look. **The grep-shaped sideways pass does not find
+this epic** — Story 4.7's documents name it nowhere. It was found by walking
+the epic list and asking _did 4.7 measure anything Epic 5 acts on_.
+
+**1. The region you fill is drawn today in `Panel`'s `reserved` state, and the
+degraded set found that treatment doing two jobs.** At 1440, with four regions
+waiting for a frame, **the three regions this product has NOT built read as
+more intentional than the four it has** (Task 4.7.5, photographed): yours is
+hatched, carries an `EPIC 5` tag and a sentence saying exactly what will go
+there, while a region waiting for data is a plain void with one 12 px grey
+sentence. And in the other direction, **a rollback that omits a section draws
+the region exactly like yours** (Task 4.7.9, row 08) — the same hatch, the same
+muted sentence, differing only in the **absence** of an `EPIC n` badge, which
+is an absence rather than a statement. So _this gateway is behind_ and _this is
+next year's_ are one picture. Both findings are routed to UX/Design and the
+owner rather than repaired; the day you delete your `reserved` panel, **the
+second half is still live for Epic 6's**.
+
+**2. Your region joins a kept state grid, not a one-off.**
+`e2e/specs/overview-degraded-grid.spec.ts` produces thirteen states at four
+widths over **seven surfaces** and asserts the collapse as **declared
+collision classes** — the partition of rows by drawn string must equal the
+partition by declared class, pairwise, so an accidental collapse **and** a
+documented exception that has stopped holding both go red. A new region with
+figures means new surfaces in that comparison, and the rule the partition
+expresses is worth knowing before you add one: **a content class is ONE
+AGGREGATE**, because `main` is a pure function of the aggregate and ADR 0029's
+one-home rule keeps the connection, the service and the market session in the
+chrome. `DEGRADED_GRID_PHOTOS=1 pnpm e2e overview-degraded-grid.spec.ts`
+re-produces all 104 pictures in ~1.4 minutes.
+
+**3. A region that waits adds a fifth apology, and the order is NOT the
+repair.** Four regions say `No prices yet.` / `No count yet.` /
+`No sector moves yet.` / `No moves to rank yet.` at the 2,000 ms floor. Looked
+at on a real page (Task 4.7.5): **at 390 no two of the four are ever
+co-visible** — the page is 2,735 px in that state and the gaps between the
+sentences are 400–700 px — and the explanation is **not** at the foot of the
+page, because the status bar is sticky and sits ~250 px under the first
+apology at any scroll. So reordering cannot help, and the four-noun vocabulary
+is kept by decision: four nouns is what tells a reader **which** region went
+quiet. Whatever sentence your region says when it has nothing, say it in its
+own words and make it honest at zero — ADR 0029's defer rule, and
+`docs/GAPS.md` entry 13.
+
+**4. One keyboard fact that is now structural.** `Region` remembers the element
+that last held focus inside it and focuses its own `<section>` when that
+element is removed while `document.activeElement` is the body (Task 4.7.6) — so
+a reader whose rows vanish under them lands on the region rather than on
+`<body>`. It composes rather than replaces: a child's better landing still
+wins. If your region holds its own focusable rows, you inherit the backstop and
+owe nothing; if it holds a roving list, read Task 4.6.5 and ADR 0039 first.

@@ -271,7 +271,8 @@
  * reserve, and the sentence is an absolutely-positioned sibling inside it.
  *
  * **Why over the list and not above it.** A sentence placed above the `<ol>`
- * adds a sixth line to a region whose content is 466 px in a 486 px box, and at
+ * adds a sixth line to a region whose content is 482 px in a 491 px box (466 /
+ * 486 until Task 4.7.4, see the arithmetic at the head of this file), and at
  * 768 and 390 the grid row is content-sized — so a market going one-sided would
  * step the whole lower page, which is three times the 25 px Task 4.3.7 spent a
  * task designing out. Laid over held rows it costs nothing, because the room is

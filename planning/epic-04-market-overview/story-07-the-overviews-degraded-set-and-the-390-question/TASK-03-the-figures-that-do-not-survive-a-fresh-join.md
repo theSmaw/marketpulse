@@ -1,6 +1,6 @@
 # Task 4.7.3 — The figures that do not survive a fresh join
 
-**Status:** In progress — 2026-10-10
+**Status:** **Complete — 2026-10-10. One `let` and one `??`: the gateway serves a joining or subscribing browser its LAST BROADCAST aggregate, so a reload during an outage stops drawing four live prices over `none were heard from in the last 5 minutes` — and it removed two of the three joins a cold `/` paid. Three weaker wire-level drafts passed against the unrepaired gateway and the transcript is kept. The deploy half is beyond any memo and is arithmetic rather than a decision deferred; and this brief's own premise that the window runs with the bar reading `LIVE` is false mid-session.** (Status line completed 2026-10-12 by Task 4.7.11's sweep — the verdict below was written on the day.)
 **Story:** [4.7 The Overview's Degraded Set, & the 390 Question Answered](STORY.md)
 **Depends on:** 4.7.1
 

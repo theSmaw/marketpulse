@@ -239,7 +239,10 @@ what this frame was on 2026-09-26, and it must not be used to size anything.**
 The 431 bytes are **four stored proxy figures and nothing else** — no sectors,
 no breadth, no movers, and every figure in its shortest form. The decision
 stands unchanged; the figure has moved by an order of magnitude. Measured off
-the wire since: **928 B** in CI's shape (518 `unknown`), **2,042 B** with 518
+the wire since: **928 B** in CI's shape (518 `unknown` — **corrected
+2026-10-10 by Task 4.7.2: the frame carries FOUR `unknown` proxy figures and
+eleven `unknown` sectors; the 518 is the population, carried as `tracked`, and
+518 unknown figures would be roughly 21 KB**), **2,042 B** with 518
 closes held and nothing observed, **3,142 B** with all 518 observed on the
 session basis and **4,078 B** on the observed basis, which is the ceiling. The
 derived arithmetic that circulated from the 431 — `6.9 KiB/min` and `12% on top
