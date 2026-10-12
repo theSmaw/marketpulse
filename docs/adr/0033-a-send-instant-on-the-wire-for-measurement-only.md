@@ -68,6 +68,33 @@ the-send-instant-becomes-a-clock` proves the check goes red.
    whose universe payload is already 58 KiB. Measured on the wire rather than
    computed: **36 bytes** a frame, at most 16 frames a minute.
 
+> **Amended 2026-10-11 (Task 4.7.7): the second half of constraint 4 was false
+> in the tree, and had been since before it was written.** _At most 16 frames a
+> minute_ is true of the `bars` path and of nothing else. Task 4.1.6 counted the
+> **`feed`** path on the deployed gateway in session: a median of **332 frames
+> a minute**, broadcast to every attached browser regardless of subscription,
+> because `alpaca-stream.ts` advances its connection once per item of an
+> inbound vendor message and again on the vendor's `ping`, and every advance
+> was published. **The field obeyed the constraint; the frame carrying it did
+> not** — 36 bytes, 332 times a minute, in a 119-byte frame.
+>
+> **This is recorded rather than rewritten, because the distinction is the
+> useful part**: a per-frame budget is only a budget if something bounds the
+> frame rate, and nothing did. Three things follow and all three are now in the
+> tree. The frame rate is bounded at the **send site** —
+> `publishFeedState()` publishes only when the published view changes
+> (`sameWireFeedState`). The bound is **behavioural, not a grep**:
+> `pnpm invariants` can hold `sentAt` out of a threshold, and no check in this
+> repository can count frames, so the proof is a process test over a real
+> socket plus `pnpm break the-feed-frame-is-a-heartbeat-again`. And **the
+> deployed in-session re-count is owed** — no local stream has the per-item
+> loop, so the rate was never locally reproducible in either direction.
+>
+> The arithmetic that stands: a `feed` frame is **119 bytes** measured
+> (`live`/`iex`/open; 127 for the `disconnected`/`null` state), so the defect
+> cost ~39,508 B/min ≈ **15.4 MB** a 6.5-hour session per attached browser, of
+> which 36 bytes a frame was this field.
+
 ### Two smaller decisions inside it
 
 - **A frame without a stamp is unreadable.** The only producer of this
@@ -139,3 +166,13 @@ A second trigger, narrower: **the first time the wire's frame rate stops being
 bounded by the upstream frame rate** (§11.1's own trigger). Sixteen stamps a
 minute is a footnote; a per-browser computation or a replay scrub that
 produces hundreds is a cost to re-take.
+
+> **That trigger had already fired when it was written, and nothing noticed for
+> an epic (2026-10-11, Task 4.7.7).** The `feed` path was never bounded by the
+> upstream frame rate — it was bounded by the upstream **item** rate, which is
+> a different quantity — and the cost was re-taken by Task 4.1.6 rather than by
+> this trigger firing. The lesson is the reason it stayed invisible:
+> `sameLiveFeedView` collapsed the browser-side render, so **the mitigation for
+> the symptom predated any count of the cause**. A trigger worded against a
+> **rate** needs something that counts; this one was worded against a rate
+> nothing counted.

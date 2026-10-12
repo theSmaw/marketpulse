@@ -791,6 +791,35 @@ published view differs) and the client cost in its own file — and which must
 not derive a browser-side liveness threshold from the 332, because that rate is
 this defect's and disappears with it.
 
+### Amended 2026-10-11 by Task 4.7.7 — the defect is repaired in the tree, and what stays here is the COUNT
+
+`publishFeedState()` now compares the **published** view — `WireFeedState`'s
+three primitives, through `sameWireFeedState` in `packages/shared` — against
+what was last broadcast, and sends nothing when they match. The keepalive, the
+farewell and `index.ts`'s handshake log line stay **ungated**, each for its own
+reason (see `market-gateway.ts`).
+
+**Two things keep this entry open rather than closing it.**
+
+1. **The deployed in-session re-count is owed.** Nothing a developer can run
+   reproduces the rate: `fixture-stream.ts` applies once per tick and
+   `replay-stream.ts` once per slice, so neither has the per-item loop. What is
+   now covered mechanically is the **rule** — `market-gateway.process.test.ts`
+   counts frames over a real socket and asserts 332 publishes of one state send
+   **one** frame, with the keepalive, the farewell and a late joiner each
+   asserted separately, and `alpaca-stream.test.ts` asserts the vendor side
+   still notifies once per item. `pnpm break the-feed-frame-is-a-heartbeat-again`
+   is the break.
+2. **The ADR's fourth constraint is still a rule about a field.** `sentAt` is
+   36 bytes and one per frame; the frame carrying it is published on a cadence
+   no check can count. ADR 0033 carries the dated amendment as of 2026-10-11.
+
+**Re-measure, unchanged in method and with a new expectation** — during a
+session, against the deployed gateway, subscribing to ONE symbol, counting
+`"type":"feed"` frames over 75 s. The expectation is now **~1.4 in 75 s** (the
+keepalive at `DISCONNECTED_AFTER_MS / 3` = 55 s) plus one per genuine change of
+the published view. Anything near 300 is this defect returned.
+
 ## The word `LIVE` survives a dead connection for 165 seconds, and no test in this repository waits for a clock
 
 **Five documents have promised this entry since 2026-09-24 and it has never
@@ -842,9 +871,25 @@ That is unanswerable from a DOM.
 165 s comes from **Alpaca's upstream heartbeat** — 53.96–54.85 s across 82
 intervals — and protects against flapping during a deploy, measured at ~46 s of
 feed outage. Both facts are about the **backend's** connection to its vendor.
-The browser's own socket has a different floor: the gateway's keepalive is
-`KEEPALIVE_INTERVAL_MS = 120_000`. **A browser could know its gateway socket is
-dead well before 165 s and still not cry wolf on a 46-second deploy.**
+The browser's own socket has a different floor: the gateway's keepalive, which
+was `KEEPALIVE_INTERVAL_MS = 120_000` when this entry was written. **A browser
+could know its gateway socket is dead well before 165 s and still not cry wolf
+on a 46-second deploy.**
+
+> **Amended 2026-10-11 by Task 4.7.7, and the sentence below was right about
+> the coupling.** The owner's Gate 1 decision was to **keep 165 s** and
+> re-derive the keepalive instead: with the feed-frame defect repaired, the
+> browser's inbound stream no longer carries Alpaca's 54 s heartbeat, so the
+> browser's idle floor **is** the keepalive. At 120 s, 165 s was 1.375
+> keepalives — one delayed message would put a healthy browser on
+> `DISCONNECTED` — so `KEEPALIVE_INTERVAL_MS` is now
+> `DISCONNECTED_AFTER_MS / 3` (**55 s**), which makes 165 s three missed
+> heartbeats of **our own** heartbeat rather than the vendor's: ADR 0036's rule
+> honoured rather than a number tuned. The story's own ~90 s browser-side
+> candidate is **falsified by the repair the same story made** — it is below
+> the floor the repair creates. The 240 s ingress ceiling is restated rather
+> than assumed: 55 s clears it by 4.36×, against 2× before. What remains open
+> here is the **word's** duration, which has not moved.
 
 > **Do not tune it from here.** ADR 0036's rule is that the two-clock shape is
 > the durable half and the numbers are **dated observations that get

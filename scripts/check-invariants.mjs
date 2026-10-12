@@ -2138,15 +2138,23 @@ const INVARIANTS = [
       // Task 4.1.6 measured `alpaca-stream.ts` calling `apply()` inside the
       // per-vendor-item loop and `index.ts` answering `onConnectionChange`
       // with `publishFeedState()` — **~332 `feed` frames a minute, broadcast
-      // to every browser regardless of subscription**. That is unrepaired on
-      // purpose and handed to Story 4.7. The `feed` frame is 127 bytes and
-      // `sameLiveFeedView` collapses the render, which is why it survived a
-      // whole epic unnoticed.
+      // to every browser regardless of subscription**. The `feed` frame is
+      // 119–127 bytes and `sameLiveFeedView` collapses the render, which is
+      // why it survived a whole epic unnoticed.
+      //
+      // **Repaired 2026-10-11 by Task 4.7.7**, at the send site:
+      // `publishFeedState` compares the published view and sends nothing when
+      // it has not changed. **This check is unchanged and still load-bearing**
+      // — `publishFeedState` is still CALLED ~332 times a minute, so a frame
+      // put on this path still inherits the rate unless it is gated too, and
+      // the gate is keyed on `WireFeedState` rather than on an aggregate.
       //
       // **An overview frame on that path inherits the rate and none of the
       // mercy.** It would be sent ~332 times a minute instead of once, it
       // carries an aggregate over 518 securities rather than three enum
-      // fields, and `sameLiveFeedView` does not cover it.
+      // fields, `sameLiveFeedView` does not cover it, and `sameWireFeedState`
+      // — which gates the `feed` frame — compares three primitives and would
+      // not see it either.
       //
       // ## Why the rule is about the WORD and the FRAME rather than a name
       //

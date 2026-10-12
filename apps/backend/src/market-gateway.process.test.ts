@@ -19,6 +19,7 @@ import { buildServer } from "./server.js";
 import type { FastifyInstance } from "fastify";
 import type {
   Bar,
+  WireFeedState,
   WireMarketOverview,
   WireObservation,
 } from "@marketpulse/shared";
@@ -79,6 +80,8 @@ interface ReceivedFrame {
   sentAt?: string;
   observations?: Record<string, unknown>;
   overview?: Record<string, unknown>;
+  /** The published feed state, on a `feed` frame and on a `snapshot`. */
+  feed?: Record<string, unknown>;
 }
 
 interface Client {
@@ -174,11 +177,26 @@ async function connectClient(port: number): Promise<Client> {
   return { socket, received, waitFor, waitForCount };
 }
 
+/**
+ * The seams Task 4.7.7 needs and no earlier test did.
+ *
+ * `feedState` was a constant arrow in this harness, which is right for every
+ * test above: none of them is about the feed's state changing. The gate is,
+ * and the keepalive it must not suppress runs on a timer no test can wait out.
+ */
+interface GatewaySeams {
+  /** Read per send by the gateway, so a test can move it between publishes. */
+  readonly feedState?: () => WireFeedState;
+  /** Captures the keepalive callback so a test can fire it deliberately. */
+  readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
+}
+
 /** A listening server, a registered gateway, and one attached browser. */
 async function attach(
   snapshot: ReadonlyMap<string, WireObservation> = new Map(),
   wallNow?: () => number,
   overview: () => WireMarketOverview = () => EMPTY_OVERVIEW,
+  seams: GatewaySeams = {},
 ): Promise<Attached> {
   const app = buildServer({
     logLevel: "silent",
@@ -188,10 +206,13 @@ async function attach(
 
   const gateway = registerMarketGateway(app, {
     snapshot: () => snapshot,
-    feedState: () => ({ status: "live", feed: "iex", marketOpen: true }),
+    feedState:
+      seams.feedState ??
+      (() => ({ status: "live", feed: "iex", marketOpen: true })),
     overview,
     // `exactOptionalPropertyTypes`: absent and `undefined` are different types.
     ...(wallNow === undefined ? {} : { wallNow }),
+    ...(seams.setTimer === undefined ? {} : { setTimer: seams.setTimer }),
   });
 
   await app.listen({ port: 0, host: "127.0.0.1" });
@@ -1133,5 +1154,186 @@ describe("the join does not run with nobody attached (Task 4.8.11)", () => {
     }
 
     expect(gateway.clientCount()).toBe(0);
+  });
+});
+
+describe("a `feed` frame is published only when the view changes (Task 4.7.7)", () => {
+  /**
+   * **The defect this block gates, and why no local run reproduces it.**
+   *
+   * `alpaca-stream.ts` advances its connection state once per item of the
+   * inbound vendor message and again on the vendor's `ping`, and `index.ts`
+   * answers every advance with `publishFeedState()`. Task 4.1.6 counted the
+   * result on the **deployed** gateway in session: **~332 `feed` frames a
+   * minute** (median; min 3, max 385), 119 bytes each measured on the wire
+   * with no `perMessageDeflate` — 39,508 B/min, ≈15.4 MB over a 6.5-hour
+   * session, **per attached browser**.
+   *
+   * `fixture-stream.ts` calls `apply` once per tick and `replay-stream.ts`
+   * once per slice, so a developer's run publishes ~1 frame a minute: the
+   * **rate** is only reachable against the vendor. What is reachable here is
+   * the **rule** — this many publishes of one state is one frame — so the
+   * numbers above are cited and the behaviour is produced.
+   *
+   * **The deployed in-session re-count is owed** and needs a session;
+   * `alpaca-stream.test.ts` holds the other half, that one vendor message
+   * still advances the connection once per item.
+   *
+   * And this is a **bytes-and-battery** repair, not a render repair: `/`'s
+   * 2 renders per applied batch is unchanged, because `sameLiveFeedView`
+   * already collapsed these frames to nothing on the browser's side.
+   */
+  const feeds = (client: Client): ReceivedFrame[] =>
+    client.received.filter((message) => message.type === "feed");
+
+  /** Long enough for a loopback frame that was sent to have landed. */
+  const settle = async (): Promise<void> => {
+    await new Promise((resolve) => setTimeout(resolve, 80));
+  };
+
+  it("sends ONE frame for 332 publishes of an unchanged state", async () => {
+    const a = await attach();
+    await a.waitFor("snapshot");
+
+    for (let i = 0; i < 332; i += 1) a.gateway.publishFeedState();
+    await a.waitFor("feed");
+    await settle();
+
+    expect(feeds(a)).toHaveLength(1);
+  });
+
+  it("sends the next frame when the published view DOES change", async () => {
+    // The gate is about the **published** view — three primitives — and not
+    // about the connection object behind it, whose `lastInboundAt` moved on
+    // every one of the 332.
+    let state: WireFeedState = {
+      status: "live",
+      feed: "iex",
+      marketOpen: true,
+    };
+    const a = await attach(new Map(), undefined, undefined, {
+      feedState: () => state,
+    });
+    await a.waitFor("snapshot");
+
+    a.gateway.publishFeedState();
+    await a.waitForCount("feed", 1);
+    state = { status: "stale", feed: "iex", marketOpen: true };
+    a.gateway.publishFeedState();
+    await a.waitForCount("feed", 2);
+    // And a third publish of the NEW state is suppressed in its turn, so the
+    // gate is a comparison rather than a once-only latch.
+    a.gateway.publishFeedState();
+    await settle();
+
+    expect(feeds(a)).toHaveLength(2);
+  });
+
+  it("gates on the view's own fields, so `feed` alone changing publishes", async () => {
+    // A deployment that loses its provider keeps `status` and `marketOpen` and
+    // changes only the venue — which is invariant 6's own subject, and would
+    // be suppressed by a gate keyed on `status` alone.
+    let state: WireFeedState = {
+      status: "live",
+      feed: "iex",
+      marketOpen: true,
+    };
+    const a = await attach(new Map(), undefined, undefined, {
+      feedState: () => state,
+    });
+    await a.waitFor("snapshot");
+
+    a.gateway.publishFeedState();
+    await a.waitForCount("feed", 1);
+    state = { status: "live", feed: null, marketOpen: true };
+    a.gateway.publishFeedState();
+    await a.waitForCount("feed", 2);
+
+    expect(feeds(a)[1]?.feed).toEqual({
+      status: "live",
+      feed: null,
+      marketOpen: true,
+    });
+  });
+
+  it("leaves the KEEPALIVE ungated, which is what the ingress needs", async () => {
+    // The keepalive exists so the ingress sees traffic on a socket whose feed
+    // is legitimately silent for 76 minutes (§6.6). A keepalive suppressed for
+    // repeating itself is a keepalive that does nothing — so it broadcasts
+    // whatever the state is, and the gate's memory is updated by it rather
+    // than consulted.
+    const fired: (() => void)[] = [];
+    const a = await attach(new Map(), undefined, undefined, {
+      setTimer: (fn) => {
+        fired.push(fn);
+        return setTimeout(() => undefined, 0);
+      },
+    });
+    await a.waitFor("snapshot");
+
+    a.gateway.publishFeedState();
+    await a.waitForCount("feed", 1);
+    for (const fn of fired) fn();
+    await a.waitForCount("feed", 2);
+
+    expect(feeds(a)).toHaveLength(2);
+  });
+
+  it("leaves the FAREWELL ungated, even when it repeats what was published", async () => {
+    // §12.2: the last thing a browser hears before the socket closes. The
+    // state it carries is `disconnected`, which may well be what was last
+    // published — and a suppressed farewell leaves the browser inferring a
+    // deploy from an absence, which is the ambiguity §11.2 exists to remove.
+    const a = await attach(new Map(), undefined, undefined, {
+      feedState: () => ({
+        status: "disconnected",
+        feed: "iex",
+        marketOpen: true,
+      }),
+    });
+    await a.waitFor("snapshot");
+
+    a.gateway.publishFeedState();
+    await a.waitForCount("feed", 1);
+    await a.gateway.close();
+    await a.waitForCount("feed", 2);
+
+    expect(feeds(a)[1]?.feed).toEqual({
+      status: "disconnected",
+      feed: "iex",
+      marketOpen: true,
+    });
+  });
+
+  it("does not strand a LATE JOINER on the state its snapshot carried", async () => {
+    // The memo means *every attached browser has received this*, and a
+    // snapshot is a feed state sent to ONE client — so it clears the memo
+    // rather than updating it. Updating would strand everybody attached
+    // earlier; not clearing strands the joiner, whose snapshot caught an
+    // intermediate state the feed has since returned from.
+    let state: WireFeedState = {
+      status: "live",
+      feed: "iex",
+      marketOpen: true,
+    };
+    const a = await attach(new Map(), undefined, undefined, {
+      feedState: () => state,
+    });
+    await a.waitFor("snapshot");
+    a.gateway.publishFeedState();
+    await a.waitForCount("feed", 1);
+
+    state = { status: "stale", feed: "iex", marketOpen: true };
+    const b = await a.join();
+    await b.waitFor("snapshot");
+    state = { status: "live", feed: "iex", marketOpen: true };
+    a.gateway.publishFeedState();
+    await b.waitForCount("feed", 1);
+
+    expect(feeds(b)[0]?.feed).toEqual({
+      status: "live",
+      feed: "iex",
+      marketOpen: true,
+    });
   });
 });

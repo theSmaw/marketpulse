@@ -2,11 +2,13 @@ import type { FastifyInstance } from "fastify";
 import { WebSocketServer, type WebSocket } from "ws";
 
 import {
+  DISCONNECTED_AFTER_MS,
   MARKET_STREAM_CLOSE,
   MARKET_STREAM_PATH,
   decodeMarketStreamClientMessage,
   MARKET_STREAM_PROTOCOL_VERSION,
   encodeMarketStreamMessage,
+  sameWireFeedState,
   toWireObservation,
   type WireFeedState,
   type WireMarketOverview,
@@ -60,17 +62,52 @@ import type { LiveObservation } from "./market-data-stream.js";
  * {@link KEEPALIVE_INTERVAL_MS}. **An application message rather than a
  * WebSocket ping frame**, deliberately: whether the ingress counts a control
  * frame as activity is not documented and cannot be measured from here, while a
- * data frame unambiguously is traffic. The cost is ~30 messages an hour.
+ * data frame unambiguously is traffic.
  */
 
 /**
- * At most this long between messages to a browser.
+ * At most this long between messages to a browser — **one third of the
+ * browser's own disconnection threshold**, re-derived 2026-10-11 (Task 4.7.7).
  *
- * **Half the 240 s ceiling**, so a single lost or delayed message cannot reach
- * it — the same reasoning as the 165 s watchdog's *three missed heartbeats*,
- * which is why neither number is the raw limit.
+ * ## It was 120 s, and the repair in this file is what moved it
+ *
+ * 120 s was *half the 240 s ingress ceiling*, and while it was written the
+ * browser's inbound stream also carried the **vendor's** 54 s heartbeat:
+ * `alpaca-stream.ts` advanced its connection on every inbound frame including
+ * `ping`, and `publishFeedState` broadcast every advance — ~332 frames a
+ * minute (Task 4.1.6). So the browser's real idle floor was ~54 s and nobody
+ * had to derive one.
+ *
+ * **`publishFeedState` now publishes only when the published view changes**,
+ * which removes the vendor's heartbeat from the browser's inbound stream, and
+ * the floor becomes this timer. At 120 s, `DISCONNECTED_AFTER_MS` (165 s) is
+ * **1.375 keepalives** — so one delayed keepalive (timer drift, an ingress
+ * hiccup, a GC pause in a process also running a 518-security join 6.8–16.1
+ * times a minute) puts a **healthy** browser on `DISCONNECTED`.
+ *
+ * ## The derivation, which is ADR 0036's own rule applied to our heartbeat
+ *
+ * 165 s was derived as **three missed heartbeats** of Alpaca's measured
+ * 53.96–54.85 s (`LIVE-DATA.md` §6.3). Once the browser hears our timer rather
+ * than the vendor's, the same sentence has to be true of **ours**:
+ *
+ *     DISCONNECTED_AFTER_MS / 3 = 55_000
+ *
+ * Written as the division rather than as `55_000`, so the relation cannot
+ * decay if either number is ever re-derived.
+ *
+ * ## Both ceilings restated rather than assumed
+ *
+ * - **Azure Container Apps' ingress idle timeout is 240 s** (`HOSTING.md`,
+ *   named as *idle* in the premium settings table, so it is a ceiling on
+ *   silence rather than on connection age). 55 s is **4.4× inside it**,
+ *   against 2× before.
+ * - **Cost**: 119 B a `feed` frame, uncompressed, so 1.09 frames a minute is
+ *   ~130 B/min per attached browser against ~60 B/min at 120 s. The repair
+ *   above removes ~39,500 B/min from the same socket, so the net is a
+ *   reduction of about three orders of magnitude.
  */
-export const KEEPALIVE_INTERVAL_MS = 120_000;
+export const KEEPALIVE_INTERVAL_MS = DISCONNECTED_AFTER_MS / 3;
 
 /**
  * **How much unsent data a browser may owe before it is dropped** (Task 3.5.7).
@@ -342,12 +379,34 @@ export function registerMarketGateway(
     return wire;
   };
 
-  const feedMessage = (): string =>
+  /**
+   * **The feed state every attached browser has already received** — the gate's
+   * whole memory, and `undefined` until something has been broadcast.
+   *
+   * It is *every* browser rather than *the latest*, which is what decides the
+   * invalidation in `sendSnapshot` below: a client handed a feed state out of
+   * band breaks that sentence, so the memo is **cleared** rather than updated.
+   * Updating it would strand every browser attached before that one on a state
+   * the gate then refuses to correct; clearing it costs one extra frame per
+   * connect, against the ~332 a minute this gate removes.
+   */
+  let lastPublishedFeedState: WireFeedState | undefined;
+
+  /**
+   * One `feed` frame carrying **the state the caller decided to send**.
+   *
+   * **The argument is the gate's doing** (Task 4.7.7). `feedState()` is
+   * time-dependent — `feedStatusFrom` is a conclusion drawn from *when a frame
+   * last arrived*, every time it is asked — so a send site that compares one
+   * reading and then lets this function take another is comparing a state it
+   * did not send. One reading, compared and sent.
+   */
+  const feedMessage = (state: WireFeedState): string =>
     encodeMarketStreamMessage({
       type: "feed",
       version: MARKET_STREAM_PROTOCOL_VERSION,
       sentAt: sentAt(),
-      feed: feedState(),
+      feed: state,
     });
 
   /**
@@ -515,6 +574,14 @@ export function registerMarketGateway(
           }),
         );
 
+        // **This client now holds a feed state nobody else was sent**, so the
+        // broadcast gate's memory is no longer true of every browser and is
+        // cleared rather than updated (see `lastPublishedFeedState`). The next
+        // `publishFeedState` therefore goes out unconditionally, which is what
+        // keeps a late joiner from being stranded on an intermediate state the
+        // feed has since returned from.
+        lastPublishedFeedState = undefined;
+
         // **And the aggregate, beside the snapshot and for the same reason.**
         // The overview is not scoped to a subscription, so a browser that
         // connects at 11:20 would otherwise hold no figures until the next
@@ -555,7 +622,7 @@ export function registerMarketGateway(
       // unsubscribed browser receives, and it carries `feed`. Every browser is
       // unsubscribed for the first moments of every connection and every
       // reconnect (`App.tsx` starts with no symbols), and the next thing such
-      // a browser would hear is the 120 s keepalive — two minutes in which
+      // a browser would hear is the 55 s keepalive — a minute in which
       // §11.2's watchdog is already counting silence. The alternative
       // considered and rejected was sending a `feed` message here instead: it
       // saves 22 bytes and moves the browser's *this is a connection* edge
@@ -599,7 +666,17 @@ export function registerMarketGateway(
     // attached has no socket to keep alive, and a timer that broadcasts to
     // nobody is a wake-up the Consumption plan bills for — §9.1's idle-rate
     // condition is a rate, and this is exactly the kind of thing that erodes it.
-    if (clients.size > 0) broadcast(feedMessage());
+    if (clients.size === 0) return;
+
+    // **UNGATED, and that is the whole point of it** (Task 4.7.7). This timer
+    // exists so the ingress sees traffic on a socket whose feed is
+    // legitimately silent for 76 minutes (§6.6) — a keepalive suppressed for
+    // saying the same thing twice is a keepalive that does nothing. It
+    // **records** what it sent, because after it every attached browser holds
+    // this state, which is exactly what the gate compares against.
+    const state = feedState();
+    lastPublishedFeedState = state;
+    broadcast(feedMessage(state));
   }, KEEPALIVE_INTERVAL_MS);
 
   return {
@@ -704,7 +781,21 @@ export function registerMarketGateway(
     },
 
     publishFeedState() {
-      broadcast(feedMessage());
+      // **The gate** (Task 4.7.7), and it is here rather than at the caller
+      // for three mechanical reasons. `feedState()` is time-dependent, so only
+      // the send site can compare a reading against what was last **sent**.
+      // The keepalive and the farewell broadcast directly and must stay
+      // ungated. And `index.ts`'s handshake log line carries `phase` and
+      // `subscribedSymbols` — which this view throws away, and which are an
+      // operator's only account of the vendor handshake — so it stays outside
+      // the gate and keeps logging every advance.
+      const state = feedState();
+      const last = lastPublishedFeedState;
+
+      if (last !== undefined && sameWireFeedState(state, last)) return;
+
+      lastPublishedFeedState = state;
+      broadcast(feedMessage(state));
     },
 
     async close() {
@@ -720,6 +811,11 @@ export function registerMarketGateway(
         version: MARKET_STREAM_PROTOCOL_VERSION,
         sentAt: sentAt(),
         feed: { ...feedState(), status: "disconnected" },
+        // **Ungated too.** It is the last thing a browser hears before the
+        // socket closes (§12.2), and `status: "disconnected"` may well equal
+        // the state already published — a suppressed farewell would leave the
+        // browser inferring a deploy from an absence, which is the ambiguity
+        // §11.2's thresholds exist to remove.
       });
 
       for (const socket of clients.keys()) {

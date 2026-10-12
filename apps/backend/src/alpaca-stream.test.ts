@@ -13,6 +13,7 @@ import {
   type WebSocketLike,
 } from "./alpaca-stream.js";
 import type { LiveObservation } from "./market-data-stream.js";
+import { feedStatusOf } from "./stream-connection.js";
 import type { StreamConnection } from "./stream-connection.js";
 
 const CORPUS = join(import.meta.dirname, "fixtures", "alpaca-stream");
@@ -154,6 +155,16 @@ const handshake = (h: Harness): void => {
  * test rather than an accident of how far apart the two scales are.
  */
 const WALL_NOW = Date.parse("2026-09-16T14:02:00Z") + 60_000;
+
+/**
+ * A wall clock inside the recorded bar's own freshness window.
+ *
+ * {@link WALL_NOW} is deliberately a minute past the bar's minute, which makes
+ * every status reading `stale`; a test about a view **moving** needs a clock on
+ * which it can move. The bar covers `14:01`, so the interval closes at `14:02`
+ * and 30 s later is inside the 60 s staleness window.
+ */
+const FRESH_WALL_NOW = Date.parse("2026-09-16T14:02:30Z");
 
 describe("the handshake", () => {
   it("waits for the server's greeting before authenticating", () => {
@@ -580,6 +591,102 @@ describe("observations", () => {
     expect(() => {
       h.socket.emit("message", "{not json");
     }).not.toThrow();
+  });
+});
+
+describe("one vendor message advances the connection once per ITEM (Task 4.7.7)", () => {
+  /**
+   * **The cause of the ~332 `feed` frames a minute, in the only place it is
+   * locally reachable.**
+   *
+   * `apply()` notifies `onConnectionChange` unconditionally, and
+   * `handleMessage` calls it inside the loop over the inbound array — §7.2
+   * measured the vendor batching, so one message routinely carries many
+   * items. `index.ts` answers each notification with
+   * `gateway.publishFeedState()`, which is a broadcast to every attached
+   * browser; Task 4.1.6 counted **~332 frames a minute** on the deployed
+   * gateway in session, 119 bytes each with no `perMessageDeflate`.
+   *
+   * **Neither half of this is a defect on its own**, which is why the repair
+   * is at the send site rather than here: the connection genuinely did take
+   * `n` inbound frames' worth of evidence, `lastInboundAt` genuinely moved
+   * every time, and a subscriber that wants that is entitled to it. What was
+   * wrong was publishing a change to the watchdog's private bookkeeping as a
+   * change to the browser's feed state — so this test pins the **rate at the
+   * source**, and `market-gateway.process.test.ts` pins that the rate does
+   * not reach a browser.
+   *
+   * **Neither local stream can produce this.** `fixture-stream.ts` calls
+   * `apply` once per tick and `replay-stream.ts` once per slice; the per-item
+   * loop exists only on the vendor's path, which is why the count above is
+   * cited from a deployed session and the **re-count after this repair is
+   * owed**.
+   */
+  const batchOf = (count: number): string => {
+    // Assembled from the RECORDED bar rather than typed, so the item shape is
+    // the vendor's. The batching is the vendor's too (§7.2) — what no fixture
+    // in the corpus holds is a multi-item array, because each was captured as
+    // one frame of interest.
+    const [item] = JSON.parse(frame("bar-nvda")) as unknown[];
+
+    return JSON.stringify(Array.from({ length: count }, () => item));
+  };
+
+  it("notifies the subscriber once per item of one message", () => {
+    const h = harness();
+    handshake(h);
+    const afterHandshake = h.connections.length;
+
+    h.socket.emit("message", batchOf(20));
+
+    expect(h.connections.length - afterHandshake).toBe(20);
+  });
+
+  it("notifies on the vendor's PING, which carries no data at all", () => {
+    // §6.3 measured Alpaca pinging every 53.96–54.85 s across 82 intervals.
+    // That heartbeat was reaching every browser as a `feed` frame, which is
+    // why the keepalive had never needed deriving — see
+    // `KEEPALIVE_INTERVAL_MS`.
+    const h = harness();
+    handshake(h);
+    const afterHandshake = h.connections.length;
+
+    h.socket.emit("ping");
+
+    expect(h.connections.length - afterHandshake).toBe(1);
+  });
+
+  it("moves the published view at most ONCE across twenty of them", () => {
+    // **The first draft of this test was green for the wrong reason**, and the
+    // transcript is in Task 4.7.7: it asserted the status was unchanged either
+    // side of the batch, against a `WALL_NOW` a minute past the bar's own
+    // minute — so both readings were `stale` and the assertion held however
+    // many views the batch had moved through.
+    //
+    // The honest claim is about the COUNT. Twenty notifications carry **one**
+    // published view: the bar in the first item moves `stale` → `live`, which
+    // the gate publishes, and the other nineteen move only `lastInboundAt`,
+    // which is not on the wire. One frame for twenty notifications is
+    // therefore lossless rather than a sampling.
+    const h = harness();
+    handshake(h);
+    // A wall clock inside the bar's own freshness window, so the move the
+    // first item makes is a REAL one and the test can count it.
+    const inputs = {
+      now: h.clock(),
+      wallNow: FRESH_WALL_NOW,
+      marketOpen: true,
+    };
+    const afterHandshake = h.connections.length;
+
+    h.socket.emit("message", batchOf(20));
+
+    const published = h.connections
+      .slice(afterHandshake)
+      .map((connection) => feedStatusOf(connection, inputs));
+
+    expect(published).toHaveLength(20);
+    expect([...new Set(published)]).toEqual(["live"]);
   });
 });
 
