@@ -1,7 +1,7 @@
-import { toMarketDate, toTimeRange } from "@marketpulse/shared";
+import { toMarketDate, toTicker, toTimeRange } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
-import type { CoverageRow } from "./store-freshness.js";
+import type { AttemptRow, CoverageRow } from "./store-freshness.js";
 import {
   lastCompletedSession,
   sessionsBetween,
@@ -23,10 +23,29 @@ import {
 // would be wrong in a way that invites a tolerance nobody can justify.
 
 /** 16:00 ET on a market date, as the EXCLUSIVE end of a covered range. */
-function coveredThrough(timeframe: "1m" | "1d", close: string): CoverageRow {
+function coveredThrough(
+  timeframe: "1m" | "1d",
+  close: string,
+  symbol = "NVDA",
+): CoverageRow {
   return {
+    symbol: toTicker(symbol),
     timeframe,
     covered: toTimeRange(new Date("2020-01-02T14:30:00.000Z"), new Date(close)),
+  };
+}
+
+/** A recorded empty answer: *we asked, and the vendor had nothing to send*. */
+function emptyAnswer(
+  symbol: string,
+  timeframe: "1m" | "1d",
+  session: string,
+): AttemptRow {
+  return {
+    symbol: toTicker(symbol),
+    timeframe,
+    sessionDate: toMarketDate(session),
+    outcome: "ok",
   };
 }
 
@@ -108,6 +127,7 @@ describe("storeFreshness", () => {
   it("reports the defect that shipped: 1m current, 1d four sessions behind", () => {
     const freshness = storeFreshness(
       [coveredThrough("1m", SEP_11_CLOSE), coveredThrough("1d", SEP_4_CLOSE)],
+      [],
       SATURDAY,
     );
 
@@ -131,6 +151,7 @@ describe("storeFreshness", () => {
     // fresher than it is, which is the direction that hides a defect.
     const freshness = storeFreshness(
       [coveredThrough("1d", SEP_11_CLOSE)],
+      [],
       SATURDAY,
     );
 
@@ -142,10 +163,11 @@ describe("storeFreshness", () => {
     // was refreshed today; only the stalest figure says most of it was not.
     const freshness = storeFreshness(
       [
-        coveredThrough("1d", SEP_11_CLOSE),
-        coveredThrough("1d", SEP_4_CLOSE),
-        coveredThrough("1d", SEP_4_CLOSE),
+        coveredThrough("1d", SEP_11_CLOSE, "NVDA"),
+        coveredThrough("1d", SEP_4_CLOSE, "WBD"),
+        coveredThrough("1d", SEP_4_CLOSE, "PSKY"),
       ],
+      [],
       SATURDAY,
     );
 
@@ -160,6 +182,7 @@ describe("storeFreshness", () => {
     // timeframe reported by omission is a timeframe nobody notices.
     const freshness = storeFreshness(
       [coveredThrough("1m", SEP_11_CLOSE)],
+      [],
       SATURDAY,
     );
 
@@ -175,7 +198,7 @@ describe("storeFreshness", () => {
     // backfill, so CI's store holds 518 securities and zero bars. A throw here
     // would make the diagnostic unusable in the one environment that runs it
     // most often.
-    const freshness = storeFreshness([], SATURDAY);
+    const freshness = storeFreshness([], [], SATURDAY);
 
     expect(freshness.timeframes).toHaveLength(2);
     for (const entry of freshness.timeframes) {
@@ -194,6 +217,7 @@ describe("a covered range that does not end on a session", () => {
     const freshness = storeFreshness(
       [
         {
+          symbol: toTicker("NVDA"),
           timeframe: "1d",
           covered: toTimeRange(
             new Date("2024-01-02T14:30:00.000Z"),
@@ -201,6 +225,7 @@ describe("a covered range that does not end on a session", () => {
           ),
         },
       ],
+      [],
       SATURDAY,
     );
 
@@ -217,5 +242,130 @@ describe("a covered range that does not end on a session", () => {
     ).toBe(
       sessionsBetween(toMarketDate("2026-09-04"), toMarketDate("2026-09-11")),
     );
+  });
+});
+
+// **The figure the deployed gate reads, and the shape it was written against**
+// (Task 2.8.13).
+//
+// Every row here is the deployed store's own shape on 2026-10-12, moved onto
+// the pinned calendar above: a ledger that stops at the last session a security
+// traded, with a recorded empty answer for every session since. `WBD` and
+// `PSKY` stopped printing on 2026-10-05 and the vendor answered empty for four
+// sessions; here they stop on 2026-09-04 and answer empty for four, which is
+// the same arithmetic against dates a test can pin.
+describe("the gate's figure: a gap an empty answer explains", () => {
+  /** The four sessions after 2026-09-04 — the 7th is Labor Day. */
+  const AFTER_SEP_4 = ["2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11"];
+
+  it("is zero when every trailing session was asked about and answered empty", () => {
+    const freshness = storeFreshness(
+      [coveredThrough("1m", SEP_4_CLOSE, "WBD")],
+      AFTER_SEP_4.map((session) => emptyAnswer("WBD", "1m", session)),
+      SATURDAY,
+    );
+
+    const minute = freshness.timeframes.find((e) => e.timeframe === "1m");
+
+    // The true number is unchanged and still reported, because it is the only
+    // figure that can see a partial fill.
+    expect(minute?.stalestSessionsBehind).toBe(4);
+    expect(minute?.stalestSecurities).toEqual(["WBD"]);
+    // And the gate's figure is zero: there is no session here a backfill could
+    // move. This is the state that was red for four days.
+    expect(minute?.unexplainedSessionsBehind).toBe(0);
+    expect(minute?.unexplainedSecurities).toEqual([]);
+  });
+
+  it("counts only the sessions with no answer, so a partial fill still trips", () => {
+    // Three explained of four. The remaining session is one nobody asked
+    // about — a lag that is ours, which is exactly what the ceiling is for.
+    const freshness = storeFreshness(
+      [coveredThrough("1m", SEP_4_CLOSE, "WBD")],
+      AFTER_SEP_4.slice(0, 3).map((session) =>
+        emptyAnswer("WBD", "1m", session),
+      ),
+      SATURDAY,
+    );
+
+    const minute = freshness.timeframes.find((e) => e.timeframe === "1m");
+    expect(minute?.stalestSessionsBehind).toBe(4);
+    expect(minute?.unexplainedSessionsBehind).toBe(1);
+    expect(minute?.unexplainedSecurities).toEqual(["WBD"]);
+  });
+
+  it("does not let one security's empty answer explain another's gap", () => {
+    // The two are at the same figure by the ledger, and only one of them was
+    // asked about. A key that forgot the symbol would report zero here and the
+    // gate would pass on a universe half of which nobody fetched.
+    const freshness = storeFreshness(
+      [
+        coveredThrough("1m", SEP_4_CLOSE, "WBD"),
+        coveredThrough("1m", SEP_4_CLOSE, "PSKY"),
+      ],
+      AFTER_SEP_4.map((session) => emptyAnswer("WBD", "1m", session)),
+      SATURDAY,
+    );
+
+    const minute = freshness.timeframes.find((e) => e.timeframe === "1m");
+    expect(minute?.stalestSessionsBehind).toBe(4);
+    expect(minute?.unexplainedSessionsBehind).toBe(4);
+    expect(minute?.unexplainedSecurities).toEqual(["PSKY"]);
+  });
+
+  it("does not let a daily empty answer explain a minute gap", () => {
+    // Minute and daily history are walked independently, and the attempt log is
+    // keyed on `(security, timeframe, session)` for that reason. The deployed
+    // store is the live example: the same two securities report 4 at `1m` and 3
+    // at `1d`, because the two passes request different window shapes.
+    const freshness = storeFreshness(
+      [coveredThrough("1m", SEP_4_CLOSE, "WBD")],
+      AFTER_SEP_4.map((session) => emptyAnswer("WBD", "1d", session)),
+      SATURDAY,
+    );
+
+    const minute = freshness.timeframes.find((e) => e.timeframe === "1m");
+    expect(minute?.unexplainedSessionsBehind).toBe(4);
+  });
+
+  it("treats a FAILED attempt as no answer at all", () => {
+    // `ok` in this log means *the vendor answered successfully and left no
+    // bars*. A timeout means we still do not know what happened there, and
+    // accepting it would let a failing backfill quieten the gate it exists to
+    // trip.
+    const freshness = storeFreshness(
+      [coveredThrough("1m", SEP_4_CLOSE, "WBD")],
+      AFTER_SEP_4.map((session) => ({
+        ...emptyAnswer("WBD", "1m", session),
+        outcome: "timeout" as const,
+      })),
+      SATURDAY,
+    );
+
+    const minute = freshness.timeframes.find((e) => e.timeframe === "1m");
+    expect(minute?.unexplainedSessionsBehind).toBe(4);
+  });
+
+  it("names at most ten securities and counts the rest", () => {
+    // A dead backfill puts the whole universe at one figure, and 518 symbols on
+    // a wire is noise rather than a finding. The count beside the list is what
+    // makes the cap honest — `check-deployed.mjs` prints it when the list is a
+    // sample.
+    // `AAA` … `AAL`: a ticker is letters only, which `toTicker` enforces.
+    const twelve = Array.from({ length: 12 }, (_, index) =>
+      coveredThrough(
+        "1m",
+        SEP_4_CLOSE,
+        `AA${String.fromCharCode("A".charCodeAt(0) + index)}`,
+      ),
+    );
+
+    const minute = storeFreshness(twelve, [], SATURDAY).timeframes.find(
+      (e) => e.timeframe === "1m",
+    );
+
+    expect(minute?.stalestSecurities).toHaveLength(10);
+    expect(minute?.stalestSecurityCount).toBe(12);
+    expect(minute?.stalestSecurities[0]).toBe("AAA");
   });
 });

@@ -1247,6 +1247,25 @@ export interface MarketBarsRepository {
   listCoverage(): Promise<readonly BarCoverage[]>;
 
   /**
+   * The same statements, for the securities we track **now** (Task 2.8.13).
+   *
+   * **A second method rather than a parameter, because the two readers must not
+   * be able to drift onto each other's answer.** `UNIVERSE.md` §12.2's rule is
+   * that `status` is filtered when computing over *the market we track now* and
+   * never when showing or replaying *something we stored* — and this ledger has
+   * one reader of each kind. `/securities` shows an untracked row with its
+   * status, deliberately; `/diagnostics/freshness` asks whether the backfill is
+   * keeping up with the universe it is pointed at, and a symbol the loader has
+   * stopped tracking is not part of that question.
+   *
+   * It buys nothing on today's store — all 518 rows are `active` — and what it
+   * means is that **hand-editing `universe.ts` would not clear the deployed
+   * gate as the code stood**: a security dropped to `delisted` would have gone
+   * on being counted as a lag for ever.
+   */
+  listTrackedCoverage(): Promise<readonly BarCoverage[]>;
+
+  /**
    * The newest bar we hold for each security at one timeframe.
    *
    * **Read at the DAILY timeframe even when reporting on minute bars**, and that
@@ -1416,6 +1435,28 @@ export function createMarketBarsRepository(
   const db = new Kysely<Database>({
     dialect: new PostgresDialect({ pool }),
   });
+
+  /**
+   * The whole-ledger read, once, so its two callers cannot select different
+   * columns — the difference between them is the `status` predicate and
+   * nothing else.
+   */
+  function coverageQuery() {
+    return db
+      .selectFrom("bar_coverage")
+      .innerJoin("securities", "securities.id", "bar_coverage.security_id")
+      .select([
+        "securities.symbol",
+        "bar_coverage.timeframe",
+        "bar_coverage.covered_start",
+        "bar_coverage.covered_end",
+        "bar_coverage.provider",
+        "bar_coverage.bar_count",
+        "bar_coverage.updated_at",
+      ])
+      .orderBy("securities.symbol")
+      .orderBy("bar_coverage.timeframe");
+  }
 
   async function coverageFor(
     symbol: Ticker,
@@ -1794,23 +1835,17 @@ export function createMarketBarsRepository(
     },
 
     async listCoverage() {
-      const rows = await db
-        .selectFrom("bar_coverage")
-        .innerJoin("securities", "securities.id", "bar_coverage.security_id")
-        .select([
-          "securities.symbol",
-          "bar_coverage.timeframe",
-          "bar_coverage.covered_start",
-          "bar_coverage.covered_end",
-          "bar_coverage.provider",
-          "bar_coverage.bar_count",
-          "bar_coverage.updated_at",
-        ])
-        .orderBy("securities.symbol")
-        .orderBy("bar_coverage.timeframe")
-        .execute();
+      return (await coverageQuery().execute()).map(toCoverage);
+    },
 
-      return rows.map(toCoverage);
+    async listTrackedCoverage() {
+      // The one difference from the read above, and the interface says why it
+      // is a second method rather than an argument.
+      return (
+        await coverageQuery()
+          .where("securities.status", "=", "active")
+          .execute()
+      ).map(toCoverage);
     },
   };
 }

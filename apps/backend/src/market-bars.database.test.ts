@@ -1188,6 +1188,54 @@ describe("writing a series", () => {
     );
   });
 
+  // **The `status` predicate, on the ledger's second reader** (Task 2.8.13).
+  //
+  // `UNIVERSE.md` §12.2's rule is that a reader computing over *the market we
+  // track now* filters `active` and a reader showing *something we stored* does
+  // not, and this table has one of each: `/diagnostics/freshness` asks whether
+  // the backfill is keeping up with the universe it is pointed at, and
+  // `/securities` shows an untracked row with its status on purpose.
+  //
+  // It buys nothing on today's store — all 518 rows are `active` — and what it
+  // means is that hand-editing `universe.ts` could not clear the deployed gate.
+  // Which is why this has to be produced: there is no instance of it to observe.
+  it("tells the two ledger readers apart on `status`, which no row in the universe does", async () => {
+    const [session] = sessions(1);
+    if (session === undefined) throw new Error("no session");
+
+    await repository().recordSeries(seriesFor(symbol, session, { count: 3 }));
+    await repository().recordSeries(
+      seriesFor(otherSymbol, session, { count: 4 }),
+    );
+
+    // The loader writes `status` from the curated file on every run, so this is
+    // the only way the state exists at all — and `UNIVERSE.md` §15.3's warning
+    // applies: the next `pnpm universe` reverts it. The suite drops this
+    // database, so nothing outlives the test.
+    // `untracked`, because that is what `SECURITY_STATUSES` holds: `delisted`
+    // deliberately does not ship as a member until something can set it
+    // (`UNIVERSE.md` §15.3, `BARS.md` §7.5), and the check constraint refuses
+    // it — which this test found by trying.
+    await db().query("update securities set status = $1 where symbol = $2", [
+      "untracked",
+      otherSymbol,
+    ]);
+
+    try {
+      expect(
+        (await repository().listCoverage()).map((row) => row.symbol),
+      ).toEqual([symbol, otherSymbol].sort());
+      expect(
+        (await repository().listTrackedCoverage()).map((row) => row.symbol),
+      ).toEqual([symbol]);
+    } finally {
+      await db().query("update securities set status = $1 where symbol = $2", [
+        "active",
+        otherSymbol,
+      ]);
+    }
+  });
+
   it("writes past the bind-parameter chunk boundary without dropping a row", async () => {
     // 9 written columns against Postgres's 65,535 bind parameters puts the
     // chunk at 7,281 rows (8,191 while there were eight, before Task 3.7.3

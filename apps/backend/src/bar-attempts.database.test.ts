@@ -39,6 +39,7 @@ import {
 import {
   compareStoreToCalendar,
   needsAttention,
+  STALE_SESSION_THRESHOLD,
   type SeriesStore,
 } from "./bar-completeness.js";
 import { loadConfig, loadEnvFile } from "./config.js";
@@ -436,5 +437,171 @@ describe("the four causes, one at a time and from the database", () => {
   it("distinguishes a never-fetched series from a fetched and empty one", async () => {
     const never = await report(undefined);
     expect(never.findings[0]?.kind).toBe("never-fetched");
+  });
+});
+
+// **The shape the instrument was silent on — Task 2.8.13.**
+//
+// A security that has stopped printing leaves one shape in this store and it is
+// the one every furnished test gets wrong: the **ledger stops before the
+// sessions the backfill asked about**, because an empty answer writes no bars
+// and `backfill.ts` therefore extends the covered range by nothing, on purpose.
+// The evidence that we asked at all is **in the other table**, as one `ok`
+// attempt per session.
+//
+// Produced here rather than in `bar-completeness.test.ts` because that file
+// hands `compareStoreToCalendar` a store it typed out: both halves of this
+// shape are read back from a real database, through the shipped reads, so the
+// test cannot accidentally agree with the defect.
+//
+// The deployed instance is `WBD` and `PSKY`, both of which stopped on
+// 2026-10-05. The sessions here are a real March week against the shipped
+// calendar, for the reason the rest of this file uses real sessions: the
+// threshold is five consecutive sessions and a fixture week has to actually
+// have five.
+describe("a security that has stopped printing", () => {
+  const WBD: Ticker = toTicker("WBD");
+  const PSKY: Ticker = toTicker("PSKY");
+
+  /** Ten real sessions: 2026-03-02 → 2026-03-13. */
+  const TEN = marketSessionsBetween(
+    toMarketDate("2026-03-02"),
+    toMarketDate("2026-03-13"),
+  );
+  /** The five the ledger reaches, and the five it stops before. */
+  const TRADED = TEN.slice(0, 5);
+  const SILENT = TEN.slice(5);
+
+  /**
+   * The store as it stands after the backfill asked about all ten.
+   *
+   * One ledger row covering the five sessions that produced bars, and an `ok`
+   * attempt for each of the five that produced none — written through the
+   * shipped repository and read back through it.
+   */
+  async function stoppedPrinting(symbol: Ticker): Promise<SeriesStore> {
+    await log().recordAttempts(
+      SILENT.map((session) => ({
+        symbol,
+        timeframe: "1m" as const,
+        sessionDate: session.date,
+        outcome: "ok" as const,
+      })),
+    );
+
+    const stored = await log().listAttempts();
+
+    return {
+      symbol,
+      timeframe: "1m",
+      coverage: coverageOver(symbol, TRADED, completeBars(TRADED)),
+      attempts: stored.filter((entry) => entry.symbol === symbol),
+      // The newest DAILY bar, which is the cheap proxy `check-bars.ts` reads:
+      // the last session the security actually traded.
+      lastBarAt: TRADED.at(-1)?.open ?? null,
+    };
+  }
+
+  it("finds WBD and PSKY, from a ledger that stops before the sessions it was asked about", async () => {
+    expect(SILENT).toHaveLength(STALE_SESSION_THRESHOLD);
+
+    const first = TEN[0];
+    const last = TEN.at(-1);
+    if (first === undefined || last === undefined) throw new Error("fixture");
+
+    const found = compareStoreToCalendar({
+      sessions: TEN,
+      window: { from: first.date, to: last.date },
+      series: [await stoppedPrinting(WBD), await stoppedPrinting(PSKY)],
+    });
+
+    const stopped = found.findings.filter(
+      (finding) => finding.kind === "no-recent-bars",
+    );
+
+    // **The assertion the instrument could not make.** Before this task the
+    // count was ZERO: the five silent sessions are outside the covered range,
+    // so a reading taken over covered sessions alone found no session after the
+    // last bar however long the silence ran.
+    expect(stopped.map((finding) => finding.symbol).sort()).toEqual([
+      "PSKY",
+      "WBD",
+    ]);
+    // `filter` on the discriminant narrows the type, so this reads the field
+    // directly rather than re-testing the kind — which lint refuses as an
+    // always-true comparison.
+    expect(stopped.map((finding) => finding.sessionsSince)).toEqual([
+      STALE_SESSION_THRESHOLD,
+      STALE_SESSION_THRESHOLD,
+    ]);
+    // And it is a finding a person has to act on — a curation decision rather
+    // than a re-run, which is the whole point of telling it from `not-fetched`.
+    expect(stopped.every(needsAttention)).toBe(true);
+  });
+
+  it("stays silent while the vendor is still sending bars, which is 516 of 518", async () => {
+    // The control. The same ten sessions, all of them covered, with a bar in
+    // the last one — and no finding. Without this the test above is equally
+    // evidence that the reading now fires on everything.
+    const first = TEN[0];
+    const last = TEN.at(-1);
+    if (first === undefined || last === undefined) throw new Error("fixture");
+
+    const found = compareStoreToCalendar({
+      sessions: TEN,
+      window: { from: first.date, to: last.date },
+      series: [
+        {
+          symbol: WBD,
+          timeframe: "1m",
+          coverage: coverageOver(WBD, TEN, completeBars(TEN)),
+          attempts: await log().listAttempts(),
+          lastBarAt: last.open,
+        },
+      ],
+    });
+
+    expect(
+      found.findings.filter((finding) => finding.kind === "no-recent-bars"),
+    ).toEqual([]);
+  });
+
+  it("does not read a session we FAILED on as a session we heard about", async () => {
+    // A `timeout` is not an answer. If it counted, a backfill that could not
+    // reach the vendor for a week would report every security in the universe
+    // as having stopped printing — which is the one way this reading could
+    // become the noise that gets it ignored.
+    const first = TEN[0];
+    const last = TEN.at(-1);
+    if (first === undefined || last === undefined) throw new Error("fixture");
+
+    await log().recordAttempts(
+      SILENT.map((session) => ({
+        symbol: WBD,
+        timeframe: "1m" as const,
+        sessionDate: session.date,
+        outcome: "upstream-unavailable" as const,
+      })),
+    );
+
+    const found = compareStoreToCalendar({
+      sessions: TEN,
+      window: { from: first.date, to: last.date },
+      series: [
+        {
+          symbol: WBD,
+          timeframe: "1m",
+          coverage: coverageOver(WBD, TRADED, completeBars(TRADED)),
+          attempts: (await log().listAttempts()).filter(
+            (entry) => entry.symbol === WBD,
+          ),
+          lastBarAt: TRADED.at(-1)?.open ?? null,
+        },
+      ],
+    });
+
+    expect(
+      found.findings.filter((finding) => finding.kind === "no-recent-bars"),
+    ).toEqual([]);
   });
 });

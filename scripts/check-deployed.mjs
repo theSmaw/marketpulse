@@ -81,10 +81,32 @@ const POLL_INTERVAL_MS = 1_000;
  * did nothing, which is a job that has stopped rather than a job that was
  * unlucky.
  *
- * It is measured against `stalestSessionsBehind` — the WORST security — and not
- * the newest, because a maximum is exactly what hid the original defect's
- * shape: a partial fill leaves the freshest symbol current while most of the
- * universe rots.
+ * ## What it is measured against, which was the defect — re-decided 2026-10-12
+ *
+ * **`unexplainedSessionsBehind`, the worst security whose trailing gap has no
+ * recorded empty answer** (Task 2.8.13). Until then it was
+ * `stalestSessionsBehind`, the worst security full stop, and **that figure
+ * cannot be satisfied**: a security that has stopped printing is asked about
+ * every session and answers empty, an empty answer extends the ledger by
+ * nothing on purpose, and the figure therefore grows by one every session for
+ * ever with no backfill able to move it. Every `deploy` run between 2026-10-08
+ * and 2026-10-12 was red for exactly that, on `WBD` and `PSKY`, while the store
+ * was as complete as the vendor could make it.
+ *
+ * **The sizing argument and the subject now agree, and that pairing was the
+ * second half of the defect.** "Two absorbs a single missed night" is a
+ * property of the *schedule*, and it was being applied to the worst *security*
+ * — a market property, which no schedule bounds. The figure above is a
+ * schedule property for every security at once: a run that happens either
+ * brings bars or records an empty answer for every session it asks about, so
+ * one missed night moves it to one for the whole universe and two consecutive
+ * misses to two.
+ *
+ * **`stalestSessionsBehind` is still read and still printed**, with the
+ * securities named, because it is the only figure that can see a partial fill —
+ * the shape the original ceiling was bought for. It no longer decides the
+ * verdict. `store-freshness.ts` carries the arithmetic and the reversal
+ * trigger; the only record of this constant's own sizing is this comment.
  */
 const MAX_SESSIONS_BEHIND = 2;
 
@@ -215,34 +237,117 @@ async function probeFreshness(backendOrigin) {
     return { ok: false, detail: "200 with a body that is not the contract" };
   }
 
-  const stale = body.timeframes.filter(
+  const summary = body.timeframes.map(describeTimeframe).join("; ");
+
+  // **The running revision predates the field, which is a named state rather
+  // than a pass.** `/diagnostics/feed`'s 404 branch has the same shape and the
+  // same reason: expected for exactly one deploy — the one that first ships it
+  // — and a problem on any later one. It is not `ok`, because a check that
+  // could not evaluate its gate must not read as one that passed.
+  const unversioned = body.timeframes.filter(
     (entry) =>
-      typeof entry.stalestSessionsBehind === "number" &&
-      entry.stalestSessionsBehind > MAX_SESSIONS_BEHIND,
+      entry.unexplainedSessionsBehind === undefined &&
+      entry.stalestSessionsBehind !== null,
   );
 
-  const summary = body.timeframes
-    .map(
-      (entry) =>
-        `${String(entry.timeframe)}=${
-          entry.stalestSessionsBehind === null
-            ? "empty"
-            : `${String(entry.stalestSessionsBehind)} behind`
-        }`,
-    )
-    .join(", ");
+  if (unversioned.length > 0) {
+    return {
+      ok: false,
+      // Read by `reportDeployed`, so the paragraph underneath does not claim
+      // the store is stale. It is the `missing` flag's shape on the feed probe,
+      // and for the file's own stated reason: this function printed *"The
+      // frontend half … is not answering correctly"* above a line reading
+      // `✓ frontend` once, and a message that names the wrong thing is worse
+      // than no message because a reader acts on it.
+      unevaluable: true,
+      detail:
+        `${summary} — and the body carries no \`unexplainedSessionsBehind\`, ` +
+        "so the gate cannot be evaluated. The running revision predates Task " +
+        "2.8.13. Expected for the first deploy that ships it; anything later " +
+        "means the rollout did not take.",
+    };
+  }
+
+  const stale = body.timeframes.filter(
+    (entry) =>
+      typeof entry.unexplainedSessionsBehind === "number" &&
+      entry.unexplainedSessionsBehind > MAX_SESSIONS_BEHIND,
+  );
 
   if (stale.length > 0) {
     return {
       ok: false,
       detail:
         `${summary} — over the ${String(MAX_SESSIONS_BEHIND)}-session ceiling. ` +
-        "The nightly backfill has not run, or has not covered every security. " +
-        'Dispatch: gh workflow run backfill.yml -f args="--timeframe 1d --sessions 10"',
+        "The nightly backfill has not run, has not covered every security, or " +
+        "a security in the universe has stopped printing — `pnpm bars:check` " +
+        "names which, under `stopped printing`. Dispatch, only for the first " +
+        'two: gh workflow run backfill.yml -f args="--timeframe 1d --sessions 10"',
     };
   }
 
   return { ok: true, detail: summary };
+}
+
+/**
+ * One timeframe, in words, with the securities NAMED.
+ *
+ * **Both figures, always, whichever is red** (Task 2.8.13). The gate reads the
+ * second; the first is the only one that can see a partial fill, so printing it
+ * is not decoration. And the names are here because the investigation that
+ * produced this split had the figure `4` and nothing else — finding out that it
+ * meant `WBD` and `PSKY` cost a second endpoint and a histogram over 518 rows.
+ */
+function describeTimeframe(entry) {
+  const timeframe = String(entry.timeframe);
+
+  if (entry.stalestSessionsBehind === null) {
+    // The ledger holds nothing at this timeframe. CI's store exactly — 518
+    // securities and zero bars — and not a stale store. See above.
+    return `${timeframe}=empty`;
+  }
+
+  // Nothing is behind, so there is nothing to name and no second figure worth
+  // printing: the gate's figure cannot exceed the one it is a subset of.
+  if (entry.stalestSessionsBehind === 0) return `${timeframe}=current`;
+
+  const behind =
+    `${String(entry.stalestSessionsBehind)} behind` +
+    naming(entry.stalestSecurities, entry.stalestSecurityCount);
+
+  if (entry.unexplainedSessionsBehind === undefined) {
+    return `${timeframe}=${behind}`;
+  }
+
+  // **The two figures agreeing is the ORDINARY stale store**, and repeating the
+  // same ten symbols twice on one line is how a reader stops reading it. Said
+  // in words instead, because the distinction is what the line is for: *none
+  // explained* is a job that did not run, and a figure below it is a market
+  // event.
+  if (entry.unexplainedSessionsBehind === entry.stalestSessionsBehind) {
+    return `${timeframe}=${behind}, none explained`;
+  }
+
+  const unexplained =
+    `${String(entry.unexplainedSessionsBehind)} unexplained` +
+    naming(entry.unexplainedSecurities, entry.unexplainedSecurityCount);
+
+  return `${timeframe}=${behind}, ${unexplained}`;
+}
+
+/**
+ * The securities at a figure, in brackets, or nothing at all.
+ *
+ * The endpoint caps its list at ten and sends the full count beside it, so this
+ * can say *which* when the set is small — the case that matters, because a
+ * market event is two symbols — and *how many* when it is the whole universe,
+ * which is a dead backfill rather than a list worth reading.
+ */
+function naming(securities, count) {
+  const named = Array.isArray(securities) ? securities.map(String) : [];
+  if (named.length === 0 || typeof count !== "number" || count === 0) return "";
+  if (count <= named.length) return ` (${named.join(", ")})`;
+  return ` (${String(count)} securities, first ${String(named.length)}: ${named.join(", ")})`;
 }
 
 /**
@@ -621,6 +726,38 @@ export function reportDeployed(
     return;
   }
 
+  // **The gate could not be evaluated, which is not the same as failing it.**
+  //
+  // Added 2026-10-12 with the gate's new figure (Task 2.8.13). Without this
+  // branch the paragraph below asserts that the store is stale, on a run whose
+  // only finding is that the deployed revision does not carry the field the
+  // gate reads — the wrong-subject failure this function has already produced
+  // once.
+  if (
+    backend.ok &&
+    frontend.ok &&
+    freshness !== undefined &&
+    !freshness.ok &&
+    freshness.unevaluable === true &&
+    (feed === undefined || feed.ok)
+  ) {
+    console.error(
+      "Both halves are up and the artefact is coherent. **The deployment itself\n" +
+        "succeeded**, and nothing here says the store is stale.\n" +
+        "\n" +
+        "What failed is that the deployed backend does not carry the figure this\n" +
+        "check gates on. That is EXPECTED for the single deploy that first ships it\n" +
+        "— the check runs against the revision that is live, and on the deploy that\n" +
+        "introduces the field the old revision is what answers. On any later run it\n" +
+        "means the rollout did not take, which IS a rollback decision.\n" +
+        "\n" +
+        "The figures printed above are the ones the old body carries, and they are\n" +
+        "true; what is missing is `unexplainedSessionsBehind`, which is the only one\n" +
+        "a backfill can move.\n",
+    );
+    return;
+  }
+
   // **Before the two-halves diagnosis, because this failure is neither half.**
   //
   // Added 2026-09-12, on the first live run of the freshness probe. It failed
@@ -638,14 +775,23 @@ export function reportDeployed(
         "further behind the trading calendar than the ceiling allows.\n" +
         "\n" +
         "This is not a rollback signal. Rolling back the code would not move a bar,\n" +
-        "and the previous revision reads the same store. The repair is a backfill:\n" +
-        "the line above names the dispatch, and `pnpm bars:check --timeframe 1d`\n" +
-        "says what is missing before you spend the quota.\n" +
+        "and the previous revision reads the same store. The repair is USUALLY a\n" +
+        "backfill: the line above names the dispatch, and `pnpm bars:check\n" +
+        "--timeframe 1d` says what is missing before you spend the quota.\n" +
+        "\n" +
+        "READ THE TWO FIGURES ABOVE BEFORE DISPATCHING ANYTHING. `N behind` is every\n" +
+        "trailing session; `N unexplained` is only the ones with no recorded empty\n" +
+        "answer, and the gate reads that one. A large `behind` beside a zero\n" +
+        "`unexplained` is a security that has STOPPED PRINTING rather than a job that\n" +
+        "has stopped running: the vendor was asked and had nothing to send, so\n" +
+        "re-fetching spends metered quota on bars that do not exist. That is\n" +
+        "`pnpm bars:check`\u0027s `stopped printing` finding and a curation decision,\n" +
+        "not a backfill \u2014 it ran for four days on WBD and PSKY from 2026-10-08.\n" +
         "\n" +
         "If the store is current and this is still red, the ceiling in\n" +
-        "MAX_SESSIONS_BEHIND is wrong rather than the data — it is a judgement\n" +
-        "about a daily schedule and BARS.md \u00a78.18 records what it was chosen\n" +
-        "against.\n",
+        "MAX_SESSIONS_BEHIND is wrong rather than the data \u2014 it is a judgement\n" +
+        "about a daily schedule, and that constant\u0027s own comment is the only\n" +
+        "record of what it was chosen against.\n",
     );
     return;
   }
