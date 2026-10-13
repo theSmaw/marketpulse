@@ -101,6 +101,12 @@ const stored = (
   sessionChangePercent,
 });
 
+/** Heard of, nothing held — which is every symbol on a gated machine. */
+const unknown = (symbol: string): WireOverviewFigure => ({
+  state: "unknown",
+  symbol,
+});
+
 const frame = (
   figures: readonly WireOverviewFigure[],
   sectors: readonly WireOverviewFigure[] = [],
@@ -231,8 +237,8 @@ describe("RelativePerformance", () => {
     expect(container.querySelectorAll("span[style*='width']").length).toBe(2);
   });
 
-  it("holds the whole geometry and says nothing yet with no figure anywhere", () => {
-    // CI's permanent state. The sentence itself is behind a 2,000 ms floor —
+  it("holds the whole geometry and says nothing yet BEFORE any frame", () => {
+    // The sentence itself is behind a 2,000 ms floor —
     // `useWaited` — so what is asserted here is that the region drew its own
     // geometry hidden rather than collapsing to nothing.
     const { container } = draw({
@@ -248,6 +254,33 @@ describe("RelativePerformance", () => {
         /capitalisation-weighted, not the average of its members/u,
       ),
     ).toBeTruthy();
+  });
+
+  it("DRAWS, rather than holding, when the frame arrived with nothing in it", () => {
+    // **The state every gated run is permanently in, and it is not the state
+    // above** (Task 5.1.4). CI's store is 516 securities and zero bars, so the
+    // aggregate arrives carrying `unknown` for every symbol; *nothing has
+    // reached us yet* and *everything reached us and none of it had a move*
+    // are different facts, and `/` paid for collapsing them once already.
+    const { container } = draw({
+      live: undefined,
+      lastClose: undefined,
+      overview: frame([unknown(MARKET)], [unknown(BENCHMARK)]),
+    });
+
+    // Three named rows each stating their own absence, visible rather than
+    // held — which is what holding the region throws away.
+    expect(screen.getAllByText("Not heard from")).toHaveLength(3);
+
+    // And they are not inside the reserved box: in the held state the whole
+    // geometry sits under one `aria-hidden` element, so this is the assertion
+    // that tells the two apart in a renderer with no layout. (The plot keeps
+    // its own `aria-hidden` either way — the figures are in the rows, and a
+    // track is not a second copy of them.)
+    expect(
+      screen.getAllByText("Not heard from")[0]?.closest('[aria-hidden="true"]'),
+    ).toBeNull();
+    expect(container.textContent).not.toMatch(/pts/u);
   });
 
   it("draws the same held room before the universe answer resolves a security", () => {

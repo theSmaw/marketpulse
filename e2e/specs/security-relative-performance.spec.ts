@@ -129,13 +129,44 @@ async function serveOverview(
   });
 }
 
+/**
+ * Serve the connect sequence **without an aggregate** — the snapshot only.
+ *
+ * Which is the one state in which this region has nothing of anybody's to
+ * draw, and is therefore the only one that says `No comparison yet.`
+ */
+async function serveNoOverview(page: Page): Promise<void> {
+  await page.route(MARKET_DATA_ROUTE_PATTERN, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ feed: VENUE }),
+    }),
+  );
+
+  await page.routeWebSocket(/\/market-stream$/u, (ws) => {
+    ws.send(
+      encodeMarketStreamMessage({
+        type: "snapshot",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: new Date().toISOString(),
+        observations: {},
+        feed: LIVE_FEED,
+      }),
+    );
+  });
+}
+
 /** Both references heard from, which is the state a developer's store draws. */
 const HEARD = overviewOf(
   [observed(MARKET, -0.6)],
   [observed(SECTOR_ETFS.technology, -2)],
 );
 
-/** Nothing heard from, which is every gated run's permanent state. */
+/**
+ * **An aggregate that ARRIVED carrying nothing** — which is every gated run's
+ * permanent state, and is not the same fact as no aggregate at all.
+ */
 const SILENT = overviewOf([], []);
 
 /**
@@ -207,7 +238,7 @@ test("the region names its three subjects and its two comparisons", async ({
   await expectNothingFailedToRender(page);
 });
 
-test("a region with nothing observed says so, and is exactly as tall", async ({
+test("a region with no frame at all says so, and is exactly as tall", async ({
   page,
 }) => {
   await serveOverview(page, HEARD);
@@ -216,7 +247,7 @@ test("a region with nothing observed says so, and is exactly as tall", async ({
   const drawn = await heightOf(region(page));
 
   await withoutCloses(page);
-  await serveOverview(page, SILENT);
+  await serveNoOverview(page);
   await page.goto(EXPLORER, { waitUntil: "networkidle" });
   await expect(region(page)).toBeVisible();
 
@@ -227,6 +258,18 @@ test("a region with nothing observed says so, and is exactly as tall", async ({
   // every reserved row in it — a live defect for ten days one region over.
   await expect(region(page).getByText("No comparison yet.")).toBeVisible();
 
+  // **And the room it holds is held from the accessibility tree too.** The
+  // whole geometry is one `aria-hidden` element with the sentence as a sibling
+  // — never an override on the same element, because `visibility` is inherited
+  // and un-hiding the box un-hides every reserved row in it, which leaked
+  // eleven internal sector slugs one region over for ten days. So a reader
+  // using a screen reader is told the one true thing and is not read a ladder,
+  // three tickers and a scale for figures that do not exist.
+  const spoken = await region(page).ariaSnapshot();
+  expect(spoken).toContain("No comparison yet.");
+  expect(spoken).not.toContain("SPY");
+  expect(spoken).not.toContain("%");
+
   const held = await heightOf(region(page));
 
   // **The assertion this spec exists for.** Seven states, one height: the
@@ -236,6 +279,31 @@ test("a region with nothing observed says so, and is exactly as tall", async ({
   // happen again — a claim nothing below a browser can check, because jsdom
   // applies no stylesheet and computes no layout.
   expect(held).toBe(drawn);
+
+  await expectNothingFailedToRender(page);
+});
+
+test("an aggregate that arrived carrying nothing does NOT read as no aggregate", async ({
+  page,
+}) => {
+  // **The state every gated run is permanently in** (Task 5.1.4). CI's store
+  // is 516 securities and zero bars, so the aggregate arrives and carries
+  // `unknown` for all of them. *Nothing has reached us yet* and *everything
+  // reached us and none of it had a move* are different facts, and `/` paid
+  // for collapsing them once already (Task 4.3.8): held behind one sentence,
+  // three rows of honest absence are thrown away and the reader is told the
+  // socket is quiet when it is not.
+  await withoutCloses(page);
+  await serveOverview(page, SILENT);
+  await page.goto(EXPLORER, { waitUntil: "networkidle" });
+
+  const panel = region(page);
+  await expect(panel).toBeVisible();
+
+  // Each reference says its own absence, on its own row, rather than one
+  // sentence standing for all three.
+  await expect(panel.getByText("Not heard from")).toHaveCount(3);
+  await expect(panel.getByText("No comparison yet.")).toHaveCount(0);
 
   await expectNothingFailedToRender(page);
 });
