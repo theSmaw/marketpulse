@@ -31,8 +31,12 @@ import styles from "./RelativePerformance.module.css";
 // The subject draws a bar, the two references draw ticks on the same track, and
 // each difference is the **span between the subject's end and a reference's
 // tick** — so the picture is literally the subtraction. One track rather than
-// three is what makes the region fit the rail's 324 px at 1440, and three bars
-// from zero would be three lengths for a reader to subtract by eye.
+// three is what makes the region fit the rail's 419 px of content in a 453 px
+// column at 1440, and three bars from zero would be three lengths for a reader
+// to subtract by eye. (324 px was measured on the wrong screen and corrected on
+// 2026-10-13 — in three documents and in no code, because that sweep's grep was
+// scoped to `.md`. A figure corrected in the documents is not corrected in the
+// tree; Task 5.2.1 swept both comments.)
 //
 // ## Nothing here is `RankedList`
 //

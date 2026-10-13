@@ -39,7 +39,8 @@ import { RelativePerformance } from "./RelativePerformance.js";
 //
 // Every story is drawn **inside a `Region`**, which is how it appears on the
 // security page: the box is what decides whether the content fits the rail's
-// 324 px at 1440.
+// 419 px of content in a 453 px column at 1440. (324 px was measured on the
+// wrong screen; corrected 2026-10-13, and in code only by Task 5.2.1.)
 
 const BENCHMARK = SECTOR_ETFS.technology;
 const MARKET = "SPY";

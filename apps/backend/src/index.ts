@@ -33,6 +33,7 @@ import {
   createCurrentMarketState,
   snapshotOf,
 } from "./current-market-state.js";
+import { createTrailingWindow } from "./trailing-window.js";
 import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
 import {
   buildMarketOverview,
@@ -676,6 +677,21 @@ try {
 // current state is the TRUE answer after a restart (§11.1), not a degraded one.
 const currentMarketState = createCurrentMarketState();
 
+// ------------------------------------------------------ the recent past, too
+//
+// **A SIBLING of the object above, not a widening of it** (Task 5.2.1, the
+// owner's Gate 1 decision 2, with `market-overview.ts`'s precedent behind it).
+// `currentMarketState` is latest-only by Story 3.5's measured decision, and a
+// 5-minute return needs the bar from five minutes ago — so something in this
+// process has to hold it.
+//
+// **Constructed whether or not a stream exists**, for the same reason the state
+// above is: an empty window is the TRUE answer after a restart, and
+// `observed 0 of 5` is a figure's legitimate value rather than a degraded one.
+// Gate 1 decision 3 is that there is deliberately **no store-backed fill** at
+// cold start.
+const trailingWindows = createTrailingWindow();
+
 // ------------------------------------------------------------- the gateway
 //
 // **Registered whether or not a stream exists** (Task 3.3.2), and that is the
@@ -927,6 +943,32 @@ if (marketStream === undefined) {
     // path from the socket to a browser that does not pass through the state.
     onObservations: (observations) => {
       const observed = currentMarketState.observe(observations);
+
+      // **The trailing window, and all three of these are load-bearing**
+      // (Task 5.2.1).
+      //
+      // **`observed.applied` rather than `observations` or `observed.tracked`.**
+      // `applied` is the list the state above has already dropped every
+      // superseded bar from, so the never-walk-backwards rule is **inherited
+      // here rather than re-implemented**. A window fed `tracked` would
+      // receive revisions for minutes already passed and would have to make
+      // that judgement a second time — two policies over one stream, which is
+      // exactly the defect Task 3.5.2 removed.
+      //
+      // **BEFORE `publishObservations`, and this is not stylistic.** That
+      // method returns early when `clients.size === 0`. A window written after
+      // it would be **empty on every deployment with nobody watching**, and
+      // whether this product can answer *what was NVDA's move over the last
+      // five minutes* would depend on whether somebody else happened to have a
+      // tab open.
+      //
+      // **Synchronous — no `await`, no promise, no I/O.** AC 7 is satisfied by
+      // there being nothing to await rather than by a `.catch()`: this callback
+      // belongs to the socket, and an unhandled rejection here takes the
+      // process down on a liveness-probed platform. Contrast the store write
+      // below, which has I/O and therefore has both nets.
+      trailingWindows.record(observed.applied);
+
       gateway.publishObservations(observed.applied);
 
       // **And then the store — after the broadcast, never before it, and from

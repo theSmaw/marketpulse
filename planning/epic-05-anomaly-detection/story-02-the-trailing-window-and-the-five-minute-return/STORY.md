@@ -1,6 +1,6 @@
 # Story 5.2 — The Trailing Window, & the 5-Minute Return
 
-**Status:** Not started
+**Status:** In progress — 2026-10-13
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.1
 **Epic scope covered:** 5-minute return calculations
@@ -81,6 +81,81 @@ band. A security the window cannot answer for says so in its own words.
    **Node** figure at a gap is an upper bound and the calibrator **does not
    divide out** (subject 4.38× against calibrator 2.29×, a factor of ~1.9
    apart), while a **browser** figure reads ×1.00.
+
+## Gate 1 — the task list approved, 2026-10-13, and four decisions
+
+Five tasks, approved as proposed. Four roles shaped it — the technical analyst
+on delivery, the architect on the window as a pattern, UX on the state set, the
+tester on what cannot be checked as written — and **three premises in my own
+briefs were false**, which is recorded here because each was load-bearing.
+
+### The four decisions
+
+**1. A fifth market-stream frame type, scoped to one symbol.** Measured: a field
+on every observation costs **+54,525 B per frame** at 516 subscribed — **+82%**
+against a real article of 58,187–59,475 B — which at the feed's **6.8–16.1
+batches a minute** is **+371–878 KiB a minute per attached browser**, for one
+figure about one security on screen. The symbol-scoped frame is **221 B**. **A
+factor of 247, and that figure is what decided it.**
+
+_Rejected:_ computing it in the **browser** from the series the chart already
+holds, which is free and wrong for three reasons — at `3M` and `1Y` the series
+is `1d` bars and has no five-minute endpoint at all; the browser holds only the
+subscribed symbol's series, so the figure Story 5.4 ranks is unreachable by that
+path; and **invariant 4** puts the computation in the data layer so leakage is
+structurally impossible rather than instructed. _Also rejected:_ an **HTTP
+route**, which is cheaper still and is the shape Epic 13's replay already knows
+how to drive — kept as the named alternative if the frame type proves wrong,
+with the cost being a figure that does not tick on a page where the price beside
+it does.
+
+**2. The window sits BESIDE `currentMarketState`, not inside it.**
+`market-overview.ts`'s own precedent — a sibling, never a method on it. The
+architect recommended replacing it for one-home and the owner took the lower
+risk to a hot path the socket, the gateway and the live bar writer all stand on.
+**The cost is recorded rather than hidden**: two homes hold _the newest bar for
+this security_. **Reversal trigger:** the first time the two are observed to
+disagree, or the first writer of either that is not `onObservations`.
+
+**3. No store-backed fill at cold start.** An empty window is a **legitimate
+value, not a degraded one** (Story 3.5's property 4), and `observed 0 of 5`
+already has to render. A fill buys a store read whose cost on the deployed tier
+is unmeasured, a cache, a tape decision — a store-filled window straddling the
+nightly backfill gets a `sip` earlier endpoint and an `iex` later one, and the
+close can differ by more than the move being measured — and a `loadedFor`-class
+defect, for the first five minutes of a process's life. **Reversal trigger:** the
+first restart inside a session where a reader reports the region blank.
+
+**4. The band word is not this story's.** A band with no score is a verdict this
+figure cannot license (ADR 0029), and a return alone does not classify. Story
+5.1's hand-off says the word ships before the score; that binds whichever story
+first draws one, which is not this one.
+
+### Three premises corrected before any code was written
+
+- **`1M` is minute bars, not daily.** `MAX_MINUTE_SESSIONS = 21` and `1M` is 21
+  sessions, so only `3M` and `1Y` map to `1d`. The conclusion survives and is
+  stronger: two of five windows cannot answer, and a hand-typed `?sessions=22`
+  is a third.
+- **Two stale `324 px` survive in shipped comments** —
+  `RelativePerformance.tsx:34` and its stories file. The rail is **419 px of
+  content in a 453 px column**, corrected in three documents on 2026-10-13 and
+  in **no code**, because that sweep's grep was scoped to `.md`. **A figure
+  corrected in the documents is not corrected in the tree.** Task 5.2.1 fixes
+  both.
+- **The region-level sentence is the SIXTH honest-nothing noun, not the fifth**
+  this story's own _Design work_ section claims. Four are on `/` and
+  `No comparison yet.` shipped on this page in Story 5.1.
+
+### And one trigger nobody had evaluated
+
+Epic 14's trigger has a **third** condition, in Epic 5's own file rather than
+Epic 14's: _the first computation added to that callback that **derives a figure
+per security**, rather than ranking or counting figures the join has already
+produced._ **AC 7 points this story straight at that callback.** A ring-buffer
+push is storage rather than derivation and the return is computed for one
+security on demand, so the expectation is that it does not fire — but the
+verdict is owed in writing, and Task 5.2.5 owes it for all three conditions.
 
 ## Design work
 
