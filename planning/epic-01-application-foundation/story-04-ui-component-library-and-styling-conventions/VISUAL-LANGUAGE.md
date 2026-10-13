@@ -325,14 +325,18 @@ Colour lives in exactly two files, and **which file a colour is declared in is w
 
 ### `market.css` — colour with market meaning
 
-| Meaning      | Value                             | on `#ffffff` | on `#f8f9ff` | Notes                              |
-| ------------ | --------------------------------- | ------------ | ------------ | ---------------------------------- |
-| Positive     | `#0f7b50`                         | 5.29         | 5.03         | From the design canvas, 2026-09-11 |
-| Negative     | `#c5221f`                         | 5.80         | 5.52         | From the design canvas, 2026-09-11 |
-| Anomaly ramp | `#f0dda4` · `#e2b544` · `#c08a12` | —            | —            | **Fills, never text, at any size** |
-| Neutral fill | `#e8eaef`                         | —            | —            | Under a `normal` anomaly band      |
+| Meaning      | Value                             | on `#ffffff` | on `#f8f9ff` | on `#f2f3f9` | Notes                              |
+| ------------ | --------------------------------- | ------------ | ------------ | ------------ | ---------------------------------- |
+| Positive     | `#0f7b50`                         | 5.29         | 5.03         | **4.77**     | From the design canvas, 2026-09-11 |
+| Negative     | `#c5221f`                         | 5.80         | 5.52         | 5.23         | From the design canvas, 2026-09-11 |
+| Anomaly ramp | `#f0dda4` · `#e2b544` · `#c08a12` | —            | —            | —            | **Fills, never text, at any size** |
+| Neutral fill | `#e8eaef`                         | —            | —            | —            | Under a `normal` anomaly band      |
 
-The green and the red are within 0.25 of each other so that neither direction of a price move shouts louder than the other. Ink on the amber ramp is `--ink-primary` at 13.33 / 9.35 / 5.89.
+> **The third column was added 2026-10-13 by Task 5.1.1, and it is the column that matters most.** `#f2f3f9` is `--surface-sunken` — a table head, a group band, a hovered row — and until today **4.77, the figure closest to the 4.5 floor, appeared in exactly one of the two places a designer would look**: `market.css` published `5.29 on white, 4.77 on sunken` while this table published `5.29 / 5.03` and had no sunken column at all. Both files were correct about the grounds they named; a reader sizing a decision from this table alone would have had 0.53 of headroom that is not there. **This is an addition rather than a correction** — no figure above changed — and it is this document's own rule that the measurement lives beside the value.
+>
+> **And the sentence below it was false on the table's own numbers.** It read _"within 0.25 of each other"_; 5.29 against 5.80 is **0.51**. `market.css` had already been corrected on 2026-10-07 by Task 4.4.3 — _"within ~0.5 of each other rather than 0.25"_ — and this copy was not swept, which is this repository's note that recording a correction and propagating it are two obligations. **The pairing argument survives on the real figures** and is unchanged: ~0.5 apart out of 5-and-change is still neither direction shouting louder than the other.
+
+The green and the red are within **~0.5** of each other so that neither direction of a price move shouts louder than the other. Ink on the amber ramp is `--ink-primary` at 13.33 / 9.35 / 5.89.
 
 ### `brand.css` — the identity accent, and its scope is exhaustive
 

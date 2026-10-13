@@ -49,7 +49,7 @@ export const OnText: Story = {
 export const OnBadge: Story = {
   args: {
     content: SHORT,
-    children: <AnomalyBadge band="unusual" />,
+    children: <AnomalyBadge band="high" />,
   },
 };
 
@@ -57,7 +57,7 @@ export const WithTitle: Story = {
   args: {
     title: "Why this band",
     content: SHORT,
-    children: <AnomalyBadge band="unusual" />,
+    children: <AnomalyBadge band="high" />,
   },
 };
 
@@ -88,12 +88,12 @@ export const AllPermutations: Story = {
 
       <span className={gridStyles.label}>badge trigger</span>
       <Popover content={SHORT}>
-        <AnomalyBadge band="unusual" />
+        <AnomalyBadge band="high" />
       </Popover>
 
       <span className={gridStyles.label}>badge trigger + title</span>
       <Popover title="Why this band" content={SHORT}>
-        <AnomalyBadge band="unusual" />
+        <AnomalyBadge band="high" />
       </Popover>
     </div>
   ),

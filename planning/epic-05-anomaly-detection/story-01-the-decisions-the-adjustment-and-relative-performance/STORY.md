@@ -1,6 +1,6 @@
 # Story 5.1 — The Decisions, the Adjustment, & `Relative performance` Drawn
 
-**Status:** Not started
+**Status:** In progress — 2026-10-13
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** nothing — this is the epic's first story
 **Epic scope covered:** market-relative movement, sector-relative movement
@@ -165,6 +165,90 @@ figure anywhere until Story 5.6.
 8. The eight decisions above are recorded with their alternatives and, where
    one applies, a **reversal trigger that is a condition** rather than a story
    number.
+
+## Gate 1 — the task list approved, 2026-10-13, and four more decisions
+
+**Six tasks**: 5.1.1 the decisions and the band rename · 5.1.2 the rail drawn
+on the canvas · 5.1.3 the comparison computed, drawn and refused · 5.1.4 the
+states, the fifth noun and one height · 5.1.5 point-in-time membership ·
+5.1.6 the sweeps and the close.
+
+**Two of these decisions amend acceptance criteria written above**, which is
+recorded here rather than by editing them silently.
+
+**9. AC 2's staleness clause is DROPPED. The basis refusal stands.** As
+written — _"when the benchmark has not been heard from in the window, the
+comparison is refused"_ — **it has no implementation that does not cross a
+governed boundary**, and that was found by shaping rather than by building:
+
+- `overview.figures` and `overview.sectors` have **no freshness expiry at
+  all** — ADR 0040's Consequences record it as a dated, accepted asymmetry —
+  and `eligibleMoves` runs over the **equities only**, so **no backend
+  eligibility verdict exists for `SPY` or any `XL*`**.
+- A window computed in the frontend is **red** against
+  `one-home-for-the-observation-window`, which permits exactly one
+  minute-scaled cutoff, in `market-breadth.ts`. That check's own docblock
+  records its draft being planted against `apps/backend/src/market-unusual.ts`
+  — _"the file Epic 5 writes"_ — and **passing**.
+
+So the region refuses on **mixed basis, absent figures and disagreeing
+closes**, all decidable from fields on the wire today, and **does not refuse on
+age**. The gap is recorded in `docs/GAPS.md` in ADR 0040's own terms: bringing
+the fifteen funds inside the window _"is a product decision about what the top
+of the screen says during an outage rather than a correctness repair"_. The two
+alternatives were priced and refused here — widening `eligibleMoves` moves `/`'s
+already-photographed proxy strip and sector rows and crosses ADR 0038's
+one-producer rule; comparing a figure's own `at` against the frame's
+`observedAt` uses two market facts and no process clock but is still a second
+cutoff.
+
+**10. On `/securities/SPY` and `/securities/XLK`, the region draws what applies
+and says what does not.** Both are reachable routes and **the type forces a
+branch**: an `index_etf` has `sector: null`, so there is no sector benchmark; a
+`sector_etf` **is** its sector's benchmark, so the comparison is with itself.
+Hiding the region on those fifteen routes was refused — no other region on this
+page changes by security kind, and ADR 0039's unconditional tab stop would make
+it a disappearing landmark.
+
+**11. AC 4 is satisfied by the source note, and owes a mechanical check rather
+than a second copy.** `SourceNote` already draws
+_"Sector and industry are curated, not from the market feed"_ and
+_"Last checked 8 September 2026"_ on every security page that resolved a
+security. One fact, one home (ADR 0029), and the grain rule puts _where did
+these numbers come from_ at **per screen**. **But _satisfied by construction_
+is exactly the claim `CLAUDE.md` says reads identically whether the mechanism is
+there or not**, so AC 4 now reads: the region naming a sector-derived reference
+and the note's date are **asserted co-present**, with a `pnpm break` written as
+the defect the next author writes — a region resolving its benchmark from a
+sector slug without the universe answer loaded.
+
+**12. The scale gains `±25` and `±50` and ratchets up only within a session.**
+The sector ladder's `±1/2/5/10` saturates on a single name — a security moves
+20%+ on an earnings day — and **a clipped subject beside an unclipped reference
+tick makes the difference unreadable from the picture**. The rung is chosen from
+`max(|subject|, |sector|, |market|)` and is **raised but never lowered** during a
+session, because a bracket that rescales under a reader is worse than a bar that
+does, which is `/`'s own argument. When anything clips the printed figures stay
+exact and **the bracket is simply not drawn** — a bracket between a clipped end
+and an unclipped tick is a _wrong_ length rather than a saturated one.
+
+### Two corrections to this story file, found by shaping
+
+**The sector→benchmark pairing needs nothing shipped.** `SECTOR_ETFS`,
+`SECTOR_BY_ETF`, `sectorOfEtf` and `SECTOR_LABELS` are already in
+`packages/shared` and **already imported by the frontend** —
+`UniverseTable.tsx` does `benchmark: SECTOR_ETFS[sector]`. Adding a `benchmark`
+field to the wire figure would be worse than useless:
+`one-pairing-of-a-sector-and-its-benchmark` would not see it.
+
+**The shared-column promise is a `≥74rem` claim.** `SecurityExplorer.module.css`
+is a three-column span grid with `grid-auto-flow: row` and no named areas. At
+≥74rem the arithmetic does put the three Epic 5 regions in column 3, rows 1–3.
+**At `<74rem` `.wide` collapses to `span 1` and they scatter** — two to column 2
+and `Anomaly history` to column 1. The code comment's _"rather than landing in
+three unrelated corners of the page"_ is **true at 1440 and false at 1024**, and
+nothing asserts it either way. The idiom is therefore stated as adjacency at
+≥74rem and as **order** below it.
 
 ## Design work
 

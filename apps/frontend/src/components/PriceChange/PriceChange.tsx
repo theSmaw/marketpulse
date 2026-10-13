@@ -11,6 +11,21 @@ import styles from "./PriceChange.module.css";
 // colour cannot be the signal. What carries the direction here is the arrow
 // glyph and the sign on the figure; the colour is the redundancy.
 //
+// **The figure to cite is 1.04:1, and 1.05:1 above is a correct measurement of
+// a palette this product no longer ships** (noted 2026-10-13 by Task 5.1.1).
+// Task 1.4.4's pair was `#427400` against the pre-refresh red; the 2026 refresh
+// re-picked both, and `VISUAL-LANGUAGE.md` re-took the measurement against the
+// shipped `#0f7b50` / `#c5221f` on 2026-09-11 at **1.04:1**. The argument is
+// unchanged and is the reason the correction is a note rather than a rewrite —
+// 1.04 and 1.05 are both *no difference at all*, and nothing on screen was ever
+// sized against either. What was wrong is that this header presented a
+// superseded figure as the current one.
+//
+// Note the two figures are not two readings of one number: `market.css` records
+// the same ink pair at **1.096:1 by luminance ratio**, which is a different
+// method rather than a disagreement (`CHARTING.md` §7 item 5). Only the
+// greyscale figure moved, and only because the palette did.
+//
 // The three directions are not domain vocabulary and are deliberately not in
 // `@marketpulse/shared`, unlike `AnomalyBand` and `FeedStatus`. A band name is
 // a decision the backend makes and reports; the direction of a move is

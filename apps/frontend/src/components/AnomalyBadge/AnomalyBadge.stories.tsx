@@ -24,7 +24,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = { args: { band: "normal" } };
 export const Elevated: Story = { args: { band: "elevated" } };
-export const Unusual: Story = { args: { band: "unusual" } };
+export const High: Story = { args: { band: "high" } };
 export const Extreme: Story = { args: { band: "extreme" } };
 
 // Worth reading in greyscale. The four amber steps separate by 1.12, 1.43 and

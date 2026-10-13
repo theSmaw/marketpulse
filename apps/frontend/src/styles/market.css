@@ -238,7 +238,7 @@
    */
   --anomaly-normal: var(--palette-neutral-pale);
   --anomaly-elevated: var(--palette-amber-pale);
-  --anomaly-unusual: var(--palette-amber);
+  --anomaly-high: var(--palette-amber);
   --anomaly-extreme: var(--palette-amber-deep);
 
   /*
