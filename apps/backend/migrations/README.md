@@ -160,6 +160,25 @@ interval _begins in the market_ and carries **no default**, which is the half a
 database can check; that a writer put the right value in it is the half nothing
 can, and is why this section exists.
 
+**A fourth name arrived with `0012`: `effective_from`, and it is an event
+timestamp that is deliberately NOT called `observed_at` (added 2026-10-13, Task
+5.1.5).** `security_memberships` records when each security entered and left the
+tracked universe, which is invariant 5's event timestamp — but it is an event
+about **us** rather than about the market (`UNIVERSE.md` §3: `untracked` is a
+fact about us, and there is no instant at which the market decided we track a
+symbol), and `observed_at` is reserved for _when the thing was true in the
+market_. An `observed_at` there would be a claim about a market event that never
+happened.
+
+The cost is real and is why this is recorded rather than left to the next
+reader: **a temporal plugin that filters generically on `observed_at` does not
+cover that table.** Epic 13's membership read has to be passed the replay clock
+explicitly, the way `closesAsOf` already is, and that constraint is written into
+Epic 13's own `EPIC.md` rather than only here. What the two names share is the
+rule that matters, and `0012` keeps it: **`not null`, no default, supplied by the
+writer** — because a `default now()` on either turns the column a replay keys on
+into a record of when a script ran.
+
 It is not `recorded_at` either, and the difference is real rather than pedantic:
 `recorded_at` is when we wrote the **row**, and a row can be rewritten from
 metadata retrieved long before it — which is exactly what a loader re-run against
@@ -691,6 +710,7 @@ database-backed test**, after it has.
 | Every money column is `numeric(18, 6)`, and a count is `bigint`  | `pnpm test:database` — a real check since Task 2.8.3, with the non-vacuity guard kept                           |
 | A foreign key is `<referenced_table_singularised>_id`            | `pnpm test:database`, on `market_bars` — the first table in this schema with one                                |
 | `observed_at` has **no default**, on every table that has one    | `pnpm test:database` — the structural half of invariant 4's leak                                                |
+| `security_memberships.effective_from` has **no default** either  | `pnpm test:database` — §2's fourth name, the same rule and the same leak (Task 5.1.5)                           |
 | No index exists that nothing asked for                           | `pnpm test:database`, on `market_bars` and `bar_coverage` — for opposite reasons, see below                     |
 
 **The three-hop arrangement behind the last two rows is worth understanding

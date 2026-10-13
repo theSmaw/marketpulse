@@ -413,3 +413,55 @@ blank, a well-formed, correctly-coloured, plausible figure.
    latest stored close. Owner there is this epic's temporal plugin, by the
    condition _the first caller of `closesAsOf` whose `asOf` is not the wall
    clock_.
+
+## Handed here by Task 5.1.5 — 2026-10-13: the schema above exists now, and the history starts on 2026-10-12
+
+The entry immediately above lists three options and says the third is a
+migration. **It was taken, on 2026-10-13, in Epic 5 rather than here** — because
+the answer to _which securities were tracked on that date_ cannot be
+reconstructed from anything this product holds, so every day it was not being
+written was a day of history that could never be bought back.
+
+**What exists.** `security_memberships` — `0012_security_memberships.sql`, a
+metadata-only migration — one append-only row per transition:
+`security_id` (a real foreign key), `status`, `effective_from` and
+`recorded_at`. `pnpm universe` writes it inside the transaction it already runs,
+by a **state diff** against the history rather than from the transitions a run
+performed, which is what makes it self-healing and what wrote the opening
+intervals at all. Measured on the developer's populated store on 2026-10-13: the
+first run after the migration wrote **518 rows — 516 `active` and 2 `untracked`
+(`PSKY`, `WBD`)** — and the second run wrote **nothing**.
+
+**Three things this epic has to act on, and none of them is optional.**
+
+**1. The history begins at `2026-10-12` and sessions before it cannot be
+answered.** Every opening row carries that date, because it is the curated
+file's own `checkedOn` and a loader must not invent a membership it did not
+observe. So the table says _these 516 were tracked from 2026-10-12_ and says
+**nothing whatever** about 2026-03-04. A replay of any earlier session must
+**say so** — the universe basis is unknown for that date — and must **not**
+silently fall back to today's roster, which is the exact failure the table was
+built to remove. A read that returns no rows for a date is a **refusal**, never
+an empty set to filter on.
+
+**2. The membership read takes the replay clock as an argument.** The column is
+`effective_from`, deliberately **not** `observed_at`: a membership change is a
+fact about **us** (`UNIVERSE.md` §3), not about the market at an instant, so
+naming it `observed_at` would claim a market event that never happened. The cost
+is yours: **a temporal plugin that filters generically on `observed_at` does not
+cover this table.** Pass the clock explicitly, the way `closesAsOf` already is
+on the overview join — ADR 0015's gap 4 and that join's purity are what give the
+argument somewhere to land.
+
+**3. The query you will want has no index behind it, on purpose.** _The latest
+row at or before a date, per security_ is the read, and
+`0012`'s §5 records why nothing was built for it: an index chosen before there is
+a query to serve is a guess with a write cost, and at 516 securities the table is
+hundreds of rows. **The condition for adding one is the first replayed aggregate
+that reads this table at a cadence, with the query written down beside it.**
+
+**And one shape to know before you read it.** Rows at an equal `effective_from`
+are legitimate — an untrack and a re-add inside one curated-file revision share a
+`checkedOn` date — so there is deliberately **no `unique (security_id,
+effective_from)`**, and the resolution rule is `order by effective_from, id`.
+`id` is `generated always`, so it is the order the rows were written in.

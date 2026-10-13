@@ -1,0 +1,218 @@
+-- 0012_security_memberships — point-in-time universe membership (Task 5.1.5).
+--
+-- **This table exists to discharge one named bound on invariant 4.** Since
+-- 2026-10-12 `CLAUDE.md`'s invariant 4 has carried a dated qualification:
+-- `currentMarketState` and `trackedTickers()` filter on `status = 'active'`
+-- against the universe **as it stands now**, and the store records no
+-- point-in-time membership at all — so a replayed breadth count, sector mean or
+-- anomaly score would compute over **today's** roster of securities while
+-- claiming to describe a past session. Nothing in a bar's own timestamp is the
+-- problem; the problem is MEMBERSHIP. Task 2.3.9 is the first real instance:
+-- `PSKY` and `WBD` were untracked on 2026-10-12, so a replay of any session
+-- before that date computes over 516 names when 518 were tracked.
+--
+-- **And the cost of not having written it is not effort, it is history.** The
+-- answer to *which securities were tracked on that date* cannot be
+-- reconstructed from anything we hold — it can only be written from the day
+-- somebody starts writing it. That is why this arrives in Epic 5 rather than in
+-- Epic 13, which is the epic that reads it.
+--
+-- ============================================================================
+-- 1. WHY A HISTORY TABLE AND NOT TWO COLUMNS ON `securities`
+-- ============================================================================
+--
+-- `tracked_from` / `tracked_to` on `securities` is the cheaper-looking answer
+-- and it is wrong on correctness before it is wrong on cost.
+--
+-- **It holds one interval, and one is not enough.** `untrackAbsent`'s own
+-- docblock in `../src/load-universe.ts` describes the re-add: a symbol put back
+-- in the curated file flips from `untracked` to `active` **on its original
+-- `id`**, with its `recorded_at` still the original insert. `UNIVERSE.md` §12.3
+-- produced that against a real database (`GILD`, id 34). So the shape the fact
+-- actually has is *a sequence of intervals per security*, and two columns would
+-- have to either lose the first one or grow an array.
+--
+-- **The lock profile is the second reason.** `ALTER TABLE securities ADD COLUMN`
+-- takes an `ACCESS EXCLUSIVE` lock whatever it costs, Postgres queues later
+-- requests **behind** a waiting exclusive one, and neither `lock_timeout` nor
+-- `statement_timeout` is set anywhere in this repository (Task 3.7.6 measured
+-- the consequence on `market_bars`: the migration waited 18.16 s behind one
+-- write transaction and an ordinary read waited 16.16 s behind *it*, against a
+-- 0.09 s baseline). `securities` is the one table every route reads and that
+-- **every `insert into market_bars` touches** to validate its foreign key —
+-- and since Task 3.8.3 that writer runs once a minute for six and a half hours
+-- a day, inside the deploy window, in the image about to be replaced.
+--
+-- `CREATE TABLE` does not take that lock on `securities`. It takes
+-- `SHARE ROW EXCLUSIVE` on the referenced table to install the foreign key's
+-- triggers, which conflicts with neither the `ACCESS SHARE` of a read nor the
+-- `ROW SHARE` an FK-validating child insert takes. It does conflict with
+-- another `ROW EXCLUSIVE` writer of `securities` — which is `pnpm universe`,
+-- and in `deploy.yml` that step runs **after** this one, sequentially.
+--
+-- **And the exact-list assertions the column shape would have fired**, recorded
+-- because they are the rest of why it is not cheaper: `migrate.database.test.ts`
+-- asserts *"describes every column of securities, and no column it does not
+-- have"*, so two columns there would demand four coordinated edits — this file,
+-- `SecuritiesTable` in `../src/schema.ts`, `EXPECTED_SECURITIES`, and the
+-- per-column `it.each` — plus two SILENT ones: `WRITTEN_COLUMNS` and the
+-- hand-written `is distinct from` tuple in `../src/load-universe.ts`, whose own
+-- comment warns that forgetting it means "an edit to that column stops moving
+-- `updated_at`".
+--
+-- ============================================================================
+-- 2. METADATA-ONLY AT DEPLOY TIME
+-- ============================================================================
+--
+-- **Every statement in this file is a catalogue write.** `CREATE TABLE` creates
+-- a relation with no rows; the foreign key installs two triggers; there is no
+-- `ALTER TABLE` on a populated table, no index build, no validated constraint
+-- and no backfill. Nothing here reads a heap page, so `README.md` §9's
+-- arithmetic — the deployed B1ms moves 10 MiB/s and `deploy.yml` gives
+-- `pnpm migrate` 120 seconds — is not engaged at all. The only cost is the
+-- `SHARE ROW EXCLUSIVE` lock above, held for the length of the catalogue write.
+--
+-- **The opening row for every security already in the store is NOT written
+-- here**, and that is `README.md` §7 rather than an omission: data in a
+-- migration is data that cannot be corrected. `pnpm universe` writes it, on the
+-- first run after this migration, because that program is re-runnable and
+-- converges. See `../src/load-universe.ts`'s `recordMemberships`.
+--
+-- ============================================================================
+-- 3. THE FOREIGN KEY — TAKEN, WITH ITS REASON (Task 5.1.5, done-when 5)
+-- ============================================================================
+--
+-- **Decision: a real `references securities (id)`, with no `on delete`.**
+--
+-- Three things were weighed. `README.md` §1 fixes the column name as
+-- `<referenced_table_singularised>_id` and three tables already carry the real
+-- thing (`market_bars`, `bar_coverage`, `bar_attempts`), so a bare `security_id`
+-- here would be the first column in this schema that *looks* like a foreign key
+-- and is not — which is the worst available shape, because the name is what a
+-- reader checks. The lock argument that would prefer none is bounded above and
+-- does not apply to a `CREATE TABLE`: there are no rows to validate, so the
+-- parent's heap is never read. And `0003`'s "no foreign key" note is **not** a
+-- precedent against one: read it again — it records that both *candidates* were
+-- closed by Task 2.3.1, so `securities` had nothing to reference, and it hands
+-- the untested naming rule forward rather than declining a key it could have
+-- had.
+--
+-- What decided it is what this table is for. It will be read by a replay to
+-- answer *which securities existed in our universe on this date*, and a row
+-- here pointing at a `security_id` that does not exist is a replay computing
+-- over a security this product has never heard of — the same class of silent
+-- wrongness the table exists to remove. The database can make that
+-- unrepresentable for the price of a trigger.
+--
+-- **No `on delete`, deliberately**, which is `market_bars`' decision and is
+-- asserted the same way: the database refuses a delete that would orphan a
+-- membership row rather than cascading it into history nobody can recover.
+-- Note the consequence, because it is load-bearing and surprising the first
+-- time it fires: once this table has a row for a security, `delete from
+-- securities` for that row is refused. Nothing in this repository deletes a
+-- security — `README.md` §5 and `UNIVERSE.md` §12.1 both refuse it in writing —
+-- so this makes an already-refused operation structurally impossible.
+--
+-- ============================================================================
+-- 4. `effective_from` AND `recorded_at` ARE TWO COLUMNS
+-- ============================================================================
+--
+-- Invariant 5's event timestamp against its retrieval timestamp, and on this
+-- writer they differ by days rather than by milliseconds.
+--
+-- **`effective_from` has NO DEFAULT, and that is the single most important line
+-- in this file.** A `default now()` is the exact leak `0002`'s decision 3 and
+-- `market_bars`' `observed_at` both forbid: it would turn the column a replay
+-- keys on into a record of when somebody ran a script, invisibly, because every
+-- row would look plausible. It is `not null` and the writer supplies it.
+--
+-- **What the writer supplies is the curated file's own `checkedOn` date**, not
+-- the clock — `UNIVERSE_PROVENANCE.profile.checkedOn`, at UTC midnight, which
+-- is the instant `profile_retrieved_at` already carries for the same reason and
+-- which `load-universe.database.test.ts` already asserts as a decision ("from
+-- the file rather than the clock"). Membership is a fact about **the list**, and
+-- the list's own date is when it changed; the deploy that picks the edit up is
+-- our latency, not a fact about the universe.
+--
+-- `recorded_at` is `not null default now()` — transaction start time, so every
+-- row one loader run writes shares one value. That is `README.md` §2's pair,
+-- arriving on the second table in this schema to hold both halves of it.
+--
+-- **This column is NOT named `observed_at`, and a reader of README.md §2 is
+-- owed the reason.** That name is reserved for *when the thing was true in the
+-- market*, and is the column Epic 13's temporal plugin filters on. A membership
+-- change is not a fact about the market at an instant — `UNIVERSE.md` §3 is
+-- explicit that `untracked` is a fact about **us** — so an `observed_at` here
+-- would be a claim about a market event that never happened. The cost of that
+-- correctness is a constraint on Epic 13 and is written into its `EPIC.md`
+-- rather than left here: **a plugin that filters generically on `observed_at`
+-- does not cover this table**, and the membership read has to pass the replay
+-- clock explicitly, as `closesAsOf` already is.
+--
+-- ============================================================================
+-- 5. WHAT THIS FILE DELIBERATELY DOES NOT HAVE
+-- ============================================================================
+--
+-- **No index beyond the primary key**, which is `README.md`'s rule rather than
+-- an oversight: an index chosen before there is a query to serve is a guess
+-- with a write cost. The query that will want one — *the latest row at or
+-- before a date, per security* — is Epic 13's and does not exist; the table is
+-- one row per security plus one per transition, so at 516 securities it is
+-- hundreds of rows and every read is a sub-millisecond scan, which is
+-- `bar_coverage`'s argument (Task 2.8.4) rather than `market_bars`'. The
+-- condition for adding one is the first replayed aggregate that reads this
+-- table at a cadence, with the query written down beside it.
+--
+-- **No `unique (security_id, effective_from)`**, and this one is a real
+-- decision rather than a deferral. It looks like a free integrity win and it
+-- would make the deploy fail: two membership changes for one security sharing a
+-- `checkedOn` date — an untrack and a re-add inside one curated-file revision —
+-- are both legitimate and would collide, and the failure would land on
+-- `pnpm universe` inside `deploy.yml`. Rows at an equal `effective_from` are
+-- ordered by `id`, which is monotonic within a run, so the resolution rule is
+-- `order by effective_from, id` and the history stays readable. The loader
+-- cannot write a duplicate anyway: it appends only when the status differs from
+-- the latest row it already holds.
+--
+-- **No `updated_at`.** `README.md` §2 offers one to a *mutable* row and this
+-- table has none: nothing ever updates a row here, which is what append-only
+-- means. A correction is a further row, in the same way `migrations/README.md`
+-- §7 says a migration's correction is a further migration.
+--
+-- **No `status = 'delisted'`.** `0003` left that member out because nothing in
+-- the product could produce it, and that is still true; the vocabulary here is
+-- `SECURITY_STATUSES` and the check is the database's backstop, exactly as
+-- `securities_status_check` is. Widening it is `0003`'s worked drop-check /
+-- add-check shape.
+
+create table security_memberships (
+    -- `README.md` §3's rule applied without exception: a surrogate `bigint`
+    -- identity key. `generated always` refuses an explicit value, which is also
+    -- what makes `order by effective_from, id` trustworthy — the sequence is
+    -- the order the rows were written in.
+    id bigint generated always as identity primary key,
+
+    -- The security whose membership this row states. A real foreign key with no
+    -- `on delete`; see §3 above for the decision and its alternative.
+    security_id bigint not null references securities (id),
+
+    -- What the membership BECAME at `effective_from`. The vocabulary is
+    -- `SECURITY_STATUSES` in `packages/shared` and this constraint is the
+    -- database's backstop against a writer that bypassed it — `README.md` §1's
+    -- arrangement, and the reason it is `text` + `check` rather than an `enum`
+    -- is in `0002`'s decision 1.
+    --
+    -- Recording the status rather than only the interval's bounds is what lets
+    -- one table answer both questions a replay asks: *was this security in the
+    -- universe on that date* and *what did we believe about it*. A future
+    -- member (`delisted`) then needs no new table.
+    status text not null check (status in ('active', 'untracked')),
+
+    -- When this membership became true. **No default** — see §4, which is the
+    -- whole reason this table is shaped the way it is.
+    effective_from timestamptz not null,
+
+    -- When we wrote the row. `now()` is transaction start time, so every row
+    -- one load writes shares one value.
+    recorded_at timestamptz not null default now()
+);
