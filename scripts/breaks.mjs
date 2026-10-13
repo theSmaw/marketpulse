@@ -2099,7 +2099,15 @@ export const BREAKS = [
     // complete, repoint this entry at `LIVE-REHEARSAL.md`, emptying one row's
     // cells, and run it. Then the story's own completion is the first
     // condition and the substitution is the second. Task 3.11.11 carries it.
-    find: "| 3.3   | 2026-09-24 |",
+    // **Padding-independent since 2026-10-13, and that is the repair.** This
+    // `find` carried the table's exact column padding. Task 4.9.9 added a much
+    // longer row to the same table, **Prettier re-padded every row of it**,
+    // and the `find` matched 0 times — caught the same minute by
+    // `every-break-can-still-land`. The rule it earns: a break whose target is
+    // a **Markdown table cell** must not include the padding, because the
+    // padding is a function of the widest row in the table and any later row
+    // can change it. The trailing `|` is what carried it, so it is gone.
+    find: "| 3.3   | 2026-09-24",
     replace:
       "| 3.3 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |\n" +
       "x| 3.3   | 2026-09-24 |",
@@ -2122,6 +2130,20 @@ export const BREAKS = [
   // to blanking a row as the Epic 3 one does.
   {
     name: "the-epic-4-close-outruns-the-rehearsal",
+    // **Repointed 2026-10-13 by Task 4.9.9, and the move is the finding.**
+    // Until the close this entry injected a `Complete` status into Story 4.9's
+    // heading, because the story was open and seven rows read `**OPEN**` — one
+    // substitution supplied the missing half. The close supplies the status
+    // permanently AND fills six rows, waiving the seventh, so that
+    // substitution can no longer make the gate fire: the invariant needs the
+    // story complete **and** a row that is neither watched nor properly
+    // waived, and a break is one file.
+    //
+    // So the substitution moved to the half that is now variable: it strips
+    // the `Owner:` out of the waived row. That proves the conjunct the waiver
+    // rests on — **a waiver with no owner is an omission wearing a decision's
+    // clothes** — which is the clause a re-implementer adding a waiver escape
+    // hatch would be most tempted to leave out.
     proves:
       "Epic 4 closes with seven stories nobody has watched against a real " +
       "feed. The rows are written — they say in detail what each " +
@@ -2129,11 +2151,10 @@ export const BREAKS = [
       "why the predicate this check had until 2026-10-12 was green on all " +
       "seven: it tested for an EMPTY row, and Epic 3's unwatched rows " +
       "happened to be empty while Epic 4's are not (Task 4.9.5).",
-    file:
-      "planning/epic-04-market-overview/" +
-      "story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md",
-    // **Keyed on the HEADING rather than on the status line, and that is the
-    // repair rather than the original.** The first version's `find` was
+    file: "planning/epic-03-live-market-data/LIVE-REHEARSAL.md",
+    // **Superseded 2026-10-13 — kept because the reasoning still governs any
+    // break that targets a status line.** This entry used to be keyed on the
+    // HEADING rather than on the status line, and that was itself a repair: The first version's `find` was
     // `**Status:** Not started`, which rotted the same day: Task 4.9.1's own
     // Gate 1 edit moved the line to `In progress`, and Task 4.9.9 will move it
     // to `Complete`. A break whose subject is *the close status* cannot key on
@@ -2142,12 +2163,10 @@ export const BREAKS = [
     // the rot that is mechanical. The heading is stable, and injecting the
     // status ABOVE the real one is what arms the check, because
     // `/^\*\*Status:\*\*(.*)$/m` takes the FIRST match.
-    find: "# Story 4.9 — The Rehearsal, the Sweep, & Epic 4's Close\n",
-    replace:
-      "# Story 4.9 — The Rehearsal, the Sweep, & Epic 4's Close\n\n" +
-      "**Status:** **Complete — 2026-10-12.** Epic 4 is closed.\n",
+    find: "Owner: Epic 5, by name",
+    replace: "Owner, once this row is cleared, is Epic 5",
     command: ["node", "scripts/check-invariants.mjs"],
-    expect: "rehearsal rows are still",
+    expect: "names no `Owner:`",
   },
 
   // **The defect this one plants is one `main` actually carried, for ten
