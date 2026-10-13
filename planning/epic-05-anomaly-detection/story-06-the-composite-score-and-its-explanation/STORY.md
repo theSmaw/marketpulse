@@ -126,3 +126,53 @@ multi-clause account of a figure this product has drawn.
 ## Out of scope
 
 `Anomaly history`, any score in the universe table, and Epic 7's `Investigate`.
+
+## Handed here by Story 5.1's close — 2026-10-13: the one amber position, a deferred decision with your name on it, and a lane you must not re-site
+
+**1. The relative move you are scoring is already computed, drawn and refused.**
+`relativePerformance` in `apps/frontend/src/market/` produces the subject's move,
+its sector benchmark's, the broad market's, and the two differences in
+**percentage points** — and **refuses the subtraction when the two moves were
+measured from different closes**, which happens every day between the overnight
+backfill and the next opening bell. **A scored factor must inherit that
+refusal**: a factor that silently scores a mixed-basis difference produces a
+well-formed, correctly-coloured number that is wrong in exactly the way the
+region above it declined to be.
+
+**2. The ETF-versus-peer-median decision is yours, by name, and it is recorded
+rather than assumed.** Story 5.1's AC 3 says the region names what its reference
+is — a sector SPDR is **capitalisation-weighted**, so a mega-cap is largely being
+compared with itself and a small constituent's excess is structurally amplified.
+Whether the **scored** factor uses that ETF or an unweighted **industry peer
+median** was deliberately left open for you. Whichever you take, the sentence on
+screen has to match it: the one in the region today reads _"Each reference is a
+benchmark ETF — capitalisation-weighted, not the average of its members"_, it
+lives in **one** constant (`CAP_WEIGHTED_CLAUSE`), and
+`one-home-for-the-cap-weighting-clause` fails the build on a second copy.
+
+**3. Amber appears exactly ONCE in the rail** — as the band's fill **behind its
+written band name** — and the plot's marker lane is its one inheritance. Not on a
+difference, not on a score, not on a reference. The four band words are
+`normal · elevated · high · extreme` (renamed 2026-10-13, Task 5.1.1), and
+`--anomaly-unusual` no longer exists.
+
+**4. The chart's anomaly marker lane is already sited and you must not re-site
+it.** `VISUAL-LANGUAGE.md`'s _Room reserved for what arrives later_ gives it a
+**16 px lane inside the plot's TOP padding**, at the bar's x, carrying **the
+score as a number** because the ramp is a fill behind a written name and no name
+fits at a bar's width. Story 5.1's canvas page drew it **below** the plot first
+and that was wrong twice over: Epic 9's `--chart-filing-lane: 14px` already lives
+there, and the top padding is already paid for so a lane in it displaces nothing.
+Three constraints travel with it — it is derived from the **bars** rather than
+the window, so it stops at the coverage edge; its count is bounded by
+**occasions** rather than bars, which is the only reason it is drawable at the
+9,750-bar cap, and **a mark per bar is refused in advance**; and **the lane is
+reserved by prose only** — `--chart-filing-lane` is a token and there is no
+`--chart-anomaly-lane`, so **the first component that draws the lane owes
+`--chart-anomaly-lane: 16px` in the same change**.
+
+**5. Every score carries its explanation** — invariant 1's companion, not a
+layout preference — so the region has a prose band and the band is not optional.
+The rail's one-height rule applies: `Relative performance` is **240 / 240 / 240 /
+302 px** across nine states, and `MARKET-OVERVIEW.md` §1.4's trigger has already
+fired once on this route.

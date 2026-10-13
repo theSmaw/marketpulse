@@ -1,6 +1,6 @@
 # Task 5.1.6 — The Sweeps & the Close
 
-**Status:** Not started
+**Status:** Complete — 2026-10-13 — the sideways sweep found a **misrouting**: two documents said Story 5.6 fills `Anomaly history`, and that region is filled by **no story in Epic 5** at all. A constraint routed to a story that will never draw the region is a constraint nobody receives. Also: AC 4's _satisfied by construction_ is now a mechanism, and the four gates are green on the final tree
 **Story:** [5.1 The Decisions, the Adjustment, & `Relative performance` Drawn](STORY.md)
 **Depends on:** 5.1.5
 
@@ -79,3 +79,170 @@ sweeps nothing does on its own, and takes Story 5.1 to Gate 2.
 ## What was done — 2026-10-13
 
 <!-- written at completion -->
+
+## What was done — 2026-10-13
+
+### Done-when 1 — every criterion verdicted
+
+In `STORY.md`'s own **Gate 2** section: eight criteria, each with a verdict, a
+named instrument and a **kind** — a `re-take` is a command a clean clone can run,
+a `reading` is dated. Six are re-takes, one is a reading, one is both. The two
+criteria the owner amended at Gate 1 are verdicted **as amended with the
+originals quoted**, because a close that quietly verdicts the amended form
+destroys the record of what was asked for.
+
+### Done-when 2 — both sweeps, both counts
+
+**Upward: 2 found in this sweep, 4 corrected in flight earlier in the story.**
+
+- `live-feed.ts`'s `overview` docblock said `Relative performance` _"is the first
+  surface there that **will**"_ read the field. **False three tasks after it was
+  written** — and the sentence directly above it is a correction of the same
+  shape, made five days late. A docblock in the future tense about the next story
+  is a claim with an expiry date nobody sets.
+- `MARKET-OVERVIEW.md` §1.4's reversal trigger had **fired** and the document said
+  nothing. It now carries the firing, the four measurements, the owner's
+  acceptance, and what the trigger still keeps.
+
+The four corrected in flight: `VISUAL-LANGUAGE.md`'s 324 px rail width (5.1.3),
+Task 5.1.2's record (same), `CLAUDE.md`'s invariant 4 qualification (5.1.5), and
+`UNIVERSE.md` §12.2 (same).
+
+**Sideways: 4 recipients, and 4 of 4 had nothing.** Story 5.2, Story 5.6, Epic 6,
+Epic 13 (written in 5.1.5). The record across seven runs now reads
+**1, 6, 3, 6, 2, 8, 4**.
+
+**And the enumeration found a misrouting, which is what this pass exists for.**
+The canvas page and `VISUAL-LANGUAGE.md` both said _Story 5.2 fills
+`Abnormal-move indicators` and Story 5.6 fills `Anomaly history`_. **Both halves
+were wrong**, and the second is the one that matters: `Anomaly history` is filled
+by **no story in Epic 5** — deferred at that epic's Gate 1 with a condition, _the
+first surface that needs a score older than the process_, because it is the only
+surface needing scores **written down**. Every constraint this story drew for
+that region was addressed to a story that will never draw it. Corrected on the
+canvas, in `VISUAL-LANGUAGE.md` and in `EPIC.md`, where the reserved shape is now
+recorded as an inheritance for whoever eventually fills it.
+
+### Done-when 3 — `docs/GAPS.md`, and one claim made mechanical
+
+**Made mechanical: AC 4.** `a-sector-named-on-a-route-carries-its-curation-date`
+— every route rendering a component that reaches `SECTOR_LABELS` or `SECTOR_ETFS`
+must also render a source note. **Both halves are derived rather than listed**:
+the sector-naming set is computed through the `src/market/` modules that read the
+constants and the identifiers they export, because neither `RelativePerformance`
+nor `SectorPerformance` mentions the constants itself; and the note is any
+component whose name ends `SourceNote`, because there are two of them. Anchored
+on a member that must be **found**, so a rename that empties the set fails rather
+than passing vacuously.
+
+**The break was performed in both directions.** First the defect somebody else
+will write: a **new route** drawing the region with no source note —
+
+```
+✗ a-sector-named-on-a-route-carries-its-curation-date
+  1 route(s) name a curated sector and render no source note:
+    apps/frontend/src/routes/PlantedBoard.tsx
+```
+
+— then the registry entry, `a-sector-with-its-curation-date-removed`, which
+removes the note from the route it was written around:
+
+```
+✓ apps/frontend/src/routes/SecurityExplorer.tsx broken → red → restored byte-identical.
+  matched: a-sector-named-on-a-route-carries-its-curation-date
+```
+
+**Not made mechanical, with reasons and conditions, in `docs/GAPS.md`:** the
+`≥74rem`-only rail adjacency (no grep can see a resolved grid track, and the
+browser form would pin a layout this epic is still filling — the condition is the
+first story that makes the rail explicit at every width); and the nine approved
+sentences, where what is unguarded is whether a **tenth** matches the register.
+The membership entry is **half-discharged** with a `git grep` re-measure that
+becomes testable the day anything reads the table.
+
+### Done-when 4 — the architect's two questions
+
+**An ADR: yes, one.**
+[ADR 0042](../../../docs/adr/0042-membership-is-a-history-and-it-starts-the-day-somebody-writes-it.md).
+The decision is read by an epic eight ahead that does not exist yet, and a
+150-line migration header is not where anybody looks for a decision. The
+comparison's own design decisions are not ADR-shaped — ADR 0026 makes the canvas
+the source of truth and they live there.
+
+**A guard that was a sentence: one, and it is now a mechanism.** AC 4's
+_satisfied by construction_ — true the day it was written and silent the day
+somebody adds a second route.
+
+### Done-when 5 — the four gates on the final tree, load read first
+
+| Gate                 | Load before | Result                                                                              |
+| -------------------- | ----------- | ----------------------------------------------------------------------------------- |
+| `pnpm verify`        | 5.29        | **exit 0**, `58 invariants hold.`, **3,000 tests** (440 + 1,047 + 1,458 + 55)       |
+| `pnpm test:database` | 10.22       | **7 files, 237 tests**                                                              |
+| `pnpm e2e`           | 4.79        | **254 passed, 16 skipped**, 3.8m                                                    |
+| `pnpm probe`         | —           | the route at four widths and ten story states at four widths; screenshots looked at |
+
+**And the first `pnpm e2e` run was RED, for a reason that was not this story's
+and is worth the paragraph.** Two specs failed — `market-reconnect`'s
+`toHaveLength(516)` against a received 518, and `universe-navigation`'s
+`0 of 516 rows shown` against `0 of 518`. Neither is a flake: both reproduce, and
+**both specs say in their own comments that they are asserting CI's number and
+that a developer's populated store reads 518**. They are correct about both
+stores and they leave `pnpm e2e` **red on every machine that has one** — which is
+Task 2.3.9's untracking landing on the suite, and this is the first close since.
+
+Both are repaired to assert the claim they are actually making rather than the
+number CI happens to have: the resubscription covers **every security the
+universe response carried** (read from `GET /securities`), and the summary line
+reports **nothing on screen out of the whole table** (`/0 of \d+ rows shown/`).
+One detail worth keeping: the first regex was `/\b0 of …/` and failed, because
+the summary's clauses are adjacent in `textContent` and the `0` follows the
+coverage date's own last digit — `…through 2026-09-11` then `0 of 518` — so there
+is no word boundary between them.
+
+### Done-when 6 — Gate 2
+
+Put to the owner with what a user can now see, each criterion's evidence, what
+shipped open with an owner and a condition, and what was not verified and why.
+
+### What was NOT verified, and why
+
+- **Nobody has watched this region against a real feed.** `LIVE-REHEARSAL.md`
+  carries row **5.1, unwatched**, written **before** the sitting rather than at
+  the close — which is what Epic 4's gate earned. Epic 5 was added to
+  `REHEARSAL_LEDGER_EPICS` in the same change, so `pnpm invariants` will **refuse
+  Epic 5's close** until the row is filled; proved by marking Story 5.7 complete
+  and watching the run go red on `5.1 — its date cell reads \`—\``.
+- **No gated machine has seen a relative move either.** CI's store is 516
+  securities and zero bars.
+- **The one-height claim is asserted in a browser at one width**, 1440, over two
+  of the nine states; the other seven are measured in the workshop at four widths
+  and the route's own panel is measured at four widths in one state.
+- **The deployed store has not been looked at since this merged.**
+
+## For a stakeholder — a status report, 2026-10-13
+
+**Story 5.1 is finished, and this last task is the pass that checks the story
+against itself.**
+
+Three things it found. The design notes said the region below the comparison
+would be built by a particular later story — and **that region is built by no
+story in this epic at all**; it was deliberately deferred, and every instruction
+we had written for it was addressed to somebody who will never read it. A
+promise this product had been making about where a sector's "last checked" date
+appears was **enforced by nothing**, and is now enforced by a check that fails
+the build — proved first against a page a future story would plausibly write,
+then against the page we have. And the browser suite turned out to be **red on
+any machine with a real database**, because two tests were written against the
+exact number of securities our test machine happens to hold; they now check what
+they actually mean, and pass on both.
+
+**All four gates are green on the final tree** — 3,000 unit and integration
+tests, 237 database tests, 254 browser tests.
+
+**What is owed is a person.** Nothing in this story has been watched working
+against a real market: our test machine holds no price history, so the comparison
+there is permanently "No comparison yet.". The row is written in the rehearsal
+ledger **unwatched**, and the build will now **refuse to close Epic 5** until
+somebody fills it. Three things to take deliberately when that sitting happens
+are written in the row, each unobtainable afterwards.

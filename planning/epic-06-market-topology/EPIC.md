@@ -180,3 +180,34 @@ unconditionally**, so a scrolling region is a focusable scroller and axe's
 `scrollable-region-focusable` will never report it: `expectEveryRegionIsATabStop`
 in `e2e/support/app.ts` is the replacement, and a scroll check is yours to write
 if you want one.
+
+## Handed here by Story 5.1's close — 2026-10-13: the reserved-panel finding is now half-discharged, and the live half is yours
+
+Epic 4's close routed a finding about how this product draws the regions it has
+**not** built: at 1440 a reserved panel reads as **more** intentional than a
+built one, because it is hatched, carries an `EPIC n` tag and a sentence saying
+exactly what will go there, while a region waiting for data is a plain void with
+one 12 px grey sentence.
+
+**Story 5.1 discharged the first half by construction.** It put one built region
+between two hatched ones on `/securities/:symbol` — `Relative performance`
+between `Abnormal-move indicators` and `Anomaly history` — and the built region
+was drawn to carry its presence from a derived headline and a ruled track rather
+than from a fill or a border weight, so it does not read as a white gap in a
+patterned column. The canvas page is `The rail that says how unusual.dc.html`.
+
+**The second half is live and it is yours, because `Market topology` is the next
+hatched panel to be filled.** A **rollback that omits a section draws a region
+exactly like one nobody has built**, differing only by the absence of an
+`EPIC n` badge — so on the two seconds a frontend deploy is incoherent, or on any
+image that shipped without a region, a reader cannot tell _this is next year's_
+from _this is broken_. Nothing mechanical sees it.
+
+**And one thing to measure before you fill the panel rather than after.**
+`MARKET-OVERVIEW.md` §1.4's reversal trigger — _the first reserved region whose
+filling would move a figure or a sentence a reader is reading_ — **fired on
+2026-10-13**, on the other route: filling `Relative performance` moved the source
+note and the 516-row `Tracked universe` table down by **74 px** at 1440, 1024 and
+768 and **136 px** at 390. The owner accepted it with the figures recorded. On
+`/`, `Market topology`'s neighbours are figures rather than hatch, so take the
+before/after at all four widths **before** the merge, and say what moved.

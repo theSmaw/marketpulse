@@ -878,6 +878,28 @@ export const BREAKS = [
   },
 
   {
+    name: "a-sector-with-its-curation-date-removed",
+    proves:
+      "A route that draws a curated sector with no source note on it leaves " +
+      "the date that classification was last checked \u2014 `2026-09-08`, and " +
+      "it has not moved \u2014 off the only screen that names the sector, which " +
+      "is the single mitigation this product has for a security its issuer " +
+      "re-sectored, and the invariant catches it.",
+    // **The break is the tidy-looking edit, not a synthetic one.** The source
+    // note sits at the foot of the region group and says three things, of
+    // which the classification date is the quietest; a later story reorganising
+    // this route's foot, or moving the note to a surface of its own, removes
+    // it from here without any sense of removing a guard. Nothing on the screen
+    // then looks wrong \u2014 which is the whole shape of the failure
+    // `UNIVERSE.md` \u00a75's drift table names Epic 5 for.
+    file: "apps/frontend/src/routes/SecurityExplorer.tsx",
+    find: "            <SourceNote",
+    replace: "            <div data-pnpm-break-removed-the-source-note",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "a-sector-named-on-a-route-carries-its-curation-date",
+  },
+
+  {
     name: "the-weighting-clause-written-out",
     proves:
       "The second region that states the capitalisation-weighting caveat " +

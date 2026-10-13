@@ -174,20 +174,28 @@ test("the summary line reports how many rows are on screen, and only when it is 
   await expect(summary).not.toContainText("rows shown");
 
   await page.getByRole("button", { name: "Collapse all" }).click();
-  // **516 since Task 2.3.9, and the two figures below answer different
-  // questions.** `rows shown`'s denominator is `securities.length` — every row
-  // the store HOLDS — while `securities tracked` is the `active` count. On a
-  // store built the way CI builds one (`pnpm store:bare`, an empty database
-  // the loader fills from the file) `PSKY` and `WBD` were never inserted, so
-  // both are 516. On the deployed store, which already held them when the
-  // loader untracked them, the first would read 518 and the second 516. Both
-  // are correct; this suite runs against the former.
-  await expect(summary).toContainText("0 of 516 rows shown");
+  // **The two figures answer different questions and the denominator is the
+  // store's business** (Task 5.1.6). `rows shown`'s denominator is
+  // `securities.length` — every row the store HOLDS — while
+  // `securities tracked` is the `active` count. Task 2.3.9 untracked `PSKY` and
+  // `WBD` on 2026-10-12: a store built the way CI builds one (`pnpm store:bare`,
+  // an empty database the loader fills from the file) never inserts them, so
+  // both read 516; a store that already held them keeps the rows and reads 518
+  // and 516. **Both are correct, and this assertion used to be written down as
+  // CI's pair** — with a comment saying so — which left the suite red on every
+  // machine with a populated store. What the clause actually claims is that
+  // **nothing is on screen and the denominator is the whole table**, and that
+  // is true on both.
+  // No leading `\b`: the summary's clauses are adjacent in `textContent`, so
+  // the `0` follows the coverage date's own last digit — `…through 2026-09-11`
+  // then `0 of 518 rows shown` — and there is no word boundary between them.
+  await expect(summary).toContainText(/0 of \d+ rows shown/u);
 
   // Every other figure survives it. Collapsing hides rows; it does not untrack
   // a security, and a line that said otherwise would be reporting the screen as
-  // though it were the universe.
-  await expect(summary).toContainText("516 securities tracked");
+  // though it were the universe. The tracked count is read from the line
+  // itself before the collapse rather than written down, for the reason above.
+  await expect(summary).toContainText(/\d+ securities tracked/u);
 });
 
 test("an untracked security is still reachable through the rail", async ({

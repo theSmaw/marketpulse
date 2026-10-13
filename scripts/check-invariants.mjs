@@ -63,7 +63,7 @@
 // Dependency-free, like every script in this directory.
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { basename, dirname, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import process from "node:process";
 
@@ -280,6 +280,22 @@ const REHEARSAL_LEDGER_EPICS = [
     closeStoryPath:
       "planning/epic-04-market-overview/" +
       "story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md",
+  },
+  // **Epic 5, added 2026-10-13 by Story 5.1's close with ONE row and that row
+  // unwatched.** The gate is added at the epic's first story rather than at its
+  // close, which is the opposite of how the other two arrived — both were added
+  // by the close that discovered it needed them. The reason is Epic 4's own
+  // finding: a ledger row written at the close is a row written after the only
+  // sittings that could have filled it, and the row this epic owes
+  // (`Relative performance` against a real feed) is unobtainable from anything
+  // but a session. `rowFloor` is 1 and is taken from the file as it stands.
+  {
+    epic: "5",
+    rowPattern: /^\|\s*5\.\d+\s*\|/u,
+    rowFloor: 1,
+    closeStoryPath:
+      "planning/epic-05-anomaly-detection/" +
+      "story-07-the-rehearsal-the-sweep-and-the-epic-close/STORY.md",
   },
 ];
 
@@ -884,6 +900,124 @@ const INVARIANTS = [
             "rail and the announcement must read one function, or the screen " +
             "and the screen reader can come to disagree with nothing to " +
             "notice.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "a-sector-named-on-a-route-carries-its-curation-date",
+    claim:
+      "Every route that renders a component naming a curated sector also " +
+      "renders a source note, so the date that classification was last " +
+      "checked is on the same screen as the sector it describes.",
+    check() {
+      // **AC 4's mechanism, and the reason it is one** (Story 5.1, Gate 1
+      // decision 11). `classification.checkedOn` reads `2026-09-08` and has
+      // not moved; `UNIVERSE.md` §5's drift table names Epic 5 by name —
+      // *"Epic 5 compares it against the wrong benchmark … indefinitely, and
+      // correctly-looking"* — and the **visible date is the only mitigation**
+      // this product has for a sector that went stale. A security moved
+      // between sectors by its issuer is compared against the wrong benchmark
+      // for ever, and nothing about the screen looks wrong.
+      //
+      // The original criterion read *visible wherever a sector is named*,
+      // which a reader took to mean a date beside every sector label. The
+      // owner amended it on 2026-10-13: the source note already carries the
+      // date once per screen, ADR 0029's one-home rule forbids a second copy,
+      // and what was actually owed was a check that the two cannot be
+      // separated. This is that check.
+      //
+      // **Both halves are DERIVED rather than listed**, which is the clause a
+      // re-implementer cannot avoid writing. The sector-naming set is every
+      // component whose own text reaches `SECTOR_LABELS` or `SECTOR_ETFS` —
+      // so a new region drawing a sector is covered on the day it is written,
+      // and a hard-coded list would have been green on it. And the note is any
+      // component whose name ends `SourceNote`, because there are two of them
+      // (`SourceNote` on the security page, `OverviewSourceNote` on `/`) and
+      // naming either one would make this check a fact about one route.
+      const componentsDir = resolve(REPO_ROOT, "apps/frontend/src/components");
+      const routesDir = resolve(REPO_ROOT, "apps/frontend/src/routes");
+
+      const shipped = (file) =>
+        !/\.(?:test|stories)\.tsx?$/u.test(file.path) &&
+        /\.tsx$/u.test(file.path);
+
+      // **One hop of resolution, because the constants are not where the
+      // component is.** `RelativePerformance.tsx` and `SectorPerformance.tsx`
+      // both draw a benchmark and neither mentions `SECTOR_ETFS`: the pairing
+      // is resolved in `src/market/`, which is `one-pairing-of-a-sector-and-
+      // its-benchmark`'s whole point. So the set is built from the modules
+      // that read the constants, through the identifiers they export, to the
+      // components that use one.
+      const sectorExports = sourceFilesUnder(
+        resolve(REPO_ROOT, "apps/frontend/src/market"),
+      )
+        .filter(
+          ({ path, text }) =>
+            /\.ts$/u.test(path) &&
+            !/\.test\.ts$/u.test(path) &&
+            /\bSECTOR_(?:LABELS|ETFS)\b/u.test(withoutComments(text)),
+        )
+        .flatMap(({ text }) =>
+          [
+            ...withoutComments(text).matchAll(
+              /^export\s+(?:async\s+)?(?:function|const)\s+(\w+)/gmu,
+            ),
+          ].map((match) => match[1]),
+        );
+
+      const namesASector = sourceFilesUnder(componentsDir)
+        .filter(shipped)
+        .filter(({ text }) => {
+          const body = withoutComments(text);
+          return (
+            /\bSECTOR_(?:LABELS|ETFS)\b/u.test(body) ||
+            sectorExports.some((name) =>
+              new RegExp(`\\b${name}\\b`, "u").test(body),
+            )
+          );
+        })
+        .map(({ path }) => basename(path, ".tsx"));
+
+      // **Anchored on a member that must be FOUND.** An assertion that every
+      // route carrying a sector also carries a note passes just as happily
+      // when the set is empty — which is what a rename of the two shared
+      // constants would produce, silently, leaving the date detached from
+      // every sector in the product.
+      if (!namesASector.includes("RelativePerformance")) {
+        throw new InvariantFailure(
+          "`RelativePerformance` no longer reads `SECTOR_LABELS` or " +
+            "`SECTOR_ETFS`, so this check can no longer see the region it was " +
+            "written for. Either the benchmark is being resolved somewhere " +
+            "else — in which case widen the pattern — or the region stopped " +
+            "naming a sector, which is AC 3 rather than this one.\n      " +
+            `Found: ${namesASector.join(", ") || "nothing at all"}`,
+        );
+      }
+
+      const detached = sourceFilesUnder(routesDir)
+        .filter(shipped)
+        .filter(({ text }) => {
+          const body = withoutComments(text);
+          const draws = namesASector.some((component) =>
+            new RegExp(`<${component}\\b`, "u").test(body),
+          );
+          return draws && !/<\w*SourceNote\b/u.test(body);
+        })
+        .map(({ path }) => relative(REPO_ROOT, path));
+
+      if (detached.length > 0) {
+        throw new InvariantFailure(
+          `${String(detached.length)} route(s) name a curated sector and ` +
+            "render no source note:\n      " +
+            detached.join("\n      ") +
+            "\n      A sector on this product's screens is OUR classification " +
+            "rather than market data, it was last checked on a date that has " +
+            "not moved, and a security its issuer has re-sectored is compared " +
+            "against the wrong benchmark indefinitely and correctly-looking. " +
+            "The date is the only mitigation and it has to be on the same " +
+            "screen.",
         );
       }
     },

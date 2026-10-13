@@ -72,7 +72,14 @@ exposed to.
 - **`Anomaly history`** — deferred at Gate 1 with a condition rather than a
   slot: _the first surface that needs a score older than the process_. It is
   the only surface needing scores written down, which means a new table and a
-  migration against a store with a live per-minute writer.
+  migration against a store with a live per-minute writer. **Its shape is
+  nevertheless drawn** (Story 5.1, `The rail that says how unusual.dc.html`
+  §07), so whoever fills it inherits the rail's idiom rather than inventing a
+  third one — and the two things it inherits are the **band word beside every
+  score**, so a reader comparing today with August compares like with like, and
+  the **one-height rule**, which this region is the one place in the rail that
+  could drift without cost and is therefore the one place it has to be written
+  down.
 - **`Investigate`** — not in this epic in any form, not even disabled. A
   natively disabled control is not focusable, so anything `aria-describedby`
   hangs off it is unreachable, and this product has shipped that defect once
