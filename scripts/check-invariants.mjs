@@ -890,6 +890,78 @@ const INVARIANTS = [
   },
 
   {
+    id: "one-home-for-the-cap-weighting-clause",
+    claim:
+      "The clause saying a benchmark ETF is capitalisation-weighted is " +
+      "written in exactly one source file, and both regions that state it " +
+      "read that one string.",
+    check() {
+      // **Two regions state this clause and they are 600 px apart on two
+      // different screens**, which is exactly the shape that drifts: `Sector
+      // performance` on `/` says it of eleven rows, and `Relative performance`
+      // on `/securities/:symbol` says it of two references (Task 5.1.3). The
+      // sentences around it legitimately differ — eleven rows against two
+      // named references — and the **invariant** inside them is one fact: a
+      // benchmark fund is capitalisation-weighted, so its move is not the
+      // average of its members' moves.
+      //
+      // So the repair that was taken is a split constant rather than a shared
+      // sentence, and this is the half of it that cannot be honoured by
+      // discipline. A second author writing the second region writes the
+      // clause out, it agrees on the day it is written, and the day somebody
+      // corrects one of them the two screens make different claims about the
+      // same fund with nothing to notice. `BarSeriesPanel` shipped exactly
+      // that for two years with a feed line a hundred pixels above the
+      // surface that owned the fact.
+      //
+      // **Anchored on a literal that must be FOUND**, for
+      // `one-home-for-the-coverage-phrase`'s reason: an assertion that
+      // nothing has a second copy passes just as happily when the clause has
+      // been reworded out of existence, and then neither region states the
+      // caveat its own story is named for.
+      //
+      // Read through `withoutComments`, because both regions' docblocks
+      // discuss the clause at length — and this file's own prose above quotes
+      // it twice.
+      const CLAUSE = "capitalisation-weighted, not the average of its members";
+
+      const homes = sourceFilesUnder(
+        resolve(REPO_ROOT, "apps/frontend/src"),
+      ).filter(
+        ({ path, text }) =>
+          !/\.(?:test|stories)\.tsx?$/u.test(path) &&
+          withoutComments(text).includes(CLAUSE),
+      );
+
+      const expected = "apps/frontend/src/market/sector-performance.ts";
+
+      if (homes.length === 0) {
+        throw new InvariantFailure(
+          `No source file contains ${JSON.stringify(CLAUSE)}. Either the ` +
+            "clause was reworded — in which case reword it here too — or " +
+            "both ranked surfaces stopped saying what their reference " +
+            "actually is, which is the one caveat a reader needs to know " +
+            "that a mega-cap is largely being compared with itself.",
+        );
+      }
+
+      const paths = homes.map(({ path }) => relative(REPO_ROOT, path));
+
+      if (paths.length !== 1 || paths[0] !== expected) {
+        throw new InvariantFailure(
+          `The weighting clause should be written only in ${expected}, and ` +
+            "is in:\n      " +
+            paths.join("\n      ") +
+            "\n      Two copies is two claims about one fund, on two " +
+            "screens, which agree today and diverge the day either is " +
+            "corrected. `CAP_WEIGHTED_CLAUSE` is the home and both footers " +
+            "interpolate it.",
+        );
+      }
+    },
+  },
+
+  {
     id: "one-apostrophe-in-the-product-voice",
     claim:
       "Every apostrophe a reader sees is the typographic one, so two " +
@@ -2954,6 +3026,17 @@ const INVARIANTS = [
       }
 
       /**
+       * The functions a wiring site may hand both halves to.
+       *
+       * Both of them delegate to `changeFromClose` and neither performs any
+       * arithmetic of its own; `buildMarketOverview`'s call count is held at
+       * one by `one-producer-of-the-overview-aggregate`, and
+       * `relativePerformance` is a pure read in `apps/frontend/src/market/`
+       * whose own file matches clause two directly.
+       */
+      const PRODUCERS = ["buildMarketOverview", "relativePerformance"];
+
+      /**
        * Is this file exempt from clause two, and why?
        *
        * Two exemptions, both written as SHAPES rather than filenames so a
@@ -3005,11 +3088,24 @@ const INVARIANTS = [
         // session: `market-overview.ts` contains `buildMarketOverview(` in
         // its own signature, so the exemption swallowed the one file the
         // break targets and the substitution went red on clause three alone.
+        //
+        // **Widened to a SET of producers on 2026-10-13 (Task 5.1.3), and the
+        // set is named rather than inferred.** `RelativePerformance.tsx` is
+        // the second wiring site of this exact kind: it holds a `Bar` and a
+        // `SecurityLastClose` because its props are the route's, performs no
+        // arithmetic at all, and hands both to `relativePerformance`, whose
+        // own module calls `changeFromClose`. A list of producers keeps the
+        // exemption a **named** one — a generic *passes both halves to some
+        // function* would exempt the re-implementation too, since an inline
+        // join is also a function call.
         if (
-          /\bbuildMarketOverview\(/u.test(file.text) &&
-          !/function\s+buildMarketOverview\b/u.test(file.text)
+          PRODUCERS.some(
+            (producer) =>
+              new RegExp(`\\b${producer}\\(`, "u").test(file.text) &&
+              !new RegExp(`function\\s+${producer}\\b`, "u").test(file.text),
+          )
         ) {
-          return "a wiring site that hands both halves to the one producer";
+          return "a wiring site that hands both halves to a named producer";
         }
 
         return undefined;

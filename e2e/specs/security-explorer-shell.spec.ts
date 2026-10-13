@@ -125,16 +125,24 @@ test("every empty region names the epic that fills it", async ({ page }) => {
   await page.goto(EXPLORER);
   await expect(page.getByRole("region", { name: "Price" })).toBeVisible();
 
+  // **Four since Task 5.1.3 filled `Relative performance`** — three of the
+  // five later-epic placeholders were Epic 5's and two are, because the first
+  // of this epic's three reserved regions now draws a comparison. The count is
+  // here rather than inferred for the reason below, and it moves by one every
+  // time a region is filled, deliberately: a placeholder that survives the
+  // thing it was waiting for is a screen holding a plan while holding the
+  // plan's output, and nothing else in this repository would notice.
+  //
   // **Five since Task 2.13.4 filled the Volume region** — the five later epics
   // own, and the sixth is gone because the region it belonged to now holds a
   // chart. A placeholder whose label is dropped renders a dashed box with
   // nothing in it, which reads as broken and goes red nowhere else; a
   // placeholder that survives the thing it was waiting for is a screen saying it
   // holds a plan while holding the plan's output.
-  await expect(page.getByText(/^Filled by /)).toHaveCount(5);
+  await expect(page.getByText(/^Filled by /)).toHaveCount(4);
   await expect(
     page.getByText("Filled by Epic 5 — Anomaly Detection"),
-  ).toHaveCount(3);
+  ).toHaveCount(2);
   await expect(
     page.getByText("Filled by Epic 6 — Market Topology"),
   ).toHaveCount(1);

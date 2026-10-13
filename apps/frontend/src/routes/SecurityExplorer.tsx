@@ -7,6 +7,7 @@ import { BarSeriesPanel } from "../components/BarSeriesPanel/BarSeriesPanel.js";
 import { ChartAxis } from "../components/PriceChart/ChartAxis.js";
 import { PageHeader } from "../components/PageHeader/PageHeader.js";
 import { Region } from "../components/Region/Region.js";
+import { RelativePerformance } from "../components/RelativePerformance/RelativePerformance.js";
 import { RegionPlaceholder } from "../components/RegionPlaceholder/RegionPlaceholder.js";
 import { SecurityIdentity } from "../components/SecurityIdentity/SecurityIdentity.js";
 import { storedHistoryFor } from "../components/PriceChart/chart-vacancy.js";
@@ -170,6 +171,24 @@ export function SecurityExplorer({
   // a page open on a thin security legitimately has nothing here for hours, and
   // that is the feed working.
   const live = liveFeed.observations.get(symbol);
+
+  // **The resolved row and its stored close, for `Relative performance`** (Task
+  // 5.1.3). The sector half needs `security.sector` and `security.kind`, and
+  // the subject's move needs the close `changeFromClose` measures from — both
+  // off the universe answer this route already holds, so no second request.
+  //
+  // **It is a SECOND reader of these two lines**, which is recorded rather than
+  // hidden: `SecurityIdentity` resolves the same row and the same close from the
+  // same view, inside itself, and `storedHistoryFor` above is the shape the
+  // third such reader should take. A resolver on `use-securities.ts` is the
+  // repair and it is a tidy rather than this task's work; the condition for
+  // taking it is the next surface that needs the resolved row.
+  const found =
+    view.state === "loaded"
+      ? view.securities.find((security) => security.symbol === symbol)
+      : undefined;
+  const lastClose =
+    view.state === "loaded" ? view.lastCloses.get(symbol) : undefined;
 
   // **A snapshot is not an arrival** (Task 3.5.4). The store keeps the wire's
   // own distinction — §11.1's `snapshot` and `bars` are two message types —
@@ -521,11 +540,30 @@ export function SecurityExplorer({
             </Region>
           </div>
 
-          <Region
-            name="Relative performance"
-            filledBy="This security measured against its sector proxy and the broad market, so a move can be told apart from a tide."
-          >
-            <RegionPlaceholder filledBy="Epic 5 — Anomaly Detection" />
+          {/*
+           * **Filled by Task 5.1.3, and the sentence goes rather than being
+           * amended.** It is §71.3's judgement for the third time on this
+           * screen: what was left was a caption for a drawing immediately
+           * below it, in the band where height is most expensive — a column
+           * of three regions, where every pixel this one takes moves
+           * `Anomaly history` down. The region's *name* and its landmark are
+           * unchanged and still asserted.
+           *
+           * **It needs no backend change.** The two references are the
+           * backend's own join, already on the overview frame this route has
+           * received since Story 4.2 and read by nothing here until now; the
+           * subject's move is `changeFromClose` over the universe answer the
+           * identity block above already holds. So there is **no new
+           * per-security derivation in the socket callback** — the frame
+           * carries fifteen funds whatever this page does with them.
+           */}
+          <Region name="Relative performance">
+            <RelativePerformance
+              security={found}
+              live={live}
+              lastClose={lastClose}
+              overview={liveFeed.overview}
+            />
           </Region>
 
           <Region

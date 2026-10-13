@@ -18,6 +18,25 @@ import type { SectorLadderStep } from "@marketpulse/shared";
 // minute for a reason no reader can see.
 
 /**
+ * A rung either of this product's two anchored scales may be drawn against.
+ *
+ * **The parameter is widened and `SectorLadderStep` is not** (Task 5.1.2's
+ * amendment, Task 5.1.3). `SECTOR_LADDER_STEPS` is on the wire —
+ * `WireMarketOverview.sectorLadderStep` is validated with `isSectorLadderStep`
+ * — so widening *that* tuple would widen what the sectors region on `/`
+ * accepts and ratchets to, and would leave `LARGEST` still calling `10` the
+ * largest rung. What is legitimately shared is the **arithmetic**: two copies
+ * of {@link ladderTicks} would be two answers to *where the gridlines go*, and
+ * `25` and `50` are drawn by `Relative performance`'s own ladder
+ * (`relative-performance.ts`, which declares the rung set it chooses from).
+ *
+ * It is a union of literals rather than `number` deliberately: an arbitrary
+ * rung is a scale nobody has reviewed, and the midpoint rule below is only
+ * legible over a set somebody chose.
+ */
+export type BarScaleStep = SectorLadderStep | 25 | 50;
+
+/**
  * How far a bar reaches from the central anchor, as a **fraction of the bar
  * track's half-width** — `0` to `1`, sign dropped.
  *
@@ -35,7 +54,7 @@ import type { SectorLadderStep } from "@marketpulse/shared";
  * over the figure column, which is a broken page rather than a saturated bar —
  * and CSS has no way to know what the rung is.
  */
-export function barFraction(percent: number, step: SectorLadderStep): number {
+export function barFraction(percent: number, step: BarScaleStep): number {
   const reach = Math.abs(percent) / step;
   return reach > 1 ? 1 : reach;
 }
@@ -68,7 +87,7 @@ const MINUS = "−";
  * — because the unit is stated where the eye lands and repeating it four times
  * is a row of percent signs rather than a scale.
  */
-export function ladderTicks(step: SectorLadderStep): readonly LadderTick[] {
+export function ladderTicks(step: BarScaleStep): readonly LadderTick[] {
   const mid = step / 2;
   const labelled = Number.isInteger(mid);
 
@@ -91,6 +110,6 @@ export function ladderTicks(step: SectorLadderStep): readonly LadderTick[] {
  * the caller's decision and is why this returns a clause rather than a
  * paragraph.
  */
-export function ladderClause(step: SectorLadderStep): string {
+export function ladderClause(step: BarScaleStep): string {
   return `bars to ±${String(step)}%`;
 }

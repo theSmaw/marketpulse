@@ -1,0 +1,390 @@
+/*
+ * `Relative performance` — the anchored comparison track.
+ *
+ * `VISUAL-LANGUAGE.md`'s *The rail, and the anchored comparison track*, written
+ * from `The rail that says how unusual.dc.html`. **What is new here is geometry
+ * and nothing else** — a 30 px track, a 14 px ladder, a 2 px tick, a 12 px bar
+ * — and it stays component-local rather than becoming tokens. **Reversal
+ * trigger:** the second surface in this product that draws an anchored track,
+ * which is Epic 9's peer comparison by name.
+ *
+ * **Every band reserves its own room**, which is what keeps the region one
+ * height in all seven of its states. The region sits in a column of three, so a
+ * region that grows when a benchmark arrives moves `Anomaly history` under the
+ * reader — `Movers` paid that already at 81 px.
+ */
+
+.region {
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * --- Band one: the two derived lines ---
+ *
+ * **Two cells, reserved at two lines each.** The label and the value stack, and
+ * the value is the longest string in the region — `Measured from different
+ * closes` is the refusal, and it must not re-flow the bands under it when it
+ * replaces `behind by 2.20 pts`. So the room is the taller of the two in every
+ * state, declared once here rather than measured per sentence.
+ */
+.derived {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+  margin: 0;
+}
+
+.line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: calc(
+    var(--line-height-micro) + 2 * var(--line-height-dense) + 2px
+  );
+}
+
+/*
+ * The label, at the micro size in sentence case.
+ *
+ * **The two micro properties are SPELLED rather than composed**, which is the
+ * defect `MarketProxyStrip` repaired on 2026-09-26 and both ranked regions
+ * inherited: `composes: microLabel` followed by `text-transform: none` reads
+ * like an override and is not one — `composes` concatenates class names, so
+ * which rule wins is stylesheet order and `type.module.css` lands later. These
+ * labels are words, so an inherited uppercase would have shown immediately,
+ * which is luck rather than a reason to compose. `pnpm invariants` now refuses
+ * the shape by name (`a-compose-never-carries-an-override`).
+ */
+.lineLabel {
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * **The derived figure, and it is ACHROMATIC.**
+ *
+ * `--ink-primary`, no tint, no glyph, no wash. A difference is not a price: a
+ * security down 4.2% against a sector down 6.0% is *ahead while falling*, and
+ * drawn in the price palette this cell would say the stock rose inside a box
+ * whose other three figures are red. The direction is carried by the **word** —
+ * `behind` / `ahead` — which survives `grayscale(1)` with no hue at all, and
+ * which is also why the words are neutral rather than `outperforming`.
+ */
+.lineValue {
+  margin: 0;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-primary);
+}
+
+/*
+ * A refusal is a sentence rather than a figure, so it reads as the secondary
+ * ink — the same distinction every absence in this product draws between words
+ * and digits. It is **not** a warning: there is no threshold here, no status
+ * word and no connection word, and the one home for *the feed has stopped* is
+ * the status bar.
+ */
+.lineRefused {
+  color: var(--ink-secondary);
+}
+
+/*
+ * --- Band two: the track and its ladder ---
+ */
+.plot {
+  margin-top: var(--space-16);
+}
+
+/*
+ * **One track, anchored at zero.** 30 px, from the canvas, and it holds all
+ * three marks plus both brackets: the subject's bar through the middle, each
+ * reference's tick full height, and a bracket in the room above and below.
+ */
+.track {
+  position: relative;
+  height: 30px;
+}
+
+/* The anchor, and the one thing on the track that is not a datum. */
+.zero {
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--rule-strong);
+}
+
+/*
+ * The subject's bar — 12 px, centred, growing from the anchor to its own end.
+ *
+ * `left` and `width` are the component's, as percentages of the track, because
+ * the fraction is `barFraction`'s and CSS has no way to know what the rung is.
+ */
+.bar {
+  position: absolute;
+  top: 9px;
+  height: 12px;
+}
+
+.positive {
+  background: var(--price-positive);
+}
+
+.negative {
+  background: var(--price-negative);
+}
+
+/*
+ * A flat subject has no length, so it is a 2 px mark at the anchor rather than
+ * nothing at all — *unchanged* is a figure and must be drawn, while *absent*
+ * draws no mark.
+ */
+.flat {
+  min-width: 2px;
+  background: var(--price-unchanged);
+}
+
+/*
+ * **A reference's tick, full height in the secondary ink.**
+ *
+ * It is never drawn at zero when the figure is absent — that decision is the
+ * producer's (`RelativeEntry.at` is `undefined`), because *absent* and
+ * *unchanged* are different claims and a tick at the anchor is the second one.
+ */
+.tick {
+  position: absolute;
+  inset-block: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink-secondary);
+}
+
+/*
+ * **The excess, as the GAP rather than as a fourth bar.**
+ *
+ * A thin bracket spanning the subject's end and one reference's tick, so the
+ * picture is literally the subtraction. The canvas rejected the alternative —
+ * a fourth bar drawing the difference itself — on three counts: it needs a
+ * third colour in a region whose palette already means price, a second track in
+ * the band with the least height to spare, and at 2.2 pts on a ±10 scale it
+ * makes the figure the reader came for the smallest mark on screen.
+ *
+ * Three borders rather than a line, so each bracket reads as a span with ends
+ * rather than as a rule that might be a gridline.
+ */
+.bracket {
+  position: absolute;
+  height: 4px;
+  border-right: 1px solid var(--ink-secondary);
+  border-left: 1px solid var(--ink-secondary);
+}
+
+/* The sector's, in the room above the bar. */
+.above {
+  top: 0;
+  border-top: 1px solid var(--ink-secondary);
+}
+
+/* The market's, in the room below it — two lanes, so they cannot overlap. */
+.below {
+  bottom: 0;
+  border-bottom: 1px solid var(--ink-secondary);
+}
+
+/*
+ * The printed ladder — 14 px, the room reserved whether or not it prints.
+ *
+ * The rung is on screen because **a length is a claim about a quantity**, which
+ * is the same argument the sector bars' ladder was built on.
+ */
+.ladder {
+  position: relative;
+  height: 14px;
+  margin-top: var(--space-4);
+}
+
+.ladderTick {
+  position: absolute;
+  top: 0;
+  font-family: var(--font-data);
+  font-size: var(--font-size-micro);
+  line-height: 14px;
+  color: var(--ink-secondary);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/*
+ * --- Band three: the three figures ---
+ *
+ * Three rows in a fixed order — subject, sector, market. **Not an `<ol>`**: the
+ * order is a vocabulary rather than a ranking, which is `BreadthLedger`'s own
+ * reading of the same question, and nothing in this region is ranked.
+ */
+.rows {
+  margin: var(--space-16) 0 0;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: var(--line-height-dense);
+}
+
+.row + .row {
+  margin-top: var(--space-4);
+}
+
+/*
+ * **A held row is room and nothing else** — in the list, off the screen, and
+ * `aria-hidden` from the component. `visibility` rather than `display`, which
+ * is the entire point: the pitch is the pitch whether or not the subject has a
+ * sector, so `/securities/SPY` is the same height as `/securities/NVDA`.
+ */
+.held {
+  visibility: hidden;
+}
+
+.rowLabel {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  min-width: 0;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-primary);
+}
+
+/*
+ * The ticker beside the label, in the data face.
+ *
+ * It is printed and not a link, which is deliberate: `one-home-for-imperative-navigation`
+ * governs where a destination may be built, and this region's three rows are a
+ * **reading** rather than a place to go — the reader is already on one of the
+ * three. Story 4.6's rule that only the ticker token is activatable is about
+ * rows that open somewhere; none of these does.
+ */
+.symbol {
+  font-family: var(--font-data);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  color: var(--ink-secondary);
+}
+
+.rowFigure {
+  margin: 0;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  white-space: nowrap;
+}
+
+/*
+ * The words that stand where a figure would be — **words rather than digits**,
+ * which is what tells a reader it is not a value. An em dash was refused for
+ * ADR 0029's reason: a fully-formed placeholder invites a reader to read a
+ * number that is not there.
+ */
+.absent {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-dense);
+}
+
+/*
+ * --- Band four: the footer ---
+ *
+ * **Two lines reserved at every width**, and the reason is the sector region's
+ * own, measured there rather than argued here: the scale clause's width is a
+ * function of the **rung** (`bars to ±1%` against `bars to ±50%`), and the rung
+ * steps outward during a session — so a one-line reserve makes the region's
+ * height depend on how heavy the day is, which is the one thing this region
+ * must not do. It is the one band that can still change height, because it
+ * renders clause by clause.
+ */
+.claim {
+  margin: var(--space-12) 0 0;
+  min-height: calc(2 * var(--line-height-micro));
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+  text-wrap: balance;
+}
+
+.scale {
+  white-space: nowrap;
+}
+
+/*
+ * **Nothing to describe: the room is kept and the ink is not drawn** — ADR
+ * 0029, and `visibility` rather than `display` so the sentence wraps
+ * identically whether or not the feed has spoken.
+ *
+ * One class for the zero rule, the ladder and the scale clause, because they
+ * are licensed by one predicate: whether any mark was drawn. Two thresholds
+ * would be two answers to one question.
+ */
+.quiet {
+  visibility: hidden;
+}
+
+/*
+ * --- The region with nothing to compare ---
+ *
+ * The whole geometry, held and invisible, with one sentence in the room it
+ * holds. `SectorPerformanceReservation`'s two-box arrangement, and the second
+ * box is not a tidiness preference: a one-box version — `visibility: hidden`
+ * with a `visible` override on the same element — un-hides every reserved row
+ * along with the sentence, because `visibility` is inherited. That was live for
+ * ten days one region over.
+ */
+.room {
+  position: relative;
+}
+
+.reserved {
+  visibility: hidden;
+}
+
+/*
+ * `No comparison yet.` — the fifth honest-nothing noun in this product, centred
+ * in the region's own room because it is about the region rather than about any
+ * of the three figures.
+ */
+.nothingArrived {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}
+
+/*
+ * --- Below 37rem: the two derived lines stack ---
+ *
+ * At 390 the region is about 308 px wide and the longest value string —
+ * `Measured from different closes` — cannot share a row with its twin without
+ * wrapping to three lines each. Two cells side by side is a 1fr/1fr grid; one
+ * cell per row is the same two claims in the same order.
+ *
+ * **`.line`'s reserve is deliberately NOT restated here.** It is two value
+ * lines at both widths, which is the same formula and therefore the same home:
+ * a second figure for the same band would be the thing that goes stale the
+ * first time either sentence changes, and the band's height only has to be
+ * stable *at a width* rather than across them.
+ */
+@media (width < 37rem) {
+  .derived {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+}

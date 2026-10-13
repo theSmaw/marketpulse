@@ -643,16 +643,17 @@ describe("the Security Explorer shell", () => {
       expect(screen.getByRole("region", { name: "Price" })).toBeTruthy();
     });
 
-    // **Five placeholders since Task 2.13.4**, which filled the Volume region
-    // and took the sixth away. Each says who fills it — Story 1.5's convention,
-    // and the reason it is asserted here rather than trusted: a placeholder
-    // whose label is dropped renders a dashed box with nothing in it, which
-    // reads as broken and goes red nowhere.
+    // **Four placeholders since Task 5.1.3**, which filled
+    // `Relative performance` and took the fifth away — five since Task 2.13.4,
+    // which filled Volume and took the sixth. Each says who fills it — Story
+    // 1.5's convention, and the reason it is asserted here rather than trusted:
+    // a placeholder whose label is dropped renders a dashed box with nothing in
+    // it, which reads as broken and goes red nowhere.
     //
     // The count going down is the thing worth asserting. A region that acquires
     // a chart and keeps its placeholder is a screen that says it holds a plan
     // while holding the plan's output.
-    expect(screen.getAllByText(/^Filled by /)).toHaveLength(5);
+    expect(screen.getAllByText(/^Filled by /)).toHaveLength(4);
 
     for (const plan of [
       "Filled by Epic 6 — Market Topology",
@@ -661,10 +662,13 @@ describe("the Security Explorer shell", () => {
       expect(screen.getByText(plan)).toBeTruthy();
     }
 
-    // Epic 5 fills three of them, which is why this one is `getAllBy`.
+    // **Two of Epic 5's three since Task 5.1.3**, which is why this one is
+    // still `getAllBy`: `Relative performance` draws, and
+    // `Abnormal-move indicators` and `Anomaly history` are Stories 5.2 and the
+    // deferral Gate 1 decision 7 recorded with a condition.
     expect(
       screen.getAllByText("Filled by Epic 5 — Anomaly Detection"),
-    ).toHaveLength(3);
+    ).toHaveLength(2);
   });
 
   it("gives every region its own sentence", async () => {
@@ -681,13 +685,18 @@ describe("the Security Explorer shell", () => {
     // describing one screen must not open on the same clause. Eight regions
     // arrived at once here, and the cheap check is exactly this — a locator
     // that resolves to two nodes means two surfaces are saying one thing.
-    // **Two** regions are not in this list, and for one reason: Price since
-    // 2026-09-13 and Volume since 2026-09-14 carry no sentence at all, because
+    // **Three** regions are not in this list, and for one reason: Price since
+    // 2026-09-13, Volume since 2026-09-14 and `Relative performance` since
+    // 2026-10-13 carry no sentence at all, because
     // each holds a drawing that says what the sentence said in less space. That
     // is a different claim from *its sentence is unique* and is asserted above.
+    // **`Relative performance` left this list on 2026-10-13** (Task 5.1.3),
+    // which makes **three** regions with no sentence rather than two, and for
+    // the same reason both of the others left it: what was left was a caption
+    // for a drawing immediately below it, in the one column on this screen
+    // where height moves two other regions.
     for (const opening of [
       "How unusual this security’s behaviour",
-      "This security measured against",
       "Which securities move with this one",
       "Primary-source evidence from SEC EDGAR",
       "Every earlier occasion this security",

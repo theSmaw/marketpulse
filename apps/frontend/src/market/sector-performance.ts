@@ -71,6 +71,21 @@ import {
 // the spelling `MarketProxyStrip` already uses for a stored close.
 
 /**
+ * **The weighting clause on its own, because a second region states it too.**
+ *
+ * Exported for `relative-performance.ts` (Task 5.1.3), whose footer covers two
+ * benchmark ETFs rather than eleven and therefore needs a different sentence
+ * around the same invariant: *a benchmark fund is capitalisation-weighted, so
+ * its move is not the average of its members’ moves.* Splitting the constant
+ * rather than writing the clause twice is the whole reason this exists —
+ * `one-home-for-the-cap-weighting-clause` fails the build on a second copy, and
+ * a second copy of exactly this clause is the defect `BarSeriesPanel` shipped
+ * for two years.
+ */
+export const CAP_WEIGHTED_CLAUSE =
+  "capitalisation-weighted, not the average of its members";
+
+/**
  * **The region's footer, in two clauses — the benchmark claim and the bar's
  * scale.**
  *
@@ -116,8 +131,7 @@ import {
  * where 25 px each side of zero is a tick). So it is its own string for the
  * stylesheet to hide, rather than a width the arithmetic here has to know about.
  */
-export const SECTOR_CLAIM =
-  "Each row is the sector’s benchmark ETF — capitalisation-weighted, not the average of its members";
+export const SECTOR_CLAIM = `Each row is the sector’s benchmark ETF — ${CAP_WEIGHTED_CLAUSE}`;
 
 /** The figure on a row, or the words that stand where one would be. */
 export interface SectorRow {
