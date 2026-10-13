@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
-import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
+import { MARKET_DATA_ROUTE_PATTERN, backendOrigin } from "../support/pair.js";
 
 /** When the gateway sent the frame (Task 3.6.4). Any instant; only its presence is load-bearing here. */
 const SENT_AT = "2026-09-16T14:02:00.512Z";
@@ -257,15 +257,25 @@ test("the page re-sends its subscription on every reconnect", async ({
     .poll(() => feed.subscriptions().length, { timeout: 10_000 })
     .toBeGreaterThan(before);
   // The same subscription, on the new socket. **The security on show leads it**
-  // — the screen asks for its own symbol and then for every row of the
-  // universe table below, which against CI's store is 516 in all.
+  // — the screen asks for its own symbol and then for every row of the universe
+  // table below, so the count is every security the universe response carried.
   //
-  // **516 since Task 2.3.9**, which deleted `PSKY` and `WBD` from the curated
-  // file. CI's store is built into an empty database, so the two are never
-  // inserted there and the table draws 516 rows; the deployed store holds 518
-  // rows of which 516 are `active`, and this figure is the row count rather
-  // than the active one.
+  // **Read from the response rather than written down** (Task 5.1.6). This was
+  // `toHaveLength(516)` with a comment saying the figure is CI's and that a
+  // developer's populated store would read 518 — which is true, correct about
+  // both stores, and **leaves the suite red on every machine that has one**.
+  // Task 2.3.9 untracked `PSKY` and `WBD` on 2026-10-12: CI builds its store
+  // into an empty database so the two are never inserted and the table draws
+  // 516 rows, while a store that already held them keeps the rows and draws
+  // 518 of which 516 are `active`. Both are correct, and the claim this
+  // assertion is actually making — *the resubscription covers every row the
+  // table drew* — is the same number on both.
+  const universe = await page.request.get(`${backendOrigin}/securities`);
+  const { securities } = (await universe.json()) as {
+    readonly securities: readonly unknown[];
+  };
+
   const resent = feed.subscriptions().at(-1) ?? [];
   expect(resent[0]).toBe("NVDA");
-  expect(resent).toHaveLength(516);
+  expect(resent).toHaveLength(securities.length);
 });

@@ -1,6 +1,6 @@
 # Story 5.1 — The Decisions, the Adjustment, & `Relative performance` Drawn
 
-**Status:** In progress — 2026-10-13
+**Status:** Complete — 2026-10-13 — `Relative performance` draws, and the six tasks found four things nobody was looking for: the rail is a `≥74rem` claim rather than a layout, the membership write rule the plan prescribed would have shipped an **empty** table, two different facts were one sentence on screen, and `Anomaly history` is filled by **no story in this epic**
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** nothing — this is the epic's first story
 **Epic scope covered:** market-relative movement, sector-relative movement
@@ -265,3 +265,87 @@ probe and a written verdict.
 
 Any 0–100 score, any band on screen, any percentile, the volume factor, the
 baseline, and `Unusual activity` on `/`.
+
+## Gate 2 — the acceptance criteria, verdicted — 2026-10-13
+
+**Kind** says what the verdict rests on: a **re-take** is a command a clean clone
+can run, a **reading** is dated and cannot be re-taken without the conditions that
+produced it. Two criteria were amended by the owner at Gate 1 and are verdicted
+**as amended**, with the originals quoted.
+
+| AC          | Verdict                              | Instrument                                                                                                                            | Kind              |
+| ----------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| 1           | **Met**                              | `pnpm --filter @marketpulse/frontend test relative-performance` (31 tests) and `pnpm e2e security-relative-performance.spec.ts` (4)   | re-take           |
+| 2 (amended) | **Met**                              | `sharedBasis` + six predicate tests; `refuses the subtraction on one basis of each while all three still draw`                        | re-take           |
+| 3           | **Met**                              | `one-home-for-the-cap-weighting-clause` in `pnpm invariants`, with `pnpm break the-weighting-clause-written-out`                      | re-take           |
+| 4 (amended) | **Met**                              | `a-sector-named-on-a-route-carries-its-curation-date` in `pnpm invariants`, with `pnpm break a-sector-with-its-curation-date-removed` | re-take           |
+| 5           | **Met, and it begins on 2026-10-12** | `pnpm test:database` (237 tests); `pnpm universe` twice against a populated store — 518 rows then nothing                             | re-take + reading |
+| 6           | **Met**                              | `relative-performance.ts` takes `asOf`-shaped arguments and holds no clock, socket or handle; `pnpm invariants`' existing clock rules | re-take           |
+| 7           | **Met**                              | Task 5.1.1's record; `git grep -n ANOMALY_BANDS`                                                                                      | re-take           |
+| 8           | **Met**                              | Twelve Gate 1 decisions and four more in the tasks, each with alternatives, and five reversal triggers that are conditions            | reading           |
+
+**AC 2's original** read: _"…**never one of each**… When the benchmark has not
+been heard from in the window, the comparison is **refused** rather than
+substituted."_ The owner **dropped the staleness clause and kept the basis
+refusal** at Gate 1, because an observation twenty minutes old is still a correct
+comparison of two twenty-minute-old moves and the one home for _the feed has
+stopped_ is the status bar. What shipped refuses a **mixed basis** — arithmetic
+rather than liveness — and says `Measured from different closes`.
+
+**AC 4's original** read: _"`classification.checkedOn` is **visible wherever a
+sector is named**."_ Taken literally that is a date beside every sector label,
+which ADR 0029's one-home rule forbids. The owner amended it to **satisfied by
+the source note, plus a mechanical co-presence check**, and that check now exists:
+every route rendering a component that reaches `SECTOR_LABELS` or `SECTOR_ETFS`
+— **derived, not listed**, so a region written next year is covered — must also
+render a source note. Proved against the file the next story would write: a new
+route drawing the region with no note goes red.
+
+### The sweeps
+
+**Upward — 2 live claims found and corrected in this sweep**, beside 4 corrected
+in flight during the story (`VISUAL-LANGUAGE.md`'s 324 px, Task 5.1.2's record,
+`CLAUDE.md`'s invariant 4, `UNIVERSE.md` §12.2). The two: `live-feed.ts`'s
+docblock said `Relative performance` _"is the first surface there that **will**"_
+read `overview` — false three tasks after it was written, and the same
+future-tense staleness the sentence above it had been corrected for; and
+`MARKET-OVERVIEW.md` §1.4's reversal trigger had **fired** and said nothing.
+
+**Sideways — 4 recipients, 4 of which were missing.** Story 5.2 (the rail's
+idiom, the 419 px width, one height, the band-before-score state, the approved
+register, and that it draws the region's first figure rather than filling it);
+Story 5.6 (the one amber position, the ETF-versus-peer-median decision deferred
+to it by name, the marker lane it must not re-site, and the `--chart-anomaly-lane`
+token it owes); Epic 6 (the reserved-panel finding's live half, and §1.4's
+trigger to measure **before** it fills `Market topology`); Epic 13 (written in
+Task 5.1.5 — the history's start date, the explicit clock, the absent index).
+
+**And the sweep found a misrouting, which is the thing this pass exists for.**
+The canvas page and `VISUAL-LANGUAGE.md` both said _Story 5.2 fills
+`Abnormal-move indicators` and Story 5.6 fills `Anomaly history`_. **Both halves
+were wrong.** 5.2 draws that region's first figure; 5.6 finishes it; and
+**`Anomaly history` is filled by nobody in Epic 5** — deferred at the epic's Gate
+1 with a condition, _the first surface that needs a score older than the
+process_. A constraint routed to a story that will never draw the region is a
+constraint nobody receives. Corrected on the canvas, in the document and in the
+epic file.
+
+### The architect's two questions
+
+**Does anything here deserve an ADR? Yes, one.**
+[ADR 0042](../../../docs/adr/0042-membership-is-a-history-and-it-starts-the-day-somebody-writes-it.md)
+— _Membership is a history, and it starts the day somebody writes it_. The
+decision is read by an epic eight ahead that does not exist yet, and a 150-line
+migration header is not where anybody looks for a decision. The comparison's own
+design decisions are **not** ADR-shaped: ADR 0026 makes the canvas the source of
+truth and they live there and in `VISUAL-LANGUAGE.md`.
+
+**Is any guard this story described a sentence rather than a mechanism? One
+was, and it is now mechanical.** AC 4's _satisfied by construction_ was exactly
+that shape — true on the day it was written and silent the day somebody adds a
+second route. It is `a-sector-named-on-a-route-carries-its-curation-date`, with a
+break. Two claims that **cannot** be made mechanical are in `docs/GAPS.md` with
+re-measures and conditions: the `≥74rem`-only rail adjacency, which no grep can
+see and whose browser form would pin a layout this epic is still filling; and the
+nine approved sentences, where what is unguarded is whether a **tenth** matches
+the register.

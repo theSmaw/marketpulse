@@ -228,6 +228,28 @@ qualifier were byte-identical in position and size. **That is the claim the
 retirement rests on**; if filling a region moves a figure, it is the owner's
 decision rather than a measurement to record.
 
+> **Fired 2026-10-13 by Task 5.1.4, on the OTHER route, and the owner took the
+> decision the trigger reserves for them.** The condition is written about `/`
+> and the first region whose filling moved a reader's figure was
+> `Relative performance` on `/securities/:symbol` — which this document does not
+> own and which inherits the rule anyway, because the rule is about reserved
+> regions rather than about this screen. Measured against the 263 px placeholder
+> it replaced: **+74 px at 1440, 1024 and 768, and +136 px at 390**, and what
+> moved is the source note and the 516-row `Tracked universe` table rather than
+> another reserved panel. **Accepted, with the figures recorded** — the move
+> happens once at the release, and nothing moves under a reader mid-session,
+> because the region is one height in all nine of its states at all four widths
+> (240 / 240 / 240 / 302 px, measured). The rejected alternative was capping the
+> filled region at the placeholder's height, which costs a band and needs a
+> `min-height`: a second home for four numbers nothing below `pnpm e2e` can
+> check.
+>
+> **What the trigger keeps**, now that it has fired once: the claim above is
+> still true of `/` itself, where five regions have filled and moved nothing a
+> reader reads. The next firing to watch for is on this screen — `Market
+topology` or `Unusual activity`, whose neighbours are figures rather than
+> hatch.
+
 ### 1.5 A region is a tab stop unconditionally
 
 [ADR 0039](../../docs/adr/0039-a-region-is-a-tab-stop-unconditionally.md), Task

@@ -592,11 +592,22 @@ export interface LiveFeedView {
    * `Market breadth` (4.4) and `Movers` (4.5), and `OverviewSourceNote` dates
    * the observation from it (4.8.7).
    *
-   * **What is still true is narrower than the sentence, and it is about the
+   * ~~**What is still true is narrower than the sentence, and it is about the
    * other route.** Nothing on `/securities/:symbol` reads this field — that
    * page's figures come from `observations` and its own series fetch — and
    * Story 5.1's `Relative performance` is the first surface there that will,
-   * which is why the staleness was found now.
+   * which is why the staleness was found now.~~
+   *
+   * **False since 2026-10-13, three tasks after it was written (Task 5.1.3),
+   * and left standing because it is the same lesson twice in one docblock.**
+   * `Relative performance` on `/securities/:symbol` reads this field now: it
+   * takes `overview.figures` for the broad market and `overview.sectors` for
+   * the sector benchmark, and the subject's own move still comes from
+   * `observations` and the universe answer. **Five regions across two routes
+   * render this field**, and the thing worth keeping is that a sentence
+   * written in the future tense about the next story goes stale the day that
+   * story lands — which is why the correction above it took five days to find
+   * and this one took three.
    */
   readonly overview: WireMarketOverview | undefined;
   /** Messages this browser could not read. Zero on every healthy deployment. */

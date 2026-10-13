@@ -1082,16 +1082,31 @@ on the time axis — written as a condition because the deferral with no conditi
 on it is how `BarSeriesPanel` came to draw its own feed line a hundred pixels
 above the surface that owned the fact.
 
-**Amber appears exactly once in the rail**, as 5.6's band fill behind its written
-band name, and the plot's marker lane is its one inheritance. Not on a
-difference, not on a score, not on a reference.
+**Amber appears exactly once in the rail**, as the anomaly band's fill behind its
+**written** band name, and the plot's marker lane is its one inheritance. Not on
+a difference, not on a score, not on a reference.
 
 **What the canvas page does not decide**, said here so the next reader does not
-look for it: the 0–100 score, its weights and its band thresholds (Story 5.2,
-and the owner has split it — bands early, the score later); whether stored bars
-become adjusted (Task 5.1.3); point-in-time universe membership (Task 5.1.5); and
-`Unusual activity` on `/`, which is a ranked list over the whole universe
-inheriting the movers idiom rather than this one (Story 5.3).
+look for it: the 0–100 score, its weights and its band thresholds — the region is
+filled **progressively**, a first figure in Story 5.2 and the composite score
+with its explanation in Story 5.6, which is the owner's _bands early, the score
+later_ split; whether stored bars become adjusted (Task 5.1.3); point-in-time
+universe membership (Task 5.1.5); and `Unusual activity` on `/`, which is a
+ranked list over the whole universe inheriting the movers idiom rather than this
+one (Story 5.4).
+
+> **Corrected 2026-10-13 at Story 5.1's close, by walking the epic rather than by
+> reading.** The first version of this section said _Story 5.2 fills
+> `Abnormal-move indicators` and Story 5.6 fills `Anomaly history`_, and **both
+> halves were wrong**. 5.2 is the trailing window and draws the region's first
+> figure rather than filling it; 5.6 is the composite score, which is what
+> finishes that region. And **`Anomaly history` is filled by nobody in Epic 5** —
+> it was deferred at that epic's Gate 1 with a condition rather than a slot,
+> _the first surface that needs a score older than the process_, because it is
+> the only surface needing scores **written down**, which is a new table and a
+> migration against a store with a live per-minute writer. The reserved shape on
+> the canvas stands; what changed is who inherits it, and a constraint routed to
+> a story that will never draw the region is a constraint nobody receives.
 
 **And one thing on that page is a design rather than a record.** Every state was
 reasoned about from the wire, not watched: CI's store holds 516 securities and

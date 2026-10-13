@@ -3992,6 +3992,22 @@ _Added 2026-10-12 (Task 4.9.5)._
 
 ## A replayed overview aggregate would compute over TODAY's universe, and the store holds no membership history
 
+> **Half-discharged 2026-10-13 by Task 5.1.5, and the entry stays for the half
+> that cannot be.** `security_memberships` exists — migration `0012`, append-only,
+> one row per transition, written by `pnpm universe` inside the transaction it
+> already runs, by a **state diff against the history** rather than from the
+> transitions a run performed (the obvious implementation would have shipped an
+> **empty table**, because a run over an unchanged universe changes nothing).
+> Measured on a populated store: the first run wrote **518 rows**, the second
+> wrote **nothing**. **What no mechanism guards is the part below**: nothing
+> stops a replayed aggregate from reading `currentMarketState` and filtering on
+> `status` as it does today, because nothing reads the new table at all yet —
+> and the history **begins at 2026-10-12**, so a replay of any earlier session
+> must refuse rather than fall back. Both constraints are written into Epic 13's
+> own `EPIC.md`. **Re-measure:** `git grep -n security_memberships -- 'apps/'` —
+> the day that returns a read site, this entry's remaining half is testable and
+> owes an assertion that an earlier date refuses.
+
 **This entry exists because ADR 0038 said it did.** The ADR's consequence list
 records the point-in-time universe problem and states that it _"is recorded in
 `docs/GAPS.md`"_ — **and it was not**, found 2026-10-12 by Task 4.9.4 going to
@@ -4076,3 +4092,56 @@ epic reference on one side only and observe that the check stays green.
 the first epic whose opening story changes which earlier epic it follows.
 _Added 2026-10-12 (Task 4.9.5), and the disagreement with the brief is the
 finding rather than the hole._
+
+## The rail is an adjacency at `≥74rem` only, and nothing asserts it at any width
+
+**Added 2026-10-13 by Story 5.1's close.** `/securities/:symbol` places its seven
+regions by span in source order with `grid-auto-flow: row` and no
+`grid-template-areas` at any breakpoint. At 1440 the arithmetic does produce a
+right-hand rail — three Epic 5 regions in column 3, measured at **453 453 453**
+— and the route's own comment says they _"share a column … rather than landing in
+three unrelated corners of the page"_. **At 1024 that sentence is false**:
+`.wide` collapses to `span 1`, `Abnormal-move indicators` and
+`Relative performance` land in column 2 and `Anomaly history` lands in column 1
+with `Connected securities` and `Relevant filings` between them, measured at x 41
+and x 537.
+
+**Nothing asserts it either way, at any width.** jsdom computes no layout, so the
+rail and its absence render identically in every unit, component and integration
+test; the browser suite asserts the regions' **order** and their tab stops and
+says nothing about which column they resolve into. The claim this product makes
+in prose — in the route's comment, in `VISUAL-LANGUAGE.md` and on the canvas —
+is therefore **true at one width and unguarded at all four**.
+
+**It is written as prose rather than made mechanical on purpose.** A
+`pnpm invariants` grep cannot see a resolved grid track, and the browser
+assertion that could — reading `getBoundingClientRect().x` for the three regions
+at four widths — would pin a layout this epic is still filling, going red on the
+story that legitimately changes it rather than on the defect. **Re-measure:**
+`pnpm probe /securities/NVDA --all` and read the `grid` line. **The condition for
+making it mechanical is the first story that makes the rail explicit at every
+width** — at that point the claim stops being an accident of span arithmetic and
+becomes a decision worth holding.
+
+## Nine of this product's honest-nothing sentences are approved copy that nothing can check
+
+**Added 2026-10-13 by Story 5.1's close.** `Relative performance` says one of
+nine sentences whenever it cannot draw a comparison — `No comparison yet.`,
+`Not heard from`, `No close to measure from`, `No move for this security yet`,
+`No move for the reference yet`, `Measured from different closes`, `A
+broad-market fund has no sector`, `This security is its sector's benchmark`, and
+`level` for a difference of exactly zero. The owner approved all nine on
+2026-10-13, so the register is inherited rather than re-invented by the stories
+that fill the other two rail regions.
+
+**What is guarded and what is not.** Each string is a named constant and the
+component tests assert the right one appears in the right state, so a **state**
+mapping to the **wrong** sentence goes red. What nothing checks is that a tenth
+sentence written in a later story **matches the register** — short, no terminal
+full stop except on the one region-level sentence, no connection word, and no
+longer than the two-line reserve the derived cells are sized for. A longer
+replacement re-flows every band under it and the region stops being one height,
+which only `pnpm probe` can see. **Re-measure:** read the constants at the head
+of `apps/frontend/src/market/relative-performance.ts` against this list, and
+`pnpm probe --story market-relativeperformance--basis-refused --widths 390`.
+**Owner: the first story that adds a tenth.**

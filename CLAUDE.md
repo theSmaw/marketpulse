@@ -481,9 +481,67 @@ cold link works. **The field that does it is on the page's heading row since
 retired the route description, the field's drawn label and the panel's
 _"Showing a default security"_ notice — three sentences that existed because the
 top of the screen was a column of prose beside a void. That screen is `PRODUCT_SPEC.md` §8.3's seven regions, of which
-**three hold something**: the identity block, the **Price** region and the
+~~**three hold something**: the identity block, the **Price** region and the
 **Volume** region. The other four are placeholders naming the epic that fills
-them, and that is on purpose.
+them, and that is on purpose.~~ — **false since 2026-10-13: four do, and the
+fourth is Epic 5's first figures on any screen.**
+
+**`Relative performance` draws, which is Story 5.1 (Epic 5's first story).** The
+security's own move, its **sector benchmark ETF's** and the **broad market's**,
+on **one track anchored at zero** — the subject a bar, the two references
+**ticks on that same track**, so the thing a reader wants is the **gap** rather
+than three lengths to subtract by eye — with **two separately labelled derived
+lines** above them (`behind by 2.20 pts`, `ahead by 3.78 pts`) and a footer
+naming what the references are. **No backend change**: all three figures already
+reached that route on the overview frame and were read by nothing there.
+Nothing is ranked — three figures read against each other is not a ranking.
+
+Five things from it are load-bearing further on. **The region REFUSES rather
+than guesses**: two moves are comparable only if they are the same kind of move
+measured from the same close, so one of each draws all three figures and
+withholds the subtraction — each figure is true, only the arithmetic over them
+is refused, and that state is reachable every day between the overnight backfill
+and the next bell. **A derived figure is stated in words and never drawn as a
+measurement** — `behind` / `ahead`, untinted, in **percentage points**, because
+a security down 4.2% against a sector down 6.0% is _ahead while falling_ and a
+tinted cell would say the stock rose inside a box whose other three figures are
+red; the rejected fourth bar is drawn on the canvas beside the chosen treatment.
+**The rail is an adjacency at `≥74rem` and an ORDER everywhere else** — the
+route's own comment says the three Epic 5 regions share a column, which is true
+at 1440 (the grid resolves **453 453 453**) and **false at 1024**, where two
+land in column 2 and `Anomaly history` lands in column 1 with two unrelated
+regions between them; nothing asserts it at any width and `docs/GAPS.md` carries
+it. **One height in every state** — **240 / 240 / 240 / 302 px** across nine
+states at the four widths, reserved band by band and never a `min-height`,
+because the region sits in a column of three; filling it moved the lower page
+**+74 px** (136 at 390) once, which is `MARKET-OVERVIEW.md` §1.4's trigger
+firing and the owner accepting it. And **_nothing has reached us yet_ and _the
+aggregate arrived carrying nothing_ are different sentences** — they were one
+for a day, and the second is the state **every gated run is permanently in**,
+where the region has three named rows of honest absence to draw instead of one
+sentence saying the socket is quiet when it is not.
+
+**What no gated machine has ever seen is a relative move at all**: CI's store is
+516 securities and zero bars, so every comparison there is `No comparison yet.`
+for ever, and **no person has watched this region against a real feed** —
+`LIVE-REHEARSAL.md` carries row 5.1 **unwatched**, written before the sitting
+rather than at the close, and `pnpm invariants` will refuse Epic 5's close until
+it is filled.
+
+**And the store now records point-in-time universe membership**, which is a
+sentence about the database rather than the screen. `security_memberships` —
+append-only, one row per transition, `effective_from` carrying the curated
+file's own date and **no default on that column** — discharges in part the dated
+qualification invariant 4 has carried since 2026-10-12
+([ADR 0042](docs/adr/0042-membership-is-a-history-and-it-starts-the-day-somebody-writes-it.md)).
+**The history begins on 2026-10-12 and says nothing about any earlier session**,
+so a replay of one must refuse rather than fall back to today's roster. Nothing
+reads it until Epic 13.
+
+The other three regions are placeholders naming the epic that fills them, and
+that is on purpose — though **`Anomaly history` is filled by no story in Epic 5**:
+it was deferred at that epic's Gate 1 with a condition, _the first surface that
+needs a score older than the process_.
 
 Both plots draw real minute or daily bars on **one shared time axis**, answer
 **one reading** from one crosshair, and can be driven by pointer or keyboard from
