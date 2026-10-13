@@ -102,6 +102,33 @@ false`, so the floor never fires and the panel sits silent for ever. That is
 6. `pnpm verify` green; `pnpm e2e` green; the probe screenshots looked at, at
    all four widths.
 
+## Amended by Task 5.1.3 — 2026-10-13: eight sentences shipped unapproved, and this task owns whether they are the right words
+
+Task 5.1.3 had to put words on screen for every absence it drew, and only one of
+them — `No comparison yet.` — comes from the canvas or `VISUAL-LANGUAGE.md`. The
+other eight were chosen by the implementer, are shipped, and are **copy
+decisions the owner has not seen**:
+
+| State                                 | Shipped string                                 |
+| ------------------------------------- | ---------------------------------------------- |
+| Nothing observed anywhere             | `No comparison yet.` (the one that is decided) |
+| A reference we hold nothing for       | `Not heard from`                               |
+| A price with nothing to measure from  | `No close to measure from`                     |
+| The subject has a figure and no move  | `No move for this security yet`                |
+| A reference has a figure and no move  | `No move for the reference yet`                |
+| Two bases that do not subtract        | `Measured from different closes`               |
+| An `index_etf`, which has no sector   | `A broad-market fund has no sector`            |
+| A `sector_etf`, comparing with itself | `This security is its sector’s benchmark`      |
+| A difference of exactly zero          | `level` (rather than `ahead by 0.00 pts`)      |
+
+They are in `apps/frontend/src/market/relative-performance.ts` as named
+constants, so changing one is a one-line edit with the component tests following.
+**Three things to weigh rather than re-type**: `Measured from different closes`
+is the longest string in the region and the two-line reserve on the derived cells
+is sized for it, so a longer replacement re-flows every band under it; `level` is
+the only one that is a word where every sibling is a sentence; and none of them
+may grow into a second connection word, which `pnpm invariants` refuses by name.
+
 ---
 
 ## What was done — 2026-10-13

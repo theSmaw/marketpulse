@@ -976,15 +976,30 @@ the route's own comment, which is true at 1440 and false at 1024: the layout is 
 span grid with no named areas, so below 74rem `.wide` collapses to `span 1`, two
 of the three regions land in column 2 and `Anomaly history` lands in column 1
 with `Connected securities` and `Relevant filings` between them. At 1440 the
-arithmetic does produce a real right-hand rail, **324 px** wide, and every
-specimen on the canvas is drawn at that width rather than at a comfortable one.
-Making the rail explicit at every width is a change to seven regions' placement
-and was deliberately not taken here.
+arithmetic does produce a real right-hand rail — a **453 px** column with a
+**419 px** content box, and every specimen on the canvas is drawn at 419 rather
+than at a comfortable width.
+
+> **Corrected 2026-10-13 by Task 5.1.3, hours after this section was written:
+> the figure here was 324 px and it had been taken on the wrong screen.**
+> `pnpm probe /securities/NVDA` resolves the security page's grid at 1440 to
+> **453 453 453**; at 1024 it is **480 480**, at 768 **352 352**, at 390 one
+> column of **342**. The landing page's narrow column — a different screen with
+> different regions — resolves to **342** at 1440, and 324 was neither of them.
+> The structural claim above was separately verified rather than inherited: at
+> 1024 the two columns sit at x 41 and x 537, with `Abnormal-move indicators`
+> and `Relative performance` both in column 2, `Anomaly history` in column 1,
+> and `Connected securities` and `Relevant filings` between them at y 1203.
+> **A width is thirty seconds to measure and reads identically whether it was
+> measured or inferred**, which is this file's own _measure rather than cite_
+> rule meeting a figure written in the same week.
+> Making the rail explicit at every width is a change to seven regions' placement
+> and was deliberately not taken here.
 
 **A comparison is ONE anchored track, and the references are ticks on it.** Three
 moves — the subject, its sector benchmark and the broad market — share one track
 anchored at zero: the subject draws a **bar**, the two references draw **ticks**.
-One track rather than three is what makes the region fit 324 px, and it is also
+One track rather than three is what makes the region fit a 419 px content box, and it is also
 what makes the answer visible, because the thing a reader wants is the
 **distance** between the subject's end and a reference's tick. Three bars from
 zero is three lengths to subtract by eye. **Nothing in the region is ranked** —

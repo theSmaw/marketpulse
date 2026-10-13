@@ -84,6 +84,29 @@ wrong conclusion from it.
 5. The upload is reported rather than asked about, and the page's address is
    recorded in the task.
 
+## Amended by Task 5.1.3 — 2026-10-13: the rail's width was measured, and 324 px was taken on the wrong screen
+
+Every `324 px` in the record below is **wrong**, and the record is left standing
+because it is what the page said when it was written. Measured the same day with
+`pnpm probe /securities/NVDA`: the security page's grid resolves to
+**453 453 453** at 1440, so the rail is a **453 px** column with a **419 px**
+content box; at 1024 it is **480 480**, at 768 **352 352**, and at 390 one column
+of **342**. The landing page's narrow column — a different screen with different
+regions — resolves to **342** at 1440. **324 was neither of them.** The canvas
+page and `VISUAL-LANGUAGE.md` are corrected, the specimens are redrawn at 419,
+and the correction is on the page rather than only in this file.
+
+The structural claim the page is actually about was verified rather than
+inherited, and it holds: at 1024 the two columns sit at x 41 and x 537, with
+`Abnormal-move indicators` and `Relative performance` both in column 2,
+`Anomaly history` in column 1, and `Connected securities` and `Relevant filings`
+between them at y 1203.
+
+**The lesson is the cheap one.** A width is thirty seconds of `pnpm probe` and
+reads identically whether it was measured or inferred — and this figure was
+inferred, in a task whose own brief said the specimens must be drawn at the
+rail's _real_ width rather than a comfortable one.
+
 ---
 
 ## What was done — 2026-10-13

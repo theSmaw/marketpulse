@@ -878,6 +878,35 @@ export const BREAKS = [
   },
 
   {
+    name: "the-weighting-clause-written-out",
+    proves:
+      "The second region that states the capitalisation-weighting caveat " +
+      "writing the clause out instead of interpolating the one constant puts " +
+      "one fact about one fund in two homes, on two screens 600 px and one " +
+      "route apart — which agree the day they are written and diverge the " +
+      "day either is corrected — and the invariant catches it.",
+    // **The break is the file the NEXT author writes, not the one the check
+    // was written around.** Interpolating a constant out of another module's
+    // exports reads like reaching across a seam, so writing the sentence out
+    // here is the tidy-looking edit — exactly the shape `BarSeriesPanel`'s
+    // duplicated feed line took for two years. Note the substitution leaves
+    // `CAP_WEIGHTED_CLAUSE` imported and unused, which `pnpm lint` would
+    // catch and this check's own command deliberately does not: the point is
+    // that the *claim* has two homes, and a lint error is not what stops a
+    // reader from being told two different things.
+    file: "apps/frontend/src/market/relative-performance.ts",
+    find:
+      "export const REFERENCE_CLAIM = `Each reference is a benchmark ETF " +
+      "\u2014 ${CAP_WEIGHTED_CLAUSE}`;",
+    replace:
+      "export const REFERENCE_CLAIM =\n" +
+      '  "Each reference is a benchmark ETF \u2014 capitalisation-weighted, ' +
+      'not the average of its members";',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-cap-weighting-clause",
+  },
+
+  {
     name: "feed-words-in-a-renderer",
     proves:
       "A renderer writing its own words for a feed is a claim about US market " +

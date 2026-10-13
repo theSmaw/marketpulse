@@ -308,4 +308,29 @@ export {
 } from "./measured-set.js";
 export type { MeasuredQualifier, MeasuredSet } from "./measured-set.js";
 export { barFraction, ladderClause, ladderTicks } from "./ranked-bar.js";
-export type { LadderTick } from "./ranked-bar.js";
+export type { BarScaleStep, LadderTick } from "./ranked-bar.js";
+// **`Relative performance`'s read side** (Task 5.1.3) — three moves, two
+// differences and the basis predicate that refuses the subtraction, from
+// figures already on the page. The same split as the three regions above: the
+// pure half is here and `RelativePerformance` draws it. The rung set is this
+// region's own and is deliberately not `SectorLadderStep`, which is on the
+// wire; see `relative-performance.ts`.
+export {
+  NO_COMPARISON,
+  REFERENCE_CLAIM,
+  RELATIVE_RUNGS,
+  RESERVED_RELATIVE,
+  fitRelativeRung,
+  relativePerformance,
+  sharedBasis,
+  subjectFigure,
+} from "./relative-performance.js";
+export type {
+  RelativeComparison,
+  RelativeEntry,
+  RelativeExcess,
+  RelativePerformance,
+  RelativeRole,
+  RelativeRung,
+  RelativeSubject,
+} from "./relative-performance.js";
