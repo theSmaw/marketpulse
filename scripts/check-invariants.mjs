@@ -301,13 +301,56 @@ const REHEARSAL_LEDGER_EPICS = [
  * having to know the file's current spelling for "not yet". The empty-cells
  * test is kept beside it rather than replaced, because a row can carry a date
  * and say nothing, and that is a different lie.
+ *
+ * ## The waiver, added 2026-10-13, and why it is not a hole
+ *
+ * This check's own argument for keying on the **epic close** is that the close
+ * is "where the constraint must be cleared **or consciously waived**". It said
+ * that from the day it was written and had no way to express the second half,
+ * so the only available waiver was deleting the check or lying in the row —
+ * and this repository has already recorded where that leads: *going red on a
+ * constraint nobody can clear is how a check gets deleted.* Epic 3 closed with
+ * Story 3.3's row empty for a reason the epic accepted, and nothing recorded
+ * that as a decision.
+ *
+ * **A waived row is one whose Date cell reads `WAIVED YYYY-MM-DD` and which
+ * carries a reason and an owner**, and it costs more to write than a watched
+ * row rather than less. The three conjuncts are the point: a date, so a waiver
+ * is a dated decision rather than a standing state; a stated **reason**, so
+ * "we ran out of time" has to be typed rather than implied; and an **owner**,
+ * so the obligation moves somewhere rather than evaporating. A bare `WAIVED`,
+ * a `WAIVED` with no owner, an `**OPEN**` and an empty row all still fail.
+ *
+ * **And a waiver is printed by the run rather than passing silently** — see the
+ * caller. A waiver nobody sees in the output is the hole; a waiver named in
+ * every `pnpm invariants` run until somebody clears it is a standing
+ * invitation to clear it.
  */
 function unwatchedRehearsalRow(row) {
   const cells = row.split("|").slice(1, -1);
   const date = (cells[1] ?? "").trim();
   const account = cells.slice(1).map((cell) => cell.trim());
+  const bare = date.replaceAll("*", "").trim();
 
-  if (!/^\d{4}-\d{2}-\d{2}/.test(date.replaceAll("*", "").trim())) {
+  if (/^WAIVED\b/.test(bare)) {
+    if (!/^WAIVED \d{4}-\d{2}-\d{2}/.test(bare)) {
+      return `its date cell reads \`${date}\` — a waiver carries the date it was taken`;
+    }
+
+    const prose = account.slice(1).join(" ");
+
+    if (!/\bOwner:/.test(prose)) {
+      return `it is waived and names no \`Owner:\`, so the obligation has nowhere to go`;
+    }
+
+    if (prose.replace(/\s+/g, " ").length < 120) {
+      return "it is waived and states no reason, so the decision is not recorded";
+    }
+
+    return null;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}/.test(bare)) {
     return `its date cell reads \`${date}\` rather than a date`;
   }
 
@@ -316,6 +359,16 @@ function unwatchedRehearsalRow(row) {
   }
 
   return null;
+}
+
+/** Is a rehearsal row a dated, owned waiver? Used only to REPORT it. */
+function waivedRehearsalRow(row) {
+  const cells = row.split("|").slice(1, -1);
+  const bare = (cells[1] ?? "").trim().replaceAll("*", "").trim();
+
+  return /^WAIVED \d{4}-\d{2}-\d{2}/.test(bare)
+    ? { story: (cells[0] ?? "").trim(), on: bare }
+    : null;
 }
 
 /**
@@ -1696,6 +1749,24 @@ const INVARIANTS = [
             `${epic.closeStoryPath} has no \`**Status:**\` line, so there ` +
               "is no way to tell whether the epic has closed.",
           );
+        }
+
+        // **A waiver is REPORTED rather than passed over.** The hole in a
+        // waiver is not that it exists — this check's own comment always
+        // contemplated one — it is a waiver nobody sees. So every dated,
+        // owned waiver is named on stdout in every run until somebody clears
+        // it, which turns the cheapest possible silence into a standing
+        // invitation. `pnpm invariants` still exits 0: the claim holds,
+        // because a waived row is a decision and not an omission.
+        for (const row of rows) {
+          const waived = waivedRehearsalRow(row);
+
+          if (waived !== null) {
+            process.stdout.write(
+              `    ⚠ Epic ${epic.epic}'s rehearsal row ${waived.story} is ` +
+                `${waived.on} — a dated, owned waiver rather than a watch.\n`,
+            );
+          }
         }
 
         if (!/\b(complete|closed)\b/i.test(closeStatus[1])) continue;

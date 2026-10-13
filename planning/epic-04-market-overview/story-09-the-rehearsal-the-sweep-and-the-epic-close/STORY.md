@@ -1,6 +1,6 @@
 # Story 4.9 — The Rehearsal, the Sweep, & Epic 4's Close
 
-**Status:** In progress — 2026-10-12
+**Status:** **COMPLETE — 2026-10-13, eleven tasks.** Epic 4 is closed. A person watched the deployed product during the 2026-10-12 session and reported that everything looked good; **six rehearsal rows are filled in the shape Epic 3 set and the seventh is a dated, owned WAIVER** — the 390 phone, owned by Epic 5. The close's own gate refused it until that waiver was explicit, which is the first thing that gate has caught. **48 acceptance criteria across Stories 4.1–4.8: 29 met, 17 met with a stated limit, 2 superseded, 1 not met and now waived.**
 **Epic:** [Epic 4 — Market Overview](../EPIC.md)
 **Depends on:** 4.7 — **corrected 2026-10-07**, see the amendment at the foot
 **Epic scope covered:** the close
