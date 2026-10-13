@@ -1,6 +1,6 @@
 # Epic 5 — Anomaly Detection
 
-**Status:** Not started
+**Status:** **In progress — decomposed into seven stories on 2026-10-13, none started.** Eight decisions were taken at Gate 1 and five of them shape the stories that follow; the largest was not in this file at all until today — the store holds **raw** bars, and an unadjusted split is a −90% return at the 100th percentile of every distribution it touches.
 **Sequence:** 5 of 15 — follows Epic 4 (Market Overview)
 **Spec references:** PRODUCT_SPEC.md §11 (unusual activity detection)
 
@@ -21,6 +21,63 @@ Automatically identify market behaviour worth investigating.
 ## Outcome
 
 MarketPulse continuously assigns explainable anomaly scores to securities.
+
+## Stories — split 2026-10-13
+
+> 5.1 → 5.2 → 5.3 → **5.4** → 5.5 → 5.6 → 5.7
+
+| #   | Story                                                                                                                                    | Depends on | Visible?                                                                 |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------ |
+| 5.1 | [The Decisions, the Adjustment, & `Relative performance` Drawn](story-01-the-decisions-the-adjustment-and-relative-performance/STORY.md) | nothing    | **Yes** — the first of three reserved regions on the security page fills |
+| 5.2 | [The Trailing Window, & the 5-Minute Return](story-02-the-trailing-window-and-the-five-minute-return/STORY.md)                           | 5.1        | **Yes** — `Abnormal-move indicators` draws its first figure              |
+| 5.3 | [The Baseline, & the Price Percentile](story-03-the-baseline-and-the-price-percentile/STORY.md)                                          | 5.2        | **Yes** — the percentile appears beside the return                       |
+| 5.4 | [`Unusual activity` on the Landing Page](story-04-unusual-activity-on-the-landing-page/STORY.md)                                         | 5.3        | **Yes** — **`/`'s last reserved region fills**                           |
+| 5.5 | [The Volume Factor, & the Tape It Rests On](story-05-the-volume-factor-and-the-tape-it-rests-on/STORY.md)                                | 5.3        | **Yes** — `volume 4.1× typical`, with its tape named                     |
+| 5.6 | [The Composite Score, & Its Explanation](story-06-the-composite-score-and-its-explanation/STORY.md)                                      | 5.4, 5.5   | **Yes** — **`ANOMALY 91`** and its account                               |
+| 5.7 | [The Rehearsal, the Sweep, & Epic 5's Close](story-07-the-rehearsal-the-sweep-and-the-epic-close/STORY.md)                               | 5.6        | no                                                                       |
+
+### Why this order
+
+**Every story from the first one onward puts something new on a screen**, which
+is the instruction this split was given. The reserved regions make that cheap:
+there are **four** already drawn, named and holding their place — one on `/` and
+**three on the security page**, whose own sentences decompose §11's factors
+one-to-one and were written by an earlier story that nobody had acted on.
+
+**The two expensive unknowns are de-risked in the middle rather than discovered
+at the end.** The 60-day baseline is **11.72M minute rows ≈ 2.23 GiB** against a
+256 MB `shared_buffers`, so a full-universe cold pass is **4–13 minutes** and
+cannot live in the socket callback, a route or a migration — that lands in 5.3.
+The volume factor rests on **IEX's share of volume, which nothing in this
+repository has measured** — that lands in 5.5, which opens by measuring it.
+
+**`Relative performance` is first because it needs no history at all.** The join
+already computes `changeFromClose` for all 516 every batch, so the security's
+move, its benchmark's and `SPY`'s are three reads from figures already on the
+wire — the 0.118–0.123 ms shape rather than the 1.29 ms per-security derivation.
+
+**`/` fills at 5.4 rather than 5.6, and that is as early as is honest.** The
+owner asked for the landing page sooner, with bands rather than a numeric score.
+The earliest defensible point is **after the percentile exists**, because a band
+classifies how unusual something is, and ranking on the relative move alone
+while calling the region `Unusual activity` is the over-claim this epic is most
+exposed to.
+
+### What this epic deliberately does NOT build
+
+- **No anomaly score in the 518-row universe table.** §9 specifies a short
+  list, and `SecurityRow` already composes `AnomalyBadge`, so the edit that
+  fires Epic 14's original trigger is twenty minutes long. The refusal is
+  recorded in Story 5.1 with its reason.
+- **`Anomaly history`** — deferred at Gate 1 with a condition rather than a
+  slot: _the first surface that needs a score older than the process_. It is
+  the only surface needing scores written down, which means a new table and a
+  migration against a store with a live per-minute writer.
+- **`Investigate`** — not in this epic in any form, not even disabled. A
+  natively disabled control is not focusable, so anything `aria-describedby`
+  hangs off it is unreachable, and this product has shipped that defect once
+  already. It belongs on the security page beside the factors it automates, in
+  Epic 7, and that is written into Epic 7's own file.
 
 ## Scope
 

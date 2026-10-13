@@ -83,3 +83,43 @@ it composes rather than replaces, so a better landing of your own still wins.
 And a roving list inside a region clamps rather than wraps and is keyed on the
 item's **identity**, never its index — a held index is a second, disagreeing copy
 of where focus is (ADR 0039, Task 4.6.5).
+
+## Handed here by Epic 5's decomposition — 2026-10-13: a confidence chip and an anomaly band are both four-member ordered vocabularies, and they must not share a component
+
+**Written here rather than linked, because this epic is the first place the two
+will be on one screen and Epic 5's files are not where this epic reads.**
+
+Epic 5 ships an **anomaly band** — `normal / elevated / high / extreme`, four
+members, ordered, rendered as a chip with **the band's name written inside an
+amber fill**. Invariant 5 ships a **confidence level** —
+`CONFIRMED / SUPPORTED / POSSIBLE / UNKNOWN`, four members, ordered, and this
+epic is where it first reaches a screen.
+
+**They are orthogonal in meaning and identical in shape**, which is the
+dangerous combination. A band says _how unusual the behaviour is_; a confidence
+level says _how well evidenced an explanation of it is_. A security can be
+`extreme` and `UNKNOWN` at once, and that pair is the single most important
+thing this product can say — `PRODUCT_SPEC.md` §5.3's _"I don't currently have
+enough evidence to explain this move"_ as a successful outcome.
+
+**Three rules, each cheap now and expensive after the first confidence chip is
+drawn:**
+
+1. **They must not share a chip component.** One component rendering two
+   four-member vocabularies is how the two come to look like one scale with
+   eight steps.
+2. **Confidence must never be four amber fills.** The amber ramp is **anomaly
+   intensity** — its greyscale separations were measured at 1.12, 1.43 and 1.59,
+   and the band's name is written inside the fill _because_ that is not enough
+   to name a step. Confidence is about **evidence**, which this product renders
+   in **weight and hierarchy**, never in a ramp outside the contrast floor.
+3. **A band and a confidence chip must never sit in one row without their
+   labels** — `ANOMALY` and `CONFIDENCE`. Two unlabelled four-step chips side by
+   side read as one compound verdict.
+
+**And one word to refuse.** Do not reuse `UNKNOWN` for _no anomaly score_. It
+already has two homes — invariant 5's confidence level, and
+`MarketOverviewEntry`'s `state: "unknown"` for nothing observed and nothing
+stored. **Epic 5's no-score state is an absence rather than a value**, the way
+`change.percent` is `null` and `directionOf` returns `undefined`, so
+`ANOMALY_BANDS` stays four-member-exhaustive.
