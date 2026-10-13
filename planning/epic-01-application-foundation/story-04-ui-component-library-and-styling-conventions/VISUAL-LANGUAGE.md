@@ -961,6 +961,130 @@ paragraph is rejected for the reason the Security Explorer deleted three
 sentences in Epic 2: **a second home for a claim the regions make goes stale
 silently.**
 
+## The rail, and the anchored comparison track — added 2026-10-13 by Task 5.1.2
+
+The security page reserved **three** regions for Epic 5 — `Abnormal-move
+indicators`, `Relative performance`, `Anomaly history` — each with a sentence
+already written, placed by a comment saying they share a column because they all
+answer _how unusual is this?_. Story 5.1 fills the middle one. The canvas page is
+`The rail that says how unusual.dc.html`, and it draws the shape all three
+inherit so that two later stories amend rather than redraw.
+
+**The rail is an adjacency at ≥74rem and an ORDER everywhere else, and it must
+never be written down as a column.** This is the one correction the page makes to
+the route's own comment, which is true at 1440 and false at 1024: the layout is a
+span grid with no named areas, so below 74rem `.wide` collapses to `span 1`, two
+of the three regions land in column 2 and `Anomaly history` lands in column 1
+with `Connected securities` and `Relevant filings` between them. At 1440 the
+arithmetic does produce a real right-hand rail, **324 px** wide, and every
+specimen on the canvas is drawn at that width rather than at a comfortable one.
+Making the rail explicit at every width is a change to seven regions' placement
+and was deliberately not taken here.
+
+**A comparison is ONE anchored track, and the references are ticks on it.** Three
+moves — the subject, its sector benchmark and the broad market — share one track
+anchored at zero: the subject draws a **bar**, the two references draw **ticks**.
+One track rather than three is what makes the region fit 324 px, and it is also
+what makes the answer visible, because the thing a reader wants is the
+**distance** between the subject's end and a reference's tick. Three bars from
+zero is three lengths to subtract by eye. **Nothing in the region is ranked** —
+the order is fixed at subject → sector → market, because ranking three figures
+answers a question nobody asked.
+
+**The rung set is `±1 / ±2 / ±5 / ±10 / ±25 / ±50`**, chosen from
+`max(|subject|, |sector|, |market|)` and **raised but never lowered within a
+session**. The sector ladder's four rungs saturate on a single name — a security
+moves 20%+ on an earnings day — and a bracket that rescales under a reader is
+worse than a bar that does.
+
+**A derived figure is stated in words and is not drawn as a measurement.** The
+two differences — `subject − reference`, in percentage points — sit above the
+track as `behind by 2.2 pts` / `ahead by 3.6 pts`. The word carries the
+direction, so it survives greyscale with no hue at all, and **the two cells are
+not tinted**: a difference is not a price, and on a down day where the security
+beat its sector a tinted cell reads green and red at once. The rejected
+alternative is on the canvas beside the chosen one — a fourth bar drawing the
+difference itself — and it loses on three counts: it needs a third colour in a
+region whose palette already means price, it needs a second track in the band
+with the least height to spare, and 2.2 pts on a ±10 scale is **11% of the
+track**, so the figure the reader came for would be the smallest mark on screen.
+
+**`No comparison yet.` is the fifth honest-nothing noun in this product**, beside
+`no history stored for NVDA yet`, `no bars stored for this window`, `unknown`,
+and breadth's `heard from`. The region has **seven** states and every one of them
+is a correct outcome with its own sentence: complete; nothing observed; no move
+for the subject with both references present; **no sector**, where the clause is
+absent rather than empty; a reference that is silent, whose tick is **not drawn at
+zero** because absent and unchanged are different claims; the **basis refusal**,
+where three figures measured from two different closes do not subtract and the
+region says so rather than producing a number that looks like the answer; and the
+subject **being** a reference, on `/securities/XLK` and `/securities/SPY`.
+
+**Staleness is not one of them.** A comparison of two twenty-minute-old moves is
+a correct comparison, the one home for _the feed has stopped_ is the status bar,
+and `pnpm invariants` refuses a second connection word by name.
+
+**One height in every state**, because the region sits in a column of three and a
+region that shrinks when a benchmark arrives moves `Anomaly history` under the
+reader. `Movers` paid this already — 5 rows → 2 shrank that region by 81 px and
+stepped the whole lower page. The reservation is band by band: two headline
+cells, a 30 px track, a 14 px ladder, three rows, and a footer with a **two-line
+floor** — the footer being the one band that can still change height, because it
+renders clause by clause.
+
+**No new colour.** Every mark is an existing token: the price palette on the
+three moves, `--mp-ink-2` for a reference tick, `--mp-line-strong` for the zero
+rule, grey for everything else. What is new is **geometry** — a 30 px track, a
+14 px ladder, a 2 px tick, a 12 px bar — and it stays component-local rather than
+becoming tokens. **Reversal trigger:** the second surface in this product that
+draws an anchored track, which is Epic 9's peer comparison by name.
+
+**And the chart's anomaly lane was already reserved — the canvas page drew it in
+the wrong place first, and that is the correction rather than a new decision.**
+_Room reserved for what arrives later_ above gives Epic 5 **a 16 px lane inside
+the plot's top padding**, at the bar's x, carrying **the score as a number**
+because the amber ramp is a fill behind a _written_ band name and no name fits at
+a bar's width. The first drawing on the canvas put the lane **below** the plot,
+outside it, and it is wrong for two reasons that are both already written down:
+the space is let — Epic 9's `--chart-filing-lane` is 14 px below the baseline and
+above the tick labels — and the top padding is already paid for, so a lane in it
+**displaces nothing** while anything below the baseline displaces something. The
+page now draws the reserved placement. Three things do travel with it as
+constraints rather than as decisions: it is derived from the **bars** rather than
+from the window, so it **stops at the coverage edge**; its count is bounded by
+**occasions** rather than by bars, which is the only reason it is drawable at all
+at the 9,750-bar cap, and **a mark per bar is refused in advance**; and the lane
+and the rail share one vocabulary — same four band words, same score out of 100,
+the band a word and the score a number. Nothing in Story 5.1 draws it. **And the lane is reserved by prose
+only** — `--chart-filing-lane: 14px` exists and there is no
+`--chart-anomaly-lane`, which is the weaker half of the lesson that made the
+filing lane a token in the first place: _reserved space that exists only as a
+number inside one component's stylesheet is reserved by nobody_, and space
+reserved only in a document is reserved by less. The first component that draws
+the lane owes `--chart-anomaly-lane: 16px` in the same change.
+**Reversal trigger:** the first commit that renders an anomaly occasion anywhere
+on the time axis — written as a condition because the deferral with no condition
+on it is how `BarSeriesPanel` came to draw its own feed line a hundred pixels
+above the surface that owned the fact.
+
+**Amber appears exactly once in the rail**, as 5.6's band fill behind its written
+band name, and the plot's marker lane is its one inheritance. Not on a
+difference, not on a score, not on a reference.
+
+**What the canvas page does not decide**, said here so the next reader does not
+look for it: the 0–100 score, its weights and its band thresholds (Story 5.2,
+and the owner has split it — bands early, the score later); whether stored bars
+become adjusted (Task 5.1.3); point-in-time universe membership (Task 5.1.5); and
+`Unusual activity` on `/`, which is a ranked list over the whole universe
+inheriting the movers idiom rather than this one (Story 5.3).
+
+**And one thing on that page is a design rather than a record.** Every state was
+reasoned about from the wire, not watched: CI's store holds 516 securities and
+zero bars, so every comparison there is `No comparison yet.` for ever, and the
+deployed store produces the complete, silent-reference and basis-refusal states
+only **mid-session**. The photograph that corroborates it — four widths, in
+greyscale, against the shipped path — is owed by Story 5.1's close.
+
 ## What this is not
 
 Stated explicitly, because each one is a thing somebody will otherwise add in good faith.
