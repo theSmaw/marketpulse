@@ -878,6 +878,31 @@ export const BREAKS = [
   },
 
   {
+    name: "a-span-spelled-as-the-observation-window",
+    proves:
+      "A measurement SPAN between two endpoints of one security that reaches " +
+      "for the eligibility window's own constant collapses two different " +
+      "quantities into one name \u2014 a freshness cutoff over a population " +
+      "and a distance between two named bars \u2014 and the invariant's third " +
+      "conjunct catches it.",
+    // **The break is the tidy-looking edit.** `BREADTH_WINDOW_MINUTES` is
+    // already five, already exported, already the product's one home for *a
+    // window of five minutes*, and reaching for it here reads as reuse rather
+    // than as a conflation. It is the conflation: ADR 0040's five minutes is
+    // *is this security's newest observation still about now*, applied to a
+    // whole population in one shared pass; this file's five minutes is *how
+    // far apart must two bars be*, applied to one security and REFUSED rather
+    // than filtered. The day somebody re-measures the coverage curve and moves
+    // the eligibility window, the return's span moves with it silently and
+    // every figure is still well-formed.
+    file: "apps/backend/src/five-minute-return.ts",
+    find: "RETURN_SPAN_MINUTES * MS_PER_MINUTE",
+    replace: "BREADTH_WINDOW_MINUTES * MS_PER_MINUTE",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-observation-window",
+  },
+
+  {
     name: "a-sector-with-its-curation-date-removed",
     proves:
       "A route that draws a curated sector with no source note on it leaves " +

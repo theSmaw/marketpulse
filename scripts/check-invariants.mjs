@@ -2977,8 +2977,10 @@ const INVARIANTS = [
     claim:
       "`previousClose` is read as a change BASIS in exactly one module — " +
       "`packages/shared/src/live-change.ts` — and no shipped file that can " +
-      "reach both halves of the join, or that divides by a close, computes " +
-      "the move itself instead of calling `changeFromClose`.",
+      "reach both halves of the join, or that divides by a SESSION close, " +
+      "computes the move itself instead of calling `changeFromClose`. One " +
+      "named exemption, `five-minute-return.ts`, which divides a minute " +
+      "bar's close by another minute bar's and reads no stored close at all.",
     check() {
       // **A producer walk, not a call-site count** (Task 4.2.3), in
       // `the-consolidated-word-has-one-producer`'s family. More callers of
@@ -3293,8 +3295,65 @@ const INVARIANTS = [
         );
       }
 
+      // ## One named exemption, added 2026-10-13 by Task 5.2.2 — and it is
+      // ## named AND shaped, because either alone is too wide
+      //
+      // **The clause caught a real thing and the answer is not a rename.**
+      // `fiveMinuteReturn` divides a minute bar's close by **another minute
+      // bar's close, five minutes apart on one live tape**. Neither operand
+      // is a stored session close, there is no `SecurityLastClose` in the
+      // module, and `changeFromClose` cannot express the figure: its whole
+      // body is *which session's close is the basis*, and a bar-to-bar return
+      // inside one session has no session basis to choose. The ≈0.00% failure
+      // this clause exists to catch — the store's last session meeting the
+      // live bar's — is structurally unreachable where no stored close is
+      // read at all.
+      //
+      // **Why it is written down rather than left to the pattern.** The
+      // clause fired only because the denominator was bound to a variable
+      // called `basis`; spelled `older.bar.close` it would not have matched
+      // at all, since `CLOSE_DENOMINATOR` allows one `ident.` prefix and that
+      // has two. So the exemption exists to make this a **decision on the
+      // record** instead of a property of a local's name.
+      //
+      // **The shape half is what keeps it narrow.** The exemption lapses the
+      // moment the module reads anything from the closes side, so a later
+      // author who adds a stored close to it — the store-backed fill Gate 1
+      // decision 3 defers, with its own reversal trigger — is caught here
+      // again, by this clause, in that change.
+      const BAR_TO_BAR = [
+        {
+          path: "apps/backend/src/five-minute-return.ts",
+          why: "a minute bar's close against another minute bar's close, five minutes apart on one live tape",
+        },
+      ];
+
+      // The anchor: a named exemption whose file no longer divides by a close
+      // is an exemption that has outlived its subject, and an exemption list
+      // matching nothing is indistinguishable from a pass.
+      for (const { path, why } of BAR_TO_BAR) {
+        if (!dividers.some((file) => file.path === path)) {
+          throw new InvariantFailure(
+            `${path} no longer divides by a close, and it is exempt from ` +
+              `this clause as ${why}. Delete the exemption in the same ` +
+              "change that removed the arithmetic; an exemption nothing " +
+              "uses is a hole nobody is watching.",
+          );
+        }
+      }
+
+      const CLOSES_SIDE_READ =
+        /\b(?:SecurityLastClose|LastClose|readLastCloses|closesAsOf|previousClose)\b/u;
+
       const dividing = dividers
-        .filter((file) => !file.text.includes("changeFromClose("))
+        .filter(
+          (file) =>
+            !file.text.includes("changeFromClose(") &&
+            !(
+              BAR_TO_BAR.some(({ path }) => path === file.path) &&
+              !CLOSES_SIDE_READ.test(file.text)
+            ),
+        )
         .map((file) => file.path);
 
       if (dividing.length > 0) {
@@ -6605,7 +6664,10 @@ const INVARIANTS = [
       "The observation window has one producer home — " +
       "`BREADTH_WINDOW_MINUTES` in `apps/backend/src/market-breadth.ts`, " +
       "applied to each bar's own `startsAt` — and the browser READS it off " +
-      "the frame as `windowMinutes` rather than spelling a window of its own.",
+      "the frame as `windowMinutes` rather than spelling a window of its own. " +
+      "Beside it, and ONLY beside it, exactly one measurement SPAN between " +
+      "two named endpoints of one security, in " +
+      "`apps/backend/src/five-minute-return.ts`, naming a constant of its own.",
     check() {
       // **What `current` means, held mechanically — ADR 0040, Task 4.9.10.**
       //
@@ -6643,7 +6705,8 @@ const INVARIANTS = [
       // convention**, so a file list is a corpus that cannot see the next
       // region. The plant above sits in it by existing.
       //
-      // ## Two things this cannot see, written down rather than implied
+      // ## THREE things this cannot see, written down rather than implied
+      // ## (the third found by Task 5.2.2, by walking into it)
       //
       // A cutoff spelled as an **addition** to the bar's instant rather than
       // a subtraction from `asOf` — `startsAt + window < asOf` — is the same
@@ -6653,7 +6716,54 @@ const INVARIANTS = [
       // written as a minute-scaled subtraction and a copier copies; neither
       // residue is cheap to pattern-match without tripping on every instant
       // this product adds to another.
+      //
+      // **And a cutoff whose instant is already in a local.** `const at =
+      // bar.startsAt.getTime()` on one line and `at - MINUTES *
+      // MS_PER_MINUTE` on the next is the same window, is the natural way to
+      // write a loop that reads the instant twice, and matches nothing here —
+      // Task 5.2.2's first draft was exactly that and the run reported **0**
+      // span cutoffs with the subtraction on disk. The shipped module
+      // re-reads `.getTime()` at the subtraction on purpose, with a comment
+      // saying so; there is no cheap pattern for the residue, because
+      // `x - y * MS_PER_MINUTE` over any identifier matches far more than a
+      // window.
+      //
+      // ## The third conjunct — a SPAN is not a cutoff, and this check could
+      // ## not tell them apart (Task 5.2.2)
+      //
+      // ADR 0040's five minutes is an **eligibility cutoff over a
+      // population**: *is this security's newest observation still about
+      // now*. It filters, it has a denominator, and its whole point is that
+      // one window qualifies the numerator and the denominator in one pass.
+      //
+      // Story 5.2's five minutes is a **measurement span between two named
+      // endpoints of one security**. It takes no population, it filters
+      // nothing, and it **refuses** rather than excluding — AC 3: a pair that
+      // is not exactly the span apart produces no figure at all, because
+      // `ERIE` at 2.1% minute coverage would otherwise draw "the 5-minute
+      // return" between bars 47 minutes apart. Different subject, different
+      // arity, different failure mode, and the same expression on disk.
+      //
+      // So the corpus is partitioned **by file** and each half is held to one
+      // occurrence: the eligibility cutoff in `market-breadth.ts` naming
+      // `BREADTH_WINDOW_MINUTES`, the span cutoff in `five-minute-return.ts`
+      // naming a constant that is **not** that one. A third file with a
+      // cutoff of either kind — Story 5.3's percentile lookback is the
+      // plausible next one — lands in the eligibility half and fails there,
+      // which is the original claim unchanged. A **second** cutoff inside
+      // either home fails its own clause.
+      //
+      // The alternative was an exemption list keyed on the constant's name,
+      // which is the shape Task 4.9.10 already proved passes on the defect:
+      // nothing about an identifier is about a window.
       const HOME = "apps/backend/src/market-breadth.ts";
+
+      /**
+       * The one home for a **span** — the quantity between two endpoints of
+       * one security's own series, which is not a freshness window over a
+       * population and does not filter one.
+       */
+      const SPAN_HOME = "apps/backend/src/five-minute-return.ts";
 
       /**
        * A **cutoff**: a minute-scaled quantity subtracted from an instant's
@@ -6687,16 +6797,22 @@ const INVARIANTS = [
         }
       }
 
+      // Partitioned by file, for the reason in the third-conjunct note
+      // above: the two quantities are the same expression and only their home
+      // tells them apart.
+      const spans = cutoffs.filter(({ path }) => path === SPAN_HOME);
+      const eligibility = cutoffs.filter(({ path }) => path !== SPAN_HOME);
+
       // **No match is a failure.** A grep whose anchor has moved returns
       // nothing and reads exactly like a pass, and this one's subject is a
       // single expression in a single function.
-      if (cutoffs.length !== 1) {
+      if (eligibility.length !== 1) {
         throw new InvariantFailure(
-          `The tree holds ${String(cutoffs.length)} observation-window ` +
+          `The tree holds ${String(eligibility.length)} observation-window ` +
             "cutoffs, expected exactly 1:\n      " +
-            (cutoffs.length === 0
+            (eligibility.length === 0
               ? "(none)"
-              : cutoffs
+              : eligibility
                   .map(({ path, expression }) => `${path} — ${expression}`)
                   .join("\n      ")) +
             "\n    A SECOND observation window is a second definition of " +
@@ -6709,11 +6825,15 @@ const INVARIANTS = [
             "apart. Consume `eligibleMoves` rather than re-deriving " +
             "freshness; if the new aggregate's honest window genuinely is " +
             "not breadth's, that is ADR 0040's reversal trigger and the " +
-            "frame grain goes with it.",
+            "frame grain goes with it. If it is not a freshness window at " +
+            "all but a SPAN between two endpoints of one security, it " +
+            "belongs beside `fiveMinuteReturn` rather than in a third " +
+            "module — one span, one home, and this check's third conjunct " +
+            "is what permits it.",
         );
       }
 
-      const [{ path, expression }] = cutoffs;
+      const [{ path, expression }] = eligibility;
 
       if (path !== HOME || !/\bBREADTH_WINDOW_MINUTES\b/u.test(expression)) {
         throw new InvariantFailure(
@@ -6722,6 +6842,80 @@ const INVARIANTS = [
             "`BREADTH_WINDOW_MINUTES` — the constant is the producer's half " +
             "of a sentence whose other half is drawn in a browser, and a " +
             "cutoff built from a literal is a window the frame cannot state.",
+        );
+      }
+
+      // ## The span, which is a different quantity and gets exactly one home
+      //
+      // Held to its own file and its own constant. `BREADTH_WINDOW_MINUTES`
+      // is refused here by name: a span that read the eligibility window
+      // would tie *how far back a figure is measured* to *how recent an
+      // observation has to be to count*, which are measured against different
+      // things (Task 4.1.6's coverage curve, against a reader's question) and
+      // would move together the day either is re-measured.
+      if (spans.length !== 1) {
+        throw new InvariantFailure(
+          `${SPAN_HOME} holds ${String(spans.length)} measurement-span ` +
+            "cutoffs, expected exactly 1:\n      " +
+            (spans.length === 0
+              ? "(none)"
+              : spans
+                  .map(({ path: where, expression: how }) =>
+                    `${where} — ${how}`.trim(),
+                  )
+                  .join("\n      ")) +
+            "\n    A 5-minute return is measured between two bars whose own " +
+            "`startsAt` are exactly the span apart, and that span is spelled " +
+            "once. Zero means the one subtraction has moved out of the " +
+            "pattern — pre-multiplied into milliseconds is the residue this " +
+            "check's own note names, and a span the pattern cannot see is a " +
+            "second definition of the figure nobody can grep for. More than " +
+            "one means two spans in one module, which is the 47-minute " +
+            "figure arriving by arithmetic rather than by a stretch.",
+        );
+      }
+
+      const [span] = spans;
+
+      if (/\bBREADTH_WINDOW_MINUTES\b/u.test(span.expression)) {
+        throw new InvariantFailure(
+          `The measurement span is \`${span.expression}\` — it names ` +
+            "`BREADTH_WINDOW_MINUTES`, which is the eligibility window over " +
+            "a population rather than a span between two endpoints of one " +
+            "security. One constant for both ties a reader's question to " +
+            "Task 4.1.6's coverage curve: re-measuring the freshness window " +
+            "would silently change which pair of bars every return is taken " +
+            "between.",
+        );
+      }
+
+      const named = /-\s*([A-Z][A-Z0-9_]*)\s*\*/u.exec(span.expression)?.[1];
+
+      if (named === undefined) {
+        throw new InvariantFailure(
+          `The measurement span is \`${span.expression}\` — it is built ` +
+            "from a literal rather than from a named constant. The span is " +
+            "the denominator the surface draws beside the figure (*observed " +
+            "k of 5*) and the value the trailing window's depth and \u03b5 " +
+            "were chosen against; a literal is a window the surface cannot " +
+            "state and the window cannot agree with.",
+        );
+      }
+
+      const spanAssignments = shippedSourceFiles()
+        .flatMap(({ path: where, text }) =>
+          [...text.matchAll(new RegExp(`\\b${named}\\s*=[^=]`, "gu"))].map(() =>
+            relative(REPO_ROOT, where),
+          ),
+        )
+        .toSorted();
+
+      if (spanAssignments.length !== 1 || spanAssignments[0] !== SPAN_HOME) {
+        throw new InvariantFailure(
+          `${named} is assigned in [${spanAssignments.join(", ") || "nowhere"}]` +
+            `, expected exactly ${SPAN_HOME}. A second value is a window ` +
+            "retaining four minutes while the return asks for five — the " +
+            "figure refuses for ever and nothing on screen is wrong.",
         );
       }
 
