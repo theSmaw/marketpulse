@@ -427,7 +427,7 @@ describe("relativePerformance", () => {
     });
   });
 
-  it("is `nothing` when no figure anywhere has a move — CI's permanent state", () => {
+  it("is `nothing` only before any frame, with nothing of our own to draw", () => {
     const view = relativePerformance(
       {
         security: equity("technology"),
@@ -441,6 +441,55 @@ describe("relativePerformance", () => {
     expect(view.nothing).toBe(true);
     expect(view.step).toBe(RELATIVE_RUNGS[0]);
     expect(view.entries.every((entry) => entry.at === undefined)).toBe(true);
+  });
+
+  it("DRAWS rather than holds when the frame arrived with nothing in it", () => {
+    // **CI's permanent state, and it must not read as the state before the
+    // socket said anything** (Task 5.1.4, and Task 4.3.8's finding on `/`).
+    // The store holds 516 securities and zero bars, so the aggregate arrives
+    // carrying `unknown` for every one of them — which is a different fact
+    // from *nothing has reached us yet*, and the only state of the two in
+    // which the region has something honest to say.
+    const arrived = relativePerformance(
+      {
+        security: equity("technology"),
+        live: undefined,
+        lastClose: undefined,
+      },
+      frame(
+        [{ state: "unknown", symbol: MARKET }],
+        [{ state: "unknown", symbol: BENCHMARK }],
+      ),
+      undefined,
+    );
+
+    const beforeAnything = relativePerformance(
+      {
+        security: equity("technology"),
+        live: undefined,
+        lastClose: undefined,
+      },
+      undefined,
+      undefined,
+    );
+
+    // The two facts, told apart by the one thing a count of moves cannot
+    // recover: whether a frame exists at all.
+    expect(beforeAnything.nothing).toBe(true);
+    expect(arrived.nothing).toBe(false);
+
+    // And what the drawn one says instead of `No comparison yet.`: three named
+    // rows, each stating its own absence, and two refusals saying why there is
+    // no subtraction. Held behind one sentence, all of that is thrown away and
+    // the reader is told the socket is quiet when it is not.
+    expect(arrived.entries.map((entry) => entry.absent)).toEqual([
+      "Not heard from",
+      "Not heard from",
+      "Not heard from",
+    ]);
+    expect(
+      arrived.comparisons.every((line) => line.excess.kind === "refused"),
+    ).toBe(true);
   });
 
   it("states the subject's own move with both references absent", () => {

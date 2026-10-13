@@ -701,7 +701,29 @@ export function relativePerformance(
       ),
     ],
     claim: REFERENCE_CLAIM,
-    nothing: entries.every((entry) => entry.move === undefined),
+    // **Held only when NO FRAME HAS ARRIVED, never when a frame arrived with
+    // nothing in it** (Task 5.1.4). The first version of this read
+    // `entries.every((entry) => entry.move === undefined)`, which collapses two
+    // different facts into one sentence: *nothing has reached us yet* and
+    // *everything reached us and none of it had a move*. `/` paid for exactly
+    // that once already (Task 4.3.8).
+    //
+    // The second is the state **every gated run is permanently in** — CI's
+    // store is 516 securities and zero bars, so the aggregate arrives carrying
+    // `unknown` for all of them — and it is the one where the region has
+    // something honest to say: three named rows each stating its own absence,
+    // and two refusals saying why there is no subtraction. Holding it behind
+    // `No comparison yet.` throws all of that away and tells the reader the
+    // socket is quiet when it is not.
+    //
+    // So the discriminator is **arrival** rather than content — and arrival
+    // has two sources here, not one. The two references come from the frame;
+    // the subject's own move comes from the page's own data, so a security
+    // with a stored close has something true to draw before any frame exists.
+    // Held is therefore *no frame AND nothing of our own*, which is the only
+    // state in which every one of the three rows is silent for the same
+    // reason.
+    nothing: overview === undefined && subjectEntry.move === undefined,
   };
 }
 

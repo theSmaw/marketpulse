@@ -132,6 +132,12 @@ const stored = (
   sessionChangePercent,
 });
 
+/** Heard of, nothing held — which is every symbol on a gated machine. */
+const unknown = (symbol: string): WireOverviewFigure => ({
+  state: "unknown",
+  symbol,
+});
+
 const frame = (
   figures: readonly WireOverviewFigure[],
   sectors: readonly WireOverviewFigure[] = [],
@@ -208,6 +214,25 @@ export const AheadWhileFalling: Story = {
  */
 export const NothingObserved: Story = {
   args: { live: undefined, lastClose: undefined, overview: undefined },
+};
+
+/**
+ * **The state every gated run is permanently in, and it is NOT state 1.**
+ *
+ * CI's store is 516 securities and zero bars, so the aggregate **arrives** and
+ * carries `unknown` for every symbol in it. *Nothing has reached us yet* and
+ * *everything reached us and none of it had a move* are different facts, and
+ * `/` paid for collapsing them once already (Task 4.3.8) — so this draws three
+ * named rows each stating its own absence and two refusals, rather than hiding
+ * all of it behind `No comparison yet.` and telling the reader the socket is
+ * quiet when it is not.
+ */
+export const EverythingUnknown: Story = {
+  args: {
+    live: undefined,
+    lastClose: undefined,
+    overview: frame([unknown(MARKET)], [unknown(BENCHMARK)]),
+  },
 };
 
 /**
