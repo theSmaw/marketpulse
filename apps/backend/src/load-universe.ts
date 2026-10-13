@@ -54,6 +54,18 @@
 // that leaves the file is the one worth carrying: `status` is an **invisible
 // predicate**, so every later reader of `securities` owes an answer about it,
 // and `UNIVERSE.md` §12 is where those answers are written down.
+//
+// ## What it writes down so that a REPLAY can ask the same question of a past
+// ## date (Task 5.1.5)
+//
+// Since `0012_security_memberships.sql` this loader is also the only writer of
+// `security_memberships`: one append-only row per security whose membership
+// status differs from the last thing we wrote about it, dated by the curated
+// file rather than by the clock. It exists because `status` answers *what is
+// tracked now* and nothing answered *what was tracked then* — the one place
+// `CLAUDE.md`'s invariant 4 says it is not yet structural. See
+// {@link recordMemberships}, which also says why the rule is a state diff
+// rather than the transition feed the obvious implementation would have used.
 
 import { Kysely, PostgresDialect, sql } from "kysely";
 
@@ -449,6 +461,18 @@ export interface LoadCounts {
    * forever is one whose output stops being read.
    */
   readonly alreadyUntracked: readonly string[];
+  /**
+   * Rows appended to `security_memberships` by this run — one per security
+   * whose membership status differs from the last thing this product wrote
+   * down about it. See {@link recordMemberships}.
+   *
+   * Zero on a run over an unchanged universe, which is the property done-when 2
+   * of Task 5.1.5 asks to be asserted rather than argued, and the same
+   * discipline the upsert's `where` clause and {@link untrackAbsent} already
+   * have: an append-only table that gains 516 identical rows on every deploy is
+   * a table whose history nobody can read.
+   */
+  readonly membershipsRecorded: number;
 }
 
 /**
@@ -505,6 +529,16 @@ export function summariseLoad(counts: LoadCounts): LoadOutcome {
   if (counts.alreadyUntracked.length > 0) {
     lines.push(
       `\n  ○ ${String(counts.alreadyUntracked.length)} already untracked, unchanged: ${counts.alreadyUntracked.join(", ")}`,
+    );
+  }
+
+  if (counts.membershipsRecorded > 0) {
+    lines.push(
+      `\n  ○ ${String(counts.membershipsRecorded)} membership interval${counts.membershipsRecorded === 1 ? "" : "s"} recorded`,
+      "\n    One row per security whose membership changed, in `security_memberships`,",
+      "    dated by the curated file rather than by the clock. It is what lets a replay ask",
+      "    which securities were tracked on a past date instead of computing over today's",
+      "    roster — `CLAUDE.md` invariant 4's named bound. Nothing reads it until Epic 13.",
     );
   }
 
@@ -668,11 +702,21 @@ async function applyUniverse(
         .map((row) => row.symbol),
     );
 
+    // **Last, and inside the same transaction**, so a membership row cannot
+    // exist for a transition that was rolled back — and so the statuses it
+    // reads are the ones this run has just written rather than the ones it
+    // started from.
+    const membershipsRecorded = await recordMemberships(
+      trx,
+      parseCheckedOn(provenance.profile.checkedOn),
+    );
+
     return {
       inserted: [...written].filter((symbol) => !existing.has(symbol)).length,
       updated: [...written].filter((symbol) => existing.has(symbol)).length,
       unchanged: rows.length - written.size,
       untracked,
+      membershipsRecorded,
       alreadyUntracked: absent
         .filter((row) => row.status === "untracked")
         .map((row) => row.symbol),
@@ -734,6 +778,135 @@ async function untrackAbsent(
     .execute();
 
   return updated.map((row) => row.symbol).sort();
+}
+
+/**
+ * The columns this loader writes into `security_memberships`. `recorded_at` is
+ * the database's default.
+ */
+const MEMBERSHIP_COLUMNS = ["security_id", "status", "effective_from"] as const;
+
+/**
+ * **Write down what the universe IS, so that a replay can ask what it WAS**
+ * (Task 5.1.5).
+ *
+ * `CLAUDE.md`'s invariant 4 carries a dated qualification naming exactly one
+ * place where _structurally impossible_ is not yet met: an aggregate over the
+ * tracked universe. `currentMarketState` and `trackedTickers()` filter on
+ * `status = 'active'` against the universe **as it stands now**, so a replayed
+ * breadth count or anomaly score would compute over today's roster while
+ * claiming to describe a past session. Task 2.3.9 is the first real instance —
+ * `PSKY` and `WBD` were untracked on 2026-10-12, so a replay of any earlier
+ * session computes over 516 names when 518 were tracked.
+ *
+ * `security_memberships` is append-only and this is its only writer.
+ *
+ * ## The rule, which is a state diff rather than an event feed
+ *
+ * **One row per security whose status differs from the last row this table
+ * already holds for it** — or that has no row at all. That single rule covers
+ * the three cases a reader would otherwise have to enumerate: a security new to
+ * the store gets its opening interval, a removal appends `untracked`, and a
+ * re-add appends `active` **beside** the earlier rows rather than overwriting
+ * one. It is also self-healing: a run interrupted before this point leaves the
+ * next run with exactly the same work to do.
+ *
+ * **It deliberately does NOT derive the transitions from `before` and
+ * `untrackAbsent`'s return value**, which is the obvious implementation and is
+ * the one that would have shipped an empty table. Those two see only what
+ * *this run* changed, and on the deployed store a run over an unchanged
+ * universe changes nothing — so the 516 securities already in that store would
+ * never have got a membership row at all, and a replay of any date would read
+ * no intervals and conclude that nothing was tracked. The opening row has to
+ * come from the state rather than from the diff, and once it does the diff is
+ * redundant.
+ *
+ * **The opening row is written by this program and not by the migration**,
+ * which is `migrations/README.md` §7: data in a migration is data that cannot be
+ * corrected, and this program is re-runnable by design.
+ *
+ * ## What `effective_from` is, and what it is not
+ *
+ * The curated file's own `checkedOn` date at UTC midnight — the instant
+ * `profile_retrieved_at` already carries, for the reason
+ * `load-universe.database.test.ts` already asserts as a decision: *from the
+ * file rather than the clock*. Membership is a fact about **the list**, and the
+ * list's own date is when it changed; the deploy that picks the edit up is our
+ * latency rather than a fact about the universe. The column has **no database
+ * default** precisely so that this is a decision a writer takes rather than one
+ * a schema makes on its behalf — `0012`'s §4 has the argument.
+ *
+ * Two consequences worth knowing before reading the table. Two transitions for
+ * one security can share an `effective_from` when a single curated revision
+ * untracks and re-adds it, so the resolution rule is
+ * `order by effective_from, id` — which is why there is no
+ * `unique (security_id, effective_from)` and why a collision cannot fail a
+ * deploy. And **nothing before the first row is answerable**: the history of
+ * the 2026-09-08 universe, and of the 2026-10-12 untracking of `PSKY` and
+ * `WBD`, cannot be reconstructed from anything this product holds. Epic 13 is
+ * told that in its own `EPIC.md` rather than left to discover it.
+ *
+ * **The one thing the state diff cannot see**, stated rather than discovered: a
+ * `securities.status` changed by something that is not this loader and changed
+ * **back** before the next run leaves no row here, because the diff compares
+ * the present against the history and both agree. Nothing in shipped code
+ * writes that column except the loader — `UNIVERSE.md` §12.1 and §15.3 are
+ * explicit that no ingestion writer transitions it — so the reachable case is a
+ * hand-run `update`, which is also the case `migrations/README.md` §5 says is
+ * rare enough to be corrected by a person. An event feed would not see it
+ * either: it would see one transition and then the other, and record two rows
+ * saying nothing happened.
+ */
+async function recordMemberships(
+  trx: Kysely<Database>,
+  effectiveFrom: Date,
+): Promise<number> {
+  // The state as this run leaves it, which is why the call site is last: the
+  // upsert may have reactivated a row and `untrackAbsent` may have retired one.
+  const securities = await trx
+    .selectFrom("securities")
+    .select(["id", "status"])
+    .execute();
+
+  // The latest row per security. `distinct on` with the matching leftmost
+  // `order by` is Postgres's own idiom for it, and the `id` tiebreak is what
+  // makes two transitions sharing an `effective_from` resolve to the one
+  // written second rather than to whichever the planner happened to return.
+  const latest = await trx
+    .selectFrom("security_memberships")
+    .select(["security_id", "status"])
+    .distinctOn("security_id")
+    .orderBy("security_id")
+    .orderBy("effective_from", "desc")
+    .orderBy("id", "desc")
+    .execute();
+
+  const recorded = new Map(latest.map((row) => [row.security_id, row.status]));
+
+  const rows = securities
+    // `undefined` for a security with no history, which is not any member of
+    // the vocabulary and therefore differs from every status — so the opening
+    // interval falls out of the same comparison as a transition rather than
+    // needing a branch of its own.
+    .filter((security) => recorded.get(security.id) !== security.status)
+    .map((security) => ({
+      security_id: security.id,
+      status: security.status,
+      effective_from: effectiveFrom,
+    }));
+
+  if (rows.length === 0) return 0;
+
+  const size = chunkSize(MEMBERSHIP_COLUMNS.length);
+
+  for (let index = 0; index < rows.length; index += size) {
+    await trx
+      .insertInto("security_memberships")
+      .values(rows.slice(index, index + size))
+      .execute();
+  }
+
+  return rows.length;
 }
 
 /**

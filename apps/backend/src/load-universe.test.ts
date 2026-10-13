@@ -330,6 +330,7 @@ describe("summariseLoad", () => {
       unchanged: 97,
       untracked: [],
       alreadyUntracked: [],
+      membershipsRecorded: 0,
     });
 
     expect(outcome.exitCode).toBe(0);
@@ -352,6 +353,7 @@ describe("summariseLoad", () => {
       unchanged: 100,
       untracked: ["FB"],
       alreadyUntracked: [],
+      membershipsRecorded: 1,
     });
 
     expect(outcome.exitCode).toBe(0);
@@ -370,11 +372,49 @@ describe("summariseLoad", () => {
       unchanged: 100,
       untracked: [],
       alreadyUntracked: ["FB"],
+      membershipsRecorded: 0,
     });
 
     expect(outcome.exitCode).toBe(0);
     expect(outcome.lines.join("\n")).toContain("1 already untracked");
     expect(outcome.lines.join("\n")).not.toContain("now marked untracked");
+  });
+
+  it("reports the membership intervals it recorded", () => {
+    // Task 5.1.5. The loader is the only writer of `security_memberships`, and
+    // an append-only table nobody can see being written to is one whose first
+    // wrong run is noticed by nobody.
+    const outcome = summariseLoad({
+      inserted: 0,
+      updated: 1,
+      unchanged: 100,
+      untracked: [],
+      alreadyUntracked: [],
+      membershipsRecorded: 2,
+    });
+
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.lines.join("\n")).toContain(
+      "2 membership intervals recorded",
+    );
+  });
+
+  it("says nothing about memberships on a run that recorded none", () => {
+    // The steady state, and the reason the line is conditional: `pnpm universe`
+    // runs on every deploy, so a paragraph printed on all of them is a
+    // paragraph nobody reads — which is how the *next* change goes unnoticed.
+    // The count being zero is the property done-when 2 asks for; this is only
+    // the half of it that is readable from the output.
+    const outcome = summariseLoad({
+      inserted: 0,
+      updated: 0,
+      unchanged: 101,
+      untracked: [],
+      alreadyUntracked: [],
+      membershipsRecorded: 0,
+    });
+
+    expect(outcome.lines.join("\n")).not.toContain("membership");
   });
 });
 

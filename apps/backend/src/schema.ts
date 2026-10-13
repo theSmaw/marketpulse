@@ -550,6 +550,71 @@ export interface BarAttemptsTable {
 }
 
 /**
+ * `security_memberships` — when each security entered and left the tracked
+ * universe (Task 5.1.5). See `../migrations/0012_security_memberships.sql`,
+ * which is the source of truth this mirrors and which carries the decisions.
+ *
+ * **Append-only, and the type system is where that is enforced.** Every column
+ * below has `never` as its update parameter, so there is no `updateTable` call
+ * against this table that compiles — which is the one property a history table
+ * has that `securities` does not. A correction is a further row.
+ *
+ * **It is read by nothing in this repository yet, and that is the point rather
+ * than a loose end.** Epic 13 is the reader: *which securities were tracked on
+ * this session date* is a range query against this table, and the answer cannot
+ * be reconstructed for any date before the first row — which is why the table
+ * is written now rather than when it is first read.
+ */
+export interface SecurityMembershipsTable {
+  /** `bigint generated always as identity`. {@link SecuritiesTable.id}'s reasoning. */
+  id: GeneratedAlways<string>;
+
+  /**
+   * `securities.id`, a real foreign key with no `on delete`. `string` because
+   * it is a `bigint` — {@link MarketBarsTable.security_id}'s note applies
+   * unchanged, including that converting it to a `number` to tidy it is what
+   * `../migrations/README.md` §4 forbids.
+   */
+  security_id: ColumnType<string, string, never>;
+
+  /**
+   * What the membership **became** at {@link effective_from}, backed by
+   * `security_memberships_status_check`.
+   *
+   * The union rather than `string`, exactly as {@link SecuritiesTable.status}
+   * is, and from the same source of truth in `packages/shared`. Note it is a
+   * statement about a past interval rather than about the row's present, so
+   * unlike `securities.status` it is **not** an invisible predicate: a reader
+   * of this table is asking what was true then, which is the whole subject.
+   */
+  status: ColumnType<SecurityStatus, SecurityStatus, never>;
+
+  /**
+   * When this membership became true — the curated file's own `checkedOn` date
+   * at UTC midnight, never the clock.
+   *
+   * `Date` on insert and **no default anywhere**, which is this type restating
+   * the column's most important property, exactly as
+   * {@link MarketBarsTable.observed_at} does: a `default now()` here would turn
+   * the column a replay keys on into a record of when a script ran, invisibly.
+   *
+   * It is deliberately not named `observed_at`, because a membership change is
+   * a fact about **us** rather than about the market — the migration's §4 has
+   * the argument and the constraint it puts on Epic 13's temporal plugin.
+   */
+  effective_from: ColumnType<Date, Date, never>;
+
+  /**
+   * When we wrote the row: `timestamptz not null default now()`.
+   *
+   * Optional on insert because of the default and `never` on update, which is
+   * {@link SecuritiesTable.recorded_at}'s arrangement for its reason: "when we
+   * wrote it" is not a fact that changes.
+   */
+  recorded_at: ColumnType<Date, Date | undefined, never>;
+}
+
+/**
  * Every table, by the name Postgres knows it by.
  *
  * `snake_case` keys because these are the database's identifiers rather than
@@ -561,4 +626,5 @@ export interface Database {
   market_bars: MarketBarsTable;
   bar_coverage: BarCoverageTable;
   bar_attempts: BarAttemptsTable;
+  security_memberships: SecurityMembershipsTable;
 }

@@ -93,6 +93,46 @@ async function row(symbol: string): Promise<SecurityRow> {
 }
 
 /**
+ * Remove a probe row, memberships first.
+ *
+ * **Since `0012` a `delete from securities` is refused while this product has
+ * written down that security's membership**, and the loader writes an opening
+ * interval for every security it finds — including a probe row a test inserted.
+ * That refusal is the foreign key doing precisely what Task 5.1.5 chose it for
+ * (`security-memberships.database.test.ts` asserts it directly), and it means a
+ * test that puts a row in `securities` has two rows to take out again.
+ */
+async function forget(symbol: string): Promise<void> {
+  await db().query(
+    `delete from security_memberships
+      where security_id in (select id from securities where symbol = $1)`,
+    [symbol],
+  );
+  await db().query("delete from securities where symbol = $1", [symbol]);
+}
+
+/** Every membership row for one symbol, oldest first. */
+async function memberships(
+  symbol: string,
+): Promise<
+  readonly { status: string; effective_from: Date; recorded_at: Date }[]
+> {
+  const result = await db().query<{
+    status: string;
+    effective_from: Date;
+    recorded_at: Date;
+  }>(
+    `select m.status, m.effective_from, m.recorded_at
+       from security_memberships m
+       join securities s on s.id = m.security_id
+      where s.symbol = $1
+      order by m.effective_from, m.id`,
+    [symbol],
+  );
+  return result.rows;
+}
+
+/**
  * Load an arbitrary list rather than the shipped universe.
  *
  * `loadUniverse()` deliberately reads `UNIVERSE` itself — a loader whose data
@@ -348,7 +388,7 @@ describe("a symbol in the database and not in the file", () => {
     expect(survivor.name).toBe("Removed Test Co");
     expect(survivor.sector).toBe("technology");
 
-    await db().query("delete from securities where symbol = 'ZZZZ'");
+    await forget("ZZZZ");
   });
 
   it("is left completely alone once it is already untracked", async () => {
@@ -372,7 +412,7 @@ describe("a symbol in the database and not in the file", () => {
       before.updated_at.toISOString(),
     );
 
-    await db().query("delete from securities where symbol = 'ZZZY'");
+    await forget("ZZZY");
   });
 
   it("comes back to active on its original id when it is put back in the file", async () => {
@@ -485,5 +525,155 @@ describe("a universe that violates acceptance criterion 3", () => {
     expect(outcome.exitCode).toBe(1);
     expect(outcome.errors.join("")).toContain("NVDA appears more than once");
     expect(await rows()).toEqual(before);
+  });
+});
+
+describe("point-in-time universe membership (Task 5.1.5)", () => {
+  // **What this block is about is a question nothing in this product could
+  // answer until now: which securities were tracked on a past date.**
+  // `securities.status` answers *what is tracked now*, and `CLAUDE.md`'s
+  // invariant 4 carries a dated qualification saying that is the one place
+  // temporal isolation is not yet structural — a replayed breadth count or
+  // anomaly score would compute over today's roster while claiming to describe
+  // a past session. `security_memberships` is the answer and this loader is its
+  // only writer.
+  //
+  // The assertions are on the **database** rather than on the loader's report,
+  // for the reason the whole file is: a writer that said "0 recorded" while
+  // quietly appending 516 rows would pass a check written against its output.
+
+  /** The instant the loader stamps: the curated file's own date, UTC midnight. */
+  const checkedOn = `${UNIVERSE_PROVENANCE.profile.checkedOn}T00:00:00.000Z`;
+
+  async function countMemberships(): Promise<number> {
+    const result = await db().query<{ n: string }>(
+      "select count(*)::text as n from security_memberships",
+    );
+    return Number(result.rows[0]?.n ?? "-1");
+  }
+
+  it("has written one opening interval per security, from the first load", async () => {
+    // **The property the obvious implementation would not have had.** Deriving
+    // transitions from what *this run* changed gives an empty table on the
+    // deployed store, where a run over an unchanged universe changes nothing —
+    // so 516 securities would have had no interval at all and a replay of any
+    // date would read none and conclude nothing was tracked. The opening row
+    // comes from the state rather than from the diff.
+    const securities = await rows();
+    const statuses = await db().query<{ status: string; n: string }>(
+      "select status, count(*)::text as n from security_memberships group by status",
+    );
+
+    expect(await countMemberships()).toBe(securities.length);
+    expect(statuses.rows).toEqual([
+      { status: "active", n: String(securities.length) },
+    ]);
+  });
+
+  it("dates the interval from the curated file and not from the clock", async () => {
+    // **`effective_from` and `recorded_at` are two columns and must not be
+    // conflated** — invariant 5's event timestamp against its write timestamp.
+    // The event is the curated list changing, which the file dates itself;
+    // `recorded_at` is when the loader wrote the row, which is today. A
+    // `default now()` on the first column is the exact leak `0002`'s decision 3
+    // forbids, and it would be invisible because every row would look
+    // plausible.
+    const [opening] = await memberships("NVDA");
+
+    expect(opening?.effective_from.toISOString()).toBe(checkedOn);
+    expect(opening?.recorded_at.getTime()).toBeGreaterThan(
+      new Date(checkedOn).getTime(),
+    );
+  });
+
+  it("writes NOTHING on a run over an unchanged universe", async () => {
+    // Done-when 2, asserted rather than argued, and it is the same discipline
+    // the upsert's `where` clause and `untrackAbsent` already have: `pnpm
+    // universe` runs on every deploy, so an append-only table that gained 516
+    // identical rows each time would be a history nobody can read.
+    const before = await countMemberships();
+
+    const outcome = await loadUniverse();
+
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.lines.join("\n")).not.toContain("membership");
+    expect(await countMemberships()).toBe(before);
+  });
+
+  it("records a removal and a re-add as two further intervals on the original id", async () => {
+    // **The full cycle, every step of it driven by the loader** — done-when 3.
+    //
+    // `loadUniverse()` deliberately reads `UNIVERSE` itself, so a test cannot
+    // hand it an edited file. What it can do is move the row: renaming MRK's
+    // row makes it a symbol the file does not contain, which is exactly the
+    // state a deletion from the file produces, and renaming it back makes it
+    // the re-add. SQL standing in for a file edit is this file's existing idiom
+    // (see `corrupt`), and the point is that the loader does the untracking and
+    // the reactivation itself rather than a test asserting what it would do.
+    const subject = await row("MRK");
+    expect((await memberships("MRK")).map((entry) => entry.status)).toEqual([
+      "active",
+    ]);
+
+    // The removal. The loader untracks the absent row (id unchanged) and
+    // inserts a fresh MRK for the file's entry, which is an artefact of the
+    // rename rather than part of the subject and is taken out below.
+    await db().query(
+      "update securities set symbol = 'ZZZX' where symbol = 'MRK'",
+    );
+
+    const removal = await loadUniverse();
+    expect(removal.exitCode).toBe(0);
+    expect(removal.lines.join("\n")).toContain("now marked untracked");
+    expect(removal.lines.join("\n")).toContain("membership");
+
+    expect((await memberships("ZZZX")).map((entry) => entry.status)).toEqual([
+      "active",
+      "untracked",
+    ]);
+
+    // The re-add: drop the artefact, put the original row's symbol back.
+    await forget("MRK");
+    await db().query(
+      "update securities set symbol = 'MRK' where symbol = 'ZZZX'",
+    );
+
+    const readd = await loadUniverse();
+    expect(readd.exitCode).toBe(0);
+
+    const history = await memberships("MRK");
+
+    // **Three intervals, not one overwritten twice.** This is the whole reason
+    // the fact is a history table rather than `tracked_from` / `tracked_to` on
+    // `securities`: a symbol can be untracked and re-added on its original
+    // `id`, so one interval would have to be lost or become an array.
+    expect(history.map((entry) => entry.status)).toEqual([
+      "active",
+      "untracked",
+      "active",
+    ]);
+    // The row never left the table and the key survived, which is what
+    // anything holding a `security_id` depends on.
+    expect((await row("MRK")).id).toBe(subject.id);
+    expect((await row("MRK")).status).toBe("active");
+    // Every interval carries the file's date. All three share it here because
+    // the curated file was not re-checked between them — which is why there is
+    // deliberately no `unique (security_id, effective_from)` and why the
+    // resolution rule is `order by effective_from, id`.
+    expect(
+      history.every(
+        (entry) => entry.effective_from.toISOString() === checkedOn,
+      ),
+    ).toBe(true);
+  });
+
+  it("is quiet again once the universe has settled", async () => {
+    // The steady state after a real transition, which is a different claim from
+    // the one above: it is what stops the *next* change going unnoticed.
+    const before = await countMemberships();
+
+    await loadUniverse();
+
+    expect(await countMemberships()).toBe(before);
   });
 });

@@ -40,6 +40,28 @@ computation over the market we track _now_ filters, a read of something we
 _stored_ does not, and a replayed aggregate is the second behaving like the
 first.
 
+**Discharged in part on 2026-10-13 by Task 5.1.5, and the part that is NOT
+discharged is the part that matters.** `security_memberships` exists —
+`0012_security_memberships.sql`, append-only, one row per transition, with
+`effective_from` carrying the curated file's own date and **no default on that
+column**, which is the leak `0002`'s decision 3 forbids. `pnpm universe` writes
+it inside the transaction it already runs, by a **state diff against the
+history** rather than from the transitions a run performed: the obvious
+implementation — write what this run changed — would have shipped an **empty
+table**, because a run over an unchanged universe changes nothing and none of the
+516 existing securities would ever have got an opening interval. Measured on a
+populated store: the first run after the migration wrote **518 rows**, the second
+wrote **nothing**.
+
+**What is still true is the sentence below about history.** The table begins at
+**2026-10-12** and says nothing whatever about any session before it, so a replay
+of an earlier date must **refuse** rather than fall back to today's roster —
+written into Epic 13's `EPIC.md` in words that epic can act on, along with two
+constraints it inherits: the read takes the replay clock **explicitly**, because
+the column is deliberately not `observed_at` and a generic temporal plugin will
+not cover this table; and the index it will want is deliberately absent, with its
+condition stated.
+
 **The bound is known, named and owned by Epic 13**, whose `EPIC.md` carries it
 in words that epic can act on. The condition is **the first replayed aggregate
 this product renders**. Two things make it worth a line here rather than only

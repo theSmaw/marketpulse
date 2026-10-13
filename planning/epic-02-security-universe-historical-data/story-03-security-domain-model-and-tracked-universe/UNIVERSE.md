@@ -997,6 +997,32 @@ decide alone:
 on `status` when you are computing over _the market we track now_, and never when you are
 showing or replaying _something we stored_.
 
+> **Amended 2026-10-13 by Task 5.1.5, on the LAST row only: replay now has
+> somewhere to read from.** Until this date the `No` in that row was the whole
+> answer and it was incomplete — _do not filter on today's `status`_ says what a
+> replay must not do and leaves it with no way to say what WAS tracked, because
+> this table records only the present. `security_memberships`
+> (`0012_security_memberships.sql`) is that answer: one append-only row per
+> security per membership change, `effective_from` dated by the curated file and
+> carrying no default, written by `pnpm universe` and read by nothing yet.
+>
+> So the row's answer becomes: **No — and read `security_memberships` as at the
+> replay clock instead.** Two limits travel with it and neither is optional.
+> **Nothing before the first row is answerable**: the data cannot be
+> reconstructed, so the 2026-09-08 universe and the 2026-10-12 untracking of
+> `PSKY` and `WBD` are not recoverable, and a replay of a session before the
+> first `effective_from` must say so rather than fall back to today's roster.
+> And **`effective_from` is deliberately not named `observed_at`**, because a
+> membership change is a fact about us rather than about the market (§3) — so a
+> temporal plugin filtering generically on `observed_at` does not cover this
+> table and the clock has to be passed to the read explicitly.
+>
+> One consequence for anybody writing SQL against `securities` by hand: the
+> membership table carries a real foreign key with no `on delete`, so once a
+> security has a membership row **`delete from securities` for it is refused**.
+> §12.1 and `migrations/README.md` §5 already refused that operation in writing;
+> it is now refused by the database.
+
 > **`pnpm universe:check` (Task 2.7.8) is deliberately NOT an eighth row**, and saying why
 > is worth more than adding one. It reads the **curated file** and the vendor's catalogue,
 > and never opens a database at all — so the question this table asks does not arise for
