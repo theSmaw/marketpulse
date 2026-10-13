@@ -98,7 +98,7 @@ const TOKEN_NAMES = [
   "--price-unchanged-wash",
   "--anomaly-normal",
   "--anomaly-elevated",
-  "--anomaly-unusual",
+  "--anomaly-high",
   "--anomaly-extreme",
   "--feed-live",
   "--feed-stale",

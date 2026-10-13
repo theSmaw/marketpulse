@@ -29,7 +29,7 @@ import styles from "./SecurityRow.module.css";
 const BAND_EXPLANATION: Readonly<Record<AnomalyBand, string>> = {
   normal: "Behaviour is within this security’s own history",
   elevated: "Moving more than usual, within recognisable bounds",
-  unusual: "Clearly outside the historical distribution",
+  high: "Clearly outside the historical distribution",
   extreme: "Far outside it — the case an investigation starts from",
 };
 
@@ -140,8 +140,8 @@ export const NumericExtremes: Story = {
         last="1,088.18"
         change="00.00"
         direction="unchanged"
-        band="unusual"
-        bandExplanation={BAND_EXPLANATION.unusual}
+        band="high"
+        bandExplanation={BAND_EXPLANATION.high}
       />
     </>
   ),

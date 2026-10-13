@@ -40,8 +40,8 @@
   background: var(--anomaly-elevated);
 }
 
-.unusual {
-  background: var(--anomaly-unusual);
+.high {
+  background: var(--anomaly-high);
 }
 
 .extreme {

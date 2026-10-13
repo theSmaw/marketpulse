@@ -742,6 +742,80 @@ For example:
 > Volume 3.8× normal
 > Move substantially exceeds related securities
 
+> **Amended 2026-10-13 by Story 5.1 — four readings this section leaves
+> ambiguous, taken at the epic's first gate rather than in the story that
+> builds each factor.** Nothing above is rewritten; each clause below says
+> which sentence it reads and how.
+>
+> **1. The price percentile is a percentile of `|return|`, and the prose above
+> is signed.** _"Compare current 5-minute return to historical 5-minute
+> returns"_ reads as a signed comparison, but **this section's own example is
+> arithmetically consistent only with a magnitude percentile**: a `-2.1%`
+> return sits near the _first_ percentile of a signed distribution, not the
+> **99.1st**. The signed reading is refused on a stronger ground than
+> consistency. A one-tailed signed percentile scores a crash ≈ 1 and a rally
+> ≈ 99, which is a **directional judgement inside a number this section says
+> in terms must not represent risk or investment opportunity**. So the figure
+> answers _how far from normal_, and **direction lives in the explanation** —
+> where `Extreme 5-minute price move` above already puts it.
+>
+> **2. The distribution is POOLED across the session, not bucketed by time of
+> day — and the cost is stated here rather than discovered later.** The
+> _Volume anomaly_ clause above says _"the same approximate time of day"_, and
+> reading that across onto the price factor gives **60 samples** over a 60-day
+> window: the finest percentile a 60-sample distribution can express is
+> **1.7%**, so this section's own `99.1%` could not be said at all and the
+> 99th percentile _would be_ the maximum. Pooling the session gives **4,680
+> samples** per security and 0.02% granularity.
+>
+> **The known cost: the open is structurally the fattest-tailed bucket.** Pooled
+> against the whole session, a market open reads as more unusual than it is —
+> the first minutes carry the overnight gap, the auction imbalance and the
+> widest spreads of the day, and a pooled percentile has no way to know which
+> bucket a sample came from. **So the explanation must say so**, which is this
+> section's own requirement (_every score should have an explanation_) rather
+> than a new one. The reversal trigger is a condition: **the first time the open
+> is over-represented in a ranked list often enough for a reader to notice**,
+> at which point the repair is a per-bucket distribution with a sample count
+> large enough to express the percentile it prints — which means more than 60
+> days of history, not a different arithmetic.
+>
+> **3. Breadth is a stated CLAUSE in the explanation, not a weighted factor in
+> the score.** _"Normalize the preceding factors"_ reads over all four
+> preceding clauses; the shipped score is **three** scored factors — price
+> percentile, volume ratio, relative move — with breadth stated beside them.
+> The reason is structural rather than a preference: **breadth is a property of
+> a group, so it is identical for every member of that group.** It cannot order
+> securities within a sector, and weighting it correlates the whole group's
+> scores — so a ranked list fills with one industry on a day that industry
+> moved together, which is close to the opposite of _unusual for this
+> security_. Breadth keeps its place as this section draws it, in the words of
+> the example: **`82% of semiconductor securities currently negative`** is
+> context that makes a score interpretable, and that is what it ships as.
+>
+> This is the same refusal §9 carries from Story 4.4 — a figure that reads as
+> confident over a population it cannot discriminate — reached from the other
+> end.
+>
+> **4. The score is ABSOLUTELY calibrated against each security's own
+> history**, never a cross-sectional rank against today's universe. `0–100` is
+> silent about which, and the cross-sectional reading is the cheaper one to
+> build. It is refused because **a cross-sectional rank guarantees a 91 exists
+> every day, including a dead one** — a confident claim of extreme
+> unusualness over nothing, which is [ADR
+> 0029](../docs/adr/0029-provenance-on-screen-the-partial-states-and-what-an-honest-empty-answer-certifies.md)'s
+> false impression landing in the one number this section is about — and
+> because it makes the figure **incomparable between days**: 91 would mean
+> _busiest of the 503 we track_ rather than _far outside this security's own
+> history_, so today's 91 and yesterday's 91 would describe different amounts
+> of unusualness.
+>
+> **The honest cost is this section's own example.** `Anomaly 91` is **not
+> producible on demand** under absolute calibration — on a quiet day the
+> highest score in the universe may be 40, and that is the correct answer.
+> Epic 5's exit criterion is rewritten as a **shape** rather than a number for
+> this reason.
+
 ---
 
 # 12. Primary workflow: investigate an anomaly

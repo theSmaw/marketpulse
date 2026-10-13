@@ -24,7 +24,7 @@ describe("AnomalyBadge", () => {
     expect(ANOMALY_BANDS).toStrictEqual([
       "normal",
       "elevated",
-      "unusual",
+      "high",
       "extreme",
     ]);
   });

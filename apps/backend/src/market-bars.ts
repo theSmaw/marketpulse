@@ -527,10 +527,28 @@ const SOURCE_OF_NOTHING: SeriesSource = { provider: "alpaca", feed: "sip" };
  *
  * `market-provenance.ts` names the store as `raw`'s reader in terms — it holds
  * raw bars and never rewrites one because of a corporate action, which is what
- * Epic 13's replay needs and what Epic 5's percentile windows will have to
- * adjust for themselves. There is deliberately no default adjustment anywhere
+ * Epic 13's replay needs and ~~what Epic 5's percentile windows will have to
+ * adjust for themselves~~. There is deliberately no default adjustment anywhere
  * in `packages/shared` (acceptance criterion 5 of Story 2.6), so this is a
  * statement about this table rather than a fallback.
+ *
+ * **Corrected 2026-10-13 by Story 5.1, decision 1 — the struck clause was
+ * wrong and it contradicted a live document.** `PROVIDER.md` §3.1 says an
+ * adjusted series is obtained **by asking a provider for one**, never by
+ * computing it from stored raw bars, and that is what Epic 5 does: the
+ * baseline fetches a `split-adjusted` series for its window, this table stays
+ * `raw`, and our arithmetic is not on the adjustment path. The first sentence
+ * of this docblock is unchanged and is the half that was always right — this
+ * constant is a statement about what this table holds.
+ *
+ * **Why the struck clause was the expensive mistake to leave standing**, which
+ * is `PROVIDER.md` §3.5: a series spanning no corporate action returns
+ * identical numbers in both modes, so an adjustment we compute ourselves is
+ * **invisible in testing and wrong exactly once** — on the one name and the
+ * one week somebody is looking at. §3.4 prices that once: an unadjusted
+ * 10-for-1 split is a −90% return at the 100th percentile of every
+ * distribution it touches. `PROVIDER.md` §3.1 carries the decision and points
+ * back here.
  *
  * **Exported since Task 2.9.5**, which is the reader that makes it load-bearing
  * rather than local: the stitch asks a provider for the uncovered tail and

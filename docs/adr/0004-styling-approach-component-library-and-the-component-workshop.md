@@ -461,6 +461,13 @@ portable"); naming the decorator fixes it.
 - **No score-to-band thresholds.** Where `elevated` ends and `unusual` begins is
   detection policy, it belongs with the scoring model in Epic 5, and a threshold
   invented in a styling task would outlive the guess that produced it
+  > **Amended 2026-10-13 by Story 5.1, decision 6 — the band is now `high`, and
+  > the decision above is unchanged.** `ANOMALY_BANDS` reads
+  > `normal / elevated / high / extreme`: `unusual` collided with
+  > `Unusual activity`, the name of the region that lists these scores, and the
+  > ladder did not read monotonically. The thresholds are still absent and still
+  > Epic 5's, which is the claim this bullet makes; only the third name moved.
+  > The argument is in `packages/shared/src/anomaly.ts`.
 - **No second theme.** The mechanism ships so a second palette is a values-only
   swap; the palette does not
 - **No control-height tokens.** `VISUAL-LANGUAGE.md` carries 48px and 36px, and

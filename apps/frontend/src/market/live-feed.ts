@@ -583,7 +583,20 @@ export interface LiveFeedView {
   readonly resumes: number;
   /**
    * The backend's market aggregate, or `undefined` until the first one lands
-   * (Task 4.2.4). **Nothing renders it yet** — Task 4.2.5 is the payoff.
+   * (Task 4.2.4). ~~**Nothing renders it yet** — Task 4.2.5 is the payoff.~~
+   *
+   * **Corrected 2026-10-13 by Task 5.1.1 — the struck sentence has been stale
+   * since 2026-09-26 and is left standing as the dated record it was.** Four
+   * regions on `/` render this today: `MarketOverview.tsx` reads it once and
+   * hands it to `Market proxies` (4.2), `Sector performance` (4.3),
+   * `Market breadth` (4.4) and `Movers` (4.5), and `OverviewSourceNote` dates
+   * the observation from it (4.8.7).
+   *
+   * **What is still true is narrower than the sentence, and it is about the
+   * other route.** Nothing on `/securities/:symbol` reads this field — that
+   * page's figures come from `observations` and its own series fetch — and
+   * Story 5.1's `Relative performance` is the first surface there that will,
+   * which is why the staleness was found now.
    */
   readonly overview: WireMarketOverview | undefined;
   /** Messages this browser could not read. Zero on every healthy deployment. */

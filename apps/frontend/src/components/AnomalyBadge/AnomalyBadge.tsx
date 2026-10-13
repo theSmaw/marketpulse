@@ -27,7 +27,7 @@ export interface AnomalyBadgeProps {
 const BAND_CLASS: Readonly<Record<AnomalyBand, string | undefined>> = {
   normal: styles.normal,
   elevated: styles.elevated,
-  unusual: styles.unusual,
+  high: styles.high,
   extreme: styles.extreme,
 };
 

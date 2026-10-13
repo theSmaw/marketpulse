@@ -289,6 +289,28 @@ exactly when the series is empty — which `toBarSeries` enforces in both direct
 - **The series says which it is**, in `SeriesProvenance.adjustment`, so a chart drawing a
   raw series through a split is able to say so.
 
+> **Confirmed 2026-10-13 by Story 5.1, decision 1, and the confirmation was needed because a
+> second live document said the opposite.** `apps/backend/src/market-bars.ts`'s
+> `STORED_BAR_ADJUSTMENT` docblock said Epic 5's percentile windows _"will have to adjust for
+> themselves"_, which is this section's third bullet denied in the file that implements its
+> first. **Both were live claims, and the one above wins**: Epic 5's baseline **asks a
+> provider** for a `split-adjusted` series for its window, the store stays `raw`, and our
+> arithmetic is not on the adjustment path at all. Nothing in this section changes; the
+> docblock now carries a note pointing here.
+>
+> **The reason the alternative was refused is §3.5 rather than effort.** Adjusting stored raw
+> bars ourselves is a few lines, and **a series spanning no corporate action returns identical
+> numbers either way** — so a wrong adjustment argument is **invisible in testing and wrong
+> exactly once**, on the one name and the one week somebody is looking at. §3.4 prices that one
+> time: an unadjusted 10-for-1 split is a **−90% return that sits at the 100th percentile of
+> every distribution it touches**, a permanent, confident, entirely false anomaly. A repair we
+> cannot test and a vendor parameter that needs no corporate-actions table are not a close
+> call.
+>
+> **The reversal trigger is a condition, and it is already written in §3.4**: the first reader
+> that compares two securities' _total_ return rather than their price return, which needs
+> `dividend` and so needs an adjustment the vendor's `split` parameter does not supply.
+
 ### 3.2 Why store raw — and the argument is invariant 4, not tidiness
 
 The task file names three shapes and the second is the trap. **Store adjusted, and a later
