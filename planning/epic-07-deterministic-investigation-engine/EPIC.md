@@ -170,3 +170,72 @@ is a design decision rather than a detail:
 
 Decide which before writing the tool, and record it — the trigger exists so
 this is a decision rather than a discovery.
+
+## Handed here by Epic 5's decomposition — 2026-10-13: `Investigate` is yours, it has a place reserved for it, and §17's tool names are already Epic 5's factor functions
+
+**Written here rather than linked, because a pointer is what a reader follows
+when they already know to look.** These are decisions taken at Epic 5's Gate 1
+that constrain this epic, and Epic 5's files are not where this epic reads.
+
+**1. `Investigate` does not ship in Epic 5, in any form — not disabled, not a
+tooltip, not a "coming soon" affordance — and it is reserved for you.**
+`PRODUCT_SPEC.md` §12 compresses the journey into _the user sees `NVDA — anomaly
+91` and selects **Investigate**_, but Investigation is this epic's object and
+the agent is Epic 10's. Three reasons it was refused rather than stubbed, each
+one this repository's own rule:
+
+- **A natively `disabled` control is not focusable**, so anything
+  `aria-describedby` hangs off it is unreachable. This product shipped that
+  defect for two tasks — search's unavailable states carried a correct,
+  attached, visible sentence that no key press could reach — which is why
+  `TextField` renders `aria-disabled` + `readOnly` product-wide.
+- It would be **the second sentence in the product pointing at another
+  surface's control**, which is a retired-and-still-live reversal trigger.
+- `PRODUCT_SPEC.md` §5.5 and invariant 3: **every analytical capability is
+  reachable without the AI.** So Epic 5's correct deliverable is the _non-AI
+  version of the investigation_ — §11's factors computed deterministically and
+  laid out as figures a person reads — and this epic adds orchestration,
+  streaming and cancellation **on top of a surface that already draws every
+  number.**
+
+**2. When it ships, it belongs on the security page's `Abnormal-move
+indicators` region, beside the factors it automates — not on a row of `/`'s
+`Unusual activity` list.** A row there has exactly **one** activatable thing,
+its ticker (Story 4.6's settled rule), and the roving stops are keyed on symbol
+with arrows that clamp rather than wrap. **A second activatable thing in one
+roving stop is two answers to _what does Enter do_.**
+
+**3. §17's tool names are Epic 5's factor functions, and you should expect to
+find them already written.** `calculate_return_percentile`,
+`calculate_volume_ratio`, `get_market_breadth` and `compare_securities` are the
+quantities Epic 5 computes for its own surfaces — invariant 1 wants the tool to
+exist before the model does, so Epic 5 names its functions for §17 deliberately.
+What you add is the **orchestration**, not the arithmetic.
+
+**4. Four things about the score you will be orchestrating, each decided with
+its alternatives at Epic 5's Gate 1:**
+
+- **It is absolutely calibrated** against each security's own history, not a
+  cross-sectional rank against the day's universe. So **a quiet day produces no
+  high scores**, and an investigation triggered by a score cannot be
+  manufactured for a demo.
+- **`AnomalyScore` cannot be constructed without its explanation**, and the
+  explanation cannot hold a figure that was not produced by a named
+  calculation — a type rather than a test. Your findings inherit a structure
+  that already carries its provenance.
+- **Breadth is a stated clause rather than a weighted factor**, because it is
+  identical for every member of a group and so cannot order securities within
+  one. If an investigation reasons about breadth it is reasoning about a
+  _group_, and `PRODUCT_SPEC.md` §11 carries a dated amendment saying so.
+- **An anomaly score's bands are `normal / elevated / high / extreme`** —
+  `unusual` was renamed at Epic 5's Gate 1 because it collided with the region
+  name `Unusual activity`.
+
+**5. And one collision to avoid before you draw your first finding.** A
+**confidence** level (`CONFIRMED / SUPPORTED / POSSIBLE / UNKNOWN`) and an
+**anomaly band** are both four-member ordered vocabularies rendered as chips,
+and from Epic 8 they will be on one screen. **They must not share a component,
+and confidence must never be rendered as four amber fills** — the amber ramp is
+anomaly intensity, and a band says _how unusual the behaviour is_ while
+confidence says _how well evidenced an explanation is_. A band and a confidence
+chip must never sit in one row without their labels.
