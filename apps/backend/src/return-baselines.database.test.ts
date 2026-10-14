@@ -425,10 +425,19 @@ describe("the write, and the generation it is keyed on", () => {
     const generation = await baselines().readNewestGeneration(EARLY.close);
     const row = generation.find((entry) => entry.symbol === "ZZZZ");
 
-    expect(row?.breakpoints).toHaveLength(BASELINE_BREAKPOINT_COUNT);
-    expect(typeof row?.breakpoints?.[0]).toBe("number");
-    expect(row?.sampleCount).toBe(118);
+    // **The narrowing is the assertion** (Task 5.3.4). `readNewestGeneration`
+    // answers a union whose refused arm has no `breakpoints` member at all, so
+    // reading one requires having established that this row is an answer —
+    // which is the row's own `refusal is null` and the database's
+    // `return_baselines_one_answer` arriving in the type system.
     expect(row?.refusal).toBeNull();
+    if (row?.refusal !== null) {
+      throw new Error("the generation holds no answer for ZZZZ");
+    }
+
+    expect(row.breakpoints).toHaveLength(BASELINE_BREAKPOINT_COUNT);
+    expect(typeof row.breakpoints[0]).toBe("number");
+    expect(row.sampleCount).toBe(118);
   });
 
   it("refuses to write a `none` outcome, because an absent row is the answer", async () => {

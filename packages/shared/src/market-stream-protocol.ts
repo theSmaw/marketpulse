@@ -3,6 +3,12 @@ import type { FeedStatus } from "./feed-status.js";
 import { MARKET_FEEDS } from "./market-provenance.js";
 
 import type { MarketFeed } from "./market-provenance.js";
+// The percentile refusals' own home (Task 5.3.4), imported rather than
+// re-spelled: the vocabulary is a **superset** of the stored one and the
+// decoder has to refuse a word this bundle cannot draw a sentence for.
+import { PERCENTILE_REFUSALS } from "./return-baseline.js";
+
+import type { PercentileRefusal } from "./return-baseline.js";
 // The ladder's rungs, so this module can refuse a value that is not one of
 // them. The back edge — `sector-ranking.ts` importing `WireOverviewFigure` from
 // here — is **type-only** and is erased, so there is no runtime cycle.
@@ -1086,6 +1092,16 @@ export interface WireReturnEndpoint {
  */
 export interface WireReturnPercentile {
   /**
+   * **The discriminant, and the reason this member is a union** (Task 5.3.4).
+   *
+   * *How unusual this move is* has three answers and not two: a rank, a
+   * refusal, and *this gateway said nothing about it at all* (the `null` on
+   * {@link WireMeasuredReturn.percentile}, which a browser across a deploy
+   * reads). The refusals are {@link WireRefusedPercentile} and they carry the
+   * two numbers their sentence needs.
+   */
+  readonly ranked: true;
+  /**
    * **The integer ordinal, `0` through `99`. Never `100`.**
    *
    * Gate 1 decision 2, twice over. The precision is an integer because the
@@ -1137,6 +1153,58 @@ export interface WireReturnPercentile {
   readonly feed: MarketFeed;
 }
 
+/**
+ * **Why there is no percentile beside this figure** (Task 5.3.4) — the first
+ * field on this wire that says *we will not answer* about a comparison rather
+ * than about an observation.
+ *
+ * ## It is a sibling of the rank and not a flag beside it
+ *
+ * `WireReturnRefusal`'s own argument one level up: a `null` with no reason
+ * would make the surface pick a sentence, and *we have too little history* and
+ * *the history we have contains a price break we cannot adjust* are different
+ * facts with different repairs. `PERCENTILE_REFUSALS` is the vocabulary and it
+ * is a **superset** of the stored one — the sample bound is applied when the
+ * row is read, so a generation computed before the bound existed is refused
+ * without being recomputed.
+ *
+ * ## Both numbers travel, because both are drawn
+ *
+ * The sentence is `Baseline too short to rank — 737 of 2,500 returns`, and
+ * neither figure may be spelled by the renderer:
+ * {@link sampleCount} is the counted `n` the pass stored (Gate 1 decision 2),
+ * and {@link minimumSampleCount} is the **bound the producer actually
+ * applied** rather than the bound this bundle happens to believe in — a
+ * rollback can put a gateway and a bundle two values apart, which is
+ * `spanMinutes`' own reason for being on this frame.
+ */
+export interface WireRefusedPercentile {
+  readonly ranked: false;
+  /** One of `PERCENTILE_REFUSALS`. */
+  readonly refusal: PercentileRefusal;
+  /**
+   * The counted `n` the baseline reached — **`0` where there is no baseline at
+   * all**, which is a cold replica, a security with no stored `sip` history,
+   * and every gated run. `0 of 2,500 returns` is a true statement about each
+   * of them, which is why there is no second refusal word for *nothing
+   * stored*.
+   */
+  readonly sampleCount: number;
+  /** The bound the producer applied — `BASELINE_MINIMUM_SAMPLE`. */
+  readonly minimumSampleCount: number;
+}
+
+/**
+ * Where this move's magnitude sits in its baseline, **or why it does not sit
+ * anywhere**.
+ *
+ * A discriminated union rather than a nullable rank with a reason beside it,
+ * for `WireSymbolReturn`'s reason exactly: a refusal carries numbers a rank
+ * does not have, and a shape that could hold both is a shape where one of them
+ * is always wrong.
+ */
+export type WireReturnComparison = WireReturnPercentile | WireRefusedPercentile;
+
 /** A measured return, with both endpoints and the part of the span it saw. */
 export interface WireMeasuredReturn {
   readonly measured: true;
@@ -1164,13 +1232,18 @@ export interface WireMeasuredReturn {
    * reads a frame without it — so the decoder treats absent and `null`
    * identically.
    *
-   * **It is `null` far more often than not, and that is the ordinary state
-   * rather than a degraded one.** A cold replica has no baseline loaded, a
-   * security with no stored `sip` history has none at all, and one whose window
-   * crosses an unadjusted split is **refused** (`SPLIT_DISCONTINUITY_RATIO`).
-   * On CI — 516 securities and zero bars — no frame can carry one, for ever.
+   * ~~**It is `null` far more often than not**~~ — **amended 2026-10-14 by
+   * Task 5.3.4, and the amendment is the whole point of that task.** A cold
+   * replica, a security with no stored `sip` history, a distribution below
+   * `BASELINE_MINIMUM_SAMPLE` and one refused for a price break are no longer
+   * `null`: each is a {@link WireRefusedPercentile} saying **which**, because a
+   * reader looking at a figure with nothing beside it cannot tell *we have not
+   * compared this* from *we will not*. `null` now means only what it says —
+   * **this gateway sent no comparison at all** — which is a frame from before
+   * this field existed, and the one state a browser holding a bundle across a
+   * deploy reads.
    */
-  readonly percentile: WireReturnPercentile | null;
+  readonly percentile: WireReturnComparison | null;
 }
 
 /**
@@ -1918,12 +1991,31 @@ const returnEndpointFields: WireFields<WireReturnEndpoint> = {
  * alone and wave every figure through unexamined.
  */
 const returnPercentileFields: WireFields<WireReturnPercentile> = {
+  ranked: asIs,
   rank: asIs,
   aboveSample: asIs,
   sampleCount: asIs,
   spanMinutes: asIs,
   feed: asIs,
 };
+
+/**
+ * **One map per member, and the union is encoded by its discriminant** — the
+ * comment above applies unchanged: `keyof` a union is the intersection of its
+ * members' keys, so one map over {@link WireReturnComparison} would cover
+ * `ranked` alone and wave both answers through unexamined.
+ */
+const refusedPercentileFields: WireFields<WireRefusedPercentile> = {
+  ranked: asIs,
+  refusal: asIs,
+  sampleCount: asIs,
+  minimumSampleCount: asIs,
+};
+
+const encodeComparison = (comparison: WireReturnComparison): JsonValue =>
+  comparison.ranked
+    ? toWire(returnPercentileFields, comparison)
+    : toWire(refusedPercentileFields, comparison);
 
 const measuredReturnFields: WireFields<WireMeasuredReturn> = {
   measured: asIs,
@@ -1937,7 +2029,7 @@ const measuredReturnFields: WireFields<WireMeasuredReturn> = {
   // entry answering `undefined` would put a key with no JSON value on the
   // wire.
   percentile: (percentile) =>
-    percentile === null ? null : toWire(returnPercentileFields, percentile),
+    percentile === null ? null : encodeComparison(percentile),
 };
 
 const observedSpanFields: WireFields<WireObservedSpan> = {
@@ -2504,8 +2596,49 @@ const readObservedSpan = (value: unknown): WireObservedSpan | null => {
  * whatever the comparison beside it was; refusing the frame would put the
  * region back on *no frame has arrived*, which is a different and false claim.
  */
-const readReturnPercentile = (value: unknown): WireReturnPercentile | null => {
+const readReturnPercentile = (value: unknown): WireReturnComparison | null => {
   if (!isRecord(value)) return null;
+
+  // **The refusal arm, read before the rank** (Task 5.3.4). A refusal we
+  // cannot name is read as **no comparison**, for `readSymbolReturn`'s reason
+  // one level up: the surface picks its sentence from this word, and a newer
+  // gateway's third refusal has no sentence in this bundle — so the honest
+  // answer is the one the region draws when it was told nothing, rather than a
+  // blank where a reason should be.
+  if (value.ranked === false) {
+    if (
+      typeof value.refusal !== "string" ||
+      !(PERCENTILE_REFUSALS as readonly string[]).includes(value.refusal)
+    ) {
+      return null;
+    }
+    // **`0` is a legal sample here and nowhere else on this frame**: it is the
+    // cold replica, and `0 of 2,500 returns` is the sentence it owes. A
+    // negative or fractional one is not a count.
+    if (
+      !finite(value.sampleCount) ||
+      !Number.isInteger(value.sampleCount) ||
+      value.sampleCount < 0
+    ) {
+      return null;
+    }
+    if (!finite(value.minimumSampleCount) || value.minimumSampleCount <= 0) {
+      return null;
+    }
+
+    return {
+      ranked: false,
+      refusal: value.refusal as PercentileRefusal,
+      sampleCount: value.sampleCount,
+      minimumSampleCount: value.minimumSampleCount,
+    };
+  }
+
+  // **A comparison that does not say which it is, is not read as either.** An
+  // older gateway sends no `ranked` at all; this bundle must not guess that a
+  // record with a `rank` on it was meant to be drawn, because the next field
+  // added to the refusal arm would then be read as a rank of `undefined`.
+  if (value.ranked !== true) return null;
   if (typeof value.aboveSample !== "boolean") return null;
   if (!finite(value.rank) || !Number.isInteger(value.rank)) return null;
   if (value.rank < 0 || value.rank > 99) return null;
@@ -2522,6 +2655,7 @@ const readReturnPercentile = (value: unknown): WireReturnPercentile | null => {
   }
 
   return {
+    ranked: true,
     rank: value.rank,
     aboveSample: value.aboveSample,
     sampleCount: value.sampleCount,

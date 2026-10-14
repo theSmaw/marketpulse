@@ -72,7 +72,7 @@ import {
 } from "./return-baseline-store.js";
 import { createReturnBaselineCache } from "./return-baseline-cache.js";
 import { SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
-import { returnPercentileOf } from "./return-percentile.js";
+import { comparableBaseline, returnPercentileOf } from "./return-percentile.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
 import { createMarketDataRoutes } from "./routes/market-data.js";
 import { createSecuritiesRoutes } from "./routes/securities.js";
@@ -982,33 +982,38 @@ const symbolReturn = (symbol: string): WireSymbolReturn => {
   // nothing to rank.
   if (!figure.measured) return toWireSymbolReturn(figure);
 
-  const stored = baselines.baselineAsOf(marketDateAt(asOf)).get(symbol);
-  // `null` for both absences at once — no row, or a row that refused — which
-  // is what the comment below is about.
-  const breakpoints = stored?.breakpoints ?? null;
+  // **The narrowing is ONE CALL and the type is what carries it** (Task
+  // 5.3.4). `comparableBaseline` answers *may this move be ranked at all* —
+  // no generation loaded (a cold replica, and CI for ever), no row for this
+  // security, a row the pass **refused** for a price break, or a row whose
+  // counted `n` is below `BASELINE_MINIMUM_SAMPLE` — and the refused arm it
+  // returns has **no distribution member**, so this site cannot reach the
+  // arithmetic without having answered the question. The three `?? null`
+  // readings this replaced were the narrowing done by hand, which is the
+  // version the next reader has to repeat.
+  //
+  // Both grid values are read from the producers rather than spelled: the
+  // stride belongs to the sampler and the tape to the store's own `where`, so
+  // the sentence a reader sees cannot drift from what was counted.
+  const comparison = comparableBaseline(
+    baselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
+    { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
+  );
 
-  // **Three absences, one answer, and the narrowing happens HERE rather than
-  // in the arithmetic.** No generation loaded (a cold replica, and CI for
-  // ever); no row for this security (nothing stored on the baseline tape); a
-  // row that **refused** — a split discontinuity, which carries a
-  // `sample_count` and no breakpoints on purpose, because *the pass has not
-  // reached this security* and *the pass reached it and will not answer* are
-  // different facts. Each gets its own words in Task 5.3.4; today each draws
-  // the figure with no comparison beside it, which is ADR 0029's defer rule.
-  const percentile =
-    breakpoints === null || stored === undefined
-      ? undefined
-      : returnPercentileOf(figure.percent, {
-          breakpoints,
-          sampleCount: stored.sampleCount,
-          // Both read from the producers rather than spelled: the grid stride
-          // belongs to the sampler and the tape to the store's own `where`, so
-          // the sentence a reader sees cannot drift from what was counted.
-          spanMinutes: SAMPLE_SPAN_MINUTES,
-          feed: BASELINE_FEED,
-        });
+  if (!comparison.ranked) return toWireSymbolReturn(figure, comparison);
 
-  return toWireSymbolReturn(figure, percentile);
+  // A distribution that is not 101 points is refused by the arithmetic rather
+  // than by a word — the database forbids it, so there is no honest sentence
+  // for it and the frame carries no comparison at all.
+  const percentile = returnPercentileOf(
+    figure.percent,
+    comparison.distribution,
+  );
+
+  return toWireSymbolReturn(
+    figure,
+    percentile === undefined ? undefined : { ranked: true, percentile },
+  );
 };
 
 const gateway = registerMarketGateway(app, {

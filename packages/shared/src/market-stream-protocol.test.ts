@@ -1410,6 +1410,7 @@ describe("the fifth message type, which is about ONE security", () => {
 
   /** A baseline comparison, as the gateway sends one (Task 5.3.3). */
   const PERCENTILE: WireReturnPercentile = {
+    ranked: true,
     rank: 99,
     aboveSample: false,
     sampleCount: 4620,
@@ -1589,6 +1590,126 @@ describe("the fifth message type, which is about ONE security", () => {
     },
   );
 
+  it("carries a REFUSED comparison round trip, with both of its numbers", () => {
+    // **The arm that says *we will not compare this*** (Task 5.3.4). Both
+    // numbers are on the frame because both are drawn: the counted `n` the
+    // baseline reached, and the bound **the producer applied** rather than the
+    // one this bundle believes in — a rollback can put a gateway and a bundle
+    // two values apart.
+    const refused = {
+      ranked: false,
+      refusal: "too-few-samples",
+      sampleCount: 737,
+      minimumSampleCount: 2500,
+    } as const;
+
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(frame({ ...MEASURED, percentile: refused })),
+    );
+
+    expect(decoded.kind === "message" && decoded.message).toEqual(
+      frame({ ...MEASURED, percentile: refused }),
+    );
+  });
+
+  it("carries a sample count of ZERO on a refusal, which no rank may have", () => {
+    // `0 of 2,500 returns` is the true sentence about a cold replica and about
+    // every security on CI — so `0` is legal on this arm and refused on the
+    // ranked one, where a distribution claiming no samples has no order
+    // statistics to have produced it.
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(
+        frame({
+          ...MEASURED,
+          percentile: {
+            ranked: false,
+            refusal: "too-few-samples",
+            sampleCount: 0,
+            minimumSampleCount: 2500,
+          },
+        }),
+      ),
+    );
+
+    expect(
+      decoded.kind === "message" &&
+        decoded.message.type === "return" &&
+        decoded.message.return.measured &&
+        decoded.message.return.percentile !== null &&
+        !decoded.message.return.percentile.ranked &&
+        decoded.message.return.percentile.sampleCount,
+    ).toBe(0);
+  });
+
+  it.each([
+    ["a refusal word this bundle cannot name", { refusal: "no-sip-history" }],
+    ["no refusal word at all", { refusal: undefined }],
+    ["a negative sample", { sampleCount: -1 }],
+    ["a fractional sample", { sampleCount: 737.5 }],
+    ["no bound", { minimumSampleCount: 0 }],
+  ])(
+    "reads %s as NO comparison, and keeps the figure",
+    (_label, over: Record<string, unknown>) => {
+      // **A refusal we cannot name is not a refusal to draw.** The surface
+      // picks its sentence from this word through a total record, so a third
+      // refusal from a newer gateway has no sentence in this bundle — and the
+      // honest answer is the one the region draws when it was told nothing,
+      // rather than a blank where a reason should be.
+      const decoded = decodeMarketStreamMessage(
+        JSON.stringify({
+          ...frame(MEASURED),
+          return: {
+            ...MEASURED,
+            percentile: {
+              ranked: false,
+              refusal: "too-few-samples",
+              sampleCount: 737,
+              minimumSampleCount: 2500,
+              ...over,
+            },
+          },
+        }),
+      );
+
+      expect(
+        decoded.kind === "message" &&
+          decoded.message.type === "return" &&
+          decoded.message.return.measured &&
+          decoded.message.return.percentile,
+      ).toBeNull();
+      expect(
+        decoded.kind === "message" &&
+          decoded.message.type === "return" &&
+          decoded.message.return.measured &&
+          decoded.message.return.percent,
+      ).toBe(MEASURED.percent);
+    },
+  );
+
+  it("reads a comparison that does not say WHICH it is as no comparison", () => {
+    // A frame from before the discriminant existed carries a `rank` and no
+    // `ranked`. It is read as *nothing was said* rather than as a rank,
+    // because the alternative is this bundle guessing that a record it does
+    // not recognise was meant to be drawn — and the next field added to the
+    // refused arm would then be read as a rank of `undefined`.
+    const older: Record<string, unknown> = { ...PERCENTILE };
+    delete older.ranked;
+
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({
+        ...frame(MEASURED),
+        return: { ...MEASURED, percentile: older },
+      }),
+    );
+
+    expect(
+      decoded.kind === "message" &&
+        decoded.message.type === "return" &&
+        decoded.message.return.measured &&
+        decoded.message.return.percentile,
+    ).toBeNull();
+  });
+
   it("reads a frame from a gateway that predates the field as no percentile", () => {
     // The deploy rolls the backend first, but a **rollback pins a previous
     // image** — so a new bundle meeting a gateway with no `percentile` key at
@@ -1609,7 +1730,7 @@ describe("the fifth message type, which is about ONE security", () => {
     ).toBeNull();
   });
 
-  it("measures 316 bytes for a figure, 391 with a percentile, and 153 or 249 for a refusal", () => {
+  it("measures 316 bytes for a figure, 405 with a percentile, 400–405 with a refused one, and 153 or 249 for a refused figure", () => {
     // **The number the Gate 1 decision is read against**, measured here rather
     // than quoted: the rejected alternative — a field on every observation —
     // is +54,525 B a frame at 516 subscribed, so this is a factor of **183**
@@ -1621,13 +1742,48 @@ describe("the fifth message type, which is about ONE security", () => {
       new TextEncoder().encode(encodeMarketStreamMessage(message)).length;
 
     // **298 → 316 B on 2026-10-14** (Task 5.3.3): `,"percentile":null` is 18 B
-    // on every measured frame, and a frame carrying the comparison is **391**.
+    // on every measured frame, and a frame carrying the comparison is
+    // **405 B** — **391 → 405 on 2026-10-14** (Task 5.3.4), the 14 B being
+    // `"ranked":true,`, the discriminant that made the member a union.
     // The frame is sent once per subscribe and once per applied batch for the
     // **one** focused security, so the ratio Gate 1 decision 1 was taken on —
-    // against +54,525 B a frame at 516 subscribed — is untouched: 391 B is a
-    // factor of **139**.
+    // against +54,525 B a frame at 516 subscribed — is untouched: 405 B is a
+    // factor of **135**.
     expect(bytes(frame(MEASURED))).toBe(316);
-    expect(bytes(frame({ ...MEASURED, percentile: PERCENTILE }))).toBe(391);
+    expect(bytes(frame({ ...MEASURED, percentile: PERCENTILE }))).toBe(405);
+
+    // **A REFUSED comparison costs what a ranked one costs** — 400 B for the
+    // sample refusal and 405 B for the price-break one — which is the measured
+    // answer to *is it cheaper to send nothing and let the browser say
+    // nothing*. It is not: the saving is 84–89 B on a frame sent once per
+    // applied batch for one security, against a reader who cannot otherwise
+    // tell *we have not compared this* from *we will not*.
+    expect(
+      bytes(
+        frame({
+          ...MEASURED,
+          percentile: {
+            ranked: false,
+            refusal: "too-few-samples",
+            sampleCount: 737,
+            minimumSampleCount: 2500,
+          },
+        }),
+      ),
+    ).toBe(400);
+    expect(
+      bytes(
+        frame({
+          ...MEASURED,
+          percentile: {
+            ranked: false,
+            refusal: "split-discontinuity",
+            sampleCount: 4620,
+            minimumSampleCount: 2500,
+          },
+        }),
+      ),
+    ).toBe(405);
     // **The refusal grew on 2026-10-14** (Task 5.2.4): 141 → **153 B** with
     // nothing observed (`"seen":null`) and **249 B** carrying the one instant
     // it has. The figure is unchanged at 298, and the frame is sent once per

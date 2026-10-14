@@ -40,6 +40,7 @@ const MEASURED: WireMeasuredReturn = {
  * the numerator's.
  */
 const PERCENTILE: WireReturnPercentile = {
+  ranked: true,
   rank: 99,
   aboveSample: false,
   sampleCount: 4620,
@@ -349,16 +350,151 @@ describe("fiveMinuteReturnBand", () => {
       );
     });
 
-    it("says nothing about a baseline where there is none", () => {
+    it("says nothing at all where the gateway said nothing", () => {
       // ADR 0029's defer rule at its sharpest: a clause naming the tape of a
       // comparison that did not happen is the fully-formed provenance record
-      // about nothing. Most securities, every cold replica and every gated run
-      // are in this state.
+      // about nothing.
+      //
+      // **`percentile: null` is now only one state** (Task 5.3.4): a frame
+      // from a gateway that predates the comparison, or one whose shape this
+      // bundle could not read. The absences that used to arrive here — no
+      // generation, no row, too short, refused — each say which, below.
       const band = fiveMinuteReturnBand("NVDA", held(MEASURED));
 
       expect(band.percentile).toBeUndefined();
       expect(band.sample).toBeUndefined();
       expect(band.tape).toBe("Measured on IEX");
+    });
+
+    it("draws the refusal in the sample row, and no percentile cell", () => {
+      // **Replacing a clause rather than adding a row** (Task 5.3.4), which is
+      // what keeps the region one height: the footer row is reserved for the
+      // bias clause at every width and the refusal sentence is shorter.
+      const band = fiveMinuteReturnBand(
+        "NVDA",
+        held({
+          ...MEASURED,
+          percentile: {
+            ranked: false,
+            refusal: "too-few-samples",
+            sampleCount: 737,
+            minimumSampleCount: 2500,
+          },
+        }),
+      );
+
+      // The figure is untouched — the return is true whatever the comparison
+      // beside it was.
+      expect(band.move?.change).toBe("+0.42%");
+      expect(band.percentile).toBeUndefined();
+      expect(band.sample).toBe(
+        "Baseline too short to rank — 737 of 2,500 returns",
+      );
+      // **And no baseline tape clause**, because no baseline was used: ADR
+      // 0029 again, and the clause draws only where a comparison did.
+      expect(band.tape).toBe("Measured on IEX");
+    });
+
+    it("draws the price-break refusal, which is a different sentence", () => {
+      const band = fiveMinuteReturnBand(
+        "NVDA",
+        held({
+          ...MEASURED,
+          percentile: {
+            ranked: false,
+            refusal: "split-discontinuity",
+            sampleCount: 4620,
+            minimumSampleCount: 2500,
+          },
+        }),
+      );
+
+      expect(band.sample).toBe(
+        "Baseline crosses an unadjusted price break — not comparable",
+      );
+      expect(band.percentile).toBeUndefined();
+    });
+
+    it("keeps the refusal when an instant cannot be read", () => {
+      // The asymmetry is the point and it is not a convenience. The sample
+      // clause's bias arm is derived from the two instants, so a **ranked**
+      // comparison drops when either is unreadable; *we hold 737 returns* has
+      // no such condition and is true whatever the strings did. Without this
+      // the state would be a figure with blank room under it — which says *we
+      // did not think to compare this* rather than *we will not*.
+      const band = fiveMinuteReturnBand(
+        "NVDA",
+        held({
+          ...MEASURED,
+          to: { ...MEASURED.to, at: "not an instant" },
+          percentile: {
+            ranked: false,
+            refusal: "too-few-samples",
+            sampleCount: 0,
+            minimumSampleCount: 2500,
+          },
+        }),
+      );
+
+      expect(band.qualifier).toBeUndefined();
+      expect(band.sample).toBe(
+        "Baseline too short to rank — 0 of 2,500 returns",
+      );
+    });
+
+    it("never draws a dash where the percentile cell would be", () => {
+      // `—` is `unchanged` in `PriceChange`, so a dash in that cell asserts a
+      // zero return about a number that is not a return at all. Every
+      // comparison state is checked, including the two refusals and the
+      // nothing-said one.
+      const comparisons = [
+        null,
+        PERCENTILE,
+        {
+          ranked: false,
+          refusal: "too-few-samples",
+          sampleCount: 0,
+          minimumSampleCount: 2500,
+        },
+        {
+          ranked: false,
+          refusal: "split-discontinuity",
+          sampleCount: 4620,
+          minimumSampleCount: 2500,
+        },
+      ] as const;
+
+      for (const percentile of comparisons) {
+        const band = fiveMinuteReturnBand(
+          "NVDA",
+          held({ ...MEASURED, percentile }),
+        );
+
+        expect(band.percentile ?? "").not.toContain("—");
+        expect(band.percentile ?? "").not.toContain("-");
+      }
+    });
+
+    it("draws a low ordinal beside a zero return rather than a refusal", () => {
+      // **The pair most easily misread.** `0.00%` with `—` as its glyph is a
+      // *reading*: the price did not move in those five minutes, and against a
+      // baseline of magnitudes that is an ordinary low rank rather than an
+      // absence. What tells it from a refusal is everything a refusal does not
+      // have — a signed figure, both instants, the observed count, the tape,
+      // and a rank.
+      const band = fiveMinuteReturnBand(
+        "NVDA",
+        held({
+          ...MEASURED,
+          percent: 0,
+          percentile: { ...PERCENTILE, rank: 3, sampleCount: 4620 },
+        }),
+      );
+
+      expect(band.move?.change).toBe("0.00%");
+      expect(band.move?.direction).toBe("unchanged");
+      expect(band.percentile).toBe("3rd percentile");
+      expect(band.absent).toBeUndefined();
     });
 
     it("drops the comparison, and keeps the figure, when an instant cannot be read", () => {

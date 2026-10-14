@@ -1,4 +1,5 @@
 import {
+  BASELINE_MINIMUM_SAMPLE,
   PERCENT_DISPLAY_DECIMALS,
   decodeMarketStreamMessage,
   directionOf,
@@ -44,6 +45,16 @@ import { backendOrigin } from "../support/pair.js";
 // arm is the one that has teeth on CI. Neither is skipped: the first test
 // asserts the agreement whichever of the two the server sent, and says which
 // in its failure message.
+//
+// **And a PERCENTILE is further out of reach than a figure** (Task 5.3.4):
+// it needs a measured return *and* a 60-session baseline, so no machine in
+// this repository draws one. CI has neither; a developer's store has the
+// baseline and no feed. So every assertion here about a drawn percentile is
+// **conditional and vacuous outside production**, and the claim with teeth is
+// the negative one — *this deployment cannot support a percentile, therefore
+// nothing on the page may claim one* — grounded on `GET /market-data` and on
+// `GET /diagnostics/baseline-cost`. `docs/GAPS.md` carries that as a standing
+// item rather than a hole this file can close.
 //
 // ## The 2,000 ms floor is a property of this page, not an accident
 //
@@ -97,6 +108,42 @@ async function providerFeed(page: Page): Promise<string | null> {
   const response = await page.request.get(`${backendOrigin}/market-data`);
   const body = (await response.json()) as { feed: string | null };
   return body.feed;
+}
+
+/**
+ * **What this deployment's STORE can support, asked of the database rather
+ * than of the frame** (Task 5.3.4).
+ *
+ * `GET /diagnostics/baseline-cost` runs the pass's own read — one security,
+ * the real predicate — and reports whether `bar_coverage` has a `1m` row at
+ * all and how many `sip` bars the 60-session window holds. Both answers bound
+ * what a percentile can possibly be, from outside the `return` frame:
+ *
+ * - `measured: false` means the store has **no `1m` coverage**, so no baseline
+ *   window can be read for any security and a ranked percentile is
+ *   fabricated. **This is the arm CI takes**: its store is 516 securities and
+ *   zero bars.
+ * - `sipRows` is an upper bound on the sample, because every grid anchor the
+ *   sampler pairs is a distinct `sip` bar inside that window — so a
+ *   `sampleCount` above it is a number nothing could have counted, and a
+ *   `sipRows` below `BASELINE_MINIMUM_SAMPLE` makes a rank impossible
+ *   outright.
+ *
+ * Without this the percentile assertions below are a **pass-through**, which
+ * `docs/GAPS.md` records as proving fidelity and never correctness: a producer
+ * that invents a `99th percentile` is drawn exactly as faithfully as a
+ * correct one, and *the page agrees with the frame* is green either way.
+ */
+interface BaselineCost {
+  readonly measured: boolean;
+  readonly sipRows: number | null;
+}
+
+async function baselineCost(page: Page): Promise<BaselineCost> {
+  const response = await page.request.get(
+    `${backendOrigin}/diagnostics/baseline-cost?symbol=NVDA`,
+  );
+  return (await response.json()) as BaselineCost;
 }
 
 const region = (page: Page): Locator =>
@@ -236,12 +283,53 @@ test("the region draws what the SERVER sent, figure or refusal", async ({
     // And it names the tape it was measured on, which the chart beside it
     // cannot do for this figure (invariant 6).
     expect(lines).toContain("Measured on");
+
+    // **The comparison, bounded by something that is not the frame** (Task
+    // 5.3.4). See `baselineCost`: these are the only assertions in this file
+    // about the percentile that a fabricating producer cannot satisfy.
+    const comparison = sent.percentile;
+    const cost = await baselineCost(page);
+
+    if (comparison?.ranked === true) {
+      expect(
+        cost.measured,
+        "a store with no 1m coverage can read no baseline window, so a ranked percentile is fabricated",
+      ).toBe(true);
+      expect(
+        comparison.sampleCount,
+        "a baseline cannot hold more samples than the window holds sip bars",
+      ).toBeLessThanOrEqual(cost.sipRows ?? 0);
+      expect(
+        comparison.sampleCount,
+        "a percentile below the stated minimum sample must be refused rather than printed",
+      ).toBeGreaterThanOrEqual(BASELINE_MINIMUM_SAMPLE);
+      // The ordinal is on screen and the `%` is not — AC 7, as a reader meets
+      // it rather than as the unit tests have it.
+      expect(lines).toMatch(/\d+(?:st|nd|rd|th) percentile/u);
+    } else if (
+      !cost.measured ||
+      (cost.sipRows ?? 0) < BASELINE_MINIMUM_SAMPLE
+    ) {
+      // **The arm with teeth on CI.** This deployment's store cannot support a
+      // percentile for NVDA at all, so the region must not draw one — and the
+      // producer break is pointed at exactly this assertion.
+      expect(
+        lines,
+        "this store cannot support a baseline, so nothing here may claim a percentile",
+      ).not.toContain("percentile");
+    }
   } else {
     // **The honest absence, by exact text.** This is the arm every gated run
     // takes, and the one the producer break is pointed at: a gateway that
     // fabricates a figure rather than refusing draws digits here, and this
     // assertion is what sees it.
     expect(lines).toContain(REFUSAL_SENTENCES[sent.refusal]);
+    // **A refusal has no comparison, by the shape of the frame** (Task
+    // 5.3.4): `percentile` is a member of the measured arm alone, so there is
+    // no magnitude to rank and nothing on screen may say otherwise. This is
+    // the arm every gated run takes.
+    expect(lines).not.toContain("percentile");
+    expect(lines).not.toContain("Baseline");
     // A refusal has no figure at all — never a dash, which is `unchanged` in
     // `PriceChange` and would assert a zero return, and never a zero.
     expect(lines).not.toContain("%");

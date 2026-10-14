@@ -2,8 +2,8 @@ import { asInstant } from "@marketpulse/shared";
 
 import type {
   WireObservedSpan,
+  WireReturnComparison,
   WireReturnEndpoint,
-  WireReturnPercentile,
   WireSymbolReturn,
 } from "@marketpulse/shared";
 import type {
@@ -11,7 +11,7 @@ import type {
   ObservedSpan,
   ReturnEndpoint,
 } from "./five-minute-return.js";
-import type { ReturnPercentile } from "./return-percentile.js";
+import type { PercentileAnswer } from "./return-percentile.js";
 
 /**
  * **The 5-minute return, on the wire** (Task 5.2.3).
@@ -93,24 +93,40 @@ const toWireSeen = (seen: ObservedSpan | undefined): WireObservedSpan | null =>
  * and an explicit `null` are the same thing to a decoder while `undefined` is
  * not a JSON value at all.
  *
- * **It is a field-for-field copy and deliberately so.** Nothing is derived
- * here: the rank, the ceiling flag, the counted `n`, the grid stride and the
- * baseline's tape are all answers {@link returnPercentileOf} already gave, and
- * a transport that recomputed any of them would be a second producer for a
- * figure invariant 1 says has exactly one.
+ * **It is a field-for-field copy of BOTH arms and deliberately so.** Nothing
+ * is derived here: the rank, the ceiling flag, the counted `n`, the grid
+ * stride, the baseline's tape, the refusal word and the bound it was measured
+ * against are all answers {@link comparableBaseline} and
+ * {@link returnPercentileOf} already gave, and a transport that recomputed any
+ * of them would be a second producer for a figure invariant 1 says has exactly
+ * one. **Amended 2026-10-14 (Task 5.3.4): the union has a refused arm**, so
+ * `null` now means only *this gateway sent no comparison*.
  */
 const toWirePercentile = (
-  percentile: ReturnPercentile | undefined,
-): WireReturnPercentile | null =>
-  percentile === undefined
-    ? null
-    : {
-        rank: percentile.rank,
-        aboveSample: percentile.aboveSample,
-        sampleCount: percentile.sampleCount,
-        spanMinutes: percentile.spanMinutes,
-        feed: percentile.feed,
-      };
+  answer: PercentileAnswer | undefined,
+): WireReturnComparison | null => {
+  if (answer === undefined) return null;
+
+  if (!answer.ranked) {
+    return {
+      ranked: false,
+      refusal: answer.refusal,
+      sampleCount: answer.sampleCount,
+      minimumSampleCount: answer.minimumSampleCount,
+    };
+  }
+
+  const { percentile } = answer;
+
+  return {
+    ranked: true,
+    rank: percentile.rank,
+    aboveSample: percentile.aboveSample,
+    sampleCount: percentile.sampleCount,
+    spanMinutes: percentile.spanMinutes,
+    feed: percentile.feed,
+  };
+};
 
 /**
  * The figure and — where there is a baseline to compare it with — its
@@ -127,10 +143,15 @@ const toWirePercentile = (
  * **A refusal never carries one**, by construction rather than by a branch
  * somebody has to remember: there is no magnitude to rank, and
  * {@link WireMeasuredReturn.percentile} is the only member that has the field.
+ *
+ * **Since Task 5.3.4 the second argument is a `PercentileAnswer` rather than a
+ * percentile** — a rank, or the refusal and the two numbers its sentence needs.
+ * Omitting it still means *no comparison at all*, which is the one state a
+ * frame reaches when the distribution it was handed was malformed.
  */
 export function toWireSymbolReturn(
   figure: FiveMinuteReturn,
-  percentile?: ReturnPercentile,
+  comparison?: PercentileAnswer,
 ): WireSymbolReturn {
   if (!figure.measured) {
     return {
@@ -147,6 +168,6 @@ export function toWireSymbolReturn(
     to: toWireEndpoint(figure.to),
     observed: figure.observed,
     spanMinutes: figure.spanMinutes,
-    percentile: toWirePercentile(percentile),
+    percentile: toWirePercentile(comparison),
   };
 }

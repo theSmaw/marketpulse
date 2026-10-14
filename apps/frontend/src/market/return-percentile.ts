@@ -1,6 +1,10 @@
 import { marketSessionStateAt } from "@marketpulse/shared";
 
-import type { WireReturnPercentile } from "@marketpulse/shared";
+import type {
+  PercentileRefusal,
+  WireRefusedPercentile,
+  WireReturnPercentile,
+} from "@marketpulse/shared";
 
 // **The percentile's words** (Task 5.3.3) — the first thing this product says
 // about how unusual something is, and the first sentence on this screen that
@@ -198,3 +202,80 @@ export function percentileSample(
     "the fattest-tailed bucket — pooled, this reads high"
   );
 }
+
+/**
+ * **The two sentences for a figure with no percentile beside it** (Task 5.3.4)
+ * — and the whole reason there are two is that *we have too little history*
+ * and *the history we have contains a price break we cannot adjust* are
+ * different facts with different repairs.
+ *
+ * ## Why neither is one of the twelve already approved
+ *
+ * The register is inherited — short, no connection word, no status word, no
+ * terminal stop — and the strings are not. `five-minute-return.ts`' four say
+ * *no figure*: `No bars observed yet`, `No bar five minutes back`, `No basis
+ * for a percentage` and the region's own `No return yet.`, and
+ * `relative-performance.ts`' eight are about a **comparison between two
+ * securities**. Every one of them stands **where a figure would be**, and
+ * these two stand in the **footer** where the sample would be, beside a figure
+ * that drew perfectly well. A refusal of the comparison is not a refusal of
+ * the number, and reusing a sentence that means *there is no figure* would say
+ * the one thing that is false here.
+ *
+ * ## The sample one covers TWO facts, so there is no thirteenth sentence
+ *
+ * `Baseline too short to rank — 737 of 2,500 returns` is the sentence, and
+ * `0 of 2,500 returns` is a **true** statement about a cold replica, a
+ * security with no stored `sip` history and every gated run. *We hold too
+ * little* and *we hold none* differ in a number the sentence already prints,
+ * which is `Market breadth`'s rule — a figure over a sample states the sample
+ * — rather than the collapse Story 5.1 shipped for a day, where two states
+ * with **different** repairs shared one string.
+ *
+ * **Both numbers are read, neither spelled.** The count is the pass's
+ * (Gate 1 decision 2) and the bound is **the one the producer applied** rather
+ * than the one this bundle believes in: a rollback can put a gateway and a
+ * bundle two values apart, which is `spanMinutes`' own argument one sentence
+ * up.
+ *
+ * ## And the split one must not read like it
+ *
+ * It names a **price break** rather than a split, because that is all the
+ * detector knows: `SPLIT_DISCONTINUITY_RATIO` catches a session-boundary jump
+ * beyond a ratio, and Task 5.3.2 measured five securities over it of which
+ * **four** sit on exact split factors and one — `MRNA` — is a reverse split
+ * *or a genuine event*. A sentence saying *split* would be a claim about a
+ * corporate action this product has not read a calendar for, which is
+ * invariant 5's confidence level smuggled into prose.
+ *
+ * `not comparable` rather than a count, because the count is not the problem:
+ * the security may have all 4,620 samples and every one of them is measured
+ * across a price we cannot adjust.
+ *
+ * **A total record over `PercentileRefusal`**, so a third refusal word on the
+ * wire is a **compile error naming the missing member** rather than an
+ * `undefined` reaching the footer row — `MARKET_FEED_DESCRIPTIONS`' guard and
+ * `five-minute-return.ts`' `REFUSALS`, pointed at a union that crosses a
+ * socket.
+ */
+const BASELINE_REFUSALS: Readonly<
+  Record<PercentileRefusal, (refused: WireRefusedPercentile) => string>
+> = {
+  "too-few-samples": (refused) =>
+    "Baseline too short to rank — " +
+    `${refused.sampleCount.toLocaleString("en-US")} of ` +
+    `${refused.minimumSampleCount.toLocaleString("en-US")} returns`,
+  "split-discontinuity": () =>
+    "Baseline crosses an unadjusted price break — not comparable",
+};
+
+/**
+ * **Why this figure has no percentile, in the row the sample would have
+ * used** (Task 5.3.4).
+ *
+ * It replaces a clause rather than adding a row, which is what keeps the
+ * region one height: the footer row is reserved for the bias clause at every
+ * width and both of these are shorter than it.
+ */
+export const percentileRefusal = (refused: WireRefusedPercentile): string =>
+  BASELINE_REFUSALS[refused.refusal](refused);

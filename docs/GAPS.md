@@ -4255,3 +4255,36 @@ been instrumented at all. The figures are an **upper bound on the shape**.
 
 **Re-measure:** the arms are in Task 5.2.5's record with their load averages and
 n. **Owner: Epic 14, whose own figures carry the same three caveats.**
+
+## No machine in this repository can draw a percentile at all, so every browser assertion about one is conditional
+
+**Added 2026-10-14 by Task 5.3.4.** This is the sibling of _no gated machine has
+ever seen a breadth figure_, with one turn more: a percentile needs **a measured
+five-minute return AND a 60-session baseline**, and no machine here holds both.
+CI's store is 516 securities and **zero bars**, so it has neither; a developer's
+store has the baseline and **no market-data provider**, so the trailing window is
+empty for ever and every `return` frame is `nothing-observed`.
+
+**The consequence, stated plainly: every assertion in
+`security-abnormal-move.spec.ts` about a drawn percentile is vacuous everywhere
+except production.** The three that are not vacuous are the **negative** ones,
+and they are grounded outside the frame: `GET /market-data` says whether a
+provider exists at all (nothing observed ⇒ no figure ⇒ no comparison), and
+`GET /diagnostics/baseline-cost` says whether the store holds `1m` coverage and
+how many `sip` bars the baseline window holds — an upper bound on the
+`sampleCount` a frame may claim, and on CI a flat refusal of any rank.
+
+**Two breaks were performed on 2026-10-14 and both went red for the right
+reason, which is also what showed the limit.** A producer fabricating a measured
+figure with a `99th percentile` is caught by the **provider** claim — the
+assertion that fires first — not by either percentile bound, because on a
+machine with no provider the percentile claim is downstream of a figure that
+cannot exist. The bound on `sampleCount` against `sipRows` has therefore
+**never been exercised against a non-trivial value**, anywhere.
+
+**Re-measure:** on a deployment with a provider and a baseline, open
+`/securities/NVDA` mid-session and compare the drawn `n` with
+`GET /diagnostics/baseline-cost`'s `sipRows` and with
+`select sample_count from return_baselines` for that security. **Owner: the
+first sitting on the deployed product after Epic 5 ships a percentile** — the
+same sitting `LIVE-REHEARSAL.md` owes a person.

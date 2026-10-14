@@ -19,10 +19,15 @@ export type { AnomalyBand } from "./anomaly.js";
 export {
   BASELINE_BREAKPOINT_COUNT,
   BASELINE_LOOKBACK_SESSIONS,
+  BASELINE_MINIMUM_SAMPLE,
+  PERCENTILE_REFUSALS,
   RETURN_BASELINE_REFUSALS,
   SPLIT_DISCONTINUITY_RATIO,
 } from "./return-baseline.js";
-export type { ReturnBaselineRefusal } from "./return-baseline.js";
+export type {
+  PercentileRefusal,
+  ReturnBaselineRefusal,
+} from "./return-baseline.js";
 export {
   DISCONNECTED_AFTER_MS,
   OBSERVATION_INTERVAL_MS,
@@ -90,7 +95,9 @@ export type {
   WireMeasuredReturn,
   WireObservedMovers,
   WireOverviewFigure,
+  WireRefusedPercentile,
   WireRefusedReturn,
+  WireReturnComparison,
   WireReturnEndpoint,
   WireReturnPercentile,
   WireReturnRefusal,
