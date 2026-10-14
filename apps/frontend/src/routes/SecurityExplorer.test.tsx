@@ -852,6 +852,9 @@ describe("the 5-minute return and the security it is about", () => {
     to: { at: "2026-09-16T18:06:00.000Z", price: 119.5, feed: "iex" },
     observed: 3,
     spanMinutes: 5,
+    // No baseline — the percentile is this route's concern in no way at all,
+    // and `null` is the state most securities are in (Task 5.3.3).
+    percentile: null,
   } as const;
 
   const withFigure = {

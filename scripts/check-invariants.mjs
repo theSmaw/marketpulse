@@ -7022,6 +7022,104 @@ const INVARIANTS = [
       }
     },
   },
+
+  {
+    id: "the-opening-bias-is-read-off-the-figure",
+    claim:
+      "The percentile's opening-bias clause is conditional on the FIGURE'S " +
+      "own instants and never on a clock. The one shipped file holding its " +
+      "words also holds the session read that decides it, and reads no " +
+      "process clock — no `Date.now()`, no zero-argument `new Date()`, and " +
+      "neither `computedAt` nor `sentAt`.",
+    check() {
+      // **Task 5.3.3, AC 8, and the defect it forbids is one this product has
+      // already shipped once, one surface over.**
+      //
+      // The clause says *the open is the fattest-tailed bucket, so this
+      // percentile reads high*. It is true of a figure **measured** in the
+      // first thirty minutes of a session — which is a property of the two
+      // bar instants on the frame, both of which are a bar's own `startsAt`.
+      //
+      // The cheap implementation asks the **wall clock** whether it is
+      // currently between 09:30 and 10:00. It is wrong in two states a reader
+      // reaches by doing nothing: a window that ENDED at 09:43 and is read at
+      // 11:00 loses the clause exactly when it needs it, and a stale figure
+      // from Friday gains it at 09:40 on Monday. It is also wrong under Epic
+      // 13's replay in every state, which is invariant 4 — and it is Task
+      // 4.8.12's defect in as many words: `computedAt` dated the landing
+      // page's four closes by *when the page was opened*, and the repair was
+      // to date the observation instead.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // Not a filename and not a function name — `CLAUDE.md`'s rule, and
+      // Task 4.9.10's transcript of a draft that passed on its own defect.
+      // It is the **sentence**: whoever draws this bias has to write its
+      // words, and wherever they write them, that file is the one that must
+      // not reach for a clock. A later band moving the clause carries the
+      // check with it.
+      //
+      // **And the second conjunct is why the first cannot be routed around.**
+      // A file could keep its words clean and take a boolean from a hook that
+      // reads `Date.now()`. So the decision has to live where the words do:
+      // the file must itself read the session the instants fall in, which is
+      // the only input that can answer *was this figure measured at the open*
+      // without a clock. One home for the words and the condition together.
+      const CLAUSE = "fattest-tailed";
+      const SESSION_READ = /\bmarketSessionStateAt\s*\(/u;
+      const CLOCK =
+        /\bDate\.now\s*\(|new\s+Date\s*\(\s*\)|\bcomputedAt\b|\bsentAt\b/u;
+
+      const holders = shippedSourceFiles().filter(({ text }) =>
+        text.includes(CLAUSE),
+      );
+
+      // **No match is a failure.** A grep whose anchor has moved returns
+      // nothing and reads exactly like a pass.
+      if (holders.length !== 1) {
+        throw new InvariantFailure(
+          `${String(holders.length)} shipped files hold the opening-bias ` +
+            `clause (\`${CLAUSE}\`), expected exactly 1:\n      ` +
+            (holders.length === 0
+              ? "(none — the sentence has moved or been reworded, and this " +
+                "check is now green on a clause it cannot see)"
+              : holders
+                  .map(({ path }) => relative(REPO_ROOT, path))
+                  .join("\n      ")) +
+            "\n    Two homes for one sentence is two conditions to keep in " +
+            "step, and ADR 0029's rule is one fact, one home.",
+        );
+      }
+
+      const [holder] = holders;
+      const where = relative(REPO_ROOT, holder.path);
+
+      if (!SESSION_READ.test(holder.text)) {
+        throw new InvariantFailure(
+          `${where} draws the opening-bias clause without reading the ` +
+            "session the figure's instants fall in. The condition has moved " +
+            "out of the file that holds the words, so this check can no " +
+            "longer see what decides it — and the thing it is written " +
+            "against is precisely a boolean arriving from somewhere that " +
+            "read a clock.",
+        );
+      }
+
+      if (CLOCK.test(holder.text)) {
+        throw new InvariantFailure(
+          `${where} draws the opening-bias clause AND reads a process ` +
+            `clock (\`${String(CLOCK.exec(holder.text)?.[0])}\`). The clause ` +
+            "is true of a figure MEASURED at the open, which is a property " +
+            "of the two bar instants on the frame — so a window that ended " +
+            "at 09:43 and is read at 11:00 keeps it, a stale Friday figure " +
+            "read on Monday morning does not gain it, and the band stays " +
+            "correct under a replay. `computedAt` and `sentAt` are readings " +
+            "of the server's own clock and are the same mistake arriving " +
+            "over the wire.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

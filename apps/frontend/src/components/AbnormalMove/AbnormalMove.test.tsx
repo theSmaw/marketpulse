@@ -2,7 +2,9 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
+  WireMeasuredReturn,
   WireObservedSpan,
+  WireReturnPercentile,
   WireReturnRefusal,
   WireSymbolReturn,
 } from "@marketpulse/shared";
@@ -21,13 +23,27 @@ import { AbnormalMove, type AbnormalMoveProps } from "./AbnormalMove.js";
 // *one height in every state* is the browser's and the probe's, and this task's
 // record carries the probed figure per width.
 
-const MEASURED: WireSymbolReturn = {
+// **`WireMeasuredReturn` rather than the union**, so the endpoints are
+// reachable without narrowing at every use.
+const MEASURED: WireMeasuredReturn = {
   measured: true,
   percent: 0.4201680672268908,
   from: { at: "2026-10-14T18:01:00.000Z", price: 119, feed: "iex" },
   to: { at: "2026-10-14T18:06:00.000Z", price: 119.5, feed: "iex" },
   observed: 3,
   spanMinutes: 5,
+  // **No baseline to compare it with** — the ordinary state, and CI's
+  // permanent one. The comparison's own states are below.
+  percentile: null,
+};
+
+/** A comparison, as the gateway sends one (Task 5.3.3). */
+const PERCENTILE: WireReturnPercentile = {
+  rank: 99,
+  aboveSample: false,
+  sampleCount: 4620,
+  spanMinutes: 5,
+  feed: "sip",
 };
 
 /**
@@ -401,11 +417,107 @@ describe("AbnormalMove", () => {
   it("speaks no feed word, no venue claim and no connection word", () => {
     const { container } = draw();
 
-    // AC 6. `IEX` is a tape and is invariant 6's field; `All US exchanges` on
-    // this surface would be a coverage claim about a figure measured at one
-    // venue.
+    // AC 6. `IEX` is a tape and is invariant 6's field; `All US exchanges`
+    // beside this figure would be a coverage claim about a return measured at
+    // one venue.
     expect(container.textContent).not.toMatch(
       /live|stale|disconnect|all us exchanges/iu,
     );
+  });
+
+  // --- The percentile, the first figure here that compares (Task 5.3.3) ---
+  describe("the percentile", () => {
+    const ranked = (over: Partial<WireReturnPercentile> = {}) =>
+      draw({
+        symbolReturn: {
+          symbol: "NVDA",
+          figure: { ...MEASURED, percentile: { ...PERCENTILE, ...over } },
+        },
+      });
+
+    it("draws beside the figure, with the sample it was taken against", () => {
+      const { container } = ranked();
+
+      // Two cells on one row, then the sample, then **two** tapes. The
+      // percentile is in the figure's own block, which is why it joins that
+      // line rather than making a fifth.
+      expect(readable(container)).toBe(
+        "5-minute return / up +0.42% 99th percentile / " +
+          "Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / " +
+          "of 4,620 5-minute returns · all times of day pooled / " +
+          "Measured on IEX · baseline on All US exchanges",
+      );
+    });
+
+    it("states the counted `n` and no `%` near the ordinal", () => {
+      // The count is read off the frame: the measured range over this universe
+      // is 737 to 4,620, so a sentence quoting AC 3's nominal 4,680 would be
+      // wrong for almost every security on the list.
+      ranked({ sampleCount: 737 });
+
+      expect(screen.getByText("99th percentile")).toBeTruthy();
+      expect(
+        screen.getByText("of 737 5-minute returns · all times of day pooled"),
+      ).toBeTruthy();
+      // AC 7, as a reader meets it: the only `%` on the band belongs to the
+      // change.
+      expect(screen.getByText("99th percentile").textContent).not.toContain(
+        "%",
+      );
+    });
+
+    it("says the venue claim about the BASELINE, never about the figure", () => {
+      // Invariant 6 with Gate 1's false premise 5: the numerator is one venue
+      // and the baseline is the consolidated tape, so the clause names which
+      // is which. What must not happen is `All US exchanges` standing alone
+      // where a reader would read it as the figure's.
+      const { container } = ranked();
+
+      expect(container.textContent).toContain(
+        "Measured on IEX · baseline on All US exchanges",
+      );
+      expect(container.textContent).not.toMatch(/live|stale|disconnect/iu);
+    });
+
+    it("draws `>99th` at the ceiling and never a `100th`", () => {
+      const { container } = ranked({ aboveSample: true });
+
+      expect(screen.getByText(">99th percentile")).toBeTruthy();
+      expect(container.textContent).not.toContain("100th");
+    });
+
+    it("states the opening bias from the figure's own instants", () => {
+      // AC 8, and **no fake timers are needed to prove it reads no clock**:
+      // 13:38Z is 09:38 EDT, eight minutes after the bell, and the clause is a
+      // function of that instant for ever — including when the page is opened
+      // at 11:00, and under a replay.
+      const { container } = draw({
+        symbolReturn: {
+          symbol: "NVDA",
+          figure: {
+            ...MEASURED,
+            from: { ...MEASURED.from, at: "2026-10-14T13:38:00.000Z" },
+            to: { ...MEASURED.to, at: "2026-10-14T13:43:00.000Z" },
+            percentile: PERCENTILE,
+          },
+        },
+      });
+
+      expect(container.textContent).toContain(
+        "opening 30 minutes, the fattest-tailed bucket — pooled, this reads high",
+      );
+    });
+
+    it("holds the two new rows\u2019 room, and says nothing in them, with no baseline", () => {
+      // Every state, one height: the sample row reserves whether or not it
+      // draws, and a reserved row holds a no-break space rather than a dash, a
+      // zero or an `unknown` standing in for a figure.
+      const { container } = draw();
+
+      expect(readable(container)).not.toContain("percentile");
+      expect(readable(container)).not.toContain("returns");
+      expect(readable(container)).not.toContain("baseline");
+      expect(readable(container)).not.toMatch(/—|unknown|n\/a|null/iu);
+    });
   });
 });

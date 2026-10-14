@@ -66,7 +66,13 @@ import { createMarketBarsRepository } from "./market-bars.js";
 // The baseline's cost, measured by the replica because nothing else can reach
 // the deployed store (Task 5.3.2).
 import { readBaselineCost } from "./baseline-cost.js";
-import { createReturnBaselineStore } from "./return-baseline-store.js";
+import {
+  BASELINE_FEED,
+  createReturnBaselineStore,
+} from "./return-baseline-store.js";
+import { createReturnBaselineCache } from "./return-baseline-cache.js";
+import { SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
+import { returnPercentileOf } from "./return-percentile.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
 import { createMarketDataRoutes } from "./routes/market-data.js";
 import { createSecuritiesRoutes } from "./routes/securities.js";
@@ -898,6 +904,38 @@ void lastCloses.load(marketDateAt(new Date())).then(
 );
 
 /**
+ * **The 60-session return baseline, held in memory** (Task 5.3.3, ADR 0044).
+ *
+ * `lastCloses`' shape and `lastCloses`' reason, one row of this file up: a
+ * derived aggregate that changes once a night, read by a path that must not
+ * `await`, because {@link symbolReturn} is called from inside the socket's own
+ * callback. The cache owns the refresh condition and never throws; what this
+ * line owns is that there is exactly one of it.
+ */
+const baselines = createReturnBaselineCache({
+  store: createReturnBaselineStore(database),
+  warn: (fields, message) => {
+    app.log.warn(fields, message);
+  },
+});
+
+// **Loaded at startup, and it does not block the server** — `lastCloses`'
+// argument unchanged. A replica with no generation stored draws every figure
+// with no percentile beside it, which is an honest partial answer rather than
+// a failure, and is CI's permanent state.
+void baselines.load(marketDateAt(new Date())).then(
+  () => {
+    app.log.info(
+      { securities: baselines.size(), through: baselines.heldThrough() },
+      "return baselines loaded for the price percentile",
+    );
+  },
+  (error: unknown) => {
+    app.log.warn({ err: error }, "return baselines could not be loaded");
+  },
+);
+
+/**
  * **One security's 5-minute return, for the browser whose screen is about it**
  * (Task 5.2.3).
  *
@@ -934,9 +972,43 @@ const symbolReturn = (symbol: string): WireSymbolReturn => {
     return { measured: false, refusal: "nothing-observed", seen: null };
   }
 
-  return toWireSymbolReturn(
-    fiveMinuteReturn(trailingWindows.read(symbol), { asOf: new Date() }),
-  );
+  const asOf = new Date();
+  const figure = fiveMinuteReturn(trailingWindows.read(symbol), { asOf });
+
+  // **The join of the two halves, and this is the one place that holds both**
+  // (Task 5.3.3): the trailing window is the live tape's and the baseline is a
+  // stored 60-session distribution, so neither producer can see the other and
+  // the comparison is assembled here. A refusal has no magnitude, so there is
+  // nothing to rank.
+  if (!figure.measured) return toWireSymbolReturn(figure);
+
+  const stored = baselines.baselineAsOf(marketDateAt(asOf)).get(symbol);
+  // `null` for both absences at once — no row, or a row that refused — which
+  // is what the comment below is about.
+  const breakpoints = stored?.breakpoints ?? null;
+
+  // **Three absences, one answer, and the narrowing happens HERE rather than
+  // in the arithmetic.** No generation loaded (a cold replica, and CI for
+  // ever); no row for this security (nothing stored on the baseline tape); a
+  // row that **refused** — a split discontinuity, which carries a
+  // `sample_count` and no breakpoints on purpose, because *the pass has not
+  // reached this security* and *the pass reached it and will not answer* are
+  // different facts. Each gets its own words in Task 5.3.4; today each draws
+  // the figure with no comparison beside it, which is ADR 0029's defer rule.
+  const percentile =
+    breakpoints === null || stored === undefined
+      ? undefined
+      : returnPercentileOf(figure.percent, {
+          breakpoints,
+          sampleCount: stored.sampleCount,
+          // Both read from the producers rather than spelled: the grid stride
+          // belongs to the sampler and the tape to the store's own `where`, so
+          // the sentence a reader sees cannot drift from what was counted.
+          spanMinutes: SAMPLE_SPAN_MINUTES,
+          feed: BASELINE_FEED,
+        });
+
+  return toWireSymbolReturn(figure, percentile);
 };
 
 const gateway = registerMarketGateway(app, {

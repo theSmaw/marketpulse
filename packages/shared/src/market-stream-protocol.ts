@@ -1059,6 +1059,84 @@ export interface WireReturnEndpoint {
   readonly feed: MarketFeed;
 }
 
+/**
+ * **How unusual the magnitude of this move is, against this security's own
+ * history** (Task 5.3.3) — the first field on this wire that compares a figure
+ * with anything.
+ *
+ * ## It is a RANK and a count, never a sentence
+ *
+ * The backend holds the distribution (`return-baseline-cache.ts`, 101
+ * breakpoints a security) and answers one integer against it; the words
+ * `99th percentile` and the sample clause beside them are the surface's, built
+ * in `apps/frontend/src/market/return-percentile.ts`. Invariant 1 is why the
+ * number is here at all — the figure a reader sees is computed by deterministic
+ * code — and ADR 0029's *one fact has one home* is why the spelling is not.
+ *
+ * ## Why four fields rather than one
+ *
+ * {@link rank} alone is a percentile with no sample behind it, which is the
+ * false impression ADR 0029 exists for: a 99th of 737 samples and a 99th of
+ * 4,620 are different claims and the measured range over this universe is
+ * exactly that wide (Task 5.3.2). {@link spanMinutes} and {@link feed} are the
+ * two facts that say what was counted — a five-minute return on the
+ * consolidated tape — and both are **read** rather than spelled by the
+ * renderer, which is `WireMeasuredReturn.spanMinutes`' own argument and
+ * invariant 6's.
+ */
+export interface WireReturnPercentile {
+  /**
+   * **The integer ordinal, `0` through `99`. Never `100`.**
+   *
+   * Gate 1 decision 2, twice over. The precision is an integer because the
+   * binomial standard error at the 99th of n = 4,620 is **0.146 points**, so a
+   * first decimal is below the sample's resolving power — `PRODUCT_SPEC.md`
+   * §11's own `99.1st percentile` example carries a dated amendment saying so.
+   * And the ceiling is 99 because **above the highest order statistic there is
+   * no sample**: `100th` asserts a strict maximum over a distribution that
+   * excludes the very window being scored, and no reader can falsify it.
+   */
+  readonly rank: number;
+  /**
+   * **The magnitude is strictly above every sample in the baseline**, so the
+   * surface draws `>99th` rather than a rank.
+   *
+   * It is not `rank === 99`: a magnitude between the 99th breakpoint and the
+   * sample maximum is a legitimate `99th`, and this says the stronger thing —
+   * that the baseline has nothing to compare with at all. See
+   * `returnPercentileOf`.
+   */
+  readonly aboveSample: boolean;
+  /**
+   * **The counted `n`, never a constant** (Gate 1 decision 2). AC 3's
+   * `78 × 60 = 4,680` is wrong three ways; the measured range over this
+   * universe is **737 to 4,620**, and a sentence quoting a nominal figure
+   * would be wrong for almost every security on the list.
+   */
+  readonly sampleCount: number;
+  /**
+   * The baseline grid's stride in minutes, so the sentence names the span the
+   * samples are of rather than spelling a `5` of its own.
+   *
+   * **The product spells `5` four times and each has its own home**
+   * (ADR 0043, and `return-baseline.ts`' `SAMPLE_SPAN_MINUTES`, which argues
+   * at length why the grid stride is deliberately not `RETURN_SPAN_MINUTES`).
+   * This field is what keeps the browser from being the fifth.
+   */
+  readonly spanMinutes: number;
+  /**
+   * **Which tape the baseline was built from** — invariant 6, and the field
+   * that makes the comparison honest.
+   *
+   * The baseline window is `feed = 'sip'` only (AC 5) while every bar in the
+   * live trailing window is `iex` by construction, so **every comparison this
+   * story ships is a consolidated-tape baseline against a single-venue
+   * numerator**. That is Story 5.3's Gate 1 false premise 5, and the screen
+   * must say it rather than imply one tape per comparison.
+   */
+  readonly feed: MarketFeed;
+}
+
 /** A measured return, with both endpoints and the part of the span it saw. */
 export interface WireMeasuredReturn {
   readonly measured: true;
@@ -1076,6 +1154,23 @@ export interface WireMeasuredReturn {
    * `one-home-for-the-observation-window`'s rule applied to a span.
    */
   readonly spanMinutes: number;
+  /**
+   * **How unusual this magnitude is, or `null` where there is nothing to
+   * compare it with** (Task 5.3.3).
+   *
+   * `null` rather than an absent key, and an explicit member rather than an
+   * optional one, for {@link WireRefusedReturn.seen}'s two reasons: the
+   * producer has to say which, and a browser from before this field existed
+   * reads a frame without it — so the decoder treats absent and `null`
+   * identically.
+   *
+   * **It is `null` far more often than not, and that is the ordinary state
+   * rather than a degraded one.** A cold replica has no baseline loaded, a
+   * security with no stored `sip` history has none at all, and one whose window
+   * crosses an unadjusted split is **refused** (`SPLIT_DISCONTINUITY_RATIO`).
+   * On CI — 516 securities and zero bars — no frame can carry one, for ever.
+   */
+  readonly percentile: WireReturnPercentile | null;
 }
 
 /**
@@ -1822,6 +1917,14 @@ const returnEndpointFields: WireFields<WireReturnEndpoint> = {
  * of its members' keys, so one map over this union would cover `measured`
  * alone and wave every figure through unexamined.
  */
+const returnPercentileFields: WireFields<WireReturnPercentile> = {
+  rank: asIs,
+  aboveSample: asIs,
+  sampleCount: asIs,
+  spanMinutes: asIs,
+  feed: asIs,
+};
+
 const measuredReturnFields: WireFields<WireMeasuredReturn> = {
   measured: asIs,
   percent: asIs,
@@ -1829,6 +1932,12 @@ const measuredReturnFields: WireFields<WireMeasuredReturn> = {
   to: (endpoint) => toWire(returnEndpointFields, endpoint),
   observed: asIs,
   spanMinutes: asIs,
+  // `null` is written rather than the key dropped, for `refusedReturnFields`'
+  // reason: `WireFields`' totality forces an entry for every field, and an
+  // entry answering `undefined` would put a key with no JSON value on the
+  // wire.
+  percentile: (percentile) =>
+    percentile === null ? null : toWire(returnPercentileFields, percentile),
 };
 
 const observedSpanFields: WireFields<WireObservedSpan> = {
@@ -2377,6 +2486,50 @@ const readObservedSpan = (value: unknown): WireObservedSpan | null => {
   };
 };
 
+/**
+ * The percentile, or **`null` for anything that is not a readable one** (Task
+ * 5.3.3).
+ *
+ * ## Why the shape is checked here rather than trusted
+ *
+ * `readObservedSpan`'s reason, with one addition that is this field's own: a
+ * percentile is the one figure on this frame **nobody can eyeball**. A wrong
+ * price is visible against the chart beside it; a `140th percentile`, a
+ * fractional rank or an `n` of `0` would draw as a confident, well-formed
+ * claim. So the three numbers are bounded here — integer, `0`–`99`, and a
+ * positive sample — and anything outside is read as *no percentile* rather
+ * than as a figure.
+ *
+ * **An unreadable percentile never discards the figure.** The return is true
+ * whatever the comparison beside it was; refusing the frame would put the
+ * region back on *no frame has arrived*, which is a different and false claim.
+ */
+const readReturnPercentile = (value: unknown): WireReturnPercentile | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.aboveSample !== "boolean") return null;
+  if (!finite(value.rank) || !Number.isInteger(value.rank)) return null;
+  if (value.rank < 0 || value.rank > 99) return null;
+  if (!finite(value.sampleCount) || value.sampleCount <= 0) return null;
+  if (!finite(value.spanMinutes) || value.spanMinutes <= 0) return null;
+  if (
+    typeof value.feed !== "string" ||
+    !(MARKET_FEEDS as readonly string[]).includes(value.feed)
+  ) {
+    // **Strictly, as `readReturnEndpoint` checks its own tape.** A baseline
+    // whose feed this bundle cannot name is a comparison the region cannot
+    // attribute, and invariant 6 forbids drawing one.
+    return null;
+  }
+
+  return {
+    rank: value.rank,
+    aboveSample: value.aboveSample,
+    sampleCount: value.sampleCount,
+    spanMinutes: value.spanMinutes,
+    feed: value.feed as MarketFeed,
+  };
+};
+
 /** A figure or a refusal, or `undefined` for a frame we cannot read. */
 const readSymbolReturn = (value: unknown): WireSymbolReturn | undefined => {
   if (!isRecord(value)) return undefined;
@@ -2422,6 +2575,10 @@ const readSymbolReturn = (value: unknown): WireSymbolReturn | undefined => {
     to,
     observed: value.observed,
     spanMinutes: value.spanMinutes,
+    // **An unreadable percentile is read as no percentile, and the figure
+    // survives** — `seen`'s rule on the measured arm, and the arm a browser
+    // holding a bundle older or newer than the gateway takes.
+    percentile: readReturnPercentile(value.percentile),
   };
 };
 

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import type {
+  WireMeasuredReturn,
   WireObservedSpan,
+  WireReturnPercentile,
   WireReturnRefusal,
   WireSymbolReturn,
 } from "@marketpulse/shared";
@@ -17,13 +19,32 @@ import { RESERVED_RETURN, fiveMinuteReturnBand } from "./five-minute-return.js";
 // applied in this environment) and any height (jsdom computes no layout, so
 // one height in every state is the browser's and the probe's).
 
-const MEASURED: WireSymbolReturn = {
+// **`WireMeasuredReturn` rather than the union**, so the endpoints are
+// reachable without narrowing at every use — the union's `keyof` is the
+// intersection of its members'.
+const MEASURED: WireMeasuredReturn = {
   measured: true,
   percent: 0.4201680672268908,
   from: { at: "2026-10-14T18:01:00.000Z", price: 119, feed: "iex" },
   to: { at: "2026-10-14T18:06:00.000Z", price: 119.5, feed: "iex" },
   observed: 3,
   spanMinutes: 5,
+  // **No baseline**, which is the ordinary state, most securities' state and
+  // every gated run's permanent one.
+  percentile: null,
+};
+
+/**
+ * A comparison, as the gateway sends one (Task 5.3.3) — `n` is the measured
+ * maximum over this universe and the tape is the baseline's, which is never
+ * the numerator's.
+ */
+const PERCENTILE: WireReturnPercentile = {
+  rank: 99,
+  aboveSample: false,
+  sampleCount: 4620,
+  spanMinutes: 5,
+  feed: "sip",
 };
 
 const held = (figure: WireSymbolReturn, symbol = "NVDA") => ({
@@ -295,6 +316,105 @@ describe("fiveMinuteReturnBand", () => {
     expect(old.move).toEqual(fresh.move);
     expect(old.tape).toBe(fresh.tape);
     expect(old.absent).toBeUndefined();
+  });
+
+  // --- The percentile, which is the first comparison in this product ---
+  describe("the percentile and what it was taken against", () => {
+    const ranked = (over: Partial<WireReturnPercentile> = {}) =>
+      fiveMinuteReturnBand(
+        "NVDA",
+        held({ ...MEASURED, percentile: { ...PERCENTILE, ...over } }),
+      );
+
+    it("spells the rank beside the figure and the sample under it", () => {
+      const band = ranked();
+
+      expect(band.percentile).toBe("99th percentile");
+      expect(band.sample).toBe(
+        "of 4,620 5-minute returns · all times of day pooled",
+      );
+      // The figure is untouched: two cells on one row, one of which is a
+      // comparison.
+      expect(band.move).toEqual({ change: "+0.42%", direction: "positive" });
+    });
+
+    it("names BOTH tapes, because one tape per comparison is not achievable", () => {
+      // Story 5.3's Gate 1, false premise 5: the numerator is `iex`-over-`iex`
+      // by construction and the baseline window is `sip` only, so every
+      // comparison this story ships crosses the two. Invariant 6 — provenance
+      // displayed, never implied — is why the screen says so in one clause
+      // rather than letting `Measured on IEX` cover both numbers.
+      expect(ranked().tape).toBe(
+        "Measured on IEX · baseline on All US exchanges",
+      );
+    });
+
+    it("says nothing about a baseline where there is none", () => {
+      // ADR 0029's defer rule at its sharpest: a clause naming the tape of a
+      // comparison that did not happen is the fully-formed provenance record
+      // about nothing. Most securities, every cold replica and every gated run
+      // are in this state.
+      const band = fiveMinuteReturnBand("NVDA", held(MEASURED));
+
+      expect(band.percentile).toBeUndefined();
+      expect(band.sample).toBeUndefined();
+      expect(band.tape).toBe("Measured on IEX");
+    });
+
+    it("drops the comparison, and keeps the figure, when an instant cannot be read", () => {
+      // The rank is true whatever the strings carrying the endpoints did — but
+      // the **sample clause** is conditional on those instants, and a sentence
+      // that cannot evaluate its own condition would have to guess which of
+      // its two grammars to draw. So the pair travels together (ADR 0029), and
+      // the percentage survives without either.
+      const band = fiveMinuteReturnBand(
+        "NVDA",
+        held({
+          ...MEASURED,
+          to: { ...MEASURED.to, at: "not an instant" },
+          percentile: PERCENTILE,
+        }),
+      );
+
+      expect(band.move?.change).toBe("+0.42%");
+      expect(band.percentile).toBeUndefined();
+      expect(band.sample).toBeUndefined();
+      expect(band.tape).toBe("Measured on IEX");
+    });
+
+    it("draws `>99th` at the ceiling and never a `100th`", () => {
+      expect(ranked({ aboveSample: true }).percentile).toBe(">99th percentile");
+    });
+
+    it("states the opening bias from the figure's own instants", () => {
+      // AC 8, and the condition is the figure's rather than a clock's: 13:38Z
+      // is 09:38 EDT, eight minutes after the bell.
+      const band = fiveMinuteReturnBand(
+        "NVDA",
+        held({
+          ...MEASURED,
+          from: { ...MEASURED.from, at: "2026-10-14T13:38:00.000Z" },
+          to: { ...MEASURED.to, at: "2026-10-14T13:43:00.000Z" },
+          percentile: PERCENTILE,
+        }),
+      );
+
+      expect(band.sample).toContain("fattest-tailed");
+      // The qualifier is unchanged — the bias is a fact about the **sample**,
+      // not about this observation.
+      expect(band.qualifier).toContain("observed 3 of 5 minutes");
+    });
+
+    it("spells no `%` in either new line", () => {
+      // AC 7. A percentile and a change formatted by the same decimals are
+      // visually the same kind of number and are not.
+      for (const over of [{}, { aboveSample: true }, { rank: 2 }]) {
+        const band = ranked(over);
+
+        expect(band.percentile).not.toContain("%");
+        expect(band.sample).not.toContain("%");
+      }
+    });
   });
 
   it("says nothing about the feed in any state", () => {

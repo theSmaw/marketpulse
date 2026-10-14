@@ -1371,6 +1371,31 @@ describe("the market gateway's 5-minute return frame", () => {
     to: { at: "2026-09-16T14:01:00.000Z", price: 100.42, feed: "iex" },
     observed: 3,
     spanMinutes: 5,
+    // No baseline — most securities' state, every cold replica's, and CI's for
+    // ever (516 securities, zero bars). The comparison's own frame is below.
+    percentile: null,
+  };
+
+  /**
+   * **The same figure with the comparison beside it** (Task 5.3.3).
+   *
+   * The percentile is joined to the figure in `index.ts` — the one place that
+   * holds both the live trailing window and the stored baseline — so what only
+   * a socket can show is that the five fields survive the wire **on the
+   * routing path a browser actually uses**, rather than through a codec test
+   * in isolation.
+   */
+  const RANKED: WireSymbolReturn = {
+    ...MEASURED,
+    percentile: {
+      rank: 99,
+      aboveSample: false,
+      sampleCount: 4620,
+      spanMinutes: 5,
+      // The baseline's tape, which is never the numerator's: invariant 6, and
+      // Story 5.3's Gate 1 false premise 5.
+      feed: "sip",
+    },
   };
 
   const subscribe = (
@@ -1410,6 +1435,25 @@ describe("the market gateway's 5-minute return frame", () => {
     // And the producer was asked about the focused security rather than about
     // the 200 others this browser also wants prices for.
     expect(asked).toEqual([NVDA]);
+  });
+
+  it("carries a percentile over the socket, with its sample and its tape", async () => {
+    // **Done-when 1, at the only level that can show it**: the five fields
+    // reach a browser through a real `WebSocketServer`, on the frame the
+    // focused security's figure travels on. A percentile is the one figure on
+    // this wire nobody can eyeball, so what is asserted is every field rather
+    // than the presence of one.
+    const a = await attach(new Map(), undefined, undefined, {
+      symbolReturn: () => RANKED,
+    });
+    await a.waitFor("snapshot");
+
+    subscribe(a, [NVDA, AAPL], NVDA);
+    await a.waitFor("return");
+
+    const frame = a.received.find((message) => message.type === "return");
+
+    expect(frame?.return).toStrictEqual(RANKED);
   });
 
   it("sends NOTHING to a browser that declared no focus", async () => {

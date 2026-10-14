@@ -2,6 +2,7 @@ import { MARKET_FEED_DESCRIPTIONS, directionOf } from "@marketpulse/shared";
 
 import { formatBarInstant } from "./chart-reading.js";
 import { formatChangePercent } from "./price-format.js";
+import { percentileReading, percentileSample } from "./return-percentile.js";
 
 import type { MarketFeed, WireReturnRefusal } from "@marketpulse/shared";
 import type { SymbolReturnView } from "./live-feed.js";
@@ -149,6 +150,26 @@ export interface ReturnBand {
    * window that observed nothing and for an instant that cannot be read.
    */
   readonly qualifier: string | undefined;
+  /**
+   * **How unusual the magnitude is**, drawn as a second cell on the figure's
+   * own row — `99th percentile` — or `undefined` where there is no baseline to
+   * compare it with (Task 5.3.3).
+   *
+   * `undefined` is the ordinary answer rather than a degraded one: a cold
+   * replica holds no generation, a security with no stored `sip` history has no
+   * distribution, one whose window crosses an unadjusted split is **refused**,
+   * and on CI no frame can carry one at all.
+   */
+  readonly percentile: string | undefined;
+  /**
+   * **What the percentile was taken against** — the counted `n`, the span the
+   * samples are of, and the pooling, in one footer line.
+   *
+   * It draws exactly where {@link percentile} does. A rank with no sample
+   * behind it is the same claim at `n = 737` and at `n = 4,620`, which is
+   * ADR 0029's false impression in one number.
+   */
+  readonly sample: string | undefined;
   /** Which tape the figure was measured on — invariant 6, or `undefined`. */
   readonly tape: string | undefined;
   /**
@@ -165,6 +186,8 @@ export const RESERVED_RETURN: ReturnBand = {
   move: undefined,
   absent: undefined,
   qualifier: undefined,
+  percentile: undefined,
+  sample: undefined,
   tape: undefined,
   nothing: true,
 };
@@ -203,14 +226,42 @@ const REFUSALS: Readonly<Record<WireReturnRefusal, string>> = {
  * anyway, in endpoint order, because a return measured across a stitch is a
  * thing a reader is owed rather than a thing to assume away.
  */
-function tapeOf(feeds: readonly MarketFeed[]): string {
+function tapeOf(feeds: readonly MarketFeed[], baseline?: MarketFeed): string {
   const named: string[] = [];
   for (const feed of feeds) {
     const label = MARKET_FEED_DESCRIPTIONS[feed].label;
     if (!named.includes(label)) named.push(label);
   }
 
-  return `Measured on ${named.join(" and ")}`;
+  const measured = `Measured on ${named.join(" and ")}`;
+
+  // **One tape per comparison is not achievable, and the screen must not imply
+  // it is** (Task 5.3.3, Story 5.3's Gate 1 false premise 5).
+  //
+  // The numerator is `iex`-over-`iex` by construction — there is no store fill
+  // in the trailing window — and the baseline window is `feed = 'sip'` only,
+  // because minutes in progress and extended hours belong to the live tape
+  // permanently and a `distinct on` baseline would admit them in whatever
+  // proportion the hour supplied. So **every comparison this story ships is a
+  // consolidated-tape baseline against a single-venue numerator**, and AC 5 is
+  // satisfiable only as *the baseline window is one tape*.
+  //
+  // Invariant 6 then has something to say: provenance is **displayed, never
+  // implied**, and a percentile drawn beside `Measured on IEX` alone would
+  // invite a reader to assume the two numbers came from the same place. One
+  // clause, in the register this region already set — the venue's own words
+  // from `MARKET_FEED_DESCRIPTIONS` (`one-home-for-the-feed-words`), no
+  // sentence, no terminal stop, and the explanation left to the source note at
+  // the foot of the screen.
+  //
+  // **It draws only where a percentile does**, which is ADR 0029's defer rule
+  // rather than tidiness: on most securities, on a cold replica and on every
+  // gated run there is no baseline, and a clause naming the tape of a
+  // comparison that did not happen is the fully-formed provenance record about
+  // nothing that rule exists for.
+  if (baseline === undefined) return measured;
+
+  return `${measured} · baseline on ${MARKET_FEED_DESCRIPTIONS[baseline].label}`;
 }
 
 /**
@@ -377,6 +428,11 @@ export function fiveMinuteReturnBand(
         seen === undefined || newest === undefined
           ? undefined
           : seenQualifierOf(newest, seen.observed, seen.spanMinutes),
+      // **No percentile on a refusal**, and the frame cannot carry one: there
+      // is no magnitude to rank, so `percentile` is a member of the measured
+      // arm alone and this is a compile-time absence rather than a branch.
+      percentile: undefined,
+      sample: undefined,
       // **No tape line on a refusal** (ADR 0029): there is no number, so there
       // is nothing whose provenance could be claimed, and a fully-formed
       // source line about no figure is the false impression that rule exists
@@ -401,6 +457,20 @@ export function fiveMinuteReturnBand(
   // one, so `?? "unchanged"` is the unreachable arm rather than a decision.
   const direction = directionOf(figure.percent) ?? "unchanged";
 
+  // **The comparison, where the frame carried one and both instants read.**
+  //
+  // The instants are a condition on the **sample clause** rather than on the
+  // percentile: the rank is true whatever the strings carrying its endpoints
+  // did, but the bias clause is derived from `from`/`to` and a sample sentence
+  // that could not evaluate its own condition would have to guess which of its
+  // two grammars to draw. ADR 0029 — each clause renders only when its own
+  // data is present — so the pair travels together and the figure survives
+  // without either.
+  const percentile =
+    figure.percentile === null || from === undefined || to === undefined
+      ? undefined
+      : figure.percentile;
+
   return {
     label: RETURN_LABEL,
     move: { change: formatChangePercent(figure.percent), direction },
@@ -412,7 +482,19 @@ export function fiveMinuteReturnBand(
       from === undefined || to === undefined
         ? undefined
         : qualifierOf(from, to, figure.observed, figure.spanMinutes),
-    tape: tapeOf([figure.from.feed, figure.to.feed]),
+    percentile:
+      percentile === undefined ? undefined : percentileReading(percentile),
+    sample:
+      percentile === undefined || from === undefined || to === undefined
+        ? undefined
+        : percentileSample(percentile, from, to),
+    // **Two tapes rather than one, where a comparison was drawn** — the
+    // numerator's and the baseline's. See `tapeOf`: one tape per comparison is
+    // not achievable and the screen must not imply it is.
+    tape: tapeOf(
+      [figure.from.feed, figure.to.feed],
+      percentile === undefined ? undefined : percentile.feed,
+    ),
     nothing: false,
   };
 }

@@ -92,6 +92,7 @@ export type {
   WireOverviewFigure,
   WireRefusedReturn,
   WireReturnEndpoint,
+  WireReturnPercentile,
   WireReturnRefusal,
   WireSessionBreadth,
   WireSessionMovers,

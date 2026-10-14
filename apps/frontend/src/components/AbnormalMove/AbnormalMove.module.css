@@ -99,6 +99,55 @@
 }
 
 /*
+ * **How unusual the magnitude is — the figure row's second cell** (Task
+ * 5.3.3).
+ *
+ * ## `--ink-primary`, and never the price palette
+ *
+ * The figure to its left is tinted by `PriceChange`, where the tint is the
+ * **redundant** channel behind the glyph and the sign. A second tinted number
+ * in one band is where the price palette's 1.04:1 greyscale difference becomes
+ * two numbers deep — and a percentile has no direction to encode, so a tint
+ * would be decoration standing where meaning normally is. What separates it
+ * from a change is the ordinal suffix, the absent `%` and the word
+ * `percentile`: three channels, none of them colour.
+ *
+ * ## It composes `dataCell` and declares nothing the target declares
+ *
+ * The first composition in this file, and deliberately narrow:
+ * `a-compose-never-carries-an-override` refuses a composing rule that
+ * re-declares a composed property, because `composes` concatenates class names
+ * and the winner is **stylesheet order**. The three declarations below are the
+ * three `dataCell` does not make. The label above spells its four micro
+ * properties instead, because `text-transform` is exactly the kind that reads
+ * like an override and is not.
+ *
+ * ## The leading is this size's, and the first draft got that backwards
+ *
+ * `.absent` one rule down holds a micro child in a **metric** line box, and
+ * copying that here measured **29 px against 26** — Task 5.2.3's 3 px step
+ * arriving again, at every width, invisible to jsdom. The two cases are not the
+ * same: `.absent` is the row's **only** item, so the row is its box whatever
+ * its leading is, while this one sits beside a 20px figure.
+ *
+ * With `align-items: baseline` the row's height is
+ * `max(above the baseline) + max(below it)` across the items, so a 13px glyph
+ * centred in a **26px** box hangs 1.1 px lower than the metric's descender and
+ * the row grows to fit it. On the dense 18px leading the whole box fits inside
+ * the metric's ascent and descent, so the union is exactly 26 and — the part
+ * worth having — **the two baselines coincide**. Photographed at 8×, not
+ * computed: the centred version was ~1.25 px high, which is invisible at 1× and
+ * obvious beside the figure it is meant to sit with.
+ */
+.percentile {
+  composes: dataCell from "../../styles/type.module.css";
+  margin-left: var(--space-12);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-primary);
+}
+
+/*
  * The words that stand where a figure would be — **words rather than digits**,
  * which is what tells a reader it is not a value, and never an em dash: `—` is
  * `unchanged` in `PriceChange`, so a dash in this slot asserts a zero return.
@@ -149,6 +198,37 @@
 }
 
 /*
+ * **What the percentile was taken against** — the counted `n`, the span the
+ * samples are of, and the pooling (Task 5.3.3).
+ *
+ * ## The reserve is the BIAS CLAUSE's, measured rather than argued
+ *
+ * The row holds two strings and the longer one is the opening-bucket clause —
+ * `of 4,620 5-minute returns · opening 30 minutes, the fattest-tailed
+ * bucket — pooled, this reads high` — which is roughly twice the length of the
+ * ordinary `· all times of day pooled`. So the room is reserved for the long
+ * one at every width, and the ordinary state leaves slack at the wide widths.
+ *
+ * **That slack is the accepted price and the alternative is worse.** A reserve
+ * sized to the ordinary string would be correct for 94% of a session and would
+ * **step the whole lower page at 09:30 every morning**, in the one region that
+ * must not step — which is Story 4.7's defect in `Movers` and `Market
+ * breadth`, where a reserve one line short does not clip, it steps, at the
+ * narrow width nobody develops at.
+ *
+ * `font-variant-numeric` is not set here on purpose, for the qualifier's
+ * reason: this is a sentence containing a count, not a column of figures to
+ * align.
+ */
+.sample {
+  margin: var(--space-4) 0 0;
+  min-height: calc(2 * var(--line-height-micro));
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
  * Which tape the figure was measured on — invariant 6, **one short line for the
  * region** and never a second copy of the chart's source note.
  *
@@ -156,6 +236,12 @@
  * spelling cannot arise from a window with no store fill in it, and a width
  * reserved for a state the producer cannot reach is room held for ever for
  * nothing.
+ *
+ * **Amended 2026-10-14 (Task 5.3.3): the string is now two clauses where a
+ * percentile draws** — `Measured on IEX · baseline on All US exchanges`,
+ * because the baseline window is one tape and the numerator is another, and
+ * invariant 6 wants that said rather than implied. The reserve is still the
+ * probed figure; see this task's record for the per-width reading.
  */
 .tape {
   margin: var(--space-4) 0 0;

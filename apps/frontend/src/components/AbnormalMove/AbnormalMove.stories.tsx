@@ -1,6 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import type { WireSymbolReturn } from "@marketpulse/shared";
+import type {
+  WireMeasuredReturn,
+  WireReturnPercentile,
+  WireSymbolReturn,
+} from "@marketpulse/shared";
 
 import { Region } from "../Region/Region.js";
 import { AbnormalMove } from "./AbnormalMove.js";
@@ -32,13 +36,35 @@ import { AbnormalMove } from "./AbnormalMove.js";
 // security page: the box is what decides whether the content fits the rail's
 // 419 px of content in a 453 px column at 1440.
 
-const MEASURED: WireSymbolReturn = {
+// **`WireMeasuredReturn` rather than the union**, so a story can spread it and
+// amend an endpoint without narrowing.
+const MEASURED: WireMeasuredReturn = {
   measured: true,
   percent: 0.4201680672268908,
   from: { at: "2026-10-14T18:01:00.000Z", price: 119, feed: "iex" },
   to: { at: "2026-10-14T18:06:00.000Z", price: 119.5, feed: "iex" },
   observed: 3,
   spanMinutes: 5,
+  // **No baseline**, which is most securities' state, a cold replica's, and
+  // every gated run's for ever. The comparison's own stories are at the foot
+  // of this file.
+  percentile: null,
+};
+
+/**
+ * **A comparison, as this product's own server sends one** (Task 5.3.3).
+ *
+ * `n = 4,620` is the measured **maximum** over this universe and the minimum is
+ * **737**, which is why the sentence states the count rather than quoting AC
+ * 3's nominal 4,680. The tape is the baseline's — `sip`, by the store's own
+ * `where` — and is never the numerator's.
+ */
+const PERCENTILE: WireReturnPercentile = {
+  rank: 99,
+  aboveSample: false,
+  sampleCount: 4620,
+  spanMinutes: 5,
+  feed: "sip",
 };
 
 const held = (figure: WireSymbolReturn) => ({ symbol: "NVDA", figure });
@@ -237,6 +263,98 @@ export const FortyMinutesOld: Story = {
       ...MEASURED,
       from: { ...MEASURED.from, at: "2026-10-14T17:21:00.000Z" },
       to: { ...MEASURED.to, at: "2026-10-14T17:26:00.000Z" },
+    }),
+  },
+};
+
+/**
+ * **The percentile — the first figure in this product that says how unusual
+ * something is** (Task 5.3.3).
+ *
+ * Two cells on the figure's row and one new footer line. Three things to review
+ * side by side with `Measured` above:
+ *
+ * - **the hierarchy**: the 20px change is still the figure a reader looks at
+ *   first and the comparison is secondary, which is `BreadthLedger`'s rule —
+ *   one metric figure a band, everything else dense or micro;
+ * - **the ink**: `--ink-primary` and **never** the price palette. The figure
+ *   beside it is already tinted, and that tint is the redundant channel behind
+ *   `PriceChange`'s glyph and sign; a second tinted number in one band is where
+ *   the palette's 1.04:1 greyscale difference becomes two numbers deep. What
+ *   separates the two is the ordinal suffix, the absent `%` and the word;
+ * - **the height**, which is the whole review: every state below must be the
+ *   same height as every state above, and the reserve is measured against
+ *   `InTheOpeningBucket` — the longest string the footer row can hold.
+ */
+export const WithPercentile: Story = {
+  args: { symbolReturn: held({ ...MEASURED, percentile: PERCENTILE }) },
+};
+
+/**
+ * **A smaller rank, and a smaller `n`** — the ordinary security rather than the
+ * densest one.
+ *
+ * `n` is **counted**, never a constant (Gate 1 decision 2): the measured range
+ * over this universe is 737 to 4,620, so quoting AC 3's nominal 4,680 would be
+ * wrong for almost every name on the list. The suffix is a function for the
+ * same reason this story exists — `2nd`, not `2th`, and `11th`, not `11st`.
+ */
+export const ALowerRank: Story = {
+  args: {
+    symbolReturn: held({
+      ...MEASURED,
+      percent: 0.0840336134453781,
+      percentile: { ...PERCENTILE, rank: 42, sampleCount: 737 },
+    }),
+  },
+};
+
+/**
+ * **The ceiling: `>99th`, and never `100th`** (Gate 1 decision 2).
+ *
+ * Above the highest order statistic there is **no sample**, so a `100th` would
+ * assert a strict maximum over a distribution that deliberately excludes the
+ * window being scored — a claim no reader can falsify. `>99th` says the
+ * stronger and more useful thing: the baseline holds nothing as large as this
+ * move.
+ *
+ * **This is the state a reader is most likely to over-read**, which is why it
+ * is a story rather than a test alone.
+ */
+export const AboveEverySample: Story = {
+  args: {
+    symbolReturn: held({
+      ...MEASURED,
+      percent: -4.2016806722689,
+      to: { at: "2026-10-14T18:06:00.000Z", price: 114, feed: "iex" },
+      percentile: { ...PERCENTILE, aboveSample: true },
+    }),
+  },
+};
+
+/**
+ * **The bias clause — AC 8, and the longest string the footer row can hold.**
+ *
+ * The open is structurally the fattest-tailed part of the trading day and the
+ * baseline pools all 77 buckets of a session into one distribution, so a
+ * percentile taken in the first half hour reads an ordinary open as more
+ * unusual than it is. The clause says so where it matters and nowhere else.
+ *
+ * **The condition is the FIGURE'S own instants** — 13:38Z is 09:38 EDT — and
+ * never a clock: a window that *ended* at 09:43 and is read at 11:00 still
+ * carries it, and a 09:30–10:00 wall clock would drop it exactly then. That is
+ * also what keeps the band correct under Epic 13's replay.
+ *
+ * **This story is the one the reserve is measured from.** Every other state in
+ * this file must match its height at all four widths.
+ */
+export const InTheOpeningBucket: Story = {
+  args: {
+    symbolReturn: held({
+      ...MEASURED,
+      from: { at: "2026-10-14T13:38:00.000Z", price: 119, feed: "iex" },
+      to: { at: "2026-10-14T13:43:00.000Z", price: 119.5, feed: "iex" },
+      percentile: PERCENTILE,
     }),
   },
 };
