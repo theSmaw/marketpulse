@@ -63,6 +63,45 @@ import styles from "./AbnormalMove.module.css";
 // a word or a figure that will not be replaced by the next batch, which a
 // reader therefore has to be told about once rather than continuously.
 // Story 5.6's band word is the candidate; a changing number is not.
+//
+// ## That trigger FIRED on 2026-10-14 (Task 5.3.4), and the verdict is still no
+//
+// Evaluated in writing, because an unevaluated trigger and one that did not
+// fire read identically. Task 5.3.4's two refusal sentences **are** terminal
+// as the clause is worded: a baseline generation changes **once a night**, so
+// `Baseline too short to rank — 737 of 2,500 returns` is the same string on
+// every one of the 6.8–16.1 batches a minute until tomorrow's pass, and
+// `BASELINE_REFRESH_FLOOR_MS` is fifteen minutes on top of that.
+//
+// **No live region, for three reasons and one caveat.**
+//
+// 1. **It is present on first paint rather than arriving.** The gateway
+//    answers a browser's `subscribe` with a `return` frame, so the sentence is
+//    in the band's first render — there is nothing for a listener to be told
+//    about, only something to go and read. A live region exists for a change
+//    a reader did not cause and would not revisit.
+// 2. **The band is one group and cannot be announced in part.** Scoping a
+//    region to the sample row alone would still re-announce on every batch,
+//    because the row is re-rendered with the other four; the arithmetic above
+//    — a twenty-word sentence against a 1,500 ms pacing floor, four to sixteen
+//    times a minute — is unchanged.
+// 3. **A refusal does not flip under a reader.** Whether a security has a
+//    long enough baseline is fixed for the whole session: the bound is
+//    applied to the stored row, and the stored row is tonight's generation.
+//
+// **The caveat, stated rather than argued away**: a reader attached to a
+// **cold replica** in the seconds before `baselines.load` resolves sees
+// `0 of 2,500 returns` replaced by a rank, unprompted. That is a transition
+// from less information to more, inside the first seconds of a process, in a
+// band that rewrites sixteen times a minute — so it does not change the
+// answer, and it is the shape the trigger should have been written against.
+//
+// **So the clause is sharpened rather than re-dated**, which is the honest
+// outcome of a trigger that fired without changing anything: *terminal* is
+// **necessary and not sufficient**. The condition is now the first state here
+// that is terminal **and arrives unprompted after the reader has had time to
+// read the region** — Story 5.6's band word, if it lands after the figure
+// does, and not a sentence the first frame already carried.
 
 export interface AbnormalMoveProps {
   /** The security this page is about. */

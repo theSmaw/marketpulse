@@ -60,6 +60,7 @@ const MEASURED: WireMeasuredReturn = {
  * `where` — and is never the numerator's.
  */
 const PERCENTILE: WireReturnPercentile = {
+  ranked: true,
   rank: 99,
   aboveSample: false,
   sampleCount: 4620,
@@ -355,6 +356,112 @@ export const InTheOpeningBucket: Story = {
       from: { at: "2026-10-14T13:38:00.000Z", price: 119, feed: "iex" },
       to: { at: "2026-10-14T13:43:00.000Z", price: 119.5, feed: "iex" },
       percentile: PERCENTILE,
+    }),
+  },
+};
+
+/**
+ * **The baseline is too short to rank against** (Task 5.3.4, AC 6) — and the
+ * figure draws perfectly well beside it.
+ *
+ * The minimum is **2,500 samples**, which is `50/√n ≤ 1` solved for `n`: the
+ * standard error of a sample percentile is largest at the median, where it is
+ * `50/√n` points, so below 2,500 the single printed digit is worth less than
+ * one ordinal. Over this machine's own store it refuses **11 of 511**
+ * securities, of which `ERIE` at 737 samples is the floor.
+ *
+ * **Review it as a replacement rather than an addition.** The sentence stands
+ * in the row the sample clause uses, there is no percentile cell, and the tape
+ * line has lost its baseline clause — because no baseline was used, which is
+ * ADR 0029 rather than tidiness.
+ */
+export const BaselineTooShort: Story = {
+  args: {
+    symbolReturn: held({
+      ...MEASURED,
+      percentile: {
+        ranked: false,
+        refusal: "too-few-samples",
+        sampleCount: 1240,
+        minimumSampleCount: 2500,
+      },
+    }),
+  },
+};
+
+/**
+ * **No baseline at all, which is the same sentence with a `0` in it** — a cold
+ * replica for its first seconds, a security with no stored `sip` history, and
+ * every gated run for ever.
+ *
+ * `0 of 2,500 returns` is **true** of each, which is why there is no sixth
+ * sentence: the two facts differ in a number the sentence already prints.
+ */
+export const NoBaselineStored: Story = {
+  args: {
+    symbolReturn: held({
+      ...MEASURED,
+      percentile: {
+        ranked: false,
+        refusal: "too-few-samples",
+        sampleCount: 0,
+        minimumSampleCount: 2500,
+      },
+    }),
+  },
+};
+
+/**
+ * **The baseline crosses a price break we cannot adjust** — and it must not
+ * read like the two above.
+ *
+ * *We have too little history* and *the history we have contains a price break*
+ * are different facts with different repairs: more history fixes the first and
+ * would not touch the second. Task 5.3.2 measured **5 of 516** securities over
+ * `SPLIT_DISCONTINUITY_RATIO` in one 60-session window, four of them on exact
+ * split factors.
+ *
+ * **It names a price break and never a split**, because the detector cannot
+ * know: the fifth of those five is a reverse split *or a genuine event*, and a
+ * sentence saying *split* would be a claim about a corporate action nothing
+ * here has read a calendar for.
+ *
+ * **Review it beside `BaselineTooShort`** — that is the pair that must not
+ * collapse — and note it carries **no count**, because the count is not the
+ * problem.
+ */
+export const BaselineCrossesAPriceBreak: Story = {
+  args: {
+    symbolReturn: held({
+      ...MEASURED,
+      percentile: {
+        ranked: false,
+        refusal: "split-discontinuity",
+        sampleCount: 4620,
+        minimumSampleCount: 2500,
+      },
+    }),
+  },
+};
+
+/**
+ * **A zero return with a percentile beside it, which is the pair most easily
+ * misread as a refusal.**
+ *
+ * `0.00%` with `—` as its glyph is a **reading**: the price did not move in
+ * those five minutes. Against a pooled distribution of magnitudes that is an
+ * ordinary **low** rank rather than an absence — and the dash is `PriceChange`'s
+ * `unchanged`, which is exactly why no refusal in this region may draw one.
+ *
+ * Review the whole row: a signed figure, a rank, both instants, the observed
+ * count and two tapes. A refusal has none of them.
+ */
+export const ZeroReturnRanked: Story = {
+  args: {
+    symbolReturn: held({
+      ...MEASURED,
+      percent: 0,
+      percentile: { ...PERCENTILE, rank: 3 },
     }),
   },
 };

@@ -10,12 +10,18 @@
  * computes and the interface that renders must not end up with two vocabularies
  * for one thing.
  *
- * **Deliberately NOT here: the minimum sample below which a percentile is
- * refused.** AC 6 asks for one and it is detection *presentation* policy: the
- * pass counts `n` and stores it, and which `n` is too small to print belongs to
- * the story that draws the figure (5.3.3) rather than to the pass that counts.
- * Inventing it here would be a threshold outliving the guess that produced it,
- * which is `anomaly.ts`'s own note on the band boundaries.
+ * ~~**Deliberately NOT here: the minimum sample below which a percentile is
+ * refused.**~~ **Amended 2026-10-14 by Task 5.3.4, and the reasoning below is
+ * why it took until the figure was on screen.** AC 6 asks for one and it is
+ * *presentation* policy: the pass counts `n` and stores it, and which `n` is
+ * too small to print belongs to the story that draws the figure rather than to
+ * the pass that counts. It is here now — {@link BASELINE_MINIMUM_SAMPLE} — and
+ * it is here rather than in `0013_return_baselines.sql` for exactly that
+ * reason: the stored row carries the count and **not** the verdict, so
+ * changing the bound is a deploy rather than a recompute of 516 securities,
+ * and a generation computed before the bound existed is refused when it is
+ * **read**. It is not the threshold outliving its guess `anomaly.ts` warns
+ * about, because it is not a guess: it is `50/√n ≤ 1` solved for `n`.
  */
 
 /**
@@ -133,3 +139,111 @@ export type ReturnBaselineRefusal = (typeof RETURN_BASELINE_REFUSALS)[number];
  * than a wider number.
  */
 export const SPLIT_DISCONTINUITY_RATIO = 0.6;
+
+/**
+ * **The minimum sample a percentile may be printed from: 2,500 — and it is
+ * derived from the PRINTED PRECISION rather than chosen** (Task 5.3.4, AC 6).
+ *
+ * ## What the printed figure claims
+ *
+ * This product prints an **integer ordinal** — `47th`, `99th` — with
+ * `>99th` at the ceiling and no decimal anywhere (Story 5.3's Gate 1 decision
+ * 2). So the last digit it draws is **one percentile point**, and AC 6's second
+ * half — *never printed at a precision the sample cannot support* — is a
+ * question with an arithmetic answer: at what `n` is one point inside the
+ * sample's own resolving power?
+ *
+ * ## The arithmetic, at the worst point on the scale rather than at the tail
+ *
+ * The standard error of a sample percentile, in **percentile points**, is
+ * `100 · √(p(1−p)/n)`. It is largest at `p = 0.5`, where it is `50/√n`:
+ *
+ * | `n`       | SE at the 50th | SE at the 99th |
+ * | --------- | -------------- | -------------- |
+ * | 737 (the measured floor) | **1.84 pt** | 0.37 pt |
+ * | 2,500     | **1.00 pt**    | 0.20 pt        |
+ * | 4,620 (the ceiling)      | 0.74 pt | 0.146 pt |
+ *
+ * `50/√n ≤ 1` gives `n ≥ 2500` **exactly**, which is why the number is round
+ * without being chosen: it is the sample size at which the printed digit is
+ * worth one digit **everywhere on the scale**, not only in the tail the
+ * baseline is usually read for. The 0.146 figure at the 99th is the one
+ * `PRODUCT_SPEC.md` §11's dated amendment already quotes, and taking the bound
+ * at the tail instead would have given `n ≥ 396` — a floor almost nothing in
+ * this universe falls below, which is a threshold that refuses nothing and
+ * therefore tests nothing.
+ *
+ * ## What it costs, measured rather than projected
+ *
+ * Over this machine's own store (2026-10-14, the 2026-09-11 generation, 511
+ * measured securities): **11 are refused** — 2.2% — and they are
+ * `ERIE` (737), `NVR` (1,248), `AIZ` (1,284), `ESS` (1,627), `WST` and `GL`
+ * (2,041), `IEX` (2,313), `CINF` (2,351), `PKG` (2,386), `L` (2,463) and
+ * `VRSN` (2,492). The distribution is not a cliff — 275 of 511 sit in the top
+ * tenth — so the bound sits in a thin tail rather than on a mass of securities,
+ * and `ERIE`, at 2.1% minute coverage, is the same name Story 5.2 chose as its
+ * worked example of a sparse security.
+ *
+ * ## Why it is here and not in the pass
+ *
+ * `0013_return_baselines.sql` §4 and Task 5.3.2 both record the reason: the
+ * pass **counts** `n` and stores it, and which `n` is too small to print is a
+ * decision about the figure rather than about the sample. Keeping it out of the
+ * stored row is what makes changing this number a **deploy** rather than a
+ * recompute of 516 securities, and it is why the eleven names above are refused
+ * today against generations computed before this constant existed.
+ *
+ * **Reversal trigger, a condition:** the first figure this product prints from
+ * this baseline at a precision finer than one percentile point — a decimal
+ * ordinal, or a band boundary derived from the distribution — at which point
+ * the bound is the arithmetic above re-run against that precision rather than
+ * this number adjusted.
+ */
+export const BASELINE_MINIMUM_SAMPLE = 2500;
+
+/**
+ * **Why there is no percentile beside a figure — the vocabulary the WIRE
+ * carries** (Task 5.3.4).
+ *
+ * It is a **superset** of {@link RETURN_BASELINE_REFUSALS}, and the two are
+ * deliberately different lists:
+ *
+ * - `RETURN_BASELINE_REFUSALS` is what the **pass stored**, backed by
+ *   `return_baselines_refusal_known` in the database. A member added there is a
+ *   migration.
+ * - this is what the **reader is told**, which includes a refusal the pass
+ *   never wrote: a stored distribution whose counted `n` is below
+ *   {@link BASELINE_MINIMUM_SAMPLE} is refused at the moment it is read, so a
+ *   generation computed before that bound existed is refused without being
+ *   recomputed.
+ *
+ * `too-few-samples` covers **two** facts with one word, deliberately: *we hold
+ * a distribution and it is too short* and *we hold no distribution at all*,
+ * because `0 of 2,500 returns` is a true statement about a cold replica and a
+ * second sentence for it would be a second sentence saying the same thing. A
+ * cold replica, a security with no stored `sip` history, and CI's permanent
+ * state are all this member with a `sampleCount` of `0`.
+ *
+ * The {@link PercentileRefusalIsASuperset} line below is the structural half: a
+ * member added to the **stored** vocabulary and not to this one is a compile
+ * error here rather than a refusal the wire cannot carry.
+ */
+export const PERCENTILE_REFUSALS = [
+  "too-few-samples",
+  "split-discontinuity",
+] as const;
+
+/** One of {@link PERCENTILE_REFUSALS}. */
+export type PercentileRefusal = (typeof PERCENTILE_REFUSALS)[number];
+
+/**
+ * Every stored refusal is a percentile refusal. **A type-level assertion
+ * rather than a test**: widening `RETURN_BASELINE_REFUSALS` without widening
+ * {@link PERCENTILE_REFUSALS} fails `tsc -b`, which is the only thing that
+ * cannot be forgotten.
+ */
+export type PercentileRefusalIsASuperset =
+  ReturnBaselineRefusal extends PercentileRefusal ? true : never;
+
+/** Satisfied only while the assertion above holds. */
+export const PERCENTILE_REFUSALS_COVER_THE_STORED_ONES: PercentileRefusalIsASuperset = true;

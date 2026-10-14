@@ -1388,6 +1388,7 @@ describe("the market gateway's 5-minute return frame", () => {
   const RANKED: WireSymbolReturn = {
     ...MEASURED,
     percentile: {
+      ranked: true,
       rank: 99,
       aboveSample: false,
       sampleCount: 4620,

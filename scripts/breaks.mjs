@@ -4683,4 +4683,61 @@ export const BREAKS = [
     expect: "so a measured 5-minute return is fabricated",
     build: true,
   },
+  {
+    name: "the-percentile-is-fabricated-rather-than-refused",
+    proves:
+      "A gateway with no baseline for a security answers with a confident " +
+      "`99th percentile` instead of saying why it cannot, and the browser " +
+      "draws it faithfully. This is the sibling of " +
+      "`the-return-is-fabricated-rather-than-refused` one field along, and " +
+      "it is WORSE: a wrong five-minute return can be checked against the " +
+      "chart beside it, and a percentile is the one figure on this page " +
+      "nobody \u2014 no reader, no spec and no screen-reader pass \u2014 can " +
+      "recompute from anything on screen.",
+    // **The claim that catches it is outside the frame**, and on this machine
+    // and on CI it is the provider's: the trailing window is filled by live
+    // observations and by nothing else (Story 5.2's Gate 1 decision 3), so a
+    // process with `provider=none` has observed nothing and **a measured
+    // return — and therefore any percentile beside one — is fabricated**.
+    //
+    // The edit is at the **join**, which is the one site holding both halves,
+    // and it is the edit somebody plausibly makes: not deleting the refusal,
+    // but answering the empty window with a figure and the absent baseline
+    // with a plausible rank. `comparableBaseline`'s refused arm has no
+    // distribution member, so the only way to reach a rank here is to write
+    // one out — which is exactly what this break does.
+    //
+    // `build: true` for the recorded reason: `pnpm e2e` drives the dev pair,
+    // which serves built output.
+    file: "apps/backend/src/index.ts",
+    find: "  if (!figure.measured) return toWireSymbolReturn(figure);",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  if (!figure.measured) {\n" +
+      "    const invented = {\n" +
+      "      at: asOf.toISOString(),\n" +
+      "      price: 100,\n" +
+      '      feed: "iex",\n' +
+      "    } as const;\n" +
+      "    return {\n" +
+      "      measured: true,\n" +
+      "      percent: 0.42,\n" +
+      "      from: invented,\n" +
+      "      to: invented,\n" +
+      "      observed: 5,\n" +
+      "      spanMinutes: SAMPLE_SPAN_MINUTES,\n" +
+      "      percentile: {\n" +
+      "        ranked: true,\n" +
+      "        rank: 99,\n" +
+      "        aboveSample: false,\n" +
+      "        sampleCount: 4620,\n" +
+      "        spanMinutes: SAMPLE_SPAN_MINUTES,\n" +
+      "        feed: BASELINE_FEED,\n" +
+      "      },\n" +
+      "    };\n" +
+      "  }",
+    command: ["pnpm", "e2e", "security-abnormal-move.spec.ts", "--anyway"],
+    expect: "so a measured 5-minute return is fabricated",
+    build: true,
+  },
 ];

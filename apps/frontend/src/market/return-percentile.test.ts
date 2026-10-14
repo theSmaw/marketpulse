@@ -1,18 +1,28 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BASELINE_MINIMUM_SAMPLE,
+  PERCENTILE_REFUSALS,
+} from "@marketpulse/shared";
+
+import {
   OPENING_BIAS_MINUTES,
   percentileReading,
+  percentileRefusal,
   percentileSample,
 } from "./return-percentile.js";
 
-import type { WireReturnPercentile } from "@marketpulse/shared";
+import type {
+  WireRefusedPercentile,
+  WireReturnPercentile,
+} from "@marketpulse/shared";
 
 // **The percentile's words** (Task 5.3.3). Nothing here computes a rank; what
 // is asserted is the spelling, the ceiling and the one condition this module
 // evaluates — the bias clause, off the figure's own instants.
 
 const PERCENTILE: WireReturnPercentile = {
+  ranked: true,
   rank: 99,
   aboveSample: false,
   sampleCount: 4620,
@@ -178,4 +188,107 @@ describe("percentileSample", () => {
       expect(percentileSample(PERCENTILE, at(from), at(to))).not.toContain("%");
     }
   });
+});
+
+describe("percentileRefusal — the two sentences, which must not read alike", () => {
+  const refused = (
+    overrides: Partial<WireRefusedPercentile> = {},
+  ): WireRefusedPercentile => ({
+    ranked: false,
+    refusal: "too-few-samples",
+    sampleCount: 1240,
+    minimumSampleCount: BASELINE_MINIMUM_SAMPLE,
+    ...overrides,
+  });
+
+  it("states what we have and what it takes, with both numbers read", () => {
+    // Neither figure is spelled here: the count is the pass's and the bound is
+    // **the one the producer applied**. A thousands separator because the
+    // figures are four digits and this is a sentence rather than a column.
+    expect(percentileRefusal(refused())).toBe(
+      "Baseline too short to rank — 1,240 of 2,500 returns",
+    );
+  });
+
+  it("covers a store with no baseline at all, in the same string", () => {
+    // `0 of 2,500 returns` is **true** about a cold replica, about a security
+    // with no stored `sip` history and about every gated run — so there is no
+    // sixth sentence for it. The two facts differ in a number the sentence
+    // already prints.
+    expect(percentileRefusal(refused({ sampleCount: 0 }))).toBe(
+      "Baseline too short to rank — 0 of 2,500 returns",
+    );
+  });
+
+  it("reads the bound off the frame rather than this bundle's constant", () => {
+    // A rollback can put a gateway and a bundle two values apart, and the
+    // sentence has to say the bound that was actually applied — otherwise it
+    // explains a refusal with a number nothing refused on.
+    expect(percentileRefusal(refused({ minimumSampleCount: 1000 }))).toContain(
+      "of 1,000 returns",
+    );
+  });
+
+  it("says something else entirely for a price break", () => {
+    // *We have too little history* and *the history we have contains a price
+    // break we cannot adjust* are different facts with different repairs, and
+    // a reader who cannot tell them apart will go looking for more history
+    // that would not help.
+    const split = percentileRefusal(
+      refused({ refusal: "split-discontinuity" }),
+    );
+
+    expect(split).toBe(
+      "Baseline crosses an unadjusted price break — not comparable",
+    );
+    // **No count**, because the count is not the problem: the security may
+    // hold all 4,620 samples and every one of them is measured across a price
+    // we cannot adjust.
+    expect(split).not.toMatch(/\d/u);
+  });
+
+  it("does not read like the sample refusal, in words rather than in bytes", () => {
+    const sample = percentileRefusal(refused());
+    const split = percentileRefusal(
+      refused({ refusal: "split-discontinuity" }),
+    );
+
+    // The pair that must not collapse — Story 5.1 shipped two states sharing
+    // one string for a day one region down. What they share is the subject.
+    expect(sample).not.toBe(split);
+    const sharedWords = sample
+      .split(" ")
+      .filter((word) => split.split(" ").includes(word));
+    expect(sharedWords).toStrictEqual(["Baseline", "—"]);
+  });
+
+  it("never claims a SPLIT, because the detector cannot know", () => {
+    // `SPLIT_DISCONTINUITY_RATIO` catches a session-boundary jump beyond a
+    // ratio. Task 5.3.2 measured five securities over it, of which **four**
+    // sit on exact split factors and one — `MRNA` — is a reverse split *or a
+    // genuine event*. A sentence saying *split* would be a claim about a
+    // corporate action nothing here has read a calendar for, which is
+    // invariant 5's confidence level smuggled into prose.
+    expect(
+      percentileRefusal(refused({ refusal: "split-discontinuity" })),
+    ).not.toMatch(/split/iu);
+  });
+
+  it.each(PERCENTILE_REFUSALS)(
+    "has a sentence for `%s` in the region's register",
+    (refusal) => {
+      // **Every member, by iterating the vocabulary rather than listing it
+      // here** — a third refusal word with no sentence is a compile error at
+      // the record, and this is the run-time half: no terminal stop, no
+      // connection word, no status word, and never a `%`.
+      const sentence = percentileRefusal(refused({ refusal }));
+
+      expect(sentence.endsWith(".")).toBe(false);
+      expect(sentence).not.toContain("%");
+      expect(sentence).not.toMatch(
+        /\b(?:live|stale|disconnected|offline|error|failed|connect)\b/iu,
+      );
+      expect(sentence.length).toBeLessThan(60);
+    },
+  );
 });

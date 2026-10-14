@@ -39,6 +39,7 @@ const MEASURED: WireMeasuredReturn = {
 
 /** A comparison, as the gateway sends one (Task 5.3.3). */
 const PERCENTILE: WireReturnPercentile = {
+  ranked: true,
   rank: 99,
   aboveSample: false,
   sampleCount: 4620,
@@ -506,6 +507,78 @@ describe("AbnormalMove", () => {
       expect(container.textContent).toContain(
         "opening 30 minutes, the fattest-tailed bucket — pooled, this reads high",
       );
+    });
+
+    it("draws the refusal where the sample clause would be, spoken as one line", () => {
+      // **The whole band, as a screen reader is handed it** (Task 5.3.4), and
+      // the assertion is the concatenation rather than one element's text:
+      // this repository's standing rule, and the rule that caught
+      // `+0.42%99th percentile` in Task 5.3.3. What a reader gets is the
+      // figure, the instants, the refusal, and **one** tape — no percentile
+      // cell, and no baseline clause for a baseline that was not used.
+      const { container } = draw({
+        symbolReturn: {
+          symbol: "NVDA",
+          figure: {
+            ...MEASURED,
+            percentile: {
+              ranked: false,
+              refusal: "too-few-samples",
+              sampleCount: 1240,
+              minimumSampleCount: 2500,
+            },
+          },
+        },
+      });
+
+      expect(readable(container)).toBe(
+        "5-minute return / up +0.42% / " +
+          "Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / " +
+          "Baseline too short to rank — 1,240 of 2,500 returns / " +
+          "Measured on IEX",
+      );
+      expect(readable(container)).not.toContain("percentile");
+    });
+
+    it("draws a DIFFERENT sentence for a price break", () => {
+      const { container } = draw({
+        symbolReturn: {
+          symbol: "NVDA",
+          figure: {
+            ...MEASURED,
+            percentile: {
+              ranked: false,
+              refusal: "split-discontinuity",
+              sampleCount: 4620,
+              minimumSampleCount: 2500,
+            },
+          },
+        },
+      });
+
+      expect(container.textContent).toContain(
+        "Baseline crosses an unadjusted price break — not comparable",
+      );
+      expect(container.textContent).not.toContain("too short");
+    });
+
+    it("draws a low ordinal beside a zero return, which is a reading", () => {
+      // The pair most easily misread as a refusal. `0.00%` with `—` as its
+      // glyph says *the price did not move*; the rank says *and that is
+      // ordinary*. Both are drawn, and the dash belongs to `PriceChange`
+      // rather than to the comparison.
+      const { container } = draw({
+        symbolReturn: {
+          symbol: "NVDA",
+          figure: {
+            ...MEASURED,
+            percent: 0,
+            percentile: { ...PERCENTILE, rank: 3 },
+          },
+        },
+      });
+
+      expect(readable(container)).toContain("unchanged 0.00% 3rd percentile");
     });
 
     it("holds the two new rows\u2019 room, and says nothing in them, with no baseline", () => {

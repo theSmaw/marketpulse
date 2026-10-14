@@ -77,17 +77,60 @@ export interface BaselineSubject {
   readonly symbol: Ticker;
 }
 
-/** One stored generation, as the cache reads it. */
-export interface StoredReturnBaseline {
+/** What every stored row carries, answer or refusal. */
+interface StoredReturnBaselineFacts {
   readonly symbol: Ticker;
   /** The window's end — the session close instant the generation is FOR. */
   readonly observedAt: Date;
   readonly lookbackSessions: number;
+  /**
+   * The counted `n` the pass reached. **A refused row carries one too**,
+   * because *how much we had* is the first question asked of a refusal.
+   */
   readonly sampleCount: number;
-  /** 101 ascending magnitudes, or `null` on a refusal. */
-  readonly breakpoints: readonly number[] | null;
-  readonly refusal: ReturnBaselineRefusal | null;
 }
+
+/** A stored generation with a distribution in it. */
+export interface RankableReturnBaseline extends StoredReturnBaselineFacts {
+  readonly refusal: null;
+  /** {@link BASELINE_BREAKPOINT_COUNT} ascending magnitudes. */
+  readonly breakpoints: readonly number[];
+}
+
+/**
+ * A stored generation the pass **declined** to compute, and the arm with
+ * **no `breakpoints` member at all** (Task 5.3.4).
+ */
+export interface RefusedReturnBaseline extends StoredReturnBaselineFacts {
+  readonly refusal: ReturnBaselineRefusal;
+}
+
+/**
+ * **One stored generation, as the cache reads it — a union rather than two
+ * nullable columns** (Task 5.3.4).
+ *
+ * `0013_return_baselines.sql`'s `return_baselines_one_answer` makes *both* and
+ * *neither* unrepresentable **in the database**; this is the same constraint
+ * expressed in the type system, and it is `CLAUDE.md`'s own rule about this
+ * seam: *the mapping is exactly where a nullable column becomes an explicit
+ * domain answer, and a generic mapper is where that decision gets skipped.*
+ *
+ * What it buys is a compile error rather than a test: a reader holding a
+ * refused generation **cannot ask for its breakpoints**, because the member
+ * does not exist on that arm. The previous shape — `readonly number[] | null`
+ * beside `ReturnBaselineRefusal | null` — let a caller read `?.breakpoints`
+ * off either and decide for itself, which is the narrowing Task 5.3.3's join
+ * site did by hand and the next reader would have had to repeat.
+ *
+ * **The sample bound is NOT applied here**, deliberately. `comparableBaseline`
+ * in `return-percentile.ts` owns it, because this module's job is to say what
+ * the row holds — a store whose domain answer disagreed with
+ * `select refusal from return_baselines` is a debugging trap, and the bound is
+ * a statement about what may be **printed** rather than about what was
+ * stored.
+ */
+export type StoredReturnBaseline =
+  RankableReturnBaseline | RefusedReturnBaseline;
 
 /**
  * What `GET /diagnostics/baseline-cost` answers with — the measurement no
@@ -496,17 +539,37 @@ export function createReturnBaselineStore(pool: pg.Pool): ReturnBaselineStore {
         .orderBy("securities.symbol")
         .execute();
 
-      return rows.map((row) => ({
-        symbol: toTicker(row.symbol),
-        observedAt: row.observed_at,
-        lookbackSessions: row.lookback_sessions,
-        // `bigint` on the wire, a `number` in the domain — `toCoverage`'s own
-        // judgement for `bar_count`, taken beside the query as the
-        // repository's rule requires.
-        sampleCount: Number(row.sample_count),
-        breakpoints: toBreakpoints(row.breakpoints),
-        refusal: row.refusal,
-      }));
+      // **One function per domain type, beside the query** — and here that is
+      // also where the row's two nullable columns become one explicit answer.
+      // `flatMap` rather than `map` for the one case the database forbids and
+      // this mapper must still answer for; see {@link toStoredBaseline}.
+      return rows.flatMap<StoredReturnBaseline>((row) => {
+        const facts = {
+          symbol: toTicker(row.symbol),
+          observedAt: row.observed_at,
+          lookbackSessions: row.lookback_sessions,
+          // `bigint` on the wire, a `number` in the domain — `toCoverage`'s own
+          // judgement for `bar_count`, taken beside the query as the
+          // repository's rule requires.
+          sampleCount: Number(row.sample_count),
+        };
+
+        if (row.refusal !== null) {
+          return [{ ...facts, refusal: row.refusal }];
+        }
+
+        const breakpoints = toBreakpoints(row.breakpoints);
+        // **A row that is neither an answer nor a refusal is DROPPED**, which
+        // `return_baselines_one_answer` makes unreachable from any writer in
+        // this repository. It is dropped rather than refused because there is
+        // no honest word for it: every member of `PERCENTILE_REFUSALS` is a
+        // sentence on screen about a baseline we have, and an absent row
+        // already means *the pass has not answered for this security* — which
+        // is the true thing to say about a row the schema says cannot exist.
+        if (breakpoints === null) return [];
+
+        return [{ ...facts, refusal: null, breakpoints }];
+      });
     },
 
     async explainWindowRead(subject, window) {

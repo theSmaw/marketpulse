@@ -2,9 +2,17 @@ import { MARKET_FEED_DESCRIPTIONS, directionOf } from "@marketpulse/shared";
 
 import { formatBarInstant } from "./chart-reading.js";
 import { formatChangePercent } from "./price-format.js";
-import { percentileReading, percentileSample } from "./return-percentile.js";
+import {
+  percentileReading,
+  percentileRefusal,
+  percentileSample,
+} from "./return-percentile.js";
 
-import type { MarketFeed, WireReturnRefusal } from "@marketpulse/shared";
+import type {
+  MarketFeed,
+  WireReturnComparison,
+  WireReturnRefusal,
+} from "@marketpulse/shared";
 import type { SymbolReturnView } from "./live-feed.js";
 import type { PriceDirection } from "./price-format.js";
 
@@ -158,16 +166,23 @@ export interface ReturnBand {
    * `undefined` is the ordinary answer rather than a degraded one: a cold
    * replica holds no generation, a security with no stored `sip` history has no
    * distribution, one whose window crosses an unadjusted split is **refused**,
-   * and on CI no frame can carry one at all.
+   * one below `BASELINE_MINIMUM_SAMPLE` is refused when it is read, and on CI
+   * no frame can carry one at all. **Since Task 5.3.4 every one of those says
+   * so** in {@link sample} rather than leaving the row blank.
    */
   readonly percentile: string | undefined;
   /**
-   * **What the percentile was taken against** — the counted `n`, the span the
-   * samples are of, and the pooling, in one footer line.
+   * **What the percentile was taken against — or why there is none** — the
+   * counted `n`, the span the samples are of, and the pooling, in one footer
+   * line.
    *
-   * It draws exactly where {@link percentile} does. A rank with no sample
-   * behind it is the same claim at `n = 737` and at `n = 4,620`, which is
-   * ADR 0029's false impression in one number.
+   * ~~It draws exactly where {@link percentile} does.~~ **Amended 2026-10-14
+   * (Task 5.3.4): it draws where a comparison was ATTEMPTED**, which is a
+   * larger set. Beside a rank it states the sample, because a rank with no
+   * sample behind it is the same claim at `n = 737` and at `n = 4,620` —
+   * ADR 0029's false impression in one number. Without one it states the
+   * refusal, in the same row, because a figure with blank room under it says
+   * *we did not think to compare this* when the truth is *we will not*.
    */
   readonly sample: string | undefined;
   /** Which tape the figure was measured on — invariant 6, or `undefined`. */
@@ -390,6 +405,32 @@ function instantOf(value: string): Date | undefined {
 }
 
 /**
+ * **The footer row: what the percentile was taken against, or why there is no
+ * percentile** (Task 5.3.4).
+ *
+ * One row with two jobs, which is what *replacing a clause rather than adding
+ * a row* means in code — and the row's reserve is the bias clause's at every
+ * width, so both refusal sentences fit inside room that was already held.
+ *
+ * `undefined` for a comparison the frame did not carry, and `undefined` for a
+ * ranked one whose instants could not be read: the bias arm of
+ * {@link percentileSample} is derived from those two instants, so a sentence
+ * that cannot evaluate its own condition is not drawn at all. A **refusal**
+ * has no such condition and survives both.
+ */
+function sampleOf(
+  comparison: WireReturnComparison | null,
+  from: Date | undefined,
+  to: Date | undefined,
+): string | undefined {
+  if (comparison === null) return undefined;
+  if (!comparison.ranked) return percentileRefusal(comparison);
+  if (from === undefined || to === undefined) return undefined;
+
+  return percentileSample(comparison, from, to);
+}
+
+/**
  * **The band, for the security this page is about.**
  *
  * @param symbol The security on screen.
@@ -466,10 +507,28 @@ export function fiveMinuteReturnBand(
   // two grammars to draw. ADR 0029 — each clause renders only when its own
   // data is present — so the pair travels together and the figure survives
   // without either.
+  // **The comparison the frame carried, if it carried one at all.** `null` is
+  // a gateway that said nothing — a browser holding a bundle across a deploy,
+  // or a distribution the producer could not read — and it draws nothing,
+  // which is ADR 0029's defer rule: no rank, and no sentence explaining the
+  // absence of one, because we were not told there is an absence.
+  const comparison = figure.percentile;
+
+  // **A ranked comparison needs both instants and a refusal does not** (Task
+  // 5.3.4), and that is not a convenience: the sample clause's bias arm is
+  // derived from `from`/`to`, so a sentence that could not evaluate its own
+  // condition would have to guess which of its two grammars to draw. The
+  // refusal sentences have no such condition — *we hold 737 returns* is true
+  // whatever the strings carrying the endpoints did — so they survive an
+  // unreadable instant, which is the state that would otherwise silently
+  // print a figure with no account of its missing comparison.
   const percentile =
-    figure.percentile === null || from === undefined || to === undefined
+    comparison === null ||
+    !comparison.ranked ||
+    from === undefined ||
+    to === undefined
       ? undefined
-      : figure.percentile;
+      : comparison;
 
   return {
     label: RETURN_LABEL,
@@ -484,10 +543,11 @@ export function fiveMinuteReturnBand(
         : qualifierOf(from, to, figure.observed, figure.spanMinutes),
     percentile:
       percentile === undefined ? undefined : percentileReading(percentile),
-    sample:
-      percentile === undefined || from === undefined || to === undefined
-        ? undefined
-        : percentileSample(percentile, from, to),
+    // **The refusal replaces the sample clause rather than adding a row**
+    // (Task 5.3.4), which is what keeps the region one height: this row is
+    // reserved for the bias clause at every width and both refusal sentences
+    // are shorter than it.
+    sample: sampleOf(comparison, from, to),
     // **Two tapes rather than one, where a comparison was drawn** — the
     // numerator's and the baseline's. See `tapeOf`: one tape per comparison is
     // not achievable and the screen must not imply it is.
