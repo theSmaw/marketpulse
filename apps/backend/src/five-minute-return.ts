@@ -87,6 +87,15 @@ const MS_PER_MINUTE = 60_000;
  * It is also the denominator the surface draws — *observed k of 5* — so Task
  * 5.2.3 reads this rather than typing a `5` into a sentence.
  */
+/**
+ * **This is a MEASUREMENT SPAN, and the product spells `5` twice** —
+ * [ADR 0043](../../../docs/adr/0043-two-five-minutes-a-freshness-cutoff-and-a-measurement-span.md).
+ * The other one is `BREADTH_WINDOW_MINUTES`, an **eligibility cutoff over a
+ * population**, and reusing it here would couple a `PRODUCT_SPEC.md` §11
+ * requirement to a measurement of our own feed's coverage — silently, the day
+ * somebody re-measures that curve. `pnpm break a-span-spelled-as-the-observation-window`
+ * performs exactly that edit.
+ */
 export const RETURN_SPAN_MINUTES = TRAILING_WINDOW_SPAN_MS / MS_PER_MINUTE;
 
 /** One end of the measurement, with the instant it was observed at. */

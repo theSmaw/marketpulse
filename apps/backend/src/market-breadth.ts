@@ -81,6 +81,14 @@ import type { MarketOverviewEntry } from "./market-overview.js";
  * gateway and a bundle two values apart; the figure beside the count is always
  * the one the count was taken with.
  */
+/**
+ * **This is an ELIGIBILITY CUTOFF, and the product spells `5` twice** —
+ * [ADR 0043](../../../docs/adr/0043-two-five-minutes-a-freshness-cutoff-and-a-measurement-span.md).
+ * The other one is `RETURN_SPAN_MINUTES` in `five-minute-return.ts`, a
+ * **measurement span between two endpoints of one security**, and the two are
+ * uncoupled on purpose: this one's input is a coverage curve, that one's is
+ * `PRODUCT_SPEC.md` §11. Never reuse this constant there.
+ */
 export const BREADTH_WINDOW_MINUTES = 5;
 
 const MS_PER_MINUTE = 60_000;

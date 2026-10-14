@@ -61,6 +61,7 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0040](0040-what-current-means-a-five-minute-observation-window.md)                                        | What "current" means: a five-minute observation window, and one eligibility pass for every aggregate | Accepted |
 | [0041](0041-a-ranked-surface-re-orders-under-live-data.md)                                                 | A ranked surface re-orders under live data, and what an order owes the reader holding it             | Accepted |
 | [0042](0042-membership-is-a-history-and-it-starts-the-day-somebody-writes-it.md)                           | Membership is a history, and it starts the day somebody writes it                                    | Accepted |
+| [0043](0043-two-five-minutes-a-freshness-cutoff-and-a-measurement-span.md)                                 | Two five minutes: a freshness cutoff and a measurement span                                          | Accepted |
 
 **0024 was written on 2026-09-11, out of order, and the gap it filled is worth
 remembering.** It was reserved by Story 2.11 and three planning documents cited it by

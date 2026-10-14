@@ -465,3 +465,45 @@ are legitimate — an untrack and a re-add inside one curated-file revision shar
 `checkedOn` date — so there is deliberately **no `unique (security_id,
 effective_from)`**, and the resolution rule is `order by effective_from, id`.
 `id` is `generated always`, so it is the order the rows were written in.
+
+## Handed here by Story 5.2's close — 2026-10-14: a second in-memory accumulator exists, and it is fed by the live socket
+
+Epic 5 added `apps/backend/src/trailing-window.ts` — six to seven minute bars per
+security, ~1.02 MB at universe scale — **written from the live socket's own
+callback** and read by the five-minute return on `/securities/:symbol`.
+
+**Three things this owes you, and the first is the one that matters.**
+
+**1. It must be constructed from replayed bars or not read at all.** The window
+is process memory with **no point-in-time bound of any kind**: it holds whatever
+the live IEX socket has delivered, which under replay is _the present_. A
+replayed reader that imports it is reading the future, in the one place invariant
+4 promises it cannot. **The computation over it is already safe** —
+`fiveMinuteReturn(window, { asOf })` is pure, takes the window and the clock as
+arguments, reads no clock and no handle, and is `marketBreadth`'s shape — so the
+seam you need already exists at the **call site**: hand it a replayed window.
+What does **not** exist is anything stopping a module importing the live one, and
+the window is deliberately constructed in `index.ts` rather than exported as a
+singleton for that reason.
+
+**2. There is no store-backed fill, by the owner's decision**, so the window is
+empty for the first five minutes of every process and permanently empty wherever
+the feed is `provider=none`. For replay that is a feature: the honest answer at
+`asOf` is **whatever the replayed bars support**, and the region already draws
+four distinct refusals rather than one, so _we have nothing for this instant_ is
+already a first-class state with its own words.
+
+**3. The figure is `iex`-over-`iex` by construction and says so on screen.** A
+replay rebuilding the window from `market_bars` gets **two tapes** — the store
+holds up to two rows a minute (ADR 0035) — so a replayed window must pick a tape
+explicitly and the surface's `Measured on IEX` must then be read from the data
+rather than assumed. A replayed five-minute return straddling the nightly
+backfill otherwise mixes a `sip` earlier endpoint with an `iex` later one, and
+the close can differ by more than the move being measured.
+
+**And one constant to know about before you reason about windows at all.** This
+product now spells `5` twice for two different quantities —
+`BREADTH_WINDOW_MINUTES` (an eligibility cutoff over a population) and
+`RETURN_SPAN_MINUTES` (a measurement span between two endpoints of one security).
+[ADR 0043](../../docs/adr/0043-two-five-minutes-a-freshness-cutoff-and-a-measurement-span.md)
+says why they are uncoupled and must stay so.

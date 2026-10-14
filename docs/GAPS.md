@@ -4188,3 +4188,70 @@ which only `pnpm probe` can see. **Re-measure:** read the constants at the head
 of `apps/frontend/src/market/relative-performance.ts` against this list, and
 `pnpm probe --story market-relativeperformance--basis-refused --widths 390`.
 **Owner: the first story that adds a tenth.**
+
+## The 5-minute return has no external check, and its inputs are reconstructible from nothing the browser receives
+
+**Added 2026-10-14 by Story 5.2's close.** `Abnormal-move indicators` draws a
+figure whose two inputs are **minute bars held only in the backend's process
+memory**. The frame carries the return, both endpoint instants and the observed
+count — so a reader can check the **arithmetic** — but the two closing prices it
+was computed from are on no frame, in no response, and in no store the page can
+reach, because the window is fed by the live socket and there is **no
+store-backed fill** (Gate 1 decision 3).
+
+**This trips the second condition of _an aggregate is checkable by nothing_
+verbatim** — _the first aggregate region whose figures cannot be reconstructed
+from the frame the browser received_ — and the mitigation that entry prescribes
+(ship the inputs) was taken only halfway: the instants ship, the prices do not.
+Shipping both closes is **+2 numbers a frame** and was not taken because nothing
+on the screen would draw them.
+
+**So the only check that exists is a person with a public five-minute chart.**
+`LIVE-REHEARSAL.md` row 5.2 carries it as item 4, fifteen seconds, and it is the
+one item on that row that needs no judgement.
+
+**Re-measure:** open the deployed page on a security that is trading and compare
+the printed return with any public five-minute chart for the same name.
+**Owner: the first sitting that fills row 5.2.**
+
+## A pass-through browser spec proves fidelity, never correctness
+
+**Added 2026-10-14 by Task 5.2.4, and it is a correction to a repair this
+repository has been quoting for three stories.** Task 4.3.8 found four overview
+specs green against a server with the ranking deleted, each furnishing the order
+it then checked, and the repair — _forward the server's own frames_ — is
+**necessary and not sufficient**. A pass-through forwards the bytes honestly, so
+a producer broken into inventing a figure is drawn exactly as faithfully as a
+correct one and **every _the page agrees with the frame_ assertion stays green**.
+
+**Two shapes make a spec sufficient**, and a spec needs at least one: an
+**independent recompute** (`overview-sector-ranking.spec.ts` sorts the displayed
+figures itself; `overview-movers-ranking.spec.ts` recomputes all 503 moves), or
+an **external reference** (`overview-breadth-counts.spec.ts` against
+`GET /securities`; `security-abnormal-move.spec.ts` asking `GET /market-data`
+whether a provider exists at all).
+
+**The count, taken rather than assumed, 2026-10-14.** Of the five pass-through
+overview specs: **three** carry a sufficient shape, **one**
+(`overview-frame-sections.spec.ts`) asserts a frame contract where the question
+does not arise, and **one** — `overview-movers-denominator.spec.ts` — is
+insufficient **and says so in its own comment**: _`eligible` is a reduction with
+no recoverable input on the frame_. That one is honest rather than broken, and it
+is the shape this entry exists to keep visible.
+
+**Re-measure:** for each spec using `openWithRecordedStream`, ask whether any
+assertion would fail if the producer returned a plausible fabrication. If none
+would, the spec proves fidelity only. **Owner: the next story that adds a
+pass-through spec.**
+
+## Nothing measures what the trailing window costs on a machine serving a real market
+
+**Added 2026-10-14 by Story 5.2's close.** The window's per-batch cost is
+measured on one laptop against a furnished cadence, and three things about that
+are not fixable from here: the cadence is furnished because **no offline feed in
+this repository produces the real one**, a gapped Node sample inflates by a
+factor the calibrator **does not divide out**, and the deployed replica has never
+been instrumented at all. The figures are an **upper bound on the shape**.
+
+**Re-measure:** the arms are in Task 5.2.5's record with their load averages and
+n. **Owner: Epic 14, whose own figures carry the same three caveats.**

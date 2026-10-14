@@ -243,6 +243,21 @@ nothing.
    518 × 390 minute bars — decided in Story 3.5 as the cheap option because
    Story 3.8 makes the **store** hold today's session. Anything wanting a series
    assembles it from the store plus what has arrived since.
+
+   > **Qualified 2026-10-14 by Story 5.2's close, and the sentence above is
+   > still true of `currentMarketState` itself.** There is now a **second**
+   > in-memory structure beside it — `trailing-window.ts`, six to seven minute
+   > bars per security, ~1.02 MB at universe scale — because a 5-minute return
+   > needs the bar from five minutes ago and _assemble it from the store_ would
+   > have meant a store read inside the socket's own callback. **It is a sibling
+   > rather than a widening** (the owner's Gate 1 decision, with
+   > `market-overview.ts`'s precedent), which means **two homes now hold _the
+   > newest bar for this security_** — the cost is recorded rather than hidden,
+   > with a reversal trigger: _the first time the two are observed to disagree,
+   > or the first writer of either that is not `onObservations`_. What has **not**
+   > changed is the sentence's reason: this is six bars, not 390, and anything
+   > wanting a **series** still assembles it from the store.
+
 2. **It is `status`-filtered** to the 518 `active` securities
    (`UNIVERSE.md` §12.2 — a computation over _the market we track now_ filters;
    a read of something we **stored** does not). Story 3.8's read path is

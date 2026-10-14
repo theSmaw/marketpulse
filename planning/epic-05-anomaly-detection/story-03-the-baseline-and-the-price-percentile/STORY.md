@@ -98,3 +98,53 @@ One figure added beside an existing one, plus the bias sentence. No new region.
 ## Out of scope
 
 The volume factor, the composite, bands, and `Unusual activity` on `/`.
+
+## Handed here by Story 5.2's close — 2026-10-14: the window you read, the constant you must not reuse, and the check that will refuse your lookback
+
+**1. The trailing window exists and it is NOT a series.** `trailing-window.ts`
+holds **six to seven minute bars per security** — `span + ε`, where ε is 90 s —
+evicted on each bar's **own `startsAt`**. It is not a baseline and cannot become
+one: a 60-trading-day baseline is ~23,400 bars a security against the seven this
+holds, and the measured marginal cost is **283–284 B a bar**, so depth alone
+makes your baseline a store read rather than a widening of this.
+
+**2. Two properties you must not assume away**, both of which bit Task 5.2.2:
+
+- **`read()` returns the ε tail**, so some of what you are handed is **outside**
+  the five minutes by construction. Bound your own `asOf − lookback`.
+- **Eviction is relative to that security's own newest bar, never to now.** A
+  security silent for 187 minutes keeps seven bars from 187 minutes ago, so a
+  full window is **not** evidence of a recent one.
+
+**3. `one-home-for-the-observation-window` WILL refuse your lookback, and that
+is the check working.** It permits **exactly two** minute-scaled cutoffs: the
+eligibility cutoff in `market-breadth.ts` and the measurement span in
+`five-minute-return.ts`. A percentile lookback is **neither** — it is a third
+quantity — and the break
+`pnpm break a-span-spelled-as-the-observation-window` was proved against a
+plant that is literally `market-percentile.ts` with a
+`PERCENTILE_LOOKBACK_MINUTES = 60`. **You owe a fourth conjunct, your own
+constant and your own argument**, in the same change.
+[ADR 0043](../../../docs/adr/0043-two-five-minutes-a-freshness-cutoff-and-a-measurement-span.md)
+is why these are not one quantity, and **never reuse `BREADTH_WINDOW_MINUTES`
+or `RETURN_SPAN_MINUTES`**.
+
+**4. `one-home-for-the-live-change` may refuse you too**, for a reason that is
+not obvious: its third clause refuses any shipped file that **divides by a
+close**, and a percentile over returns divides minute closes. `five-minute-
+return.ts` carries a **named, doubly-anchored exemption** — it must still divide,
+and must not mention `SecurityLastClose`, `readLastCloses`, `closesAsOf` or
+`previousClose`. Copy that shape rather than widening the clause.
+
+**5. The region you draw into is filled progressively and is 106 px today**, in
+every state at every width, with content boxes 419 / 446 / 318 / 308. **One step
+per story that adds a band is the accepted cost** — recorded as a probed figure
+per width so you amend a measurement rather than inherit a guess — and
+`MARKET-OVERVIEW.md` §1.4's trigger has already fired once on this route.
+
+**6. Four absence sentences are already approved and named** in
+`apps/frontend/src/market/five-minute-return.ts`, with eight more in
+`relative-performance.ts`. The register is set: short, no connection word, no
+terminal full stop except on the one region-level sentence. **A fifth refusal
+kind needs words of its own and a recorded reason for not being one of the
+twelve.**

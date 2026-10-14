@@ -81,3 +81,35 @@ choosing a treatment.
 ## Out of scope
 
 The composite, the bands' boundaries, and anything on `/`.
+
+## Handed here by Story 5.2's close — 2026-10-14: the window holds one tape, and the moment you read the store it holds two
+
+**The in-memory trailing window cannot mix tapes, by construction.** Every bar in
+it arrives from one `MarketDataStream` whose feed is `iex`, so anything computed
+from it is `iex`-over-`iex` — which is why `Abnormal-move indicators` says
+**`Measured on IEX`** and does not inherit the chart's `All US exchanges` a few
+centimetres away (invariant 6).
+
+**Your volume factor is the first thing in this epic that must read the store**,
+and that is where the trap this epic opens with becomes real. `market_bars` holds
+up to **two rows a minute** — `feed = 'iex'` and `feed = 'sip'` (ADR 0035) — and
+the two reads behave differently: `readSeries` reduces a minute to one bar under
+`SERVED_TAPE_RANK` preferring `sip`, while `readBars` **answers every row,
+including two for one minute**, and its own docblock says it does not answer the
+tape question for you.
+
+So **a volume ratio with a live IEX numerator over a stored SIP baseline compares
+two different tapes**, and since 2026-09-23 that can happen **entirely inside the
+store**: the minutes in progress before the nightly backfill, and extended hours,
+which the backfill never asks for and which are therefore the live tape's
+permanently. IEX is one venue's prints and SIP is consolidated — on volume the
+difference is not a rounding error, it is the whole quantity.
+
+**Pick a tape explicitly, say which on screen, and do not let the two reads
+choose for you.**
+
+**One more thing you inherit**: the window is **six to seven minutes deep**, so
+it is not your baseline. A median volume for the same time of day is a store read
+of a different shape, and `one-home-for-the-observation-window` permits exactly
+two minute-scaled cutoffs today — yours is a third quantity and owes its own
+conjunct, constant and argument, the same as Story 5.3's lookback.
