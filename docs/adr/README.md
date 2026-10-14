@@ -62,6 +62,7 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0041](0041-a-ranked-surface-re-orders-under-live-data.md)                                                 | A ranked surface re-orders under live data, and what an order owes the reader holding it             | Accepted |
 | [0042](0042-membership-is-a-history-and-it-starts-the-day-somebody-writes-it.md)                           | Membership is a history, and it starts the day somebody writes it                                    | Accepted |
 | [0043](0043-two-five-minutes-a-freshness-cutoff-and-a-measurement-span.md)                                 | Two five minutes: a freshness cutoff and a measurement span                                          | Accepted |
+| [0044](0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md)                 | A derived aggregate is computed nightly and keyed by the session it is for                           | Accepted |
 
 **0024 was written on 2026-09-11, out of order, and the gap it filled is worth
 remembering.** It was reserved by Story 2.11 and three planning documents cited it by

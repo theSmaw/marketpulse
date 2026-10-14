@@ -392,6 +392,19 @@ assert the opposite of what the product means. Beside it is the test that matter
 practice, and it is this section as an assertion: **a symbol with no split returns
 byte-identical bars in both modes.**
 
+> **Read beside this from 2026-10-14 (Story 5.3): Epic 5's baseline does not
+> adjust, and this section's objection therefore does not reach it.** §3.5 is
+> about a **wrong adjustment argument** — invisible in testing, wrong exactly
+> once. Epic 5 reads the **raw** store and **detects a session-boundary
+> discontinuity above a stated magnitude ceiling, then refuses that security's
+> percentile**. Nothing computes an adjustment, so there is no argument to get
+> wrong; what the hazard becomes is a **visible absence** rather than a
+> confident false figure, which is the direction this section asks for. Story
+> 5.1's own decision 1 — _ask the provider_ — is reversed there by date, with
+> the two things nobody had weighed: a nightly provider fetch is ~1,172 paged
+> requests against a ~3.3/s bucket, and a provider-fetched baseline is not
+> reconstructible from anything we stored, which Epic 13 needs.
+
 ### 3.6 The named gap: V1 reads raw, so a split draws a cliff
 
 Story 2.9's V1 read path serves stored raw bars. A tracked security that splits inside the
