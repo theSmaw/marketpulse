@@ -143,3 +143,51 @@ sentence, differing only by the **absence** of an `EPIC n` badge.
 
 The composite 0–100 score and the numeric figure on this list (Story 5.6), the
 volume factor, and any score in the universe table.
+
+## Handed here by Story 5.2's close — 2026-10-14: you are the story that fires two triggers, and one of them is in Epic 5's own file
+
+**1. The figure you will rank already exists and is computed for ONE security on
+demand.** `fiveMinuteReturn(window, { asOf })` is pure, takes the trailing window
+and an `asOf` as arguments, and refuses rather than stretching. Nothing computes
+it for 516 securities, and that is the line.
+
+**2. Computing it per security in the socket callback fires Epic 14's THIRD
+condition**, which lives in `EPIC.md` rather than in Epic 14's file: _the first
+computation added to that callback that **derives a figure per security**, rather
+than ranking or counting figures the join has already produced._ Story 5.2
+evaluated it and it did **not** fire, for exactly one reason — a ring-buffer push
+is storage, and the return is computed on demand for the security on screen.
+**You are the story that changes that**, and the trigger is written against you
+in all but name.
+
+**3. And putting it on `/` fires the SECOND condition too** — _the first surface
+on `/` that renders one element per tracked security_ — unless you rank into a
+short list, which `PRODUCT_SPEC.md` §9's _Unusual activity_ panel already is.
+Epic 5's `EPIC.md` says the honest alternative is a **top-N feed** and leaving the
+universe table alone; Story 4.5 shipped the ranking-is-a-SELECTION idiom
+(`moveRankingKey`, `compareByMove`, `selectMovers`, with
+`one-comparator-for-the-order-of-a-move` refusing a second comparator) and you
+should inherit it rather than write a second.
+
+**4. Measure before you merge, not after.** Story 5.2's window costs are in Task
+5.2.5's record with their caveats; the thing nobody has measured is **the return
+computed 516 times a batch**, which is your arm. The two caveats are not optional
+and are stated separately: a gapped Node sample inflates and the calibrator
+**does not divide out** (4.38× subject against 2.29× calibrator), while a browser
+figure reads ×1.00.
+
+**5. ADR 0040's reversal trigger is yours to evaluate.** _The first aggregate on
+this screen whose honest window is not breadth's_ — Story 5.2 recorded that it
+did not fire, because a five-minute return is not an aggregate and is not on `/`.
+**A ranked list of these figures on `/` is both.** If its honest window is not
+breadth's five minutes, that trigger fires and the frame grain goes with it.
+[ADR 0043](../../../docs/adr/0043-two-five-minutes-a-freshness-cutoff-and-a-measurement-span.md)
+is why the return's span and breadth's cutoff are different quantities that
+happen to share a number.
+
+**6. A pass-through spec will not catch a wrong ranking.** Task 4.3.8's repair is
+necessary and **not sufficient** — proved by Task 5.2.4, which broke a producer
+into fabricating a figure and watched a pure pass-through stay green. Your spec
+needs an **independent recompute** (`overview-movers-ranking.spec.ts` recomputes
+all 503 moves) or an **external reference**; `docs/GAPS.md` carries both shapes
+and the count of which existing specs have one.

@@ -1,6 +1,6 @@
 # Story 5.2 — The Trailing Window, & the 5-Minute Return
 
-**Status:** In progress — 2026-10-13
+**Status:** Complete — 2026-10-14 — the window costs **1.8–4.1 µs a batch**, none of Epic 14's three triggers fired, and the story's own break instruction turned out to be backwards: a pass-through spec proves fidelity, never correctness
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.1
 **Epic scope covered:** 5-minute return calculations
@@ -228,3 +228,53 @@ and the second is the state every gated run is permanently in.
 figure in it**, not the story that finishes it — Story 5.6 is. A region that
 draws one figure and reserves the rest of its bands is the shape to aim at, for
 the reason in 3.
+
+## Gate 2 — the acceptance criteria, verdicted — 2026-10-14
+
+**Kind**: a **re-take** is a command a clean clone can run; a **reading** is
+dated and cannot be re-taken without the conditions that produced it.
+
+| AC  | Verdict                                    | Instrument                                                                                                                                                                                                                              | Kind              |
+| --- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| 1   | **Met**                                    | `trailing-window.test.ts` (12); memory via `heapUsed` after two forced collections, **553 B a security at depth 1, 283–284 B a marginal bar, ~1.02 MB at depth 7** against `currentMarketState`'s 0.208 MB taken by the same instrument | re-take + reading |
+| 2   | **Met**                                    | The supersede rule is **inherited from `observed.applied`** rather than re-implemented; the impute test asserts the **absence** of a gapped minute; a revision interleaved with an advance makes a FIFO eviction go red                 | re-take           |
+| 3   | **Met**                                    | `five-minute-return.test.ts` — 47 minutes apart refused by name; four and six minutes refused; **no `(earlier, later)` entry point exists**, asserted against the module's own exports                                                  | re-take           |
+| 4   | **Met**                                    | `observed k` comes from the **same traversal** as the figure, so they cannot disagree; the oldest endpoint is printed first and both instants are drawn                                                                                 | re-take           |
+| 5   | **Met**                                    | No `computedAt`, `sentAt` or `Date.now()` in the band; both instants are bars' own `startsAt` with no interval added, asserted                                                                                                          | re-take           |
+| 6   | **Met**                                    | No threshold and no connection word; `one-home-for-the-strip-staleness-sentence`'s corpus is a directory walk and was **proved by plant** rather than read                                                                              | re-take           |
+| 7   | **Met**                                    | The write is synchronous with **no I/O at all**, so there is nothing to await; placed **before** `publishObservations`' early return, so the window is not empty when nobody is watching                                                | re-take           |
+| 8   | **Met, and arm 2 is reported as unusable** | Three arms on the production artefact with a calibrator and the load read before each; plant caught at **2.8%** of its predicted size                                                                                                   | reading           |
+
+### What a user can now see
+
+On `/securities/:symbol`, `Abnormal-move indicators` draws the security's
+**5-minute return**, the two instants it was measured between, `observed k of 5
+minutes`, and `Measured on IEX`. **No score and no band** — those are Story
+5.6's. Two of the three regions this epic was given now hold figures.
+
+### What shipped open, with an owner and a condition
+
+- **Nobody has seen this figure against a real market, and nothing can.**
+  `LIVE-REHEARSAL.md` row **5.2** is unwatched and `pnpm invariants` refuses
+  Epic 5's close with it. The window is process memory fed by the live socket
+  with **no store-backed fill**, so it is empty on every gated run and for the
+  first five minutes of every deployment.
+- **The figure has no external check** — its two input prices are on no frame —
+  which is why the rehearsal row's item 4 is a public five-minute chart.
+  **Owner: the first sitting.**
+- **Arm 2's calibrator inflation is non-monotonic in the gap** (2.75–3.26× at
+  8,824 ms against 18.0–19.4× at 3,727 ms) and **gap and order were
+  confounded**, because the arms always ran midday-then-close. Not resolved,
+  because the arm is 100% discarded either way. **Owner: Epic 14.**
+- **Whether Task 4.8.11's 2.29× was partly the in-loop calibrator artefact
+  cannot be settled**, because that instrument was deleted. The conclusion is
+  unaffected and stronger; the mechanism may be misattributed.
+
+### What was NOT verified, and why
+
+- **The deployed backend has not run this code.** Every figure is one laptop,
+  one furnished cadence.
+- **The revision branch is not in the cost figures** — the fixture plants none,
+  and at 0.1062% that is 1 bar in 940.
+- **Arm 2 produced no usable absolute**, by its own control.
+- **`observed k` has never been anything but 0 on a gated machine.**

@@ -872,6 +872,21 @@ tape. That is what the denominator sentence exists to confess.
 `overview-sector-ranking.spec.ts`'s `openWithRecordedStream` is the pass-through
 shape; copy it rather than the furnished harness.
 
+> **Amended 2026-10-14 by Task 5.2.4: the pass-through is NECESSARY AND NOT
+> SUFFICIENT, and this paragraph has been read as the whole repair for three
+> stories.** A pass-through forwards the server's bytes **honestly** — so when
+> the producer is broken into inventing a figure, the browser draws the
+> fabrication exactly as faithfully as it drew the truth, and **every _the page
+> agrees with the frame_ assertion stays green**. Pass-through kills the
+> fixture-agrees-with-itself defect and does nothing whatever about a wrong
+> producer. What catches that is a claim grounded **outside the frame**:
+> `security-abnormal-move.spec.ts` asks `GET /market-data` whether this
+> deployment has a provider at all, because one that does not has observed
+> nothing and a measured figure is fabricated **by construction**. Note that
+> §9's trap 8 — _a frame-checkable claim is not a check on the cut, only an
+> independent recompute saw it_ — is the **same lesson at full strength**, and
+> it is the weaker one here that keeps being quoted.
+
 ### 5.3 The re-order treatment, and `ORDER HELD`
 
 **Decided on eleven rows rather than on a top-N**, which is why the decision moved
@@ -1783,6 +1798,11 @@ line-height: 1` in the same rule **lost**, and the chrome rendered at **11px/16p
 6. **A furnished frame cannot see a server-side computation.** Four overview specs
    passed against a server with **the ranking deleted**, because each furnished the
    order it then checked. `openWithRecordedStream` is the pass-through shape.
+   **Amended 2026-10-14 (Task 5.2.4): the pass-through is necessary and NOT
+   sufficient** — it forwards a fabricated figure as faithfully as a true one,
+   so every _page agrees with the frame_ assertion is green with the producer
+   broken. Only a claim grounded **outside the frame** catches that, which is
+   trap 8 below said at full strength.
 
 7. **The wire cannot see a defect in the producer.** When a repair removes work whose
    only consumer was absent, the assertion has to **count the producer's
