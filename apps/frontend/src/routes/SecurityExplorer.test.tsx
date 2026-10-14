@@ -834,3 +834,74 @@ describe("which rows this screen asks for (Task 3.6.3)", () => {
     });
   });
 });
+
+// **The 5-minute return is withheld until the universe answer resolves this
+// page's security** (Task 5.2.4) — the one state in `Abnormal-move
+// indicators`' eight that is this route's rather than the band's.
+//
+// *The security is not resolved yet* and *no `return` frame has arrived yet*
+// are two facts with one drawing, and the collapse is declared **in the data**
+// here rather than as a second branch in the component: one input, one
+// drawing, byte-identical by construction. Two branches drawing the same
+// markup is a claim a test has to keep true.
+describe("the 5-minute return and the security it is about", () => {
+  const MEASURED = {
+    measured: true,
+    percent: 0.4201680672268908,
+    from: { at: "2026-09-16T18:01:00.000Z", price: 119, feed: "iex" },
+    to: { at: "2026-09-16T18:06:00.000Z", price: 119.5, feed: "iex" },
+    observed: 3,
+    spanMinutes: 5,
+  } as const;
+
+  const withFigure = {
+    ...NO_LIVE_FEED,
+    symbolReturn: { symbol: "NVDA", figure: MEASURED },
+  } as const;
+
+  const drawAt = (path: string) =>
+    renderWithContext(
+      <Routes>
+        <Route
+          element={
+            <SecurityExplorer marketFeed={MARKET_FEED} liveFeed={withFigure} />
+          }
+          path={ROUTE_PATTERNS.security}
+        />
+      </Routes>,
+      { at: path },
+    );
+
+  it("draws the figure once the universe answer holds the security", async () => {
+    stubFetch(() =>
+      json(200, { securities: [NVDA, SPY], coverage: [], lastCloses: [] }),
+    );
+    drawAt("/securities/NVDA");
+
+    await waitFor(() => {
+      expect(screen.getByText("+0.42%")).toBeTruthy();
+    });
+  });
+
+  it("holds the room, and no figure, for a symbol the universe does not hold", async () => {
+    // `/securities/ZZZZ` produces a `return` frame like any other, because the
+    // focus is a ticker off the address bar. A figure under a name this
+    // product cannot say it tracks is the same class of claim as a figure
+    // under the wrong name — which is what the symbol comparison inside the
+    // band already refuses one case of.
+    stubFetch(() =>
+      json(200, { securities: [NVDA, SPY], coverage: [], lastCloses: [] }),
+    );
+    const unresolved = drawAt("/securities/ZZZZ");
+
+    // **Waited on the universe answer rather than on the absence**, because
+    // *the answer has not arrived* also draws no figure and a bare assertion
+    // would pass before the request settled — which is the same test passing
+    // for the wrong reason.
+    await waitFor(() => {
+      expect(unresolved.getByText("securities tracked")).toBeTruthy();
+    });
+
+    expect(unresolved.container.textContent).not.toContain("0.42");
+  });
+});

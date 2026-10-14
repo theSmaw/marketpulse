@@ -74,6 +74,7 @@ export type {
   WireMarketOverview,
   WireObservation,
   WireObservedBreadth,
+  WireObservedSpan,
   WireObservedFigure,
   WireMeasuredReturn,
   WireObservedMovers,

@@ -160,9 +160,17 @@ verdict is owed in writing, and Task 5.2.5 owes it for all three conditions.
 ## Design work
 
 One figure and one honest-absence sentence in a reserved region, in the column
-Story 5.1 set the idiom for. The absence sentence is the fifth of its kind on
-this product and must name its own region — four already read `No prices yet.` /
-`No count yet.` / `No sector moves yet.` / `No moves to rank yet.`
+Story 5.1 set the idiom for. ~~The absence sentence is the fifth of its kind on
+this product~~ — **false, and corrected at Gate 1 above and again on 2026-10-14
+by Task 5.2.4: it is the SIXTH**, because `No comparison yet.` shipped on this
+page in Story 5.1. It must name its own region — four already read
+`No prices yet.` / `No count yet.` / `No sector moves yet.` /
+`No moves to rank yet.` on `/`, and the fifth is this page's own.
+
+**And the count of NEW sentences is four rather than one** (Task 5.2.4): the
+producer has **three** refusals and each needs words, beside the region noun.
+Each of the four carries its recorded reason for not being one of
+`relative-performance.ts`' eight, in `five-minute-return.ts`.
 
 ## Out of scope
 

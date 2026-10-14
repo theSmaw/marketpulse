@@ -133,7 +133,7 @@ describe("the 5-minute return (Task 5.2.2)", () => {
 
       const answer = fiveMinuteReturn(window, { asOf: instant("14:05") });
 
-      expect(answer).toStrictEqual({
+      expect(answer).toMatchObject({
         measured: false,
         refusal: "no-earlier-endpoint",
       });
@@ -143,27 +143,89 @@ describe("the 5-minute return (Task 5.2.2)", () => {
       const four = windowOf([at("14:01", 100), at("14:05", 110)]);
       const six = windowOf([at("13:59", 100), at("14:05", 110)]);
 
-      expect(fiveMinuteReturn(four, { asOf: instant("14:05") })).toStrictEqual({
+      expect(fiveMinuteReturn(four, { asOf: instant("14:05") })).toMatchObject({
         measured: false,
         refusal: "no-earlier-endpoint",
       });
-      expect(fiveMinuteReturn(six, { asOf: instant("14:05") })).toStrictEqual({
+      expect(fiveMinuteReturn(six, { asOf: instant("14:05") })).toMatchObject({
         measured: false,
         refusal: "no-earlier-endpoint",
       });
     });
 
-    it("refuses with NO DIGITS rather than a zero", () => {
+    it("refuses with NO FIGURE rather than a zero", () => {
       const answer = fiveMinuteReturn(windowOf([at("14:05", 110)]), {
         asOf: instant("14:05"),
       });
 
       expect(answer).not.toHaveProperty("percent");
-      expect(answer).not.toHaveProperty("observed");
+      expect(answer).not.toHaveProperty("from");
+      expect(answer).not.toHaveProperty("to");
+    });
+
+    it("carries the ONE instant it has, and the count, beside the refusal", () => {
+      // **Amended 2026-10-14 (Task 5.2.4).** This assertion read
+      // `not.toHaveProperty("observed")` until that task, on the argument that
+      // a refusal has no digits — and the first half of that is still true and
+      // is asserted above: there is no `percent` and no pair. What was wrong
+      // is the second half. A refusal carrying nothing at all draws the same
+      // picture whether the window held one bar or none, so *we have one bar
+      // and no pair* and *we have heard nothing* became the two facts that
+      // look identical — which is exactly what Story 5.1 shipped collapsed for
+      // a day one region down.
+      //
+      // The count is under `seen` rather than beside `refusal`, which is the
+      // part that keeps the first half honest: there are no digits in the
+      // **figure**, and what has digits is a separate member describing what
+      // the window held.
+      const answer = fiveMinuteReturn(windowOf([at("14:05", 110)]), {
+        asOf: instant("14:05"),
+      });
+
+      expect(answer).toMatchObject({
+        measured: false,
+        refusal: "no-earlier-endpoint",
+        seen: {
+          newest: { startsAt: instant("14:05"), close: 110 },
+          observed: 1,
+          spanMinutes: 5,
+        },
+      });
+    });
+
+    it("counts every minute it saw inside the span, not just the newest", () => {
+      // Three bars inside the span and no bar at the span's start: the count
+      // is the walk's own, and `observed 3 of 5 minutes` is a different
+      // sentence from `observed 1 of 5 minutes` on a screen where both are
+      // refusals.
+      const window = windowOf([
+        at("14:03", 100),
+        at("14:04", 101),
+        at("14:05", 102),
+      ]);
+
+      expect(
+        fiveMinuteReturn(window, { asOf: instant("14:05") }),
+      ).toMatchObject({
+        refusal: "no-earlier-endpoint",
+        seen: { observed: 3 },
+      });
+    });
+
+    it("carries NOTHING beside *nothing observed*, which is the structural half", () => {
+      // The two refusals differ in the **shape** of the answer rather than
+      // only in a word, so a surface cannot draw an instant for a window that
+      // held none, and a renderer that tried would have nothing to draw it
+      // from.
+      expect(fiveMinuteReturn([], { asOf: instant("14:05") })).toStrictEqual({
+        measured: false,
+        refusal: "nothing-observed",
+        seen: undefined,
+      });
     });
 
     it("refuses an empty window as *nothing observed*, which is an ordinary answer", () => {
-      expect(fiveMinuteReturn([], { asOf: instant("14:05") })).toStrictEqual({
+      expect(fiveMinuteReturn([], { asOf: instant("14:05") })).toMatchObject({
         measured: false,
         refusal: "nothing-observed",
       });
@@ -174,7 +236,7 @@ describe("the 5-minute return (Task 5.2.2)", () => {
 
       expect(
         fiveMinuteReturn(window, { asOf: instant("13:00") }),
-      ).toStrictEqual({ measured: false, refusal: "nothing-observed" });
+      ).toMatchObject({ measured: false, refusal: "nothing-observed" });
     });
 
     it("refuses a zero basis rather than dividing by it", () => {
@@ -182,7 +244,7 @@ describe("the 5-minute return (Task 5.2.2)", () => {
 
       expect(
         fiveMinuteReturn(window, { asOf: instant("14:05") }),
-      ).toStrictEqual({ measured: false, refusal: "no-basis" });
+      ).toMatchObject({ measured: false, refusal: "no-basis" });
     });
 
     it("has no `(earlier, later)` entry point a caller could assemble wrongly", async () => {

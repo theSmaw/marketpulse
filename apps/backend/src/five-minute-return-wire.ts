@@ -1,7 +1,15 @@
 import { asInstant } from "@marketpulse/shared";
 
-import type { WireReturnEndpoint, WireSymbolReturn } from "@marketpulse/shared";
-import type { FiveMinuteReturn, ReturnEndpoint } from "./five-minute-return.js";
+import type {
+  WireObservedSpan,
+  WireReturnEndpoint,
+  WireSymbolReturn,
+} from "@marketpulse/shared";
+import type {
+  FiveMinuteReturn,
+  ObservedSpan,
+  ReturnEndpoint,
+} from "./five-minute-return.js";
 
 /**
  * **The 5-minute return, on the wire** (Task 5.2.3).
@@ -59,9 +67,30 @@ const toWireEndpoint = (endpoint: ReturnEndpoint): WireReturnEndpoint => ({
  * concern; keeping the two apart is why the pure function can be called by a
  * replay that never sends a frame.
  */
+/**
+ * **What the window held, where it held something** (Task 5.2.4).
+ *
+ * `undefined` becomes `null` and that is a wire decision rather than a
+ * translation: the field crosses a socket, and an absent key and an explicit
+ * `null` are the same thing to a decoder while a `undefined` is not a JSON
+ * value at all. See {@link WireRefusedReturn.seen}.
+ */
+const toWireSeen = (seen: ObservedSpan | undefined): WireObservedSpan | null =>
+  seen === undefined
+    ? null
+    : {
+        newest: toWireEndpoint(seen.newest),
+        observed: seen.observed,
+        spanMinutes: seen.spanMinutes,
+      };
+
 export function toWireSymbolReturn(figure: FiveMinuteReturn): WireSymbolReturn {
   if (!figure.measured) {
-    return { measured: false, refusal: figure.refusal };
+    return {
+      measured: false,
+      refusal: figure.refusal,
+      seen: toWireSeen(figure.seen),
+    };
   }
 
   return {

@@ -1078,10 +1078,52 @@ export interface WireMeasuredReturn {
   readonly spanMinutes: number;
 }
 
-/** No figure, and which refusal it was. */
+/**
+ * **What the window DID hold, where it held something** (Task 5.2.4).
+ *
+ * A refusal with no instant and no count is the same picture as a window that
+ * has heard nothing at all — *we have one bar and no pair* and *we have
+ * nothing* reduced to one sentence each with nothing beside them. The two
+ * facts that look identical are the ones Story 5.1 shipped collapsed for a
+ * day, and this is that pair arriving one region up.
+ *
+ * So a refusal that found a newer endpoint carries **the one instant it has**
+ * and **how much of the span it saw**, and the surface prints them in the same
+ * grammar a measured figure uses. `nothing-observed` carries no span, because
+ * there is nothing to carry — which is the structural half: the two states
+ * differ in the **shape** of the frame rather than only in a word.
+ *
+ * ADR 0029 is why it is this shape rather than a fully-formed `from`/`to` pair
+ * with one side empty: each clause renders only when its own data is present,
+ * and a span with one end invented is the false impression that rule exists
+ * for.
+ */
+export interface WireObservedSpan {
+  /**
+   * The newest bar the window held — the **one** instant there is, and the
+   * bar's own `startsAt` with nothing added to it.
+   */
+  readonly newest: WireReturnEndpoint;
+  /** How many of the span's minutes were observed, `1` to `spanMinutes`. */
+  readonly observed: number;
+  /** The denominator, so the surface never spells a `5` of its own. */
+  readonly spanMinutes: number;
+}
+
+/** No figure, which refusal it was, and what the window did hold. */
 export interface WireRefusedReturn {
   readonly measured: false;
   readonly refusal: WireReturnRefusal;
+  /**
+   * What was observed, or **`null` where nothing was** — an explicit member
+   * rather than an optional one, so the producer has to say which and a
+   * refusal that forgets cannot compile.
+   *
+   * `null` rather than an absent key because this field crosses a socket: a
+   * browser from before this field existed reads a frame without it, and the
+   * decoder treats absent and `null` identically for that reason.
+   */
+  readonly seen: WireObservedSpan | null;
 }
 
 /**
@@ -1789,9 +1831,21 @@ const measuredReturnFields: WireFields<WireMeasuredReturn> = {
   spanMinutes: asIs,
 };
 
+const observedSpanFields: WireFields<WireObservedSpan> = {
+  newest: (endpoint) => toWire(returnEndpointFields, endpoint),
+  observed: asIs,
+  spanMinutes: asIs,
+};
+
 const refusedReturnFields: WireFields<WireRefusedReturn> = {
   measured: asIs,
   refusal: asIs,
+  // **`null` is written rather than the key dropped**, which is what keeps
+  // `WireFields`' totality meaningful here: `-?` forces an entry for every
+  // field of the type, and an entry answering `undefined` would put a key with
+  // no JSON value on the wire. The 11 bytes are the price of a refusal whose
+  // shape says which of the two refusals it is.
+  seen: (seen) => (seen === null ? null : toWire(observedSpanFields, seen)),
 };
 
 const encodeSymbolReturn = (figure: WireSymbolReturn): JsonValue =>
@@ -2305,6 +2359,24 @@ const readReturnEndpoint = (value: unknown): WireReturnEndpoint | undefined => {
   };
 };
 
+/**
+ * What the window held beside a refusal, or `null` where there is nothing
+ * readable — see {@link WireRefusedReturn.seen}.
+ */
+const readObservedSpan = (value: unknown): WireObservedSpan | null => {
+  if (!isRecord(value)) return null;
+  if (!finite(value.observed) || !finite(value.spanMinutes)) return null;
+
+  const newest = readReturnEndpoint(value.newest);
+  if (newest === undefined) return null;
+
+  return {
+    newest,
+    observed: value.observed,
+    spanMinutes: value.spanMinutes,
+  };
+};
+
 /** A figure or a refusal, or `undefined` for a frame we cannot read. */
 const readSymbolReturn = (value: unknown): WireSymbolReturn | undefined => {
   if (!isRecord(value)) return undefined;
@@ -2321,7 +2393,18 @@ const readSymbolReturn = (value: unknown): WireSymbolReturn | undefined => {
       return undefined;
     }
 
-    return { measured: false, refusal: value.refusal as WireReturnRefusal };
+    return {
+      measured: false,
+      refusal: value.refusal as WireReturnRefusal,
+      // **An unreadable span is read as no span, and the refusal survives**
+      // (Task 5.2.4). The refusal is the fact; the instant and the count are
+      // what the window happened to hold beside it, so a frame from a gateway
+      // that predates the field — or one whose span is malformed — draws the
+      // sentence without the clause rather than being thrown away. Refusing
+      // the whole frame here would put the region back on *no frame has
+      // arrived*, which is a different and false claim.
+      seen: readObservedSpan(value.seen),
+    };
   }
 
   if (value.measured !== true) return undefined;

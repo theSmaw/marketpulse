@@ -1,7 +1,13 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { WireSymbolReturn } from "@marketpulse/shared";
+import type {
+  WireObservedSpan,
+  WireReturnRefusal,
+  WireSymbolReturn,
+} from "@marketpulse/shared";
+
+import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
 
 import { AbnormalMove, type AbnormalMoveProps } from "./AbnormalMove.js";
 
@@ -39,6 +45,49 @@ const DEFAULTS: AbnormalMoveProps = {
 const draw = (over: Partial<AbnormalMoveProps> = {}) =>
   render(<AbnormalMove {...DEFAULTS} {...over} />);
 
+/** A refusal, with what the window held beside it — `null` where nothing was. */
+const refused = (
+  refusal: WireReturnRefusal,
+  seen: WireObservedSpan | null = null,
+): WireSymbolReturn => ({ measured: false, refusal, seen });
+
+/** The one instant a window holding a single bar has. */
+const SEEN_ONE: WireObservedSpan = {
+  newest: { at: "2026-10-14T18:06:00.000Z", price: 119.5, feed: "iex" },
+  observed: 1,
+  spanMinutes: 5,
+};
+/** The character a reserved row holds, where a line would be. */
+const NBSP = "\u00a0";
+
+/**
+ * **What a listener is handed, line by line.**
+ *
+ * `textContent` runs the band's four blocks together with no separator, and a
+ * screen reader pauses between blocks — which is `CLAUDE.md`'s own rule for
+ * what to assert on a component that splits its text: assert the
+ * concatenation, with the block boundaries visible. So this walks the drawn
+ * `<p>` elements in document order, **drops every `aria-hidden` subtree** (the
+ * direction glyph, and the whole reserved box in the held states) and joins
+ * what is left with ` / `.
+ *
+ * The room-holding no-break space goes too: a reserved row holds room and says
+ * nothing, and a line containing one would read as a line that spoke.
+ */
+const readable = (element: HTMLElement): string => {
+  const copy = element.cloneNode(true) as HTMLElement;
+  for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) {
+    hidden.remove();
+  }
+
+  return [...copy.querySelectorAll("p")]
+    .map((line) =>
+      line.textContent.replaceAll(NBSP, "").replace(/\s+/gu, " ").trim(),
+    )
+    .filter((line) => line !== "")
+    .join(" / ");
+};
+
 describe("AbnormalMove", () => {
   it("draws the figure, the label, both instants and the observed count", () => {
     draw();
@@ -73,11 +122,218 @@ describe("AbnormalMove", () => {
     expect(container.querySelector('[aria-hidden="true"]')).toBeTruthy();
   });
 
+  // --- The eight states, each asserted by its own string (Task 5.2.4) ---
+  //
+  // **The four absences first, because they are the ones that collapse.** Two
+  // of them collapse on purpose and two must not, and the only way to tell the
+  // difference from the outside is to read all four side by side — which is
+  // what this block is. Every expectation below is a **string**, never an eye:
+  // `/` paid for *held behind one sentence* once already (Task 4.3.8) and
+  // `Relative performance` paid for *two facts, one sentence* the day before
+  // this task (Task 5.1.4).
+  describe("the eight states", () => {
+    describe("1 and 2 — the security unresolved, and no payload yet", () => {
+      beforeEach(() => {
+        vi.useFakeTimers();
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it("hold the band's room and say ONE thing, after the floor", () => {
+        // **They are one input and therefore one drawing.** The route maps
+        // *the universe answer has not resolved this security* and *no
+        // `return` frame has arrived* to the same `undefined` — the collapse
+        // is declared in the data rather than as two branches here, so the two
+        // are byte-identical by construction (`SecurityExplorer.tsx`, and
+        // `SecurityExplorer.test.tsx` asserts the mapping).
+        const { container } = draw({ symbolReturn: undefined });
+
+        // Before the floor: room, and **nothing said at all** — the whole
+        // band, its label included, is inside the `aria-hidden` box, so a
+        // listener is read nothing rather than a heading over a void. An
+        // ordinary load's first frame lands at 174–277 ms, so a sentence here
+        // would be a promise the next frame breaks.
+        expect(readable(container)).toBe("");
+
+        act(() => {
+          vi.advanceTimersByTime(SAY_NOTHING_ARRIVED_AFTER_MS);
+        });
+
+        expect(screen.getByText("No return yet.")).toBeTruthy();
+        // The region's own sentence takes the terminal stop the in-region
+        // absences do not, and it is the **sixth** honest-nothing noun in this
+        // product rather than the fifth this story's Design work section says.
+        expect(readable(container)).toBe("No return yet.");
+      });
+    });
+
+    it("3 — a payload with zero bars for this symbol says so, in words", () => {
+      // **CI's permanent state**: 516 securities, zero bars, `provider=none`,
+      // so the trailing window never holds an entry and this is what every
+      // gated run renders, for ever.
+      const { container } = draw({
+        symbolReturn: { symbol: "NVDA", figure: refused("nothing-observed") },
+      });
+
+      expect(readable(container)).toBe(
+        "5-minute return / No bars observed yet",
+      );
+      // And it is NOT state 1: the sentence is the frame's, drawn in the
+      // figure's own slot, rather than the region's over held room.
+      expect(screen.queryByText("No return yet.")).toBeNull();
+    });
+
+    it("4 — one bar held, and the earlier endpoint absent, states its instant", () => {
+      // **The refusal this story exists for**, and the clause is what keeps it
+      // off state 3. Without the instant and the count, *we hold one bar and
+      // there is no pair* and *we have heard nothing* are a four-word
+      // difference in one sentence with identical blank room beneath.
+      const { container } = draw({
+        symbolReturn: {
+          symbol: "NVDA",
+          figure: refused("no-earlier-endpoint", SEEN_ONE),
+        },
+      });
+
+      expect(readable(container)).toBe(
+        "5-minute return / No bar five minutes back / Oct 14 · 14:06 EDT · observed 1 of 5 minutes",
+      );
+    });
+
+    it("3 and 4 do not read alike — the assertion, not the eye", () => {
+      const { container: three } = draw({
+        symbolReturn: { symbol: "NVDA", figure: refused("nothing-observed") },
+      });
+      const { container: four } = draw({
+        symbolReturn: {
+          symbol: "NVDA",
+          figure: refused("no-earlier-endpoint", SEEN_ONE),
+        },
+      });
+
+      expect(readable(three)).not.toBe(readable(four));
+      // Not only different: the one that held a bar says **when**, and the one
+      // that held nothing says nothing further, because it has nothing to say.
+      expect(readable(four)).toContain("observed 1 of 5 minutes");
+      // **`of 5 minutes` rather than `observed`**, because *No bars observed
+      // yet* contains the word: a predicate that cannot see the clause it is
+      // written about is Task 4.8.9's defect, and the first draft of this line
+      // had it.
+      expect(readable(three)).not.toContain("of 5 minutes");
+    });
+
+    it("5 — a legitimate partial draws the figure and states what it saw", () => {
+      // §7.6 measured IEX covering 65.1% of minutes for a median symbol, so
+      // `observed 3 of 5 minutes` is the ordinary case rather than a degraded
+      // one.
+      const { container } = draw();
+
+      expect(readable(container)).toBe(
+        "5-minute return / up +0.42% / Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / Measured on IEX",
+      );
+    });
+
+    it("6 — the whole span observed, in the same grammar", () => {
+      const { container } = draw({
+        symbolReturn: {
+          symbol: "NVDA",
+          figure: { ...MEASURED, observed: 5 },
+        },
+      });
+
+      // `observed 5 of 5 minutes`, never *all five*: a second grammar at the
+      // complete end is two sentences for one fact and destroys the scan
+      // between two securities.
+      expect(readable(container)).toContain("observed 5 of 5 minutes");
+      expect(readable(container)).not.toMatch(/all|complete|whole/iu);
+    });
+
+    it("7 — a return of exactly zero is a reading, not a refusal", () => {
+      // **The one state the no-dash rule reads backwards.** `—` in the figure
+      // slot is `PriceChange`'s `unchanged`, which is why a refusal may never
+      // draw one — and is exactly the glyph a span in which the price did not
+      // move owes. What tells a reader it is a reading is everything a refusal
+      // does not have: a signed figure, the spoken direction, both instants
+      // and the tape.
+      const { container } = draw({
+        symbolReturn: { symbol: "NVDA", figure: { ...MEASURED, percent: 0 } },
+      });
+
+      expect(readable(container)).toBe(
+        "5-minute return / unchanged 0.00% / Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / Measured on IEX",
+      );
+      for (const refusal of [
+        "No bars observed yet",
+        "No bar five minutes back",
+        "No basis for a percentage",
+        "No return yet.",
+      ]) {
+        expect(screen.queryByText(refusal)).toBeNull();
+      }
+    });
+
+    it("8 — a window that ended forty minutes ago says the SAME thing", () => {
+      // **Nothing changes, and that is AC 6 rather than an omission.** The
+      // instant is the age: no threshold, no verdict, no connection word. The
+      // measured ordinary maximum gap between one security's bars is 187
+      // minutes, which is what any threshold here would have had to spare —
+      // and the one home for *the feed has stopped* is the status bar.
+      const { container } = draw({
+        symbolReturn: {
+          symbol: "NVDA",
+          figure: {
+            ...MEASURED,
+            from: { ...MEASURED.from, at: "2026-10-14T17:21:00.000Z" },
+            to: { ...MEASURED.to, at: "2026-10-14T17:26:00.000Z" },
+          },
+        },
+      });
+
+      expect(readable(container)).toBe(
+        "5-minute return / up +0.42% / Oct 14 · 13:21 EDT → Oct 14 · 13:26 EDT · observed 3 of 5 minutes / Measured on IEX",
+      );
+      expect(readable(container)).not.toMatch(
+        /\b(?:ago|old|stale|behind|late|since)\b/iu,
+      );
+    });
+
+    it("carries no placeholder VALUE in the accessibility tree, in any state", () => {
+      // Done-when 5. A reserved row holds `\u00a0` and nothing else, so a
+      // listener is never read a dash, a zero or an `unknown` standing in for
+      // a figure — and in the held states the whole geometry is one
+      // `aria-hidden` box, so the ladder of empty rows is not read either.
+      const states: (WireSymbolReturn | undefined)[] = [
+        undefined,
+        refused("nothing-observed"),
+        refused("no-earlier-endpoint", SEEN_ONE),
+        refused("no-basis", SEEN_ONE),
+        MEASURED,
+      ];
+
+      for (const figure of states) {
+        const { container } = draw({
+          symbolReturn:
+            figure === undefined ? undefined : { symbol: "NVDA", figure },
+        });
+
+        const spoken = readable(container);
+        expect(spoken).not.toMatch(/—|unknown|n\/a|null|undefined/iu);
+        // A figure is claimed only where one exists: no `%` in any of the four
+        // states that have no percentage.
+        if (figure?.measured !== true) {
+          expect(spoken).not.toContain("%");
+        }
+      }
+    });
+  });
+
   it("states a word where the figure would be, and never a dash", () => {
     draw({
       symbolReturn: {
         symbol: "NVDA",
-        figure: { measured: false, refusal: "no-earlier-endpoint" },
+        figure: refused("no-earlier-endpoint", SEEN_ONE),
       },
     });
 
@@ -93,7 +349,7 @@ describe("AbnormalMove", () => {
     draw({
       symbolReturn: {
         symbol: "NVDA",
-        figure: { measured: false, refusal: "nothing-observed" },
+        figure: refused("nothing-observed"),
       },
     });
 
@@ -121,7 +377,7 @@ describe("AbnormalMove", () => {
     draw({
       symbolReturn: {
         symbol: "NVDA",
-        figure: { measured: false, refusal: "nothing-observed" },
+        figure: refused("nothing-observed"),
       },
     });
 

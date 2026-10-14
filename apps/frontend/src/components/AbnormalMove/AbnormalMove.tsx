@@ -41,6 +41,28 @@ import styles from "./AbnormalMove.module.css";
 // No threshold, no status word, no connection word, no second staleness
 // sentence (AC 6). The qualifier states two instants and lets the reader
 // subtract; the one home for *the feed has stopped* is the status bar.
+//
+// ## It has NO LIVE REGION, and that is a decision (Task 5.2.4)
+//
+// The figure is replaced on each applied batch for the focused security —
+// **6.8 to 16.1 times a minute** at the feed's measured cadence — and every
+// one of those is **unprompted**: nobody pressed anything. All four lines
+// change together, so what a listener would be handed is a twenty-word
+// sentence against a **1,500 ms** pacing floor the chart's reading already
+// overruns, four to sixteen times a minute. `MarketProxyStrip`'s decision
+// exactly, for the same arithmetic, and `SecurityIdentity`'s before it
+// (`FRONTEND-STATE.md` §7) — a region that speaks over the sentence in
+// progress is worse than one that waits to be read.
+//
+// **It is not a claim that the silence is right.** Whether a figure nobody is
+// told about is discoverable at all is a listener's question and is unanswerable
+// from a DOM; it is `docs/GAPS.md`'s standing screen-reader item, tenth entry,
+// raised rather than claimed answered.
+//
+// **Reversal trigger:** the first state in this region that is **terminal** —
+// a word or a figure that will not be replaced by the next batch, which a
+// reader therefore has to be told about once rather than continuously.
+// Story 5.6's band word is the candidate; a changing number is not.
 
 export interface AbnormalMoveProps {
   /** The security this page is about. */

@@ -1425,12 +1425,73 @@ describe("the fifth message type, which is about ONE security", () => {
       "no-basis",
     ] as const) {
       const decoded = decodeMarketStreamMessage(
-        encodeMarketStreamMessage(frame({ measured: false, refusal })),
+        encodeMarketStreamMessage(
+          frame({ measured: false, refusal, seen: null }),
+        ),
       );
 
       expect(decoded.kind === "message" && decoded.message).toEqual(
-        frame({ measured: false, refusal }),
+        frame({ measured: false, refusal, seen: null }),
       );
+    }
+  });
+
+  it("round-trips what the window DID hold beside a refusal", () => {
+    // Task 5.2.4. *One bar and no pair* and *nothing at all* are two refusals
+    // whose words differ by four; the **shape** differs too, so the surface
+    // can print the one instant it has rather than drawing the same picture
+    // for both.
+    const figure: WireSymbolReturn = {
+      measured: false,
+      refusal: "no-earlier-endpoint",
+      seen: {
+        newest: { at: "2026-10-14T18:06:00.000Z", price: 119.5, feed: "iex" },
+        observed: 1,
+        spanMinutes: 5,
+      },
+    };
+
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(frame(figure)),
+    );
+
+    expect(decoded.kind === "message" && decoded.message).toEqual(
+      frame(figure),
+    );
+  });
+
+  it("keeps the refusal when the span beside it cannot be read", () => {
+    // **The refusal is the fact and the span is what was held beside it**, so
+    // a gateway that predates the field — or one whose span is malformed —
+    // draws the sentence without the clause. Throwing the frame away would put
+    // the region back on *no frame has arrived*, which is a different and
+    // false claim.
+    for (const seen of [
+      undefined,
+      "soon",
+      { observed: 1 },
+      { newest: {}, observed: 1, spanMinutes: 5 },
+    ]) {
+      const decoded = decodeMarketStreamMessage(
+        JSON.stringify({
+          ...frame({
+            measured: false,
+            refusal: "no-earlier-endpoint",
+            seen: null,
+          }),
+          return: { measured: false, refusal: "no-earlier-endpoint", seen },
+        }),
+      );
+
+      expect(
+        decoded.kind === "message" &&
+          decoded.message.type === "return" &&
+          decoded.message.return,
+      ).toEqual({
+        measured: false,
+        refusal: "no-earlier-endpoint",
+        seen: null,
+      });
     }
   });
 
@@ -1451,7 +1512,7 @@ describe("the fifth message type, which is about ONE security", () => {
     expect(encodeMarketStreamMessage(leaky)).not.toContain("retrievedAt");
   });
 
-  it("measures 298 bytes for a figure and 141 for a refusal", () => {
+  it("measures 298 bytes for a figure and 153 or 249 for a refusal", () => {
     // **The number the Gate 1 decision is read against**, measured here rather
     // than quoted: the rejected alternative — a field on every observation —
     // is +54,525 B a frame at 516 subscribed, so this is a factor of **183**
@@ -1463,16 +1524,41 @@ describe("the fifth message type, which is about ONE security", () => {
       new TextEncoder().encode(encodeMarketStreamMessage(message)).length;
 
     expect(bytes(frame(MEASURED))).toBe(298);
+    // **The refusal grew on 2026-10-14** (Task 5.2.4): 141 → **153 B** with
+    // nothing observed (`"seen":null`) and **249 B** carrying the one instant
+    // it has. The figure is unchanged at 298, and the frame is sent once per
+    // subscribe and once per applied batch **for the one focused security**, so
+    // the ratio the Gate 1 decision was taken on — against +54,525 B a frame
+    // at 516 subscribed — is untouched.
     expect(
-      bytes(frame({ measured: false, refusal: "no-earlier-endpoint" })),
-    ).toBe(141);
+      bytes(
+        frame({ measured: false, refusal: "no-earlier-endpoint", seen: null }),
+      ),
+    ).toBe(153);
+    expect(
+      bytes(
+        frame({
+          measured: false,
+          refusal: "no-earlier-endpoint",
+          seen: {
+            newest: {
+              at: "2026-10-14T18:06:00.000Z",
+              price: 119.5,
+              feed: "iex",
+            },
+            observed: 1,
+            spanMinutes: 5,
+          },
+        }),
+      ),
+    ).toBe(249);
   });
 
   it.each([
     ["no symbol", { symbol: undefined }],
     [
       "a refusal this bundle cannot name",
-      { return: { measured: false, refusal: "weather" } },
+      { return: { measured: false, refusal: "weather", seen: null } },
     ],
     [
       "an unreadable tape",
