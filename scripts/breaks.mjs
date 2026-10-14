@@ -878,6 +878,34 @@ export const BREAKS = [
   },
 
   {
+    name: "a-second-session-lookback",
+    proves:
+      "A second FIXED session-scaled lookback \u2014 a count a module decides " +
+      "rather than one a caller hands in \u2014 is a second answer to *how far " +
+      "back does this product look*, invisible to the three minute-scaled " +
+      "conjuncts beside it because a calendar walk has no `getTime()`, and " +
+      "the fourth conjunct catches it.",
+    // **The break is the tidy-looking edit in a file that already calls the
+    // same function.** `backfill.ts` passes `wanted` \u2014 the gap it is
+    // filling, a caller's quantity \u2014 and hard-coding the depth there reads
+    // as settling a number rather than as inventing a policy. It is the second
+    // policy: the day somebody moves the baseline's 60 sessions, the backfill
+    // silently does not move with it, and every figure on both sides stays
+    // well-formed.
+    //
+    // **Proved green on the defect first, 2026-10-14.** Before this conjunct
+    // existed, a planted `volume-baseline.ts` with its own
+    // `VOLUME_LOOKBACK_SESSIONS = 40` \u2014 the file Story 5.5 will plausibly
+    // write \u2014 passed with `59 invariants hold.`, which is what Story 5.2's
+    // hand-off had promised would be refused.
+    file: "apps/backend/src/backfill.ts",
+    find: "lastMarketSessions(wanted, through)",
+    replace: "lastMarketSessions(60, through)",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-observation-window",
+  },
+
+  {
     name: "a-span-spelled-as-the-observation-window",
     proves:
       "A measurement SPAN between two endpoints of one security that reaches " +

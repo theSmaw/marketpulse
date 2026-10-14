@@ -1,6 +1,6 @@
 # Task 5.3.5 — The Sweeps & the Close
 
-**Status:** Not started
+**Status:** In progress — 2026-10-14
 **Story:** [5.3 The Baseline, & the Price Percentile](STORY.md)
 **Depends on:** 5.3.4
 

@@ -6778,6 +6778,66 @@ const INVARIANTS = [
       const SPAN_HOME = "apps/backend/src/five-minute-return.ts";
 
       /**
+       * **The fourth conjunct: a SESSION-scaled lookback, which the three
+       * above cannot see at all** (Task 5.3.5).
+       *
+       * Story 5.2's close told Story 5.3 that this check _would refuse_ its
+       * 60-trading-session lookback. **It did not, and that is worse than
+       * refusing it**: `CUTOFF` matches a minute-scaled subtraction from an
+       * instant's milliseconds, and a lookback resolved through the market
+       * calendar has no `getTime()` and no minute factor anywhere, so it
+       * matches neither half and the run prints its usual counts with a second
+       * window on disk. **Proved rather than argued, 2026-10-14**: a planted
+       * `volume-baseline.ts` with its own `VOLUME_LOOKBACK_SESSIONS = 40` —
+       * the file Story 5.5 will plausibly write — passed with
+       * `59 invariants hold.`
+       *
+       * **Keyed on the quantity rather than the name.** What makes a lookback
+       * a *policy* is that its count is **fixed** — a module constant or a
+       * literal — rather than handed in. The three other callers of
+       * `lastMarketSessions` pass `wanted + 1`, `count` and `wanted`: a
+       * backfill gap and a window the reader chose, neither of which is a
+       * second definition of *how far back we look*. A re-implementer cannot
+       * avoid writing a fixed count, whatever they name it.
+       */
+      const SESSION_LOOKBACK =
+        /lastMarketSessions\(\s*(?:[A-Z][A-Z0-9_]*|\d+)\s*,/gu;
+
+      const SESSION_HOME = "apps/backend/src/return-baseline.ts";
+
+      const lookbacks = shippedSourceFiles()
+        .filter(({ text }) => SESSION_LOOKBACK.test(withoutComments(text)))
+        .map(({ path }) => relative(REPO_ROOT, path));
+      SESSION_LOOKBACK.lastIndex = 0;
+
+      if (!lookbacks.includes(SESSION_HOME)) {
+        throw new InvariantFailure(
+          `${SESSION_HOME} no longer fixes a session lookback, and it is this ` +
+            "conjunct's anchor. Either the baseline's 60 sessions moved — in " +
+            "which case move this anchor with them — or the lookback is now " +
+            "handed in, which makes it a caller's policy and this clause " +
+            "cannot see it.\n      " +
+            `Found: ${lookbacks.join(", ") || "nothing at all"}`,
+        );
+      }
+
+      if (lookbacks.length !== 1) {
+        throw new InvariantFailure(
+          `${String(lookbacks.length)} shipped files fix a session-scaled ` +
+            "lookback, expected exactly 1:\n      " +
+            lookbacks.join("\n      ") +
+            "\n      A second fixed lookback is a second answer to *how far " +
+            "back does this product look*, in sessions rather than in " +
+            "minutes — which the three conjuncts above are blind to, because " +
+            "a calendar walk has no `getTime()` and no minute factor. If the " +
+            "new quantity genuinely is not the baseline's, it owns its own " +
+            "constant, its own argument and its own conjunct here; if it is " +
+            "the same 60 sessions, read `BASELINE_LOOKBACK_SESSIONS` rather " +
+            "than spelling a number beside it.",
+        );
+      }
+
+      /**
        * A **cutoff**: a minute-scaled quantity subtracted from an instant's
        * milliseconds.
        *
