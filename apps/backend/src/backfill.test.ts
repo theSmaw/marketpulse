@@ -194,6 +194,8 @@ function harness(
     listTrackedCoverage: () => Promise.resolve([]),
     readLastBarDates: () => Promise.resolve(new Map()),
     readLastCloses: () => Promise.resolve(new Map()),
+    // Task 5.3.2's new ledger question; this subject never asks it.
+    readCoveredEnd: () => Promise.resolve(undefined),
   };
 
   const attempts: BarAttemptsRepository = {

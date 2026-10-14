@@ -132,6 +132,8 @@ function stubRepository(
     listTrackedCoverage: unused("listTrackedCoverage"),
     readLastBarDates: unused("readLastBarDates"),
     readLastCloses: unused("readLastCloses"),
+    // Task 5.3.2's new ledger question; this read never asks it.
+    readCoveredEnd: unused("readCoveredEnd"),
   };
 }
 

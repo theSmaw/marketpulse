@@ -61,6 +61,7 @@ import type { ColumnType, Generated, GeneratedAlways } from "kysely";
 import type {
   MarketFeed,
   ProviderId,
+  ReturnBaselineRefusal,
   Sector,
   SecurityKind,
   SecurityStatus,
@@ -621,10 +622,139 @@ export interface SecurityMembershipsTable {
  * ours; Kysely uses them verbatim in the SQL it builds. Story 2.4's mapping
  * layer is where they become domain vocabulary.
  */
+/**
+ * `return_baselines` — the 60-session distribution of 5-minute returns, per
+ * security, keyed by the session it is FOR (Task 5.3.2). See
+ * `../migrations/0013_return_baselines.sql`, which is the source of truth this
+ * mirrors and which carries the decisions, and
+ * [ADR 0044](../../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md).
+ *
+ * ## **DERIVED AND RECOMPUTABLE. Recompute with `pnpm baselines`.**
+ *
+ * This is the **first derived table in this schema** and the label is
+ * load-bearing rather than descriptive: every other table here holds something
+ * we were told — a bar, a membership, a coverage claim — and this one holds
+ * something computed from `market_bars`. Dropping every row loses nothing, and
+ * the nightly job in `.github/workflows/backfill.yml` rebuilds the newest
+ * generation the following night.
+ *
+ * Said in three places — here, in the migration's §1 and in the ADR — because a
+ * table nobody has labelled is a table the next reader treats as primary. The
+ * named cost of that mistake: a later story changing the breakpoint grid, the
+ * lookback or the split ceiling would believe it had to migrate the rows, and
+ * would write an expensive backfill against a cache.
+ *
+ * ## It is the one table in this schema whose rows are UPDATED
+ *
+ * `securities` aside, every other table here is append-only or rewritten by a
+ * conflict on its natural key. A second pass over a window that is already
+ * stored **updates** it, which is what makes `pnpm baselines` re-runnable and
+ * convergent in `pnpm universe`'s sense. So the update parameters below are not
+ * uniformly `never` the way `SecurityMembershipsTable`'s are — but the two
+ * columns that identify a generation are, because a row that could change which
+ * security or which window it describes is a row a replay cannot trust.
+ */
+export interface ReturnBaselinesTable {
+  /** `bigint generated always as identity`. {@link SecuritiesTable.id}'s reasoning. */
+  id: GeneratedAlways<string>;
+
+  /**
+   * `securities.id`, a real foreign key with no `on delete`. `string` because
+   * it is a `bigint` — {@link MarketBarsTable.security_id}'s note applies
+   * unchanged, including that converting it to a `number` to tidy it is what
+   * `../migrations/README.md` §4 forbids.
+   *
+   * `never` on update: a row does not change which security it describes.
+   */
+  security_id: ColumnType<string, string, never>;
+
+  /**
+   * **The window's END** — the instant the last session this distribution was
+   * computed over closed, and the coordinate a replay keys on.
+   *
+   * `Date` on insert and **no default anywhere**, exactly as
+   * {@link MarketBarsTable.observed_at} has none: a `default now()` would turn
+   * *when the window ended* into *when a script ran*, invisibly, because every
+   * row would look plausible.
+   *
+   * **It carries `README.md` §2's reserved name deliberately, diverging from
+   * `0012`'s `effective_from` in the opposite direction.** A membership change
+   * is a fact about us; a baseline's window end **names a session of market
+   * data**, so the reserved name is the correct one — and taking it means Epic
+   * 13's temporal plugin covers this table with its generic
+   * `where "observed_at" <= $clock` and no explicit clock argument, which is
+   * invariant 4's own bar.
+   *
+   * `never` on update, with `security_id`: together they are the generation.
+   */
+  observed_at: ColumnType<Date, Date, never>;
+
+  /**
+   * How many trading sessions the window spanned — `60` today,
+   * `BASELINE_LOOKBACK_SESSIONS`.
+   *
+   * Stored per row rather than assumed, so a generation taken at a different
+   * depth is readable as such instead of silently comparable to one that was
+   * not. Updatable, because a re-run at a new depth over the same window end is
+   * a correction rather than a second generation.
+   */
+  lookback_sessions: ColumnType<number, number, number>;
+
+  /**
+   * **`n`, counted by the pass.** 78 grid anchors yield **77** increments, an
+   * early close yields **41**, and median stored coverage is 82.8% so grid
+   * pairs are routinely absent — which is why no constant can produce this.
+   *
+   * `string` on read because it is a `bigint`, which is
+   * {@link BarCoverageTable.bar_count}'s arrangement exactly — and it is
+   * `bigint` because `../migrations/README.md` §4 says a count is, enforced by
+   * `migrate.database.test.ts` on every `_count` column. The mapping to a
+   * `number` happens beside the query, as `toCoverage` already does for
+   * `barCount`.
+   */
+  sample_count: ColumnType<string, string | number, string | number>;
+
+  /**
+   * The 101 magnitude breakpoints, `0th … 100th`, ascending — `null` exactly
+   * when {@link refusal} is set, which `return_baselines_one_answer` enforces.
+   *
+   * `double precision[]`, and that is **not** a breach of
+   * `../migrations/README.md` §4: that rule exists because float addition is
+   * not associative, and nothing here is summed. Each sample is one division of
+   * two `numeric` closes and the aggregation is a **sort** — order statistics,
+   * exact and order-independent whatever the element type. The migration's §5
+   * is the long version.
+   */
+  breakpoints: ColumnType<number[] | null, number[] | null, number[] | null>;
+
+  /**
+   * Why there is no distribution, or `null`. The vocabulary is
+   * `RETURN_BASELINE_REFUSALS` in `packages/shared` and
+   * `return_baselines_refusal_known` is the database's backstop.
+   */
+  refusal: ColumnType<
+    ReturnBaselineRefusal | null,
+    ReturnBaselineRefusal | null,
+    ReturnBaselineRefusal | null
+  >;
+
+  /**
+   * When we wrote the row: `timestamptz not null default now()`.
+   *
+   * Optional on insert because of the default, and **updatable here unlike
+   * everywhere else in this schema** — it is what makes a stale generation
+   * visible. A row whose `observed_at` is last Friday's close and whose
+   * `recorded_at` is this morning was recomputed; the two together are the only
+   * way to tell that from a row nobody has touched.
+   */
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
 export interface Database {
   securities: SecuritiesTable;
   market_bars: MarketBarsTable;
   bar_coverage: BarCoverageTable;
   bar_attempts: BarAttemptsTable;
   security_memberships: SecurityMembershipsTable;
+  return_baselines: ReturnBaselinesTable;
 }

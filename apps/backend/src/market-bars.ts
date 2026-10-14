@@ -1265,6 +1265,40 @@ export interface MarketBarsRepository {
   listCoverage(): Promise<readonly BarCoverage[]>;
 
   /**
+   * **The frontier the fill has reached** — the newest `covered_end` over the
+   * securities we track **now**, at one timeframe, or `undefined` when nothing
+   * is covered (Task 5.3.2).
+   *
+   * A new question is a new function, which is this module's own rule, and the
+   * question is genuinely new: every other reader of this ledger wants the
+   * statements, and this one wants one instant out of all of them. It is here
+   * rather than in `return-baseline-store.ts` because **this module is the
+   * ledger's one querier** — `stored-sources-only-through-the-merge` scopes its
+   * grep for the withdrawn `bar_coverage.feed` column to this file on exactly
+   * that premise, and a second querier elsewhere would quietly widen what that
+   * check cannot see. The baseline store delegates here.
+   *
+   * ## The MAXIMUM, and never the minimum
+   *
+   * The minimum is `commonCoverage`'s intersection, which is dragged
+   * permanently backwards by late-listing constituents — `backfill.yml` names
+   * three — so one security that will never hold older history would hold a
+   * whole-universe computation a year behind. The maximum is the frontier, and
+   * a security that is itself behind contributes fewer samples to its own
+   * counted answer.
+   *
+   * ## It filters on `status`, and that is the computing side of §12.2
+   *
+   * `listTrackedCoverage`'s reasoning unchanged: this instant bounds a
+   * computation over the market we track **now**, so an untracked symbol's
+   * stale window must not define it.
+   *
+   * `covered_end` is **exclusive**, so the last session it covers is the one
+   * containing the instant before it.
+   */
+  readCoveredEnd(timeframe: Timeframe): Promise<Date | undefined>;
+
+  /**
    * The same statements, for the securities we track **now** (Task 2.8.13).
    *
    * **A second method rather than a parameter, because the two readers must not
@@ -1854,6 +1888,19 @@ export function createMarketBarsRepository(
 
     async listCoverage() {
       return (await coverageQuery().execute()).map(toCoverage);
+    },
+
+    async readCoveredEnd(timeframe) {
+      const row = await db
+        .selectFrom("bar_coverage")
+        .innerJoin("securities", "securities.id", "bar_coverage.security_id")
+        .select(({ fn }) => fn.max("bar_coverage.covered_end").as("frontier"))
+        .where("bar_coverage.timeframe", "=", timeframe)
+        // The computing side of `UNIVERSE.md` §12.2; see the interface.
+        .where("securities.status", "=", "active")
+        .executeTakeFirst();
+
+      return row?.frontier ?? undefined;
     },
 
     async listTrackedCoverage() {

@@ -291,6 +291,8 @@ function stubBars(store: StoreStub): MarketBarsRepository {
     listTrackedCoverage: unused("listTrackedCoverage"),
     readLastBarDates: unused("readLastBarDates"),
     readLastCloses: unused("readLastCloses"),
+    // Task 5.3.2's new ledger question; this route never asks it.
+    readCoveredEnd: unused("readCoveredEnd"),
   };
 }
 

@@ -118,6 +118,11 @@
 
 import type { FastifyPluginCallback } from "fastify";
 
+import {
+  BASELINE_COST_DEFAULT_SYMBOL,
+  type BaselineCostDiagnostic,
+  type BaselineCostReadFn,
+} from "../baseline-cost.js";
 import type { DatabaseCheck, DatabaseCheckFn } from "../database.js";
 import { apiErrorSchema } from "../errors.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
@@ -353,6 +358,65 @@ const feedSchema = {
 };
 
 /**
+ * The body of `GET /diagnostics/baseline-cost` — what the 60-session baseline
+ * read costs **on the store this replica is attached to** (Task 5.3.2, amended
+ * in by Task 5.3.1).
+ *
+ * `baseline-cost.ts` carries the whole argument: why a route exists at all when
+ * Story 5.3's AC 1 refuses one, what it must not do, and the dated caveat that
+ * travels with the tape counts. Declared there rather than here because, unlike
+ * the three diagnostics above, the type is produced by a module that has an
+ * opinion about it — this file is the wire.
+ *
+ * **It declares `500: apiErrorSchema` like every route**, and it is doing real
+ * work: the handler awaits an `EXPLAIN (ANALYZE)` against a live store, which
+ * is the one diagnostic here that can genuinely reject.
+ */
+const baselineCostProperties = {
+  symbol: { type: "string" },
+  timeframe: { type: "string" },
+  lookbackSessions: { type: "number" },
+  measured: { type: "boolean" },
+  refusal: { type: ["string", "null"] },
+  asOfSession: { type: ["string", "null"] },
+  windowStart: { type: ["string", "null"] },
+  windowEnd: { type: ["string", "null"] },
+  // **`["string", "null"]` and never bare `"string"`.** `fast-json-stringify`
+  // turns a `null` under `"string"` into `""` on the wire, and an empty node
+  // type reads as a formatting bug rather than as *no measurement was taken*.
+  planNodeType: { type: ["string", "null"] },
+  scanNodeType: { type: ["string", "null"] },
+  // **And `["number", "null"]` for every figure**, for the sharper reason
+  // `/diagnostics/freshness` records: a `null` under `"number"` reaches the
+  // wire as **`0`**, which here would turn *we could not measure this* into
+  // *this read touched no blocks and took no time* — the most reassuring
+  // possible lie about a query the whole story is a cost argument about.
+  planRows: { type: ["number", "null"] },
+  actualRows: { type: ["number", "null"] },
+  sharedHitBlocks: { type: ["number", "null"] },
+  sharedReadBlocks: { type: ["number", "null"] },
+  elapsedMs: { type: ["number", "null"] },
+  sipRows: { type: ["number", "null"] },
+  iexRows: { type: ["number", "null"] },
+  checkedAt: { type: "string" },
+} satisfies Record<keyof BaselineCostDiagnostic, JsonSchemaProperty>;
+
+const baselineCostSchema = {
+  querystring: {
+    type: "object",
+    properties: { symbol: { type: "string" } },
+  },
+  response: {
+    200: {
+      type: "object",
+      properties: baselineCostProperties,
+      required: Object.keys(baselineCostProperties),
+    },
+    500: apiErrorSchema,
+  },
+};
+
+/**
  * Reads the feed's state. A function, so this file never learns there is a
  * socket — the same reason `CoverageReadFn` exists.
  */
@@ -398,6 +462,7 @@ export function createDiagnosticsRoutes(
   readCoverage: CoverageReadFn,
   readAttempts: AttemptReadFn,
   readFeed: FeedReadFn,
+  readBaselineCost: BaselineCostReadFn,
 ): FastifyPluginCallback {
   return (app, _options, done) => {
     // **The runtime half of "what must not rot"** (ADR 0030 §8). `verify` has
@@ -468,6 +533,26 @@ export function createDiagnosticsRoutes(
           timeframes: freshness.timeframes.map((entry) => ({ ...entry })),
           checkedAt: new Date().toISOString(),
         };
+
+        return reply.code(200).send(body);
+      },
+    );
+
+    // **Bounded, unlike the freshness route beside it, and the difference is
+    // the subject rather than the cost.** That one is unbounded because its
+    // answer is about the whole store; this one's answer is about ONE security
+    // and must say which, so the symbol is a parameter with a default and the
+    // work is O(one security). It never runs the pass — an `EXPLAIN` of one
+    // read and two counts over the same window — which is what keeps Story
+    // 5.3's AC 1 refusal of a route real rather than ruled around.
+    app.get(
+      "/diagnostics/baseline-cost",
+      { schema: baselineCostSchema },
+      async (request, reply) => {
+        const asked = (request.query as { symbol?: string }).symbol;
+        const body: BaselineCostDiagnostic = await readBaselineCost(
+          asked ?? BASELINE_COST_DEFAULT_SYMBOL,
+        );
 
         return reply.code(200).send(body);
       },

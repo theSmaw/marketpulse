@@ -462,3 +462,141 @@ jobs:
             exit 1
           fi
           echo "backfill completed"
+
+  # ==========================================================================
+  # The return baselines (Task 5.3.2, ADR 0044)
+  # ==========================================================================
+  #
+  # **A SECOND JOB in this workflow rather than a cron of its own, and
+  # `needs: backfill` is the whole reason.** Story 5.3's AC 5 ends the baseline
+  # window at *the last session the backfill has COMPLETED*, which is a **data
+  # dependency on the fill** — not on a deploy and not on a clock. A cron of its
+  # own would race the fill it reads the frontier from: between the bell and the
+  # nightly run, `lastCompletedSession(now)` and `bar_coverage.covered_end`
+  # disagree, and a generation stamped with a session whose bars are not in the
+  # store is a baseline over 59 sessions claiming 60, which nothing downstream
+  # can detect.
+  #
+  # **And not in `deploy.yml`**, whose three sequenced steps are all
+  # latency-bounded and idempotent; a multi-minute read is neither.
+  #
+  # **And not a timer in the backend process**, for five reasons that are
+  # properties of this deployment rather than preferences — the 0.25 vCPU /
+  # 0.5 GiB envelope, the single thread it shares with `publishObservations` and
+  # the synchronous overview join, `minReplicas: 1` in `Single` revision mode
+  # (an OOM takes the Alpaca socket and `live-bar-writer` with it and holes
+  # `market_bars`), one of `POOL_MAX = 10` of 35 user connections held for
+  # minutes, and a deploy restarting it mid-pass with no record that it failed.
+  # `apps/backend/src/compute-baselines.ts` carries the long version and the
+  # reversal trigger. Story 5.3's AC 1 note that an in-process scheduler would
+  # be a NEW pattern is narrowly false — `market-gateway.ts` already runs a
+  # `setInterval` keepalive — and the accurate sentence is that **no timer in
+  # this process does database work, or work longer than a tick**.
+  #
+  # **A JOB and not a step**, which costs a checkout and an install and buys
+  # two things: its own `timeout-minutes`, so the fill's 4h50m internal deadline
+  # cannot eat the baseline's budget, and its own red X, so *the fill failed*
+  # and *the baseline failed* are two answers rather than one.
+  #
+  # **No `if: always()`**, deliberately. A failed or killed fill left the
+  # frontier where it was, so the pass would recompute the generation that is
+  # already stored — correct, because the write is an upsert, and pointless.
+  # The operator's next move after a failed fill is to resume it from the ledger,
+  # and the baseline follows the fill that succeeds.
+  baselines:
+    name: baselines
+    needs: backfill
+    runs-on: ubuntu-latest
+    # The measured band for a full-universe pass is **~3.5 minutes** at the
+    # tier's 10 MiB/s and **~37 minutes** if the heap fetches turn out to be
+    # uncorrelated (ADR 0044's arithmetic). 90 minutes is a backstop at ~2.4×
+    # the pessimistic arm, not a threshold on a measurement — and unlike the
+    # fill, this pass has no metered third party to be gentle with, so a
+    # cancellation costs nothing but the generations it had not reached. Every
+    # security it finished is written: each upsert is its own statement.
+    timeout-minutes: 90
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node from .nvmrc
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Resolve the pnpm store path
+        id: store
+        run: |
+          set -euo pipefail
+          path="$(pnpm store path)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "node-major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+
+      # RESTORE ONLY, never save — `verify` owns saving this cache, for the
+      # reason the job above records.
+      - name: Restore the pnpm store
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-v1-${{ runner.os }}-node${{ steps.store.outputs.node-major }}-
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Sign in to Azure
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Compute the return baselines
+        run: |
+          set -euo pipefail
+
+          # The package's own verb rather than a `tsc` invented here — root
+          # `pnpm build` would additionally build a frontend bundle and a
+          # Storybook this job does not use. `pnpm baselines` guards on the
+          # presence of `dist/` with a message naming `pnpm build`.
+          pnpm --filter @marketpulse/backend build
+
+          # **NO ALPACA CREDENTIAL IS READ HERE, and that is the point of the
+          # whole task.** This pass makes no vendor request: it reads
+          # `market_bars`, which the fill above has already filled. Nothing in
+          # it is metered, nothing in it is paced, and a re-run costs nothing
+          # but the time — which is why the write is an upsert and the command
+          # takes no arguments.
+          DATABASE_PASSWORD="$(az account get-access-token \
+            --resource https://ossrdbms-aad.database.windows.net \
+            --query accessToken -o tsv)"
+          echo "::add-mask::$DATABASE_PASSWORD"
+          export DATABASE_PASSWORD
+
+          # An Entra access token is valid ~69 minutes and this job's backstop
+          # is 90, so a pass in the pessimistic regime can outlive its own
+          # credential. It survives anyway for the reason the job above
+          # measured: under continuous reading the pool's connection is never
+          # idle for `POOL_IDLE_TIMEOUT_MS`, so it is never re-established, and
+          # Postgres does not re-check credentials on a live connection.
+          started=$(date -u +%s)
+          pnpm baselines | tee /tmp/baselines.txt
+          echo "baselines completed after $(( $(date -u +%s) - started ))s"
+
+      # ALWAYS, including after a failure — a partial pass is the case where
+      # knowing which generation was reached matters most.
+      - name: Report what the pass wrote
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Return baselines"
+            echo
+            echo '```'
+            cat /tmp/baselines.txt 2>/dev/null || echo "the pass produced no summary"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

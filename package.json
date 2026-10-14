@@ -38,6 +38,7 @@
     "bars": "node scripts/fetch-bars.mjs",
     "backfill": "node scripts/run-backfill.mjs",
     "bars:check": "node scripts/check-bars.mjs",
+    "baselines": "node scripts/compute-baselines.mjs",
     "image": "node scripts/build-image.mjs",
     "e2e": "node scripts/run-e2e.mjs",
     "probe": "node scripts/probe.mjs",

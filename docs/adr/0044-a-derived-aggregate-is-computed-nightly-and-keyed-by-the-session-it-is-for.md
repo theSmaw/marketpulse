@@ -116,3 +116,54 @@ the first reader after a deploy — including a 43-second rollback — sees noth
 
 **Keep only the newest generation.** ~105 MB a year is 0.5% of the usable floor,
 and keeping every session is what makes a replay of any date after today exact.
+
+## Amended 2026-10-14 by Task 5.3.2 — the pass IS 516 index scans, and the sentence that said otherwise was not a measurement
+
+The Consequences above state that **one ordered pass with the arithmetic in SQL
+stays in the bandwidth regime; 516 separate index scans at 120 provisioned IOPS
+does not.** The shipped pass is the second shape, deliberately, and the
+amendment is here rather than a rewrite because the sentence is a correct
+statement about _uncorrelated_ fetches and the shipped read has none.
+
+**What the same section already measured is why.** 538 blocks at **~45 rows a
+block** says the heap is _well correlated_, so one security's 60-session read is
+an index range scan over physically adjacent blocks — bandwidth, not IOPS. The
+37-minute figure prices 269,538 **random** fetches, which no shape in this
+implementation issues. The alternative, one pass with no `security_id`
+predicate, has to produce `order by security_id, observed_at` over 11.7 M rows
+on a tier whose `shared_buffers` is 256 MB, from a planner that under-estimates
+this read by two orders of magnitude — a sequential scan plus an external sort,
+and a resident set the 0.5 GiB container could not stream even if it ran there.
+One scan per security is bounded, resumable, and the unit
+`GET /diagnostics/baseline-cost` measures.
+
+**And the arithmetic is in Node rather than in SQL, which README §4's rule does
+not reach.** That rule exists because float addition is not associative;
+nothing in this computation is summed. Each sample is one division of two
+`numeric` closes and the aggregation is a **sort** — order statistics, exact and
+order-independent. What _is_ in SQL would have had to be the grid, and which
+minute is a 5-minute anchor is a **calendar** question that `market-time.ts` is
+the only module permitted to answer.
+
+**Measured on a local store holding 48.8 M bars, 2026-10-14** — the whole pass,
+516 tracked securities, 60 sessions ending 2026-09-11:
+
+| Figure                                  | Value                                      |
+| --------------------------------------- | ------------------------------------------ |
+| whole pass, first run                   | **20.7 s**                                 |
+| whole pass, warm, two further runs      | **11.78 s**, **11.73 s**                   |
+| securities measured / refused / no rows | **511 / 5 / 0**                            |
+| samples total, mean `n`                 | **2,193,087**, mean **4,292**, max `4,620` |
+| one security's read (`NVDA`)            | `Index Scan`, 23,400 rows, 15.15 ms        |
+| planner estimate against actual         | **105 against 23,400 — 223×**              |
+
+Three things in that table are worth carrying forward. **`4,620` is confirmed as
+the per-security ceiling** rather than derived — Gate 1 decision 2's figure,
+measured. **The split guard refused 5 of 516** (`APH`, `CRWD`, `DD`, `MNST`,
+`MRNA`), which is the ceiling behaving as designed rather than as a tripwire.
+And the **223×** under-estimate corroborates the 212× this ADR already carries,
+from an independent window.
+
+**Every figure above is LOCAL, on one laptop, against a warm-ish page cache.**
+The deployed arm is AC 10's and is `GET /diagnostics/baseline-cost`'s to answer;
+nothing here is a measurement of the B1ms tier.

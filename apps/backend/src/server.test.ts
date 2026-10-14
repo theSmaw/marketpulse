@@ -459,6 +459,31 @@ describe("the response-schema declaration", () => {
             marketOpen: false,
             checkedAt: "2026-09-18T00:00:00.000Z",
           }),
+          // Task 5.3.2's fifth reader, stubbed for the third time for the same
+          // reason: this file proves that every route declares
+          // `500: apiErrorSchema`, and this one awaits an `EXPLAIN (ANALYZE)`
+          // against a live store — which is exactly why it needs the 500.
+          () =>
+            Promise.resolve({
+              symbol: "NVDA",
+              timeframe: "1m",
+              lookbackSessions: 60,
+              measured: false,
+              refusal: "no-coverage",
+              asOfSession: null,
+              windowStart: null,
+              windowEnd: null,
+              planNodeType: null,
+              scanNodeType: null,
+              planRows: null,
+              actualRows: null,
+              sharedHitBlocks: null,
+              sharedReadBlocks: null,
+              elapsedMs: null,
+              sipRows: null,
+              iexRows: null,
+              checkedAt: "2026-10-14T00:00:00.000Z",
+            }),
         ),
       );
       app.register(
@@ -494,6 +519,8 @@ describe("the response-schema declaration", () => {
             listTrackedCoverage: () => Promise.resolve([]),
             readLastBarDates: () => Promise.resolve(new Map()),
             readLastCloses: () => Promise.resolve(new Map()),
+            // Task 5.3.2's new ledger question; the route table never asks it.
+            readCoveredEnd: () => Promise.resolve(undefined),
           },
           securities: { findSecurity: () => Promise.resolve(undefined) },
         }),

@@ -12,6 +12,17 @@ export type { Ticker } from "./ticker.js";
 // come from here — nothing about colour is domain knowledge.
 export { ANOMALY_BANDS } from "./anomaly.js";
 export type { AnomalyBand } from "./anomaly.js";
+// The return baseline's vocabulary (Task 5.3.2): the depth of the window, the
+// size of the breakpoint grid, the split ceiling and the one refusal word. The
+// computation is the backend's; these are the numbers that must not be spelled
+// twice, and `0013_return_baselines.sql` names this module as their home.
+export {
+  BASELINE_BREAKPOINT_COUNT,
+  BASELINE_LOOKBACK_SESSIONS,
+  RETURN_BASELINE_REFUSALS,
+  SPLIT_DISCONTINUITY_RATIO,
+} from "./return-baseline.js";
+export type { ReturnBaselineRefusal } from "./return-baseline.js";
 export {
   DISCONNECTED_AFTER_MS,
   OBSERVATION_INTERVAL_MS,
