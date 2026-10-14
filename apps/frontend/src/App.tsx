@@ -159,7 +159,27 @@ export function App() {
   // coupled the feed to a URL shape besides. A screen that wants securities no
   // address names is then a prop rather than a redesign.
   const [liveSymbols, setLiveSymbols] = useState<readonly string[]>([]);
-  const liveFeed = useLiveFeed({ symbols: liveSymbols });
+
+  // **Which ONE of them the screen is about** (Task 5.2.3), and it is a second
+  // piece of state rather than a convention over the list above.
+  //
+  // A security page asks for ~516 symbols — its own, plus every row of the
+  // universe table below the panel — so the subscription cannot say which one
+  // the page is *about*, and the 5-minute return is a figure about one
+  // security. The route declares it, exactly as it already declares the list,
+  // and for the same reason: `App` renders `<BrowserRouter>` rather than living
+  // inside one, so it cannot read the address.
+  //
+  // **`undefined` on every route but the Security Explorer's two**, which is an
+  // ordinary state: a screen about no single security receives no `return`
+  // frame.
+  const [liveFocus, setLiveFocus] = useState<string | undefined>(undefined);
+  const liveFeed = useLiveFeed({
+    symbols: liveSymbols,
+    // `exactOptionalPropertyTypes` is on, so *absent* and *present as
+    // `undefined`* are different types.
+    ...(liveFocus === undefined ? {} : { focus: liveFocus }),
+  });
 
   // **`recheckOn` added 2026-09-19 by Task 3.3.6**, and it is why the live hook
   // is called above rather than below this one. A socket notices a dead backend
@@ -281,6 +301,7 @@ export function App() {
                     marketFeed={marketFeed}
                     liveFeed={liveFeed}
                     onLiveSymbols={setLiveSymbols}
+                    onLiveFocus={setLiveFocus}
                   />
                 }
               />
@@ -299,6 +320,7 @@ export function App() {
                     marketFeed={marketFeed}
                     liveFeed={liveFeed}
                     onLiveSymbols={setLiveSymbols}
+                    onLiveFocus={setLiveFocus}
                   />
                 }
               />

@@ -124,8 +124,15 @@ export interface MarketStreamConnection {
    * **Safe to call before the socket opens** — it is buffered and sent on
    * `open` — because a caller should not have to know the socket's state to
    * express what it wants.
+   *
+   * **`focus` is which ONE of them the screen is about** (Task 5.2.3), and it
+   * travels with the list rather than on a call of its own: the two change
+   * together, and a second message would be a second thing to re-assert on
+   * every reconnect — which is the failure Task 3.5.5 recorded, where a
+   * browser that said its symbols once came back connected, read `LIVE` and
+   * received nothing.
    */
-  readonly subscribe: (symbols: readonly string[]) => void;
+  readonly subscribe: (symbols: readonly string[], focus?: string) => void;
 }
 
 /**
@@ -148,6 +155,8 @@ export function connectMarketStream(
   // `DISCONNECTED` it replaced. It is the same shape §8.7 forced on the
   // upstream client, which re-asserts its constant across every reconnect.
   let wanted: readonly string[] | undefined;
+  /** Which of them the screen is about, or `undefined` for a screen about none. */
+  let focused: string | undefined;
 
   /**
    * Send the subscription **only while the socket can take it**, and read that
@@ -176,6 +185,9 @@ export function connectMarketStream(
         type: "subscribe",
         version: MARKET_STREAM_PROTOCOL_VERSION,
         symbols: wanted,
+        // `exactOptionalPropertyTypes` is on, so *absent* and *present as
+        // `undefined`* are different types and the omission is the claim.
+        ...(focused === undefined ? {} : { focus: focused }),
       }),
     );
   };
@@ -249,8 +261,9 @@ export function connectMarketStream(
     close: () => {
       socket.close();
     },
-    subscribe: (symbols) => {
+    subscribe: (symbols, focus) => {
       wanted = symbols;
+      focused = focus;
       sendSubscription();
     },
   };

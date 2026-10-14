@@ -241,6 +241,7 @@ export type {
   LiveFeedEvent,
   LiveFeedInputs,
   LiveFeedView,
+  SymbolReturnView,
 } from "./live-feed.js";
 // What counts as an arrival — one home, two surfaces (Task 3.6.2).
 export { arrivalKey, observationIdentity } from "./arrival.js";
@@ -334,3 +335,15 @@ export type {
   RelativeRung,
   RelativeSubject,
 } from "./relative-performance.js";
+
+// **The 5-minute return's read side** (Task 5.2.3) — the first figure in
+// `Abnormal-move indicators`, spelled from a frame the backend computed over a
+// trailing window no browser holds. The same split as the four regions above:
+// the pure half is here and `AbnormalMove` draws it.
+export {
+  NO_RETURN,
+  RESERVED_RETURN,
+  RETURN_LABEL,
+  fiveMinuteReturnBand,
+} from "./five-minute-return.js";
+export type { ReturnBand, ReturnFigure } from "./five-minute-return.js";

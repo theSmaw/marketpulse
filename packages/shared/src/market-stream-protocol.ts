@@ -112,12 +112,33 @@ export const MARKET_STREAM_PATH = "/market-stream";
 
 export const MARKET_STREAM_PROTOCOL_VERSION = 1;
 
-/** The four message types, closed. */
+/**
+ * **The FIVE message types** — reopened 2026-10-14 by Task 5.2.3, which is the
+ * second time this list has been called closed and widened.
+ *
+ * ## The version is deliberately UNCHANGED, and that is a decision rather than
+ * ## an omission
+ *
+ * `MARKET_STREAM_PROTOCOL_VERSION` stays at `1`, for exactly the reason Task
+ * 4.2.4 recorded when `overview` arrived: the version is checked **before**
+ * the type, so a bump makes a stale tab reject **every** frame rather than
+ * ignore one — losing its prices, its feed word and its snapshot — and the
+ * deploy rolls the backend first, so a previous bundle meeting a newer gateway
+ * is the ordinary state of every deployment for as long as somebody leaves a
+ * tab open. {@link DecodedMessage}'s `unsupported` member is what makes that
+ * safe, and it was added for this case before this case existed: a named type
+ * this bundle has never heard of is neither a message nor a defect, is
+ * uncounted, and leaves `LiveFeedView.unreadable` alone.
+ *
+ * So a fifth type costs an old tab **nothing**, and the thing that would cost
+ * it everything is the bump.
+ */
 export const MARKET_STREAM_MESSAGE_TYPES = [
   "snapshot",
   "bars",
   "feed",
   "overview",
+  "return",
 ] as const;
 
 export type MarketStreamMessageType =
@@ -989,8 +1010,133 @@ export interface OverviewMessage {
   readonly overview: WireMarketOverview;
 }
 
+/** The refusals a 5-minute return can carry, closed. */
+export const WIRE_RETURN_REFUSALS = [
+  "nothing-observed",
+  "no-earlier-endpoint",
+  "no-basis",
+] as const;
+
+/**
+ * Why there is no figure.
+ *
+ * **The producer's own union, carried rather than collapsed.** The backend's
+ * `ReturnRefusal` has three members and they are three different sentences on
+ * screen: *this security has not been heard from*, *we have no bar five
+ * minutes back* and *the older close is not a number we can divide by*. A
+ * `measured: false` with no reason would make the surface pick one, which is
+ * ADR 0029's false impression chosen by a renderer.
+ *
+ * A fourth refusal in `five-minute-return.ts` is a **compile error** at the
+ * mapper that builds this, which is the structural half: nothing has to
+ * remember to widen it.
+ */
+export type WireReturnRefusal = (typeof WIRE_RETURN_REFUSALS)[number];
+
+/**
+ * One end of the measurement.
+ *
+ * **`at` is the bar's own `startsAt` and nothing is added to it.** The figure
+ * is a span between two bars, so both ends are bar instants; adding
+ * `OBSERVATION_INTERVAL_MS` — which `describeMeasuredReach` does, correctly,
+ * because it claims *reach* — would print a **six**-minute span for a
+ * five-minute return.
+ *
+ * **`feed` travels per endpoint**, which is invariant 6 at the grain the
+ * provenance already has: every bar in the trailing window is `iex` today, by
+ * construction rather than by a check (there is no store fill), and the
+ * surface must say so rather than inherit the stored series' `All US
+ * exchanges`. A `provider` and a `retrievedAt` are deliberately **not** here —
+ * the first is not a claim about venues and the second is a fact about this
+ * process rather than about the market.
+ */
+export interface WireReturnEndpoint {
+  /** The bar's own `startsAt` — the **start** of the minute it describes. */
+  readonly at: string;
+  /** That minute's closing price. */
+  readonly price: number;
+  /** Which tape this number came from. The invariant-6 field. */
+  readonly feed: MarketFeed;
+}
+
+/** A measured return, with both endpoints and the part of the span it saw. */
+export interface WireMeasuredReturn {
+  readonly measured: true;
+  /** The signed move between the two closes, as a percentage. */
+  readonly percent: number;
+  /** The **older** endpoint. AC 4's instant, and the one drawn first. */
+  readonly from: WireReturnEndpoint;
+  /** The **newer** endpoint. */
+  readonly to: WireReturnEndpoint;
+  /** How many of the span's minutes were observed, `1` to `spanMinutes`. */
+  readonly observed: number;
+  /**
+   * The denominator, so the surface states the span the figure was taken with
+   * rather than spelling a `5` of its own —
+   * `one-home-for-the-observation-window`'s rule applied to a span.
+   */
+  readonly spanMinutes: number;
+}
+
+/** No figure, and which refusal it was. */
+export interface WireRefusedReturn {
+  readonly measured: false;
+  readonly refusal: WireReturnRefusal;
+}
+
+/**
+ * Either a figure or a refusal — a discriminated union rather than an optional
+ * number, because *no earlier endpoint* and *not heard from* are different
+ * sentences and an absence cannot say which.
+ */
+export type WireSymbolReturn = WireMeasuredReturn | WireRefusedReturn;
+
+/**
+ * **One security's 5-minute return** (Task 5.2.3) — the fifth message type,
+ * and the first on this wire that is about **one** security rather than about
+ * the universe or the connection.
+ *
+ * ## Why it is a frame of its own rather than a field on every observation
+ *
+ * Measured, and the ratio is what decided it (the owner's Gate 1 decision 1).
+ * A field on every observation costs **+54,525 B per frame** at 516 subscribed
+ * — **+82%** against a real article of 58,187–59,475 B — which at the feed's
+ * **6.8–16.1 batches a minute** is **+371–878 KiB a minute per attached
+ * browser**, for one figure about one security on screen. This frame is ~280 B.
+ *
+ * ## Which symbol it is about, and how the gateway learns it
+ *
+ * **`symbol` is on the frame, and it is the browser's declared focus** —
+ * {@link SubscribeMessage.focus}. A browser on `/securities/:symbol`
+ * subscribes to ~516 symbols (its own, plus every row of the table below it),
+ * so the subscription cannot say which one the page is *about*; the gateway had
+ * no concept of a focused security before this, and the page declaring its own
+ * need is the shape `onLiveSymbols` already established — *the page says what
+ * it wants rather than the feed guessing*.
+ *
+ * **It is on the frame as well as on the subscription**, because a reader
+ * moving between two securities has a window in which the gateway's last
+ * answer is about the *previous* one. The surface compares and draws nothing
+ * rather than drawing NVDA's return under AMD's name.
+ *
+ * _Rejected:_ treating `symbols[0]` as the focus, which is free and is a
+ * load-bearing ordering convention inside a `string[]` that nothing can check
+ * and every future caller can break. _Also rejected:_ a second client message
+ * type, which doubles the client union for a field that only ever changes when
+ * the subscription does.
+ */
+export interface ReturnMessage {
+  readonly type: "return";
+  readonly version: number;
+  /** See the note above {@link SnapshotMessage}. */
+  readonly sentAt: string;
+  /** Which security this figure is about. */
+  readonly symbol: string;
+  readonly return: WireSymbolReturn;
+}
+
 export type MarketStreamMessage =
-  SnapshotMessage | BarsMessage | FeedMessage | OverviewMessage;
+  SnapshotMessage | BarsMessage | FeedMessage | OverviewMessage | ReturnMessage;
 
 /**
  * **What a browser says to the gateway** (Task 3.5.6).
@@ -1018,6 +1164,37 @@ export interface SubscribeMessage {
    * semantics applied to a subscription instead of to a snapshot.
    */
   readonly symbols: readonly string[];
+
+  /**
+   * **Which one of them the screen is ABOUT** (Task 5.2.3), or absent on a
+   * screen that is about none of them.
+   *
+   * ## Why the subscription cannot answer this
+   *
+   * A browser on `/securities/:symbol` asks for ~516 symbols — its own, plus
+   * every row of the universe table below the panel — and the landing route
+   * asks for fifteen funds it is equally about. So *the security this page is
+   * about* is a fact only the page has, and until this field the gateway had no
+   * way to hold it.
+   *
+   * ## Why a field on `subscribe` rather than a message of its own
+   *
+   * It changes when and only when the subscription changes, and the one place
+   * that builds a subscribe frame is the one place that knows both. A separate
+   * message type would be a second thing to re-assert on every reconnect — the
+   * failure Task 3.5.5 recorded, where a browser that sent its symbols once
+   * came back connected, said `LIVE` and received nothing.
+   *
+   * ## Absent rather than empty, and an old bundle is covered by that
+   * ## (`exactOptionalPropertyTypes` makes the two different types)
+   *
+   * A browser that sends no focus receives no `return` frame, which is an
+   * ordinary state rather than an error — §11.1's omission semantics applied
+   * to a subscription, exactly as an empty `symbols` already is. A **previous
+   * bundle** meeting a newer gateway is that case, so a rollback costs a
+   * region its figure and costs nothing else.
+   */
+  readonly focus?: string;
 }
 
 /** Everything a browser can send. One member today, and a union on purpose. */
@@ -1065,6 +1242,13 @@ export function encodeMarketStreamClientMessage(
     type: message.type,
     version: message.version,
     symbols: [...message.symbols],
+    // **Absent rather than `null`, in a branch** — `encodeOverview`'s idiom
+    // and for its reason: a key written here is a key on the wire whatever it
+    // holds, and `undefined` is not a JSON value, so an unfocused browser
+    // would send `"focus": null` and the gateway would have to decide what a
+    // null focus means. Omission already means *this screen is about none of
+    // them*.
+    ...(message.focus === undefined ? {} : { focus: message.focus }),
   });
 }
 
@@ -1110,12 +1294,19 @@ export function decodeMarketStreamClientMessage(raw: string): {
     return { kind: "unreadable", reason: "malformed subscribe" };
   }
 
+  // **A focus that is not a string is no focus, never an unreadable frame.**
+  // The subscription is the valuable half — a browser whose focus field was
+  // mangled must still receive its 516 prices — and a missing `return` frame
+  // is a state the region already draws honestly.
+  const focus = typeof parsed.focus === "string" ? parsed.focus : undefined;
+
   return {
     kind: "message",
     message: {
       type: "subscribe",
       version: MARKET_STREAM_PROTOCOL_VERSION,
       symbols: symbols as readonly string[],
+      ...(focus === undefined ? {} : { focus }),
     },
   };
 }
@@ -1577,6 +1768,45 @@ const encodeOverview = (overview: WireMarketOverview): JsonValue => {
   };
 };
 
+const returnEndpointFields: WireFields<WireReturnEndpoint> = {
+  at: asIs,
+  price: asIs,
+  feed: asIs,
+};
+
+/**
+ * One map per member of {@link WireSymbolReturn}, for
+ * {@link WireOverviewFigure}'s reason: `keyof` a union is the **intersection**
+ * of its members' keys, so one map over this union would cover `measured`
+ * alone and wave every figure through unexamined.
+ */
+const measuredReturnFields: WireFields<WireMeasuredReturn> = {
+  measured: asIs,
+  percent: asIs,
+  from: (endpoint) => toWire(returnEndpointFields, endpoint),
+  to: (endpoint) => toWire(returnEndpointFields, endpoint),
+  observed: asIs,
+  spanMinutes: asIs,
+};
+
+const refusedReturnFields: WireFields<WireRefusedReturn> = {
+  measured: asIs,
+  refusal: asIs,
+};
+
+const encodeSymbolReturn = (figure: WireSymbolReturn): JsonValue =>
+  figure.measured
+    ? toWire(measuredReturnFields, figure)
+    : toWire(refusedReturnFields, figure);
+
+const returnMessageFields: WireFields<ReturnMessage> = {
+  type: asIs,
+  version: asIs,
+  sentAt: asIs,
+  symbol: asIs,
+  return: encodeSymbolReturn,
+};
+
 const overviewMessageFields: WireFields<OverviewMessage> = {
   type: asIs,
   version: asIs,
@@ -1603,6 +1833,8 @@ export function encodeMarketStreamMessage(
       return JSON.stringify(toWire(feedFields, message));
     case "overview":
       return JSON.stringify(toWire(overviewMessageFields, message));
+    case "return":
+      return JSON.stringify(toWire(returnMessageFields, message));
     default: {
       // Exhaustive: a fourth message type fails the build here rather than
       // being silently unserialisable, which is `createMarketDataProvider`'s
@@ -2041,6 +2273,75 @@ const readOverview = (value: unknown): WireMarketOverview | undefined => {
   };
 };
 
+/**
+ * One endpoint, or `undefined` for anything that is not one.
+ *
+ * **`finite` rather than `typeof === "number"`** for the reason this module
+ * already states about prices: `NaN` and `Infinity` are JSON-expressible
+ * through our own encoder's absence of a guard, and both format without
+ * complaining on a screen.
+ *
+ * The feed is checked against the vocabulary **strictly** here, unlike
+ * `readOverview`'s lenient `feeds` filter — there is nothing to be lenient
+ * with. A list can drop one unknown slug and still name the tapes it knows; an
+ * endpoint with an unreadable tape would make the region draw a figure it
+ * cannot attribute, which is exactly what invariant 6 forbids.
+ */
+const readReturnEndpoint = (value: unknown): WireReturnEndpoint | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (typeof value.at !== "string") return undefined;
+  if (!finite(value.price)) return undefined;
+  if (
+    typeof value.feed !== "string" ||
+    !(MARKET_FEEDS as readonly string[]).includes(value.feed)
+  ) {
+    return undefined;
+  }
+
+  return {
+    at: value.at,
+    price: value.price,
+    feed: value.feed as MarketFeed,
+  };
+};
+
+/** A figure or a refusal, or `undefined` for a frame we cannot read. */
+const readSymbolReturn = (value: unknown): WireSymbolReturn | undefined => {
+  if (!isRecord(value)) return undefined;
+
+  if (value.measured === false) {
+    if (
+      typeof value.refusal !== "string" ||
+      !(WIRE_RETURN_REFUSALS as readonly string[]).includes(value.refusal)
+    ) {
+      // **A refusal we cannot name is not a refusal to draw.** The surface
+      // picks a sentence from this word, and a fourth kind from a newer
+      // gateway has no sentence in this bundle — so the honest answer is the
+      // one the region already draws when it has heard nothing.
+      return undefined;
+    }
+
+    return { measured: false, refusal: value.refusal as WireReturnRefusal };
+  }
+
+  if (value.measured !== true) return undefined;
+  if (!finite(value.percent)) return undefined;
+  if (!finite(value.observed) || !finite(value.spanMinutes)) return undefined;
+
+  const from = readReturnEndpoint(value.from);
+  const to = readReturnEndpoint(value.to);
+  if (from === undefined || to === undefined) return undefined;
+
+  return {
+    measured: true,
+    percent: value.percent,
+    from,
+    to,
+    observed: value.observed,
+    spanMinutes: value.spanMinutes,
+  };
+};
+
 export function decodeMarketStreamMessage(raw: string): DecodedMessage {
   let parsed: unknown;
   try {
@@ -2141,6 +2442,28 @@ export function decodeMarketStreamMessage(raw: string): DecodedMessage {
           version: MARKET_STREAM_PROTOCOL_VERSION,
           sentAt,
           overview,
+        },
+      };
+    }
+    case "return": {
+      if (sentAt === undefined) return NO_SEND_INSTANT;
+      // **The symbol is required and the figure is required.** Unlike the
+      // overview's optional sections, there is no half of this frame worth
+      // keeping: a figure with no symbol cannot be matched to the screen, and
+      // a symbol with no figure is the absence the region already draws.
+      const symbol = typeof parsed.symbol === "string" ? parsed.symbol : "";
+      const figure = readSymbolReturn(parsed.return);
+      if (symbol === "" || figure === undefined) {
+        return { kind: "unreadable", reason: "malformed return" };
+      }
+      return {
+        kind: "message",
+        message: {
+          type: "return",
+          version: MARKET_STREAM_PROTOCOL_VERSION,
+          sentAt,
+          symbol,
+          return: figure,
         },
       };
     }

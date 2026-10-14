@@ -98,6 +98,18 @@ export interface UseLiveFeedOptions extends Partial<MarketStreamOptions> {
    */
   readonly symbols?: readonly string[];
   /**
+   * **Which one of them the screen is ABOUT** (Task 5.2.3), or absent on a
+   * screen that is about none of them — which is every route but the Security
+   * Explorer's two.
+   *
+   * It is a second option rather than a convention over `symbols` — *the
+   * first element is the focus* is a load-bearing ordering inside a
+   * `string[]` that nothing can check and every future caller can break — and
+   * it changes the subscription rather than the socket, for `symbols`' own
+   * reason.
+   */
+  readonly focus?: string;
+  /**
    * How a retry is scheduled. `setTimeout` in production (Task 3.5.5).
    *
    * A seam for the same reason `now` is one: the backoff reaches 30 s, and a
@@ -129,6 +141,7 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
     wallNow = WALL_NOW,
     tickMs = LIVE_FEED_TICK_MS,
     symbols = NO_SYMBOLS,
+    focus,
     setTimer = SET_TIMER,
     clearTimer = CLEAR_TIMER,
     isVisible = IS_VISIBLE,
@@ -178,20 +191,26 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
    * subscription is a message on it.
    */
   const subscription = useRef<readonly string[]>(symbols);
-  const resubscribe = useRef<((next: readonly string[]) => void) | undefined>(
-    undefined,
-  );
+  /** The focused security, held beside the list it is one of. */
+  const focused = useRef<string | undefined>(focus);
+  const resubscribe = useRef<
+    ((next: readonly string[], focus?: string) => void) | undefined
+  >(undefined);
 
   // **A primitive dependency, derived from the list.** An array literal is a
   // new reference on every render, so depending on `symbols` directly would
   // re-send the subscription on every render of every parent.
   const subscribedTo = symbols.join(",");
 
+  // **The focus is a dependency of the SAME effect**, because the two travel in
+  // one frame: two effects would send two subscriptions on a navigation, and
+  // the gateway answers each with a snapshot.
   useEffect(() => {
     const next = subscribedTo === "" ? [] : subscribedTo.split(",");
     subscription.current = next;
-    resubscribe.current?.(next);
-  }, [subscribedTo]);
+    focused.current = focus;
+    resubscribe.current?.(next, focus);
+  }, [subscribedTo, focus]);
 
   useEffect(() => {
     // Read once, at the top, into locals the cleanup can close over — a
@@ -289,7 +308,7 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
 
       // **Re-asserted on every socket**, including each retry. The transport
       // buffers it until `open`, so this does not have to know the state.
-      connected.subscribe(subscription.current);
+      connected.subscribe(subscription.current, focused.current);
     };
 
     const scheduleRetry = (code?: number): void => {
@@ -318,8 +337,8 @@ export function useLiveFeed(options: UseLiveFeedOptions = {}): LiveFeedView {
     };
 
     document.addEventListener("visibilitychange", onVisibility);
-    resubscribe.current = (next) => {
-      connected?.subscribe(next);
+    resubscribe.current = (next, nextFocus) => {
+      connected?.subscribe(next, nextFocus);
     };
     dial();
 

@@ -5,6 +5,7 @@ import {
   type MarketStreamMessage,
   type WireFeedState,
   type WireMarketOverview,
+  type WireSymbolReturn,
   feedStatusFrom,
   fromWireObservation,
   worseFeedStatus,
@@ -272,6 +273,22 @@ export interface LiveFeedConnection {
    */
   readonly overview: WireMarketOverview | undefined;
   /**
+   * **The 5-minute return the backend computed for the security this screen is
+   * about**, or `undefined` before the first `return` frame (Task 5.2.3).
+   *
+   * **The symbol travels with the figure, and that is the whole reason this is
+   * an object rather than a bare union.** A reader moving between two
+   * securities has a window — one subscribe round trip — in which the
+   * gateway's last answer is about the *previous* one, so a surface reading
+   * the figure alone would draw NVDA's return under AMD's name. It compares
+   * the symbol and draws nothing instead.
+   *
+   * Held whole and by reference, like {@link LiveFeedConnection.overview}, and
+   * the browser re-derives none of it: the endpoints, the span and the refusal
+   * are the backend's, computed over a trailing window no browser holds.
+   */
+  readonly symbolReturn: SymbolReturnView | undefined;
+  /**
    * How many messages this browser could not read.
    *
    * **The decided disposition for `unreadable`** (Task 3.3.1 made it a value
@@ -285,6 +302,17 @@ export interface LiveFeedConnection {
   readonly unreadable: number;
   /** The most recent reason, for the one report {@link firstUnreadable} licenses. */
   readonly lastUnreadableReason: string | undefined;
+}
+
+/**
+ * One security's return, with the security it is about.
+ *
+ * `figure` rather than `return`, which is a reserved word and reads as control
+ * flow at every call site.
+ */
+export interface SymbolReturnView {
+  readonly symbol: string;
+  readonly figure: WireSymbolReturn;
 }
 
 /** A browser that has been told nothing yet, as of a given monotonic instant. */
@@ -304,6 +332,7 @@ export const initialLiveFeed: LiveFeedConnection = {
   lastObservationAt: undefined,
   server: undefined,
   overview: undefined,
+  symbolReturn: undefined,
   unreadable: 0,
   lastUnreadableReason: undefined,
 };
@@ -485,6 +514,15 @@ export function advanceLiveFeed(
           event.message.type === "overview"
             ? event.message.overview
             : state.overview,
+        // **A new reference exactly when a `return` frame arrives**, which is
+        // the overview's idiom and is what the render gate compares. The
+        // symbol comes off the frame rather than from the subscription: the
+        // gateway answers the focus it was last told, which during a
+        // navigation is briefly the previous security.
+        symbolReturn:
+          event.message.type === "return"
+            ? { symbol: event.message.symbol, figure: event.message.return }
+            : state.symbolReturn,
         observations: withObservations(state.observations, bars),
         // **A snapshot sets the baseline; a bar changes it.** A `bars` message
         // clears the flag for exactly the symbols it carries, so the first
@@ -610,6 +648,15 @@ export interface LiveFeedView {
    * and this one took three.
    */
   readonly overview: WireMarketOverview | undefined;
+  /**
+   * **One security's 5-minute return, and which security** (Task 5.2.3).
+   *
+   * Carried into every branch for the observations' reason: §36 keeps true
+   * figures on screen when a feed stops, labelled rather than blanked — and
+   * this figure labels itself, because both of the instants it was measured
+   * between travel with it.
+   */
+  readonly symbolReturn: SymbolReturnView | undefined;
   /** Messages this browser could not read. Zero on every healthy deployment. */
   readonly unreadable: number;
 }
@@ -697,6 +744,7 @@ export function liveFeedView(
     // labels them — `computedAt` would relabel them every time a tab opened
     // (Task 4.8.12).
     overview: state.overview,
+    symbolReturn: state.symbolReturn,
     // The first connection is not a return. `Math.max` rather than a
     // subtraction alone so a browser that has been told nothing yet reads
     // `0` rather than `-1`.
@@ -810,6 +858,18 @@ export function sameLiveFeedView(a: LiveFeedView, b: LiveFeedView): boolean {
     //
     // **The direction of the error is the safe one**: over-eager renders,
     // never a silent miss. A miss is the defect the comment above records.
-    a.overview === b.overview
+    a.overview === b.overview &&
+    // **Added with the field itself, in the same change** (Task 5.2.3) — the
+    // comment above says what happens otherwise and it has happened twice in
+    // this file: the reducer updates correctly while the screen never
+    // changes, with every test green, because nothing renders.
+    //
+    // **By reference, and coarser than the Map's for the overview's reason**:
+    // the reducer builds a new object per `return` frame, so a figure
+    // identical to the last one still renders. The gateway only sends one when
+    // the focused security's own bar arrived in the batch — at most once a
+    // minute for one security — so the over-eager direction costs nothing, and
+    // it is the safe direction, because the miss is the defect.
+    a.symbolReturn === b.symbolReturn
   );
 }
