@@ -53,6 +53,36 @@ spanning no corporate action returns identical numbers either way, so a wrong
 adjustment argument is **invisible in testing and wrong exactly once**, on the
 one name and the one week somebody is looking at.
 
+> **REVERSED 2026-10-14 by the owner at Story 5.3's Gate 1, and the reasoning
+> above is left standing because it is still correct about the hazard.** The
+> baseline reads the **store**, not the provider, and replaces _adjust
+> correctly_ with **detect and refuse**.
+>
+> **Two things nobody had weighed when this was decided.** A provider-fetched
+> baseline is **~1,172 paged requests** against the measured ~3.3/s bucket —
+> about six minutes of wall time plus quota, **every night**, which is the same
+> order as the store read it was chosen over, so the decision was never forced
+> by cost. And a provider-fetched baseline is **not reconstructible from
+> anything we stored**, which is precisely what Epic 13's replay needs; the
+> store read keeps one source that a replay can rewrite through ADR 0015's
+> seam.
+>
+> **And it answers §3.5 rather than ignoring it.** That section's objection is
+> that a **wrong adjustment** is invisible in testing and wrong exactly once.
+> A **refusal** is the opposite kind of failure: the baseline detects a
+> session-boundary discontinuity above a stated magnitude ceiling and **refuses
+> that security's percentile**, in its own words, on screen. We do not compute
+> an adjustment anywhere, so §3.5's hazard is not on the path — what replaces it
+> is a visible absence rather than a confident number.
+>
+> **What this costs, stated plainly:** a security with a split in its trailing
+> 60 sessions has **no percentile for 60 sessions**, where the provider route
+> would have given it a correct one. That is the trade, and the owner took it.
+> **Reversal trigger, a condition:** the first session in which more than a
+> stated fraction of the universe is refused for a discontinuity — at which
+> point refusing is costing more than adjusting, and §3.1's provider route is
+> the answer with its quota cost now known.
+
 **2. The price percentile is a MAGNITUDE percentile.** §11's prose says
 _"compare current 5-minute return to historical 5-minute returns"_, which is
 signed — but its own example, `-2.1%` at the **99.1st percentile**, is

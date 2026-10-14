@@ -1,6 +1,6 @@
 # Story 5.3 — The Baseline, & the Price Percentile
 
-**Status:** Not started
+**Status:** In progress — 2026-10-14
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.2
 **Epic scope covered:** historical return distributions, return percentile calculation
@@ -90,6 +90,102 @@ unusual something is. Still no 0–100 score and still no band.
     and one timed full-universe pass. The 4–13 minute band above is arithmetic
     over published block rates and is **an upper bound on the shape, not a
     measurement**.
+
+## Gate 1 — the task list approved, 2026-10-14, and four decisions
+
+Five tasks, approved as proposed. Four roles shaped it, and between them they
+found **seven false premises in this story's own acceptance criteria** — two of
+which stopped the story as written. They are listed here rather than quietly
+corrected, because each was load-bearing.
+
+### The four decisions
+
+**1. The baseline reads the STORE, with a split guard.** AC 4 inherited Story
+5.1's Gate 1 decision — _ask the provider for split-adjusted bars_ — while AC 5,
+AC 9 and AC 10 and **the entire cost argument** describe a store read. Both
+cannot be the source. The owner took the store, and the price is a mechanism
+rather than a hope: **a single unadjusted 10:1 split inside the window injects a
+−90% five-minute return** that breaks no percentile property, changes no `n`,
+keeps the tape pure, and makes every percentile for that security read far too
+low for 60 sessions — with a known trigger date. So the baseline **detects a
+session-boundary discontinuity above a stated ceiling and refuses that
+security's percentile**. `PROVIDER.md` §3.5's refusal is answered rather than
+skirted: it forbids **computing** an adjustment, and this detects and refuses.
+
+**2. `n` is COUNTED, percentiles are INTEGER, and `>99th` is the ceiling.** AC
+3's `78 × 60 = 4,680` is wrong twice: 78 grid anchors yield **77** increments
+(4,620), an early close yields **41**, and median stored coverage is **82.8%** so
+grid pairs are routinely absent. At n = 4,620 the binomial SE at the 99th is
+**0.146 points**, so a first decimal is below the sample's resolving power —
+`PRODUCT_SPEC.md` §11's own `99.1st percentile` example gains a dated amendment,
+the way §9 carries Story 4.4's refusal of percentages. Above the highest order
+statistic there is no sample, so **`100th` is never printed**.
+
+**3. AC 10's deployed arm is the owner's to run.** The deployed store is
+Entra-only. Two commands are written out exactly in Task 5.3.1 — an
+`EXPLAIN (ANALYZE, BUFFERS)` and a timed pass — to be run after `az login` and
+pasted back. **The `EXPLAIN` matters for plan shape more than for
+milliseconds**, because the planner under-estimates this read by **212×**
+(`rows=114` against 24,142 actual), which is what would turn a per-security index
+scan into a sequential scan over 5 GB.
+
+**4. Five tasks**, two of them with nothing visible and named as such, with 5.3.3
+paying them off.
+
+### The cost, measured rather than derived
+
+The Description's **4–13 minutes** is arithmetic over a sequential full-table
+pass. Measured cold on a store holding 48,797,343 bars and **255 sessions** of
+minute history:
+
+| Measured, cold, local                         | Figure                                                     |
+| --------------------------------------------- | ---------------------------------------------------------- |
+| one security, ~62 sessions                    | `Buffers: shared hit=8 read=538`, **58.4 ms**, 24,142 rows |
+| rows a block                                  | **~45**, so the heap is **well correlated**                |
+| 501 equities, extrapolated                    | ~269,538 blocks ≈ **2,105 MB**                             |
+| at 10 MiB/s sequential                        | **~3.5 minutes**                                           |
+| at the **120 provisioned IOPS**, uncorrelated | **~37 minutes**                                            |
+
+**`HOSTING.md` provisions 120 IOPS rather than the SKU's advertised 640**, and
+the story's band is bandwidth arithmetic — so **which regime applies is the
+single biggest cost question in this story**, and the query shape decides it.
+
+### The seven false premises
+
+1. **Two sources for one set of numbers** — resolved by decision 1 above.
+2. **`n` is 4,620 and per-security, not 4,680** — decision 2.
+3. **`~84 KB` is ~21 breakpoints**, a vigintile grid, which **cannot express a
+   99th percentile at all** — the one reason pooling was chosen. 101 breakpoints
+   is **417 KB** over 516 securities, about 2× `currentMarketState`.
+4. **`BARS.md` §2's 2024-01-01 cap is the DAILY depth**, and this baseline reads
+   **minute** bars, whose depth is one year by the same section. The conclusion
+   held; the mechanism quoted did not.
+5. **"One tape per comparison" is not achievable as worded.** The numerator is
+   `iex`-over-`iex` by construction and the baseline is `sip` only, so **every
+   comparison this story ships is a SIP baseline against an IEX numerator**.
+   AC 5 is satisfiable as _the baseline window is one tape_, and invariant 6
+   then has something to say on screen.
+6. **`one-home-for-the-observation-window` will NOT refuse the lookback, which
+   is worse than refusing it.** Its regex matches minute-scaled subtraction from
+   an instant; a 60-**trading-session** lookback goes through the calendar with
+   no `getTime()` and no minute factor, so it matches neither half. Story 5.2's
+   hand-off said the opposite and is corrected by date in Task 5.3.5 — **the
+   conjunct must key on the session count**, or this story ships a guard green on
+   its own defect.
+7. **A nightly runner is a COPY, not a new pattern.** `backfill.yml` already
+   carries two crons and `timeout-minutes: 330`. The accurate version of AC 1's
+   note is that **no timer in this process does database work, or work longer
+   than a tick** — `market-gateway.ts` already runs a `setInterval` keepalive.
+
+### And one thing nobody can measure here
+
+**The two-tape inflation AC 5 asks this story to measure is unmeasurable on any
+developer's store.** The local store holds **48,449,712 `sip` rows and zero
+`iex`**, because the live writer only runs where a provider is configured — so
+it is asked for in the same deployed sitting as AC 10, by an index-only query,
+with the caveat that the live writer started **2026-09-23** and a 60-session
+window today exposes ~15 of 60 sessions, making any figure **~25% of steady
+state**.
 
 ## Design work
 
