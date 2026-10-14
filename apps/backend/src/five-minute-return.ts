@@ -148,10 +148,43 @@ export interface MeasuredReturn {
 export type ReturnRefusal =
   "nothing-observed" | "no-earlier-endpoint" | "no-basis";
 
-/** No figure, and which refusal it was. */
+/**
+ * **What the window DID hold, where it held something** (Task 5.2.4).
+ *
+ * A refusal carrying nothing but a word draws the same picture whether the
+ * window held one bar or none — and *we have one bar and no pair* and *we have
+ * heard nothing* are exactly the pair Story 5.1 shipped collapsed into one
+ * sentence for a day, one region down. So a refusal that **found a newer
+ * endpoint** carries that endpoint and the count of minutes it saw, and the
+ * surface prints them in the grammar it already uses for a measured figure.
+ *
+ * It is produced in the **same pass** that picked the endpoints, for
+ * {@link fiveMinuteReturn}'s own reason: a count taken by a second traversal
+ * is a second measurement that can disagree with the first.
+ */
+export interface ObservedSpan {
+  /** The newest bar at or before `asOf` — the one instant there is. */
+  readonly newest: ReturnEndpoint;
+  /** How many of the span's minutes were observed, `1` to `spanMinutes`. */
+  readonly observed: number;
+  /** The denominator the surface states. */
+  readonly spanMinutes: number;
+}
+
+/** No figure, which refusal it was, and what the window did hold. */
 export interface RefusedReturn {
   readonly measured: false;
   readonly refusal: ReturnRefusal;
+  /**
+   * What was observed, or `undefined` where nothing was.
+   *
+   * **A required member holding `undefined` rather than an optional one**, so
+   * a refusal built anywhere in this module has to say which of the two it is
+   * — `exactOptionalPropertyTypes` makes *absent* and *present as undefined*
+   * different types, and the required form is the one a new refusal cannot
+   * forget.
+   */
+  readonly seen: ObservedSpan | undefined;
 }
 
 /**
@@ -275,15 +308,29 @@ export function fiveMinuteReturn(
     observed += 1;
   }
 
-  if (newer === undefined)
-    return { measured: false, refusal: "nothing-observed" };
+  // **Nothing was observed, so there is nothing to carry** — and that is the
+  // structural half of *these two refusals must not read alike*: this one has
+  // no span because there is none, rather than because a renderer chose to
+  // draw less of it (Task 5.2.4).
+  if (newer === undefined) {
+    return { measured: false, refusal: "nothing-observed", seen: undefined };
+  }
+
+  // The one instant there is, and the count from the walk above rather than
+  // from a second pass over the same array.
+  const seen: ObservedSpan = {
+    newest: endpointOf(newer),
+    observed,
+    spanMinutes: RETURN_SPAN_MINUTES,
+  };
+
   if (older === undefined) {
-    return { measured: false, refusal: "no-earlier-endpoint" };
+    return { measured: false, refusal: "no-earlier-endpoint", seen };
   }
 
   const basis = older.bar.close;
   if (!Number.isFinite(basis) || basis === 0) {
-    return { measured: false, refusal: "no-basis" };
+    return { measured: false, refusal: "no-basis", seen };
   }
 
   return {

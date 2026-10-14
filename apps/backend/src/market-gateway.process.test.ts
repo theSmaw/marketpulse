@@ -185,6 +185,7 @@ async function connectClient(port: number): Promise<Client> {
 const NOTHING_OBSERVED: WireSymbolReturn = {
   measured: false,
   refusal: "nothing-observed",
+  seen: null,
 };
 
 /**

@@ -43,6 +43,21 @@ const MEASURED: WireSymbolReturn = {
 
 const held = (figure: WireSymbolReturn) => ({ symbol: "NVDA", figure });
 
+/**
+ * **What the window held beside a refusal** (Task 5.2.4) — one bar, at one
+ * instant, and one of the five minutes heard.
+ *
+ * Without it, the two states below it differ by four words in one sentence
+ * with identical blank room beneath — and `No bars observed yet` is the state
+ * every gated run is permanently in, so the pair would be indistinguishable in
+ * the one place a reader meets it.
+ */
+const SEEN_ONE = {
+  newest: { at: "2026-10-14T18:06:00.000Z", price: 119.5, feed: "iex" },
+  observed: 1,
+  spanMinutes: 5,
+} as const;
+
 const meta = {
   title: "Market/AbnormalMove",
   component: AbnormalMove,
@@ -96,6 +111,12 @@ export const WholeSpanObserved: Story = {
  * **State 2 — the refusal this story exists for.** There is a newer bar and no
  * bar whose own instant is exactly five minutes before it.
  *
+ * **It states the one instant it has and how much of the span it heard** (Task
+ * 5.2.4) — one instant and no `→`, because an arrow with one end is a span
+ * whose other end a reader has to guess. Compare it with `NothingObserved`
+ * below: that is the pair that must not read alike, and the clause is the
+ * difference.
+ *
  * `ERIE` at **2.1%** minute coverage would otherwise produce "the 5-minute
  * return" between bars **47 minutes** apart — a well-formed, correctly-signed,
  * correctly-coloured figure wrong by a factor nobody can see. The measured
@@ -106,7 +127,11 @@ export const WholeSpanObserved: Story = {
  */
 export const NoEarlierEndpoint: Story = {
   args: {
-    symbolReturn: held({ measured: false, refusal: "no-earlier-endpoint" }),
+    symbolReturn: held({
+      measured: false,
+      refusal: "no-earlier-endpoint",
+      seen: SEEN_ONE,
+    }),
   },
 };
 
@@ -122,7 +147,14 @@ export const NoEarlierEndpoint: Story = {
  */
 export const NothingObserved: Story = {
   args: {
-    symbolReturn: held({ measured: false, refusal: "nothing-observed" }),
+    symbolReturn: held({
+      measured: false,
+      refusal: "nothing-observed",
+      // **Nothing observed carries nothing**, which is the structural half of
+      // *these two must not read alike*: this state has no instant because
+      // there is none, rather than because the renderer drew less of it.
+      seen: null,
+    }),
   },
 };
 
@@ -132,12 +164,18 @@ export const NothingObserved: Story = {
  * which formats and renders as the most alarming figure on the page.
  */
 export const NoBasis: Story = {
-  args: { symbolReturn: held({ measured: false, refusal: "no-basis" }) },
+  args: {
+    symbolReturn: held({
+      measured: false,
+      refusal: "no-basis",
+      seen: SEEN_ONE,
+    }),
+  },
 };
 
 /**
- * **State 5 — no frame about this security.** The band's room is held and
- * invisible with one sentence over it, and the sentence appears after a
+ * **States 5 AND 1 — no frame about this security, and the security not
+ * resolved.** The band's room is held and invisible with one sentence over it, and the sentence appears after a
  * **2,000 ms** floor — the proxy strip's own rather than a second one — because
  * an ordinary load's first frame lands at 174–277 ms and a sentence replaced by
  * a figure a quarter of a second later is a promise the next frame breaks.
@@ -160,4 +198,45 @@ export const NoFrameYet: Story = {
  */
 export const AboutAnotherSecurity: Story = {
   args: { symbol: "AMD", symbolReturn: held(MEASURED) },
+};
+
+/**
+ * **A return of exactly zero, which is a READING and not a refusal.**
+ *
+ * `—` is `unchanged` in `PriceChange`, which is why no refusal in this region
+ * may draw one — and it is exactly the glyph a five-minute span in which the
+ * price did not move owes. The two must not be confusable, and what tells them
+ * apart is everything a refusal does not have: a signed figure, the spoken
+ * direction, both instants, the observed count and the tape.
+ *
+ * **Review it beside `NothingObserved`**, which is the state it could be
+ * mistaken for, and beside `Measured`, whose height it must match exactly.
+ */
+export const ZeroReturn: Story = {
+  args: { symbolReturn: held({ ...MEASURED, percent: 0 }) },
+};
+
+/**
+ * **A valid figure whose window ended forty minutes ago — and NOTHING
+ * changes.**
+ *
+ * No threshold, no status word, no connection word, no treatment. The instant
+ * **is** the age (AC 6): the measured ordinary maximum gap between one
+ * security's bars is **187 minutes**, which is what any threshold here would
+ * have had to spare, and the one home for *the feed has stopped* is the status
+ * bar.
+ *
+ * So this story is deliberately indistinguishable from `Measured` except for
+ * two instants, and it is here because that is a **decision** rather than an
+ * omission — a reviewer looking for the missing badge should find this note
+ * instead.
+ */
+export const FortyMinutesOld: Story = {
+  args: {
+    symbolReturn: held({
+      ...MEASURED,
+      from: { ...MEASURED.from, at: "2026-10-14T17:21:00.000Z" },
+      to: { ...MEASURED.to, at: "2026-10-14T17:26:00.000Z" },
+    }),
+  },
 };

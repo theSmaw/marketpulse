@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { WireSymbolReturn } from "@marketpulse/shared";
+import type {
+  WireObservedSpan,
+  WireReturnRefusal,
+  WireSymbolReturn,
+} from "@marketpulse/shared";
 
 import { RESERVED_RETURN, fiveMinuteReturnBand } from "./five-minute-return.js";
 
@@ -26,6 +30,23 @@ const held = (figure: WireSymbolReturn, symbol = "NVDA") => ({
   symbol,
   figure,
 });
+
+/**
+ * A refusal, with what the window held beside it — `null` where it held
+ * nothing at all, which is the shape `nothing-observed` is the only producer
+ * of (Task 5.2.4).
+ */
+const refused = (
+  refusal: WireReturnRefusal,
+  seen: WireObservedSpan | null = null,
+): WireSymbolReturn => ({ measured: false, refusal, seen });
+
+/** The one instant a refusal that found a newer endpoint carries. */
+const SEEN_ONE: WireObservedSpan = {
+  newest: { at: "2026-10-14T18:06:00.000Z", price: 119.5, feed: "iex" },
+  observed: 1,
+  spanMinutes: 5,
+};
 
 describe("fiveMinuteReturnBand", () => {
   it("spells the figure, both instants oldest first, and the observed count", () => {
@@ -96,10 +117,7 @@ describe("fiveMinuteReturnBand", () => {
     const words = (
       ["nothing-observed", "no-earlier-endpoint", "no-basis"] as const
     ).map((refusal) => {
-      const band = fiveMinuteReturnBand(
-        "NVDA",
-        held({ measured: false, refusal }),
-      );
+      const band = fiveMinuteReturnBand("NVDA", held(refused(refusal)));
       return band.absent;
     });
 
@@ -117,7 +135,7 @@ describe("fiveMinuteReturnBand", () => {
   it("draws no figure and no tape on a refusal, and is not the nothing state", () => {
     const band = fiveMinuteReturnBand(
       "NVDA",
-      held({ measured: false, refusal: "no-earlier-endpoint" }),
+      held(refused("no-earlier-endpoint")),
     );
 
     expect(band.move).toBeUndefined();
@@ -169,12 +187,122 @@ describe("fiveMinuteReturnBand", () => {
     expect(band.move).toEqual({ change: "0.00%", direction: "unchanged" });
   });
 
+  it("carries the ONE instant it has beside a refusal, and the count", () => {
+    // **The two facts that must not look identical** (Task 5.2.4). Without
+    // this clause, *we hold one bar and there is no pair* and *we have heard
+    // nothing at all* differ by four words in one sentence with identical
+    // blank room beneath — and the second is the state every gated run is
+    // permanently in.
+    const band = fiveMinuteReturnBand(
+      "NVDA",
+      held(refused("no-earlier-endpoint", SEEN_ONE)),
+    );
+
+    expect(band.absent).toBe("No bar five minutes back");
+    expect(band.qualifier).toBe("Oct 14 · 14:06 EDT · observed 1 of 5 minutes");
+    // **No arrow**, because an arrow with one end is a span whose other end
+    // the reader has to guess — and the arrow is what a measured figure's
+    // clause means.
+    expect(band.qualifier).not.toContain("→");
+  });
+
+  it("draws NOTHING beside *nothing observed*, which is the structural half", () => {
+    const nothing = fiveMinuteReturnBand(
+      "NVDA",
+      held(refused("nothing-observed")),
+    );
+    const oneBar = fiveMinuteReturnBand(
+      "NVDA",
+      held(refused("no-earlier-endpoint", SEEN_ONE)),
+    );
+
+    // The frame's own shape decides: a window that observed nothing carries no
+    // span, so there is nothing to draw rather than a renderer choosing to
+    // draw less of it.
+    expect(nothing.qualifier).toBeUndefined();
+    expect(oneBar.qualifier).toBeDefined();
+    expect(nothing.absent).not.toBe(oneBar.absent);
+  });
+
+  it("keeps the refusal and drops the clause when the one instant cannot be read", () => {
+    const band = fiveMinuteReturnBand(
+      "NVDA",
+      held(
+        refused("no-earlier-endpoint", {
+          ...SEEN_ONE,
+          newest: { ...SEEN_ONE.newest, at: "not an instant" },
+        }),
+      ),
+    );
+
+    // `new Date(NaN)` formats without complaining and reaches a screen as the
+    // words `Invalid Date`. The refusal is the fact and survives.
+    expect(band.absent).toBe("No bar five minutes back");
+    expect(band.qualifier).toBeUndefined();
+  });
+
+  it("claims no tape beside the one instant either", () => {
+    // ADR 0029, and the distinction is the rule's own: `Measured on IEX` is a
+    // claim about a **measurement**, and no measurement happened. The instant
+    // is a fact about a bar we hold, which is a different claim with its own
+    // words.
+    const band = fiveMinuteReturnBand(
+      "NVDA",
+      held(refused("no-earlier-endpoint", SEEN_ONE)),
+    );
+
+    expect(band.tape).toBeUndefined();
+  });
+
+  it("gives a return of exactly zero the figure a zero is, never a refusal's words", () => {
+    // **The state the whole no-dash rule is written against** (Task 5.2.4): a
+    // five-minute span in which the price did not move is a **measured**
+    // figure, and `—` in the figure slot is `PriceChange`'s `unchanged` — so
+    // the dash a refusal must never draw is exactly the glyph this state owes.
+    const band = fiveMinuteReturnBand(
+      "NVDA",
+      held({ ...MEASURED, percent: 0 }),
+    );
+
+    expect(band.move).toEqual({ change: "0.00%", direction: "unchanged" });
+    expect(band.absent).toBeUndefined();
+    // And it keeps everything a measured figure has, which is what tells a
+    // reader it is a reading rather than a refusal.
+    expect(band.qualifier).toContain("observed 3 of 5 minutes");
+    expect(band.tape).toBe("Measured on IEX");
+  });
+
+  it("says the same thing about a window that ended forty minutes ago", () => {
+    // **Nothing changes, and that is AC 6 rather than an omission.** The
+    // instant IS the age: no threshold, no verdict, no connection word. The
+    // 187-minute ordinary maximum gap between one security's bars is what any
+    // threshold here would have had to spare.
+    const old = fiveMinuteReturnBand(
+      "NVDA",
+      held({
+        ...MEASURED,
+        from: { ...MEASURED.from, at: "2026-10-14T17:21:00.000Z" },
+        to: { ...MEASURED.to, at: "2026-10-14T17:26:00.000Z" },
+      }),
+    );
+    const fresh = fiveMinuteReturnBand("NVDA", held(MEASURED));
+
+    expect(old.qualifier).toBe(
+      "Oct 14 · 13:21 EDT → Oct 14 · 13:26 EDT · observed 3 of 5 minutes",
+    );
+    // The same shape, the same words, the same clause count — only the two
+    // instants differ, which is the reader's own subtraction to do.
+    expect(old.move).toEqual(fresh.move);
+    expect(old.tape).toBe(fresh.tape);
+    expect(old.absent).toBeUndefined();
+  });
+
   it("says nothing about the feed in any state", () => {
     const states: (WireSymbolReturn | undefined)[] = [
       MEASURED,
-      { measured: false, refusal: "nothing-observed" },
-      { measured: false, refusal: "no-earlier-endpoint" },
-      { measured: false, refusal: "no-basis" },
+      refused("nothing-observed"),
+      refused("no-earlier-endpoint", SEEN_ONE),
+      refused("no-basis", SEEN_ONE),
       undefined,
     ];
 

@@ -916,7 +916,9 @@ void lastCloses.load(marketDateAt(new Date())).then(
  */
 const symbolReturn = (symbol: string): WireSymbolReturn => {
   if (!isTicker(symbol)) {
-    return { measured: false, refusal: "nothing-observed" };
+    // Nothing was observed, so there is nothing observed to carry beside the
+    // word (Task 5.2.4).
+    return { measured: false, refusal: "nothing-observed", seen: null };
   }
 
   return toWireSymbolReturn(

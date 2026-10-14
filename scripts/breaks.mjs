@@ -4600,4 +4600,61 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "A SECOND observation window is a second definition of",
   },
+  {
+    name: "the-return-is-fabricated-rather-than-refused",
+    proves:
+      "A gateway with nothing in its trailing window sends a figure of " +
+      "0.00% instead of refusing, and the browser draws it faithfully \u2014 " +
+      "which is the state every gated run and every provider-less " +
+      "deployment is permanently in. The page agreeing with the frame " +
+      "cannot see it, and the assertion that can is the one reaching " +
+      "outside the frame to `GET /market-data`.",
+    // **The defect a pass-through is blind to by construction**, which is why
+    // this break exists rather than one that edits a renderer. The spec's main
+    // claim — *the band draws what the server sent* — is green either way,
+    // because the browser draws the fabricated figure exactly as faithfully as
+    // it drew the refusal. What goes red is the one assertion reaching an
+    // independent source: with no market-data provider configured nothing has
+    // ever been observed (there is no store-backed fill, Gate 1 decision 3),
+    // so a measured 5-minute return from such a process is fabricated.
+    //
+    // The edit is the one somebody plausibly makes: not deleting the refusal,
+    // but **answering the empty case with a zero**, which reads like a
+    // courtesy and renders as the most confident thing on the page.
+    //
+    // `build: true` for the recorded reason: `pnpm e2e` drives the dev pair,
+    // which serves built output, and a watch loop that rebuilds on the break
+    // and not on the restore leaves byte-identical source beside a broken
+    // build \u2014 a red suite that reads exactly like a flake.
+    file: "apps/backend/src/five-minute-return.ts",
+    find:
+      "  if (newer === undefined) {\n" +
+      '    return { measured: false, refusal: "nothing-observed", seen: undefined };\n' +
+      "  }",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  if (newer === undefined) {\n" +
+      "    const nothing: ReturnEndpoint = {\n" +
+      "      startsAt: options.asOf,\n" +
+      "      close: 0,\n" +
+      "      source: {\n" +
+      '        provider: "alpaca",\n' +
+      '        feed: "iex",\n' +
+      "        retrievedAt: options.asOf.toISOString(),\n" +
+      "        barCount: 0,\n" +
+      "      },\n" +
+      "    };\n" +
+      "    return {\n" +
+      "      measured: true,\n" +
+      "      percent: 0,\n" +
+      "      from: nothing,\n" +
+      "      to: nothing,\n" +
+      "      observed: 0,\n" +
+      "      spanMinutes: RETURN_SPAN_MINUTES,\n" +
+      "    };\n" +
+      "  }",
+    command: ["pnpm", "e2e", "security-abnormal-move.spec.ts", "--anyway"],
+    expect: "so a measured 5-minute return is fabricated",
+    build: true,
+  },
 ];

@@ -3161,6 +3161,49 @@ an agent. **Re-measure:** open `/`, press `Enter` on a ticker with a screen
 reader running, and write down what was said. There is no mechanical form of
 this question.
 
+## A TENTH entry for the standing screen-reader item — a figure that changes about once a minute, in a region that deliberately says nothing when it does
+
+**Added 2026-10-14 by Task 5.2.4**, and it is the eighth-and-ninth pair's
+question arriving at the first figure Epic 5 draws.
+
+`Abnormal-move indicators` draws a 5-minute return and **has no live region**.
+The decision and its reversal trigger are in `AbnormalMove.tsx`'s docblock; what
+is here is the half nobody can answer from a DOM.
+
+The figure is replaced on each applied batch for the focused security — **6.8 to
+16.1 times a minute** at the feed's measured cadence, every one of them
+unprompted — and the band's four lines change **together**: the percentage, the
+direction word, both instants and the observed count. So the thing a listener
+would be handed if this region ever spoke is not a number but a **sentence of
+about twenty words**, against the 1,500 ms pacing floor the chart's reading
+already overruns. That is the same arithmetic as entry one and a different
+surface.
+
+Three things only a person with a reader can answer. **Is the silence right?**
+The region is not a status surface — it says nothing about the feed by decision
+(AC 6) — but it is the only place on this page where a _figure about
+unusualness_ lives, and a listener who cannot see it change has no way to know
+it did. **Does a reader exploring the band mid-change read a consistent band?**
+The four lines are four `<p>` elements re-rendered in one commit, so visually
+they move together; a listener arrowing line by line is reading across commits,
+and nothing in the DOM says whether the instant they just heard belongs to the
+percentage they heard before it. And **what is a refusal's clause heard as?**
+`No bar five minutes back · Oct 14 · 14:06 EDT · observed 1 of 5 minutes` is a
+refusal, an instant and a count read as three blocks with no connecting word —
+the `·` is spoken differently by different readers, or not at all, which is
+entry four's problem met at a sentence whose whole job is to be distinguishable
+from the sentence above it.
+
+Every half an instrument can do is done: the strings, their order, the absence
+of any placeholder value in the accessibility tree and the one-height geometry
+are asserted in `AbnormalMove.test.tsx` and in
+`e2e/specs/security-abnormal-move.spec.ts`.
+
+**Owner: the same person with the same screen reader.** **Re-measure:** open a
+security page with a reader during a session, listen without touching the
+keyboard for two minutes, then explore the region line by line and write down
+whether the four lines agreed.
+
 ## No feed this repository can run offline produces the cadence that IS the cost, so every local per-tick figure on `/` is a fraction of the real render count
 
 **Added 2026-10-10 by Task 4.8.10, at Story 4.8's close, and it is the premise

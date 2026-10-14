@@ -97,6 +97,31 @@ whole live path runs through, and AC 8 wants that measured rather than argued.
 7. The four gates are run **once on the final tree** with their numbers, and
    Gate 2 is put to the owner with what was **not** verified and why.
 
+## Amended by Task 5.2.4 — 2026-10-14: the upward sweep has a named target before you start
+
+**`CLAUDE.md` carries Task 4.3.8's lesson in a form now known to be
+incomplete**, and correcting it is this task's first upward-sweep item rather
+than something to discover.
+
+The lesson as recorded is _an assertion that serves its own answer proves
+nothing — forward the server's own frames_. Task 5.2.4 measured that this is
+**necessary and not sufficient**: a pass-through forwards the server's bytes
+honestly, so a browser draws a **fabricated** figure exactly as faithfully as a
+correct one, and every _the page agrees with the frame_ assertion stays green
+when the producer is broken. **Pass-through kills the
+fixture-agrees-with-itself defect and does nothing about a wrong producer.**
+
+What catches a lying producer is a claim grounded **outside** the frame — in
+`security-abnormal-move.spec.ts` it is `GET /market-data` answering
+`{"feed": null}`, which with Gate 1 decision 3 means nothing has ever been
+observed, so a measured return is fabricated by construction. The same shape as
+`overview-breadth-counts.spec.ts`' `tracked`-against-`GET /securities`.
+
+**Sweep the live sites**, give any ADR a dated amendment rather than a rewrite,
+and leave the historical records standing — and note that the four specs Task
+4.3.8 repaired may themselves still be in the insufficient form, which is a
+count worth taking rather than assuming.
+
 ---
 
 ## What was done — 2026-10-13

@@ -559,7 +559,34 @@ export function SecurityExplorer({
           <Region name="Abnormal-move indicators">
             <AbnormalMove
               symbol={symbol}
-              symbolReturn={liveFeed.symbolReturn}
+              /*
+               * **The figure is withheld until the universe answer has
+               * resolved this page's security** (Task 5.2.4), and the collapse
+               * is declared HERE, in the data, rather than as a second branch
+               * inside the component.
+               *
+               * *The security is not resolved yet* and *no `return` frame has
+               * arrived yet* are two facts with one drawing — held geometry
+               * and, after the 2,000 ms floor, the region's own sentence —
+               * which is `RelativePerformance`'s own reasoning one region
+               * down rather than a third state. Writing it as one **input**
+               * makes the two byte-identical by construction; two branches
+               * drawing the same markup is a claim a test has to keep true,
+               * and Story 4.7's content classes are the long version of why
+               * the data is the place for it.
+               *
+               * It is also the honest order. The frame is about a ticker off
+               * the address bar, and `/securities/ZZZZ` produces one: a figure
+               * under a name this product cannot say it tracks is the same
+               * class of claim as a figure under the wrong name, which is what
+               * the symbol comparison inside the band already refuses. The
+               * cost is the ~174–277 ms `GET /securities` takes, during which
+               * the region holds its room and says nothing — well inside the
+               * floor, so nothing is drawn and then replaced.
+               */
+              symbolReturn={
+                found === undefined ? undefined : liveFeed.symbolReturn
+              }
             />
           </Region>
 

@@ -66,6 +66,47 @@ export const RETURN_LABEL = "5-minute return";
  */
 export const NO_RETURN = "No return yet.";
 
+/*
+ * ## The four sentences below, and why none of them is one of the eight
+ * ## already approved (Task 5.2.4, done-when 3)
+ *
+ * The eight are `relative-performance.ts`' — `No comparison yet.`,
+ * `Not heard from`, `No close to measure from`, `No move for this security
+ * yet`, `No move for the reference yet`, `Measured from different closes`,
+ * `A broad-market fund has no sector` and `This security is its sector's
+ * benchmark`. The register is inherited rather than re-invented: short, no
+ * connection word, no terminal stop except on the region-level one.
+ *
+ * **{@link NO_RETURN}** is the **region-level noun**, and `NO_COMPARISON`
+ * names the region one down. Reusing it would put one string in two regions
+ * and tell a reader the comparison is missing when the return is.
+ *
+ * **{@link NO_EARLIER}** is the **missing-endpoint refusal**. `NO_CLOSE` says
+ * *no close to measure from* and a close is a **session** artefact off the
+ * universe answer; what is missing here is a **minute bar at an instant**, so
+ * reusing it would tell a reader the store lacks a close when it lacks a
+ * minute.
+ *
+ * **And there are FOUR rather than the two this task's brief names**, which is
+ * recorded here because the count is the sort of thing the next reader
+ * inherits. The brief enumerated the two states it was arguing about; the
+ * producer has **three** refusals, each of which needs words, plus the region
+ * noun. Neither of the other two can be one of the eight either:
+ *
+ * **{@link NO_BARS}** is *nothing has been observed for this security*, which
+ * is the closest any of them comes to an approved sentence — `NOT_HEARD` reads
+ * *Not heard from*. It is not reused for two reasons. That string is private
+ * to the comparison region and exporting it to a second region is the one
+ * string in two places this file's own argument refuses; and `NOT_HEARD` is a
+ * row label in a three-row ladder where the subject is named beside it, while
+ * this stands alone in a figure's slot where *from* would have no object.
+ *
+ * **{@link NO_BASIS}** is *the older close is zero or not a number*. Nothing
+ * in the eight says anything about a **divisor**: `NO_CLOSE` is an absence and
+ * this is a present value that cannot be divided by, which is a different fact
+ * and the one that otherwise renders as `Infinity%`.
+ */
+
 /** The window holds no bar at or before now. A cold process's first minutes. */
 const NO_BARS = "No bars observed yet";
 
@@ -100,8 +141,12 @@ export interface ReturnBand {
    */
   readonly absent: string | undefined;
   /**
-   * The two instants and how much of the span was observed, or `undefined`
-   * where there is no pair to describe.
+   * The instants and how much of the span was observed, or `undefined` where
+   * there is nothing to describe.
+   *
+   * **Two instants on a measured figure and one on a refusal that held a bar**
+   * (Task 5.2.4), because that is what each has: `undefined` is reserved for a
+   * window that observed nothing and for an instant that cannot be read.
    */
   readonly qualifier: string | undefined;
   /** Which tape the figure was measured on — invariant 6, or `undefined`. */
@@ -182,12 +227,35 @@ function tapeOf(feeds: readonly MarketFeed[]): string {
  *
  * That function is the one home for *a bar's instant in market terms*, and at
  * `1m` it prints `Oct 14 · 14:06 EDT` — the date, the time and the zone. So
- * this clause repeats the date, and the repetition is **chosen**: the
- * alternative, a time-only second endpoint, is a second spelling of an
- * instant, which is the duplication this product refuses, and the first
- * endpoint's date is load-bearing — a process that has been quiet since Friday
- * holds a perfectly valid pair whose instants are days old, and times alone
- * would read as today's.
+ * this clause repeats the date.
+ *
+ * **Decided again on 2026-10-14 (Task 5.2.4), deliberately rather than by
+ * eye, and the repetition is KEPT.** The one honest argument against keeping
+ * it is stronger than Task 5.2.3 recorded: the two endpoints are **exactly
+ * five minutes apart by construction**, and no five-minute span inside the
+ * hours the feed delivers bars for can cross a market date — so the second
+ * date is not merely repetitive, it is **zero-information**, and dropping it
+ * would be an *unconditional* rule rather than the same-day conditional
+ * grammar UX refused for the k-count.
+ *
+ * _Rejected anyway_, on three counts. It needs a **second spelling of an
+ * instant** — a time-only formatter beside `formatBarInstant`, which is the
+ * one home for this, and the duplication this product refuses is exactly the
+ * kind that looks free at the call site. The zero-information argument rests
+ * on *no span crosses a date*, which is a property of the **vendor's** hours
+ * and of `RETURN_SPAN_MINUTES`, neither of which this module owns — a span
+ * widened by a later story, or an overnight bar, makes the dropped date the
+ * one thing the reader needed. And a refusal now prints **one** instant
+ * ({@link seenQualifierOf}), so a time-only form would have to decide what a
+ * lone `14:06 EDT` means, which is a second decision bought with the first.
+ *
+ * The first endpoint's date is load-bearing either way: a process quiet since
+ * Friday holds a perfectly valid pair whose instants are days old, and times
+ * alone would read as today's.
+ *
+ * **Reversal trigger:** the first width at which this clause **clips** rather
+ * than wrapping inside its two reserved lines — which is a measurement, not an
+ * opinion, and `pnpm probe` is where it comes from.
  *
  * ## One grammar for k, with no special case at five
  *
@@ -205,7 +273,55 @@ function qualifierOf(
 ): string {
   return (
     `${formatBarInstant(from, "1m")} → ${formatBarInstant(to, "1m")} · ` +
-    `observed ${String(observed)} of ${String(spanMinutes)} minutes`
+    observedClause(observed, spanMinutes)
+  );
+}
+
+/**
+ * **How much of the span was observed** — one grammar, and the only clause
+ * both a figure and a refusal draw.
+ *
+ * `5` is read off the frame's `spanMinutes` rather than typed here, which is
+ * `one-home-for-the-observation-window`'s rule applied to a span: a rollback
+ * can put a gateway and a bundle two values apart.
+ */
+const observedClause = (observed: number, spanMinutes: number): string =>
+  `observed ${String(observed)} of ${String(spanMinutes)} minutes`;
+
+/**
+ * **The one instant a refusal has, and the part of the span it saw** (Task
+ * 5.2.4).
+ *
+ * ## Why a refusal draws a clause at all
+ *
+ * Without it, *we hold one bar and there is no pair* and *we have heard
+ * nothing at all* are a four-word difference in one sentence with identical
+ * blank room beneath — the two facts that look identical, which Story 5.1
+ * shipped collapsed for a day one region down. With it, the first says
+ * **when** the bar it holds is and **how much** of the five minutes it heard,
+ * and the second says nothing because it has nothing to say.
+ *
+ * ## One instant and not a pair with one end invented
+ *
+ * ADR 0029: each clause renders only when its own data is present. There is
+ * **no `→`**, because an arrow with one end is a span whose other end the
+ * reader has to guess — and the arrow is what a measured figure's clause means.
+ * The grammar for `k` is the measured clause's, unchanged, because it is the
+ * same fact about the same five minutes.
+ *
+ * **It is NOT a conditional spelling of one sentence**: the two clauses differ
+ * because the data differs, which is the honest-absence idiom, rather than
+ * because the same data is spelled two ways — which is what UX refused for the
+ * k-count and what the repeated date below is kept to avoid.
+ */
+function seenQualifierOf(
+  newest: Date,
+  observed: number,
+  spanMinutes: number,
+): string {
+  return (
+    `${formatBarInstant(newest, "1m")} · ` +
+    observedClause(observed, spanMinutes)
   );
 }
 
@@ -239,15 +355,37 @@ export function fiveMinuteReturnBand(
   const { figure } = held;
 
   if (!figure.measured) {
+    // **The one instant it has, where it has one** (Task 5.2.4). The frame's
+    // own shape decides: a window that observed nothing carries no span, so
+    // there is nothing here to draw rather than a renderer choosing to draw
+    // less. An instant that cannot be read drops the clause and keeps the
+    // refusal, which is `qualifier`'s rule on a measured figure arriving at
+    // the refusal.
+    // **`??` rather than `=== null`**, so a frame from a gateway that predates
+    // the field — which a browser can hold across a deploy — is *no span*
+    // rather than a thrown read on `undefined.newest`. The decoder answers
+    // `null`, and this is the arm that makes that an assurance rather than a
+    // requirement.
+    const seen = figure.seen ?? undefined;
+    const newest = seen === undefined ? undefined : instantOf(seen.newest.at);
+
     return {
       label: RETURN_LABEL,
       move: undefined,
       absent: REFUSALS[figure.refusal],
-      qualifier: undefined,
+      qualifier:
+        seen === undefined || newest === undefined
+          ? undefined
+          : seenQualifierOf(newest, seen.observed, seen.spanMinutes),
       // **No tape line on a refusal** (ADR 0029): there is no number, so there
       // is nothing whose provenance could be claimed, and a fully-formed
       // source line about no figure is the false impression that rule exists
       // for.
+      //
+      // **Unchanged by the clause above** (Task 5.2.4), and the distinction is
+      // the rule's own: `Measured on IEX` is a claim about a **measurement**,
+      // and no measurement happened. The instant beside it is a fact about a
+      // bar we hold, which is a different claim with its own words.
       tape: undefined,
       nothing: false,
     };
