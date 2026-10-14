@@ -1,6 +1,6 @@
 # Task 5.3.1 — The Source, the Cost & the ADR
 
-**Status:** Complete — 2026-10-14 — the source contradiction is resolved by **reversing** Story 5.1's decision 1 rather than clarifying it, and the cost band it was decided under was never a measurement: cold, a per-security read is **538 blocks at ~45 rows a block**, so the universe is **~2,105 MB** and the regime — bandwidth or IOPS — is what decides between **3.5 and 37 minutes**
+**Status:** Complete — 2026-10-14 — the two commands were run and **could not reach the database at all**: this laptop's network refuses outbound 5432, which is not the firewall rule the documents warn about. The source contradiction is resolved by **reversing** Story 5.1's decision 1 rather than clarifying it, and the cost band it was decided under was never a measurement: cold, a per-security read is **538 blocks at ~45 rows a block**, so the universe is **~2,105 MB** and the regime — bandwidth or IOPS — is what decides between **3.5 and 37 minutes**
 **Story:** [5.3 The Baseline, & the Price Percentile](STORY.md)
 **Depends on:** nothing — this is the story's first task
 
@@ -199,6 +199,64 @@ confirmed or refuted.
 with password authentication disabled and no admin account; the operator is the
 server's Entra administrator and the backend is its own managed identity. There
 is no path from this session to that store, which is the design working.
+
+### The two commands were run, and the result is a finding rather than a figure
+
+**They could not reach the database at all, and the failure mode is not the one
+every document here warns about.**
+
+```
+=== 1. THE PLAN SHAPE — index scan or sequential scan? ===
+psql: error: connection to server at "psql-marketpulse-dev.postgres.database.azure.com"
+  (130.131.13.234), port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+```
+
+**What it was not**, each ruled out rather than assumed:
+
+- **Not the token.** `az account get-access-token` returned one; the script got
+  past it to the connection.
+- **Not the `developer-laptop` firewall rule.** `HOSTING.md` is explicit that the
+  symptom of that rule having moved is _"a laptop timing out against a server the
+  deployed backend reaches perfectly"_. **This is a refusal, not a timeout** —
+  something answered and said no.
+- **Not the server.** The deployed backend was reading it at that moment:
+  `/diagnostics/freshness` returned `lastCompletedSession: 2026-10-13`, `1m`
+  **0 sessions behind**.
+- **Not DNS or the container.** Host and container resolve identically to
+  `130.131.13.234`, and the port is refused from **both**.
+
+So the block is between this laptop and Azure, on **outbound 5432** — ordinary on
+a managed network, and invisible to every document in this repository, all of
+which assume the operator's own machine can open a database connection.
+**`HOSTING.md`'s operator path has a precondition nobody wrote down.**
+
+### The consequence, and the owner's decision
+
+**AC 10 cannot be satisfied by any local tool on this machine**, and that is a
+property of the network rather than of the story. The owner chose, on
+2026-10-14, to **ship a `/diagnostics/baseline-cost` route** so the replica
+measures itself from inside Azure.
+
+Three things make that better than the paste it replaces, and they are worth
+stating because the route is shipped code added for a measurement:
+
+- **Precedent, and the same reasoning.** `routes/diagnostics.ts`' freshness
+  route is deliberately unbounded because _a claim about what the deployment is
+  serving can only be made at runtime_. The cost of a read on the tier is the
+  same kind of claim.
+- **It is repeatable rather than a one-off.** A pasted `EXPLAIN` is a dated
+  reading nobody can re-take; a route is a re-measure, which is this
+  repository's own standing rule.
+- **It removes the dependency on anybody's network**, including the next
+  operator's.
+
+**AC 1's _not in a route_ is ruled to govern COMPUTING the baseline for a
+reader, not measuring it** — the route runs an `EXPLAIN` and a count, never the
+pass. Written into Task 5.3.2, which owns the read the route measures.
+
+**The script is kept** at `.capture/baseline-cost.sh` (gitignored) rather than
+deleted: it is correct, and it will work from any network that permits 5432.
 
 ### The local store cannot stand in, and the reason is worth recording
 

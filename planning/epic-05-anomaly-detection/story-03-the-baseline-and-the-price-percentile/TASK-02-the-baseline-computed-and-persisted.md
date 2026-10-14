@@ -118,6 +118,49 @@ session_ forces the session into the storage **key**.
 7. The split guard refuses on a seeded 4:1 discontinuity.
 8. `pnpm verify` and `pnpm test:database` green.
 
+## Amended by Task 5.3.1 — 2026-10-14: you also own a `/diagnostics/baseline-cost` route, because no local tool can reach the deployed store
+
+**The two commands AC 10 called for were run and could not connect.** This
+laptop's network **refuses outbound 5432** — a refusal, not the timeout
+`HOSTING.md` warns about for a stale firewall rule — while the deployed backend
+reads the same server perfectly. `HOSTING.md`'s operator path has a precondition
+nobody wrote down, and it is not satisfiable here.
+
+**So the owner chose, on 2026-10-14, to have the replica measure itself.** AC 1's
+_not in a route_ is ruled to govern **computing the baseline for a reader**, not
+measuring it.
+
+**What the route does, and what it must not do:**
+
+- `GET /diagnostics/baseline-cost` runs **`EXPLAIN (ANALYZE, BUFFERS)` on the
+  same read this task builds** — one security, the real predicate — and returns
+  the **plan node type**, the `shared hit`/`read` block counts, the row count and
+  the elapsed time. **The plan node type is the most valuable field**: locally
+  the planner under-estimates this read by **212×** (`rows=114` against 24,142
+  actual), and whether the deployed planner picks `Index Scan` or `Seq Scan` is
+  the difference between **~3.5 minutes** and **tens of minutes** for the pass.
+- It also returns the **two-tape counts** — `count(*) filter (where feed = …)`
+  over the window — which is **index-only, no heap touched**, and is the one
+  measurement no machine outside Azure can take: every developer's store holds
+  **zero `iex` rows**.
+- **It never runs the pass.** An `EXPLAIN` of one security and two counts, not a
+  baseline computation — otherwise AC 1's refusal of a route would be real
+  rather than ruled around.
+- **It declares a response schema with `500: apiErrorSchema`**, like every route,
+  and **leaks no internal detail**: no connection string, no server version
+  beyond what `/health` already gives, and no raw plan text if that text would
+  carry a path or a credential.
+- **It is bounded.** The freshness route's own precedent is that it is
+  deliberately unbounded _because its answer is about the whole store_; this one
+  is about one security and must say which, so the symbol is a parameter with a
+  default and the work is O(one security).
+
+**And the caveat that travels with whatever the tape counts return:** the live
+bar writer started **2026-09-23**, so a 90-day window today exposes only ~15 of
+~62 sessions. Any inflation figure is **~25% of steady state** and must be
+recorded as a dated, partially-exposed measurement rather than as ADR 0035's
++69% projection confirmed or refuted.
+
 ---
 
 ## What was done — 2026-10-14
