@@ -17,6 +17,7 @@ import type { DatabaseCheck, DatabaseCheckFn } from "../database.js";
 import type { AttemptRow, CoverageRow } from "../store-freshness.js";
 import { toMarketDate, toTicker, toTimeRange } from "@marketpulse/shared";
 import { buildServer } from "../server.js";
+import type { BaselineCostDiagnostic } from "../baseline-cost.js";
 import type { FeedDiagnostic } from "./diagnostics.js";
 import { createDiagnosticsRoutes } from "./diagnostics.js";
 
@@ -37,6 +38,37 @@ const NO_FEED: FeedDiagnostic = {
   observedAt: null,
   marketOpen: false,
   checkedAt: "2026-09-18T00:00:00.000Z",
+};
+
+/**
+ * What `GET /diagnostics/baseline-cost` reports on a store with no `1m`
+ * coverage — which is CI's store and every bare one (Task 5.3.2).
+ *
+ * Every figure is `null` rather than `0`, which is the whole reason the schema
+ * declares `["number", "null"]`: a `null` under a bare `"number"` reaches the
+ * wire as `0`, and a baseline read reported as touching no blocks and taking no
+ * time is the most reassuring possible lie about the query this story is a cost
+ * argument about.
+ */
+const UNMEASURED_BASELINE_COST: BaselineCostDiagnostic = {
+  symbol: "NVDA",
+  timeframe: "1m",
+  lookbackSessions: 60,
+  measured: false,
+  refusal: "no-coverage",
+  asOfSession: null,
+  windowStart: null,
+  windowEnd: null,
+  planNodeType: null,
+  scanNodeType: null,
+  planRows: null,
+  actualRows: null,
+  sharedHitBlocks: null,
+  sharedReadBlocks: null,
+  elapsedMs: null,
+  sipRows: null,
+  iexRows: null,
+  checkedAt: "2026-10-14T00:00:00.000Z",
 };
 
 async function serverWith(
@@ -60,6 +92,10 @@ async function serverWith(
       () => Promise.resolve(coverage),
       () => Promise.resolve(attempts),
       () => feed,
+      // The baseline cost read (Task 5.3.2), stubbed for the same reason as
+      // the three above: the route takes a function, so no database and no
+      // `EXPLAIN` is needed to drive the arrangement that ships.
+      () => Promise.resolve(UNMEASURED_BASELINE_COST),
     ),
   );
 
@@ -208,6 +244,7 @@ describe("GET /diagnostics/database", () => {
         () => Promise.resolve([]),
         () => Promise.resolve([]),
         () => NO_FEED,
+        () => Promise.resolve(UNMEASURED_BASELINE_COST),
       ),
     );
     await instance.ready();

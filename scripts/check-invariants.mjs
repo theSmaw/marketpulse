@@ -3187,11 +3187,23 @@ const INVARIANTS = [
         // that is what is required — no arrow, no `function`, no `return`.
         // True of `packages/shared/src/index.ts`, the only intended
         // beneficiary.
+        //
+        // **`\breturn\b` was too wide and `index.ts` tripped on a FILENAME**
+        // (corrected 2026-10-14, Task 5.3.2). `\b` treats the hyphen in
+        // `./return-baseline.js` as a word boundary, so adding a module named
+        // for the thing it computes — a *return* baseline — made the one
+        // intended beneficiary of this exemption look like a file with a
+        // statement body, and the run reported `packages/shared/src/index.ts`
+        // as a re-implementer of `changeFromClose`. The clause's intent is *no
+        // statement body*, so it keys on a `return` that is a **statement** —
+        // followed by whitespace or a semicolon — rather than on the letters.
+        // `return;`, `return x`, `return (` and `return{` are all covered;
+        // `return-baseline.js` and `returnBaselineOf` are not.
         if (
           /export\s*\{[^}]*\bchangeFromClose\b/u.test(file.text) &&
           !/=>/u.test(file.text) &&
           !/\bfunction\b/u.test(file.text) &&
-          !/\breturn\b/u.test(file.text)
+          !/\breturn(?=[\s;({])/u.test(file.text)
         ) {
           return "a re-export barrel with no statement body";
         }

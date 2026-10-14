@@ -1,6 +1,6 @@
 # Task 5.3.2 — The Baseline, Computed & Persisted
 
-**Status:** Not started
+**Status:** Complete — 2026-10-14 — the pass runs over the real store in **11.78 s**, not the 3.5 minutes this story was built around, because **516 index scans over a correlated heap is the bandwidth regime** and this task file argued the opposite. The split guard refused **5 of 516**, and four of the five sit on exact split factors
 **Story:** [5.3 The Baseline, & the Price Percentile](STORY.md)
 **Depends on:** 5.3.1
 
@@ -166,3 +166,180 @@ recorded as a dated, partially-exposed measurement rather than as ADR 0035's
 ## What was done — 2026-10-14
 
 <!-- written at completion -->
+
+## What was done — 2026-10-14
+
+### It runs, over the real store
+
+```
+return baselines for 2026-09-11 — 60 sessions, 516 tracked securities
+window 2026-06-17T13:30:00.000Z … 2026-09-11T20:00:00.000Z
+measured 511, refused 5, no samples 0 (no row written)
+samples 2193087 total, 4292 mean n
+20.67 s first run; 11.78 s and 11.73 s warm
+```
+
+**`min(sample_count) = 737`, `max = 4,620`** — which confirms Gate 1 decision
+2's per-security variation **by measurement** rather than by derivation: the
+nominal 4,620 is a ceiling almost nobody reaches, and the floor is a sixth of
+it. AC 3's counted `n` and AC 6's refusal floor are doing real work.
+
+### The cost finding, and it contradicts this task file
+
+**This file said _one ordered pass with the arithmetic in SQL, not 516 index
+scans_, and that was an argument rather than a measurement — with its own
+evidence pointing the other way.** The same paragraph records **~45 rows a
+block**, i.e. a well-correlated heap, so a per-security range scan reads ~538
+**adjacent** blocks: that is the **bandwidth** regime, not the 120-IOPS regime,
+which prices _uncorrelated_ fetches. Built as 516 index scans with the
+arithmetic in Node, the whole pass is **11.78 s warm, 20.67 s cold** on a store
+of 48.8 M bars. ADR 0044 carries a dated amendment with the measurement.
+
+**And the first implementation was three times slower for a reason the
+`EXPLAIN` had to say out loud.** Reached through
+`innerJoin("securities") … where("securities.symbol", …)` the top plan node is a
+**`Sort` over 23,400 rows, 516 times a pass**, because `security_id` is not a
+constant to the planner until the join has produced one. Keyed on the row id the
+pass already holds, it is an `Index Scan` and nothing else: **20.67 s → 11.78 s**.
+A code comment claiming the index supplied the order for free was deleted and
+replaced by the measurement.
+
+### The split guard — argued, then validated
+
+`SPLIT_DISCONTINUITY_RATIO = 0.6`, applied to the overnight ratio and **its
+reciprocal**, because the bound has to be **multiplicatively symmetric**: a 1:2
+reverse split is `+100%`, which no percentage ceiling below 100 can separate
+from a genuine doubling. It must catch 2:1 (`0.5`) and admit the largest
+ordinary overnight gap in a universe of S&P constituents (±20–35% on earnings);
+`0.6` sits between with headroom both ways.
+
+**It refused 5 of 516 — about 1% — and four of the five sit on exact split
+factors**, measured from the store afterwards rather than assumed:
+
+| Symbol | Overnight ratio | What it is                                               |
+| ------ | --------------- | -------------------------------------------------------- |
+| `CRWD` | **0.2501**      | 4:1, to four decimal places                              |
+| `APH`  | **0.5017**      | 2:1                                                      |
+| `MNST` | **0.5084**      | 2:1                                                      |
+| `DD`   | **3.0639**      | a **1:3 reverse** split                                  |
+| `MRNA` | **1.8406**      | a reverse split with an ~8% move, **or a genuine event** |
+
+**Two of the five are above 1.0**, which is the empirical case for the
+reciprocal: a `±40%` bound would have caught the forward splits and missed both
+reverse ones. `MRNA` is the ambiguous one and is exactly what the recorded
+reversal trigger is for — _the first refusal traced to a market move rather than
+a corporate action_, at which point the guard needs **a second signal, not a
+wider number**.
+
+**And it quantifies `PROVIDER.md` §3.6's claim** that a split inside the window
+is _"likely, not hypothetical, at any realistic history depth"_: **five in 60
+sessions across 516 names**, measured.
+
+### The diagnostics route answers, cold
+
+```json
+{
+  "symbol": "NVDA",
+  "planNodeType": "Index Scan",
+  "scanNodeType": "Index Scan",
+  "planRows": 105,
+  "actualRows": 23400,
+  "sharedHitBlocks": 68,
+  "sharedReadBlocks": 581,
+  "elapsedMs": 20.2,
+  "sipRows": 23400,
+  "iexRows": 0
+}
+```
+
+**581 blocks read from disk** corroborates the 538 measured independently on a
+different security and window. **`105` against `23,400` is a 223× planner
+under-estimate**, corroborating the 212× recorded from another window — so that
+misestimate is a property of this query shape rather than of one sample, and it
+is the thing that could flip the deployed planner to a sequential scan. `iexRows:
+0` is the local store confirming it has never held a two-tape minute.
+
+### Seven things that turned out to be false, five of them in my own instructions
+
+1. **My brief's column-naming instruction was self-contradictory** — it asked for
+   a key named `as_of_session` _and_ for that column to be _"named in the
+   `observed_at` family"_. `migrations/README.md` §2 is explicit that
+   `observed_at` is a **reserved name, not a family**: the plugin's predicate is
+   literally `where "observed_at" <= $2`, so anything else _"is a table the seam
+   cannot cover"_. Named `observed_at`, which is what ADR 0044's stated purpose
+   requires; `asOfSession` survives as domain vocabulary.
+2. **The ordered-pass instruction**, above.
+3. **A `` word boundary was defeated by a FILENAME.**
+   `one-home-for-the-live-change`'s barrel exemption requires
+   `!/\breturn\b/.test(file.text)`; `\b` treats the hyphen in
+   `./return-baseline.js` as a word boundary, so **merely adding a module named
+   for a return baseline** made `packages/shared/src/index.ts` — the exemption's
+   one intended beneficiary — look like a file with a statement body, and the run
+   went red on a correct tree. Narrowed to `/\breturn(?=[\s;({])/u`, which is
+   the clause's actual intent, with the existing break re-proved red.
+4. **`stored-sources-only-through-the-merge` refused the obvious
+   implementation, correctly.** `bar_coverage` has exactly one querier, and that
+   premise is what lets the check scope its grep to one file. The store's own
+   `selectFrom("bar_coverage")` was a second. Repaired by adding
+   `readCoveredEnd(timeframe)` to the repository — a new question is a new
+   function — rather than by widening the check.
+5. **`migrate.database.test.ts` refused `sample_count integer`**, because
+   `README.md` §4 says a count is a `bigint` and that is enforced on every
+   `_count` column.
+6. **A database test passed for the wrong reason first**: a two-element
+   breakpoint array was refused by the breakpoint-count check before the
+   one-answer check could fire. Now `array_fill(1.0::double precision,
+array[101])`, with the trap written down beside it.
+7. **`pnpm help -a` lists no `baselines`**, and the detection was validated
+   against a known built-in (`clean`) in the same run rather than trusted.
+
+### Deliberate scope decisions
+
+- **AC 6's minimum sample is NOT implemented here.** `sample_count` is stored;
+  which `n` is too small to print is **presentation policy** and belongs to
+  5.3.3, which draws the figure. The migration carries `0003`'s
+  drop-check/add-check widening shape for the day a second refusal kind arrives.
+- **A security with no grid pairs gets no row at all**, because _the pass has not
+  reached this security_ and _the pass reached it and will not answer_ are
+  different facts and only the second is safe to stop retrying. **On CI's bare
+  store that is every security, for ever.**
+- **The cache's floor is 15 minutes rather than the precedent's one**, because
+  the `loadedFor` repair makes the condition stay true while tonight's
+  generation is unwritten. A baseline appears once a night; a quarter hour is
+  unobservable and it bounds a weekend at four small reads an hour.
+- **No new `pnpm invariants` check, so no break is owed.** The session-count
+  conjunct is Task 5.3.5's, per Gate 1's false premise 6 — and that check is
+  **correctly silent** on this lookback, which is session-scaled through the
+  calendar with no `getTime()` and no minute factor anywhere.
+
+### Gates
+
+- `pnpm verify` — **exit 0** at load 3.54, `58 invariants hold.`, **3,113 tests**.
+- `pnpm test:database` — **8 files, 259 tests**.
+- `pnpm migrate` + `pnpm baselines` end-to-end against the real local store, and
+  `GET /diagnostics/baseline-cost` answering from the running pair.
+- `pnpm break the-proxies-do-their-own-arithmetic` re-proved red after the regex
+  narrowing.
+
+## For a stakeholder — a status report, 2026-10-14
+
+**The baseline exists and it is far cheaper than the story assumed.** Computing
+sixty sessions of five-minute return history for all 516 securities takes
+**twelve seconds**, not the four-to-thirteen minutes this story was planned
+around. The estimate was arithmetic over the wrong kind of read; the measurement
+is of the real one.
+
+**The split guard works, and we now know it was needed.** Five securities in the
+current window carry price breaks that are not market moves — and four of them
+land on exact split ratios (a four-for-one, two two-for-ones, and a one-for-three
+reverse). Without the guard, each of those would have produced a confident,
+permanently wrong "most unusual move in this security's history" for sixty
+trading days. That is no longer hypothetical: it is five names, today, measured.
+The fifth is ambiguous and is flagged as such rather than assumed.
+
+Five of the seven things that turned out to be wrong were **in my own
+instructions** to the implementer, including one where simply adding a file whose
+name contains the word "return" broke an unrelated build check, because a regular
+expression treated a hyphen as a word boundary. All are corrected and recorded.
+
+**What a reader can see: still nothing.** The next task draws the percentile.

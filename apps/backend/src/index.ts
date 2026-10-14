@@ -63,6 +63,10 @@ import { resolveMarketData } from "./market-data.js";
 import { createLiveBarWriter } from "./live-bar-writer.js";
 import { createBarAttemptsRepository } from "./bar-attempts.js";
 import { createMarketBarsRepository } from "./market-bars.js";
+// The baseline's cost, measured by the replica because nothing else can reach
+// the deployed store (Task 5.3.2).
+import { readBaselineCost } from "./baseline-cost.js";
+import { createReturnBaselineStore } from "./return-baseline-store.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
 import { createMarketDataRoutes } from "./routes/market-data.js";
 import { createSecuritiesRoutes } from "./routes/securities.js";
@@ -170,6 +174,15 @@ app.register(
     // configuration alone. The connection half becomes real when Story 3.3
     // registers a stream, and this shape does not change when it does.
     () => readFeedDiagnostic(config, new Date(), marketStream),
+    // **The one measurement no machine outside Azure can take** (Task 5.3.2,
+    // amended in by Task 5.3.1): what the 60-session baseline read costs on the
+    // deployed store, and how many rows of each tape its window holds. The
+    // laptop that would otherwise have measured it cannot reach port 5432 at
+    // all, and `baseline-cost.ts` carries the owner's ruling that AC 1's
+    // *not in a route* governs COMPUTING the baseline rather than measuring it.
+    //
+    // It never runs the pass, and it is O(one security).
+    (symbol) => readBaselineCost(createReturnBaselineStore(database), symbol),
   ),
 );
 
