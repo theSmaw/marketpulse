@@ -189,9 +189,13 @@ regions' placement and nobody has taken it.
 was measured on the wrong screen and is corrected everywhere — if you find it
 again, it is a copy nobody swept.
 
-**3. One height in every state, reserved band by band, and NEVER a
-`min-height`.** `Relative performance` measures **240 / 240 / 240 / 302 px** at
-1440 / 1024 / 768 / 390, identical across nine states. The reason is not tidiness:
+**3. One height in every state, reserved band by band, and never a
+`min-height` that pins the REGION to a number.** `Relative performance` measures **240 / 240 / 240 / 302 px** at
+1440 / 1024 / 768 / 390, identical across nine states. **Corrected 2026-10-14:
+the absolute wording was wrong and that file holds three `min-height`
+declarations.** A band reserving its own room as
+`calc(2 * var(--line-height-micro))` is derived from a token and is the shipped
+idiom; what is forbidden is a number that pins the region. The reason is not tidiness:
 this region sits in a column of three, `Movers` paid 81 px for discovering it the
 other way round, and `MARKET-OVERVIEW.md` §1.4's trigger **fired** on the release
 that filled this region. The owner accepted a **+74 px** one-time step (136 at

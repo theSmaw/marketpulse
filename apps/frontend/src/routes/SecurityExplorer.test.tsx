@@ -25,6 +25,7 @@ const NO_LIVE_FEED = {
   fromSnapshot: new Set<string>(),
   resumes: 0,
   overview: undefined,
+  symbolReturn: undefined,
 } as const;
 
 // The route's tests drive the real component against a stubbed `fetch`, so the
@@ -653,7 +654,10 @@ describe("the Security Explorer shell", () => {
     // The count going down is the thing worth asserting. A region that acquires
     // a chart and keeps its placeholder is a screen that says it holds a plan
     // while holding the plan's output.
-    expect(screen.getAllByText(/^Filled by /)).toHaveLength(4);
+    // **Three since Task 5.2.3**, down from four: `Abnormal-move indicators`
+    // draws the 5-minute return and its sentence is deleted rather than
+    // amended, which is §71.3's judgement for the fourth time on this screen.
+    expect(screen.getAllByText(/^Filled by /)).toHaveLength(3);
 
     for (const plan of [
       "Filled by Epic 6 — Market Topology",
@@ -662,13 +666,13 @@ describe("the Security Explorer shell", () => {
       expect(screen.getByText(plan)).toBeTruthy();
     }
 
-    // **Two of Epic 5's three since Task 5.1.3**, which is why this one is
-    // still `getAllBy`: `Relative performance` draws, and
-    // `Abnormal-move indicators` and `Anomaly history` are Stories 5.2 and the
-    // deferral Gate 1 decision 7 recorded with a condition.
+    // **One of Epic 5's three since Task 5.2.3.** `Relative performance` draws
+    // and `Abnormal-move indicators` draws; `Anomaly history` is the deferral
+    // Gate 1 decision 7 recorded with a condition, and it is the only region on
+    // this screen still naming this epic.
     expect(
-      screen.getAllByText("Filled by Epic 5 — Anomaly Detection"),
-    ).toHaveLength(2);
+      screen.getByText("Filled by Epic 5 — Anomaly Detection"),
+    ).toBeTruthy();
   });
 
   it("gives every region its own sentence", async () => {
@@ -690,13 +694,15 @@ describe("the Security Explorer shell", () => {
     // 2026-10-13 carry no sentence at all, because
     // each holds a drawing that says what the sentence said in less space. That
     // is a different claim from *its sentence is unique* and is asserted above.
-    // **`Relative performance` left this list on 2026-10-13** (Task 5.1.3),
-    // which makes **three** regions with no sentence rather than two, and for
-    // the same reason both of the others left it: what was left was a caption
-    // for a drawing immediately below it, in the one column on this screen
-    // where height moves two other regions.
+    // **`Relative performance` left this list on 2026-10-13** (Task 5.1.3) and
+    // **`Abnormal-move indicators` on 2026-10-14** (Task 5.2.3), which makes
+    // **four** regions with no sentence rather than two, and for the same
+    // reason every one of the others left it: what was left was a caption for
+    // a drawing immediately below it, in the one column on this screen where
+    // height moves two other regions. The fourth's sentence had a second
+    // reason to go — it promised a score out of 100, which is Story 5.6's and
+    // is deliberately absent from the figure underneath it.
     for (const opening of [
-      "How unusual this security’s behaviour",
       "Which securities move with this one",
       "Primary-source evidence from SEC EDGAR",
       "Every earlier occasion this security",

@@ -166,8 +166,37 @@ test("a quiet socket says so without claiming data it never had", async ({
  * between reads is the poll's, and the only claim is *equal twice*, which is a
  * transition rather than an absence across a window.
  */
+/**
+ * **How long two equal reads must be APART before they are a baseline.**
+ *
+ * Added 2026-10-14 by Task 5.2.3, which made this spec red for a reason that
+ * was not the outage. `settledText` waited for *two consecutive equal reads*,
+ * and that catches everything still **arriving** — a request in flight, a frame
+ * on its way — while being blind to something **latent**: a sentence on a
+ * timer. `Abnormal-move indicators` says `No return yet.` at `useWaited`'s
+ * 2,000 ms floor, so the poll settled at ~200 ms, the floor fired afterwards,
+ * and `after` differed from `before` by a sentence the feed's death had nothing
+ * to do with. **The spec could not tell _the feed died_ from _two seconds
+ * passed_**, which is the one thing it exists to tell apart.
+ *
+ * Three regions now carry that floor and more will; the honest baseline is
+ * therefore *the text has been the same for longer than the longest deferral on
+ * the page*.
+ *
+ * **A BOUND rather than a copy of the floor, deliberately.** This package may
+ * import only `@marketpulse/shared` and the floor lives in the frontend
+ * (`SAY_NOTHING_ARRIVED_AFTER_MS`, 2,000 ms, in `use-waited.ts`), so writing
+ * 2,000 here would be a second copy of a timing number — the defect this
+ * repository keeps finding. What this asserts instead is *longer than any
+ * deferral*, which stays correct if the floor falls and goes **red rather than
+ * silent** if it ever rises past three seconds. That is the direction a wrong
+ * bound should fail in.
+ */
+const DEFERRED_SENTENCE_FLOOR_MS = 3_000;
+
 async function settledText(main: Locator): Promise<string> {
   let previous: string | undefined;
+  let previousAt = 0;
 
   await expect
     .poll(
@@ -175,8 +204,17 @@ async function settledText(main: Locator): Promise<string> {
         const current = ((await main.innerText()) || "")
           .replace(/\s+/gu, " ")
           .trim();
-        const settled = current.length > 40 && current === previous;
-        previous = current;
+        const now = Date.now();
+        const settled =
+          current.length > 40 &&
+          current === previous &&
+          now - previousAt >= DEFERRED_SENTENCE_FLOOR_MS;
+
+        if (current !== previous) {
+          previous = current;
+          previousAt = now;
+        }
+
         return settled;
       },
       {

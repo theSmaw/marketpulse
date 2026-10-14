@@ -1,0 +1,200 @@
+/*
+ * `Abnormal-move indicators` — **one band, reserved band by band** (Task
+ * 5.2.3).
+ *
+ * The region sits in a column of three with `Relative performance` directly
+ * below it, so a band that grows when a figure arrives moves that region under
+ * the reader. `Movers` paid 81 px for discovering that the other way round, and
+ * `MARKET-OVERVIEW.md` §1.4's trigger **fired** on the release that filled the
+ * middle region.
+ *
+ * **Nothing here is reserved for the score.** Stories 5.3, 5.5 and 5.6 each add
+ * their own band and each pays its own step; reserving for an unbuilt score is a
+ * guess 5.6 both re-measures and steps, and an empty reserved band is the
+ * picture Story 4.7 routed as a defect — *a gateway that is behind* and *this is
+ * next year's* drawn the same way.
+ *
+ * **No new geometry and no new colour.** Four rows of existing tokens: the micro
+ * label, `--font-size-metric` for the one headline figure (`BreadthLedger`'s
+ * hierarchy — one metric figure, everything else dense or micro), and
+ * `--ink-secondary` for both sentences under it. The price palette is
+ * `PriceChange`'s and is the redundant channel there.
+ */
+
+.region {
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * --- One band ---
+ *
+ * **No `min-height` on the band or on the region**, which is Story 5.1's
+ * hand-off item 3: a floor on the container makes the height depend on whichever
+ * row happens to be tallest, so it is the rows that reserve and the band is
+ * their sum. Each row below states its own room.
+ */
+.band {
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * The label, uppercase and letterspaced.
+ *
+ * **The four micro properties are SPELLED rather than composed**, which is the
+ * defect `MarketProxyStrip` repaired on 2026-09-26 and both ranked regions
+ * inherited: `composes: microLabel` concatenates class names, so a declaration
+ * in this rule that disagrees with `type.module.css` loses on stylesheet order
+ * however much it reads like an override. `text-transform` is the one that bit —
+ * it rendered `2026-09-11 · CLOSING PRICES` at the top of the landing page for a
+ * day. `pnpm invariants` refuses the shape by name
+ * (`a-compose-never-carries-an-override`).
+ *
+ * The string in the DOM is sentence case and the **drawing** is uppercase, so a
+ * listener is read `5-minute return` rather than five shouted words.
+ */
+.label {
+  margin: 0;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+}
+
+/*
+ * The figure's line box, and the **size seam** `MarketProxyStrip` established
+ * and `BreadthLedger` inherited: `PriceChange.change` composes `dataCell`, which
+ * states the face and the tabular figures and deliberately states **no size**,
+ * so the size is set here and the component needed no new prop.
+ *
+ * The room is held in every state. A refusal draws a sentence at the micro size
+ * in this box, so the box's height is the figure's rather than the sentence's —
+ * the region must be the same height whether or not a pair was found.
+ */
+.figure {
+  /*
+   * **A flex row, and that is a defect repaired rather than a layout
+   * preference.** Found by `pnpm probe` at all four widths, not by any test:
+   * with this box laid out inline, the four refusal states measured **125 px**
+   * against the measured states' **122 px** — a 3 px step at every width, in
+   * the one region that must not step, and invisible to jsdom, to every unit
+   * test and to a screenshot of a single state.
+   *
+   * The cause is baseline alignment. The paragraph's strut is a 20px font on a
+   * 26px line box; the refusal sentence inside it is an 11px font, so its
+   * half-leading is distributed differently and its baseline does not sit where
+   * the strut's does — so the line box is the **union** of the two and is
+   * taller than either. Blockifying the child takes the strut out of the
+   * question: a flex item's height is its own line box, and the container's
+   * floor is the one declared here.
+   */
+  display: flex;
+  align-items: baseline;
+  margin: var(--space-4) 0 0;
+  min-height: var(--line-height-metric);
+  font-size: var(--font-size-metric);
+  line-height: var(--line-height-metric);
+}
+
+/*
+ * The words that stand where a figure would be — **words rather than digits**,
+ * which is what tells a reader it is not a value, and never an em dash: `—` is
+ * `unchanged` in `PriceChange`, so a dash in this slot asserts a zero return.
+ *
+ * At the micro size inside a metric-height box, which is the same arrangement
+ * `RelativePerformance.absent` uses one region down.
+ */
+.absent {
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-metric);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The two instants and the observed count — **two lines of room at every
+ * width, measured rather than argued.**
+ *
+ * The clause is `Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5
+ * minutes`. Probed in Chromium at 11px: **one** line in the rail's 419 px
+ * content box at 1440 and in its 446 px box at 1024, **two** at 324 px with the
+ * second line holding one word. The first draft reserved **three** — argued
+ * from the 390 column rather than measured in it — and the probe's screenshot
+ * is what showed the 32 px of empty room under the clause at 1440.
+ *
+ * **One reserve at every width rather than a reserve per breakpoint**, and that
+ * is this region's geometry rather than a preference. Probed on the route:
+ * this region's content box is **419 / 446 / 318 / 308 px** at
+ * 1440 / 1024 / 768 / 390 — so the column does **not** narrow with the
+ * viewport, and 768's 318 px is within 10 px of 390's. A media query at
+ * `37rem` would therefore give the second line to 390 and withhold it from
+ * 768, which needs it just as much. Two lines is correct at all four, and the
+ * 16 px of slack at the two wide widths is the same price
+ * `RelativePerformance`'s two-line footer pays one region down.
+ *
+ * Story 4.7 paid for the two-line version of exactly this decision in `Movers`
+ * and `Market breadth`: a reserve one line short does not clip, it **steps the
+ * page** at the narrow width only, which is the width nobody develops at.
+ *
+ * `font-variant-numeric` is not set here on purpose: this is a sentence
+ * containing times, not a column of figures to align.
+ */
+.qualifier {
+  margin: var(--space-8) 0 0;
+  min-height: calc(2 * var(--line-height-micro));
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * Which tape the figure was measured on — invariant 6, **one short line for the
+ * region** and never a second copy of the chart's source note.
+ *
+ * One line of room, because the string is `Measured on IEX`: the two-tape
+ * spelling cannot arise from a window with no store fill in it, and a width
+ * reserved for a state the producer cannot reach is room held for ever for
+ * nothing.
+ */
+.tape {
+  margin: var(--space-4) 0 0;
+  min-height: var(--line-height-micro);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * --- The region with no frame about this security ---
+ *
+ * `RelativePerformance`'s two-box arrangement, and the second box is not a
+ * tidiness preference: a one-box version — `visibility: hidden` with a
+ * `visible` override on the same element — un-hides every reserved row along
+ * with the sentence, because `visibility` is inherited. That was live for ten
+ * days one region over.
+ */
+.room {
+  position: relative;
+}
+
+.reserved {
+  visibility: hidden;
+}
+
+/*
+ * `No return yet.` — the sixth honest-nothing noun in this product, centred in
+ * the band's own room because it is about the region rather than about the
+ * figure.
+ */
+.nothingArrived {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+}

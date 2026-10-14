@@ -13,6 +13,7 @@ import {
   type WireFeedState,
   type WireMarketOverview,
   type WireObservation,
+  type WireSymbolReturn,
 } from "@marketpulse/shared";
 
 import type { LiveObservation } from "./market-data-stream.js";
@@ -180,6 +181,24 @@ export interface MarketGatewayOptions {
    * deployment where nothing else would say so.
    */
   readonly overview: () => WireMarketOverview;
+  /**
+   * **One security's 5-minute return, built when a browser is owed one** (Task
+   * 5.2.3).
+   *
+   * A function rather than a value, for `overview`'s reason: this gateway
+   * decides *when* a browser is told something and must not decide *what* is
+   * true. `index.ts` supplies the producer, which reads the trailing window and
+   * calls the one pure function that can refuse.
+   *
+   * **It is asked for ONE symbol**, which is the whole shape of the Gate 1
+   * decision behind this frame: a field on every observation would be
+   * +54,525 B a frame at 516 subscribed for a figure about one security.
+   *
+   * **Required rather than optional**, for `overview`'s reason again: an
+   * optional producer makes a wiring mistake a region that is silent for ever
+   * on a deployment where nothing else would say so.
+   */
+  readonly symbolReturn: (symbol: string) => WireSymbolReturn;
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
   readonly clearTimer?: (timer: NodeJS.Timeout) => void;
   /**
@@ -229,6 +248,34 @@ export interface MarketGateway {
   readonly publishFeedState: () => void;
 }
 
+/**
+ * **What one attached browser asked for** (Task 5.2.3 widened this from a bare
+ * `Set<string>`).
+ *
+ * The two fields answer two different questions and are deliberately not one.
+ * `wanted` is *which prices do you want* — ~516 of them on a security page,
+ * because that screen renders the whole tracked universe below the panel.
+ * `focus` is *which one is this screen ABOUT*, which the subscription
+ * genuinely cannot say and which this gateway had no concept of before: the
+ * page declares it, exactly as it already declares the list.
+ *
+ * **A record rather than a second `Map` keyed on the same socket**, which is
+ * the shape where `drop`, `close` and the two listeners each have to remember
+ * to clean up twice and one of them eventually does not — a per-socket leak on
+ * a process that runs for weeks.
+ */
+interface Attachment {
+  readonly wanted: ReadonlySet<string>;
+  /** The security the screen is about, or `undefined` on a screen about none. */
+  readonly focus: string | undefined;
+}
+
+/** A browser that has connected and not yet said anything. */
+const NOTHING_WANTED: Attachment = {
+  wanted: new Set<string>(),
+  focus: undefined,
+};
+
 export function registerMarketGateway(
   app: FastifyInstance,
   options: MarketGatewayOptions,
@@ -237,6 +284,7 @@ export function registerMarketGateway(
     snapshot,
     feedState,
     overview,
+    symbolReturn,
     setTimer = (fn, ms) => setInterval(fn, ms),
     clearTimer = (timer) => {
       clearInterval(timer);
@@ -291,8 +339,7 @@ export function registerMarketGateway(
    * to a subscription. It is also the state every browser is in for the first
    * moments of every connection, including each reconnect.
    */
-  const clients = new Map<WebSocket, Set<string>>();
-
+  const clients = new Map<WebSocket, Attachment>();
   /**
    * Stop serving a browser that is not reading (Task 3.5.7).
    *
@@ -457,6 +504,38 @@ export function registerMarketGateway(
    * is what `the-overview-frame-is-not-a-heartbeat` holds; what moved is where
    * the *value* comes from.
    */
+  /**
+   * **One security's 5-minute return, as a frame** (Task 5.2.3).
+   *
+   * ## It is scoped, so it is built per focused symbol rather than once
+   *
+   * The contrast with `overviewMessage` below is the point. The aggregate is
+   * identical for every browser, so it is encoded once outside the per-client
+   * loop. This is **about one security**, so two browsers on two different
+   * securities are owed two different frames — and two browsers on the *same*
+   * security are owed the same one, which is why the sender memoises by symbol
+   * for the length of one batch rather than calling the producer per client.
+   *
+   * ## The cadence is the applied batch's, and ADR 0038's trigger does not fire
+   *
+   * That ADR's reversal trigger is *the first overview region whose cadence
+   * must differ from the applied-batch cadence*. This frame rides **exactly**
+   * the applied-batch cadence — it is sent from `publishObservations` and from
+   * `sendSnapshot`, the same two paths the aggregate uses, and it is refused on
+   * the keepalive for the same reason. What differs from the aggregate is the
+   * **scope**, not the rate, and nothing in that trigger is about scope. It is
+   * also not an `overview` region: it draws on `/securities/:symbol`. Evaluated
+   * and unfired, 2026-10-14.
+   */
+  const returnMessage = (symbol: string, figure: WireSymbolReturn): string =>
+    encodeMarketStreamMessage({
+      type: "return",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      sentAt: sentAt(),
+      symbol,
+      return: figure,
+    });
+
   const overviewMessage = (aggregate: WireMarketOverview): string =>
     encodeMarketStreamMessage({
       type: "overview",
@@ -541,7 +620,7 @@ export function registerMarketGateway(
       // **Attached with an empty subscription**, which is every browser for the
       // first moments of every connection including each reconnect. It receives
       // the feed's state and no observations until it says what it wants.
-      clients.set(client, new Set());
+      clients.set(client, NOTHING_WANTED);
 
       /**
        * What we already hold, for whatever this client has asked for.
@@ -553,7 +632,8 @@ export function registerMarketGateway(
        * subscribed security, on every subscribe and every reconnect.
        */
       const sendSnapshot = (): void => {
-        const wanted = clients.get(client) ?? new Set<string>();
+        const attachment = clients.get(client) ?? NOTHING_WANTED;
+        const { wanted, focus } = attachment;
         const observations: Record<string, WireObservation> = {};
 
         for (const [symbol, observation] of snapshot()) {
@@ -597,6 +677,24 @@ export function registerMarketGateway(
         // opened. The `??` is the cold-start arm and it is the only path on
         // which these two sends pay a join at all.
         send(client, overviewMessage(lastBroadcastOverview ?? overview()));
+
+        // **And this browser's own figure, if its screen is about one.**
+        //
+        // Beside the snapshot for the aggregate's reason: without it a browser
+        // that connects at 11:20 holds nothing until its security's next bar —
+        // a median of a minute and, for `ERIE`, **187**.
+        //
+        // **Computed fresh rather than served from a memo**, which is the
+        // opposite of the aggregate's rule one line up and is deliberate.
+        // Task 4.7.3 memoised the aggregate because a **recomputed** one
+        // contradicted the one every other tab was already looking at, region
+        // by region, on one screen. Nothing else on this screen is derived
+        // from the trailing window, so there is no second surface for this
+        // figure to contradict; and the recomputation is one walk over at most
+        // seven bars for one security, against a join over 516.
+        if (focus !== undefined) {
+          send(client, returnMessage(focus, symbolReturn(focus)));
+        }
       };
 
       // **The snapshot, on connect.** §11.1: a browser connecting under
@@ -645,7 +743,13 @@ export function registerMarketGateway(
           return;
         }
 
-        clients.set(client, new Set(decoded.message.symbols));
+        // **The focus arrives on the subscription**, so it is recorded in the
+        // same write — a browser that changes security changes both, and two
+        // writes would be two chances to record one of them.
+        clients.set(client, {
+          wanted: new Set(decoded.message.symbols),
+          focus: decoded.message.focus,
+        });
 
         // **A late subscribe is answered with what we already hold.** Without
         // this, a browser that subscribes after connecting waits for each
@@ -764,8 +868,34 @@ export function registerMarketGateway(
       // The encode happens per client because the payloads genuinely differ;
       // a shared encode would be a cache keyed on the subscription, which is a
       // mechanism with no measured problem behind it.
-      for (const [socket, wanted] of clients) {
+      // **One figure per focused SYMBOL, not per client** (Task 5.2.3). Two
+      // browsers on `/securities/NVDA` are owed the same answer, and the
+      // producer walks the window and refuses or divides; memoising it for the
+      // length of this batch is `overviewMessage`'s *one compute for
+      // everybody* at the only grain this frame has. The payload itself is
+      // still built per send, because `sentAt` is stamped per send.
+      const figures = new Map<string, WireSymbolReturn>();
+
+      for (const [socket, { wanted, focus }] of clients) {
         const scoped = scopedTo(wanted, observations);
+
+        // **The figure is sent only when the focused security's own bar
+        // arrived in this batch**, which is what keeps this frame off the
+        // ~16-a-minute cadence for a page whose security is quiet. The answer
+        // cannot have changed otherwise: the window only moves when something
+        // is recorded into it, and the producer's `asOf` selects the newest bar
+        // at or before now — so a batch carrying nothing for this security
+        // would re-send a byte-identical figure.
+        if (focus !== undefined && scoped?.[focus] !== undefined) {
+          let figure = figures.get(focus);
+          if (figure === undefined) {
+            figure = symbolReturn(focus);
+            figures.set(focus, figure);
+          }
+
+          send(socket, returnMessage(focus, figure));
+        }
+
         if (scoped === undefined) continue;
 
         send(

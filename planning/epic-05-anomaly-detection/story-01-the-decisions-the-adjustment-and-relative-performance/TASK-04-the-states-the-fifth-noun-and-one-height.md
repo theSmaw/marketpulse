@@ -215,8 +215,18 @@ over the states:
 **Identical to the pixel across `complete`, `ahead-while-falling`,
 `nothing-observed`, `everything-unknown`, `no-move-for-the-subject`, `no-sector`,
 `silent-reference`, `basis-refused`, `subject-is-its-benchmark` and
-`clipped-subject`** — nine states plus the clipped case. No `min-height`
-anywhere; every band reserves its own room.
+`clipped-subject`** — nine states plus the clipped case. ~~No `min-height`
+anywhere; every band reserves its own room.~~
+
+> **Corrected 2026-10-14 by Task 5.2.3, which read the file rather than the
+> record.** `RelativePerformance.module.css` holds **three** `min-height`
+> declarations — lines 42, 236 and 312 — and this sentence has been false since
+> the day it was written. **What is true is the rule it was trying to state**,
+> and the distinction is the whole point: a `min-height` that pins the REGION to
+> a number is a second home for four figures nothing below `pnpm e2e` can check;
+> a band reserving its own room as `calc(2 * var(--line-height-micro))` is
+> **derived from a token** and is the shipped idiom. Story 5.2's hand-off
+> inherited the absolute wording and is corrected in the same change.
 
 **Two limits, stated rather than implied.** These are workshop widths, so the
 region is 1374 / 958 / 702 / 324 px wide; on the route the rail is **419 px of

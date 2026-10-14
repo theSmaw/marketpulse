@@ -125,6 +125,12 @@ test("every empty region names the epic that fills it", async ({ page }) => {
   await page.goto(EXPLORER);
   await expect(page.getByRole("region", { name: "Price" })).toBeVisible();
 
+  // **Three since Task 5.2.3 filled `Abnormal-move indicators`** — and one of
+  // Epic 5's three, because two of the epic's reserved regions now draw. The
+  // last is `Anomaly history`, which NO story in Epic 5 fills: it was deferred
+  // at that epic's Gate 1 with a condition, _the first surface that needs a
+  // score older than the process_.
+  //
   // **Four since Task 5.1.3 filled `Relative performance`** — three of the
   // five later-epic placeholders were Epic 5's and two are, because the first
   // of this epic's three reserved regions now draws a comparison. The count is
@@ -139,10 +145,10 @@ test("every empty region names the epic that fills it", async ({ page }) => {
   // nothing in it, which reads as broken and goes red nowhere else; a
   // placeholder that survives the thing it was waiting for is a screen saying it
   // holds a plan while holding the plan's output.
-  await expect(page.getByText(/^Filled by /)).toHaveCount(4);
+  await expect(page.getByText(/^Filled by /)).toHaveCount(3);
   await expect(
     page.getByText("Filled by Epic 5 — Anomaly Detection"),
-  ).toHaveCount(2);
+  ).toHaveCount(1);
   await expect(
     page.getByText("Filled by Epic 6 — Market Topology"),
   ).toHaveCount(1);

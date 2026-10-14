@@ -3,13 +3,16 @@ import { describe, expect, it } from "vitest";
 import { toTicker } from "./ticker.js";
 import {
   MARKET_STREAM_PROTOCOL_VERSION,
+  decodeMarketStreamClientMessage,
   decodeMarketStreamMessage,
+  encodeMarketStreamClientMessage,
   encodeMarketStreamMessage,
   toWireObservation,
   toWireObservations,
   type BarsMessage,
   type FeedMessage,
   type OverviewMessage,
+  type ReturnMessage,
   type SnapshotMessage,
   type WireMarketBreadth,
   type WireMarketMovers,
@@ -20,6 +23,7 @@ import {
   type WireSessionBreadth,
   type WireSessionMovers,
   type WireStoredFigure,
+  type WireSymbolReturn,
 } from "./market-stream-protocol.js";
 
 const OBSERVATION = {
@@ -1382,5 +1386,155 @@ describe("a frame with no type at all is US, not a newer gateway", () => {
     expect(decoded.kind === "unreadable" && decoded.reason).toContain(
       "unknown message type",
     );
+  });
+});
+
+describe("the fifth message type, which is about ONE security", () => {
+  const MEASURED: WireSymbolReturn = {
+    measured: true,
+    percent: 0.4201680672268908,
+    from: { at: "2026-10-14T18:01:00.000Z", price: 119, feed: "iex" },
+    to: { at: "2026-10-14T18:06:00.000Z", price: 119.5, feed: "iex" },
+    observed: 3,
+    spanMinutes: 5,
+  };
+
+  const frame = (figure: WireSymbolReturn): ReturnMessage => ({
+    type: "return",
+    version: MARKET_STREAM_PROTOCOL_VERSION,
+    sentAt: "2026-10-14T18:06:00.500Z",
+    symbol: "NVDA",
+    return: figure,
+  });
+
+  it("round-trips a measured figure with both endpoints and both tapes", () => {
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(frame(MEASURED)),
+    );
+
+    expect(decoded.kind).toBe("message");
+    expect(decoded.kind === "message" && decoded.message).toEqual(
+      frame(MEASURED),
+    );
+  });
+
+  it("round-trips each of the three refusals", () => {
+    for (const refusal of [
+      "nothing-observed",
+      "no-earlier-endpoint",
+      "no-basis",
+    ] as const) {
+      const decoded = decodeMarketStreamMessage(
+        encodeMarketStreamMessage(frame({ measured: false, refusal })),
+      );
+
+      expect(decoded.kind === "message" && decoded.message).toEqual(
+        frame({ measured: false, refusal }),
+      );
+    }
+  });
+
+  it("strips a field the type does not declare", () => {
+    // The serialiser walks the MAP's keys, which is what makes a leak
+    // impossible on a socket nothing narrows. The internal shape this guards
+    // against is the backend's `ReturnEndpoint`, which carries a whole
+    // `BarSource` — a provider and a retrieval instant, neither of which is a
+    // claim about venues.
+    const leaky = {
+      ...frame(MEASURED),
+      return: {
+        ...MEASURED,
+        from: { ...MEASURED.from, retrievedAt: "2026-10-14T18:02:00.000Z" },
+      },
+    } as ReturnMessage;
+
+    expect(encodeMarketStreamMessage(leaky)).not.toContain("retrievedAt");
+  });
+
+  it("measures 298 bytes for a figure and 141 for a refusal", () => {
+    // **The number the Gate 1 decision is read against**, measured here rather
+    // than quoted: the rejected alternative — a field on every observation —
+    // is +54,525 B a frame at 516 subscribed, so this is a factor of **183**
+    // rather than the 221 B / 247× the brief estimated. The estimate did not
+    // carry two endpoints' tapes or a full-precision percentage.
+    // `TextEncoder` rather than `Buffer`: this package has no Node types on
+    // purpose — it is the one both the server and the browser import.
+    const bytes = (message: ReturnMessage): number =>
+      new TextEncoder().encode(encodeMarketStreamMessage(message)).length;
+
+    expect(bytes(frame(MEASURED))).toBe(298);
+    expect(
+      bytes(frame({ measured: false, refusal: "no-earlier-endpoint" })),
+    ).toBe(141);
+  });
+
+  it.each([
+    ["no symbol", { symbol: undefined }],
+    [
+      "a refusal this bundle cannot name",
+      { return: { measured: false, refusal: "weather" } },
+    ],
+    [
+      "an unreadable tape",
+      { return: { ...MEASURED, from: { ...MEASURED.from, feed: "lse" } } },
+    ],
+    [
+      "a non-finite price",
+      { return: { ...MEASURED, to: { ...MEASURED.to, price: null } } },
+    ],
+    ["one endpoint", { return: { ...MEASURED, from: undefined } }],
+  ])("refuses a frame with %s rather than drawing half of one", (_l, over) => {
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({ ...frame(MEASURED), ...over }),
+    );
+
+    expect(decoded.kind).toBe("unreadable");
+  });
+
+  it("carries a focus on the subscription, and omits it where there is none", () => {
+    const focused = encodeMarketStreamClientMessage({
+      type: "subscribe",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      symbols: ["NVDA", "AAPL"],
+      focus: "NVDA",
+    });
+
+    expect(JSON.parse(focused)).toEqual({
+      type: "subscribe",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      symbols: ["NVDA", "AAPL"],
+      focus: "NVDA",
+    });
+
+    // **Omission rather than `null`**, which is this module's rule for absence
+    // and is what keeps *this screen is about none of them* unambiguous.
+    const unfocused = encodeMarketStreamClientMessage({
+      type: "subscribe",
+      version: MARKET_STREAM_PROTOCOL_VERSION,
+      symbols: ["NVDA"],
+    });
+
+    expect(Object.keys(JSON.parse(unfocused) as object)).not.toContain("focus");
+
+    const decoded = decodeMarketStreamClientMessage(focused);
+    expect(decoded.message?.focus).toBe("NVDA");
+  });
+
+  it("keeps the SUBSCRIPTION when the focus is unreadable", () => {
+    // The subscription is the valuable half — a browser whose focus field was
+    // mangled must still receive its 516 prices — and a missing figure is a
+    // state the region draws honestly.
+    const decoded = decodeMarketStreamClientMessage(
+      JSON.stringify({
+        type: "subscribe",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        symbols: ["NVDA"],
+        focus: 7,
+      }),
+    );
+
+    expect(decoded.kind).toBe("message");
+    expect(decoded.message?.symbols).toEqual(["NVDA"]);
+    expect(decoded.message?.focus).toBeUndefined();
   });
 });

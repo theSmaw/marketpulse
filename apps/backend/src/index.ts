@@ -24,8 +24,12 @@ import {
   readFeedDiagnostic,
   readFeedState,
 } from "./feed-diagnostic.js";
-import { MARKET_STREAM_PATH, marketDateAt } from "@marketpulse/shared";
-import type { WireMarketOverview } from "@marketpulse/shared";
+import {
+  MARKET_STREAM_PATH,
+  isTicker,
+  marketDateAt,
+} from "@marketpulse/shared";
+import type { WireMarketOverview, WireSymbolReturn } from "@marketpulse/shared";
 
 import { registerMarketGateway } from "./market-gateway.js";
 import type { MarketDataStream } from "./market-data-stream.js";
@@ -34,6 +38,8 @@ import {
   snapshotOf,
 } from "./current-market-state.js";
 import { createTrailingWindow } from "./trailing-window.js";
+import { fiveMinuteReturn } from "./five-minute-return.js";
+import { toWireSymbolReturn } from "./five-minute-return-wire.js";
 import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
 import {
   buildMarketOverview,
@@ -878,9 +884,50 @@ void lastCloses.load(marketDateAt(new Date())).then(
   },
 );
 
+/**
+ * **One security's 5-minute return, for the browser whose screen is about it**
+ * (Task 5.2.3).
+ *
+ * The producer the gateway is given, and it is three lines because every
+ * decision in it was taken elsewhere: the window holds the bars
+ * (`trailing-window.ts`), the pure function picks the endpoints and refuses
+ * (`five-minute-return.ts`), and the mapper carries the answer to the wire.
+ * **Nothing here computes anything** — this is the wiring site, which is why
+ * invariant 1's *the figure comes from deterministic code* has one home for
+ * this figure rather than a second copy in a transport.
+ *
+ * **Synchronous, with no `await` and no I/O**, which is AC 7 held by there
+ * being nothing to await: the gateway calls this from inside
+ * `publishObservations`, which runs in the socket's own callback, where an
+ * unhandled rejection is a crashed process. Gate 1 decision 3 — no
+ * store-backed fill — is what keeps it that way.
+ *
+ * **`asOf` is read HERE and never travels onto the frame.** It selects the
+ * newer endpoint and nothing else; the instants a reader is shown are the two
+ * bars' own `startsAt`, so AC 5 — *it dates the observation, never the
+ * computation* — is a property of what the frame carries rather than of a
+ * renderer's discipline.
+ *
+ * **A focus that is not a ticker is answered rather than thrown on.** The
+ * string came off a socket, `toTicker` throws on anything that is not one, and
+ * a throw here would reach the socket's callback. `nothing-observed` is also
+ * the literally true answer: nothing has been observed for a symbol that
+ * cannot exist.
+ */
+const symbolReturn = (symbol: string): WireSymbolReturn => {
+  if (!isTicker(symbol)) {
+    return { measured: false, refusal: "nothing-observed" };
+  }
+
+  return toWireSymbolReturn(
+    fiveMinuteReturn(trailingWindows.read(symbol), { asOf: new Date() }),
+  );
+};
+
 const gateway = registerMarketGateway(app, {
   snapshot: () => snapshotOf(currentMarketState),
   overview: marketOverview,
+  symbolReturn,
   feedState: () => {
     const state = readFeedState(config, new Date(), marketStream);
     // `null` — no stream configured — reads as `disconnected` on the wire,

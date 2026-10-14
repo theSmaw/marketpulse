@@ -22,6 +22,7 @@ import type {
   WireFeedState,
   WireMarketOverview,
   WireObservation,
+  WireSymbolReturn,
 } from "@marketpulse/shared";
 import type { LiveObservation } from "./market-data-stream.js";
 import type { MarketGateway } from "./market-gateway.js";
@@ -82,6 +83,9 @@ interface ReceivedFrame {
   overview?: Record<string, unknown>;
   /** The published feed state, on a `feed` frame and on a `snapshot`. */
   feed?: Record<string, unknown>;
+  /** The focused security, on a `return` frame (Task 5.2.3). */
+  symbol?: string;
+  return?: Record<string, unknown>;
 }
 
 interface Client {
@@ -177,6 +181,12 @@ async function connectClient(port: number): Promise<Client> {
   return { socket, received, waitFor, waitForCount };
 }
 
+/** A refusal, which is what a gateway with no trailing window behind it owes. */
+const NOTHING_OBSERVED: WireSymbolReturn = {
+  measured: false,
+  refusal: "nothing-observed",
+};
+
 /**
  * The seams Task 4.7.7 needs and no earlier test did.
  *
@@ -187,6 +197,8 @@ async function connectClient(port: number): Promise<Client> {
 interface GatewaySeams {
   /** Read per send by the gateway, so a test can move it between publishes. */
   readonly feedState?: () => WireFeedState;
+  /** One security's 5-minute return (Task 5.2.3). */
+  readonly symbolReturn?: (symbol: string) => WireSymbolReturn;
   /** Captures the keepalive callback so a test can fire it deliberately. */
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
 }
@@ -210,6 +222,7 @@ async function attach(
       seams.feedState ??
       (() => ({ status: "live", feed: "iex", marketOpen: true })),
     overview,
+    symbolReturn: seams.symbolReturn ?? (() => NOTHING_OBSERVED),
     // `exactOptionalPropertyTypes`: absent and `undefined` are different types.
     ...(wallNow === undefined ? {} : { wallNow }),
     ...(seams.setTimer === undefined ? {} : { setTimer: seams.setTimer }),
@@ -1118,6 +1131,7 @@ describe("the join does not run with nobody attached (Task 4.8.11)", () => {
       snapshot: () => new Map(),
       feedState: () => ({ status: "live", feed: "iex", marketOpen: true }),
       overview,
+      symbolReturn: () => NOTHING_OBSERVED,
     });
 
     // It listens, because *nobody attached* has to be the client count rather
@@ -1335,5 +1349,141 @@ describe("a `feed` frame is published only when the view changes (Task 4.7.7)", 
       feed: "iex",
       marketOpen: true,
     });
+  });
+});
+
+describe("the market gateway's 5-minute return frame", () => {
+  // **Done-when 1: the figure reaches a browser from a frame this product's own
+  // server produced.** The codec is asserted in `market-stream-protocol.test.ts`
+  // and the window and the arithmetic in their own suites; what only a socket
+  // can show is the **routing** — which browser is sent which security's figure,
+  // and when.
+  //
+  // It is in the process suite for this file's stated reason: `pnpm test` is
+  // "no build, no socket, no database, no network" by contract, and a real
+  // `WebSocketServer` on loopback is a socket however local it is.
+
+  const MEASURED: WireSymbolReturn = {
+    measured: true,
+    percent: 0.42,
+    from: { at: "2026-09-16T13:56:00.000Z", price: 100, feed: "iex" },
+    to: { at: "2026-09-16T14:01:00.000Z", price: 100.42, feed: "iex" },
+    observed: 3,
+    spanMinutes: 5,
+  };
+
+  const subscribe = (
+    client: Client,
+    symbols: readonly string[],
+    focus?: string,
+  ): void => {
+    client.socket.send(
+      encodeMarketStreamClientMessage({
+        type: "subscribe",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        symbols,
+        ...(focus === undefined ? {} : { focus }),
+      }),
+    );
+  };
+
+  it("answers a subscribe that declares a focus with that symbol's figure", async () => {
+    const asked: string[] = [];
+    const a = await attach(new Map(), undefined, undefined, {
+      symbolReturn: (symbol) => {
+        asked.push(symbol);
+        return MEASURED;
+      },
+    });
+    await a.waitFor("snapshot");
+
+    subscribe(a, [NVDA, AAPL], NVDA);
+    await a.waitFor("return");
+
+    const frame = a.received.find((message) => message.type === "return");
+
+    // **The symbol is on the frame**, which is what lets a browser mid-navigation
+    // tell an answer about the previous security from one about this one.
+    expect(frame?.symbol).toBe(NVDA);
+    expect(frame?.return).toMatchObject({ measured: true, observed: 3 });
+    // And the producer was asked about the focused security rather than about
+    // the 200 others this browser also wants prices for.
+    expect(asked).toEqual([NVDA]);
+  });
+
+  it("sends NOTHING to a browser that declared no focus", async () => {
+    const a = await attach();
+    await a.waitFor("snapshot");
+
+    subscribe(a, [NVDA]);
+    await a.waitForCount("snapshot", 2);
+    a.received.length = 0;
+
+    a.gateway.publishObservations([observation("2026-09-16T14:01:00Z", 100)]);
+    await a.waitFor("bars");
+
+    // §11.1's omission semantics applied to a figure: a screen about no single
+    // security receives no frame about one, which is an ordinary state. Asserted
+    // AFTER a `bars` frame has landed, so this is *the gateway chose not to*
+    // rather than *the test did not wait*.
+    expect(a.received.some((message) => message.type === "return")).toBe(false);
+  });
+
+  it("sends it only when the focused security's own bar arrived", async () => {
+    let calls = 0;
+    const a = await attach(new Map(), undefined, undefined, {
+      symbolReturn: () => {
+        calls += 1;
+        return MEASURED;
+      },
+    });
+    await a.waitFor("snapshot");
+
+    // Focused on AAPL while subscribed to both, so the batch below carries a
+    // bar for a security this screen is not about.
+    subscribe(a, [NVDA, AAPL], AAPL);
+    await a.waitFor("return");
+    a.received.length = 0;
+    const afterSubscribe = calls;
+
+    a.gateway.publishObservations([observation("2026-09-16T14:01:00Z", 100)]);
+    await a.waitFor("bars");
+
+    // **The figure cannot have changed**, because the window only moves when
+    // something is recorded into it — so a frame here would be a byte-identical
+    // answer at the feed's 6.8–16.1 batches a minute. The producer is not even
+    // called.
+    expect(a.received.some((message) => message.type === "return")).toBe(false);
+    expect(calls).toBe(afterSubscribe);
+  });
+
+  it("asks the producer ONCE for two browsers on the same security", async () => {
+    let calls = 0;
+    const a = await attach(new Map(), undefined, undefined, {
+      symbolReturn: () => {
+        calls += 1;
+        return MEASURED;
+      },
+    });
+    await a.waitFor("snapshot");
+    const b = await a.join();
+    await b.waitFor("snapshot");
+
+    subscribe(a, [NVDA], NVDA);
+    subscribe(b, [NVDA], NVDA);
+    await a.waitForCount("snapshot", 2);
+    await b.waitForCount("snapshot", 2);
+    const afterSubscribes = calls;
+
+    a.received.length = 0;
+    b.received.length = 0;
+
+    a.gateway.publishObservations([observation("2026-09-16T14:01:00Z", 100)]);
+    await a.waitFor("return");
+    await b.waitFor("return");
+
+    // Two frames, one computation — the grain `overviewMessage`'s *one compute
+    // for everybody* has for a figure that is about one security.
+    expect(calls - afterSubscribes).toBe(1);
   });
 });

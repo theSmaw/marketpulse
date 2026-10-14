@@ -77,6 +77,7 @@ const LIVE = {
     fromSnapshot: NO_SNAPSHOT,
     resumes: 0,
     overview: undefined,
+    symbolReturn: undefined,
   },
   stale: {
     status: "stale",
@@ -88,6 +89,7 @@ const LIVE = {
     fromSnapshot: NO_SNAPSHOT,
     resumes: 0,
     overview: undefined,
+    symbolReturn: undefined,
   },
   disconnected: {
     status: "disconnected",
@@ -99,6 +101,7 @@ const LIVE = {
     fromSnapshot: NO_SNAPSHOT,
     resumes: 0,
     overview: undefined,
+    symbolReturn: undefined,
   },
   replaying: {
     status: "live",
@@ -110,6 +113,7 @@ const LIVE = {
     fromSnapshot: NO_SNAPSHOT,
     resumes: 0,
     overview: undefined,
+    symbolReturn: undefined,
   },
   /** Our own socket is gone. `STORY.md` open decision 3: this says so. */
   lost: {
@@ -122,6 +126,7 @@ const LIVE = {
     fromSnapshot: NO_SNAPSHOT,
     resumes: 0,
     overview: undefined,
+    symbolReturn: undefined,
   },
   /** The first paint. No word, and nothing collapses — see the cell beside it. */
   connecting: {
@@ -134,6 +139,7 @@ const LIVE = {
     fromSnapshot: NO_SNAPSHOT,
     resumes: 0,
     overview: undefined,
+    symbolReturn: undefined,
   },
   /** No provider: the grid's `—`, and the indicator renders nothing at all. */
   none: {
@@ -146,6 +152,7 @@ const LIVE = {
     fromSnapshot: NO_SNAPSHOT,
     resumes: 0,
     overview: undefined,
+    symbolReturn: undefined,
   },
 } satisfies Record<string, LiveFeedView>;
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 
 import type { LiveFeedView } from "../market/index.js";
 
+import { AbnormalMove } from "../components/AbnormalMove/AbnormalMove.js";
 import { BarSeriesPanel } from "../components/BarSeriesPanel/BarSeriesPanel.js";
 import { ChartAxis } from "../components/PriceChart/ChartAxis.js";
 import { PageHeader } from "../components/PageHeader/PageHeader.js";
@@ -97,12 +98,32 @@ export interface SecurityExplorerProps {
    * and breaks for the first screen wanting something an address does not name.
    */
   readonly onLiveSymbols?: (symbols: readonly string[]) => void;
+
+  /**
+   * Declare **which one of them this screen is about** (Task 5.2.3).
+   *
+   * A second callback rather than a widening of the one above, and the reason
+   * is the identity of the function that reaches the effect: `App` passes two
+   * `useState` setters, both stable for the life of the application, so the
+   * effects below run when the *values* change. One callback taking two
+   * arguments would have to be a `useCallback` in `App` or a fresh closure on
+   * every render — and a fresh closure in that effect's dependency list is 516
+   * symbols re-subscribed on every render of this route, which is the defect
+   * `liveSymbols`' own `useMemo` comment records.
+   *
+   * It is the page's own declaration for `onLiveSymbols`' stated reason: `App`
+   * renders `<BrowserRouter>` rather than living inside one, so it cannot read
+   * the address, and inferring a focus from a URL pattern couples the feed to a
+   * route shape.
+   */
+  readonly onLiveFocus?: (symbol: string | undefined) => void;
 }
 
 export function SecurityExplorer({
   marketFeed,
   liveFeed,
   onLiveSymbols,
+  onLiveFocus,
 }: SecurityExplorerProps) {
   // The hooks are called here rather than inside the regions, so a component
   // that throws hits `Region`'s own boundary and leaves the request that
@@ -276,6 +297,23 @@ export function SecurityExplorer({
       onLiveSymbols?.([]);
     };
   }, [liveSymbols, onLiveSymbols]);
+
+  // **And which of them the page is ABOUT** (Task 5.2.3), withdrawn on unmount
+  // for the subscription's reason: a screen that stops being shown stops
+  // asking, so a reader who navigates away is not still being sent a figure
+  // nothing renders.
+  //
+  // A second effect rather than a line in the one above, because the two
+  // declarations have different dependencies — this one is a string and that
+  // one is a memoised array — and folding them would re-declare the whole
+  // subscription whenever the symbol changed, which on this route is every
+  // navigation between two securities.
+  useEffect(() => {
+    onLiveFocus?.(symbol);
+    return () => {
+      onLiveFocus?.(undefined);
+    };
+  }, [symbol, onLiveFocus]);
 
   return (
     <div className={page.page}>
@@ -496,11 +534,33 @@ export function SecurityExplorer({
            * unusual is this?" share a column for that reason rather than landing
            * in three unrelated corners of the page.
            */}
-          <Region
-            name="Abnormal-move indicators"
-            filledBy="How unusual this security’s behaviour is right now, scored 0–100 with the reason beside it."
-          >
-            <RegionPlaceholder filledBy="Epic 5 — Anomaly Detection" />
+          {/*
+           * **Filled by Task 5.2.3, and the sentence goes rather than being
+           * amended.** It is §71.3's judgement for the fourth time on this
+           * screen, after Price, Volume and `Relative performance`: what is
+           * left is a caption for a figure immediately below it, in the band
+           * where height is most expensive — a column of three regions, where
+           * every pixel this one takes moves `Relative performance` and
+           * `Anomaly history` down. The region's *name* and its landmark are
+           * unchanged and still asserted.
+           *
+           * **It is also the sentence that would have had to be corrected.**
+           * It promised a score out of 100 with the reason beside it, and this
+           * story ships a 5-minute return and deliberately **no score and no
+           * band** — Gate 1 decision 4: a band with no score is a verdict this
+           * figure cannot license (ADR 0029). Leaving it standing would have
+           * put a promise of 5.6's content over 5.2's figure, which is the
+           * live claim `CLAUDE.md` says to amend rather than leave.
+           *
+           * **One region, filled progressively.** Stories 5.3, 5.5 and 5.6 add
+           * their own bands here, each paying its own step; nothing is reserved
+           * for a figure that is not built.
+           */}
+          <Region name="Abnormal-move indicators">
+            <AbnormalMove
+              symbol={symbol}
+              symbolReturn={liveFeed.symbolReturn}
+            />
           </Region>
 
           {/*

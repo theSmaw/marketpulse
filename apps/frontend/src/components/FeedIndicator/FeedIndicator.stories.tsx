@@ -38,6 +38,7 @@ const base = {
   fromSnapshot: NO_SNAPSHOT,
   resumes: 0,
   overview: undefined,
+  symbolReturn: undefined,
 } satisfies Omit<LiveFeedView, "status">;
 
 const VIEWS = {

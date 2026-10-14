@@ -48,6 +48,7 @@ const view = (over: Partial<LiveFeedView> = {}): LiveFeedView => ({
   fromSnapshot: NO_SNAPSHOT,
   resumes: 0,
   overview: undefined,
+  symbolReturn: undefined,
   ...over,
 });
 

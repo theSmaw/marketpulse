@@ -86,6 +86,28 @@ move_ were one sentence for a day.
    quiet decision has a reversal trigger.
 6. `pnpm verify` green; `pnpm e2e` green on the specs this touches.
 
+## Amended by Task 5.2.3 — 2026-10-14: one copy decision is yours, and one spec class is now this page's problem
+
+**The qualifier repeats the date**, and whether it should is this task's call
+because this task owns the region's copy. It prints
+`Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes`, because
+`formatBarInstant` is the one home for an instant and has no time-only form.
+The reasoning for keeping it is real — a time-only second endpoint is a **second
+spelling** of an instant, and the first endpoint's date is load-bearing, since a
+process quiet since Friday holds a valid pair days old — and it is still a
+repetition a reader notices. **If you change it, the change is a conditional
+grammar** (same day → time only), which is the thing UX warned against for the
+k-count; weigh that rather than re-deciding it by eye.
+
+**And the 2,000 ms floor is now a property any "nothing changed" assertion on
+this page has to outlast.** `security-feed-degraded.spec.ts` went red on
+`No return yet.` arriving, with the outage having nothing to do with it: its
+baseline settled at ~200 ms and the floor fired afterwards, so the spec could not
+tell _the feed died_ from _two seconds passed_. It is repaired with a bound
+(`3_000`, deliberately not a copy of the product's 2,000). **Any new spec of
+yours that compares the page across an interval inherits this**, and three
+regions now carry the floor.
+
 ---
 
 ## What was done — 2026-10-13

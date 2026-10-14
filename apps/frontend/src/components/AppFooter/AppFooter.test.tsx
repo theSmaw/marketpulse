@@ -40,6 +40,7 @@ function props(overrides: Partial<AppFooterProps> = {}): AppFooterProps {
       fromSnapshot: NO_SNAPSHOT,
       resumes: 0,
       overview: undefined,
+      symbolReturn: undefined,
     },
     backendStatus: "healthy",
     backendDegradedCause: null,
@@ -114,6 +115,7 @@ describe("AppFooter", () => {
             fromSnapshot: NO_SNAPSHOT,
             resumes: 0,
             overview: undefined,
+            symbolReturn: undefined,
           },
         })}
       />,
