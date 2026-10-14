@@ -127,7 +127,8 @@ function HeldRoom({ band }: { readonly band: ReturnBand }) {
 }
 
 /**
- * One band: a micro label, the figure, the qualifier and the tape.
+ * One band: a micro label, the figure and its percentile, the qualifier, the
+ * sample the percentile was taken against, and the tape.
  *
  * **The label's micro properties are SPELLED rather than composed**, which is
  * `MarketProxyStrip`'s 2026-09-26 defect and both ranked regions' inheritance:
@@ -158,15 +159,73 @@ function Band({ band }: { readonly band: ReturnBand }) {
             direction={band.move.direction}
           />
         )}
+
+        {/*
+         * **How unusual it is — a second cell on the figure's own row, and a
+         * FLEX ITEM rather than inline text** (Task 5.3.3).
+         *
+         * The row is a flex row for a reason this cell would otherwise pay
+         * again: a micro child inside a metric strut measured **125 px against
+         * 122** in Task 5.2.3, a 3 px step at every width, invisible to jsdom
+         * and to every unit test. A blockified child's height is its own line
+         * box and the row's floor is the one declared in the stylesheet.
+         *
+         * **`--ink-primary`, never the price palette.** The figure beside it is
+         * already tinted and that tint is `PriceChange`'s redundant channel;
+         * a second tinted number in one band is where the 1.04:1 greyscale
+         * difference becomes two numbers deep. What tells a reader this is not
+         * a change is the ordinal suffix, the absent `%` and the word itself.
+         */}
+        {band.percentile === undefined ? undefined : (
+          <>
+            {/*
+             * **A space, for the listener who gets no margin** (Task 5.3.3).
+             *
+             * `textContent` runs two sibling spans together with no separator,
+             * and the first draft of this component's test read
+             * `+0.42%99th percentile` — the gap on screen is `margin-left` and
+             * a screen reader cannot see one. A block boundary would give a
+             * pause, but the two figures are one row by design.
+             *
+             * **It costs no layout.** CSS Flexbox §4: a contiguous run of text
+             * directly inside a flex container becomes an anonymous flex item,
+             * and *an anonymous flex item that contains only white space is not
+             * rendered*. So this is a text node the accessibility tree reads
+             * and the box model does not — which is also why it is not a
+             * drawn `·`: the region's separator vocabulary is for clauses
+             * inside one sentence, and these are two figures.
+             */}{" "}
+            <span className={cx(styles.percentile)}>{band.percentile}</span>
+          </>
+        )}
       </p>
 
       {/*
        * **The two instants, oldest first, and how much of the span was
-       * observed.** Three lines of room are reserved whether or not it draws:
-       * the clause wraps to three at 390, and a region whose height depended on
-       * whether a pair had been found would step the page every time one was.
+       * observed.** **Two** lines of room are reserved whether or not it draws,
+       * because that is what the probe measured — the clause is one line in the
+       * rail's 419 px box at 1440 and two at 308 px, and a region whose height
+       * depended on whether a pair had been found would step the page every
+       * time one was.
+       *
+       * *(This comment said **three** from Task 5.2.3 until Task 5.3.3 swept
+       * it: the probe had corrected the reserve to two and the comment was left
+       * behind. The CSS was right throughout.)*
        */}
       <p className={cx(styles.qualifier)}>{band.qualifier ?? NBSP}</p>
+
+      {/*
+       * **What the percentile was taken against** — the counted `n`, the span
+       * the samples are of, and the pooling.
+       *
+       * Its own row rather than a clause on the qualifier above, because the
+       * two describe different things: that line is about **this observation**
+       * and this one is about the **sample** it was ranked in. The room is
+       * reserved at the height of the longest string the row can hold, which is
+       * the bias clause — so a figure read at 09:40 does not step the page
+       * under a reader who was looking at one read at 11:00.
+       */}
+      <p className={cx(styles.sample)}>{band.sample ?? NBSP}</p>
 
       {/*
        * **Which tape the figure came from** — invariant 6, one short line for

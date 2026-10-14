@@ -139,6 +139,13 @@ The analytics service might respond:
 
 The AI can explain the result but cannot invent it.
 
+> **Amended 2026-10-14 by Task 5.3.3, on the precision rather than on the
+> point.** This example's subject is _who calculates_, and that is unchanged.
+> The **value** is not what ships: §11's amendment of the same date records why
+> a printed percentile is an **integer** — the binomial standard error at the
+> 99th of n = 4,620 is 0.146 points — so the shipped figure is `98th
+percentile`, and `100th` is never printed at all.
+
 ---
 
 ## 5.2 Evidence before explanation
@@ -815,6 +822,32 @@ For example:
 > highest score in the universe may be 40, and that is the correct answer.
 > Epic 5's exit criterion is rewritten as a **shape** rather than a number for
 > this reason.
+
+> **Amended 2026-10-14 by Task 5.3.3 — the printed percentile is an INTEGER,
+> and `99.1%` above is a precision the sample cannot resolve.** The example
+> stands as the specification's illustration of the _idea_; what ships beside
+> the figure is `99th percentile`, and two things changed it. **The precision**:
+> the binomial standard error at the 99th percentile of n = 4,620 is **0.146
+> points**, so the first decimal of a `99.1` is below the resolving power of
+> the largest sample this universe produces — and the measured range of `n` is
+> **737 to 4,620**, which makes the first decimal worse than meaningless on
+> most securities. **The ceiling**: `100th` is never printed, because above the
+> highest order statistic there is **no sample** — a `100th` would assert a
+> strict maximum over a distribution that deliberately excludes the window
+> being scored (AC 4), which no reader can falsify. A magnitude strictly above
+> every sample draws **`>99th`**, which says the stronger and more useful
+> thing.
+>
+> And the shipped figure is spelled **`99th percentile`, never `99.1%`** —
+> amendment 1 above makes it a percentile of `|return|` and a `%` beside a
+> figure formatted by the same decimals as a price change is two numbers of
+> visibly the same kind, only one of which is a move. The precedent is §9,
+> which carries Story 4.4's refusal of percentages for the neighbouring reason:
+> a percentage hides its denominator. This one states it — `of 4,620 5-minute
+returns · all times of day pooled` — which is also where amendment 2's
+> **known cost** reaches a screen: in the opening thirty minutes the clause
+> becomes `opening 30 minutes, the fattest-tailed bucket — pooled, this reads
+high`, conditional on the **figure's own instants** rather than on a clock.
 
 ---
 

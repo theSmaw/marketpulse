@@ -3,6 +3,7 @@ import { asInstant } from "@marketpulse/shared";
 import type {
   WireObservedSpan,
   WireReturnEndpoint,
+  WireReturnPercentile,
   WireSymbolReturn,
 } from "@marketpulse/shared";
 import type {
@@ -10,6 +11,7 @@ import type {
   ObservedSpan,
   ReturnEndpoint,
 } from "./five-minute-return.js";
+import type { ReturnPercentile } from "./return-percentile.js";
 
 /**
  * **The 5-minute return, on the wire** (Task 5.2.3).
@@ -84,7 +86,52 @@ const toWireSeen = (seen: ObservedSpan | undefined): WireObservedSpan | null =>
         spanMinutes: seen.spanMinutes,
       };
 
-export function toWireSymbolReturn(figure: FiveMinuteReturn): WireSymbolReturn {
+/**
+ * **How unusual the magnitude is, as it travels** (Task 5.3.3).
+ *
+ * `undefined` becomes `null` for {@link toWireSeen}'s reason — an absent key
+ * and an explicit `null` are the same thing to a decoder while `undefined` is
+ * not a JSON value at all.
+ *
+ * **It is a field-for-field copy and deliberately so.** Nothing is derived
+ * here: the rank, the ceiling flag, the counted `n`, the grid stride and the
+ * baseline's tape are all answers {@link returnPercentileOf} already gave, and
+ * a transport that recomputed any of them would be a second producer for a
+ * figure invariant 1 says has exactly one.
+ */
+const toWirePercentile = (
+  percentile: ReturnPercentile | undefined,
+): WireReturnPercentile | null =>
+  percentile === undefined
+    ? null
+    : {
+        rank: percentile.rank,
+        aboveSample: percentile.aboveSample,
+        sampleCount: percentile.sampleCount,
+        spanMinutes: percentile.spanMinutes,
+        feed: percentile.feed,
+      };
+
+/**
+ * The figure and — where there is a baseline to compare it with — its
+ * percentile.
+ *
+ * **The percentile is a SECOND argument rather than a field on the figure**,
+ * and that is the same seam this module exists for. `fiveMinuteReturn` is pure
+ * over a trailing window and knows nothing about a 60-session distribution
+ * held in memory; the join of the two is the wiring site's, in `index.ts`,
+ * which is the one place that holds both. A `percentile` on `MeasuredReturn`
+ * would put a stored aggregate inside the one function Epic 13's replay calls
+ * with nothing but bars.
+ *
+ * **A refusal never carries one**, by construction rather than by a branch
+ * somebody has to remember: there is no magnitude to rank, and
+ * {@link WireMeasuredReturn.percentile} is the only member that has the field.
+ */
+export function toWireSymbolReturn(
+  figure: FiveMinuteReturn,
+  percentile?: ReturnPercentile,
+): WireSymbolReturn {
   if (!figure.measured) {
     return {
       measured: false,
@@ -100,5 +147,6 @@ export function toWireSymbolReturn(figure: FiveMinuteReturn): WireSymbolReturn {
     to: toWireEndpoint(figure.to),
     observed: figure.observed,
     spanMinutes: figure.spanMinutes,
+    percentile: toWirePercentile(percentile),
   };
 }

@@ -190,8 +190,13 @@ const MS_PER_MINUTE = 60_000;
  * anywhere in this module, which is why `one-home-for-the-observation-window`
  * is silent about it — correctly, and Story 5.3's Gate 1 records that as false
  * premise 6 rather than as a hole.
+ *
+ * **Exported since Task 5.3.3** for the reason the paragraph above gives for
+ * keeping it separate: the sentence under the percentile says what the samples
+ * are of, and a `5` typed in a browser would be the **fifth** home for this
+ * number and the one that does not move when this one does.
  */
-const SAMPLE_SPAN_MINUTES = 5;
+export const SAMPLE_SPAN_MINUTES = 5;
 
 /** What the pass learned about one security. */
 export type ReturnBaselineOutcome =

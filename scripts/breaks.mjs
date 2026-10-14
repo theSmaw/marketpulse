@@ -903,6 +903,32 @@ export const BREAKS = [
   },
 
   {
+    name: "the-opening-bias-asked-the-wall-clock",
+    proves:
+      "A bias clause that asks whether it is the open NOW rather than whether " +
+      "the FIGURE was measured at the open is caught — the defect that loses " +
+      "the clause on a window which ended at 09:43 and is read at 11:00, " +
+      "gains it on a stale Friday figure read on Monday morning, and is " +
+      "wrong in every state under a replay.",
+    // **The break is the edit a re-implementer finds obvious, not a synthetic
+    // one.** The sentence is about the open; the market has an open; a clock
+    // says whether it is now. Nothing on screen looks wrong in the state a
+    // developer checks — mid-morning during a session the two readings agree
+    // exactly — and the three states they disagree in are a reader doing
+    // nothing, a weekend, and Epic 13.
+    //
+    // The substitution keeps the session read in place, so what goes red is
+    // the clock conjunct rather than the one-home conjunct; the other half
+    // was proved by hand in Task 5.3.3's record, by moving the condition into
+    // a file of its own.
+    file: "apps/frontend/src/market/return-percentile.ts",
+    find: "const state = marketSessionStateAt(from);",
+    replace: "const state = marketSessionStateAt(new Date());",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-opening-bias-is-read-off-the-figure",
+  },
+
+  {
     name: "a-sector-with-its-curation-date-removed",
     proves:
       "A route that draws a curated sector with no source note on it leaves " +

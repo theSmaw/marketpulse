@@ -258,8 +258,15 @@ const BASELINE_TIMEFRAME = "1m" as const;
 /**
  * **The one tape, by name.** See the header for why this is not
  * `SERVED_TAPE_RANK`'s first entry, and why the two are not the same decision.
+ *
+ * **Exported since Task 5.3.3**, because the screen has to say it. Every
+ * comparison this story ships is a consolidated-tape baseline against an `iex`
+ * numerator (Gate 1's false premise 5), and invariant 6's rule is that
+ * provenance is **displayed, never implied** — so the clause a reader sees is
+ * built from the same constant this module's `where` is built from, and a tape
+ * changed here reaches the sentence rather than leaving it behind.
  */
-const BASELINE_FEED = "sip" as const;
+export const BASELINE_FEED = "sip" as const;
 
 /** A `float8[]` as `pg` hands it back, which is already `number[]`. */
 function toBreakpoints(raw: unknown): readonly number[] | null {

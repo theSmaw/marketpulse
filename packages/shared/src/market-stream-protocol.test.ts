@@ -22,6 +22,8 @@ import {
   type WireOverviewFigure,
   type WireSessionBreadth,
   type WireSessionMovers,
+  type WireMeasuredReturn,
+  type WireReturnPercentile,
   type WireStoredFigure,
   type WireSymbolReturn,
 } from "./market-stream-protocol.js";
@@ -1390,13 +1392,29 @@ describe("a frame with no type at all is US, not a newer gateway", () => {
 });
 
 describe("the fifth message type, which is about ONE security", () => {
-  const MEASURED: WireSymbolReturn = {
+  // **`WireMeasuredReturn` rather than `WireSymbolReturn`**, so the endpoints
+  // are reachable without narrowing at every use. Added 2026-10-14 with the
+  // percentile: the union's `keyof` is the intersection of its members', which
+  // is the same reason `measuredReturnFields` is its own map.
+  const MEASURED: WireMeasuredReturn = {
     measured: true,
     percent: 0.4201680672268908,
     from: { at: "2026-10-14T18:01:00.000Z", price: 119, feed: "iex" },
     to: { at: "2026-10-14T18:06:00.000Z", price: 119.5, feed: "iex" },
     observed: 3,
     spanMinutes: 5,
+    // **No baseline to compare it with**, which is the ordinary state and CI's
+    // permanent one. The percentile's own frames are below.
+    percentile: null,
+  };
+
+  /** A baseline comparison, as the gateway sends one (Task 5.3.3). */
+  const PERCENTILE: WireReturnPercentile = {
+    rank: 99,
+    aboveSample: false,
+    sampleCount: 4620,
+    spanMinutes: 5,
+    feed: "sip",
   };
 
   const frame = (figure: WireSymbolReturn): ReturnMessage => ({
@@ -1512,7 +1530,86 @@ describe("the fifth message type, which is about ONE security", () => {
     expect(encodeMarketStreamMessage(leaky)).not.toContain("retrievedAt");
   });
 
-  it("measures 298 bytes for a figure and 153 or 249 for a refusal", () => {
+  it("round-trips a percentile, and the five fields it carries", () => {
+    // Task 5.3.3. The rank is the only one of the five a reader could sanity
+    // check from the screen, so the other four are asserted here: without the
+    // counted `n` a 99th of 737 and a 99th of 4,620 are one claim, and without
+    // the tape every comparison silently inherits the numerator's venue.
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(frame({ ...MEASURED, percentile: PERCENTILE })),
+    );
+
+    expect(decoded.kind === "message" && decoded.message).toEqual(
+      frame({ ...MEASURED, percentile: PERCENTILE }),
+    );
+  });
+
+  it.each([
+    ["a rank above the ceiling", { rank: 100 }],
+    ["a rank below the floor", { rank: -1 }],
+    ["a fractional rank", { rank: 99.1 }],
+    ["a non-finite rank", { rank: null }],
+    ["an empty sample", { sampleCount: 0 }],
+    ["a non-finite sample", { sampleCount: null }],
+    ["no span", { spanMinutes: 0 }],
+    ["a tape this bundle cannot name", { feed: "lse" }],
+    ["no ceiling flag", { aboveSample: undefined }],
+  ])(
+    "reads %s as NO percentile, and keeps the figure",
+    (_label, over: Record<string, unknown>) => {
+      // **A percentile is the one figure on this frame nobody can eyeball.** A
+      // `140th percentile`, a `99.1st` the sample cannot resolve or an `n` of
+      // zero would each draw as a confident, well-formed claim — so the bounds
+      // are the decoder's, and anything outside them is *no comparison* rather
+      // than a number.
+      //
+      // **And the figure survives**, because the return is true whatever the
+      // comparison beside it was: refusing the frame would put the region back
+      // on *no frame has arrived*, which is a different and false claim.
+      const decoded = decodeMarketStreamMessage(
+        JSON.stringify({
+          ...frame(MEASURED),
+          return: { ...MEASURED, percentile: { ...PERCENTILE, ...over } },
+        }),
+      );
+
+      expect(decoded.kind === "message" && decoded.message.type).toBe("return");
+      expect(
+        decoded.kind === "message" &&
+          decoded.message.type === "return" &&
+          decoded.message.return.measured &&
+          decoded.message.return.percentile,
+      ).toBeNull();
+      expect(
+        decoded.kind === "message" &&
+          decoded.message.type === "return" &&
+          decoded.message.return.measured &&
+          decoded.message.return.percent,
+      ).toBe(MEASURED.percent);
+    },
+  );
+
+  it("reads a frame from a gateway that predates the field as no percentile", () => {
+    // The deploy rolls the backend first, but a **rollback pins a previous
+    // image** — so a new bundle meeting a gateway with no `percentile` key at
+    // all is the ordinary case rather than a broken one. Absent and `null` are
+    // one answer for that reason.
+    const older: Record<string, unknown> = { ...MEASURED };
+    delete older.percentile;
+
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({ ...frame(MEASURED), return: older }),
+    );
+
+    expect(
+      decoded.kind === "message" &&
+        decoded.message.type === "return" &&
+        decoded.message.return.measured &&
+        decoded.message.return.percentile,
+    ).toBeNull();
+  });
+
+  it("measures 316 bytes for a figure, 391 with a percentile, and 153 or 249 for a refusal", () => {
     // **The number the Gate 1 decision is read against**, measured here rather
     // than quoted: the rejected alternative — a field on every observation —
     // is +54,525 B a frame at 516 subscribed, so this is a factor of **183**
@@ -1523,7 +1620,14 @@ describe("the fifth message type, which is about ONE security", () => {
     const bytes = (message: ReturnMessage): number =>
       new TextEncoder().encode(encodeMarketStreamMessage(message)).length;
 
-    expect(bytes(frame(MEASURED))).toBe(298);
+    // **298 → 316 B on 2026-10-14** (Task 5.3.3): `,"percentile":null` is 18 B
+    // on every measured frame, and a frame carrying the comparison is **391**.
+    // The frame is sent once per subscribe and once per applied batch for the
+    // **one** focused security, so the ratio Gate 1 decision 1 was taken on —
+    // against +54,525 B a frame at 516 subscribed — is untouched: 391 B is a
+    // factor of **139**.
+    expect(bytes(frame(MEASURED))).toBe(316);
+    expect(bytes(frame({ ...MEASURED, percentile: PERCENTILE }))).toBe(391);
     // **The refusal grew on 2026-10-14** (Task 5.2.4): 141 → **153 B** with
     // nothing observed (`"seen":null`) and **249 B** carrying the one instant
     // it has. The figure is unchanged at 298, and the frame is sent once per
