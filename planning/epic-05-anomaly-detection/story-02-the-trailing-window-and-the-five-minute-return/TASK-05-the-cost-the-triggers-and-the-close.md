@@ -304,6 +304,32 @@ figure against any public five-minute chart — is **the only external check thi
 number will ever have**. Proved by plant that the gate now refuses Epic 5's close
 with **both** rows unwatched.
 
+## Amended by Task 5.3.5 — 2026-10-14: the hand-off this task wrote to Story 5.3 was wrong, in the direction that ships a guard green on its own defect
+
+This task's sideways hand-off told Story 5.3 that
+`one-home-for-the-observation-window` **would refuse** its 60-trading-session
+lookback — _"that is the check working"_. **It does not.**
+
+The check matches `getTime() - <n> * MS_PER_MINUTE` across every shipped source
+file. A lookback resolved through the **market calendar** has no `getTime()` and
+no minute factor anywhere, so it matches **neither** half and the run prints its
+usual counts with a second window on disk.
+
+**Proved rather than reasoned, at Story 5.3's close**: a planted
+`volume-baseline.ts` with its own `VOLUME_LOOKBACK_SESSIONS = 40` — the file
+Story 5.5 will plausibly write — passed with **`59 invariants hold.`**
+
+Story 5.3 added the **fourth conjunct**, keyed on the **session count** rather
+than on a name: a lookback whose count is **fixed by the module** is a policy and
+has one home, while `backfill.ts`, `fetch-bars.ts` and `series-request.ts` pass
+`wanted + 1`, `wanted` and `count` — a caller's quantity, not a second
+definition. Break: `a-second-session-lookback`.
+
+**The lesson is the one this repository keeps paying for**: a hand-off that
+promises a check will catch something is a claim about a mechanism, and a claim
+about a mechanism reads identically whether the mechanism is there or not. The
+hand-off should have said _go and plant the file and find out_.
+
 ## For a stakeholder — a status report, 2026-10-14
 
 **The cost question is answered, and the answer is that it costs nothing worth

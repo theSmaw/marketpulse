@@ -4288,3 +4288,49 @@ cannot exist. The bound on `sampleCount` against `sipRows` has therefore
 `select sample_count from return_baselines` for that security. **Owner: the
 first sitting on the deployed product after Epic 5 ships a percentile** — the
 same sitting `LIVE-REHEARSAL.md` owes a person.
+
+## A percentile is checkable against nothing on screen, and that is strictly worse than the return beside it
+
+**Added 2026-10-14 by Story 5.3's close.** The five-minute return already tripped
+_an aggregate is checkable by nothing_'s second condition — its two input prices
+are in process memory and on no frame. **The percentile is worse**: it is a rank
+against **4,620 samples drawn from 60 sessions of a table the browser never
+reads**, so a reader, a spec and a screen-reader pass have **no path to
+recompute it** from anything the page received.
+
+The frame carries the rank, the counted `n`, the span and the baseline's tape —
+enough to check the _claim's shape_, nothing to check the _figure_. Shipping the
+breakpoints would be 101 numbers a frame for something no surface draws, and was
+not taken.
+
+**So the only external check that will ever exist is a person with a public
+five-minute chart and a calculator.** `LIVE-REHEARSAL.md` row 5.3 carries it as
+item 1. **Re-measure:** there is nothing to re-run; this is discharged by a
+sitting or not at all.
+
+## The percentile break cannot reach its own assertions on any machine here
+
+**Added 2026-10-14 by Task 5.3.4.** `the-percentile-is-fabricated-rather-than-refused`
+breaks the producer into answering a confident `99th percentile` where it should
+refuse. It goes red — but **on the provider claim, not the percentile one**: a
+percentile needs a measured return, which needs a trailing window, which needs a
+provider, and **no machine here has one**. So the spec's `sampleCount ≤ sipRows`
+assertion has **never been exercised against a non-trivial value**.
+
+**Re-measure:** run `security-abnormal-move.spec.ts` against a deployment with a
+provider configured and a baseline written, and confirm the percentile-specific
+arm fires rather than the provider arm. **Owner: the first deployed sitting.**
+
+## Nothing measures how much fatter the opening bucket actually is
+
+**Added 2026-10-14 by Story 5.3's close.** The region states a known bias — _the
+opening 30 minutes is the fattest-tailed bucket, pooled, this reads high_ — and
+**nothing measures by how much**. If the opening bucket's 99th is 3× the
+midday bucket's, _reads high_ is an understatement a reader will act on; if it is
+1.1×, the sentence is noise occupying a line in a 142 px region.
+
+The measurement is cheap and nobody has taken it: bucket the existing 2.19 M
+samples by minute-of-session and compare the 99th percentile of the first six
+buckets against the rest. **Re-measure:** that query against
+`return_baselines`' own inputs. **Owner: the first story that re-opens the bias
+clause, or Story 5.6 when it scores this factor.**

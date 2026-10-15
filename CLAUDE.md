@@ -486,6 +486,43 @@ top of the screen was a column of prose beside a void. That screen is `PRODUCT_S
 them, and that is on purpose.~~ — **false since 2026-10-13: four do, and the
 fourth is Epic 5's first figures on any screen.**
 
+**And since 2026-10-14 that region says how UNUSUAL the move is, which is Story
+5.3 — the first figure in this product that compares something against its own
+history rather than reporting it.** Beside the return: `99th percentile`, the
+**counted** sample it was taken against, and the sample's **shape** —
+`of 4,620 5-minute returns · all times of day pooled`.
+
+Five things from it are load-bearing. **The expensive unknown was not
+expensive**: the story was built on a derived 4–13 minute full-universe pass and
+the measured one is **11.78 s warm, 20.67 s cold** over 48.8 M bars, because a
+per-security read is **538 blocks at ~45 rows a block** — a correlated heap, the
+bandwidth regime rather than the **120 provisioned IOPS** one. **The baseline is
+a nightly job keyed by the session it is FOR**
+([ADR 0044](docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md)),
+in `backfill.yml` after the fill, with its window-end column named `observed_at`
+**deliberately diverging from ADR 0042** so Epic 13's plugin covers it
+structurally. **Story 5.1's decision to fetch adjusted bars from the provider is
+REVERSED**: the store is read and a **split guard detects a discontinuity and
+refuses** — which answers `PROVIDER.md` §3.5 rather than skirting it, because
+that objection is about a _wrong adjustment_ being invisible and a refusal is
+visible by construction. It refused **5 of 516** on the real store, four on exact
+split factors (`CRWD` 0.2501, `APH` 0.5017, `MNST` 0.5084, `DD` 3.0639), two of
+them **above 1.0** — which is why the bound is a ratio and its reciprocal rather
+than a percentage. **The minimum sample is derived, not chosen**: an integer
+ordinal means the last digit is one percentile point, so `50/√n ≤ 1` gives
+`n ≥ 2500` exactly, and **11 of 511 securities refuse today**. And **`n` is
+counted, never a constant** — min **737**, max **4,620** — so
+`PRODUCT_SPEC.md` §11's own `99.1st percentile` example carries a dated
+amendment: integer ordinals are what 4,620 samples support, and `100th` is never
+printed because above the highest order statistic there is no sample.
+
+**What no gated machine and no person has ever seen is a percentile, drawn or
+refused** — CI has zero bars and no provider, so it exercises only the refusal
+path. `LIVE-REHEARSAL.md` carries row **5.3** unwatched, the third this epic
+owes, and the figure is **checkable against nothing on screen**: its inputs are
+60 sessions of a table the browser never reads, so the only external check that
+will ever exist is a person with a public five-minute chart.
+
 **And since 2026-10-14 `Abnormal-move indicators` draws too, which is Story
 5.2 — so two of the three regions this epic was given now hold figures.** For
 the security on screen: its **5-minute return**, the two instants it was

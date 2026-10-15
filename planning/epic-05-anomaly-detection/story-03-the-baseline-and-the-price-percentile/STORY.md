@@ -1,6 +1,6 @@
 # Story 5.3 — The Baseline, & the Price Percentile
 
-**Status:** In progress — 2026-10-14
+**Status:** Complete — 2026-10-14 — the pass is **11.78 s**, not the 4–13 minutes this story was built around; the minimum sample is **derived** at 2,500 and refuses 11 of 511; and the guard this story was promised would refuse its lookback was **green on the defect**, proved by planting the file Story 5.5 will write
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.2
 **Epic scope covered:** historical return distributions, return percentile calculation
@@ -212,8 +212,18 @@ makes your baseline a store read rather than a widening of this.
   security silent for 187 minutes keeps seven bars from 187 minutes ago, so a
   full window is **not** evidence of a recent one.
 
-**3. `one-home-for-the-observation-window` WILL refuse your lookback, and that
-is the check working.** It permits **exactly two** minute-scaled cutoffs: the
+**3. ~~`one-home-for-the-observation-window` WILL refuse your lookback, and that
+is the check working.~~ CORRECTED 2026-10-14 at this story's close: it does
+NOT, and that is worse than refusing it.** Proved by planting the file Story 5.5
+will plausibly write — a `volume-baseline.ts` with its own
+`VOLUME_LOOKBACK_SESSIONS = 40` — which passed with `59 invariants hold.` The
+check matches a **minute-scaled subtraction from an instant's milliseconds**, and
+a lookback resolved through the market calendar has no `getTime()` and no minute
+factor, so it matches neither half. A **fourth conjunct** now keys on the
+**session count** — a lookback whose count is _fixed by the module_ rather than
+handed in by a caller — with the break `a-second-session-lookback`. The original
+sentence is left standing because believing it is how this story nearly shipped a
+guard green on its own defect. It permits **exactly two** minute-scaled cutoffs: the
 eligibility cutoff in `market-breadth.ts` and the measurement span in
 `five-minute-return.ts`. A percentile lookback is **neither** — it is a third
 quantity — and the break
@@ -244,3 +254,73 @@ per width so you amend a measurement rather than inherit a guess — and
 terminal full stop except on the one region-level sentence. **A fifth refusal
 kind needs words of its own and a recorded reason for not being one of the
 twelve.**
+
+## Gate 2 — the acceptance criteria, verdicted — 2026-10-14
+
+**Three criteria were amended by the owner at Gate 1 and are verdicted AS
+AMENDED, with the originals quoted**, because a close that quietly verdicts the
+amended form destroys the record of what was asked for.
+
+| AC          | Verdict                                                 | Instrument                                                                                                                                                                                                                                  | Kind              |
+| ----------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| 1           | **Met**                                                 | A `backfill.yml` job after the fill; mechanism, wrapper and `pnpm baselines`; the alternatives and the reversal trigger in [ADR 0044](../../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md) | re-take           |
+| 2           | **Met**                                                 | Keyed `(security_id, observed_at)`, **no default** on the window end, asserted twice in `pnpm test:database`                                                                                                                                | re-take           |
+| 3 (amended) | **Met**                                                 | `n` **counted**, min **737** / max **4,620** measured over 511 securities; multiplicity asserts an extreme appears **once**, not five times                                                                                                 | re-take + reading |
+| 4 (amended) | **Met**                                                 | Store-read with a **split guard** — the owner's reversal of Story 5.1's decision 1 — refusing 5 of 516, four on exact split factors                                                                                                         | re-take + reading |
+| 5 (amended) | **Met for the baseline window, NOT for the comparison** | `feed = 'sip'` by name; `window.end` from `bar_coverage`'s covered end. **The comparison is a SIP baseline against an IEX numerator and cannot be otherwise**, which the region now says                                                    | re-take           |
+| 6           | **Met**                                                 | `BASELINE_MINIMUM_SAMPLE = 2500`, **derived** from the printed precision; the refused arm has **no readable member**, proved by `TS2578` when it is added back                                                                              | re-take           |
+| 7           | **Met**                                                 | `99th percentile`, integer ordinals, `>99th` ceiling; `PRODUCT_SPEC.md` §11 and §5.1 amended                                                                                                                                                | re-take           |
+| 8           | **Met**                                                 | `· all times of day pooled` always; the bias clause conditional on **the figure's own instants**, held by `the-opening-bias-is-read-off-the-figure`                                                                                         | re-take           |
+| 9           | **Met**                                                 | Every predicate a Kysely builder predicate, no `sql` fragment; the module exports no handle                                                                                                                                                 | re-take           |
+| 10          | **NOT MET, and deliberately so**                        | The local cold block count stands as the floor; the deployed arm is **unreachable from the operator's own laptop**                                                                                                                          | reading           |
+
+**AC 3's original** said `78 × 60 = 4,680`. It is **4,620** — 78 grid anchors
+yield **77** increments — and in practice a **counted per-security** number,
+because an early close gives 41 and median stored coverage is 82.8%.
+
+**AC 4's original** said the baseline is split-adjusted **by asking the
+provider**. The owner reversed it: the store, with a guard that **detects and
+refuses** rather than adjusts — which answers `PROVIDER.md` §3.5's objection
+instead of skirting it, because that objection is about a _wrong adjustment_
+being invisible, and a refusal is visible by construction.
+
+**AC 5's original** said _one tape per comparison_. That is **not achievable**:
+the numerator is `iex`-over-`iex` by construction and the baseline is `sip` only.
+It is met as _the baseline window is one tape_, and invariant 6 is answered on
+screen — `Measured on IEX · baseline on All US exchanges`.
+
+**AC 10 is not met and the story says so rather than quoting a laptop.** The
+deployed store is Entra-only **and unreachable from the operator's own machine**:
+outbound 5432 is refused, which is a precondition `HOSTING.md`'s operator path
+does not state. `GET /diagnostics/baseline-cost` was shipped so the replica
+measures itself, and **it has not yet been curled against the deployment**.
+
+### What a user can now see
+
+On `/securities/:symbol`, `Abnormal-move indicators` draws
+`▲ +0.42%   99th percentile`, the two instants, `observed k of 5 minutes`,
+`of 4,620 5-minute returns · all times of day pooled`, and
+`Measured on IEX · baseline on All US exchanges`. **The first figure in this
+product that says how unusual something is.**
+
+### What shipped open, with an owner and a condition
+
+- **Nobody has seen a percentile** — drawn or refused. Row **5.3** is in the
+  ledger unwatched, the third this epic owes, and `pnpm invariants` refuses the
+  epic's close with all three.
+- **AC 10's deployed arm**, above. **Owner: the first curl of the route.**
+- **The percentile break cannot reach its own assertions here**, so
+  `sampleCount ≤ sipRows` is unexercised. **Owner: the first deployed sitting.**
+- **Nothing measures how fat the opening bucket actually is**, so the bias
+  sentence is unquantified. **Owner: Story 5.6, or the first story to reopen it.**
+- **The two-tape inflation is still unmeasured** and is ~25% of steady state
+  whenever it is taken, because the live writer started 2026-09-23.
+
+### What was NOT verified, and why
+
+- **The deployed store has never run this code**, and the nightly job has never
+  fired.
+- **Every cost figure is one laptop**, warm page cache except where stated cold.
+- **No gated machine will ever draw a percentile**, so CI exercises only the
+  refusal path — which is also a cold replica's state, and is the one thing a
+  gated run proves well.

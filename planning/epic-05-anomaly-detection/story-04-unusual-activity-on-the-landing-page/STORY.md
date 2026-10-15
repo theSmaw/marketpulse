@@ -191,3 +191,46 @@ into fabricating a figure and watched a pure pass-through stay green. Your spec
 needs an **independent recompute** (`overview-movers-ranking.spec.ts` recomputes
 all 503 moves) or an **external reference**; `docs/GAPS.md` carries both shapes
 and the count of which existing specs have one.
+
+## Handed here by Story 5.3's close — 2026-10-14: ADR 0040's reversal trigger fires on you, and it takes ADR 0038's frame grain with it
+
+**1. The percentile you will rank exists, is refused honestly, and is per
+security on demand.** `return_baselines` holds 101 breakpoints and a counted
+`sample_count` per `(security_id, observed_at)`; the comparison is computed for
+**one** security when somebody is looking. Nothing computes it for 516.
+
+**2. ADR 0040's reversal trigger is _the first aggregate on this screen whose
+honest window is not breadth's_ — and a ranked list of percentiles on `/` is
+both an aggregate and on that screen.** Story 5.3 evaluated it and it did **not**
+fire, because a percentile is one security's figure and is not on `/`. **It
+fires on you**, and the lookback that fires it is the clearest instance the
+condition has ever had: breadth's window is **5 minutes**, the baseline's is
+**60 trading sessions**.
+
+**What falls due in the same instant**, so it is not discovered mid-task:
+`windowMinutes` stops being one number per frame; the **shared eligibility pass
+splits**, because the population eligible for a five-minute return is not the
+population with a 60-session baseline; the single `observedAt`/`computedAt` pair
+stops being true of the whole frame; and **ADR 0038's frame-grain trigger fires
+with it**. That is a product decision — two denominators on one screen — rather
+than plumbing.
+
+**3. You are also the story that fires Epic 14's backend condition**, evaluated
+and unfired three times now: _the first computation added to that callback that
+derives a figure per security_. Story 5.2 priced the window at **1.8–4.1 µs a
+batch** and the worst case (516 in one batch) at **30.8–37.1 µs**; the percentile
+lookup is a bounded search over 101 breakpoints and is cheap, but **516 of them
+in the socket callback is the shape the condition names**.
+
+**4. Eleven securities have no percentile at all today**, and your ranked list
+must say so rather than rank them last. `BASELINE_MINIMUM_SAMPLE = 2500` refuses
+`ERIE`, `NVR`, `AIZ`, `ESS`, `WST`, `GL`, `IEX`, `CINF`, `PKG`, `L` and `VRSN` —
+and a twelfth class, the securities whose window crosses an unadjusted split,
+refuses for a **different** reason that must not read the same. A ranked surface
+that silently drops a refused security is `Movers`' own lesson one surface over:
+**the population is part of the claim**.
+
+**5. A pass-through spec will not catch a wrong ranking.** `docs/GAPS.md` carries
+the two sufficient shapes and Story 5.3 proved they are not interchangeable: a
+planted `rank × 0.8 when n > 500` left the **golden sample green** and was caught
+only by an independent recompute.

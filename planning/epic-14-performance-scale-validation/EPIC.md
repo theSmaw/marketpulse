@@ -794,3 +794,38 @@ start, every no-provider deployment, **every gated run**). The **path** count
 is unchanged at three and `the-aggregate-has-three-producer-paths` still holds
 it. **If this epic wants the figure, re-take it with Task 4.8.11's recipe
 rather than dividing.**
+
+## Handed here by Story 5.3's close — 2026-10-14: a periodic multi-minute database pass is a cost class §28 has nothing to say about
+
+Epic 5 now runs a **nightly full-universe pass** over `market_bars` — a job in
+`backfill.yml` after the fill, computing 60-session return baselines for 516
+securities.
+
+**Measured on a developer's store (48.8 M bars), not derived:** **11.78 s warm,
+20.67 s cold**, 2,193,087 samples. Per security the read is **538 blocks at ~45
+rows a block** — a **well-correlated** heap, which is the bandwidth regime rather
+than the 120-IOPS one. The whole universe is **~2,105 MB**.
+
+**Three things for you.**
+
+**1. `PRODUCT_SPEC.md` §28 has nothing to say about a background pass**, and that
+silence is now a known gap rather than an assumption. Every target there is about
+a reader waiting — a main-thread task, an event reaching application state — and
+none of them constrains a job that runs while nobody is looking, on a **Burstable
+tier with a CPU-credit model**. Whether that wants a target, or wants saying out
+loud that it does not, is yours.
+
+**2. The deployed arm has never been taken, and the local one cannot stand in.**
+A laptop NVMe is orders above the tier's provisioned throughput, and
+**`HOSTING.md` provisions 120 IOPS rather than the SKU's advertised 640**. The
+measurement route exists — `GET /diagnostics/baseline-cost` returns the plan node
+type, the block counts and the two-tape row counts from inside Azure — because
+**the operator's own laptop cannot reach the database**: outbound 5432 is
+refused, which is a precondition `HOSTING.md`'s operator path does not state.
+
+**3. The planner under-estimates this read by 212–223×**, measured on two
+independent windows (`rows=114` against 24,142; `rows=105` against 23,400). That
+is the misestimate that would flip a per-security index scan into a sequential
+scan over 5 GB, and it is the single figure that decides whether the pass is
+~3.5 minutes or tens of minutes on the tier. **The plan node type matters more
+than the milliseconds.**
