@@ -250,6 +250,69 @@ decision rather than a measurement to record.
 topology` or `Unusual activity`, whose neighbours are figures rather than
 > hatch.
 
+> **Fired a SECOND time on 2026-10-15 by Task 5.4.1, on this screen, exactly
+> where the paragraph above said to watch for it** — _"`Market topology` or
+> `Unusual activity`, whose neighbours are figures rather than hatch"_. The
+> owner took the decision and **accepted it with the figures recorded**.
+>
+> **And it fired on a mechanism the condition's own wording does not describe,
+> which is why the wording is widened below.** Nothing was _filled_.
+> `Unusual activity` **could not be filled** — the region's own chrome is
+> **159 px** (border 2, header 47, body padding and `.content` margin 48, list
+> heading 16, two-line footer 48) against a row-1 length resolving to **161 px**
+> at 1440×900, so **zero rows fitted at every viewport height** and five rows
+> would have needed a **~1950 px** viewport. **The binding case was 900, not a
+> short viewport**, which is the opposite of how Story 5.4 had diagnosed it: at
+> 1440×680 the region was 342 × 119 against `scrollHeight 121`, so the shipped
+> **placeholder's own sentence** was overflowing a scroller with no visible edge.
+> That was found by a `pnpm probe` figure — `clientHeight` against
+> `scrollHeight`, printed only when they differ — **that did not exist until
+> that task added it**.
+>
+> So the repair was a **re-area** rather than a floor:
+> `"topology topology" / "sectors unusual" / "movers breadth" /
+"investigations investigations"`, the fourth row full width on an **`auto`**
+> track. Row 1 **stays a resolved length**, because that decision was taken for
+> Epic 6's renderer and the alternative was measured and refused (a content floor
+> on row 1: **+150 px** once, with four regions and the source note displaced).
+>
+> **What moved, measured at seven viewport pairs** (`pnpm probe`, before and
+> after): `Sector performance` and `Movers` moved **0 px in position and in
+> size**, at every width — so the shared-`fr` dividend this section is about
+> held exactly, and `Unusual activity`'s new **491 px** was pre-paid by its
+> neighbours. What moved is `Market breadth` — a **figure-bearing** region —
+> **+515 px** down with its box unchanged, `Current investigations` from
+> 342 × 491 to **1392 × 103**, and the page foot **+127 px** (document
+> 1722 → 1849 at 1440 and 1024). **768 moved 0 px.** 390 moved **+18 px**, and
+> that is one rewrapped line of the topology placeholder's sentence — which had
+> said it takes _"this column"_, false the moment the re-area shipped — rather
+> than the grid.
+>
+> **The +127 px is not the region's cost, and the distinction is the useful
+> part.** It is the cost of a **sixth region the plan had omitted**: Gate 1's
+> template named five areas for a six-region grid, leaving out
+> `Current investigations`, and a `grid-area` naming an undeclared area is
+> auto-placed into an **implicit** row rather than erroring — the same class of
+> silent layout defect as the `span N` trap in §1.2. A prediction made before the
+> measurement — _no page growth at 1440 or 1024_ — was **right about the
+> mechanism and wrong by +127 px** for that reason, which is this section's third
+> such entry after 383 → 433 → **461**.
+>
+> **The condition is therefore widened, and the original is kept beside it
+> because it was right about the hazard and wrong about the only route to it:**
+>
+> > **A reserved region's floor is set by the change that draws its content, and
+> > that change measures and reports the movement before it merges — and a
+> > change that MOVES a region holding figures, without filling anything, owes
+> > the same measurement and the same decision.**
+>
+> **What the trigger keeps.** Two of the three reserved regions remain
+> (`Market topology`, `Current investigations`), and the next firing to watch for
+> is **Epic 6's**, whose region is now 1392 px wide and whose neighbours below it
+> are the sectors and the movers. Note also that the figure handed to Epic 6 is
+> **not** a fixed box: the height still tracks the viewport, so `1392 × 161` is
+> 1392 × 119 at a 680 px viewport and 1392 × 123 at 700.
+
 ### 1.5 A region is a tab stop unconditionally
 
 [ADR 0039](../../docs/adr/0039-a-region-is-a-tab-stop-unconditionally.md), Task

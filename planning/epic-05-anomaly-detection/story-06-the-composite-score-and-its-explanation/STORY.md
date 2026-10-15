@@ -213,3 +213,62 @@ proved rather than asserted: a planted signed-percentile defect was caught by
 `rank × 0.8 when n > 500` by the **independent recompute only — with the golden
 sample green**. A composite is harder to eyeball than a percentile, so expect to
 pay for all three again.
+
+## Handed here by Story 5.4's Gate 1 — 2026-10-15: the band chip on `/` is yours, and so is the amber collision
+
+**1. Story 5.4 ships NO band chip, so you are the story that first draws one on
+`/`.** Its Gate 1 decision was to rank `Unusual activity` by the **price
+percentile** and draw the **ordinal** (`99th percentile`), because
+`packages/shared/src/anomaly.ts` deliberately refuses to hold the score→band
+boundaries — _"inventing thresholds now would be a number that outlives the
+guess that produced it"_ — the four bands are defined for **your** composite
+0–100 score, and 5.4 ranks on **one factor of four**, so a chip there would have
+read `extreme` on price alone. **The percentile→band cut-points are still
+unbuilt and they are yours**, with their alternatives and a reversal trigger.
+
+**2. The amber ramp has FOUR meanings on one token and you are the story that
+puts two of them in one frame.** Verified 2026-10-15: `market.css` resolves
+**`--anomaly-high`, `--feed-stale`, `--service-degraded` and
+`--provenance-synthetic` all to `--palette-amber: #e2b544`**. The status bar is
+**sticky**, so a drawn `high` chip and a `STALE` feed cell are always in the
+viewport together — directly adjacent at 390, ~700 px apart at 1440. It stays
+**correct**, because neither is colour-only (the chip writes its band name
+inside the fill, the cell writes the word), but it is not **coherent**, and the
+deferred-versus-degraded hatch collision `MARKET-OVERVIEW.md` already records is
+the same mistake one channel over.
+
+**What to do with it, because arguing it will not settle it.** The ramp's
+internal greyscale steps are **1.12 / 1.43 / 1.59** and the
+chip-against-chrome step is **1.00** — so **no greyscale simulation of the
+region alone can show this**. It needs a **conjunction** row in the kept
+degraded grid: a drawn `high`/`extreme` chip **while** the feed is stale, and
+again while the backend is degraded, at four widths, **in greyscale and in
+colour**. A conjunction rather than a new surface, because the collision exists
+only in the pairing. The candidate repair nobody has costed is moving
+`--service-degraded` and `--provenance-synthetic` off the ramp — they are
+chrome, and the anomaly ramp is the page's subject — but take that to Design
+with the photographs in hand rather than before.
+
+**3. `band` already names two different things in this code**, and 5.4 avoided
+the collision only by shipping no chip. `ReturnBand` / `fiveMinuteReturnBand`
+use _band_ for **a horizontal row** of `Abnormal-move indicators`, not a
+classification, so a chip in those rows produces `ReturnBand.band`. **Rename one
+before you write a line** — the recommendation is that the region's rows become
+`IndicatorRow` and `band` is reserved for `AnomalyBand`, because `AnomalyBand`
+crosses the wire and the other does not.
+
+**4. `AnomalyBadge` ships `min-width: 6rem` (96 px) and has never been drawn on
+a live surface** — its only consumers are the Story 1.4 demonstrator and
+stories. On `/` the region sits in the **narrow** column: **~308 px of content
+at 1440 and ~323 at 1024**, non-monotonically, so the full chip is roughly a
+third of the row. Expect to owe a **compact variant that keeps the written
+name** — never an abbreviation and never a dot, because the word inside the fill
+is the entire second channel.
+
+**5. The region you are amending states THREE populations and two bases.** Story
+5.4 ships the 501 equities, the count heard from in the last five minutes, and
+the count with a baseline long enough to rank — two sentences from the one
+builder — plus an **observed** basis in session and a **session** basis out of
+hours from a nightly persisted score. A composite adds the volume factor's own
+population, so check whether your figure makes a **fourth** before assuming the
+sentences still hold.

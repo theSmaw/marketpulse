@@ -211,3 +211,65 @@ note and the 516-row `Tracked universe` table down by **74 px** at 1440, 1024 an
 768 and **136 px** at 390. The owner accepted it with the figures recorded. On
 `/`, `Market topology`'s neighbours are figures rather than hatch, so take the
 before/after at all four widths **before** the merge, and say what moved.
+
+## Handed here by Task 5.4.1 — 2026-10-15: your region's box changed shape, and it is wider rather than taller
+
+**`Market topology` now spans BOTH columns of `.regions` and is the whole first
+row.** Story 5.4 had to re-area the landing grid because `Unusual activity`,
+which shared row 1 with you, could not draw a single row there — the region's own
+chrome is **159 px** against a row-1 length that resolves to **161 px** at a
+900 px viewport, so zero rows fit at every viewport height. The areas are now:
+
+```
+"topology topology"
+"sectors unusual"
+"movers breadth"
+"investigations investigations"
+```
+
+**Your resolved box, measured 2026-10-15 with `pnpm probe` (not derived):**
+
+| viewport | before     | after          |
+| -------- | ---------- | -------------- |
+| 1440×900 | 1026 × 161 | **1392 × 161** |
+| 1024×900 | 595 × 161  | **976 × 161**  |
+| 1440×700 | 1026 × 123 | **1392 × 123** |
+| 1440×680 | 1026 × 119 | **1392 × 119** |
+
+**Three things to take from that, and the third is the one that will surprise
+you.**
+
+**1. You gained width and lost nothing.** +366 px at 1440 and +381 at 1024, same
+height, and `Unusual activity` is no longer in your row at all — so the
+`minmax(min-content, …)` pressure a filled sibling would have put on a track you
+share is gone. The decision that row 1 stays a **resolved length** rather than
+becoming content-sized was kept **specifically** for your renderer; Story 5.4
+measured the alternative (a content floor on row 1) at +150 px and four
+displaced regions and did **not** take it.
+
+**2. The height still tracks the viewport**, and it always did —
+`calc((82vh - 2 * var(--space-24)) * 7 / 30)`. So **`1392 × 161` is a figure at
+one viewport, not your box.** It is 119 at a 680 px viewport and 123 at 700.
+A canvas sized from a `ResizeObserver` is fine; one sized from the `calc`, or
+from a remembered `161`, is not. This is written out because the hand-off almost
+shipped as the bare pair.
+
+**3. At ≤860 nothing changed at all.** That block sets
+`grid-template-rows: none` and its one-column order is unchanged —
+`breadth, sectors, movers, topology, unusual, investigations` — verified
+byte-identical at 768 (every box, 0 px of movement).
+
+**And one finding that is live for you rather than for Story 5.4.** Task 4.7.9
+row 08 found that a rollback omitting a section draws a region **exactly like one
+this product has not built yet** — same hatch, same muted sentence, differing
+only by the **absence** of an `EPIC n` badge. Story 5.4 deletes
+`Unusual activity`'s reserved panel, so after it **two** badged hatches remain
+(yours and `Current investigations`) and after you, **one**. The fewer badged
+hatches there are on the screen, the more a badge-less hatch reads as the house
+style rather than as something wrong — so the first commit that renders a graph
+node should settle what a _degraded_ topology looks like against a _deferred_
+one, which `MARKET-OVERVIEW.md` already records as one picture today.
+
+**The interim-layout condition is unchanged and still yours**: the landing grid
+reverts to the canvas's end state on **the first commit that renders a graph
+node**.

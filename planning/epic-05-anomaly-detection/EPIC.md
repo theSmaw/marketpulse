@@ -48,6 +48,21 @@ one-to-one and were written by an earlier story that nobody had acted on.
 at the end.** The 60-day baseline is **11.72M minute rows ≈ 2.23 GiB** against a
 256 MB `shared_buffers`, so a full-universe cold pass is **4–13 minutes** and
 cannot live in the socket callback, a route or a migration — that lands in 5.3.
+**The cost band above is FALSE and is left standing as the dated projection it
+was — corrected 2026-10-15 by Story 5.4's Phase 1, which found this file had
+never been swept.** Story 5.3 measured the shipped pass over the real store at
+**11.78 s warm and 20.67 s cold** (`TASK-02`, two further runs 11.78 / 11.73 s;
+[ADR 0044](../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md)
+carries the table), because **516 index scans over a correlated heap is the
+bandwidth regime** rather than the random-read regime the projection assumed —
+a factor of **20–66×**. The _conclusion_ this premise was used for survives
+untouched and is the reason the error is cheap: 11.78 s still cannot live in a
+socket callback, a route or a migration, so the nightly shape 5.3 shipped is
+unchanged. What the band did distort is the **risk framing** — this was called
+one of _"the two expensive unknowns"_ and it is not expensive. Story 5.3's close
+propagated the figure **sideways** into Story 5.5 correctly and missed it
+**upward** here, which is `CLAUDE.md`'s _falsification travels upward_ rule
+failing in the one direction nothing sweeps by itself.
 The volume factor rests on **IEX's share of volume, which nothing in this
 repository has measured** — that lands in 5.5, which opens by measuring it.
 

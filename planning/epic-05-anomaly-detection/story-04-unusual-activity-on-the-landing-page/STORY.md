@@ -46,6 +46,135 @@ it heard from.
 to 5.3 filled the security page first. This is deliberate: a list of names with
 nowhere useful to go is the trap Story 4.5 shipped and Story 4.6 had to repair.
 
+## Gate 1 — decisions taken 2026-10-15, and six false premises corrected
+
+**Five roles shaped this story and between them found six false premises, three
+of which are in the acceptance criteria below and two of which were written
+into this file by my own hand-offs at Stories 5.2's and 5.3's closes.** The
+criteria are **left standing** as the record of what was specified; this section
+amends them and **wins** where it disagrees.
+
+### The four decisions
+
+1. **The region ranks by the price percentile and draws the ORDINAL — there is
+   no band chip in this story.** `packages/shared/src/anomaly.ts` deliberately
+   refuses to hold the score→band boundaries (_"inventing thresholds now would
+   be a number that outlives the guess that produced it"_), the four bands are
+   defined for the **composite 0–100 score**, and this story ranks on one factor
+   of four — so a chip here would read `extreme` on price alone. `AnomalyBadge`
+   is drawn by **no shipped route** today. **This amends AC 11**: _nothing is
+   unusual right now_ is read off the **ordinal** (a row reading `62nd
+percentile` is visibly ordinary), not off band names. Alternative rejected:
+   inventing the cut-points, which pays for them twice because Story 5.6
+   re-derives them. **Reversal trigger: the first surface that needs to say how
+   unusual something is without room for an ordinal.**
+2. **Out of hours the last session's closing score is drawn, from a NIGHTLY
+   PERSISTED row.** As written AC 12 was **unsatisfiable**: migrations stop at
+   `0013`, there is no score table, and `trailing-window.ts` has **no
+   store-backed fill** by Epic 5's own Gate 1 decision 3 — so a restarted
+   replica (every merge) holds nothing, while a process that was up at the bell
+   would serve yesterday's 15:55→16:00 pair **for ever**, because eviction is
+   relative to `newest.bar.startsAt − retainMs` **inside `record()`** and
+   nothing arrives when the market is shut. The baseline job already performs
+   this read in **11.78 s**, so one row per security per session keyed by the
+   session is [ADR 0044](../../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md)'s
+   proven shape. **This dissolves the AC 3 ↔ AC 12 contradiction** rather than
+   trading it: `MeasuredQualifier` has exactly two members, `observed` (minutes)
+   and `session` (a date), so a persisted per-session score means the region
+   genuinely **has** a session basis and `describeMeasuredSet`'s existing two
+   grammars both apply — no third member, and no widening of the module
+   `Market breadth` and `Movers` both read.
+3. **The grid is RE-AREAED rather than floored**:
+   `"topology topology" / "sectors unusual" / "movers breadth"`.
+   **Corrected 2026-10-15 by Task 5.4.1 — that template is MINE and it is
+   wrong: it names five areas for a SIX-region grid, omitting
+   `Current investigations`.** A `grid-area` naming an undeclared area is not an
+   error — it is auto-placed into an **implicit** row and looks plausible, which
+   is the precise failure this stylesheet's own breakpoint comment exists to
+   refuse. The shipped template has **four** rows, the fourth full width on an
+   **`auto`** track rather than a third member of the `repeat(2, …)`, because a
+   fourth `1fr` would hand a hatched placeholder the same 491 px as eleven drawn
+   sectors. It resolves to `1392 × 103` at the foot of the page. **This amends
+   AC 1 and AC 2**, whose shared premise — that the question is how many rows
+   fit at a declared height — is false. Measured 2026-10-15 against the running
+   pair: the region's own chrome is **exactly 159 px** (border 2, header 47,
+   body padding + `.content` margin 48, list heading 16, two-line footer 48),
+   which is **precisely today's 1440×900 box of 159**. So **zero rows fit at
+   every viewport height**, one row needs 185 and five need 293 against a track
+   of `(82vh − 48) × 7/30` — five rows would require a **~1950 px viewport**.
+   **The binding case is 900, not the 680 this file diagnosed**, and the
+   shortest supported height does not decide this region at all. Re-areaing
+   gives row 1 a **1392 × 161** box spanning both columns, which is a _better_
+   resolved box for Epic 6's renderer than 1026 × 161, and puts this region on a
+   `minmax(min-content, 1fr)` row at ~491 px. Alternatives measured and
+   rejected: a content floor on row 1 (+150 px once, document 1722 → 1872,
+   four regions and the source note displaced, and the region stays 308 px
+   wide); an internal scroller (AC 2 and §5.5 both refuse it).
+4. **The frame section ships the factor values**, on **invariant 5** grounds —
+   a drawn figure owes the figure it came from, and they are what lets a browser
+   spec recompute rank order from the row's own factors. **This amends AC 8,
+   whose stated justification is false twice over.** `breadth` is already a
+   reduction on this frame and `overview-breadth-counts.spec.ts`' own header
+   says so in those words, so an anomaly top-N is **not** "the first section on
+   this frame that is a reduction rather than a selection" — it is the first
+   ranked **list** whose rows cannot be re-derived from the snapshot. And
+   shipping the factor values does **not** restore ADR 0038's property: the
+   **cut** needs the population's 101 breakpoints × 501 securities (~417 KB),
+   which is never going on this wire. Measured rather than estimated:
+   **223 B a row, 1,281 B at five rows** — so AC 8's `~2.4 KB a section`
+   presumed ten rows, which AC 1 explicitly refuses to decide.
+
+### The other two false premises
+
+5. **AC 9 is wrong that three triggers fire together.** ADR 0040's primary
+   fires. **ADR 0038's frame-grain does not**: that trigger is about a
+   **cadence** differing from the applied batch, and a 60-session baseline is an
+   **input that changes nightly** — exactly `lastCloses`' shape, which has
+   ridden this frame since Story 4.2 and never fired it. Each is still evaluated
+   in writing, and the grain trigger is recorded **unfired**.
+6. **The shared eligibility pass does NOT "split"** — the word is my own
+   hand-off's and it is wrong. There is one call site of `eligibleMoves`, pinned
+   by `breadth-is-counted-over-the-equities-alone`. This region needs a
+   **different predicate**, which is a **second pass plus an intersection**
+   computed downstream, leaving breadth's and movers' array byte-identical;
+   "splits" implies mutating the shared one, which is the regression that
+   invariant exists to refuse. `windowMinutes` therefore stays **one number per
+   frame** (the freshness cutoff, which this region reuses), the 60-session
+   lookback ships as **section data**, and the single `observedAt`/`computedAt`
+   pair stays true of the whole frame — [ADR 0043](../../../docs/adr/0043-two-five-minutes-a-freshness-cutoff-and-a-measurement-span.md)
+   having already settled that a cutoff and a lookback are different quantities.
+
+### Three constraints found in shaping that no criterion covers
+
+- **`pnpm probe` cannot perform AC 1's runs.** `scripts/probe.mjs` hard-codes a
+  four-entry `VIEWPORTS` table and `--widths` only **filters** it; there is no
+  height flag. Task 5.4.1 adds one.
+- **The ranking is coverage-biased and no denominator sentence discloses it.**
+  IEX per-symbol coverage runs from ~2.1% (`ERIE`) to near-complete, and a
+  top-N **selects the tail**, so a sparsely-covered security enters the ranking
+  only on the minutes it happens to hold a pair exactly five minutes apart.
+- **`band` already names two things in this code.** `ReturnBand` /
+  `fiveMinuteReturnBand` use _band_ for **a horizontal row** of
+  `Abnormal-move indicators`, not a classification. Decision 1 keeps them apart
+  for now by shipping no chip; whichever story ships the chip renames one.
+
+### Handed sideways to Story 5.6 by this gate — the amber collision is YOURS
+
+**`market.css` resolves `--anomaly-high`, `--feed-stale`, `--service-degraded`
+and `--provenance-synthetic` all to `--palette-amber: #e2b544`** — one hex
+value, four meanings, verified 2026-10-15. Decision 1 means **no amber fill
+appears in this region**, so the conjunction never occurs on `/` in this story
+and the collision is **not 5.4's to take**. It becomes real the moment a band
+chip is drawn on `/`. It stays _correct_ either way, because neither is
+colour-only — the chip writes its band name inside the fill and the feed cell
+writes `STALE` — but it is not _coherent_, and the deferred-vs-degraded hatch
+collision is the same mistake one channel over. **Prove it rather than argue
+it**: the ramp's internal greyscale steps are 1.12 / 1.43 / 1.59 and the
+chip-against-chrome step is **1.00**, which no greyscale simulation of the
+region alone can show — it needs a **conjunction** row in the kept degraded
+grid (a drawn chip _while_ the feed is stale), at four widths, in greyscale and
+in colour.
+
 ## Acceptance criteria
 
 1. **The shortest supported viewport height is declared**, and the row count
