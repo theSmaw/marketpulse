@@ -51,6 +51,7 @@ import {
 import { createSectorLadderRatchet } from "./sector-ladder-ratchet.js";
 import { createLastClosesCache } from "./last-closes-cache.js";
 import { eligibleMoves, marketBreadth } from "./market-breadth.js";
+import { unusualActivity } from "./market-unusual.js";
 import {
   equityTickers,
   indexProxyTickers,
@@ -869,11 +870,50 @@ const marketOverview = (): WireMarketOverview => {
   // `breadth-is-counted-over-the-equities-alone` permits exactly one.
   const eligible = eligibleMoves(equities, { asOf, marketOpen });
 
+  // **A SECOND PASS PLUS AN INTERSECTION, downstream of the one above** (Task
+  // 5.4.2) — never a split of it. `Unusual activity`'s predicate is narrower
+  // than breadth's, not different: heard from inside the same cutoff, **and**
+  // holding two bars exactly the span apart, **and** holding a comparable
+  // baseline. So it is handed the pass's answer and reads it; the array
+  // `marketBreadth` tallies and `topMovers` ranks is byte-identical whether
+  // this line is here or not, which `market-unusual.test.ts` asserts on the
+  // **producer** because the wire cannot see a defect in one.
+  //
+  // **The generation is resolved once, not 501 times.** `baselineAsOf` is also
+  // the cache's refresh trigger, so asking it per security would evaluate a
+  // refresh condition 501 times per applied batch.
+  const generation = baselines.baselineAsOf(marketDateAt(asOf));
+
   return toWireMarketOverview({
     proxies: entries.filter((entry) => isProxySymbol.has(entry.symbol)),
     sectors: entries.filter((entry) => isSectorSymbol.has(entry.symbol)),
     breadth: marketBreadth(eligible),
     movers: eligible,
+    // **A SECOND PASS PLUS AN INTERSECTION, downstream of the one above**
+    // (Task 5.4.2) — never a split of it. `Unusual activity`'s predicate is
+    // narrower than breadth's, not different: heard from inside the same
+    // cutoff, **and** holding two bars exactly the span apart, **and** holding
+    // a comparable baseline. So it is handed the pass's answer and reads it;
+    // the array `marketBreadth` tallies and `topMovers` ranks is
+    // byte-identical whether this section is here or not, which
+    // `market-unusual.test.ts` asserts on the **producer** because the wire
+    // cannot see a defect in one.
+    //
+    // **Written here rather than bound above, because a section that is passed
+    // by shorthand is a section `each-overview-section-names-its-own-set`
+    // cannot read at all** — there is no value beside the name. That check
+    // walks this property's whole object since Task 5.4.2 and requires it to
+    // name the one pass.
+    unusual: unusualActivity({
+      moves: eligible,
+      windowOf: trailingWindows.read,
+      baselineOf: (symbol) => generation.get(symbol),
+      // Both read from the producers that own them rather than spelled, which
+      // is `symbolReturn`'s own pairing one screen over: the stride belongs to
+      // the sampler and the tape to the store's own `where`.
+      grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
+      asOf,
+    }),
     // **The join's whole answer, beside the three selections taken out of
     // it** (Task 4.8.12) — the frame's `observedAt` is folded from this and
     // not from the sections, because breadth and the movers are computed over

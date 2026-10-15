@@ -65,6 +65,22 @@ story close does not do on its own.
 5. `pnpm verify`, `pnpm e2e` and `pnpm test:database` green, with the output
    quoted rather than the verdict line.
 
+## Amended by Task 5.4.1 — 2026-10-15: the kept grid keys on TEXT, not geometry
+
+**A premise this task would have inherited is false.** The expectation that a
+layout change re-keys `overview-degraded-grid.spec.ts` is wrong: it keys on the
+**text** of seven surfaces (`Market proxies`, `Sector performance`,
+`Market breadth`, `Movers`, the source note, the feed cell, the service cell),
+and **geometry is not in the key**. None of the three reserved regions is a
+surface. Task 5.4.1 re-areaed the whole grid and the spec passed **4 of 4 with
+no expectation changed in either direction**.
+
+**What that means for this task, and it cuts both ways.** Adding the region's
+states is **not** a re-key — it is a **new surface plus new declared classes**,
+which is the half that genuinely changes the spec. But it also means the grid
+**cannot see** a geometry regression at all, so _one height in every state_ is
+`pnpm probe`'s claim and this spec's silence is not evidence for it.
+
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
 

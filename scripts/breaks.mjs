@@ -3058,6 +3058,53 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "does not name its own set",
   },
+  // ## The fourth section — Task 5.4.2, and the break that pays for widening
+  // ## `each-overview-section-names-its-own-set` to see a WRAPPED property
+  //
+  // That check read each section's property **to the end of its line** until
+  // 2026-10-15, and a section whose value is a call no longer fits on one. Two
+  // measured failures, both transcripts in `TASK-02`:
+  //
+  //   - with a fourth section on disk built from a hand-rolled pass of its own
+  //     and no row covering it, the run reported `60 invariants hold.`;
+  //   - with a naive row added to the **line-keyed** matcher, the run was red
+  //     on the CORRECT code, reading the value as `unusualActivity({` — which
+  //     is the failure mode where the honest-looking repair is to make the
+  //     check say less.
+  //
+  // The substitution below is the first of those: the file the next story
+  // writes, which calls `eligibleMoves` **nowhere** so the one-pass clause in
+  // `breadth-is-counted-over-the-equities-alone` stays green.
+  {
+    name: "a-section-is-built-from-a-pass-of-its-own",
+    proves:
+      "A fourth overview section builds its own eligibility pass inline " +
+      "rather than reading the shared one — `moves: equities.flatMap(…)` — " +
+      "which typechecks, runs, and calls `eligibleMoves` nowhere, so the " +
+      "one-pass clause is intact. What it loses is the **window**: an author " +
+      "writing their own pass has no reason to remember a freshness cutoff, " +
+      "so the region's three counts are taken over every equity with a " +
+      "measurable move while `Market breadth` and `Movers` twenty-four " +
+      "pixels away are taken over the ones heard from in the last five " +
+      "minutes. Three denominators, two populations, every figure " +
+      "well-formed. It is also the shape the line-keyed matcher could not " +
+      "read at all, which is why this break exists (Task 5.4.2).",
+    file: "apps/backend/src/index.ts",
+    find: "      moves: eligible,\n",
+    replace:
+      "      // pnpm break: reverted automatically\n" +
+      "      moves: {\n" +
+      '        qualifier: { basis: "observed", windowMinutes: 5 },\n' +
+      "        moves: equities.flatMap((entry) =>\n" +
+      '          entry.state === "live" && entry.change.percent !== null\n' +
+      "            ? [{ entry, percent: entry.change.percent }]\n" +
+      "            : [],\n" +
+      "        ),\n" +
+      "        tracked: equities.length,\n" +
+      "      },\n",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "`unusual:` section does not name its own set",
+  },
   {
     name: "a-section-is-handed-the-join-whole",
     proves:
@@ -3389,6 +3436,62 @@ export const BREAKS = [
       "export function buildMarketOverview(",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "round a percentage to the displayed precision and sort",
+  },
+  // ## Task 5.4.2's one, on the order of a PERCENTILE
+  //
+  // A sibling of the two above rather than a third clause of them: a
+  // percentile comparator keyed on `rank` — the wire field's own name —
+  // matches none of `one-comparator-for-the-order-of-a-move`'s words and slips
+  // past it entirely, which ADR 0043's lesson predicts one quantity over.
+  //
+  // **The substitution is the file the next story writes**, not a dent in the
+  // module the check was written around: a second top-N over the ordinals,
+  // written inline in `market-unusual.ts`' own builder, with **no sort call
+  // and no import from the home**. It was produced as a whole planted file
+  // first — `apps/backend/src/market-unusual-top.ts` — and against the obvious
+  // draft of the check (one declaration of each name, in the home) the run
+  // reported `60 invariants hold.` with the second order on disk. The
+  // transcript is in `TASK-02`.
+  {
+    name: "unusual-ranked-by-a-second-comparator",
+    proves:
+      "A top-N over the price percentile ranks the rows itself, by comparing " +
+      "two ordinals in a hand-rolled insertion rather than through " +
+      "`compareByPercentile`. Nothing on screen looks wrong: both orders are " +
+      "ordinal-descending, and what the second one loses is the **declared " +
+      "tie-break**. Integer ordinals over 501 securities make ties routine — " +
+      "at most 100 distinct values for 501 candidates — and a comparator " +
+      "that leaves a tie in the array's arrival order leaves it in the " +
+      "JOIN's, which re-orders under a live feed up to ~16 times a minute, " +
+      "so two securities on one ordinal swap under a reader with nothing " +
+      "having changed. It carries no sort call and imports nothing, so a " +
+      "`.sort(`-keyed or name-keyed clause passes on it (Task 5.4.2).",
+    file: "apps/backend/src/market-unusual.ts",
+    find: "export function unusualActivity(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "function mostUnusual(\n" +
+      "  scored: readonly WireUnusualRow[],\n" +
+      "  limit: number,\n" +
+      "): readonly WireUnusualRow[] {\n" +
+      "  const top: WireUnusualRow[] = [];\n" +
+      "  for (const candidate of scored) {\n" +
+      "    let at = top.length;\n" +
+      "    while (at > 0) {\n" +
+      "      const above = top[at - 1];\n" +
+      "      if (above === undefined) break;\n" +
+      "      if (above.rank >= candidate.rank) break;\n" +
+      "      at -= 1;\n" +
+      "    }\n" +
+      "    if (at >= limit) continue;\n" +
+      "    top.splice(at, 0, candidate);\n" +
+      "    if (top.length > limit) top.pop();\n" +
+      "  }\n" +
+      "  return top;\n" +
+      "}\n\n" +
+      "export function unusualActivity(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "order one ordinal against another outside the one comparator",
   },
   // **The hold at two lists — Task 4.5.7, three breaks.**
   //

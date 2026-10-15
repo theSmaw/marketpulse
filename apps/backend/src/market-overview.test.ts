@@ -14,6 +14,7 @@ import type {
   SecurityLastClose,
   Ticker,
   WireMarketBreadth,
+  WireUnusualActivity,
   WireMarketOverview,
 } from "@marketpulse/shared";
 import type { CurrentObservation } from "./current-market-state.js";
@@ -101,6 +102,31 @@ const NO_MOVERS: EligibleMoves = {
   qualifier: { basis: "observed", windowMinutes: BREADTH.windowMinutes },
   moves: [],
   tracked: 0,
+};
+
+/**
+ * An `Unusual activity` section over nothing, for {@link NO_MOVERS}' reason.
+ *
+ * `WireMarketOverviewInputs.unusual` is required too, and the section itself is
+ * `market-unusual.test.ts`' subject. A scored count of zero with every refusal
+ * at zero is the state a process that has heard nothing is in — CI's for ever.
+ */
+const NO_SCORES: WireUnusualActivity = {
+  rows: [],
+  tracked: 0,
+  eligible: 0,
+  scored: 0,
+  windowMinutes: BREADTH.windowMinutes,
+  spanMinutes: 5,
+  baseline: { feed: "sip", spanMinutes: 5, minimumSampleCount: 2500 },
+  refusals: {
+    figure: {
+      "nothing-observed": 0,
+      "no-earlier-endpoint": 0,
+      "no-basis": 0,
+    },
+    comparison: { "too-few-samples": 0, "split-discontinuity": 0 },
+  },
 };
 
 const closesOf = (
@@ -290,6 +316,7 @@ describe("toWireMarketOverview", () => {
       proxies: entries,
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       // **The join's whole answer**, which here is the same array the proxy
       // section is taken from — the frame's `observedAt` is folded from this
       // (Task 4.8.12).
@@ -501,6 +528,7 @@ describe("the sector section", () => {
       ),
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       entries: [],
       asOf: ASOF,
     });
@@ -530,6 +558,7 @@ describe("the sector section", () => {
       sectors,
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       entries: [],
       asOf: ASOF,
     });
@@ -547,6 +576,7 @@ describe("the sector section", () => {
       proxies: [],
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       entries: [],
       asOf: ASOF,
     });
@@ -572,6 +602,7 @@ describe("the sector section", () => {
       ),
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       entries: [],
       asOf: ASOF,
     });
@@ -619,6 +650,7 @@ describe("the sector section", () => {
         })),
         tracked: 503,
       },
+      unusual: NO_SCORES,
       entries: [],
       asOf: ASOF,
     });
@@ -683,6 +715,7 @@ describe("the sector section", () => {
         moves: entries.map((entry) => ({ entry, percent: 20 })),
         tracked: 503,
       },
+      unusual: NO_SCORES,
       entries: [],
       asOf: ASOF,
     });
@@ -722,6 +755,7 @@ describe("the sector section", () => {
       },
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       entries: [],
       asOf: ASOF,
     });
@@ -747,6 +781,7 @@ describe("a stored figure's completed-session move", () => {
       }),
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       entries: [],
       asOf: ASOF,
     }).figures[0];
@@ -848,6 +883,7 @@ describe("the aggregate's observation instant", () => {
       proxies: [],
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       entries: [storedOnly(SPY)],
       asOf: ASOF,
     });
@@ -858,6 +894,7 @@ describe("the aggregate's observation instant", () => {
       proxies: [],
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       entries: [liveOn(SPY, "2026-09-14T17:03:00.000Z")],
       asOf: ASOF,
     });
@@ -876,6 +913,7 @@ describe("the aggregate's observation instant", () => {
       proxies: [storedOnly(SPY), { state: "unknown", symbol: QQQ }],
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       entries: [
         storedOnly(SPY),
         { state: "unknown", symbol: QQQ },
@@ -908,6 +946,7 @@ describe("the aggregate's observation instant", () => {
       proxies: entries,
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       entries,
       asOf: duringSession("2026-09-14"),
     });
@@ -916,6 +955,7 @@ describe("the aggregate's observation instant", () => {
       proxies: entries,
       breadth: BREADTH,
       movers: NO_MOVERS,
+      unusual: NO_SCORES,
       entries,
       asOf: new Date("2026-09-14T20:44:11.000Z"),
     });

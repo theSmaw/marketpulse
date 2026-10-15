@@ -1,6 +1,6 @@
 # Task 5.4.1 — The grid re-areaed, and the box this region gets
 
-**Status:** **In progress — 2026-10-15**
+**Status:** Complete — 2026-10-15 — the region could not draw one row at **any** viewport height (159 px of own chrome against a 161 px slot, so the binding case was 900 rather than the 680 this story diagnosed), and at 1440×680 the shipped **placeholder's own sentence** was overflowing a scroller with no visible edge. Gate 1's template — mine — named **five areas for a six-region grid**, which auto-places into an implicit row rather than erroring. `Sector performance` and `Movers` moved **0 px**; the +127 px is the omitted region's, not the filled one's. §1.4's trigger fired a second time, on a mechanism its wording did not describe, and the condition is widened
 **Story:** [5.4 `Unusual activity` on the Landing Page](STORY.md)
 **Depends on:** nothing
 

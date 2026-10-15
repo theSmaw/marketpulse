@@ -26,6 +26,9 @@ import {
   type WireReturnPercentile,
   type WireStoredFigure,
   type WireSymbolReturn,
+  type WireUnusualActivity,
+  type WireUnusualBaseline,
+  type WireUnusualRow,
 } from "./market-stream-protocol.js";
 
 const OBSERVATION = {
@@ -1193,6 +1196,208 @@ describe("the movers section, whose ORDER is the answer", () => {
     expect(
       readRaw({ ...OBSERVED, gainers: [mover("NVDA", -0.4)] }),
     ).toBeDefined();
+  });
+});
+
+describe("the unusual-activity section, whose rows are an ORDINAL and the figures behind it", () => {
+  const ROW: WireUnusualRow = {
+    symbol: "NVDA",
+    rank: 99,
+    aboveSample: true,
+    sampleCount: 4620,
+    percent: -2.4137,
+    from: { at: "2026-09-16T13:56:00.000Z", price: 178.42, feed: "iex" },
+    to: { at: "2026-09-16T14:01:00.000Z", price: 174.11, feed: "iex" },
+    observed: 5,
+  };
+
+  const SECTION: WireUnusualActivity = {
+    rows: [ROW],
+    tracked: 501,
+    eligible: 438,
+    scored: 427,
+    windowMinutes: 5,
+    spanMinutes: 5,
+    baseline: {
+      feed: "sip",
+      spanMinutes: 5,
+      minimumSampleCount: 2500,
+      generation: { session: "2026-09-11", lookbackSessions: 60 },
+    },
+    refusals: {
+      figure: {
+        "nothing-observed": 42,
+        "no-earlier-endpoint": 19,
+        "no-basis": 2,
+      },
+      comparison: { "too-few-samples": 11, "split-discontinuity": 0 },
+    },
+  };
+
+  const roundTrip = (unusual: WireUnusualActivity): string =>
+    encodeMarketStreamMessage(overviewMessage({ unusual }));
+
+  it("does not emit a property hung off a nested ROW, an endpoint or the baseline", () => {
+    // **Where ADR 0031's obligation is at risk on this section**, and it is
+    // three objects deep. A row is built from a `MeasuredReturn` and a
+    // `ReturnPercentile`: the first carries a whole `BarSource` per endpoint
+    // (a `provider` that is not a claim about venues, a `retrievedAt` that is
+    // a fact about this process) and the second a 101-point `breakpoints`
+    // array. On HTTP all of it is stripped; on a socket nothing strips it.
+    const leaky = {
+      ...ROW,
+      breakpoints: [0, 1, 2],
+      from: {
+        ...ROW.from,
+        provider: "alpaca",
+        retrievedAt: "2026-09-16T14:01:30.400Z",
+      },
+    } as unknown as WireUnusualRow;
+
+    const wire = roundTrip({
+      ...SECTION,
+      rows: [leaky],
+      baseline: {
+        ...SECTION.baseline,
+        // Not on `WireUnusualBaseline`.
+        securityId: 4120,
+      } as unknown as WireUnusualBaseline,
+    });
+
+    expect(wire).not.toContain("breakpoints");
+    expect(wire).not.toContain("provider");
+    expect(wire).not.toContain("retrievedAt");
+    expect(wire).not.toContain("securityId");
+    expect(wire).toContain('"symbol":"NVDA"');
+    expect(wire).toContain('"rank":99');
+  });
+
+  it("carries the ordinal, both endpoints and the baseline's own tape", () => {
+    const wire = roundTrip(SECTION);
+
+    expect(wire).toContain('"rank":99');
+    expect(wire).toContain('"aboveSample":true');
+    expect(wire).toContain('"sampleCount":4620');
+    expect(wire).toContain('"percent":-2.4137');
+    expect(wire).toContain('"at":"2026-09-16T13:56:00.000Z"');
+    expect(wire).toContain('"at":"2026-09-16T14:01:00.000Z"');
+    // The numerator's tape per endpoint and the denominator's on the section:
+    // every comparison this story ships is a consolidated-tape baseline
+    // against a single-venue numerator, and the frame says so rather than
+    // implying one tape per comparison.
+    expect(wire).toContain('"feed":"iex"');
+    expect(wire).toContain('"feed":"sip"');
+  });
+
+  it("carries no band, and never has", () => {
+    // Gate 1 decision 1, as bytes. The four bands are defined for the
+    // composite 0–100 score and this ranks one factor of four, so a chip here
+    // would read `extreme` on price alone.
+    const wire = roundTrip(SECTION);
+
+    for (const band of ["normal", "elevated", "high", "extreme", "band"]) {
+      expect(wire).not.toContain(band);
+    }
+  });
+
+  it("counts the refusals by kind, with every word present at zero", () => {
+    const wire = roundTrip(SECTION);
+
+    // Each word is on the wire whatever its count, because an absent key and
+    // a zero are different claims — *this gateway does not count that kind*
+    // against *none of them refused that way* — and the arithmetic
+    // `eligible − scored` is only readable beside a complete tally.
+    expect(wire).toContain('"nothing-observed":42');
+    expect(wire).toContain('"no-earlier-endpoint":19');
+    expect(wire).toContain('"no-basis":2');
+    expect(wire).toContain('"too-few-samples":11');
+    expect(wire).toContain('"split-discontinuity":0');
+  });
+
+  it("omits the generation rather than writing a null for it", () => {
+    const wire = roundTrip({
+      ...SECTION,
+      baseline: { feed: "sip", spanMinutes: 5, minimumSampleCount: 2500 },
+    });
+
+    // ADR 0029's defer rule as bytes: a cold replica has no generation to
+    // name, and `JSON.stringify` would write `null` for one — which a lenient
+    // reader turns into a session of `""` and a lookback of `0`.
+    expect(wire).not.toContain("generation");
+    expect(wire).not.toContain("null");
+    expect(wire).toContain('"minimumSampleCount":2500');
+  });
+
+  it("drops the WHOLE section for a non-finite count, never a field and never a zero", () => {
+    // `encodeBreadth`'s rule at a third grain. A `scored: null` reaches a
+    // lenient reader as `0` — *we scored nothing* — beside rows that are
+    // visibly there, and a `tracked: 0` makes the region's denominator
+    // sentence say the product tracks nothing.
+    for (const field of [
+      "tracked",
+      "eligible",
+      "scored",
+      "windowMinutes",
+      "spanMinutes",
+    ] as const) {
+      const wire = roundTrip({ ...SECTION, [field]: Number.NaN });
+
+      expect(wire).not.toContain("unusual");
+      expect(wire).not.toContain("null");
+    }
+
+    const wire = roundTrip({
+      ...SECTION,
+      baseline: { ...SECTION.baseline, minimumSampleCount: Number.NaN },
+    });
+
+    expect(wire).not.toContain("unusual");
+    expect(wire).not.toContain("null");
+  });
+
+  it("is ABSENT on a frame from a gateway that never heard of it", () => {
+    // The rollback case, and the only reason the wire property is optional:
+    // the producer's own input is required, so this gateway cannot build a
+    // frame without the section — a rollback pinning a previous image can.
+    const wire = encodeMarketStreamMessage(overviewMessage({}));
+
+    expect(wire).not.toContain("unusual");
+  });
+
+  it("costs what Task 5.4.2 measured — 370 B of section plus 232 B a row", () => {
+    // **Measured rather than estimated** (Done when 2), off this encoder, and
+    // Gate 1's figure is corrected rather than cited: **223 B a row / 1,281 B
+    // at five rows** was taken on a shape that carried a `band` and is not
+    // this shape. Measured here: **370 B of fixed section**, **232 B** for the
+    // first row and **232.8 B a row over five** (the separating comma is a
+    // byte), so **1,534 B at five rows** and **2,699 B at ten**. CI's shape —
+    // no rows, no generation, every count zero — is **303 B**.
+    //
+    // Against the movers' measured **124.3 B a row** it is 1.9x, and the
+    // difference is all `MeasuredReturn`'s own rule: a mover row is a
+    // `WireOverviewFigure` of four or five short fields, and this row carries
+    // an ordinal, a counted `n`, a move and **two timestamped endpoints with a
+    // tape each** — 118 B of the 232 are the two endpoints.
+    //
+    // The fixed cost is the part a reader of this test should notice: three
+    // counts, two spans, the baseline block and five refusal words, paid on
+    // **every** frame including every gated run, where all of it is zero for
+    // ever.
+    const empty = { ...SECTION, rows: [] };
+    const bare = roundTrip(empty).length;
+    const one = roundTrip(SECTION).length;
+    const five = roundTrip({
+      ...SECTION,
+      rows: Array.from({ length: 5 }, () => ROW),
+    }).length;
+
+    const reference = encodeMarketStreamMessage(overviewMessage({})).length;
+
+    expect(bare - reference).toBe(370);
+    expect(one - bare).toBe(232);
+    // 1,164 rather than 5 x 232: the comma between two rows is a byte, and a
+    // per-row figure quoted without its separator under-reports a list.
+    expect(five - bare).toBe(1164);
   });
 });
 

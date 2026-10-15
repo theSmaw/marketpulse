@@ -17,6 +17,7 @@ import type {
   WireMarketBreadth,
   WireMarketOverview,
   WireOverviewFigure,
+  WireUnusualActivity,
 } from "@marketpulse/shared";
 import { topMovers } from "./market-movers.js";
 
@@ -407,6 +408,22 @@ export interface WireMarketOverviewInputs {
   readonly movers: EligibleMoves;
 
   /**
+   * **The ranked percentiles, and it is NOT optional either** (Task 5.4.2) —
+   * {@link WireMarketOverviewInputs.breadth}'s recorded reason, inherited
+   * rather than copied: a frame carrying figures and no section leaves the
+   * region's `waiting` false, so its 2,000 ms silence floor never fires and
+   * the panel sits reserved and silent for ever.
+   *
+   * **It arrives built, which is `breadth`'s shape rather than `movers`'.**
+   * The rows are not `WireOverviewFigure`s — they carry two endpoints and an
+   * ordinal rather than a price and a change — so `figureOf` has nothing to
+   * say about them, and there is no reason for this module to hold the
+   * conversion. `market-unusual.ts` is the one producer; what travels here is
+   * its answer.
+   */
+  readonly unusual: WireUnusualActivity;
+
+  /**
    * **The join's whole answer** — every entry the aggregate was built from,
    * which is what the frame's `observedAt` is derived from (Task 4.8.12).
    *
@@ -474,8 +491,16 @@ export function newestObservedAt(
 export function toWireMarketOverview(
   inputs: WireMarketOverviewInputs,
 ): WireMarketOverview {
-  const { proxies, sectors, sectorLadderStep, breadth, movers, entries, asOf } =
-    inputs;
+  const {
+    proxies,
+    sectors,
+    sectorLadderStep,
+    breadth,
+    movers,
+    unusual,
+    entries,
+    asOf,
+  } = inputs;
 
   // First-seen order, and only for figures that are actually **observed** —
   // a stored close's tape is not this frame's provenance, and claiming it
@@ -551,6 +576,7 @@ export function toWireMarketOverview(
     figures,
     breadth,
     movers: movements,
+    unusual,
     // Two branches rather than one spread of a possibly-`undefined` value:
     // `exactOptionalPropertyTypes` is on, *absent* and *present as `undefined`*
     // are different types, and only the first is what this wire means.

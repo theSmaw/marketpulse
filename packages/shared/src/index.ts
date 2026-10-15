@@ -106,7 +106,22 @@ export type {
   WireStoredFigure,
   WireSymbolReturn,
   WireUnknownFigure,
+  WireUnusualActivity,
+  WireUnusualBaseline,
+  WireUnusualGeneration,
+  WireUnusualRefusals,
+  WireUnusualRow,
 } from "./market-stream-protocol.js";
+// The order a list of price percentiles goes in (Task 5.4.2) — a SIBLING of
+// `sector-ranking.ts` rather than a widening of it, because an ordinal and a
+// move are two quantities that share a shape. `one-comparator-for-the-order-of-
+// a-percentile` holds it to one home.
+export {
+  UNUSUAL_ROWS,
+  compareByPercentile,
+  selectByPercentile,
+} from "./percentile-ranking.js";
+export type { PercentileRanked } from "./percentile-ranking.js";
 export { asInstant, asIs, toWire } from "./wire-serialiser.js";
 export type { JsonValue, WireFields } from "./wire-serialiser.js";
 // What a security IS in this product, and every vocabulary that describes one

@@ -694,6 +694,252 @@ export interface WireSessionMovers extends WireMoverLists {
 }
 
 /**
+ * **One ranked row of `Unusual activity`** (Task 5.4.2) — a security, where
+ * its five-minute move sits in its own 60-session history, and the figures
+ * that answer came from.
+ *
+ * ## It is {@link WireReturnPercentile}'s `ranked: true` arm, with the
+ * ## per-frame constants hoisted off it
+ *
+ * A row **is** a ranked comparison by definition — AC 7: a security with no
+ * score has **no rank**, and a refused security is not a row at all — so there
+ * is no second percentile shape here and nothing to discriminate against.
+ * `ranked: true` is therefore absent rather than carried: a discriminant with
+ * one reachable value is 14 bytes a row saying what the array's own membership
+ * already says. {@link spanMinutes} and the baseline's tape are
+ * {@link WireUnusualActivity}'s, because they are the same for every row on a
+ * frame and 124.3 B a row is the budget this section is measured against.
+ *
+ * ## The endpoints are not optional
+ *
+ * {@link WireMeasuredReturn} establishes that this figure may not be read
+ * without the two instants it was measured between, and that rule does not
+ * weaken because the figure is now in a list: `from` and `to` are the only
+ * thing on the row that says **when**, and an ordinal with no instant is a
+ * claim about a move nobody can date. They are also what makes the region's
+ * own age claim possible without a second instant on the frame.
+ *
+ * ## Every factor behind the ordinal travels
+ *
+ * Invariant 5's rule applied to a derived figure: a drawn number owes the
+ * figures it came from. {@link percent} is the move, the endpoints are what it
+ * was measured between, {@link sampleCount} is the counted `n` the ordinal was
+ * taken against, and {@link aboveSample} is the one thing a rank cannot say.
+ * What a reader **cannot** re-derive is the cut — that needs the population's
+ * 101 breakpoints × 501 securities, ~417 KB, which is never going on this wire
+ * — and ADR 0038's 2026-10-12 amendment is why shipping a selection is still
+ * honest: every row carries its own key, so the **order** and the
+ * **uniqueness** are checkable from the frame alone.
+ */
+export interface WireUnusualRow {
+  /** The security. The row's own key, and the only activatable thing on it. */
+  readonly symbol: string;
+  /**
+   * **The integer ordinal, `0` through `99`. Never `100`.**
+   *
+   * {@link WireReturnPercentile.rank}'s field, under its own argument: the
+   * precision is an integer because the binomial standard error at the 99th of
+   * n = 4,620 is 0.146 points, and the ceiling is 99 because above the highest
+   * order statistic there is no sample.
+   */
+  readonly rank: number;
+  /** The magnitude is strictly above every sample the baseline holds. */
+  readonly aboveSample: boolean;
+  /** The counted `n` this ordinal was taken against — **never a constant**. */
+  readonly sampleCount: number;
+  /** The signed five-minute move, as a percentage. The ranked magnitude's own figure. */
+  readonly percent: number;
+  /** The **older** endpoint. */
+  readonly from: WireReturnEndpoint;
+  /** The **newer** endpoint. */
+  readonly to: WireReturnEndpoint;
+  /** How many of the span's minutes were observed, `1` to `spanMinutes`. */
+  readonly observed: number;
+}
+
+/**
+ * **Which stored generation these rows were ranked against** (Task 5.4.2) —
+ * absent where no row read one.
+ *
+ * Both facts come off the **row the pass actually read**, never off a
+ * constant: `BASELINE_LOOKBACK_SESSIONS` is this bundle's belief and
+ * `lookbackSessions` is what the runner stored, and a rollback can put the two
+ * apart — `WireRefusedPercentile.minimumSampleCount`'s own reason. The pair is
+ * one object so that *both or neither* is structural rather than remembered:
+ * a session with no lookback beside it is a window with no width.
+ */
+export interface WireUnusualGeneration {
+  /** The session the generation is FOR — its window's end, market-local. */
+  readonly session: string;
+  /** How many trading sessions that window spanned, as the runner stored it. */
+  readonly lookbackSessions: number;
+}
+
+/**
+ * **What the ordinals were measured against** (Task 5.4.2).
+ *
+ * ## The baseline's tape is not the numerator's, and both travel
+ *
+ * The move is `iex`-over-`iex` **by construction** — the trailing window is
+ * fed by the live socket and has no store fill — while the baseline is built
+ * from `feed = 'sip'` rows alone. So every ordinal on this frame is a
+ * consolidated-tape distribution against a single-venue numerator, which is
+ * invariant 6's own sentence: the screen must **say** it rather than imply one
+ * tape per comparison. The numerator's tape is per endpoint on each row, where
+ * the provenance already lives; this is the denominator's.
+ */
+export interface WireUnusualBaseline {
+  /** Which tape the distribution was built from. The invariant-6 field. */
+  readonly feed: MarketFeed;
+  /**
+   * The grid's stride in minutes — the span the **samples** are of.
+   *
+   * **This is the product's fourth five and it is not
+   * {@link WireUnusualActivity.spanMinutes}** (ADR 0043): that one is the span
+   * a row's own two endpoints are apart, this one is the sampler's grid, and
+   * `return-baseline.ts`' `SAMPLE_SPAN_MINUTES` argues at length why they are
+   * uncoupled. Equal today, read separately for ever.
+   */
+  readonly spanMinutes: number;
+  /**
+   * The bound the **producer applied**, not the bound this bundle believes in
+   * — `WireRefusedPercentile.minimumSampleCount`'s reason.
+   */
+  readonly minimumSampleCount: number;
+  /** The generation these rows were ranked against, or absent where none was read. */
+  readonly generation?: WireUnusualGeneration;
+}
+
+/**
+ * **Why the securities that are not rows are not rows**, counted by kind
+ * (Task 5.4.2).
+ *
+ * ## A refused security is not a row, and these counts are the only trace
+ *
+ * ADR 0038 decision 5's rule at the grain of a list: a required figure that
+ * cannot be honestly produced **drops the whole row** rather than carrying a
+ * `rank: 0` or a `null` — a `null` under a `"number"` reads as `0` to a
+ * lenient reader, and `0` is a plausible 0th percentile, which is the schema
+ * trap `CLAUDE.md` records twice. So the omission is the representation, and
+ * {@link WireUnusualActivity.eligible} minus
+ * {@link WireUnusualActivity.scored} is the arithmetic difference it leaves.
+ *
+ * ## Split by kind, because they must not read alike
+ *
+ * *We have not heard from this security*, *we have no bar five minutes back*
+ * and *we have too little history to compare with* are three different facts
+ * with three different repairs, and a single `refused: 184` would make the
+ * surface pick one — ADR 0029's false impression chosen by a renderer. The two
+ * groups are nested rather than flattened because they answer **different
+ * questions at different stages**: `figure` is *why there was nothing to
+ * rank*, `comparison` is *why a figure could not be ranked*.
+ *
+ * ## Both are `Record`s over a closed vocabulary, which is the structural half
+ *
+ * A fourth member of `ReturnRefusal` or a third of `PercentileRefusal` is a
+ * **compile error** at the producer's accumulator and again at this module's
+ * field map, rather than a refusal that silently stops being counted. That is
+ * `WireReturnRefusal`'s own mechanism applied to a tally.
+ */
+export interface WireUnusualRefusals {
+  /** Why there was no five-minute return to rank. */
+  readonly figure: Readonly<Record<WireReturnRefusal, number>>;
+  /** Why a return that exists could not be ranked. */
+  readonly comparison: Readonly<Record<PercentileRefusal, number>>;
+}
+
+/**
+ * **The securities whose recent move is least like their own history** (Task
+ * 5.4.2) — the landing page's seventh region, and the first section on this
+ * frame whose rows depend on something the frame does not carry.
+ *
+ * ## A second pass plus an intersection, never a split of the shared one
+ *
+ * The population is `eligibleMoves`' answer — the one pass `Market breadth`
+ * tallies and `Movers` ranks — and this section is computed **downstream** of
+ * it, leaving both their arrays byte-identical. This region's predicate is
+ * narrower, not different: heard from inside the same freshness cutoff, **and**
+ * holding two bars exactly the span apart, **and** holding a comparable
+ * baseline. So the three counts nest — `tracked ⊇ eligible ⊇ scored` — which is
+ * the only reason one sentence can carry them honestly.
+ *
+ * ## Rows only on the `observed` basis, which is a refusal rather than a gap
+ *
+ * `eligibleMoves` answers on the **session** basis whenever the regular session
+ * is shut, and out of hours a process that was up at the bell still holds that
+ * session's last bars in its trailing windows — so a pass that ignored the
+ * basis would rank yesterday's 15:55→16:00 pair, for ever, as *unusual
+ * activity right now*. Eviction is relative to each security's **own** newest
+ * bar, so nothing expires while the market is shut. The honest answer is
+ * `eligible: 0`: nothing has been heard from inside the cutoff. The last
+ * session's closing scores are a **persisted nightly row** (Story 5.4's Gate 1
+ * decision 2, ADR 0044's shape) and no migration writes one yet.
+ *
+ * ## No band, and that is a decision rather than an omission
+ *
+ * Gate 1 decision 1: this section ships the **ordinal** and no band. The four
+ * bands are defined for the composite 0–100 score and this ranks **one factor
+ * of four**, so a chip here would read `extreme` on price alone;
+ * `packages/shared/src/anomaly.ts` deliberately holds no score→band
+ * boundaries. Story 5.6 owns both.
+ */
+export interface WireUnusualActivity {
+  /**
+   * The top rows, strongest first — **a SELECTION rather than a reduction**
+   * (ADR 0038's 2026-10-12 amendment), ordered by ordinal descending with
+   * **ticker ascending** as the declared tie-break.
+   *
+   * Integer ordinals over 501 securities make ties routine rather than rare,
+   * and two rows equal at displayed precision must never swap between frames
+   * — which a stable sort over an **arrival order** cannot promise here,
+   * because the arrival order is the join's and re-orders under a live feed.
+   * `compareByPercentile` is the one home for that order.
+   */
+  readonly rows: readonly WireUnusualRow[];
+  /**
+   * **The size of the set the pass was over** — the 501 equities, read off the
+   * shared pass and never typed. `WireBreadthCounts.tracked`'s own figure, by
+   * construction rather than by agreement.
+   */
+  readonly tracked: number;
+  /**
+   * How many were **heard from inside the cutoff and held a pair exactly the
+   * span apart** — the denominator a ranked list owes, and the first of this
+   * region's two narrowings.
+   */
+  readonly eligible: number;
+  /**
+   * How many of those also held a comparable baseline, so the rows are a
+   * selection from **this** number.
+   *
+   * `eligible − scored` is the refused count, and
+   * {@link WireUnusualRefusals} says of what kind.
+   */
+  readonly scored: number;
+  /**
+   * The freshness cutoff this region's eligibility was taken with — the one
+   * `windowMinutes` on this frame, read from the pass's own constant.
+   *
+   * **It stays one number per frame** (Story 5.4's Gate 1 false premise 6):
+   * this region reuses breadth's cutoff rather than defining a second
+   * definition of *current*, so the sentence beside these counts is the same
+   * sentence `Market breadth` and `Movers` draw, from
+   * `measured-set.ts`' one builder.
+   */
+  readonly windowMinutes: number;
+  /**
+   * The measurement span each row's two endpoints are apart — **a different
+   * quantity from {@link windowMinutes} that happens to share a number**
+   * (ADR 0043), so the surface never spells a `5` of its own for either.
+   */
+  readonly spanMinutes: number;
+  /** What the ordinals were measured against. */
+  readonly baseline: WireUnusualBaseline;
+  /** Why the securities that are not rows are not rows. */
+  readonly refusals: WireUnusualRefusals;
+}
+
+/**
  * The aggregate itself, **nested rather than spread over the envelope**.
  *
  * Two reasons, and the second is the one that bites. It gives ADR 0031's
@@ -998,6 +1244,27 @@ export interface WireMarketOverview {
    * **The lists are the answer, not the input.** See {@link WireMarketMovers}.
    */
   readonly movers?: WireMarketMovers;
+
+  /**
+   * **Which securities are behaving least like themselves — the ordinals and
+   * the figures behind them** (Task 5.4.2).
+   *
+   * **Required on the producer and optional here**, which is `breadth`'s and
+   * `movers`' asymmetry held for their recorded reason rather than copied:
+   * `WireMarketOverviewInputs.unusual` is not optional, so the backend cannot
+   * build a frame without the section, and a frame carrying figures and no
+   * section would leave the region's `waiting` **false** — the 2,000 ms silence
+   * floor `useWaited` gives it never fires and the panel sits reserved and
+   * silent for ever (Task 4.3.8's produced defect). Optional here because the
+   * **read** side must tolerate a frame from a **previous image**, which a
+   * rollback pins.
+   *
+   * **Absence is never expressed as zeros, and a refusal is never a row.** An
+   * absent section is *this gateway does not score*; `scored: 0` with the
+   * refusal counts beside it is *we scored nothing and here is why*. See
+   * {@link WireUnusualActivity}.
+   */
+  readonly unusual?: WireUnusualActivity;
 }
 
 /**
@@ -1917,10 +2184,146 @@ const encodeMovers = (movers: WireMarketMovers): JsonValue | undefined => {
   }
 };
 
+/**
+ * One endpoint of a measured return, on the wire.
+ *
+ * **Declared here rather than beside the `return` frame's maps below**, since
+ * Task 5.4.2: the `Unusual activity` rows carry the same two endpoints, and one
+ * map read by both is the whole of ADR 0031's answer to *what may a browser see
+ * about an endpoint*. A `BarSource`'s `provider` is not a claim about venues
+ * and its `retrievedAt` is a fact about this process; neither reaches a reader.
+ */
+const returnEndpointFields: WireFields<WireReturnEndpoint> = {
+  at: asIs,
+  price: asIs,
+  feed: asIs,
+};
+
+/**
+ * One map per nested object of the `Unusual activity` section (Task 5.4.2) —
+ * ADR 0031's obligation at every grain, and the row map is the one that
+ * matters: a `WireUnusualRow` is built from a `MeasuredReturn` and a
+ * `ReturnPercentile`, both of which carry fields a browser has no business
+ * seeing (a `BarSource`'s `provider` and `retrievedAt`, a whole `breakpoints`
+ * array), and on a socket a field on the object and not on the type **leaks**.
+ *
+ * The two endpoints go through {@link returnEndpointFields}, which is the same
+ * map the per-symbol `return` frame uses — one answer to *what may a browser
+ * see about an endpoint*, in both places it is asked.
+ */
+const unusualRowFields: WireFields<WireUnusualRow> = {
+  symbol: asIs,
+  rank: asIs,
+  aboveSample: asIs,
+  sampleCount: asIs,
+  percent: asIs,
+  from: (endpoint) => toWire(returnEndpointFields, endpoint),
+  to: (endpoint) => toWire(returnEndpointFields, endpoint),
+  observed: asIs,
+};
+
+const unusualGenerationFields: WireFields<WireUnusualGeneration> = {
+  session: asIs,
+  lookbackSessions: asIs,
+};
+
+/**
+ * The baseline's own facts, with the **generation spread in a branch** —
+ * `encodeOverview`'s idiom, for its reason: `toWire` walks the map's keys, so a
+ * key in the map is a key on the wire whatever it holds, and `undefined` is not
+ * a JSON value.
+ */
+const unusualBaselineFields: WireFields<
+  Omit<WireUnusualBaseline, "generation">
+> = {
+  feed: asIs,
+  spanMinutes: asIs,
+  minimumSampleCount: asIs,
+};
+
+const encodeUnusualBaseline = (baseline: WireUnusualBaseline): JsonValue => ({
+  ...toWire(unusualBaselineFields, baseline),
+  ...(baseline.generation === undefined
+    ? {}
+    : { generation: toWire(unusualGenerationFields, baseline.generation) }),
+});
+
+/**
+ * **The refusal tallies, keyed on the two closed vocabularies themselves.**
+ *
+ * `WireFields<Record<WireReturnRefusal, number>>` is a mapped type over the
+ * union's members, so a fourth refusal in `five-minute-return.ts` — or a third
+ * percentile refusal — is a **compile error here** rather than a refusal that
+ * silently stops being counted. That is the mechanism `toWireSymbolReturn`
+ * already uses on one security's refusal word, applied to a tally over 501.
+ */
+const figureRefusalFields: WireFields<
+  Readonly<Record<WireReturnRefusal, number>>
+> = {
+  "nothing-observed": asIs,
+  "no-earlier-endpoint": asIs,
+  "no-basis": asIs,
+};
+
+const comparisonRefusalFields: WireFields<
+  Readonly<Record<PercentileRefusal, number>>
+> = {
+  "too-few-samples": asIs,
+  "split-discontinuity": asIs,
+};
+
+const unusualRefusalFields: WireFields<WireUnusualRefusals> = {
+  figure: (counts) => toWire(figureRefusalFields, counts),
+  comparison: (counts) => toWire(comparisonRefusalFields, counts),
+};
+
+const unusualFields: WireFields<WireUnusualActivity> = {
+  rows: (rows) => rows.map((row) => toWire(unusualRowFields, row)),
+  tracked: asIs,
+  eligible: asIs,
+  scored: asIs,
+  windowMinutes: asIs,
+  spanMinutes: asIs,
+  baseline: encodeUnusualBaseline,
+  refusals: (refusals) => toWire(unusualRefusalFields, refusals),
+};
+
+/**
+ * **The whole section, or nothing** (Task 5.4.2) — `encodeBreadth`'s rule for
+ * `encodeBreadth`'s reason.
+ *
+ * A non-finite count is not a figure a sentence can be built from, and a
+ * section carrying `scored: NaN` would reach a lenient reader as `null` and a
+ * strict one as nothing; both draw a region stating a denominator it does not
+ * have. The rows themselves need no such guard: a row whose ordinal or whose
+ * move is non-finite is **never built**, because the producer drops it through
+ * a `flatMap` — ADR 0038 decision 5 at the row grain, which is the one place
+ * this wire's absence rule is an omission rather than a dropped section.
+ */
+const encodeUnusual = (unusual: WireUnusualActivity): JsonValue | undefined => {
+  const counts = [
+    unusual.tracked,
+    unusual.eligible,
+    unusual.scored,
+    unusual.windowMinutes,
+    unusual.spanMinutes,
+    unusual.baseline.minimumSampleCount,
+  ];
+
+  if (counts.some((count) => !Number.isFinite(count))) return undefined;
+
+  return toWire(unusualFields, unusual);
+};
+
 const overviewFields: WireFields<
   Omit<
     WireMarketOverview,
-    "sectors" | "sectorLadderStep" | "breadth" | "movers" | "observedAt"
+    | "sectors"
+    | "sectorLadderStep"
+    | "breadth"
+    | "movers"
+    | "observedAt"
+    | "unusual"
   >
 > = {
   computedAt: asIs,
@@ -1955,6 +2358,11 @@ const encodeOverview = (overview: WireMarketOverview): JsonValue => {
   const movers =
     overview.movers === undefined ? undefined : encodeMovers(overview.movers);
 
+  const unusual =
+    overview.unusual === undefined
+      ? undefined
+      : encodeUnusual(overview.unusual);
+
   return {
     ...toWire(overviewFields, overview),
     // **Absent rather than `null`, in a branch, for the sector section's
@@ -1975,13 +2383,8 @@ const encodeOverview = (overview: WireMarketOverview): JsonValue => {
       : { sectorLadderStep: overview.sectorLadderStep }),
     ...(breadth === undefined ? {} : { breadth }),
     ...(movers === undefined ? {} : { movers }),
+    ...(unusual === undefined ? {} : { unusual }),
   };
-};
-
-const returnEndpointFields: WireFields<WireReturnEndpoint> = {
-  at: asIs,
-  price: asIs,
-  feed: asIs,
 };
 
 /**
