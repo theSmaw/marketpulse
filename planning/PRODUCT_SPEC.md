@@ -772,7 +772,7 @@ For example:
 > reading that across onto the price factor gives **60 samples** over a 60-day
 > window: the finest percentile a 60-sample distribution can express is
 > **1.7%**, so this section's own `99.1%` could not be said at all and the
-> 99th percentile _would be_ the maximum. Pooling the session gives **4,680
+> 99th percentile _would be_ the maximum. Pooling the session gives ~~**4,680**~~ **4,620
 > samples** per security and 0.02% granularity.
 >
 > **The known cost: the open is structurally the fattest-tailed bucket.** Pooled

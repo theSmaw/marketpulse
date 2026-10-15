@@ -83,7 +83,7 @@ the two surfaces finally agree about what is ranked.
    and **no causal language** — causality is §5.3's confidence vocabulary and
    belongs to findings, not scores.
 7. **Factor clauses carry figures, not intensity adjectives.** `99th percentile
-of 4,680 five-minute returns` rather than `Extreme` — because `extreme` is
+of 4,620 five-minute returns` rather than `Extreme` — because `extreme` is
    also a band name, and the word for one factor's clause disagreeing with the
    word for the whole security's band is a collision waiting to render.
 8. **`AnomalyBadge` and `SecurityRow` are adopted or deleted, and the
@@ -176,3 +176,40 @@ layout preference — so the region has a prose band and the band is not optiona
 The rail's one-height rule applies: `Relative performance` is **240 / 240 / 240 /
 302 px** across nine states, and `MARKET-OVERVIEW.md` §1.4's trigger has already
 fired once on this route.
+
+## Handed here by Story 5.3's close — 2026-10-14: the first scored factor exists, and it refuses in two ways you must carry
+
+**1. The price percentile is a scored factor now, and it has a shape you
+inherit.** `99th percentile of 4,620 5-minute returns` — **integer ordinals
+only**, `>99th` at the ceiling because above the highest order statistic there is
+no sample, and the **counted** `n` rather than a constant (measured min **737**,
+max **4,620** over 511 securities). `PRODUCT_SPEC.md` §11 and §5.1 carry dated
+amendments saying why its own `99.1st` example cannot be printed.
+
+**2. It refuses in TWO ways and they do not read alike** — _we have too little
+history_ (`Baseline too short to rank — 1,240 of 2,500 returns`) and _the history
+we have contains a price break we cannot adjust_ (`Baseline crosses an unadjusted
+price break — not comparable`). They share exactly `["Baseline", "—"]` and no
+more, deliberately. **A composite that averages over a refused factor is a score
+built on a number that was withheld on purpose**, so the score owes its own
+answer to _what does the composite do when a factor refuses_ — and `0` is not it.
+
+**3. Every score carries its explanation, and this factor's explanation already
+exists**: the sample's size and its shape (`· all times of day pooled`), plus the
+opening-bias clause when **the figure's own window** falls in the first thirty
+minutes. That clause is read off the bar's `startsAt`, never a clock —
+`the-opening-bias-is-read-off-the-figure` holds it, with the break
+`the-opening-bias-asked-the-wall-clock`.
+
+**4. The band you draw goes in a region that is 142 px in all 72 readings**, and
+one step per story that adds a band is the accepted price — recorded as a probed
+figure per width so you amend a measurement rather than inherit a guess. **The
+amber band fill is still the one amber position in the rail**, behind its
+**written** name.
+
+**5. The three correctness layers are not interchangeable**, which Story 5.3
+proved rather than asserted: a planted signed-percentile defect was caught by
+**properties only**, `rank + 1` by the **golden sample only**, and
+`rank × 0.8 when n > 500` by the **independent recompute only — with the golden
+sample green**. A composite is harder to eyeball than a percentile, so expect to
+pay for all three again.

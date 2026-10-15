@@ -1,6 +1,6 @@
 # Task 5.3.5 — The Sweeps & the Close
 
-**Status:** In progress — 2026-10-14
+**Status:** Complete — 2026-10-15 — the conjunct this task owed was **proved green on its own defect first**: the file Story 5.5 will write passed with `59 invariants hold.` before it existed. Nine of ten criteria met, and **AC 10 is recorded as not met** rather than discharged with a laptop figure
 **Story:** [5.3 The Baseline, & the Price Percentile](STORY.md)
 **Depends on:** 5.3.4
 
@@ -87,3 +87,136 @@ this one falsified more governing text than any story in the epic so far.
 ## What was done — 2026-10-14
 
 <!-- written at completion -->
+
+## What was done — 2026-10-15
+
+### The fourth conjunct — proved green on the defect, then fixed
+
+Story 5.2's close told this story that `one-home-for-the-observation-window`
+**would refuse** a 60-trading-session lookback. **It did not**, and that was
+established the way this repository requires rather than by reading the regex:
+`apps/backend/src/volume-baseline.ts` was planted with its own
+`VOLUME_LOOKBACK_SESSIONS = 40` — **the file Story 5.5 will plausibly write,
+under its likely name** — and the run reported:
+
+```
+59 invariants hold.
+```
+
+The check matches a **minute-scaled subtraction from an instant's
+milliseconds**; a calendar walk has no `getTime()` and no minute factor, so it
+matched neither half.
+
+**The conjunct is keyed on the quantity, not the name.** What makes a lookback a
+_policy_ is that its count is **fixed by the module** rather than handed in:
+`backfill.ts`, `fetch-bars.ts` and `series-request.ts` pass `wanted + 1`,
+`wanted` and `count` — a backfill gap and a window the reader chose, neither a
+second definition of _how far back we look_. With it, the same plant gives:
+
+```
+✗ one-home-for-the-observation-window
+  2 shipped files fix a session-scaled lookback, expected exactly 1:
+    apps/backend/src/return-baseline.ts
+    apps/backend/src/volume-baseline.ts
+```
+
+**And the conjunct's own anchor caught a bug in it**, which is worth recording
+because it is the mechanism working on its author: `shippedSourceFiles()` returns
+**absolute** paths and the first draft compared against a repo-relative string,
+so the anchor fired — _`return-baseline.ts` no longer fixes a session lookback_ —
+with the file plainly listed underneath.
+
+Break registered and run through the harness:
+`pnpm break a-second-session-lookback` → red naming the check, restored
+byte-identical. The break is `backfill.ts`'s `lastMarketSessions(wanted, …)`
+becoming `lastMarketSessions(60, …)`, which is the **tidy-looking** edit: it
+reads as settling a number rather than as inventing a policy.
+
+**Story 5.2's record is corrected by date** in its own file, with the lesson
+stated: a hand-off promising that a check will catch something is **a claim about
+a mechanism**, and a claim about a mechanism reads identically whether the
+mechanism is there or not. It should have said _go and plant the file_.
+
+### The sweeps
+
+**Upward — 4 live claims corrected.** `4,680` survived in five documents after
+Gate 1 established it is **4,620**: `PRODUCT_SPEC.md` §11's amendment, Story
+5.1's decision 3, Story 5.6's drawn example, and the hand-off above. The
+historical ones — this story's own AC 3 and the Gate 1 section that corrects it —
+are **left standing**, which is the rule. Story 5.1's correction carries the
+consequence too: what 4,620 samples support is an **integer** ordinal, so the
+granularity claim moved with the count.
+
+**Sideways — 5 recipients, 5 of which had nothing.** **Story 5.5** (the new
+conjunct, and that its own file is the plant it was proved against; the baseline
+table it may extend rather than duplicate; why a split breaks **volume harder
+than price** — the share count multiplies by exactly the factor the price divides
+by); **Story 5.4** (ADR 0040's reversal trigger **fires on it**, taking ADR
+0038's frame grain, the split eligibility pass and the single `observedAt` pair
+with it; the eleven refused securities its ranked list must not rank last);
+**Story 5.6** (the two refusals that must not read alike, and that a composite
+averaging over a **refused** factor is a score built on a withheld number — `0`
+is not the answer); **Epic 13** (a derived table that **is** covered by its
+plugin, and the one column naming that makes it so); **Epic 14** (a periodic
+multi-minute pass is a cost class §28 has nothing to say about, and the planner's
+212–223× under-estimate is the figure that decides the regime).
+
+### Epic 14's three conditions and ADR 0040's trigger
+
+- **`/securities`, a second per-row surface at universe scale — NOT FIRED.** One
+  figure in an existing region.
+- **`/`, the first surface rendering one element per tracked security — NOT
+  FIRED.** This story's _Out of scope_ excludes `/`.
+- **The backend condition, _a computation deriving a figure per security in that
+  callback_ — NOT FIRED.** The percentile is a bounded search over 101
+  breakpoints for **one** security on demand. **What would change it is Story
+  5.4**, and the price is in its file.
+- **ADR 0040's reversal trigger — NOT FIRED, and this story is the clearest
+  instance it has ever had of the condition it names.** A percentile is not an
+  aggregate and is not on `/`; a **ranked list of percentiles on `/`** is both,
+  and its honest window is **60 trading sessions** against breadth's five
+  minutes.
+
+### `docs/GAPS.md`
+
+Three entries: **a percentile is checkable against nothing on screen** — strictly
+worse than the return beside it, whose two instants at least ship; **the
+percentile break cannot reach its own assertions on any machine here**, so
+`sampleCount ≤ sipRows` is unexercised; and **nothing measures how much fatter
+the opening bucket actually is**, so the bias sentence is either an
+understatement a reader will act on or a line of noise in a 142 px region, and
+nobody knows which.
+
+### Gates, on the final tree, load read before each
+
+| Gate                 | Load before | Result                                                    |
+| -------------------- | ----------- | --------------------------------------------------------- |
+| `pnpm verify`        | 2.09        | **exit 0**, `59 invariants hold.`, **3,220 tests**        |
+| `pnpm test:database` | 15.91       | **259 tests**                                             |
+| `pnpm e2e`           | 14.88       | **257 passed, 16 skipped, 0 failed** — a clean full suite |
+| `pnpm probe`         | —           | the new states at four widths; screenshots looked at      |
+
+## For a stakeholder — a status report, 2026-10-15
+
+**Story 5.3 is closed, and the most useful thing it produced was a check that
+was quietly not working.**
+
+Two weeks ago we added a safeguard meant to stop this product accumulating
+several different answers to _how far back do we look_. The previous story told
+this one that the safeguard would catch its new sixty-day lookback. It would
+not — it only recognises windows measured in minutes, and a window measured in
+trading days is invisible to it. We found that by **writing the file the next
+story will write and watching the build pass**, which is the only way such a
+thing is ever found. The safeguard now covers both, and the mistake is recorded
+where the wrong promise was made.
+
+The story's own headline is that **the expensive unknown was not expensive**:
+the baseline calculation it was built around was estimated at four to thirteen
+minutes and measures **twelve seconds**.
+
+One criterion is **not met and says so**. It asked for a cost measurement on the
+live database, and your laptop cannot reach that database at all — outbound
+database connections are blocked on your network, which no document here
+anticipated. The measurement endpoint you approved ships with this story, so the
+figure is one request away once it deploys, and the criterion is recorded as
+owed rather than quietly discharged with a laptop number.

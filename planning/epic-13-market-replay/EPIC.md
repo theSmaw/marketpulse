@@ -507,3 +507,39 @@ product now spells `5` twice for two different quantities —
 `RETURN_SPAN_MINUTES` (a measurement span between two endpoints of one security).
 [ADR 0043](../../docs/adr/0043-two-five-minutes-a-freshness-cutoff-and-a-measurement-span.md)
 says why they are uncoupled and must stay so.
+
+## Handed here by Story 5.3's close — 2026-10-14: a derived table that IS covered by your plugin, and the one column naming that makes it so
+
+Epic 5 added `return_baselines` (migration `0013`) — 101 breakpoints and a
+counted sample size per security per session, written by a nightly runner,
+[ADR 0044](../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md).
+
+**1. It is keyed by the session it is FOR, which is the coordinate you key on.**
+`(security_id, observed_at)` where `observed_at` is the **window's end**, plus
+`recorded_at` for when the pass ran. A baseline overwritten in place is not
+replayable, and memory is overwritten in place by definition — which is why this
+is a table rather than a cache, and why **every generation is kept** rather than
+only the newest (~105 MB a year, 0.5% of the usable floor).
+
+**2. The column is `observed_at` DELIBERATELY, diverging from ADR 0042.** That
+ADR refused the name for `security_memberships` because a membership change is a
+fact about **us**, and accepted that your plugin would not cover it. **A
+baseline's window end is a market fact** — it names a session of market data —
+so the opposite choice was available and was taken, which makes this table
+**structurally covered by a plugin filtering on `observed_at`** rather than
+needing an explicit clock. `migrations/README.md` §2 is explicit that the name is
+**reserved**, not a family: the predicate is literally that column.
+
+**3. What a replayed percentile owes beyond the clock.** AC 4's _the baseline
+excludes the window being scored_ is necessary and **not sufficient** — what
+makes it sufficient is the window's **end**, which is now the key. And the
+baseline is **per security**, so the roster never enters it: ADR 0042's
+membership refusal does **not** bind a percentile. It binds the moment Story 5.4
+ranks them across the universe, and that is written into 5.4's own file.
+
+**4. Two things a replay must not assume.** The baseline is **`sip` only** by a
+`where` on the tape, so a replayed window straddling the nightly backfill does
+not silently mix tapes — but a replay that rebuilds it from `market_bars` must
+make the same choice explicitly. And **11 of 511 securities have no percentile
+at all** at any date, because their sample is below the derived floor of 2,500;
+a replay must carry the refusal rather than compute around it.

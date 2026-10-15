@@ -113,3 +113,53 @@ it is not your baseline. A median volume for the same time of day is a store rea
 of a different shape, and `one-home-for-the-observation-window` permits exactly
 two minute-scaled cutoffs today — yours is a third quantity and owes its own
 conjunct, constant and argument, the same as Story 5.3's lookback.
+
+## Handed here by Story 5.3's close — 2026-10-14: the check that will refuse your lookback is new, and your file is literally the plant it was proved against
+
+**1. `one-home-for-the-observation-window` has a FOURTH conjunct and it is
+keyed on the session count.** Story 5.2's close told Story 5.3 that check would
+refuse a 60-trading-session lookback; **it did not** — it matches a minute-scaled
+subtraction from an instant's milliseconds, and a calendar walk has no
+`getTime()` and no minute factor. The conjunct was written at Story 5.3's close
+and **proved by planting `apps/backend/src/volume-baseline.ts` with its own
+`VOLUME_LOOKBACK_SESSIONS = 40`** — your file, under its likely name. Before the
+conjunct it passed with `59 invariants hold.`; after it, the run names both files
+and routes the author.
+
+So: **a lookback whose count is FIXED by the module is a policy and has one
+home.** `backfill.ts`, `fetch-bars.ts` and `series-request.ts` pass
+`wanted + 1`, `wanted` and `count` — a caller's quantity, not a second
+definition — and that is the distinction the conjunct keys on. If your volume
+baseline's window genuinely is not the price baseline's 60 sessions, it owns
+**its own constant, its own argument and its own conjunct**, in the same change.
+Break: `a-second-session-lookback`.
+
+**2. The baseline table may be extended rather than duplicated.**
+`return_baselines` is keyed `(security_id, observed_at)`, declared **derived and
+recomputable**, and carries `sample_count`, `breakpoints` and `refusal`. ADR 0044
+records why it exists and that it is a cache with a schema. **A second table for
+volume is a second nightly pass over the same rows** — the price pass already
+reads every 1m bar in the window, and it runs in **11.78 s warm**.
+
+**3. The split guard is yours to inherit, and it is not optional.** It refused
+**5 of 516** securities on the real store — `CRWD` 0.2501 (4:1), `APH` 0.5017,
+`MNST` 0.5084 (2:1), `DD` 3.0639 (1:3 reverse), `MRNA` 1.8406. **A split breaks
+volume harder than price**: the share count multiplies by exactly the factor the
+price divides by, so an unadjusted 10:1 split is a **+900% volume figure** at the
+100th percentile of every distribution it touches. `SPLIT_DISCONTINUITY_RATIO`
+is a ratio **and its reciprocal** precisely because two of those five are above
+1.0.
+
+**4. The minimum sample is derived, not chosen, and yours must be too.**
+`BASELINE_MINIMUM_SAMPLE = 2500` comes from the printed precision: an integer
+ordinal means the last digit is one percentile point, and `50/√n ≤ 1` gives
+`n ≥ 2500` exactly. It refuses **11 of 511** today. **If your volume factor
+prints a different kind of number, its floor is a different arithmetic** — do
+not reuse 2,500 because it is there.
+
+**5. The tape rule, restated because it is the one that bites.** The baseline
+reads **`feed = 'sip'` by name**, and `window.end` comes from **`bar_coverage`'s
+covered end** rather than `lastCompletedSession(now)` — those two disagree
+between the bell and the nightly run. A `distinct on` without a tie-break mixes
+tapes **inside one series**, and even with a tape order it admits every IEX-only
+minute, so the baseline's tails move with **the hour it was built**.

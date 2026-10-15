@@ -95,8 +95,13 @@ risk or opportunity**. Direction lives in the explanation.
 **3. The distribution is POOLED across the session, not per time-of-day
 bucket.** Per-bucket gives **60 samples**, whose finest expressible percentile
 is **1.7%** — so §11's own `99.1%` could not be said and the 99th percentile
-_would be_ the maximum. Pooled gives **4,680 samples** per security and 0.02%
-granularity. **The known cost is stated rather than discovered**: the open is
+_would be_ the maximum. Pooled gives ~~**4,680 samples** per security and 0.02%
+granularity.~~ **Corrected 2026-10-14 by Story 5.3, which measured it: 4,620**
+— 78 grid anchors yield **77** increments — and in practice a **counted
+per-security** number, min **737** and max **4,620** over 511 securities, with
+early closes giving 41. The granularity claim moves with it: what 4,620
+samples support is an **integer** ordinal (SE 1.00 point at the median), which
+is why the shipped surface prints `99th` and never `99.1st`. **The known cost is stated rather than discovered**: the open is
 structurally the fattest-tailed bucket, so a pooled percentile reads a market
 open as more unusual than it is, and the explanation must say so.
 
