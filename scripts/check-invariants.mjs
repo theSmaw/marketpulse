@@ -4197,16 +4197,91 @@ const INVARIANTS = [
         ["proxies", /\bisProxySymbol\b/u, "a POSITIVE membership test"],
         ["sectors", /\bisSectorSymbol\b/u, "a POSITIVE membership test"],
         ["movers", /\beligible\b/u, "the one eligibility pass"],
+        // ## The `unusual` row, added 2026-10-15 by Task 5.4.2
+        //
+        // **It names the BINDING, the `movers` row's shape rather than the two
+        // above it**, and for the same reason doubled: this section is not a
+        // subset of the join's answer picked by symbol either, it is a SECOND
+        // PASS over the eligibility pass's own array — a narrower predicate
+        // computed downstream, which is what makes `unusual.tracked` and
+        // `movers.tracked` the same number rather than two filters agreeing.
+        //
+        // The defect it refuses is the one Story 5.4's Gate 1 struck the word
+        // *split* out for: a hand-rolled pass of this region's own
+        // (`moves: equities.flatMap(…)`), which calls `eligibleMoves` nowhere,
+        // leaves the one-pass clause intact, typechecks, runs — and loses the
+        // **window**, because an author writing their own pass has no reason
+        // to remember one. Three counts on one screen over two populations,
+        // every figure well-formed.
+        ["unusual", /\beligible\b/u, "the one eligibility pass"],
       ];
 
+      /**
+       * **One section property's whole VALUE, by a balanced walk** — added
+       * 2026-10-15 by Task 5.4.2, because the first version read the property
+       * **to the end of its line** and a section no longer fits on one.
+       *
+       * ## Why the line version had to go, which is not a formatting detail
+       *
+       * `unusual: unusualActivity({` wraps under Prettier, so a line-keyed
+       * clause reads the value as `unusualActivity({` — which contains no set,
+       * no negation and no slice. That is red on the **desired state** as well
+       * as on the defect, and the honest-looking repair when a check is red on
+       * the desired state is to make the check say less. Both failures are this
+       * repository's named decay mode: a guard whose corpus silently excludes
+       * the section the next story adds is
+       * `one-home-for-imperative-navigation`'s first version, which was green
+       * on the file Epic 5 writes.
+       *
+       * ## The walk, and the hazard `CLAUDE.md` records
+       *
+       * It tracks all three delimiter kinds from the colon and stops at the
+       * first **depth-0** comma or at the closing delimiter of the object the
+       * property sits in. It is deliberately not *the first `{` to its matching
+       * `}`*: that is the shape `the-overview-frame-is-not-a-heartbeat` records
+       * being **walked past by a destructured parameter**, and every section's
+       * value here contains one (`(entry) => …`, `({ symbol }) => …`). A value
+       * that does not start with a brace at all — `movers: eligible` — is the
+       * common case and the walk handles it by the same rule.
+       *
+       * **The residue, stated rather than implied.** A depth-0 comma inside a
+       * **string literal** would truncate the value early; the text is
+       * comment-stripped already, no section's value holds a string today, and
+       * a truncation makes the positive clause **fail** rather than pass, which
+       * is the one direction a reader can afford.
+       */
+      const sectionValues = (where, name) => {
+        const values = [];
+        const property = new RegExp(String.raw`\b${name}\s*:`, "gu");
+
+        for (const match of where.matchAll(property)) {
+          const from = match.index + match[0].length;
+          let depth = 0;
+          let index = from;
+
+          for (; index < where.length; index += 1) {
+            const char = where[index];
+
+            if (char === "(" || char === "{" || char === "[") {
+              depth += 1;
+            } else if (char === ")" || char === "}" || char === "]") {
+              // Depth 0 and a closing delimiter: the object this property sits
+              // in has ended, so the value has too.
+              if (depth === 0) break;
+              depth -= 1;
+            } else if (char === "," && depth === 0) {
+              break;
+            }
+          }
+
+          values.push(where.slice(from, index));
+        }
+
+        return values;
+      };
+
       for (const [section, owns, what] of SECTIONS) {
-        // The property and everything up to the end of its line. The call is
-        // Prettier-formatted, so one property is one line; a property that
-        // wrapped would read short here and fail on the positive clause rather
-        // than pass on a truncation.
-        const found = [
-          ...text.matchAll(new RegExp(`\\b${section}:([^\\n]*)`, "gu")),
-        ];
+        const found = sectionValues(text, section);
 
         if (found.length !== 1) {
           throw new InvariantFailure(
@@ -4215,11 +4290,15 @@ const INVARIANTS = [
               "reads the one place the overview aggregate is split into " +
               "sections; it cannot read a split that has moved or been " +
               "duplicated, and a grep that matches nothing looks exactly " +
-              "like a pass.",
+              "like a pass.\n    **Zero also means the section is passed by " +
+              "SHORTHAND** — `unusual,` rather than `unusual: …` — which is " +
+              "how a section hides from this check entirely: there is no " +
+              "value beside the name to read. Name the derivation at the " +
+              "section.",
           );
         }
 
-        const predicate = found[0][1];
+        const predicate = found[0];
 
         if (!owns.test(predicate)) {
           throw new InvariantFailure(
@@ -5107,6 +5186,179 @@ const INVARIANTS = [
             "the accessibility tree as well as from the page, which is the " +
             "exact opposite of what this class is for. The clip-rect idiom " +
             "has one home, in `styles/a11y.module.css`.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "one-comparator-for-the-order-of-a-percentile",
+    claim:
+      "The order two price percentiles put a list in is decided in exactly " +
+      "one place — `compareByPercentile` in " +
+      "`packages/shared/src/percentile-ranking.ts`, which " +
+      "`selectByPercentile` goes through — and no other shipped file compares " +
+      "or subtracts one ordinal against another.",
+    check() {
+      // **Task 5.4.2, and it is a SIBLING of
+      // `one-comparator-for-the-order-of-a-move` rather than a widening of
+      // it** — ADR 0043's lesson one quantity over: two quantities that share
+      // a shape are not one quantity, and the check that cannot tell them
+      // apart is the one that routes the next author wrongly.
+      //
+      // That check is keyed on `(?:percent|change|move)` either side of an
+      // operator. A percentile comparator keyed on `rank` — which is the
+      // **wire field's own name** — matches none of those words and slips
+      // straight past it. (A comparator spelled `.percentile` would trip it,
+      // and would be read as *Story 5.4 introduced a second ranking of
+      // moves*, which is false.)
+      //
+      // ## The draft that passed WRONGLY, and the transcript
+      //
+      // The obvious draft is clause one alone: one declaration of
+      // `compareByPercentile` and one of `selectByPercentile`, each in the
+      // home. Run against `apps/backend/src/market-unusual-top.ts` — the file
+      // the next story writes, a second top-N with the comparison written
+      // inline, **no sort call and no import from the home** — the run
+      // reported `60 invariants hold.` and exit 0 with the second order on
+      // disk. Nothing in that draft is about an order; it is about an
+      // identifier.
+      //
+      // A `.sort(`-keyed draft is worse in both directions and was measured
+      // too: over the three trees it is **red on two innocent files**
+      // (`market/sector-performance.ts`, which sorts by a position a reader
+      // pinned, and `return-baseline.ts`, which sorts samples) and **blind to
+      // the plant**, which sorts nothing — a bounded insertion is the shape a
+      // top-N takes here, as `selectMovers` already demonstrates.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // Two ordinals either side of one operator. A second ranking of these
+      // figures needs neither `compareByPercentile` nor `WireUnusualRow` nor
+      // `.sort(` — `toSorted`, a heap, a `reduce` and a hand-rolled insertion
+      // all qualify — and every one of them contains that comparison.
+      //
+      // **Each side must be a member access ending in the ordinal's name**,
+      // and that is a measurement rather than a preference: `rank` names
+      // **three unrelated orderings** in this tree — `kindRank(a.kind) -
+      // kindRank(b.kind)` in `UniverseTable.tsx`, `TIER_RANK[a.tier] -
+      // TIER_RANK[b.tier]` in `security-match.ts`, and a breakpoint index in
+      // `return-baseline.ts` — plus two bounds checks against literals
+      // (`value.rank < 0 || value.rank > 99` in the decoder, and the ordinal
+      // **suffix** arithmetic in `market/return-percentile.ts`). A clause over
+      // the bare word is red on all five, and exempting five files by name
+      // exempts the most likely sites of the next defect.
+      //
+      // The gap either side of the operator is bounded and refuses a comma, a
+      // semicolon and both logical operators, which is what keeps the window
+      // from straddling two comparisons — the residue
+      // `one-comparator-for-the-order-of-a-move`'s own note names, met here as
+      // `rank % 100 >= 11 && rank % 100 <= 13`.
+      //
+      // ## What it cannot see, stated so nobody over-trusts it
+      //
+      // A comparator whose operands are **locals**: `right > left` after
+      // binding the two ordinals is invisible to this and always will be. The
+      // home writes its comparison as two property reads on purpose, with a
+      // comment saying so, because a copier copies — the same answer
+      // `five-minute-return.ts` gives for its span cutoff. The second residue
+      // is an author who ranks on the **move** instead and calls the result an
+      // anomaly order; that is a different defect, and the one
+      // `one-comparator-for-the-order-of-a-move` already covers.
+      const HOME = "packages/shared/src/percentile-ranking.ts";
+
+      // The three SHIPPED roots —
+      // `one-comparator-for-the-order-of-a-move`'s population, for its
+      // recorded reason: `e2e/specs` is deliberately out, because a browser
+      // spec's job is to restate the expected answer independently and a guard
+      // against a second *producer* must not reach a second *assertion*.
+      //
+      // `shippedSourceFiles()` rather than a list of the files that rank
+      // something today, for `one-home-for-imperative-navigation`'s reason:
+      // **a new region is a new file by this repository's convention**, so a
+      // file list is a corpus that cannot see the next region. The plant above
+      // sat in it by existing.
+      const shipped = shippedSourceFiles().map(({ path, text }) => ({
+        path: relative(REPO_ROOT, path),
+        text,
+      }));
+
+      // ## Clause one — one declaration of each
+      //
+      // The cheap half, and not redundant: a second `compareByPercentile` in
+      // another package would be imported by name and read as the one home at
+      // every call site.
+      for (const name of ["compareByPercentile", "selectByPercentile"]) {
+        const declarations = shipped.filter((file) =>
+          new RegExp(String.raw`\bfunction\s+${name}\b`, "u").test(file.text),
+        );
+
+        if (declarations.length !== 1 || declarations[0].path !== HOME) {
+          throw new InvariantFailure(
+            `\`${name}\` is declared in ${String(declarations.length)} ` +
+              `shipped file(s) and the one home is ${HOME}:\n      ` +
+              (declarations.map((file) => file.path).join("\n      ") ||
+                "(nowhere)") +
+              "\n    A second declaration is a second rule, read as the " +
+              "first one at every call site. A re-export is fine.",
+          );
+        }
+      }
+
+      // ## Clause two — two ordinals either side of one operator
+      const ORDINAL = String.raw`\.(?:rank|ordinal|percentile)[\w$]*`;
+      const SIDE = String.raw`[A-Za-z_$][\w$]*(?:\[[^\]\n]*\]|\.[\w$]+)*${ORDINAL}`;
+      const ORDER_BY_ORDINAL = new RegExp(
+        `${SIDE}[^,;&|\\n]{0,12}?\\s(?:-|<=?|>=?)\\s[^,;&|\\n]{0,4}?${SIDE}`,
+        "u",
+      );
+
+      // Read line by line, so the bounded window either side of the operator
+      // cannot straddle a statement. The whitespace around the operator is
+      // Prettier's, which is a `pnpm verify` step, so `b.rank-a.rank` cannot
+      // survive a formatted tree — and requiring it is what keeps `=>` out of
+      // the `>` alternative.
+      const matchingLines = (file) =>
+        file.text.split("\n").filter((line) => ORDER_BY_ORDINAL.test(line));
+
+      // The anchor. If the home stops matching, the pattern has rotted and
+      // the clause passes vacuously.
+      const home = shipped.find((file) => file.path === HOME);
+
+      if (home === undefined || matchingLines(home).length === 0) {
+        throw new InvariantFailure(
+          `${HOME} no longer puts two ordinals either side of one operator, ` +
+            "and it is this check's anchor. Either the comparator moved or " +
+            "the pattern that recognises one has rotted — note that binding " +
+            "the two ordinals to locals first is enough to rot it, which is " +
+            "why the home spells them as property reads. Repoint it in the " +
+            "same change.",
+        );
+      }
+
+      const comparators = shipped
+        .filter((file) => file.path !== HOME && matchingLines(file).length > 0)
+        .flatMap((file) =>
+          matchingLines(file).map((line) => `${file.path}: ${line.trim()}`),
+        );
+
+      if (comparators.length > 0) {
+        throw new InvariantFailure(
+          `${String(comparators.length)} shipped line(s) order one ordinal ` +
+            "against another outside the one comparator:\n      " +
+            comparators.join("\n      ") +
+            `\n    That order is \`compareByPercentile\`'s, in ${HOME}, and ` +
+            "a second one silently un-holds the rule it carries: **ordinal " +
+            "descending, then ticker ascending**. Integer ordinals over 501 " +
+            "securities make ties routine — at most 100 values for 501 " +
+            "candidates — and a comparator that answers `0` for a tie " +
+            "delegates the answer to the array's arrival order, which is the " +
+            "join's and re-orders under a live feed up to ~16 times a " +
+            "minute. Rank through `compareByPercentile` or " +
+            "`selectByPercentile`. If the quantity genuinely is not a price " +
+            "percentile — a security kind's rank, a search tier's — it is a " +
+            "different ordering and owes its own name rather than an " +
+            "exemption here.",
         );
       }
     },

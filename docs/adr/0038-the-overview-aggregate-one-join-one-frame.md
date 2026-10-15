@@ -475,6 +475,43 @@ object** where an omitted key and a present `undefined` are indistinguishable.
   second frame type is cheaper than a frame whose instant is true of only part of
   itself.
 
+  > **Evaluated 2026-10-15 by Task 5.4.2 and it did NOT fire — the fourth
+  > evaluation, and the first where another ADR's trigger predicted it would
+  > fire in the same instant.**
+  >
+  > `Unusual activity` on `/` ships the price percentile for the 501 equities on
+  > this frame, and
+  > [ADR 0040](0040-what-current-means-a-five-minute-observation-window.md)'s
+  > primary trigger fired on it. ADR 0040's own text said this trigger fired
+  > _"at the same instant"_. **It does not**, and the distinction is the one this
+  > condition is actually about: **a lookback is not a cadence.**
+  >
+  > The region's numerator — a five-minute return — is recomputed **every applied
+  > batch**, exactly like every other figure on this frame, and is published by
+  > the same `publishObservations`. The 60-trading-session baseline is an
+  > **input** that changes once a night, which is precisely `lastCloses`' shape:
+  > it has ridden this frame since Story 4.2, it is refreshed on a different
+  > clock from the batch, and it has never made this frame's `computedAt` untrue
+  > of any part of itself. A figure whose _inputs_ have different update
+  > frequencies still has **one** cadence — the cadence at which the figure is
+  > derived. What fires this trigger is a region that must **arrive** on its own
+  > clock, and none does.
+  >
+  > **The one shape that would fire it is Story 5.4's AC 12** — holding the last
+  > session's closing scores out of hours — because a figure frozen at the bell
+  > while the rest of the frame keeps recomputing genuinely is a second cadence.
+  > That was taken at Gate 1 as a **nightly persisted row keyed by the session it
+  > is for** ([ADR 0044](0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md)'s
+  > shape), which keeps it an **input** like `lastCloses` rather than a second
+  > arrival — so it is read on the batch's cadence from a table, and this trigger
+  > stays unfired. Task 5.4.5 is where that lands; if it ever ships as a figure
+  > the gateway withholds and refreshes separately, **this trigger fires then**.
+  >
+  > The frame grew one section and no frame type: **3,559 B** measured with an
+  > empty `unusual` section of **303 B**, and **232 B a row** against the movers'
+  > 124.3 B — of which **118 B is the two endpoint objects**, which
+  > `MeasuredReturn`'s rule requires rather than tolerates.
+
 - **No wire at all in this story.** Would have shipped the visible half in a
   morning and bought nothing the story exists for. Rejected explicitly rather
   than by omission.

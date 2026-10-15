@@ -64,6 +64,53 @@ and the screen's source note names the **third** kind of data `/` now rests on.
 5. The coverage bias is disclosed on screen or recorded in `docs/GAPS.md` with a
    re-measure.
 
+## Amended by Task 5.4.2 — 2026-10-15: what the counts are, and the one equality your sentence rests on
+
+**The section ships three counts and five refusal counts, measured and
+shipping.** `tracked` (read, never typed), `eligible` (heard from inside the
+cutoff **and** holding a pair exactly the span apart), `scored` (also holding a
+comparable baseline). They are **nested, not parallel** — `eligible ⊇ scored` —
+and that nesting is the only reason one sentence can carry them honestly.
+
+**Five refusal counts, in two closed vocabularies**: `nothing-observed`,
+`no-earlier-endpoint`, `no-basis` for the figure; `too-few-samples` and
+`split-discontinuity` for the comparison.
+
+**There is no sixth, and that is a decision rather than an omission.**
+`comparableBaseline` deliberately collapses _no baseline row at all_ into
+`too-few-samples` with `sampleCount: 0` — Story 5.3 recorded that "`0` and _too
+short_ share a word on purpose". A third count would either add a vocabulary
+member, reversing that decision, or put a second home for the distinction in
+this pass. Accepted at 5.4.2's review: _no row at all_ versus _row too short_ is
+not a distinction a reader can act on, whereas _too short_ versus _crosses a
+split_ is.
+
+**The equality your sentence depends on, with its exact bound.**
+`eligible − scored` equals the sum of the two comparison refusals **in every
+reachable state, but not provably in every state**: `returnPercentileOf` also
+refuses a stored distribution that is not 101 points, or a non-finite magnitude,
+**with no word at all**. Migration `0013`'s constraint forbids the first and the
+division forbids the second, so neither is reachable — but **do not write a
+sentence that asserts the subtraction is exhaustive.** State the counts, or
+state the cut; do not invite a reader to derive one from the others. Task 5.4.2
+asserts the equality over the reachable states and deliberately did not invent a
+refusal word no reader could act on.
+
+**And one narrowing inherited from the intersection, worth knowing before you
+write the denominator.** A security with a live bar inside the cutoff but **no
+stored close** is never scored, because the shared pass already excludes it
+(`change.percent === null`). So `eligible` is already narrower than _heard from
+in the last five minutes_ in a way the phrase does not convey — the wording has
+to survive that.
+
+**Out of hours there is nothing to count.** Task 5.4.2 gates the pass on
+`basis === "observed"` and reports `eligible: 0`, because `eligibleMoves`
+answers on the `session` basis when the regular session is shut and a pass that
+ignored the basis would rank **yesterday's 15:55→16:00 pair as unusual activity
+right now, for ever** (eviction in `trailing-window.ts` is relative to each
+security's own newest bar). So until Task 5.4.5 writes the nightly row, the
+region is empty for ~80% of the week and your sentence has to be honest at zero.
+
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
 

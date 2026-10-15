@@ -74,6 +74,37 @@ yet.` or `No prices yet.` — one noun per region is what tells a reader which
 4. `ORDER HELD` is correct across a re-taken pin, asserted.
 5. `pnpm verify` and `pnpm e2e` green.
 
+## Amended by Task 5.4.1 — 2026-10-15: the box is measured, so the row budget is no longer a guess
+
+**The region is now `342 × 491` at 1440 and `357 × 491` at 1024** (`pnpm probe`,
+2026-10-15), against `342 × 161` and `357 × 161` before. At 768 and 390 the
+≤860 block is unchanged and the region is content-sized.
+
+**Two figures to build against rather than re-derive:**
+
+- **Content width ~308 px at 1440 and ~323 at 1024** — `342 − 2` border
+  `− 32` padding. The brief's 308 figure was right, and the **non-monotonicity
+  is real**: 1024 is _wider_ than 1440 for this region, and 768 (686 px) is the
+  outlier with room. Design the row at **308** first.
+- **The row budget is ~332 px** — 491 outer less the region's own **159 px** of
+  chrome (border 2, header 47, body padding and `.content` margin 48, list
+  heading 16, two-line footer 48). At the measured **27 px pitch**
+  (`27N − 1`) that is **twelve rows maximum**, so a five-row list at **134 px**
+  has ~198 px of slack. **The slack matters**: `Movers` had to reserve a
+  _third_ footer line because its claim wraps at 390, and this region states
+  more populations than `Movers` does, so a third line here is affordable
+  where it was not before.
+
+**AC 1's row count is therefore answerable, and it is a product choice within
+12 rather than a constraint.** `PRODUCT_SPEC.md` §9's panel is a short list;
+take the number deliberately and state it in the region's head slot the way
+`Movers` states `Top 5 each way`.
+
+**And the instrument now exists**: `pnpm probe / --viewports 1440x680,1440x700`
+replaces the hard-coded viewport table rather than filtering it, and prints
+`clientHeight` against `scrollHeight` per element when they differ. Use it —
+it is what found a shipped region scrolling its own placeholder sentence.
+
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
 

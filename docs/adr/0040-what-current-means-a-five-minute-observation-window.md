@@ -192,6 +192,69 @@ same instant. Note which way the split goes: two windows is two passes and
 **two denominators on one screen**, so the sentence that states the window
 becomes per-region rather than per-screen.
 
+### FIRED 2026-10-15 by Task 5.4.2 — and two of the three consequences this trigger predicted did not happen
+
+**The condition is met exactly as written.** `Unusual activity` on `/` ranks the
+price percentile, whose honest basis is a **60-trading-session** baseline
+against breadth's **five minutes** — the clearest instance the condition has
+ever had, and the paragraph above names _an anomaly score over a trailing
+session_ in as many words.
+
+**What fell due is one of the three things predicted, and the other two were
+wrong.** The decision and the rule are untouched; what is corrected is this
+section's own forecast.
+
+1. **`windowMinutes` did NOT stop being one number per frame.** It stays one,
+   because what the anomaly region needs from this ADR is the **freshness
+   cutoff** — _is this security's newest observation still about now_ — which is
+   the same question breadth asks and the same answer. `market-unusual.ts` reads
+   `BREADTH_WINDOW_MINUTES` and spells no cutoff of its own.
+2. **The shared eligibility pass did NOT split.** It could not: there is one
+   call site of `eligibleMoves`, held there by
+   `breadth-is-counted-over-the-equities-alone`, and splitting it is the
+   regression that invariant exists to refuse. What the region needs is a
+   **different predicate** — a pair exactly `RETURN_SPAN_MINUTES` apart **and** a
+   comparable baseline — which is a **second pass plus an intersection**
+   computed downstream. Proved rather than asserted, and on the **producer**
+   because the wire cannot see a defect in one: for the same `EligibleMoves`,
+   the `moves` array identity is unchanged (`toBe`) and
+   `marketBreadth(pass)` and `topMovers(pass, …)` are **byte-identical**
+   before and after the new pass runs.
+3. **The single `observedAt`/`computedAt` pair is still true of the whole
+   frame.** Nothing about a 60-session lookback changes when the frame was
+   computed or what it observed through.
+
+**Why the forecast was wrong, which is the part worth keeping.** It conflated a
+**cutoff** with a **lookback**, and
+[ADR 0043](0043-two-five-minutes-a-freshness-cutoff-and-a-measurement-span.md)
+had already established that these are different quantities that happen to share
+a number. A lookback is **section data** — it describes the _sample a figure was
+compared against_, not _the population the frame is about_ — so it travels
+beside the figure (`baseline.generation`, read off a row the pass actually read,
+never a constant) exactly as `lastCloses` has travelled on this frame since
+Story 4.2 without ever making `windowMinutes` ambiguous.
+
+**So there are not two denominators on one screen.** There is one cutoff and one
+`tracked` count, and what differs between the regions is a **refusal set** —
+`eligible` ⊇ `scored`, nested rather than parallel, with five refusal counts
+split by kind. The sentence that states the window therefore stays
+**per-screen**, and the region states its own _cut_ in addition rather than its
+own _window_.
+
+**One consequence the trigger did not predict and which did fire:** Epic 14's
+backend condition — _the first computation added to that callback that derives a
+figure per security_ — fires on every shape that puts this figure on the frame.
+Priced on the production artefact: **0.474–0.509 ms p50 a batch, 946–1,015 ns a
+security**, 2.8× the breadth-plus-movers work the path already does, with a
+nothing-observed floor of **0.001 ms**. Tight-loop and local, so an upper bound
+on the shape rather than a cost at production's 6.8–16.1 batches a minute, with
+the calibrator in **its own loop** (Task 5.2.5's 7.2× artefact) reading
+0.572–0.602 ms stably and **0 samples discarded**.
+
+**The trigger's remaining half still stands**: _a sector mean over a day_ has
+not happened, and the first region whose eligibility **cannot be stated in
+minutes since a bar's `startsAt`** is the condition to watch now.
+
 **Second, on the value rather than the rule: the first re-measurement of
 per-symbol IEX minute coverage that moves Task 4.1.6's curve.** The 5 is
 derived from a measurement, so a re-measure is an **input** to this decision
