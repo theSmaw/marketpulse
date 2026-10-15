@@ -2720,9 +2720,14 @@ export const BREAKS = [
     // **Restart the dev server before running this one.** The target is a CSS
     // module and `CLAUDE.md` records the symptom under `pnpm break`: a guard
     // reported as absent when it is there.
+    //
+    // **Repointed by Task 5.4.1 (2026-10-15), and the mechanism is unchanged.**
+    // The re-area gave the grid a fourth row, so the `repeat()` no longer ends
+    // the declaration and the old `find` matched nothing —
+    // `every-break-can-still-land` caught it in the same `pnpm verify`.
     file: "apps/frontend/src/routes/MarketOverview.module.css",
-    find: "    repeat(2, minmax(min-content, 1fr));",
-    replace: "    repeat(2, minmax(0, 1fr));\n  height: 82vh;",
+    find: "    repeat(2, minmax(min-content, 1fr))\n    auto;",
+    replace: "    repeat(2, minmax(0, 1fr))\n    auto;\n  height: 82vh;",
     command: ["pnpm", "e2e", "overview-sector-region.spec.ts", "--anyway"],
     expect: "does not scroll them",
   },

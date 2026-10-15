@@ -155,13 +155,53 @@
    * **nothing at all** at those widths. At 768 and 390 the grid is
    * `grid-template-rows: none`, so neighbours are auto-sized and unchanged.
    */
+  /*
+   * --- The re-area (Task 5.4.1, 2026-10-15) ---
+   *
+   * **`Unusual activity` could not draw one row where it sat, and that is
+   * arithmetic rather than a judgement.** It shared row 1 with the topology,
+   * and row 1 is the resolved length above — 161 px at a 900 px viewport.
+   * The region's own chrome is **159 px** (border 2, header 47, body padding
+   * and `.content` margin 48, list heading 16, two-line footer 48), so **zero
+   * rows fit at every viewport height**, and five rows would need a ~1950 px
+   * viewport. The binding case is **900, not a short one**: the length shrinks
+   * with the viewport, so 1440×680 resolves row 1 to 119 and the region's
+   * own *placeholder* sentence already overflows it — measured 117/121, a
+   * scrolling region on the shipped page.
+   *
+   * So the region moves to a `minmax(min-content, 1fr)` row, where the eleven
+   * sectors have already established ~491 px, and **row 1 spans both columns**.
+   * That is a *better* resolved box for Epic 6's renderer rather than a
+   * sacrifice: 1392 × 161 instead of 1026 × 161 — wider, and the same height.
+   *
+   * **Rejected: a content floor on row 1.** It costs +150 px once, takes the
+   * document from 1722 to 1872, displaces four regions and the source note,
+   * and leaves this region 308 px wide to hold a ranked list. **Rejected: an
+   * internal scroller**, which is the defect the rows above this comment were
+   * written to remove, not a way to pay for a new one.
+   *
+   * **Row 4 exists because the grid holds SIX regions and the re-area names
+   * five.** Both the story's own decision and this task's brief wrote
+   * `"topology topology" / "sectors unusual" / "movers breadth"` and omitted
+   * `investigations` — which previously sat in column 2 of row 3, beside
+   * `movers`, where `breadth` now goes. A `grid-area` naming an area the
+   * template does not declare is not an error: it is auto-placed into an
+   * **implicit** row, which renders plausibly and is exactly the "it looked
+   * fine" failure this file's own breakpoint comment exists to refuse. So the
+   * row is explicit, full width, and **`auto` rather than part of the
+   * `repeat`** — a fourth `1fr` would give a hatched placeholder the same ~491
+   * px as eleven drawn sectors, and `auto` takes free space only when no `fr`
+   * track is there to take it first, which two are.
+   */
   grid-template-rows:
     calc((82vh - 2 * var(--space-24)) * 7 / 30)
-    repeat(2, minmax(min-content, 1fr));
+    repeat(2, minmax(min-content, 1fr))
+    auto;
   grid-template-areas:
-    "topology unusual"
-    "sectors breadth"
-    "movers investigations";
+    "topology topology"
+    "sectors unusual"
+    "movers breadth"
+    "investigations investigations";
   gap: var(--space-24);
   /*
    * What the layout does about Epic 6's canvas, thought about once and then

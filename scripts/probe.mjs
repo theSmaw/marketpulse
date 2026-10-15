@@ -62,6 +62,21 @@
 // `e2e/support/pair.ts` reads `E2E_BASE_URL` at module load and throws without
 // it. The condition for doing it anyway: **a third home for the list**, or the
 // first time a spec and this script disagree about a width.
+//
+// ## `--widths` filters the list; `--viewports` replaces it
+//
+// `--widths` was the only viewport flag until 2026-10-15, and it can only
+// *select* from the four pairs above — so a height this table does not hold was
+// unreachable, and a question about a short viewport was unanswerable by this
+// instrument. Story 5.4's AC 1 asks for 1440×700 and 1440×680 by name, which
+// found it. `--viewports 1440x680,1440x700` supplies explicit pairs and
+// **replaces** the table; `--widths` is unchanged, and giving both is refused
+// rather than resolved, because a filter over a replacement is two opinions
+// about one list.
+//
+// The screenshot filename carries the height too (`1440x680.png`), because two
+// runs at one width and two heights otherwise overwrite each other and the
+// second looks like the first.
 
 import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
@@ -89,9 +104,8 @@ const VIEWPORTS = [
 // dump, and a dump taken a frame early is a dump that says so on its face.
 const SETTLE_MS = 2_500;
 
-const { route, within, widths, storyId, everything } = parseArguments(
-  process.argv.slice(2),
-);
+const { route, within, widths, viewports, storyId, everything } =
+  parseArguments(process.argv.slice(2));
 
 const resolved = await resolvePairAddresses();
 
@@ -120,9 +134,15 @@ console.log(`\nProbing ${target}\n`);
 const browser = await chromium.launch();
 let sawAnError = false;
 
-for (const viewport of VIEWPORTS.filter(
-  (candidate) => widths === null || widths.includes(candidate.width),
-)) {
+// The list to walk: the explicit pairs if `--viewports` gave any, otherwise the
+// table, filtered by `--widths` exactly as it always was.
+const chosenViewports =
+  viewports ??
+  VIEWPORTS.filter(
+    (candidate) => widths === null || widths.includes(candidate.width),
+  );
+
+for (const viewport of chosenViewports) {
   const page = await browser.newPage({ viewport });
   const errors = [];
 
@@ -145,10 +165,16 @@ for (const viewport of VIEWPORTS.filter(
     regionName: within,
     everything,
   });
-  const shot = resolve(OUTPUT_DIR, `${String(viewport.width)}.png`);
+  const shot = resolve(
+    OUTPUT_DIR,
+    `${String(viewport.width)}x${String(viewport.height)}.png`,
+  );
   await page.screenshot({ path: shot });
 
-  console.log(`=== ${String(viewport.width)} × ${String(viewport.height)}`);
+  console.log(
+    `=== ${String(viewport.width)} × ${String(viewport.height)}` +
+      `   document scrollHeight ${String(measured.documentScrollHeight)}`,
+  );
 
   if (!measured.found) {
     console.log(`  ⚠ no region named "${String(within)}" on this page\n`);
@@ -231,7 +257,14 @@ function measureLayout({ regionName, everything }) {
   // sentinel — so `pnpm probe /securities/NVDA`, the form this script's own
   // usage text leads with, reported `no region named "null"`, printed no
   // measurements and exited 1. A boolean cannot collide with an absent name.
-  if (scope === null) return { found: false, elements: [] };
+  // Read once, outside the walk: *does the page scroll* is a fact about the
+  // document rather than about any element on it, and a re-area that moves
+  // regions between rows changes it. The whole-page figure is the one a
+  // before/after table needs in order to say that the lower half moved down.
+  const documentScrollHeight = document.documentElement.scrollHeight;
+
+  if (scope === null)
+    return { found: false, elements: [], documentScrollHeight };
 
   const MODULE_CLASS = /^_(?<name>[A-Za-z][A-Za-z0-9]*)_[a-z0-9]+_\d+$/;
 
@@ -281,11 +314,28 @@ function measureLayout({ regionName, everything }) {
           style.display.includes("grid") && style.gridTemplateColumns !== "none"
             ? style.gridTemplateColumns
             : null,
+        // **Resolved rows, not declared.** The declared value on this product's
+        // overview grid is a `calc()` and a `repeat()`; what a reader needs is
+        // the three lengths it came out as, because that is what decides
+        // whether a region's content fits the row it was given.
+        rows:
+          style.display.includes("grid") && style.gridTemplateRows !== "none"
+            ? style.gridTemplateRows
+            : null,
+        // **`clientHeight` against `scrollHeight`, on every element that has a
+        // module class.** `Region` passes `scrollable` unconditionally, so the
+        // *default* behaviour of a region whose content is taller than its row
+        // is a silent scroller that reads correct and hides its weakest row —
+        // the defect `MarketOverview.module.css` records against three `fr`
+        // rows. A box figure cannot see it: the box is the row's height either
+        // way, and the only difference is a number no screenshot carries.
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
       };
     })
     .filter((element) => element !== null);
 
-  return { found: true, elements };
+  return { found: true, elements, documentScrollHeight };
 }
 
 /** One element, as a line. */
@@ -299,13 +349,17 @@ function format(element) {
 
   if (element.flex !== null) parts.push(`flex ${element.flex}`);
 
-  if (element.columns !== null) {
-    const tracks = element.columns
-      .split(" ")
-      .map((track) => track.replace(/px$/, ""))
-      .map((track) => String(Math.round(Number(track))))
-      .join(" ");
-    parts.push(`grid ${tracks}`);
+  if (element.columns !== null) parts.push(`grid ${tracks(element.columns)}`);
+  if (element.rows !== null) parts.push(`rows ${tracks(element.rows)}`);
+
+  // **Printed only when they differ**, with the overflow spelled out. Printing
+  // `489/489` on every one of two dozen lines is a wall that hides the one line
+  // that matters; absence here means the element is not scrolling anything.
+  if (element.scrollHeight > element.clientHeight) {
+    parts.push(
+      `⚠ scrolls ${String(element.clientHeight)}/${String(element.scrollHeight)} ` +
+        `(+${String(element.scrollHeight - element.clientHeight)})`,
+    );
   }
 
   // A real 0 × 0 here is a defect, because Playwright's page is visible — see
@@ -318,10 +372,19 @@ function format(element) {
   return parts.join("  ");
 }
 
+/** A resolved track list, as rounded pixel counts. */
+function tracks(value) {
+  return value
+    .split(" ")
+    .map((track) => track.replace(/px$/, ""))
+    .map((track) => String(Math.round(Number(track))))
+    .join(" ");
+}
+
 /**
  * The arguments, which are deliberately few.
  *
- * No flag library and no aliases: four options, and a script whose usage does
+ * No flag library and no aliases: five options, and a script whose usage does
  * not fit in its own error message is a script that needs `--help` written
  * twice.
  */
@@ -329,6 +392,7 @@ function parseArguments(argv) {
   let route = "/";
   let within = null;
   let widths = null;
+  let viewports = null;
   let storyId = null;
   let everything = false;
 
@@ -341,6 +405,9 @@ function parseArguments(argv) {
     } else if (argument === "--widths") {
       index += 1;
       widths = (argv[index] ?? "").split(",").map(Number).filter(Boolean);
+    } else if (argument === "--viewports") {
+      index += 1;
+      viewports = parseViewports(argv[index] ?? "");
     } else if (argument === "--story") {
       index += 1;
       storyId = argv[index] ?? null;
@@ -352,6 +419,7 @@ function parseArguments(argv) {
           "  pnpm probe /securities/NVDA\n" +
           "  pnpm probe /securities/NVDA --within Price\n" +
           "  pnpm probe /securities --widths 1440,390\n" +
+          "  pnpm probe / --viewports 1440x680,1440x700   # explicit pairs; replaces the table\n" +
           "  pnpm probe --story market-barseriespanel--all-permutations\n" +
           "  pnpm probe /securities/NVDA --all   # every module class, not just layout\n",
       );
@@ -361,5 +429,50 @@ function parseArguments(argv) {
     }
   }
 
-  return { route, within, widths, storyId, everything };
+  // **Refused rather than resolved.** `--widths` selects from the table and
+  // `--viewports` replaces it, so the two together have no meaning a reader
+  // could predict: it would have to be a filter over the pairs the caller just
+  // typed out by hand.
+  if (widths !== null && viewports !== null) {
+    console.error(
+      "--widths filters the built-in table and --viewports replaces it; pass one, not both.\n",
+    );
+    process.exit(1);
+  }
+
+  return { route, within, widths, viewports, storyId, everything };
+}
+
+/**
+ * `1440x680,1440x700` as viewport objects.
+ *
+ * Exits rather than falling back to the table: a mistyped pair that silently
+ * became "the usual four" would print a plausible reading of the wrong
+ * viewports, which is the failure mode this file's own header calls the one
+ * worth designing against.
+ */
+function parseViewports(value) {
+  const parsed = value
+    .split(",")
+    .filter((pair) => pair !== "")
+    .map((pair) => {
+      const match = /^(?<width>\d+)[x×](?<height>\d+)$/.exec(pair.trim());
+
+      if (match?.groups === undefined) return null;
+
+      return {
+        width: Number(match.groups.width),
+        height: Number(match.groups.height),
+      };
+    });
+
+  if (parsed.length === 0 || parsed.includes(null)) {
+    console.error(
+      `--viewports wants WIDTHxHEIGHT pairs, got "${value}".\n\n` +
+        "  pnpm probe / --viewports 1440x680,1440x700,1440x900\n",
+    );
+    process.exit(1);
+  }
+
+  return parsed;
 }

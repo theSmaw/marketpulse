@@ -716,7 +716,7 @@ export function MarketOverview({
           className={styles.areaTopology}
           name="Market topology"
           awaiting="Epic 6"
-          filledBy="The securities graph, in WebGL — 516 nodes clustered by sector, sized by liquidity, moving with the market. It takes this column when it arrives."
+          filledBy="The securities graph, in WebGL — 516 nodes clustered by sector, sized by liquidity, moving with the market. It takes the full width of this screen when it arrives."
         />
 
         <Region

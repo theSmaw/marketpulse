@@ -1456,6 +1456,11 @@ pnpm probe         # LOOK at a layout, against the pair you started. NOT a test 
                    # box, its computed `flex` and its RESOLVED grid tracks, plus a screenshot in
                    # .probe/ and any page error. Thirty seconds, and it is where a tolerance's
                    # number comes from. `--widths 1440,390`, `--all`, `--story <id>`.
+                   # `--viewports 1440x680,1440x700` REPLACES the four-entry table rather than
+                   # filtering it, which is the only way to probe a HEIGHT — passing both it and
+                   # `--widths` is refused. It also prints each element's clientHeight against its
+                   # scrollHeight when they differ, which is how Task 5.4.1 found a shipped region
+                   # scrolling its own placeholder sentence at 1440x680.
 pnpm image         # build the backend container image. Pushes nothing.
 pnpm clean         # tsc -b --clean, plus the frontend's dist/ and storybook-static/
 pnpm format        # prettier --write .   (also format:check)
