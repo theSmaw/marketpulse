@@ -72,6 +72,17 @@ const OVERALL_TIMEOUT_MS = 180_000;
 const POLL_INTERVAL_MS = 1_000;
 
 /**
+ * Wait, really.
+ *
+ * Named once rather than written inline at the two sites that poll, because
+ * both of them take an injectable `sleep` beside an injectable `now` — the seam
+ * a test drives, and the reason `probeFeed`'s 60-second grace and this file's
+ * three-minute deadline can be asserted without a suite that takes four
+ * minutes to say so.
+ */
+const realSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
  * How many completed sessions the store may be behind before this goes red.
  *
  * **Two, and it is a ceiling rather than a target.** The catch-up runs at 08:00
@@ -415,17 +426,31 @@ function naming(securities, count) {
  */
 const DISCONNECTED_GRACE_MS = 60_000;
 
-async function probeFeed(backendOrigin, { now = Date.now, sleep } = {}) {
+export async function probeFeed(
+  backendOrigin,
+  { now = Date.now, sleep = realSleep } = {},
+) {
   const deadline = now() + DISCONNECTED_GRACE_MS;
   for (;;) {
     const attempt = await probeFeedOnce(backendOrigin);
-    // Only the `disconnected` verdict is retried. A replaying deployment, a
-    // 404 or a wrong feed in session resolve by nobody waiting.
-    if (attempt.ok || attempt.disconnected !== true) return attempt;
+    // **Two verdicts are retried, and both are the CONNECTION rather than the
+    // configuration.** `disconnected` out of hours (condition 3), and a feed
+    // that is the right one with the wrong connection word in session
+    // (condition 2's `retryable`). A replaying deployment, a 404 and a wrong
+    // `feed` resolve by nobody waiting: they are what this deployment is
+    // configured to serve, which a second request cannot change.
+    //
+    // Widened 2026-10-16. `probe-deployed` run 38778595130 went red at 13:35
+    // ET on `feed=iex status=stale` — a connected socket that had printed
+    // nothing for 60 s, which is the one state on IEX that resolves itself and
+    // was the only one of the three the grace could not reach.
+    if (
+      attempt.ok ||
+      (attempt.disconnected !== true && attempt.retryable !== true)
+    )
+      return attempt;
     if (now() >= deadline) return attempt;
-    await (sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))))(
-      POLL_INTERVAL_MS,
-    );
+    await sleep(POLL_INTERVAL_MS);
   }
 }
 
@@ -484,6 +509,22 @@ async function probeFeedOnce(backendOrigin) {
     if (feed !== "iex" || status !== "live") {
       return {
         ok: false,
+        // **The fault is the connection word and not the feed, which is the
+        // one half of this condition that resolves by waiting.**
+        //
+        // `stale` means the socket is up and nothing has printed for 60 s. On
+        // IEX, at 65.1% median per-symbol coverage, a whole-universe silence
+        // of a minute is ordinary around the bell and during the handover of
+        // every deploy — and `DISCONNECTED_GRACE_MS` existed for exactly that
+        // shape of fault while reaching only `disconnected`, and only out of
+        // hours. `disconnected` in session is the same case one step worse:
+        // the arriving replica is refused for 45.8–46.5 s by design (§8.2).
+        //
+        // **A wrong `feed` stays non-retryable**, because it is not a
+        // connection at all: it is what this deployment was configured to
+        // serve, and no amount of waiting reconfigures it.
+        retryable:
+          feed === "iex" && (status === "stale" || status === "disconnected"),
         detail:
           `the market is open and the feed is not a connected iex ` +
           `(provider=${String(provider)} feed=${String(feed)} ` +
@@ -539,6 +580,129 @@ async function probeFeedOnce(backendOrigin) {
     detail:
       `market closed; provider=${String(provider)} status=${String(status)} ` +
       `observedAt=${String(observedAt)}`,
+  };
+}
+
+/**
+ * The query the security page asks for on a cold load, parameter for parameter.
+ *
+ * `apps/frontend/src/bar-series-query.ts` is the only place in the application
+ * that writes these names, and this is a second copy of the string it
+ * produces — deliberately, because the point of this probe is to be the
+ * request a browser will make a few seconds later rather than one this script
+ * composed. `DEFAULT_WINDOW_SESSIONS` is 5 and `timeframeForSessions(5)` is
+ * `1m`, so this is `/securities/NVDA` with no query on it.
+ *
+ * **The order is the client's order and that is load-bearing**, for the reason
+ * `barSeriesQuery` records: two caches key on the whole URL, so a probe that
+ * spelled the same request differently would warm neither of the ones the page
+ * is about to read.
+ *
+ * NVDA because it is the security the curated universe always holds and the one
+ * the deployed journey opens — `e2e/specs-deployed/security-explorer-journey.spec.ts`.
+ */
+const SERIES_PROBE_QUERY = "symbol=NVDA&timeframe=1m&sessions=5";
+
+/**
+ * Can the deployed backend serve a SERIES, and not only its own health check?
+ * (2026-10-16.)
+ *
+ * **This is the probe whose absence made the check race the thing it gates.**
+ * Two `deploy` runs — 38704668224 and 38861268104 — failed in `check-deployed`
+ * with the deploy itself green, at `backend up 91.6s` and `up 96.7s`. `/health`
+ * answered, the artefact was coherent, the store was fresh and the feed was
+ * honest; `GET /market-data/bars` was not being served yet, so the browser
+ * suite opened `/securities/NVDA` and the Price region drew *"no response from
+ * the service. This is usually temporary. Try again in a moment."* — which is
+ * the **product being right** — and `security-explorer-journey` blew its 15 s
+ * assertion timeout against a deployment that was seconds from healthy.
+ *
+ * **So this belongs in the RETRY set beside the backend and the frontend**,
+ * which is the distinction the loop below is built on: a series that cannot be
+ * served yet resolves by waiting, exactly as the upload window does, where
+ * staleness and a replaying feed do not. It still contributes to the final
+ * verdict, so a deployment that cannot serve a series after
+ * `OVERALL_TIMEOUT_MS` is red — correctly, because the browser suite would then
+ * be red for the same reason three minutes later and with a worse message.
+ *
+ * **Warm, this request costs 1.19 s at one session and 2.67 s at twenty-one
+ * (925 kB)** — measured against production on 2026-10-16, which is what says a
+ * 10 s `ATTEMPT_TIMEOUT_MS` is not itself the thing being measured.
+ *
+ * **Non-empty, and the bound on that claim is the store rather than the code.**
+ * `bars: []` is a legitimate 200 on this contract — *we asked and we hold
+ * nothing* — and it is CI's store on every security. It is not a state a
+ * deployment this check is ever pointed at can be in: production holds ~48.8
+ * million minute bars and NVDA has printed in every one of the last five
+ * sessions since the universe was curated. An empty series here means the
+ * answer is coming from somewhere other than the store this product fills, and
+ * a readiness check that waved it through would hand the browser suite a page
+ * with no plot on it.
+ *
+ * It is also, incidentally, the witness the block above describes under *what
+ * this file deliberately does not probe*: a 200 with a `provenance.source`
+ * proves `market_bars.feed` exists and is read end to end. That is a side
+ * effect and not the reason this exists — the condition named there has not
+ * fired.
+ */
+export async function probeSeries(backendOrigin) {
+  const result = await get(
+    `${backendOrigin}/market-data/bars?${SERIES_PROBE_QUERY}`,
+  );
+
+  if (!result.ok) return { ok: false, detail: result.reason };
+  if (result.status !== 200) {
+    return { ok: false, detail: `HTTP ${String(result.status)}` };
+  }
+
+  let body;
+  try {
+    body = await result.response.json();
+  } catch {
+    return { ok: false, detail: "200 with a body that is not JSON" };
+  }
+
+  const series =
+    typeof body === "object" && body !== null ? body.series : undefined;
+
+  if (
+    typeof series !== "object" ||
+    series === null ||
+    !Array.isArray(series.bars)
+  ) {
+    return { ok: false, detail: "200 with a body that is not the contract" };
+  }
+
+  if (series.bars.length === 0) {
+    return {
+      ok: false,
+      detail:
+        "200 with an EMPTY series for NVDA over the last 5 sessions. The " +
+        "contract calls that a legitimate answer — we asked and we hold " +
+        "nothing — and it is not a state the deployed store can honestly be " +
+        "in. Something other than the filled store answered.",
+    };
+  }
+
+  // **The tapes, de-duplicated, with the run count beside them.** `sources` is
+  // one entry per contiguous run of tape rather than per feed, and a window
+  // reaching into extended hours alternates: measured against production on
+  // 2026-10-16, this answer carried **eight** runs reading
+  // `sip, iex, sip, iex, sip, iex, sip, iex`. Printing them in order is a
+  // sentence that grows without bound and says nothing a reader of a readiness
+  // check wants; printing the count and the set says the same thing in a line.
+  const sources = Array.isArray(series.provenance?.sources)
+    ? series.provenance.sources.map((source) => String(source.feed))
+    : [];
+  const tapes = [...new Set(sources)].join("+") || "?";
+
+  return {
+    ok: true,
+    detail: `${String(series.bars.length)} bars for ${String(
+      series.symbol,
+    )} 1m/5 sessions, ${String(sources.length)} source${
+      sources.length === 1 ? "" : "s"
+    } (${tapes})`,
   };
 }
 
@@ -598,10 +762,14 @@ async function probeFrontend(frontendOrigin) {
  * Returns `{ ok }` plus the last result for each half, so the caller can print
  * the two-host diagnosis rather than a single line saying something failed.
  */
-export async function checkDeployed({ backendOrigin, frontendOrigin }) {
-  const deadline = Date.now() + OVERALL_TIMEOUT_MS;
+export async function checkDeployed(
+  { backendOrigin, frontendOrigin },
+  { now = Date.now, sleep = realSleep } = {},
+) {
+  const deadline = now() + OVERALL_TIMEOUT_MS;
   let backend;
   let frontend;
+  let series;
   let freshness;
   let feed;
 
@@ -613,41 +781,75 @@ export async function checkDeployed({ backendOrigin, frontendOrigin }) {
     backend = await probeBackend(backendOrigin);
     frontend = await probeFrontend(frontendOrigin);
 
-    // **Last, and only once the pair is up.** A stale store on a backend that
-    // is still starting is a fact about the backend, and retrying a freshness
-    // answer cannot change it: unlike the upload window this loop exists for,
-    // nothing about staleness resolves by waiting a second. So it is probed
-    // when the other two agree, and its result ends the loop either way.
+    // **In the RETRY set, and only once the pair is up.** A container whose
+    // `/health` answers before it can serve a series is the state two `deploy`
+    // runs went red in, and it resolves by waiting — so it is polled with the
+    // other two rather than evaluated once at the end with freshness and the
+    // feed. Only asked when the pair is up, because a series request to a
+    // backend that is not answering its own contract learns nothing and costs
+    // production a request.
     if (backend.ok && frontend.ok) {
+      series = await probeSeries(backendOrigin);
+    }
+
+    // **One gate, and the series is IN it.** This is the whole of the series
+    // probe's contribution to the verdict: red here keeps the loop running
+    // until `OVERALL_TIMEOUT_MS`, and the deadline below then returns
+    // `ok: false`. A reader tempted to print the series line and leave
+    // readiness as *the two halves* is writing the defect this was added for —
+    // the check would be green on exactly the deployment the browser suite is
+    // about to fail against.
+    const ready = backend.ok && frontend.ok && series?.ok === true;
+
+    // **Last, and only once the pair can serve.** A stale store on a backend
+    // that is still starting is a fact about the backend, and retrying a
+    // freshness answer cannot change it: unlike the upload window this loop
+    // exists for, nothing about staleness resolves by waiting a second. So it
+    // is probed when the three above agree, and its result ends the loop
+    // either way.
+    if (ready) {
       freshness = await probeFreshness(backendOrigin);
       // **Both, always, and the result is the AND.** A deployment that is fresh
       // and replaying is not acceptable, and one that is live on `iex` with a
       // stale store is not either — so neither probe may short-circuit the
       // other, and a reader of the output sees both lines whichever failed.
-      feed = await probeFeed(backendOrigin);
+      feed = await probeFeed(backendOrigin, { now, sleep });
       return {
         ok: freshness.ok && feed.ok,
         backend,
         frontend,
+        series,
         freshness,
         feed,
       };
     }
 
-    if (Date.now() >= deadline)
-      return { ok: false, backend, frontend, freshness, feed };
+    if (now() >= deadline)
+      return { ok: false, backend, frontend, series, freshness, feed };
 
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    await sleep(POLL_INTERVAL_MS);
   }
 }
 
 /** Render the result, including the control's diagnosis. */
 export function reportDeployed(
-  { ok, backend, frontend, freshness, feed },
+  { ok, backend, frontend, series, freshness, feed },
   addresses,
 ) {
   const line = (mark, label, url, detail) =>
     `  ${mark} ${label.padEnd(9)} ${url}  ${detail}`;
+
+  // **Why a probe was not reached, in the words of the probe that stopped the
+  // loop.** Found by rendering this report rather than by reading it: with the
+  // series probe in the retry set there are now TWO reasons the last two lines
+  // can be absent, and a fixed *"the pair never came up"* sat under a `✓
+  // backend` and a `✓ frontend` — this function's own recorded failure mode,
+  // a message that names the wrong thing, which is worse than no message
+  // because a reader acts on it.
+  const notReached =
+    backend.ok && frontend.ok
+      ? "not reached — the backend never served a series"
+      : "not reached — the pair never came up";
 
   console.log(
     line(
@@ -665,6 +867,17 @@ export function reportDeployed(
       frontend.detail,
     ),
   );
+  // Printed in the order it is probed, and with the same "not reached"
+  // treatment as the two below: absent means the pair never came up, which is
+  // a check that did not run rather than one that passed.
+  console.log(
+    line(
+      series === undefined ? "·" : series.ok ? "✓" : "✗",
+      "series",
+      `${addresses.backendOrigin}/market-data/bars?${SERIES_PROBE_QUERY}`,
+      series === undefined ? notReached : series.detail,
+    ),
+  );
   // Absent when the pair never came up — reported as "not reached" rather than
   // omitted, so a reader cannot mistake a check that did not run for one that
   // passed. That distinction is the whole subject of this file's newest probe.
@@ -673,9 +886,7 @@ export function reportDeployed(
       freshness === undefined ? "·" : freshness.ok ? "✓" : "✗",
       "store",
       `${addresses.backendOrigin}/diagnostics/freshness`,
-      freshness === undefined
-        ? "not reached — the pair never came up"
-        : freshness.detail,
+      freshness === undefined ? notReached : freshness.detail,
     ),
   );
   // Same "not reached" treatment, for the same reason: a check that did not run
@@ -685,7 +896,7 @@ export function reportDeployed(
       feed === undefined ? "·" : feed.ok ? "✓" : "✗",
       "feed",
       `${addresses.backendOrigin}/diagnostics/feed`,
-      feed === undefined ? "not reached — the pair never came up" : feed.detail,
+      feed === undefined ? notReached : feed.detail,
     ),
   );
   console.log("");
@@ -722,6 +933,36 @@ export function reportDeployed(
         "and a geo-distributed CDN in East US 2 — so a simultaneous outage of both is\n" +
         "much less likely than one link being down. Task 1.11.7 produced exactly this\n" +
         "shape once and it was the laptop. Check from a second host before acting.\n",
+    );
+    return;
+  }
+
+  // **The pair is up and the backend cannot serve a series**, which is neither
+  // half being broken and is not the store being stale.
+  //
+  // Before the freshness paragraphs because it is reached by a different path:
+  // a failing series ends the loop at the deadline, so `freshness` and `feed`
+  // are `undefined` and nothing below has an opinion. Said in its own words
+  // because the two paragraphs underneath would name the wrong subject, which
+  // is this function's own recorded failure mode.
+  if (backend.ok && frontend.ok && series !== undefined && !series.ok) {
+    console.error(
+      "Both halves are up and the artefact is coherent, and the backend answers\n" +
+        "its own health check — but it did not serve a SERIES within " +
+        `${String(Math.round(OVERALL_TIMEOUT_MS / 1000))} s.\n` +
+        "\n" +
+        "That is the one failure here that is worth waiting for and this check\n" +
+        "already waited: `/health` answering before `/market-data/bars` can be\n" +
+        "served is the ordinary shape of a cold container, and it is why this probe\n" +
+        "is polled rather than evaluated once. Two deploys went red in the browser\n" +
+        "suite for exactly this, at `up 91.6s` and `up 96.7s`, with the page drawing\n" +
+        "its own correct *no response from the service* sentence.\n" +
+        "\n" +
+        "Having outlasted the deadline it is a real finding rather than a race: the\n" +
+        "browser suite would be red for the same reason, three minutes later, with a\n" +
+        "worse message. Read the line above — a connection error is the container or\n" +
+        "its ingress, an HTTP 5xx is the pool or the query, and an EMPTY series is a\n" +
+        "store that is not the one this product fills.\n",
     );
     return;
   }

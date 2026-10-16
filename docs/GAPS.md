@@ -4381,3 +4381,43 @@ same sitting that `LIVE-REHEARSAL.md` row 5.4 is owed.** **Condition for forcing
 a product decision rather than a measurement: the first time a reader asks why a
 security they expected is not on the list** — because that is the question this
 bias produces and the denominator cannot answer.
+
+## The deployed readiness probe requires BARS, so it would be permanently red against a zero-bar deployment
+
+**Added 2026-10-16 by the deployed-check repair, and it is a bound rather than a
+defect.** `check-deployed.mjs`'s new `probeSeries` requires a 200 whose
+`series.bars` is **non-empty**, because that is the whole point of it: `/health`
+answered fine at `up 91.6s` and `up 96.7s` on two deploys while
+`/market-data/bars` could not yet be served, and the browser specs raced the
+warm-up and lost. A probe that accepted an empty series would not have caught
+either.
+
+**But `bars: []` is a legitimate 200 on that contract**, and it is **CI's store
+for every security** — 516 securities and zero bars. So pointed at a bare
+deployment this probe is red for ever, and red for a reason that is not a fault.
+
+**Nothing points it at one today, and that is the whole of why this is a bound.**
+`deploy.yml`'s `check-deployed` job and `probe-deployed.yml` both pass the
+production addresses, and nothing parses the script's output. The constraint is
+recorded in the function's own docblock as well as here, which is this
+repository's rule for a claim about data.
+
+**Re-measure / condition:** **the first time `check-deployed.mjs` is pointed at a
+deployment that is not the production pair** — a preview environment, a staging
+store, or CI gaining a deployed smoke test. At that point the probe needs a
+`sessions` window the target can actually answer, or an explicit
+`allow-empty-series` mode, and **not** a relaxation of the non-empty rule for
+production, which would restore the race it was written to close.
+
+**Measured bound for sizing any such change**, production, 2026-10-16: the
+5-session request is **214,003 bytes raw / 33,675 gzipped in 1.12–1.40 s**, and
+Node's `fetch` sends `accept-encoding` by default so the probe pays the 34 kB.
+The whole deployed check is **3.32 s**.
+
+**And one real observation the probe made on its first run, worth keeping**: the
+5-session window came back as **eight contiguous tape runs** —
+`sip+iex+sip+iex+sip+iex+sip+iex` — because the window reaches into extended
+hours, where the live writer's `iex` rows survive the nightly backfill that
+covers only regular-session minutes. That is `TAPE.md`'s stitch behaviour
+observed against the deployed store rather than argued, and the detail line now
+prints the run count and the de-duplicated set.
