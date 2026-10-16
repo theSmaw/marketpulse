@@ -2385,6 +2385,12 @@ const INVARIANTS = [
         // `Computed` was never in this list and could not be: it is a word
         // half the product could legitimately use. This one names a subject.
         "Observed through",
+        // Added 2026-10-16 by Task 5.4.4 with the third source class — the
+        // tape the `Unusual activity` ordinals are ranked **against**, whose
+        // numerator is the other one. A term naming a subject, like the three
+        // above it, and the same hazard: a region drawing its own feed line
+        // is the `BarSeriesPanel` duplicate this product deleted.
+        "Baselines",
       ]) {
         const spellings = [`"${term}"`, `>${term}<`];
         const homes = shipped
@@ -5705,6 +5711,113 @@ const INVARIANTS = [
             "(`RankedList`'s `.rules` and `.ladder`), which is what makes " +
             "sweeping it the plausible edit; the DOM stays correct, every " +
             "component test stays green and axe stays silent.",
+        );
+      }
+    },
+  },
+  {
+    id: "the-cut-has-one-home-and-is-read-off-the-frame",
+    claim:
+      "The phrase stating how many securities got past the ranking's line " +
+      "is written in exactly one shipped file — `measured-set.ts`, the one " +
+      "builder all three counted regions state their populations from — " +
+      "and the region that states it reads `tracked`, `eligible` and " +
+      "`scored` off the frame's own section rather than spelling any of " +
+      "them.",
+    check() {
+      // **Task 5.4.4, AC 3, and two conjuncts because one is green on the
+      // defect that matters.**
+      //
+      // `Unusual activity` is the first region in this product with **three**
+      // populations: the 501 equities, how many were heard from inside the
+      // freshness cutoff, and how many of those had a baseline long enough to
+      // rank. The third is **the cut** — the figure that tells a reader
+      // whether a top ten was selected from 455 securities or from 3, which
+      // `MARKET-OVERVIEW.md` §5.5 is a document about.
+      //
+      // ## Conjunct one — the words
+      //
+      // The obvious implementation is the defect: a region that **imports**
+      // the shared builder for the first two populations and appends the
+      // third in its own template literal, 200 px from the one home. One
+      // import, two builders — and every test stays green, because the
+      // sentence on screen reads perfectly. What goes wrong is later: the
+      // grammar, the `none`-for-zero rule and the agreement now live in two
+      // places, and the copy that drifts is the one nobody is looking at.
+      //
+      // ## Conjunct two — the figures
+      //
+      // A one-conjunct draft of the neighbouring check reported `52
+      // invariants hold.` against a live defect, so the words alone are not
+      // the guard. The second half is that the region's reader takes all
+      // three counts from the **section**: a `501` typed into a call site is
+      // a lie with no symptom the day a constituent is delisted
+      // (`the-population-is-never-a-literal`'s rule, one surface over), and a
+      // `455` typed beside it is a lie about a cut that moves every night.
+      const WORDS = "apps/frontend/src/market/measured-set.ts";
+      const READER = "apps/frontend/src/market/unusual-activity.ts";
+
+      // The phrase a re-implementer cannot avoid writing: *what the region
+      // says about the securities it could rank*. Matched without its count,
+      // because the count is the part that is read.
+      const CUT = /a long enough history to rank/u;
+
+      const homes = shippedSourceFiles()
+        .filter(({ text }) => CUT.test(text))
+        .map(({ path }) => relative(REPO_ROOT, path));
+
+      if (homes.length !== 1 || homes[0] !== WORDS) {
+        throw new InvariantFailure(
+          `The cut phrase is written in ${String(homes.length)} shipped ` +
+            `file(s), expected exactly 1 in ${WORDS}:\n      ` +
+            (homes.join("\n      ") ||
+              "(nowhere — if the sentence was reworded, reword this check in " +
+                "the same change: a grep that matches nothing looks exactly " +
+                "like a pass)") +
+            "\n    Three populations, two sentences, ONE builder (AC 3). A " +
+            "second home for the clause is two sentences that can disagree " +
+            "about the grammar, about `none` for zero and about the " +
+            "agreement — and the copy that drifts is the one nobody reads.",
+        );
+      }
+
+      // **The counts, read and never spelled.** Each is named as a member of
+      // the section rather than as a bare word, which is the shape a
+      // re-implementer must write to get the figure at all — `tracked` alone
+      // would be satisfied by a local holding a literal.
+      const reader = readAnchored(resolve(REPO_ROOT, READER));
+      const code = withoutComments(reader);
+
+      for (const [field, what] of [
+        ["tracked", "the size of the set"],
+        ["eligible", "how many were heard from"],
+        ["scored", "how many got past the line"],
+      ]) {
+        if (!new RegExp(`\\.${field}\\b`, "u").test(code)) {
+          throw new InvariantFailure(
+            `${READER} never reads \`.${field}\` — ${what}. Every figure in ` +
+              "this region's footer comes off the section the gateway sent: " +
+              "a literal `501` is a lie with no symptom the day a " +
+              "constituent is delisted, and a literal cut is a lie about a " +
+              "figure that moves every night. If the field was renamed, " +
+              "repoint this check in the same change.",
+          );
+        }
+      }
+
+      const literals = [
+        ...code.matchAll(/\b(?:tracked|eligible|scored|ranked):\s*(\d+)/gu),
+      ].map((match) => `${READER} — ${match[0]}`);
+
+      if (literals.length > 0) {
+        throw new InvariantFailure(
+          "A population spelled rather than read:\n      " +
+            literals.join("\n      ") +
+            "\n    The three counts nest — `tracked ⊇ eligible ⊇ scored` — " +
+            "and they are the producer's, taken from one eligibility pass " +
+            "over one array. A number typed here is a browser disagreeing " +
+            "with the gateway about what was ranked, with every figure on " +
+            "screen well-formed.",
         );
       }
     },

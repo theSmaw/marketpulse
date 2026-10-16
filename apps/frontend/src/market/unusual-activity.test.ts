@@ -316,3 +316,123 @@ describe("unusualSymbols — the subscription's share", () => {
     expect(unusualSymbols(undefined)).toEqual([]);
   });
 });
+
+describe("the footer — three populations, the cut and why the rest are not rows", () => {
+  // **Task 5.4.4.** What this level can see is the sentence; what it cannot
+  // see is whether it fits, which is the claim this region most easily breaks
+  // and is measured in a browser (four lines of micro at 308 px, the region
+  // 491/491/458/458 unchanged).
+
+  /** A section with the three counts and the two comparison refusals set. */
+  const counted = (
+    rows: readonly WireUnusualRow[],
+    counts: {
+      eligible: number;
+      scored: number;
+      tooFew?: number;
+      split?: number;
+    },
+  ): WireUnusualActivity => ({
+    ...section(rows),
+    eligible: counts.eligible,
+    scored: counts.scored,
+    refusals: {
+      figure: {
+        "nothing-observed": 35,
+        "no-earlier-endpoint": 0,
+        "no-basis": 0,
+      },
+      comparison: {
+        "too-few-samples": counts.tooFew ?? 0,
+        "split-discontinuity": counts.split ?? 0,
+      },
+    },
+  });
+
+  /** The same frame with an observation instant on it, so the age line draws. */
+  const observedFrame = (unusual: WireUnusualActivity): WireMarketOverview => ({
+    ...frame(unusual),
+    observedAt: "2026-10-15T18:00:00.000Z",
+  });
+
+  it("states the population, the cut and the age in one claim", () => {
+    const view = read(
+      observedFrame(
+        counted([row("NVDA", 99, 3.2)], {
+          eligible: 466,
+          scored: 455,
+          tooFew: 9,
+          split: 2,
+        }),
+      ),
+    );
+
+    expect(view?.claim?.drawn).toBe(
+      "Of the 501 companies we track, 466 were heard from in the last 5 " +
+        "minutes and 455 have a long enough history to rank. 9 have too " +
+        "short a baseline and 2 cross an unadjusted price break. Nothing " +
+        "newer than Oct 15 · 14:01 EDT has reached us.",
+    );
+  });
+
+  it("hands a listener the same string it draws", () => {
+    // One fact, two renderings (ADR 0029) — equal today because the region
+    // prints no denominator anywhere else, so the drawn half has nothing to
+    // defer to. The pair exists so the two cannot diverge the day it does.
+    const view = read(observedFrame(counted([], { eligible: 4, scored: 1 })));
+
+    expect(view?.claim?.spoken).toBe(view?.claim?.drawn);
+  });
+
+  it("says nothing of a refusal kind with nobody behind it", () => {
+    // ADR 0029 at the grain of a clause: `0 cross an unadjusted price break`
+    // is a fully-formed claim about an empty set, and `split-discontinuity`
+    // is zero on most frames — five securities in the universe were over the
+    // ratio when Task 5.3.2 measured.
+    const view = read(
+      observedFrame(counted([], { eligible: 466, scored: 455, tooFew: 11 })),
+    );
+
+    expect(view?.claim?.drawn).toContain("11 have too short a baseline.");
+    expect(view?.claim?.drawn).not.toContain("price break");
+  });
+
+  it("agrees with a count of one, in both refusal kinds and in the cut", () => {
+    const view = read(
+      observedFrame(
+        counted([], { eligible: 3, scored: 1, tooFew: 1, split: 1 }),
+      ),
+    );
+
+    expect(view?.claim?.drawn).toContain("1 has a long enough history to rank");
+    expect(view?.claim?.drawn).toContain(
+      "1 has too short a baseline and 1 crosses an unadjusted price break",
+    );
+  });
+
+  it("withholds the cut and the refusals where nothing was heard from", () => {
+    // Out of hours and on every gated run. *…none were heard from and none
+    // have a long enough history to rank* is a fully-formed denominator about
+    // nothing, which is the false impression ADR 0029 refuses — and the
+    // producer cannot count a comparison refusal over an empty eligible set.
+    const view = read(frame(counted([], { eligible: 0, scored: 0 })));
+
+    expect(view?.claim?.drawn).toBe(
+      "Of the 501 companies we track, none were heard from in the last 5 minutes.",
+    );
+  });
+
+  it("draws no age where the aggregate holds no observation", () => {
+    // `observedAt` is absent exactly when nothing was observed — CI's
+    // permanent state. Absent rather than empty: there is no instant to date.
+    const view = read(frame(counted([], { eligible: 0, scored: 0 })));
+
+    expect(view?.claim?.drawn).not.toContain("reached us");
+  });
+
+  it("has no claim at all in the reservation", () => {
+    // A hidden string is still in `textContent`, and every sentence this
+    // region can draw is a claim about a ranking nothing has computed.
+    expect(RESERVED_UNUSUAL.claim).toBeUndefined();
+  });
+});

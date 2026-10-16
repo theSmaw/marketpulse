@@ -83,6 +83,7 @@ describe("toOverviewSourceNote", () => {
     expect(note).toEqual({
       observed: null,
       closes: null,
+      baselines: null,
       observedThrough: null,
     });
     expect(hasOverviewClauses(note)).toBe(false);
@@ -283,5 +284,107 @@ describe("toOverviewSourceNote", () => {
 
     expect(note.observedThrough).toBeNull();
     expect(hasOverviewClauses(note)).toBe(true);
+  });
+});
+
+describe("the baselines clause — the third source class", () => {
+  // **Task 5.4.4.** The first figure on this screen whose numerator and
+  // denominator come from different tapes: an `Unusual activity` ordinal is
+  // an `iex` five-minute move ranked against a `sip` 60-session
+  // distribution, and invariant 6 is that the screen says so.
+
+  const withBaseline = (
+    generation?: { session: string; lookbackSessions: number },
+    feed: "sip" | "iex" = "sip",
+  ): WireMarketOverview => ({
+    ...frame([]),
+    unusual: {
+      rows: [],
+      tracked: 501,
+      eligible: 0,
+      scored: 0,
+      windowMinutes: 5,
+      spanMinutes: 5,
+      baseline: {
+        feed,
+        spanMinutes: 5,
+        minimumSampleCount: 2500,
+        ...(generation === undefined ? {} : { generation }),
+      },
+      refusals: {
+        figure: {
+          "nothing-observed": 0,
+          "no-earlier-endpoint": 0,
+          "no-basis": 0,
+        },
+        comparison: { "too-few-samples": 0, "split-discontinuity": 0 },
+      },
+    },
+  });
+
+  it("names the tape, the window and the session it was generated for", () => {
+    const note = toOverviewSourceNote(
+      withBaseline({ session: "2026-10-14", lookbackSessions: 60 }),
+      NOT_CONFIGURED,
+    );
+
+    expect(note.baselines?.label).toBe(SIP.label);
+    expect(note.baselines?.sentence).toBe(
+      "Ranked against 60 sessions of stored bars, generated for Oct 14.",
+    );
+  });
+
+  it("reads both figures off the frame rather than this bundle's constants", () => {
+    // A rollback can put a gateway and a bundle two values apart, which is
+    // `minimumSampleCount`'s own argument one field over.
+    const note = toOverviewSourceNote(
+      withBaseline({ session: "2026-09-30", lookbackSessions: 45 }),
+      NOT_CONFIGURED,
+    );
+
+    expect(note.baselines?.sentence).toContain("45 sessions");
+    expect(note.baselines?.sentence).toContain("Sep 30");
+  });
+
+  it("keeps the feed's own sentence rather than replacing it", () => {
+    // `sip` ships none — `All US exchanges` says the whole thing — and `iex`
+    // ships the one-venue caveat, which is exactly what a reader needs about
+    // a baseline built from a single venue's tape.
+    const note = toOverviewSourceNote(
+      withBaseline({ session: "2026-10-14", lookbackSessions: 60 }, "iex"),
+      NOT_CONFIGURED,
+    );
+
+    expect(note.baselines?.label).toBe(IEX.label);
+    expect(note.baselines?.sentence).toContain(IEX.sentence ?? "");
+    expect(note.baselines?.sentence).toContain("Ranked against 60 sessions");
+  });
+
+  it("says nothing where no generation was read", () => {
+    // ADR 0029, and the absence is the common case rather than the edge: CI
+    // holds 516 securities, zero bars and no generation, and so does a cold
+    // replica and any deployment whose nightly job has not run. A tape named
+    // over a baseline nobody read is provenance about no data.
+    expect(toOverviewSourceNote(withBaseline(), NOT_CONFIGURED).baselines).toBe(
+      null,
+    );
+  });
+
+  it("says nothing where the frame carries no unusual section at all", () => {
+    expect(
+      toOverviewSourceNote(frame([observed("SPY")], ["iex"]), NOT_CONFIGURED)
+        .baselines,
+    ).toBe(null);
+  });
+
+  it("skips a session it cannot read rather than spelling an invalid date", () => {
+    // `new Date("not a date")` formats without complaining, which is how
+    // `Invalid Date` reaches a screen.
+    expect(
+      toOverviewSourceNote(
+        withBaseline({ session: "yesterday", lookbackSessions: 60 }),
+        NOT_CONFIGURED,
+      ).baselines,
+    ).toBe(null);
   });
 });

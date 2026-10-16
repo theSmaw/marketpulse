@@ -68,9 +68,12 @@ import styles from "./Unusual.module.css";
 //     ranking's output — the producer builds no row for a refused security and
 //     carries no unranked tail — so the group has zero members in every state
 //     there is, and its 25 px heading would cost a row.
-//   - **No footer yet.** The three populations, the cut and the age are Task
-//     5.4.4's; their room is reserved here (see `.claim`) so the sentences
-//     arrive into height this region already holds.
+//   - **No feed line, no tape and no instant of its own.** The footer states
+//     three populations, the cut and the age (Task 5.4.4) and says nothing
+//     about where the figures came from: the ordinal's numerator is `iex`
+//     and its baseline is `sip`, and that pair is the screen's source note's
+//     — one note for the screen, because a region-level feed line is the
+//     `BarSeriesPanel` duplicate this product deleted.
 //
 // ## And the arrival disc keeps its shipped meaning
 //
@@ -194,8 +197,39 @@ export const Unusual = memo(function Unusual({ view, pinned }: UnusualProps) {
        * decision for its own reason: a `@media` on a footer reserve is a
        * second home for a width the grid already owns, and the 16 px it would
        * save at three widths buys an empty line nobody sees.
+       *
+       * **Written by Task 5.4.4, into the room sized for it** — and measured
+       * rather than assumed: the drawn sentence is three lines at 308 px and
+       * the age is the fourth, so the reserve is spent exactly and the region
+       * is the height it already was.
+       *
+       * **It may never carry `aria-hidden`.** Three of this region's siblings
+       * legitimately do — `RankedList`'s `.rules` and `.ladder` — so sweeping
+       * the attribute onto a footer sitting among them is the plausible edit,
+       * and here it would leave the region's **only** denominator unreachable
+       * by a listener with the DOM still correct. This region prints no
+       * denominator anywhere else: there is no ladder, and the head slot
+       * states the bound rather than a count.
        */}
-      <p className={cx(styles.claim)} />
+      <p className={cx(styles.claim)}>
+        {view.claim === undefined ? undefined : view.claim.drawn ===
+          view.claim.spoken ? (
+          /*
+           * **One string, so one element** — `Movers`' and `BreadthLedger`'s
+           * decision at the same element, and the state this region is in
+           * today: it draws no ladder and prints no denominator, so the drawn
+           * half has nothing to defer to. Splitting an identical string
+           * across a hidden span and a spoken one would put it in
+           * `textContent` twice.
+           */
+          view.claim.drawn
+        ) : (
+          <>
+            <span aria-hidden="true">{view.claim.drawn}</span>
+            <span className={cx(styles.spoken)}>{view.claim.spoken}</span>
+          </>
+        )}
+      </p>
     </>
   );
 });

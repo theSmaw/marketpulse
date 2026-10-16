@@ -1,15 +1,25 @@
-import { UNUSUAL_ROWS, directionOf } from "@marketpulse/shared";
+import {
+  PERCENTILE_REFUSALS,
+  UNUSUAL_ROWS,
+  directionOf,
+} from "@marketpulse/shared";
 
 import type {
   Bar,
+  PercentileRefusal,
   WireMarketOverview,
   WireUnusualActivity,
   WireUnusualRow,
 } from "@marketpulse/shared";
 
 import { arrivalKey } from "./arrival.js";
+import { describeMeasuredReach, describeMeasuredSet } from "./measured-set.js";
 import { NAME_NOT_ARRIVED } from "./movers.js";
-import { percentileOrdinal, percentileReading } from "./return-percentile.js";
+import {
+  BASELINE_REFUSALS_COUNTED,
+  percentileOrdinal,
+  percentileReading,
+} from "./return-percentile.js";
 import type { SectorRow } from "./sector-performance.js";
 
 // **What the `Unusual activity` region reads as** (Task 5.4.3) — the rows it
@@ -57,14 +67,23 @@ const NBSP = " ";
 /**
  * **The rows the region draws, in the order the frame sent them.**
  *
- * A record with one member rather than a bare array, for `MarketMovers`'
- * reason: the region's cut sentence, its two denominators and the baseline's
- * provenance are Task 5.4.4's and land **here** rather than in a second shape
- * beside this one.
+ * A record rather than a bare array, for `MarketMovers`' reason: the region's
+ * three populations and its cut land **here** (Task 5.4.4) rather than in a
+ * second shape beside this one. The baseline's **provenance** does not — it
+ * is the screen's source note's, one surface up.
  */
 export interface UnusualActivity {
   /** The ranked rows, most unusual first. At most {@link UNUSUAL_ROWS}. */
   readonly rows: readonly SectorRow[];
+  /**
+   * **What the ranking was taken over, and how much of it got past the line**
+   * — the region's footer, in two renderings of one string (Task 5.4.4).
+   *
+   * `undefined` is the **reservation's** value and nothing else: a hidden
+   * string is still in `textContent`, and every sentence this region can draw
+   * is a claim about a ranking nothing has been computed over.
+   */
+  readonly claim: UnusualClaim | undefined;
   /**
    * **What the region says when it ranked nothing**, or `undefined` when it
    * ranked something — and `undefined` also for the reservation, which must
@@ -90,6 +109,25 @@ export interface UnusualActivity {
    * is true yet, one `expect` away from being asserted.
    */
   readonly nothing: string | undefined;
+}
+
+/**
+ * **The footer, in two renderings of one string** — `MoversClaim`'s shape and
+ * its reason, one region across (Task 5.4.4).
+ *
+ * The two halves are identical in every state today and are a pair anyway, so
+ * they cannot **diverge** the day the drawn half has somewhere to defer to.
+ * The reversal trigger is `MoversClaim`'s, unchanged and still unfired here:
+ * **the first printed figure in this region that states a denominator** — a
+ * ladder, a count in the head slot, an `N of M` badge. The head slot states
+ * the **bound** (`Top 10`) and no count at all, which is the recorded refusal
+ * this region inherited from `MoversMeta`.
+ */
+export interface UnusualClaim {
+  /** What is on the screen, under the list. */
+  readonly drawn: string;
+  /** What a listener is handed. */
+  readonly spoken: string;
 }
 
 /**
@@ -175,8 +213,122 @@ export function unusualActivity(
 
   return {
     rows,
+    claim: claimOf(unusual, overview?.observedAt),
     nothing: rows.length > 0 ? undefined : nothingRankedIn(overview),
   };
+}
+
+/**
+ * **The three populations, the cut and the age** — one sentence from the one
+ * builder, then `describeMeasuredReach`'s own line (Task 5.4.4).
+ *
+ * ## The qualifier is `observed` by CONSTRUCTION, not by a clock this reads
+ *
+ * `WireUnusualActivity` carries no basis of its own, deliberately: the
+ * producer refuses the `session` basis outright, because a pass that ignored
+ * it would rank yesterday's last pair as *unusual activity right now* for
+ * ever (eviction in `trailing-window.ts` is relative to each security's own
+ * newest bar, so nothing expires while the market is shut). So every section
+ * that exists was taken over the freshness cutoff, and *heard from in the
+ * last N minutes* is the one grammar that is true of it — including out of
+ * hours, where the honest answer is `eligible: 0` and the sentence reads
+ * *none were heard from*. The window itself is **read** off the section, never
+ * spelled, which is the rule `one-home-for-the-observation-window` holds.
+ *
+ * ## The third population is withheld at zero rather than printed as `none`
+ *
+ * *…none were heard from in the last 5 minutes and none have a long enough
+ * history to rank* is a fully-formed denominator about nothing — ADR 0029's
+ * false impression, in a conjunct. That state is CI's permanent one and about
+ * 80% of the week, so it is the state the sentence is **most often** in.
+ *
+ * ## What this clause does NOT say
+ *
+ * **No tape, no feed word and no instant of its own.** The numerator is `iex`
+ * and the baseline is `sip` — the first figure on this screen whose two
+ * halves come from different tapes — and that is `OverviewSourceNote`'s, once
+ * for the screen, because a region-level feed line is the `BarSeriesPanel`
+ * duplicate this product deleted. **And no subtraction**: see
+ * `measured-set.ts`' `theCut`.
+ */
+function claimOf(
+  unusual: WireUnusualActivity,
+  observedAt: string | undefined,
+): UnusualClaim {
+  // **One condition for both halves of the cut.** A region that heard from
+  // nothing ranked nothing and refused nothing, so the clause stating how
+  // many got past the line and the clause saying why the rest did not are
+  // the same claim and appear together — out of hours and on every gated run
+  // the sentence is the lead alone. The producer cannot count a comparison
+  // refusal over an empty eligible set, so this is coherence rather than a
+  // second opinion about its figures.
+  const heardNothing = unusual.eligible === 0;
+
+  const lead = describeMeasuredSet({
+    qualifier: { basis: "observed", windowMinutes: unusual.windowMinutes },
+    tracked: unusual.tracked,
+    count: unusual.eligible,
+    ...(heardNothing ? {} : { ranked: unusual.scored }),
+  });
+
+  // The age is a sentence of its own rather than a clause, which is
+  // `moversClaimOf`'s decision and its reason: it is keyed on neither
+  // grammar, and it is **absent** rather than empty where the aggregate holds
+  // no observation — every gated run, for ever.
+  const reach = describeMeasuredReach(observedAt);
+  const sentence =
+    `${lead}.` +
+    (heardNothing ? "" : whyTheRestAreNot(unusual.refusals.comparison)) +
+    (reach === undefined ? "" : ` ${reach}.`);
+
+  return { drawn: sentence, spoken: sentence };
+}
+
+/**
+ * **Why the securities between the two denominators are not rows**, counted
+ * by kind — or nothing at all, where none were refused (Task 5.4.4).
+ *
+ * ## Two kinds rather than one number, because they must not read alike
+ *
+ * *We hold too little history* and *the history we hold crosses a price
+ * break we cannot adjust* are different facts with different repairs — the
+ * first ends when the security has traded for long enough and the second
+ * needs an adjusted series this product does not fetch (Story 5.3 reversed
+ * 5.1's decision to ask the provider for one). A single `11 refused` would
+ * make the surface pick one, which is ADR 0029's false impression chosen by
+ * a renderer.
+ *
+ * ## The order is the vocabulary's own, so a third member draws itself
+ *
+ * Iterating `PERCENTILE_REFUSALS` rather than the record's keys is what makes
+ * the clause total: a third refusal word is already a compile error in
+ * `BASELINE_REFUSALS_COUNTED`, and this way it also **appears** rather than
+ * being silently dropped by a renderer that listed two.
+ *
+ * ## A kind with no securities behind it says nothing
+ *
+ * ADR 0029 at the grain of a clause: `0 cross an unadjusted price break` is a
+ * fully-formed claim about an empty set, and `split-discontinuity` is `0` on
+ * most frames — five securities in the whole universe were over the ratio
+ * when Task 5.3.2 measured, and a frame holds whichever of them happened to
+ * be eligible. With both at zero there is no sentence at all, which is every
+ * gated run and about 80% of the week.
+ *
+ * ## And it states counts rather than a subtraction
+ *
+ * `measured-set.ts`' `theCut` carries the argument: the two counts equal
+ * `eligible − scored` in every reachable state and not provably in every
+ * state, so nothing here says *the rest*, *the remaining 11* or *of those
+ * refused*.
+ */
+function whyTheRestAreNot(
+  comparison: Readonly<Record<PercentileRefusal, number>>,
+): string {
+  const said = PERCENTILE_REFUSALS.filter((kind) => comparison[kind] > 0).map(
+    (kind) => BASELINE_REFUSALS_COUNTED[kind](comparison[kind]),
+  );
+
+  return said.length === 0 ? "" : ` ${said.join(" and ")}.`;
 }
 
 /**
@@ -376,6 +528,11 @@ export function withHeldUnusualRows(
  */
 export const RESERVED_UNUSUAL: UnusualActivity = {
   rows: [],
+  // **No footer either, and for the sentence's own reason below**: the claim
+  // states three populations read off a section that has not arrived. The
+  // room it occupies is held by `.claim`'s reserve rather than by a string,
+  // which is what keeps the reservation the same height as every other state.
+  claim: undefined,
   // **Room and nothing else**, which is `RESERVED_MOVERS`' decision and its
   // recorded reason: the whole subtree is `visibility: hidden` and
   // `aria-hidden`, so nothing here is seen or spoken — but a hidden string is

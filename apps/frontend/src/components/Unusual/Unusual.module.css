@@ -198,3 +198,21 @@
   line-height: var(--line-height-dense);
   color: var(--ink-secondary);
 }
+
+/*
+ * --- The spoken rendering of the footer clause ---
+ *
+ * `Movers`' class, one region across, and for its reason: `UnusualClaim` is a
+ * pair built in one function whose halves are identical in every state this
+ * region has today, so `Unusual.tsx` renders **one** element — and this exists
+ * for the day the drawn half has somewhere to defer to. The reversal trigger
+ * is that condition: the first printed figure in this region that states a
+ * denominator.
+ *
+ * **The clip-rect idiom, never `display: none` or `visibility: hidden`**, both
+ * of which take an element out of the accessibility tree as well as off the
+ * screen, which is the exact opposite of what this class is for.
+ */
+.spoken {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}

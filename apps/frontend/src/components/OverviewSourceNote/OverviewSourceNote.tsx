@@ -87,7 +87,7 @@ export function OverviewSourceNote({
   // over it. It is the first-paint state and it should be brief.
   if (!hasOverviewClauses(note)) return null;
 
-  const { observed, closes, observedThrough } = note;
+  const { observed, closes, baselines, observedThrough } = note;
 
   return (
     <dl className={cx(styles.note)}>
@@ -138,6 +138,31 @@ export function OverviewSourceNote({
           <dt className={cx(styles.term)}>{OVERVIEW_NOTE_TERMS.closes}</dt>
           <dd className={cx(styles.definition)}>
             <Clause clause={closes} />
+          </dd>
+        </>
+      )}
+
+      {baselines !== null && (
+        <>
+          {/*
+           * **A third subject, and the first figure on this screen whose two
+           * halves come from different tapes** (Task 5.4.4).
+           *
+           * `Unusual activity`'s ordinals have an `iex` numerator — a
+           * five-minute move off the live socket, which has no store fill —
+           * and a `sip` denominator, a 60-session distribution of stored
+           * bars. The two terms above name a tape per **quantity**; this one
+           * names the tape of the thing the quantity is **compared with**, so
+           * it is a term of its own rather than a line under either.
+           *
+           * It is here rather than in the region because the region owns the
+           * ranking and this note owns provenance on this screen — a feed
+           * line inside a region is the `BarSeriesPanel` duplicate this
+           * product deleted.
+           */}
+          <dt className={cx(styles.term)}>{OVERVIEW_NOTE_TERMS.baselines}</dt>
+          <dd className={cx(styles.definition)}>
+            <Clause clause={baselines} />
           </dd>
         </>
       )}

@@ -75,6 +75,34 @@ export interface MeasuredSet {
   readonly tracked: number;
   /** How many of it the region's own figures are about. */
   readonly count: number;
+  /**
+   * **A THIRD population, where a region has one** — how many of
+   * {@link count} could also be ranked against their own history. Absent for
+   * the two regions that have two populations, which is every caller but
+   * `Unusual activity`.
+   *
+   * ## Why it is a conjunct on this sentence rather than a sentence of its own
+   *
+   * Task 5.4.4, and the alternative was measured rather than argued. The
+   * region reserves **four** micro lines and the lead clause plus
+   * {@link describeMeasuredReach}'s line already fill them at 308 px — the
+   * width this region draws at, at the widest viewport this product supports.
+   * A second sentence is a fifth line, and at 390 the grid row is
+   * content-sized, so the whole lower page steps.
+   *
+   * ## Why it is a number here rather than a phrase from the call site
+   *
+   * Because the words are this module's job and the agreement is the part
+   * that gets written twice: `1 has` and `455 have`. A caller handing in its
+   * own clause would be the second builder AC 3 refuses, with one import
+   * standing where the duplication used to be visible.
+   *
+   * **It is the caller's job to omit it rather than this module's to guess**:
+   * a `ranked` clause over a {@link count} of zero is a fully-formed
+   * denominator about nothing, which is ADR 0029's false impression in one
+   * conjunct, and only the caller knows whether its producer ran at all.
+   */
+  readonly ranked?: number;
 }
 
 /**
@@ -111,17 +139,54 @@ export const measuredWindow = (minutes: number): string =>
  * removes an agreement this module would otherwise have to get right twice. The
  * live grammar has no such escape, so {@link countInWords} and the `was`/`were`
  * pair below are explicit.
+ *
+ * ## And a third population is a CONJUNCT, never a second sentence
+ *
+ * {@link MeasuredSet.ranked}, Task 5.4.4. One builder states two populations
+ * for two regions and three for a third; the sentence is assembled here or it
+ * is assembled twice.
  */
 export function describeMeasuredSet(set: MeasuredSet): string {
   const { qualifier, tracked, count } = set;
   const of = `Of the ${String(tracked)} companies we track`;
 
-  if (qualifier.basis === "session") {
-    return `${of}, ${countInWords(count)} had a close-to-close move on ${qualifier.session}`;
-  }
+  const lead =
+    qualifier.basis === "session"
+      ? `${of}, ${countInWords(count)} had a close-to-close move on ${qualifier.session}`
+      : `${of}, ${countInWords(count)} ${count === 1 ? "was" : "were"} heard from in ${measuredWindow(qualifier.windowMinutes)}`;
 
-  return `${of}, ${countInWords(count)} ${count === 1 ? "was" : "were"} heard from in ${measuredWindow(qualifier.windowMinutes)}`;
+  return `${lead}${theCut(set.ranked)}`;
 }
+
+/**
+ * **The cut, as a conjunct on the sentence that states the population** —
+ * empty where the caller has no third population (Task 5.4.4).
+ *
+ * *How many got past the line*, which is the fact a ranked surface owes beside
+ * *how many we heard from*: a top ten drawn from 455 and a top ten drawn from
+ * 3 look equally confident, and `MARKET-OVERVIEW.md` §5.5 is a document about
+ * exactly that. `eligible − scored` is the only trace a refused security
+ * leaves — the producer builds no row for one — so without this figure a
+ * reader cannot perform the subtraction at all.
+ *
+ * **It states the count and never the subtraction.** `eligible − scored`
+ * equals the two comparison refusals in every reachable state and **not
+ * provably in every state**: `returnPercentileOf` also refuses a stored
+ * distribution that is not 101 points and a non-finite magnitude, with no word
+ * at all, both unreachable today behind migration `0013`'s constraint and the
+ * division. A sentence inviting a reader to derive one figure from the others
+ * would be asserting an exhaustiveness nothing holds.
+ *
+ * *a long enough history to rank* rather than *a baseline*: the region's own
+ * list heading already names the comparison
+ * (`Percentile of its own 60-session history`), and the word **baseline** is
+ * the security page's, where it stands beside a sample count a reader can act
+ * on. Here there is no sample on screen for it to qualify.
+ */
+const theCut = (ranked: number | undefined): string =>
+  ranked === undefined
+    ? ""
+    : ` and ${countInWords(ranked)} ${ranked === 1 ? "has" : "have"} a long enough history to rank`;
 
 /**
  * **How old the two regions' figures are, beside the denominator they already
