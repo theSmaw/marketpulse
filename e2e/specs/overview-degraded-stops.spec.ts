@@ -387,18 +387,31 @@ test("a reader on a mover row when the movers SECTION goes away keeps a focus po
   await expectNothingFailedToRender(page);
 });
 
-test("ONE arrow press re-orders every row under the reader, while the head still says ORDER HELD", async ({
+test("ONE arrow press no longer re-orders anything, and the head's ORDER HELD is true again", async ({
   page,
 }) => {
-  // **The consequence Story 4.6 handed over, measured** (Task 4.6.5's own
-  // closing note): `Region` combines non-bubbling `pointerenter`/`pointerleave`
-  // with **bubbling** `focusin`/`focusout`, so moving focus from one row to the
-  // next fires `focusout` — `setPinned(undefined)` — and then `focusin`, which
-  // re-pins against `latest.current`, *the last frame drawn*.
+  // **The repair of the defect this test was written to characterise**
+  // (Task 5.4.3), and the defect's own account is left standing below because
+  // it is why the repair had to be at `Region` rather than at `useOrderHold`.
   //
-  // It is invisible while the two orders agree. This is the state where they do
-  // not, with the membership held still so the pin is the only thing that can
-  // move a row.
+  // As shipped until 2026-10-16: `focusin`/`focusout` **bubble**, so moving
+  // focus from one row to the next fired `focusout` on the region box —
+  // `setPinned(undefined)` — and then `focusin`, which re-pinned against
+  // `latest.current`, *the last frame drawn*. Measured here: a pinned
+  // `SMCI FSLR NVDA AMD TSLA` became `TSLA AMD NVDA FSLR SMCI` on **one**
+  // `ArrowDown`, and because the key handler read the order that was on screen
+  // when the key went down, **a press of ArrowDown moved the reader one row UP
+  // the screen** — with `ORDER HELD` standing over all of it, because the
+  // badge is `pinned !== undefined` and a **re-taken** pin is a different
+  // order with the same truth value.
+  //
+  // `Region` now asks `document.activeElement` a microtask after the
+  // `focusout`, so a focus move **inside** the region is not a reader leaving
+  // it. The pin is not released, so there is nothing to re-take.
+  //
+  // It is invisible while the two orders agree. This is the state where they
+  // do not, with the membership held still so the pin is the only thing that
+  // can move a row.
   const feed = await serveFeed(page, { overview: RICH });
   await page.goto(OVERVIEW);
 
@@ -415,9 +428,27 @@ test("ONE arrow press re-orders every row under the reader, while the head still
   await expect(gainers.getByRole("link", { name: "TSLA" })).toBeVisible();
   expect(await tickersIn(gainers)).toEqual(pinned);
 
-  // **And one press of ArrowDown moves all five.** The reader is at rank 3 and
-  // asked for rank 4.
+  // **And one press of ArrowDown moves nothing.** The reader asked for rank 4
+  // and is given rank 4, in the order they were reading.
   await page.keyboard.press("ArrowDown");
+  expect(await tickersIn(gainers)).toEqual(pinned);
+  expect(await focusedWhere(page)).toBe("row:AMD");
+
+  // A second press, because one press is also what a `relatedTarget` guard
+  // would survive while still releasing on the recovery below: the pin has to
+  // hold across a **run** of moves, not one.
+  await page.keyboard.press("ArrowDown");
+  expect(await tickersIn(gainers)).toEqual(pinned);
+  expect(await focusedWhere(page)).toBe("row:TSLA");
+
+  // **And the head still says `ORDER HELD`** — which now means what it says.
+  await expect(heldBadges(page, "Movers")).toHaveCount(1);
+
+  // **The release is unaffected, which is the half a repair here could
+  // break.** A reader who genuinely leaves the region lands outside it, the
+  // guard does not fire, and the pending re-order arrives.
+  await page.locator("h1").first().click();
+  await expect(heldBadges(page, "Movers")).toHaveCount(0);
   expect(await tickersIn(gainers)).toEqual([
     "TSLA",
     "AMD",
@@ -426,40 +457,30 @@ test("ONE arrow press re-orders every row under the reader, while the head still
     "SMCI",
   ]);
 
-  // The key handler read the order that was on screen when the key went down,
-  // so focus is on the row that **was** below `NVDA` — and that row is now
-  // **above** it. A press of ArrowDown took the reader up the screen.
-  expect(await focusedWhere(page)).toBe("row:AMD");
-
-  // **And the head says `ORDER HELD` throughout**, which falsifies
-  // `use-order-hold.ts`' own claim that *"there is no state in which the badge
-  // is on and the order is moving"*: the badge is `pinned !== undefined`, and
-  // a **re-taken** pin is a different order with the same truth value.
-  await expect(heldBadges(page, "Movers")).toHaveCount(1);
-
   await expectNothingFailedToRender(page);
 });
 
-test("and the FOCUS RECOVERY is itself such a move, so a degradation re-pins with no key pressed", async ({
+test("and the FOCUS RECOVERY no longer re-pins either, with no key pressed at all", async ({
   page,
 }) => {
-  // The same defect with no reader input at all, which is the half the 2026-10-09
-  // hand-off could not have known: Task 4.6.5's recovery **moves focus inside
-  // the region**, so it fires the very `focusout`/`focusin` pair above — and
-  // the frame it re-pins against is the degraded one.
+  // The same defect with no reader input at all, and the half a
+  // `relatedTarget` guard cannot reach: Task 4.6.5's recovery **moves focus
+  // inside the region** after the focused row is removed, and a removal's
+  // `focusout` carries **no related target** — so the pin was released and
+  // re-taken against the **degraded** frame, and the order moved again when
+  // the feed returned.
+  //
+  // `Region`'s microtask reads `document.activeElement` **after** the commit
+  // that both removed the row and ran the recovery, so by then focus is on the
+  // section — inside the region — and the pin was never released.
   const feed = await serveFeed(page, { overview: RICH });
   await page.goto(OVERVIEW);
 
   const gainers = listIn(page, "Movers", "Gainers");
   await expect(gainers.getByRole("link", { name: "NVDA" })).toBeVisible();
   await gainers.getByRole("link", { name: "NVDA" }).focus();
-  expect(await tickersIn(gainers)).toEqual([
-    "SMCI",
-    "FSLR",
-    "NVDA",
-    "AMD",
-    "TSLA",
-  ]);
+  const pinned = ["SMCI", "FSLR", "NVDA", "AMD", "TSLA"];
+  expect(await tickersIn(gainers)).toEqual(pinned);
 
   // Four of the five stop being eligible. The recovery catches the focus — at
   // the clamped rank, because one row is all there is.
@@ -467,18 +488,12 @@ test("and the FOCUS RECOVERY is itself such a move, so a degradation re-pins wit
   await expect(gainers.getByRole("link")).toHaveCount(1);
   expect(await focusedWhere(page)).toBe("row:SMCI");
 
-  // The feed comes back, with the same five names in a different order. A
-  // reader who never pressed anything and never left the region watches all
-  // five rows take new positions.
+  // The feed comes back, with the same five names in a different order — and
+  // the reader who never pressed anything and never left the region is still
+  // holding the order they were reading.
   feed.sendOverview({ ...RICH, movers: moversOf(GAINERS_RESHUFFLED, LOSERS) });
   await expect(gainers.getByRole("link")).toHaveCount(5);
-  expect(await tickersIn(gainers)).toEqual([
-    "TSLA",
-    "AMD",
-    "NVDA",
-    "FSLR",
-    "SMCI",
-  ]);
+  expect(await tickersIn(gainers)).toEqual(pinned);
   await expect(heldBadges(page, "Movers")).toHaveCount(1);
 
   await expectNothingFailedToRender(page);

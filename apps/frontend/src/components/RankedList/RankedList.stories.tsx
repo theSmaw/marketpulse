@@ -295,7 +295,7 @@ export const Mixed: Story = {
  */
 export const Movers: Story = {
   args: {
-    bar: { kind: "none" },
+    bar: { kind: "none", figure: "change" },
     name: "Gainers",
     quietGroup: "impossible",
     rows: [
@@ -326,7 +326,7 @@ export const Movers: Story = {
  */
 export const MoversLongestName: Story = {
   args: {
-    bar: { kind: "none" },
+    bar: { kind: "none", figure: "change" },
     name: "Gainers",
     quietGroup: "impossible",
     rows: [
@@ -365,7 +365,7 @@ export const MoversLongestName: Story = {
  */
 export const MoversWidestTickers: Story = {
   args: {
-    bar: { kind: "none" },
+    bar: { kind: "none", figure: "change" },
     name: "Gainers",
     quietGroup: "impossible",
     rows: [
@@ -401,7 +401,7 @@ export const MoversTwoLists: Story = {
         </h3>
         <RankedList
           {...args}
-          bar={{ kind: "none" }}
+          bar={{ kind: "none", figure: "change" }}
           quietGroup="impossible"
           name={{ labelledBy: "movers-gainers" }}
           rows={[
@@ -422,7 +422,7 @@ export const MoversTwoLists: Story = {
         </h3>
         <RankedList
           {...args}
-          bar={{ kind: "none" }}
+          bar={{ kind: "none", figure: "change" }}
           quietGroup="impossible"
           name={{ labelledBy: "movers-losers" }}
           rows={[

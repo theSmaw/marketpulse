@@ -382,9 +382,56 @@ export function Region({
       focus = true;
       report();
     };
+
+    /*
+     * **A focus move INSIDE this region is not a reader leaving it**
+     * (Task 5.4.3) — and reading that off the DOM a microtask later is the
+     * repair, rather than reading `relatedTarget`.
+     *
+     * ## The defect, which was routed rather than repaired by Story 4.7
+     *
+     * `focusin`/`focusout` **bubble**, so moving focus from one row to the
+     * next fires `focusout` on this box and then `focusin` — and a consumer
+     * holding an order sees *the reader left* followed by *the reader
+     * arrived*, which releases the pin and **re-takes it against the frame
+     * that has since arrived**. Measured in `overview-degraded-stops.spec.ts`:
+     * one `ArrowDown` re-ordered all five mover rows and took the reader one
+     * row **up** the screen, with `ORDER HELD` on throughout. The badge is
+     * `pinned !== undefined`, and a re-taken pin is a different order with the
+     * same truth value.
+     *
+     * ## Why this region is where it had to be repaired
+     *
+     * `Unusual activity` is the first region whose rows move with **no
+     * arrival mark anywhere on the page** to account for the movement: the
+     * disc fires when a bar arrives for that security, and a percentile can
+     * change with no bar for its security at all — its peers moved, or the
+     * window rolled. On `Movers` the defect has a witness; here the badge is
+     * the whole of the explanation, and it was lying.
+     *
+     * ## Why a microtask and the DOM, rather than `event.relatedTarget`
+     *
+     * `relatedTarget` closes the **arrow press** and not the other trigger
+     * this has: Task 4.6.5's focus recovery calls `focus()` on the section
+     * after the focused row is removed, and a removal's `focusout` carries no
+     * related target at all — so the recovery re-pinned against the
+     * **degraded** frame with nothing pressed. Asking `document.activeElement`
+     * answers both, because the recovery runs in a layout effect inside the
+     * same commit as the removal and a microtask queued here drains **after**
+     * that commit.
+     *
+     * The reader who genuinely leaves is unaffected: focus lands outside this
+     * element (or on `<body>`, which is not inside it), the guard does not
+     * fire, and the pin is released exactly as before.
+     */
     const blurred = () => {
-      focus = false;
-      report();
+      queueMicrotask(() => {
+        const active: Element | null = document.activeElement;
+        if (active !== null && element.contains(active)) return;
+
+        focus = false;
+        report();
+      });
     };
 
     element.addEventListener("pointerenter", entered);

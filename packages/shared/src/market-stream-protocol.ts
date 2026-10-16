@@ -12,6 +12,13 @@ import type { PercentileRefusal } from "./return-baseline.js";
 // The ladder's rungs, so this module can refuse a value that is not one of
 // them. The back edge — `sector-ranking.ts` importing `WireOverviewFigure` from
 // here — is **type-only** and is erased, so there is no runtime cycle.
+// The ordinal order's own home (Task 5.4.3), imported for `isRankedByMove`'s
+// reason one quantity over: `readUnusual` has to answer *is this list ranked*,
+// and a decoder writing its own inequality over two ordinals would be the
+// second comparator `one-comparator-for-the-order-of-a-percentile` exists to
+// refuse. `percentile-ranking.ts` imports nothing from here at all, so there is
+// not even a type-only edge back.
+import { isRankedByPercentile } from "./percentile-ranking.js";
 import { isSectorLadderStep } from "./sector-ladder.js";
 // **The order's own home, imported rather than re-expressed** —
 // `one-comparator-for-the-order-of-a-move`. `readMovers` has to answer *is
@@ -2910,6 +2917,13 @@ const readOverview = (value: unknown): WireMarketOverview | undefined => {
   // absence rather than a discarded frame carrying four true prices.
   const movers = readMovers(value.movers);
 
+  // **The unusual section is optional on the read side for `movers`' reason**
+  // — a rollback pins a previous image — and an unreadable one is the same
+  // absence rather than a discarded frame carrying four true prices.
+  // Task 5.4.2 deliberately shipped the producer with no reader here; this is
+  // it (Task 5.4.3).
+  const unusual = readUnusual(value.unusual);
+
   // **The observation instant is optional on the read side too**, for
   // `sectors`' reason — a rollback pins a previous image — and anything that
   // is not a string is the same absence rather than a discarded frame
@@ -2928,6 +2942,7 @@ const readOverview = (value: unknown): WireMarketOverview | undefined => {
     ...(step === undefined ? {} : { sectorLadderStep: step }),
     ...(breadth === undefined ? {} : { breadth }),
     ...(movers === undefined ? {} : { movers }),
+    ...(unusual === undefined ? {} : { unusual }),
   };
 };
 
@@ -2960,6 +2975,227 @@ const readReturnEndpoint = (value: unknown): WireReturnEndpoint | undefined => {
     at: value.at,
     price: value.price,
     feed: value.feed as MarketFeed,
+  };
+};
+
+/**
+ * One ranked row, or `undefined` for anything that is not one (Task 5.4.3).
+ *
+ * **The bounds are the drawn figure's own, re-stated at the reader's end** —
+ * `readReturnPercentile`'s three lines for its reason, which is this region's
+ * at ten times the exposure: a percentile is the one figure on this screen
+ * **nobody can eyeball**. A `140th`, a fractional ordinal or an `n` of `0`
+ * would draw as a confident, well-formed row at the top of a region about
+ * unusual behaviour, and the only thing on the page that could contradict it
+ * is a reader who happens to know what a percentile is.
+ *
+ * The endpoints are **required**, not optional, because `WireUnusualRow` says
+ * so for `WireMeasuredReturn`'s reason: an ordinal with no instant is a claim
+ * about a move nobody can date, and being in a list is not an exemption.
+ */
+const readUnusualRow = (value: unknown): WireUnusualRow | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (typeof value.symbol !== "string" || value.symbol === "") return undefined;
+
+  if (!finite(value.rank) || !Number.isInteger(value.rank)) return undefined;
+  if (value.rank < 0 || value.rank > 99) return undefined;
+  if (typeof value.aboveSample !== "boolean") return undefined;
+  // **`0` is NOT a legal sample on this arm**, unlike the refusal arm one
+  // module over where `0 of 2,500 returns` is the cold replica's own sentence:
+  // a row is a security that **was** ranked, and a rank taken against nothing
+  // is an ordinal over an empty distribution.
+  if (!finite(value.sampleCount) || value.sampleCount <= 0) return undefined;
+  if (!finite(value.percent)) return undefined;
+  if (!finite(value.observed) || value.observed <= 0) return undefined;
+
+  const from = readReturnEndpoint(value.from);
+  const to = readReturnEndpoint(value.to);
+  if (from === undefined || to === undefined) return undefined;
+
+  return {
+    symbol: value.symbol,
+    rank: value.rank,
+    aboveSample: value.aboveSample,
+    sampleCount: value.sampleCount,
+    percent: value.percent,
+    from,
+    to,
+    observed: value.observed,
+  };
+};
+
+/** A count the region may divide by or subtract — finite, integral, ≥ 0. */
+const population = (value: unknown): value is number =>
+  finite(value) && Number.isInteger(value) && value >= 0;
+
+/**
+ * A tally over a closed vocabulary, or `undefined` — every word present, every
+ * figure a count.
+ *
+ * **Total over the union rather than lenient**, which is the producer's own
+ * mechanism read back: a `Record` over the vocabulary is what makes a new
+ * refusal word a compile error at the accumulator, and a reader that defaulted
+ * a missing one to `0` would turn the gateway's silence into a figure. The
+ * surface subtracts these from each other.
+ */
+const readRefusalTally = <T extends string>(
+  value: unknown,
+  words: readonly T[],
+): Readonly<Record<T, number>> | undefined => {
+  if (!isRecord(value)) return undefined;
+
+  const tally = {} as Record<T, number>;
+  for (const word of words) {
+    const count: unknown = value[word];
+    if (!population(count)) return undefined;
+    tally[word] = count;
+  }
+
+  return tally;
+};
+
+/** What the ordinals were measured against, or `undefined`. */
+const readUnusualBaseline = (
+  value: unknown,
+): WireUnusualBaseline | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (
+    typeof value.feed !== "string" ||
+    !(MARKET_FEEDS as readonly string[]).includes(value.feed)
+  ) {
+    // **Strictly, as `readReturnEndpoint` checks its own tape.** The baseline's
+    // tape is not the numerator's — a consolidated distribution against a
+    // single-venue move — and a comparison this bundle cannot attribute is one
+    // invariant 6 forbids drawing.
+    return undefined;
+  }
+  if (!finite(value.spanMinutes) || value.spanMinutes <= 0) return undefined;
+  if (!finite(value.minimumSampleCount) || value.minimumSampleCount <= 0)
+    return undefined;
+
+  const baseline = {
+    feed: value.feed as MarketFeed,
+    spanMinutes: value.spanMinutes,
+    minimumSampleCount: value.minimumSampleCount,
+  };
+
+  // **Absent stays absent, and a malformed one is the same absence** — the
+  // pair is *both or neither* on the producer, and a session with no lookback
+  // beside it is a window with no width.
+  const generation: unknown = value.generation;
+  if (generation === undefined) return baseline;
+  if (!isRecord(generation)) return baseline;
+  if (typeof generation.session !== "string") return baseline;
+  if (!finite(generation.lookbackSessions) || generation.lookbackSessions <= 0)
+    return baseline;
+
+  return {
+    ...baseline,
+    generation: {
+      session: generation.session,
+      lookbackSessions: generation.lookbackSessions,
+    },
+  };
+};
+
+/**
+ * The unusual-activity section, or `undefined` — **and `undefined` is a state
+ * the region already draws**, which is what makes refusing it safe
+ * (Task 5.4.3). `readMovers`' rule, unchanged: a frame from a **previous
+ * image** carries no `unusual` at all, and an unreadable one is the same
+ * absence rather than a discarded frame carrying four true prices.
+ *
+ * ## The five cross-field checks, and why a reader does this work
+ *
+ * On the producer every one is true by construction — one eligibility pass,
+ * one comparator, one bound, three counts that nest — so a section where one
+ * is false **did not come from a producer this bundle understands**, and the
+ * list it would draw is wrong rather than old.
+ *
+ * 1. **`rows ≤ scored ≤ eligible ≤ tracked`.** The three populations nest by
+ *    construction (`tracked ⊇ eligible ⊇ scored`) and the rows are a selection
+ *    from the last of them, so this is one chain rather than three checks. It
+ *    is also the **only** arithmetic the region's own cut sentence rests on:
+ *    `eligible − scored` is the refused count and a negative one is a number
+ *    of securities that cannot exist.
+ * 2. **Every row is a readable ordinal**, bounded `0`–`99` — see
+ *    {@link readUnusualRow}, and it is the check with the least help from the
+ *    screen, because no figure anywhere else on this page can contradict one.
+ * 3. **The rows name distinct securities.** A symbol twice is the same list
+ *    with a rank position invented, and a `Set` size is the only thing that
+ *    sees it — `readMovers`' own third check, where it also guarded the hold's
+ *    precondition.
+ * 4. **The list is in the comparator's own order** — `isRankedByPercentile`,
+ *    which is strictly stronger here than its movers equivalent: the ordinal
+ *    comparator breaks ties on ticker, so a correct frame admits exactly
+ *    **one** order and a swapped pair is refused rather than tolerated.
+ * 5. **The baseline and the two tallies are readable**, because the region's
+ *    sentences are built from them and a half-read section would draw a
+ *    denominator over counts nobody produced.
+ *
+ * It does **not** check that `eligible − scored` equals the comparison
+ * refusals, and that is deliberate rather than missed: the producer records a
+ * gap it cannot name — a stored distribution that is not 101 points, or a
+ * non-finite magnitude, refused by `returnPercentileOf` **with no word at
+ * all** — so the identity is an inequality, and an equality here would refuse
+ * a frame the producer is being honest in.
+ */
+const readUnusual = (value: unknown): WireUnusualActivity | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (!Array.isArray(value.rows)) return undefined;
+
+  const rows: WireUnusualRow[] = [];
+  for (const entry of value.rows) {
+    const row = readUnusualRow(entry);
+    // **One unreadable row refuses the whole section**, which is
+    // `readMoverList`'s rule and its reason: these rows' **order is the
+    // answer**, so dropping one leaves a list that is still ranked, still
+    // well-formed, and no longer the top five of anything.
+    if (row === undefined) return undefined;
+    rows.push(row);
+  }
+
+  if (!population(value.tracked)) return undefined;
+  if (!population(value.eligible)) return undefined;
+  if (!population(value.scored)) return undefined;
+
+  const counts = {
+    tracked: value.tracked,
+    eligible: value.eligible,
+    scored: value.scored,
+  };
+
+  if (rows.length > counts.scored) return undefined;
+  if (counts.scored > counts.eligible) return undefined;
+  if (counts.eligible > counts.tracked) return undefined;
+
+  if (new Set(rows.map((row) => row.symbol)).size !== rows.length)
+    return undefined;
+
+  if (!isRankedByPercentile(rows)) return undefined;
+
+  if (!finite(value.windowMinutes) || value.windowMinutes <= 0)
+    return undefined;
+  if (!finite(value.spanMinutes) || value.spanMinutes <= 0) return undefined;
+
+  const baseline = readUnusualBaseline(value.baseline);
+  if (baseline === undefined) return undefined;
+
+  if (!isRecord(value.refusals)) return undefined;
+  const figure = readRefusalTally(value.refusals.figure, WIRE_RETURN_REFUSALS);
+  const comparison = readRefusalTally(
+    value.refusals.comparison,
+    PERCENTILE_REFUSALS,
+  );
+  if (figure === undefined || comparison === undefined) return undefined;
+
+  return {
+    rows,
+    ...counts,
+    windowMinutes: value.windowMinutes,
+    spanMinutes: value.spanMinutes,
+    baseline,
+    refusals: { figure, comparison },
   };
 };
 

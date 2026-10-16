@@ -94,13 +94,54 @@ export interface PriceChangeProps {
 export function PriceChange({ change, direction }: PriceChangeProps) {
   return (
     <span className={cx(styles.change, DIRECTION_CLASS[direction])}>
-      <span aria-hidden="true" className={styles.glyph}>
+      <DirectionGlyph direction={direction} />
+      {change}
+    </span>
+  );
+}
+
+/**
+ * **The direction on its own: the tinted glyph, and the word a listener gets
+ * instead of it** (Task 5.4.3).
+ *
+ * ## Why it is here, and why it is exported
+ *
+ * This component's own header says what it owns — *the colour, the glyph and
+ * the spoken word* — and that list is three facts rather than one component.
+ * `Unusual activity` draws a direction beside a figure that is **not** a price
+ * change: a percentile ranks `Math.abs(percent)`, so the row needs the arrow
+ * and must not have the tint, because a tinted ordinal is decoration standing
+ * where meaning normally is (`AbnormalMove.module.css`' argument) and because
+ * a percentile has no direction of its own to encode.
+ *
+ * Writing the glyph there instead would be a second home for `▲` / `▼` / `—`
+ * and for `up` / `down` / `unchanged` — and the pairing of a hue with a shape
+ * is the one thing in this product that may not have two copies, because
+ * *colour is never the sole encoding of anything* is a rule nobody can see
+ * being broken from a screenshot of one state.
+ *
+ * So the glyph is the component and {@link PriceChange} is now its first
+ * caller. **The tint is on the glyph itself** here, where `PriceChange` puts
+ * it on the wrapper and inherits it down: the two renderings are identical
+ * when the figure is a change, and different when the caller wants the figure
+ * untinted, which is exactly the distinction this split exists for.
+ */
+export function DirectionGlyph({
+  direction,
+}: {
+  readonly direction: PriceDirection;
+}) {
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className={cx(styles.glyph, DIRECTION_CLASS[direction])}
+      >
         {DIRECTION_GLYPH[direction]}
       </span>
       <span className={styles.visuallyHidden}>
         {DIRECTION_LABEL[direction]}{" "}
       </span>
-      {change}
-    </span>
+    </>
   );
 }

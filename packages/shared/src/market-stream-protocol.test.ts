@@ -1364,40 +1364,269 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
     expect(wire).not.toContain("unusual");
   });
 
-  it("costs what Task 5.4.2 measured — 370 B of section plus 232 B a row", () => {
-    // **Measured rather than estimated** (Done when 2), off this encoder, and
-    // Gate 1's figure is corrected rather than cited: **223 B a row / 1,281 B
-    // at five rows** was taken on a shape that carried a `band` and is not
-    // this shape. Measured here: **370 B of fixed section**, **232 B** for the
-    // first row and **232.8 B a row over five** (the separating comma is a
-    // byte), so **1,534 B at five rows** and **2,699 B at ten**. CI's shape —
-    // no rows, no generation, every count zero — is **303 B**.
+  it("costs 370 B of section plus 232 B a row — 2,699 B at the ten rows this region ships", () => {
+    // **Measured rather than estimated**, off this encoder.
     //
-    // Against the movers' measured **124.3 B a row** it is 1.9x, and the
-    // difference is all `MeasuredReturn`'s own rule: a mover row is a
+    // ## The figure the owner needs, because the row count moved
+    //
+    // `UNUSUAL_ROWS` went from five to ten on 2026-10-16 (Task 5.4.3, on the
+    // measured 168 px void a five-row list left in a 491 px box), and the
+    // section's cost is linear in it. **Taken at ten rather than projected
+    // from five**, and the reading confirms the projection: **2,699 B**.
+    //
+    // | shape                          | bytes     |
+    // | ------------------------------ | --------- |
+    // | fixed section, no rows         | 370       |
+    // | first row                      | 232       |
+    // | five rows (`1,164` of rows)    | 1,534     |
+    // | **ten rows (`2,329` of rows)** | **2,699** |
+    //
+    // Note `2,329` rather than `10 × 232 = 2,320`: **the comma between two
+    // rows is a byte**, so the nine separators are nine bytes and a per-row
+    // figure quoted without them under-reports a list. The same arithmetic
+    // gives `1,164` at five rather than `1,160`.
+    //
+    // So a row is **232.9 B over ten** against the movers' measured 124.3 B,
+    // which is 1.9x and is all `MeasuredReturn`'s own rule: a mover row is a
     // `WireOverviewFigure` of four or five short fields, and this row carries
-    // an ordinal, a counted `n`, a move and **two timestamped endpoints with a
-    // tape each** — 118 B of the 232 are the two endpoints.
+    // an ordinal, a counted `n`, a move and **two timestamped endpoints with
+    // a tape each** — 118 B of the 232 are the two endpoints.
+    //
+    // Gate 1's `223 B a row / 1,281 B at five` is superseded twice over: it
+    // was taken on a shape carrying a `band`, and `1,281 / 5` is 256, so no
+    // two of its own figures agree. AC 8's `~2.4 KB a section` presumed ten
+    // rows and is, by luck, the closest of the three.
     //
     // The fixed cost is the part a reader of this test should notice: three
     // counts, two spans, the baseline block and five refusal words, paid on
     // **every** frame including every gated run, where all of it is zero for
-    // ever.
-    const empty = { ...SECTION, rows: [] };
-    const bare = roundTrip(empty).length;
+    // ever. CI's shape — no rows, no generation, every count zero — is 303 B.
+    const bare = roundTrip({ ...SECTION, rows: [] }).length;
     const one = roundTrip(SECTION).length;
-    const five = roundTrip({
-      ...SECTION,
-      rows: Array.from({ length: 5 }, () => ROW),
-    }).length;
+    const rowsOf = (count: number) =>
+      roundTrip({
+        ...SECTION,
+        // Distinct symbols, because `readUnusual` refuses a list that names
+        // one security twice — a byte measurement over a frame the browser
+        // would throw away is a measurement of nothing.
+        rows: Array.from({ length: count }, (_, at) => ({
+          ...ROW,
+          symbol: `SYM${String(at)}`,
+        })),
+      }).length;
 
     const reference = encodeMarketStreamMessage(overviewMessage({})).length;
 
     expect(bare - reference).toBe(370);
     expect(one - bare).toBe(232);
-    // 1,164 rather than 5 x 232: the comma between two rows is a byte, and a
-    // per-row figure quoted without its separator under-reports a list.
-    expect(five - bare).toBe(1164);
+
+    // Five and ten, both read rather than one read and one multiplied: the
+    // comma between two rows is a byte, so `10 × 232` over-states by ten and
+    // `5 × 232` by five.
+    expect(rowsOf(5) - bare).toBe(1164);
+    expect(rowsOf(10) - bare).toBe(2329);
+
+    // **The whole section, as the owner's record needs it.**
+    expect(rowsOf(10) - reference).toBe(2699);
+  });
+
+  // **The reader's half, added by Task 5.4.3** — the half Task 5.4.2
+  // deliberately left out, where `readOverview` dropped the section on the
+  // floor and nothing on screen could have said so.
+  //
+  // Every case below round-trips through the **shipped encoder** and then the
+  // **shipped decoder**, so a producer that cannot build the shape cannot be
+  // asserted about: the malformed sections are cast at the boundary, which is
+  // exactly the licence a gateway from another image has.
+  describe("and the reader, which refuses a section it cannot vouch for", () => {
+    const decode = (unusual: unknown): WireMarketOverview | undefined => {
+      const decoded = decodeMarketStreamMessage(
+        encodeMarketStreamMessage(
+          overviewMessage({ unusual: unusual as WireUnusualActivity }),
+        ),
+      );
+
+      if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+        return undefined;
+      }
+      return decoded.message.overview;
+    };
+
+    /**
+     * The same read, from a frame **this encoder cannot build**.
+     *
+     * Two of the shapes below are refused by the producer's own types before
+     * they reach the wire — a row with no `from`, a section with no
+     * `baseline` — so routing them through `encodeMarketStreamMessage` throws
+     * in the encoder and asserts nothing about the reader. A gateway from
+     * another image is under no such obligation, and the reader is what
+     * stands between one and the screen.
+     */
+    const decodeRaw = (unusual: unknown): WireMarketOverview | undefined => {
+      const decoded = decodeMarketStreamMessage(
+        JSON.stringify({
+          type: "overview",
+          version: MARKET_STREAM_PROTOCOL_VERSION,
+          sentAt: SENT_AT,
+          overview: {
+            computedAt: OVERVIEW_AT,
+            feeds: ["iex"],
+            figures: [],
+            unusual,
+          },
+        }),
+      );
+
+      if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+        return undefined;
+      }
+      return decoded.message.overview;
+    };
+
+    const ranked = (rank: number, symbol: string): WireUnusualRow => ({
+      ...ROW,
+      symbol,
+      rank,
+    });
+
+    it("reads a well-formed section whole", () => {
+      expect(decode(SECTION)?.unusual).toEqual(SECTION);
+    });
+
+    it("refuses a list that is not in the comparator's own order", () => {
+      // **Stronger than the movers' equivalent, and that is the tie-break
+      // paying for itself**: `compareByPercentile` breaks ties on the ticker,
+      // so a correct frame admits exactly ONE order and a swapped pair is a
+      // defect rather than a tolerance.
+      const ordered = {
+        ...SECTION,
+        rows: [ranked(99, "AVGO"), ranked(99, "NVDA"), ranked(97, "CRM")],
+      };
+      expect(decode(ordered)?.unusual?.rows).toHaveLength(3);
+
+      const swapped = {
+        ...SECTION,
+        rows: [ranked(99, "NVDA"), ranked(99, "AVGO"), ranked(97, "CRM")],
+      };
+      expect(decode(swapped)?.unusual).toBeUndefined();
+
+      const unranked = {
+        ...SECTION,
+        rows: [ranked(97, "AVGO"), ranked(99, "NVDA")],
+      };
+      expect(decode(unranked)?.unusual).toBeUndefined();
+    });
+
+    it("refuses a list that names one security twice", () => {
+      // A symbol twice is the same list with a rank position invented, and
+      // only a set comparison sees it. The pair is in the comparator's order,
+      // so the check above cannot.
+      expect(
+        decode({
+          ...SECTION,
+          rows: [ranked(99, "NVDA"), ranked(99, "NVDA")],
+        })?.unusual,
+      ).toBeUndefined();
+    });
+
+    it("refuses counts that do not nest", () => {
+      // `rows ≤ scored ≤ eligible ≤ tracked`. The only arithmetic the
+      // region's cut sentence rests on: `eligible − scored` is the refused
+      // count, and a negative remainder is a number of securities that
+      // cannot exist.
+      expect(decode({ ...SECTION, scored: 0 })?.unusual).toBeUndefined();
+      expect(
+        decode({ ...SECTION, eligible: 1, scored: 2 })?.unusual,
+      ).toBeUndefined();
+      expect(
+        decode({ ...SECTION, tracked: 10, eligible: 11, scored: 11 })?.unusual,
+      ).toBeUndefined();
+    });
+
+    it("refuses an ordinal outside the bound the figure can hold", () => {
+      // **The check with the least help from the screen.** A `106th
+      // percentile` draws as a confident, well-formed row, and nothing on
+      // `/` can contradict it — the distribution behind it is 101 breakpoints
+      // × 501 securities that no browser holds. `100th` is refused for the
+      // same reason it is never printed: above the highest order statistic
+      // there is no sample.
+      for (const rank of [-1, 100, 106, 99.5, Number.NaN]) {
+        expect(
+          decode({ ...SECTION, rows: [{ ...ROW, rank }] })?.unusual,
+        ).toBeUndefined();
+      }
+    });
+
+    it("refuses a row ranked against no sample at all", () => {
+      expect(
+        decode({ ...SECTION, rows: [{ ...ROW, sampleCount: 0 }] })?.unusual,
+      ).toBeUndefined();
+    });
+
+    it("refuses a row with no endpoints, because an ordinal with no instant is undatable", () => {
+      const noFrom: Record<string, unknown> = { ...ROW };
+      delete noFrom.from;
+      expect(
+        decodeRaw({ ...SECTION, rows: [noFrom] })?.unusual,
+      ).toBeUndefined();
+    });
+
+    it("refuses a baseline whose tape this bundle cannot name", () => {
+      // Invariant 6: a comparison we cannot attribute is one the region may
+      // not draw. The numerator's tape is checked per endpoint for the same
+      // reason, one object down.
+      expect(
+        decode({
+          ...SECTION,
+          baseline: { ...SECTION.baseline, feed: "nasdaq-basic" },
+        })?.unusual,
+      ).toBeUndefined();
+    });
+
+    it("refuses a tally with a refusal word missing, rather than reading it as zero", () => {
+      // A `Record` over a closed vocabulary is what makes a new refusal word
+      // a compile error at the producer; the reader's half is that a missing
+      // word is the gateway's silence rather than a count. The surface
+      // subtracts these from each other.
+      expect(
+        decode({
+          ...SECTION,
+          refusals: {
+            ...SECTION.refusals,
+            comparison: { "too-few-samples": 11 },
+          },
+        })?.unusual,
+      ).toBeUndefined();
+    });
+
+    it("keeps a baseline whose GENERATION is malformed, because absent is a state", () => {
+      // The pair is *both or neither* on the producer and a cold replica has
+      // neither — so an unreadable generation is read as no generation and
+      // the section survives, which is `seen`'s rule one wire over. Losing
+      // the whole section here would put the region back on *no frame has
+      // arrived*, a different and false claim.
+      const decoded = decode({
+        ...SECTION,
+        baseline: {
+          ...SECTION.baseline,
+          generation: { session: "2026-09-11" },
+        },
+      });
+
+      expect(decoded?.unusual?.rows).toHaveLength(1);
+      expect(decoded?.unusual?.baseline.generation).toBeUndefined();
+    });
+
+    it("reads an ABSENT section as absent and a MALFORMED one as the same absence", () => {
+      // `readMovers`' rule: a frame from a previous image carries no section
+      // at all, and an unreadable one is the same absence rather than a
+      // discarded frame carrying four true prices. Both draw the region's own
+      // sentence rather than a ranking of nothing.
+      expect(decode(undefined)?.unusual).toBeUndefined();
+      expect(decodeRaw({ rows: [] })?.unusual).toBeUndefined();
+      expect(decode(SECTION)?.computedAt).toBe(OVERVIEW_AT);
+      expect(decodeRaw({ rows: [] })?.computedAt).toBe(OVERVIEW_AT);
+    });
   });
 });
 

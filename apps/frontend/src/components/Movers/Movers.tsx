@@ -129,7 +129,7 @@ const NOTHING_ARRIVED = "No moves to rank yet.";
  * carries a `useId` — so the memo on the list is a comment either way; this one
  * is free.
  */
-const NO_BAR: RankedListBar = { kind: "none" };
+const NO_BAR: RankedListBar = { kind: "none", figure: "change" };
 
 /**
  * **One side's room, with the sentence that explains it when it is empty** —

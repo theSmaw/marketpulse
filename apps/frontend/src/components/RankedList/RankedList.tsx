@@ -19,7 +19,7 @@ import {
   type SectorRow,
 } from "../../market/index.js";
 import { securityPath } from "../../routes/paths.js";
-import { PriceChange } from "../PriceChange/PriceChange.js";
+import { DirectionGlyph, PriceChange } from "../PriceChange/PriceChange.js";
 import styles from "./RankedList.module.css";
 
 // A ranked list of rows with a signed figure — **drawn once, for two uses**
@@ -148,6 +148,30 @@ const NOT_RANKED = "Not ranked";
 
 /** The reserved heading's content — room and nothing else. */
 const NBSP = "\u00a0";
+
+/**
+ * **Which row anatomy, and it is three rather than two since Task 5.4.3.**
+ *
+ * Not a boolean and not derived from the bar alone — see
+ * {@link RankedListBar}'s `figure`, which is where the argument is. The three
+ * differ in what the last track holds and therefore in how many tracks there
+ * are: five with a bar, five with a price and a change, four with an ordinal.
+ */
+type RowAnatomy = "sector" | "mover" | "unusual";
+
+/**
+ * The plot class per anatomy — **a total map rather than a ternary**, so a
+ * fourth anatomy is a compile error naming the missing member rather than a
+ * row silently drawn with the sector track list.
+ *
+ * `sector` is `undefined` because `.plot` states its tracks itself; the other
+ * two override them.
+ */
+const ANATOMY_CLASS: Readonly<Record<RowAnatomy, string | undefined>> = {
+  sector: undefined,
+  mover: styles.movers,
+  unusual: styles.unusual,
+};
 
 /** What was on screen before this commit: the symbols drawn, and their bases. */
 interface DrawnOrder {
@@ -570,7 +594,41 @@ function useRovingStop(rows: readonly SectorRow[]) {
  */
 export type RankedListBar =
   | { readonly kind: "signed"; readonly scale: SectorLadderStep }
-  | { readonly kind: "none"; readonly scale?: never };
+  | {
+      readonly kind: "none";
+      readonly scale?: never;
+      /**
+       * **What the last track holds when there is no bar** — required, so a
+       * third use *decides* rather than inherits (Task 5.4.3).
+       *
+       * ## The hazard it closes is a silent 92 px hole
+       *
+       * The anatomy was derived from the bar alone — `signed ? "sector" :
+       * "mover"` — and a third `bar: "none"` use would have been handed
+       * `.movers`' **five**-track list with **four** children. Nothing
+       * overflows and nothing lands in an implicit row: `.movers .figure
+       * { grid-column: 5 }` parks the figure in track 5 and leaves track 4 —
+       * the 80 px price reserve, plus its 12 px gap — **empty**. That is
+       * 92 px of dead track in a 308 px row, 30% of it, invisible to jsdom, to
+       * axe and to every unit test.
+       *
+       * ## And it is the right axis to split on
+       *
+       * `"change"` is a signed percentage against a close, drawn by
+       * `PriceChange`, **tinted**, in a 78 px reserve beside an 80 px price.
+       * `"ordinal"` is a position in one security's own history —
+       * {@link SectorRow.reading} — untinted, with a tinted direction glyph
+       * beside it, in 64 px with no price track at all. Two different
+       * quantities, two different last tracks, two different row widths.
+       *
+       * The component's own recorded reversal trigger — *the first use that
+       * wants the bar off **and** the label leading* — did **not** fire on
+       * this use, because this use wants the ticker leading. The trigger that
+       * should have existed is the one restated here: **the first use that
+       * wants the bar off and a figure track that is not a price change.**
+       */
+      readonly figure: "change" | "ordinal";
+    };
 
 export interface RankedListProps {
   /**
@@ -717,10 +775,14 @@ export const RankedList = memo(function RankedList({
    * and the label leading.* It would make this a third prop rather than a
    * consequence, and nothing today needs it.
    */
-  const layout = signed ? "sector" : "mover";
+  const layout: RowAnatomy = signed
+    ? "sector"
+    : bar.figure === "ordinal"
+      ? "unusual"
+      : "mover";
 
   return (
-    <div className={cx(styles.plot, signed ? undefined : styles.movers)}>
+    <div className={cx(styles.plot, ANATOMY_CLASS[layout])}>
       {/*
        * **The zero rule and the ladder gridlines: one element for the whole
        * list**, behind the bars.
@@ -784,6 +846,9 @@ export const RankedList = memo(function RankedList({
               direction={row.move?.direction}
               percent={row.move?.percent}
               price={row.price}
+              ordinal={row.reading?.drawn}
+              spoken={row.reading?.spoken}
+              ordinalDirection={row.reading?.direction}
               absent={row.absent}
               arrival={row.arrival}
               scale={bar.scale}
@@ -910,6 +975,15 @@ export const RankedList = memo(function RankedList({
                * it.
                */
               price={undefined}
+              /*
+               * **No ordinal in the quiet group, and the reason is the
+               * group's own**: it belongs to the sector anatomy, which has no
+               * ordinal cell at any width, and a row we are refusing to rank
+               * has no position in any distribution to report.
+               */
+              ordinal={undefined}
+              spoken={undefined}
+              ordinalDirection={undefined}
               absent={row.absent}
               arrival={row.arrival}
               /*
@@ -973,6 +1047,9 @@ const Row = memo(function Row({
   direction,
   percent,
   price,
+  ordinal,
+  spoken,
+  ordinalDirection,
   absent,
   arrival,
   scale,
@@ -989,7 +1066,7 @@ const Row = memo(function Row({
    * ticker-then-name while a listener is handed name-then-ticker is the same
    * defect one axis over — invisible to axe, to jsdom and to a screenshot.
    */
-  readonly layout: "sector" | "mover";
+  readonly layout: RowAnatomy;
   readonly symbol: string;
   readonly label: string;
   readonly rank: number | undefined;
@@ -1005,6 +1082,30 @@ const Row = memo(function Row({
    * nowhere rather than squeezed in beside the bar.
    */
   readonly price: string | undefined;
+  /**
+   * The ordinal as it is drawn — `99th` — **rendered in the `unusual` anatomy
+   * only**, where it is the whole of the last track.
+   *
+   * Three primitives rather than the {@link SectorRow.reading} object, which
+   * is this component's memo boundary rather than a style: `Row`'s props are
+   * strings and numbers so that a frame moving one row's figure re-renders one
+   * row. Handing it the object would make every prop a fresh identity sixteen
+   * times a minute and the memo a comment — the trap the `tabIndex` prop's own
+   * docblock records.
+   */
+  readonly ordinal: string | undefined;
+  /** What a listener is handed instead — `99th percentile`. */
+  readonly spoken: string | undefined;
+  /**
+   * Which way the move went — **tinted, while the ordinal beside it is not**.
+   *
+   * A separate prop from {@link direction}, which belongs to a `move` this
+   * anatomy does not have. The percentile ranks the **absolute** magnitude, so
+   * without this a −9% crash and a +9% spike draw the identical row; and
+   * because the figure itself has no direction to encode, tinting it would be
+   * decoration standing where meaning normally is.
+   */
+  readonly ordinalDirection: PriceDirection | undefined;
   readonly absent: string | undefined;
   readonly arrival: string | undefined;
   /** Absent when the bar is off — see {@link RankedListBar}. */
@@ -1169,6 +1270,60 @@ const Row = memo(function Row({
       <span className={cx(styles.price)}>{price}</span>
     );
 
+  /*
+   * **The ordinal cell: the direction tinted, the figure not** (Task 5.4.3,
+   * `Unusual activity on the landing page.dc.html` §02).
+   *
+   * ## It is its own class rather than `.figure`, and that is a measured trap
+   *
+   * `RankedList.module.css`' `@media (width < 37rem)` block ends with
+   * `.figure { font-size: var(--font-size-micro) }`, **unscoped to either
+   * layout** — so a new use drawing its figure in `.figure` would step to
+   * 11 px at 390 without anybody deciding it, in the one cell this region
+   * exists to draw, in a 64 px track sized at 13. `.ordinal` is immune by
+   * construction rather than by a fourth `@media` override.
+   *
+   * ## Drawn short, spoken whole
+   *
+   * `>99th percentile` is sixteen glyphs on a 308 px row and leaves the
+   * company name six characters, so the word moves to the list heading and a
+   * visually-hidden sibling carries the whole phrase — `Movers.spoken`'s
+   * shipped shape at the grain of a cell. The two strings are one fact with
+   * two renderings (ADR 0029), derived short-from-long in
+   * `return-percentile.ts` so they cannot drift.
+   *
+   * ## And the glyph is `DirectionGlyph`'s rather than this file's
+   *
+   * `▲` / `▼` / `—`, their three hues and their three spoken words have one
+   * home, and it is `PriceChange`'s — a second speller is a second thing to
+   * keep in step with a palette that differs by 1.04:1 in greyscale.
+   */
+  const ordinalCell =
+    ordinal === undefined ? (
+      // **Room and nothing else**, so a held pad's cell is a grid item with
+      // the same line box as a drawn one. The `<span>` is unconditional for
+      // `.markSlot`'s reason: a cell that comes and goes is a track whose
+      // content floor comes and goes with it.
+      <span className={cx(styles.ordinal)} />
+    ) : (
+      <span className={cx(styles.ordinal)}>
+        {ordinalDirection === undefined ? undefined : (
+          <DirectionGlyph direction={ordinalDirection} />
+        )}
+        {/*
+         * **Its own class, and the class is what a browser spec reads the
+         * drawn figure off.** The glyph beside it is `aria-hidden` too, so a
+         * selector keyed on the attribute picks up both and an assertion
+         * written that way reads `▼` as a figure — which is how the first
+         * draft of `overview-unusual-keyboard.spec.ts` failed.
+         */}
+        <span className={cx(styles.value)} aria-hidden="true">
+          {ordinal}
+        </span>
+        <span className={cx(styles.spoken)}>{spoken}</span>
+      </span>
+    );
+
   const figureCell = (
     <span className={cx(styles.figure)}>
       {change === undefined || direction === undefined ? (
@@ -1209,7 +1364,21 @@ const Row = memo(function Row({
       className={cx(styles.row, held === true ? styles.held : undefined)}
       aria-hidden={held}
     >
-      {layout === "mover" ? (
+      {layout === "unusual" ? (
+        /*
+         * **Four children against four tracks** — rank, ticker, name,
+         * ordinal. No price cell and no bar cell: a `bar: "none"` use renders
+         * no `barCell` at all (`scale` is `undefined`), and a price would be a
+         * fifth grid item with nowhere to go, which in a `subgrid` is a second
+         * row of the `<li>` and the measured 7 px defect `.bar` paid for once.
+         */
+        <>
+          {rankCell}
+          {tickerCell}
+          {nameCell}
+          {ordinalCell}
+        </>
+      ) : layout === "mover" ? (
         <>
           {rankCell}
           {tickerCell}

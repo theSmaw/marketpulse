@@ -93,7 +93,7 @@ const drawMovers = (
   renderWithContext(
     <RankedList
       rows={rows}
-      bar={{ kind: "none" }}
+      bar={{ kind: "none", figure: "change" }}
       name={name}
       quietGroup="impossible"
     />,
@@ -598,7 +598,7 @@ describe("the ticker link, and the roving stop over it", () => {
         <section tabIndex={0} aria-label="Movers">
           <RankedList
             rows={THREE}
-            bar={{ kind: "none" }}
+            bar={{ kind: "none", figure: "change" }}
             name="Gainers"
             quietGroup="impossible"
           />
@@ -612,7 +612,7 @@ describe("the ticker link, and the roving stop over it", () => {
           <section tabIndex={0} aria-label="Movers">
             <RankedList
               rows={[]}
-              bar={{ kind: "none" }}
+              bar={{ kind: "none", figure: "change" }}
               name="Gainers"
               quietGroup="impossible"
             />
@@ -635,7 +635,7 @@ describe("the ticker link, and the roving stop over it", () => {
         <>
           <RankedList
             rows={THREE}
-            bar={{ kind: "none" }}
+            bar={{ kind: "none", figure: "change" }}
             name="Gainers"
             quietGroup="impossible"
           />
@@ -651,7 +651,7 @@ describe("the ticker link, and the roving stop over it", () => {
           <>
             <RankedList
               rows={[row("XLK", "Technology", 1, 1.84)]}
-              bar={{ kind: "none" }}
+              bar={{ kind: "none", figure: "change" }}
               name="Gainers"
               quietGroup="impossible"
             />
@@ -728,5 +728,108 @@ describe("the ticker link, and the roving stop over it", () => {
       expect(handled).toBe(false);
       expect(focused()).toBe("XLK");
     }
+  });
+});
+
+describe("the third anatomy: an ordinal where a change would be", () => {
+  // **`bar: { kind: "none", figure: "ordinal" }`** — Task 5.4.3. The anatomy
+  // was derived from the bar alone until this shipped (`signed ? "sector" :
+  // "mover"`), so a third `bar: "none"` use was silently handed `.movers`'
+  // five-track list with four children: `.movers .figure { grid-column: 5 }`
+  // parks the figure in track 5 and leaves the 80 px price reserve empty,
+  // 92 px of dead track in a 308 px row.
+  //
+  // **Nothing at this level can see that**, and the comment is here so nobody
+  // reads these tests as covering it: jsdom applies no stylesheet and computes
+  // no layout, so the hole is `pnpm probe`'s. What is assertable here is the
+  // **count and the order of the row's children**, which is what decides how
+  // many tracks a `subgrid` row needs — and `a-ranked-anatomy`'s absence is
+  // covered by the existing `every-row-variant-restates-its-tracks`
+  // invariant.
+
+  const ordinalRow = (
+    symbol: string,
+    rank: number,
+    drawn: string,
+  ): SectorRow => ({
+    symbol,
+    label: `${symbol} Corporation`,
+    rank,
+    move: undefined,
+    reading: { drawn, spoken: `${drawn} percentile`, direction: "negative" },
+    absent: undefined,
+    basis: "percentile:2026-10-14",
+    arrival: undefined,
+  });
+
+  const ORDINAL_ROWS = [
+    ordinalRow("NVDA", 1, ">99th"),
+    ordinalRow("AVGO", 2, "97th"),
+  ];
+
+  const drawn = () =>
+    renderWithContext(
+      <RankedList
+        rows={ORDINAL_ROWS}
+        bar={{ kind: "none", figure: "ordinal" }}
+        name="Unusual activity"
+        quietGroup="impossible"
+      />,
+    );
+
+  it("draws FOUR cells a row — rank, ticker, name, ordinal — and no more", () => {
+    // A fifth grid item has nowhere to go, and inside a `subgrid` — which
+    // cannot grow columns beyond the range it adopts — that is a **second row
+    // of the `<li>`**: 33 px instead of 26 on every row, which `.bar` and
+    // `.price` have each paid for once.
+    drawn();
+
+    const first = screen.getAllByRole("listitem")[0];
+    expect(first?.children).toHaveLength(4);
+  });
+
+  it("draws the cells in the order they are read", () => {
+    // DOM order equals visual order by rule in this component: `order` and
+    // `grid-row` divorce the accessibility tree from the screen, and a row
+    // drawn ticker-then-name while a listener is handed name-then-ticker is
+    // that defect one axis over.
+    drawn();
+
+    const first = screen.getAllByRole("listitem")[0];
+    const text = [...(first?.children ?? [])].map((cell) =>
+      cell.textContent.trim(),
+    );
+
+    expect(text[0]).toBe("1");
+    expect(text[1]).toBe("NVDA");
+    expect(text[2]).toBe("NVDA Corporation");
+    expect(text[3]).toContain(">99th");
+  });
+
+  it("draws no bar cell, because a `none` use never renders one", () => {
+    // The task file's own instruction — *keep `.bar` in the hide list* —
+    // cannot be followed and would be dead CSS: `barCell` is `undefined`
+    // whenever `scale` is, and `scale` is absent for every `bar: "none"` row.
+    // Dead CSS written to prevent a defect is worse than none, because the
+    // next reader believes the defect is guarded.
+    const { container } = drawn();
+    expect(container.querySelectorAll('[class*="_bar_"]')).toHaveLength(0);
+  });
+
+  it("draws no price cell, which is the track the other `none` use spends", () => {
+    const { container } = drawn();
+    expect(container.querySelectorAll('[class*="_price_"]')).toHaveLength(0);
+  });
+
+  it("puts the ordinal in its own class rather than in `.figure`", () => {
+    // The shared `@media (width < 37rem)` block ends with
+    // `.figure { font-size: var(--font-size-micro) }`, **unscoped to either
+    // layout** — so an ordinal drawn in `.figure` would step to 11 px at 390
+    // with nobody deciding it, in a cell sized at 13. This assertion is the
+    // only thing below `pnpm probe` that can see the cell is not that one.
+    const { container } = drawn();
+
+    expect(container.querySelectorAll('[class*="_ordinal_"]')).toHaveLength(2);
+    expect(container.querySelectorAll('[class*="_figure_"]')).toHaveLength(0);
   });
 });

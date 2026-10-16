@@ -7432,6 +7432,125 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "one-home-for-the-ordinal-suffix",
+    claim:
+      "`st` / `nd` / `rd` / `th` after a number is written in exactly one " +
+      "shipped file — `apps/frontend/src/market/return-percentile.ts`, where " +
+      "`percentileOrdinal` builds it and `percentileReading` is derived from " +
+      "it — so the drawn short form and the spoken long form of one figure " +
+      "cannot drift.",
+    check() {
+      // **Task 5.4.3.** `Unusual activity` draws `99th` on the row and hands
+      // a listener `99th percentile` from a visually-hidden sibling, while
+      // `Abnormal-move indicators` draws the whole phrase on the security
+      // page. That is **one fact with two renderings** (ADR 0029) only for as
+      // long as one function builds both: the day a second surface spells its
+      // own suffix, the two are two strings that happen to agree, and the
+      // disagreement they eventually produce is between a figure a reader
+      // SEES and a figure a listener HEARS — which no screenshot, no axe run
+      // and no `textContent` assertion over one surface can see, because each
+      // is correct about itself.
+      //
+      // The teens are why this is a function rather than a `% 10`: `11st`,
+      // `12nd` and `13rd` are what a `% 10` alone produces, and the rank this
+      // product draws most often is in the nineties, where a `% 10` is right.
+      // So a second speller is not merely duplication — it is duplication of
+      // the one arithmetic in this figure that is easy to get wrong and
+      // almost never visibly wrong.
+      //
+      // ## The draft that passed WRONGLY, and the transcript
+      //
+      // The obvious draft is **one declaration**: `percentileOrdinal` is
+      // declared once and in the home. Run against the plant —
+      // `apps/frontend/src/components/Unusual/UnusualTrend.tsx`, the file
+      // Story 5.6 writes, a second surface rendering
+      // `` `${String(rank)}th percentile` `` and importing nothing — it
+      // reported `NAIVE DRAFT GREEN — \`percentileOrdinal\` is declared once,
+      // in apps/frontend/src/market/return-percentile.ts.` and exit 0, with
+      // the second speller on disk. Nothing in that draft is about a
+      // **suffix**; it is about an identifier, and the defect is precisely an
+      // author who never reaches for the identifier.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // **The suffix itself, beside a number.** A second ordinal needs
+      // neither `percentileOrdinal` nor `WireUnusualRow` nor an import — but
+      // it cannot be produced without putting `st`, `nd`, `rd` or `th`
+      // immediately after an interpolation, or returning one as a bare
+      // string. Both forms are matched; `Intl.PluralRules` with an ordinal
+      // table is the third and is caught by the second form, because its
+      // table's values are exactly these four literals.
+      //
+      // Measured over the three shipped trees on the day it was written:
+      // **five matches, all in the home**, and no false positive anywhere —
+      // which is why this can be an exact-home rule rather than an
+      // allowlist. Comments are stripped before matching, for
+      // `one-home-for-the-coverage-phrase`'s recorded reason: this repository
+      // writes more prose than code and a check a docblock can trip is a
+      // check nobody can keep green.
+      //
+      // ## What it cannot see, stated so nobody over-trusts it
+      //
+      // A suffix assembled from parts (`"t" + "h"`), a lookup keyed on
+      // something other than a literal, and a **backend** that formats an
+      // ordinal into a string the browser prints whole. The last is the real
+      // residue and it is the reverse of this product's rule rather than a
+      // gap in the grep: invariant 1 says every figure comes from
+      // deterministic code and the renderer spells it, so a server sending a
+      // formatted ordinal is a different defect with a different owner.
+      const HOME = "apps/frontend/src/market/return-percentile.ts";
+
+      // The three SHIPPED roots, through `shippedSourceFiles()` rather than a
+      // file list, for `one-comparator-for-the-order-of-a-percentile`'s
+      // reason: **a new region is a new file by this repository's
+      // convention**, so a list is a corpus that cannot see the next region.
+      // The plant sat in it by existing.
+      const shipped = shippedSourceFiles().map(({ path, text }) => ({
+        path: relative(REPO_ROOT, path),
+        text,
+      }));
+
+      // Two forms, one pattern. `${…}th` is the template a renderer writes;
+      // `"th"` is the branch a suffix function returns. The word boundary is
+      // what keeps `${x}that` and `"st"`-inside-a-longer-token out.
+      const SUFFIX = String.raw`(?:st|nd|rd|th)`;
+      const ORDINAL_SUFFIX = new RegExp(
+        String.raw`\$\{[^}\n]*\}${SUFFIX}\b|(["'])${SUFFIX}\1`,
+        "u",
+      );
+
+      const spellers = shipped.filter((file) => ORDINAL_SUFFIX.test(file.text));
+
+      // The anchor. If the home stops matching, the pattern has rotted and
+      // this passes vacuously — which is how check 7's prose version rotted
+      // and is the rule every check in this file obeys.
+      if (!spellers.some((file) => file.path === HOME)) {
+        throw new InvariantFailure(
+          `${HOME} no longer spells an ordinal suffix, so this check can no ` +
+            "longer see one anywhere. Either `percentileOrdinal` has moved " +
+            "— repoint this check — or the pattern has rotted, in which " +
+            "case it has been passing vacuously.",
+        );
+      }
+
+      const others = spellers.filter((file) => file.path !== HOME);
+
+      if (others.length > 0) {
+        throw new InvariantFailure(
+          `${String(others.length)} shipped file(s) besides ${HOME} spell ` +
+            "an ordinal suffix:\n      " +
+            others.map((file) => file.path).join("\n      ") +
+            "\n    A second speller is a second copy of the teens rule " +
+            "(`11st`, `12nd`, `13rd` are what a `% 10` alone produces), and " +
+            "it breaks `one fact, two renderings`: the drawn `99th` and the " +
+            "spoken `99th percentile` are one string derived short-from-long " +
+            "precisely so they cannot drift. Call `percentileOrdinal` or " +
+            "`percentileReading`.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];
