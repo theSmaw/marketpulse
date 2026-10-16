@@ -1412,7 +1412,7 @@ corepack enable    # once per machine — pnpm comes from the repo pin, not a gl
 pnpm install
 
 pnpm verify        # build → lint → format:check → stories → env:check → links → invariants →
-                   # coverage:check → test → test:process
+                   # coverage:check → test → test:scripts → test:process
                    # This is what CI runs, BY NAME. CI defines no step of its own, which is
                    # what keeps one definition of "verified". Runs with no servers, no
                    # database, no network and no credentials — keep it that way.
@@ -1436,6 +1436,13 @@ pnpm break         # perform a documented break, prove the check goes red, put t
                    # any check you add.
 pnpm links         # fails if a relative Markdown link points at nothing. Skips http(s)://
                    # deliberately, so verify never needs the network.
+pnpm test:scripts  # the root scripts' own unit tests — `node --test "scripts/*.test.mjs"`.
+                   # A verify step since 2026-10-16. The ONLY tests in this repository that are
+                   # not vitest: `pnpm test` is `pnpm -r run test` over the four packages and no
+                   # vitest config includes `scripts/`, so a test for a root script could not be
+                   # run by anything here until this existed. No server, no network, no database —
+                   # `globalThis.fetch` is replaced per test and both poll loops run on a fake
+                   # clock, so the 180 s readiness deadline is asserted in milliseconds.
 pnpm test          # all packages. Fast by contract: no build, no socket, no database, no network
 pnpm test:process  # the backend's process half — spawns dist/index.js. A verify step. ~5s of it
                    # IS the shutdown ceiling elapsing.

@@ -15,6 +15,7 @@
     "test": "pnpm -r run test",
     "test:process": "pnpm -r run test:process",
     "test:database": "pnpm -r run test:database",
+    "test:scripts": "node --test \"scripts/*.test.mjs\"",
     "coverage": "pnpm -r run coverage",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
@@ -44,7 +45,7 @@
     "probe": "node scripts/probe.mjs",
     "instrument:prove": "node scripts/prove-instrument.mjs",
     "e2e:deployed": "node scripts/run-deployed-check.mjs",
-    "verify": "node scripts/check-quiet.mjs && pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run links && pnpm run invariants && pnpm run coverage:check && pnpm run test && pnpm run test:process"
+    "verify": "node scripts/check-quiet.mjs && pnpm run build && pnpm run lint && pnpm run format:check && pnpm run stories && pnpm run env:check && pnpm run links && pnpm run invariants && pnpm run coverage:check && pnpm run test && pnpm run test:scripts && pnpm run test:process"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

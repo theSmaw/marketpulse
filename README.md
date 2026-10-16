@@ -581,6 +581,7 @@ Run from the repository root:
 | `pnpm links`          | Fails if a relative Markdown link points at nothing — see below           |
 | `pnpm test`           | Every package's tests — 895 across the workspace — see below              |
 | `pnpm test:process`   | The backend's process half — 14 tests that spawn a real server            |
+| `pnpm test:scripts`   | `scripts/`'s own tests, under `node --test` — no server, no network       |
 | `pnpm coverage`       | The same tests with coverage — three reports, on demand — see below       |
 | `pnpm dev`            | Every package's `dev`, in parallel — see below                            |
 | `pnpm db`             | Starts the local PostgreSQL 18 container — see below                      |
