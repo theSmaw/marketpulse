@@ -88,6 +88,7 @@ const frame = (
         windowMinutes: 5,
       },
   unusual: {
+    basis: "observed",
     rows,
     tracked: 501,
     eligible: rows.length === 0 ? 0 : 466,

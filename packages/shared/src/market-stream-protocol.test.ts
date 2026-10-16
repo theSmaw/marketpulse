@@ -1212,6 +1212,7 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
   };
 
   const SECTION: WireUnusualActivity = {
+    basis: "observed",
     rows: [ROW],
     tracked: 501,
     eligible: 438,
@@ -1364,7 +1365,7 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
     expect(wire).not.toContain("unusual");
   });
 
-  it("costs 370 B of section plus 232 B a row — 2,699 B at the ten rows this region ships", () => {
+  it("costs 389 B of section plus 232 B a row — 2,718 B at the ten rows this region ships", () => {
     // **Measured rather than estimated**, off this encoder.
     //
     // ## The figure the owner needs, because the row count moved
@@ -1401,6 +1402,14 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
     // counts, two spans, the baseline block and five refusal words, paid on
     // **every** frame including every gated run, where all of it is zero for
     // ever. CI's shape — no rows, no generation, every count zero — is 303 B.
+    //
+    // **Re-measured 2026-10-16 (Task 5.4.5): the fixed cost is 389 B, up 19
+    // from 370**, which is `"basis":"observed"` and nothing else. The
+    // `session` arm is **393 B**, four more than the observed arm, because it
+    // trades `windowMinutes: 5` for a ten-character date. Per-row figures are
+    // unchanged: the
+    // discriminant is one field per **section**, which is the whole of ADR
+    // 0038's grain argument at the field level.
     const bare = roundTrip({ ...SECTION, rows: [] }).length;
     const one = roundTrip(SECTION).length;
     const rowsOf = (count: number) =>
@@ -1417,8 +1426,24 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
 
     const reference = encodeMarketStreamMessage(overviewMessage({})).length;
 
-    expect(bare - reference).toBe(370);
+    expect(bare - reference).toBe(389);
     expect(one - bare).toBe(232);
+
+    // **The session arm, measured rather than assumed to cost the same.** It
+    // is the arm `/` is on for roughly 80% of the week.
+    const session = roundTrip({
+      basis: "session",
+      rows: [],
+      tracked: SECTION.tracked,
+      eligible: SECTION.eligible,
+      scored: SECTION.scored,
+      spanMinutes: SECTION.spanMinutes,
+      baseline: SECTION.baseline,
+      refusals: SECTION.refusals,
+      session: "2026-10-15",
+    }).length;
+
+    expect(session - reference).toBe(393);
 
     // Five and ten, both read rather than one read and one multiplied: the
     // comma between two rows is a byte, so `10 × 232` over-states by ten and
@@ -1427,7 +1452,7 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
     expect(rowsOf(10) - bare).toBe(2329);
 
     // **The whole section, as the owner's record needs it.**
-    expect(rowsOf(10) - reference).toBe(2699);
+    expect(rowsOf(10) - reference).toBe(2718);
   });
 
   // **The reader's half, added by Task 5.4.3** — the half Task 5.4.2
@@ -1491,6 +1516,53 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
 
     it("reads a well-formed section whole", () => {
       expect(decode(SECTION)?.unusual).toEqual(SECTION);
+    });
+
+    it("reads the session arm whole, and keeps the two apart", () => {
+      // **Task 5.4.5.** The two arms are two different claims — *this is what
+      // is happening now* and *this is what happened at Friday's close* — and
+      // the discriminant is the only thing that can tell a reader which one is
+      // on screen. A process holding a stale trailing window and one holding
+      // none must not draw the same region for different reasons.
+      const session = {
+        basis: "session",
+        rows: SECTION.rows,
+        tracked: SECTION.tracked,
+        eligible: SECTION.eligible,
+        scored: SECTION.scored,
+        spanMinutes: SECTION.spanMinutes,
+        baseline: SECTION.baseline,
+        refusals: SECTION.refusals,
+        session: "2026-10-15",
+      } as const;
+
+      expect(decode(session)?.unusual).toEqual(session);
+      // And the window does not travel on it: *heard from in the last five
+      // minutes* is not a sentence about a session that has ended.
+      expect(decodeRaw(session)?.unusual).not.toHaveProperty("windowMinutes");
+    });
+
+    it("refuses a section with no basis, with an unknown one, or with no session", () => {
+      // A frame from a **previous image** carries no basis at all, which a
+      // rollback pins, and that is the absence the region already draws. It is
+      // refused rather than defaulted: defaulting to either arm draws the
+      // other one's figures under the wrong sentence.
+      const basisless: Record<string, unknown> = { ...SECTION };
+      delete basisless.basis;
+
+      expect(decodeRaw(basisless)?.unusual).toBeUndefined();
+      expect(decodeRaw({ ...SECTION, basis: "guessed" })?.unusual).toBe(
+        undefined,
+      );
+
+      const counts: Record<string, unknown> = { ...SECTION };
+      delete counts.windowMinutes;
+      expect(
+        decodeRaw({ ...counts, basis: "session" })?.unusual,
+      ).toBeUndefined();
+      expect(
+        decodeRaw({ ...counts, basis: "session", session: "" })?.unusual,
+      ).toBeUndefined();
     });
 
     it("refuses a list that is not in the comparator's own order", () => {

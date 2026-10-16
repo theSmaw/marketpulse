@@ -5823,6 +5823,139 @@ const INVARIANTS = [
     },
   },
   {
+    id: "the-counted-basis-is-read-off-the-frame",
+    claim:
+      "No shipped frontend file constructs a measured-set qualifier. Every " +
+      "region that states what it counted over hands `describeMeasuredSet` " +
+      "the wire section whole, so the grammar is keyed on the producer's own " +
+      "basis rather than on one a renderer chose.",
+    check() {
+      // **Task 5.4.5, and the defect is the code this task replaced.**
+      //
+      // `unusual-activity.ts` built its own qualifier:
+      //
+      //   qualifier: { basis: "observed", windowMinutes: unusual.windowMinutes }
+      //
+      // That was correct while the producer refused the session basis
+      // outright, and it became a **lie for about 80% of the week** the moment
+      // the section could carry the last completed session's stored closing
+      // figures: the region would draw *466 were heard from in the last 5
+      // minutes* over figures measured at Friday's close. Nothing else catches
+      // it — the sentence is well-formed, the counts are the frame's own, the
+      // date on the screen's source note is right, and every unit test that
+      // furnishes an observed section stays green.
+      //
+      // `market-breadth.ts` and `movers.ts` already passed their sections
+      // whole (`qualifier: breadth`, `qualifier: movers`), which is what makes
+      // this a rule rather than a preference: two of the three regions had the
+      // right shape and the third was one object literal away from a wrong
+      // sentence.
+      //
+      // ## Two conjuncts, because either alone is green on a defect
+      //
+      // The first forbids the **literal** — a `basis: "observed"` anywhere in
+      // shipped frontend source but the module that declares the union. The
+      // second forbids **constructing a qualifier at all**, which catches the
+      // shape the first cannot see: `qualifier: { basis: shut ? "session" :
+      // "observed", … }` contains no basis literal in a property position and
+      // is the same defect with a conditional in it.
+      //
+      // ## The blind spot, stated rather than left to be found
+      //
+      // A renderer that built a qualifier in a **named local** and passed the
+      // local (`const q = basisOf(…); describeMeasuredSet({ qualifier: q })`)
+      // trips conjunct one if it spells a basis and nothing if it does not.
+      // What stands there instead is the type: `MeasuredQualifier`'s two
+      // members carry different fields, so a renderer that invented one has
+      // to invent a window or a session too, and both are figures
+      // `the-cut-has-one-home-and-is-read-off-the-frame` already requires to
+      // be read off the frame.
+      const files = shippedSourceFiles().filter(({ path }) =>
+        path.startsWith(resolve(REPO_ROOT, "apps/frontend/src")),
+      );
+
+      // The one permitted home: the module that DECLARES the union. Its own
+      // declaration lines spell both members, which is why this is a file
+      // exemption rather than a cleverer pattern.
+      const home = resolve(
+        REPO_ROOT,
+        "apps/frontend/src/market/measured-set.ts",
+      );
+
+      const declaring = files.find(({ path }) => path === home);
+
+      if (
+        declaring === undefined ||
+        !/basis: "observed"/u.test(declaring.text) ||
+        !/basis: "session"/u.test(declaring.text)
+      ) {
+        throw new InvariantFailure(
+          "`apps/frontend/src/market/measured-set.ts` no longer declares " +
+            "both basis members, and this check is anchored on it. Either " +
+            "the qualifier moved — in which case repoint this check at its " +
+            "new home — or the two grammars were collapsed into one, which " +
+            "is the thing they exist to keep apart: *heard from in the last " +
+            "five minutes* is false about a closed market and *had a move " +
+            "into the close* is false about a live one.",
+        );
+      }
+
+      const spelling = files.filter(
+        ({ path, text }) =>
+          path !== home && /basis: "(?:observed|session)"/u.test(text),
+      );
+
+      if (spelling.length > 0) {
+        throw new InvariantFailure(
+          `${String(spelling.length)} shipped frontend file(s) spell a ` +
+            "counted basis rather than reading the section's own:\n      " +
+            spelling.map(({ path }) => path).join("\n      ") +
+            "\n    A hard-coded `observed` draws *heard from in the last 5 " +
+            "minutes* over the last session's stored figures, which is a " +
+            "well-formed, confidently-dated wrong sentence for about 80% of " +
+            "the week. Pass the wire section whole, as `market-breadth.ts` " +
+            "and `movers.ts` do.",
+        );
+      }
+
+      // **Conjunct two: a qualifier is never CONSTRUCTED.** The value after
+      // `qualifier:` must be an expression rather than an object literal.
+      const constructing = files.filter(
+        ({ path, text }) => path !== home && /qualifier:\s*\{/u.test(text),
+      );
+
+      if (constructing.length > 0) {
+        throw new InvariantFailure(
+          `${String(constructing.length)} shipped frontend file(s) build a ` +
+            "qualifier object instead of passing the section:\n      " +
+            constructing.map(({ path }) => path).join("\n      ") +
+            "\n    `MeasuredQualifier` is structurally satisfied by the wire " +
+            "sections themselves, which is what makes the grammar the " +
+            "producer's answer rather than a renderer's choice. A " +
+            "constructed one is a second home for the basis, and the symptom " +
+            "is a true-looking sentence about the wrong measurement.",
+        );
+      }
+
+      // The anchor for conjunct two: the three regions that state a
+      // denominator must still be reading one, or this clause is a rule over
+      // an empty set.
+      const reading = files.filter(({ text }) =>
+        /qualifier:\s*[A-Za-z_$]/u.test(text),
+      );
+
+      if (reading.length < 3) {
+        throw new InvariantFailure(
+          `Only ${String(reading.length)} shipped frontend file(s) read a ` +
+            "qualifier off a section, and three regions state a denominator " +
+            "(`Market breadth`, `Movers`, `Unusual activity`). Either a " +
+            "region stopped stating what it counted over, or the property " +
+            "was renamed and this clause now guards nothing.",
+        );
+      }
+    },
+  },
+  {
     id: "the-population-is-never-a-literal",
     claim:
       "No shipped sentence states the size of the tracked universe as a " +

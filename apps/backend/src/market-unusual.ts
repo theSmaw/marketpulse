@@ -16,7 +16,15 @@ import { BREADTH_WINDOW_MINUTES } from "./market-breadth.js";
 import { RETURN_SPAN_MINUTES, fiveMinuteReturn } from "./five-minute-return.js";
 import { comparableBaseline, returnPercentileOf } from "./return-percentile.js";
 
+import { SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
+import { BASELINE_FEED } from "./return-baseline-store.js";
+
 import type { EligibleMoves } from "./market-breadth.js";
+import type { MarketDate } from "@marketpulse/shared";
+import type {
+  StoredSessionPercentile,
+  StoredSessionRanking,
+} from "./session-percentile-store.js";
 import type { LiveObservation } from "./market-data-stream.js";
 import type { MeasuredReturn, ReturnRefusal } from "./five-minute-return.js";
 import type { PercentileRefusal } from "@marketpulse/shared";
@@ -58,7 +66,7 @@ import type { StoredReturnBaseline } from "./return-baseline-store.js";
  * is handed in by the wiring site and the second is read off the stored
  * generation.
  *
- * ## Rows only on the `observed` basis — a refusal rather than a gap
+ * ## TWO BASES, AND THE IN-MEMORY FIGURE CANNOT REACH THE SESSION ONE
  *
  * `eligibleMoves` answers on the **session** basis whenever the regular session
  * is shut, and out of hours a process that was up at the bell is still holding
@@ -66,19 +74,33 @@ import type { StoredReturnBaseline } from "./return-baseline-store.js";
  * each security's **own** newest bar, so nothing expires while the market is
  * closed. A pass that ignored the basis would therefore rank yesterday's
  * 15:55→16:00 pair, **for ever**, as unusual activity right now — which is
- * Story 5.4's Gate 1 decision 2 in one sentence. It is refused instead, and
- * `eligible: 0` is the literally true answer: nothing has been heard from
- * inside the cutoff.
+ * Story 5.4's Gate 1 decision 2 in one sentence.
  *
- * The same refusal covers extended hours, where bars **are** arriving but
+ * So the trailing windows are read **only** on the `observed` basis, and that
+ * gate is unchanged since Task 5.4.2. What Task 5.4.5 adds is the session path
+ * **beside** it: the last completed session's closing scores, read from
+ * `session_return_percentiles` through a cache, every figure of them dated by
+ * the session the nightly pass wrote them for.
+ *
+ * **The two are different arms of a discriminated union on the wire** rather
+ * than one shape whose figures mean different things on different days. A
+ * process with a stale trailing window and a process with none must not draw
+ * the same region for different reasons, and the basis is the only thing that
+ * can say which one a reader is looking at.
+ *
+ * The session arm also covers extended hours, where bars **are** arriving but
  * `marketBreadth`'s basis is still `session` — Story 4.4's Gate 1 decision 3,
  * whose measurement is that a five-minute minimum of **5 of 518** securities
- * would otherwise put a market-wide ranking on screen over five names.
+ * would otherwise put a market-wide ranking on screen over five names. The
+ * figures a reader sees between 16:00 and the bell are then the session's own
+ * closing ones, which is a true claim about a session rather than a thin claim
+ * about now.
  *
- * **The last session's closing scores are a persisted nightly row** (Gate 1
- * decision 2, ADR 0044's proven shape) and no migration writes one yet, so the
- * region is empty for about 80% of the week. That is a known, dated bound
- * rather than a thing this task forgot.
+ * **A store with no session written is still the session arm**, with every
+ * count zero and no rows — CI's permanent state (516 securities, zero bars, no
+ * nightly runner) and every store's state before its first night. That is
+ * `eligible: 0` on a basis that names the session it asked about, which is the
+ * honest answer rather than a region claiming the market is quiet.
  *
  * ## No band
  *
@@ -138,6 +160,22 @@ export interface UnusualActivityInputs {
    * the same argument as `market-overview.ts`'.
    */
   readonly asOf: Date;
+
+  /**
+   * **The last completed session's stored ranking**, or `undefined` where the
+   * store holds none (Task 5.4.5).
+   *
+   * Read **only** on the `session` basis, and resolved **once** by the caller
+   * for the same reason `baselineOf` is a lookup rather than a cache: asking a
+   * cache is also what triggers its refresh, and a refresh condition evaluated
+   * per security is a cost nothing asked for.
+   *
+   * It is the whole answer rather than a lookup, because on this basis the
+   * section's figures — the three counts, the five refusals and the baseline's
+   * own facts — are the **pass's** rather than this process's, and they travel
+   * together or they do not travel at all.
+   */
+  readonly sessionRanking?: StoredSessionRanking | undefined;
 
   /** How many rows the section carries. Defaults to {@link UNUSUAL_ROWS}. */
   readonly rows?: number;
@@ -240,6 +278,20 @@ export function unusualActivity(
   const { moves, windowOf, baselineOf, grid, asOf } = inputs;
   const limit = inputs.rows ?? UNUSUAL_ROWS;
 
+  // **The basis gate, and it is the whole of the out-of-hours decision.** See
+  // this module's header: on the `session` basis nothing has been heard from
+  // inside the cutoff, and the bars a stopped feed left behind are not a
+  // measurement of now — so the trailing windows are not read at all, and the
+  // answer comes from what the nightly pass wrote.
+  if (moves.qualifier.basis === "session") {
+    return sessionSection(
+      moves.qualifier.session,
+      inputs.sessionRanking,
+      moves.tracked,
+      limit,
+    );
+  }
+
   const figureRefusals = noFigureRefusals();
   const comparisonRefusals = noComparisonRefusals();
 
@@ -248,13 +300,7 @@ export function unusualActivity(
   let scored = 0;
   let generation: WireUnusualGeneration | undefined;
 
-  // **The basis gate, and it is the whole of the out-of-hours decision.** See
-  // this module's header: on the `session` basis nothing has been heard from
-  // inside the cutoff, and the bars a stopped feed left behind are not a
-  // measurement of now.
-  const scoring = moves.qualifier.basis === "observed" ? moves.moves : [];
-
-  for (const move of scoring) {
+  for (const move of moves.moves) {
     const symbol = move.entry.symbol;
 
     const figure = fiveMinuteReturn(windowOf(symbol), { asOf });
@@ -307,6 +353,7 @@ export function unusualActivity(
   }
 
   return {
+    basis: "observed",
     // **Bounded rather than sorted, through the one comparator** —
     // `one-comparator-for-the-order-of-a-percentile`. Ordinal descending, then
     // ticker ascending, which is a total order: this list arrives in the
@@ -337,3 +384,136 @@ export function unusualActivity(
     refusals: { figure: figureRefusals, comparison: comparisonRefusals },
   };
 }
+
+/**
+ * **The last completed session's ranking, as a section** (Task 5.4.5) — read
+ * from what the nightly pass wrote, and ranked through the one comparator.
+ *
+ * ## Every figure here is the PASS's, and none of it is this process's
+ *
+ * The three counts, the five refusals, the tape, the grid stride, the lookback
+ * and the sample bound all come off the stored row rather than off this
+ * bundle's constants — `0014` §5's argument, which is the one
+ * `WireRefusedPercentile.minimumSampleCount` already records: a rollback can
+ * put a runner and a reader two values apart, and the figure a sentence states
+ * must be the one the producer applied.
+ *
+ * The one thing this function supplies is `tracked` **when there is nothing
+ * stored**, and it is the shared pass's own figure rather than a literal —
+ * because *of the 501 companies we track, none…* is a true sentence about a
+ * store with no session in it, while a `tracked: 0` beside it would say we
+ * track nothing.
+ *
+ * ## The session named is the STORED one, never the one we asked about
+ *
+ * Where a ranking exists the sentence is dated by `pass.observedAt`'s own
+ * session; where none does, by the session the shared pass asked about. A
+ * date recorded against figures from another session is
+ * `last-closes-cache.ts`' recorded defect — a well-formed, correctly-spelled
+ * wrong answer — and the two disagree every evening between the bell and that
+ * night's run.
+ */
+function sessionSection(
+  asked: MarketDate,
+  ranking: StoredSessionRanking | undefined,
+  tracked: number,
+  limit: number,
+): WireUnusualActivity {
+  if (ranking === undefined) {
+    return {
+      basis: "session",
+      rows: [],
+      // The shared pass's own figure; see the docblock.
+      tracked,
+      eligible: 0,
+      scored: 0,
+      session: asked,
+      // **Read from the producers that own them even here**, because a section
+      // with no rows still states what the comparison would have been of:
+      // ADR 0043's measurement span, the sampler's stride and the store's
+      // tape. What it carries no `generation` for is the one thing nothing
+      // stored can tell us.
+      spanMinutes: RETURN_SPAN_MINUTES,
+      baseline: {
+        feed: BASELINE_FEED,
+        spanMinutes: SAMPLE_SPAN_MINUTES,
+        minimumSampleCount: BASELINE_MINIMUM_SAMPLE,
+      },
+      refusals: {
+        figure: noFigureRefusals(),
+        comparison: noComparisonRefusals(),
+      },
+    };
+  }
+
+  const { pass, scores } = ranking;
+
+  return {
+    basis: "session",
+    // **The same comparator the live arm uses** —
+    // `one-comparator-for-the-order-of-a-percentile` permits exactly one home
+    // for this order, and the store deliberately returns its rows in **ticker**
+    // order so that the ranking is performed here or not at all.
+    rows: selectByPercentile(scores.map(storedRowOf), limit),
+    tracked: pass.tracked,
+    eligible: pass.eligible,
+    scored: pass.scored,
+    // `marketDateAt` is the one module permitted to convert an instant to a
+    // market-local date.
+    session: marketDateAt(pass.observedAt),
+    spanMinutes: pass.spanMinutes,
+    baseline: {
+      feed: pass.baseline.feed,
+      spanMinutes: pass.baseline.spanMinutes,
+      minimumSampleCount: pass.baseline.minimumSampleCount,
+      generation: {
+        // **The generation ranked against is the one keyed by this same
+        // session** — `0014` §5: the pass ranks each closing move against the
+        // generation whose window ends at the session being scored, so the
+        // coordinate is the score's own and a stored copy of it would be a
+        // fact with two homes. The depth is not derivable and is stored.
+        session: marketDateAt(pass.observedAt),
+        lookbackSessions: pass.baseline.lookbackSessions,
+      },
+    },
+    refusals: {
+      figure: {
+        "nothing-observed": pass.refusals.nothingObserved,
+        "no-earlier-endpoint": pass.refusals.noEarlierEndpoint,
+        "no-basis": pass.refusals.noBasis,
+      },
+      comparison: {
+        "too-few-samples": pass.refusals.tooFewSamples,
+        "split-discontinuity": pass.refusals.splitDiscontinuity,
+      },
+    },
+  };
+}
+
+/**
+ * One stored score, as a row.
+ *
+ * **Built field by field, never spread** — ADR 0031, and the stored shape
+ * carries a `Date` per endpoint where the wire carries an ISO string, so a
+ * spread would not even compile. {@link rowOf} is the live arm's twin and the
+ * two produce the same shape from different sources, which is what makes the
+ * browser's `readUnusual` one reader rather than two.
+ */
+const storedRowOf = (score: StoredSessionPercentile): WireUnusualRow => ({
+  symbol: score.symbol,
+  rank: score.rank,
+  aboveSample: score.aboveSample,
+  sampleCount: score.sampleCount,
+  percent: score.percent,
+  from: {
+    at: score.from.at.toISOString(),
+    price: score.from.price,
+    feed: score.from.feed,
+  },
+  to: {
+    at: score.to.at.toISOString(),
+    price: score.to.price,
+    feed: score.to.feed,
+  },
+  observed: score.observed,
+});

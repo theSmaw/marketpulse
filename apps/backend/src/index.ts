@@ -72,6 +72,8 @@ import {
   createReturnBaselineStore,
 } from "./return-baseline-store.js";
 import { createReturnBaselineCache } from "./return-baseline-cache.js";
+import { createSessionPercentileCache } from "./session-percentile-cache.js";
+import { createSessionPercentileStore } from "./session-percentile-store.js";
 import { SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
 import { comparableBaseline, returnPercentileOf } from "./return-percentile.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
@@ -884,6 +886,14 @@ const marketOverview = (): WireMarketOverview => {
   // refresh condition 501 times per applied batch.
   const generation = baselines.baselineAsOf(marketDateAt(asOf));
 
+  // **The last completed session's ranking, resolved once** (Task 5.4.5) —
+  // `generation`'s shape for `generation`'s reason: asking the cache is also
+  // what triggers its refresh. It is read by the producer **only** on the
+  // session basis, and asked for unconditionally because a condition here
+  // would be a second copy of the basis decision, which `eligibleMoves` has
+  // already taken.
+  const lastSession = sessionRankings.rankingAsOf(marketDateAt(asOf));
+
   return toWireMarketOverview({
     proxies: entries.filter((entry) => isProxySymbol.has(entry.symbol)),
     sectors: entries.filter((entry) => isSectorSymbol.has(entry.symbol)),
@@ -913,6 +923,12 @@ const marketOverview = (): WireMarketOverview => {
       // the sampler and the tape to the store's own `where`.
       grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
       asOf,
+      // **The out-of-hours answer, and it is READ rather than held** (Task
+      // 5.4.5): one row per security per session written by `pnpm baselines`,
+      // so a restarted replica — which is every merge — draws the last
+      // session's ranking instead of an empty region. `undefined` is a store
+      // with no session written, which is CI's permanent state.
+      ...(lastSession === undefined ? {} : { sessionRanking: lastSession }),
     }),
     // **The join's whole answer, beside the three selections taken out of
     // it** (Task 4.8.12) — the frame's `observedAt` is folded from this and
@@ -972,6 +988,42 @@ void baselines.load(marketDateAt(new Date())).then(
   },
   (error: unknown) => {
     app.log.warn({ err: error }, "return baselines could not be loaded");
+  },
+);
+
+/**
+ * **The last completed session's ranking, held in memory** (Task 5.4.5, ADR
+ * 0044).
+ *
+ * `baselines`' shape and `baselines`' reason, one row of this file up: a
+ * derived aggregate that changes once a night, read by the overview join, which
+ * runs inside the socket's own callback and must not `await`. The cache owns
+ * the refresh condition and never throws; what this line owns is that there is
+ * exactly one of it.
+ */
+const sessionRankings = createSessionPercentileCache({
+  store: createSessionPercentileStore(database),
+  warn: (fields, message) => {
+    app.log.warn(fields, message);
+  },
+});
+
+// **Loaded at startup, and it does not block the server** — `baselines`'
+// argument unchanged. A replica with no session stored draws the region's own
+// honest-nothing sentence out of hours, which is an honest partial answer
+// rather than a failure, and is CI's permanent state.
+void sessionRankings.load(marketDateAt(new Date())).then(
+  () => {
+    app.log.info(
+      {
+        securities: sessionRankings.size(),
+        through: sessionRankings.heldThrough(),
+      },
+      "session ranking loaded for unusual activity",
+    );
+  },
+  (error: unknown) => {
+    app.log.warn({ err: error }, "session ranking could not be loaded");
   },
 );
 

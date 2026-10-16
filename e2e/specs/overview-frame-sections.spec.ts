@@ -525,6 +525,16 @@ test("the frame this product's own server sends carries exactly the four index p
   // which is what the equality was really buying. A subscription to the whole
   // universe, to a hard-coded list, or to a symbol read off the drawn rows
   // (the held pads are non-breaking spaces) all fail here.
+  //
+  // **The `unusual` rows joined this set on 2026-10-16 (Task 5.4.5), and the
+  // omission had been silent since Task 5.4.3.** The route has subscribed to
+  // that section's symbols since the region shipped — a region drawing an
+  // arrival mark from `observations` needs them, which is Task 4.3.6's
+  // shipped defect — but on a store with no provider the section carried
+  // **no rows**, so this clause passed over an empty set and read as a check.
+  // The session arm (`0014`) is the first thing that puts ten stored
+  // securities in it, and the first run after that went red here with ten
+  // perfectly legitimate tickers.
   const everyNamedSymbol = new Set(
     overviews.flatMap((received) =>
       [
@@ -532,6 +542,7 @@ test("the frame this product's own server sends carries exactly the four index p
         ...(received.sectors ?? []),
         ...(received.movers?.gainers ?? []),
         ...(received.movers?.losers ?? []),
+        ...(received.unusual?.rows ?? []),
       ].map((figure) => figure.symbol),
     ),
   );

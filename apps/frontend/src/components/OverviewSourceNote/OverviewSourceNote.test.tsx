@@ -166,6 +166,7 @@ describe("the baselines term", () => {
   const RANKED: WireMarketOverview = {
     ...SESSION,
     unusual: {
+      basis: "observed",
       rows: [],
       tracked: 501,
       eligible: 0,

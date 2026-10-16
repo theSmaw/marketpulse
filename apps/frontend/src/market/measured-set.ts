@@ -103,7 +103,53 @@ export interface MeasuredSet {
    * conjunct, and only the caller knows whether its producer ran at all.
    */
   readonly ranked?: number;
+
+  /**
+   * **Which move the count is of**, where the region's is not a close-to-close
+   * one — absent for `Market breadth` and `Movers`, whose figure it is (Task
+   * 5.4.5).
+   *
+   * ## Why the session grammar needs this and the observed grammar does not
+   *
+   * *Heard from in the last five minutes* says nothing about what was
+   * measured, so it is true of any figure. `had a close-to-close move on
+   * 2026-10-15` names a **measurement**, and it is the wrong one for
+   * `Unusual activity`'s session arm: those rows are a move into that
+   * session's close, measured between two minute closes five minutes apart,
+   * and the idiom *close-to-close* means the previous session's close to this
+   * one's. Two measurements under one phrase is the trap this repository
+   * records three times over — `band`, and the product's four fives.
+   *
+   * ## Why it is a KIND here rather than a phrase from the call site
+   *
+   * {@link MeasuredSet.ranked}'s argument unchanged: the words are this
+   * module's job, and a caller handing in its own clause would be the second
+   * builder AC 3 refuses with one import standing where the duplication used
+   * to be visible. What the caller supplies is which of two measurements it
+   * counted and the span it read off its own section — never the sentence.
+   */
+  readonly move?: CountedMove;
 }
+
+/**
+ * **The two measurements a session count can be of** (Task 5.4.5) — a closed
+ * union, so a third one is a compile error here rather than a region quietly
+ * drawing the wrong phrase.
+ *
+ * `close-to-close` is the default and is `Market breadth`'s and `Movers`'
+ * figure: the previous session's close against this one's.
+ */
+export type CountedMove =
+  | { readonly kind: "close-to-close" }
+  | {
+      readonly kind: "closing-span";
+      /**
+       * The span, in minutes, **read off the producer's own section** — never
+       * spelled here, for `measuredWindow`'s reason: a `5` typed at either end
+       * is the home that does not move when the other does.
+       */
+      readonly spanMinutes: number;
+    };
 
 /**
  * How many were counted, **as a sentence says it**.
@@ -152,11 +198,34 @@ export function describeMeasuredSet(set: MeasuredSet): string {
 
   const lead =
     qualifier.basis === "session"
-      ? `${of}, ${countInWords(count)} had a close-to-close move on ${qualifier.session}`
+      ? `${of}, ${countInWords(count)} had ${theMove(set.move)} on ${qualifier.session}`
       : `${of}, ${countInWords(count)} ${count === 1 ? "was" : "were"} heard from in ${measuredWindow(qualifier.windowMinutes)}`;
 
   return `${lead}${theCut(set.ranked)}`;
 }
+
+/**
+ * **Which move a session count is of, in words** — the default being the
+ * close-to-close one two of the three regions count (Task 5.4.5).
+ *
+ * The span is **read** from the section rather than spelled, which is
+ * {@link measuredWindow}'s rule one clause over: the number beside a count is
+ * always the number the count was taken with.
+ */
+const theMove = (move: CountedMove | undefined): string => {
+  switch (move?.kind) {
+    case "closing-span":
+      // *into the close* rather than *in the final five minutes*: the newer
+      // endpoint is the session's last stored bar, which on a security whose
+      // last minutes are missing is a few minutes before the bell — and a
+      // sentence claiming the final five minutes would then be false about the
+      // very securities the store knows least about.
+      return `a measurable ${String(move.spanMinutes)}-minute move into the close`;
+    case "close-to-close":
+    case undefined:
+      return "a close-to-close move";
+  }
+};
 
 /**
  * **The cut, as a conjunct on the sentence that states the population** —
