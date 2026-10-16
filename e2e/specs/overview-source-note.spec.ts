@@ -140,13 +140,28 @@ async function serve(
 }
 
 /**
- * The note's three possible terms, which are the only `dt` texts it has.
+ * The note's four possible terms, which are the only `dt` texts it has.
  *
  * `one-provenance-note-on-the-landing-route` asserts each is written in
  * exactly one shipped file, so matching the note by its terms cannot
  * accidentally match somebody else's definition list.
+ *
+ * **`Baselines` is last in this list and third on the screen** (Task 5.4.4):
+ * the order here feeds the destructure below, which is by index, while the
+ * drawn order is the component's. It names the tape the `Unusual activity`
+ * ordinals were ranked **against** — a `sip` 60-session distribution behind
+ * an `iex` numerator — and it draws only where the frame carried a
+ * generation, which is **never** on a gated run: CI holds 516 securities,
+ * zero bars and no baseline. It is listed anyway because {@link noteOf}
+ * requires every `dt` to be known, so an unlisted term would make the note
+ * unfindable on a developer's store rather than failing an assertion.
  */
-const TERMS = ["Observed prices", "Closing prices", "Observed through"];
+const TERMS = [
+  "Observed prices",
+  "Closing prices",
+  "Observed through",
+  "Baselines",
+];
 
 /**
  * The same terms **as a reader sees them**.

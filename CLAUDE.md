@@ -1213,6 +1213,19 @@ were the edit. Each of these cost real time that session.
   see it, because it asserts the `find` text is present and not that the
   substitution still expresses the defect.
 
+  **And a break whose substitution DELETES the `find` text goes red twice, from
+  neither the check you are proving nor the defect you planted.** Added
+  2026-10-16 by Task 5.4.4. A hand-performed break replaced the found line
+  instead of appending to it, so the registry's own `find` no longer matched:
+  `every-break-can-still-land` went red **about the break**, and the guard under
+  test went red on a **different clause** of its own than the one the plant was
+  written for. Two reds, a failing run, and **nothing whatever established** —
+  which reads exactly like a thorough proof. The cure is mechanical: a
+  substitution **keeps the found line and appends the defect beside it**, so the
+  `find` survives its own break. The general form is the rule above with the
+  arrow turned: check **which** assertion failed, not only that one did, and on
+  a multi-clause guard check **which clause**.
+
 **Every story and task states what the user will be able to see**, and the honest answer is often "nothing". Three rules: say "nothing visible" plainly and name the story that pays it off; describe what is _on the screen_ rather than what was built; and say what the user still cannot do.
 
 **Decisions are recorded with their alternatives and a reversal trigger.** A trigger is a _condition_ ("the first check that fails without a database", "a fifth pinned action"), never a story number — story numbers move, and a trigger written against something that has already happened will never fire.

@@ -4954,4 +4954,50 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "spell an ordinal suffix",
   },
+  // **Task 5.4.4's cut, and the registry entry is the SECOND conjunct**
+  // because the first cannot be expressed as a substitution in an existing
+  // file: the defect it catches is a *region* that imports the shared
+  // builder and appends the cut in its own template literal, which is a new
+  // statement in `Unusual.tsx` rather than an edit to a line that is there.
+  //
+  // **That half was proved by hand on 2026-10-16** and the transcript is in
+  // the invariant's own record: with the plant in `Unusual.tsx`
+  // (`const alsoTheCut = \`${String(view.rows.length)} have a long enough
+  // history to rank\`;`) and the check absent, `pnpm invariants` reported
+  // `61 invariants hold.`; with the check added it reported
+  // `The cut phrase is written in 2 shipped file(s)` and
+  // `1 of 62 invariants failed`.
+  //
+  // What this entry proves is the conjunct that fires on the likelier later
+  // edit: a count typed into the call site rather than read off the section.
+  // The numbers all nest and all move — 516 securities today and 518 a month
+  // ago, a cut that changes every night — so a literal is wrong with every
+  // figure on screen well-formed.
+  {
+    name: "the-cut-is-spelled-rather-than-read",
+    proves:
+      "A population in the `Unusual activity` footer is typed at the call " +
+      "site instead of read off the frame's own section. The three counts " +
+      "nest and all three move: a literal `501` is a lie with no symptom " +
+      "the day a constituent is delisted, and a literal cut is a lie about " +
+      "a figure the nightly baseline job changes. The sentence on screen " +
+      "stays well-formed either way, which is why nothing else catches it " +
+      "(Task 5.4.4, AC 3).",
+    file: "apps/frontend/src/market/unusual-activity.ts",
+    // **The `find` text survives the substitution**, which is this registry's
+    // convention and is load-bearing twice over: `every-break-can-still-land`
+    // asserts the text is still there, and a replacement that *removed* the
+    // read would trip the check's first clause (*never reads `.tracked`*)
+    // rather than the one this entry is about. Measured on 2026-10-16: the
+    // deleting version went red with the wrong message, which is the
+    // *red for the wrong reason* this repository records as reading exactly
+    // like proof.
+    find: "    tracked: unusual.tracked,",
+    replace:
+      "    tracked: unusual.tracked,\n" +
+      "    // pnpm break: reverted automatically\n" +
+      "    ranked: 455,",
+    command: ["pnpm", "invariants"],
+    expect: "A population spelled rather than read",
+  },
 ];

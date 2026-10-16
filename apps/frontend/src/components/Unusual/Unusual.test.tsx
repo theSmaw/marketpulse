@@ -18,8 +18,15 @@ import { Unusual, UnusualMeta, UnusualReservation } from "./Unusual.js";
 // stylesheet and computes no layout: the 308 px row, the four restated track
 // lists, the 64 px ordinal cell that must not step to 11 px at 390, and the
 // one-height claim across every state. Those are `pnpm probe`'s and the
-// browser suite's — measured at **342 × 491 / 357 × 491 / 720 × 323 /
-// 342 × 323**, identical in six drawn states.
+// browser suite's — measured at **342 × 491 / 357 × 491 / 720 × 458 /
+// 342 × 458**, identical in seven drawn states across six viewport pairs (42
+// cells), with `scrollHeight === clientHeight` in every one.
+//
+// The two narrow figures read **323** until 2026-10-16: that was written from a
+// five-row region and the owner took ten, which is `27N - 1` growing by 135 px
+// where the two widest widths absorb it into a shared `fr` and the two narrow
+// ones are the content. Corrected rather than left, because a figure in a
+// comment is quoted by the next reader who needs one.
 //
 // It also cannot see **colour**, structurally: `getTokens()` throws with no
 // stylesheet applied. That the direction glyph is tinted and the ordinal is
@@ -45,6 +52,31 @@ const row = (
   arrival: undefined,
 });
 
+/**
+ * **The footer, as `claimOf` builds it** — written out rather than imported,
+ * which is Task 4.3.7's rule: `measured-set.ts` is the module under test one
+ * level down, so importing the builder would make these fixtures agree with
+ * it by construction.
+ */
+const CLAIM = {
+  drawn:
+    "Of the 501 companies we track, 466 were heard from in the last 5 " +
+    "minutes and 455 have a long enough history to rank. Nothing newer " +
+    "than Oct 15 · 14:02 EDT has reached us.",
+  spoken:
+    "Of the 501 companies we track, 466 were heard from in the last 5 " +
+    "minutes and 455 have a long enough history to rank. Nothing newer " +
+    "than Oct 15 · 14:02 EDT has reached us.",
+};
+
+/** The same sentence with nothing heard from — no cut clause, no age line. */
+const NOTHING_CLAIM = {
+  drawn:
+    "Of the 501 companies we track, none were heard from in the last 5 minutes.",
+  spoken:
+    "Of the 501 companies we track, none were heard from in the last 5 minutes.",
+};
+
 const FIVE: UnusualActivity = {
   rows: [
     row("CTSH", 1, ">99th", "negative"),
@@ -53,18 +85,25 @@ const FIVE: UnusualActivity = {
     row("CRM", 4, "97th", "positive"),
     row("MNST", 5, "96th", "negative"),
   ],
+  claim: CLAIM,
   nothing: undefined,
 };
 
 const THREE: UnusualActivity = {
   rows: FIVE.rows.slice(0, 3),
+  claim: CLAIM,
   nothing: undefined,
 };
 
-const NOTHING: UnusualActivity = { rows: [], nothing: "Nothing ranked yet." };
+const NOTHING: UnusualActivity = {
+  rows: [],
+  claim: NOTHING_CLAIM,
+  nothing: "Nothing ranked yet.",
+};
 
 const SHUT: UnusualActivity = {
   rows: [],
+  claim: NOTHING_CLAIM,
   nothing: "Nothing ranked while the market is shut.",
 };
 
@@ -335,5 +374,35 @@ describe("the reservation, which is the real component in a hidden box", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("the footer", () => {
+  // **Task 5.4.4.** What this level can see is that the sentence is drawn,
+  // reaches a listener, and is the view's rather than a derivation; the four
+  // lines it has to fit into are a browser's claim and are measured there.
+
+  it("draws the claim the view carries", () => {
+    renderWithContext(<Unusual view={FIVE} />);
+
+    expect(screen.getByText(CLAIM.drawn).textContent).toBe(CLAIM.drawn);
+  });
+
+  it("never hides the region's only denominator from a listener", () => {
+    // Three of this region's siblings legitimately carry `aria-hidden`
+    // (`RankedList`'s `.rules` and `.ladder`), so sweeping the attribute onto
+    // a footer sitting among them is the plausible edit — and this region
+    // prints no denominator anywhere else: no ladder, and a head slot that
+    // states the bound rather than a count.
+    renderWithContext(<Unusual view={FIVE} />);
+
+    const drawn = screen.getByText(CLAIM.drawn);
+    expect(drawn.closest("[aria-hidden='true']")).toBeNull();
+  });
+
+  it("is silent in the reservation, where a hidden string is still text", () => {
+    renderWithContext(<UnusualReservation />);
+
+    expect(screen.queryByText(/companies we track/u)).toBeNull();
   });
 });

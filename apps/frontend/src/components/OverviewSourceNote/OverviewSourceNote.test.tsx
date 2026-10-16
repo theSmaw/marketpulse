@@ -155,3 +155,62 @@ describe("OverviewSourceNote", () => {
     expect(screen.queryAllByRole("region")).toHaveLength(0);
   });
 });
+
+describe("the baselines term", () => {
+  // **Task 5.4.4** — the third source class, and the term's place in the
+  // reading order: after the two tapes it is a third subject beside, and
+  // before the instant, which stays last because it is the claim furthest
+  // from the picture.
+
+  /** The session frame with an `Unusual activity` section that read a generation. */
+  const RANKED: WireMarketOverview = {
+    ...SESSION,
+    unusual: {
+      rows: [],
+      tracked: 501,
+      eligible: 0,
+      scored: 0,
+      windowMinutes: 5,
+      spanMinutes: 5,
+      baseline: {
+        feed: "sip",
+        spanMinutes: 5,
+        minimumSampleCount: 2500,
+        generation: { session: "2026-10-14", lookbackSessions: 60 },
+      },
+      refusals: {
+        figure: {
+          "nothing-observed": 0,
+          "no-earlier-endpoint": 0,
+          "no-basis": 0,
+        },
+        comparison: { "too-few-samples": 0, "split-discontinuity": 0 },
+      },
+    },
+  };
+
+  it("draws third, before the instant", () => {
+    render(<OverviewSourceNote overview={RANKED} feed={NOT_CONFIGURED} />);
+
+    expect(screen.getAllByRole("term").map((term) => term.textContent)).toEqual(
+      ["Observed prices", "Closing prices", "Baselines", "Observed through"],
+    );
+  });
+
+  it("names the tape the ordinals were ranked against", () => {
+    render(<OverviewSourceNote overview={RANKED} feed={NOT_CONFIGURED} />);
+
+    const definition = definitionOf("Baselines");
+
+    expect(definition).toContain(SIP.label);
+    expect(definition).toContain(
+      "Ranked against 60 sessions of stored bars, generated for Oct 14.",
+    );
+  });
+
+  it("is absent where no generation was read, which is every gated run", () => {
+    render(<OverviewSourceNote overview={SESSION} feed={NOT_CONFIGURED} />);
+
+    expect(screen.queryByText("Baselines")).toBeNull();
+  });
+});

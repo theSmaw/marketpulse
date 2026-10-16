@@ -279,6 +279,52 @@ export const NoFrame: Story = {
  * note grows a clause when the screen grows a fact and never otherwise, and no
  * two states below say the same thing in different words.
  */
+/**
+ * **Three source classes, and the first figure on this screen whose two
+ * halves come from different tapes** (Task 5.4.4).
+ *
+ * An `Unusual activity` ordinal is an `iex` five-minute move ranked against a
+ * `sip` 60-session distribution, so the screen's note gains a third term
+ * naming the tape of the thing the figure was **compared with**, the window
+ * it spans and the session it was generated for. All three facts are read off
+ * the section — `BASELINE_LOOKBACK_SESSIONS` is this bundle's belief and
+ * `lookbackSessions` is what the runner stored.
+ *
+ * **It is absent wherever no generation was read**, which is every gated run
+ * and every deployment whose nightly job has not run: a tape named over a
+ * baseline nobody read is a fully-formed provenance record about no data.
+ */
+export const BaselinesRanked: Story = {
+  args: {
+    overview: {
+      ...SESSION,
+      unusual: {
+        rows: [],
+        tracked: 501,
+        eligible: 0,
+        scored: 0,
+        windowMinutes: 5,
+        spanMinutes: 5,
+        baseline: {
+          feed: "sip",
+          spanMinutes: 5,
+          minimumSampleCount: 2500,
+          generation: { session: "2026-10-14", lookbackSessions: 60 },
+        },
+        refusals: {
+          figure: {
+            "nothing-observed": 0,
+            "no-earlier-endpoint": 0,
+            "no-basis": 0,
+          },
+          comparison: { "too-few-samples": 0, "split-discontinuity": 0 },
+        },
+      },
+    },
+    feed: { state: "configured", feed: "iex" },
+  },
+};
+
 export const EveryState: Story = {
   parameters: { layout: "padded" },
   render: () => (

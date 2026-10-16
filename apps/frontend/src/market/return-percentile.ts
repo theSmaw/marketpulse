@@ -321,3 +321,49 @@ const BASELINE_REFUSALS: Readonly<
  */
 export const percentileRefusal = (refused: WireRefusedPercentile): string =>
   BASELINE_REFUSALS[refused.refusal](refused);
+
+/**
+ * **The same two refusals, said over a POPULATION rather than over one
+ * security** (Task 5.4.4) — `Unusual activity`'s footer, where the refused
+ * are counted rather than named.
+ *
+ * ## Why a second record rather than a second home
+ *
+ * Because the two surfaces ask different questions of the same fact and
+ * neither grammar can render the other's. `Baseline too short to rank — 737
+ * of 2,500 returns` is **about this security**, where the baseline is the
+ * subject and the sample is the evidence; this one is **about a count**,
+ * where the securities are the subject and there is no sample on screen to
+ * print. A single string with a number spliced in would have to be either
+ * `Baseline too short to rank: 9` — which reads as *this baseline*, over nine
+ * of something — or `9 Baseline too short to rank`, which is not a sentence.
+ *
+ * What makes it one home rather than two is that both records are **total
+ * over `PercentileRefusal`** and sit in the same file, so a third refusal
+ * word on the wire is a compile error **twice**, naming the missing member in
+ * both grammars — `MARKET_FEED_DESCRIPTIONS`' guard, applied to a union that
+ * crosses a socket and is now said two ways.
+ *
+ * ## And the words are the shipped ones, minus the clause each grammar drops
+ *
+ * *too short a baseline* is `Baseline too short to rank` with the ranking
+ * named by the clause before it rather than twice in one sentence, and *cross
+ * an unadjusted price break* is the split refusal's whole subject —
+ * **unadjusted** is load-bearing and is never dropped, because what the
+ * detector knows is a price break it cannot adjust rather than a split (Task
+ * 5.3.2 measured five securities over the ratio, of which one may be a
+ * genuine event).
+ *
+ * The region does not say the two counts **exhaust** the difference between
+ * its two denominators, and that is deliberate: `returnPercentileOf` also
+ * refuses a distribution that is not 101 points and a non-finite magnitude
+ * with no word at all, both unreachable today and neither counted here.
+ */
+export const BASELINE_REFUSALS_COUNTED: Readonly<
+  Record<PercentileRefusal, (count: number) => string>
+> = {
+  "too-few-samples": (count) =>
+    `${String(count)} ${count === 1 ? "has" : "have"} too short a baseline`,
+  "split-discontinuity": (count) =>
+    `${String(count)} ${count === 1 ? "crosses" : "cross"} an unadjusted price break`,
+};

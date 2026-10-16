@@ -59,6 +59,64 @@ long the process has been up.
    every merge produces.
 5. `pnpm verify`, `pnpm test:database` and `pnpm e2e` green.
 
+## Shaped by Tasks 5.4.2–5.4.4 — 2026-10-16: the shape is settled, and `0013` is the pattern to mirror
+
+**`0014` is the schema's SECOND derived table, and it must say so in three
+places** — the migration, `schema.ts` and the ADR — exactly as `0013` does. Read
+`0013_return_baselines.sql` §1 before writing a line: it states the cost of
+omitting the label, which is that _"a later story that wants to change the
+breakpoint grid, the lookback, the split ceiling or the sample rule would
+believe it had to migrate the rows rather than delete and re-run them."_ The
+same applies here to the row count and the ranking rule.
+
+**Keyed by the session it is FOR**, not by when it was written —
+[ADR 0044](../../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md)'s
+shape, which this epic has already proved. `observed_at` takes **no default**,
+because `default now()` silently turns the column replay keys on into the one
+recording when we wrote it (`0002`'s decision 3).
+
+**Metadata-only at deploy time, and measure it against 10 MiB/s before writing
+it.** `deploy.yml` gives `pnpm migrate` a `timeout 120`, an `ALTER TABLE` takes
+`ACCESS EXCLUSIVE` whatever it costs, and Postgres queues every later request
+**behind a waiting exclusive one** — rehearsed at **18.16 s** behind one open
+write transaction, with an ordinary chart read waiting **16.16 s** behind _that_
+against a 0.09 s baseline. A new table is cheap; adding anything to
+`market_bars` is not.
+
+**What the row holds**, settled by what 5.4.2 ships and 5.4.4 draws: the
+security, the session, the ordinal, `aboveSample`, the counted `sampleCount`,
+the signed `percent` (needed for the **direction glyph** 5.4.3 ships — the
+percentile is a magnitude, so the sign is not recoverable from the ordinal), the
+two endpoint instants with their tape, and the generation it was ranked against.
+A refused security gets **no row**, and the three population counts plus the
+**five refusal counts** are stored for the session too — otherwise 5.4.4's
+footer cannot be honest out of hours, and it is the same sentence either way.
+
+**The basis switch is read off the frame, never a clock.** `MeasuredQualifier`'s
+`session` member already carries a date and `describeMeasuredSet`'s second
+grammar already renders it, so **no widening** — that is the whole reason Gate 1
+chose persistence over a refusal. The screen must not grow a second clock;
+`pnpm invariants` refuses one by name.
+
+**Never ship a held in-memory figure as a session score.** The two must be
+distinguishable on the wire, or a process with a stale trailing window and one
+with none draw the same thing for different reasons. Note 5.4.2 gates on
+`basis === "observed"` precisely so that the in-memory path **cannot** leak out
+of hours — do not relax that gate; add the session path beside it.
+
+**Extend the nightly job rather than adding a second one.** It already reads 60
+sessions per security in **11.78 s warm / 20.67 s cold**, so the session's
+closing figures are a by-product of a pass already running, and it lands in
+`backfill.yml` after the fill like the baseline. **Re-measure the pass's total
+afterwards rather than assuming it is unchanged** — the epic file's own `4–13
+minutes` was a projection that was wrong by 20–66×.
+
+**And this is the task that could fire ADR 0038's frame-grain trigger**, which
+Task 5.4.2 recorded **unfired**. It stays unfired only while the session figure
+is an **input read on the batch's cadence from a table** — like `lastCloses`. If
+it ever becomes a figure the gateway withholds and refreshes on its own clock,
+**the trigger fires and the ADR needs amending in the same change**.
+
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
 

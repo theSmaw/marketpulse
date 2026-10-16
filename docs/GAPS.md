@@ -4334,3 +4334,50 @@ samples by minute-of-session and compare the 99th percentile of the first six
 buckets against the rest. **Re-measure:** that query against
 `return_baselines`' own inputs. **Owner: the first story that re-opens the bias
 clause, or Story 5.6 when it scores this factor.**
+
+## The ranked list on `/` is COVERAGE-BIASED, and the denominator it states cannot say so
+
+**Added 2026-10-16 by Task 5.4.4, which shipped the denominator and could not
+make it carry this.** `Unusual activity` states _"Of the 501 companies we track,
+466 were heard from in the last 5 minutes and 455 have a long enough history to
+rank."_ Every figure in that sentence is true and read off the frame. **What it
+cannot say is _which_ 466**, and for a surface that **selects the tail** that is
+load-bearing rather than pedantic.
+
+**The mechanism.** A row needs a pair of bars whose own `startsAt` are **exactly
+five minutes apart**. IEX per-symbol minute coverage was measured at a **65.1%
+median** with a worst case of **2.1%** (`ERIE`, `LIVE-REHEARSAL.md` note on the
+2026-09-22 watch), so a sparsely covered security is eligible **only on the
+minutes it happens to hold such a pair** — and a top-N over the eligible set is
+not a sample of the market's most unusual behaviour but of _the most unusual
+behaviour among the securities we happened to hear from twice, five minutes
+apart_. Both populations in the sentence are **facts about our reach**, which is
+the same thing `PRODUCT_SPEC.md` §9's dated amendment says about breadth's
+counts — except breadth **counts** its population while this region **ranks**
+within it, and a ranking concentrates the bias at exactly the end a reader
+reads.
+
+**Why no sentence was added.** Measured at the real widths in the real
+paragraph: a clause up to ~45 characters is free, and beyond that it costs 16 px
+at 390 and steps the lower page. More to the point it is a **product decision** —
+whether to disclose a sampling property in a region whose footer already carries
+three populations, two refusal kinds and an age — and the honest alternatives are
+not a sentence at all: a **minimum `observed k`** for entry, or ranking over a
+longer span where coverage is denser.
+
+**Why nothing mechanical can hold it.** There is no figure to assert against.
+The frame carries `tracked`, `eligible` and `scored` and **no per-security
+coverage at all**; computing one needs the trailing window's occupancy per
+symbol, which is process memory with no store-backed fill and has **never held a
+single entry on any machine that is not serving a real market**. So this cannot
+become a `pnpm invariants` entry, and a browser spec asserting it would be
+asserting a number CI's store (516 securities, zero bars) can never produce.
+
+**Re-measure:** take IEX per-symbol coverage again during a regular session —
+`LIVE-DATA.md` §11 is the instrument — and compare the eligible set's coverage
+distribution against the tracked universe's. If the eligible set is not
+coverage-skewed, this entry closes. **Owner: a person, during a session, and the
+same sitting that `LIVE-REHEARSAL.md` row 5.4 is owed.** **Condition for forcing
+a product decision rather than a measurement: the first time a reader asks why a
+security they expected is not on the list** — because that is the question this
+bias produces and the denominator cannot answer.

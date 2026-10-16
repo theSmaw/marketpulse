@@ -58,6 +58,14 @@ const frame = (
   shut = false,
 ): WireMarketOverview => ({
   computedAt: "2026-10-15T18:00:00.000Z",
+  // **Absent exactly when the aggregate holds no observation**, which is the
+  // producer's own rule (ADR 0029, decided at the producer) and the reason
+  // the footer's age line is **absent rather than empty** in the two states
+  // below that rank nothing. A story carrying an instant there would draw a
+  // state the server cannot send.
+  ...(rows.length === 0
+    ? {}
+    : { observedAt: "2026-10-15T18:00:00.000Z" as const }),
   feeds: ["iex"],
   figures: [],
   breadth: shut
@@ -128,6 +136,7 @@ const NAMES = new Map([
 const read = (rows: readonly WireUnusualRow[], shut = false): UnusualActivity =>
   unusualActivity(frame(rows, shut), new Map(), new Set(), NAMES) ?? {
     rows: [],
+    claim: undefined,
     nothing: undefined,
   };
 

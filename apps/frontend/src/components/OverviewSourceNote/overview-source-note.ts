@@ -1,11 +1,12 @@
 import {
   MARKET_FEED_DESCRIPTIONS,
+  isMarketDate,
   type MarketFeed,
   type WireMarketOverview,
 } from "@marketpulse/shared";
 
 import { chromeAlreadyNames } from "../../feed-claim.js";
-import { formatBarInstant } from "../../market/index.js";
+import { formatBarInstant, formatSessionDate } from "../../market/index.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
 
 // What the landing screen says about where its numbers came from, assembled
@@ -98,6 +99,34 @@ export interface OverviewSourceNoteView {
   readonly closes: FeedClause | null;
 
   /**
+   * **The tape behind the BASELINES the `Unusual activity` ordinals are
+   * ranked against**, with the window they span and the session they were
+   * generated for — or `null` where no ranking on this screen rests on one
+   * (Task 5.4.4).
+   *
+   * ## A third source class, and the first whose figure mixes two tapes
+   *
+   * Every figure on `/` until this one had a single provenance: a live price
+   * is IEX and a stored close is the consolidated tape, and the two terms
+   * above name them because the **same quantity** arrives on either. An
+   * ordinal is different in kind — its numerator is a five-minute move
+   * measured on `iex` by construction (the trailing window is fed by the live
+   * socket and has no store fill) and its denominator is a 60-session
+   * distribution built from `sip` rows alone. One row holds both at once, for
+   * two different quantities, and invariant 6 is that the screen must **say**
+   * so rather than imply one tape per comparison.
+   *
+   * ## Why here rather than in the region
+   *
+   * The region owns the ranking and this note owns provenance on this screen
+   * (ADR 0029: the surface that owns the data owns the account of it). A
+   * feed line inside the region would be the `BarSeriesPanel` duplicate this
+   * product deleted — a region drawing its own `Market feed · …` a hundred
+   * pixels above the surface built to own the fact.
+   */
+  readonly baselines: FeedClause | null;
+
+  /**
    * **The newest observation the figures rest on**, as a whole market instant
    * — or `null` where the aggregate holds none (Task 4.8.12).
    *
@@ -122,6 +151,11 @@ export const OVERVIEW_NOTE_TERMS = {
   observed: "Observed prices",
   closes: "Closing prices",
   observedThrough: "Observed through",
+  // **`Baselines` rather than `Baseline prices`**, which is the shape of the
+  // two terms above and would be wrong here: what this clause is about is a
+  // set of **distributions**, not a set of prices, and the prices behind them
+  // are already named by `Closing prices` one line up. Task 5.4.4.
+  baselines: "Baselines",
 } as const;
 
 /**
@@ -161,6 +195,7 @@ export function hasOverviewClauses(note: OverviewSourceNoteView): boolean {
   return (
     note.observed !== null ||
     note.closes !== null ||
+    note.baselines !== null ||
     note.observedThrough !== null
   );
 }
@@ -176,12 +211,18 @@ export function toOverviewSourceNote(
   feed: MarketFeedView,
 ): OverviewSourceNoteView {
   if (overview === undefined) {
-    return { observed: null, closes: null, observedThrough: null };
+    return {
+      observed: null,
+      closes: null,
+      baselines: null,
+      observedThrough: null,
+    };
   }
 
   return {
     observed: observedClause(overview.feeds, feed),
     closes: closesClause(overview),
+    baselines: baselinesClause(overview),
     observedThrough: observedThroughClause(overview),
   };
 }
@@ -234,6 +275,57 @@ function closesClause(overview: WireMarketOverview): FeedClause | null {
   const described = describe(STORED_CLOSE_FEED);
 
   return measured ? { ...described, sentence: MEASURED_FROM } : described;
+}
+
+/**
+ * **The baselines' tape, window and generation** — or `null` where nothing on
+ * this screen is ranked against one (Task 5.4.4).
+ *
+ * ## It draws only where a GENERATION was read, which is a claim about data
+ *
+ * ADR 0029, and the absence is the common case rather than the edge: the
+ * section's `feed` and `spanMinutes` are the producer's constants and exist
+ * on every frame that carries the section at all, while `generation` is
+ * **the row the pass actually read** and is absent on every gated run (CI
+ * holds 516 securities, zero bars and no generation), on a cold replica, and
+ * on any deployment whose nightly job has not run. Drawing `All US exchanges`
+ * over a baseline nobody read would be a fully-formed provenance record about
+ * no data — the exact shape ADR 0029 exists to refuse.
+ *
+ * ## Both figures are READ, and the session is validated before it is spelled
+ *
+ * `lookbackSessions` is what the runner stored rather than what this bundle
+ * believes `BASELINE_LOOKBACK_SESSIONS` to be — a rollback can put a gateway
+ * and a bundle two values apart, which is `minimumSampleCount`'s own argument
+ * one field over. And the session is a market date rather than an instant, so
+ * it is checked with {@link isMarketDate} and spelled with
+ * `formatSessionDate`: `new Date("not a date")` formats without complaining,
+ * which is how `Invalid Date` reaches a screen.
+ *
+ * ## The feed's own sentence is kept rather than replaced
+ *
+ * `sip` ships no sentence — `All US exchanges` says the whole thing — but
+ * `iex` ships the one-venue caveat, and a baseline built from a single
+ * venue's tape is exactly when a reader needs it. So the vocabulary's
+ * sentence leads and this clause's own follows, rather than one overwriting
+ * the other.
+ */
+function baselinesClause(overview: WireMarketOverview): FeedClause | null {
+  const baseline = overview.unusual?.baseline;
+  const generation = baseline?.generation;
+  if (baseline === undefined || generation === undefined) return null;
+  if (!isMarketDate(generation.session)) return null;
+
+  const described = describe(baseline.feed);
+  const own =
+    `Ranked against ${String(generation.lookbackSessions)} sessions of ` +
+    `stored bars, generated for ${formatSessionDate(generation.session)}.`;
+
+  return {
+    label: described.label,
+    sentence:
+      described.sentence === undefined ? own : `${described.sentence} ${own}`,
+  };
 }
 
 /**
