@@ -348,6 +348,63 @@ export interface SectorRow {
    * The live eleven, from {@link sectorPerformance}, still never are.
    */
   readonly held?: boolean;
+  /**
+   * **The ordinal cell, for the `unusual` anatomy only** — drawn short, spoken
+   * whole, with its direction as a glyph beside it (Task 5.4.3).
+   *
+   * ## Why it is on this type rather than on a row of its own
+   *
+   * {@link SectorRow.price}' reason, unchanged and now applied a third time:
+   * `RankedList` is drawn once for three uses, and a fourth interface with
+   * seven shared members is the thing `movers.ts`' header refuses on its own
+   * behalf. The sector and mover anatomies render it nowhere, exactly as this
+   * one renders no price and no bar.
+   *
+   * ## It is NOT {@link SectorRow.move}, and the difference is a tint
+   *
+   * A `move` is a signed percentage against a close, drawn by `PriceChange`,
+   * tinted — the quantity `Movers` ranks. This is an **ordinal**: a position
+   * in one security's own 60-session history, with no `%`, no sign and no
+   * direction of its own, because the percentile ranks `Math.abs(percent)`.
+   * Putting it in `move` would have been one line and would have tinted it,
+   * which is `AbnormalMove.module.css`' own argument — decoration standing
+   * where meaning normally is, on a figure that has no direction to encode.
+   *
+   * The direction is carried **separately and as a glyph** for the reason the
+   * ordinal is untinted: without it a −9% crash and a +9% spike draw the
+   * identical row, and colour is never the sole encoding of anything, so the
+   * glyph and not the hue is what says which.
+   */
+  readonly reading?: RankedReading | undefined;
+}
+
+/**
+ * **A figure drawn short and spoken whole** (Task 5.4.3) — one fact, two
+ * renderings, which is ADR 0029's rule rather than a concession.
+ *
+ * `>99th percentile` is sixteen glyphs and 143.6 px in the cold-load face, on
+ * a row whose content box is **308 px at 1440** — so a row drawing it whole
+ * leaves the company name about six characters. The word moves to the list
+ * heading, once; the row draws {@link RankedReading.drawn}; and a listener is
+ * handed {@link RankedReading.spoken} from a visually-hidden sibling, which is
+ * `MoversClaim`'s shipped shape at the grain of a cell.
+ *
+ * **The pair is built in one place and derived short-from-long**, so the two
+ * cannot drift — see `return-percentile.ts`' `percentileOrdinal`.
+ */
+export interface RankedReading {
+  /** What is on the row — `99th`, or `>99th` at the ceiling. */
+  readonly drawn: string;
+  /** What a listener is handed — `99th percentile`. */
+  readonly spoken: string;
+  /**
+   * Which way the move went, as a tinted glyph beside an untinted figure.
+   *
+   * It is on the reading rather than beside it because the two are one cell:
+   * a direction with no figure is a glyph standing alone, and a figure with no
+   * direction is the identical row for a crash and a spike.
+   */
+  readonly direction: PriceDirection;
 }
 
 /** A move, formatted, with the direction and the raw percentage together. */

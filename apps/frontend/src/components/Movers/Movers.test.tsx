@@ -573,7 +573,7 @@ describe("the settle with held rows in the list", () => {
       const list = (rows: readonly SectorRow[]) => (
         <RankedList
           rows={rows}
-          bar={{ kind: "none" }}
+          bar={{ kind: "none", figure: "change" }}
           name="Gainers"
           quietGroup="impossible"
         />

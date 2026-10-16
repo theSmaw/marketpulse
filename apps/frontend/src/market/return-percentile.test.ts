@@ -7,6 +7,7 @@ import {
 
 import {
   OPENING_BIAS_MINUTES,
+  percentileOrdinal,
   percentileReading,
   percentileRefusal,
   percentileSample,
@@ -291,4 +292,61 @@ describe("percentileRefusal — the two sentences, which must not read alike", (
       expect(sentence.length).toBeLessThan(60);
     },
   );
+});
+
+describe("percentileOrdinal — the short form, for a 308 px row", () => {
+  it("is the reading with the word taken off", () => {
+    // **One fact, two renderings** (ADR 0029), and the derivation runs
+    // short-from-long so the two cannot drift: `percentileReading` is the
+    // sentence the security page has shipped since Story 5.3, and this is
+    // what `Unusual activity` draws in a 64 px cell on a 308 px row, where
+    // the whole phrase is sixteen glyphs and 143.6 px in the cold-load face.
+    expect(percentileReading(PERCENTILE)).toBe(
+      `${percentileOrdinal(PERCENTILE)} percentile`,
+    );
+  });
+
+  it.each([
+    [0, "0th"],
+    [1, "1st"],
+    [2, "2nd"],
+    [3, "3rd"],
+    [11, "11th"],
+    [12, "12th"],
+    [13, "13th"],
+    [21, "21st"],
+    [62, "62nd"],
+    [99, "99th"],
+  ])("spells %i as `%s`, teens included", (rank, expected) => {
+    // The teens are the whole reason this is a function: `11st`, `12nd` and
+    // `13rd` are what a `% 10` alone produces, and the rank this draws most
+    // often is in the nineties where a `% 10` is right.
+    // `one-home-for-the-ordinal-suffix` is what keeps a second surface from
+    // writing its own copy of this.
+    expect(percentileOrdinal({ ...PERCENTILE, rank })).toBe(expected);
+  });
+
+  it("draws the ceiling as the stronger statement rather than as a clamp", () => {
+    // `>99th` says the baseline holds nothing as large as this move. `100th`
+    // is never printed: above the highest order statistic there is no sample.
+    expect(percentileOrdinal({ ...PERCENTILE, aboveSample: true })).toBe(
+      ">99th",
+    );
+  });
+
+  it("is never wider than five glyphs, which is what the 64 px track is sized to", () => {
+    // A track with **no reversal trigger**: `>99th` is the widest string this
+    // cell will ever hold, for ever, because the ceiling cannot move.
+    for (let rank = 0; rank <= 99; rank += 1) {
+      for (const aboveSample of [false, true]) {
+        expect(
+          percentileOrdinal({ ...PERCENTILE, rank, aboveSample }).length,
+        ).toBeLessThanOrEqual(5);
+      }
+    }
+  });
+
+  it("carries no `%`, which is one of the channels the moved word did not take with it", () => {
+    expect(percentileOrdinal(PERCENTILE)).not.toContain("%");
+  });
 });

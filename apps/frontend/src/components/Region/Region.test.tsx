@@ -136,7 +136,7 @@ describe("Region", () => {
     expect(screen.queryByText("Story 4.3")).toBeNull();
   });
 
-  it("reports a reader entering and leaving it, by pointer and by focus alike", () => {
+  it("reports a reader entering and leaving it, by pointer and by focus alike", async () => {
     // `:hover` and `:focus-within` on the region's **own box**, as one boolean,
     // because they are one fact: somebody is reading this. Scoped to the region
     // and never to a row — a row-scoped hold lets rows move out from under an
@@ -163,8 +163,54 @@ describe("Region", () => {
     fireEvent.pointerLeave(region);
     expect(within_).toHaveBeenLastCalledWith(true);
 
+    // **The release is a microtask later, and that is Task 5.4.3's repair
+    // rather than a flake.** `focusin`/`focusout` bubble, so a focus move
+    // from one ranked row to the next fires `focusout` on this box and then
+    // `focusin` — which released a consumer's pinned order and **re-took it
+    // against the frame that had since arrived**, so one `ArrowDown`
+    // re-ordered all five mover rows under the reader with `ORDER HELD` on
+    // throughout. The box now asks `document.activeElement` after the commit
+    // instead of trusting the event, which answers both that trigger and the
+    // focus recovery's — see `Region.tsx`.
+    //
+    // Here focus genuinely leaves: jsdom's `document.activeElement` is
+    // `<body>`, which this region does not contain, so the release happens
+    // and it happens one `await` away.
     fireEvent.focusOut(region);
+    await Promise.resolve();
     expect(within_).toHaveBeenLastCalledWith(false);
+  });
+
+  it("does NOT release when focus moves to another element INSIDE it", async () => {
+    // The repair's own assertion, at the level that can state it as a rule:
+    // a reader arrowing from one row to the next never left the region, so
+    // there is nothing to release and nothing to re-take.
+    const within_ = vi.fn<(value: boolean) => void>();
+    render(
+      <Region name="Sector performance" onReaderWithin={within_}>
+        <a href="/a" data-testid="first">
+          XLK
+        </a>
+        <a href="/b" data-testid="second">
+          XLV
+        </a>
+      </Region>,
+    );
+
+    const region = screen.getByRole("region", { name: "Sector performance" });
+    const second = screen.getByTestId("second");
+
+    fireEvent.focusIn(region);
+    expect(within_).toHaveBeenLastCalledWith(true);
+
+    // The real sequence an arrow press produces: the DOM moves focus, then
+    // `focusout` bubbles from the row that lost it. The order matters — the
+    // repair reads where focus **is**, not where the event says it went.
+    second.focus();
+    fireEvent.focusOut(region);
+    await Promise.resolve();
+
+    expect(within_).toHaveBeenLastCalledWith(true);
   });
 
   it("releases the reader when it unmounts, so no pin outlives the region", () => {

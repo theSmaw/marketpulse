@@ -1,0 +1,200 @@
+/*
+ * `Unusual activity` — the landing page's last reserved region (Task 5.4.3,
+ * `Unusual activity on the landing page.dc.html` §03).
+ *
+ * **The height ledger, every term measured except the one that says it is
+ * not.** The region's box is `342 × 491` at 1440 and `357 × 491` at 1024,
+ * resolved by the grid rather than chosen by this file — rows 2 and 3 of
+ * `.regions` are `repeat(2, minmax(min-content, 1fr))` and share one ratio, so
+ * the 491 comes from `Sector performance` sitting beside it. At 768 and 390
+ * the row is auto-sized and the region **is** its content.
+ *
+ * | term                              | px  |
+ * | --------------------------------- | --- |
+ * | border, top + bottom              | 2   |
+ * | `Panel` header, filled state      | 47  |
+ * | `Panel.body` padding-top          | 16  |
+ * | `Region.content` margin-top       | 16  |
+ * | list heading                      | 16  |
+ * | ten rows, `27 × 10 − 1`           | 269 |
+ * | footer padding-top                | 12  |
+ * | footer, four reserved lines       | 64  |
+ * | `Panel.body` padding-bottom       | 16  |
+ * | **content**                       | 458 |
+ *
+ * Against a measured 491 that is **33 px of slack** — `Movers`' own 9 px, one
+ * size up — and it sits below the footer, unoccupied, deliberately: filling it
+ * with a sentence would make the region's height depend on which sentence was
+ * true, and the reserve is the whole mechanism.
+ *
+ * **Ten rather than five, taken 2026-10-16 by the owner on a measurement.**
+ * Five was 323 px of content in the same 491 px box — **168 px of empty
+ * region**, a third of it, at 1440 and 1024, and **none** at 768 and 390
+ * where the row is auto-sized. A region that looks finished on a phone and
+ * unfinished on a desktop is the opposite of every other region on this
+ * screen. Ten is 458 in 491, the same 93% fill `Movers` runs at. **It costs
+ * no layout at the wide widths**, because the box is the grid's either way.
+ *
+ * The chrome is **`125 + 16K`** for a `K`-line footer, so at `K = 4` the row
+ * budget is **302** and `27N − 1 ≤ 302` gives **N ≤ 11.2**. Eleven is the
+ * ceiling and is deliberately not spent; **twelve overflows by 21 px**, which
+ * is not a clipped row — it raises grid row 2 and drags `Sector performance`,
+ * `Movers` and `Market breadth` with it.
+ *
+ * **One thing in this ledger moves in the direction nobody expects**: a filled
+ * region's `header` is 47 px and a *reserved* one's is **51**, because the
+ * `EPIC 5` tag renders a 26 px `meta` where a filled region's head slot is 22.
+ * So deleting the placeholder makes the chrome **four pixels shorter**.
+ */
+
+/*
+ * --- The list's heading ---
+ *
+ * `Movers`' `.head`, restated rather than composed: the two regions are not
+ * one component and a `composes:` across them would make a change to either a
+ * change to both, which is the coupling `BarSeriesPanel`'s deleted duplicate
+ * is the other failure of. The declarations are the same because the
+ * vocabulary is — `microLabel`'s face, uppercase from the stylesheet so the
+ * DOM keeps sentence case.
+ *
+ * **One line, clipped rather than wrapped.** The long form is the string and
+ * the narrow widths are a rendering of it (the ordinal's own rule, one element
+ * over): at 686 px it is written whole, and where the column is 308 it clips.
+ * A second, shorter string behind a `@media` would be two homes for one fact
+ * and a width the grid already owns.
+ *
+ * No `margin-top` and no rule: `Panel`'s own `--rule-strong` is 32 px above
+ * it, and a hairline a hairline away from the structural rule is a second line
+ * nobody asked for.
+ */
+.head {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * --- The list, and the room its sentence is laid into ---
+ *
+ * `Movers`' `.side`, for its measured reason: the list keeps five rows in
+ * every state because `withHeldUnusualRows` pads it, so the honest-nothing
+ * sentence is laid **over** that room rather than above it. Placed above, it
+ * would add a line to the region's content — and at 768 and 390 the grid row
+ * is content-sized, so the whole lower page would step the first morning the
+ * ranking was short.
+ *
+ * Unconditional, because a `position: relative` that comes and goes is a
+ * containing block that comes and goes.
+ */
+.body {
+  position: relative;
+}
+
+/*
+ * The sentence, centred in the room the held rows hold. `--ink-secondary` at
+ * 4.48:1 rather than `--ink-disabled`: this is a sentence a person has to
+ * read.
+ */
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-secondary);
+  text-align: center;
+}
+
+/*
+ * --- The footer's room, held and empty until Task 5.4.4 ---
+ *
+ * **Four lines rather than `Movers`' three**, and it is the one derived term
+ * in the ledger above. At 308 px the micro size fits roughly 59 characters a
+ * line; this region states **three** populations and a cut where `Movers`
+ * states one population — about 121 characters, so three lines at 308 and one
+ * at 686 — and the age line is a fourth everywhere.
+ *
+ * **Sizing to the shorter string is the defect, not the saving.** `Movers`
+ * shipped a two-line reserve and had to buy a third at Task 4.7.4 when its age
+ * clause arrived; discovering a fourth here on the first morning the `scored`
+ * conjunct wrapped would step the whole lower page at 390, in the one region
+ * that must not step.
+ *
+ * **Flat rather than keyed on a breakpoint**, which is `Movers`' own decision
+ * for its own reason: a `@media` on a footer reserve is a second home for a
+ * width the grid already owns, and the 16 px it would save at three widths
+ * buys an empty line nobody sees.
+ */
+.claim {
+  margin: var(--space-12) 0 0;
+  min-height: calc(4 * var(--line-height-micro));
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+  text-wrap: balance;
+}
+
+/*
+ * --- The region head's right-hand slot ---
+ *
+ * `Movers`' `.slot`, with its own minimum: the slot reserves the wider of
+ * `ORDER HELD` and this region's own strings, so the head cannot move when
+ * the badge appears — the defect Task 4.3.6 found in a browser, where a
+ * four-pixel-taller badge moved all eleven rows on pointer enter.
+ */
+.slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 101px;
+  min-height: var(--line-height-subheading);
+}
+
+.bound {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+
+/*
+ * --- The reservation: two boxes, never one ---
+ *
+ * The held geometry keeps `visibility: hidden` and `aria-hidden` of its own in
+ * every state, and the sentence is a **sibling** in the room that box holds.
+ * The one-box version — `visibility: visible` back on the same element once
+ * the floor elapses — un-hides the geometry with it, because `visibility` is
+ * inherited by children that never set it. It was a live defect for ten days
+ * on the sector region and it leaked internal slugs into the accessibility
+ * tree.
+ */
+.reserved {
+  visibility: hidden;
+}
+
+.reservedRoom {
+  position: relative;
+}
+
+.nothingArrived {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-secondary);
+}

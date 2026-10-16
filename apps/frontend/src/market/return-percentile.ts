@@ -155,8 +155,50 @@ function ordinalSuffix(rank: number): string {
  * `+0.42%` formatted by the same decimals is two numbers of visibly the same
  * kind, and only one of them is a price move.
  */
-export const percentileReading = (percentile: WireReturnPercentile): string =>
-  `${percentile.aboveSample ? ">" : ""}${String(percentile.rank)}${ordinalSuffix(percentile.rank)} percentile`;
+export const percentileReading = (percentile: PercentileFigure): string =>
+  `${percentileOrdinal(percentile)} percentile`;
+
+/**
+ * **What the two surfaces that draw a percentile have in common, and it is
+ * two fields** (Task 5.4.3).
+ *
+ * `WireReturnPercentile` is the security page's shape and carries the sample,
+ * the span and the baseline's tape beside the ordinal; `WireUnusualRow` is a
+ * ranked row on the landing page and hoists those three to its section,
+ * because they are the same for every row on a frame. Neither is the other,
+ * and widening one to the other would put three fields on a row for 124 bytes
+ * apiece.
+ *
+ * So the **reading** takes the minimum it reads. A `Pick` rather than a new
+ * interface, so a rename of either field on the wire is a compile error here
+ * rather than a structural type that silently stops matching.
+ */
+type PercentileFigure = Pick<WireReturnPercentile, "rank" | "aboveSample">;
+
+/**
+ * **The ordinal alone — `99th`, or `>99th` at the ceiling** (Task 5.4.3).
+ *
+ * ## One fact, two renderings, and the short one is DERIVED from the long one
+ *
+ * `Unusual activity` draws ten ordinals in a 64 px cell on a 308 px row, where
+ * `>99th percentile` is sixteen glyphs and 143.6 px in the cold-load face —
+ * which leaves the company name about six characters. So the **word** moves to
+ * the list heading, once, and the row draws this; a listener still gets the
+ * whole phrase from a visually-hidden sibling built by
+ * {@link percentileReading}.
+ *
+ * That is ADR 0029's *a drawn sentence and its spoken twin are one string with
+ * two renderings* rather than a second copy of the ordinal's spelling — and
+ * the dependency runs this way round deliberately: `percentileReading` is the
+ * sentence the security page has shipped since Story 5.3, so the new, shorter
+ * form is the one that must not be able to drift.
+ *
+ * **The ceiling cannot move.** `100th` is never printed — above the highest
+ * order statistic there is no sample — so `>99th` is the widest string this
+ * cell will ever hold, which is why the 64 px track has no reversal trigger.
+ */
+export const percentileOrdinal = (percentile: PercentileFigure): string =>
+  `${percentile.aboveSample ? ">" : ""}${String(percentile.rank)}${ordinalSuffix(percentile.rank)}`;
 
 /**
  * **What the percentile was taken against — the sample's size and its shape,

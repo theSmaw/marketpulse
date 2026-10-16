@@ -19,12 +19,19 @@ import {
   SectorPerformanceMeta,
   SectorPerformanceReservation,
 } from "../components/SectorPerformance/SectorPerformance.js";
+import {
+  Unusual,
+  UnusualMeta,
+  UnusualReservation,
+} from "../components/Unusual/Unusual.js";
 import { useOrderHold } from "../components/OrderHeldBadge/use-order-hold.js";
 import {
   marketBreadth,
   marketMovers,
   moverSymbols,
   sectorPerformance,
+  unusualActivity,
+  unusualSymbols,
   type LiveFeedView,
 } from "../market/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
@@ -260,6 +267,37 @@ export function MarketOverview({
   const moversHold = useOrderHold(moverRows);
 
   /*
+   * **The ranked unusual rows, derived once per frame — the route's fourth
+   * memo boundary** (Task 5.4.3).
+   *
+   * The movers memo's dependency list exactly, for its reasons: the **frame**
+   * rather than `liveFeed`, because `sameLiveFeedView` keeps the frame's
+   * identity stable across ticks that did not move the aggregate; plus
+   * `observations`, which is the one input that genuinely changes every burst
+   * and is what this region's arrival mark is drawn off; plus `names`, which
+   * changes once per page.
+   */
+  const unusual = useMemo(
+    () => unusualActivity(overview, observations, fromSnapshot, names),
+    [overview, observations, fromSnapshot, names],
+  );
+
+  /*
+   * **The order this region is holding** — one pin, one list, and the hook is
+   * unchanged (Task 5.4.3).
+   *
+   * **This is the first region where the badge is the reader's whole
+   * explanation.** On `Movers` a re-order has a witness: an arrival disc
+   * fires beside the ticker whose bar landed. A percentile can change with
+   * **no bar for its security at all** — its peers moved, or the window
+   * rolled — so a reader can watch five rows re-order with no mark anywhere on
+   * the page accounting for it. That is why Task 5.4.3 repaired the badge's
+   * re-taken pin in `Region` rather than re-pointing the disc at the figure: a
+   * second meaning for one mark is this product's most-repeated defect.
+   */
+  const unusualHold = useOrderHold(unusual?.rows);
+
+  /*
    * **The set is served and this route renders what it is given.** The overview
    * frame is not scoped to a subscription — the gateway broadcasts it — so the
    * symbols arrive before this page has asked for anything, and what it asks
@@ -368,6 +406,21 @@ export function MarketOverview({
       (figure) => figure.symbol,
     ),
     ...moverSymbols(overview),
+    /*
+     * **The fifth section's contribution** (Task 5.4.3). A region that draws
+     * an arrival mark from `observations` is drawing from a map this page's
+     * subscription fills, so a section left out of this key can never mark on
+     * the deployed page — Task 4.3.6's shipped defect, and the reason the key
+     * is built from every section rather than from `figures`.
+     *
+     * It adds at most five symbols, and they **overlap the movers' ten
+     * heavily by construction**: both are selections from the same eligibility
+     * pass, and a security whose five-minute move is in its own 99th
+     * percentile is usually one of the day's larger movers. The key is sorted
+     * and joined, so a duplicate changes nothing and the resubscribe rate is
+     * bounded by the union's membership rather than by its size.
+     */
+    ...unusualSymbols(overview),
   ]
     .sort()
     .join(",");
@@ -719,12 +772,65 @@ export function MarketOverview({
           filledBy="The securities graph, in WebGL — 516 nodes clustered by sector, sized by liquidity, moving with the market. It takes the full width of this screen when it arrives."
         />
 
+        {/*
+         * **The landing page's last reserved region, filled** (Task 5.4.3).
+         *
+         * ## `unusual === undefined` is TWO states, told apart by the FRAME
+         *
+         * The rule its three siblings follow, for the same reason. `overview`
+         * present with no readable section is a **rollback pinning a previous
+         * image** — or a section `readUnusual` refused, which is the same
+         * absence rather than a discarded frame carrying four true prices —
+         * so that gateway will never send one and the honest answer is the
+         * region's own sentence. `overview` absent is the **first paint**, a
+         * few hundred milliseconds on every load, where the same sentence is
+         * a promise the next frame breaks; at 768 and 390 the grid row is
+         * content-sized, so the reservation is what keeps the lower page
+         * still.
+         *
+         * **An EMPTY list is neither**, which is `Movers`' departure
+         * inherited: no rows means *nothing was rankable*, which is CI's
+         * permanent state (516 securities, zero bars, no baseline
+         * generation), about 80% of the week while the market is shut, and
+         * the first minutes of every session. `unusualActivity` returns the
+         * empty rows with their own sentence rather than `undefined`
+         * precisely so this branch cannot collapse them.
+         *
+         * **The `filledBy` sentence goes with the placeholder**, and with it
+         * the `EPIC 5` tag — which makes the region's header **four pixels
+         * shorter** than it was, because a reserved region's tag renders a
+         * 26 px `meta` where a filled region's head slot is 22.
+         */}
         <Region
           className={styles.areaUnusual}
           name="Unusual activity"
-          awaiting="Epic 5"
-          filledBy="Every tracked security scored 0–100 for how unusual its behaviour is, ranked, each score carrying its explanation."
-        />
+          filledBy={
+            unusual === undefined && overview !== undefined
+              ? "The companies whose recent five-minute move sits furthest out in their own 60-session history, ranked while the session runs."
+              : undefined
+          }
+          /*
+           * **The hold is scoped to the region, never to the list and never
+           * to a row** — `Movers`' decision, unchanged. `Region` passes
+           * `scrollable`, which makes the section the region's one tab stop,
+           * so this is also the only element at which a keyboard reader can
+           * be said to be *here*.
+           */
+          onReaderWithin={unusualHold.onReaderWithin}
+          meta={
+            unusual === undefined ? undefined : (
+              <UnusualMeta view={unusual} held={unusualHold.held} />
+            )
+          }
+        >
+          {unusual === undefined ? (
+            overview === undefined ? (
+              <UnusualReservation />
+            ) : undefined
+          ) : (
+            <Unusual view={unusual} pinned={unusualHold.pinned} />
+          )}
+        </Region>
 
         <Region
           className={styles.areaInvestigations}

@@ -3015,16 +3015,32 @@ export const BREAKS = [
     // the sector one, so this entry keeps asserting the state it was written
     // around rather than quietly becoming a test of the newest section.
     file: "apps/frontend/src/routes/MarketOverview.tsx",
-    find:
-      "  const symbolKey = [\n" +
-      "    ...[...(overview?.figures ?? []), ...(overview?.sectors ?? [])].map(\n" +
-      "      (figure) => figure.symbol,\n" +
-      "    ),\n" +
-      "    ...moverSymbols(overview),\n" +
-      "  ]",
+    //
+    // **Repointed again 2026-10-16 by Task 5.4.3, which is this entry's own
+    // rule happening a second time.** The key gained the unusual section's
+    // five — a fourth section, added by a story two epics later — and the
+    // `find` stopped matching, with `every-break-can-still-land` the only
+    // thing that said so. The substitution is unchanged in meaning: the key
+    // collapses to the four proxies, which is the shipped defect, and it now
+    // proves **three** sections at once. The `expect` is still the sector
+    // one, so this entry keeps asserting the state it was written around
+    // rather than quietly becoming a test of the newest section.
+    //
+    // **The `find` is now the DECLARATION rather than the list**, which is
+    // what stops this entry rotting a third time: the list is the thing every
+    // story adds to, so an anchor containing it is an anchor the next section
+    // invalidates. The substitution declares the proxies-only key first and
+    // lets the real array literal fall through to a binding nothing reads —
+    // the defect expressed as a shadow rather than as a deletion, which is
+    // the same observable and a far shorter anchor.
+    find: "  const symbolKey = [\n",
     replace:
+      "  // pnpm break: reverted automatically\n" +
       "  const symbolKey = [...(overview?.figures ?? [])]\n" +
-      "    .map((figure) => figure.symbol)",
+      "    .map((figure) => figure.symbol)\n" +
+      "    .sort()\n" +
+      '    .join(",");\n' +
+      "  const brokenSymbolKey = [\n",
     command: ["pnpm", "e2e", "overview-frame-sections.spec.ts", "--anyway"],
     expect: "has not subscribed to XLK",
   },
@@ -3612,8 +3628,21 @@ export const BREAKS = [
       "arm's 27 rows, and the shipped tree was green for a reason that had " +
       "nothing to do with the claim. Both arms now prove the body arrived " +
       "and read the count only once it has stopped moving.",
+    //
+    // **Repointed 2026-10-16 by Task 5.4.3, and the move is the entry's own
+    // subject arriving.** The plant was the `Unusual activity` region,
+    // *which is `reserved` today* — and it stopped being reserved, which is
+    // precisely the condition Epic 14's second trigger is written against.
+    // `every-break-can-still-land` is what said so.
+    //
+    // The plant now sits on `Current investigations`, which is Epic 7's and
+    // is still reserved. **The claim is unchanged and so is its arithmetic**:
+    // the plant draws one `<li>` per tracked security on `/`, from the
+    // universe the route already holds, and the assertion is an EQUALITY
+    // between the full universe and a 27-row sample of the same body — so it
+    // does not care which region grew the list.
     file: "apps/frontend/src/routes/MarketOverview.tsx",
-    find: '          filledBy="Every tracked security scored 0\u2013100 for how unusual its behaviour is, ranked, each score carrying its explanation."\n        />',
+    find: '          filledBy="Investigations in flight \u2014 running, awaiting input and completed. Epic 10 lets the agent start them."\n        />',
     replace:
       "        >\n" +
       "          {/* pnpm break: reverted automatically */}\n" +
@@ -4875,5 +4904,54 @@ export const BREAKS = [
     command: ["pnpm", "e2e", "security-abnormal-move.spec.ts", "--anyway"],
     expect: "so a measured 5-minute return is fabricated",
     build: true,
+  },
+  // ## Task 5.4.3's, on the one figure a reader cannot check
+  {
+    name: "a-second-speller-for-the-ordinal",
+    proves:
+      "`one-home-for-the-ordinal-suffix` goes red on a SECOND surface " +
+      "spelling `st` / `nd` / `rd` / `th` for itself rather than calling " +
+      "`percentileOrdinal`. The plant is the file Story 5.6 writes \u2014 a " +
+      "second region drawing an ordinal \u2014 with the suffix inline and no " +
+      "import at all.\n\n" +
+      "**The naive draft passed WRONGLY on this exact plant**, and the " +
+      "transcript is in the invariant's own docblock: a check that " +
+      "`percentileOrdinal` is declared once, in the home, reported `NAIVE " +
+      "DRAFT GREEN` and exit 0 with the second speller on disk. It is about " +
+      "an identifier, and the defect is an author who never reaches for the " +
+      "identifier \u2014 so the shipped clause is the **suffix beside a " +
+      "number**, which a re-implementer cannot avoid writing.\n\n" +
+      "What it protects is `one fact, two renderings`: `Unusual activity` " +
+      "draws `99th` on a 308 px row and hands a listener `99th percentile`, " +
+      "while the security page draws the whole phrase. A drift between those " +
+      "is a disagreement between what a reader SEES and what a listener " +
+      "HEARS, and each surface is correct about itself \u2014 so no " +
+      "screenshot, no axe run and no `textContent` assertion over one of " +
+      "them can see it. The teens are the arithmetic at stake: `11st`, " +
+      "`12nd` and `13rd` are what a `% 10` alone produces.",
+    // **The plant sits at the most likely site rather than in a new file.**
+    // The harness substitutes text in an existing file, so the *new region*
+    // form — which is what was actually produced and is quoted in the
+    // invariant's docblock — cannot be a registry entry. This is the same
+    // defect at the other surface that draws this figure:
+    // `AbnormalMove` renders `percentileReading`'s string today and the
+    // plant has it build the ordinal for itself, which is the edit a reader
+    // makes when they want the short form on the security page too.
+    //
+    // **The corpus claim is therefore proved by hand rather than here**, and
+    // the transcript is in the invariant: the produced plant was
+    // `apps/frontend/src/components/Unusual/UnusualTrend.tsx`, a file that
+    // did not exist, and `shippedSourceFiles()` saw it by walking the tree.
+    file: "apps/frontend/src/components/AbnormalMove/AbnormalMove.tsx",
+    find:
+      "            <span className={cx(styles.percentile)}>" +
+      "{band.percentile}</span>",
+    replace:
+      "            {/* pnpm break: reverted automatically */}\n" +
+      "            <span className={cx(styles.percentile)}>\n" +
+      "              {`${String(band.rank ?? 0)}th percentile`}\n" +
+      "            </span>",
+    command: ["pnpm", "invariants"],
+    expect: "spell an ordinal suffix",
   },
 ];

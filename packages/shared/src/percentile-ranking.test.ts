@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   UNUSUAL_ROWS,
   compareByPercentile,
+  isRankedByPercentile,
   selectByPercentile,
 } from "./percentile-ranking.js";
 
@@ -129,5 +130,61 @@ describe("selectByPercentile — bounded rather than sorted", () => {
   it("hands back the caller's own rows, not copies", () => {
     const [top] = selectByPercentile(population, 1);
     expect(top).toBe(population[1]);
+  });
+});
+
+const population = [
+  row("DDD", 12),
+  row("AAA", 99),
+  row("FFF", 0),
+  row("CCC", 42),
+  row("BBB", 99),
+  row("EEE", 7),
+];
+
+describe("isRankedByPercentile — the reader's half of the order", () => {
+  it("accepts the one order a set of rows admits", () => {
+    // **The one, not an acceptable one.** `compareByPercentile` is a TOTAL
+    // order — ties break on the ticker — so unlike the movers' equivalent
+    // this is an equality rather than a monotonicity test, and a swapped tie
+    // is a defect rather than a tolerance.
+    expect(
+      isRankedByPercentile([row("AAA", 99), row("BBB", 99), row("CCC", 97)]),
+    ).toBe(true);
+  });
+
+  it("refuses a pair out of ordinal order", () => {
+    expect(isRankedByPercentile([row("AAA", 97), row("BBB", 99)])).toBe(false);
+  });
+
+  it("refuses a TIE broken the wrong way round", () => {
+    // The case the movers' comparator cannot have an opinion about, and the
+    // whole reason the tie-break was declared: this list arrives in the
+    // join's order, which re-orders under a live feed up to sixteen times a
+    // minute, so *the order it was given* is not stable between two frames
+    // and two securities on one ordinal would swap under a reader with
+    // nothing having changed.
+    expect(isRankedByPercentile([row("BBB", 99), row("AAA", 99)])).toBe(false);
+  });
+
+  it("is vacuously true of nothing and of one row", () => {
+    // CI's permanent state is the first of these, and it must not be read as
+    // a failure: 516 securities, zero bars and no baseline generation rank
+    // nothing, for ever.
+    expect(isRankedByPercentile([])).toBe(true);
+    expect(isRankedByPercentile([row("AAA", 42)])).toBe(true);
+  });
+
+  it("agrees with what `selectByPercentile` produces, over an unordered set", () => {
+    // The two halves of the claim meeting: the producer's selection is in the
+    // order the reader demands, by construction rather than by agreement.
+    expect(isRankedByPercentile(selectByPercentile(population, 4))).toBe(true);
+  });
+
+  it("refuses a hole rather than vouching for an order it cannot read", () => {
+    const holed = [row("AAA", 99), undefined, row("CCC", 97)];
+    expect(isRankedByPercentile(holed as unknown as PercentileRanked[])).toBe(
+      false,
+    );
   });
 });

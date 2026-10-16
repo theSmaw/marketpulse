@@ -127,20 +127,46 @@ export function compareByPercentile(
  * the producer slices to this and the drawing reserves room to it, so the
  * bound and the height must not be two numbers.
  *
- * **Five is provisional and the measurement is Task 5.4.3's**, which is stated
- * here rather than left to be discovered. Task 5.4.1 measured this region's own
- * chrome at **159 px** against a 1440x900 box of 159, so **zero rows fitted at
- * every viewport height** before the grid was re-areaed; the re-areaed region
- * sits on a `minmax(min-content, 1fr)` row at ~491 px and the row count is a
- * probe at that height with real content in it (AC 1). The byte cost of moving
- * it is linear and measured: Task 5.4.2 took the section at five rows and at
- * ten.
+ * ## Ten, taken 2026-10-16 by the owner on a measurement
  *
- * A height that grows beyond the region's box is `MARKET-OVERVIEW.md` §1.4's
- * trigger, not a producer's decision — rows 2 and 3 of the landing grid share
- * one `fr`, so a sixth row raises two other regions with it.
+ * ~~Five is provisional and the measurement is Task 5.4.3's~~ — **taken, and
+ * the number moved.** Five left **168 px of empty region** at 1440 and 1024 —
+ * a third of the box — and **none** at 768 and 390, where the grid row is
+ * auto-sized: a region that looks finished on a phone and unfinished on a
+ * desktop, which is the opposite of every other region on this screen. Ten is
+ * **458 px in a 491 px box**, the same 93% fill `Movers` runs at, and it is
+ * the only count that makes the two width bands look like the same region.
+ *
+ * **The rows cost no layout at the wide widths**, which is what made this a
+ * free choice rather than a trade: row 2 of `.regions` is
+ * `minmax(min-content, 1fr)` and its 491 px comes from `Sector performance`
+ * beside it, so the region's box is the same at five rows and at ten. What
+ * the extra five buy a reader is the second half of the tail — at ~455 scored
+ * securities an integer percentile holds at most 100 values, so a top five is
+ * roughly the `>99th` and `99th` band alone while a top ten reaches `96th`.
+ *
+ * ## The ceiling is ELEVEN and is deliberately not spent
+ *
+ * Re-derived from measured parts (Task 5.4.3): the region's chrome is
+ * **`125 + 16K`** px for a `K`-line footer, and this region needs **four**
+ * reserved footer lines because it states three populations and a cut. At
+ * `K = 4` the chrome is 189 and the row budget is **302 px**, so
+ * `27N − 1 ≤ 302` gives **N ≤ 11.2**. Ten is `27 × 10 − 1 = 269`, leaving
+ * **33 px of slack** — `Movers`' own 9 px, one size up.
+ *
+ * **Twelve overflows by 21 px and the overflow is not local**: rows 2 and 3 of
+ * the landing grid share one `fr`, so a twelfth row raises grid row 2 and
+ * drags `Sector performance`, `Movers` and `Market breadth` with it. That is
+ * `MARKET-OVERVIEW.md` §1.4's trigger rather than a layout choice. Task
+ * 5.4.1's *twelve rows maximum* came from a chrome of 159 with a **two**-line
+ * footer in it; the five terms it enumerated sum to 161, and the footer term
+ * was 48 where two reserved micro lines plus a 12 px pad is 44.
+ *
+ * **The byte cost is linear and measured**, off the shipped encoder:
+ * `market-stream-protocol.test.ts` takes the section bare, at one row and at
+ * ten, so the figure in the record is a reading rather than a projection.
  */
-export const UNUSUAL_ROWS = 5;
+export const UNUSUAL_ROWS = 10;
 
 /**
  * **The most unusual `limit` rows, bounded rather than sorted** — Task 5.4.2,
@@ -181,4 +207,34 @@ export function selectByPercentile<T extends PercentileRanked>(
   }
 
   return top;
+}
+
+/**
+ * **Is this list in {@link compareByPercentile}'s own order?** — `isRankedByMove`'s
+ * shape one quantity over (Task 5.4.3), and the decoder's strongest check.
+ *
+ * The order is computed **server-side**, so a browser that does not verify it
+ * is taking the ranking on trust from the one place it cannot see. And unlike
+ * the movers' order, this comparator is a **total** one — ties break on ticker
+ * ascending rather than on the array's arrival order — so a correct frame is
+ * not merely non-increasing here, it is the **unique** order its own rows
+ * admit. A pair that swapped would be refused rather than tolerated, which is
+ * the whole reason the tie-break was declared.
+ *
+ * `false` on a hole in the array for `isRankedByMove`'s reason:
+ * `noUncheckedIndexedAccess` makes the gap explicit, and an order this function
+ * cannot read is not an order it may vouch for.
+ */
+export function isRankedByPercentile(
+  rows: readonly PercentileRanked[],
+): boolean {
+  for (let at = 1; at < rows.length; at += 1) {
+    const earlier = rows[at - 1];
+    const later = rows[at];
+
+    if (earlier === undefined || later === undefined) return false;
+    if (compareByPercentile(earlier, later) !== STRONGER) return false;
+  }
+
+  return true;
 }

@@ -119,6 +119,7 @@ export type {
 export {
   UNUSUAL_ROWS,
   compareByPercentile,
+  isRankedByPercentile,
   selectByPercentile,
 } from "./percentile-ranking.js";
 export type { PercentileRanked } from "./percentile-ranking.js";

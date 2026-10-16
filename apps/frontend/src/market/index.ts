@@ -271,6 +271,7 @@ export {
   sectorPerformance,
 } from "./sector-performance.js";
 export type {
+  RankedReading,
   SectorMove,
   SectorPerformance,
   SectorRow,
@@ -297,6 +298,18 @@ export {
   withHeldRows,
 } from "./movers.js";
 export type { MarketMovers, MoversClaim } from "./movers.js";
+// **`Unusual activity`'s read side** (Task 5.4.3) — the ranked rows, the
+// padding that keeps the region one height, and the subscription's share of
+// the symbols. The same split as the four regions above: nothing here ranks
+// and nothing here computes an ordinal.
+export {
+  NOTHING_RANKED,
+  RESERVED_UNUSUAL,
+  unusualActivity,
+  unusualSymbols,
+  withHeldUnusualRows,
+} from "./unusual-activity.js";
+export type { UnusualActivity } from "./unusual-activity.js";
 // **The one clause two regions state about the same set** (Task 4.5.6). Breadth
 // counts it and `Movers` ranks a selection from it, and the owner's Gate 1
 // decision is that both say so — so the words have one home and the two

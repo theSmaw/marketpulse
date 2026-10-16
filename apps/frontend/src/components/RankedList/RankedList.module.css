@@ -149,6 +149,47 @@
 }
 
 /*
+ * --- The unusual row: four tracks, and the one that flexes is the NAME ---
+ *
+ * `Unusual activity on the landing page.dc.html` §02, Task 5.4.3. **The third
+ * use of this component and the first one in the narrow column**: the region
+ * resolves to 342 px at 1440 and 357 at 1024, so the row's content box is
+ * **308 / 323 / 686 / 308** — non-monotonic, and the narrowest box sits at the
+ * widest viewport. Designed at 308 first.
+ *
+ * ## Why this is a third track list and not `.movers`
+ *
+ * `.movers` is five tracks with an 80 px price reserve and a 78 px change. A
+ * `bar: "none"` use handed that list with four children does not overflow and
+ * does not grow an implicit row — `.movers .figure { grid-column: 5 }` parks
+ * the figure in track 5 and leaves **track 4 and its 12 px gap empty**, which
+ * is 92 px of dead track in a 308 px row, 30% of it, with a hole between the
+ * name and the figure. Invisible to jsdom, to axe, to every unit test and to a
+ * screenshot of one state. `RankedListBar.figure` is what makes the anatomy a
+ * decision rather than a consequence.
+ *
+ * ## The arithmetic, at each of the three wide widths
+ *
+ * `15 (2ch) + 68 (ticker) + 64 (ordinal) + 3 × 12 (gaps) = 183` of fixed
+ * width, so the name resolves to **125 px at 1440**, **140 at 1024** and
+ * **503 at 768** — the only width at which the universe's longest name
+ * (`Cognizant Technology Solutions Corporation Class A`, 50 characters) fits
+ * whole. The three wide widths share one declaration because they share one
+ * track list; the 390 band restates it below rather than inheriting it, which
+ * is this file's rule 2.
+ *
+ * ## The 64 px ordinal track has no reversal trigger, which is rare
+ *
+ * `▼` + 4 px + `>99th`: `12 + 4 + 44.9 = 60.9 → 64`, where 44.9 is five
+ * glyphs in the cold-load face. And the ceiling **cannot move**: `100th` is
+ * never printed — above the highest order statistic there is no sample — so
+ * `>99th` is the widest string this cell will ever hold, for ever.
+ */
+.unusual {
+  grid-template-columns: 2ch 68px minmax(0, 1fr) 64px;
+}
+
+/*
  * **The name takes the slack and ellipsises rather than painting over
  * anything** — all four declarations, because three of them do nothing without
  * the fourth: a grid item's content floor is `auto`, so `min-width: 0` is what
@@ -157,8 +198,13 @@
  *
  * Spelled here rather than added to `.label`, which the sector row's fixed
  * 144 px track owns and must not start shrinking.
+ *
+ * **Two selectors rather than two rules** (Task 5.4.3): the ticker-leading
+ * anatomies share this exactly, and a copied block is four declarations to
+ * keep in step for the one that does nothing without the other three.
  */
-.movers .label {
+.movers .label,
+.unusual .label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -202,6 +248,70 @@
   line-height: var(--line-height-dense);
   color: var(--ink-secondary);
   white-space: nowrap;
+}
+
+/*
+ * --- The ordinal: the unusual row's last track, 64 px, right-aligned ---
+ *
+ * Task 5.4.3. **Its own class rather than `.figure`, and that is the whole
+ * point of it.** The `@media (width < 37rem)` block at the foot of this file
+ * ends with `.figure { font-size: var(--font-size-micro) }`, **unscoped to
+ * either layout** — so an ordinal drawn in `.figure` would step to 11 px at
+ * 390 with nobody deciding it, in a cell sized at 13 and in the one figure
+ * this region exists to draw. 64 px of a 308 px row is 21% of it and the room
+ * is there, so the ordinal does **not** step; `.figure`'s does, which is
+ * `MarketProxyStrip`'s own treatment and stays exactly as it was.
+ *
+ * **The line height does not step at any width whatever the size does.** The
+ * row is 26 px everywhere, the pitch is 27, and the whole seven-region grid is
+ * sized off that — `Movers` steps its figure's size and deliberately not its
+ * line, for the same reason.
+ *
+ * **Untinted, deliberately.** The tint is on the direction glyph inside it
+ * (`DirectionGlyph`), because a percentile has no direction of its own to
+ * encode and a tinted ordinal would be decoration standing where meaning
+ * normally is — `AbnormalMove.module.css`' argument, and the reason the figure
+ * and the glyph are two elements rather than a `PriceChange`.
+ *
+ * Primary ink rather than `.price`' secondary: this is the row's subject, not
+ * its context.
+ */
+.ordinal {
+  composes: dataCell from "../../styles/type.module.css";
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  min-width: 0;
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+/*
+ * The drawn ordinal itself — **no declarations, and that is the point.**
+ *
+ * The face, the size, the alignment and the weight are `.ordinal`'s, one
+ * element out; this exists so the figure can be told from the tinted glyph
+ * beside it, which shares the cell and shares `aria-hidden`. An empty rule
+ * would be deleted by the next reader, so it carries the one declaration that
+ * is genuinely its own: the glyph may tint, the figure may not, and
+ * `currentColor` here is what makes that re-statable rather than implicit.
+ */
+.value {
+  color: var(--ink-primary);
+}
+
+/*
+ * What a listener is handed in place of the drawn ordinal — `99th percentile`
+ * where the screen reads `99th`.
+ *
+ * One fact, two renderings (ADR 0029): the word moved to the list heading to
+ * buy the company name 125 px, and the spoken string did not change. The drawn
+ * span is `aria-hidden` so the phrase is not heard twice.
+ */
+.spoken {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
 }
 
 /*
@@ -904,6 +1014,32 @@
    */
   .movers {
     grid-template-columns: 2ch 64px minmax(0, 1fr) 68px;
+    column-gap: var(--space-8);
+  }
+
+  /*
+   * **The unusual row at 390: the ticker narrows, the gaps step, the ordinal
+   * does not move** — restated rather than inherited (rule 2), Task 5.4.3.
+   *
+   * The ticker takes Task 4.5.8's measured 64 rather than the sector row's 44:
+   * at 44 the symbol's box is 32 px, the gap steps to 4 just below, and
+   * `GOOGL` needs 50.73 in the cold-load face — so every five-glyph ticker
+   * overflowed into a 4 px gap and **touched the company name**.
+   * `50.73 + 4 (gap) + 8 (mark slot) = 62.73` → **64**.
+   *
+   * The ordinal keeps 64: `>99th` is the same five glyphs at this width and
+   * the cell does not step its size, so narrowing it would be buying the name
+   * sixteen pixels by clipping the only figure in the region.
+   *
+   * Arithmetic, against the **308 px** the grid resolves to at 390:
+   * `15 + 64 + 64 + 3 × 8 = 167`, so the name gets **141 px** — which is
+   * **more** than it gets at 1440, because the gaps step 12 → 8 and the ticker
+   * 68 → 64. The region's width is non-monotonic across the four and so is its
+   * name track; that is measured rather than an oversight, and is stated here
+   * before somebody "fixes" it.
+   */
+  .unusual {
+    grid-template-columns: 2ch 64px minmax(0, 1fr) 64px;
     column-gap: var(--space-8);
   }
 

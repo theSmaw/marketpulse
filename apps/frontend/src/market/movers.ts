@@ -134,7 +134,7 @@ const NBSP = " ";
  * can be drawn with no ticker. Then the name is the only identifier on the row
  * and blanking it hides the security entirely.
  */
-const NAME_NOT_ARRIVED = NBSP;
+export const NAME_NOT_ARRIVED = NBSP;
 
 /**
  * **Two peers: each end of the ranking, each ranked from 1, neither
