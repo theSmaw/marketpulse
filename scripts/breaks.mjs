@@ -5000,4 +5000,67 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "A population spelled rather than read",
   },
+  // **The two entries below are the first in this registry whose subject is a
+  // root SCRIPT rather than shipped application code, and the first whose
+  // command is `pnpm test:scripts`.** Both guard the same defect class, which
+  // this repository has produced three times in a fortnight: a pipeline check
+  // that goes red on a healthy deployment. `deploy` 38704668224 and
+  // 38861268104 and `probe-deployed` 38778595130 were all red with the
+  // deployment itself green, and the cost is not the red tick — it is that the
+  // one check which can see failures nothing else can stops being believed.
+  //
+  // **Neither substitution keeps its `find` text, and that is deliberate
+  // rather than a departure from the convention above.** The convention exists
+  // because a *deleting* break against a multi-clause grep can trip a
+  // different clause and go red for the wrong reason. These two commands are
+  // unit tests over one named behaviour each, so a deletion fails exactly the
+  // assertion the entry is about — and `every-break-can-still-land` is
+  // satisfied either way, because the committed file is the unbroken one.
+  {
+    name: "a-quiet-feed-is-not-waited-for",
+    proves:
+      "Somebody tidies `probeFeed`'s retry predicate back to the one line it " +
+      "had before 2026-10-16, which is the shape a merge favours and reads as " +
+      "the simpler code. `DISCONNECTED_GRACE_MS` then reaches `disconnected` " +
+      "and nothing else, so a CONNECTED iex socket that has printed nothing " +
+      "for 60 s — ordinary on IEX at 65.1% median per-symbol coverage, " +
+      "and the exact state `probe-deployed` run 38778595130 went red on at " +
+      "13:35 ET — is called a fault at the first attempt. Nothing else " +
+      "can see it: the deployment is healthy, every other probe passes, and " +
+      "the failure is a check crying wolf.",
+    file: "scripts/check-deployed.mjs",
+    find:
+      "      attempt.ok ||\n" +
+      "      (attempt.disconnected !== true && attempt.retryable !== true)\n" +
+      "    )\n" +
+      "      return attempt;",
+    replace:
+      "      // pnpm break: reverted automatically\n" +
+      "      attempt.ok ||\n" +
+      "      attempt.disconnected !== true\n" +
+      "    )\n" +
+      "      return attempt;",
+    command: ["pnpm", "run", "test:scripts"],
+    expect: "retries a connected iex that has printed nothing",
+  },
+  {
+    name: "readiness-prints-the-series-without-gating-on-it",
+    proves:
+      "The series probe is added, printed in the report, and left out of the " +
+      "readiness gate — which is the defect the next author writes, " +
+      "because `backend.ok && frontend.ok` is what the loop said for two " +
+      "years and the line reads complete without the third term. " +
+      "`checkDeployed` then returns green the instant `/health` answers, " +
+      "exactly as it did when `deploy` 38704668224 and 38861268104 handed " +
+      "the browser suite a container at `up 91.6s` that could not yet serve " +
+      "`GET /market-data/bars`. The report still prints a `✗ series` " +
+      "line, so the output looks like a check that is watching it.",
+    file: "scripts/check-deployed.mjs",
+    find: "    const ready = backend.ok && frontend.ok && series?.ok === true;",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    const ready = backend.ok && frontend.ok;",
+    command: ["pnpm", "run", "test:scripts"],
+    expect: "is RED when the series never arrives",
+  },
 ];
