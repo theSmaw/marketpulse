@@ -4578,8 +4578,8 @@ export const BREAKS = [
   // --- Task 4.7.9: the degraded grid's declared collisions ---
   //
   // **The grid is the check, so the break is a defect in the PRODUCT rather
-  // than in the grid.** `overview-degraded-grid.spec.ts` produces fourteen
-  // states at four widths, reads seven surfaces off each, and asserts that the
+  // than in the grid.** `overview-degraded-grid.spec.ts` produces seventeen
+  // states at four widths, reads eight surfaces off each, and asserts that the
   // partition of rows **by drawn string** equals the partition **by declared
   // class** — which fails in both directions, and did so for real twice
   // during the task that wrote it:
@@ -4637,6 +4637,64 @@ export const BREAKS = [
     // differ — CI's store and a restarted replica — so substituting the field
     // makes a documented collision stop holding before it makes a documented
     // agreement stop holding. Either is the right red; only one is the text.
+    expect: "the documented exception has stopped holding",
+  },
+
+  // --- Task 5.4.6: the grid's EIGHTH surface ---
+  //
+  // **The same defect one region over, and the pair is the whole evidence that
+  // naming a region as a surface is what does the work.** `Unusual activity`
+  // was not in either of this grid's keys until Task 5.4.6 — the grid keys on
+  // the text of named surfaces, so Task 5.4.1 re-areaed the entire landing
+  // page and the spec passed 4 of 4 with nothing changed, and Task 5.4.4 added
+  // two footer strings and it passed again.
+  //
+  // So this break was performed by hand **twice**, against the same
+  // substitution, before it was written down:
+  //
+  //   - against the spec as it stood at `HEAD` — thirteen states, seven
+  //     surfaces — which **passed, 1 passed (25.7s)**. A check green on the
+  //     exact defect it forbids, which is the four-consecutive-tasks lesson in
+  //     CLAUDE.md with the roles swapped: here the guard was not wrong, it was
+  //     simply not looking at this region.
+  //   - against the spec with the eighth surface in the key, which went red on
+  //     an assertion with the two rows named.
+  //
+  // The defect itself is the one this product has now made twice — Task 4.8.12
+  // found the source note drawing `computedAt` under a term describing the
+  // figures, and `the-footer-age-reads-the-join-instead-of-the-market` holds
+  // the same line in `market-breadth.ts`. An author adding a third region with
+  // an age clause has two fields to choose between and one of them is always
+  // present, so the wrong one never looks absent.
+  {
+    name: "the-unusual-footer-age-reads-the-join-instead-of-the-market",
+    proves:
+      "`Unusual activity`'s age clause is built from the frame's " +
+      "`observedAt` — the newest observation the aggregate contains, a bar's " +
+      "own instant — and never from `computedAt`, which is when this process " +
+      "last ran the join. And it proves the thing the figure above cannot: " +
+      "that the REGION IS IN THIS GRID'S KEY AT ALL. The identical " +
+      "substitution was performed against the spec as it stood before Task " +
+      "5.4.6 and that spec passed, because the region was not one of its " +
+      "seven surfaces — so the red below is evidence about the eighth " +
+      "surface and not only about the field.",
+    file: "apps/frontend/src/market/unusual-activity.ts",
+    find: "    claim: claimOf(unusual, overview?.observedAt),",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    claim: claimOf(unusual, overview?.computedAt),",
+    command: ["pnpm", "e2e", "overview-degraded-grid.spec.ts", "--anyway"],
+    // **Which red arrives first, measured rather than predicted** — the
+    // sibling break's note, confirmed on this one: the pairwise class walk
+    // runs before the partial-collision walk, and `one-aggregate-the-empty-
+    // join` holds two rows whose join instants differ (CI's store at `AT`, a
+    // restarted replica at `LATER`) while BOTH hold no observation instant at
+    // all. So substituting the field gives those two rows an age sentence
+    // they should not have, in two different spellings, and the message is
+    // `03-ci-shape-nothing-at-all and 09-restarted-replica-on-reconnect share
+    // the content class one-aggregate-the-empty-join and no longer read
+    // identically`. The 05/06 agreement on this surface is the second red and
+    // is never the text.
     expect: "the documented exception has stopped holding",
   },
   {

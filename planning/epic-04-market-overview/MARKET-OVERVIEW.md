@@ -85,19 +85,56 @@ the evening that fills those rows, ordered by what expires soonest.
 ### 1.1 Seven named regions, and which epic owns each
 
 `/` draws **seven** regions. [`PRODUCT_SPEC.md`](../PRODUCT_SPEC.md) §9 sketches
-them; this epic fills **four**.
+them; this epic fills **four** (and Story 5.4 filled a fifth on 2026-10-17).
 
-| Region                   | Holds                                                     | Owner       |
-| ------------------------ | --------------------------------------------------------- | ----------- |
-| `Market proxies`         | `SPY` `QQQ` `DIA` `IWM` — price, change, arrival mark     | Story 4.2 ✔ |
-| `Sector performance`     | eleven ranked sector SPDRs, each its benchmark's own move | Story 4.3 ✔ |
-| `Market breadth`         | three counts, a remainder and a net headline              | Story 4.4 ✔ |
-| `Movers`                 | `GAINERS` and `LOSERS`, five rows each                    | Story 4.5 ✔ |
-| `Market topology`        | `reserved`                                                | **Epic 6**  |
-| `Unusual activity`       | `reserved`                                                | **Epic 5**  |
-| `Current investigations` | `reserved`                                                | **Epic 7+** |
+| Region                   | Holds                                                                                               | Owner           |
+| ------------------------ | --------------------------------------------------------------------------------------------------- | --------------- |
+| `Market proxies`         | `SPY` `QQQ` `DIA` `IWM` — price, change, arrival mark                                               | Story 4.2 ✔     |
+| `Sector performance`     | eleven ranked sector SPDRs, each its benchmark's own move                                           | Story 4.3 ✔     |
+| `Market breadth`         | three counts, a remainder and a net headline                                                        | Story 4.4 ✔     |
+| `Movers`                 | `GAINERS` and `LOSERS`, five rows each                                                              | Story 4.5 ✔     |
+| `Market topology`        | `reserved`                                                                                          | **Epic 6**      |
+| `Unusual activity`       | **ten ranked rows — the percentile ordinal, a tinted direction glyph, three populations and a cut** | **Story 5.4 ✔** |
+| `Current investigations` | `reserved`                                                                                          | **Epic 7+**     |
 
-The three `reserved` regions are **a component state, not an absence** — hatched
+**Amended 2026-10-17 by Story 5.4: five of the seven hold figures and only TWO
+are `reserved`.** `Unusual activity` draws the ten securities whose last
+five-minute move sits furthest out in their own 60-session history — ranked by
+the **price percentile**, drawn as an **ordinal** (`99th`) with the word
+`percentile` in the list heading and spoken whole, because
+`packages/shared/src/anomaly.ts` deliberately holds no score→band boundaries and
+the four bands belong to the **composite** score Story 5.6 ships. Three things
+from it are load-bearing for anything added to this screen.
+
+**The figure it ranks is a MAGNITUDE, and that cost a defect.**
+`return-percentile.ts:129` takes `Math.abs(percent)` — _how far from zero the
+move is and not which way it went_ — so a **−9% crash and a +9% spike drew an
+identical row**, same ordinal and same rank, on the one list a reader scans to
+decide where to look. A tinted `▲`/`▼` carries direction, with **glyph and sign**
+doing the work and hue only reinforcing; `DirectionGlyph` was **extracted** from
+`PriceChange` rather than copied.
+
+**The region could not hold one row where it was reserved**, and the diagnosis in
+§1.4 had the wrong viewport. Its own chrome is **161 px** against a row-1 length
+resolving to **161 px** at 1440×900, so **zero rows fitted at every viewport
+height** and five would have needed a ~1950 px viewport. The repair was a
+**re-area** — `"topology topology" / "sectors unusual" / "movers breadth" /
+"investigations investigations"` — so `Market topology` now spans **both
+columns** (1392 × 161 at 1440, and the height still tracks `82vh`) and this
+region sits on a floored row at **491 px**, one height in **all 54** state ×
+viewport cells with `scrollHeight === clientHeight` in every one.
+
+**It has TWO bases and the switch is read off the frame**, never a clock. In
+session it ranks the live five-minute return over the population heard from
+inside breadth's cutoff; out of hours — about 80% of the week — it draws **the
+last completed session's ranking from a nightly row** ([ADR 0044](../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md)'s
+shape, two tables because a refused security gets no row and the footer must
+still be honest). One measured asymmetry travels with that: the stored ranking is
+compared against a window that **contains** the sample, so `above_sample` is
+false on **all 485 rows** and the region can say `>99th` in session and **never**
+out of hours.
+
+The two remaining `reserved` regions are **a component state, not an absence** — hatched
 ground, a dashed hairline and a tag naming whose work fills them (Task 4.1.3).
 That is [ADR 0029](../../docs/adr/0029-provenance-on-screen-the-partial-states-and-what-an-honest-empty-answer-certifies.md)'s
 fourth rule applied to a whole screen for the first time: a surface that owns
@@ -116,7 +153,15 @@ three later regions summarise the whole universe it **promises the broadest view
 and delivers the narrowest**.
 
 **Since Gate 2 on 2026-10-12 one finding about `reserved` is routed rather than
-repaired, and it is Epic 5's**: `Panel`'s `reserved` state is doing **two jobs** —
+repaired, and it was Epic 5's** — **re-owned 2026-10-17 by Story 5.4, which did
+NOT repair it and made it sharper.** Deleting this region's reserved panel leaves
+**two** badged hatches where there were three, and after Epic 6 there will be
+**one**: the fewer badged hatches on the screen, the more a badge-less hatch reads
+as the house style rather than as something wrong. **The condition now belongs to
+Epic 6** — _the first commit that renders a graph node_ is also the commit that
+leaves a single hatch on this screen, and it is the right moment to decide what a
+**degraded** topology looks like against a **deferred** one. The finding itself,
+unchanged: `Panel`'s `reserved` state is doing **two jobs** —
 in the rollback state a **degraded** region is drawn exactly like one this product
 **has not built yet**, same hatch and same muted sentence, differing only by the
 absence of an epic badge — and at 1440 **the three unbuilt regions read as more

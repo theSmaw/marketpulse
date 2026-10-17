@@ -134,7 +134,9 @@ dated measurement left standing on purpose — take the count from
 
 **Epic 4 (Market Overview): complete, nine stories, closed 2026-10-13.** The
 landing page is the product's front door rather than a placeholder: **seven
-named regions, four of them holding live figures** computed by **one join** over
+named regions, four of them holding live figures** (**five since 2026-10-17** —
+Story 5.4 filled `Unusual activity`, and only **two** are now `reserved`)
+computed by **one join** over
 the whole tracked universe, and **twenty-four destinations** a reader can leave
 from. Two ADRs — **0040** (what _current_ means: the five-minute observation
 window and one shared eligibility pass) and **0041** (a ranked surface re-orders
@@ -466,7 +468,8 @@ say what they are waiting for~~, in the `reserved` state Story 4.1 added to
 `Panel`, which is ADR 0029's defer rule as a component rather than a spinner
 that never resolves~~ — **false since 2026-10-07: three of the six do, and the
 other three hold figures.** `Market topology`, `Unusual activity` and
-`Current investigations` are still `reserved`; `Sector performance`, `Movers`
+`Current investigations` are still `reserved`~~ — **false since 2026-10-17:
+`Unusual activity` draws, and two are reserved.** `Sector performance`, `Movers`
 and `Market breadth` are Stories 4.3, 4.5 and 4.4, **all three of which have
 shipped** (the last on 2026-10-08).
 Two
@@ -562,6 +565,53 @@ live socket with **no store-backed fill**, so it is empty on every gated run,
 empty for the first five minutes of every deployment, and has never held one
 entry on any machine not serving a real market. `LIVE-REHEARSAL.md` carries row
 **5.2 unwatched**, and `pnpm invariants` refuses Epic 5's close with it.
+
+**And since 2026-10-17 `/`'s LAST reserved region draws, which is Story 5.4 —
+so five of the seven hold figures and the landing page is finished.**
+`Unusual activity` lists the **ten** securities whose last five-minute move sits
+furthest out in **their own 60-session history**, ranked by the price percentile
+and drawn as an **ordinal** (`99th`) with the word `percentile` in the list
+heading and spoken whole — **no band chip**, because
+`packages/shared/src/anomaly.ts` deliberately holds no score→band boundaries and
+the four bands belong to Story 5.6's **composite**.
+
+Six things from it are load-bearing. **The figure it ranks is a MAGNITUDE**
+(`Math.abs`), so a **−9% crash and a +9% spike drew an identical row** until a
+tinted `▲`/`▼` shipped — glyph and sign carry it, hue only reinforces, and
+`DirectionGlyph` was **extracted** from `PriceChange` rather than copied. **The
+region could not hold one row where it was reserved**: its own chrome is 161 px
+against a row-1 length resolving to 161 px at 1440×900, so **zero rows fitted at
+every viewport height**, and the repair was a **re-area** giving `Market
+topology` **both columns** (1392 × 161 at 1440, height still tracking `82vh`) —
+`MARKET-OVERVIEW.md` §1.4's trigger firing a second time, on a mechanism its
+wording did not describe, with the condition widened to cover **displacement**
+and not only filling. **It has two bases, read off the frame and never a clock**:
+the live return in session, and out of hours **the last session's ranking from a
+nightly row** (ADR 0044's shape, **two** tables because a refused security gets
+no row and the footer must still be honest) — with a measured asymmetry, that the
+stored ranking is compared against a window **containing** the sample, so
+`above_sample` is false on **all 485 rows** and `>99th` is reachable in session
+and never out of hours. **It states three populations and a cut** from the one
+builder, and the screen's source note gained a **third term** for the baseline's
+`sip` tape, which is invariant 6 for a figure resting on stored bars the page
+could not previously attribute. **ADR 0040's primary trigger FIRED and two of the
+three consequences its own text predicted did not happen** — `windowMinutes` is
+still one number per frame and the shared eligibility pass did **not** split (a
+second pass plus an intersection, with breadth's and movers' output proved
+byte-identical **on the producer**) — while **ADR 0038's frame-grain trigger was
+evaluated twice and did not fire**, because a lookback is not a cadence. And
+**Epic 14's backend condition fired**, priced at **0.474–0.509 ms p50 a batch and
+946–1,015 ns a security**, 2.8× the breadth-plus-movers work already on that
+path, tight-loop and local.
+
+**What no gated machine and no person has ever seen is a single row of it.** CI's
+store is 516 securities with **zero bars and no baseline generation**, so
+`heldThrough()` is `undefined` for ever and the region renders the honest-nothing
+state on every gated run, permanently; the local store has no `iex` row and no
+provider, so only the **session** basis has ever been seen, on one laptop.
+`LIVE-REHEARSAL.md` carries row **5.4 unwatched** — the fourth this epic owes and
+the first on the landing page — and `pnpm invariants` refuses Epic 5's close until
+it is filled.
 
 **`Relative performance` draws, which is Story 5.1 (Epic 5's first story).** The
 security's own move, its **sector benchmark ETF's** and the **broad market's**,

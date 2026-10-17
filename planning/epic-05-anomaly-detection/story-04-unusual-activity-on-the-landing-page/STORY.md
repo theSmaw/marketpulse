@@ -1,6 +1,6 @@
 # Story 5.4 — `Unusual activity` on the Landing Page
 
-**Status:** Not started
+**Status:** **In progress — Gate 2 — 2026-10-17.** Tasks 5.4.1–5.4.5 complete and merged (#592, #593, #596, #597, #598); 5.4.6 in progress. `/`'s last reserved region draws.
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.3
 **Epic scope covered:** unusual-activity ranking
@@ -174,6 +174,25 @@ chip-against-chrome step is **1.00**, which no greyscale simulation of the
 region alone can show — it needs a **conjunction** row in the kept degraded
 grid (a drawn chip _while_ the feed is stale), at four widths, in greyscale and
 in colour.
+
+### One residue the Gate 1 amendment absorbed, and it should not be absorbed silently
+
+**AC 1's declaration obligation was dissolved rather than satisfied, and the
+thing it asked for still does not exist.** Decision 3 above says the AC's shared
+premise with AC 2 is false, and it is — the region is 491 px at 1440×680 and at
+1440×900 alike, so the shortest supported height does not decide it. The row
+count _was_ taken from measurement twice over (all three deliberate heights
+probed in Task 5.4.1 with the instrument that task had to add, and ten rows from
+a measured 168 px void against a 302 px budget at `27N − 1`).
+
+**But no shortest supported viewport height is declared anywhere, and it remains
+undeclared product-wide.** That is a live residue rather than a satisfied clause.
+It was not invented here deliberately: UX recommended declaring **700** and was
+explicit that it **could not be answered from this machine** without real device
+and browser-chrome heights, and quoting heights nobody measured is what
+`CLAUDE.md` forbids. **The cheapest instrument is the sitting already owed** —
+Story 4.7's AC 5b on a real phone, which can report `window.innerHeight` while it
+is happening, and `LIVE-REHEARSAL.md` row 5.4 is owed from the same session.
 
 ## Acceptance criteria
 
