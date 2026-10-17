@@ -4421,3 +4421,68 @@ hours, where the live writer's `iex` rows survive the nightly backfill that
 covers only regular-session minutes. That is `TAPE.md`'s stitch behaviour
 observed against the deployed store rather than argued, and the detail line now
 prints the run count and the de-duplicated set.
+
+## `Unusual activity` is one height in every state — and only `pnpm probe` has ever said so
+
+**Added 2026-10-17 at Story 5.4's close.** The region is **491 px** at 1440 and
+1024 and **458 px** at 768 and 390, identically in **eight** drawn states across
+**six** viewport pairs, with `scrollHeight === clientHeight` in all 54 cells —
+1440×680 included, which is the pair this story was founded on (`clientHeight
+117` against `scrollHeight 121`). That claim is load-bearing: rows 2 and 3 of
+`.regions` share one `fr`, so a region that changes height drags
+`Sector performance`, `Movers` and `Market breadth` with it.
+
+**Nothing mechanical holds it.** The kept degraded grid
+(`overview-degraded-grid.spec.ts`) keys on **surface text, not geometry** —
+proved twice, because Task 5.4.1 re-areaed the entire grid and Task 5.4.4 added
+new footer strings and it passed both times with **no expectation changed in
+either direction**. So **the grid's silence is not evidence** for this claim, and
+no browser spec asserts a region's height anywhere.
+
+**And the instrument has already lied once about it**, which is why this entry
+exists rather than a looser one. Task 5.4.5's furnished instrument read **458
+where Task 5.4.4 had recorded 491**, and it was proved to be the instrument by a
+**control**: under a minimal furnished frame the **whole grid row collapses
+together** (`Sector performance`, `Movers` and `Market breadth` all read 458
+beside it), while the reservation row reproduces 5.4.4's figures exactly and the
+**real page** reproduces `491 / 491 / 458 / 458 / 491 / 491` exactly. A furnished
+height is therefore only comparable against another furnished height, never
+against a probed one.
+
+**Re-measure:** `pnpm probe / --widths 1440,1024,768,390` plus
+`pnpm probe / --viewports 1440x680,1440x700,1440x900` — the `--viewports` flag
+exists because Task 5.4.1 had to add it, `--widths` only filters a hard-coded
+table — and **look at the screenshots**, because a box figure cannot show a
+clipped glyph. **Condition for making it mechanical:** the first browser spec in
+this repository that asserts a region's own height; at that point this claim and
+`Movers`' 491 and `AbnormalMove`'s 142 all become one check.
+
+## The anomaly ranking's correctness rests on an arm that has never run
+
+**Added 2026-10-17 at Story 5.4's close, and it is the sharpest instance of a
+doctrine this epic produced three times.** `overview-unusual-ranking.spec.ts` has
+three arms. Against a producer planted to invent an `NVDA` row, **two of the
+three went green on the fabricated row** — both the frame-derived ones. Only the
+**out-of-frame** arm caught it: `GET /market-data` answering `{"feed":null}`
+means nothing was observed, so any row is fabricated **by construction**.
+
+**The arm that would check the ranking itself is skipped**, with its reason
+printed, because this deployment ranks nothing. CI's store is 516 securities with
+**zero bars and no baseline generation**, so `heldThrough()` is `undefined` for
+ever; the local store has no `iex` row and no provider. **So no independent
+recompute of this ranking has ever executed against data, anywhere.**
+
+That matters more here than for `Movers`, whose recompute arm does run over all
+503 moves: a mover's inputs are on the frame, and **a percentile's are not** —
+re-deriving the cut needs the population's 101 breakpoints × 501 securities
+(~417 KB), which is never going on this wire. Story 5.3 proved the layers are not
+interchangeable: a planted `rank × 0.8 when n > 500` left the **golden sample
+green** and was caught **only** by an independent recompute.
+
+**Re-measure / condition:** **the first deployment or developer store that holds
+both bars and a baseline generation** — at that point the skipped arm runs and
+this entry narrows to whatever it cannot see. Until then the ranking's
+correctness rests on the producer's own unit tests, the decoder's five
+cross-field checks, and **a person with a public five-minute chart**, which is
+`LIVE-REHEARSAL.md` row 5.4's sixth item and which **no sitting in that ledger
+has ever taken**.

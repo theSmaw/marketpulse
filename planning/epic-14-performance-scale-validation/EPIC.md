@@ -829,3 +829,62 @@ is the misestimate that would flip a per-security index scan into a sequential
 scan over 5 GB, and it is the single figure that decides whether the pass is
 ~3.5 minutes or tens of minutes on the tier. **The plan node type matters more
 than the milliseconds.**
+
+## Handed here by Task 5.4.2 — 2026-10-16: your BACKEND condition has FIRED, and here is the price
+
+**The condition, verbatim from Epic 5's `EPIC.md` where it lives:** _the first
+computation added to that callback that **derives a figure per security**, rather
+than ranking or counting figures the join has already produced._ It had been
+evaluated and unfired **three** times — Stories 5.1, 5.2 and 5.3 — each for the
+same reason: a ring-buffer push is storage, and both the five-minute return and
+the percentile were computed **on demand for the one security on screen**.
+
+**Task 5.4.2 is the change that fires it.** `Unusual activity` on `/` needs the
+price percentile for the **501 equities every applied batch**, which is a figure
+derived per security inside the socket callback. **Do not look for a shape that
+avoids it** — it fires on every shape that puts this figure on the frame,
+including the cheap one, and that was evaluated before the work rather than
+after.
+
+**The price, measured on the production artefact** — 501 equities inside the
+cutoff with a six-bar window each, 490 rankable (Story 5.3's 11-refusal shape),
+400 samples after 300 warm-up, three runs:
+
+| arm                                             | p50          | p95      | n   |
+| ----------------------------------------------- | ------------ | -------- | --- |
+| the new pass                                    | **0.509 ms** | 1.413 ms | 400 |
+| breadth + movers, the work already on that path | 0.177 ms     | 0.434 ms | 400 |
+| calibrator, in its **own** loop                 | 0.602 ms     | 1.171 ms | 100 |
+
+Runs 2 and 3: `0.493 / 0.176` and `0.474 / 0.171`. So **0.474–0.509 ms p50 a
+batch, 946–1,015 ns a security, 2.8× the breadth-plus-movers work the path
+already does** — against Task 4.8.11's 1.521 ms p50 reference for the whole
+per-batch path. The **nothing-observed floor** — CI, every gated run, the first
+five minutes of every deployment — is **0.001 ms p50, 3 ns a security**.
+
+**No `PRODUCT_SPEC.md` §28 clause is breached**: this is not a 50 ms task, and
+the screen's own per-batch cost was measured not in breach with a control in
+Story 4.8.
+
+**Four caveats, and they are not optional.** (1) **Tight loop** — a gapped Node
+sample on that machine inflates and the calibrator **does not divide out**, so
+this bounds the _shape_ and is **not** what the computation costs at
+production's measured 6.8–16.1 batches a minute. (2) The **calibrator ran in its
+own loop**, never inside the measured one, reading 0.572–0.602 ms standing alone
+across three runs with **0 samples discarded** — so Task 5.2.5's **7.2×**
+in-loop artefact did not recur. (3) Local, one laptop, synthetic entries, and
+**no real feed has ever driven this pass**. (4) **The 1.521 ms reference was not
+re-taken**, so the new total is unmeasured and is deliberately **not** reported
+by subtraction — this repository's own _re-measure rather than subtract_ rule.
+
+**What is owed to you, and the condition for it.** The per-batch total on `/` has
+not been re-measured since this landed, and the three products derived from the
+pre-repair 3.72 ms figure are still pre-repair. **Condition: the next story that
+changes the per-batch path on `/` at all** — it should re-take the whole arm with
+a control rather than add another term to an estimate.
+
+**And Story 5.4.5 added a second arm that does NOT fire this condition**, which
+is worth recording so nobody re-prices it: out of hours the region reads a
+**nightly persisted row** — one map read and ≤10 rows built, **strictly less**
+per-batch work than the observed arm it replaces. That is **reasoned rather than
+measured**, and is recorded as the weaker claim.

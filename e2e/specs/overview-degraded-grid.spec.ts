@@ -16,6 +16,12 @@ import {
   HEALTH_ROUTE_PATTERN,
   SECURITIES_ROUTE_PATTERN,
 } from "../support/pair.js";
+import {
+  sessionUnusualSection,
+  unrankedSection,
+  unusualRow,
+  unusualSection,
+} from "../support/unusual.js";
 
 // **The landing screen's whole degraded set, produced and compared** (Task
 // 4.7.9) — and the grid IS this file rather than a table in a document beside
@@ -61,9 +67,29 @@ import {
 // `ENUMERATED_AND_NOT_PRODUCED` at the foot of this file says where it is
 // owned instead.
 //
-// ## Seven surfaces, compared separately
+// ## Eight surfaces, compared separately — and the eighth arrived two epics late
 //
-// One whole-`main` string per state is strictly weaker than seven: two states
+// **`Unusual activity` was not in this grid at all until Task 5.4.6**, and the
+// reason it went unnoticed is worth more than the repair: this file keys on
+// the **text** of named surfaces, so Task 5.4.1 re-areaed the entire landing
+// grid and this spec passed 4 of 4 with no expectation changed in either
+// direction, and Task 5.4.4 added two new footer strings and it passed again.
+// A region that is not a surface is invisible here however much it changes,
+// and geometry is invisible here full stop — *one height in every state* is
+// `pnpm probe`'s claim and this spec's silence is not evidence for it.
+//
+// **Adding it was not a re-key; it was a new surface plus four new rows, and
+// it falsified the six aggregates already here.**
+// `WireMarketOverviewInputs.unusual` is **not optional**, so every frame a
+// shipped gateway has built since Task 5.4.2 carries the section — which means
+// every aggregate in this file that omits it was modelling a **pinned previous
+// image** while claiming to be CI's shape, a running session or a closed
+// market. They now carry it at the value the producer would send, and the one
+// row that omits it says so in its `kind`.
+//
+// ## One whole-`main` string per state is strictly weaker than eight
+//
+// One whole-`main` string per state is strictly weaker than eight: two states
 // differing only in a breadth footer are "distinct" while a reader of the
 // sector region cannot tell them apart. And the **chrome** is in the key
 // because of what Task 4.7.2 measured — three states are byte-identical over
@@ -86,6 +112,14 @@ const VENUE: MarketFeed = "iex";
 /** 14:01 ET on a Wednesday, so no extended-hours word anywhere on the page. */
 const AT = "2026-09-16T18:01:00Z";
 
+/**
+ * **The session `AT` falls in**, which is the session a mid-session frame's
+ * baseline generation is keyed by (ADR 0044) — spelled once because the
+ * furnished `unusual` sections on this frame would otherwise date their
+ * baseline a month after the figures above them.
+ */
+const SESSION = "2026-09-16";
+
 /** A second join, later, over the same observations — see `one-aggregate-two-joins`. */
 const LATER = "2026-09-16T21:44:11Z";
 
@@ -97,8 +131,14 @@ const WIDTHS = [1440, 1024, 768, 390] as const;
  * **The strings are the record and the photographs are the illustration**, and
  * only the first can be asserted — nothing below `pnpm e2e` can see a layout
  * and nothing at any level can see *reads as designed*. So the assertion runs
- * on every gated run and the 112 PNGs are produced by a person who is going to
+ * on every gated run and the 136 PNGs are produced by a person who is going to
  * look at them:
+ *
+ * **The count is `STATES.length × WIDTHS.length × 2` and it is written here
+ * because it has been wrong before.** It read `112` from Task 4.7.9 until Task
+ * 5.4.6, against thirteen states at four widths in colour and in greyscale —
+ * which is **104**. Nothing can check a number in a comment, so the arithmetic
+ * is spelled beside it: 17 × 4 × 2 = 136.
  *
  * ```
  * DEGRADED_GRID_PHOTOS=1 pnpm e2e overview-degraded-grid.spec.ts
@@ -276,6 +316,102 @@ const SESSION_BREADTH: WireMarketBreadth = {
   session: "2026-09-11",
 };
 
+// ---------------------------------------------------------------------------
+// The eighth surface's figures (Task 5.4.6)
+// ---------------------------------------------------------------------------
+
+/**
+ * **Ten securities behaving least like themselves**, in the one order
+ * `compareByPercentile` admits for these ordinals.
+ *
+ * The order is not a preference: `readUnusual`'s fourth cross-field check is
+ * `isRankedByPercentile`, and the ordinal comparator **breaks ties on ticker
+ * ascending** — so a correct frame admits exactly one arrangement and a
+ * swapped pair refuses the whole section. Task 5.4.5 produced that by hand,
+ * putting `MNST (96)` ahead of `GOOGL (96)`, and what reached the screen was
+ * not a mis-ordered list: it was the **rollback** picture, because an
+ * unreadable section is the same absence as a missing one.
+ *
+ * Four rows share `99`, three share `98` and two share `97`, which is what ten
+ * rows drawn from ~455 scored securities over 100 integer ordinals looks like
+ * — and it exercises the tie-break rather than dodging it with ten distinct
+ * ranks. One row is `aboveSample`, which is the only ordinal this product
+ * draws with a `>` and is legal at the ceiling alone.
+ */
+const UNUSUAL_RANKED = [
+  unusualRow("AVGO", 99, -8.42, { aboveSample: true }),
+  unusualRow("CTSH", 99, 7.91),
+  unusualRow("GOOGL", 99, -7.44),
+  unusualRow("NVDA", 99, 6.88),
+  unusualRow("ADBE", 98, 5.12),
+  unusualRow("APH", 98, -4.76),
+  unusualRow("MNST", 98, 4.4),
+  unusualRow("CRWD", 97, -3.68),
+  unusualRow("MSFT", 97, 3.2),
+  unusualRow("TSLA", 96, -2.85),
+];
+
+/**
+ * **Nothing is unusual right now, and the region says so with a FULL LIST** —
+ * the state this screen has that is most likely to be read as a defect, and
+ * Story 5.4's AC 11 as Gate 1 decision 1 amended it.
+ *
+ * A top ten always has ten members; *unusual* is the tail of a distribution,
+ * not a threshold, so the honest answer to *is anything going on* is ten
+ * ordinals in the fifties and sixties rather than an empty region. `62nd` is
+ * Gate 1's own example of a row a reader can see is ordinary, and the list
+ * heading — `Percentile of its own 60-session history` — is what makes that
+ * readable at all.
+ *
+ * **The same ten tickers as {@link UNUSUAL_RANKED}, deliberately**, so the
+ * only thing that differs between *the market is doing something* and *the
+ * market is doing nothing* is the figures. If those two rows ever collide on
+ * this surface, the ordinals have stopped reaching the screen.
+ */
+const UNUSUAL_ORDINARY = [
+  unusualRow("NVDA", 62, 0.31),
+  unusualRow("GOOGL", 61, -0.28),
+  unusualRow("CTSH", 60, 0.25),
+  unusualRow("AVGO", 59, -0.22),
+  unusualRow("MSFT", 58, 0.2),
+  unusualRow("MNST", 57, -0.18),
+  unusualRow("CRWD", 56, 0.15),
+  unusualRow("APH", 55, -0.12),
+  unusualRow("ADBE", 54, 0.1),
+  unusualRow("TSLA", 53, -0.08),
+];
+
+/**
+ * **Fewer scored securities than the region reserves room for** — three rows
+ * and seven held pads.
+ *
+ * The first minutes of every session, every morning: a security is scored only
+ * once it holds two bars exactly five minutes apart, so **both** `eligible`
+ * and `scored` climb from zero through the opening. The pads are why a list
+ * going 10 → 3 does not step the lower page at 768 and 390, where the grid
+ * rows are untied.
+ *
+ * ## `eligible: 14` rather than 466, and the first draft had it wrong
+ *
+ * `market-unusual.ts` records that **`eligible − scored` equals the
+ * comparison refusals in every reachable state**, and `readUnusual`
+ * deliberately does **not** check it — the producer can refuse a security
+ * with no word at all, so the identity is an inequality and an equality in
+ * the decoder would refuse honest frames. A harness must not lean on that
+ * tolerance: `eligible: 466` beside `scored: 3` and eleven counted refusals
+ * leaves **452 securities unaccounted for**, drawn as a confident sentence
+ * under three rows. Fourteen heard from, three ranked, eleven too short is
+ * the arithmetic a producer would actually emit, and it is also the truer
+ * picture of 09:35 — the region's population is a second pass over securities
+ * holding two bars five minutes apart, which is why it is far below
+ * `Market breadth`'s 466 on the same frame rather than equal to it.
+ */
+const UNUSUAL_SHORT = [
+  unusualRow("AVGO", 99, -8.42, { aboveSample: true }),
+  unusualRow("NVDA", 97, 6.88),
+  unusualRow("TSLA", 96, -2.85),
+];
+
 /** What a healthy gateway mid-session sends: every section furnished. */
 const RICH: WireMarketOverview = {
   computedAt: AT,
@@ -286,6 +422,17 @@ const RICH: WireMarketOverview = {
   sectorLadderStep: 2,
   breadth: OBSERVED_BREADTH,
   movers: observedMovers(GAINERS, LOSERS),
+  // **Every frame a shipped gateway builds carries this section** — it is
+  // non-optional on `WireMarketOverviewInputs` — so *healthy mid-session*
+  // without it was a rollback wearing the wrong label (Task 5.4.6).
+  unusual: unusualSection(
+    UNUSUAL_RANKED,
+    { scored: 455, eligible: 466, tracked: 503 },
+    // **The generation held is the one keyed by the session on screen** (ADR
+    // 0044) — the helper's default is a month after `AT`, which would draw
+    // `generated for Oct 14` under figures from 16 September.
+    SESSION,
+  ),
 };
 
 /**
@@ -316,9 +463,35 @@ const SESSION_BASIS: WireMarketOverview = {
   sectorLadderStep: 2,
   breadth: SESSION_BREADTH,
   movers: sessionMovers(),
+  /*
+   * **The last completed session's stored closing ranking** (Task 5.4.5), on
+   * the arm this screen is in for about 80% of the week.
+   *
+   * The session arm is built field by field rather than spread, because the
+   * two arms must differ in **exactly** the discriminant and its companion:
+   * `windowMinutes` hanging off a closed session is *heard from in the last
+   * five minutes* about a market that shut hours ago, which is the
+   * well-formed, confidently-dated wrong sentence
+   * `the-counted-basis-is-read-off-the-frame` exists to refuse.
+   */
+  unusual: sessionUnusualSection(
+    UNUSUAL_RANKED,
+    { scored: 455, eligible: 466, tracked: 503 },
+    "2026-09-11",
+  ),
 };
 
-/** CI's permanent state: 518 securities, zero bars, and four `unknown`s. */
+/**
+ * **CI's permanent state: 518 securities, zero bars, and four `unknown`s.**
+ *
+ * And since Task 5.4.6 a **fifth** absence beside the other four:
+ * `unrankedSection` is what a gateway with no bars and **no baseline
+ * generation** sends — `eligible: 0`, `scored: 0`, both refusal tallies zero
+ * and no generation at all. That last field is why this is not
+ * `unusualSection([], …)`: a generation here would draw the source note's
+ * third source over a baseline nobody read, which is a frame no producer
+ * builds and this harness's standing hazard.
+ */
 const CI_SHAPE: WireMarketOverview = {
   computedAt: AT,
   feeds: [],
@@ -327,6 +500,7 @@ const CI_SHAPE: WireMarketOverview = {
   sectorLadderStep: 2,
   breadth: BREADTH_OF_NOTHING,
   movers: observedMovers([], []),
+  unusual: unrankedSection("observed"),
 };
 
 /**
@@ -347,6 +521,10 @@ const RESTARTED_REPLICA: WireMarketOverview = {
   sectorLadderStep: 2,
   breadth: BREADTH_OF_NOTHING,
   movers: observedMovers([], []),
+  // The same empty section as `CI_SHAPE`, which is what keeps the two rows in
+  // one content class: a restarted replica has no trailing windows and no
+  // baseline row loaded, so it ranks nothing for the same reason CI does.
+  unusual: unrankedSection("observed"),
 };
 
 /**
@@ -407,10 +585,104 @@ const UNREADABLE_MOVERS: WireMarketOverview = {
     tracked: 503,
     windowMinutes: 5,
   },
+  // **Readable, and that is the point of the row**: one refused section does
+  // not take the others with it, so this frame draws nine surfaces correctly
+  // and one `filledBy` sentence.
+  unusual: unusualSection(
+    UNUSUAL_RANKED,
+    { scored: 455, eligible: 466, tracked: 503 },
+    // **The generation held is the one keyed by the session on screen** (ADR
+    // 0044) — the helper's default is a month after `AT`, which would draw
+    // `generated for Oct 14` under figures from 16 September.
+    SESSION,
+  ),
+};
+
+/**
+ * **The rollback that this story's own deploy makes reachable: breadth and
+ * movers present, no `unusual` section at all** (Task 5.4.6).
+ *
+ * It is `08-rollback-no-breadth`'s shape one section over and a strictly more
+ * likely pair, because **it is the frame the image before this story built**.
+ * A new bundle meeting a pinned Epic 4 gateway gets exactly this, and the
+ * region's answer is its `filledBy` sentence — *the companies whose recent
+ * five-minute move sits furthest out in their own 60-session history* — over
+ * a hatched panel.
+ *
+ * **What that leaves live for Epic 6 is the reason this row is worth a
+ * photograph.** Task 4.7.9 row 08 found that a rollback omitting a section
+ * draws a region looking almost exactly like one this product has not built
+ * yet; the only difference is the absence of an `EPIC n` badge. Filling this
+ * region took the last badged hatch on grid rows 2 and 3 away, so two remain
+ * — and the fewer badged hatches there are, the more a badge-less hatch reads
+ * as house style rather than as *something is wrong*.
+ */
+const ROLLBACK_NO_UNUSUAL: WireMarketOverview = {
+  computedAt: AT,
+  observedAt: AT,
+  feeds: [VENUE],
+  figures: PROXIES,
+  sectors: SECTORS,
+  sectorLadderStep: 2,
+  breadth: OBSERVED_BREADTH,
+  movers: observedMovers(GAINERS, LOSERS),
+};
+
+/**
+ * **A healthy session in which nothing is unusual** — see
+ * {@link UNUSUAL_ORDINARY}.
+ *
+ * Identical to {@link RICH} but for the ten ordinals, so every other surface
+ * must read the same and this one must not.
+ */
+const NOTHING_UNUSUAL: WireMarketOverview = {
+  ...RICH,
+  unusual: unusualSection(
+    UNUSUAL_ORDINARY,
+    { scored: 455, eligible: 466, tracked: 503 },
+    SESSION,
+  ),
+};
+
+/**
+ * **A healthy session in which three securities have been scored** — see
+ * {@link UNUSUAL_SHORT}, and `scored: 3` is the frame's own figure rather than
+ * a floor, so the cut sentence states a population the rows are a selection
+ * from.
+ */
+const FEW_SCORED: WireMarketOverview = {
+  ...RICH,
+  unusual: unusualSection(
+    UNUSUAL_SHORT,
+    { scored: 3, eligible: 14, tracked: 503 },
+    SESSION,
+  ),
+};
+
+/**
+ * **The market is shut and no nightly ranking has ever been written** — which
+ * is CI for ever, every fresh store, and any deployment whose first nightly
+ * pass has not run.
+ *
+ * It is {@link SESSION_BASIS} with the one section emptied, so **seven
+ * surfaces are byte-identical and this one is the whole difference**: the
+ * region is the only thing on this screen that can tell a store whose nightly
+ * pass has run from one whose has not. Declared as a partial collision below,
+ * in both directions.
+ *
+ * The noun is read off **this section's own basis** rather than off
+ * `Market breadth`'s, which is Task 5.4.5's repair — so it says
+ * `Nothing ranked while the market is shut.` where `03-ci-shape-nothing-at-all`
+ * says `Nothing ranked yet.` The two are different facts with different
+ * repairs, and one of them is not a fault.
+ */
+const SESSION_BASIS_UNRANKED: WireMarketOverview = {
+  ...SESSION_BASIS,
+  unusual: unrankedSection("session", { session: "2026-09-11" }),
 };
 
 // ---------------------------------------------------------------------------
-// The seven surfaces
+// The eight surfaces
 // ---------------------------------------------------------------------------
 
 const REGIONS = [
@@ -418,6 +690,10 @@ const REGIONS = [
   "Sector performance",
   "Market breadth",
   "Movers",
+  // **The eighth surface, and the fifth region** (Task 5.4.6) — the landing
+  // page's last reserved region, filled by Story 5.4 and invisible to this
+  // grid until it was named here.
+  "Unusual activity",
 ] as const;
 
 /** The content surfaces, in the order a row prints them. */
@@ -439,8 +715,34 @@ type Surface = (typeof SURFACES)[number];
  */
 type Reading = Record<Surface, string | null>;
 
-/** The note's three possible terms, which are the only `dt` texts it has. */
-const NOTE_TERMS = ["Observed prices", "Closing prices", "Observed through"];
+/**
+ * The note's four possible terms, which are the only `dt` texts it has.
+ *
+ * **`Baselines` was missing until Task 5.4.6 and the omission was silent in
+ * the worst available direction.** {@link noteOf} requires **every** `dt` to
+ * be a known term, so an unlisted one does not fail an assertion — it makes
+ * the note **unfindable**, and the row prints `(nothing drawn)`, which is a
+ * legitimate reading of this surface and reads exactly like the product
+ * having dropped its provenance note. Produced: the first run of this grid
+ * with a `generation` on the frame reported the note absent on **ten of
+ * seventeen rows**.
+ *
+ * It had been harmless for two days because **no aggregate in this file
+ * carried the `unusual` section at all**, and the third clause draws only
+ * where a generation was read. `overview-source-note.spec.ts` added the term
+ * to **its** copy in Task 5.4.4 and wrote down this exact hazard in its own
+ * docblock; what neither it nor this file had was anything that crosses
+ * between the two. The duplication is deliberate — see {@link noteOf} — so
+ * **each copy owes a pointer at the other**, which is this paragraph, and
+ * `OVERVIEW_NOTE_TERMS` in `overview-source-note.ts` is the one home the two
+ * are copies of.
+ */
+const NOTE_TERMS = [
+  "Observed prices",
+  "Closing prices",
+  "Observed through",
+  "Baselines",
+];
 
 /**
  * The source note, found by its terms rather than by position.
@@ -509,6 +811,7 @@ async function readRow(page: Page): Promise<Reading> {
     "Sector performance": regions[1] ?? null,
     "Market breadth": regions[2] ?? null,
     Movers: regions[3] ?? null,
+    "Unusual activity": regions[4] ?? null,
     "source note": await noteOf(page),
     "feed cell": feedCell,
     "service cell": serviceCell,
@@ -541,9 +844,11 @@ const keyOf = (reading: Reading, surfaces: readonly Surface[]): string =>
  * collision expressed as a count is green whichever rows collapse into it.
  *
  * There are two keys and therefore two class columns, and the second is not
- * decoration. Over the **five content surfaces** three states are byte-
- * identical at every width (Task 4.7.2 measured it), so the content classes
- * document *what the chrome alone tells apart*; over **all seven** the only
+ * decoration. Over the **six content surfaces** — five regions and the note,
+ * the fifth region added by Task 5.4.6 — three states are byte-identical at
+ * every width (Task 4.7.2 measured it over five; the sixth did not separate
+ * them), so the content classes
+ * document *what the chrome alone tells apart*; over **all eight** the only
  * collisions left are the ones nothing on the screen tells apart at all.
  */
 /**
@@ -552,12 +857,21 @@ const keyOf = (reading: Reading, surfaces: readonly Surface[]): string =>
  *
  * That is the rule the partition turned out to express, rather than a list of
  * exceptions: `main` is a pure function of the aggregate, so two rows whose
- * frames carry the same figures MUST read identically over the five content
+ * frames carry the same figures MUST read identically over the six content
  * surfaces however their connection, their service or their market session
  * differ — and ADR 0029's one-home rule is what keeps those three facts in the
  * chrome where the second key can see them. A content class that held two
  * different aggregates would be the accidental collapse; a content class whose
  * rows stopped colliding would mean a connection word had leaked into `main`.
+ *
+ * **Task 5.4.6 is the first test of that rule against a region added after it
+ * was written, and it held in both directions.** `Unusual activity` is a pure
+ * function of `overview.unusual` and `overview.observedAt` — it reads no
+ * clock, no connection and no `computedAt` — so the four rows of
+ * `one-aggregate-the-session-basis` still collide across a stopped feed, a
+ * shut market and an unreachable backend, and the two rows of
+ * `one-aggregate-the-empty-join` still collide because a replica with no
+ * baseline row ranks nothing for the same reason CI does.
  */
 const CONTENT_CLASSES: Record<string, string> = {
   "one-aggregate-the-session-basis":
@@ -572,18 +886,19 @@ const CONTENT_CLASSES: Record<string, string> = {
   "one-aggregate-the-empty-join":
     "CI's permanent state — 518 securities and zero bars — and a replica that " +
     "restarted mid-session are ONE picture: four unknown figures, eleven " +
-    "unknown sectors, measured 0, two empty lists and no observation instant. " +
+    "unknown sectors, measured 0, two empty lists, a section that ranked " +
+    "nothing with no baseline generation, and no observation instant. " +
     "Produced and found by this grid on its first run. The collision is right " +
     "and it is also the sharp edge of Task 4.7.3's unrepaired half: the screen " +
     "has no memory, so the state a reader ARRIVES in and the state a reader is " +
-    "DROPPED into after a deploy are the same seven surfaces. What differs is " +
+    "DROPPED into after a deploy are the same eight surfaces. What differs is " +
     "only the transition, which is why docs/GAPS.md owns that case and why a " +
     "memo could not have reached it.",
 };
 
 const CHROME_CLASSES: Record<string, string> = {
   "the-session-word-has-one-home-and-it-is-the-masthead":
-    "The market being shut and the feed having stopped are the same seven " +
+    "The market being shut and the feed having stopped are the same eight " +
     "surfaces, at every width. marketOpen rides the feed frame and reaches no " +
     "word of the status bar or of main; MarketSessionStatus owns it, from the " +
     "wall clock, in the opposite corner of the viewport. At 390 a reader must " +
@@ -631,6 +946,12 @@ const PARTIAL_COLLISIONS: readonly PartialCollision[] = [
       "Sector performance",
       "Market breadth",
       "Movers",
+      // **The eighth surface joins the SAME side, and that is an assertion
+      // rather than a convenience** (Task 5.4.6): `unusualActivity` is handed
+      // `overview.observedAt` and never `computedAt`, so if this region ever
+      // reaches for the join instant — the defect Task 4.8.12 removed from the
+      // source note — this row pair goes red here first.
+      "Unusual activity",
       "source note",
       "feed cell",
       "service cell",
@@ -649,6 +970,38 @@ const PARTIAL_COLLISIONS: readonly PartialCollision[] = [
       "amendment in WireMarketOverview.computedAt's own docblock — `no drawn " +
       "sentence reads it any more` — is the source note's claim rather than " +
       "the screen's.",
+  },
+  {
+    rows: [
+      "04-closes-present-nothing-observed",
+      "16-session-basis-with-no-stored-ranking",
+    ],
+    same: [
+      "Market proxies",
+      "Sector performance",
+      "Market breadth",
+      "Movers",
+      "feed cell",
+      "service cell",
+    ],
+    differs: ["Unusual activity", "source note"],
+    sentence:
+      "A store whose nightly ranking pass has run and one whose has not, with " +
+      "the market shut in both. The two aggregates differ in exactly one " +
+      "section, and the screen reports it in exactly TWO places — which is " +
+      "the correction this row pair produced: it was declared as one, on the " +
+      "assumption that the region owns its own state. The second place is the " +
+      "source note's `Baselines` term, which draws only where the frame " +
+      "carried a GENERATION — the row the nightly pass actually read — so a " +
+      "store with no ranking has no third source either. That is ADR 0029 per " +
+      "clause rather than a duplicate: the region says what it could not " +
+      "rank, the note says which stored distribution the ordinals were ranked " +
+      "AGAINST, and neither sentence is the other one. The four content " +
+      "surfaces that must NOT move are the assertion that the section has not " +
+      "leaked into a region that does not own it. Note also what the region " +
+      "is not allowed to say: `Nothing ranked while the market is shut.` is " +
+      "read off this section's own basis, not off a clock and not off Market " +
+      "breadth's, so the sentence survives Epic 13's replay.",
   },
 ];
 
@@ -971,6 +1324,35 @@ const STATES: readonly State[] = [
       };
     },
   },
+  // -------------------------------------------------------------------------
+  // The eighth surface's own four rows (Task 5.4.6). The region's other five
+  // drawn states are already produced by the rows above: ten ranked rows on
+  // the observed basis (05, 06, 07, 13), the last session's stored ranking
+  // (04, 10, 11, 12), the unranked observed section (03, 09), the absent
+  // section (08), and the reservation before and after the 2,000 ms floor
+  // (01, 02). **Appended rather than inserted in subject order**, because
+  // renumbering a row renames it in every quotation of this grid's output.
+  // -------------------------------------------------------------------------
+  {
+    id: "14-nothing-unusual-at-all",
+    kind: "produced",
+    drive: serving(NOTHING_UNUSUAL),
+  },
+  {
+    id: "15-fewer-scored-than-the-region-reserves",
+    kind: "produced",
+    drive: serving(FEW_SCORED),
+  },
+  {
+    id: "16-session-basis-with-no-stored-ranking",
+    kind: "produced",
+    drive: serving(SESSION_BASIS_UNRANKED, null),
+  },
+  {
+    id: "17-rollback-no-unusual-section",
+    kind: "rollback",
+    drive: serving(ROLLBACK_NO_UNUSUAL),
+  },
 ];
 
 /**
@@ -988,7 +1370,48 @@ const ENUMERATED_AND_NOT_PRODUCED = [
       "`Region` suppresses `meta` when its content boundary trips. It is owned " +
       "at the component level, by `Region.test.tsx`' exhaustive walk over the " +
       "content slot's three states plus the retry, and in the workshop by " +
-      "`Region.stories.tsx`' FailedWithAClaimInItsHead.",
+      "`Region.stories.tsx`' FailedWithAClaimInItsHead. **Unchanged by Task " +
+      "5.4.6, which was asked for a region error on the new region and found " +
+      "the same answer**: `readUnusual` refuses a malformed section at the " +
+      "decoder, so the renderer is never handed one, and the thrown state is " +
+      "owned by `Unusual.stories.tsx`' Threw — which also carries the head " +
+      "suppression (a thrown region used to keep `Top 10` over a box saying " +
+      "the region could not be displayed).",
+  },
+  {
+    state: "an `unusual` section the shipped decoder REFUSES",
+    why:
+      "Produced in the strong sense — the encoder serialises it and the " +
+      "transition is real — and left out because it is " +
+      "`17-rollback-no-unusual-section` **byte for byte at every width**, " +
+      "which is `readUnusual`'s own documented contract rather than a " +
+      "defect: *a frame from a previous image carries no section at all, and " +
+      "an unreadable one is the same absence*. A row for it would be an " +
+      "accidental collapse by this grid's own rule, or a content class " +
+      "holding two aggregates, and neither states the claim as well as this " +
+      "line does. The six refusals that reach it are checked where they can " +
+      "be asserted rather than photographed — `market-stream-protocol.test.ts` " +
+      "walks each one — and Task 5.4.5 met this the expensive way, by " +
+      "hand-ordering `MNST (96)` ahead of `GOOGL (96)` and getting the " +
+      "rollback picture back with no diagnostic anywhere. **The ticker " +
+      "tie-break is why a furnished ranking is one keystroke from furnishing " +
+      "nothing**, which is this harness's standing hazard with the direction " +
+      "reversed: not a state the server cannot reach drawn as though it " +
+      "could, but a state the harness meant to reach silently replaced by " +
+      "another one it already had.",
+  },
+  {
+    state: "`Unusual activity` SCROLLING, or any other fact about its box",
+    why:
+      "Not in either key and not catchable here at all. This grid is text, " +
+      "so Task 5.4.1 re-areaed the whole landing grid — moving this region " +
+      "from a 1026x161 row-1 track with no content floor onto a " +
+      "`minmax(min-content, 1fr)` row at ~491 px — and the spec passed 4 of 4 " +
+      "with no expectation changed in either direction. *One height in every " +
+      "state at every width* is `pnpm probe`'s claim and this file's silence " +
+      "is not evidence for it; the region that scrolled at 1440x680 with " +
+      "nothing in it but a hatched placeholder was found by measuring, not " +
+      "by running this.",
   },
   {
     state: "CI's shape with the market SHUT and no close anywhere",
@@ -1102,7 +1525,7 @@ for (const width of WIDTHS) {
   test.describe(`the degraded grid at ${String(width)}`, () => {
     test.use({ viewport: { width, height: width === 390 ? 780 : 900 } });
 
-    test(`seven surfaces, every state, and the declared collisions`, async ({
+    test(`eight surfaces, every state, and the declared collisions`, async ({
       context,
     }) => {
       test.slow();

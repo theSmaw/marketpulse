@@ -66,6 +66,18 @@ export const unusualRow = (
  * `readUnusual` refuses a section where they do not, which is the cross-field
  * chain the region's cut sentence rests on. A helper that let a caller pass
  * them freely would mostly be used to build frames the browser silently drops.
+ *
+ * ## The generation's session is a PARAMETER since Task 5.4.6, and why
+ *
+ * It was a constant, and `overview-degraded-grid.spec.ts` drove this helper
+ * from a frame dated 2026-09-16 — so the source note drew *Ranked against 60
+ * sessions of stored bars, generated for **Oct 14***, a month after the
+ * session being scored. ADR 0044 keys a generation **by the session it is
+ * for**, and `market-unusual.ts` reads *the generation whose window ends at
+ * the session being scored*, so that frame is one no producer builds: this
+ * harness's standing hazard, a state the server cannot reach drawn as though
+ * it could. It had never shown because every existing caller happens to use
+ * the default on both fields at once.
  */
 export const unusualSection = (
   rows: readonly WireUnusualRow[],
@@ -74,6 +86,7 @@ export const unusualSection = (
     readonly eligible?: number;
     readonly tracked?: number;
   } = {},
+  generationSession = "2026-10-14",
 ): WireUnusualActivity => {
   const scored = counts.scored ?? Math.max(rows.length, 455);
   const eligible = counts.eligible ?? Math.max(scored, 466);
@@ -94,7 +107,7 @@ export const unusualSection = (
       feed: "sip",
       spanMinutes: 5,
       minimumSampleCount: 2500,
-      generation: { session: "2026-10-14", lookbackSessions: 60 },
+      generation: { session: generationSession, lookbackSessions: 60 },
     },
     refusals: {
       figure: {
@@ -143,7 +156,10 @@ export const sessionUnusualSection = (
   } = {},
   session = "2026-10-14",
 ): WireUnusualActivity => {
-  const observed = unusualSection(rows, counts);
+  // **The generation is keyed by the session being scored** (ADR 0044), so the
+  // one session argument drives both — a section dated Friday ranked against a
+  // generation dated a month later is a frame no producer builds.
+  const observed = unusualSection(rows, counts, session);
 
   return {
     basis: "session",
@@ -156,4 +172,60 @@ export const sessionUnusualSection = (
     refusals: observed.refusals,
     session,
   };
+};
+
+/**
+ * **What a gateway that ranked NOTHING actually sends** — and it is not
+ * {@link unusualSection} with an empty array (Task 5.4.6).
+ *
+ * This is CI's permanent state on both arms: 516 securities, zero bars and
+ * **no baseline generation**, so the degraded grid needs it furnished at full
+ * fidelity rather than approximated. Three fields differ from an emptied
+ * {@link unusualSection}, and every one of them is a claim:
+ *
+ * - **No `generation`.** `market-unusual.ts` resolves one off a stored row it
+ *   actually read, and a pass that scored nothing read none — so a frame with
+ *   `scored: 0` and a generation beside it is a frame no producer builds, and
+ *   it would draw `OverviewSourceNote`' third source over a baseline nobody
+ *   held. ADR 0029's false impression, furnished by a harness.
+ * - **Both refusal tallies zero.** `eligible − scored` is `0`, so a
+ *   `too-few-samples: 11` here counts refusals over an empty candidate set.
+ *   The decoder tolerates it on purpose (the identity is an inequality), which
+ *   is exactly why a harness must not lean on that tolerance.
+ * - **`eligible: 0` and `scored: 0`** rather than the helper's floors.
+ *
+ * The two arms differ in the discriminant and its companion field alone,
+ * which is {@link sessionUnusualSection}'s rule: the region's honest-nothing
+ * noun is read off **this section's** basis, so an arm built by spreading the
+ * other would make `Nothing ranked yet.` and `Nothing ranked while the market
+ * is shut.` one state with two spellings of the same frame.
+ */
+export const unrankedSection = (
+  basis: WireUnusualActivity["basis"],
+  options: { readonly tracked?: number; readonly session?: string } = {},
+): WireUnusualActivity => {
+  const shared = {
+    rows: [],
+    tracked: options.tracked ?? 503,
+    eligible: 0,
+    scored: 0,
+    spanMinutes: 5,
+    baseline: {
+      feed: "sip" as const,
+      spanMinutes: 5,
+      minimumSampleCount: 2500,
+    },
+    refusals: {
+      figure: {
+        "nothing-observed": 0,
+        "no-earlier-endpoint": 0,
+        "no-basis": 0,
+      },
+      comparison: { "too-few-samples": 0, "split-discontinuity": 0 },
+    },
+  };
+
+  return basis === "session"
+    ? { basis: "session", ...shared, session: options.session ?? "2026-09-11" }
+    : { basis: "observed", ...shared, windowMinutes: 5 };
 };
