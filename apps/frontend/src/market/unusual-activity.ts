@@ -214,7 +214,7 @@ export function unusualActivity(
   return {
     rows,
     claim: claimOf(unusual, overview?.observedAt),
-    nothing: rows.length > 0 ? undefined : nothingRankedIn(overview),
+    nothing: rows.length > 0 ? undefined : nothingRankedIn(unusual),
   };
 }
 
@@ -222,18 +222,20 @@ export function unusualActivity(
  * **The three populations, the cut and the age** — one sentence from the one
  * builder, then `describeMeasuredReach`'s own line (Task 5.4.4).
  *
- * ## The qualifier is `observed` by CONSTRUCTION, not by a clock this reads
+ * ## The qualifier IS the section, passed whole — no basis is built here
  *
- * `WireUnusualActivity` carries no basis of its own, deliberately: the
- * producer refuses the `session` basis outright, because a pass that ignored
- * it would rank yesterday's last pair as *unusual activity right now* for
- * ever (eviction in `trailing-window.ts` is relative to each security's own
- * newest bar, so nothing expires while the market is shut). So every section
- * that exists was taken over the freshness cutoff, and *heard from in the
- * last N minutes* is the one grammar that is true of it — including out of
- * hours, where the honest answer is `eligible: 0` and the sentence reads
- * *none were heard from*. The window itself is **read** off the section, never
- * spelled, which is the rule `one-home-for-the-observation-window` holds.
+ * `WireUnusualActivity` is a discriminated union whose two arms structurally
+ * satisfy `MeasuredQualifier` (Task 5.4.5), so this hands the section over and
+ * the builder keys its grammar on the **producer's** own answer — exactly as
+ * `market-breadth.ts` and `movers.ts` do with theirs. Nothing here constructs
+ * a basis, and `the-counted-basis-is-read-off-the-frame` refuses a renderer
+ * that does: a hard-coded `observed` draws *heard from in the last 5 minutes*
+ * over the last session's stored closing figures, which is a well-formed,
+ * confidently-dated wrong sentence for about 80% of the week. That is the code
+ * this function shipped with until this task.
+ *
+ * The window and the span are **read** off the section, never spelled, which
+ * is the rule `one-home-for-the-observation-window` holds.
  *
  * ## The third population is withheld at zero rather than printed as `none`
  *
@@ -265,10 +267,15 @@ function claimOf(
   const heardNothing = unusual.eligible === 0;
 
   const lead = describeMeasuredSet({
-    qualifier: { basis: "observed", windowMinutes: unusual.windowMinutes },
+    qualifier: unusual,
     tracked: unusual.tracked,
     count: unusual.eligible,
     ...(heardNothing ? {} : { ranked: unusual.scored }),
+    // **Which move the count is of, where the basis names a measurement.**
+    // The session grammar's default phrase is `Market breadth`'s figure — the
+    // previous session's close against this one's — and these rows are a move
+    // into that session's close. The span is read off the section.
+    move: { kind: "closing-span", spanMinutes: unusual.spanMinutes },
   });
 
   // The age is a sentence of its own rather than a clause, which is
@@ -332,33 +339,26 @@ function whyTheRestAreNot(
 }
 
 /**
- * **Which of the two honest-nothing nouns this frame earns.**
+ * **Which of the two honest-nothing nouns this section earns.**
  *
- * ## The basis is read from the FRAME, and that is not a reach into another region
+ * ## The basis is this SECTION's own, since Task 5.4.5
  *
- * There is exactly **one** eligibility pass per frame
- * (`breadth-is-counted-over-the-equities-alone` permits exactly one call site
- * of `eligibleMoves`), and its qualifier is the frame's, not a section's —
- * which is why `WireUnusualActivity` deliberately carries no basis of its own
- * and why `windowMinutes` stays one number per frame (Story 5.4's Gate 1,
- * false premise 6). So reading the basis off `breadth` is reading **the
- * frame's** answer, in the one section that carries it unconditionally, and
- * this region cannot disagree with the two that state the same fact in words.
+ * It used to be read off `breadth`, because the section carried no basis: the
+ * recorded reversal trigger was *the first state in which this region's
+ * population and `Market breadth`'s are taken on different bases*, and what
+ * fired instead was the **wire** gaining the discriminant — the two regions
+ * still agree about the basis, and now this one can say so itself rather than
+ * reaching across the frame to find out.
  *
- * **It falls back to the open-market noun rather than guessing shut.** A frame
- * whose breadth section is unreadable — a rollback pinning a previous image —
- * tells us nothing about the session, and *nothing ranked yet* is true in
- * either case where *while the market is shut* would be a claim about a clock
- * nobody read. This module reads no clock at all, which is the region's rule
- * since Task 5.2.3 and what keeps it correct under Epic 13's replay.
- *
- * **Reversal trigger**, as a condition: the first state in which this
- * region's population and `Market breadth`'s are taken on different bases.
- * At that point the basis is this section's own fact and belongs on its own
- * wire shape.
+ * **It falls back to the open-market noun rather than guessing shut**, which is
+ * unchanged: a section whose basis is unreadable is a section this reader
+ * dropped entirely, and *nothing ranked yet* is true either way where *while
+ * the market is shut* would be a claim about a clock nobody read. This module
+ * reads no clock at all, which is the region's rule since Task 5.2.3 and what
+ * keeps it correct under Epic 13's replay.
  */
-const nothingRankedIn = (overview: WireMarketOverview | undefined): string =>
-  overview?.breadth?.basis === "session" ? NOTHING_RANKED_SHUT : NOTHING_RANKED;
+const nothingRankedIn = (unusual: WireUnusualActivity): string =>
+  unusual.basis === "session" ? NOTHING_RANKED_SHUT : NOTHING_RANKED;
 
 /** What the arrival mark needs, as one argument rather than two trailing ones. */
 interface Arrivals {

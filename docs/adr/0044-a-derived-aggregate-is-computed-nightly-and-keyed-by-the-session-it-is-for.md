@@ -167,3 +167,64 @@ from an independent window.
 **Every figure above is LOCAL, on one laptop, against a warm-ish page cache.**
 The deployed arm is AC 10's and is `GET /diagnostics/baseline-cost`'s to answer;
 nothing here is a measurement of the B1ms tier.
+
+## Amended 2026-10-16 by Task 5.4.5 — the shape was reused twice more, and the second use needed TWO tables rather than one
+
+**The decision is unchanged and this is the record of it being applied again.**
+Story 5.4 needed the landing page's `Unusual activity` region to draw something
+when the market is shut — about 80% of the week — and the figure it ranks is
+process memory with no store-backed fill, so there was nothing to draw. The
+answer was this ADR's shape, not a new one.
+
+**What was added.** `0014_session_return_percentiles.sql` holds each security's
+closing five-minute move for a session, ranked against the baseline generation
+for that same session, keyed by **the session it is for**, with `observed_at`
+taking **no default**.
+
+**And a second table nobody anticipated.** A refused security gets **no row** —
+and a session on which nothing was rankable therefore has **no rows at all**,
+which is exactly the session whose footer has to stay honest. So the three
+population counts and the five refusal counts need a per-session row of their
+own: `session_return_percentile_passes`. **The generalisation is worth more than
+the table**: an aggregate keyed by its session needs a companion row for _what
+the pass saw_, because the absence of rows is indistinguishable from the absence
+of a pass, and a surface that states its own denominator cannot tell them apart
+from the scored rows alone.
+
+**The generation is identified by the shared key rather than copied.** The pass
+ranks against the generation whose window **ends at the session being scored**,
+so `(security_id, observed_at)` **is** `return_baselines`' own key; storing a
+second `timestamptz` holding a copy of `observed_at` would be one fact with two
+homes. `baseline_lookback_sessions` is stored because it is the pass's own
+parameter rather than a copy of anything.
+
+**One consequence of the self-inclusive window, measured.** The generation's
+window _contains_ the sample being ranked, so **`above_sample` is `false` on
+every stored row — 0 of 485 on the real store** — while the live arm, which
+ranks a _new_ observation against a _past_ distribution, can reach `>99th`. So
+the same region can say `>99th` mid-session and never out of hours. The
+alternative — ranking against the previous night's generation — makes the first
+night after a fresh install produce **no rows at all**, because that generation
+does not exist. The self-inclusive option was taken deliberately and the
+difference is stated in `0014` §5.
+
+**Both tables are labelled DERIVED and RECOMPUTABLE in three places** — the
+migration, `schema.ts` and here — which is this ADR's own rule and `0013` §1's
+stated reason: a table nobody has labelled is one the next reader treats as
+primary, and the named cost is a later story writing an expensive backfill
+against a table whose whole content is a cache.
+
+**The cost, measured rather than projected** (the mistake this epic made once
+already, at 20–66×). The migration is **9–14 ms** of catalogue work against
+`deploy.yml`'s `timeout 120`, with no `ALTER TABLE` on `market_bars`,
+`securities` or `return_baselines`; the FK takes `SHARE ROW EXCLUSIVE` on
+`securities`, conflicting with neither a read's `ACCESS SHARE` nor a child
+insert's `ROW SHARE`. The nightly pass's **added** cost is **below this
+machine's noise floor** — median **13.18 s** with the ranking (n = 9) against a
+**13.16 s** control (n = 3), with a new-code block coming out faster than the
+control block. One laptop, warm store, blocks rather than alternating samples.
+
+**ADR 0038's frame-grain trigger was evaluated here and did NOT fire**, which is
+the second time in two days. A nightly row read on the **batch's** cadence from a
+table is `lastCloses`' shape, not a second arrival. It fires only if such a
+figure is ever withheld and refreshed by the gateway on its own clock.

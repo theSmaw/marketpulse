@@ -1,4 +1,5 @@
-import { decodeMarketStreamMessage } from "@marketpulse/shared";
+import { decodeMarketStreamMessage, marketDateAt } from "@marketpulse/shared";
+
 import type {
   SecuritiesResponse,
   WireMarketOverview,
@@ -175,7 +176,7 @@ async function activeEquities(page: Page): Promise<readonly string[]> {
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-test("a deployment with no provider has observed nothing, so it ranks nothing — and any row it drew would be fabricated", async ({
+test("a deployment with no provider has observed nothing, so the OBSERVED basis ranks nothing — and a session row it drew would be stored or fabricated", async ({
   page,
 }) => {
   const overviews = await openWithRecordedStream(page);
@@ -191,21 +192,70 @@ test("a deployment with no provider has observed nothing, so it ranks nothing �
     return;
   }
 
-  // **The out-of-frame claim, and the only one in this story that catches a
-  // lying producer.** `MARKET_DATA_PROVIDER=none` constructs no stream, so
-  // `trailing-window.ts` is empty for ever and `eligibleMoves` hears from
-  // nobody. A row here is not a wrong figure — it is a figure about an
-  // observation that cannot exist.
-  expect(unusual.eligible).toBe(0);
-  expect(unusual.scored).toBe(0);
-  expect(unusual.rows).toEqual([]);
+  // **Amended 2026-10-16 (Task 5.4.5), and the amendment is the point rather
+  // than a weakening.** Until the session arm existed, *no provider* implied
+  // *no rows*, full stop. It no longer does: out of hours the region draws the
+  // last completed session's closing ranking, **read from
+  // `session_return_percentiles`**, which a deployment with no provider can
+  // perfectly well hold — the nightly pass reads stored `sip` bars and talks
+  // to no vendor.
+  //
+  // So the out-of-frame claim splits by basis, and neither half is weaker
+  // than the original.
+  if (unusual.basis === "observed") {
+    // **Unchanged, and still the only assertion in this story that catches a
+    // lying producer.** `MARKET_DATA_PROVIDER=none` constructs no stream, so
+    // `trailing-window.ts` is empty for ever and `eligibleMoves` hears from
+    // nobody. A row here is not a wrong figure — it is a figure about an
+    // observation that cannot exist.
+    expect(unusual.eligible).toBe(0);
+    expect(unusual.scored).toBe(0);
+    expect(unusual.rows).toEqual([]);
 
-  // **And the region draws the honest-nothing state rather than a ranking of
-  // nothing** — the browser's half of the same claim, which is what makes
-  // this arm about the product rather than about a JSON body.
-  await expect(
-    page.getByRole("region", { name: "Unusual activity" }),
-  ).toContainText(/Nothing ranked/u);
+    // **And the region draws the honest-nothing state rather than a ranking
+    // of nothing** — the browser's half of the same claim, which is what
+    // makes this arm about the product rather than about a JSON body.
+    await expect(
+      page.getByRole("region", { name: "Unusual activity" }),
+    ).toContainText(/Nothing ranked/u);
+    return;
+  }
+
+  // **The session arm, grounded out of frame the same way.** A row here came
+  // from the store or it was invented, and the two are separable without
+  // trusting the producer:
+  //
+  //   - **every endpoint is `sip`.** The nightly pass reads `feed = 'sip'`
+  //     rows by name, and the only other tape in this product arrives on a
+  //     live socket a provider-less deployment does not have. An `iex`
+  //     endpoint on this deployment is a figure about an observation that
+  //     cannot exist — the original claim, one field over.
+  //   - **every endpoint falls inside the session the section names.** A
+  //     producer ranking its own in-memory bars would carry today's instants
+  //     under a date from last week, which is the exact confusion the two
+  //     bases exist to prevent.
+  const session = unusual.session;
+  expect(session).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
+
+  for (const row of unusual.rows) {
+    expect(row.from.feed, `${row.symbol} from`).toBe("sip");
+    expect(row.to.feed, `${row.symbol} to`).toBe("sip");
+
+    // The market-local date of each instant, through **the one module
+    // permitted to convert one** rather than by slicing an ISO string or
+    // building a second formatter — a `no-restricted-syntax` rule refuses
+    // both, and it caught this file's first draft doing the second.
+    for (const at of [row.from.at, row.to.at]) {
+      expect(marketDateAt(new Date(at)), `${row.symbol} ${at}`).toBe(session);
+    }
+  }
+
+  // And the region drew them, rather than claiming the market is quiet.
+  if (unusual.rows.length > 0) {
+    await expect(
+      page.getByRole("region", { name: "Unusual activity" }),
+    ).toContainText("percentile");
+  }
 });
 
 test("the three populations nest and the set is the one the universe says it is", async ({

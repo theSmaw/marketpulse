@@ -24,6 +24,11 @@ import type {
   RankableReturnBaseline,
   StoredReturnBaseline,
 } from "./return-baseline-store.js";
+import type {
+  StoredSessionPass,
+  StoredSessionPercentile,
+  StoredSessionRanking,
+} from "./session-percentile-store.js";
 
 // **No clock, no socket, no database** — `market-breadth.ts`' note unchanged.
 // Every input is an argument, including the instant, the windows and the
@@ -136,6 +141,7 @@ const score = (
     readonly baselines?: Readonly<Record<string, StoredReturnBaseline>>;
     readonly marketOpen?: boolean;
     readonly rows?: number;
+    readonly sessionRanking?: StoredSessionRanking;
   } = {},
 ) =>
   unusualActivity({
@@ -147,8 +153,72 @@ const score = (
     baselineOf: (symbol: Ticker) => over.baselines?.[symbol],
     grid: GRID,
     asOf: ASOF,
+    ...(over.sessionRanking === undefined
+      ? {}
+      : { sessionRanking: over.sessionRanking }),
     ...(over.rows === undefined ? {} : { rows: over.rows }),
   });
+
+/**
+ * **A stored session ranking, as the nightly pass wrote one** (Task 5.4.5).
+ *
+ * Every figure on it is the pass's rather than this bundle's, which is the
+ * property the assertions below are about: the counts, the refusals, the tape
+ * and the bound are all **deliberately different** from the constants this
+ * process would spell, so a producer reading its own instead of the row's is
+ * visible rather than coincidentally right.
+ */
+const storedRanking = (
+  scores: readonly StoredSessionPercentile[],
+  overrides: Partial<StoredSessionPass> = {},
+): StoredSessionRanking => ({
+  pass: {
+    observedAt: new Date("2026-09-15T20:00:00.000Z"),
+    tracked: 501,
+    eligible: 466,
+    scored: 455,
+    refusals: {
+      nothingObserved: 35,
+      noEarlierEndpoint: 0,
+      noBasis: 0,
+      tooFewSamples: 11,
+      splitDiscontinuity: 0,
+    },
+    spanMinutes: 5,
+    baseline: {
+      feed: "sip",
+      spanMinutes: 5,
+      lookbackSessions: 59,
+      minimumSampleCount: 2400,
+    },
+    ...overrides,
+  },
+  scores,
+});
+
+/** One stored score. The store returns these in TICKER order, never ranked. */
+const storedScore = (
+  symbol: string,
+  rank: number,
+  percent: number,
+): StoredSessionPercentile => ({
+  symbol: toTicker(symbol),
+  rank,
+  aboveSample: false,
+  sampleCount: 4620,
+  percent,
+  from: {
+    at: new Date("2026-09-15T19:54:00.000Z"),
+    price: 100,
+    feed: "sip",
+  },
+  to: {
+    at: new Date("2026-09-15T19:59:00.000Z"),
+    price: 100 + percent,
+    feed: "sip",
+  },
+  observed: 5,
+});
 
 describe("unusualActivity — the counts and the row", () => {
   it("scores a security with a pair and a baseline, and states the three counts", () => {
@@ -212,6 +282,12 @@ describe("unusualActivity — the counts and the row", () => {
     // The freshness cutoff is breadth's, read from its one home — ADR 0043's
     // first five. The measurement span is the return's — the second. They are
     // equal today and uncoupled for ever.
+    //
+    // The narrowing is the type's own: since Task 5.4.5 the cutoff exists on
+    // the `observed` arm alone, because *heard from in the last five minutes*
+    // is not a sentence about a session that has ended.
+    expect(section.basis).toBe("observed");
+    if (section.basis !== "observed") return;
     expect(section.windowMinutes).toBe(BREADTH_WINDOW_MINUTES);
     expect(section.spanMinutes).toBe(RETURN_SPAN_MINUTES);
 
@@ -452,7 +528,7 @@ describe("unusualActivity — the order and the tie-break", () => {
 });
 
 describe("unusualActivity — the basis gate", () => {
-  it("scores nothing on the session basis, however full the windows are", () => {
+  it("reads no trailing window on the session basis, however full they are", () => {
     const section = score([live("NVDA")], {
       windows: { NVDA: pair(100, 110) },
       baselines: { NVDA: baseline() },
@@ -462,7 +538,9 @@ describe("unusualActivity — the basis gate", () => {
     // Out of hours a process that was up at the bell still holds that
     // session's last bars — eviction is relative to each security's own newest
     // bar — so a pass that ignored the basis would rank yesterday's
-    // 15:55→16:00 pair for ever as unusual activity right now.
+    // 15:55→16:00 pair for ever as unusual activity right now. The windows
+    // above are full; the section is the stored one, and nothing is stored.
+    expect(section.basis).toBe("session");
     expect(section.rows).toEqual([]);
     expect(section.eligible).toBe(0);
     expect(section.scored).toBe(0);
@@ -473,10 +551,109 @@ describe("unusualActivity — the basis gate", () => {
     expect(section.refusals.figure["nothing-observed"]).toBe(0);
   });
 
-  it("states the cutoff as the denominator even where nothing was eligible", () => {
+  it("names the session it asked about where nothing at all is stored", () => {
     const section = score([live("NVDA")], { marketOpen: false });
 
-    expect(section.windowMinutes).toBe(BREADTH_WINDOW_MINUTES);
+    // CI's permanent state, and every store's state before its first nightly
+    // run. The sentence is dated rather than dateless, because *of the N
+    // companies we track, none had a move into the close on this session* is
+    // the true claim about a store with nothing in it.
+    expect(section.basis).toBe("session");
+    if (section.basis !== "session") return;
+    expect(section.session).toBe("2026-09-16");
+
+    // The spans and the bound are still stated — a section with no rows still
+    // says what the comparison would have been of — and there is no
+    // generation, which is the one thing nothing stored can tell us.
+    expect(section.spanMinutes).toBe(RETURN_SPAN_MINUTES);
+    expect(section.baseline.feed).toBe("sip");
+    expect(section.baseline.generation).toBeUndefined();
+  });
+
+  it("draws the stored session's rows, ranked, with the PASS's own figures", () => {
+    const section = score([live("NVDA")], {
+      marketOpen: false,
+      // Ticker order in, ranked order out — the store never sorts, because
+      // `one-comparator-for-the-order-of-a-percentile` permits one home for
+      // that order and this is not it.
+      sessionRanking: storedRanking([
+        storedScore("AMD", 71, -1.2),
+        storedScore("MSFT", 99, 3.4),
+        storedScore("NVDA", 88, -2.6),
+      ]),
+    });
+
+    expect(section.basis).toBe("session");
+    expect(section.rows.map((row) => row.symbol)).toEqual([
+      "MSFT",
+      "NVDA",
+      "AMD",
+    ]);
+
+    // **The three counts are the pass's**, not this process's: the entries
+    // handed in are one security, and the figures are 501/466/455.
+    expect(section.tracked).toBe(501);
+    expect(section.eligible).toBe(466);
+    expect(section.scored).toBe(455);
+
+    // **So are the five refusals**, which is what makes the footer out of
+    // hours the same sentence it is at 11:00.
+    expect(section.refusals.figure["nothing-observed"]).toBe(35);
+    expect(section.refusals.comparison["too-few-samples"]).toBe(11);
+  });
+
+  it("states the stored session rather than the one it asked about", () => {
+    const section = score([live("NVDA")], {
+      marketOpen: false,
+      sessionRanking: storedRanking([storedScore("NVDA", 88, -2.6)]),
+    });
+
+    if (section.basis !== "session")
+      throw new Error("expected the session arm");
+
+    // The shared pass asked about 2026-09-16 and the stored row is FOR
+    // 2026-09-15 — the disagreement every evening between the bell and that
+    // night's run. A date recorded against another session's figures is
+    // `last-closes-cache.ts`' recorded defect: well-formed, correctly spelled,
+    // wrong.
+    expect(section.session).toBe("2026-09-15");
+    expect(section.baseline.generation?.session).toBe("2026-09-15");
+  });
+
+  it("reads the baseline's facts off the stored pass rather than its own constants", () => {
+    const section = score([live("NVDA")], {
+      marketOpen: false,
+      sessionRanking: storedRanking([storedScore("NVDA", 88, -2.6)]),
+    });
+
+    // Deliberately not this bundle's values: a rollback can put a runner and a
+    // reader two values apart, and the figure the screen states must be the
+    // one the producer applied (`0014` §5).
+    expect(section.baseline.generation?.lookbackSessions).toBe(59);
+    expect(section.baseline.minimumSampleCount).toBe(2400);
+    expect(section.baseline.minimumSampleCount).not.toBe(
+      BASELINE_MINIMUM_SAMPLE,
+    );
+  });
+
+  it("bounds the stored rows at the row budget", () => {
+    const section = score([live("NVDA")], {
+      marketOpen: false,
+      sessionRanking: storedRanking(
+        // Real ticker shapes, because `toTicker` refuses anything else — a
+        // fixture the domain would reject is a measurement of nothing.
+        Array.from({ length: UNUSUAL_ROWS + 4 }, (_unused, at) =>
+          storedScore(
+            `A${String.fromCharCode(65 + at)}`,
+            Math.max(0, 99 - at),
+            1 + at,
+          ),
+        ),
+      ),
+      rows: UNUSUAL_ROWS,
+    });
+
+    expect(section.rows).toHaveLength(UNUSUAL_ROWS);
   });
 });
 

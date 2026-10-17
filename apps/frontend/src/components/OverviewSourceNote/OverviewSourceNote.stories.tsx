@@ -299,6 +299,7 @@ export const BaselinesRanked: Story = {
     overview: {
       ...SESSION,
       unusual: {
+        basis: "observed",
         rows: [],
         tracked: 501,
         eligible: 0,

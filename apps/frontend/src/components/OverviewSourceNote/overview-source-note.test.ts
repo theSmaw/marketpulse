@@ -299,6 +299,7 @@ describe("the baselines clause — the third source class", () => {
   ): WireMarketOverview => ({
     ...frame([]),
     unusual: {
+      basis: "observed",
       rows: [],
       tracked: 501,
       eligible: 0,

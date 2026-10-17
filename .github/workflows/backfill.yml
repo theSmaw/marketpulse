@@ -464,8 +464,19 @@ jobs:
           echo "backfill completed"
 
   # ==========================================================================
-  # The return baselines (Task 5.3.2, ADR 0044)
+  # The return baselines, and the session ranking (Tasks 5.3.2 and 5.4.5,
+  # ADR 0044)
   # ==========================================================================
+  #
+  # **One job, two tables, because the second is a BY-PRODUCT of the first.**
+  # Since Task 5.4.5 the same pass also writes `session_return_percentiles` —
+  # where each equity's closing five-minute move sat in its own 60-session
+  # history — from the closes it has already read. A second nightly job would
+  # double the ~11.8 s of correlated I/O to compute something this one is
+  # holding in memory. Measured on a populated store on 2026-10-16: the pass's
+  # total is **11.6–20.0 s** with the ranking and **12.4–13.3 s** without it,
+  # which is the same number inside this machine's noise.
+  #
   #
   # **A SECOND JOB in this workflow rather than a cron of its own, and
   # `needs: backfill` is the whole reason.** Story 5.3's AC 5 ends the baseline
@@ -594,7 +605,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "## Return baselines"
+            echo "## Return baselines and the session ranking"
             echo
             echo '```'
             cat /tmp/baselines.txt 2>/dev/null || echo "the pass produced no summary"

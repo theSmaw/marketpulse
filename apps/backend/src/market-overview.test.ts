@@ -112,6 +112,7 @@ const NO_MOVERS: EligibleMoves = {
  * at zero is the state a process that has heard nothing is in — CI's for ever.
  */
 const NO_SCORES: WireUnusualActivity = {
+  basis: "observed",
   rows: [],
   tracked: 0,
   eligible: 0,

@@ -44,6 +44,7 @@ const section = (
   rows: readonly WireUnusualRow[],
   generation?: { session: string; lookbackSessions: number },
 ): WireUnusualActivity => ({
+  basis: "observed",
   rows,
   tracked: 501,
   eligible: 466,
@@ -61,6 +62,35 @@ const section = (
     comparison: { "too-few-samples": 11, "split-discontinuity": 0 },
   },
 });
+
+/**
+ * The same section on the **session** arm — the last completed session's
+ * stored ranking, which is what `/` draws for about 80% of the week (Task
+ * 5.4.5).
+ */
+const onSession = (
+  from: WireUnusualActivity,
+  session = "2026-10-15",
+): WireUnusualActivity => ({
+  // **Field by field rather than a spread**, which is ADR 0031's habit and
+  // here also the only shape that compiles: the two arms carry different
+  // discriminating fields, so a spread of one into the other would leave
+  // `windowMinutes` hanging off a session section.
+  rows: from.rows,
+  tracked: from.tracked,
+  eligible: from.eligible,
+  scored: from.scored,
+  spanMinutes: from.spanMinutes,
+  baseline: from.baseline,
+  refusals: from.refusals,
+  basis: "session",
+  session,
+});
+
+const sessionSection = (
+  rows: readonly WireUnusualRow[],
+  session = "2026-10-15",
+): WireUnusualActivity => onSession(section(rows), session);
 
 const frame = (
   unusual: WireUnusualActivity | undefined,
@@ -235,22 +265,26 @@ describe("the two honest-nothing nouns, because the two repairs differ", () => {
     expect(read(frame(section([])))?.nothing).toBe("Nothing ranked yet.");
   });
 
-  it("says the market is shut when the shared pass answered on the session basis", () => {
-    // `market-unusual.ts` refuses the session basis outright — a pass that
-    // ignored it would rank yesterday's 15:55→16:00 pair, for ever, as
-    // unusual activity right now — so `eligible: 0` out of hours is literally
-    // true. That is about 80% of the week, and *wait until 09:30* is not a
-    // repair the other sentence invites.
-    expect(read(frame(section([]), "session"))?.nothing).toBe(
+  it("says the market is shut when the SECTION's own basis is the session", () => {
+    // The nightly pass wrote no ranking for this session, so `eligible: 0` on
+    // the session arm is literally true. That is about 80% of the week, and
+    // *wait until 09:30* is not a repair the other sentence invites.
+    //
+    // Since Task 5.4.5 the basis is read off **this** section rather than off
+    // `breadth`: the frame below carries a breadth section on the *observed*
+    // basis deliberately, so a reader still reaching across the frame draws
+    // the wrong noun.
+    expect(read(frame(sessionSection([]), "observed"))?.nothing).toBe(
       "Nothing ranked while the market is shut.",
     );
   });
 
-  it("falls back to the open-market noun when the frame says nothing about the session", () => {
-    // A rollback whose breadth section is unreadable tells us nothing about
-    // the clock, and *nothing ranked yet* is true either way where *while the
-    // market is shut* would be a claim nobody read a clock for. This module
-    // reads no clock at all.
+  it("falls back to the open-market noun on the observed arm", () => {
+    // A section whose basis is unreadable is a section `readUnusual` dropped
+    // entirely, so the only absence this function sees is `undefined`, and
+    // *nothing ranked yet* is true either way where *while the market is shut*
+    // would be a claim nobody read a clock for. This module reads no clock at
+    // all.
     expect(read(frame(section([]), "none"))?.nothing).toBe(
       "Nothing ranked yet.",
     );
@@ -372,6 +406,53 @@ describe("the footer — three populations, the cut and why the rest are not row
         "minutes and 455 have a long enough history to rank. 9 have too " +
         "short a baseline and 2 cross an unadjusted price break. Nothing " +
         "newer than Oct 15 · 14:01 EDT has reached us.",
+    );
+  });
+
+  it("states the session it measured, on the session arm", () => {
+    // **Task 5.4.5.** Out of hours the figures are the last completed
+    // session's closing ones, and the sentence has to say so: the grammar is
+    // keyed on the basis the **wire** sent, and the measurement is named
+    // because *a close-to-close move* is `Market breadth`'s figure and not
+    // this one.
+    const view = read(
+      observedFrame(
+        onSession(
+          counted([row("NVDA", 99, 3.2)], {
+            eligible: 466,
+            scored: 455,
+            tooFew: 9,
+            split: 2,
+          }),
+        ),
+      ),
+    );
+
+    expect(view?.claim?.drawn).toBe(
+      "Of the 501 companies we track, 466 had a measurable 5-minute move " +
+        "into the close on 2026-10-15 and 455 have a long enough history to " +
+        "rank. 9 have too short a baseline and 2 cross an unadjusted price " +
+        "break. Nothing newer than Oct 15 · 14:01 EDT has reached us.",
+    );
+
+    // And it never says *heard from in the last 5 minutes* about a session
+    // that ended, which is the sentence a hard-coded basis drew for about 80%
+    // of the week.
+    expect(view?.claim?.drawn).not.toContain("heard from");
+  });
+
+  it("withholds the cut on the session arm too, where nothing was eligible", () => {
+    // CI's permanent state and every store's before its first nightly run: a
+    // fully-formed denominator about nothing is ADR 0029's false impression in
+    // a conjunct.
+    const view = read(
+      observedFrame(onSession(counted([], { eligible: 0, scored: 0 }))),
+    );
+
+    expect(view?.claim?.drawn).toBe(
+      "Of the 501 companies we track, none had a measurable 5-minute move " +
+        "into the close on 2026-10-15. Nothing newer than Oct 15 · 14:01 " +
+        "EDT has reached us.",
     );
   });
 

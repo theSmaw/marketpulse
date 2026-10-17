@@ -750,6 +750,203 @@ export interface ReturnBaselinesTable {
   recorded_at: ColumnType<Date, Date | undefined, Date>;
 }
 
+/**
+ * `session_return_percentiles` — where one security's **closing** 5-minute
+ * return sat in its own 60-session history, for one completed session (Task
+ * 5.4.5). See `../migrations/0014_session_return_percentiles.sql`, which is the
+ * source of truth this mirrors and which carries the decisions, and
+ * [ADR 0044](../../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md).
+ *
+ * ## **DERIVED AND RECOMPUTABLE. Recompute with `pnpm baselines`.**
+ *
+ * This is the **second derived table in this schema** — {@link
+ * SessionReturnPercentilePassesTable} is the third — and the label is
+ * load-bearing rather than descriptive: the row is computed from `market_bars`
+ * and `return_baselines` by the nightly pass, as a by-product of a read that is
+ * already running. Dropping every row loses nothing.
+ *
+ * Said in three places — here, in the migration's §1 and in the ADR — because a
+ * table nobody has labelled is a table the next reader treats as primary, and
+ * the named cost is a later story changing the ranking rule or which pair of
+ * the session is scored and writing an expensive backfill against a cache.
+ *
+ * ## A row is a SCORE. A refused security has no row
+ *
+ * The migration's §4, which is where this diverges from `return_baselines`: a
+ * baseline refusal is a row because it is safe to stop retrying, and a session
+ * score is the input to a ranked list of ten, where ADR 0038 decision 5 drops
+ * the whole row rather than carrying a `rank: null` that reads as `0` — a
+ * plausible 0th percentile at the top of a region about unusual moves. The five
+ * refusal kinds are counted on the pass row instead.
+ */
+export interface SessionReturnPercentilesTable {
+  /** `bigint generated always as identity`. {@link SecuritiesTable.id}'s reasoning. */
+  id: GeneratedAlways<string>;
+
+  /**
+   * `securities.id`, a real foreign key with no `on delete`. `string` because
+   * it is a `bigint`. `never` on update: a row does not change which security
+   * it describes.
+   */
+  security_id: ColumnType<string, string, never>;
+
+  /**
+   * **The scored session's close** — the coordinate a replay keys on, and
+   * `README.md` §2's reserved name so Epic 13's plugin covers this table with
+   * its generic predicate.
+   *
+   * `Date` on insert and **no default anywhere**: a `default now()` would turn
+   * *the session this describes* into *when a script ran*, invisibly.
+   *
+   * `never` on update, with `security_id`: together they are the score.
+   */
+  observed_at: ColumnType<Date, Date, never>;
+
+  /** The integer ordinal, `0`–`99`. `returnPercentileOf`'s own figure. */
+  rank: ColumnType<number, number, number>;
+
+  /**
+   * Whether the magnitude is strictly above every sample the baseline holds.
+   *
+   * `false` on every row this pass writes today, because the window it ranks
+   * against **contains** the sample being ranked — the migration's §5 states
+   * that difference from the live path rather than leaving it to be noticed.
+   */
+  above_sample: ColumnType<boolean, boolean, boolean>;
+
+  /**
+   * **`n`, counted by the pass** — the same figure `return_baselines` stored
+   * for this security and this window, beside the ordinal it was taken
+   * against. `string` on read because it is a `bigint`, which
+   * `../migrations/README.md` §4 requires of a count and
+   * `migrate.database.test.ts` enforces on every `_count` column.
+   */
+  sample_count: ColumnType<string, string | number, string | number>;
+
+  /**
+   * **The SIGNED move, as a percentage** — `numeric(18, 6)`, so `string` on
+   * read.
+   *
+   * The percentile ranks `Math.abs(percent)`, so the sign is **not recoverable
+   * from the ordinal**: a −9% crash and a +9% spike are the identical rank, and
+   * the drawn row's direction glyph reads this column.
+   */
+  percent: ColumnType<string, string | number, string | number>;
+
+  /**
+   * The two endpoints with their tape — `WireMeasuredReturn`'s rule stored: the
+   * figure may not be read without the two instants it was measured between.
+   * The instants are the bars' own `startsAt`.
+   */
+  from_at: ColumnType<Date, Date, Date>;
+  from_price: ColumnType<string, string | number, string | number>;
+  from_feed: ColumnType<MarketFeed, MarketFeed, MarketFeed>;
+  to_at: ColumnType<Date, Date, Date>;
+  to_price: ColumnType<string, string | number, string | number>;
+  to_feed: ColumnType<MarketFeed, MarketFeed, MarketFeed>;
+
+  /**
+   * How many of the span's minutes we hold a close for, `1`–`span_minutes`.
+   * `fiveMinuteReturn`'s `observed`, counted in the walk that picked the
+   * endpoints.
+   */
+  observed_minutes: ColumnType<number, number, number>;
+
+  /**
+   * When we wrote the row: `timestamptz not null default now()`. Optional on
+   * insert and **updatable**, as `ReturnBaselinesTable.recorded_at` is and for
+   * its reason — a re-run of one session rewrites its rows, and the pair with
+   * `observed_at` is the only way to tell a recomputed row from an untouched
+   * one.
+   */
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
+/**
+ * `session_return_percentile_passes` — one row per session recording **what the
+ * pass was over, how much of it got past the line, and why the rest did not**
+ * (Task 5.4.5).
+ *
+ * ## **DERIVED AND RECOMPUTABLE. Recompute with `pnpm baselines`.**
+ *
+ * The **third derived table in this schema**; see
+ * {@link SessionReturnPercentilesTable} for the label's cost and the migration's
+ * §1 for the command.
+ *
+ * ## Why it is a table rather than three columns on every score row
+ *
+ * Because a **refused** security has no score row (the migration's §4), so on a
+ * session where nothing was rankable there are no rows at all — and that is
+ * exactly the session whose footer has to stay honest. The three populations and
+ * the five refusal counts are facts about the pass, and `Unusual activity`'s
+ * whole claim is those figures rather than the ten rows above them.
+ *
+ * The reader establishes the pair by equality on `observed_at` and reads this
+ * row **first**, so a partially-failed pass — scores written, no pass row — is
+ * invisible rather than half-drawn.
+ */
+export interface SessionReturnPercentilePassesTable {
+  id: GeneratedAlways<string>;
+
+  /**
+   * **The scored session's close**, and the natural key: one pass per session.
+   * No default, `never` on update — {@link
+   * SessionReturnPercentilesTable.observed_at}'s reasoning.
+   */
+  observed_at: ColumnType<Date, Date, never>;
+
+  /**
+   * **The three populations, which nest** — `tracked ⊇ eligible ⊇ scored`,
+   * checked in the database and again by `readUnusual` at the browser's end,
+   * because the region's cut sentence rests on the chain and a negative
+   * remainder is a count of securities that cannot exist.
+   *
+   * `bigint`, so `string` on read: `../migrations/README.md` §4's rule for a
+   * count.
+   */
+  tracked_count: ColumnType<string, string | number, string | number>;
+  eligible_count: ColumnType<string, string | number, string | number>;
+  scored_count: ColumnType<string, string | number, string | number>;
+
+  /**
+   * **Why the rest are not rows, by name.** The first three are
+   * `ReturnRefusal`'s members and the last two are `PercentileRefusal`'s — five
+   * facts with five repairs, which is why they are five columns and not one
+   * `refused` total or a `jsonb` bag.
+   */
+  nothing_observed_count: ColumnType<string, string | number, string | number>;
+  no_earlier_endpoint_count: ColumnType<
+    string,
+    string | number,
+    string | number
+  >;
+  no_basis_count: ColumnType<string, string | number, string | number>;
+  too_few_samples_count: ColumnType<string, string | number, string | number>;
+  split_discontinuity_count: ColumnType<
+    string,
+    string | number,
+    string | number
+  >;
+
+  /** The span each row's endpoints are apart — ADR 0043's measurement span. */
+  span_minutes: ColumnType<number, number, number>;
+
+  /**
+   * **What the ordinals were measured against, as the pass applied it** — not
+   * as a later bundle believes it. A rollback can put a runner and a reader two
+   * values apart, which is `WireRefusedPercentile.minimumSampleCount`'s
+   * recorded reason, and `baseline_feed` is invariant 6 in a column: the
+   * distribution is `sip` and the live numerator is `iex`, and a comparison
+   * whose tape nothing records is one the screen cannot attribute.
+   */
+  baseline_feed: ColumnType<MarketFeed, MarketFeed, MarketFeed>;
+  baseline_span_minutes: ColumnType<number, number, number>;
+  baseline_lookback_sessions: ColumnType<number, number, number>;
+  minimum_sample_count: ColumnType<string, string | number, string | number>;
+
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
 export interface Database {
   securities: SecuritiesTable;
   market_bars: MarketBarsTable;
@@ -757,4 +954,6 @@ export interface Database {
   bar_attempts: BarAttemptsTable;
   security_memberships: SecurityMembershipsTable;
   return_baselines: ReturnBaselinesTable;
+  session_return_percentiles: SessionReturnPercentilesTable;
+  session_return_percentile_passes: SessionReturnPercentilePassesTable;
 }

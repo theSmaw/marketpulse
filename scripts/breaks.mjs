@@ -5000,6 +5000,49 @@ export const BREAKS = [
     command: ["pnpm", "invariants"],
     expect: "A population spelled rather than read",
   },
+  // **Task 5.4.5's basis, and the defect is the code this task replaced.**
+  //
+  // `claimOf` built its own qualifier — `{ basis: "observed", windowMinutes:
+  // unusual.windowMinutes }` — which was correct while the producer refused
+  // the session basis outright, and became a lie for about 80% of the week
+  // the moment the section could carry the last completed session's stored
+  // closing figures. The region draws *466 were heard from in the last 5
+  // minutes* over figures measured at Friday's close: well-formed, confidently
+  // dated, and wrong about which measurement it is describing.
+  //
+  // **The `find` text survives the substitution**, which is this registry's
+  // convention since Task 5.4.4's break went red twice and established
+  // nothing: a replacement that removed the read would trip the check's
+  // *anchor* clause rather than the one this entry is about.
+  //
+  // The spread is what makes the plant compile AND express the defect: a
+  // property after a spread of the same key loses, so the constructed
+  // qualifier is the one `describeMeasuredSet` receives.
+  {
+    name: "the-basis-is-spelled-rather-than-read",
+    proves:
+      "A region states what it counted over using a basis the RENDERER " +
+      "chose rather than the one the producer sent. The two grammars are " +
+      "*heard from in the last five minutes* and *had a move into the close " +
+      "on 2026-10-15*, and the first is false about a session that has " +
+      "ended — which is about 80% of the week. The sentence stays " +
+      "well-formed, the counts stay the frame's own and every unit test " +
+      "furnishing an observed section stays green, which is why nothing " +
+      "else catches it (Task 5.4.5).",
+    file: "apps/frontend/src/market/unusual-activity.ts",
+    find: "    qualifier: unusual,",
+    replace:
+      "    qualifier: unusual,\n" +
+      "    // pnpm break: reverted automatically\n" +
+      "    ...{\n" +
+      "      qualifier: {\n" +
+      '        basis: "observed",\n' +
+      "        windowMinutes: unusual.windowMinutes,\n" +
+      "      },\n" +
+      "    },",
+    command: ["pnpm", "invariants"],
+    expect: "spell a counted basis rather than reading the section's own",
+  },
   // **The two entries below are the first in this registry whose subject is a
   // root SCRIPT rather than shipped application code, and the first whose
   // command is `pnpm test:scripts`.** Both guard the same defect class, which

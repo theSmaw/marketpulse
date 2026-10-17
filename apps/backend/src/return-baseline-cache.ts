@@ -135,8 +135,14 @@ export interface ReturnBaselineCacheOptions {
  * generation whose window had already ended by then. `previousMarketSession`
  * answers that, and both halves refuse outside the checked-in calendar range
  * rather than guessing.
+ *
+ * **Exported since Task 5.4.5**, because the session ranking's cache is keyed
+ * on the same coordinate — `session_return_percentile_passes.observed_at` is a
+ * session close exactly as `return_baselines.observed_at` is — and two copies
+ * of this derivation would be two answers about a holiday, in two caches whose
+ * figures are drawn side by side.
  */
-function windowEndBoundFor(session: MarketDate): Date {
+export function windowEndBoundFor(session: MarketDate): Date {
   return (marketSessionOn(session) ?? previousMarketSession(session)).close;
 }
 

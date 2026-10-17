@@ -870,17 +870,31 @@ export interface WireUnusualRefusals {
  * baseline. So the three counts nest — `tracked ⊇ eligible ⊇ scored` — which is
  * the only reason one sentence can carry them honestly.
  *
- * ## Rows only on the `observed` basis, which is a refusal rather than a gap
+ * ## TWO BASES, ONE REGION, NEVER BOTH AT ONCE — and the basis is on the frame
  *
- * `eligibleMoves` answers on the **session** basis whenever the regular session
- * is shut, and out of hours a process that was up at the bell still holds that
- * session's last bars in its trailing windows — so a pass that ignored the
- * basis would rank yesterday's 15:55→16:00 pair, for ever, as *unusual
- * activity right now*. Eviction is relative to each security's **own** newest
- * bar, so nothing expires while the market is shut. The honest answer is
- * `eligible: 0`: nothing has been heard from inside the cutoff. The last
- * session's closing scores are a **persisted nightly row** (Story 5.4's Gate 1
- * decision 2, ADR 0044's shape) and no migration writes one yet.
+ * The `observed` arm's rows are measured from bars in this process's trailing
+ * windows. The `session` arm's rows are **read from the store**: one row per
+ * security per session, written nightly by `pnpm baselines`
+ * (`0014_session_return_percentiles.sql`, Task 5.4.5), ranking the move into
+ * that session's close.
+ *
+ * **They must not be confusable, which is why this is a discriminated union
+ * rather than one shape with a nullable date** (Task 5.4.5's AC). A process
+ * that was up at the bell still holds the session's last bars — eviction in
+ * `trailing-window.ts` is relative to each security's **own** newest bar, so
+ * nothing expires while the market is shut — so an in-memory figure shipped
+ * without a basis beside it would rank yesterday's 15:55→16:00 pair, for ever,
+ * as *unusual activity right now*. The producer refuses that outright, and the
+ * discriminant is what makes a reader able to tell the two apart rather than
+ * having to trust it.
+ *
+ * It is also what the region's footer is keyed on: `basis` with
+ * {@link WireObservedUnusual.windowMinutes} says *heard from in the last five
+ * minutes*, and `basis` with {@link WireSessionUnusual.session} says which
+ * session the figures are of. Neither member can render the other's sentence,
+ * because neither carries the other's field — a renderer that mixed them is a
+ * compile error rather than a wrong sentence, which is `WireMarketBreadth`'s
+ * own arrangement one section over.
  *
  * ## No band, and that is a decision rather than an omission
  *
@@ -890,7 +904,7 @@ export interface WireUnusualRefusals {
  * `packages/shared/src/anomaly.ts` deliberately holds no score→band
  * boundaries. Story 5.6 owns both.
  */
-export interface WireUnusualActivity {
+interface WireUnusualCounts {
   /**
    * The top rows, strongest first — **a SELECTION rather than a reduction**
    * (ADR 0038's 2026-10-12 amendment), ordered by ordinal descending with
@@ -910,9 +924,14 @@ export interface WireUnusualActivity {
    */
   readonly tracked: number;
   /**
-   * How many were **heard from inside the cutoff and held a pair exactly the
-   * span apart** — the denominator a ranked list owes, and the first of this
-   * region's two narrowings.
+   * How many of the set **held two closes exactly the span apart** — the
+   * denominator a ranked list owes, and the first of this region's two
+   * narrowings.
+   *
+   * On the `observed` arm that means *heard from inside the freshness cutoff
+   * and holding a pair*; on the `session` arm, *holding a pair at that
+   * session's close*. The word for it differs by basis and the **figure means
+   * the same thing**: how many of `tracked` produced a move to rank at all.
    */
   readonly eligible: number;
   /**
@@ -924,20 +943,11 @@ export interface WireUnusualActivity {
    */
   readonly scored: number;
   /**
-   * The freshness cutoff this region's eligibility was taken with — the one
-   * `windowMinutes` on this frame, read from the pass's own constant.
-   *
-   * **It stays one number per frame** (Story 5.4's Gate 1 false premise 6):
-   * this region reuses breadth's cutoff rather than defining a second
-   * definition of *current*, so the sentence beside these counts is the same
-   * sentence `Market breadth` and `Movers` draw, from
-   * `measured-set.ts`' one builder.
-   */
-  readonly windowMinutes: number;
-  /**
    * The measurement span each row's two endpoints are apart — **a different
-   * quantity from {@link windowMinutes} that happens to share a number**
-   * (ADR 0043), so the surface never spells a `5` of its own for either.
+   * quantity from {@link WireObservedUnusual.windowMinutes} that happens to
+   * share a number** (ADR 0043), so the surface never spells a `5` of its own
+   * for either. It is on both arms, because both arms measure a move between
+   * two endpoints that far apart.
    */
   readonly spanMinutes: number;
   /** What the ordinals were measured against. */
@@ -945,6 +955,52 @@ export interface WireUnusualActivity {
   /** Why the securities that are not rows are not rows. */
   readonly refusals: WireUnusualRefusals;
 }
+
+/**
+ * The ranking over the names heard from inside the freshness cutoff — figures
+ * measured from bars this process holds.
+ */
+export interface WireObservedUnusual extends WireUnusualCounts {
+  readonly basis: "observed";
+  /**
+   * The freshness cutoff this region's eligibility was taken with —
+   * `BREADTH_WINDOW_MINUTES`, read from the pass's own constant.
+   *
+   * **It stays one number per frame** (Story 5.4's Gate 1 false premise 6):
+   * this region reuses breadth's cutoff rather than defining a second
+   * definition of *current*, so the sentence beside these counts is the same
+   * sentence `Market breadth` and `Movers` draw, from `measured-set.ts`' one
+   * builder.
+   */
+  readonly windowMinutes: number;
+}
+
+/**
+ * **The ranking of the last completed session's closing moves, read from the
+ * store** (Task 5.4.5) — what `/` draws for the ~80% of the week the market is
+ * shut, instead of an empty region.
+ *
+ * Every figure on this arm was computed by the nightly pass and is dated by
+ * {@link session}: the counts, the refusals and the baseline's own facts are
+ * read off the row that pass wrote, never off this bundle's constants, because
+ * a rollback can put a runner and a reader two values apart.
+ */
+export interface WireSessionUnusual extends WireUnusualCounts {
+  readonly basis: "session";
+  /**
+   * The session every row is about, `YYYY-MM-DD` market-local — the session
+   * the stored pass is FOR, read off its own `observed_at`.
+   *
+   * **Not the session the gateway asked about**, which is the defect
+   * `return-baseline-cache.ts` exists to have repaired: a date recorded against
+   * figures from a different session is a well-formed, correctly-spelled wrong
+   * answer.
+   */
+  readonly session: string;
+}
+
+/** The region's section, on whichever basis the frame was taken on. */
+export type WireUnusualActivity = WireObservedUnusual | WireSessionUnusual;
 
 /**
  * The aggregate itself, **nested rather than spread over the envelope**.
@@ -2284,15 +2340,38 @@ const unusualRefusalFields: WireFields<WireUnusualRefusals> = {
   comparison: (counts) => toWire(comparisonRefusalFields, counts),
 };
 
-const unusualFields: WireFields<WireUnusualActivity> = {
+/**
+ * **One map per member of {@link WireUnusualActivity}**, for
+ * `observedBreadthFields`' reason at a fourth grain: `keyof` a union is the
+ * **intersection** of its members' keys, so a single map over this union would
+ * cover the rows, the three counts, the span, the baseline and the refusals —
+ * and wave `windowMinutes` and `session` through **unexamined**, which are the
+ * two discriminating fields. The one map over the union is exactly the wrong
+ * map.
+ *
+ * Every field of both members is required, so there is no `Omit` here and a
+ * field added to either member fails to compile naming itself.
+ */
+const unusualCountFields: WireFields<WireUnusualCounts> = {
   rows: (rows) => rows.map((row) => toWire(unusualRowFields, row)),
   tracked: asIs,
   eligible: asIs,
   scored: asIs,
-  windowMinutes: asIs,
   spanMinutes: asIs,
   baseline: encodeUnusualBaseline,
   refusals: (refusals) => toWire(unusualRefusalFields, refusals),
+};
+
+const observedUnusualFields: WireFields<WireObservedUnusual> = {
+  ...unusualCountFields,
+  basis: asIs,
+  windowMinutes: asIs,
+};
+
+const sessionUnusualFields: WireFields<WireSessionUnusual> = {
+  ...unusualCountFields,
+  basis: asIs,
+  session: asIs,
 };
 
 /**
@@ -2312,14 +2391,28 @@ const encodeUnusual = (unusual: WireUnusualActivity): JsonValue | undefined => {
     unusual.tracked,
     unusual.eligible,
     unusual.scored,
-    unusual.windowMinutes,
     unusual.spanMinutes,
     unusual.baseline.minimumSampleCount,
   ];
 
   if (counts.some((count) => !Number.isFinite(count))) return undefined;
 
-  return toWire(unusualFields, unusual);
+  switch (unusual.basis) {
+    case "observed":
+      // The window is what the sentence beside the counts is written from, so a
+      // section with a non-finite one is a section no sentence can qualify.
+      return Number.isFinite(unusual.windowMinutes)
+        ? toWire(observedUnusualFields, unusual)
+        : undefined;
+    case "session":
+      return toWire(sessionUnusualFields, unusual);
+    default: {
+      // Exhaustive: a third basis fails the build here rather than being
+      // silently unserialisable, which is `encodeBreadth`'s own mechanism.
+      const unhandled: never = unusual satisfies never;
+      return unhandled;
+    }
+  }
 };
 
 const overviewFields: WireFields<
@@ -3174,8 +3267,6 @@ const readUnusual = (value: unknown): WireUnusualActivity | undefined => {
 
   if (!isRankedByPercentile(rows)) return undefined;
 
-  if (!finite(value.windowMinutes) || value.windowMinutes <= 0)
-    return undefined;
   if (!finite(value.spanMinutes) || value.spanMinutes <= 0) return undefined;
 
   const baseline = readUnusualBaseline(value.baseline);
@@ -3189,13 +3280,37 @@ const readUnusual = (value: unknown): WireUnusualActivity | undefined => {
   );
   if (figure === undefined || comparison === undefined) return undefined;
 
-  return {
+  const section = {
     rows,
     ...counts,
-    windowMinutes: value.windowMinutes,
     spanMinutes: value.spanMinutes,
     baseline,
     refusals: { figure, comparison },
+  };
+
+  // **The sixth check: a section with no readable basis is refused rather than
+  // defaulted** (Task 5.4.5). The two arms are two different claims — *this is
+  // what is happening now* and *this is what happened at Friday's close* — and
+  // defaulting to either draws the other one's figures under the wrong
+  // sentence. A frame from a **previous image** carries no basis at all, which
+  // a rollback pins, and that is the absence the region already draws.
+  if (value.basis === "session") {
+    if (typeof value.session !== "string" || value.session === "")
+      return undefined;
+    return { basis: "session", ...section, session: value.session };
+  }
+
+  if (value.basis !== "observed") return undefined;
+  // The window is what the sentence beside the counts is written from, so a
+  // count with no window is a count nobody can qualify — refused rather than
+  // defaulted to a `5` this bundle would then be spelling itself.
+  if (!finite(value.windowMinutes) || value.windowMinutes <= 0)
+    return undefined;
+
+  return {
+    basis: "observed",
+    ...section,
+    windowMinutes: value.windowMinutes,
   };
 };
 

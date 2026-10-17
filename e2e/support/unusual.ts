@@ -80,6 +80,7 @@ export const unusualSection = (
   const tracked = counts.tracked ?? Math.max(eligible, 501);
 
   return {
+    basis: "observed",
     rows,
     tracked,
     eligible,
@@ -117,3 +118,42 @@ export const overviewWithUnusual = (
   figures: [],
   unusual,
 });
+
+/**
+ * **The same section on the SESSION arm** — the last completed session's
+ * stored closing ranking, which is what `/` draws for about 80% of the week
+ * (Task 5.4.5).
+ *
+ * Built from {@link unusualSection} and then re-armed field by field, so the
+ * two differ in **exactly** the discriminant and its companion field: a
+ * spread would leave `windowMinutes` hanging off a session section, and the
+ * whole point of the arm is that *heard from in the last five minutes* is not
+ * a sentence about a session that has ended.
+ *
+ * Furnished for `unusualSection`'s reason and with its caveat: CI's store has
+ * no nightly runner, so the real producer answers with an empty session arm
+ * for ever and no assertion about a drawn row could be made against it.
+ */
+export const sessionUnusualSection = (
+  rows: readonly WireUnusualRow[],
+  counts: {
+    readonly scored?: number;
+    readonly eligible?: number;
+    readonly tracked?: number;
+  } = {},
+  session = "2026-10-14",
+): WireUnusualActivity => {
+  const observed = unusualSection(rows, counts);
+
+  return {
+    basis: "session",
+    rows: observed.rows,
+    tracked: observed.tracked,
+    eligible: observed.eligible,
+    scored: observed.scored,
+    spanMinutes: observed.spanMinutes,
+    baseline: observed.baseline,
+    refusals: observed.refusals,
+    session,
+  };
+};
