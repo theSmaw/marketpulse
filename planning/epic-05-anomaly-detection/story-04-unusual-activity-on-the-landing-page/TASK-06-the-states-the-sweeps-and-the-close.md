@@ -256,9 +256,31 @@ short list's pads hold the box level with `Sector performance`.
 Load read **before** each heavy job and never during — 6.27 → 4.25 → 3.53 →
 3.91 → 8.44 → 2.44, never two at once.
 
-**Not run: the full `pnpm e2e`**, and _Done when 5_ asks for it. This machine is
-memory-starved and **three attempts were killed by system memory** rather than by
-any test — free pages down to **2,836 (≈44 MB)**, once at four workers and once
+**The full `pnpm e2e` DID run, and the orchestrator invalidated it — then
+re-ran the affected spec alone.** Figures, honestly: **266 passed, 16 skipped,
+4 failed (6.3 m)** at two workers. **All four failures were the four widths of
+`overview-degraded-grid.spec.ts`, and all four were caused by the orchestrator**,
+who ran `pnpm break the-unusual-footer-age-reads-the-join-instead-of-the-market`
+**while the full suite was running**. That break **substitutes a defect into
+`apps/frontend/src/market/unusual-activity.ts`** and restores it afterwards, so
+the suite read a deliberately broken source file mid-run. That is the one thing
+_The working loop_ forbids — _never start a second heavy job while one is
+running_ — and it had been pointed out to an implementing developer earlier in
+this same story, which makes it the second instance in Story 5.4 and the first
+by the orchestrator.
+
+**Re-run alone on a clean tree** (`git status` confirmed clean for that file),
+at a load average of 10.86: **`4 passed (1.5 m)`**. So there is no regression,
+and the four reds are an artefact of the method.
+
+**Two things worth keeping from it.** First, the run is otherwise the **cleanest
+full suite in this story — 266 passed with NO front-of-margin timeout
+failures**, where four earlier runs at four workers produced three or four each.
+That corroborates `docs/GAPS.md`'s recorded 0% rate at one worker: **two workers
+is the fix for the timeout family on this machine.** Second, three earlier
+attempts in this story were killed by **system memory** rather than by any test
+
+— free pages down to **2,836 (≈44 MB)**, once at four workers and once
 at two, with no orphaned browsers responsible. **CI runs the full suite as a
 required check** and has passed it on every PR in this story (12m6s, 11m27s,
 12m14s, 12m37s, 10m29s, 10m17s). `pnpm test:database` was not run: no data-layer
