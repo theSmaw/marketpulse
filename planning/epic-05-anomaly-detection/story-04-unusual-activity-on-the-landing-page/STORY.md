@@ -1,6 +1,6 @@
 # Story 5.4 — `Unusual activity` on the Landing Page
 
-**Status:** **In progress — Gate 2 — 2026-10-17.** Tasks 5.4.1–5.4.5 complete and merged (#592, #593, #596, #597, #598); 5.4.6 in progress. `/`'s last reserved region draws.
+**Status:** **Complete — 2026-10-17.** `/`'s **last reserved region draws** — five of seven now hold figures. Six tasks, six PRs (#592, #593, #596, #597, #598, #600) plus a pipeline repair (#599). Nine ACs met and four met as amended; **none outstanding**. The figure it ranks is a **magnitude**, so a crash and a spike were the identical row until a direction glyph shipped; the region **could not hold one row at any viewport height** where it was reserved; **ADR 0040's own forecast was wrong on two of three counts**; a pass-through proved fidelity and never correctness for the **third** time in this epic; and adding the region to the kept grid found **six existing aggregates lying**. Ships owing **a person**: `LIVE-REHEARSAL.md` row 5.4, the fourth this epic owes, and AC 1's undeclared viewport height.
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.3
 **Epic scope covered:** unusual-activity ranking
