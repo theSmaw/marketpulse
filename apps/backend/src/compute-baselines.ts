@@ -164,17 +164,21 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
   const errors: string[] = [];
 
   try {
-    // **The window's end from the ledger, never from the clock.** See
-    // `ReturnBaselineStore.coveredEnd` for why those two disagree between the
-    // bell and the nightly run, and why that disagreement is the `loadedFor`
-    // defect one surface over.
-    const frontier = await store.coveredEnd();
+    // **The window's end from a per-tape count, never from the clock and
+    // never from the ledger** (Task 5.5.1). See
+    // `ReturnBaselineStore.tapeCoveredEnd` for why all three disagree, and
+    // `baseline-frontier.ts` for the two production transcripts of the one
+    // this repaired — a generation stamped four hours into the future at 09:04
+    // ET, and a session the fill then never fetched at all.
+    const frontier = await store.tapeCoveredEnd();
 
     if (frontier === undefined) {
       lines.push(
-        "No `1m` coverage is recorded for any tracked security, so there is no",
-        "window to compute a baseline over. Run `pnpm backfill` first; this is",
-        "also the state of CI's store, which holds 516 securities and zero bars.",
+        `No session in the last ${String(BASELINE_LOOKBACK_SESSIONS)} holds a ` +
+          `\`1m\` \`${BASELINE_FEED}\` bar for any tracked security, so there`,
+        "is no window to compute a baseline over. Run `pnpm backfill` first;",
+        "this is also the state of CI's store, which holds 516 securities and",
+        "zero bars.",
       );
       return { exitCode: 0, lines, errors };
     }

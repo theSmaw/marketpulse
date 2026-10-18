@@ -5164,4 +5164,39 @@ export const BREAKS = [
     command: ["pnpm", "run", "test:scripts"],
     expect: "is RED when the series never arrives",
   },
+  {
+    name: "the-baseline-window-ends-on-the-ledger-again",
+    proves:
+      "The window the nightly baseline is stamped and labelled for is ended " +
+      "on `bar_coverage`'s covered end again — the tape-blind ledger the " +
+      "live IEX writer advances from pre-market and after-hours minutes the " +
+      "backfill never asks for. The defect is not hypothetical: it ran in " +
+      "production on 2026-10-15, stamping a generation with an `observed_at` " +
+      "four hours in the future at 09:04 ET and labelling 59 sessions of " +
+      "data 60, and the same tape-blindness then made the evening fill print " +
+      "`0 fetches, 0 sessions fetched, 10 already held` for a session that " +
+      "holds 318 `iex` bars and zero `sip` bars to this day.",
+    // **The found line is KEPT and the defect appended beside it**, which is
+    // the shape this registry needs here: the check's first conjunct asks
+    // whether a window builder takes `tapeCoveredEnd()` and its second asks
+    // whether it also reads the ledger, so a substitution that DELETED the
+    // good call would go red on the first clause and prove nothing about the
+    // second. Appending is also what the next author actually writes — the
+    // store exposes no tape-blind frontier any more and `market-bars.ts` is
+    // right there, so the reflex is one extra line rather than an edit.
+    //
+    // **Proved green on the defect first, 2026-10-17.** A draft asserting
+    // that `return-baseline-store.ts` still mentions `tapeCoveredEnd` and
+    // `baselineTapeFrontier` reported `64 invariants hold.` against exactly
+    // this planted line: both files were still *mentioning* the right names,
+    // and nothing was looking at where the argument came from.
+    file: "apps/backend/src/compute-baselines.ts",
+    find: "    const frontier = await store.tapeCoveredEnd();",
+    replace:
+      "    const frontier = await store.tapeCoveredEnd();\n" +
+      "    // pnpm break: reverted automatically\n" +
+      '    const ledgerFrontier = await bars.readCoveredEnd("1m");',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-baseline-window-ends-on-a-tape",
+  },
 ];
