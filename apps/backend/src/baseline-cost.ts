@@ -157,7 +157,7 @@ function unmeasured(
 export async function readBaselineCost(
   store: Pick<
     ReturnBaselineStore,
-    "coveredEnd" | "explainWindowRead" | "subjectFor" | "tapeCounts"
+    "tapeCoveredEnd" | "explainWindowRead" | "subjectFor" | "tapeCounts"
   >,
   symbol: string,
 ): Promise<BaselineCostDiagnostic> {
@@ -178,7 +178,12 @@ export async function readBaselineCost(
     return unmeasured(symbol, BASELINE_LOOKBACK_SESSIONS, "unknown-symbol");
   }
 
-  const frontier = await store.coveredEnd();
+  // **Tape-aware since Task 5.5.1, and this route was the defect's most
+  // reachable surface**: it derived the window on every request, so during any
+  // session it reported a window ending at a session the consolidated tape had
+  // not reached — the `asOfSession` an operator reads off it is the pass's own
+  // and has to be derived the pass's own way.
+  const frontier = await store.tapeCoveredEnd();
   if (frontier === undefined) {
     return unmeasured(symbol, BASELINE_LOOKBACK_SESSIONS, "no-coverage");
   }

@@ -7797,6 +7797,170 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "the-baseline-window-ends-on-a-tape",
+    claim:
+      "The baseline's window end is derived from a PER-TAPE count and never " +
+      "from `bar_coverage`. Every shipped file that builds a baseline window " +
+      "takes its frontier from `tapeCoveredEnd()`; the ledger's `covered_end` " +
+      "is read in exactly one file, which narrows it through " +
+      "`baselineTapeFrontier`; and the count that narrows it filters on " +
+      "`BASELINE_FEED`.",
+    check() {
+      // **Task 5.5.1, and the defect it forbids is one this product SHIPPED
+      // and ran in production twice on 2026-10-15.**
+      //
+      // `bar_coverage` has no `feed` column (dropped at Task 3.7.5),
+      // `extendCoverage` moves `covered_end` with `greatest(…)`, and
+      // `live-bar-writer.ts` reaches it through `recordSeries` with `iex`
+      // bars from the pre-market and after-hours minutes the backfill never
+      // asks for. So `max(covered_end)` is the frontier the **IEX socket**
+      // reached while every read beneath it filters on `sip`:
+      //
+      //   - run 38739602430, 2026-10-15T13:04Z (09:04 ET, before the bell):
+      //     `return baselines for 2026-10-15 — 60 sessions`, `observed_at`
+      //     four hours in the future, 59 sessions of data labelled 60.
+      //   - run 38823003136 the same evening: `0 fetches, 0 sessions
+      //     fetched, 10 already held` — the fill skipped the session the
+      //     live writer had claimed, so `NVDA` holds 318 `iex` and **zero
+      //     `sip`** bars for it to this day.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // Not a file name and not a method name. Whoever ends a baseline window
+      // has to call `baselineWindowEndingAt`, and the only question about
+      // that call is **where its argument came from** — so the corpus is
+      // every shipped file that makes one, and the clause is that such a file
+      // takes the instant from the tape-aware frontier and does not reach for
+      // the ledger itself.
+      //
+      // **Proved green on the defect first, and the first draft was.** A
+      // draft asserting that `return-baseline-store.ts` still mentions
+      // `tapeCoveredEnd` and `baselineTapeFrontier` reported
+      // `64 invariants hold.` against a `compute-baselines.ts` carrying
+      // `const ledgerFrontier = await bars.readCoveredEnd("1m")` two lines
+      // under the good call — the exact edit the next author makes, because
+      // the store no longer exposes a frontier and `market-bars.ts` is right
+      // there. Both files were still *mentioning* the right names.
+      //
+      // The third conjunct is the one with no obvious defect behind it and it
+      // is the one that keeps the other two from being decoration: a count
+      // that has lost its `feed` predicate is tape-blind again, in a file
+      // that still names every token above.
+      const LEDGER_READ = /\.readCoveredEnd\s*\(/u;
+      const TAPE_FRONTIER = /\.tapeCoveredEnd\s*\(/u;
+      const BUILDS_A_WINDOW = /\bbaselineWindowEndingAt\s*\(/u;
+      const DEFINES_THE_WINDOW = /export function baselineWindowEndingAt\s*\(/u;
+      const NARROWS = /\bbaselineTapeFrontier\s*\(/u;
+      const DEFINES_THE_NARROWING =
+        /export async function baselineTapeFrontier\s*\(/u;
+      // The tape the count counts and the tape the window read filters on are
+      // one constant, spelled as the builder call so a re-wrap cannot hide it.
+      const COUNTS_THE_TAPE =
+        /filterWhere\(\s*"market_bars\.feed"\s*,\s*"="\s*,\s*BASELINE_FEED\s*\)/su;
+
+      const shipped = shippedSourceFiles().map(({ path, text }) => ({
+        path: relative(REPO_ROOT, path),
+        text,
+      }));
+
+      // **Conjunct 1: every window builder takes a tape-aware frontier.**
+      //
+      // Two files are exempt and both by their own DEFINITION rather than by
+      // name: the module that declares `baselineWindowEndingAt`, and the one
+      // that declares `baselineTapeFrontier` — which builds a candidate
+      // window precisely in order to walk it, and is the thing the rest of
+      // the corpus is required to go through. Keyed on the `export function`
+      // so moving either derivation carries its exemption with it and a third
+      // file cannot claim one.
+      const builders = shipped.filter(
+        (file) =>
+          BUILDS_A_WINDOW.test(file.text) &&
+          !DEFINES_THE_WINDOW.test(file.text) &&
+          !DEFINES_THE_NARROWING.test(file.text),
+      );
+
+      // No match is a failure: a grep whose anchor has moved returns nothing
+      // and reads exactly like a pass.
+      if (builders.length === 0) {
+        throw new InvariantFailure(
+          "No shipped file calls `baselineWindowEndingAt`, so this check can " +
+            "no longer see a baseline window being built anywhere. Either " +
+            "the derivation was renamed — repoint this check — or it has " +
+            "been passing vacuously.",
+        );
+      }
+
+      for (const file of builders) {
+        if (!TAPE_FRONTIER.test(file.text)) {
+          throw new InvariantFailure(
+            `${file.path} builds a baseline window without taking its ` +
+              "frontier from `tapeCoveredEnd()`. The window's end decides " +
+              "which session the generation is stamped and labelled for, " +
+              "and the only instant that can answer it is one a per-tape " +
+              "count produced.",
+          );
+        }
+
+        if (LEDGER_READ.test(file.text)) {
+          throw new InvariantFailure(
+            `${file.path} builds a baseline window AND reads ` +
+              "`bar_coverage`'s covered end. That ledger is tape-blind — the " +
+              "live IEX writer advances it from minutes the backfill never " +
+              "asks for — so a window ended on it can hold no `sip` rows in " +
+              "its newest session and be stamped and labelled 60 anyway. It " +
+              "was, in production, on 2026-10-15.",
+          );
+        }
+      }
+
+      // **Conjunct 2: one ledger reader, and it narrows what it reads.**
+      const ledgerReaders = shipped.filter((file) =>
+        LEDGER_READ.test(file.text),
+      );
+
+      if (ledgerReaders.length !== 1) {
+        throw new InvariantFailure(
+          `${String(ledgerReaders.length)} shipped files read ` +
+            "`bar_coverage`'s covered end, expected exactly 1:\n      " +
+            (ledgerReaders.map((file) => file.path).join("\n      ") ||
+              "(none — `readCoveredEnd` has been renamed or removed, and " +
+                "this check is now green on a ledger read it cannot see)") +
+            "\n    The ledger's frontier is a CANDIDATE, not an answer, and " +
+            "the one file allowed to hold it is the one that narrows it to a " +
+            "session the tape is present in.",
+        );
+      }
+
+      const [reader] = ledgerReaders;
+
+      if (!NARROWS.test(reader.text)) {
+        throw new InvariantFailure(
+          `${reader.path} reads \`bar_coverage\`'s covered end and does not ` +
+            "narrow it through `baselineTapeFrontier`. The instant it holds " +
+            "is the frontier the IEX socket reached, which has differed from " +
+            "the consolidated tape's by design since 2026-09-23.",
+        );
+      }
+
+      // **Conjunct 3: the count that narrows it is per TAPE.**
+      const counters = shipped.filter((file) =>
+        COUNTS_THE_TAPE.test(file.text),
+      );
+
+      if (counters.length !== 1) {
+        throw new InvariantFailure(
+          `${String(counters.length)} shipped files count ` +
+            "`market_bars.feed` against `BASELINE_FEED`, expected exactly " +
+            "1.\n    The frontier is only tape-aware for as long as the " +
+            "count under it filters on a tape, and on the baseline's own " +
+            "constant rather than a literal beside it — a count that lost " +
+            "that predicate would be tape-blind again in a file still " +
+            "naming every token the two conjuncts above look for.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

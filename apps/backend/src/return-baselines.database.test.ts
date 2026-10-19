@@ -45,9 +45,14 @@ import {
 } from "@marketpulse/shared";
 
 import { loadConfig, loadEnvFile } from "./config.js";
+import { createMarketBarsRepository } from "./market-bars.js";
 import { runMigrations } from "./migrate.js";
 import { createReturnBaselineCache } from "./return-baseline-cache.js";
-import { returnBaselineOf, sessionAnchors } from "./return-baseline.js";
+import {
+  baselineWindowEndingAt,
+  returnBaselineOf,
+  sessionAnchors,
+} from "./return-baseline.js";
 import { createReturnBaselineStore } from "./return-baseline-store.js";
 import type { ReturnBaselineStore } from "./return-baseline-store.js";
 import type { ReturnBaselinesTable } from "./schema.js";
@@ -507,5 +512,79 @@ describe("the cache memoises on the session the ROW carries", () => {
     const satisfied = cache.baselineAsOf(marketDateAt(EARLY.close));
     expect(satisfied.size).toBe(1);
     expect(reads).toBe(2);
+  });
+});
+
+describe("the window's end is per TAPE, not the ledger's frontier", () => {
+  // **The defect this repairs fired in production on 2026-10-15** and needs a
+  // real server to reproduce for the same reason the `feed` predicate above
+  // does: no machine outside Azure holds an `iex` row, so on every developer's
+  // store and on CI's the tape-blind frontier and the tape-aware one are the
+  // same instant and the defect is invisible.
+  //
+  // The arrangement is the deployed one in miniature. `seedFlatSip` has given
+  // 2026-11-25 and 2026-11-27 their `sip` bars — what the backfill stores. The
+  // bar below is what the **live IEX writer** stores on the next session, and
+  // the ledger row is what `recordSeries` does with it: one row per
+  // `(security_id, timeframe)` whose `covered_end` is
+  // `greatest(held, arriving)` with **no feed predicate anywhere**, because
+  // `bar_coverage` has no `feed` column.
+  const LIVE = session("2026-11-30");
+  const LIVE_BAR = new Date(LIVE.open.getTime() + 30 * 60_000);
+
+  beforeAll(async () => {
+    await insertBar(LIVE_BAR, 123, "iex");
+    await db().query(
+      `insert into bar_coverage
+         (security_id, timeframe, covered_start, covered_end,
+          provider, feed, bar_count)
+       values ($1, '1m', $2, $3, 'alpaca', 'iex', 1)`,
+      [securityId, REGULAR.open, new Date(LIVE_BAR.getTime() + 60_000)],
+    );
+  });
+
+  it("is the newest session holding a `sip` bar, and NOT the ledger's", async () => {
+    // **The old behaviour, asserted first, so this test fails against it.**
+    // `coveredEnd()` was `bars.readCoveredEnd("1m")` and nothing else — this
+    // instant, whose market date is a session holding one `iex` bar and no
+    // consolidated tape at all.
+    const ledger = await createMarketBarsRepository(db()).readCoveredEnd("1m");
+    expect(ledger).toEqual(new Date(LIVE_BAR.getTime() + 60_000));
+    expect(marketDateAt(new Date((ledger?.getTime() ?? 0) - 1))).toBe(
+      "2026-11-30",
+    );
+
+    // And the frontier the pass now derives: the previous session, which is
+    // the newest one this tape is present in.
+    expect(await baselines().tapeCoveredEnd()).toEqual(EARLY.close);
+  });
+
+  it("gives the pass a window whose newest session holds `sip` rows", async () => {
+    // AC 1 end to end, through `baselineWindowEndingAt` — the function that
+    // was being handed the tape-blind instant. The old frontier produced
+    // `asOfSession: 2026-11-30`, a 60-session window with 59 sessions of data
+    // in it, stamped and labelled 60; `observed_at` would have been
+    // 2026-11-30's close, which on the production transcript was **four hours
+    // in the future**.
+    const frontier = await baselines().tapeCoveredEnd();
+    if (frontier === undefined) throw new Error("no tape frontier");
+
+    const window = baselineWindowEndingAt(frontier);
+
+    expect(window.asOfSession).toBe("2026-11-27");
+    expect(window.observedAt).toEqual(EARLY.close);
+
+    // The assertion that makes this a claim about DATA rather than about a
+    // date: the window's newest session holds bars of the tape the read
+    // filters on. Counted here rather than assumed, through the same
+    // index-only query the walk itself uses.
+    const newest = window.sessions[window.sessions.length - 1];
+    if (newest === undefined) throw new Error("no newest session");
+
+    const counts = await baselines().tapeCounts(
+      subject(),
+      toTimeRange(newest.open, newest.close),
+    );
+    expect(counts.sip).toBeGreaterThan(0);
   });
 });

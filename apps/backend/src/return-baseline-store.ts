@@ -3,6 +3,7 @@ import type pg from "pg";
 
 import { toTicker, type Ticker, type TimeRange } from "@marketpulse/shared";
 
+import { baselineTapeFrontier } from "./baseline-frontier.js";
 import { createMarketBarsRepository } from "./market-bars.js";
 import type { Database } from "./schema.js";
 import type { ReturnBaselineOutcome } from "./return-baseline.js";
@@ -185,25 +186,24 @@ export interface ReturnBaselineStore {
   activeSubjects(): Promise<readonly BaselineSubject[]>;
 
   /**
-   * **The window's end, from `bar_coverage`'s covered end** and never from
-   * `lastCompletedSession(now)`. Delegated to
-   * `MarketBarsRepository.readCoveredEnd`, which is the ledger's one querier.
+   * **The window's end, per TAPE** — never `lastCompletedSession(now)`, and
+   * since Task 5.5.1 never `bar_coverage`'s covered end either.
    *
-   * Those two disagree between the bell and the nightly run — the market has
-   * completed a session the fill has not yet stored — and the disagreement is
-   * the `loadedFor` defect one surface over: a generation stamped with a
-   * session whose bars are not in the store is a baseline over 59 sessions
-   * claiming 60, which nothing downstream can detect.
+   * The clock was refused first, because the market completes a session the
+   * fill has not yet stored and a generation stamped with that session is a
+   * baseline over 59 sessions claiming 60 — the `loadedFor` defect one surface
+   * over, which nothing downstream can detect. **The ledger then turned out to
+   * be the same defect wearing the repair's clothes**: `bar_coverage` has no
+   * `feed` column, and `live-bar-writer.ts` advances `covered_end` with `iex`
+   * bars from minutes the backfill never asks for. It fired in production on
+   * 2026-10-15; `baseline-frontier.ts` carries both transcripts.
    *
-   * **The MAXIMUM over tracked securities, not the minimum.** The minimum is
-   * `commonCoverage`'s intersection, which is dragged permanently backwards by
-   * late-listing constituents — `backfill.yml` records three of them by name —
-   * so one security that will never hold older history would hold the whole
-   * universe's baseline a year behind. The maximum is the frontier the fill
-   * reached, and a security that is itself behind simply contributes fewer
-   * grid pairs to its own counted `n`.
+   * So the frontier is derived from a **per-tape count** over each candidate
+   * session — {@link tapeCounts}, the index-only shape — and the ledger's
+   * instant is only the newest candidate it may start from. The MAXIMUM over
+   * tracked securities is kept and `baseline-frontier.ts` says why.
    */
-  coveredEnd(): Promise<Date | undefined>;
+  tapeCoveredEnd(): Promise<Date | undefined>;
 
   /**
    * One security's `sip` minute closes over the window, keyed by the bar's own
@@ -413,28 +413,81 @@ export function createReturnBaselineStore(pool: pg.Pool): ReturnBaselineStore {
     );
   }
 
+  /**
+   * **A local function rather than only a method, because the frontier walk
+   * takes it as a port.** `tapeCoveredEnd` below hands `{ activeSubjects,
+   * tapeCounts }` to `baseline-frontier.ts`, so the two reads it needs have to
+   * be nameable here — and naming them is also what keeps that walk reading
+   * **the shipped queries** rather than a second copy of them.
+   */
+  const activeSubjects: ReturnBaselineStore["activeSubjects"] = async () => {
+    const rows = await db
+      .selectFrom("securities")
+      .select(["id", "symbol"])
+      // See the interface: a computation over the market we track NOW.
+      .where("status", "=", "active")
+      .orderBy("symbol")
+      .execute();
+
+    return rows.map((row) => ({
+      id: row.id,
+      symbol: toTicker(row.symbol),
+    }));
+  };
+
+  /** See the interface. The frontier walk's other half; see above. */
+  const tapeCounts: ReturnBaselineStore["tapeCounts"] = async (
+    subject,
+    window,
+  ) => {
+    const row = await db
+      .selectFrom("market_bars")
+      // **`feed` is what is counted, not `id`.** `id` is not in
+      // `market_bars_unique_bar`, so counting it would send the planner to
+      // the heap and lose the one property this measurement claims.
+      .select(({ fn }) => [
+        fn
+          .count<string>("market_bars.feed")
+          // **`BASELINE_FEED` rather than the literal, since Task 5.5.1.**
+          // This count is no longer only a measurement: `tapeCoveredEnd`
+          // derives the window's end from it, so the tape it counts and the
+          // tape the window read filters on have to be one constant.
+          .filterWhere("market_bars.feed", "=", BASELINE_FEED)
+          .as("sip"),
+        fn
+          .count<string>("market_bars.feed")
+          .filterWhere("market_bars.feed", "=", "iex")
+          .as("iex"),
+      ])
+      .where("market_bars.security_id", "=", subject.id)
+      .where("market_bars.timeframe", "=", BASELINE_TIMEFRAME)
+      .where("market_bars.observed_at", ">=", window.start)
+      .where("market_bars.observed_at", "<", window.end)
+      .executeTakeFirst();
+
+    return {
+      sip: Number(row?.sip ?? 0),
+      iex: Number(row?.iex ?? 0),
+    };
+  };
+
   return {
-    async activeSubjects() {
-      const rows = await db
-        .selectFrom("securities")
-        .select(["id", "symbol"])
-        // See the interface: a computation over the market we track NOW.
-        .where("status", "=", "active")
-        .orderBy("symbol")
-        .execute();
+    activeSubjects,
+    tapeCounts,
 
-      return rows.map((row) => ({
-        id: row.id,
-        symbol: toTicker(row.symbol),
-      }));
+    // **The ledger read is delegated to `market-bars.ts`, which is its ONE
+    // querier** — `stored-sources-only-through-the-merge` scopes its grep for
+    // the withdrawn `bar_coverage.feed` column to that file on exactly that
+    // premise, so a `selectFrom("bar_coverage")` here would widen what the
+    // check cannot see — and **its answer is a candidate rather than the
+    // frontier**, because the ledger is tape-blind and the IEX writer moves it.
+    // `baseline-frontier.ts` narrows it to a session this tape is present in.
+    async tapeCoveredEnd() {
+      const ledgerEnd = await bars.readCoveredEnd(BASELINE_TIMEFRAME);
+      if (ledgerEnd === undefined) return undefined;
+
+      return baselineTapeFrontier({ activeSubjects, tapeCounts }, ledgerEnd);
     },
-
-    // **Delegated to `market-bars.ts`, which is the ledger's ONE querier.**
-    // `stored-sources-only-through-the-merge` scopes its grep for the withdrawn
-    // `bar_coverage.feed` column to that file on exactly that premise, so a
-    // `selectFrom("bar_coverage")` here would widen what the check cannot see —
-    // which is what it said when the first draft of this module did it.
-    coveredEnd: () => bars.readCoveredEnd(BASELINE_TIMEFRAME),
 
     async subjectFor(symbol) {
       const row = await db
@@ -595,34 +648,6 @@ export function createReturnBaselineStore(pool: pg.Pool): ReturnBaselineStore {
         sharedHitBlocks: plan?.["Shared Hit Blocks"] ?? 0,
         sharedReadBlocks: plan?.["Shared Read Blocks"] ?? 0,
         elapsedMs: plan?.["Actual Total Time"] ?? 0,
-      };
-    },
-
-    async tapeCounts(subject, window) {
-      const row = await db
-        .selectFrom("market_bars")
-        // **`feed` is what is counted, not `id`.** `id` is not in
-        // `market_bars_unique_bar`, so counting it would send the planner to
-        // the heap and lose the one property this measurement claims.
-        .select(({ fn }) => [
-          fn
-            .count<string>("market_bars.feed")
-            .filterWhere("market_bars.feed", "=", "sip")
-            .as("sip"),
-          fn
-            .count<string>("market_bars.feed")
-            .filterWhere("market_bars.feed", "=", "iex")
-            .as("iex"),
-        ])
-        .where("market_bars.security_id", "=", subject.id)
-        .where("market_bars.timeframe", "=", BASELINE_TIMEFRAME)
-        .where("market_bars.observed_at", ">=", window.start)
-        .where("market_bars.observed_at", "<", window.end)
-        .executeTakeFirst();
-
-      return {
-        sip: Number(row?.sip ?? 0),
-        iex: Number(row?.iex ?? 0),
       };
     },
   };

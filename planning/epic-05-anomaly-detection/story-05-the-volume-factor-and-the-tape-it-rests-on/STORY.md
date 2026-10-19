@@ -1,6 +1,6 @@
 # Story 5.5 — The Volume Factor, & the Tape It Rests On
 
-**Status:** Not started
+**Status:** **In progress — 2026-10-17.** Gate 1 taken; five tasks.
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.3
 **Epic scope covered:** intraday volume baseline, volume-ratio calculation
@@ -41,6 +41,139 @@ bucket matches the window, a 30-minute bucket smooths the open away.
 this time of day"_ — with **its baseline defined and its tape named**, beside
 the return and the percentile.
 
+## Gate 1 — decisions taken 2026-10-17, and five false premises corrected
+
+**Four roles shaped this story and between them found five false premises, four
+of them in this file.** The criteria are left standing as the record of what was
+specified; this section amends them and **wins** where it disagrees.
+
+### The four decisions
+
+1. **Same-tape `iex`, and the figure is ABSENT until depth accrues.** AC 2's
+   first sentence stands and is the one thing not to move. Its **fallback is
+   incoherent**: _"refuse during the live session and compute only on settled
+   sessions"_ does not supply a missing **baseline** — it swaps the
+   **numerator** to `sip`. And the gap is not per-security: it is a span of
+   history (nothing before 2026-09-23, ever) and a class of deployments (CI and
+   every laptop, **zero `iex` rows**, for ever). Measured on the deployed store
+   over 60 sessions, `iex` depth runs **1.9% (`ERIE`) to 24.9% (`AAPL`)** of
+   `sip` — and that ceiling is **the live writer's start date, not IEX's
+   reach**: 18 sessions since 2026-09-23 caps any security at ~7,020 minutes,
+   and `NVDA`'s 5,693 is **81.1%** of that. Alternatives rejected: a settled
+   `sip`-over-`sip` figure (never moves intraday, and sits beside a return about
+   _now_ — Story 5.1's comparability refusal pointed inward), and a `sip` ratio
+   with the bias **applied** (computing an adjustment, which is the one place
+   `PROVIDER.md` §3.5's objection does reach). **Reversal trigger: the first
+   session on which the `iex` baseline's counted `n` meets the floor for FEWER
+   securities than the previous session** — depth has stopped accruing, so the
+   live writer is holing and this decision's premise has failed.
+2. **Story 5.3's mislabelled window is repaired HERE, as the first task.**
+   Shaping found a **live defect in shipped code**: `readCoveredEnd` is
+   `max(covered_end)` with no feed predicate, `BarCoverage` has **no `feed`
+   column** (dropped at Task 3.7.5), and the live IEX writer advances the ledger
+   through `recordSeries`. So the nightly baseline can open a 60-session window
+   whose newest session holds **no `sip` rows**, and stamp and label it 60 —
+   the exact `loadedFor` defect `return-baseline-store.ts` says it was avoiding.
+   It needs **no job to fail**: the backfill covers only regular-session minutes
+   while the writer keeps extended hours, so `covered_end` sits past the last
+   `sip` minute by design.
+3. **A second BAND, +118 px, region 142 → 260.** A third cell on the return's
+   row costs 0 px and was measured to fit with 23 px of slack at 390 — and is
+   **wrong**: `▲ +0.42%  99th percentile  4.1× typical` under one label reading
+   `5-minute return` asserts that the return is 4.1× typical, the exact
+   misreading this story exists to prevent. `MARKET-OVERVIEW.md` §1.4's trigger
+   fires a **third** time (after Task 5.1.4 on this route and Task 5.4.1 on
+   `/`); the figure is **re-probed per width** after the change and the measured
+   number recorded, never this derivation.
+4. **5-minute buckets, sampled per MINUTE**, matching the return's span and the
+   trailing window so one span serves both. The sample unit is the decision that
+   makes the printed precision defensible: a median printed as `4.1×` has
+   relative SE ≈ `1.253·CV/√n`, so at **n ≈ 18** session-sums `4.1×` is really
+   **`2.9–5.3×`**, while minute-level sampling over 60 sessions puts n in the
+   thousands. Memory ~322 KB at 78 buckets × 516, against **1.6 MB** for
+   minute-of-session — larger than `trailing-window.ts`'s measured 1.02 MB, in a
+   0.5 GiB container holding both. **AC 1 is widened** to capture per-bucket
+   dispersion, without which AC 7's floor is **chosen rather than derived**,
+   against hand-off item 4's own rule.
+
+### The five false premises
+
+5. **`§628` is a LINE NUMBER and `VISUAL-LANGUAGE.md` has no numbered sections
+   at all** — 1,149 lines, headings only, and `grep -rn "§628"` returns nothing
+   repository-wide. The passage is lines 626–644 and the multiple is at **631**.
+   **Corrected 2026-10-17 by Task 5.5.1: the multiple is at line 632, and there
+   is no table row beneath it that spells the phrase.** The second site is line
+   **716**, in the deferred-work blockquote eighty-four lines further on; the
+   row beneath the passage reads _"The reference rule — reserved for Epic 5's
+   baseline"_ and carries no multiple at all. Both real sites now say
+   `typical`. Which is premise 5 proving itself twice over — a line-keyed
+   pointer was wrong by one line and a described neighbour was the wrong
+   neighbour, inside the day the premise was written.
+   **And it did not reason about drawing this figure**: it sized the volume
+   **plot** (_"88 px against the price plot's 280 … a window whose peak is 3.8×
+   its typical bar draws that typical bar at one 3.8th of the plot"_), which is a
+   **domain** argument about a plot height and offers no treatment to inherit.
+   Same number, different purpose.
+6. **AC 3 falsifies a live sentence in a governing document**, so the
+   upward-sweep rule applies the **same day** rather than at the close: line 631
+   and the table row beneath it both spell **`Volume 3.8× normal`**, the word AC
+   3 forbids. `PRODUCT_SPEC.md` §11 and the epic exit criterion are not the whole
+   corpus.
+7. **AC 1 is NOT a gate on the story.** AC 2's same-tape rule removes the
+   multiplicative bias AC 1 exists to bound — a same-tape ratio has no cross-tape
+   bias at all — so AC 1 survives as two narrower things: a bound on the
+   fallback, and the product input on whether a live `iex/iex` figure is worth
+   drawing. **"No volume figure is drawn before it exists" is not checkable** as
+   written: it is a claim about a development sequence, not about the tree.
+8. **`bar_coverage.covered_end` is not evidence of `sip` reconciliation**, so
+   hand-off item 5 cannot carry AC 1's _reconciled session_ test. The ledger is
+   **tape-blind**. Reconciled must be a per-tape count —
+   `count(*) filter (where feed='sip')` over that security's session range, the
+   index-only shape `tapeCounts` already uses.
+9. **The split guard cannot be re-derived for volume.** It is a ratio over two
+   **closes** at a session boundary; volume legitimately moves 10× day to day, so
+   there is no analogous clean overnight ratio. The volume factor must **read**
+   the price pass's `split-discontinuity` refusal for that
+   `(security_id, observed_at)`.
+
+### Two more things the roles settled
+
+**`return_baselines` cannot be extended, and the hand-off's premise is false in
+three ways.** It has **no `feed` column** — the tape is a serving-path constant,
+`BASELINE_FEED = "sip"` — so extending means one row holding a `sip`
+distribution and an `iex` distribution with nothing saying which. It would have
+to weaken the shipped `return_baselines_one_answer` check and duplicate
+`sample_count` and `refusal`, because a security can be price-refused (`CRWD`,
+split) and volume-fine or the reverse. And **a second table does not imply a
+second pass** — Story 5.4.5 already writes two tables from one pass, and adding
+`volume` to `windowQuery`'s `select` costs **no extra I/O**: the same 538 blocks,
+the same index scan, one more column deserialised.
+
+**Epic 14's backend condition does NOT re-fire.** This story is scoped to
+`Abnormal-move indicators`, one security per client focus, on the fifth frame
+type — **O(clients)**, which is why 5.1, 5.2 and 5.3 were each evaluated unfired.
+Epic 14's fired condition is a figure derived per security **over the universe**.
+And because this story is out of scope for `/`, it does **not** owe Epic 14's
+re-take of the per-batch arm — said explicitly so the next reader does not
+assume it was skipped.
+
+### Routed out of scope with a condition — the volume plot's reference rule
+
+`VISUAL-LANGUAGE.md` line 637 reserves the volume plot's dashed
+`--chart-reference` rule for **"Epic 5's baseline"** by name, with _"No new
+token"_, and **this story is that baseline** — so the condition has been met and
+this file's _Out of scope_ never mentioned it. It is routed out anyway, on a
+reason better than scope: **a flat rule is the wrong mark for a time-of-day
+bucket median.** The baseline varies by bucket, so the honest drawing is
+**stepped**, not a rule. **Condition for building it: the first story that draws
+the volume baseline on a time axis rather than as a figure.**
+
+### One consequence of decision 1 to have in writing
+
+The figure ships drawn on **no machine and by no person**, and becomes available
+on a **date nobody controls** — so `LIVE-REHEARSAL.md` row 5.5 is
+**unwatchable** rather than merely unwatched, which is new for that ledger.
+
 ## Acceptance criteria
 
 1. **IEX's share of consolidated volume is measured first**, per security and
@@ -74,9 +207,19 @@ the return and the percentile.
 
 One more figure in a column whose idiom Story 5.1 set. The figure is a
 **multiple** rather than a percentage, which is a different shape from
-everything else on the page — and `VISUAL-LANGUAGE.md` §628 already reasoned
-about exactly this multiple when it sized the volume plot, so read it before
-choosing a treatment.
+everything else on the page — and `VISUAL-LANGUAGE.md`'s **_The supporting
+series_** heading already reasoned about exactly this multiple when it sized the
+volume plot, so read it before choosing a treatment.
+
+> **Pointer corrected 2026-10-17 by Task 5.5.1.** This read `§628`, which is a
+> **line number**: that file has no numbered sections at all, and a line-keyed
+> pointer rots on the next insertion — as this one did, because the same task's
+> amendment moved the passage. Gate 1's premise 5 says the multiple is at line
+> **631** and it is at **632**, which is the rot happening inside one story. The
+> heading is the durable address. And premise 5's other half stands: the passage
+> is a **domain** argument about a plot height — _"a window whose peak is 3.8×
+> its typical bar draws that typical bar at one 3.8th of the plot"_ — and offers
+> this story no treatment to inherit.
 
 ## Out of scope
 
