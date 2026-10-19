@@ -280,6 +280,30 @@ function seriesBody(bars) {
 const BARS_PATH = "/market-data/bars";
 
 describe("probeSeries: can the deployment serve the thing the page reads", () => {
+  // **The defect this probe was widened for, as a test.** `deploy` 39213220338
+  // printed `✓ series … 1889 bars for NVDA 1m/5 sessions` and then failed
+  // `security-explorer-journey.spec.ts:225` on `?sessions=21`, the window its
+  // control reaches — measured against production at 2.67 s and 925 kB against
+  // the 5-session window's 1.19 s and 35 kB. A deployment that serves the
+  // cheap read and not the expensive one is NOT ready, and the old probe
+  // called it ready.
+  it("is RED when the window a control reaches fails and the cold load's succeeds", async () => {
+    const calls = stubFetch({
+      [BARS_PATH]: (n) =>
+        n === 1
+          ? json(seriesBody(1_950))
+          : { ok: false, status: 503, json: () => Promise.reject(new Error()) },
+    });
+
+    const result = await probeSeries(BACKEND);
+
+    assert.equal(result.ok, false);
+    assert.match(result.detail, /HTTP 503/);
+    // Both were asked for, in order, and the second is the one that answered.
+    assert.equal(calls.length, 2);
+    assert.match(calls[1], /sessions=21$/);
+  });
+
   it("asks for the query the security page asks for, and reports the bars", async () => {
     const calls = stubFetch({ [BARS_PATH]: json(seriesBody(1_950)) });
 
@@ -288,11 +312,15 @@ describe("probeSeries: can the deployment serve the thing the page reads", () =>
     assert.equal(result.ok, true);
     // The client's own parameter order, which two caches key on.
     assert.deepEqual(calls, [
+      // **BOTH windows, in the order a reader meets them** — updated
+      // 2026-10-19 after `deploy` 39213220338 failed on the window the probe
+      // had never asked for while printing a green `series` line.
       "/market-data/bars?symbol=NVDA&timeframe=1m&sessions=5",
+      "/market-data/bars?symbol=NVDA&timeframe=1m&sessions=21",
     ]);
     assert.match(
       result.detail,
-      /1950 bars for NVDA 1m\/5 sessions, 1 source \(sip\)/,
+      /1950 bars for NVDA 1m\/5 sessions, 1 source \(sip\) · 1950 bars for NVDA 1m\/21 sessions, 1 source \(sip\)/,
     );
   });
 
@@ -395,7 +423,7 @@ describe("checkDeployed: readiness includes serving a series", () => {
 
     assert.equal(result.ok, true);
     assert.equal(result.series.ok, true);
-    assert.equal(calls.filter((path) => path.startsWith(BARS_PATH)).length, 1);
+    assert.equal(calls.filter((path) => path.startsWith(BARS_PATH)).length, 2);
   });
 
   it("WAITS for a backend that answers /health before it can serve a series", async () => {
@@ -417,7 +445,7 @@ describe("checkDeployed: readiness includes serving a series", () => {
     const result = await checkDeployed(ADDRESSES, time);
 
     assert.equal(result.ok, true);
-    assert.equal(attempts, 5);
+    assert.equal(attempts, 6);
     assert.equal(time.elapsed(), 4_000);
   });
 
@@ -468,7 +496,7 @@ describe("checkDeployed: readiness includes serving a series", () => {
     const result = await checkDeployed(ADDRESSES, { now: time.now, sleep });
 
     assert.equal(result.ok, true);
-    assert.equal(calls.filter((path) => path.startsWith(BARS_PATH)).length, 1);
+    assert.equal(calls.filter((path) => path.startsWith(BARS_PATH)).length, 2);
   });
 
   it("does not say the pair never came up when it did", async () => {
