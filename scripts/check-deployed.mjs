@@ -600,8 +600,37 @@ async function probeFeedOnce(backendOrigin) {
  *
  * NVDA because it is the security the curated universe always holds and the one
  * the deployed journey opens — `e2e/specs-deployed/security-explorer-journey.spec.ts`.
+ *
+ * ## BOTH windows, and the second one is why this probe exists at all
+ *
+ * **Added 2026-10-19, after a deploy went red with every readiness probe
+ * green.** The first version of this probe warmed `sessions=5` only — the cold
+ * load, parameter for parameter, on the reasoning above — and
+ * `deploy` 39213220338 then failed `security-explorer-journey.spec.ts:225`
+ * at `up 104.8s` with `✓ series … 1889 bars for NVDA 1m/5 sessions` printed
+ * three lines above it. The probe was true and useless: that spec is *"search
+ * NVDA, open it, read both plots, **change the window**"*, and the failure
+ * artefact shows the page holding its 5-session answer with
+ * `"no response from the service … The 5-session window is still on screen."`
+ * — ADR 0028's keep-the-last-answer rule working correctly over a **second**
+ * request that had never been warmed.
+ *
+ * That second request is `?sessions=21` (`cell("1 month")`, asserted at
+ * `:335`), and it is the **expensive** one: measured against production on
+ * 2026-10-16, `sessions=1` is **1.19 s / 35 kB** and `sessions=21` is
+ * **2.67 s / 925 kB** — ~26× the bytes. So warming 5 proved almost nothing
+ * about 21.
+ *
+ * **Both are probed, in the order the page asks**, rather than only the larger.
+ * The larger subsumes the smaller in the **database** — 21 sessions' blocks
+ * contain 5's — but not in the two **caches** the docblock above is about,
+ * which key on the whole URL. Probing only 21 would leave the first request a
+ * reader makes cold again, which is the defect this probe was written for.
  */
-const SERIES_PROBE_QUERY = "symbol=NVDA&timeframe=1m&sessions=5";
+const SERIES_PROBE_QUERIES = [
+  "symbol=NVDA&timeframe=1m&sessions=5",
+  "symbol=NVDA&timeframe=1m&sessions=21",
+];
 
 /**
  * Can the deployed backend serve a SERIES, and not only its own health check?
@@ -646,8 +675,26 @@ const SERIES_PROBE_QUERY = "symbol=NVDA&timeframe=1m&sessions=5";
  * fired.
  */
 export async function probeSeries(backendOrigin) {
+  // **Sequentially, and the FIRST failure is the answer.** A reader meets these
+  // in this order, so a deployment that can serve the window a page opens with
+  // and not the window its control reaches is still not ready — and naming the
+  // window that failed is the whole value of the line this prints.
+  // **Every window's detail is reported, not just the last one.** Returning
+  // only the final result would print `1m/21 sessions` and let a reader think
+  // the window a page opens with had never been asked for — which is the
+  // mirror of the defect this probe was widened to fix.
+  const details = [];
+  for (const query of SERIES_PROBE_QUERIES) {
+    const attempt = await probeSeriesWindow(backendOrigin, query);
+    if (!attempt.ok) return attempt;
+    details.push(attempt.detail);
+  }
+  return { ok: true, detail: details.join(" · ") };
+}
+
+async function probeSeriesWindow(backendOrigin, seriesProbeQuery) {
   const result = await get(
-    `${backendOrigin}/market-data/bars?${SERIES_PROBE_QUERY}`,
+    `${backendOrigin}/market-data/bars?${seriesProbeQuery}`,
   );
 
   if (!result.ok) return { ok: false, detail: result.reason };
@@ -698,9 +745,17 @@ export async function probeSeries(backendOrigin) {
 
   return {
     ok: true,
+    // **The window comes from the QUERY, never a literal.** It read
+    // `1m/5 sessions` until 2026-10-19, which is how `deploy` 39213220338
+    // printed `✓ series … 1889 bars for NVDA 1m/5 sessions` three lines above a
+    // spec that failed on the window it had never probed. A hard-coded figure
+    // beside a parameterised request is a line that reads as proof of the wrong
+    // thing — `the-population-is-never-a-literal`'s rule, one scale down.
     detail: `${String(series.bars.length)} bars for ${String(
       series.symbol,
-    )} 1m/5 sessions, ${String(sources.length)} source${
+    )} ${new URLSearchParams(seriesProbeQuery).get("timeframe") ?? "?"}/${
+      new URLSearchParams(seriesProbeQuery).get("sessions") ?? "?"
+    } sessions, ${String(sources.length)} source${
       sources.length === 1 ? "" : "s"
     } (${tapes})`,
   };
@@ -874,7 +929,12 @@ export function reportDeployed(
     line(
       series === undefined ? "·" : series.ok ? "✓" : "✗",
       "series",
-      `${addresses.backendOrigin}/market-data/bars?${SERIES_PROBE_QUERY}`,
+      // **The windows, joined rather than one of them.** Printing only the
+      // first would name the request that passed while the line reports the
+      // one that failed, which is the shape of a report that misleads.
+      `${addresses.backendOrigin}/market-data/bars?{${SERIES_PROBE_QUERIES.map(
+        (query) => query.slice(query.lastIndexOf("=") + 1),
+      ).join(",")}} sessions`,
       series === undefined ? notReached : series.detail,
     ),
   );
