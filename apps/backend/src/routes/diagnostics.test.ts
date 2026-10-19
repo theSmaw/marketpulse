@@ -18,6 +18,7 @@ import type { AttemptRow, CoverageRow } from "../store-freshness.js";
 import { toMarketDate, toTicker, toTimeRange } from "@marketpulse/shared";
 import { buildServer } from "../server.js";
 import type { BaselineCostDiagnostic } from "../baseline-cost.js";
+import { unmeasuredVolumeShare } from "../volume-share.js";
 import type { FeedDiagnostic } from "./diagnostics.js";
 import { createDiagnosticsRoutes } from "./diagnostics.js";
 
@@ -68,6 +69,10 @@ const UNMEASURED_BASELINE_COST: BaselineCostDiagnostic = {
   elapsedMs: null,
   sipRows: null,
   iexRows: null,
+  // The volume block (Task 5.5.2), through its own producer rather than a
+  // hand-written copy: a refusal shape typed out here would be a second
+  // description of *what an unread store answers*, and the two would drift.
+  ...unmeasuredVolumeShare(),
   checkedAt: "2026-10-14T00:00:00.000Z",
 };
 
@@ -253,6 +258,76 @@ describe("GET /diagnostics/database", () => {
     const { apiErrorSchema } = await import("../errors.js");
     expect(declared).toHaveLength(1);
     expect(declared[0]).toMatchObject({ response: { 500: apiErrorSchema } });
+  });
+});
+
+describe("GET /diagnostics/baseline-cost — the volume block on the wire", () => {
+  // **The route had no describe block of its own until Task 5.5.2**, and the
+  // widening is what made one necessary: `baseline-cost.ts` claims its schema
+  // is asserted in this file, and until now `server.test.ts`' route-table walk
+  // was the only thing looking at it — which reads the `500` and nothing else.
+  //
+  // What is asserted here is the one property that is a fact about the
+  // **serialiser** rather than about the arithmetic, and it is the one
+  // `volume-share.test.ts` structurally cannot see: `fast-json-stringify`
+  // turns a `null` under a bare `"number"` into **`0`**, and on this block a
+  // `0` share is *IEX carries none of the volume* where the truth is *we could
+  // not measure it*. Adding the field to `BaselineVolumeShare` without
+  // declaring it `["number", "null"]` leaves every arithmetic test green.
+  it("keeps every unmeasured figure as `null` rather than coercing it to 0", async () => {
+    const instance = await serverWith(() => Promise.resolve(reachable));
+
+    const response = await instance.inject({
+      method: "GET",
+      url: "/diagnostics/baseline-cost?symbol=NVDA",
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    const body = response.json<BaselineCostDiagnostic>();
+
+    for (const [field, value] of Object.entries(body.volumeShare)) {
+      // Every ratio the producer answered `null` has to still be `null`. Read
+      // off the producer rather than from a list typed here, so a field added
+      // to the type and left out of the schema is caught rather than skipped.
+      const produced =
+        UNMEASURED_BASELINE_COST.volumeShare[
+          field as keyof typeof body.volumeShare
+        ];
+      if (produced === null) expect(value).toBeNull();
+    }
+
+    // Named explicitly as well, because the loop above would pass vacuously if
+    // the producer ever stopped answering `null` — which is the shape of defect
+    // a loop over the subject's own output cannot see.
+    expect(body.volumeShare.biasOverAllSipMinutes).toBeNull();
+    expect(body.volumeShare.shareOnTwoTapeMinutes).toBeNull();
+    expect(body.volumeShare.perMinuteRatioMedian).toBeNull();
+    expect(body.volumeShare.refusal).toBe("unmeasured");
+  });
+
+  it("answers for BOTH tapes, never by omission, with the floor left null", async () => {
+    const instance = await serverWith(() => Promise.resolve(reachable));
+
+    const response = await instance.inject({
+      method: "GET",
+      url: "/diagnostics/baseline-cost",
+    });
+
+    const body = response.json<BaselineCostDiagnostic>();
+
+    expect(body.volumeDispersion.map((one) => one.tape)).toEqual([
+      "sip",
+      "iex",
+    ]);
+    // **A derived sample floor of `0` is the worst coercion on this endpoint**:
+    // a bucket needing no samples at all is a licence to print any figure from
+    // any sample, which is exactly what AC 7 exists to prevent.
+    for (const entry of body.volumeDispersion) {
+      expect(entry.samplesForTargetError).toBeNull();
+      expect(entry.sessionsForTargetError).toBeNull();
+      expect(entry.bucketMinutes).toBe(5);
+    }
   });
 });
 

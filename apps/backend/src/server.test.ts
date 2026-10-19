@@ -26,6 +26,7 @@ import { createMarketDataRoutes } from "./routes/market-data.js";
 import { createSecuritiesRoutes } from "./routes/securities.js";
 
 import { buildServer } from "./server.js";
+import { unmeasuredVolumeShare } from "./volume-share.js";
 
 const CORS_ORIGIN = "http://localhost:5173";
 
@@ -482,6 +483,8 @@ describe("the response-schema declaration", () => {
               elapsedMs: null,
               sipRows: null,
               iexRows: null,
+              // Task 5.5.2's volume block, through its own producer.
+              ...unmeasuredVolumeShare(),
               checkedAt: "2026-10-14T00:00:00.000Z",
             }),
         ),

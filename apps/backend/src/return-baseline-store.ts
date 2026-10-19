@@ -7,6 +7,7 @@ import { baselineTapeFrontier } from "./baseline-frontier.js";
 import { createMarketBarsRepository } from "./market-bars.js";
 import type { Database } from "./schema.js";
 import type { ReturnBaselineOutcome } from "./return-baseline.js";
+import type { MinuteVolume } from "./volume-share.js";
 import type { ReturnBaselineRefusal } from "@marketpulse/shared";
 
 /**
@@ -293,6 +294,35 @@ export interface ReturnBaselineStore {
     subject: BaselineSubject,
     window: TimeRange,
   ): Promise<BaselineTapeCounts>;
+
+  /**
+   * **One row per minute of the window, carrying each tape's volume** — the
+   * read `GET /diagnostics/baseline-cost`'s volume block is computed from
+   * (Task 5.5.2).
+   *
+   * **Paired in SQL rather than in JavaScript.** The question is *what did each
+   * tape print in this minute*, and `market_bars_unique_bar` holds at most one
+   * row per `(security_id, timeframe, observed_at, feed)` — so a `group by
+   * observed_at` with two filtered sums answers it in one pass over the same
+   * 538 blocks the window read touches, and hands back **one row per minute
+   * with both tapes beside each other** rather than two rows a consumer has to
+   * join by hand. A minute that holds only one tape comes back with a `null` on
+   * the other side, which is the distinction AC 4 turns on: *this venue printed
+   * nothing* has to survive the read, and a `0` would not.
+   *
+   * **Unlike `tapeCounts` this one touches the heap**, because `volume` is not
+   * in the index — the same 538 blocks as `readWindowCloses`, in the bandwidth
+   * regime the module header measured, and no second access path.
+   *
+   * The sums come back as **strings**, because `volume` is a `bigint`; one
+   * parser beside the query turns them into numbers and drops what it cannot
+   * read, which is `parseClose`'s rule for the same reason — a diagnostic over
+   * 24,142 rows must not fail on one malformed value.
+   */
+  readMinuteVolumes(
+    subject: BaselineSubject,
+    window: TimeRange,
+  ): Promise<readonly MinuteVolume[]>;
 }
 
 /** The timeframe a baseline is computed at. Minute bars, never daily. */
@@ -333,6 +363,26 @@ function parseClose(raw: string): number | undefined {
   if (raw.trim() === "") return undefined;
   const value = Number(raw);
   return Number.isFinite(value) && value !== 0 ? value : undefined;
+}
+
+/**
+ * A `bigint` volume as a `number`, or `undefined` for a tape that printed
+ * nothing in this minute.
+ *
+ * **`null` and `undefined` are different answers here and the distinction is
+ * the whole point** (Task 5.5.2). `sum(…) filter (…)` over a group with no
+ * matching row is `null`, which means *this venue has no bar for this minute* —
+ * AC 4's absence — and a `0` in its place would be a claim that the venue
+ * traded nothing. `Number(null)` is **0**, so the explicit check is not
+ * redundant with `isFinite`; `parseClose` records the same trap for `""`.
+ *
+ * A volume genuinely at `0` is kept: a bar with no shares in it is a thing
+ * Alpaca sends, and it is a measurement rather than an absence.
+ */
+function parseVolume(raw: string | null): number | undefined {
+  if (raw === null || raw.trim() === "") return undefined;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
 interface PlanNode {
@@ -501,6 +551,47 @@ export function createReturnBaselineStore(pool: pg.Pool): ReturnBaselineStore {
       return row === undefined
         ? undefined
         : { id: row.id, symbol: toTicker(row.symbol) };
+    },
+
+    async readMinuteVolumes(subject, window) {
+      const rows = await db
+        .selectFrom("market_bars")
+        // **No join**, for `windowQuery`'s measured reason: with the security
+        // reached through one the top plan node is a `Sort` per security.
+        .select(({ fn }) => [
+          "market_bars.observed_at",
+          // **`sum` over an at-most-one-row group**, which is `max`'s answer by
+          // a different route and the one that survives
+          // `0011_market_bars_unique_bar_by_tape.sql` being relaxed: if a
+          // minute ever held two rows of one tape, a sum is the venue's volume
+          // and a max is one of them.
+          fn
+            .sum<string | null>("market_bars.volume")
+            .filterWhere("market_bars.feed", "=", BASELINE_FEED)
+            .as("sip"),
+          fn
+            .sum<string | null>("market_bars.volume")
+            .filterWhere("market_bars.feed", "=", "iex")
+            .as("iex"),
+        ])
+        .where("market_bars.security_id", "=", subject.id)
+        .where("market_bars.timeframe", "=", BASELINE_TIMEFRAME)
+        // **Both tapes by name and never `<> 'synthetic'`.** A negative
+        // predicate silently admits `replay` and whatever tape ADR 0034's
+        // vocabulary gains next, which is Task 4.4.4's lesson on a `feed`
+        // column rather than on a ticker set.
+        .where("market_bars.feed", "in", [BASELINE_FEED, "iex"])
+        .where("market_bars.observed_at", ">=", window.start)
+        .where("market_bars.observed_at", "<", window.end)
+        .groupBy("market_bars.observed_at")
+        .orderBy("market_bars.observed_at")
+        .execute();
+
+      return rows.map((row) => ({
+        startsAt: row.observed_at,
+        sip: parseVolume(row.sip),
+        iex: parseVolume(row.iex),
+      }));
     },
 
     async readWindowCloses(subject, window) {
