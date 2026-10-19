@@ -6,6 +6,13 @@ import {
 
 import { baselineWindowEndingAt } from "./return-baseline.js";
 import type { ReturnBaselineStore } from "./return-baseline-store.js";
+import {
+  unmeasuredVolumeShare,
+  volumeDispersionOf,
+  volumeShareOf,
+  type BaselineVolumeDispersion,
+  type BaselineVolumeShare,
+} from "./volume-share.js";
 
 /**
  * **What the replica can measure about its own store, and nothing else** (Task
@@ -59,6 +66,26 @@ import type { ReturnBaselineStore } from "./return-baseline-store.js";
  * read off `iexRows` is ~25% of steady state** and has to be recorded as a
  * dated, partially-exposed measurement — never as ADR 0035's +69% projection
  * confirmed or refuted.
+ *
+ * ## And since Task 5.5.2 it answers IEX's share of VOLUME
+ *
+ * The widening is deliberate and the owner's 2026-10-14 ruling is what permits
+ * it: AC 1's *not in a route* governs **computing for a reader**, not
+ * **measuring**. This surface already loops one security, already reads that
+ * security's window and already reports the two tape counts no machine outside
+ * Azure can produce — and the volume question is the same read with one more
+ * column deserialised, over the same 538 blocks.
+ *
+ * `volume-share.ts` carries the whole argument: why there are **two** ratios
+ * rather than `STORY.md`'s one, why an absent `iex` bar is a `0` in the bias
+ * and **not a sample** in the distribution, and how AC 7's sample floor is
+ * derived from a measured dispersion instead of chosen.
+ *
+ * **It is a second read and not a second route**, and the cost is stated: one
+ * extra pass over the same index range, issued after the `EXPLAIN` and after
+ * the counts, sequentially, for the reason the three already are — a statement
+ * executing concurrently on a second pooled connection would be contending for
+ * the buffers of the thing being measured.
  */
 
 /** Why no measurement was taken. A fixed vocabulary; see the type. */
@@ -108,6 +135,17 @@ export interface BaselineCostDiagnostic {
    */
   sipRows: number | null;
   iexRows: number | null;
+  /**
+   * **IEX's share of volume, both ways** (Task 5.5.2). `volume-share.ts` says
+   * why one ratio cannot answer the question.
+   */
+  volumeShare: BaselineVolumeShare;
+  /**
+   * Within-bucket dispersion of minute volume, **one entry per tape, never by
+   * omission** — `FreshnessTimeframe`'s rule, and the `iex` entry refuses on
+   * every store outside Azure rather than being absent.
+   */
+  volumeDispersion: readonly BaselineVolumeDispersion[];
   /** When this was computed, as an ISO 8601 instant. */
   checkedAt: string;
 }
@@ -150,6 +188,10 @@ function unmeasured(
     elapsedMs: null,
     sipRows: null,
     iexRows: null,
+    // **`unmeasured` rather than zeroes**, which is this body's own rule
+    // arriving one level down: a share of `0` on a store that was never read
+    // is the most reassuring possible lie about a venue's reach.
+    ...unmeasuredVolumeShare(),
     checkedAt: new Date().toISOString(),
   };
 }
@@ -157,7 +199,11 @@ function unmeasured(
 export async function readBaselineCost(
   store: Pick<
     ReturnBaselineStore,
-    "tapeCoveredEnd" | "explainWindowRead" | "subjectFor" | "tapeCounts"
+    | "tapeCoveredEnd"
+    | "explainWindowRead"
+    | "subjectFor"
+    | "tapeCounts"
+    | "readMinuteVolumes"
   >,
   symbol: string,
 ): Promise<BaselineCostDiagnostic> {
@@ -199,6 +245,12 @@ export async function readBaselineCost(
   const plan = await store.explainWindowRead(subject, window.range);
   const tapes = await store.tapeCounts(subject, window.range);
 
+  // **Third and last, and sequentially for the same reason** (Task 5.5.2). It
+  // is also the one read here that touches the heap — `volume` is not in
+  // `market_bars_unique_bar` — so running it beside the `EXPLAIN (ANALYZE)`
+  // would put the measured query and an unmeasured one on the same buffers.
+  const minutes = await store.readMinuteVolumes(subject, window.range);
+
   return {
     symbol: subject.symbol,
     timeframe: "1m",
@@ -217,6 +269,12 @@ export async function readBaselineCost(
     elapsedMs: Math.round(plan.elapsedMs * 100) / 100,
     sipRows: tapes.sip,
     iexRows: tapes.iex,
+    // **The window's own sessions, handed in.** Both functions are pure and
+    // neither reads a calendar of its own, so the buckets they place a minute
+    // in are the grid the pass samples on rather than a second derivation of
+    // it — `baselineWindowEndingAt`'s one-home rule, one level down.
+    volumeShare: volumeShareOf(window.sessions, minutes),
+    volumeDispersion: volumeDispersionOf(window.sessions, minutes),
     checkedAt: new Date().toISOString(),
   };
 }

@@ -124,6 +124,10 @@ import {
   type BaselineCostReadFn,
 } from "../baseline-cost.js";
 import type { DatabaseCheck, DatabaseCheckFn } from "../database.js";
+import type {
+  BaselineVolumeDispersion,
+  BaselineVolumeShare,
+} from "../volume-share.js";
 import { apiErrorSchema } from "../errors.js";
 import type { JsonSchemaProperty } from "../json-schema.js";
 import type {
@@ -372,6 +376,66 @@ const feedSchema = {
  * work: the handler awaits an `EXPLAIN (ANALYZE)` against a live store, which
  * is the one diagnostic here that can genuinely reject.
  */
+/**
+ * IEX's share of volume on the wire (Task 5.5.2).
+ *
+ * **Named rather than inline**, for `FreshnessTimeframe`'s reason: inline, a
+ * `satisfies` guard covers the outer keys and **nothing inside the nested
+ * object**, and every figure in here needs the `["number", "null"]` treatment.
+ * That matters more on this block than anywhere else on the endpoint — a
+ * `null` share reaching the wire as **`0`** turns *we could not measure IEX's
+ * reach* into *IEX carries none of the volume*, which is a statement about a
+ * venue that this story exists to avoid making by accident.
+ */
+const volumeShareProperties = {
+  measured: { type: "boolean" },
+  refusal: { type: ["string", "null"] },
+  exposureFrom: { type: "string" },
+  // Counts, so bare `"number"`: `0` is the true answer when nothing was
+  // exposed, and `volume-share.ts` keeps every count it established through a
+  // refusal on purpose.
+  sessions: { type: "number" },
+  exposedSessions: { type: "number" },
+  sessionsHoldingIex: { type: "number" },
+  firstExposedSession: { type: ["string", "null"] },
+  lastExposedSession: { type: ["string", "null"] },
+  sipMinutes: { type: "number" },
+  twoTapeMinutes: { type: "number" },
+  // Every RATIO is nullable, and every one of them is a `0` that would read as
+  // a measurement. See the note above.
+  minutePresence: { type: ["number", "null"] },
+  sipVolume: { type: ["number", "null"] },
+  sipVolumeOnTwoTapeMinutes: { type: ["number", "null"] },
+  iexVolume: { type: ["number", "null"] },
+  biasOverAllSipMinutes: { type: ["number", "null"] },
+  shareOnTwoTapeMinutes: { type: ["number", "null"] },
+  volumeExposure: { type: ["number", "null"] },
+  perMinuteRatioP10: { type: ["number", "null"] },
+  perMinuteRatioMedian: { type: ["number", "null"] },
+  perMinuteRatioP90: { type: ["number", "null"] },
+} satisfies Record<keyof BaselineVolumeShare, JsonSchemaProperty>;
+
+/** One tape's dispersion on the wire. One entry per tape, never by omission. */
+const volumeDispersionProperties = {
+  tape: { type: "string" },
+  measured: { type: "boolean" },
+  refusal: { type: ["string", "null"] },
+  bucketMinutes: { type: "number" },
+  minutes: { type: "number" },
+  minutesOutsideSession: { type: "number" },
+  buckets: { type: "number" },
+  bucketsWithSpread: { type: "number" },
+  samplesMedian: { type: ["number", "null"] },
+  cvP10: { type: ["number", "null"] },
+  cvMedian: { type: ["number", "null"] },
+  cvP90: { type: ["number", "null"] },
+  relativeStandardError: { type: ["number", "null"] },
+  // **The derived floor, and a `0` here would be the worst of the lot**: a
+  // bucket needing no samples at all is a licence to print any figure.
+  samplesForTargetError: { type: ["number", "null"] },
+  sessionsForTargetError: { type: ["number", "null"] },
+} satisfies Record<keyof BaselineVolumeDispersion, JsonSchemaProperty>;
+
 const baselineCostProperties = {
   symbol: { type: "string" },
   timeframe: { type: "string" },
@@ -398,6 +462,19 @@ const baselineCostProperties = {
   elapsedMs: { type: ["number", "null"] },
   sipRows: { type: ["number", "null"] },
   iexRows: { type: ["number", "null"] },
+  volumeShare: {
+    type: "object",
+    properties: volumeShareProperties,
+    required: Object.keys(volumeShareProperties),
+  },
+  volumeDispersion: {
+    type: "array",
+    items: {
+      type: "object",
+      properties: volumeDispersionProperties,
+      required: Object.keys(volumeDispersionProperties),
+    },
+  },
   checkedAt: { type: "string" },
 } satisfies Record<keyof BaselineCostDiagnostic, JsonSchemaProperty>;
 

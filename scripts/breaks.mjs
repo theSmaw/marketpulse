@@ -5199,4 +5199,131 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "the-baseline-window-ends-on-a-tape",
   },
+  // ## Task 5.5.2's three, and the first is the one the task was written for
+  //
+  // **Hand-performed rather than through `pnpm break`**, because the subject
+  // was uncommitted at the time and `break-verify.mjs` refuses a dirty target;
+  // the task record carries the checksums either side and the transcripts. They
+  // are registered here so the next person can re-run them for free, and
+  // because `every-break-can-still-land` then holds the anchors against drift.
+  {
+    name: "the-volume-share-is-computed-unconditionally",
+    proves:
+      "`GET /diagnostics/baseline-cost` answers `biasOverAllSipMinutes: 0` " +
+      "on a store that holds no `iex` row at all — which is CI's store " +
+      "and every developer's, permanently. `Σiex / Σsip` is a " +
+      "well-formed `0` there, and `0` is the single most misleading answer " +
+      "this surface can give: *IEX carries none of the volume*, a claim " +
+      "about a venue, rather than *this store has never heard IEX*. It is " +
+      "`STORY.md`'s own single unconditional ratio, which is why it is the " +
+      "defect a re-implementer writes.",
+    // **The found line is KEPT and the condition neutered**, the opposite of
+    // Task 5.5.1's entry beside it and for the mirror reason: there the check
+    // had two conjuncts and deleting the good call would have tripped the
+    // first; here the subject is a single behaviour and a deleted gate is
+    // exactly the defect, so the shortest edit that expresses it is the
+    // condition.
+    //
+    // **Proved green on the defect first, 2026-10-19, against the wrong
+    // instrument rather than against a weak check.** With this gate dead the
+    // whole of `volume-share.database.test.ts` — the hand-built two-tape
+    // store this task calls its highest-value instrument — reported
+    // `10 passed`, because its fixture HAS two tapes and never visits the
+    // refusal. A two-tape fixture cannot see a zero-tape defect.
+    //
+    // **And a one-`if`-per-refusal draft could not be broken at all.** The
+    // first shape had `twoTapeMinutes === 0` and `sipVolume === 0 ||
+    // sipVolumeOnBoth === 0` as separate early returns, and because the first
+    // condition IMPLIES the second, neutering either one left the other
+    // refusing — red at `expected 'no-sip-volume' to be
+    // 'no-two-tape-minute'`, which proves a word and not a number. One gate
+    // is what makes the `0.0` reachable in one edit.
+    file: "apps/backend/src/volume-share.ts",
+    find: "  if (refusal !== undefined) {",
+    replace: "  if (false) { // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/volume-share.test.ts",
+    ],
+    expect: "REFUSES rather than answering 0.0",
+  },
+  {
+    name: "an-absent-iex-bar-becomes-a-zero-sample",
+    proves:
+      "An `iex` bar that does not exist is counted as a **0.0 sample** in " +
+      "the per-minute ratio distribution, which is AC 4 reintroduced at the " +
+      "one place it is invisible: the counts stay right, the bias stays " +
+      "right, and only the distribution moves — from a median of 0.20 " +
+      "to 0.05 on the fixture. A `0.0` there is not an observation of a " +
+      "venue's share, it is the coverage shortfall smuggled into the one " +
+      "figure that exists to be free of it, which collapses the two " +
+      "quantities the pair of ratios was built to keep apart.",
+    file: "apps/backend/src/volume-share.ts",
+    find: "    if (iex === undefined) continue;",
+    replace:
+      "    if (iex === undefined) {\n" +
+      "      perMinuteRatios.push(0); // pnpm break: reverted automatically\n" +
+      "      continue;\n" +
+      "    }",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/volume-share.test.ts",
+    ],
+    expect: "in the distribution not at all",
+  },
+  {
+    name: "the-exposure-cutoff-is-dropped",
+    proves:
+      "A session before 2026-09-23 — the day `live-bar-writer.ts` " +
+      "landed — is counted in the bias denominator, where an `iex` row " +
+      "could never have existed. The figure then measures **how much " +
+      "history this store holds** rather than IEX's share of volume, and it " +
+      "moves towards zero as the backfill reaches further back: 0.031 " +
+      "instead of 0.10 on the fixture, and on the deployed store ~18 exposed " +
+      "sessions inside a 60-session window would divide the answer by " +
+      "roughly three. `exposedSessions` and `firstExposedSession` move with " +
+      "it, which is what the assertion reads.",
+    file: "apps/backend/src/volume-share.ts",
+    find: "    if (placed.date < LIVE_WRITER_FIRST_SESSION) continue;",
+    replace: "    // pnpm break: reverted automatically",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/volume-share.test.ts",
+    ],
+    expect: "excludes a session before the live writer existed",
+  },
+  {
+    name: "the-volume-share-is-declared-a-bare-number",
+    proves:
+      "An unmeasured volume share reaches the wire as **`0`** rather than " +
+      "`null`. `fast-json-stringify` coerces a `null` under a bare " +
+      '`"number"`, so declaring one field without the `["number", ' +
+      '"null"]` treatment turns *we could not measure IEX\'s reach* into ' +
+      "*IEX carries none of the volume* — a claim about a venue, made " +
+      "by a serialiser, on the one endpoint whose whole subject is how much " +
+      "of the tape we can see. Every arithmetic test stays green: " +
+      "`volume-share.test.ts` reported `15 passed` under this defect, " +
+      "because the producer is right and nothing it can observe is wrong.",
+    file: "apps/backend/src/routes/diagnostics.ts",
+    find: '  biasOverAllSipMinutes: { type: ["number", "null"] },',
+    replace:
+      '  biasOverAllSipMinutes: { type: "number" }, // pnpm break: reverted automatically',
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/routes/diagnostics.test.ts",
+    ],
+    expect: "rather than coercing it to 0",
+  },
 ];
