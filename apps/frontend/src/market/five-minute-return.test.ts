@@ -51,6 +51,10 @@ const PERCENTILE: WireReturnPercentile = {
 const held = (figure: WireSymbolReturn, symbol = "NVDA") => ({
   symbol,
   figure,
+  // **The volume half, which this module does not read at all** (Task 5.5.4).
+  // It is on the view because the frame carries both figures; `volumeRatioBand`
+  // is the one that spells it, in `volume-ratio.test.ts`.
+  volume: null,
 });
 
 /**

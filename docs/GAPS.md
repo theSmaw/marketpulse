@@ -4289,6 +4289,64 @@ cannot exist. The bound on `sampleCount` against `sipRows` has therefore
 first sitting on the deployed product after Epic 5 ships a percentile** — the
 same sitting `LIVE-REHEARSAL.md` owes a person.
 
+## No machine ON EARTH can draw the volume multiple, and the refusal is the shipped product
+
+**Added 2026-10-20 by Task 5.5.4.** This is the percentile's entry one turn
+further, and the turn is that it is not about **this repository**: the volume
+multiple needs a **same-tape `iex` baseline** (Gate 1 decision 1), and the `iex`
+tape begins on **2026-09-23**. Measured against the deployment on 2026-10-20 the
+`iex` tape's median bucket holds **80 minutes** and achieves a relative standard
+error of **10.65%**, against a target of 5% — so **NVDA, the best case in the
+universe, cannot print one decimal and needs 132 sessions to**. On CI and on
+every laptop there is no `iex` row at all, so the nightly pass writes **no row**
+and every security is `no-same-tape-baseline`, permanently.
+
+**The consequence, stated plainly: the six refusal sentences are what this story
+ships, and the figure itself has been drawn only in Storybook.** Every assertion
+in `security-abnormal-move.spec.ts` about a drawn multiple is vacuous everywhere,
+including production, until the depth accrues. The one with teeth is the
+**negative** claim, grounded outside the frame:
+`GET /diagnostics/baseline-cost`'s `iexRows` at `0` means no same-tape baseline
+can exist, so a drawn multiple is fabricated by construction —
+`the-volume-multiple-is-fabricated-rather-than-refused` is that defect and it
+went red on exactly that assertion.
+
+**And the bound on `sampleCount ≤ iexRows` has never been exercised against a
+non-trivial value**, for the percentile entry's reason above: the arm that fires
+first is the one that says the tape is empty.
+
+**Re-measure:** `curl "$BACKEND/diagnostics/baseline-cost?symbol=NVDA"` against
+the deployment and read `volumeDispersion[tape=iex].relativeStandardError`
+against `TARGET_RELATIVE_STANDARD_ERROR`. **Owner: Epic 5, condition — the first
+session on which any security's `iex` bucket clears the floor.**
+`LIVE-REHEARSAL.md` row 5.5 carries the sitting it owes, as **unwatchable**
+rather than unwatched.
+
+## The volume multiple is checkable against nothing on screen, and its comparand is worse than the percentile's
+
+**Added 2026-10-20 by Task 5.5.4.** The percentile's entry below says a rank
+against 4,620 samples from a table the browser never reads has no path to a
+recompute. The multiple has **two** such halves: the numerator is a sum over
+five minutes of a trailing window held in **process memory and on no frame**,
+and the denominator is a **60-session per-minute median of one five-minute
+bucket of the day** — a quantity nothing outside this product holds, including
+every public chart a reader might check it against.
+
+So the external check the percentile has — a public five-minute chart and a
+calculator — **does not exist for this figure**. A reader with a volume chart
+can see whether the last five minutes look busy; they cannot see whether they are
+4.1× a typical minute at 10:05.
+
+The frame carries the ratio, the counted `n`, the lookback, the bucket width and
+the tape — enough to check the claim's **shape**, nothing to check the
+**figure**. Shipping the bucket's own median would be a number no surface draws
+and would still not be checkable.
+
+**Re-measure:** there is nothing to re-run; this is discharged by a sitting that
+compares the drawn multiple with `select bucket_medians[n] from volume_baselines`
+and the page's own five minutes, or not at all. **Owner: the first deployed
+sitting after the tape has depth.**
+
 ## A percentile is checkable against nothing on screen, and that is strictly worse than the return beside it
 
 **Added 2026-10-14 by Story 5.3's close.** The five-minute return already tripped

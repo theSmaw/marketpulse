@@ -360,3 +360,15 @@ export {
   fiveMinuteReturnBand,
 } from "./five-minute-return.js";
 export type { ReturnBand, ReturnFigure } from "./five-minute-return.js";
+
+// **The volume multiple's read side** (Task 5.5.4) — the SECOND band of
+// `Abnormal-move indicators`, spelled from the same frame. Its band is built
+// whatever the return did, because the two figures refuse independently.
+export {
+  RESERVED_VOLUME,
+  VOLUME_LABEL,
+  formatMultiple,
+  volumeRatioBand,
+  volumeSample,
+} from "./volume-ratio.js";
+export type { VolumeBand } from "./volume-ratio.js";

@@ -4,7 +4,7 @@ import {
   decodeMarketStreamMessage,
   directionOf,
 } from "@marketpulse/shared";
-import type { WireSymbolReturn } from "@marketpulse/shared";
+import type { ReturnMessage } from "@marketpulse/shared";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
@@ -83,6 +83,22 @@ const REFUSAL_SENTENCES = {
   "no-basis": "No basis for a percentage",
 } as const;
 
+/**
+ * The volume band's six honest-absence sentences, **written out rather than
+ * imported** for {@link REFUSAL_SENTENCES}' reason: importing the module under
+ * test's own constants makes this spec agree with the renderer by
+ * construction, which is the furnished-frame defect wearing a different hat.
+ */
+const VOLUME_REFUSAL_SENTENCES = {
+  "no-same-tape-baseline": "No IEX volume history for this security",
+  "too-few-sessions": "Too little history —",
+  "split-discontinuity": "Unadjusted price break — shares not comparable",
+  "zero-volume-baseline":
+    "No IEX shares in a typical minute at this time of day",
+  "no-bar-in-bucket": "No IEX bars in the last",
+  "bucket-partially-observed": "IEX printed in only",
+} as const;
+
 /** The region's own noun — the one sentence that takes a terminal stop. */
 const NO_RETURN = "No return yet.";
 
@@ -137,6 +153,20 @@ async function providerFeed(page: Page): Promise<string | null> {
 interface BaselineCost {
   readonly measured: boolean;
   readonly sipRows: number | null;
+  /**
+   * **How many `iex` rows the 60-session window holds for this security**, and
+   * the one fact outside the `return` frame that bounds a volume multiple
+   * (Task 5.5.4).
+   *
+   * The volume baseline is built from `feed = 'iex'` **by name** (Gate 1
+   * decision 1), and the nightly pass writes **no row at all** for a security
+   * with no `iex` bar in the window. So `0` or `null` here means no same-tape
+   * baseline can exist for NVDA on this deployment, and a drawn IEX multiple
+   * is fabricated **by construction** — which is this file's second
+   * out-of-frame claim and the one with teeth on every machine that is not
+   * Azure, because the live writer only runs where a provider is configured.
+   */
+  readonly iexRows: number | null;
 }
 
 async function baselineCost(page: Page): Promise<BaselineCost> {
@@ -194,8 +224,11 @@ const linesOf = (locator: Locator): Promise<readonly string[]> =>
  */
 async function openWithRecordedStream(
   page: Page,
-): Promise<readonly WireSymbolReturn[]> {
-  const figures: WireSymbolReturn[] = [];
+): Promise<readonly ReturnMessage[]> {
+  // **The whole frame rather than its `return` member** (Task 5.5.4), because
+  // the frame now carries TWO figures and they refuse independently — a pair
+  // read out of two arrays is a pair that can describe two different sends.
+  const frames: ReturnMessage[] = [];
 
   await page.routeWebSocket(/\/market-stream$/u, (ws) => {
     const server = ws.connectToServer();
@@ -207,7 +240,7 @@ async function openWithRecordedStream(
         decoded.message.type === "return" &&
         decoded.message.symbol === "NVDA"
       ) {
-        figures.push(decoded.message.return);
+        frames.push(decoded.message);
       }
 
       ws.send(raw);
@@ -216,7 +249,7 @@ async function openWithRecordedStream(
 
   await page.goto(EXPLORER, { waitUntil: "networkidle" });
 
-  return figures;
+  return frames;
 }
 
 /**
@@ -225,10 +258,8 @@ async function openWithRecordedStream(
  * *The gateway sent no `return` frame at all* is a different finding from a
  * disagreement about what it said, and it is the one a rollback produces.
  */
-const mustHaveSent = (
-  figures: readonly WireSymbolReturn[],
-): WireSymbolReturn => {
-  const last = figures.at(-1);
+const mustHaveSent = (frames: readonly ReturnMessage[]): ReturnMessage => {
+  const last = frames.at(-1);
   if (last === undefined)
     throw new Error("the gateway sent no `return` frame for NVDA");
   return last;
@@ -239,11 +270,11 @@ test.use({ viewport: { width: 1440, height: 900 } });
 test("the region draws what the SERVER sent, figure or refusal", async ({
   page,
 }) => {
-  const figures = await openWithRecordedStream(page);
+  const frames = await openWithRecordedStream(page);
   const panel = region(page);
   await expect(panel).toBeVisible();
 
-  const sent = mustHaveSent(figures);
+  const sent = mustHaveSent(frames).return;
 
   // **The one claim here that is not *the page agrees with the frame*.** See
   // `providerFeed`: with no provider configured nothing has ever been
@@ -356,10 +387,90 @@ test("the region draws what the SERVER sent, figure or refusal", async ({
   await expectNothingFailedToRender(page);
 });
 
+test("the volume band draws what the SERVER sent, multiple or refusal", async ({
+  page,
+}) => {
+  // **Story 5.5's visible deliverable, through a pass-through** (Task 5.5.4).
+  // The caveat at the head of this file applies unchanged and harder: a
+  // pass-through proves **fidelity, never correctness**, and a producer broken
+  // into inventing a multiple is drawn exactly as faithfully as a correct one.
+  // What has teeth is the claim grounded OUTSIDE the frame — `iexRows` — and
+  // it is the arm every machine that is not Azure takes.
+  const frames = await openWithRecordedStream(page);
+  const panel = region(page);
+  await expect(panel).toBeVisible();
+
+  const sent = mustHaveSent(frames).volume;
+
+  // **The gateway always says something about the volume.** `null` is the
+  // *this gateway sent no comparison at all* state, which only a browser
+  // holding a bundle across a deploy reaches — a shipped gateway refuses with
+  // a word instead, and a `null` here would mean the producer was never wired.
+  expect(
+    sent,
+    "the gateway sent a `return` frame with no volume comparison on it at all",
+  ).not.toBeNull();
+  if (sent === null) return;
+
+  await expect
+    .poll(async () => (await linesOf(panel)).join(" / "))
+    .toContain("Volume per minute");
+
+  const lines = (await linesOf(panel)).join(" / ");
+  const cost = await baselineCost(page);
+
+  if (sent.measured) {
+    // **The out-of-frame claim.** See `BaselineCost.iexRows`: with no `iex`
+    // row in the window the nightly pass writes no row, so no same-tape
+    // baseline exists and any multiple is fabricated by construction.
+    expect(
+      cost.iexRows ?? 0,
+      "a store with no iex rows holds no same-tape volume baseline, so a drawn IEX multiple is fabricated",
+    ).toBeGreaterThan(0);
+    expect(
+      sent.sampleCount,
+      "a bucket cannot hold more minutes than the window holds iex bars",
+    ).toBeLessThanOrEqual(cost.iexRows ?? 0);
+
+    // **The figure, as a reader meets it.** The `×` is U+00D7 glued to the
+    // digits, the comparand is a word beside it, and there is **no sign** —
+    // which is the discriminator no unit test can see in situ, because the
+    // tinted percentage one band up is on the same screen.
+    expect(lines).toMatch(/\d+\.\d\u00d7 typical/u);
+    expect(lines).not.toMatch(/[+\u2212]\d+\.\d\u00d7/u);
+    // And it names the tape on **both** sides, which is Gate 1 decision 1 on
+    // screen: this baseline is the same venue as its numerator, where the
+    // percentile's is the consolidated tape.
+    expect(lines).toContain("baseline on");
+  } else {
+    // **The arm every gated machine takes, for ever**, and the words are
+    // written out rather than imported for `REFUSAL_SENTENCES`' reason.
+    expect(VOLUME_REFUSAL_SENTENCES[sent.refusal]).toBeTruthy();
+    expect(lines).toContain(VOLUME_REFUSAL_SENTENCES[sent.refusal]);
+    // A refusal has no figure at all: no multiple, no comparand, and no
+    // baseline clause about a baseline that was not used (ADR 0029).
+    expect(lines).not.toContain("×");
+    expect(lines).not.toContain("typical");
+    expect(lines).not.toContain("today excluded");
+  }
+
+  // **And the negative claim with teeth**, which holds whichever arm was
+  // taken: a deployment whose store has no `iex` rows cannot draw a multiple,
+  // so nothing on this page may show one.
+  if ((cost.iexRows ?? 0) === 0) {
+    expect(
+      lines,
+      "this store holds no iex rows, so nothing here may claim a volume multiple",
+    ).not.toContain("×");
+  }
+
+  await expectNothingFailedToRender(page);
+});
+
 test("a region with no frame at all says so, and is exactly as tall", async ({
   page,
 }) => {
-  const figures = await openWithRecordedStream(page);
+  const frames = await openWithRecordedStream(page);
   await expect(region(page)).toBeVisible();
 
   // Settled on a **positive** state before the height is taken: the band has
@@ -369,7 +480,7 @@ test("a region with no frame at all says so, and is exactly as tall", async ({
   await expect
     .poll(async () => (await linesOf(region(page))).length)
     .toBeGreaterThan(1);
-  mustHaveSent(figures);
+  mustHaveSent(frames);
   const drawn = await heightOf(region(page));
 
   // **No socket at all**, which is the only way this page reaches *no frame

@@ -7,7 +7,11 @@ import type {
   WireReturnPercentile,
   WireReturnRefusal,
   WireSymbolReturn,
+  WireVolumeComparison,
+  WireVolumeRate,
 } from "@marketpulse/shared";
+
+import type { SymbolReturnView } from "../../market/index.js";
 
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
 
@@ -54,9 +58,39 @@ const PERCENTILE: WireReturnPercentile = {
  * `draw({ symbolReturn: undefined })` would have drawn the complete state and
  * every honest-nothing assertion would have passed against it.
  */
+/**
+ * **The volume half of a frame about a security with no IEX history** (Task
+ * 5.5.4), which is what every machine that exists today sends: the `iex` tape
+ * is empty wherever no provider is configured, so the nightly pass writes no
+ * row and the second band's shipped state everywhere is this refusal.
+ */
+const NO_VOLUME_HISTORY: WireVolumeComparison = {
+  measured: false,
+  refusal: "no-same-tape-baseline",
+  sampleCount: 0,
+  observed: 5,
+  spanMinutes: 5,
+};
+
+/** Both figures, as one `return` frame carries them. */
+const view = (
+  figure: WireSymbolReturn,
+  volume: WireVolumeComparison | null = NO_VOLUME_HISTORY,
+): SymbolReturnView => ({ symbol: "NVDA", figure, volume });
+
+/**
+ * **The second band's spoken text, which every whole-region assertion below
+ * ends with** (Task 5.5.4) — and it is a constant rather than a string spliced
+ * into each one, because the thing those assertions are for is the
+ * **concatenation a screen reader is handed**, and a band that silently
+ * stopped drawing would otherwise have to be noticed in nine places.
+ */
+const NO_VOLUME_LINES =
+  " / Volume per minute / No IEX volume history for this security";
+
 const DEFAULTS: AbnormalMoveProps = {
   symbol: "NVDA",
-  symbolReturn: { symbol: "NVDA", figure: MEASURED },
+  symbolReturn: view(MEASURED),
 };
 
 const draw = (over: Partial<AbnormalMoveProps> = {}) =>
@@ -182,6 +216,10 @@ describe("AbnormalMove", () => {
         // The region's own sentence takes the terminal stop the in-region
         // absences do not, and it is the **sixth** honest-nothing noun in this
         // product rather than the fifth this story's Design work section says.
+        // **And still one sentence with TWO bands reserved behind it** (Task
+        // 5.5.4): the second band's room is inside the same `aria-hidden` box,
+        // so what a listener is read does not grow when a band is added — the
+        // region says one thing or it says the figures.
         expect(readable(container)).toBe("No return yet.");
       });
     });
@@ -191,11 +229,11 @@ describe("AbnormalMove", () => {
       // so the trailing window never holds an entry and this is what every
       // gated run renders, for ever.
       const { container } = draw({
-        symbolReturn: { symbol: "NVDA", figure: refused("nothing-observed") },
+        symbolReturn: view(refused("nothing-observed")),
       });
 
       expect(readable(container)).toBe(
-        "5-minute return / No bars observed yet",
+        "5-minute return / No bars observed yet" + NO_VOLUME_LINES,
       );
       // And it is NOT state 1: the sentence is the frame's, drawn in the
       // figure's own slot, rather than the region's over held room.
@@ -208,26 +246,21 @@ describe("AbnormalMove", () => {
       // there is no pair* and *we have heard nothing* are a four-word
       // difference in one sentence with identical blank room beneath.
       const { container } = draw({
-        symbolReturn: {
-          symbol: "NVDA",
-          figure: refused("no-earlier-endpoint", SEEN_ONE),
-        },
+        symbolReturn: view(refused("no-earlier-endpoint", SEEN_ONE)),
       });
 
       expect(readable(container)).toBe(
-        "5-minute return / No bar five minutes back / Oct 14 · 14:06 EDT · observed 1 of 5 minutes",
+        "5-minute return / No bar five minutes back / Oct 14 · 14:06 EDT · observed 1 of 5 minutes" +
+          NO_VOLUME_LINES,
       );
     });
 
     it("3 and 4 do not read alike — the assertion, not the eye", () => {
       const { container: three } = draw({
-        symbolReturn: { symbol: "NVDA", figure: refused("nothing-observed") },
+        symbolReturn: view(refused("nothing-observed")),
       });
       const { container: four } = draw({
-        symbolReturn: {
-          symbol: "NVDA",
-          figure: refused("no-earlier-endpoint", SEEN_ONE),
-        },
+        symbolReturn: view(refused("no-earlier-endpoint", SEEN_ONE)),
       });
 
       expect(readable(three)).not.toBe(readable(four));
@@ -248,16 +281,14 @@ describe("AbnormalMove", () => {
       const { container } = draw();
 
       expect(readable(container)).toBe(
-        "5-minute return / up +0.42% / Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / Measured on IEX",
+        "5-minute return / up +0.42% / Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / Measured on IEX" +
+          NO_VOLUME_LINES,
       );
     });
 
     it("6 — the whole span observed, in the same grammar", () => {
       const { container } = draw({
-        symbolReturn: {
-          symbol: "NVDA",
-          figure: { ...MEASURED, observed: 5 },
-        },
+        symbolReturn: view({ ...MEASURED, observed: 5 }),
       });
 
       // `observed 5 of 5 minutes`, never *all five*: a second grammar at the
@@ -275,11 +306,12 @@ describe("AbnormalMove", () => {
       // does not have: a signed figure, the spoken direction, both instants
       // and the tape.
       const { container } = draw({
-        symbolReturn: { symbol: "NVDA", figure: { ...MEASURED, percent: 0 } },
+        symbolReturn: view({ ...MEASURED, percent: 0 }),
       });
 
       expect(readable(container)).toBe(
-        "5-minute return / unchanged 0.00% / Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / Measured on IEX",
+        "5-minute return / unchanged 0.00% / Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / Measured on IEX" +
+          NO_VOLUME_LINES,
       );
       for (const refusal of [
         "No bars observed yet",
@@ -298,18 +330,16 @@ describe("AbnormalMove", () => {
       // minutes, which is what any threshold here would have had to spare —
       // and the one home for *the feed has stopped* is the status bar.
       const { container } = draw({
-        symbolReturn: {
-          symbol: "NVDA",
-          figure: {
-            ...MEASURED,
-            from: { ...MEASURED.from, at: "2026-10-14T17:21:00.000Z" },
-            to: { ...MEASURED.to, at: "2026-10-14T17:26:00.000Z" },
-          },
-        },
+        symbolReturn: view({
+          ...MEASURED,
+          from: { ...MEASURED.from, at: "2026-10-14T17:21:00.000Z" },
+          to: { ...MEASURED.to, at: "2026-10-14T17:26:00.000Z" },
+        }),
       });
 
       expect(readable(container)).toBe(
-        "5-minute return / up +0.42% / Oct 14 · 13:21 EDT → Oct 14 · 13:26 EDT · observed 3 of 5 minutes / Measured on IEX",
+        "5-minute return / up +0.42% / Oct 14 · 13:21 EDT → Oct 14 · 13:26 EDT · observed 3 of 5 minutes / Measured on IEX" +
+          NO_VOLUME_LINES,
       );
       expect(readable(container)).not.toMatch(
         /\b(?:ago|old|stale|behind|late|since)\b/iu,
@@ -331,8 +361,7 @@ describe("AbnormalMove", () => {
 
       for (const figure of states) {
         const { container } = draw({
-          symbolReturn:
-            figure === undefined ? undefined : { symbol: "NVDA", figure },
+          symbolReturn: figure === undefined ? undefined : view(figure),
         });
 
         const spoken = readable(container);
@@ -348,10 +377,7 @@ describe("AbnormalMove", () => {
 
   it("states a word where the figure would be, and never a dash", () => {
     draw({
-      symbolReturn: {
-        symbol: "NVDA",
-        figure: refused("no-earlier-endpoint", SEEN_ONE),
-      },
+      symbolReturn: view(refused("no-earlier-endpoint", SEEN_ONE)),
     });
 
     expect(screen.getByText("No bar five minutes back")).toBeTruthy();
@@ -364,10 +390,7 @@ describe("AbnormalMove", () => {
 
   it("claims no tape on a refusal", () => {
     draw({
-      symbolReturn: {
-        symbol: "NVDA",
-        figure: refused("nothing-observed"),
-      },
+      symbolReturn: view(refused("nothing-observed")),
     });
 
     // ADR 0029: a fully-formed provenance line about no figure is a false
@@ -392,10 +415,7 @@ describe("AbnormalMove", () => {
     // and *we heard, and there is no pair* are different facts — `/` paid for
     // collapsing two of those once already.
     draw({
-      symbolReturn: {
-        symbol: "NVDA",
-        figure: refused("nothing-observed"),
-      },
+      symbolReturn: view(refused("nothing-observed")),
     });
 
     const absent = screen.getByText("No bars observed yet");
@@ -409,7 +429,7 @@ describe("AbnormalMove", () => {
   it("holds the room for a figure about ANOTHER security", () => {
     const { container } = draw({
       symbol: "AMD",
-      symbolReturn: { symbol: "NVDA", figure: MEASURED },
+      symbolReturn: view(MEASURED),
     });
 
     expect(container.textContent).not.toMatch(/0\.42/u);
@@ -430,10 +450,10 @@ describe("AbnormalMove", () => {
   describe("the percentile", () => {
     const ranked = (over: Partial<WireReturnPercentile> = {}) =>
       draw({
-        symbolReturn: {
-          symbol: "NVDA",
-          figure: { ...MEASURED, percentile: { ...PERCENTILE, ...over } },
-        },
+        symbolReturn: view({
+          ...MEASURED,
+          percentile: { ...PERCENTILE, ...over },
+        }),
       });
 
     it("draws beside the figure, with the sample it was taken against", () => {
@@ -446,7 +466,8 @@ describe("AbnormalMove", () => {
         "5-minute return / up +0.42% 99th percentile / " +
           "Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / " +
           "of 4,620 5-minute returns · all times of day pooled / " +
-          "Measured on IEX · baseline on All US exchanges",
+          "Measured on IEX · baseline on All US exchanges" +
+          NO_VOLUME_LINES,
       );
     });
 
@@ -493,15 +514,12 @@ describe("AbnormalMove", () => {
       // function of that instant for ever — including when the page is opened
       // at 11:00, and under a replay.
       const { container } = draw({
-        symbolReturn: {
-          symbol: "NVDA",
-          figure: {
-            ...MEASURED,
-            from: { ...MEASURED.from, at: "2026-10-14T13:38:00.000Z" },
-            to: { ...MEASURED.to, at: "2026-10-14T13:43:00.000Z" },
-            percentile: PERCENTILE,
-          },
-        },
+        symbolReturn: view({
+          ...MEASURED,
+          from: { ...MEASURED.from, at: "2026-10-14T13:38:00.000Z" },
+          to: { ...MEASURED.to, at: "2026-10-14T13:43:00.000Z" },
+          percentile: PERCENTILE,
+        }),
       });
 
       expect(container.textContent).toContain(
@@ -517,43 +535,38 @@ describe("AbnormalMove", () => {
       // figure, the instants, the refusal, and **one** tape — no percentile
       // cell, and no baseline clause for a baseline that was not used.
       const { container } = draw({
-        symbolReturn: {
-          symbol: "NVDA",
-          figure: {
-            ...MEASURED,
-            percentile: {
-              ranked: false,
-              refusal: "too-few-samples",
-              sampleCount: 1240,
-              minimumSampleCount: 2500,
-            },
+        symbolReturn: view({
+          ...MEASURED,
+          percentile: {
+            ranked: false,
+            refusal: "too-few-samples",
+            sampleCount: 1240,
+            minimumSampleCount: 2500,
           },
-        },
+        }),
       });
 
       expect(readable(container)).toBe(
         "5-minute return / up +0.42% / " +
           "Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / " +
           "Baseline too short to rank — 1,240 of 2,500 returns / " +
-          "Measured on IEX",
+          "Measured on IEX" +
+          NO_VOLUME_LINES,
       );
       expect(readable(container)).not.toContain("percentile");
     });
 
     it("draws a DIFFERENT sentence for a price break", () => {
       const { container } = draw({
-        symbolReturn: {
-          symbol: "NVDA",
-          figure: {
-            ...MEASURED,
-            percentile: {
-              ranked: false,
-              refusal: "split-discontinuity",
-              sampleCount: 4620,
-              minimumSampleCount: 2500,
-            },
+        symbolReturn: view({
+          ...MEASURED,
+          percentile: {
+            ranked: false,
+            refusal: "split-discontinuity",
+            sampleCount: 4620,
+            minimumSampleCount: 2500,
           },
-        },
+        }),
       });
 
       expect(container.textContent).toContain(
@@ -568,14 +581,11 @@ describe("AbnormalMove", () => {
       // ordinary*. Both are drawn, and the dash belongs to `PriceChange`
       // rather than to the comparison.
       const { container } = draw({
-        symbolReturn: {
-          symbol: "NVDA",
-          figure: {
-            ...MEASURED,
-            percent: 0,
-            percentile: { ...PERCENTILE, rank: 3 },
-          },
-        },
+        symbolReturn: view({
+          ...MEASURED,
+          percent: 0,
+          percentile: { ...PERCENTILE, rank: 3 },
+        }),
       });
 
       expect(readable(container)).toContain("unchanged 0.00% 3rd percentile");
@@ -591,6 +601,84 @@ describe("AbnormalMove", () => {
       expect(readable(container)).not.toContain("returns");
       expect(readable(container)).not.toContain("baseline");
       expect(readable(container)).not.toMatch(/—|unknown|n\/a|null/iu);
+    });
+  });
+
+  // --- The second band: the volume multiple (Task 5.5.4) ---
+  describe("the volume band", () => {
+    const RATE: WireVolumeRate = {
+      measured: true,
+      ratio: 4.1,
+      sampleCount: 2500,
+      lookbackSessions: 60,
+      bucketMinutes: 5,
+      spanMinutes: 5,
+      feed: "iex",
+    };
+
+    it("draws the multiple, the comparand, the baseline and its own tape", () => {
+      // **The whole region as a screen reader is handed it**, which is what
+      // catches the two defects jsdom can see: a missing space between the
+      // figure and its comparand (`4.1×typical`), and a band drawing the
+      // other band's sentence.
+      const { container } = draw({ symbolReturn: view(MEASURED, RATE) });
+
+      expect(readable(container)).toBe(
+        "5-minute return / up +0.42% / " +
+          "Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / " +
+          "Measured on IEX / " +
+          "Volume per minute / 4.1× typical / " +
+          "last 5 minutes · median minute of 60 sessions · same 5-minute bucket · today excluded / " +
+          "Measured on IEX · baseline on IEX",
+      );
+    });
+
+    it("glues the × to the digits, in ONE element", () => {
+      // The first of the figure's five channels, and the one a second element
+      // would silently break: `4.1` and `×` in two spans is where a
+      // superscript, a smaller suffix or a different ink gets added later.
+      draw({ symbolReturn: view(MEASURED, RATE) });
+
+      expect(screen.getByText("4.1×")).toBeTruthy();
+    });
+
+    it("draws no sign, which is the strongest single discriminator", () => {
+      const { container } = draw({ symbolReturn: view(MEASURED, RATE) });
+      const spoken = readable(container);
+
+      // The return above it carries `+0.42%`; the multiple beside it carries
+      // no sign at all, and a `+4.1×` would be a category error.
+      expect(spoken).toContain("+0.42%");
+      expect(spoken).not.toContain("+4.1");
+    });
+
+    it("says its own refusal, which does not read like the band above's", () => {
+      // The two bands refuse independently and for different reasons, so a
+      // reader meets two sentences rather than one repeated. This pair is the
+      // shipped state of every machine with a store and no provider.
+      const { container } = draw({
+        symbolReturn: view(refused("nothing-observed"), {
+          measured: false,
+          refusal: "no-same-tape-baseline",
+          sampleCount: 0,
+          observed: 0,
+          spanMinutes: 5,
+        }),
+      });
+
+      expect(readable(container)).toBe(
+        "5-minute return / No bars observed yet / " +
+          "Volume per minute / No IEX volume history for this security",
+      );
+    });
+
+    it("draws the label and nothing else where the gateway sent no volume", () => {
+      // A browser holding a bundle across a deploy. ADR 0029's defer rule: we
+      // were not told there is an absence, so there is no sentence to draw.
+      const { container } = draw({ symbolReturn: view(MEASURED, null) });
+
+      expect(readable(container)).toContain("Volume per minute");
+      expect(readable(container)).not.toMatch(/IEX volume|typical|×/u);
     });
   });
 });

@@ -6,6 +6,7 @@ import {
   type WireFeedState,
   type WireMarketOverview,
   type WireSymbolReturn,
+  type WireVolumeComparison,
   feedStatusFrom,
   fromWireObservation,
   worseFeedStatus,
@@ -313,6 +314,17 @@ export interface LiveFeedConnection {
 export interface SymbolReturnView {
   readonly symbol: string;
   readonly figure: WireSymbolReturn;
+  /**
+   * **The volume multiple, or why there is none** (Task 5.5.4) — a sibling of
+   * {@link figure} because the two refuse independently: a window with no bar
+   * exactly five minutes back has no return and may hold all five minutes of
+   * volume.
+   *
+   * `null` is *this gateway sent no comparison at all*, which is a browser
+   * holding a bundle across a deploy — never *we have no baseline*, which is a
+   * refusal with a word on it.
+   */
+  readonly volume: WireVolumeComparison | null;
 }
 
 /** A browser that has been told nothing yet, as of a given monotonic instant. */
@@ -521,7 +533,11 @@ export function advanceLiveFeed(
         // navigation is briefly the previous security.
         symbolReturn:
           event.message.type === "return"
-            ? { symbol: event.message.symbol, figure: event.message.return }
+            ? {
+                symbol: event.message.symbol,
+                figure: event.message.return,
+                volume: event.message.volume,
+              }
             : state.symbolReturn,
         observations: withObservations(state.observations, bars),
         // **A snapshot sets the baseline; a bar changes it.** A `bars` message

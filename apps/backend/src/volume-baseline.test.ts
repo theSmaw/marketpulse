@@ -11,6 +11,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  VOLUME_REFUSALS,
   marketSessionOn,
   toMarketDate,
   type MarketSession,
@@ -20,7 +21,6 @@ import { SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
 import {
   TARGET_RELATIVE_STANDARD_ERROR,
   VOLUME_BASELINE_FEED,
-  VOLUME_BASELINE_REFUSALS,
   comparableVolumeBaseline,
   medianRelativeStandardError,
   samplesForRelativeStandardError,
@@ -313,7 +313,7 @@ describe("the floor, derived rather than chosen", () => {
 
 describe("the four refusal words this task produces", () => {
   it("declares all SIX, so the drawing story cannot collapse two of them", () => {
-    expect([...VOLUME_BASELINE_REFUSALS]).toEqual([
+    expect([...VOLUME_REFUSALS]).toEqual([
       "split-discontinuity",
       "too-few-sessions",
       "no-same-tape-baseline",
@@ -323,8 +323,8 @@ describe("the four refusal words this task produces", () => {
     ]);
     // The two this task declares and does not produce are the numerator's, and
     // `volume-baseline.ts` records which pairs would read alike if collapsed.
-    expect(VOLUME_BASELINE_REFUSALS).toContain("no-bar-in-bucket");
-    expect(VOLUME_BASELINE_REFUSALS).toContain("bucket-partially-observed");
+    expect(VOLUME_REFUSALS).toContain("no-bar-in-bucket");
+    expect(VOLUME_REFUSALS).toContain("bucket-partially-observed");
   });
 
   it("says `no-same-tape-baseline` for an absent row — NOT `too-few-sessions`", () => {

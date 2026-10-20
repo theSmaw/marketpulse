@@ -7169,6 +7169,80 @@ const INVARIANTS = [
     },
   },
   {
+    id: "one-home-for-the-multiple-glyph",
+    claim:
+      "The `×` that makes a figure a MULTIPLE is written in exactly one " +
+      "shipped file — `apps/frontend/src/market/volume-ratio.ts` — so there " +
+      "is one answer to how this product draws one.",
+    check() {
+      // **No other figure in this product ends in `×`** (Task 5.5.4), and
+      // that is the whole of the glyph's value: it is the channel that says
+      // *this is a ratio and not a percentage*, on a screen where a tinted
+      // `+0.42%` sits twenty pixels above it. A second speller is where the
+      // superscript, the smaller suffix, the lowercase `x` and the `+4.1×`
+      // get written — none of which any test, screenshot or axe run can see,
+      // because each surface is correct about itself.
+      //
+      // ## The naive draft passed WRONGLY on the plant, and here is the
+      // ## transcript
+      //
+      // The obvious check is *`formatMultiple` is declared exactly once, in
+      // the home*. Run against `apps/frontend/src/market/composite-score.ts`
+      // — the file Story 5.6 plausibly writes, with
+      // `` `${ratio.toFixed(1)}× normal` `` in it and no import at all — it
+      // reported, on 2026-10-20:
+      //
+      //     66 invariants hold.
+      //
+      // It is about an **identifier**, and the defect is an author who never
+      // reaches for the identifier: Task 4.9.10's lesson, arriving for the
+      // fourth time in this epic. The shipped clause is the **glyph**, which
+      // a re-implementer cannot avoid writing — `4.1x` is the other defect
+      // and is not this one.
+      //
+      // ## Read through `withoutComments`, and the corpus is the trees
+      //
+      // Four shipped files discuss this figure in prose and two unrelated
+      // ones use `×` as a dimension (`36×36`, `212× under-estimate`), all in
+      // comments — a check a comment can trip is a check nobody can keep
+      // green. The corpus is `shippedSourceFiles()` rather than a file list,
+      // for `one-home-for-imperative-navigation`'s reason: **a new region is
+      // a new file by this repository's convention**, so the plant above sits
+      // in it by existing.
+      const HOME = "apps/frontend/src/market/volume-ratio.ts";
+
+      const spellers = shippedSourceFiles()
+        .filter(({ text }) => text.includes("×"))
+        .map(({ path }) => relative(REPO_ROOT, path));
+
+      // **No match is a failure.** A grep whose anchor has moved returns
+      // nothing and reads exactly like a pass — and this one's subject is
+      // three template literals in one function.
+      if (!spellers.includes(HOME)) {
+        throw new InvariantFailure(
+          `${HOME} no longer draws the multiple's ×, and it is this ` +
+            "check's anchor. Either the figure moved — in which case move " +
+            "this anchor with it — or it stopped being drawn at all.\n      " +
+            `Found: ${spellers.join(", ") || "nothing at all"}`,
+        );
+      }
+
+      if (spellers.length !== 1) {
+        throw new InvariantFailure(
+          `${String(spellers.length)} shipped files draw a ×, expected ` +
+            "exactly 1:\n      " +
+            spellers.join("\n      ") +
+            "\n    A second home for the glyph is a second answer to *how " +
+            "does this product draw a multiple* — and the five channels that " +
+            "tell one from a percentage are decided together: the glyph " +
+            "glued to the digits at the same size and weight, no sign ever, " +
+            "one decimal always, the comparand as a word beside it, and " +
+            "untinted ink. Call `formatMultiple` rather than spelling one.",
+        );
+      }
+    },
+  },
+  {
     id: "one-home-for-the-observation-window",
     claim:
       "The observation window has one producer home — " +

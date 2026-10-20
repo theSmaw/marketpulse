@@ -358,6 +358,43 @@ topology` or `Unusual activity`, whose neighbours are figures rather than
 > **not** a fixed box: the height still tracks the viewport, so `1392 × 161` is
 > 1392 × 119 at a 680 px viewport and 1392 × 123 at 700.
 
+> **Fired a THIRD time on 2026-10-20 by Task 5.5.4, back on the other route,
+> and it is the first firing under the SECOND half of the widened wording** —
+> a region holding figures moved without anything being filled.
+>
+> `Abnormal-move indicators` gained its second band, the volume multiple, which
+> is Story 5.5's Gate 1 decision 3: a third cell on the return's own row costs
+> **0 px** and was measured to fit with 23 px of slack at 390, and is wrong
+> anyway, because `▲ +0.42%  99th percentile  4.1× typical` under one label
+> reading `5-MINUTE RETURN` asserts that the **return** is 4.1× typical.
+>
+> **Measured per width after the change, never the derivation.** The task file
+> derived **+118 px, region 142 → 260**; the probed figure is
+> **142 → 256 px, +114, uniform at all four widths** (`pnpm probe
+/securities/NVDA --within "Abnormal-move indicators"`, 2026-10-20) — the band
+> itself 102 px plus a 12 px separator. The derivation was right about the
+> mechanism and wrong by 4 px, which is this section's **fourth** such entry
+> after 383 → 433 → 461 and the +127.
+>
+> **One height in every state, at every width, measured across twelve states**
+> — the eleven the producer can reach plus the held room — at the rail's own
+> four content widths (419 / 446 / 318 / 308, reached through
+> `pnpm probe --story … --viewports 485x900,512x900,384x900,374x900`, because
+> the story box at 374 is the rail's 308). **Two states were 282 px when first
+> measured and both were sentences, not geometry**: `Baseline too short to
+compare — 80 minutes of this time of day` (62 characters) and `History crosses
+an unadjusted price break — shares not comparable` (65) each wrapped to a
+> second line inside a reserved single metric line box. Shortened and
+> re-probed: 256 everywhere. The budget — **58 characters fit at 308 px and 62
+> do not** — is recorded in `volume-ratio.ts` beside the sentences it binds.
+>
+> **What moved below it**: the region sits in a column of three, so
+> `Relative performance` and `Anomaly history` move down 114 px once, at the
+> release, and nothing moves under a reader mid-session. The owner's rule from
+> Task 5.2.3 is being paid as it was written — _the accepted cost is one step
+> per story that adds a band_, and this is the second of the three (5.3 added a
+> cell rather than a band; 5.6's score is the last).
+
 ### 1.5 A region is a tab stop unconditionally
 
 [ADR 0039](../../docs/adr/0039-a-region-is-a-tab-stop-unconditionally.md), Task
